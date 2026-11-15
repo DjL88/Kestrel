@@ -17,6 +17,22 @@ Tags are suggestions the user can edit. They never change a photo. The app works
 Not stated by the sources, so unknown until tried: BioCLIP's weight file size, any official ONNX export, speed in a browser.
 My estimate, to verify: a ViT-B image encoder is roughly 330 MB at full precision and roughly 85 to 90 MB at int8.
 
+## Measured (15 Nov 2026)
+
+The BioCLIP image encoder (ViT-B/16, MIT) was exported to ONNX on a laptop and shrunk. Nothing was added to the app.
+
+| Version | Size | Time per photo (laptop CPU, Python) | Notes |
+| --- | --- | --- | --- |
+| Full precision | 345 MB | about 165 ms | Reference. |
+| int8 (matrix layers only) | **89 MB** | about 120 ms | The one to use. |
+| Half precision | 173 MB | about 200 ms | Produced invalid numbers (NaN), so rejected. |
+
+- **int8 must leave the first (image patch) layer alone.** Quantising everything turns it into a `ConvInteger` operation that neither the desktop runtime nor the browser runtime supports. Quantising only the `MatMul` and `Gemm` layers works and holds nearly all the weight.
+- **Names, not a text model, ship with the app.** The text half is run once, offline, to make one 512-number vector per species name. 50 names is about 100 KB, so a few hundred is well under 1 MB.
+- **Quick accuracy check:** 16 photos of common UK species (an encyclopedia lead image each) against 50 candidate names including look-alikes (red kite and black kite, buzzard and rough-legged buzzard, several owls and tits). Full precision and int8 both got 16 of 16 first-choice right with each of three name styles, and int8 matched full precision on all 16.
+- **How much to trust that:** not very far. These are clean, typical pictures that may well have been in the training data. Photos of small birds in flight, at a distance, or half hidden will be harder. The real test is the user's own photos, and a wrong first choice should always be easy to correct.
+- **Speed and size were measured on a laptop in Python.** Browser (WebAssembly) and phone speed are not measured yet. 89 MB is a one-off download, kept for offline use.
+
 ## Design this points to
 
 1. **Image encoder only on the device.** Text names are turned into vectors once, ahead of time, and shipped as a small file
@@ -30,7 +46,7 @@ My estimate, to verify: a ViT-B image encoder is roughly 330 MB at full precisio
 5. **Same pipeline as the subject detector.** Lazy import, one retry, friendly failure message, runs off the main thread.
 6. **Optional hidden helper later.** A server-side adapter (any provider) can fill gaps. The app never depends on it.
 
-## Spike steps still to do
+## Spike steps still to do (steps 1 to 2 and part of 4 are done, see Measured)
 
 1. Export BioCLIP's image encoder to ONNX (opset 17 or higher) and quantise to int8. Record file size.
 2. Build the name list and its text vectors once, offline, with the original model.
