@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openExportDialog } from './helpers';
 
 test('export wizard: platform, size, position, then export', async ({ page }) => {
   await page.goto('/');
@@ -11,8 +12,7 @@ test('export wizard: platform, size, position, then export', async ({ page }) =>
     return canvas.toDataURL('image/png').split(',')[1];
   });
   await page.getByTestId('quick-edit-input').setInputFiles({ name: 'wiz.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
-  await page.getByRole('tab', { name: 'Export' }).click();
-  await page.getByRole('button', { name: 'Choose formats and export…' }).click();
+  await openExportDialog(page);
 
   // 1. Where to. Nothing can be skipped to before a place is chosen.
   const steps = page.getByRole('list', { name: 'Export steps' });

@@ -63,3 +63,20 @@ test('rating filter is one row of stars: tap sets, tap again clears, the symbol 
   await page.getByRole('button', { name: 'Exactly 3 stars' }).click();
   await expect(page.getByRole('button', { name: 'Exactly 3 stars' })).toHaveAttribute('aria-pressed', 'false');
 });
+
+test('editor: Export is a header button on desktop and a tab on phones, and tabs stack icon over label', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('quick-edit-input').setInputFiles({
+    name: 'f.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
+  });
+  await page.getByRole('tab', { name: 'Crop' }).waitFor();
+  const phone = page.viewportSize()!.width < 768;
+  await expect(page.getByRole('tab', { name: 'Export' })).toHaveCount(phone ? 1 : 0);
+  await expect(page.getByRole('button', { name: 'Export', exact: true })).toHaveCount(phone ? 0 : 1);
+  const tab = (await page.getByRole('tab', { name: 'Crop' }).boundingBox())!;
+  const icon = (await page.getByRole('tab', { name: 'Crop' }).locator('svg').boundingBox())!;
+  const label = (await page.getByRole('tab', { name: 'Crop' }).locator('span').boundingBox())!;
+  expect(icon.y + icon.height, 'icon sits above the label').toBeLessThanOrEqual(label.y + 1);
+  expect(tab.height).toBeGreaterThanOrEqual(48);
+});
