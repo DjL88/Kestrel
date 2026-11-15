@@ -140,7 +140,7 @@ export const CULL_COMMANDS: CommandDefinition[] = [
 ];
 
 /**
- * Planned Edit mode bindings for Slice 2 (configurable now on the SinLoon profile).
+ * Edit mode bindings shared by the keyboard and the SinLoon profile.
  */
 export const EDIT_COMMANDS: CommandDefinition[] = [
   {
@@ -157,7 +157,7 @@ export const EDIT_COMMANDS: CommandDefinition[] = [
     mode: 'edit',
     label: 'Paste Edit',
     shortLabel: 'Paste',
-    description: 'Paste copied recipe onto selected keepers',
+    description: 'Paste copied adjustments onto the active photo',
     padSlot: 'K2',
     allowRepeat: false,
   },
@@ -166,16 +166,16 @@ export const EDIT_COMMANDS: CommandDefinition[] = [
     mode: 'edit',
     label: 'Before / After',
     shortLabel: 'Compare',
-    description: 'Hold or toggle original vs edited preview',
+    description: 'Toggle the original and edited wipe',
     padSlot: 'K3',
     allowRepeat: false,
   },
   {
     id: 'edit.wbNeutral',
     mode: 'edit',
-    label: 'Neutral WB',
-    shortLabel: 'Auto WB',
-    description: 'Apply neutral colour-blind-safe white balance',
+    label: 'Reset Warmth',
+    shortLabel: 'Warmth 0',
+    description: 'Reset the Warmth adjustment to neutral',
     padSlot: 'K4',
     allowRepeat: false,
   },
@@ -193,7 +193,7 @@ export const EDIT_COMMANDS: CommandDefinition[] = [
     mode: 'edit',
     label: 'Cycle Adjustment',
     shortLabel: 'Cycle',
-    description: 'Cycle active knob parameter (Exposure / Contrast / Crop)',
+    description: 'Cycle the dial between Light, Warmth and Colour',
     padSlot: 'K6',
     allowRepeat: false,
   },
@@ -236,7 +236,7 @@ export const DEFAULT_KEY_BINDINGS: KeyBindingsMap = {
   'edit.beforeAfter': 'Backslash',
   'edit.wbNeutral': 'KeyW',
   'edit.reset': 'KeyR',
-  'edit.prevControl': 'Tab',
+  'edit.prevControl': 'KeyQ',
   'edit.knobCcw': 'Minus',
   'edit.knobCw': 'Equal',
 };

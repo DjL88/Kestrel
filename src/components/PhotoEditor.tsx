@@ -1,17 +1,24 @@
 import { ChevronDown } from 'lucide-react';
-import { DEFAULT_FRAMING, detailAnchor, drawFramedPhoto, type PhotoFraming } from '../core/photoFraming';
+import { DEFAULT_FRAMING, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, thirdsCropAnchor, type PhotoFraming } from '../core/photoFraming';
+import { PhotoExportPanel } from './PhotoExportPanel';
+import { downloadExport } from '../providers/browserExport';
 import { PhotoViewport } from './PhotoViewport';
-import { useEffect, useRef, useState } from 'react';
-import { DEFAULT_EDIT, EDIT_CHOICES, applyPhotoEdit, isNeutralEdit, type PhotoEdit } from '../core/photoEdits';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { DEFAULT_EDIT, EDIT_CHOICES, applyCanvasPhotoEdit, isNeutralEdit, type PhotoEdit } from '../core/photoEdits';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 
-const MAX_EDGE = 3200;
+import { FIT_VIEW } from '../core/viewportTransform';
+import { resolveKeyboardCommand, type KeyBindingsMap } from '../core/keyboardCommands';
+import { visiblePhotoDetail } from '../core/visiblePhotoDetail';
+
+const FIT_PREVIEW_EDGE = 2200;
 
 interface Props {
   frame: PhotoFrame;
   provider: BrowserPreviewProvider;
   needsAccess: boolean;
+  bindings: KeyBindingsMap;
   onEdit: (edit: PhotoEdit) => void;
   copiedEdit: PhotoEdit | null;
   onCopyEdit: (edit: PhotoEdit) => void;
@@ -29,24 +36,34 @@ interface Props {
 }
 
 export function PhotoEditor({
-  frame, provider, needsAccess, onEdit, copiedEdit, onCopyEdit, keeperCount,
+  frame, provider, needsAccess, bindings, onEdit, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onSubjectsChange, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange,
   panelSide, onPanelSideChange, showFilmstrip, onToggleFilmstrip,
 }: Props) {
   const originalCanvas = useRef<HTMLCanvasElement>(null);
   const editedCanvas = useRef<HTMLCanvasElement>(null);
-  const sourceCanvas = useRef<HTMLCanvasElement | null>(null);
-  const originalPixels = useRef<ImageData | null>(null);
+  const sourceImage = useRef<HTMLImageElement | null>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const originalDetail = useRef<HTMLCanvasElement>(null);
+  const editedDetail = useRef<HTMLCanvasElement>(null);
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  const [showDetail, setShowDetail] = useState(false);
   const [sourceState, setSourceState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [compare, setCompare] = useState(false);
-  const [manual, setManual] = useState(false);
+  const [dial, setDial] = useState(0);
+  const [dialUsed, setDialUsed] = useState(false);
+  const [quickChoices, setQuickChoices] = useState(false);
+  const [cropOpen, setCropOpen] = useState(false);
+  const [previewCrop, setPreviewCrop] = useState(false);
+  const [gridLines, setGridLines] = useState(true);
+  const [cropNotice, setCropNotice] = useState('');
+  const cropDrag = useRef<{ x: number; y: number; anchorX: number; anchorY: number } | null>(null);
   const [transform, setTransform] = useState({ zoom: 1, pan: { x: 0, y: 0 } });
-  const [exporting, setExporting] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [subjectInput, setSubjectInput] = useState(() => frame.subjectNames?.join(', ') ?? '');
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [confirmApply, setConfirmApply] = useState(false);
   const [editNotice, setEditNotice] = useState('');
-  const [exportError, setExportError] = useState(false);
   const edit = frame.edit ?? DEFAULT_EDIT;
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const isRaw = /\.(nef|nrw)$/i.test(frame.filename) && !frame.isDemo;
@@ -55,8 +72,7 @@ export function PhotoEditor({
     let active = true;
     const image = new Image();
     setSourceState('loading');
-    originalPixels.current = null;
-    sourceCanvas.current = null;
+    sourceImage.current = null;
 
     async function load() {
       const url = await provider.getFullPreviewUrl(frame);
@@ -66,14 +82,7 @@ export function PhotoEditor({
       await image.decode();
       if (!active) return;
 
-      const canvas = document.createElement('canvas');
-      const scale = Math.min(1, MAX_EDGE / Math.max(image.naturalWidth, image.naturalHeight));
-      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-      const context = canvas.getContext('2d', { willReadFrequently: true });
-      if (!context) throw new Error('Canvas unavailable');
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      sourceCanvas.current = canvas;
+      sourceImage.current = image;
       setSourceState('ready');
     }
 
@@ -85,73 +94,172 @@ export function PhotoEditor({
   }, [frame.id, provider, needsAccess]);
 
   useEffect(() => {
-    const source = sourceCanvas.current;
-    const original = originalCanvas.current;
-    if (!source || !original || sourceState !== 'ready') return;
-    drawFramedPhoto(source, original, framing);
-    originalPixels.current = original.getContext('2d')!.getImageData(0, 0, original.width, original.height);
-  }, [framing, sourceState]);
+    const node = stage.current;
+    if (!node) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setViewport({ width: entry.contentRect.width, height: entry.contentRect.height });
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
-  function createCropCopy() {
-    const source = sourceCanvas.current;
-    if (!source) return;
-    const small = document.createElement('canvas');
-    small.width = 64;
-    small.height = 64;
-    const context = small.getContext('2d');
-    if (!context) return;
-    context.translate(32, 32);
-    context.rotate(framing.turns * Math.PI / 2);
-    context.drawImage(source, -32, -32, 64, 64);
-    const anchor = detailAnchor(context.getImageData(0, 0, 64, 64).data, 64, 64);
-    const portrait = (framing.turns % 2 ? source.width : source.height) > (framing.turns % 2 ? source.height : source.width);
-    onCreateVirtualCopy({ ...framing, ...anchor, ratio: portrait ? 4 / 5 : 5 / 4 });
-  }
+  const source = sourceState === 'ready' ? sourceImage.current : null;
+  const guide = cropOpen && !previewCrop;
+  const ratio = guide ? null : framing.ratio;
+  const anchorX = guide ? 0.5 : framing.x;
+  const anchorY = guide ? 0.5 : framing.y;
+  const displayFraming = useMemo(() => ({
+    ratio, x: anchorX, y: anchorY, turns: framing.turns, straighten: framing.straighten,
+  }), [ratio, anchorX, anchorY, framing.turns, framing.straighten]);
+  const displayCompare = compare && !guide && sourceState === 'ready';
+  const outputSize = source ? framedSize(source.naturalWidth, source.naturalHeight, framing) : null;
+  const size = source ? framedSize(source.naturalWidth, source.naturalHeight, displayFraming) : null;
+  const fit = size ? Math.min(viewport.width / size.width, viewport.height / size.height) : 0;
+  const position = size && fit ? {
+    left: (viewport.width - size.width * fit) / 2, top: (viewport.height - size.height * fit) / 2,
+    width: size.width * fit, height: size.height * fit,
+  } : undefined;
+  const cropRect = guide && outputSize && position ? {
+    left: position.left + outputSize.x * fit, top: position.top + outputSize.y * fit,
+    width: outputSize.width * fit, height: outputSize.height * fit,
+  } : null;
+  const detail = size ? visiblePhotoDetail(size.width, size.height, viewport.width, viewport.height, transform) : null;
 
   useEffect(() => {
-    const pixels = originalPixels.current;
     const canvas = editedCanvas.current;
-    if (sourceState !== 'ready' || !pixels || !canvas) return;
-    if (canvas.width !== pixels.width) canvas.width = pixels.width;
-    if (canvas.height !== pixels.height) canvas.height = pixels.height;
-    const context = canvas.getContext('2d')!;
-    const output = new ImageData(new Uint8ClampedArray(pixels.data), pixels.width, pixels.height);
-    applyPhotoEdit(output.data, edit);
-    context.putImageData(output, 0, 0);
-  }, [edit, framing, sourceState]);
+    if (!source || !size || !canvas) return;
+    const scale = Math.min(1, FIT_PREVIEW_EDGE / Math.max(size.width, size.height));
+    drawFramedPhoto(source, canvas, displayFraming, { scale });
+    applyCanvasPhotoEdit(canvas, edit);
+  }, [source, displayFraming, edit, size?.width, size?.height]);
 
-  function download() {
-    const canvas = editedCanvas.current;
-    if (!canvas || sourceState !== 'ready') return;
-    setExporting(true);
-    setExportError(false);
-    canvas.toBlob((blob) => {
-      setExporting(false);
-      if (!blob) {
-        setExportError(true);
-        return;
+  useEffect(() => {
+    if (!displayCompare || !source || !size || !originalCanvas.current) return;
+    const scale = Math.min(1, FIT_PREVIEW_EDGE / Math.max(size.width, size.height));
+    drawFramedPhoto(source, originalCanvas.current, displayFraming, { scale });
+  }, [source, displayFraming, displayCompare, size?.width, size?.height]);
+
+  useEffect(() => {
+    setShowDetail(false);
+    if (!source || !detail) return;
+    const timer = window.setTimeout(() => {
+      if (!editedDetail.current) return;
+      const { region } = detail;
+      const scale = Math.min(1, detail.scale * window.devicePixelRatio, Math.sqrt(5_000_000 / (region.width * region.height)));
+      if (scale <= 0) return;
+      drawFramedPhoto(source, editedDetail.current, displayFraming, { region, scale });
+      applyCanvasPhotoEdit(editedDetail.current, edit);
+      if (displayCompare && originalDetail.current) {
+        drawFramedPhoto(source, originalDetail.current, displayFraming, { region, scale });
       }
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${frame.filename.replace(/\.[^.]+$/, '')}-${isRaw ? 'preview-' : ''}kestrel.jpg`;
-      link.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 30000);
-    }, 'image/jpeg', 0.95);
+      setShowDetail(true);
+    }, 110);
+    return () => window.clearTimeout(timer);
+  }, [source, displayFraming, edit, displayCompare, transform, viewport]);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.defaultPrevented || exportOpen || !source || event.key === 'Tab') return;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (target?.isContentEditable || target?.closest('textarea, select, input:not([type="range"])')) return;
+      const command = resolveKeyboardCommand({ event, bindings, activeMode: 'edit', isSuppressed: false });
+      if (!command) return;
+      event.preventDefault();
+      const { key } = EDIT_CHOICES[dial];
+      switch (command.id) {
+        case 'edit.copy': onCopyEdit(edit); setEditNotice('Adjustments copied'); break;
+        case 'edit.paste': if (copiedEdit) onEdit(copiedEdit); break;
+        case 'edit.reset': onEdit(DEFAULT_EDIT); break;
+        case 'edit.beforeAfter': if (!guide) setCompare((value) => !value); break;
+        case 'edit.wbNeutral': onEdit({ ...edit, warmth: 0 }); break;
+        case 'edit.prevControl':
+          setDialUsed(true);
+          setDial((index) => (index + 1) % EDIT_CHOICES.length);
+          break;
+        case 'edit.knobCcw':
+        case 'edit.knobCw': {
+          setDialUsed(true);
+          const step = command.id === 'edit.knobCw' ? 0.1 : -0.1;
+          const value = Math.max(-2, Math.min(2, Math.round((edit[key] + step) * 10) / 10));
+          onEdit({ ...edit, [key]: value });
+          break;
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [bindings, copiedEdit, dial, edit, exportOpen, guide, onCopyEdit, onEdit, source]);
+
+  function sampleOrientedSource() {
+    if (!source) return null;
+    const canvas = document.createElement('canvas');
+    const oriented = { ...DEFAULT_FRAMING, turns: framing.turns };
+    drawFramedPhoto(source, canvas, oriented, { scale: Math.min(1, 112 / Math.max(source.naturalWidth, source.naturalHeight)) });
+    return canvas.getContext('2d')?.getImageData(0, 0, canvas.width, canvas.height);
+  }
+
+  function createCropCopy() {
+    const sample = sampleOrientedSource();
+    if (!sample) return;
+    const detail = detailAnchor(sample.data, sample.width, sample.height);
+    const ratio = framing.ratio ?? (sample.height > sample.width ? 4 / 5 : 5 / 4);
+    const anchor = thirdsCropAnchor(sample.width, sample.height, ratio, detail);
+    onCreateVirtualCopy({ ...framing, ...anchor, ratio });
+  }
+
+  function autoLevel() {
+    const sample = sampleOrientedSource();
+    if (!sample) return;
+    const correction = estimateLevel(sample.data, sample.width, sample.height);
+    if (correction === null) {
+      setCropNotice('No clear horizon or level line found.');
+      return;
+    }
+    onFramingChange({ ...framing, straighten: correction });
+    setCropNotice(correction ? `Straightened by ${correction}°` : 'The detected line is already level.');
   }
 
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
   return (
     <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-[#0B0C0E] lg:flex-row">
-      <div className="relative flex min-h-0 flex-1 bg-black">
+      <div ref={stage} className="relative flex min-h-0 flex-1 bg-black">
         <PhotoViewport zoom={transform.zoom} pan={transform.pan}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
-          overlayMode={compare && sourceState === 'ready' ? 'wipe' : 'hidden'}
+          overlayMode={displayCompare ? 'wipe' : 'hidden'}
           labels={['Original', 'Edited']}
-          base={<canvas ref={editedCanvas} aria-label="Edited photo" role="img"
-            hidden={sourceState !== 'ready'} className="absolute inset-0 h-full w-full object-contain" />}
-          overlay={<canvas ref={originalCanvas} aria-label="Original photo" role="img"
-            className="absolute inset-0 h-full w-full object-contain" />}
+          base={<>
+            <canvas ref={editedCanvas} aria-label="Edited photo" role="img"
+              hidden={sourceState !== 'ready'} className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />
+            {detail && <canvas ref={editedDetail} aria-hidden="true" hidden={!showDetail}
+              className="absolute" style={detail.style} />}
+            {cropRect && <div aria-hidden="true" style={cropRect}
+              className={`crop-guide absolute border border-white/90 ${gridLines ? 'crop-thirds' : ''} ${framing.ratio ? 'cursor-move' : 'pointer-events-none'}`}
+              onPointerDown={(event) => {
+                if (!framing.ratio) return;
+                event.stopPropagation();
+                event.currentTarget.setPointerCapture(event.pointerId);
+                cropDrag.current = { x: event.clientX, y: event.clientY, anchorX: framing.x, anchorY: framing.y };
+              }}
+              onPointerMove={(event) => {
+                if (!cropDrag.current || !size || !fit) return;
+                const base = cropDrag.current;
+                const bound = (value: number) => Math.max(0, Math.min(1, value));
+                onFramingChange({
+                  ...framing,
+                  x: bound(base.anchorX + (event.clientX - base.x) / (size.width * fit * transform.zoom)),
+                  y: bound(base.anchorY + (event.clientY - base.y) / (size.height * fit * transform.zoom)),
+                });
+              }}
+              onLostPointerCapture={() => { cropDrag.current = null; }}
+              onDoubleClick={(event) => event.stopPropagation()}
+            />}
+          </>}
+          overlay={<>
+            <canvas ref={originalCanvas} aria-label="Original photo" role="img"
+              className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />
+            {detail && displayCompare && <canvas ref={originalDetail} aria-hidden="true" hidden={!showDetail}
+              className="absolute" style={detail.style} />}
+          </>}
         />
         {sourceState !== 'ready' && (
           <p role="status" className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-zinc-300">
@@ -161,57 +269,66 @@ export function PhotoEditor({
       </div>
       <div className={`max-h-[44%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-[#14161A] p-3 lg:max-h-none lg:w-72 lg:border-t-0 lg:p-4 ${panelSide === 'left' ? 'lg:order-first lg:border-r' : 'lg:border-l'}`}>
         <div className="flex flex-wrap justify-between gap-2">
-          <button type="button" className={button} aria-pressed={compare} disabled={sourceState !== 'ready'} onClick={() => setCompare(!compare)}>
+          <button type="button" className={button} aria-pressed={displayCompare} disabled={sourceState !== 'ready' || guide} onClick={() => setCompare(!compare)}>
             Before / after
           </button>
-          <button type="button" className={`${button} bg-sky-200 font-semibold !text-zinc-950 hover:bg-sky-100`} disabled={sourceState !== 'ready' || exporting} onClick={download}>
-            {exporting ? 'Exporting…' : isRaw ? 'Export preview JPEG' : 'Export JPEG'}
+          <button type="button" className={`${button} bg-sky-200 font-semibold !text-zinc-950 hover:bg-sky-100`}
+            disabled={sourceState !== 'ready'} onClick={() => setExportOpen(true)}>
+            Export
           </button>
         </div>
         {isRaw && <p className="text-xs text-zinc-300">Editing embedded JPEG preview</p>}
-        <button type="button" aria-expanded={manual} className={button} onClick={() => setManual(!manual)}>{manual ? 'Hide sliders' : 'Manual sliders'}</button>
-        {exportError && <p role="alert" className="text-sm text-orange-200">Couldn’t create the JPEG. Try exporting again.</p>}
-        {EDIT_CHOICES.map(({ key, label, options }) => (
-          <fieldset key={key} disabled={sourceState !== 'ready'} className="min-w-0 rounded-md bg-white/4 disabled:opacity-50">
-            <legend className="ml-2 px-1 text-xs font-medium text-zinc-300">{label}</legend>
-            <div className="grid grid-cols-3 gap-1">
-              {options.map((name, index) => (
-                <button
-                  type="button"
-                  key={name}
-                  aria-pressed={edit[key] === index - 1}
-                  onClick={() => {
-                    onEdit({ ...edit, [key]: index - 1 });
-  
-                  }}
-                  className={`${button} px-1 text-xs aria-pressed:bg-sky-300/15 aria-pressed:text-sky-200`}
-                >{name}</button>
-              ))}
-            </div>
-            {manual && (
-              <label className="flex min-h-10 items-center gap-2 px-2 pb-1">
-                <span className="sr-only">{label} adjustment</span>
-                <input type="range" min={-2} max={2} step={0.1} value={edit[key]}
+        <div className="space-y-2 px-1 py-2">
+          {EDIT_CHOICES.map(({ key, label, options }, index) => (
+            <fieldset key={key} disabled={sourceState !== 'ready'} className="min-w-0 disabled:opacity-45">
+              <label className="block">
+                <span className="flex items-center justify-between text-xs text-zinc-300">
+                  <span>{label}{dialUsed && dial === index && <span className="ml-2 text-sky-200">Dial</span>}</span>
+                  <output className="tabular-nums text-zinc-400">{key === 'exposure' ? `${(edit[key] * 0.4).toFixed(2)} EV` :
+                    `${Math.round(edit[key] * (key === 'warmth' ? 8 : 20))}%`}</output>
+                </span>
+                <input type="range" min={-2} max={2} step={0.1} value={edit[key]} aria-label={`${label} adjustment`}
+                  onFocus={() => setDial(index)}
                   onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
-                  className="min-w-0 flex-1 accent-sky-300" />
-                <output className="min-w-10 text-right text-xs tabular-nums text-zinc-300">
-                  {key === 'exposure' ? `${(edit[key] * 0.4).toFixed(2)} EV` :
-                    `${Math.round(edit[key] * (key === 'warmth' ? 8 : 20))}%`}
-                </output>
+                  onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
+                  className="block min-h-9 w-full accent-sky-300 lg:min-h-7" />
               </label>
-            )}
-          </fieldset>
-        ))}
-        <details className="border-t border-white/10">
+              {quickChoices && <div className="flex gap-1">
+                {options.map((name, index) => (
+                  <button type="button" key={name} aria-pressed={edit[key] === index - 1}
+                    onClick={() => onEdit({ ...edit, [key]: index - 1 })}
+                    className="min-h-11 rounded px-2 text-xs hover:bg-white/8 aria-pressed:bg-sky-300/15 lg:min-h-7">{name}</button>
+                ))}
+              </div>}
+            </fieldset>
+          ))}
+          <button type="button" aria-expanded={quickChoices} onClick={() => setQuickChoices(!quickChoices)}
+            className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white lg:min-h-7">Quick choices</button>
+        </div>
+        <details className="border-t border-white/10"
+          onToggle={(event) => {
+            setCropOpen(event.currentTarget.open);
+            setPreviewCrop(false);
+            setTransform(FIT_VIEW);
+          }}>
           <summary className="min-h-11 cursor-pointer py-3 text-sm">Crop &amp; straighten</summary>
           <fieldset disabled={sourceState !== 'ready'} className="space-y-2">
             <div className="flex flex-wrap">
-              <button type="button" className={button} onClick={createCropCopy}>Make crop copy</button>
+              <button type="button" className={button} onClick={createCropCopy}>Auto crop copy</button>
               <button type="button" className={button} onClick={() => onFramingChange({
                 ...framing, turns: (framing.turns + 1) % 4, x: 1 - framing.y, y: framing.x,
               })}>Rotate 90°</button>
-              <button type="button" className={button} onClick={() => onFramingChange(DEFAULT_FRAMING)}>Reset crop</button>
+              <button type="button" className={button} onClick={autoLevel}>Auto-level</button>
+              <button type="button" className={button} onClick={() => { onFramingChange(DEFAULT_FRAMING); setCropNotice(''); }}>Reset</button>
             </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <button type="button" className={button} aria-pressed={previewCrop} onClick={() => {
+                setPreviewCrop(!previewCrop);
+                setTransform(FIT_VIEW);
+              }}>{previewCrop ? 'Edit crop' : 'Preview crop'}</button>
+              <label className="flex min-h-10 items-center gap-2"><input type="checkbox" checked={gridLines} onChange={(event) => setGridLines(event.target.checked)} />Gridlines</label>
+            </div>
+            {cropNotice && <p role="status" className="text-xs text-zinc-300">{cropNotice}</p>}
             <label className="flex min-h-11 items-center justify-between gap-2 text-sm">
               Aspect ratio
               <select value={framing.ratio ?? ''} onChange={(event) => onFramingChange({ ...framing, ratio: Number(event.target.value) || null })}
@@ -221,6 +338,7 @@ export function PhotoEditor({
                 <option value={4 / 5}>4:5</option>
                 <option value={5 / 4}>5:4</option>
                 <option value={3 / 2}>3:2</option>
+                <option value={9 / 16}>9:16</option>
                 <option value={2 / 3}>2:3</option>
               </select>
             </label>
@@ -327,9 +445,15 @@ export function PhotoEditor({
               <input type="checkbox" checked={showFilmstrip} onChange={onToggleFilmstrip} /> Pin filmstrip
             </label>
           </details>
-          <p className="mt-2 text-xs text-zinc-400">{frame.filename}{frame.isDemo ? ' · Demo' : ''} · JPEG up to {MAX_EDGE.toLocaleString()} px</p>
+          {!frame.isDemo && <button type="button" className={button} disabled={!provider.getOriginal(frame.stableKey)}
+            onClick={() => {
+              const original = provider.getOriginal(frame.stableKey);
+              if (original) downloadExport(original, original instanceof File ? original.name : frame.filename);
+            }}>Download original</button>}
+          {outputSize && <p className="mt-2 text-xs text-zinc-400">Output {outputSize.width.toLocaleString()} × {outputSize.height.toLocaleString()} px</p>}
         </details>
       </div>
+      {exportOpen && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} />}
     </section>
   );
 }

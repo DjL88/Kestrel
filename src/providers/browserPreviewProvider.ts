@@ -34,6 +34,10 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.localBlobs.set(stableKey, blob);
   }
 
+  getOriginal(stableKey: string): Blob | undefined {
+    return this.localBlobs.get(stableKey);
+  }
+
   hasBlob(stableKey: string): boolean {
     return this.localBlobs.has(stableKey);
   }

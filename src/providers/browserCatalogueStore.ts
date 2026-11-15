@@ -22,6 +22,7 @@ export interface UserPreferences {
   bindings: KeyBindingsMap;
   knobMode: KnobFunction;
   showFilmstrip: boolean;
+  focusMode: boolean;
   editPanelSide: 'left' | 'right';
 }
 
@@ -31,6 +32,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   bindings: DEFAULT_KEY_BINDINGS,
   knobMode: 'navigate',
   showFilmstrip: true,
+  focusMode: false,
   editPanelSide: 'right',
 };
 
@@ -105,17 +107,17 @@ export function loadPreferences(): UserPreferences {
     const raw = localStorage.getItem(PREFS_STORAGE_KEY);
     if (!raw) return DEFAULT_PREFERENCES;
     const parsed = JSON.parse(raw) as Partial<UserPreferences>;
+    const bindings = { ...DEFAULT_KEY_BINDINGS, ...parsed.bindings };
+    if (bindings['edit.prevControl'] === 'Tab') bindings['edit.prevControl'] = DEFAULT_KEY_BINDINGS['edit.prevControl'];
     return {
       viewMode: parsed.viewMode ?? DEFAULT_PREFERENCES.viewMode,
       showShortcutsOverlay:
         parsed.showShortcutsOverlay ?? DEFAULT_PREFERENCES.showShortcutsOverlay,
       knobMode: parsed.knobMode ?? DEFAULT_PREFERENCES.knobMode,
       showFilmstrip: parsed.showFilmstrip ?? DEFAULT_PREFERENCES.showFilmstrip,
+      focusMode: parsed.focusMode ?? DEFAULT_PREFERENCES.focusMode,
       editPanelSide: parsed.editPanelSide === 'left' ? 'left' : 'right',
-      bindings: {
-        ...DEFAULT_KEY_BINDINGS,
-        ...(parsed.bindings ?? {}),
-      },
+      bindings,
     };
   } catch {
     return DEFAULT_PREFERENCES;

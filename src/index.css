@@ -42,3 +42,24 @@
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .workspace-popover {
+    animation: workspace-reveal 140ms ease-out both;
+  }
+
+  @keyframes workspace-reveal {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+.crop-guide {
+  box-shadow: 0 0 0 200vmax rgb(0 0 0 / 0.52);
+}
+
+.crop-thirds {
+  background:
+    linear-gradient(to right, transparent calc(33.333% - .5px), rgb(255 255 255 / 0.55) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.667% - .5px), rgb(255 255 255 / 0.55) calc(66.667% - .5px) calc(66.667% + .5px), transparent calc(66.667% + .5px)),
+    linear-gradient(to bottom, transparent calc(33.333% - .5px), rgb(255 255 255 / 0.55) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.667% - .5px), rgb(255 255 255 / 0.55) calc(66.667% - .5px) calc(66.667% + .5px), transparent calc(66.667% + .5px));
+}
