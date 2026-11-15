@@ -26,7 +26,7 @@ interface Props {
 const ACTION = 76;
 
 /**
- * A project row that, for a finger only (touch events never come from a mouse or pen), slides left to reveal Archive, and further to reveal Delete.
+ * A project row that, for a finger only (touch events never come from a mouse or pen), slides left to reveal the project actions.
  * A mouse or pen never slides it: desktop keeps its visible buttons, and nothing moves by accident.
  */
 function SwipeRow({ children, archived, title, onArchive, onDelete, disabled }: {
@@ -36,7 +36,7 @@ function SwipeRow({ children, archived, title, onArchive, onDelete, disabled }: 
   const [dragging, setDragging] = useState(false);
   const start = useRef<{ x: number; y: number; from: number; moved: boolean } | null>(null);
   const open = offset <= -ACTION / 2;
-  const settle = (value: number) => (value < -ACTION * 1.6 ? -ACTION * 2 : value < -ACTION * 0.5 ? -ACTION : 0);
+  const settle = (value: number) => (value < -ACTION * 0.5 ? -ACTION * 2 : 0);
   const back = () => setOffset(0);
   return (
     <li className="relative overflow-hidden">
@@ -68,7 +68,7 @@ function SwipeRow({ children, archived, title, onArchive, onDelete, disabled }: 
           setOffset(Math.max(-ACTION * 2, Math.min(0, s0.from + dx)));
         }}
         onTouchEnd={() => { const s0 = start.current; start.current = null; setDragging(false); if (s0?.moved) setOffset((value) => settle(value)); }}
-        onTouchCancel={() => { start.current = null; setDragging(false); setOffset((value) => settle(value)); }}
+        onTouchCancel={() => { const gesture = start.current; start.current = null; setDragging(false); if (gesture) setOffset(gesture.from); }}
         onClickCapture={(event) => { if (offset !== 0) { event.preventDefault(); event.stopPropagation(); back(); } }}>
         {children}
       </div>
