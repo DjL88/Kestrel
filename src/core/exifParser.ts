@@ -61,8 +61,12 @@ export function formatFocalLength(focalLengthMm?: number): string {
 export function formatCameraLabel(make?: unknown, model?: unknown): string | undefined {
   // Corrupt EXIF may contain non-string Make/Model values. Preserve other
   // metadata rather than letting .trim() throw and discard the whole parse.
-  const cleanMake = typeof make === 'string' ? make.trim() : '';
-  const cleanModel = typeof model === 'string' ? model.trim() : '';
+  // TIFF ASCII tags may contain NUL terminators or malformed control bytes.
+  // Keep camera identity stable for display and Nikon burst grouping.
+  const clean = (value: unknown) =>
+    typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim() : '';
+  const cleanMake = clean(make);
+  const cleanModel = clean(model);
   if (!cleanMake && !cleanModel) return undefined;
   if (!cleanMake) return cleanModel;
   if (!cleanModel) return cleanMake;
