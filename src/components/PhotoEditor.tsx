@@ -31,6 +31,7 @@ import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 
 import { FIT_VIEW } from '../core/viewportTransform';
+import { beforeSnapshot, type ComparisonStage } from '../core/compareStages';
 import { resolveKeyboardCommand, type KeyBindingsMap } from '../core/keyboardCommands';
 import { visiblePhotoDetail } from '../core/visiblePhotoDetail';
 
@@ -67,6 +68,7 @@ interface Props {
   needsAccess: boolean;
   bindings: KeyBindingsMap;
   onEdit: (edit: PhotoEdit) => void;
+  onExportRequested?: (frames: readonly PhotoFrame[]) => void;
   /** Applying a named look is a deliberate batch action when multiple photos are selected. */
   onApplyLook?: (edit: PhotoEdit) => void;
   onHistoryStep: (direction: -1 | 1) => void;
@@ -87,7 +89,7 @@ interface Props {
 }
 
 export function PhotoEditor({ autoEdit, onOpenMacroPad,
-  frame, provider, needsAccess, bindings, onEdit, onApplyLook, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
+  frame, provider, needsAccess, bindings, onEdit, onApplyLook, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, showFilmstrip,
 }: Props) {
@@ -104,6 +106,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [developing, setDeveloping] = useState(false);
   const [developNote, setDevelopNote] = useState<string | null>(null);
   const [compare, setCompare] = useState(false);
+  const [beforeStage, setBeforeStage] = useState<ComparisonStage>('original');
   const [dial, setDial] = useState(0);
   const [panelWidth, setPanelWidth] = useState(() => {
     try { return clampPanelWidth(Number(localStorage.getItem(PANEL_KEY)) || PANEL_DEFAULT); } catch { return PANEL_DEFAULT; }
@@ -278,6 +281,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const guide = cropOpen && !previewCrop;
   const displayFraming = useMemo(() => displayFramingFor(framing, guide), [framing, guide]);
   const displayCompare = compare && !guide && sourceState === 'ready';
+  const before = beforeSnapshot(frame, beforeStage);
   const outputSize = source ? framedSize(source.naturalWidth, source.naturalHeight, framing) : null;
   const size = source ? framedSize(source.naturalWidth, source.naturalHeight, displayFraming) : null;
   const fit = size ? Math.min(viewport.width / size.width, viewport.height / size.height) : 0;
@@ -313,7 +317,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     if (!displayCompare || !source || !size || !originalCanvas.current) return;
     const scale = Math.min(1, FIT_PREVIEW_EDGE / Math.max(size.width, size.height));
     drawFramedPhoto(source, originalCanvas.current, displayFraming, { scale });
-  }, [source, displayFraming, displayCompare, size?.width, size?.height]);
+    if (before.edit) applyCanvasPhotoEdit(originalCanvas.current, before.edit);
+  }, [source, displayFraming, displayCompare, before.edit, size?.width, size?.height]);
 
   useEffect(() => {
     setShowDetail(false);
@@ -330,11 +335,15 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       });
       if (displayCompare && originalDetail.current) {
         drawFramedPhoto(source, originalDetail.current, displayFraming, { region, scale });
+        if (before.edit) applyCanvasPhotoEdit(originalDetail.current, before.edit, Math.max(size!.width, size!.height) * scale, {
+          aspect: size!.height / size!.width,
+          view: { x: region.x / size!.width, y: region.y / size!.height, w: region.width / size!.width, h: region.height / size!.height },
+        });
       }
       setShowDetail(true);
     }, 110);
     return () => window.clearTimeout(timer);
-  }, [source, displayFraming, edit, displayCompare, transform, viewport]);
+  }, [source, displayFraming, edit, before.edit, displayCompare, transform, viewport]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -606,12 +615,29 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             <Redo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Redo</span>
           </button>
           <button type="button" aria-pressed={displayCompare} disabled={sourceState !== 'ready' || guide} onClick={() => setCompare(!compare)}
-            title="Compare with the original (backslash)"
+            title="Compare the current edit against an earlier stage (backslash)"
             className={`${button} inline-flex items-center gap-1.5 border border-white/15 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/20 aria-pressed:text-sky-100`}>
             <Columns2 className="h-4 w-4" aria-hidden="true" />
             <span>Before / After</span>
             <span className="rounded bg-black/40 px-1.5 text-xs">{displayCompare ? 'On' : 'Off'}</span>
           </button>
+          {displayCompare && (
+            <label className="min-w-0">
+              <span className="sr-only">Before comparison stage</span>
+              <select aria-label="Before comparison stage" value={beforeStage}
+                onChange={(event) => setBeforeStage(event.target.value as ComparisonStage)}
+                className="h-11 max-w-[145px] rounded-md border border-white/15 bg-kestrel-panel px-1 text-xs text-zinc-100 focus-visible:outline-2 focus-visible:outline-sky-300 sm:max-w-[205px]">
+                <option value="original">Original</option>
+                <option value="previous" disabled={!frame.editHistory?.cursor}>Previous edit</option>
+                <option value="last-export" disabled={!frame.lastExport}>Last export</option>
+                {(frame.editHistory?.steps ?? []).map((step, index) => (
+                  <option value={`step:${index + 1}`} key={index}>
+                    {index + 1}. {m.historyStep[step.kind]} · {formatClock(step.at)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
         <div className="flex items-center gap-1">
         {canFullscreen && (
@@ -720,7 +746,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             </div>}
           </>}
           overlay={<>
-            <canvas ref={originalCanvas} aria-label="Original photo" role="img"
+            <canvas ref={originalCanvas} aria-label={`${before.label} photo`} role="img"
               className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />
             {detail && displayCompare && <canvas ref={originalDetail} aria-hidden="true" hidden={!showDetail}
               className="absolute" style={detail.style} />}
@@ -1066,7 +1092,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       </div>
       {isPhone && tabList}
       </div>
-      {exportOpen && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} />}
+      {exportOpen && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} onDownloadRequested={onExportRequested} />}
     </section>
   );
 }
