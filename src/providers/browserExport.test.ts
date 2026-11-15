@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createDemoShootState } from '../core/cullingEngine';
 import { EXPORT_PROFILES } from '../core/exportProfiles';
-import { renderExport } from './browserExport';
+import { loadExportSource, renderExport } from './browserExport';
 
 test('cancelling an export skips unused canvas work and discards an encoded result', async (t) => {
   const controller = new AbortController();
@@ -40,4 +40,20 @@ test('cancelling an export skips unused canvas work and discards an encoded resu
   assert.equal(encodes, 1);
   assert.equal(canvas.width, 0);
   assert.equal(canvas.height, 0);
+});
+
+
+test('Nikon export distinguishes missing originals from originals without usable previews', async () => {
+  let attached = false;
+  const provider = { getFullPreviewUrl: async () => '', hasBlob: () => attached };
+  for (const filename of ['Z8.NEF', 'previewless.NRW']) {
+    const frame = {
+      ...createDemoShootState(1).frames[0],
+      id: filename, stableKey: filename, filename, isDemo: false, sourceKind: 'file' as const,
+    };
+    attached = false;
+    await assert.rejects(loadExportSource(frame, provider), /Reconnect/);
+    attached = true;
+    await assert.rejects(loadExportSource(frame, provider), /no usable embedded JPEG/);
+  }
 });
