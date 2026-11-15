@@ -6,8 +6,6 @@ test('home page: a finger swipe reveals Archive and Delete, a mouse never moves 
   await page.goto('/');
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Swipe me');
-  await page.getByRole('button', { name: 'Next' }).click();
-  await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Create project' }).click();
   await page.getByRole('button', { name: 'Back to projects' }).click();
   const row = page.getByTestId('swipe-row').first();
