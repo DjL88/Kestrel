@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assessSubject, gridSizeFor, normaliseMap, preprocess, toGrid } from './subjectModel';
+import { assessSubject, gridSizeFor, normaliseMap, preprocess, readSubjectMap, toGrid } from './subjectModel';
 import { createSubjectMask, validMasks, framingKey } from './maskTypes';
 import { maskAlpha, fullContext } from './masks';
 
@@ -75,4 +75,14 @@ test('grid size keeps the photo shape', () => {
   assert.deepEqual(gridSizeFor(1), { w: 192, h: 192 });
   const tall = gridSizeFor(1.5);
   assert.ok(tall.h === 192 && tall.w < 192);
+});
+
+test('rejects missing, incomplete and non-finite subject maps before creating masks', () => {
+  assert.throws(() => readSubjectMap(undefined, 2), /incomplete mask/);
+  assert.throws(() => readSubjectMap(new Uint8Array(4), 2), /incomplete mask/);
+  assert.throws(() => readSubjectMap(new Float32Array(3), 2), /incomplete mask/);
+  for (const invalid of [NaN, Infinity, -Infinity]) {
+    assert.throws(() => readSubjectMap(Float32Array.of(0, 0.5, 1, invalid), 2), /invalid mask/);
+  }
+  assert.deepEqual([...readSubjectMap(Float32Array.of(2, 3, 4, 6), 2)], [0, 0.25, 0.5, 1]);
 });

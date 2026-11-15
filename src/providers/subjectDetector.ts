@@ -1,7 +1,7 @@
 import { sha256Hex } from '../core/sha256';
 import { friendlyToolError } from '../core/toolErrors';
 import modelUrl from '../assets/models/u2netp.onnx?url';
-import { SUBJECT_MODEL, assessSubject, gridSizeFor, normaliseMap, preprocess, toGrid, type SubjectAssessment } from '../core/subjectModel';
+import { SUBJECT_MODEL, assessSubject, gridSizeFor, readSubjectMap, preprocess, toGrid, type SubjectAssessment } from '../core/subjectModel';
 import type { SubjectGrid } from '../core/maskTypes';
 
 type Ort = typeof import('onnxruntime-web/wasm');
@@ -51,8 +51,7 @@ export async function detectSubject(preview: HTMLCanvasElement, options: { maxCo
   context.drawImage(preview, 0, 0, size, size);
   const input = preprocess(context.getImageData(0, 0, size, size).data, size);
   const results = await session.run({ [session.inputNames[0]]: new ort.Tensor('float32', input, [1, 3, size, size]) });
-  const output = results[session.outputNames[0]].data as Float32Array;
-  const map = normaliseMap(output);
+  const map = readSubjectMap(results[session.outputNames[0]]?.data, size);
   const { w, h } = gridSizeFor(preview.height / preview.width);
   return { grid: toGrid(map, size, w, h), assessment: assessSubject(map, options.maxCoverage) };
 }
