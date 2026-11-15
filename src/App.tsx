@@ -148,6 +148,7 @@ export default function App() {
   const [editQueueIds, setEditQueueIds] = useState<string[] | null>(null);
   const [confirmPasteSelection, setConfirmPasteSelection] = useState(false);
   const [selectionLookOpen, setSelectionLookOpen] = useState(false);
+  const [editTogether, setEditTogether] = useState(false);
   const [infoFrameId, setInfoFrameId] = useState<string>();
   const infoTriggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -514,6 +515,7 @@ export default function App() {
     const ids = selectedVisibleFrames.map((frame) => frame.id);
     if (!ids.length) return;
     setEditQueueIds(ids);
+    setEditTogether(false);
     handleSelectFrame(ids[0]);
     setEditing(true);
     // Carry the marked photos into Edit so bulk actions work immediately.
@@ -521,7 +523,7 @@ export default function App() {
     setSelectedIds(new Set(ids));
     setPrefs((prev) => ({ ...prev, showFilmstrip: true, focusMode: false }));
   };
-  const leaveEditor = () => { setEditing(false); setEditQueueIds(null); setMultiSelect(false); setSelectedIds(new Set()); };
+  const leaveEditor = () => { setEditing(false); setEditQueueIds(null); setEditTogether(false); setMultiSelect(false); setSelectedIds(new Set()); };
 
   const pasteToSelection = () => {
     if (!copiedEdit || !selectedVisibleFrames.length) return;
@@ -1168,6 +1170,11 @@ export default function App() {
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? 'Edit photo'}</h1>
           {multiSelect && selectedVisibleFrames.length > 0 && (
             <div className="flex shrink-0 items-center gap-1" role="group" aria-label="Selected photo actions">
+              {selectedVisibleFrames.length > 1 && <button type="button" aria-pressed={editTogether}
+                onClick={() => setEditTogether((value) => !value)}
+                className={`min-h-11 rounded-md border px-2 text-xs font-medium focus-visible:outline-2 focus-visible:outline-sky-300 ${editTogether ? 'border-sky-200 bg-white/15' : 'border-white/15 hover:bg-white/10'}`}>
+                {editTogether ? 'Editing together ✓' : 'Edit together'}
+              </button>}
               <span className="hidden text-xs tabular-nums text-zinc-300 sm:inline">{selectedVisibleFrames.length} selected</span>
               <button type="button" onClick={() => setSelectionLookOpen(true)}
                 className="min-h-11 rounded-md border border-white/15 px-2 text-xs font-medium hover:bg-white/10">Apply look</button>
@@ -1329,7 +1336,22 @@ export default function App() {
               bindings={prefs.bindings}
               provider={previewProviderRef.current!}
               needsAccess={needsAccess}
-              onEdit={(edit) => updateFrame(selectedFrame.id, { edit: isEmptyEdit(edit) ? undefined : { ...edit } })}
+              onEdit={(edit) => {
+                 if (!editTogether || !multiSelect || selectedVisibleFrames.length < 2) {
+                   updateFrame(selectedFrame.id, { edit: isEmptyEdit(edit) ? undefined : { ...edit } });
+                   return;
+                 }
+                 const ids = new Set(selectedVisibleFrames.map((frame) => frame.id));
+                 const at = Date.now();
+                 setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: at },
+                   frames: prev.frames.map((frame) => {
+                     if (!ids.has(frame.id)) return frame;
+                     // Share only global adjustments; local masks remain unique to each photograph.
+                     const nextEdit = { ...edit, masks: frame.id === selectedFrame.id ? edit.masks : frame.edit?.masks };
+                     return recordEdit(frame, { edit: isEmptyEdit(nextEdit) ? undefined : nextEdit }, at);
+                   }),
+                 }));
+               }}
               copiedEdit={copiedEdit}
               onCopyEdit={setCopiedEdit}
               onHistoryStep={(direction) => stepPhotoHistory(selectedFrame.id, direction)}
