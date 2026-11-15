@@ -65,6 +65,11 @@ export function framingKey(framing: { ratio: number | null; turns: number; strai
   return [f.ratio === null ? 'o' : f.ratio.toFixed(4), f.turns, f.straighten.toFixed(2), f.x.toFixed(4), f.y.toFixed(4), (f.size ?? 1).toFixed(3)].join('|');
 }
 
+/** The recipe stores strokes against the base mask, before inversion is applied. */
+export function createBrushStroke(points: number[], radius: number, erase: boolean, inverted: boolean): BrushStroke {
+  return { points: points.map((value) => Math.round(value * 10000) / 10000), radius, erase: erase !== inverted };
+}
+
 export function createSubjectMask(id: string, grid: SubjectGrid, key: string, confidence: 'high' | 'medium' | 'low'): Extract<Mask, { kind: 'subject' }> {
   return { id, kind: 'subject', grid, framingKey: key, confidence, strokes: [], invert: false, feather: 0.5, edit: {} };
 }

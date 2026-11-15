@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { applyMasks, fullContext, maskAlpha } from './masks';
-import { createMask, hasActiveMasks, validMasks, type Mask } from './maskTypes';
+import { createBrushStroke, createSubjectMask, createMask, hasActiveMasks, validMasks, type Mask } from './maskTypes';
 
 const W = 100;
 const H = 80;
@@ -151,4 +151,17 @@ test('a mask can sharpen and add clarity locally, and only inside its area', () 
   assert.ok(row(10, 41) > 160, 'and the bright side gets brighter');
   assert.equal(row(75, 38), copy[(75 * size + 38) * 4], 'outside the mask nothing changes');
   assert.equal(validMasks([mask]), true);
+});
+
+test('Add and Remove refine the visible background mask in the chosen direction', () => {
+  const grid = { w: 8, h: 8, data: Buffer.alloc(64, 255).toString('base64') };
+  const background = { ...createSubjectMask('background', grid, 'framing', 'high'), invert: true };
+  const point = [0.5, 0.5];
+  const add = createBrushStroke(point, 0.12, false, background.invert);
+  const remove = createBrushStroke(point, 0.12, true, background.invert);
+  const alpha = (strokes: typeof background.strokes) => maskAlpha({ ...background, strokes }, W, H, ctx);
+  assert.ok(at(alpha([]), 50, 40) < 0.05);
+  assert.ok(at(alpha([add]), 50, 40) > 0.95);
+  assert.ok(at(alpha([add, remove]), 50, 40) < 0.05);
+  assert.equal(createBrushStroke(point, 0.12, false, false).erase, false);
 });
