@@ -3,7 +3,8 @@ import { applyCanvasExportEdit } from '../core/canvasEdit';
 import { DEFAULT_EDIT } from '../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFraming';
 import { exportFilename, type ExportProfile } from '../core/exportProfiles';
-import { planExportFraming, type ExportFraming } from '../core/exportFraming';
+import { planExportFraming, type ExportFraming, type FocusPoint } from '../core/exportFraming';
+import type { BarStyle } from '../core/exportFormats';
 import { datedExport } from '../core/exportTimestamp';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
@@ -14,30 +15,87 @@ export async function loadExportSource(frame: PhotoFrame, provider: BrowserPrevi
   return loadImage(url);
 }
 
-export async function renderExport(source: HTMLImageElement, frame: PhotoFrame, profile: ExportProfile, date: Date, signal?: AbortSignal, mode: ExportFraming = 'fit', longEdge?: number) {
+export interface ExportExtras {
+  /** Where to centre a crop. Falls back to the photo's saved focus point, then the middle. */
+  focus?: FocusPoint;
+  /** What goes in the borders when the whole photo is kept inside a fixed shape. */
+  bars?: BarStyle;
+  /** Make a small version no larger than this on its long side, for previews. */
+  previewEdge?: number;
+}
+
+/**
+ * Draw one export: crop or fit as planned, apply the edit, and add borders. Previews and real exports both come
+ * through here, so a preview shows exactly the crop the file will have.
+ */
+async function composeExport(
+  source: HTMLImageElement, frame: PhotoFrame, profile: ExportProfile, signal: AbortSignal | undefined,
+  mode: ExportFraming, longEdge: number | undefined, extras: ExportExtras,
+) {
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const { width, height } = framedSize(source.naturalWidth, source.naturalHeight, framing);
-  const { scale, region, border } = planExportFraming(width, height, profile, mode, frame.focusPoint, longEdge);
-  const mime = profile.format === 'png' ? 'image/png' : 'image/jpeg';
+  const plan = planExportFraming(width, height, profile, mode, extras.focus ?? frame.focusPoint, longEdge);
+  const { region } = plan;
+  let { scale, border } = plan;
+  if (extras.previewEdge) {
+    const finalWidth = border ? border.width : region.width * scale;
+    const finalHeight = border ? border.height : region.height * scale;
+    const shrink = Math.min(1, extras.previewEdge / Math.max(finalWidth, finalHeight));
+    scale *= shrink;
+    if (border) border = { width: Math.max(1, Math.round(border.width * shrink)), height: Math.max(1, Math.round(border.height * shrink)) };
+  }
   const canvas = document.createElement('canvas');
   const output = border ? document.createElement('canvas') : canvas;
-  try {
-    drawFramedPhoto(source, canvas, framing, { scale, region });
-    await applyCanvasExportEdit(canvas, frame.edit ?? DEFAULT_EDIT, signal);
-    signal?.throwIfAborted();
-    if (border) {
-      output.width = border.width;
-      output.height = border.height;
-      const context = output.getContext('2d')!;
-      context.fillStyle = '#ffffff';
+  drawFramedPhoto(source, canvas, framing, { scale, region });
+  // The crop shows only part of the framed photo, so tell the edit which part. Masks and detail then match the full photo.
+  await applyCanvasExportEdit(canvas, frame.edit ?? DEFAULT_EDIT, signal, Math.max(width, height) * scale, {
+    aspect: height / width,
+    view: { x: region.x / width, y: region.y / height, w: region.width / width, h: region.height / height },
+  });
+  signal?.throwIfAborted();
+  if (border) {
+    output.width = border.width;
+    output.height = border.height;
+    const context = output.getContext('2d')!;
+    const style = extras.bars ?? 'white';
+    if (style === 'blur' && 'filter' in context) {
+      // A blurred, darkened copy of the photo fills the borders. Nothing is invented: it is the same picture.
+      const cover = Math.max(output.width / canvas.width, output.height / canvas.height) * 1.15;
+      context.filter = `blur(${Math.max(2, Math.round(output.width / 40))}px)`;
+      context.drawImage(canvas, (output.width - canvas.width * cover) / 2, (output.height - canvas.height * cover) / 2, canvas.width * cover, canvas.height * cover);
+      context.filter = 'none';
+      context.fillStyle = 'rgba(0, 0, 0, 0.28)';
       context.fillRect(0, 0, output.width, output.height);
-      context.drawImage(canvas, Math.floor((output.width - canvas.width) / 2), Math.floor((output.height - canvas.height) / 2));
+    } else {
+      context.fillStyle = style === 'black' ? '#000000' : '#ffffff';
+      context.fillRect(0, 0, output.width, output.height);
     }
+    context.drawImage(canvas, Math.floor((output.width - canvas.width) / 2), Math.floor((output.height - canvas.height) / 2));
+  }
+  return { canvas, output, bordered: Boolean(border) };
+}
+
+/** A small picture of what an export will look like, as a canvas the caller can draw. */
+export async function renderExportPreview(
+  source: HTMLImageElement, frame: PhotoFrame, profile: ExportProfile, mode: ExportFraming, extras: ExportExtras = {}, signal?: AbortSignal,
+): Promise<HTMLCanvasElement> {
+  const { canvas, output, bordered } = await composeExport(source, frame, profile, signal, mode, undefined, { previewEdge: 240, ...extras });
+  if (bordered) { canvas.width = 0; canvas.height = 0; }
+  return output;
+}
+
+export async function renderExport(
+  source: HTMLImageElement, frame: PhotoFrame, profile: ExportProfile, date: Date, signal?: AbortSignal,
+  mode: ExportFraming = 'fit', longEdge?: number, extras: ExportExtras = {},
+) {
+  const mime = profile.format === 'png' ? 'image/png' : 'image/jpeg';
+  const { canvas, output, bordered } = await composeExport(source, frame, profile, signal, mode, longEdge, extras);
+  try {
     const raw = !frame.isDemo && /\.(nef|nrw)$/i.test(frame.filename);
     const name = exportFilename(frame.filename, profile, raw);
     for (const quality of profile.maxBytes ? [profile.quality, ...[0.88, 0.82, 0.74, 0.65].filter((value) => value < profile.quality)] : [profile.quality]) {
       const encoded = await new Promise<Blob | null>((resolve) => output.toBlob(resolve, mime, quality));
-      if (!encoded || encoded.type !== mime) throw new Error(`Could not encode ${name} at ${canvas.width} × ${canvas.height} px.`);
+      if (!encoded || encoded.type !== mime) throw new Error(`Could not encode ${name} at ${output.width} × ${output.height} px.`);
       const file = datedExport(encoded, name, date);
       if (!profile.maxBytes || file.size <= profile.maxBytes) return file;
     }
@@ -45,7 +103,7 @@ export async function renderExport(source: HTMLImageElement, frame: PhotoFrame, 
   } finally {
     canvas.width = 0;
     canvas.height = 0;
-    if (border) { output.width = 0; output.height = 0; }
+    if (bordered) { output.width = 0; output.height = 0; }
   }
 }
 

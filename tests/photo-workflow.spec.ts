@@ -131,6 +131,19 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await expect(prepare).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'Close export' })).toBeFocused();
+  // Formats are grouped by platform, and a preview has the shape its format promises (a story is 9:16).
+  const instagram = page.getByRole('group', { name: 'Instagram' });
+  await instagram.getByRole('checkbox', { name: /Story or Reel cover/ }).check();
+  await expect.poll(() => page.getByRole('img', { name: /as Story or Reel cover/ }).evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(0.56);
+  await expect(page.getByRole('button', { name: 'Prepare 2 files', exact: true })).toBeVisible();
+  await instagram.getByRole('checkbox', { name: /Story or Reel cover/ }).uncheck();
+  await expect(prepare).toBeVisible();
+  // A custom size that is not a whole number is explained and cannot be prepared.
+  await page.getByLabel('Custom size').check();
+  await page.getByLabel('Width (px)').fill('0');
+  await expect(page.getByRole('alert')).toContainText('whole numbers');
+  await expect(page.getByRole('button', { name: /^Prepare/ })).toBeDisabled();
+  await page.getByLabel('Custom size').uncheck();
   await prepare.click();
   await expect(page.getByRole('status').filter({ hasText: '1 file ready' })).toBeVisible();
   await expect(exportHeading).toBeFocused();

@@ -145,3 +145,13 @@ The editor toolbar has a **Macro pad** button that opens the pad settings on the
 - **Tones are bunched together** and **Colours are very strong**.
 Each has a one-tap fix that nudges the right sliders (Apply). Thresholds are hand-set and were checked on constructed pictures and one fox photo, not on a library of your own edits, so tune them against your own work.
 - Not done: opinions about composition (crop, subject placement, eye sharpness, which needs Nikon focus data), a "how would I improve this" suggestion that combines several fixes, and an optional Gemini second opinion for taste, which would need an explicit opt-in because it sends the photo off the device.
+
+## Export formats (feat/export-formats-v2)
+The export panel now offers **formats per platform**, each with its brand mark: Instagram (post 4:5 and 3:4, square, story or reel cover 9:16), Facebook (post, square, wide, story, keep shape), TikTok (photo post 9:16 and 4:5), Threads, X (wide 16:9, square, keep shape, 5 MB limit), Bluesky, Pinterest (2:3), plus Full size PNG and a **custom size** (width, height, fit, JPEG or PNG, quality, prefix, up to 12,000 px a side and 100 megapixels).
+- **Why crops looked off before:** the old presets were maximum boxes and the default only shrank the photo to fit, so a landscape photo for TikTok stayed landscape. Each format now has a shape, and each one is fitted one of three ways: crop to fill, whole photo with borders (white, black or a blurred copy of the photo), or keep the photo's own shape.
+- **Previews** use the same code that writes the files, so a preview shows exactly the crop the file has. When a format crops, drag the preview (or use the arrow keys, double-click to centre) to choose what stays in, per photo and per format. At most 12 previews are drawn; the rest are made the same way.
+- Files carry their shape in the name (`ig_bird_9x16.jpg`, `x_bird_max2048.jpg`, `web_bird_1600x900.jpg`) so formats of one photo never overwrite each other.
+- Masks and detail now land correctly on cropped exports (they were placed as if the crop were the whole photo).
+- Photos are never enlarged beyond their own size, so a small source gives a smaller file than the format's nominal size.
+- Sizes are common starting points, not platform rules. Platforms change them, so check current guidance before relying on an exact size. Brand marks come from simple-icons (CC0) and are used only to say where an export is meant for. LinkedIn is left out because no matching, freely licensed mark is available.
+- Not done: saving your own formats, a per-platform "post to" step, and previews for more than the first four photos of a large selection.

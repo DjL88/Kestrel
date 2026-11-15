@@ -67,9 +67,17 @@ export function applyCanvasPhotoEdit(
   applyCanvasMasks(canvas, edit, maskContext, imageEdge);
 }
 
-export async function applyCanvasExportEdit(canvas: HTMLCanvasElement, edit: PhotoEdit, signal?: AbortSignal): Promise<void> {
+/**
+ * Apply an edit to an export canvas. When the canvas holds only part of the framed photo (a crop made for a social
+ * format), pass the whole photo's long edge in this canvas's pixels and which part is shown, so detail scales and
+ * masks land where they should. Both default to a canvas that holds the whole framed photo.
+ */
+export async function applyCanvasExportEdit(
+  canvas: HTMLCanvasElement, edit: PhotoEdit, signal?: AbortSignal,
+  imageEdge = Math.max(canvas.width, canvas.height), maskContext: MaskContext = fullContext(canvas.width, canvas.height),
+): Promise<void> {
   if (isNeutralEdit(edit)) return;
-  const edge = Math.max(canvas.width, canvas.height);
+  const edge = imageEdge;
   if (!isNeutralGlobal(edit) && !gpuRenderer?.(canvas, edit, edge)) {
     let lastYield = performance.now();
     for (const _ of editCanvasStrips(canvas, edit)) {
@@ -81,5 +89,5 @@ export async function applyCanvasExportEdit(canvas: HTMLCanvasElement, edit: Pho
     applyCanvasDetail(canvas, edit, edge);
   }
   signal?.throwIfAborted();
-  applyCanvasMasks(canvas, edit, fullContext(canvas.width, canvas.height), edge);
+  applyCanvasMasks(canvas, edit, maskContext, edge);
 }
