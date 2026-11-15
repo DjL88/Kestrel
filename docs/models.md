@@ -39,13 +39,25 @@ Suggests what a photo shows ("Red kite · Milvus milvus · likely") from the ima
 | Input | 1 × 3 × 224 × 224, centre square crop, normalised with the CLIP mean and standard deviation |
 | Output | 512 numbers, normalised |
 
-**Turning it on.** The app only shows the feature when it is built with the address of the file:
+**Hosting: the same site as the app.** A web page can only download the file from its own site or from a host that sends CORS headers. GitHub release files send none (checked 15 Nov 2026), so the model is stored as a release asset (`species-model-1`) and copied next to the app at build time. The app then downloads it from its own address.
 
-```
-VITE_SPECIES_MODEL_URL=https://example.com/kestrel/bioclip-image-int8.onnx
-```
+1. Fetch it into `public/models/` (kept out of git; checked against the SHA-256 above, wrong files are refused):
 
-Put the file somewhere a web page may fetch it from. That means either the same site as the app, or a host that sends CORS headers. Checked on 15 Nov 2026: **GitHub release assets send no CORS headers, so a web page cannot download from them** (they are fine for the native desktop and phone apps later, which are not bound by CORS). Hugging Face file links do send them. A storage bucket with CORS switched on also works. For local use, put it in `public/models/` (not committed) and use `/models/bioclip-image-int8.onnx`. The download is checked against the SHA-256 above before it is kept. A different file needs `VITE_SPECIES_MODEL_SHA256` and `VITE_SPECIES_MODEL_BYTES` as well.
+   ```
+   npm run model:species
+   ```
+
+2. Build or run the app pointing at that address:
+
+   ```
+   VITE_SPECIES_MODEL_URL=/models/bioclip-image-int8.onnx npm run build
+   ```
+
+   For local use put the same line in `.env.local` and restart `npm run dev`.
+
+3. In any deployment, run step 1 before step 2 so the file is in the published site. The app only shows the suggestions feature when it is built with that address. Without it nothing changes.
+
+The app's offline cache does not pre-install this file for every visitor. A person downloads it when they choose to, and it is then kept on their device. The release also carries `bioclip.txt`, the MIT licence notice the model needs (a copy is in `docs/notices/`). A different file needs `VITE_SPECIES_MODEL_SHA256` and `VITE_SPECIES_MODEL_BYTES` as well.
 
 **Making the model file and the names.** `tools/species/` has what is needed, using a Python with `torch`, `open_clip_torch`, `onnx` and `onnxruntime`:
 
