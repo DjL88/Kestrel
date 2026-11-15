@@ -125,6 +125,7 @@ export default function App() {
   const [autoCullOpen, setAutoCullOpen] = useState(false);
   const [batchLookOpen, setBatchLookOpen] = useState(false);
   const [autoAdjustOpen, setAutoAdjustOpen] = useState(false);
+  const autoAdjustController = useRef<AbortController | null>(null);
   const [autoCullStart, setAutoCullStart] = useState(false);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
   const [showPhotoInfo, setShowPhotoInfo] = useState(false);
@@ -780,10 +781,12 @@ export default function App() {
   const toggleFilmstrip = () => setPrefs((prev) => ({ ...prev, showFilmstrip: !prev.showFilmstrip }));
 
   const autoAdjustKeepers = async () => {
+    if (autoAdjustController.current) return;
     const projectId = cullingState.shoot.id;
     const frames = cullingState.frames;
     const candidates = previewKeeperLook(frames).eligible;
     const controller = new AbortController();
+    autoAdjustController.current = controller;
     const task = tasks.start('Auto-adjusting keepers', { total: candidates, cancel: () => controller.abort() });
     setAutoAdjustOpen(false);
     try {
@@ -804,6 +807,8 @@ export default function App() {
       if (controller.signal.aborted || task.cancelled) return;
       task.fail(error instanceof Error ? error.message : 'Auto-adjust could not finish');
       showToast('Auto-adjust could not finish. No edits were applied.');
+    } finally {
+      if (autoAdjustController.current === controller) autoAdjustController.current = null;
     }
   };
 
@@ -1209,7 +1214,7 @@ export default function App() {
           setPrefs((prev) => ({ ...prev, focusMode: !prev.focusMode }));
         }}
         onBatchLook={previewKeeperLook(cullingState.frames).total > 0 ? () => setBatchLookOpen(true) : undefined}
-        onAutoAdjustKeepers={previewKeeperLook(cullingState.frames).eligible > 0 ? () => setAutoAdjustOpen(true) : undefined}
+        onAutoAdjustKeepers={!autoAdjustController.current && previewKeeperLook(cullingState.frames).eligible > 0 ? () => setAutoAdjustOpen(true) : undefined}
         onExportKeepers={cullingState.filter === 'keep' && visibleFrames.length
           ? () => setExportFrames(visibleFrames) : undefined}
         onUndo={cullingState.undoStack.length ? () => executeCommand('cull.undo') : undefined}
