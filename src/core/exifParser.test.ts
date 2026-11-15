@@ -101,3 +101,9 @@ test('malformed camera make/model values do not crash EXIF formatting', () => {
   assert.equal(formatCameraLabel(123, null), undefined);
   assert.equal(formatCameraLabel('  Nikon  ', '  Z 5II  '), 'Nikon Z 5II');
 });
+
+test('Nikon camera identity ignores TIFF NUL terminators and control bytes', () => {
+  assert.equal(formatCameraLabel('NIKON CORPORATION\0', 'NIKON Z 8\0'), 'NIKON Z 8');
+  assert.equal(formatCameraLabel('Nikon\t', 'Z 5II\n'), 'Nikon Z 5II');
+  assert.equal(formatCameraLabel('\0\n', '\0'), undefined);
+});
