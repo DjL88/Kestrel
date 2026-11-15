@@ -1,3 +1,4 @@
+import { openPhotoInfo } from './helpers';
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
@@ -10,7 +11,7 @@ test('species suggestions: with automatic tagging off, accept a name and it beco
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  await openPhotoInfo(page);
 
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await expect(panel.getByText(/never leave this device/)).toBeVisible();
@@ -37,7 +38,7 @@ test('species suggestions: with automatic tagging off, accept a name and it beco
   await page.reload();
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  await openPhotoInfo(page);
   await expect(panel.getByRole('button', { name: /^Download/ })).toHaveCount(0);
   await expect(panel.getByText('Nothing else to suggest.')).toBeVisible({ timeout: 15000 });
   await expect(subject.getByRole('list', { name: 'Tags' }).getByRole('listitem')).toHaveText(['Red kite']);
@@ -49,7 +50,7 @@ test('species suggestions: with automatic tagging off, accept a name and it beco
     buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
   });
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  await openPhotoInfo(page);
   await expect(panel.getByRole('button', { name: /^Download/ })).toHaveCount(0);
   await expect(panel.getByRole('list', { name: 'Suggested names' })).toContainText('Red kite', { timeout: 30000 });
 });
@@ -60,7 +61,7 @@ test('a suggestion can be dismissed, and the choice is not kept as a tag', async
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  await openPhotoInfo(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
   await expect(panel.getByRole('button', { name: 'Not Red kite' })).toBeVisible({ timeout: 30000 });
@@ -87,7 +88,7 @@ async function openBurst(page: import('@playwright/test').Page) {
   await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 3' })).toBeVisible({ timeout: 30000 });
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  await openPhotoInfo(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
   // The photo is tagged by itself (the stand-in is always sure), then the rest of the burst is offered.
@@ -95,9 +96,10 @@ async function openBurst(page: import('@playwright/test').Page) {
 }
 
 async function tagsOf(page: import('@playwright/test').Page, filename: string) {
-  await page.getByRole('button', { name: `Jump to frame ${filename}` }).click();
-  await page.getByRole('region', { name: 'Photo editor' }).waitFor();
-  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  // Photo info opens from each card in the library. On a phone the open panel covers the cards, so close it first.
+  const close = page.getByRole('button', { name: 'Close photo info' });
+  if (await close.isVisible()) await close.click();
+  await page.getByRole('button', { name: `Photo info and rating for ${filename}` }).click();
   const subject = page.getByRole('region', { name: 'What is in this photo' });
   await expect(subject).toBeVisible();
   return subject;
@@ -132,7 +134,7 @@ test('when the model is sure the photo is tagged automatically, marked Auto, and
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  await openPhotoInfo(page);
   await page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: /^Download/ }).click();
   const subject = page.getByRole('region', { name: 'What is in this photo' });
   const tag = subject.getByRole('list', { name: 'Tags' }).getByRole('listitem');
@@ -150,7 +152,7 @@ test('an automatic tag that is removed is never put back on that photo', async (
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  await openPhotoInfo(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
   const subject = page.getByRole('region', { name: 'What is in this photo' });
@@ -172,19 +174,20 @@ test('automatic tagging can be switched off, and then a new photo is only offere
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  await openPhotoInfo(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
   await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('list', { name: 'Tags' })).toContainText('Red kite', { timeout: 30000 });
   await panel.getByLabel('Automatically tag strong matches').uncheck();
   // A different photo: the model is just as sure, but nothing is added until it is accepted.
-  await page.getByRole('button', { name: 'Back', exact: true }).click();
-  const toProjects = page.getByRole('button', { name: 'Back to projects' });
-  if (await toProjects.isVisible()) await toProjects.click();
+  // Photo info is a library view, so the person is already in the library: go back to the projects.
+  await page.getByRole('button', { name: 'Back to projects' }).click();
   await page.getByTestId('quick-edit-input').setInputFiles({
     name: 'another.png', mimeType: 'image/png',
     buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
   });
+  await page.getByRole('tab', { name: 'Crop' }).waitFor();
+  await openPhotoInfo(page);
   await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: 'Use Red kite' })).toBeVisible({ timeout: 30000 });
   await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('list', { name: 'Tags' })).toHaveCount(0);
 });
@@ -201,7 +204,7 @@ test('the model downloads and is kept on a phone over plain http, where Cache St
   expect(await page.evaluate(() => typeof caches)).toBe('undefined');
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  await openPhotoInfo(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
   await expect(panel.getByRole('list', { name: 'Suggested names' })).toContainText('Red kite', { timeout: 30000 });
@@ -211,7 +214,7 @@ test('the model downloads and is kept on a phone over plain http, where Cache St
   await page.getByTestId('quick-edit-input').setInputFiles({ name: 'again.png', mimeType: 'image/png',
     buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64') });
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  await openPhotoInfo(page);
   await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('list', { name: 'Suggested names' })).toContainText('Red kite', { timeout: 30000 });
   await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: /^Download/ })).toHaveCount(0);
 });
@@ -221,7 +224,7 @@ test('a download that does not match its fingerprint is refused, and nothing is 
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  await openPhotoInfo(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
   await expect(panel.getByRole('alert')).toContainText('does not match its checksum');
