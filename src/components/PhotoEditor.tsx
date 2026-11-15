@@ -2,7 +2,7 @@ import { newId } from '../core/ids';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
-import { ChevronDown, Columns2, Lightbulb, Crop, Download, History, Layers, Redo2, SlidersHorizontal, Undo2 } from 'lucide-react';
+import { ChevronDown, Columns2, Lightbulb, Crop, Download, History, Redo2, SlidersHorizontal, SquircleDashed, Undo2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
@@ -38,7 +38,7 @@ type Tab = 'edit' | 'crop' | 'masks' | 'history';
 const TABS: { id: Tab; label: string; Icon: typeof Crop }[] = [
   { id: 'edit', label: 'Edit', Icon: SlidersHorizontal },
   { id: 'crop', label: 'Crop', Icon: Crop },
-  { id: 'masks', label: 'Masks', Icon: Layers },
+  { id: 'masks', label: 'Masks', Icon: SquircleDashed },
   { id: 'history', label: 'History', Icon: History },
 ];
 
