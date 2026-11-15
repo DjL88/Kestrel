@@ -37,7 +37,21 @@ async function thumbOf(bitmap: ImageBitmap): Promise<Float32Array> {
  */
 export async function matchPreviewOrientation(developed: Blob, preview: Blob | null): Promise<Blob> {
   if (!preview) return developed;
-  const [a, b] = await Promise.all([createImageBitmap(preview), createImageBitmap(developed)]);
+  // The RAW decoder has already succeeded. An unreadable camera JPEG preview
+  // must not prevent the person from editing the full developed photograph.
+  let a: ImageBitmap;
+  try {
+    a = await createImageBitmap(preview);
+  } catch {
+    return developed;
+  }
+  let b: ImageBitmap;
+  try {
+    b = await createImageBitmap(developed);
+  } catch (error) {
+    a.close();
+    throw error;
+  }
   try {
     const turn = bestTurn(
       { thumb: await thumbOf(a), portrait: a.height > a.width },
