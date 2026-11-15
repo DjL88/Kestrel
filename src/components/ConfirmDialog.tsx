@@ -42,7 +42,7 @@ export function ConfirmDialog({ title, children, confirmLabel, cancelLabel, onCo
           <button ref={cancel} type="button" onClick={onCancel}
             className="min-h-11 rounded-md border border-white/20 px-4 text-sm font-semibold hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">{cancelLabel}</button>
           <button ref={confirm} type="button" onClick={onConfirm} disabled={confirmDisabled}
-            className="min-h-11 rounded-md bg-kestrel-copper px-4 text-sm font-semibold text-zinc-950 hover:bg-kestrel-copper-hover focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-40">{confirmLabel}</button>
+            className="min-h-11 rounded-md bg-kestrel-copper px-4 text-sm font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-40">{confirmLabel}</button>
         </div>
       </div>
     </div>

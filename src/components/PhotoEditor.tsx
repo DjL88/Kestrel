@@ -2,7 +2,7 @@ import { newId } from '../core/ids';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
-import { ChevronDown, Columns2, Crop, Download, History, Keyboard, Layers, Lightbulb, Redo2, SlidersHorizontal, Undo2 } from 'lucide-react';
+import { ChevronDown, Columns2, Crop, Download, History, Keyboard, Lightbulb, Redo2, SlidersHorizontal, SquircleDashed, Undo2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
@@ -38,7 +38,7 @@ type Tab = 'edit' | 'crop' | 'masks' | 'history';
 const TABS: { id: Tab; label: string; Icon: typeof Crop }[] = [
   { id: 'edit', label: 'Edit', Icon: SlidersHorizontal },
   { id: 'crop', label: 'Crop', Icon: Crop },
-  { id: 'masks', label: 'Masks', Icon: Layers },
+  { id: 'masks', label: 'Masks', Icon: SquircleDashed },
   { id: 'history', label: 'History', Icon: History },
 ];
 
@@ -495,7 +495,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             <Keyboard className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Macro pad</span>
           </button>
         )}
-        <button type="button" className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover`}
+        <button type="button" className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
           disabled={sourceState !== 'ready'} onClick={() => setExportOpen(true)}>
           <Download className="h-4 w-4" aria-hidden="true" />Export
         </button>
@@ -599,7 +599,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
       </div>
       <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
-      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:relative md:z-10 md:-mb-[112px] md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
+      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:relative md:z-10 ${showFilmstrip ? 'md:-mb-[112px] ' : ''}md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
         {!isPhone && tabList}
         {tab === 'edit' && (
           <div role="tabpanel" id="panel-edit" aria-labelledby="tab-edit" className="space-y-2">
@@ -825,7 +825,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         {tab === 'crop' && (
           <div role="tabpanel" id="panel-crop" aria-labelledby="tab-crop" className="space-y-2">
             <div className="flex flex-wrap gap-2">
-              <button type="button" disabled={sourceState !== 'ready'} className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover`}
+              <button type="button" disabled={sourceState !== 'ready'} className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
                 onClick={() => setTab('edit')}>Apply crop</button>
               <button type="button" disabled={sourceState !== 'ready'} className={`${button} border border-white/15`}
                 onClick={() => { if (cropEntry.current) onFramingChange(cropEntry.current); setTab('edit'); }}>Cancel</button>

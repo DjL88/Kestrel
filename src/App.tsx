@@ -1136,7 +1136,7 @@ export default function App() {
               <div className="text-center">
                 <h2 className="mb-3 text-sm text-zinc-300">This project has no photos yet</h2>
                 <button type="button" disabled={Boolean(loadingProgress)} onClick={() => setOpenShootModal(true)}
-                  className="min-h-11 rounded-lg bg-kestrel-copper px-4 text-sm font-semibold text-zinc-950 disabled:opacity-40">Add photos</button>
+                  className="min-h-11 rounded-lg bg-kestrel-copper hover:bg-kestrel-copper-hover! px-4 text-sm font-semibold text-zinc-950 disabled:opacity-40">Add photos</button>
               </div>
             </div>
           )}

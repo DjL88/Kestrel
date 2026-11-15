@@ -74,6 +74,17 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await expect(page.getByText('Cycle Adjustment (Edit mode)')).toBeVisible();
   await expect(light).toHaveValue('0');
   await page.keyboard.press('Escape');
+  // On wide screens the panel runs down beside the filmstrip. Hiding the filmstrip must not push the panel's bottom off screen.
+  if ((page.viewportSize()?.width ?? 0) >= 768) {
+    const panelFitsWindow = () => page.evaluate(() => document.querySelector('[role=tablist]')!.parentElement!.getBoundingClientRect().bottom <= window.innerHeight + 1);
+    expect(await panelFitsWindow()).toBe(true);
+    await page.getByText('Edit options', { exact: true }).click();
+    await page.getByText('Layout', { exact: true }).click();
+    await page.getByRole('checkbox', { name: 'Pin filmstrip' }).uncheck();
+    await expect.poll(panelFitsWindow).toBe(true);
+    await page.getByRole('checkbox', { name: 'Pin filmstrip' }).check();
+    await expect.poll(panelFitsWindow).toBe(true);
+  }
   // The built-in opinion answers for an unedited photo, and stays on the page.
   await page.getByRole('button', { name: 'Get an opinion' }).click();
   await expect(page.getByRole('region', { name: 'Opinion on this edit' })).toBeVisible();

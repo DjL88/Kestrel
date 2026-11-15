@@ -1,4 +1,7 @@
 import hashlib
+import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -38,6 +41,21 @@ class CompareNikonTiffsTests(unittest.TestCase):
         self.assertEqual(result["maximum_channel_error_rgb"], [18000, 0, 47535])
         self.assertEqual(result["width"], 12)
         self.assertEqual(result["height"], 65)
+
+    def test_cli_fingerprints_optional_source_without_recording_path(self):
+        pixels = np.zeros((12, 12, 3), dtype=np.uint16)
+        reference = self.write("reference.tif", pixels)
+        candidate = self.write("candidate.tif", pixels)
+        source = self.root / "synthetic.NEF"
+        source.write_bytes(b"synthetic original")
+        script = Path(__file__).with_name("compare_nikon_tiffs.py")
+        report = subprocess.check_output(
+            [sys.executable, script, reference, candidate, "--source-nef", source],
+            text=True,
+        )
+        self.assertEqual(json.loads(report)["source_nef_sha256"], hashlib.sha256(source.read_bytes()).hexdigest())
+        self.assertNotIn(str(source), report)
+        self.assertNotIn("source_nef_sha256", compare(reference, candidate))
 
     def test_rejects_unmatched_profile_size_orientation_and_depth(self):
         pixels = np.zeros((12, 12, 3), dtype=np.uint16)
