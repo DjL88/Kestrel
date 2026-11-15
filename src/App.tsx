@@ -1,3 +1,5 @@
+import { DropOverlay } from './components/DropOverlay';
+import { useDropPhotos } from './providers/useDropPhotos';
 import { DesktopUpdate } from './components/DesktopUpdate';
 import { useDesktopMenu } from './providers/useDesktopMenu';
 import { OnlineHelperDialog } from './components/OnlineHelperDialog';
@@ -821,6 +823,11 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [projectsOpen, loadingProgress, exportFrames.length, autoCullOpen, pendingAction, removedOpen, showPhotoInfo, editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
 
+  const quickEditRef = useRef<(files: File[]) => Promise<void>>(async () => {});
+  const handleSelectLocalFilesRef = useRef<(files: File[]) => Promise<void>>(async () => {});
+  const onDroppedPhotos = useCallback((files: File[]) => { if (projectsOpen) void quickEditRef.current(files); else void handleSelectLocalFilesRef.current(files); }, [projectsOpen]);
+  const drop = useDropPhotos(onDroppedPhotos);
+
   const handleSelectLocalFiles = async (files: File[], options?: { openEditor?: boolean }) => {
     // A photo that was removed from the library does not count as already added, so adding it again brings it back.
     const existing = new Set(cullingState.frames.filter((frame) => !frame.removedAt).map((frame) => frame.stableKey));
@@ -994,8 +1001,13 @@ export default function App() {
     cullingState.shoot.needsFolderRegrant || cullingState.shoot.needsFileReselect
   );
 
+  quickEditRef.current = quickEdit;
+  handleSelectLocalFilesRef.current = (files) => handleSelectLocalFiles(files);
+
   if (projectsOpen) {
     return <>
+      <DesktopUpdate />
+      <DropOverlay dragging={drop.dragging} message={drop.message} onDismiss={drop.clearMessage} />
       <ProjectList projects={projects} photoText={photoText} loading={projectBusy} error={projectError}
         onOpen={(id) => void openProject(id)} onCreate={(name, options) => void newProject(name, options)} onRestore={(file) => void restoreBackup(file)}
         onArchive={(project) => setProjectAction({ kind: 'archive', project })} onDelete={(project) => setProjectAction({ kind: 'delete', project })}
@@ -1008,6 +1020,7 @@ export default function App() {
   return (
     <div className={`h-dvh w-full flex flex-col pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden ${editing ? '' : 'max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]'}`}>
       <DesktopUpdate />
+      <DropOverlay dragging={drop.dragging} message={drop.message} onDismiss={drop.clearMessage} />
       {editing ? (
         <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-kestrel-panel px-3 py-1">
           <button type="button" onClick={() => setEditing(false)} className="min-h-11 shrink-0 rounded-md px-2 text-sm font-medium hover:bg-white/10">Back</button>

@@ -51,6 +51,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="open-shoot-title"
+      data-handles-drop
       onDragOver={(event) => {
         if (!event.dataTransfer.types.includes('Files')) return;
         event.preventDefault();
