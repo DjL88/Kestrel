@@ -160,7 +160,30 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   // The ratio can be turned on its side: the photo stays upright, the shape changes.
   await instagram.getByRole('checkbox', { name: /Post · 4:5/ }).check();
   await expect.poll(() => page.getByRole('img', { name: /as Post · 4:5/ }).evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(0.8);
-  await instagram.getByRole('button', { name: /Turn Post · 4:5 from 4:5 to 5:4/ }).click();
+  // Zoom in and the crop moves in every direction, not just one. The turn button sits on the preview itself.
+  const crop = page.getByRole('group', { name: /Crop position for .* as Post · 4:5/ });
+  const look = () => page.getByRole('img', { name: /as Post · 4:5/ }).evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
+  await crop.focus();
+  await page.keyboard.press('+');
+  await page.keyboard.press('+');
+  await expect.poll(look).not.toBe('');
+  await page.waitForTimeout(400);
+  const zoomed = await look();
+  const box = (await crop.boundingBox())!;
+  for (const [dx, dy] of [[-0.3, 0], [0, -0.3]]) {
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + box.width * dx, box.y + box.height / 2 + box.height * dy, { steps: 5 });
+    await page.mouse.up();
+    await page.waitForTimeout(500);
+    const after = await look();
+    expect(after, `dragging ${dx ? 'sideways' : 'up'} should change the crop`).not.toBe(zoomed);
+    await crop.dblclick();
+    await page.keyboard.press('+');
+    await page.keyboard.press('+');
+    await page.waitForTimeout(400);
+  }
+  await page.getByRole('button', { name: /Turn Post · 4:5 on its side/ }).click();
   await expect.poll(() => page.getByRole('img', { name: /as Post · 5:4/ }).evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(1.25);
   await instagram.getByRole('checkbox', { name: /Post · 5:4/ }).uncheck();
   await instagram.getByRole('checkbox', { name: /Story or Reel cover/ }).uncheck();
