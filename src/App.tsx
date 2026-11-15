@@ -849,6 +849,7 @@ export default function App() {
   useEffect(() => { if (projectsOpen) watch.stop(); }, [projectsOpen, cullingState.shoot.id, watch.stop]);
 
   const handleSelectLocalFiles = async (files: File[], options?: { openEditor?: boolean; watched?: boolean; onImported?: (count: number) => void }) => {
+    const targetProjectId = cullingState.shoot.id;
     // A photo that was removed from the library does not count as already added, so adding it again brings it back.
     const existing = new Set(cullingState.frames.filter((frame) => !frame.removedAt).map((frame) => frame.stableKey));
     const additions = files.filter((file) => {
@@ -879,8 +880,12 @@ export default function App() {
         additions, previewProviderRef.current!, storeRef.current!,
         ({ loaded, total }) => setLoadingProgress({ loaded, total })
       );
+      // The photographer may switch projects while a watched file is loading.
+      // In that case, never append its frames to whichever project is open now.
+      if (options?.watched && stateRef.current.shoot.id !== targetProjectId) return;
       const importId = newId().slice(0, 8);
       setCullingState((prev) => {
+        if (options?.watched && prev.shoot.id !== targetProjectId) return prev;
         const next = appendProjectPhotos(prev, frames, importId);
         const first = options?.openEditor ? next.frames.find((frame) => frame.id.startsWith(`${importId}-`)) : undefined;
         return first ? { ...next, filter: 'all', selectedFrameId: first.id } : next;
