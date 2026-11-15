@@ -1,8 +1,10 @@
 import { newId } from '../core/ids';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
-import { ChevronDown } from 'lucide-react';
-import { DEFAULT_FRAMING, MIN_CROP_SIZE, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
+import { ChevronDown, Columns2, Crop, Download, History, Layers, Redo2, SlidersHorizontal, Undo2 } from 'lucide-react';
+import { recipeAt } from '../core/editHistory';
+import { formatClock } from '../core/formatDate';
+import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
 import { downloadExport } from '../providers/browserExport';
 import { Histogram } from './Histogram';
@@ -28,6 +30,13 @@ import { visiblePhotoDetail } from '../core/visiblePhotoDetail';
 const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
 const PANEL_KEY = 'kestrel-panel-width-v1';
+type Tab = 'edit' | 'crop' | 'masks' | 'history';
+const TABS: { id: Tab; label: string; Icon: typeof Crop }[] = [
+  { id: 'edit', label: 'Edit', Icon: SlidersHorizontal },
+  { id: 'crop', label: 'Crop', Icon: Crop },
+  { id: 'masks', label: 'Masks', Icon: Layers },
+  { id: 'history', label: 'History', Icon: History },
+];
 
 interface Props {
   /** Suggest colour and tone the first time a photo is opened, when the project asked for it. */
@@ -38,6 +47,8 @@ interface Props {
   bindings: KeyBindingsMap;
   onEdit: (edit: PhotoEdit) => void;
   onHistoryStep: (direction: -1 | 1) => void;
+  /** Restore the photo to how it was after this many history steps. */
+  onHistoryJump: (cursor: number) => void;
   copiedEdit: PhotoEdit | null;
   onCopyEdit: (edit: PhotoEdit) => void;
   keeperCount: number;
@@ -55,7 +66,7 @@ interface Props {
 }
 
 export function PhotoEditor({ autoEdit,
-  frame, provider, needsAccess, bindings, onEdit, onHistoryStep, copiedEdit, onCopyEdit, keeperCount,
+  frame, provider, needsAccess, bindings, onEdit, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onSubjectsChange, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, showFilmstrip, onToggleFilmstrip,
 }: Props) {
@@ -83,7 +94,10 @@ export function PhotoEditor({ autoEdit,
   const [showMaskOverlay, setShowMaskOverlay] = useState(true);
   const [dialUsed, setDialUsed] = useState(false);
   const [quickChoices, setQuickChoices] = useState(false);
-  const [cropOpen, setCropOpen] = useState(false);
+  const [tab, setTab] = useState<Tab>('edit');
+  const [previewRecipe, setPreviewRecipe] = useState<{ edit?: PhotoEdit; framing?: PhotoFraming } | null>(null);
+  const cropEntry = useRef<PhotoFraming | null>(null);
+  const cropOpen = tab === 'crop';
   const [previewCrop, setPreviewCrop] = useState(false);
   const [gridLines, setGridLines] = useState(true);
   const [cropNotice, setCropNotice] = useState('');
@@ -95,8 +109,9 @@ export function PhotoEditor({ autoEdit,
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [confirmApply, setConfirmApply] = useState(false);
   const [editNotice, setEditNotice] = useState('');
-  const edit = frame.edit ?? DEFAULT_EDIT;
-  const framing = frame.framing ?? DEFAULT_FRAMING;
+  // While a history step is being previewed, draw that step's recipe instead of the saved one.
+  const edit = (previewRecipe ? previewRecipe.edit : frame.edit) ?? DEFAULT_EDIT;
+  const framing = (previewRecipe ? previewRecipe.framing : frame.framing) ?? DEFAULT_FRAMING;
   const isRaw = /\.(nef|nrw)$/i.test(frame.filename) && !frame.isDemo;
 
   useEffect(() => {
@@ -137,12 +152,7 @@ export function PhotoEditor({ autoEdit,
   const [histogram, setHistogram] = useState<HistogramData | null>(null);
   const source = sourceState === 'ready' ? sourceImage.current : null;
   const guide = cropOpen && !previewCrop;
-  const ratio = guide ? null : framing.ratio;
-  const anchorX = guide ? 0.5 : framing.x;
-  const anchorY = guide ? 0.5 : framing.y;
-  const displayFraming = useMemo(() => ({
-    ratio, x: anchorX, y: anchorY, turns: framing.turns, straighten: framing.straighten,
-  }), [ratio, anchorX, anchorY, framing.turns, framing.straighten]);
+  const displayFraming = useMemo(() => displayFramingFor(framing, guide), [framing, guide]);
   const displayCompare = compare && !guide && sourceState === 'ready';
   const outputSize = source ? framedSize(source.naturalWidth, source.naturalHeight, framing) : null;
   const size = source ? framedSize(source.naturalWidth, source.naturalHeight, displayFraming) : null;
@@ -240,6 +250,17 @@ export function PhotoEditor({ autoEdit,
     return () => window.removeEventListener('keydown', onKey);
   }, [bindings, copiedEdit, dial, edit, exportOpen, guide, onCopyEdit, onEdit, onHistoryStep, source]);
 
+  // Opening the crop tab shows the whole photo with the crop box. Remember the crop so Cancel can put it back.
+  useEffect(() => {
+    setPreviewCrop(false);
+    setTransform(FIT_VIEW);
+    setPreviewRecipe(null);
+    if (tab === 'crop') cropEntry.current = frame.framing ?? DEFAULT_FRAMING;
+    else setMarkFocus(false);
+    // Only when the tab changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
   // Auto-edit: the first time a photo with no edit history is ready, suggest colour and tone and say why.
   useEffect(() => {
     if (!autoEdit || !source || frame.edit || frame.editHistory?.steps.length) return;
@@ -336,7 +357,29 @@ export function PhotoEditor({ autoEdit,
 
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
   return (
-    <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-kestrel-stage md:flex-row">
+    <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-kestrel-stage">
+      <div role="toolbar" aria-label="Editor actions" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-panel px-2 sm:px-4">
+        <div className="flex items-center gap-1">
+          <button type="button" className={`${button} inline-flex items-center`} aria-label="Undo" disabled={!frame.editHistory?.cursor} onClick={() => onHistoryStep(-1)}>
+            <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Undo</span>
+          </button>
+          <button type="button" className={`${button} inline-flex items-center`} aria-label="Redo" disabled={!frame.editHistory || frame.editHistory.cursor >= frame.editHistory.steps.length} onClick={() => onHistoryStep(1)}>
+            <Redo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Redo</span>
+          </button>
+          <button type="button" aria-pressed={displayCompare} disabled={sourceState !== 'ready' || guide} onClick={() => setCompare(!compare)}
+            title="Compare with the original (backslash)"
+            className={`${button} inline-flex items-center gap-1.5 border border-white/15 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/20 aria-pressed:text-sky-100`}>
+            <Columns2 className="h-4 w-4" aria-hidden="true" />
+            <span>Before / After</span>
+            <span className="rounded bg-black/40 px-1.5 text-xs">{displayCompare ? 'On' : 'Off'}</span>
+          </button>
+        </div>
+        <button type="button" className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover`}
+          disabled={sourceState !== 'ready'} onClick={() => setExportOpen(true)}>
+          <Download className="h-4 w-4" aria-hidden="true" />Export
+        </button>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
       <div ref={stage} className="relative flex min-h-0 flex-1 bg-black">
         <PhotoViewport zoom={transform.zoom} pan={transform.pan}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
@@ -359,7 +402,7 @@ export function PhotoEditor({ autoEdit,
             {!guide && position && frame.focusPoint && <span aria-hidden="true"
               className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_#000]"
               style={{ left: position.left + position.width * frame.focusPoint.x, top: position.top + position.height * frame.focusPoint.y }} />}
-            {!guide && position && size && !displayCompare && showMaskOverlay && edit.masks?.find((mask) => mask.id === selectedMaskId) && (
+            {tab === 'masks' && !guide && position && size && !displayCompare && showMaskOverlay && edit.masks?.find((mask) => mask.id === selectedMaskId) && (
               <MaskOverlay mask={edit.masks.find((mask) => mask.id === selectedMaskId)!} aspect={size.height / size.width} rect={position}
                 brushRadius={brushRadius} erase={erase}
                 onChange={(next) => onEdit({ ...edit, masks: edit.masks!.map((mask) => mask.id === next.id ? next : mask) })} />
@@ -435,27 +478,27 @@ export function PhotoEditor({ autoEdit,
       </div>
       <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
       <div style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`max-h-[44%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
-        <div className="flex flex-wrap justify-between gap-2">
-          <button type="button" className={button} aria-pressed={displayCompare} disabled={sourceState !== 'ready' || guide} onClick={() => setCompare(!compare)}>
-            Before / after
-          </button>
-          <button type="button" className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover`}
-            disabled={sourceState !== 'ready'} onClick={() => setExportOpen(true)}>
-            Export
-          </button>
+        <div role="tablist" aria-label="Editing tools" className="sticky top-0 z-10 -mx-3 -mt-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 md:-mx-4 md:-mt-4 md:px-3"
+          onKeyDown={(event) => {
+            const order = TABS.map((entry) => entry.id);
+            const at = order.indexOf(tab);
+            const next = event.key === 'ArrowRight' ? order[(at + 1) % order.length] : event.key === 'ArrowLeft' ? order[(at + order.length - 1) % order.length]
+              : event.key === 'Home' ? order[0] : event.key === 'End' ? order[order.length - 1] : null;
+            if (!next) return;
+            event.preventDefault();
+            setTab(next);
+            document.getElementById(`tab-${next}`)?.focus();
+          }}>
+          {TABS.map(({ id, label, Icon }) => (
+            <button key={id} id={`tab-${id}`} role="tab" type="button" aria-selected={tab === id} aria-controls={`panel-${id}`} tabIndex={tab === id ? 0 : -1}
+              onClick={() => setTab(id)}
+              className="flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1 border-b-2 border-transparent px-1.5 text-sm text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:border-sky-200 aria-selected:text-white">
+              <Icon className="h-4 w-4" aria-hidden="true" />{label}{id === 'masks' && edit.masks?.length ? <span className="text-xs tabular-nums text-zinc-400">{edit.masks.length}</span> : null}
+            </button>
+          ))}
         </div>
-        <details className="border-b border-white/10 pb-1">
-          <summary className="min-h-11 cursor-pointer py-3 text-sm">Export focus</summary>
-          <button type="button" className={button} disabled={!position || guide} aria-pressed={markFocus} onClick={() => {
-            setCompare(false);
-            setTransform(FIT_VIEW);
-            setMarkFocus(!markFocus);
-          }}>{markFocus ? 'Cancel placement' : frame.focusPoint ? 'Move focus point' : 'Mark focus point'}</button>
-          {frame.focusPoint && <button type="button" className={button} onClick={() => onFocusPoint(undefined)}>Clear</button>}
-          <p className="px-1 pb-2 text-xs text-zinc-400">{markFocus ? 'Tap the subject. Press Enter on the photo to use the centre.' :
-            'Used when cropping exports. Re-mark after changing the crop.'}</p>
-        </details>
-        {isRaw && <p className="text-xs text-zinc-300">Editing embedded JPEG preview</p>}
+        {tab === 'edit' && (
+          <div role="tabpanel" id="panel-edit" aria-labelledby="tab-edit" className="space-y-2">
         <Histogram data={histogram} />
         <div className="px-1">
           <button type="button" disabled={sourceState !== 'ready'} className={`${button} w-full border border-white/10 font-semibold`}
@@ -503,18 +546,7 @@ export function PhotoEditor({ autoEdit,
           <button type="button" aria-expanded={quickChoices} onClick={() => setQuickChoices(!quickChoices)}
             className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white lg:min-h-7">Quick choices</button>
         </div>
-        <details className="border-t border-white/10">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
-            Masks{edit.masks?.length ? ` (${edit.masks.length})` : ''} <ChevronDown className="h-4 w-4" aria-hidden="true" />
-          </summary>
-          <MaskPanel masks={edit.masks ?? []} selectedId={selectedMaskId} disabled={sourceState !== 'ready'}
-            brushRadius={brushRadius} erase={erase} showOverlay={showMaskOverlay}
-            onSelect={setSelectedMaskId} onChange={(masks) => onEdit({ ...edit, masks })}
-            onBrushRadius={setBrushRadius} onErase={setErase} onShowOverlay={setShowMaskOverlay}
-            onFindSubject={(background) => void findSubject(background)} onRefind={(id) => void findSubject(false, id)}
-            detecting={detecting} detectNotice={detectNotice} currentFramingKey={framingKey(framing)} />
-        </details>
-        <details className="border-t border-white/10">
+        <details open className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
             Tone <ChevronDown className="h-4 w-4" aria-hidden="true" />
           </summary>
@@ -534,7 +566,7 @@ export function PhotoEditor({ autoEdit,
             ))}
           </div>
         </details>
-        <details className="border-t border-white/10">
+        <details open className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
             Detail <ChevronDown className="h-4 w-4" aria-hidden="true" />
           </summary>
@@ -554,84 +586,18 @@ export function PhotoEditor({ autoEdit,
             ))}
           </div>
         </details>
-        <details className="border-t border-white/10"
-          onToggle={(event) => {
-            setCropOpen(event.currentTarget.open);
-            setPreviewCrop(false);
+        <details className="border-b border-white/10 pb-1">
+          <summary className="min-h-11 cursor-pointer py-3 text-sm">Export focus</summary>
+          <button type="button" className={button} disabled={!position || guide} aria-pressed={markFocus} onClick={() => {
+            setCompare(false);
             setTransform(FIT_VIEW);
-          }}>
-          <summary className="min-h-11 cursor-pointer py-3 text-sm">Crop &amp; straighten</summary>
-          <fieldset disabled={sourceState !== 'ready'} className="space-y-2">
-            <div className="flex flex-wrap">
-              <button type="button" className={button} onClick={createCropCopy}>Auto crop copy</button>
-              <button type="button" className={button} onClick={() => onFramingChange({
-                ...framing, turns: (framing.turns + 1) % 4, x: 1 - framing.y, y: framing.x,
-              })}>Rotate 90°</button>
-              <button type="button" className={button} onClick={autoLevel}>Auto-level</button>
-              <button type="button" className={button} onClick={() => { onFramingChange(DEFAULT_FRAMING); setCropNotice(''); }}>Reset</button>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <button type="button" className={button} aria-pressed={previewCrop} onClick={() => {
-                setPreviewCrop(!previewCrop);
-                setTransform(FIT_VIEW);
-              }}>{previewCrop ? 'Edit crop' : 'Preview crop'}</button>
-              <label className="flex min-h-10 items-center gap-2"><input type="checkbox" checked={gridLines} onChange={(event) => setGridLines(event.target.checked)} />Gridlines</label>
-            </div>
-            {cropNotice && <p role="status" className="text-xs text-zinc-300">{cropNotice}</p>}
-            <label className="flex min-h-11 items-center justify-between gap-2 text-sm">
-              Aspect ratio
-              <select value={framing.ratio ?? ''} onChange={(event) => onFramingChange({ ...framing, ratio: Number(event.target.value) || null })}
-                className="min-h-10 rounded-md bg-[#252830] px-2">
-                <option value="">Original</option>
-                <option value={1}>Square</option>
-                <option value={4 / 5}>4:5</option>
-                <option value={5 / 4}>5:4</option>
-                <option value={3 / 2}>3:2</option>
-                <option value={9 / 16}>9:16</option>
-                <option value={2 / 3}>2:3</option>
-              </select>
-            </label>
-            <label className="block px-1 pb-1">
-              <span className="flex items-center justify-between text-xs text-zinc-300"><span>Crop size</span>
-                <output className="tabular-nums text-zinc-400">{Math.round((framing.size ?? 1) * 100)}%</output></span>
-              <input type="range" min={MIN_CROP_SIZE} max={1} step={0.01} value={framing.size ?? 1} aria-label="Crop size"
-                onChange={(event) => size && onFramingChange({ ...framing, ratio: framing.ratio ?? size.width / size.height, size: event.target.valueAsNumber })}
-                onDoubleClick={() => onFramingChange({ ...framing, size: undefined })}
-                className="block min-h-9 w-full accent-sky-300 lg:min-h-7" />
-            </label>
-            <label className="block text-xs">Straighten <output>{framing.straighten.toFixed(1)}°</output>
-              <input type="range" min={-12} max={12} step={0.1} value={framing.straighten}
-                onChange={(event) => onFramingChange({ ...framing, straighten: event.target.valueAsNumber })}
-                className="block min-h-10 w-full accent-sky-300" />
-            </label>
-            {framing.ratio && (['x', 'y'] as const).map((axis) => (
-              <label key={axis} className="block text-xs">{axis === 'x' ? 'Horizontal crop position' : 'Vertical crop position'}
-                <input type="range" min={0} max={1} step={0.01} value={framing[axis]}
-                  onChange={(event) => onFramingChange({ ...framing, [axis]: event.target.valueAsNumber })}
-                  className="block min-h-10 w-full accent-sky-300" />
-              </label>
-            ))}
-          </fieldset>
+            setMarkFocus(!markFocus);
+          }}>{markFocus ? 'Cancel placement' : frame.focusPoint ? 'Move focus point' : 'Mark focus point'}</button>
+          {frame.focusPoint && <button type="button" className={button} onClick={() => onFocusPoint(undefined)}>Clear</button>}
+          <p className="px-1 pb-2 text-xs text-zinc-400">{markFocus ? 'Tap the subject. Press Enter on the photo to use the centre.' :
+            'Used when cropping exports. Re-mark after changing the crop.'}</p>
         </details>
-        <details className="border-t border-white/10">
-          <summary className="min-h-11 cursor-pointer py-3 text-sm">{m.editHistory}</summary>
-          {!frame.editHistory?.steps.length ? <p className="pb-2 text-sm text-zinc-400">{m.emptyHistory}</p> : (
-            <>
-              <div className="flex gap-2">
-                <button type="button" className={button} disabled={!frame.editHistory.cursor} onClick={() => onHistoryStep(-1)}>{m.undo}</button>
-                <button type="button" className={button} disabled={frame.editHistory.cursor >= frame.editHistory.steps.length}
-                  onClick={() => onHistoryStep(1)}>{m.redo}</button>
-              </div>
-              <ol className="max-h-48 overflow-y-auto pb-2 text-sm">
-                {frame.editHistory.steps.map((step, index) => <li key={index}
-                  aria-current={index === frame.editHistory!.cursor - 1 ? 'step' : undefined}
-                  className={`rounded px-2 py-1 ${index >= frame.editHistory!.cursor ? 'text-zinc-500' : 'text-zinc-200'} aria-[current=step]:bg-white/10`}>
-                  {m.historyStep[step.kind]}
-                </li>)}
-              </ol>
-            </>
-          )}
-        </details>
+        {isRaw && <p className="text-xs text-zinc-300">Editing embedded JPEG preview</p>}
         <details className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
             Edit options <ChevronDown className="h-4 w-4" aria-hidden="true" />
@@ -728,6 +694,112 @@ export function PhotoEditor({ autoEdit,
             }}>Download original</button>}
           {outputSize && <p className="mt-2 text-xs text-zinc-400">Output {outputSize.width.toLocaleString()} × {outputSize.height.toLocaleString()} px</p>}
         </details>
+          </div>
+        )}
+        {tab === 'crop' && (
+          <div role="tabpanel" id="panel-crop" aria-labelledby="tab-crop" className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={sourceState !== 'ready'} className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover`}
+                onClick={() => setTab('edit')}>Apply crop</button>
+              <button type="button" disabled={sourceState !== 'ready'} className={`${button} border border-white/15`}
+                onClick={() => { if (cropEntry.current) onFramingChange(cropEntry.current); setTab('edit'); }}>Cancel</button>
+            </div>
+            <p className="px-1 text-xs text-zinc-400">Drag the corners or the box on the photo. Changes are saved as you go. Apply returns to the editing view with the crop in place, and Cancel puts back the crop you started with.</p>
+          <fieldset disabled={sourceState !== 'ready'} className="space-y-2">
+            <div className="flex flex-wrap">
+              <button type="button" className={button} onClick={createCropCopy}>Auto crop copy</button>
+              <button type="button" className={button} onClick={() => onFramingChange({
+                ...framing, turns: (framing.turns + 1) % 4, x: 1 - framing.y, y: framing.x,
+              })}>Rotate 90°</button>
+              <button type="button" className={button} onClick={autoLevel}>Auto-level</button>
+              <button type="button" className={button} onClick={() => { onFramingChange(DEFAULT_FRAMING); setCropNotice(''); }}>Reset</button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <button type="button" className={button} aria-pressed={previewCrop} onClick={() => {
+                setPreviewCrop(!previewCrop);
+                setTransform(FIT_VIEW);
+              }}>{previewCrop ? 'Edit crop' : 'Preview crop'}</button>
+              <label className="flex min-h-10 items-center gap-2"><input type="checkbox" checked={gridLines} onChange={(event) => setGridLines(event.target.checked)} />Gridlines</label>
+            </div>
+            {cropNotice && <p role="status" className="text-xs text-zinc-300">{cropNotice}</p>}
+            <label className="flex min-h-11 items-center justify-between gap-2 text-sm">
+              Aspect ratio
+              <select value={framing.ratio ?? ''} onChange={(event) => onFramingChange({ ...framing, ratio: Number(event.target.value) || null })}
+                className="min-h-10 rounded-md bg-[#252830] px-2">
+                <option value="">Original</option>
+                <option value={1}>Square</option>
+                <option value={4 / 5}>4:5</option>
+                <option value={5 / 4}>5:4</option>
+                <option value={3 / 2}>3:2</option>
+                <option value={9 / 16}>9:16</option>
+                <option value={2 / 3}>2:3</option>
+              </select>
+            </label>
+            <label className="block px-1 pb-1">
+              <span className="flex items-center justify-between text-xs text-zinc-300"><span>Crop size</span>
+                <output className="tabular-nums text-zinc-400">{Math.round((framing.size ?? 1) * 100)}%</output></span>
+              <input type="range" min={MIN_CROP_SIZE} max={1} step={0.01} value={framing.size ?? 1} aria-label="Crop size"
+                onChange={(event) => size && onFramingChange({ ...framing, ratio: framing.ratio ?? size.width / size.height, size: event.target.valueAsNumber })}
+                onDoubleClick={() => onFramingChange({ ...framing, size: undefined })}
+                className="block min-h-9 w-full accent-sky-300 lg:min-h-7" />
+            </label>
+            <label className="block text-xs">Straighten <output>{framing.straighten.toFixed(1)}°</output>
+              <input type="range" min={-12} max={12} step={0.1} value={framing.straighten}
+                onChange={(event) => onFramingChange({ ...framing, straighten: event.target.valueAsNumber })}
+                className="block min-h-10 w-full accent-sky-300" />
+            </label>
+            {framing.ratio && (['x', 'y'] as const).map((axis) => (
+              <label key={axis} className="block text-xs">{axis === 'x' ? 'Horizontal crop position' : 'Vertical crop position'}
+                <input type="range" min={0} max={1} step={0.01} value={framing[axis]}
+                  onChange={(event) => onFramingChange({ ...framing, [axis]: event.target.valueAsNumber })}
+                  className="block min-h-10 w-full accent-sky-300" />
+              </label>
+            ))}
+          </fieldset>
+
+          </div>
+        )}
+        {tab === 'masks' && (
+          <div role="tabpanel" id="panel-masks" aria-labelledby="tab-masks">
+            <MaskPanel masks={edit.masks ?? []} selectedId={selectedMaskId} disabled={sourceState !== 'ready'}
+              brushRadius={brushRadius} erase={erase} showOverlay={showMaskOverlay}
+              onSelect={setSelectedMaskId} onChange={(masks) => onEdit({ ...edit, masks })}
+              onBrushRadius={setBrushRadius} onErase={setErase} onShowOverlay={setShowMaskOverlay}
+              onFindSubject={(background) => void findSubject(background)} onRefind={(id) => void findSubject(false, id)}
+              detecting={detecting} detectNotice={detectNotice} currentFramingKey={framingKey(framing)} />
+
+          </div>
+        )}
+        {tab === 'history' && (
+          <div role="tabpanel" id="panel-history" aria-labelledby="tab-history">
+            <div className="space-y-2" aria-label="Edit history">
+              <p className="px-1 text-xs text-zinc-400">Hover or focus a step to preview it. Press it to restore the photo to that point. Later steps stay available to redo.</p>
+              <ol className="space-y-1">
+                {[{ label: 'Original', at: 0 }, ...(frame.editHistory?.steps ?? []).map((step) => ({ label: m.historyStep[step.kind], at: step.at }))].map((entry, index) => {
+                  const cursor = frame.editHistory?.cursor ?? 0;
+                  const history = frame.editHistory;
+                  const current = index === cursor;
+                  return (
+                    <li key={index}>
+                      <button type="button" aria-current={current ? 'step' : undefined} disabled={!history}
+                        onClick={() => { onHistoryJump(index); setPreviewRecipe(null); }}
+                        onMouseEnter={() => history && !current && setPreviewRecipe(recipeAt(history, index) ?? null)}
+                        onMouseLeave={() => setPreviewRecipe(null)}
+                        onFocus={() => history && !current && setPreviewRecipe(recipeAt(history, index) ?? null)}
+                        onBlur={() => setPreviewRecipe(null)}
+                        className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-2 text-left text-sm hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 aria-[current=step]:bg-sky-300/15 aria-[current=step]:font-semibold ${index > cursor ? 'text-zinc-500' : 'text-zinc-200'}`}>
+                        <span>{current ? '● ' : ''}{entry.label}{index > cursor ? ' (undone)' : ''}</span>
+                        <time className="tabular-nums text-xs text-zinc-400" dateTime={entry.at ? new Date(entry.at).toISOString() : undefined}>{entry.at ? formatClock(entry.at) : 'start'}</time>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+              {!frame.editHistory?.steps.length && <p className="px-1 text-sm text-zinc-400">{m.emptyHistory}</p>}
+            </div>
+          </div>
+        )}
+      </div>
       </div>
       {exportOpen && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} />}
     </section>
