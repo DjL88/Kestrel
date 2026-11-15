@@ -53,6 +53,7 @@ interface TopWorkspaceBarProps {
   removedCount?: number;
   onOpenRemoved?: () => void;
   onExportKeepers?: () => void;
+  onBatchLook?: () => void;
   onUndo?: () => void;
   focusMode: boolean;
   onToggleFocusMode: () => void;
@@ -212,6 +213,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
 
                 <MenuSection id="menu-project" title="Project">
                   <MenuItem icon={<ScanSearch className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onAutoCull, false)}>{m.autoCull}</MenuItem>
+                  <MenuItem icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!props.onBatchLook} onClick={() => choose(() => props.onBatchLook?.(), false)}>Apply look to keepers…</MenuItem>
                   <MenuItem icon={<FileDown className="h-4 w-4" aria-hidden="true" />} disabled={!props.onExportKeepers} onClick={() => choose(() => props.onExportKeepers?.())}>Export keepers</MenuItem>
                   <MenuItem icon={<Save className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onBackupProject)}>Back up project</MenuItem>
                   {props.onWatchFolder && <MenuItem icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onWatchFolder!, props.watching ? true : false)}>{props.watching ? `Stop watching “${props.watching}”` : 'Watch a folder for new photos…'}</MenuItem>}
