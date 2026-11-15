@@ -111,11 +111,12 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const footerMore = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
     function closeOutside(event: PointerEvent) {
-      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) setMenuOpen(false);
+      if (event.target instanceof Node && !menuRef.current?.contains(event.target) && !footerMore.current?.contains(event.target)) setMenuOpen(false);
     }
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key !== 'Escape') return;
@@ -150,16 +151,16 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
-        <button type="button" onClick={props.onOpenShootModal} disabled={props.actionsDisabled} className={`${actionClass} border border-white/12`} aria-label="Add photos to project" title="Add photos">
+        <button type="button" onClick={props.onOpenShootModal} disabled={props.actionsDisabled} className={`${actionClass} border border-white/12 max-md:hidden`} aria-label="Add photos to project" title="Add photos">
           <Plus className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">Add</span>
         </button>
         <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto || props.actionsDisabled} aria-label="Edit" title="Open the selected photo in the editor"
-          className={`${actionClass} border border-sky-300/50 text-sky-100 hover:bg-sky-300/15 disabled:opacity-40`}>
+          className={`${actionClass} border border-sky-300/50 text-sky-100 hover:bg-sky-300/15 disabled:opacity-40 max-md:hidden`}>
           <Pencil className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Edit</span>
         </button>
         <button type="button" onClick={props.onExport} disabled={!props.onExport || props.actionsDisabled} aria-label={props.exportLabel ?? 'Export'} title="Export the selected photos"
-          className={`${actionClass} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-40`}>
+          className={`${actionClass} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-40 max-md:hidden`}>
           <Download className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">{props.exportLabel ?? 'Export'}</span>
           <span className="tabular-nums sm:hidden" aria-hidden="true">{props.exportLabel?.replace('Export', '').trim()}</span>
@@ -170,7 +171,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
             <Ellipsis className="h-5 w-5" aria-hidden="true" />
           </button>
           {menuOpen && (
-            <div id="workspace-options" data-workspace-options className="workspace-popover absolute right-2 top-full mt-1 max-h-[calc(100dvh-4rem)] w-[min(26rem,calc(100vw-1rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-3 shadow-2xl sm:right-4">
+            <div id="workspace-options" data-workspace-options className="workspace-popover fixed inset-x-2 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 max-h-[70dvh] md:absolute md:inset-x-auto md:bottom-auto md:right-2 md:top-full md:mt-1 md:max-h-[calc(100dvh-4rem)] md:w-[min(26rem,calc(100vw-1rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-3 shadow-2xl sm:right-4">
               <div className="space-y-3">
                 <section aria-label="Find photos" className="space-y-2 md:hidden">
                   <label className="block text-xs font-medium text-zinc-400">
@@ -269,6 +270,23 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
         </div>
       </div>
     </header>
+    <div role="toolbar" aria-label="Photo actions" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)] md:hidden">
+      {([
+        { key: 'add', label: 'Add', title: 'Add photos', Icon: Plus, onClick: props.onOpenShootModal, disabled: props.actionsDisabled },
+        { key: 'edit', label: 'Edit', title: 'Open the selected photo in the editor', Icon: Pencil, onClick: onEditPhoto, disabled: !onEditPhoto || props.actionsDisabled },
+        { key: 'export', label: props.exportLabel ?? 'Export', title: 'Export the selected photos', Icon: Download, onClick: props.onExport, disabled: !props.onExport || props.actionsDisabled },
+      ] as const).map(({ key, label, title, Icon, onClick, disabled }) => (
+        <button key={key} type="button" onClick={onClick} disabled={disabled} title={title} aria-label={key === 'add' ? 'Add photos to project' : label}
+          className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-40">
+          <Icon className="h-5 w-5" aria-hidden="true" /><span>{label}</span>
+        </button>
+      ))}
+      <button ref={footerMore} type="button" aria-expanded={menuOpen} aria-controls="workspace-options" title="More: filters, selection, project and help"
+        onClick={() => setMenuOpen(!menuOpen)}
+        className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 aria-expanded:text-white">
+        <Ellipsis className="h-5 w-5" aria-hidden="true" /><span>More</span>
+      </button>
+    </div>
     <nav aria-label="Photo collections" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
       <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
         {(['all', 'unreviewed', 'keep', 'reject'] as const).map((collection) => (

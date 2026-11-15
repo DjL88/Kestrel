@@ -963,7 +963,7 @@ export default function App() {
   }
 
   return (
-    <div className="h-dvh w-full flex flex-col pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden">
+    <div className={`h-dvh w-full flex flex-col pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden ${editing ? '' : 'max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]'}`}>
       {editing ? (
         <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-kestrel-panel px-3 py-1">
           <button type="button" onClick={() => setEditing(false)} className="min-h-11 shrink-0 rounded-md px-2 text-sm font-medium hover:bg-white/10">Back</button>

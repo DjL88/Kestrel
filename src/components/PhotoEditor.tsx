@@ -2,7 +2,7 @@ import { newId } from '../core/ids';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
-import { ChevronDown, Columns2, Crop, Download, History, Keyboard, Lightbulb, Redo2, SlidersHorizontal, SquircleDashed, Undo2 } from 'lucide-react';
+import { ChevronDown, Columns2, Maximize, Minimize, Crop, Download, History, Keyboard, Lightbulb, Redo2, SlidersHorizontal, SquircleDashed, Undo2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
@@ -135,6 +135,21 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     }
     setTab(id);
     rememberSheet(true);
+  };
+  // Full screen uses the whole page, so the macro pad and keyboard shortcuts keep working. Not every browser allows it (iPhone Safari does not).
+  const canFullscreen = typeof document !== 'undefined' && Boolean(document.fullscreenEnabled);
+  const [fullscreen, setFullscreen] = useState(() => typeof document !== 'undefined' && Boolean(document.fullscreenElement));
+  useEffect(() => {
+    const sync = () => setFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', sync);
+    return () => {
+      document.removeEventListener('fullscreenchange', sync);
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    };
+  }, []);
+  const toggleFullscreen = () => {
+    const request = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    request.catch(() => { /* the browser refused; the editor carries on as before */ });
   };
   const cropOpen = tab === 'crop';
   const [previewCrop, setPreviewCrop] = useState(false);
@@ -551,6 +566,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           </button>
         </div>
         <div className="flex items-center gap-1">
+        {canFullscreen && (
+          <button type="button" className={`${button} inline-flex items-center`} aria-pressed={fullscreen} onClick={toggleFullscreen}
+            aria-label={fullscreen ? 'Leave full screen' : 'Full screen'} title={fullscreen ? 'Leave full screen (Esc)' : 'Full screen: the photo and tools fill the screen. Keyboard and macro pad keep working.'}>
+            {fullscreen ? <Minimize className="h-4 w-4" aria-hidden="true" /> : <Maximize className="h-4 w-4" aria-hidden="true" />}
+          </button>
+        )}
         {onOpenMacroPad && (
           <button type="button" className={`${button} inline-flex items-center`} onClick={onOpenMacroPad}
             aria-label="Macro pad and shortcuts" title="Macro pad and shortcuts: set up your pad and see how to use it">
