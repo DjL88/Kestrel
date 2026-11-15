@@ -1,3 +1,4 @@
+import { parseSettings } from './projectSettings';
 import { validMasks } from './maskTypes';
 import type { CullingState, FilterState, PhotoFrame, ShootDescriptor } from './types';
 
@@ -80,6 +81,7 @@ export function encodeProjectBackup(state: CullingState): string {
       shoot: state.shoot, frames: state.frames.map(({ editHistory: _history, ...frame }) => frame), selectedFrameId: state.selectedFrameId,
       compareRightFrameId: state.compareRightFrameId, filter: state.filter, searchQuery: state.searchQuery,
       keeperTarget: state.keeperTarget, autoAdvance: state.autoAdvance,
+      ...(state.settings ? { settings: state.settings } : {}),
     },
   });
 }
@@ -110,6 +112,7 @@ export function restoreProjectBackup(contents: string, id: string, now = Date.no
       needsFileReselect: frames.some((frame) => frame.sourceKind === 'file'),
     },
     frames: frames.map(({ editHistory: _history, ...frame }) => frame), filter: filter as FilterState, searchQuery, keeperTarget, autoAdvance,
+    ...(record(envelope.project.settings) ? { settings: parseSettings(envelope.project.settings) } : {}),
     selectedFrameId: existingId(selectedFrameId),
     compareRightFrameId: existingId(compareRightFrameId),
     undoStack: [], redoStack: [],

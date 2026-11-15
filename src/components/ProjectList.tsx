@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { ChevronRight, Folder, FolderUp, Plus } from 'lucide-react';
 import kestrelMark from '../assets/kestrel-mark.svg';
 import type { ShootDescriptor } from '../core/types';
+import { NewProjectWizard } from './NewProjectWizard';
+import type { ProjectSettings } from '../core/projectSettings';
 import { formatProjectDate } from '../core/formatDate';
 
 interface Props {
@@ -9,13 +11,12 @@ interface Props {
   loading: boolean;
   error?: string;
   onOpen: (id: string) => void;
-  onCreate: (name: string) => void;
+  onCreate: (name: string, options: { keeperTarget: number; settings: ProjectSettings }) => void;
   onRestore: (file: File) => void;
 }
 
 export function ProjectList({ projects, loading, error, onOpen, onCreate, onRestore }: Props) {
   const [creating, setCreating] = useState(false);
-  const [name, setName] = useState('');
   const backupInput = useRef<HTMLInputElement>(null);
   return (
     <main className="h-dvh overflow-auto bg-kestrel-canvas px-4 text-zinc-100 sm:px-8">
@@ -42,22 +43,7 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
           </button>
           </div>
         </header>
-        {creating && (
-          <form className="mb-4 rounded-xl border border-white/10 bg-kestrel-raised p-3" onSubmit={(event) => {
-            event.preventDefault();
-            if (name.trim()) onCreate(name.trim());
-          }}>
-            <label className="block text-sm">
-              Project name
-              <input autoFocus value={name} maxLength={100} onChange={(event) => setName(event.target.value)}
-                className="mt-1 min-h-11 w-full rounded-lg border border-white/15 bg-black/20 px-3" />
-            </label>
-            <div className="mt-2 flex justify-end gap-2">
-              <button type="button" onClick={() => setCreating(false)} className="min-h-11 rounded-md px-3 text-sm hover:bg-white/8">Cancel</button>
-              <button type="submit" disabled={!name.trim() || loading} className="min-h-11 rounded-md bg-kestrel-copper px-3 text-sm font-semibold text-zinc-950 disabled:opacity-40">Create project</button>
-            </div>
-          </form>
-        )}
+        {creating && <NewProjectWizard loading={loading} onCancel={() => setCreating(false)} onCreate={onCreate} />}
         {error && <p role="alert" className="mb-3 text-sm text-orange-200">{error}</p>}
         {loading && <p role="status" className="mb-3 text-sm text-zinc-400">Opening catalogue…</p>}
         {!loading && !error && !projects.length && !creating && (

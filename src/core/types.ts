@@ -96,6 +96,8 @@ export interface DecisionHistoryEntry {
 }
 
 export interface CullingState {
+  /** Helpers chosen when the project was created. Absent on projects made before the wizard. */
+  settings?: import('./projectSettings').ProjectSettings;
   shoot: ShootDescriptor;
   frames: PhotoFrame[];
   selectedFrameId: string | null;

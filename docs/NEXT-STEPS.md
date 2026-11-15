@@ -97,3 +97,9 @@ The crop box has four draggable corners. The opposite corner stays fixed and the
 ## Subject detection (feat/subject-detection)
 **Find subject** and **Find background** (Masks section) run the bundled U²-Net-P model on the device. See `docs/models.md` for the source, licence, checksum and limits. A subject mask works like any other mask (Light, Warmth, Contrast and so on, edge softness), plus **Add** and **Remove** brush refining and **Find again**. Background is the same mask inverted.
 - Not done: tap-to-select a specific subject (needs a promptable model such as MobileSAM), eye and bird-part detection, using the subject mask to measure sharpness in auto-cull, GPU masks, and a wildlife test set with measured accuracy.
+
+## New project wizard (feat/project-wizard)
+Three single-question steps: name, target number of photos (chips or typed, 1 to 9999), and helpers. Both helpers default on and are stored with the project (`settings`), so older projects stay as they were. They can be changed later under Workspace options, Culling settings.
+- **Auto-cull** starts the scan by itself when photos are added to the project. It uses the existing rules (clear results move, everything is reversible, Trash never touches files).
+- **Auto-edit** suggests colour and tone the first time a photo with no edit history is opened, and shows the reasons. Resetting a photo does not trigger it again.
+- Not done: auto-cull after opening a whole folder (only the file picker and drag-in path starts it), more wizard questions (export destinations, subject names), and applying auto-edit to a whole batch of keepers at once.

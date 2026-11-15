@@ -6,6 +6,11 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await expect(page.getByText('Create a project to import photos, or restore a Kestrel backup.')).toBeVisible();
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Ten-photo test');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByRole('button', { name: 'Next' }).click();
+  // Turn the helpers off so the test controls every decision itself.
+  await page.getByRole('checkbox', { name: /Auto-cull/ }).uncheck();
+  await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
   await page.getByRole('button', { name: 'Create project' }).click();
 
   // Use actual PNG files and the normal file chooser. The test images stay outside the production bundle.
