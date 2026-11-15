@@ -42,3 +42,20 @@ test('invalid offsets fall back to early embedded JPEGs and truncated files fail
   assert.equal((await extractNefPreview(new Blob([header, jpeg])))?.size, jpeg.length);
   assert.equal(await extractNefPreview(new Blob([header])), null);
 });
+
+test('rejects a fake JPEG marker stream without image dimensions', async () => {
+  const fake = new Uint8Array(6000);
+  fake.set([0xff, 0xd8, 0xff, 0xe0, 0, 2], 100);
+  fake.set([0xff, 0xd9], 5598);
+  const file = new Blob([container(true, 0xfffffff0), fake]);
+  assert.equal(await extractNefPreview(file), null);
+});
+
+test('does not return a malformed TIFF-located preview', async () => {
+  const fake = new Uint8Array(Math.max(4096, jpeg.length));
+  fake.set([0xff, 0xd8, 0xff, 0xe0, 0, 2]);
+  fake.set([0xff, 0xd9], fake.length - 2);
+  const header = container(true, 64);
+  new DataView(header.buffer).setUint32(44, fake.length, true);
+  assert.equal(await extractNefPreview(new Blob([header, fake])), null);
+});
