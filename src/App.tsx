@@ -1166,6 +1166,15 @@ export default function App() {
         <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-kestrel-panel px-3 py-1">
           <button type="button" onClick={leaveEditor} className="min-h-11 shrink-0 rounded-md px-2 text-sm font-medium hover:bg-white/10">Back</button>
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? 'Edit photo'}</h1>
+          {multiSelect && selectedVisibleFrames.length > 0 && (
+            <div className="flex shrink-0 items-center gap-1" role="group" aria-label="Selected photo actions">
+              <span className="hidden text-xs tabular-nums text-zinc-300 sm:inline">{selectedVisibleFrames.length} selected</span>
+              <button type="button" onClick={() => setSelectionLookOpen(true)}
+                className="min-h-11 rounded-md border border-white/15 px-2 text-xs font-medium hover:bg-white/10">Apply look</button>
+              <button type="button" onClick={() => setExportFrames(selectedVisibleFrames)}
+                className="min-h-11 rounded-md bg-kestrel-copper px-2 text-xs font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!">Export {selectedVisibleFrames.length}</button>
+            </div>
+          )>
           {!filmstripVisible && (
             <div className="flex shrink-0">
               <button type="button" aria-label="Previous photo" title="Previous photo" disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) <= 0} onClick={() => handleStepFrame(-1)}
