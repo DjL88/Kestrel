@@ -19,6 +19,7 @@ export async function scanForCulling(
     if (blob) sizes.set(blob.size, (sizes.get(blob.size) ?? 0) + 1);
   }
   const seenHashes = new Set<string>();
+  const anchorSizes = new Set<number>();
   // A second scan must not select a byte-identical copy of a keeper already
   // accepted in an earlier pass. Only read keeper originals of matching size.
   for (const stableKey of duplicateAnchorKeys(all, new Set(sizes.keys()),
@@ -28,6 +29,7 @@ export async function scanForCulling(
     if (!anchor || (anchor.size > 8 * 1024 * 1024 && !globalThis.crypto?.subtle)) continue;
     try {
       seenHashes.add(await sha256Hex(await anchor.arrayBuffer()));
+      anchorSizes.add(anchor.size);
     } catch {
       signal.throwIfAborted();
       // If an anchor cannot be hashed, do not infer that a candidate is a duplicate.
@@ -38,7 +40,7 @@ export async function scanForCulling(
     const missing: CullSuggestion = { frameId: frame.id, decision: null, confidence: 'low', score: 0, reason: 'unavailable' };
     try {
       const blob = provider.getOriginal(frame.stableKey);
-      if (blob && blob.size <= 32 * 1024 * 1024 && (sizes.get(blob.size) ?? 0) > 1 && (globalThis.crypto?.subtle || blob.size <= 8 * 1024 * 1024)) {
+      if (blob && blob.size <= 32 * 1024 * 1024 && ((sizes.get(blob.size) ?? 0) > 1 || anchorSizes.has(blob.size)) && (globalThis.crypto?.subtle || blob.size <= 8 * 1024 * 1024)) {
         const hash = await sha256Hex(await blob.arrayBuffer());
         if (seenHashes.has(hash)) {
           results.push({ frameId: frame.id, decision: 'reject', confidence: 'high', score: 100, reason: 'duplicate' });
