@@ -95,3 +95,9 @@ Primary upstream references:
 - https://developer.apple.com/app-store/review/guidelines/
 - https://support.google.com/googleplay/android-developer/answer/16559646?hl=en-GB
 - https://developers.cloudflare.com/r2/pricing/
+
+## Free and Paid in the app (current)
+- One list: `src/core/features.ts`. Free: import, cull by hand, edit, export, watermark, macro pad, backup. Paid: masks and subject detection, the Auto tab, species ID, any online AI, auto-cull, and exporting more than the daily allowance.
+- Free exports are limited to `FREE_DAILY_EXPORT_LIMIT` (10) photos per local day, counted on the device (`src/core/dailyAllowance.ts`). It is an honest limit, not a lock: the count is in local storage. Backup and recovery are never counted or blocked.
+- **Beta: everything is open** (`useAccess.ts`) until licence activation exists. To see and test the Free experience: `VITE_KESTREL_PLAN=free KESTREL_PLAN_PREVIEW=free npx playwright test tests/free-plan.spec.ts`. Those tests skip in normal runs.
+- Apple notarisation will use the owner's Apple ID as the repository secret `APPLE_ID` (never committed), plus an app-specific password and Team ID the owner creates.

@@ -13,6 +13,9 @@ import { ExportPreviewTile } from './ExportPreviewTile';
 import { ExportWizard } from './ExportWizard';
 import { returnFocus } from './focusReturn';
 import { KEEP_NAMES, stemFor, uniqueExportFilename, type NameTemplate } from '../core/exportNaming';
+import { useAccess } from '../providers/useAccess';
+import { FREE_DAILY_EXPORT_LIMIT } from '../core/features';
+import { parseUsage, recordUse, remainingToday } from '../core/dailyAllowance';
 import { parseWatermark } from '../core/watermarkStore';
 import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, type WatermarkOptions } from '../core/watermark';
 import { NO_OVERLAY, overlayLines, type OverlayOptions } from '../core/exportOverlay';
@@ -161,7 +164,22 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
     return () => document.removeEventListener('keydown', close, true);
   }, [onClose]);
 
+  const { can } = useAccess();
+  const unlimited = can('unlimitedExport');
+  const USAGE_KEY = 'kestrel.exportsToday.v1';
+  const readUsage = () => { try { return parseUsage(localStorage.getItem(USAGE_KEY)); } catch { return null; } };
+
   async function prepare() {
+    if (!unlimited) {
+      const wanted = frames.length * selected.length;
+      const left = remainingToday(readUsage(), new Date(), FREE_DAILY_EXPORT_LIMIT);
+      if (wanted > left) {
+        setError(left === 0
+          ? `You have used today's ${FREE_DAILY_EXPORT_LIMIT} free exports. They reset tomorrow. Your photos and edits are untouched, and Paid has no daily limit.`
+          : `Free allows ${FREE_DAILY_EXPORT_LIMIT} exports a day and you have ${left} left today. Choose ${left} or fewer, or try again tomorrow.`);
+        return;
+      }
+    }
     if (customOn && customResult && 'error' in customResult) {
       setError(customResult.error);
       return;
@@ -196,6 +214,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
           setProgress(output.length);
         }
       }
+      if (!unlimited && output.length) { try { localStorage.setItem(USAGE_KEY, JSON.stringify(recordUse(readUsage(), new Date(), output.length))); } catch { /* the count is best effort */ } }
       setFiles(output);
       setZip(null);
       if (output.length > 1) {
