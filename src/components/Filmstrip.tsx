@@ -13,6 +13,10 @@ interface FilmstripProps {
   previewProvider: BrowserPreviewProvider;
   needsAccess: boolean;
   onSelectFrame: (frameId: string) => void;
+  /** Optional shared Library selection, supporting shift range and Ctrl/Cmd toggling. */
+  markedIds?: ReadonlySet<string>;
+  multiSelect?: boolean;
+  onSelectMarked?: (frameId: string, modifiers: { shift: boolean; toggle: boolean }) => void;
   onSelectCompareRight?: (frameId: string) => void;
 }
 
@@ -29,6 +33,9 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
   previewProvider,
   needsAccess,
   onSelectFrame,
+  markedIds,
+  multiSelect = false,
+  onSelectMarked,
   onSelectCompareRight,
 }) => {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -84,6 +91,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
         {visibleIndices.map((idx) => {
           const frame = frames[idx];
           const isLeftActive = frame.id === selectedFrameId;
+          const isMarked = Boolean(markedIds?.has(frame.id));
           const isRightActive = isCompareMode && frame.id === compareRightFrameId;
           const left = PADDING_X + idx * STRIDE;
 
@@ -120,15 +128,20 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
               <button
                 type="button"
                 onClick={(e) => {
-                  if (isCompareMode && e.shiftKey && onSelectCompareRight) {
+                  if (onSelectMarked && (multiSelect || e.shiftKey || e.metaKey || e.ctrlKey)) {
+                    onSelectMarked(frame.id, { shift: e.shiftKey, toggle: e.ctrlKey || e.metaKey });
+                  } else if (isCompareMode && e.shiftKey && onSelectCompareRight) {
                     onSelectCompareRight(frame.id);
                   } else {
                     onSelectFrame(frame.id);
                   }
                 }}
-                aria-label={`Jump to frame ${frame.filename}`} title={`Jump to frame ${frame.filename}`}
+                aria-pressed={isMarked}
+                aria-label={`${multiSelect ? 'Select' : 'Jump to frame'} ${frame.filename}`} title={`${multiSelect ? 'Select' : 'Jump to frame'} ${frame.filename}`}
                 className={`relative flex-1 rounded overflow-hidden border transition-colors focus-visible:outline-2 focus-visible:outline-sky-400 ${
-                  isLeftActive
+                  isMarked
+                    ? 'border-sky-200 ring-2 ring-sky-200'
+                    : isLeftActive
                     ? 'border-sky-400 ring-2 ring-sky-400/50'
                     : isRightActive
                     ? 'border-amber-300 ring-2 ring-amber-300/40'
@@ -148,6 +161,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
                   imgClassName="object-cover"
                 />
 
+                {isMarked && <span aria-hidden="true" className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full border border-sky-100 bg-sky-300 text-zinc-950"><Check className="h-3.5 w-3.5" /></span>}
                 {isEdited(frame) && (
                   <span role="img" aria-label="Edited" title="Edited"
                     className="absolute top-1 left-1 grid h-4 w-4 place-items-center rounded-full bg-kestrel-canvas/85 text-sky-200">
