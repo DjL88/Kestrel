@@ -68,6 +68,17 @@ test('300 photos, target 20: initial Auto Cull, Auto Edit and keeper export hand
   await expect(page.getByPlaceholder('Add a tag')).toHaveCount(0);
   await page.getByRole('button', { name: 'Back', exact: true }).click();
 
-  // The 20 keepers should remain available to hand to batch export.
+  // Categorisation and EXIF live in the Library photo-info panel, not Auto.
+  await page.getByRole('button', { name: 'Workspace options', exact: true }).click();
+  await page.getByRole('button', { name: 'Photo info', exact: true }).click();
+  await expect(page.getByRole('complementary', { name: 'Photo info' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Kind of photo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'What is this a photo of?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close photo info' }).click();
+
+  // Verify all 20 keepers can enter the real batch export workflow.
   await expect(collections.getByRole('button', { name: 'Keepers 20' })).toBeVisible();
+  await page.getByRole('button', { name: 'Workspace options', exact: true }).click();
+  await page.getByRole('button', { name: 'Export keepers', exact: true }).click();
+  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Export 20 photos' })).toBeVisible();
 });
