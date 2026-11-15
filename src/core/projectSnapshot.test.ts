@@ -40,3 +40,19 @@ test('sync names are plain and stable', () => {
   assert.equal(syncNameFor('Kite Day — Wales!'), 'kite-day-wales');
   assert.equal(syncNameFor('   '), 'project');
 });
+
+test('malformed or hostile sync data is rejected wholly, never partially applied', () => {
+  const valid = buildSnapshot('x', [frame('a', { decision: 'keep' })], new Date('2026-11-15T10:00:00Z'));
+  const original = valid.photos[0];
+  const invalid = [
+    { ...valid, photos: [original, { key: 'b', decision: 'erase' }] },
+    { ...valid, photos: [original, { ...original, key: 'a' }] },
+    { ...valid, photos: [{ ...original, rating: 999 }] },
+    { ...valid, photos: [{ ...original, edit: JSON.parse('{\"constructor\":\"bad\"}') }] },
+    { ...valid, photos: [{ ...original, tags: 'not an array' }] },
+    { ...valid, title: 123 },
+    { ...valid, photos: Array(100001).fill(original) },
+  ];
+  for (const item of invalid) assert.equal(parseSnapshot(JSON.stringify(item)), null);
+  assert.equal(parseSnapshot('X'.repeat(8_000_001)), null);
+});
