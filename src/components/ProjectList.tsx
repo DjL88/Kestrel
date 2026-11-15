@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ChevronRight, Folder, Plus } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ChevronRight, Folder, FolderUp, Plus } from 'lucide-react';
 import type { ShootDescriptor } from '../core/types';
 
 interface Props {
@@ -8,20 +8,33 @@ interface Props {
   error?: string;
   onOpen: (id: string) => void;
   onCreate: (name: string) => void;
+  onRestore: (file: File) => void;
 }
 
-export function ProjectList({ projects, loading, error, onOpen, onCreate }: Props) {
+export function ProjectList({ projects, loading, error, onOpen, onCreate, onRestore }: Props) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
+  const backupInput = useRef<HTMLInputElement>(null);
   return (
     <main className="h-dvh overflow-auto bg-[#101114] px-4 text-zinc-100 sm:px-8">
       <div className="mx-auto max-w-3xl py-8 sm:py-14">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
+          <div className="flex items-center gap-2">
+          <input ref={backupInput} type="file" accept=".json,application/json" hidden onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+            if (file) onRestore(file);
+          }} />
+          <button type="button" onClick={() => backupInput.current?.click()} disabled={loading}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm text-zinc-300 hover:bg-white/8">
+            <FolderUp className="h-4 w-4" aria-hidden="true" /> Restore backup
+          </button>
           <button type="button" onClick={() => setCreating(!creating)} disabled={loading}
             className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-sky-200 px-3 text-sm font-semibold text-zinc-950 disabled:opacity-50">
             <Plus className="h-4 w-4" aria-hidden="true" /> New project
           </button>
+          </div>
         </header>
         {creating && (
           <form className="mb-4 rounded-xl border border-white/10 bg-[#181A1F] p-3" onSubmit={(event) => {

@@ -15,6 +15,7 @@ interface TopWorkspaceBarProps {
   onViewModeChange: (mode: WorkspaceViewMode) => void;
   showShortcutsOverlay: boolean;
   onToggleShortcutsOverlay: () => void;
+  onBackupProject: () => void;
   onBackToProjects: () => void;
   actionsDisabled: boolean;
   onOpenShootModal: () => void;
@@ -135,6 +136,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
               <div className="mt-3 grid grid-cols-2 gap-1 border-t border-white/10 pt-2">
                 <button type="button" className={actionClass} aria-pressed={showPhotoInfo} onClick={() => choose(props.onTogglePhotoInfo)}>{showPhotoInfo ? 'Hide photo info' : 'Photo info'}</button>
                 <button type="button" className={actionClass} onClick={() => choose(props.onOpenMacroPadModal, false)}>Macro pad</button>
+                <button type="button" className={actionClass} onClick={() => choose(props.onBackupProject)}>Back up project</button>
                 {props.onToggleMultiSelect && <button type="button" className={actionClass} onClick={() => choose(() => props.onToggleMultiSelect?.())}>
                   {props.multiSelect ? 'Done selecting' : 'Select photos'}
                 </button>}
