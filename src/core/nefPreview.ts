@@ -47,10 +47,12 @@ async function locatePreview(file: Blob): Promise<Blob | null> {
     for (let index = 0; index < count; index += 1) {
       const entry = index * 12;
       const tag = directory.getUint16(entry, little);
-      if (tag !== 0x0201 && tag !== 0x0202 && tag !== 0x014a && tag !== 0x0111 && tag !== 0x0117) continue;
+      if (tag !== 0x0201 && tag !== 0x0202 && tag !== 0x014a && tag !== 0x8769 && tag !== 0x0111 && tag !== 0x0117) continue;
       const type = directory.getUint16(entry + 2, little);
       const size = directory.getUint32(entry + 4, little);
-      if (tag === 0x014a && (type === 4 || type === 13) && size > 0 && size <= MAX_SUB_DIRECTORIES) {
+      // TIFF SubIFDs and EXIF IFDs may contain the only usable embedded JPEG. Follow both
+      // within the same bounded, cycle-safe traversal; never scan or decode sensor pixels.
+      if ((tag === 0x014a || tag === 0x8769) && (type === 4 || type === 13) && size > 0 && size <= MAX_SUB_DIRECTORIES && (tag !== 0x8769 || size === 1)) {
         const value = directory.getUint32(entry + 8, little);
         if (size === 1) pending.push(value);
         else {

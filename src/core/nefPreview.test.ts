@@ -142,3 +142,44 @@ test('prefers more pixels over a larger compressed byte count', async () => {
   assert.ok(result);
   assert.deepEqual(new Uint8Array(await result.arrayBuffer()), higherResolution);
 });
+
+test('follows a Nikon-style EXIF IFD to a full preview beyond the bounded fallback scan', async () => {
+  const at = 30 * 1024 * 1024;
+  const header = new Uint8Array(64);
+  const view = new DataView(header.buffer);
+  view.setUint16(0, 0x4949);
+  view.setUint16(2, 42, true);
+  view.setUint32(4, 8, true);
+  view.setUint16(8, 1, true);
+  view.setUint16(10, 0x8769, true); // ExifIFDPointer
+  view.setUint16(12, 4, true); // LONG
+  view.setUint32(14, 1, true);
+  view.setUint32(18, 32, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 0x0201, true);
+  view.setUint16(36, 4, true);
+  view.setUint32(38, 1, true);
+  view.setUint32(42, at, true);
+  view.setUint16(46, 0x0202, true);
+  view.setUint16(48, 4, true);
+  view.setUint32(50, 1, true);
+  view.setUint32(54, jpeg.length, true);
+  const raw = new Blob([header, new Uint8Array(at - header.length), jpeg]);
+  const preview = await extractNefPreview(raw);
+  assert.ok(preview);
+  assert.deepEqual(new Uint8Array(await preview.arrayBuffer()), jpeg);
+});
+
+test('invalid EXIF IFD pointers do not prevent a safe null result', async () => {
+  const header = new Uint8Array(32);
+  const view = new DataView(header.buffer);
+  view.setUint16(0, 0x4949);
+  view.setUint16(2, 42, true);
+  view.setUint32(4, 8, true);
+  view.setUint16(8, 1, true);
+  view.setUint16(10, 0x8769, true);
+  view.setUint16(12, 4, true);
+  view.setUint32(14, 1, true);
+  view.setUint32(18, 0xfffffff0, true);
+  assert.equal(await extractNefPreview(new Blob([header])), null);
+});
