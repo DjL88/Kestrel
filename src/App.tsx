@@ -1272,28 +1272,8 @@ export default function App() {
                   compareRightFrameId: selectedFrame?.id ?? prev.compareRightFrameId,
                 }));
               }}
-              onStepSide={(side, delta) => {
-                const pool =
-                  visibleFrames.length > 0 ? visibleFrames : liveFrames;
-                if (side === 'left') {
-                  const nextId = stepSelection(pool, selectedFrame?.id ?? null, delta);
-                  if (nextId) {
-                    setCullingState((prev) => ({ ...prev, selectedFrameId: nextId }));
-                  }
-                } else {
-                  const nextId = stepSelection(
-                    pool,
-                    compareRightFrame?.id ?? null,
-                    delta
-                  );
-                  if (nextId) {
-                    setCullingState((prev) => ({
-                      ...prev,
-                      compareRightFrameId: nextId,
-                    }));
-                  }
-                }
-              }}
+              candidates={visibleFrames}
+              onSelectRight={(frameId) => setCullingState((prev) => ({ ...prev, compareRightFrameId: frameId }))}
               onDecideFrame={(frameId, decision) =>
                 handleDecideFrame(frameId, decision, false)
               }
