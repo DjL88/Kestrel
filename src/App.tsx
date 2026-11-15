@@ -21,6 +21,8 @@ import { newId } from './core/ids';
 import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
 import { AutoCullPanel } from './components/AutoCullPanel';
+import { BatchLookDialog } from './components/BatchLookDialog';
+import { applyKeeperLook, previewKeeperLook } from './core/batchLooks';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { restoreProjectBackup } from './core/projectBackup';
 import { saveProjectBackupFile } from './providers/projectBackupFile';
@@ -119,6 +121,7 @@ export default function App() {
   );
   const [editing, setEditing] = useState(false);
   const [autoCullOpen, setAutoCullOpen] = useState(false);
+  const [batchLookOpen, setBatchLookOpen] = useState(false);
   const [autoCullStart, setAutoCullStart] = useState(false);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
   const [showPhotoInfo, setShowPhotoInfo] = useState(false);
@@ -1174,6 +1177,7 @@ export default function App() {
           setShowPhotoInfo(false);
           setPrefs((prev) => ({ ...prev, focusMode: !prev.focusMode }));
         }}
+        onBatchLook={previewKeeperLook(cullingState.frames).total > 0 ? () => setBatchLookOpen(true) : undefined}
         onExportKeepers={cullingState.filter === 'keep' && visibleFrames.length
           ? () => setExportFrames(visibleFrames) : undefined}
         onUndo={cullingState.undoStack.length ? () => executeCommand('cull.undo') : undefined}
@@ -1470,6 +1474,12 @@ export default function App() {
         }}
         onClose={() => setAutoCullOpen(false)} />}
 
+      {batchLookOpen && <BatchLookDialog frames={cullingState.frames} onClose={() => setBatchLookOpen(false)}
+        onApply={(look, includeEdited) => {
+          const at = Date.now();
+          setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: at },
+            frames: applyKeeperLook(prev.frames, look, includeEdited, at) }));
+        }} />}
       {exportFrames.length > 0 && <PhotoExportPanel frames={exportFrames} provider={previewProviderRef.current!}
         onClose={() => setExportFrames([])} />}
 
