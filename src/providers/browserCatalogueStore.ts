@@ -1,3 +1,4 @@
+import { computeCullCounts } from '../core/cullingEngine';
 import { projectSearchText } from '../core/projects';
 import {
   DEFAULT_KEY_BINDINGS,
@@ -154,7 +155,10 @@ export class BrowserCatalogueStore implements CatalogueStore {
             resolve(projects.sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt));
             return;
           }
-          if (row.value?.shoot) projects.push(row.value.shoot);
+          const state = row.value as CullingState;
+          if (state?.shoot) {
+            projects.push({ ...state.shoot, totalFrames: computeCullCounts(state.frames).all });
+          }
           row.continue();
         };
       });

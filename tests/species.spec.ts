@@ -70,13 +70,14 @@ test('a suggestion can be dismissed, and the choice is not kept as a tag', async
 });
 
 async function openBurst(page: import('@playwright/test').Page) {
+  // These tests move between photos with the filmstrip, which a phone now starts without.
+  await page.addInitScript(() => localStorage.setItem('kestrel.preferences.v1', JSON.stringify({ showFilmstrip: true })));
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
   await page.goto('/');
   // Three shots with the same capture time are one burst. Make a project and add them.
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Burst');
-  await page.getByRole('button', { name: 'Next' }).click();
-  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByText('Project options', { exact: true }).click();
   await page.getByRole('checkbox', { name: /Auto-cull/ }).uncheck();
   await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
   await page.getByRole('button', { name: 'Create project' }).click();

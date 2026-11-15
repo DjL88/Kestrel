@@ -85,8 +85,7 @@ async function project(page: Page, name = 'Dialogs', photos = 4) {
   }), photos);
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill(name);
-  await page.getByRole('button', { name: 'Next' }).click();
-  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByText('Project options', { exact: true }).click();
   await page.getByRole('checkbox', { name: /Auto-cull/ }).uncheck();
   await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
   await page.getByRole('button', { name: 'Create project' }).click();
@@ -109,15 +108,13 @@ const inMenu = async (page: Page, name: RegExp | string) => { const m = await me
 interface Scenario { name: string; run: (page: Page, touch: boolean, check: (label: string, root: Locator, inline?: boolean) => Promise<void>) => Promise<void> }
 
 const scenarios: Scenario[] = [
-  { name: 'new project wizard', run: async (page, _t, check) => {
+  { name: 'new project form', run: async (page, _t, check) => {
     await page.goto('/');
     await page.getByRole('button', { name: 'New project' }).click();
-    await check('wizard step 1', page.getByRole('form').first(), true);
+    await check('new project', page.getByRole('form').first(), true);
     await page.getByRole('textbox', { name: 'Project name' }).fill('Look');
-    await page.getByRole('button', { name: 'Next' }).click();
-    await check('wizard step 2', page.getByRole('form').first(), true);
-    await page.getByRole('button', { name: 'Next' }).click();
-    await check('wizard step 3', page.getByRole('form').first(), true);
+    await page.getByText('Project options', { exact: true }).click();
+    await check('new project options', page.getByRole('form').first(), true);
   } },
   { name: 'add photos', run: async (page, _t, check) => {
     await project(page, 'Add', 1);
@@ -187,7 +184,9 @@ const scenarios: Scenario[] = [
   } },
   { name: 'online helper', run: async (page, _t, check) => {
     await project(page);
-    await page.getByRole('region', { name: 'Species recognition' }).getByRole('button', { name: 'Or use the online helper' }).click();
+    const banner = page.getByRole('region', { name: 'Species recognition' });
+    await banner.getByText('Identify birds and animals', { exact: true }).click();
+    await banner.getByRole('button', { name: 'Online helper settings' }).click();
     await check('online helper', page.getByRole('dialog', { name: /Online helper/ }));
     await closes(page, page.getByRole('dialog', { name: /Online helper/ }));
   } },

@@ -1,3 +1,4 @@
+import { isNikonEmbeddedPreviewFile } from '../core/exifParser';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, X } from 'lucide-react';
 import {
@@ -369,9 +370,6 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
                 </label>
                 {timestamp === 'custom' && <input required type="datetime-local" aria-label="Custom photo date and time" className={field} value={customDate} onChange={(event) => setCustomDate(event.target.value)} />}
               </fieldset>
-              {frames.some((frame) => !frame.isDemo && /\.(nef|nrw)$/i.test(frame.filename)) && (
-                <p className="text-xs text-zinc-400">Nikon exports use the embedded JPEG as their source.</p>
-              )}
               {selected.some((format) => format.format === 'jpeg') && (
                 <details>
                   <summary className="min-h-11 cursor-pointer py-2 text-sm">Filename prefixes and JPEG quality</summary>
@@ -418,6 +416,9 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
               {wizard ? 'Show all formats at once' : 'Guide me step by step'}
             </button>
           </p>
+        )}
+        {!resultsReady && frames.some((frame) => !frame.isDemo && isNikonEmbeddedPreviewFile(frame.filename)) && (
+          <p className="mb-2 text-center text-xs text-zinc-300">Nikon files export from their embedded JPEG previews, including Full size.</p>
         )}
         {resultsReady ? (
           <div className="space-y-3">

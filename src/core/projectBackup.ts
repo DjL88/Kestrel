@@ -1,3 +1,4 @@
+import { MAX_EDIT_HISTORY_STEPS, type EditKind } from './editHistory';
 import { parseSettings } from './projectSettings';
 import { validMasks } from './maskTypes';
 import type { CullingState, FilterState, PhotoFrame, ShootDescriptor } from './types';
@@ -33,6 +34,30 @@ function nullableKey(value: unknown): boolean {
   return value === null || key(value);
 }
 
+const editKinds = new Set<EditKind>(['light', 'warmth', 'colour', 'adjustments', 'tone', 'detail', 'mask', 'crop', 'rotation', 'straighten']);
+
+function recipeIsValid(value: unknown): boolean {
+  if (!record(value)) return false;
+  const edit = value.edit;
+  if (edit !== undefined && (!record(edit) || !number(edit.exposure, -2, 2) ||
+    !number(edit.warmth, -2, 2) || !number(edit.colour, -2, 2) ||
+    ['contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen'].some((key) =>
+      edit[key] !== undefined && !number(edit[key], -2, 2)) ||
+    (edit.masks !== undefined && !validMasks(edit.masks)))) return false;
+  const framing = value.framing;
+  if (framing !== undefined && (!record(framing) || (framing.ratio !== null && !number(framing.ratio, 0.01, 100)) ||
+    !number(framing.turns, 0, 3) || !Number.isInteger(framing.turns) || !number(framing.straighten, -12, 12) ||
+    !number(framing.x, 0, 1) || !number(framing.y, 0, 1) || (framing.size !== undefined && !number(framing.size, 0.05, 1)))) return false;
+  return true;
+}
+
+function historyIsValid(value: unknown): boolean {
+  if (!record(value) || !Array.isArray(value.steps) || value.steps.length > MAX_EDIT_HISTORY_STEPS ||
+    !number(value.cursor, 0, value.steps.length) || !Number.isInteger(value.cursor)) return false;
+  return value.steps.every((step: unknown) => record(step) && text(step.kind) && editKinds.has(step.kind as EditKind) &&
+    number(step.at, 0) && recipeIsValid(step.before) && recipeIsValid(step.after));
+}
+
 function frameIsValid(value: unknown): value is PhotoFrame {
   if (!record(value) || !key(value.id) || !key(value.stableKey) || !key(value.filename) ||
     !number(value.sequenceIndex, 0) || !oneOf(value.decision, decisions) || !oneOf(value.sourceKind, sources) ||
@@ -53,16 +78,7 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   for (const field of ['rating', 'focalLengthMm', 'apertureF', 'iso', 'capturedAtMs', 'width', 'height']) {
     if (value.exif[field] !== undefined && !number(value.exif[field])) return false;
   }
-  const edit = value.edit;
-  if (edit !== undefined && (!record(edit) || !number(edit.exposure, -2, 2) ||
-    !number(edit.warmth, -2, 2) || !number(edit.colour, -2, 2) ||
-    ['contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen'].some((key) =>
-      edit[key] !== undefined && !number(edit[key], -2, 2)) ||
-    (edit.masks !== undefined && !validMasks(edit.masks)))) return false;
-  const framing = value.framing;
-  if (framing !== undefined && (!record(framing) || (framing.ratio !== null && !number(framing.ratio, 0.01, 100)) ||
-    !number(framing.turns, 0, 3) || !Number.isInteger(framing.turns) || !number(framing.straighten, -12, 12) ||
-    !number(framing.x, 0, 1) || !number(framing.y, 0, 1) || (framing.size !== undefined && !number(framing.size, 0.05, 1)))) return false;
+  if (!recipeIsValid(value) || (value.editHistory !== undefined && !historyIsValid(value.editHistory))) return false;
   const focus = value.focusPoint;
   if (focus !== undefined && (!record(focus) || !number(focus.x, 0, 1) || !number(focus.y, 0, 1))) return false;
   const copy = value.virtualCopy;
@@ -84,7 +100,7 @@ export function encodeProjectBackup(state: CullingState): string {
     format: FORMAT,
     version: 1,
     project: {
-      shoot: state.shoot, frames: state.frames.map(({ editHistory: _history, ...frame }) => frame), selectedFrameId: state.selectedFrameId,
+      shoot: state.shoot, frames: state.frames, selectedFrameId: state.selectedFrameId,
       compareRightFrameId: state.compareRightFrameId, filter: state.filter, searchQuery: state.searchQuery,
       keeperTarget: state.keeperTarget, autoAdvance: state.autoAdvance,
       ...(state.settings ? { settings: state.settings } : {}),
@@ -117,7 +133,7 @@ export function restoreProjectBackup(contents: string, id: string, now = Date.no
       needsFolderRegrant: frames.some((frame) => frame.sourceKind === 'directory-handle'),
       needsFileReselect: frames.some((frame) => frame.sourceKind === 'file'),
     },
-    frames: frames.map(({ editHistory: _history, ...frame }) => frame), filter: filter as FilterState, searchQuery, keeperTarget, autoAdvance,
+    frames, filter: filter as FilterState, searchQuery, keeperTarget, autoAdvance,
     ...(record(envelope.project.settings) ? { settings: parseSettings(envelope.project.settings) } : {}),
     selectedFrameId: existingId(selectedFrameId),
     compareRightFrameId: existingId(compareRightFrameId),

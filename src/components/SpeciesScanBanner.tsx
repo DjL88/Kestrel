@@ -12,30 +12,28 @@ export function SpeciesScanBanner({ scan }: { scan: ReturnType<typeof useSpecies
   const [hidden, setHidden] = useState(false);
   if (scan.status === 'checking') return null;
   if (scan.error) return <p role="alert" className="mx-2 mb-2 rounded-lg border border-orange-300/30 bg-orange-300/10 px-3 py-2 text-sm text-orange-100">{scan.error}</p>;
-  if (scan.status === 'unavailable' && !scan.helperOn) {
+  const offlineAvailable = scan.status === 'not-downloaded';
+  if (!scan.helperOn && (offlineAvailable || scan.status === 'unavailable')) {
     if (hidden || scan.pending === 0) return null;
     return (
-      <section aria-label="Species recognition" className="mx-2 mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-white/12 bg-white/5 px-3 py-2">
-        <p className="min-w-0 flex-1 basis-56 text-sm text-zinc-200">An optional online helper can name the birds and animals.</p>
-        <button type="button" onClick={() => openHelperDialog()} className="inline-flex min-h-11 items-center rounded-md border border-white/20 px-3 text-sm font-medium hover:bg-white/10">Set up the online helper</button>
-        <button type="button" onClick={() => setHidden(true)} className="min-h-11 px-2 text-sm text-zinc-300 underline underline-offset-4 hover:text-white">Not now</button>
-      </section>
-    );
-  }
-  if (scan.status === 'not-downloaded' && !scan.helperOn) {
-    if (hidden || scan.pending === 0) return null;
-    return (
-      <section aria-label="Species recognition" className="mx-2 mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-white/12 bg-white/5 px-3 py-2">
-        <p className="min-w-0 flex-1 basis-56 text-sm text-zinc-200">Name the birds and animals for you. {megabytes(scan.size)} once, then offline.</p>
-        {scan.downloading === null ? (
-          <>
-            <button type="button" onClick={() => void scan.download()} className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-white/20 px-3 text-sm font-medium hover:bg-white/10">
-              <Download className="h-4 w-4" aria-hidden="true" />Download ({megabytes(scan.size)})
-            </button>
-            <button type="button" onClick={() => openHelperDialog()} className="min-h-11 px-2 text-sm text-zinc-300 underline underline-offset-4 hover:text-white">Or use the online helper</button>
-            <button type="button" onClick={() => setHidden(true)} className="min-h-11 px-2 text-sm text-zinc-300 underline underline-offset-4 hover:text-white">Not now</button>
-          </>
-        ) : <progress aria-label="Downloading species recognition" className="block w-48" value={scan.downloading} max={1} />}
+      <section aria-label="Species recognition" className="mx-2 mb-2 rounded-lg border border-white/12 bg-white/5 px-3">
+        <details>
+          <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-zinc-200">Identify birds and animals</summary>
+          <div className="flex flex-wrap items-center gap-2 pb-2">
+            <p className="min-w-0 flex-1 basis-56 text-sm text-zinc-300">{offlineAvailable
+              ? `A ${megabytes(scan.size)} download. Then identification runs offline on this device.`
+              : 'The optional online helper can identify birds and animals. It is off until you set it up.'}</p>
+            {scan.downloading === null ? (
+              <>
+                {offlineAvailable && <button type="button" onClick={() => void scan.download()} className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-white/20 px-3 text-sm font-medium hover:bg-white/10">
+                  <Download className="h-4 w-4" aria-hidden="true" />Download ({megabytes(scan.size)})
+                </button>}
+                <button type="button" onClick={() => openHelperDialog()} className="min-h-11 px-2 text-sm text-zinc-300 underline underline-offset-4 hover:text-white">Online helper settings</button>
+                <button type="button" onClick={() => setHidden(true)} className="min-h-11 px-2 text-sm text-zinc-300 underline underline-offset-4 hover:text-white">Not now</button>
+              </>
+            ) : <progress aria-label="Downloading species recognition" className="block w-48" value={scan.downloading} max={1} />}
+          </div>
+        </details>
       </section>
     );
   }

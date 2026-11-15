@@ -1,3 +1,4 @@
+import { isNikonEmbeddedPreviewFile } from '../core/exifParser';
 import { loadImage } from './loadImage';
 import { applyCanvasExportEdit } from '../core/canvasEdit';
 import { DEFAULT_EDIT } from '../core/photoEdits';
@@ -11,8 +12,11 @@ import { fitScale, maxCanvasPixels } from '../core/exportLimits';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 
-export async function loadExportSource(frame: PhotoFrame, provider: BrowserPreviewProvider) {
+export async function loadExportSource(frame: PhotoFrame, provider: Pick<BrowserPreviewProvider, 'getFullPreviewUrl' | 'hasBlob'>) {
   const url = await provider.getFullPreviewUrl(frame);
+  if (!url && !frame.isDemo && isNikonEmbeddedPreviewFile(frame.filename) && provider.hasBlob(frame.stableKey)) {
+    throw new Error(`${frame.filename} has no usable embedded JPEG. Export it from a RAW developer and import the rendered photo.`);
+  }
   if (!url) throw new Error(`Reconnect ${frame.filename} to export it.`);
   return loadImage(url);
 }

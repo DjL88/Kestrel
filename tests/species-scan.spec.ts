@@ -18,8 +18,7 @@ test('after import the subject flashes up on each card, the species appears, and
   }));
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Scan');
-  await page.getByRole('button', { name: 'Next' }).click();
-  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByText('Project options', { exact: true }).click();
   await page.getByRole('checkbox', { name: /Auto-cull/ }).uncheck();
   await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
   await page.getByRole('button', { name: 'Create project' }).click();
@@ -29,6 +28,8 @@ test('after import the subject flashes up on each card, the species appears, and
 
   // On the project page, not in the editor: an offer to turn it on, then progress as the photos are looked at.
   const banner = page.getByRole('region', { name: 'Species recognition' });
+  await expect(banner.getByRole('button', { name: /^Download/ })).toBeHidden();
+  await banner.getByText('Identify birds and animals', { exact: true }).click();
   await banner.getByRole('button', { name: /^Download/ }).click();
   await expect(banner.getByText(/Looking at your photos/)).toBeVisible({ timeout: 30000 });
   await expect(page.getByTestId('subject-flash').first()).toBeAttached({ timeout: 30000 });

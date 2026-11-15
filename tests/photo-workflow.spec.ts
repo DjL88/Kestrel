@@ -22,9 +22,8 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await expect(page.getByText('Create a project to import photos, or restore a Kestrel backup.')).toBeVisible();
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Ten-photo test');
-  await page.getByRole('button', { name: 'Next' }).click();
-  await page.getByRole('button', { name: 'Next' }).click();
   // Turn the helpers off so the test controls every decision itself.
+  await page.getByText('Project options', { exact: true }).click();
   await page.getByRole('checkbox', { name: /Auto-cull/ }).uncheck();
   await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
   await page.getByRole('button', { name: 'Create project' }).click();
@@ -70,7 +69,9 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await expectIconButtonsHaveTooltips(page, 'the editor');
   // The macro pad is reachable from the editor, opens on Edit mode, explains itself, and its test box names the key pressed.
   await page.getByRole('button', { name: 'Macro pad and shortcuts' }).click();
-  await expect(page.getByText('How to use a macro pad')).toBeVisible();
+  // The instructions start folded away, so the keymap is what shows first. Open them to read how it works.
+  await page.getByText('How to use a macro pad').click();
+  await expect(page.getByText(/A macro pad sends ordinary keys/)).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Edit mode' })).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('q');
   await expect(page.getByText('Cycle Adjustment (Edit mode)')).toBeVisible();
@@ -253,8 +254,7 @@ test('quick edit opens a photo straight in the editor and it can be moved to a p
   // A project to move into later.
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Destination');
-  await page.getByRole('button', { name: 'Next' }).click();
-  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByText('Project options', { exact: true }).click();
   await page.getByRole('checkbox', { name: /Auto-cull/ }).uncheck();
   await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
   await page.getByRole('button', { name: 'Create project' }).click();

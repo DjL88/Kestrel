@@ -33,8 +33,7 @@ async function importPhotos(page: Page) {
   }));
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Helper');
-  await page.getByRole('button', { name: 'Next' }).click();
-  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByText('Project options', { exact: true }).click();
   await page.getByRole('checkbox', { name: /Auto-cull/ }).uncheck();
   await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
   await page.getByRole('button', { name: 'Create project' }).click();
@@ -44,7 +43,9 @@ async function importPhotos(page: Page) {
 }
 
 async function turnOn(page: Page, key = 'test-key-123') {
-  await page.getByRole('region', { name: 'Species recognition' }).getByRole('button', { name: 'Or use the online helper' }).click();
+  const setup = page.getByRole('region', { name: 'Species recognition' });
+  await setup.getByText('Identify birds and animals', { exact: true }).click();
+  await setup.getByRole('button', { name: 'Online helper settings' }).click();
   const dialog = page.getByRole('dialog', { name: 'Online helper (optional)' });
   const save = dialog.getByRole('button', { name: 'Check and turn on' });
   await expect(save).toBeDisabled();

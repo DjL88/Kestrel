@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDemoShootState } from './cullingEngine';
 import { createSubjectMask } from './maskTypes';
+import { recordEdit, stepEdit } from './editHistory';
 import { DEFAULT_EDIT } from './photoEdits';
 import { createVirtualCopy } from './virtualCopies';
 import { encodeProjectBackup, restoreProjectBackup } from './projectBackup';
@@ -61,5 +62,36 @@ test('a backup keeps kind, tags, automatic tags and declined names, and rejects 
     const broken = JSON.parse(encodeProjectBackup(project));
     Object.assign(broken.project.frames[0], damage);
     assert.throws(() => restoreProjectBackup(JSON.stringify(broken), 'x'), /not a readable|invalid|could not/i, JSON.stringify(damage));
+  }
+});
+
+
+test('portable backups preserve the edit cursor and can undo back to an untouched photo', () => {
+  const project = createDemoShootState(1);
+  const edit = { ...DEFAULT_EDIT, exposure: 0.5 };
+  const framing = { turns: 0, straighten: 0, ratio: 1, x: 0.5, y: 0.5 };
+  const toned = recordEdit(project.frames[0], { edit }, 1000);
+  const cropped = recordEdit(toned, { framing }, 2000);
+  project.frames[0] = stepEdit(cropped, -1);
+
+  const [restored] = restoreProjectBackup(encodeProjectBackup(project), 'restored').frames;
+  assert.equal(restored.editHistory?.cursor, 1);
+  assert.equal(restored.framing, undefined);
+  assert.deepEqual(restored.edit, edit);
+  assert.deepEqual(stepEdit(restored, 1).framing, framing);
+  assert.equal(stepEdit(restored, -1).edit, undefined);
+
+  const olderBackup = JSON.parse(encodeProjectBackup(project));
+  delete olderBackup.project.frames[0].editHistory;
+  assert.deepEqual(restoreProjectBackup(JSON.stringify(olderBackup), 'old').frames[0].edit, edit);
+  assert.equal(restoreProjectBackup(JSON.stringify(olderBackup), 'old').frames[0].editHistory, undefined);
+
+  for (const damage of [
+    (history: Record<string, any>) => { history.cursor = 3; },
+    (history: Record<string, any>) => { history.steps[0].before = { edit: { exposure: 100 } }; },
+  ]) {
+    const broken = JSON.parse(encodeProjectBackup(project));
+    damage(broken.project.frames[0].editHistory);
+    assert.throws(() => restoreProjectBackup(JSON.stringify(broken), 'x'), /invalid catalogue data/);
   }
 });

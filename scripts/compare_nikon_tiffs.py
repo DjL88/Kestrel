@@ -23,6 +23,8 @@ def read_rgb16(path):
             or page.samplesperpixel != 3
         ):
             raise ValueError(f"{path}: expected contiguous 16-bit RGB")
+        if page.compression != tifffile.COMPRESSION.NONE or page.is_tiled:
+            raise ValueError(f"{path}: export as uncompressed, non-tiled TIFF")
         orientation = page.tags.get("Orientation")
         if orientation is not None and orientation.value != 1:
             raise ValueError(f"{path}: export with top-left orientation")

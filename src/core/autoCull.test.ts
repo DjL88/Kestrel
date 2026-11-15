@@ -64,3 +64,24 @@ test('stale or removed frames cannot consume automatic keeper headroom', () => {
   assert.deepEqual(result.filter((item) => item.confidence === 'high').map((item) => item.frameId), [photos[2].id]);
   assert.equal(result[3].confidence, 'medium');
 });
+
+
+test('removed keepers do not block an active photo in the same burst', () => {
+  const photos = generateDemoShootFrames(3).map((frame, index) => ({
+    ...frame,
+    isDemo: false,
+    burstGroupId: 'shared-burst',
+    decision: index === 0 ? 'keep' as const : 'unreviewed' as const,
+    ...(index === 0 ? { removedAt: 123 } : {}),
+  }));
+  const suggestions: CullSuggestion[] = photos.slice(1).map((frame, index) => ({
+    frameId: frame.id,
+    decision: 'keep',
+    confidence: 'high',
+    reason: 'clearDetail',
+    score: 98 - index,
+  }));
+  const result = limitAutoKeepers(suggestions, photos, 1);
+  assert.deepEqual(result.filter((item) => item.confidence === 'high').map((item) => item.frameId), [photos[1].id]);
+  assert.equal(result[1].confidence, 'medium');
+});
