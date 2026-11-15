@@ -118,6 +118,7 @@ export default function App() {
   // Modals & status
   const [openShootModal, setOpenShootModal] = useState(false);
   const [macroPadModal, setMacroPadModal] = useState(false);
+  const [macroPadMode, setMacroPadMode] = useState<'cull' | 'edit'>('cull');
   const [folderError, setFolderError] = useState<string | null>(null);
   const [relinkStatus, setRelinkStatus] = useState<string>();
   const [previewRevision, setPreviewRevision] = useState(0);
@@ -1034,7 +1035,7 @@ export default function App() {
         settings={cullingState.settings ?? LEGACY_SETTINGS}
         onSettingsChange={(settings) => setCullingState((prev) => ({ ...prev, settings, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } }))}
         actionsDisabled={Boolean(loadingProgress) || projectBusy}
-        onOpenMacroPadModal={() => setMacroPadModal(true)}
+        onOpenMacroPadModal={() => { setMacroPadMode('cull'); setMacroPadModal(true); }}
         loadingProgress={loadingProgress}
         onToggleMultiSelect={prefs.viewMode === 'grid' ? () => {
           if (multiSelect) setSelectedIds(new Set());
@@ -1103,6 +1104,7 @@ export default function App() {
           {editing && selectedFrame && (
             <PhotoEditor
               key={selectedFrame.id}
+              onOpenMacroPad={() => { setMacroPadMode('edit'); setMacroPadModal(true); }}
               autoEdit={!!cullingState.settings?.autoEdit}
               frame={selectedFrame}
               bindings={prefs.bindings}
@@ -1342,6 +1344,7 @@ export default function App() {
 
       <MacroPadModal
         open={macroPadModal}
+        openTo={macroPadMode}
         onClose={() => setMacroPadModal(false)}
         bindings={prefs.bindings}
         onUpdateBinding={(commandId, chord) =>

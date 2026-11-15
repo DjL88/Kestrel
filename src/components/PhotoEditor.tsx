@@ -2,7 +2,7 @@ import { newId } from '../core/ids';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
-import { ChevronDown, Columns2, Lightbulb, Crop, Download, History, Redo2, SlidersHorizontal, SquircleDashed, Undo2 } from 'lucide-react';
+import { ChevronDown, Columns2, Crop, Download, History, Keyboard, Lightbulb, Redo2, SlidersHorizontal, SquircleDashed, Undo2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
@@ -43,6 +43,8 @@ const TABS: { id: Tab; label: string; Icon: typeof Crop }[] = [
 ];
 
 interface Props {
+  /** Opens the macro pad settings and how-to, on the Edit tab. */
+  onOpenMacroPad?: () => void;
   /** Suggest colour and tone the first time a photo is opened, when the project asked for it. */
   autoEdit?: boolean;
   frame: PhotoFrame;
@@ -69,7 +71,7 @@ interface Props {
   onSubjectsChange: (names: string[]) => void;
 }
 
-export function PhotoEditor({ autoEdit,
+export function PhotoEditor({ autoEdit, onOpenMacroPad,
   frame, provider, needsAccess, bindings, onEdit, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onSubjectsChange, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, showFilmstrip, onToggleFilmstrip,
@@ -486,10 +488,18 @@ export function PhotoEditor({ autoEdit,
             <span className="rounded bg-black/40 px-1.5 text-xs">{displayCompare ? 'On' : 'Off'}</span>
           </button>
         </div>
+        <div className="flex items-center gap-1">
+        {onOpenMacroPad && (
+          <button type="button" className={`${button} inline-flex items-center`} onClick={onOpenMacroPad}
+            aria-label="Macro pad and shortcuts" title="Macro pad and shortcuts: set up your pad and see how to use it">
+            <Keyboard className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Macro pad</span>
+          </button>
+        )}
         <button type="button" className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
           disabled={sourceState !== 'ready'} onClick={() => setExportOpen(true)}>
           <Download className="h-4 w-4" aria-hidden="true" />Export
         </button>
+        </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
       <div ref={stage} className="relative flex min-h-0 flex-1 bg-black">

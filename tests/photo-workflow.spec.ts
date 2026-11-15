@@ -66,6 +66,14 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   const light = page.getByRole('slider', { name: 'Light adjustment' });
   await expect(light).toBeEnabled();
   await expectIconButtonsHaveTooltips(page, 'the editor');
+  // The macro pad is reachable from the editor, opens on Edit mode, explains itself, and its test box names the key pressed.
+  await page.getByRole('button', { name: 'Macro pad and shortcuts' }).click();
+  await expect(page.getByText('How to use a macro pad')).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Edit mode' })).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('q');
+  await expect(page.getByText('Cycle Adjustment (Edit mode)')).toBeVisible();
+  await expect(light).toHaveValue('0');
+  await page.keyboard.press('Escape');
   // On wide screens the panel runs down beside the filmstrip. Hiding the filmstrip must not push the panel's bottom off screen.
   if ((page.viewportSize()?.width ?? 0) >= 768) {
     const panelFitsWindow = () => page.evaluate(() => document.querySelector('[role=tablist]')!.parentElement!.getBoundingClientRect().bottom <= window.innerHeight + 1);

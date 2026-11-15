@@ -133,6 +133,9 @@ The maker note layout is documented in ExifTool's Nikon tables, but it varies by
 Under 768 px wide the editor tools are a bottom bar of four large icons (Edit, Crop, Masks, History) with the tool sheet above it, and the photo takes the rest of the height. Tapping the open tab again folds the sheet away for a full-height photo (the choice is remembered). Folding the Crop tool away applies the crop, because its Apply button lives in the sheet. Masks keep their handles on the photo while the sheet is folded. Wider screens keep the right-hand panel with tabs at its top.
 - Not done: swiping the sheet up and down, hiding the filmstrip automatically on phones, and a landscape-phone layout.
 
+## Macro pad in the editor (feat/macro-pad-in-editor)
+The editor toolbar has a **Macro pad** button that opens the pad settings on the Edit tab. The dialog now starts with a short how-to (a pad only sends ordinary keys, so either set the pad's software to send the shown keys or click a key here and press the pad's key; in the editor the Cycle key picks a slider and the knob changes it; Alt plus scroll works without a pad) and a **Test your pad** box that names the key Kestrel just received and what it does in the current mode. While the dialog is open those keys do not reach the photo or sliders behind it. Volume and media keys cannot be seen by a web page, so a knob must be set to send ordinary keys such as - and =.
+- Not tested with the real SinLoon pad (not here yet). The key names come from the pad sending standard key events.
 ## Get an opinion (feat/critique)
 **Get an opinion** (Edit tab) checks the current edit on this device, with no network and no generative model, and keeps itself up to date as the sliders move until it is hidden. It compares the original, the edit without its sharpening, and the finished edit, and can say:
 - **Sharpening looks heavy**: pixels pushed past the range of their surroundings (halos and ringing).
