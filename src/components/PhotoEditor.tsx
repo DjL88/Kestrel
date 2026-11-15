@@ -6,7 +6,7 @@ import { PhotoExportPanel } from './PhotoExportPanel';
 import { downloadExport } from '../providers/browserExport';
 import { PhotoViewport } from './PhotoViewport';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_EDIT, EDIT_CHOICES, applyCanvasPhotoEdit, isNeutralEdit, type PhotoEdit } from '../core/photoEdits';
+import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, applyCanvasPhotoEdit, isNeutralEdit, type PhotoEdit } from '../core/photoEdits';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 
@@ -338,6 +338,26 @@ export function PhotoEditor({
           <button type="button" aria-expanded={quickChoices} onClick={() => setQuickChoices(!quickChoices)}
             className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white lg:min-h-7">Quick choices</button>
         </div>
+        <details className="border-t border-white/10">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
+            Tone <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </summary>
+          <div className="space-y-1 px-1 pb-2">
+            {TONE_CONTROLS.map(({ key, label }) => (
+              <label key={key} className="block">
+                <span className="flex items-center justify-between text-xs text-zinc-300">
+                  <span>{label}</span>
+                  <output className="tabular-nums text-zinc-400">{Math.round((edit[key] ?? 0) * 50)}</output>
+                </span>
+                <input type="range" min={-2} max={2} step={0.05} value={edit[key] ?? 0} aria-label={`${label} adjustment`}
+                  disabled={sourceState !== 'ready'}
+                  onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
+                  onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
+                  className="block min-h-9 w-full accent-sky-300 disabled:opacity-45 lg:min-h-7" />
+              </label>
+            ))}
+          </div>
+        </details>
         <details className="border-t border-white/10"
           onToggle={(event) => {
             setCropOpen(event.currentTarget.open);
