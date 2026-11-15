@@ -139,10 +139,13 @@ export function extractEmbeddedJpegFromRawBuffer(
 }
 
 export function readEmbeddedRating(xmp: unknown, tiff: unknown): Pick<ExifMetadata, 'rating' | 'rejectedByMetadata'> {
-  const value = xmp ?? tiff;
-  const number = typeof value === 'number' ? value : typeof value === 'string' && /^-?[0-5]$/.test(value.trim()) ? Number(value) : NaN;
-  if (number === -1) return { rejectedByMetadata: true };
-  if (Number.isInteger(number) && number >= 0 && number <= 5) return { rating: number };
+  // Malformed XMP must not hide a valid TIFF rating. A valid XMP value,
+  // including the explicit -1 reject flag, still takes precedence.
+  for (const value of [xmp, tiff]) {
+    const number = typeof value === 'number' ? value : typeof value === 'string' && /^-?[0-5]$/.test(value.trim()) ? Number(value) : NaN;
+    if (number === -1) return { rejectedByMetadata: true };
+    if (Number.isInteger(number) && number >= 0 && number <= 5) return { rating: number };
+  }
   return {};
 }
 
