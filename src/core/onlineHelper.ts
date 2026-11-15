@@ -91,7 +91,7 @@ export function pickModel(models: readonly { name: string; supportedGenerationMe
 }
 
 /** The terms the user agrees to, versioned so a change in what is sent asks again. */
-export const HELPER_CONSENT_VERSION = 'gemini-1';
+export const HELPER_CONSENT_VERSION = 'gemini-2';
 
 export interface HelperSettings { enabled: boolean; consent: string | null; key: string }
 

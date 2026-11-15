@@ -4,9 +4,7 @@ import type { CullDecision, PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { DecisionButtons } from './DecisionButtons';
 import { isEdited } from '../core/editedState';
-import { SubjectFlash } from './SubjectFlash';
 import { speciesShown } from '../core/autoTags';
-import type { SubjectGrid } from '../core/maskTypes';
 import { FrameImage } from './FrameImage';
 
 interface VirtualizedContactSheetProps {
@@ -18,8 +16,6 @@ interface VirtualizedContactSheetProps {
   markedIds: ReadonlySet<string>;
   multiSelect: boolean;
   onInfo: (frameId: string, trigger: HTMLButtonElement | null) => void;
-  /** The photo whose subject is being shown just now, while the species is worked out. */
-  flash?: { frameId: string; grid: SubjectGrid } | null;
   onOpenLoupe: (frameId: string) => void;
   onDecideFrame: (frameId: string, decision: CullDecision) => void;
   onResetFrame: (frameId: string) => void;
@@ -40,7 +36,6 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   markedIds,
   multiSelect,
   onInfo,
-  flash,
   onOpenLoupe,
   onDecideFrame,
   onResetFrame,
@@ -239,7 +234,6 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         className="w-full h-full"
                         imgClassName="object-cover"
                       />
-                      {flash?.frameId === frame.id && <SubjectFlash grid={flash.grid} />}
                       {(() => {
                         const species = speciesShown(frame);
                         return species ? (

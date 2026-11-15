@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { createDemoShootState } from '../src/core/cullingEngine';
+import { encodeProjectBackup } from '../src/core/projectBackup';
+import { HELPER_CONSENT_VERSION } from '../src/core/onlineHelper';
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 const GOOGLE = '**/generativelanguage.googleapis.com/**';
@@ -71,7 +75,7 @@ test('with the helper on, photos are named from small JPEGs with no name, no cam
   await expect(dialog).toHaveCount(0);
 
   const banner = page.getByRole('region', { name: 'Species recognition' });
-  await expect(banner.getByText(/Asking the online helper/)).toBeVisible({ timeout: 30000 });
+  await expect(banner).toHaveCount(0);
   const labels = page.getByTestId('species-label');
   await expect(labels).toHaveCount(3, { timeout: 60000 });
   for (const label of await labels.all()) {
@@ -98,11 +102,42 @@ test('with the helper on, photos are named from small JPEGs with no name, no cam
   expect(asks[0].url).toContain('gemini-3.7-flash');
 });
 
-test('a key Google refuses stops the run after one try and says so, without breaking the page', async ({ page }) => {
+test('a strong local result stays on-device and an unresolved photo uses the opted-in fallback', async ({ page }) => {
+  const OWL = answer({ kind: 'wildlife', species: 'barn owl', scientific: 'Tyto alba', confidence: 'high', tags: [] });
+  const seen = await pretendGemini(page, (route) => route.fulfill({ json: OWL, headers: { 'access-control-allow-origin': '*' } }));
+  await page.goto('/');
+  const standIn = Array.from(readFileSync('tests/fixtures/stand-in-species.onnx'));
+  await page.evaluate(async ({ bytes, consent }) => {
+    const cache = await caches.open('kestrel-species-v1');
+    await cache.put('/stand-in-species.onnx', new Response(new Uint8Array(bytes)));
+    localStorage.setItem('kestrel.helper.v1', JSON.stringify({ enabled: true, consent, key: 'test-key-123' }));
+  }, { bytes: standIn, consent: HELPER_CONSENT_VERSION });
+  await page.reload();
+
+  const project = createDemoShootState(2);
+  project.shoot.title = 'Local fallback fixture';
+  for (const frame of project.frames) {
+    frame.tags = [];
+    frame.subjectNames = [];
+  }
+  project.frames[1].declinedTags = ['Red kite'];
+  await page.locator('input[type="file"][accept=".json,application/json"]').setInputFiles({
+    name: 'fallback.kestrel.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(encodeProjectBackup(project)),
+  });
+  await expect(page.getByTestId('species-label').filter({ hasText: 'Red kite' })).toHaveCount(1, { timeout: 30000 });
+  await expect(page.getByTestId('species-label').filter({ hasText: 'Barn owl' })).toHaveCount(1, { timeout: 30000 });
+  expect(seen.filter((entry) => entry.method === 'POST')).toHaveLength(1);
+  await expect(page.getByRole('region', { name: 'Species recognition' })).toHaveCount(0);
+});
+
+test('a key Google refuses stops after one try without interrupting the page', async ({ page }) => {
   const seen = await pretendGemini(page, (route) => route.fulfill({ status: 401, json: { error: { status: 'UNAUTHENTICATED', message: 'bad' } }, headers: { 'access-control-allow-origin': '*' } }));
   await importPhotos(page);
   await turnOn(page, 'wrong-key');
-  await expect(page.getByRole('alert').filter({ hasText: 'did not accept your key' })).toBeVisible({ timeout: 30000 });
+  await expect.poll(() => seen.filter((entry) => entry.method === 'POST').length).toBe(1);
+  await expect(page.getByRole('alert').filter({ hasText: 'did not accept your key' })).toHaveCount(0);
   await page.waitForTimeout(1500);
   expect(seen.filter((entry) => entry.method === 'POST')).toHaveLength(1);
   await expect(page.getByTestId('species-label')).toHaveCount(0);
@@ -113,7 +148,9 @@ test('a rate limit also stops the run, and offline photos are simply left alone'
   const seen = await pretendGemini(page, (route) => route.fulfill({ status: 429, json: { error: { status: 'RESOURCE_EXHAUSTED' } }, headers: { 'access-control-allow-origin': '*' } }));
   await importPhotos(page);
   await turnOn(page);
-  await expect(page.getByRole('alert').filter({ hasText: /busy|limit/ })).toBeVisible({ timeout: 30000 });
+  await expect.poll(() => seen.filter((entry) => entry.method === 'POST').length).toBe(1);
+  await page.waitForTimeout(1600);
+  await expect(page.getByRole('alert').filter({ hasText: /busy|limit/ })).toHaveCount(0);
   expect(seen.filter((entry) => entry.method === 'POST')).toHaveLength(1);
 });
 

@@ -60,7 +60,7 @@ test('the helper only runs with consent to these terms, a key, the switch on, an
   assert.equal(helperReady(on, { online: false }), false);
   assert.equal(helperReady({ ...on, enabled: false }, { online: true }), false);
   assert.equal(helperReady({ ...on, consent: null }, { online: true }), false);
-  assert.equal(helperReady({ ...on, consent: 'gemini-0' }, { online: true }), false, 'older terms ask again');
+  assert.equal(helperReady({ ...on, consent: 'gemini-1' }, { online: true }), false, 'older terms ask again');
   assert.equal(helperReady({ ...on, key: '  ' }, { online: true }), false);
   assert.ok(HELPER_SESSION_CAP > 0 && HELPER_SESSION_CAP <= 200);
 });

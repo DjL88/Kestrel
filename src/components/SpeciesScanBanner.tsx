@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, Loader2 } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { megabytes } from '../core/speciesModel';
 import type { useSpeciesScan } from '../useSpeciesScan';
 import { openHelperDialog } from '../providers/helperSettings';
@@ -37,14 +37,5 @@ export function SpeciesScanBanner({ scan }: { scan: ReturnType<typeof useSpecies
       </section>
     );
   }
-  if (!scan.progress.running || scan.progress.total === 0) return null;
-  return (
-    <section aria-label="Species recognition" className="mx-2 mb-2 rounded-lg border border-white/12 bg-white/5 px-3 py-2">
-      <p role="status" className="flex items-center gap-2 text-sm text-zinc-200">
-        <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-        {scan.helperOn ? 'Asking the online helper about your photos…' : 'Looking at your photos…'} {scan.progress.done} of {scan.progress.total}
-      </p>
-      <progress aria-label="Looking at your photos" className="mt-1 block w-full" value={scan.progress.done} max={scan.progress.total} />
-    </section>
-  );
+  return null;
 }

@@ -682,8 +682,14 @@ export default function App() {
 
   // After photos are added, name the species in the background. The subject flashes up on each card as it is found.
   const scan = useSpeciesScan({
+    projectId: cullingState.shoot.id,
     frames: cullingState.frames, provider: previewProviderRef.current, active: !projectsOpen && !editing,
-    onResult: (frameId, patch) => setCullingState((prev) => ({ ...prev, frames: prev.frames.map((frame) => (frame.id === frameId ? { ...frame, ...patch } : frame)) })),
+    onResult: (frameId, patch) => setCullingState((prev) => {
+      if (prev.shoot.id !== cullingState.shoot.id) return prev;
+      return { ...prev, frames: prev.frames.map((frame) =>
+        frame.id === frameId && !frame.removedAt && !frame.speciesChecked && !frame.tags?.length && !frame.subjectNames?.length
+          ? { ...frame, ...patch } : frame) };
+    }),
   });
 
   const jumpPhotoHistory = (frameId: string, cursor: number) => {
@@ -1200,7 +1206,6 @@ export default function App() {
           <OnlineHelperDialog />
           {!editing && visibleFrames.length > 0 && prefs.viewMode === 'grid' && (
             <VirtualizedContactSheet
-              flash={scan.flash}
               onResetFrame={(id) => requestReset(multiSelect && selectedIds.has(id) ? [...selectedIds] : [id])}
               frames={visibleFrames}
               selectedFrameId={selectedFrame?.id ?? null}

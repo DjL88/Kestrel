@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 // The stand-in model always "sees" a red kite. The subject finder is the real bundled one.
 const standIn = readFileSync('tests/fixtures/stand-in-species.onnx');
 
-test('after import the subject flashes up on each card, the species appears, and the info pop-up can change it', async ({ page }) => {
+test('after import, species appears quietly and the info pop-up can change it', async ({ page }) => {
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
   await page.goto('/');
   // Photos with one clear subject, so the subject finder has something to find.
@@ -31,8 +31,7 @@ test('after import the subject flashes up on each card, the species appears, and
   await expect(banner.getByRole('button', { name: /^Download/ })).toBeHidden();
   await banner.getByText('Identify birds and animals', { exact: true }).click();
   await banner.getByRole('button', { name: /^Download/ }).click();
-  await expect(banner.getByText(/Looking at your photos/)).toBeVisible({ timeout: 30000 });
-  await expect(page.getByTestId('subject-flash').first()).toBeAttached({ timeout: 30000 });
+  await expect(page.getByTestId('subject-flash')).toHaveCount(0);
 
   // Every card ends up named, and marked as automatic.
   const labels = page.getByTestId('species-label');
