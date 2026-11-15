@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
-import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Trash2, Zap } from 'lucide-react';
 import kestrelMark from '../assets/kestrel-mark.svg';
 import type { ShootDescriptor } from '../core/types';
 import { NewProjectWizard } from './NewProjectWizard';
 import type { ProjectSettings } from '../core/projectSettings';
-import { splitProjects } from '../core/projects';
+import { inboxFirst, splitProjects } from '../core/projects';
 import { formatProjectDate } from '../core/formatDate';
 
 interface Props {
@@ -17,11 +17,14 @@ interface Props {
   onArchive: (project: ShootDescriptor) => void;
   onUnarchive: (id: string) => void;
   onDelete: (project: ShootDescriptor) => void;
+  /** Open photos straight into the editor, without making a project first. */
+  onQuickEdit: (files: File[]) => void;
 }
 
-export function ProjectList({ projects, loading, error, onOpen, onCreate, onRestore, onArchive, onUnarchive, onDelete }: Props) {
+export function ProjectList({ projects, loading, error, onOpen, onCreate, onRestore, onArchive, onUnarchive, onDelete, onQuickEdit }: Props) {
   const [creating, setCreating] = useState(false);
   const backupInput = useRef<HTMLInputElement>(null);
+  const quickInput = useRef<HTMLInputElement>(null);
   return (
     <main className="h-dvh overflow-auto bg-kestrel-canvas px-4 text-zinc-100 sm:px-8">
       <div className="mx-auto max-w-3xl py-8 sm:py-14">
@@ -40,6 +43,15 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
           <button type="button" onClick={() => backupInput.current?.click()} disabled={loading}
             className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm text-zinc-300 hover:bg-white/8">
             <FolderUp className="h-4 w-4" aria-hidden="true" /> Restore backup
+          </button>
+          <input ref={quickInput} type="file" accept=".jpg,.jpeg,.png,.webp,.nef,image/jpeg,image/png,image/webp" multiple hidden data-testid="quick-edit-input" onChange={(event) => {
+            const files = [...(event.target.files ?? [])];
+            event.target.value = '';
+            if (files.length) onQuickEdit(files);
+          }} />
+          <button type="button" onClick={() => quickInput.current?.click()} disabled={loading} title="Open a photo straight into the editor, without making a project"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-sky-300/50 px-3 text-sm text-sky-100 hover:bg-sky-300/15 disabled:opacity-50">
+            <Zap className="h-4 w-4" aria-hidden="true" /> Quick edit
           </button>
           <button type="button" onClick={() => setCreating(!creating)} disabled={loading}
             className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-kestrel-copper px-3 text-sm font-semibold text-zinc-950 disabled:opacity-50">
@@ -64,7 +76,7 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
                 className="flex min-w-0 flex-1 items-center gap-3 rounded-md p-3 text-left hover:bg-white/6 disabled:opacity-55">
                 <Folder className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden="true" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{project.title}</span>
+                  <span className="block truncate text-sm font-medium">{project.title}{project.inbox && <span className="ml-2 rounded bg-sky-300/15 px-1.5 py-0.5 text-xs font-normal text-sky-100">Quick edits</span>}</span>
                   <span className="block text-xs text-zinc-400">{project.totalFrames} {project.totalFrames === 1 ? 'photo' : 'photos'}</span>
                   <span className="block text-xs text-zinc-400">
                     Created <time dateTime={project.createdAt ? new Date(project.createdAt).toISOString() : undefined}>{formatProjectDate(project.createdAt)}</time>
@@ -89,7 +101,7 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
             </li>
           );
           return <>
-            {active.length > 0 && <ul className="divide-y divide-white/8 rounded-xl border border-white/10 bg-kestrel-raised">{active.map((project) => row(project, false))}</ul>}
+            {active.length > 0 && <ul className="divide-y divide-white/8 rounded-xl border border-white/10 bg-kestrel-raised">{inboxFirst(active).map((project) => row(project, false))}</ul>}
             {archived.length > 0 && (
               <details className="mt-4 rounded-xl border border-white/10 bg-kestrel-raised">
                 <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm text-zinc-300">Archived ({archived.length})</summary>

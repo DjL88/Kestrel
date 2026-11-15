@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArchiveRestore, ArrowLeft, ChevronDown, Download, Ellipsis, Eraser, FileDown, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Search, Trash2, Undo2 } from 'lucide-react';
+import { ArchiveRestore, ArrowLeft, ChevronDown, Download, Ellipsis, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Search, Trash2, Undo2 } from 'lucide-react';
 import type { ProjectSettings } from '../core/projectSettings';
 import { ThemePicker } from './ThemePicker';
 import { messages as m } from '../i18n/messages';
@@ -37,6 +37,7 @@ interface TopWorkspaceBarProps {
   autoAdvance: boolean;
   onToggleAutoAdvance: () => void;
   onClearDecision?: () => void;
+  onMoveToProject?: () => void;
   /** Exports what is selected: the selected photos, else the current photo. */
   onExport?: () => void;
   exportLabel?: string;
@@ -213,6 +214,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   {props.onToggleMultiSelect && <MenuItem icon={<ListChecks className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(() => props.onToggleMultiSelect?.())}>
                     {props.multiSelect ? 'Done selecting' : 'Select photos'}</MenuItem>}
                   <MenuItem icon={<Eraser className="h-4 w-4" aria-hidden="true" />} disabled={!props.onClearDecision} onClick={() => choose(() => props.onClearDecision?.())}>Clear decision</MenuItem>
+                  <MenuItem icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} disabled={!props.onMoveToProject} onClick={() => choose(() => props.onMoveToProject?.(), false)}>Move to project…</MenuItem>
                   <MenuItem icon={<Trash2 className="h-4 w-4" aria-hidden="true" />} disabled={!props.onRemoveFromLibrary} onClick={() => choose(() => props.onRemoveFromLibrary?.(), false)}>Remove from library…</MenuItem>
                   <MenuItem icon={<ArchiveRestore className="h-4 w-4" aria-hidden="true" />} disabled={!props.onOpenRemoved} onClick={() => choose(() => props.onOpenRemoved?.(), false)}>Removed photos ({props.removedCount ?? 0})</MenuItem>
                   <MenuItem icon={<Info className="h-4 w-4" aria-hidden="true" />} pressed={showPhotoInfo} onClick={() => choose(props.onTogglePhotoInfo)}>{showPhotoInfo ? 'Hide photo info' : 'Photo info'}</MenuItem>

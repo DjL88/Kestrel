@@ -127,3 +127,46 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   const saved = page.getByRole('img', { name: 'frame-01.png' });
   await expect.poll(() => saved.evaluate((node: HTMLImageElement) => node.naturalWidth > 0 && node.naturalWidth === node.naturalHeight)).toBeTruthy();
 });
+
+test('quick edit opens a photo straight in the editor and it can be moved to a project later', async ({ page }) => {
+  await page.goto('/');
+  // A project to move into later.
+  await page.getByRole('button', { name: 'New project' }).click();
+  await page.getByRole('textbox', { name: 'Project name' }).fill('Destination');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByRole('checkbox', { name: /Auto-cull/ }).uncheck();
+  await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('button', { name: 'Back to projects' }).click();
+
+  const picture = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 320;
+    canvas.height = 240;
+    const paint = canvas.getContext('2d')!;
+    paint.fillStyle = '#4a7a9a';
+    paint.fillRect(0, 0, 320, 240);
+    paint.fillStyle = '#e2a64d';
+    paint.fillRect(80, 60, 120, 100);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await page.getByTestId('quick-edit-input').setInputFiles({ name: 'quick.png', mimeType: 'image/png', buffer: Buffer.from(picture, 'base64') });
+  // No project was made first, and the photo is already open in the editor.
+  await expect(page.getByRole('toolbar', { name: 'Editor actions' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByRole('button', { name: 'Back to projects' }).click();
+  await expect(page.getByText('Quick edits').first()).toBeVisible();
+  await page.getByRole('button', { name: /Quick edits/ }).first().click();
+  await page.getByRole('button', { name: 'View quick.png' }).click();
+  await page.getByRole('button', { name: 'Workspace options' }).click();
+  await page.getByRole('button', { name: 'Move to project…' }).click();
+  await page.getByLabel('Destination project').selectOption({ label: 'Destination (0)' });
+  await page.getByRole('button', { name: 'Move photos' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Moved 1 photo to Destination' })).toBeVisible();
+  await page.getByRole('button', { name: 'Back to projects' }).click();
+  await page.getByRole('button', { name: /Destination/ }).first().click();
+  await expect(page.getByRole('button', { name: 'View quick.png' })).toBeVisible();
+});

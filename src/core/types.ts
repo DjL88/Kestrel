@@ -90,6 +90,8 @@ export interface ShootDescriptor {
   lastUpdatedAt: number;
   /** Set when the project is archived. Archived projects are hidden from the main list and can be restored. */
   archivedAt?: number;
+  /** True for the Quick edits bucket, where single photos are opened without making a project first. */
+  inbox?: boolean;
 }
 
 export interface DecisionHistoryEntry {
