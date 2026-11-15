@@ -63,6 +63,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await expect(collections.getByRole('button', { name: 'To review 9' })).toBeVisible();
   await collections.getByRole('button', { name: 'Keepers 1' }).click();
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   const light = page.getByRole('slider', { name: 'Light adjustment' });
   await expect(light).toBeEnabled();
   await expectIconButtonsHaveTooltips(page, 'the editor');
@@ -86,9 +87,11 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
     await expect.poll(panelFitsWindow).toBe(true);
   }
   // The built-in opinion answers for an unedited photo, and stays on the page.
+  await page.getByRole('tab', { name: 'Auto' }).click();
   await page.getByRole('button', { name: 'Get an opinion' }).click();
   await expect(page.getByRole('region', { name: 'Opinion on this edit' })).toBeVisible();
   await page.getByRole('button', { name: 'Hide opinion' }).click();
+  await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');
 
@@ -123,7 +126,8 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await light.press('ArrowLeft');
   await expect(light).toHaveValue('0.1');
 
-  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  await page.getByRole('tab', { name: 'Export' }).click();
+  await page.getByRole('button', { name: 'Choose formats and export…' }).click();
   const exportHeading = page.getByRole('heading', { name: 'Export photo' });
   const prepare = page.getByRole('button', { name: 'Prepare 1 file', exact: true });
   await expect(exportHeading).toBeFocused();
@@ -158,7 +162,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   expect(png.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([640, 480]);
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Choose formats and export…' })).toBeFocused();
 
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await page.getByRole('button', { name: 'Back to projects' }).click();
@@ -169,6 +173,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await page.getByRole('button', { name: 'Ten-photo test 10 photos' }).click();
   await collections.getByRole('button', { name: 'Keepers 1' }).click();
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await expect(page.getByRole('slider', { name: 'Light adjustment' })).toHaveValue('0.1');
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
   await page.getByRole('tab', { name: 'Crop' }).click();
