@@ -1,4 +1,5 @@
 import { newId } from '../core/ids';
+import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
 import { ChevronDown, Columns2, Lightbulb, Crop, Download, History, Layers, Redo2, SlidersHorizontal, Undo2 } from 'lucide-react';
@@ -32,6 +33,7 @@ import { visiblePhotoDetail } from '../core/visiblePhotoDetail';
 const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
 const PANEL_KEY = 'kestrel-panel-width-v1';
+const SHEET_KEY = 'kestrel-sheet-v1';
 type Tab = 'edit' | 'crop' | 'masks' | 'history';
 const TABS: { id: Tab; label: string; Icon: typeof Crop }[] = [
   { id: 'edit', label: 'Edit', Icon: SlidersHorizontal },
@@ -102,6 +104,26 @@ export function PhotoEditor({ autoEdit,
   const [previewRecipe, setPreviewRecipe] = useState<{ edit?: PhotoEdit; framing?: PhotoFraming } | null>(null);
   const cropEntry = useRef<PhotoFraming | null>(null);
   const panelScroll = useRef<HTMLDivElement>(null);
+  const isPhone = useMediaQuery('(max-width: 767px)');
+  // On a phone the tools open as a sheet above the bar. Tapping the open tab again folds it away for a full-height photo.
+  const [sheetOpen, setSheetOpen] = useState(() => {
+    try { return localStorage.getItem(SHEET_KEY) !== 'closed'; } catch { return true; }
+  });
+  const rememberSheet = (open: boolean) => {
+    setSheetOpen(open);
+    try { localStorage.setItem(SHEET_KEY, open ? 'open' : 'closed'); } catch { /* the sheet still works for this session */ }
+  };
+  const chooseTab = (id: Tab) => {
+    if (!isPhone) { setTab(id); return; }
+    if (id === tab && sheetOpen) {
+      // Folding the crop tool away applies the crop, since its Apply button is inside the sheet.
+      if (id === 'crop') setTab('edit');
+      rememberSheet(false);
+      return;
+    }
+    setTab(id);
+    rememberSheet(true);
+  };
   const cropOpen = tab === 'crop';
   const [previewCrop, setPreviewCrop] = useState(false);
   const [gridLines, setGridLines] = useState(true);
@@ -137,8 +159,7 @@ export function PhotoEditor({ autoEdit,
       const url = await provider.getFullPreviewUrl(frame);
       if (!active) return;
       if (!url) throw new Error('Preview unavailable');
-      image.src = url;
-      await image.decode();
+      await loadImage(url, image);
       if (!active) return;
 
       sourceImage.current = image;
@@ -262,6 +283,13 @@ export function PhotoEditor({ autoEdit,
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [bindings, copiedEdit, dial, edit, exportOpen, guide, onCopyEdit, onEdit, onHistoryStep, source]);
+
+  // Tell the filmstrip below how much room the panel takes, because the panel runs down beside it on wide screens.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--editor-panel-w', `${panelWidth + 8}px`);
+    return () => { root.style.removeProperty('--editor-panel-w'); };
+  }, [panelWidth]);
 
   // Opening the crop tab shows the whole photo with the crop box. Remember the crop so Cancel can put it back.
   useEffect(() => {
@@ -409,15 +437,45 @@ export function PhotoEditor({ autoEdit,
     setCropNotice(correction ? `Straightened by ${correction}°` : 'The detected line is already level.');
   }
 
+  /** One tab bar. On a phone it is a bottom toolbar of large icons, and on wider screens the top of the side panel. */
+  const tabList = (
+    <div role="tablist" aria-label="Editing tools"
+      className={isPhone
+        ? 'grid shrink-0 grid-cols-4 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]'
+        : 'sticky top-0 z-10 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 md:-mx-4 md:px-3'}
+      onKeyDown={(event) => {
+        const order = TABS.map((entry) => entry.id);
+        const at = order.indexOf(tab);
+        const next = event.key === 'ArrowRight' ? order[(at + 1) % order.length] : event.key === 'ArrowLeft' ? order[(at + order.length - 1) % order.length]
+          : event.key === 'Home' ? order[0] : event.key === 'End' ? order[order.length - 1] : null;
+        if (!next) return;
+        event.preventDefault();
+        setTab(next);
+        document.getElementById(`tab-${next}`)?.focus();
+      }}>
+      {TABS.map(({ id, label, Icon }) => (
+        <button key={id} id={`tab-${id}`} role="tab" type="button" aria-selected={tab === id} aria-controls={`panel-${id}`} tabIndex={tab === id ? 0 : -1}
+          aria-expanded={isPhone ? sheetOpen && tab === id : undefined}
+          onClick={() => chooseTab(id)}
+          className={isPhone
+            ? 'relative flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs text-zinc-300 focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:text-white aria-selected:after:absolute aria-selected:after:top-0 aria-selected:after:h-0.5 aria-selected:after:w-10 aria-selected:after:bg-sky-200'
+            : 'flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1 border-b-2 border-transparent px-1.5 text-sm text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:border-sky-200 aria-selected:text-white'}>
+          <Icon className={isPhone ? 'h-5 w-5' : 'h-4 w-4'} aria-hidden="true" />
+          <span>{label}{id === 'masks' && edit.masks?.length ? <span className="ml-1 text-xs tabular-nums text-zinc-400">{edit.masks.length}</span> : null}</span>
+        </button>
+      ))}
+    </div>
+  );
+
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
   return (
     <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-kestrel-stage">
       <div role="toolbar" aria-label="Editor actions" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-panel px-2 sm:px-4">
         <div className="flex items-center gap-1">
-          <button type="button" className={`${button} inline-flex items-center`} aria-label="Undo" disabled={!frame.editHistory?.cursor} onClick={() => onHistoryStep(-1)}>
+          <button type="button" className={`${button} inline-flex items-center`} aria-label="Undo" title="Undo" disabled={!frame.editHistory?.cursor} onClick={() => onHistoryStep(-1)}>
             <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Undo</span>
           </button>
-          <button type="button" className={`${button} inline-flex items-center`} aria-label="Redo" disabled={!frame.editHistory || frame.editHistory.cursor >= frame.editHistory.steps.length} onClick={() => onHistoryStep(1)}>
+          <button type="button" className={`${button} inline-flex items-center`} aria-label="Redo" title="Redo" disabled={!frame.editHistory || frame.editHistory.cursor >= frame.editHistory.steps.length} onClick={() => onHistoryStep(1)}>
             <Redo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Redo</span>
           </button>
           <button type="button" aria-pressed={displayCompare} disabled={sourceState !== 'ready' || guide} onClick={() => setCompare(!compare)}
@@ -444,7 +502,7 @@ export function PhotoEditor({ autoEdit,
               hidden={sourceState !== 'ready'} className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />
             {detail && <canvas ref={editedDetail} aria-hidden="true" hidden={!showDetail}
               className="absolute" style={detail.style} />}
-            {!guide && position && markFocus && <button type="button" aria-label="Place export focus point"
+            {!guide && position && markFocus && <button type="button" aria-label="Place export focus point" title="Place export focus point"
               className="absolute z-10 cursor-crosshair focus-visible:outline-2 focus-visible:outline-sky-200" style={position}
               onClick={(event) => {
                 const bounds = event.currentTarget.getBoundingClientRect();
@@ -531,26 +589,8 @@ export function PhotoEditor({ autoEdit,
         )}
       </div>
       <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
-      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`scroll-pt-14 max-h-[44%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
-        <div role="tablist" aria-label="Editing tools" className="sticky top-0 z-10 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 md:-mx-4 md:px-3"
-          onKeyDown={(event) => {
-            const order = TABS.map((entry) => entry.id);
-            const at = order.indexOf(tab);
-            const next = event.key === 'ArrowRight' ? order[(at + 1) % order.length] : event.key === 'ArrowLeft' ? order[(at + order.length - 1) % order.length]
-              : event.key === 'Home' ? order[0] : event.key === 'End' ? order[order.length - 1] : null;
-            if (!next) return;
-            event.preventDefault();
-            setTab(next);
-            document.getElementById(`tab-${next}`)?.focus();
-          }}>
-          {TABS.map(({ id, label, Icon }) => (
-            <button key={id} id={`tab-${id}`} role="tab" type="button" aria-selected={tab === id} aria-controls={`panel-${id}`} tabIndex={tab === id ? 0 : -1}
-              onClick={() => setTab(id)}
-              className="flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1 border-b-2 border-transparent px-1.5 text-sm text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:border-sky-200 aria-selected:text-white">
-              <Icon className="h-4 w-4" aria-hidden="true" />{label}{id === 'masks' && edit.masks?.length ? <span className="text-xs tabular-nums text-zinc-400">{edit.masks.length}</span> : null}
-            </button>
-          ))}
-        </div>
+      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:relative md:z-10 md:-mb-[112px] md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
+        {!isPhone && tabList}
         {tab === 'edit' && (
           <div role="tabpanel" id="panel-edit" aria-labelledby="tab-edit" className="space-y-2">
         <Histogram data={histogram} />
@@ -876,6 +916,7 @@ export function PhotoEditor({ autoEdit,
           </div>
         )}
       </div>
+      {isPhone && tabList}
       </div>
       {exportOpen && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} />}
     </section>
@@ -905,4 +946,16 @@ function PanelResizer({ width, side, onChange }: { width: number; side: 'left' |
         move(width + (grow ? 20 : -20));
       }} />
   );
+}
+
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const list = window.matchMedia(query);
+    const update = () => setMatches(list.matches);
+    update();
+    list.addEventListener('change', update);
+    return () => list.removeEventListener('change', update);
+  }, [query]);
+  return matches;
 }

@@ -19,7 +19,7 @@ export function RemovedPhotosPanel({ frames, onRestore, onClose }: Props) {
           {frames.map((frame) => (
             <li key={frame.id} className="flex items-center justify-between gap-2 rounded bg-black/20 px-2 py-1">
               <span className="min-w-0 truncate">{frame.filename}</span>
-              <button type="button" onClick={() => onRestore([frame.id])} aria-label={`Restore ${frame.filename}`}
+              <button type="button" onClick={() => onRestore([frame.id])} aria-label={`Restore ${frame.filename}`} title={`Restore ${frame.filename}`}
                 className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded px-2 text-xs hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
                 <X className="hidden" aria-hidden="true" />Restore
               </button>

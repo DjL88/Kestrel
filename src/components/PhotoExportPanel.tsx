@@ -132,7 +132,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
       <section ref={dialog} className="workspace-popover flex max-h-[90dvh] w-full max-w-lg flex-col overflow-y-auto rounded-xl border border-white/15 bg-kestrel-raised p-4 shadow-xl">
         <header className="flex items-center justify-between gap-2">
           <h2 id="export-title" ref={title} tabIndex={-1} className="text-base font-semibold">Export {frames.length === 1 ? 'photo' : `${frames.length} photos`}</h2>
-          <button type="button" onClick={onClose} aria-label="Close export" className={button}><X className="h-5 w-5" aria-hidden="true" /></button>
+          <button type="button" onClick={onClose} aria-label="Close export" title="Close export" className={button}><X className="h-5 w-5" aria-hidden="true" /></button>
         </header>
         {resultsReady ? (
           <div className="space-y-3">

@@ -73,7 +73,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close Add photos modal"
+            aria-label="Close Add photos modal" title="Close Add photos modal"
             className="grid min-h-11 min-w-11 place-items-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-white/8"
           >
             <X className="w-4 h-4" aria-hidden="true" />

@@ -1,8 +1,9 @@
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
 import { DEFAULT_EDIT, isNeutralEdit } from '../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFraming';
+import { loadImage } from '../providers/loadImage';
 import { loadExportSource } from '../providers/browserExport';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ImageOff } from 'lucide-react';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
@@ -18,6 +19,25 @@ interface FrameImageProps {
   /** Optional interactive transform for zoom/pan viewports */
   zoomScale?: number;
   panOffset?: { x: number; y: number };
+}
+
+// Decoded thumbnail pictures, kept so redrawing an edited filmstrip card does not decode the file again.
+const thumbSources = new Map<string, Promise<HTMLImageElement>>();
+function loadThumbSource(frame: PhotoFrame, provider: BrowserPreviewProvider): Promise<HTMLImageElement> {
+  const key = frame.stableKey;
+  let cached = thumbSources.get(key);
+  if (!cached) {
+    cached = (async () => {
+      const url = await provider.getThumbnailUrl(frame);
+      if (!url) throw new Error(`No thumbnail for ${frame.filename}`);
+      return loadImage(url);
+    })();
+    cached.catch(() => thumbSources.delete(key));
+    thumbSources.set(key, cached);
+    // Keep the cache small. The oldest entries go first.
+    if (thumbSources.size > 300) thumbSources.delete(thumbSources.keys().next().value as string);
+  }
+  return cached;
 }
 
 export const FrameImage: React.FC<FrameImageProps> = ({
@@ -38,28 +58,50 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   const edited = Boolean((frame.edit && !isNeutralEdit(frame.edit)) || (frame.framing &&
     (frame.framing.ratio || frame.framing.turns || frame.framing.straighten)));
 
+  const hasImage = useRef(false);
+  hasImage.current = Boolean(src);
+  const renderedUrl = useRef<string | undefined>(undefined);
+  // The last rendered picture is only released once a newer one replaces it, or on unmount, so it never goes blank mid-edit.
+  const replaceRendered = (next: string | undefined) => {
+    const previous = renderedUrl.current;
+    renderedUrl.current = next;
+    if (previous && previous !== next) window.setTimeout(() => URL.revokeObjectURL(previous), 1000);
+  };
+  useEffect(() => () => replaceRendered(undefined), []);
+
   useEffect(() => {
     let cancelled = false;
-    let renderedUrl: string | undefined;
-    setLoading(true);
+    let timer: number | undefined;
+    // Keep showing the current picture while an edited one is being redrawn.
+    if (!hasImage.current) setLoading(true);
     setErrored(false);
+
+    const render = async () => {
+      // A small thumbnail is plenty for a filmstrip card, and avoids decoding the full-size picture on every slider move.
+      const source = variant === 'thumb' ? await loadThumbSource(frame, previewProvider) : await loadExportSource(frame, previewProvider);
+      if (cancelled) return;
+      const canvas = document.createElement('canvas');
+      const framing = frame.framing ?? DEFAULT_FRAMING;
+      const size = framedSize(source.naturalWidth, source.naturalHeight, framing);
+      drawFramedPhoto(source, canvas, framing, { scale: Math.min(1, (variant === 'thumb' ? 400 : 2200) / Math.max(size.width, size.height)) });
+      applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+      if (cancelled) return;
+      if (!blob) throw new Error('Preview unavailable');
+      const url = URL.createObjectURL(blob);
+      replaceRendered(url);
+      setSrc(url);
+    };
 
     const load = async () => {
       if (edited) {
-        const source = await loadExportSource(frame, previewProvider);
+        // Wait for the edit to settle before redrawing, so dragging a slider does not redraw on every step.
+        await new Promise<void>((resolve) => { timer = window.setTimeout(resolve, hasImage.current ? 200 : 0); });
         if (cancelled) return;
-        const canvas = document.createElement('canvas');
-        const framing = frame.framing ?? DEFAULT_FRAMING;
-        const size = framedSize(source.naturalWidth, source.naturalHeight, framing);
-        drawFramedPhoto(source, canvas, framing, { scale: Math.min(1, (variant === 'thumb' ? 400 : 2200) / Math.max(size.width, size.height)) });
-        applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT);
-        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
-        if (cancelled) return;
-        if (!blob) throw new Error('Preview unavailable');
-        renderedUrl = URL.createObjectURL(blob);
-        setSrc(renderedUrl);
+        await render();
         return;
       }
+      replaceRendered(undefined);
       const url =
         variant === 'full'
           ? await previewProvider.getFullPreviewUrl(frame)
@@ -71,11 +113,14 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     };
 
     void load().catch(() => {
-      if (!cancelled) { setSrc(''); setLoading(false); }
+      if (cancelled) return;
+      // A failed redraw keeps the last good picture. Only a photo that never had one shows the fallback.
+      if (!hasImage.current) setSrc('');
+      setLoading(false);
     });
     return () => {
       cancelled = true;
-      if (renderedUrl) URL.revokeObjectURL(renderedUrl);
+      window.clearTimeout(timer);
     };
   }, [frame.id, frame.edit, frame.framing, edited, previewProvider, variant, needsAccess]);
 

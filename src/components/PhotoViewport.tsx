@@ -109,7 +109,7 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
           </>}
         </>
       )}
-      <button type="button" onClick={toggleZoom} aria-label={zoom > 1 ? 'Fit photo' : 'Zoom in'}
+      <button type="button" onClick={toggleZoom} aria-label={zoom > 1 ? 'Fit photo' : 'Zoom in'} title={zoom > 1 ? 'Fit photo' : 'Zoom in'}
         className="absolute right-2 top-2 min-h-11 min-w-11 rounded-md bg-black/70 px-2 text-xs tabular-nums">
         {zoom === 1 ? 'Fit' : `${Math.round(zoom * 100)}%`}
       </button>
