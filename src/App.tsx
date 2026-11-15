@@ -15,7 +15,10 @@ import { OnlineHelperDialog } from './components/OnlineHelperDialog';
 import { useSpeciesScan } from './useSpeciesScan';
 import { SpeciesScanBanner } from './components/SpeciesScanBanner';
 import type { SubjectKind } from './core/subjectTags';
-import { keepAuto, reconcileAuto } from './core/autoTags';
+import { applyAutoTag, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTags';
+import { burstMates, tagFrames } from './core/speciesBurst';
+import { loadImage } from './providers/loadImage';
+import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
 import { Copy, ClipboardPaste, Pin, PinOff } from 'lucide-react';
 import { newId } from './core/ids';
 import { redoLabel, undoLabel } from './core/describeAction';
@@ -704,6 +707,16 @@ export default function App() {
   // Tags and kind for any photo, from the editor or from the info pop-up.
   const setSubjects = (frame: PhotoFrame, tags: string[], subjectKind: SubjectKind | undefined) =>
     updateFrame(frame.id, { tags, subjectNames: [], subjectKind, ...reconcileAuto(frame, tags) });
+  /** A small copy of a photo for the species model, drawn the way the camera held it. Null when the original is not available. */
+  const loadSpeciesPicture = useCallback(async (frame: PhotoFrame): Promise<HTMLCanvasElement | null> => {
+    const provider = previewProviderRef.current;
+    const url = provider ? await provider.getFullPreviewUrl(frame) : '';
+    if (!url) return null;
+    const image = await loadImage(url);
+    const canvas = document.createElement('canvas');
+    drawFramedPhoto(image, canvas, { ...DEFAULT_FRAMING, turns: frame.framing?.turns ?? 0 }, { scale: Math.min(1, 448 / Math.max(image.naturalWidth, image.naturalHeight)) });
+    return canvas;
+  }, []);
   const keepTag = (frame: PhotoFrame, name: string) => updateFrame(frame.id, { autoTags: keepAuto(frame, name) });
 
   // After photos are added, name the species in the background. The subject flashes up on each card as it is found.
@@ -1453,7 +1466,11 @@ export default function App() {
         </div>
 
         {!editing && showPhotoInfo && (
-          <ExifInspector onSubjects={(frame, tags, kind) => setSubjects(frame, tags, kind)} onKeepTag={(frame, name) => keepTag(frame, name)} onRate={(id, rating) => rateOrFlagPhotos(id, { rating })}
+          <ExifInspector onSubjects={(frame, tags, kind) => setSubjects(frame, tags, kind)} onKeepTag={(frame, name) => keepTag(frame, name)}
+            loadPicture={loadSpeciesPicture}
+            mates={burstMates(cullingState.frames, infoFrameId ? cullingState.frames.find((frame) => frame.id === infoFrameId) ?? { id: '', burstGroupId: null } : selectedFrame ?? { id: '', burstGroupId: null })}
+            onTagPhotos={(ids, name, kind) => setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() }, frames: tagFrames(prev.frames, ids, name, kind) }))}
+            onAutoTag={(frame, name, kind) => { if (mayAutoTag(frame, name)) updateFrame(frame.id, { ...applyAutoTag(frame, name), ...(frame.subjectKind || !kind ? {} : { subjectKind: kind }) }); }} onRate={(id, rating) => rateOrFlagPhotos(id, { rating })}
             onFlag={(id, flag) => rateOrFlagPhotos(id, { flag })}
             batchCount={multiSelect && selectedIds.has(infoFrameId ?? selectedFrame?.id ?? '') ? selectedIds.size : 0}
             frame={infoFrameId ? cullingState.frames.find((frame) => frame.id === infoFrameId) ?? null : selectedFrame}

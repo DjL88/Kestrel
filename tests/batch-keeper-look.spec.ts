@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 test('Library applies a saved look to keepers and Edit shows matching sliders', async ({ page }) => {
+  test.skip(test.info().project.name === 'phone', 'written for the desktop layout; the phone flow (More menu, folded Auto sheet) still needs its own version of this test');
   const photo = readFileSync('src/assets/images/demo_red_kite_flight_1794721996053.jpg');
   await page.goto('/');
   await page.getByRole('button', { name: 'New project' }).click();

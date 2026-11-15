@@ -1,3 +1,4 @@
+import { openPhotoInfo } from './helpers';
 import { expect, test } from '@playwright/test';
 
 async function makeProject(page: import('@playwright/test').Page, name: string) {
@@ -102,8 +103,9 @@ test('subject panel: pick a kind, add tags by typing and with quick words, remov
     name: 'f.png', mimeType: 'image/png',
     buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
   });
-  // Auto is the first tab and already open. On a phone tapping an open tab folds its sheet away.
-  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  // The subject and tag controls are in Photo info, in the library. Wait for the editor to open, then go there.
+  await page.getByRole('tab', { name: 'Crop' }).waitFor();
+  await openPhotoInfo(page);
   const panel = page.getByRole('region', { name: 'What is in this photo' });
   await expect(panel.getByRole('button', { name: 'Bird' })).toHaveCount(0); // quick tags wait for a kind
   await panel.getByRole('button', { name: 'Wildlife' }).click();
@@ -116,9 +118,9 @@ test('subject panel: pick a kind, add tags by typing and with quick words, remov
   await expect(panel.getByRole('button', { name: /Bird of prey/ })).toHaveCount(1); // only the chip's remove button, not a quick word again
   await panel.getByRole('button', { name: 'Remove tag Red Kite' }).click();
   await expect(tags).toHaveText(['Bird of prey', 'Moorland']);
-  // The kind and tags survive moving between tabs.
-  await page.getByRole('tab', { name: 'Edit' }).click();
-  await page.getByRole('tab', { name: 'Auto' }).click();
+  // The kind and tags survive closing and reopening Photo info.
+  await page.getByRole('button', { name: 'Close photo info' }).click();
+  await openPhotoInfo(page);
   await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('button', { name: 'Wildlife' })).toHaveAttribute('aria-pressed', 'true');
   await expect(tags).toHaveText(['Bird of prey', 'Moorland']);
 });

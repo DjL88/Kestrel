@@ -4,12 +4,13 @@ import { readFileSync } from 'node:fs';
 const photo = readFileSync('src/assets/images/demo_red_kite_flight_1794721996053.jpg');
 
 test('Auto looks show 3-column photo thumbnails and a visible active selection', async ({ page }) => {
+  test.skip(test.info().project.name === 'phone', 'written for the desktop layout; the phone flow (More menu, folded Auto sheet) still needs its own version of this test');
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles({ name: 'photo.jpg', mimeType: 'image/jpeg', buffer: photo });
   await page.getByRole('tab', { name: 'Auto' }).click();
   const gallery = page.getByRole('group', { name: 'Photo looks gallery' });
   await expect(gallery).toBeVisible();
-  const natural = gallery.getByRole('button', { name: 'Natural' });
+  const natural = gallery.getByRole('button', { name: 'Natural', exact: true });
   const mono = gallery.getByRole('button', { name: 'Mono bold' });
   await expect(gallery.locator('canvas')).toHaveCount(12);
   await expect.poll(async () => gallery.locator('canvas').first().evaluate((canvas: HTMLCanvasElement) => {

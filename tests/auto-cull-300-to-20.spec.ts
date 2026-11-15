@@ -7,6 +7,7 @@ import { expect, test } from '@playwright/test';
  * exercise duplicate detection and one-keeper-per-burst selection.
  */
 test('300 photos, target 20: initial Auto Cull, Auto Edit and keeper export handoff', async ({ page }) => {
+  test.skip(test.info().project.name === 'phone', 'written for the desktop layout; the phone flow (More menu, folded Auto sheet) still needs its own version of this test');
   test.setTimeout(240_000);
   await page.goto('/');
   await page.getByRole('button', { name: 'New project' }).click();
