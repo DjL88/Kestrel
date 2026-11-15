@@ -1,5 +1,6 @@
 import exifr from 'exifr';
 import type { ExifMetadata } from './types';
+import { isRawPreviewFile, rawPreviewLabel } from './rawFormats';
 
 /** Nikon TIFF-based RAW formats supported by the embedded-JPEG preview adapter. */
 export function isNikonEmbeddedPreviewFile(filename: string): boolean {
@@ -154,7 +155,7 @@ export async function parseImageExif(
   filename: string
 ): Promise<ExifMetadata> {
   const lower = filename.toLowerCase();
-  const isNikonRaw = isNikonEmbeddedPreviewFile(filename);
+  const isNikonRaw = isRawPreviewFile(filename);
 
   try {
     const segments = await exifr.parse(file, { xmp: true, mergeOutput: false, gps: false, interop: false });
@@ -186,12 +187,12 @@ export async function parseImageExif(
       capturedAtMs,
       width,
       height,
-      formatLabel: isNikonRaw ? `${lower.endsWith('.nrw') ? 'NRW' : 'NEF'} Embedded Preview` : lower.endsWith('.png') ? 'PNG' : lower.endsWith('.webp') ? 'WebP' : 'JPEG',
+      formatLabel: isNikonRaw ? rawPreviewLabel(filename) : lower.endsWith('.png') ? 'PNG' : lower.endsWith('.webp') ? 'WebP' : 'JPEG',
       isEmbeddedPreviewOnly: isNikonRaw,
     };
   } catch {
     return {
-      formatLabel: isNikonRaw ? `${lower.endsWith('.nrw') ? 'NRW' : 'NEF'} Embedded Preview` : undefined,
+      formatLabel: isNikonRaw ? rawPreviewLabel(filename) : undefined,
       isEmbeddedPreviewOnly: isNikonRaw,
     };
   }

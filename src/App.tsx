@@ -3,6 +3,7 @@ import { useAccess } from './providers/useAccess';
 import { loadLicence } from './providers/licenceStore';
 import { PaidNotice } from './components/PaidNotice';
 import { SyncFolderDialog } from './components/SyncFolderDialog';
+import { PHOTO_ACCEPT } from './core/rawFormats';
 import { DropOverlay } from './components/DropOverlay';
 import { useDropPhotos } from './providers/useDropPhotos';
 import { DesktopUpdate } from './components/DesktopUpdate';
@@ -1173,7 +1174,7 @@ export default function App() {
         onEditPhoto={selectedFrame && !loadingProgress ? () => setEditing(true) : undefined}
       />}
 
-      <input ref={relinkInput} type="file" hidden multiple accept=".jpg,.jpeg,.png,.webp,.nef,.nrw"
+      <input ref={relinkInput} type="file" hidden multiple accept={PHOTO_ACCEPT}
         onChange={(event) => {
           const files = Array.from(event.target.files ?? []);
           if (files.length) void reconnectFileSelection(files);

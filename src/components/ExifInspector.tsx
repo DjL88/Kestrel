@@ -69,7 +69,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
         <SubjectPanel kind={frame.subjectKind} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} autoTags={frame.autoTags}
           onChange={(tags, kind) => onSubjects(frame, tags, kind)} onKeep={(name) => onKeepTag(frame, name)} />
       </div>
-      {exif.isEmbeddedPreviewOnly && <p className="mt-1 text-xs text-zinc-300">Embedded NEF preview</p>}
+      {exif.isEmbeddedPreviewOnly && <p className="mt-1 text-xs text-zinc-300">Embedded RAW preview (not full RAW decoding)</p>}
       {batchCount > 1 && <p className="mt-3 text-xs text-sky-200">Apply ratings and flags to {batchCount} selected photos</p>}
       <div className="mt-3 border-y border-white/10 py-2">
         <div role="group" aria-label={`Star rating, ${rating} of 5`} className="flex flex-wrap">

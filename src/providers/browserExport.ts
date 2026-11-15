@@ -1,4 +1,4 @@
-import { isNikonEmbeddedPreviewFile } from '../core/exifParser';
+import { isRawPreviewFile } from '../core/rawFormats';
 import { loadImage } from './loadImage';
 import { applyCanvasExportEdit } from '../core/canvasEdit';
 import { DEFAULT_EDIT } from '../core/photoEdits';
@@ -17,7 +17,7 @@ import { isDesktopApp, saveWithDialog } from './desktopShell';
 
 export async function loadExportSource(frame: PhotoFrame, provider: Pick<BrowserPreviewProvider, 'getFullPreviewUrl' | 'hasBlob'>) {
   const url = await provider.getFullPreviewUrl(frame);
-  if (!url && !frame.isDemo && isNikonEmbeddedPreviewFile(frame.filename) && provider.hasBlob(frame.stableKey)) {
+  if (!url && !frame.isDemo && isRawPreviewFile(frame.filename) && provider.hasBlob(frame.stableKey)) {
     throw new Error(`${frame.filename} has no usable embedded JPEG. Export it from a RAW developer and import the rendered photo.`);
   }
   if (!url) throw new Error(`Reconnect ${frame.filename} to export it.`);
@@ -194,7 +194,7 @@ export async function renderExport(
   const mime = profile.format === 'png' ? 'image/png' : 'image/jpeg';
   const { canvas, output, bordered } = await composeExport(source, frame, profile, signal, mode, longEdge, extras);
   try {
-    const raw = !frame.isDemo && /\.(nef|nrw)$/i.test(frame.filename);
+    const raw = !frame.isDemo && isRawPreviewFile(frame.filename);
     const name = exportFilename(extras.stem ? `${extras.stem}.${profile.format}` : frame.filename, profile, raw);
     for (const quality of profile.maxBytes ? [profile.quality, ...[0.88, 0.82, 0.74, 0.65].filter((value) => value < profile.quality)] : [profile.quality]) {
       signal?.throwIfAborted();
