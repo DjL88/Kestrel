@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ChevronDown, Ellipsis, Plus, Undo2 } from 'lucide-react';
+import type { ProjectSettings } from '../core/projectSettings';
 import { ThemePicker } from './ThemePicker';
 import { messages as m } from '../i18n/messages';
 import type { CullCounts, FilterState, ShootDescriptor, WorkspaceViewMode } from '../core/types';
@@ -33,6 +34,11 @@ interface TopWorkspaceBarProps {
   autoAdvance: boolean;
   onToggleAutoAdvance: () => void;
   onClearDecision?: () => void;
+  settings?: ProjectSettings;
+  onSettingsChange?: (settings: ProjectSettings) => void;
+  onRemoveFromLibrary?: () => void;
+  removedCount?: number;
+  onOpenRemoved?: () => void;
   onExportKeepers?: () => void;
   onUndo?: () => void;
   focusMode: boolean;
@@ -145,6 +151,8 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   {props.multiSelect ? 'Done selecting' : 'Select photos'}
                 </button>}
                 {props.onClearDecision && <button type="button" className={actionClass} onClick={() => choose(() => props.onClearDecision?.())}>Clear decision</button>}
+                {props.onRemoveFromLibrary && <button type="button" className={actionClass} onClick={() => choose(() => props.onRemoveFromLibrary?.(), false)}>Remove from library…</button>}
+                {props.onOpenRemoved && <button type="button" className={actionClass} onClick={() => choose(() => props.onOpenRemoved?.(), false)}>Removed photos ({props.removedCount ?? 0})</button>}
                 {props.onRedo && <button type="button" className={actionClass} onClick={() => choose(() => props.onRedo?.())}>Redo decision</button>}
               </div>
               <details className="mt-2 border-t border-white/10 pt-2">
@@ -163,6 +171,12 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                 <summary className="min-h-10 cursor-pointer py-2 text-sm text-zinc-300">Culling settings</summary>
                 <div className="space-y-2 px-1 pb-2 text-sm">
                   <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={autoAdvance} onChange={props.onToggleAutoAdvance} />Auto-advance</label>
+                  {props.settings && props.onSettingsChange && <>
+                    <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={props.settings.autoCull}
+                      onChange={(event) => props.onSettingsChange?.({ ...props.settings!, autoCull: event.target.checked })} />Auto-cull after adding photos</label>
+                    <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={props.settings.autoEdit}
+                      onChange={(event) => props.onSettingsChange?.({ ...props.settings!, autoEdit: event.target.checked })} />Auto-edit when first opening a photo</label>
+                  </>}
                   <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={showShortcutsOverlay} onChange={props.onToggleShortcutsOverlay} />Show shortcut guide</label>
                   <label className="flex items-center justify-between gap-2">
                     Keeper target

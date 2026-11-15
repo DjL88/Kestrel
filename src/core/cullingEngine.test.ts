@@ -159,3 +159,61 @@ test('flagged keepers leave the review queue and the queue stays near the curren
   assert.ok(!filterFrames(kept.frames, 'unreviewed').some((frame) => frame.id === current.id));
   assert.equal(undoDecision(kept).selectedFrameId, current.id);
 });
+
+import { removeFromLibrary, removedFrames, restoreRemoved, computeCullCounts as counts, filterFrames as filtered, undoDecision as undo, redoDecision as redo, applyDecisionWithHistory as decide } from './cullingEngine';
+import { appendProjectPhotos, createEmptyProject } from './projects';
+import type { PhotoFrame } from './types';
+
+function projectWith(decisions: ('keep' | 'reject' | 'unreviewed')[]) {
+  const base = createEmptyProject('p', 'P');
+  const frames = decisions.map((decision, index) => ({
+    id: `f${index}`, stableKey: `k${index}`, filename: `${index}.jpg`, sequenceIndex: index + 1, decision,
+    burstGroupId: null, burstIndex: 0, burstCount: 1, exif: {}, isDemo: false, sourceKind: 'file',
+  } as PhotoFrame));
+  return { ...base, frames, selectedFrameId: frames[0]?.id ?? null };
+}
+
+test('removing from Trash hides the photo everywhere but keeps it for restore', () => {
+  const state = removeFromLibrary(projectWith(['reject', 'keep']), ['f0']);
+  assert.equal(state.frames.length, 2, 'the record is kept so it can be restored');
+  assert.deepEqual(counts(state.frames), { all: 1, unreviewed: 0, keep: 1, reject: 0 });
+  assert.equal(filtered(state.frames, 'all').length, 1);
+  assert.equal(filtered(state.frames, 'reject').length, 0);
+  assert.equal(state.selectedFrameId, 'f1');
+  assert.deepEqual(removedFrames(state.frames).map((frame) => frame.id), ['f0']);
+});
+
+test('only photos already in Trash can be removed', () => {
+  const state = projectWith(['keep', 'unreviewed']);
+  assert.equal(removeFromLibrary(state, ['f0', 'f1']), state);
+});
+
+test('undo and redo bring a removal back and forth', () => {
+  const removed = removeFromLibrary(projectWith(['reject']), ['f0']);
+  const undone = undo(removed);
+  assert.equal(counts(undone.frames).reject, 1);
+  assert.equal(undone.frames[0].removedAt, undefined);
+  const redone = redo(undone);
+  assert.equal(counts(redone.frames).all, 0);
+});
+
+test('restore returns the photo to Trash, not Keepers', () => {
+  const restored = restoreRemoved(removeFromLibrary(projectWith(['reject']), ['f0']), ['f0']);
+  assert.equal(restored.frames[0].decision, 'reject');
+  assert.equal(counts(restored.frames).reject, 1);
+});
+
+test('adding a removed photo again revives it as unreviewed instead of ignoring it', () => {
+  const removed = removeFromLibrary(projectWith(['reject']), ['f0']);
+  const again = appendProjectPhotos(removed, [{ ...removed.frames[0], id: 'new' }], 'imp');
+  assert.equal(again.frames.length, 1, 'no duplicate record');
+  assert.equal(again.frames[0].removedAt, undefined);
+  assert.equal(again.frames[0].decision, 'unreviewed');
+});
+
+test('keep to trash is an ordinary reversible decision, never a removal', () => {
+  const state = decide(projectWith(['keep']), 'f0', 'reject');
+  assert.equal(state.frames[0].decision, 'reject');
+  assert.equal(state.frames[0].removedAt, undefined);
+  assert.equal(undo(state).frames[0].decision, 'keep');
+});

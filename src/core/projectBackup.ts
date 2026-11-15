@@ -1,3 +1,5 @@
+import { parseSettings } from './projectSettings';
+import { validMasks } from './maskTypes';
 import type { CullingState, FilterState, PhotoFrame, ShootDescriptor } from './types';
 
 const FORMAT = 'kestrel-project';
@@ -37,6 +39,7 @@ function frameIsValid(value: unknown): value is PhotoFrame {
     !nullableKey(value.burstGroupId) || !number(value.burstIndex, 0) || !number(value.burstCount, 0) ||
     typeof value.isDemo !== 'boolean' || !record(value.exif)) return false;
   if (value.rating !== undefined && (!number(value.rating, 0, 5) || !Number.isInteger(value.rating))) return false;
+  if (value.removedAt !== undefined && !number(value.removedAt, 0)) return false;
   if (value.subjectNames !== undefined && (!Array.isArray(value.subjectNames) || !value.subjectNames.every(text))) return false;
   for (const field of ['camera', 'lens', 'shutterSpeed', 'formatLabel']) {
     if (value.exif[field] !== undefined && !text(value.exif[field])) return false;
@@ -47,12 +50,13 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   const edit = value.edit;
   if (edit !== undefined && (!record(edit) || !number(edit.exposure, -2, 2) ||
     !number(edit.warmth, -2, 2) || !number(edit.colour, -2, 2) ||
-    ['contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance'].some((key) =>
-      edit[key] !== undefined && !number(edit[key], -2, 2)))) return false;
+    ['contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen'].some((key) =>
+      edit[key] !== undefined && !number(edit[key], -2, 2)) ||
+    (edit.masks !== undefined && !validMasks(edit.masks)))) return false;
   const framing = value.framing;
   if (framing !== undefined && (!record(framing) || (framing.ratio !== null && !number(framing.ratio, 0.01, 100)) ||
     !number(framing.turns, 0, 3) || !Number.isInteger(framing.turns) || !number(framing.straighten, -12, 12) ||
-    !number(framing.x, 0, 1) || !number(framing.y, 0, 1))) return false;
+    !number(framing.x, 0, 1) || !number(framing.y, 0, 1) || (framing.size !== undefined && !number(framing.size, 0.05, 1)))) return false;
   const focus = value.focusPoint;
   if (focus !== undefined && (!record(focus) || !number(focus.x, 0, 1) || !number(focus.y, 0, 1))) return false;
   const copy = value.virtualCopy;
@@ -77,6 +81,7 @@ export function encodeProjectBackup(state: CullingState): string {
       shoot: state.shoot, frames: state.frames.map(({ editHistory: _history, ...frame }) => frame), selectedFrameId: state.selectedFrameId,
       compareRightFrameId: state.compareRightFrameId, filter: state.filter, searchQuery: state.searchQuery,
       keeperTarget: state.keeperTarget, autoAdvance: state.autoAdvance,
+      ...(state.settings ? { settings: state.settings } : {}),
     },
   });
 }
@@ -107,6 +112,7 @@ export function restoreProjectBackup(contents: string, id: string, now = Date.no
       needsFileReselect: frames.some((frame) => frame.sourceKind === 'file'),
     },
     frames: frames.map(({ editHistory: _history, ...frame }) => frame), filter: filter as FilterState, searchQuery, keeperTarget, autoAdvance,
+    ...(record(envelope.project.settings) ? { settings: parseSettings(envelope.project.settings) } : {}),
     selectedFrameId: existingId(selectedFrameId),
     compareRightFrameId: existingId(compareRightFrameId),
     undoStack: [], redoStack: [],

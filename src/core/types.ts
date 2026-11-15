@@ -68,6 +68,8 @@ export interface PhotoFrame {
   isDemo: boolean;
   demoVariant?: DemoFrameVariant;
   sourceKind: 'demo' | 'file' | 'directory-handle';
+  /** Set when the photo was removed from the library. The original file is never touched, and Restore clears this. */
+  removedAt?: number;
 }
 
 export interface ShootDescriptor {
@@ -80,11 +82,15 @@ export interface ShootDescriptor {
   needsFileReselect?: boolean;
   createdAt: number;
   lastUpdatedAt: number;
+  /** Set when the project is archived. Archived projects are hidden from the main list and can be restored. */
+  archivedAt?: number;
 }
 
 export interface DecisionHistoryEntry {
   frameId: string;
   batch?: { frameId: string; prevDecision: CullDecision; nextDecision: CullDecision }[];
+  /** True when this step removed photos from the library, so undo restores them. */
+  removal?: boolean;
   prevDecision: CullDecision;
   nextDecision: CullDecision;
   prevSelectedId: string | null;
@@ -92,6 +98,8 @@ export interface DecisionHistoryEntry {
 }
 
 export interface CullingState {
+  /** Helpers chosen when the project was created. Absent on projects made before the wizard. */
+  settings?: import('./projectSettings').ProjectSettings;
   shoot: ShootDescriptor;
   frames: PhotoFrame[];
   selectedFrameId: string | null;

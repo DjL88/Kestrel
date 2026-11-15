@@ -1,3 +1,4 @@
+import { hasActiveMasks, type Mask } from './maskTypes';
 /** Optional tonal controls. Each runs from -2 to 2 and an absent value means 0. */
 export const TONE_CONTROLS = [
   { key: 'contrast', label: 'Contrast' },
@@ -6,6 +7,11 @@ export const TONE_CONTROLS = [
   { key: 'whites', label: 'Whites' },
   { key: 'blacks', label: 'Blacks' },
   { key: 'vibrance', label: 'Vibrance' },
+] as const;
+export const DETAIL_CONTROLS = [
+  { key: 'texture', label: 'Texture' },
+  { key: 'clarity', label: 'Clarity' },
+  { key: 'sharpen', label: 'Sharpening' },
 ] as const;
 export type ToneKey = (typeof TONE_CONTROLS)[number]['key'];
 
@@ -19,6 +25,11 @@ export interface PhotoEdit {
   whites?: number;
   blacks?: number;
   vibrance?: number;
+  texture?: number;
+  clarity?: number;
+  sharpen?: number;
+  /** Local adjustments. They run after the whole-photo edit, in order. */
+  masks?: Mask[];
 }
 
 export const DEFAULT_EDIT: PhotoEdit = { exposure: 0, warmth: 0, colour: 0 };
@@ -29,9 +40,22 @@ export const EDIT_CHOICES = [
   { key: 'colour', label: 'Colour', options: ['Softer', 'Neutral', 'Richer'] },
 ] as const;
 
+export function isNeutralTone(edit: PhotoEdit): boolean {
+  return edit.exposure === 0 && edit.warmth === 0 && edit.colour === 0 && TONE_CONTROLS.every(({ key }) => !edit[key]);
+}
+
 export function isNeutralEdit(edit: PhotoEdit): boolean {
-  return edit.exposure === 0 && edit.warmth === 0 && edit.colour === 0 &&
-    TONE_CONTROLS.every(({ key }) => !edit[key]);
+  return isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks);
+}
+
+/** Nothing to keep: neutral, and no masks at all (an empty mask is still kept so it can be adjusted). */
+export function isEmptyEdit(edit: PhotoEdit): boolean {
+  return isNeutralEdit(edit) && !edit.masks?.length;
+}
+
+/** Neutral apart from any local masks. Decides whether the whole-photo passes need to run. */
+export function isNeutralGlobal(edit: PhotoEdit): boolean {
+  return isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]);
 }
 
 const linear = Array.from({ length: 256 }, (_, index) => {
@@ -50,18 +74,88 @@ const smoothstep = (low: number, high: number, x: number) => {
 };
 const toByte = (value: number) => encoded[Math.min(4095, Math.max(0, Math.round(value * 4095)))];
 
+/** Shader-ready constants. The CPU path and the GPU shader both read these, so they cannot drift apart. */
+export function editParams(edit: PhotoEdit) {
+  return {
+    gain: 2 ** (edit.exposure * 0.4),
+    warmth: edit.warmth * 0.08,
+    colour: edit.colour * 0.2,
+    contrast: 1 + (edit.contrast ?? 0) * 0.35,
+    highlights: (edit.highlights ?? 0) * 0.3,
+    shadows: (edit.shadows ?? 0) * 0.3,
+    blackPoint: -(edit.blacks ?? 0) * 0.02,
+    whitePoint: 1 - (edit.whites ?? 0) * 0.08,
+    vibrance: (edit.vibrance ?? 0) * 0.3,
+  };
+}
+export type EditParams = ReturnType<typeof editParams>;
+
+export function hasDetail(edit: PhotoEdit): boolean {
+  return DETAIL_CONTROLS.some(({ key }) => !!edit[key]);
+}
+
+/** Detail scales are fractions of the whole image's long edge, so preview, zoom and export agree. */
+export function detailParams(edit: PhotoEdit, imageEdge: number) {
+  const radius = (fraction: number, minimum: number) => Math.max(minimum, Math.round(imageEdge * fraction));
+  return {
+    sharpen: (edit.sharpen ?? 0) * 0.4, sharpenRadius: radius(0.0004, 1),
+    texture: (edit.texture ?? 0) * 0.3, textureRadius: radius(0.0015, 2),
+    clarity: (edit.clarity ?? 0) * 0.35, clarityRadius: radius(0.006, 6),
+  };
+}
+
+function boxBlur(source: Float32Array, width: number, height: number, radius: number): Float32Array {
+  const temp = new Float32Array(source.length);
+  const out = new Float32Array(source.length);
+  const window = 2 * radius + 1;
+  for (let y = 0; y < height; y += 1) {
+    const row = y * width;
+    let sum = 0;
+    for (let k = -radius; k <= radius; k += 1) sum += source[row + Math.min(width - 1, Math.max(0, k))];
+    for (let x = 0; x < width; x += 1) {
+      temp[row + x] = sum / window;
+      sum += source[row + Math.min(width - 1, x + radius + 1)] - source[row + Math.max(0, x - radius)];
+    }
+  }
+  for (let x = 0; x < width; x += 1) {
+    let sum = 0;
+    for (let k = -radius; k <= radius; k += 1) sum += temp[Math.min(height - 1, Math.max(0, k)) * width + x];
+    for (let y = 0; y < height; y += 1) {
+      out[y * width + x] = sum / window;
+      sum += temp[Math.min(height - 1, y + radius + 1) * width + x] - temp[Math.max(0, y - radius) * width + x];
+    }
+  }
+  return out;
+}
+
+/** CPU reference for texture, clarity and sharpening. Adds the same luminance detail to every channel. */
+export function applyDetail(pixels: Uint8ClampedArray, width: number, height: number, edit: PhotoEdit, imageEdge: number): void {
+  if (!hasDetail(edit)) return;
+  const d = detailParams(edit, imageEdge);
+  const luma = new Float32Array(width * height);
+  for (let i = 0; i < luma.length; i += 1) {
+    luma[i] = (0.2126 * pixels[i * 4] + 0.7152 * pixels[i * 4 + 1] + 0.0722 * pixels[i * 4 + 2]) / 255;
+  }
+  const sharpBlur = d.sharpen ? boxBlur(luma, width, height, d.sharpenRadius) : null;
+  const textureBlur = d.texture ? boxBlur(luma, width, height, d.textureRadius) : null;
+  const clarityBlur = d.clarity ? boxBlur(luma, width, height, d.clarityRadius) : null;
+  for (let i = 0; i < luma.length; i += 1) {
+    const l = luma[i];
+    let add = 0;
+    if (sharpBlur) add += d.sharpen * (l - sharpBlur[i]);
+    if (textureBlur) add += d.texture * (l - textureBlur[i]);
+    if (clarityBlur) add += d.clarity * 4 * l * (1 - l) * (l - clarityBlur[i]);
+    const j = i * 4;
+    pixels[j] = Math.round(Math.min(1, Math.max(0, pixels[j] / 255 + add)) * 255);
+    pixels[j + 1] = Math.round(Math.min(1, Math.max(0, pixels[j + 1] / 255 + add)) * 255);
+    pixels[j + 2] = Math.round(Math.min(1, Math.max(0, pixels[j + 2] / 255 + add)) * 255);
+  }
+}
+
 /** Apply adjustments to a browser-decoded sRGB image. Shared maths for preview, export and tests. */
 export function applyPhotoEdit(pixels: Uint8ClampedArray, edit: PhotoEdit): void {
-  if (isNeutralEdit(edit)) return;
-  const gain = 2 ** (edit.exposure * 0.4);
-  const warmth = edit.warmth * 0.08;
-  const colour = edit.colour * 0.2;
-  const contrast = 1 + (edit.contrast ?? 0) * 0.35;
-  const highlights = (edit.highlights ?? 0) * 0.3;
-  const shadows = (edit.shadows ?? 0) * 0.3;
-  const blackPoint = -(edit.blacks ?? 0) * 0.02;
-  const whitePoint = 1 - (edit.whites ?? 0) * 0.08;
-  const vibrance = (edit.vibrance ?? 0) * 0.3;
+  if (isNeutralTone(edit)) return;
+  const { gain, warmth, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance } = editParams(edit);
   const tonal = highlights !== 0 || shadows !== 0 || blackPoint !== 0 || whitePoint !== 1;
   const curved = contrast !== 1;
 
@@ -103,34 +197,5 @@ export function applyPhotoEdit(pixels: Uint8ClampedArray, edit: PhotoEdit): void
       pixels[index + 1] = toByte(outGreen);
       pixels[index + 2] = toByte(outBlue);
     }
-  }
-}
-
-function* editCanvasStrips(canvas: HTMLCanvasElement, edit: PhotoEdit): Generator<void> {
-  if (isNeutralEdit(edit)) return;
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  if (!context) throw new Error('Canvas unavailable');
-  const rows = Math.max(1, Math.floor(262144 / canvas.width));
-  for (let y = 0; y < canvas.height; y += rows) {
-    const pixels = context.getImageData(0, y, canvas.width, Math.min(rows, canvas.height - y));
-    applyPhotoEdit(pixels.data, edit);
-    context.putImageData(pixels, 0, y);
-    yield;
-  }
-}
-
-export function applyCanvasPhotoEdit(canvas: HTMLCanvasElement, edit: PhotoEdit): void {
-  for (const _ of editCanvasStrips(canvas, edit)) {
-    // The fit preview has a bounded raster, so render it in one pass.
-  }
-}
-
-export async function applyCanvasExportEdit(canvas: HTMLCanvasElement, edit: PhotoEdit, signal?: AbortSignal): Promise<void> {
-  let lastYield = performance.now();
-  for (const _ of editCanvasStrips(canvas, edit)) {
-    signal?.throwIfAborted();
-    if (performance.now() - lastYield < 16) continue;
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    lastYield = performance.now();
   }
 }

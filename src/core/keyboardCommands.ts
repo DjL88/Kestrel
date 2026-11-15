@@ -193,7 +193,7 @@ export const EDIT_COMMANDS: CommandDefinition[] = [
     mode: 'edit',
     label: 'Cycle Adjustment',
     shortLabel: 'Cycle',
-    description: 'Cycle the dial between Light, Warmth and Colour',
+    description: 'Cycle the dial through Light, Warmth, Colour, Tone and Detail controls',
     padSlot: 'K6',
     allowRepeat: false,
   },

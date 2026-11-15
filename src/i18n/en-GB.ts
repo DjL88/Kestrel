@@ -16,7 +16,7 @@ export const enGB = {
   emptyHistory: 'Edits to this photo will appear here.',
   redo: 'Redo',
   historyStep: {
-    light: 'Light', warmth: 'Warmth', colour: 'Colour', adjustments: 'Adjustments', tone: 'Tone',
+    light: 'Light', warmth: 'Warmth', colour: 'Colour', adjustments: 'Adjustments', tone: 'Tone', detail: 'Detail', mask: 'Mask',
     crop: 'Crop', rotation: 'Rotation', straighten: 'Straighten',
   },
   undo: 'Undo',

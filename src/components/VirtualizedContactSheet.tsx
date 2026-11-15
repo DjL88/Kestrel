@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, CircleDashed, Info, Star, X } from 'lucide-react';
+import { Info, SlidersHorizontal, Star } from 'lucide-react';
 import type { CullDecision, PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
+import { DecisionButtons } from './DecisionButtons';
+import { isEdited } from '../core/editedState';
 import { FrameImage } from './FrameImage';
 
 interface VirtualizedContactSheetProps {
@@ -15,6 +17,7 @@ interface VirtualizedContactSheetProps {
   onInfo: (frameId: string, trigger: HTMLButtonElement | null) => void;
   onOpenLoupe: (frameId: string) => void;
   onDecideFrame: (frameId: string, decision: CullDecision) => void;
+  onResetFrame: (frameId: string) => void;
 }
 
 const GAP_PX = 12;
@@ -32,6 +35,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   onInfo,
   onOpenLoupe,
   onDecideFrame,
+  onResetFrame,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: 1120, height: 640 });
@@ -225,6 +229,12 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         className="w-full h-full"
                         imgClassName="object-cover"
                       />
+                      {isEdited(frame) && (
+                        <span role="img" aria-label="Edited" title="Edited"
+                          className="absolute bottom-1.5 left-1.5 grid h-6 w-6 place-items-center rounded-full border border-white/20 bg-kestrel-canvas/85 text-sky-200">
+                          <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+                        </span>
+                      )}
 
                       {/* Burst Group Indicator Strip */}
                       {frame.burstGroupId && (
@@ -246,6 +256,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                       <div className="min-w-0">
                         <div className="text-[11px] font-medium text-zinc-200 truncate">
                           {frame.filename}
+                          <span className="sr-only">, {frame.decision === 'keep' ? 'Keeper' : frame.decision === 'reject' ? 'In Trash' : 'To review'}</span>
                         </div>
                         <div className="text-[10px] font-mono tabular-nums text-zinc-500">
                           #{String(frame.sequenceIndex).padStart(4, '0')}
@@ -254,47 +265,11 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDecideFrame(frame.id, isKeep ? 'unreviewed' : 'keep');
-                          }}
-                          aria-label={`Keep ${frame.filename}`}
-                          aria-pressed={isKeep}
-                          className={`decision-button px-1.5 py-1 rounded text-[11px] font-medium border flex items-center gap-1 motion-safe:transition-colors ${
-                            isKeep
-                              ? 'bg-sky-500/20 border-sky-400/60 text-sky-200'
-                              : 'bg-white/4 border-white/10 text-zinc-400 hover:text-zinc-200'
-                          }`}
-                        >
-                          <Check className="w-3 h-3" aria-hidden="true" />
-                          {isKeep && <span>Keep</span>}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDecideFrame(frame.id, isReject ? 'unreviewed' : 'reject');
-                          }}
-                          aria-label={`Reject ${frame.filename}`}
-                          aria-pressed={isReject}
-                          className={`decision-button px-1.5 py-1 rounded text-[11px] font-medium border flex items-center gap-1 motion-safe:transition-colors ${
-                            isReject
-                              ? 'bg-orange-500/20 border-orange-400/60 text-orange-200'
-                              : 'bg-white/4 border-white/10 text-zinc-400 hover:text-zinc-200'
-                          }`}
-                        >
-                          <X className="w-3 h-3" aria-hidden="true" />
-                          {isReject && <span>Reject</span>}
-                        </button>
-                        {!isKeep && !isReject && (
-                          <span className="sr-only">
-                            <CircleDashed className="w-3 h-3" /> Unreviewed
-                          </span>
-                        )}
-                      </div>
+                      <DecisionButtons decision={frame.decision} filename={frame.filename} edited={isEdited(frame)}
+                        onKeep={() => onDecideFrame(frame.id, 'keep')}
+                        onBackToReview={() => onDecideFrame(frame.id, 'unreviewed')}
+                        onTrash={() => onDecideFrame(frame.id, 'reject')}
+                        onReset={() => onResetFrame(frame.id)} />
                     </div>
                   </div>
                 );

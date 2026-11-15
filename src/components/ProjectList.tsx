@@ -1,20 +1,26 @@
 import { useRef, useState } from 'react';
-import { ChevronRight, Folder, FolderUp, Plus } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Trash2 } from 'lucide-react';
 import kestrelMark from '../assets/kestrel-mark.svg';
 import type { ShootDescriptor } from '../core/types';
+import { NewProjectWizard } from './NewProjectWizard';
+import type { ProjectSettings } from '../core/projectSettings';
+import { splitProjects } from '../core/projects';
+import { formatProjectDate } from '../core/formatDate';
 
 interface Props {
   projects: ShootDescriptor[];
   loading: boolean;
   error?: string;
   onOpen: (id: string) => void;
-  onCreate: (name: string) => void;
+  onCreate: (name: string, options: { keeperTarget: number; settings: ProjectSettings }) => void;
   onRestore: (file: File) => void;
+  onArchive: (project: ShootDescriptor) => void;
+  onUnarchive: (id: string) => void;
+  onDelete: (project: ShootDescriptor) => void;
 }
 
-export function ProjectList({ projects, loading, error, onOpen, onCreate, onRestore }: Props) {
+export function ProjectList({ projects, loading, error, onOpen, onCreate, onRestore, onArchive, onUnarchive, onDelete }: Props) {
   const [creating, setCreating] = useState(false);
-  const [name, setName] = useState('');
   const backupInput = useRef<HTMLInputElement>(null);
   return (
     <main className="h-dvh overflow-auto bg-kestrel-canvas px-4 text-zinc-100 sm:px-8">
@@ -41,46 +47,57 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
           </button>
           </div>
         </header>
-        {creating && (
-          <form className="mb-4 rounded-xl border border-white/10 bg-kestrel-raised p-3" onSubmit={(event) => {
-            event.preventDefault();
-            if (name.trim()) onCreate(name.trim());
-          }}>
-            <label className="block text-sm">
-              Project name
-              <input autoFocus value={name} maxLength={100} onChange={(event) => setName(event.target.value)}
-                className="mt-1 min-h-11 w-full rounded-lg border border-white/15 bg-black/20 px-3" />
-            </label>
-            <div className="mt-2 flex justify-end gap-2">
-              <button type="button" onClick={() => setCreating(false)} className="min-h-11 rounded-md px-3 text-sm hover:bg-white/8">Cancel</button>
-              <button type="submit" disabled={!name.trim() || loading} className="min-h-11 rounded-md bg-kestrel-copper px-3 text-sm font-semibold text-zinc-950 disabled:opacity-40">Create project</button>
-            </div>
-          </form>
-        )}
+        {creating && <NewProjectWizard loading={loading} onCancel={() => setCreating(false)} onCreate={onCreate} />}
         {error && <p role="alert" className="mb-3 text-sm text-orange-200">{error}</p>}
         {loading && <p role="status" className="mb-3 text-sm text-zinc-400">Opening catalogue…</p>}
-        {!loading && !error && !projects.length && !creating && (
+        {!loading && !error && !splitProjects(projects).active.length && !splitProjects(projects).archived.length && !creating && (
           <p className="rounded-xl border border-white/10 bg-kestrel-raised p-4 text-sm text-zinc-300">
             Create a project to import photos, or restore a Kestrel backup.
           </p>
         )}
-        {projects.length > 0 && (
-          <ul className="divide-y divide-white/8 rounded-xl border border-white/10 bg-kestrel-raised">
-            {projects.map((project) => (
-              <li key={project.id}>
-                <button type="button" disabled={loading} onClick={() => onOpen(project.id)}
-                  className="flex w-full items-center gap-3 rounded-md p-3 text-left hover:bg-white/6 disabled:opacity-55">
-                  <Folder className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden="true" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{project.title}</span>
-                    <span className="block text-xs text-zinc-400">{project.totalFrames} {project.totalFrames === 1 ? 'photo' : 'photos'}</span>
+        {(() => {
+          const { active, archived } = splitProjects(projects);
+          const action = 'grid h-11 w-11 shrink-0 place-items-center rounded-md text-zinc-300 hover:bg-white/10 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-45';
+          const row = (project: ShootDescriptor, isArchived: boolean) => (
+            <li key={project.id} className="flex items-center gap-1 pr-1">
+              <button type="button" disabled={loading} onClick={() => onOpen(project.id)}
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-md p-3 text-left hover:bg-white/6 disabled:opacity-55">
+                <Folder className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden="true" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{project.title}</span>
+                  <span className="block text-xs text-zinc-400">{project.totalFrames} {project.totalFrames === 1 ? 'photo' : 'photos'}</span>
+                  <span className="block text-xs text-zinc-400">
+                    Created <time dateTime={project.createdAt ? new Date(project.createdAt).toISOString() : undefined}>{formatProjectDate(project.createdAt)}</time>
+                    {' · '}Last edited <time dateTime={project.lastUpdatedAt ? new Date(project.lastUpdatedAt).toISOString() : undefined}>{formatProjectDate(project.lastUpdatedAt, true)}</time>
+                    {isArchived && project.archivedAt ? <>{' · '}Archived {formatProjectDate(project.archivedAt)}</> : null}
                   </span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden="true" />
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden="true" />
+              </button>
+              {isArchived ? (
+                <button type="button" disabled={loading} className={action} aria-label={`Restore ${project.title} from the archive`} title="Restore" onClick={() => onUnarchive(project.id)}>
+                  <ArchiveRestore className="h-4 w-4" aria-hidden="true" />
                 </button>
-              </li>
-            ))}
-          </ul>
-        )}
+              ) : (
+                <button type="button" disabled={loading} className={action} aria-label={`Archive ${project.title}`} title="Archive" onClick={() => onArchive(project)}>
+                  <Archive className="h-4 w-4" aria-hidden="true" />
+                </button>
+              )}
+              <button type="button" disabled={loading} className={action} aria-label={`Delete ${project.title}`} title="Delete" onClick={() => onDelete(project)}>
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </li>
+          );
+          return <>
+            {active.length > 0 && <ul className="divide-y divide-white/8 rounded-xl border border-white/10 bg-kestrel-raised">{active.map((project) => row(project, false))}</ul>}
+            {archived.length > 0 && (
+              <details className="mt-4 rounded-xl border border-white/10 bg-kestrel-raised">
+                <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm text-zinc-300">Archived ({archived.length})</summary>
+                <ul className="divide-y divide-white/8 border-t border-white/10">{archived.map((project) => row(project, true))}</ul>
+              </details>
+            )}
+          </>;
+        })()}
       </div>
     </main>
   );

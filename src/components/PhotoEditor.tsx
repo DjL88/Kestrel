@@ -1,12 +1,22 @@
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
 import { ChevronDown } from 'lucide-react';
-import { DEFAULT_FRAMING, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, thirdsCropAnchor, type PhotoFraming } from '../core/photoFraming';
+import { DEFAULT_FRAMING, MIN_CROP_SIZE, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
 import { downloadExport } from '../providers/browserExport';
+import { Histogram } from './Histogram';
+import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
+import { applyCanvasPhotoEdit } from '../core/canvasEdit';
+import { MaskOverlay } from './MaskOverlay';
+import { MaskPanel } from './MaskPanel';
+import { createSubjectMask, framingKey } from '../core/maskTypes';
+import { detectSubject } from '../providers/subjectDetector';
+import { PresetPanel } from './PresetPanel';
+import { autoEnhance } from '../core/autoEnhance';
+import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
 import { PhotoViewport } from './PhotoViewport';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, applyCanvasPhotoEdit, isNeutralEdit, type PhotoEdit } from '../core/photoEdits';
+import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, DETAIL_CONTROLS, isNeutralEdit, isEmptyEdit, type PhotoEdit } from '../core/photoEdits';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 
@@ -15,8 +25,12 @@ import { resolveKeyboardCommand, type KeyBindingsMap } from '../core/keyboardCom
 import { visiblePhotoDetail } from '../core/visiblePhotoDetail';
 
 const FIT_PREVIEW_EDGE = 2200;
+const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
+const PANEL_KEY = 'kestrel-panel-width-v1';
 
 interface Props {
+  /** Suggest colour and tone the first time a photo is opened, when the project asked for it. */
+  autoEdit?: boolean;
   frame: PhotoFrame;
   provider: BrowserPreviewProvider;
   needsAccess: boolean;
@@ -39,7 +53,7 @@ interface Props {
   onSubjectsChange: (names: string[]) => void;
 }
 
-export function PhotoEditor({
+export function PhotoEditor({ autoEdit,
   frame, provider, needsAccess, bindings, onEdit, onHistoryStep, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onSubjectsChange, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, showFilmstrip, onToggleFilmstrip,
@@ -55,6 +69,17 @@ export function PhotoEditor({
   const [sourceState, setSourceState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [compare, setCompare] = useState(false);
   const [dial, setDial] = useState(0);
+  const [panelWidth, setPanelWidth] = useState(() => {
+    try { return clampPanelWidth(Number(localStorage.getItem(PANEL_KEY)) || PANEL_DEFAULT); } catch { return PANEL_DEFAULT; }
+  });
+  const cornerDrag = useRef<{ corner: CropCorner; x: number; y: number; point: { x: number; y: number } } | null>(null);
+  const [autoNotes, setAutoNotes] = useState<string[]>([]);
+  const [selectedMaskId, setSelectedMaskId] = useState<string | null>(null);
+  const [detecting, setDetecting] = useState(false);
+  const [detectNotice, setDetectNotice] = useState('');
+  const [brushRadius, setBrushRadius] = useState(0.05);
+  const [erase, setErase] = useState(false);
+  const [showMaskOverlay, setShowMaskOverlay] = useState(true);
   const [dialUsed, setDialUsed] = useState(false);
   const [quickChoices, setQuickChoices] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
@@ -108,6 +133,7 @@ export function PhotoEditor({
     return () => observer.disconnect();
   }, []);
 
+  const [histogram, setHistogram] = useState<HistogramData | null>(null);
   const source = sourceState === 'ready' ? sourceImage.current : null;
   const guide = cropOpen && !previewCrop;
   const ratio = guide ? null : framing.ratio;
@@ -136,6 +162,16 @@ export function PhotoEditor({
     const scale = Math.min(1, FIT_PREVIEW_EDGE / Math.max(size.width, size.height));
     drawFramedPhoto(source, canvas, displayFraming, { scale });
     applyCanvasPhotoEdit(canvas, edit);
+    // A small copy keeps the histogram cheap, and it reads the edited result.
+    const small = document.createElement('canvas');
+    const shrink = Math.min(1, 256 / Math.max(canvas.width, canvas.height));
+    small.width = Math.max(1, Math.round(canvas.width * shrink));
+    small.height = Math.max(1, Math.round(canvas.height * shrink));
+    const smallContext = small.getContext('2d', { willReadFrequently: true });
+    if (smallContext) {
+      smallContext.drawImage(canvas, 0, 0, small.width, small.height);
+      setHistogram(computeHistogram(smallContext.getImageData(0, 0, small.width, small.height).data));
+    }
   }, [source, displayFraming, edit, size?.width, size?.height]);
 
   useEffect(() => {
@@ -153,7 +189,10 @@ export function PhotoEditor({
       const scale = Math.min(1, detail.scale * window.devicePixelRatio, Math.sqrt(5_000_000 / (region.width * region.height)));
       if (scale <= 0) return;
       drawFramedPhoto(source, editedDetail.current, displayFraming, { region, scale });
-      applyCanvasPhotoEdit(editedDetail.current, edit);
+      applyCanvasPhotoEdit(editedDetail.current, edit, Math.max(size!.width, size!.height) * scale, {
+        aspect: size!.height / size!.width,
+        view: { x: region.x / size!.width, y: region.y / size!.height, w: region.width / size!.width, h: region.height / size!.height },
+      });
       if (displayCompare && originalDetail.current) {
         drawFramedPhoto(source, originalDetail.current, displayFraming, { region, scale });
       }
@@ -175,7 +214,7 @@ export function PhotoEditor({
       const command = resolveKeyboardCommand({ event, bindings, activeMode: 'edit', isSuppressed: false });
       if (!command) return;
       event.preventDefault();
-      const { key } = EDIT_CHOICES[dial];
+      const key = DIAL_KEYS[dial];
       switch (command.id) {
         case 'edit.copy': onCopyEdit(edit); setEditNotice('Adjustments copied'); break;
         case 'edit.paste': if (copiedEdit) onEdit(copiedEdit); break;
@@ -184,13 +223,13 @@ export function PhotoEditor({
         case 'edit.wbNeutral': onEdit({ ...edit, warmth: 0 }); break;
         case 'edit.prevControl':
           setDialUsed(true);
-          setDial((index) => (index + 1) % EDIT_CHOICES.length);
+          setDial((index) => (index + 1) % DIAL_KEYS.length);
           break;
         case 'edit.knobCcw':
         case 'edit.knobCw': {
           setDialUsed(true);
           const step = command.id === 'edit.knobCw' ? 0.1 : -0.1;
-          const value = Math.max(-2, Math.min(2, Math.round((edit[key] + step) * 10) / 10));
+          const value = Math.max(key === 'sharpen' ? 0 : -2, Math.min(2, Math.round(((edit[key] ?? 0) + step) * 20) / 20));
           onEdit({ ...edit, [key]: value });
           break;
         }
@@ -200,11 +239,76 @@ export function PhotoEditor({
     return () => window.removeEventListener('keydown', onKey);
   }, [bindings, copiedEdit, dial, edit, exportOpen, guide, onCopyEdit, onEdit, onHistoryStep, source]);
 
-  function sampleOrientedSource() {
+  // Auto-edit: the first time a photo with no edit history is ready, suggest colour and tone and say why.
+  useEffect(() => {
+    if (!autoEdit || !source || frame.edit || frame.editHistory?.steps.length) return;
+    const sample = sampleOrientedSource(256);
+    if (!sample) return;
+    const { edit: suggestion, notes } = autoEnhance(sample.data);
+    setAutoNotes(notes);
+    if (Object.values(suggestion).some((value) => value !== 0)) onEdit({ ...DEFAULT_EDIT, ...suggestion });
+    // Once per photo: the editor is re-created for each photo, and later edits leave a history behind.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source]);
+
+  // Alt (Option) + scroll wheel changes the selected dial control, for scroll tools and macro pads.
+  const wheelState = useRef({ edit, dial, onEdit });
+  wheelState.current = { edit, dial, onEdit };
+  useEffect(() => {
+    const node = stage.current;
+    if (!node) return;
+    const onWheel = (event: WheelEvent) => {
+      if (!event.altKey) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const { edit: current, dial: index, onEdit: apply } = wheelState.current;
+      const key = DIAL_KEYS[index];
+      const step = event.deltaY < 0 ? 0.05 : -0.05;
+      const value = Math.max(key === 'sharpen' ? 0 : -2, Math.min(2, Math.round(((current[key] ?? 0) + step) * 20) / 20));
+      setDialUsed(true);
+      apply({ ...current, [key]: value });
+    };
+    node.addEventListener('wheel', onWheel, { passive: false, capture: true });
+    return () => node.removeEventListener('wheel', onWheel, { capture: true });
+  }, []);
+
+  /** Detect on the unedited, cropped photo, so the result matches what the mask will be laid over. */
+  async function findSubject(background: boolean, replaceId?: string) {
+    if (!source || !outputSize) return;
+    setDetecting(true);
+    setDetectNotice('');
+    try {
+      const preview = document.createElement('canvas');
+      drawFramedPhoto(source, preview, framing, { scale: Math.min(1, 640 / Math.max(outputSize.width, outputSize.height)) });
+      const { grid, assessment } = await detectSubject(preview);
+      if (!assessment.usable) {
+        setDetectNotice(assessment.reason);
+        return;
+      }
+      const masks = edit.masks ?? [];
+      const key = framingKey(framing);
+      if (replaceId) {
+        onEdit({ ...edit, masks: masks.map((mask) => mask.id === replaceId && mask.kind === 'subject'
+          ? { ...mask, grid, framingKey: key, confidence: assessment.confidence, strokes: [] } : mask) });
+      } else {
+        const mask = { ...createSubjectMask(crypto.randomUUID(), grid, key, assessment.confidence), invert: background };
+        onEdit({ ...edit, masks: [...masks, mask] });
+        setSelectedMaskId(mask.id);
+        setShowMaskOverlay(true);
+      }
+      setDetectNotice(assessment.reason);
+    } catch (error) {
+      setDetectNotice(error instanceof Error ? error.message : 'Subject detection failed.');
+    } finally {
+      setDetecting(false);
+    }
+  }
+
+  function sampleOrientedSource(edge = 112) {
     if (!source) return null;
     const canvas = document.createElement('canvas');
     const oriented = { ...DEFAULT_FRAMING, turns: framing.turns };
-    drawFramedPhoto(source, canvas, oriented, { scale: Math.min(1, 112 / Math.max(source.naturalWidth, source.naturalHeight)) });
+    drawFramedPhoto(source, canvas, oriented, { scale: Math.min(1, edge / Math.max(source.naturalWidth, source.naturalHeight)) });
     return canvas.getContext('2d')?.getImageData(0, 0, canvas.width, canvas.height);
   }
 
@@ -231,7 +335,7 @@ export function PhotoEditor({
 
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
   return (
-    <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-kestrel-stage lg:flex-row">
+    <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-kestrel-stage md:flex-row">
       <div ref={stage} className="relative flex min-h-0 flex-1 bg-black">
         <PhotoViewport zoom={transform.zoom} pan={transform.pan}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
@@ -254,7 +358,12 @@ export function PhotoEditor({
             {!guide && position && frame.focusPoint && <span aria-hidden="true"
               className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_#000]"
               style={{ left: position.left + position.width * frame.focusPoint.x, top: position.top + position.height * frame.focusPoint.y }} />}
-            {cropRect && <div aria-hidden="true" style={cropRect}
+            {!guide && position && size && !displayCompare && showMaskOverlay && edit.masks?.find((mask) => mask.id === selectedMaskId) && (
+              <MaskOverlay mask={edit.masks.find((mask) => mask.id === selectedMaskId)!} aspect={size.height / size.width} rect={position}
+                brushRadius={brushRadius} erase={erase}
+                onChange={(next) => onEdit({ ...edit, masks: edit.masks!.map((mask) => mask.id === next.id ? next : mask) })} />
+            )}
+            {cropRect && <div style={cropRect}
               className={`crop-guide absolute border border-white/90 ${gridLines ? 'crop-thirds' : ''} ${framing.ratio ? 'cursor-move' : 'pointer-events-none'}`}
               onPointerDown={(event) => {
                 if (!framing.ratio) return;
@@ -274,7 +383,41 @@ export function PhotoEditor({
               }}
               onLostPointerCapture={() => { cropDrag.current = null; }}
               onDoubleClick={(event) => event.stopPropagation()}
-            />}
+            >
+              {outputSize && size && fit > 0 && (['tl', 'tr', 'bl', 'br'] as CropCorner[]).map((corner) => {
+                const point = { x: outputSize.x + (corner.endsWith('r') ? outputSize.width : 0), y: outputSize.y + (corner.startsWith('b') ? outputSize.height : 0) };
+                const names = { tl: 'top left', tr: 'top right', bl: 'bottom left', br: 'bottom right' };
+                const apply = (target: { x: number; y: number }) => onFramingChange(resizeCrop(size.width, size.height, framing, corner, target));
+                return (
+                  <button key={corner} type="button" aria-label={`Crop corner, ${names[corner]}. Arrow keys resize it.`} title="Drag to resize the crop"
+                    className="pointer-events-auto absolute grid h-11 w-11 touch-none place-items-center focus-visible:outline-none"
+                    style={{ [corner.startsWith('t') ? 'top' : 'bottom']: -22, [corner.endsWith('l') ? 'left' : 'right']: -22, cursor: corner === 'tl' || corner === 'br' ? 'nwse-resize' : 'nesw-resize' }}
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                      cornerDrag.current = { corner, x: event.clientX, y: event.clientY, point };
+                    }}
+                    onPointerMove={(event) => {
+                      const start = cornerDrag.current;
+                      if (!start || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+                      const scale = fit * transform.zoom;
+                      apply({ x: start.point.x + (event.clientX - start.x) / scale, y: start.point.y + (event.clientY - start.y) / scale });
+                    }}
+                    onLostPointerCapture={() => { cornerDrag.current = null; }}
+                    onDoubleClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => {
+                      const step = size.width * (event.shiftKey ? 0.05 : 0.01);
+                      const delta = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];
+                      if (!delta) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      apply({ x: point.x + delta[0], y: point.y + delta[1] });
+                    }}>
+                    <span className="h-3.5 w-3.5 border-2 border-white bg-black/60 shadow-[0_0_0_1.5px_#000]" />
+                  </button>
+                );
+              })}
+            </div>}
           </>}
           overlay={<>
             <canvas ref={originalCanvas} aria-label="Original photo" role="img"
@@ -289,7 +432,8 @@ export function PhotoEditor({
           </p>
         )}
       </div>
-      <div className={`max-h-[44%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 lg:max-h-none lg:w-72 lg:border-t-0 lg:p-4 ${panelSide === 'left' ? 'lg:order-first lg:border-r' : 'lg:border-l'}`}>
+      <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
+      <div style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`max-h-[44%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
         <div className="flex flex-wrap justify-between gap-2">
           <button type="button" className={button} aria-pressed={displayCompare} disabled={sourceState !== 'ready' || guide} onClick={() => setCompare(!compare)}>
             Before / after
@@ -311,6 +455,26 @@ export function PhotoEditor({
             'Used when cropping exports. Re-mark after changing the crop.'}</p>
         </details>
         {isRaw && <p className="text-xs text-zinc-300">Editing embedded JPEG preview</p>}
+        <Histogram data={histogram} />
+        <div className="px-1">
+          <button type="button" disabled={sourceState !== 'ready'} className={`${button} w-full border border-white/10 font-semibold`}
+            onClick={() => {
+              const sample = sampleOrientedSource(256);
+              if (!sample) return;
+              const { edit: suggestion, notes } = autoEnhance(sample.data);
+              onEdit({ ...edit, ...suggestion });
+              setAutoNotes(notes);
+            }}>Auto colour and tone</button>
+          {autoNotes.length > 0 && <ul role="status" className="list-disc space-y-0.5 pl-4 pt-1 text-xs text-zinc-300">
+            {autoNotes.map((note) => <li key={note}>{note}</li>)}
+          </ul>}
+        </div>
+        <details className="border-t border-white/10">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
+            Presets <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </summary>
+          <PresetPanel edit={edit} disabled={sourceState !== 'ready'} onApply={(next) => onEdit({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />
+        </details>
         <div className="space-y-2 px-1 py-2">
           {EDIT_CHOICES.map(({ key, label, options }, index) => (
             <fieldset key={key} disabled={sourceState !== 'ready'} className="min-w-0 disabled:opacity-45">
@@ -340,16 +504,47 @@ export function PhotoEditor({
         </div>
         <details className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
+            Masks{edit.masks?.length ? ` (${edit.masks.length})` : ''} <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </summary>
+          <MaskPanel masks={edit.masks ?? []} selectedId={selectedMaskId} disabled={sourceState !== 'ready'}
+            brushRadius={brushRadius} erase={erase} showOverlay={showMaskOverlay}
+            onSelect={setSelectedMaskId} onChange={(masks) => onEdit({ ...edit, masks })}
+            onBrushRadius={setBrushRadius} onErase={setErase} onShowOverlay={setShowMaskOverlay}
+            onFindSubject={(background) => void findSubject(background)} onRefind={(id) => void findSubject(false, id)}
+            detecting={detecting} detectNotice={detectNotice} currentFramingKey={framingKey(framing)} />
+        </details>
+        <details className="border-t border-white/10">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
             Tone <ChevronDown className="h-4 w-4" aria-hidden="true" />
           </summary>
           <div className="space-y-1 px-1 pb-2">
             {TONE_CONTROLS.map(({ key, label }) => (
               <label key={key} className="block">
                 <span className="flex items-center justify-between text-xs text-zinc-300">
-                  <span>{label}</span>
+                  <span>{label}{dialUsed && DIAL_KEYS[dial] === key && <span className="ml-2 text-sky-200">Dial</span>}</span>
                   <output className="tabular-nums text-zinc-400">{Math.round((edit[key] ?? 0) * 50)}</output>
                 </span>
                 <input type="range" min={-2} max={2} step={0.05} value={edit[key] ?? 0} aria-label={`${label} adjustment`}
+                  disabled={sourceState !== 'ready'}
+                  onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
+                  onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
+                  className="block min-h-9 w-full accent-sky-300 disabled:opacity-45 lg:min-h-7" />
+              </label>
+            ))}
+          </div>
+        </details>
+        <details className="border-t border-white/10">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
+            Detail <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </summary>
+          <div className="space-y-1 px-1 pb-2">
+            {DETAIL_CONTROLS.map(({ key, label }) => (
+              <label key={key} className="block">
+                <span className="flex items-center justify-between text-xs text-zinc-300">
+                  <span>{label}{dialUsed && DIAL_KEYS[dial] === key && <span className="ml-2 text-sky-200">Dial</span>}</span>
+                  <output className="tabular-nums text-zinc-400">{Math.round((edit[key] ?? 0) * 50)}</output>
+                </span>
+                <input type="range" min={key === 'sharpen' ? 0 : -2} max={2} step={0.05} value={edit[key] ?? 0} aria-label={`${label} adjustment`}
                   disabled={sourceState !== 'ready'}
                   onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
                   onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
@@ -394,6 +589,14 @@ export function PhotoEditor({
                 <option value={9 / 16}>9:16</option>
                 <option value={2 / 3}>2:3</option>
               </select>
+            </label>
+            <label className="block px-1 pb-1">
+              <span className="flex items-center justify-between text-xs text-zinc-300"><span>Crop size</span>
+                <output className="tabular-nums text-zinc-400">{Math.round((framing.size ?? 1) * 100)}%</output></span>
+              <input type="range" min={MIN_CROP_SIZE} max={1} step={0.01} value={framing.size ?? 1} aria-label="Crop size"
+                onChange={(event) => size && onFramingChange({ ...framing, ratio: framing.ratio ?? size.width / size.height, size: event.target.valueAsNumber })}
+                onDoubleClick={() => onFramingChange({ ...framing, size: undefined })}
+                className="block min-h-9 w-full accent-sky-300 lg:min-h-7" />
             </label>
             <label className="block text-xs">Straighten <output>{framing.straighten.toFixed(1)}°</output>
               <input type="range" min={-12} max={12} step={0.1} value={framing.straighten}
@@ -443,7 +646,7 @@ export function PhotoEditor({
 
               setEditNotice('Adjustments pasted');
             }}>Paste adjustments</button>
-            <button type="button" disabled={isNeutralEdit(edit)} className={button} onClick={() => {
+            <button type="button" disabled={isEmptyEdit(edit)} className={button} onClick={() => {
               onEdit(DEFAULT_EDIT);
 
               setEditNotice('Adjustments reset');
@@ -527,5 +730,30 @@ export function PhotoEditor({
       </div>
       {exportOpen && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} />}
     </section>
+  );
+}
+
+function PanelResizer({ width, side, onChange }: { width: number; side: 'left' | 'right'; onChange: (width: number) => void }) {
+  const move = (next: number) => {
+    const clamped = clampPanelWidth(next, window.innerWidth);
+    onChange(clamped);
+    try { localStorage.setItem(PANEL_KEY, String(clamped)); } catch { /* the width still applies for this session */ }
+  };
+  return (
+    <div role="separator" aria-orientation="vertical" aria-label="Resize adjustments panel" aria-valuenow={width} tabIndex={0}
+      className={`${side === 'left' ? 'md:order-[-1]' : ''} hidden w-2 shrink-0 cursor-col-resize bg-white/5 hover:bg-sky-300/30 focus-visible:outline-2 focus-visible:outline-sky-300 md:block`}
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={(event) => {
+        if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+        move(side === 'right' ? window.innerWidth - event.clientX : event.clientX);
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        const grow = (event.key === 'ArrowLeft') === (side === 'right');
+        move(width + (grow ? 20 : -20));
+      }} />
   );
 }

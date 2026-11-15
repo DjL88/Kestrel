@@ -1,4 +1,5 @@
-import { applyCanvasExportEdit, DEFAULT_EDIT } from '../core/photoEdits';
+import { applyCanvasExportEdit } from '../core/canvasEdit';
+import { DEFAULT_EDIT } from '../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFraming';
 import { exportFilename, type ExportProfile } from '../core/exportProfiles';
 import { planExportFraming, type ExportFraming } from '../core/exportFraming';

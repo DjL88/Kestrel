@@ -52,3 +52,61 @@ npm test
 npm run build
 npm run test:e2e   # run `npx playwright install chromium` once first
 ```
+
+## Update: your feedback on layout, assisted editing, Nikon and the macro pad
+
+Done in this branch: the adjustments panel sits beside the photo from 768px wide (it used to need 1024px) and its edge can be dragged or moved with the arrow keys; presets (built-in and your own saved looks); an **Auto colour and tone** button with plain-English reasons; the dial and Alt+scroll wheel now step through every slider.
+
+### Macro pad (SinLoon 6 key + knob)
+`src/core/keyboardCommands.ts` already has a six-key and one-knob profile. Defaults: knob turns send `-` and `=`, the cycle key sends `Q`, `R` resets, `\` toggles before/after, `W` neutralises warmth, Shift+C and Shift+V copy and paste. The vendor software can reassign each key and knob turn to those characters. I could not read the product page, so check the pad's real behaviour when it arrives (some knobs send volume or media keys, which a browser cannot see). Alt+scroll works with any scroll tool.
+
+### Nikon colour, NX Studio and SnapBridge
+Nikon's colour science and Picture Control data are proprietary. The "-style" presets are approximations, not matches. Realistic routes, in order:
+1. Read the Picture Control name and settings stored in the NEF and JPEG metadata and show them.
+2. Import Nikon `.NP3` Picture Control files the user already owns and map their contrast, saturation and hue to the sliders.
+3. Validate any RAW colour path against NX Studio exports with `docs/nikon-raw-validation.md`.
+Do not claim parity with NX Studio until that comparison passes.
+
+### Prompts
+**Masks, then subject detection**
+> Read `docs/ROADMAP.md` and `docs/NEXT-STEPS.md`. Add masks to the edit recipe: linear gradient, radial gradient and brush, each with feather, invert and its own tone and colour adjustments (reuse `applyPhotoEdit` on a copy, then blend by the mask's alpha). Store geometry as normalised coordinates, define how masks behave when the crop changes, validate them in `projectBackup.ts`, and add handles directly on the photo with touch and pointer support. Keep the CPU path as the reference and add GPU masks as a later pass. Add unit tests for the alpha maths. Then add subject and background masks with an optional, checksum-pinned ONNX model (WebGPU with WASM fallback), showing confidence and tap-to-refine. Check the model's licence first and record it in `docs/models.md`.
+
+**Assisted colour**
+> Extend `src/core/autoEnhance.ts`: add skin-tone and green-foliage protection, a confidence value for the white-balance estimate, a "match this photo to another" option for a burst, and a before/after toggle on the Auto button. Subject-aware exposure should use the subject mask once it exists. Keep it explainable, deterministic and offline.
+
+**Moveable panels**
+> Let the user dock the adjustments panel left, right or bottom, and split it into collapsible groups (Basic, Colour, Tone, Detail, Presets) that can be reordered by drag or keyboard. Persist the layout locally, keep touch targets at 44px on touch devices, and keep every function reachable without drag.
+
+## Trash, removal and reset (feat/safe-trash)
+- Buttons follow where a photo is. To review: Keep, Trash, Reset. Keepers and Trash: a cross sends it back to review, and the bin moves it on (Keepers to Trash, Trash to removed). Reset is always beside them.
+- Keeper to Trash, and removal from the library, ask first. Removal sets `removedAt` on the photo. The original file is never touched, the record stays so it can be restored (Workspace options, Removed photos) or undone, and adding the same file again revives it as an unreviewed photo.
+- One photo resets straight away and stays in its edit history. Several photos ask first.
+- The edited marker (sliders icon) shows on grid cards and the filmstrip. When masks are merged, extend `isEdited` in `src/core/editedState.ts` to count active masks.
+
+## Masks (feat/masks-ui)
+Gradient, oval and brush masks, each with its own Light, Warmth, Colour, Contrast, Highlights, Shadows, Whites, Blacks and Vibrance. Handles are dragged on the photo (arrow keys also move them, Shift for bigger steps), softness and invert are in the panel, and the mask is shown in sky blue with an outline so it never relies on colour alone. Painting needs a pointer or finger.
+- Geometry is stored 0 to 1 across the framed (cropped) photo, with lengths in photo widths, so masks stay round at any ratio. Changing the crop afterwards moves masks with the crop box.
+- Rendering: the whole-photo edit runs on the GPU when it can. Masks run on the CPU afterwards in bands, using the same edit maths on a copy blended by mask strength. GPU masks are a later optimisation.
+- Not done: subject and background masks (needs an ONNX model, see the prompt above), mask copy and paste between photos, a brush cursor preview, keyboard painting.
+
+## Crop corners (feat/crop-corners)
+The crop box has four draggable corners. The opposite corner stays fixed and the chosen aspect ratio is kept. With "Original" selected, the first drag locks the photo's own ratio, so it never distorts. Corners also work with the arrow keys (Shift for larger steps), and a Crop size slider covers touch and keyboard. Double-click the slider to go back to the largest box. Dragging the box still moves it.
+- Stored as `framing.size` (0.08 to 1, absent means the largest box), validated in backups and counted by the edited marker.
+- Free-form crops with no locked ratio are not supported by the framing model. Choose a ratio, or lock the original one.
+
+## Subject detection (feat/subject-detection)
+**Find subject** and **Find background** (Masks section) run the bundled U²-Net-P model on the device. See `docs/models.md` for the source, licence, checksum and limits. A subject mask works like any other mask (Light, Warmth, Contrast and so on, edge softness), plus **Add** and **Remove** brush refining and **Find again**. Background is the same mask inverted.
+- Not done: tap-to-select a specific subject (needs a promptable model such as MobileSAM), eye and bird-part detection, using the subject mask to measure sharpness in auto-cull, GPU masks, and a wildlife test set with measured accuracy.
+
+## New project wizard (feat/project-wizard)
+Three single-question steps: name, target number of photos (chips or typed, 1 to 9999), and helpers. Both helpers default on and are stored with the project (`settings`), so older projects stay as they were. They can be changed later under Workspace options, Culling settings.
+- **Auto-cull** starts the scan by itself when photos are added to the project. It uses the existing rules (clear results move, everything is reversible, Trash never touches files).
+- **Auto-edit** suggests colour and tone the first time a photo with no edit history is opened, and shows the reasons. Resetting a photo does not trigger it again.
+- Not done: auto-cull after opening a whole folder (only the file picker and drag-in path starts it), more wizard questions (export destinations, subject names), and applying auto-edit to a whole batch of keepers at once.
+
+## Archive and delete projects (feat/archive-delete-projects)
+Each project on the Projects page has Archive and Delete buttons. Archived projects move into a collapsed "Archived (n)" list with Restore and Delete.
+- **Archive** asks first and offers a backup. It only sets `archivedAt`, so it is fully reversible.
+- **Delete** offers a backup, says plainly that it cannot be undone, and stays locked until "I understand this cannot be undone" is ticked. Focus starts on the safe button, and Escape cancels.
+- Delete removes the project's catalogue, its folder link and the photo copies Kestrel stored in this browser, but keeps any copy that another project also uses. Files on the user's computer are never touched.
+- Not done: bulk archive, a backup reminder before closing the browser, and an automatic backup before every delete.

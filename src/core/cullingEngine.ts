@@ -301,14 +301,17 @@ export function computeCullCounts(frames: readonly PhotoFrame[]): CullCounts {
   let keep = 0;
   let reject = 0;
 
+  let all = 0;
   for (const frame of frames) {
+    if (frame.removedAt) continue;
+    all += 1;
     if (frame.decision === 'keep') keep += 1;
     else if (frame.decision === 'reject') reject += 1;
     else unreviewed += 1;
   }
 
   return {
-    all: frames.length,
+    all,
     unreviewed,
     keep,
     reject,
@@ -322,6 +325,7 @@ export function filterFrames(
 ): PhotoFrame[] {
   const query = searchQuery.trim().toLowerCase();
   return frames.filter((frame) => {
+    if (frame.removedAt) return false;
     if (filter !== 'all' && frame.decision !== filter) {
       return false;
     }
@@ -491,8 +495,55 @@ function restoreFlags(state: CullingState, entry: CullingState['undoStack'][numb
   const changes = new Map((entry.batch ?? [entry]).map((change) => [change.frameId, change[direction]]));
   return state.frames.map((frame) => {
     const decision = changes.get(frame.id);
-    return decision ? { ...frame, decision } : frame;
+    if (!decision) return frame;
+    if (entry.removal) {
+      // Undo brings the photo back into the library, and redo removes it again.
+      const { removedAt: _removedAt, ...kept } = frame;
+      return direction === 'prevDecision' ? { ...kept, decision } : { ...frame, decision, removedAt: Date.now() };
+    }
+    return { ...frame, decision };
   });
+}
+
+/** Take photos that are already in Trash out of the library. Files on disk are never touched, and Restore reverses it. */
+export function removeFromLibrary(state: CullingState, frameIds: string[]): CullingState {
+  const ids = new Set(frameIds);
+  const targets = state.frames.filter((frame) => ids.has(frame.id) && frame.decision === 'reject' && !frame.removedAt);
+  if (!targets.length) return state;
+  const removing = new Set(targets.map((frame) => frame.id));
+  const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery);
+  const firstIndex = visibleBefore.findIndex((frame) => removing.has(frame.id));
+  const frames = state.frames.map((frame) => removing.has(frame.id) ? { ...frame, removedAt: Date.now() } : frame);
+  const visibleAfter = filterFrames(frames, state.filter, state.searchQuery);
+  const selectedFrameId = state.selectedFrameId && visibleAfter.some((frame) => frame.id === state.selectedFrameId)
+    ? state.selectedFrameId
+    : visibleAfter[Math.max(0, Math.min(visibleAfter.length - 1, firstIndex))]?.id ?? null;
+  const batch = targets.map((frame) => ({ frameId: frame.id, prevDecision: 'reject' as const, nextDecision: 'reject' as const }));
+  return {
+    ...state, frames, selectedFrameId,
+    compareRightFrameId: state.compareRightFrameId && removing.has(state.compareRightFrameId) ? null : state.compareRightFrameId,
+    shoot: { ...state.shoot, lastUpdatedAt: Date.now() },
+    undoStack: [...state.undoStack.slice(-199), {
+      ...batch[0], batch, removal: true, prevSelectedId: state.selectedFrameId, nextSelectedId: selectedFrameId,
+    }],
+    redoStack: [],
+  };
+}
+
+export function removedFrames(frames: readonly PhotoFrame[]): PhotoFrame[] {
+  return frames.filter((frame) => frame.removedAt).sort((a, b) => (b.removedAt ?? 0) - (a.removedAt ?? 0));
+}
+
+/** Bring removed photos back. They return to Trash so nothing reappears among Keepers by surprise. */
+export function restoreRemoved(state: CullingState, frameIds: string[]): CullingState {
+  const ids = new Set(frameIds);
+  if (!state.frames.some((frame) => ids.has(frame.id) && frame.removedAt)) return state;
+  const frames = state.frames.map((frame) => {
+    if (!ids.has(frame.id) || !frame.removedAt) return frame;
+    const { removedAt: _removedAt, ...kept } = frame;
+    return kept;
+  });
+  return { ...state, frames, shoot: { ...state.shoot, lastUpdatedAt: Date.now() } };
 }
 
 export function undoDecision(state: CullingState): CullingState {
