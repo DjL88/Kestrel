@@ -283,3 +283,32 @@ test('auto advance never jumps into removed or filtered-out photos at the end of
   const last = applyDecisionWithHistory(all, frames[3].id, 'reject');
   assert.equal(last.selectedFrameId, frames[3].id);
 });
+
+
+test('bursts never combine interleaved Z8 and Z5II frames', () => {
+  const frames = generateDemoShootFrames(4).map((frame, index) => ({
+    ...frame,
+    exif: {
+      ...frame.exif,
+      camera: index === 2 ? 'NIKON Z 5II' : 'NIKON Z 8',
+      capturedAtMs: 1000 + index * 100,
+    },
+  }));
+  const grouped = assignBurstGroups(frames);
+  assert.equal(grouped[0].burstGroupId, 'burst-1');
+  assert.equal(grouped[1].burstGroupId, 'burst-1');
+  assert.equal(grouped[2].burstGroupId, null);
+  assert.equal(grouped[3].burstGroupId, null);
+  assert.equal(grouped[2].burstCount, 1);
+  assert.equal(grouped[3].burstCount, 1);
+});
+
+test('bursts still group when camera metadata is unavailable', () => {
+  const frames = generateDemoShootFrames(2).map((frame, index) => ({
+    ...frame,
+    exif: { ...frame.exif, camera: index === 0 ? undefined : 'NIKON Z 8', capturedAtMs: 1000 + index * 100 },
+  }));
+  const grouped = assignBurstGroups(frames);
+  assert.equal(grouped[0].burstGroupId, 'burst-1');
+  assert.equal(grouped[1].burstGroupId, 'burst-1');
+});
