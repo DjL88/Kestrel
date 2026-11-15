@@ -33,3 +33,19 @@ test('auto-cull only changes undecided originals and supports grouped undo and r
   assert.deepEqual(restored.frames.map((frame) => frame.decision), ['unreviewed', 'unreviewed', 'keep']);
   assert.deepEqual(redoDecision(restored).frames, moved.frames);
 });
+
+test('malformed preview dimensions and pixel buffers never receive automatic decisions', () => {
+  const unavailable = (pixels: Uint8ClampedArray, width: number, height: number) => {
+    const result = scorePreview('invalid', pixels, width, height);
+    assert.deepEqual({ decision: result.decision, confidence: result.confidence, reason: result.reason },
+      { decision: null, confidence: 'low', reason: 'unavailable' });
+  };
+  unavailable(new Uint8ClampedArray(0), 96, 96);
+  unavailable(new Uint8ClampedArray(96 * 96 * 4 - 4), 96, 96);
+  unavailable(new Uint8ClampedArray(96 * 96 * 4 + 4), 96, 96);
+  unavailable(new Uint8ClampedArray(96 * 96 * 4), NaN, 96);
+  unavailable(new Uint8ClampedArray(96 * 96 * 4), 96.5, 96);
+  unavailable(new Uint8ClampedArray(0), 100_000, 100_000);
+  const valid = scorePreview('valid', new Uint8ClampedArray(96 * 96 * 4), 96, 96);
+  assert.equal(valid.reason, 'flat');
+});
