@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ProjectList } from './components/ProjectList';
+import { appendProjectPhotos, createEmptyProject } from './core/projects';
 import { createVirtualCopy } from './core/virtualCopies';
 import { PhotoEditor } from './components/PhotoEditor';
+import type { PhotoFraming } from './core/photoFraming';
 import { isNeutralEdit, type PhotoEdit } from './core/photoEdits';
 import { CompareView } from './components/CompareView';
 import { ExifInspector } from './components/ExifInspector';
@@ -34,6 +37,7 @@ import type {
   FilterState,
   PhotoFrame,
   WorkspaceViewMode,
+  ShootDescriptor,
 } from './core/types';
 import {
   BrowserCatalogueStore,
@@ -45,7 +49,6 @@ import {
 import { BrowserPreviewProvider } from './providers/browserPreviewProvider';
 import {
   getLocalFileKey,
-  loadDirectoryHandleShoot,
   loadLocalFileListShoot,
   readFilesFromDirectoryHandle,
   rehydrateLocalFramesFromStore,
@@ -78,7 +81,14 @@ export default function App() {
     applied: PhotoEdit;
     previous: ReadonlyMap<string, PhotoEdit | undefined>;
   } | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  const [projectsOpen, setProjectsOpen] = useState(true);
+  const [projects, setProjects] = useState<ShootDescriptor[]>([]);
+  const [projectBusy, setProjectBusy] = useState(true);
+  const [projectError, setProjectError] = useState<string>();
+  const [multiSelect, setMultiSelect] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [infoFrameId, setInfoFrameId] = useState<string>();
+  const infoTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   // Viewport zoom/pan state
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -101,102 +111,128 @@ export default function App() {
     savePreferences(prefs);
   }, [prefs]);
 
-  // Restore saved shoot & decisions from IndexedDB on initial mount
   useEffect(() => {
     let active = true;
     const store = storeRef.current!;
-    const preview = previewProviderRef.current!;
-
-    const restore = async () => {
-      const saved = await store.loadActiveState();
-      if (!active) return;
-
-      if (saved && saved.shoot && Array.isArray(saved.frames) && saved.frames.length > 0) {
-        let restoredShoot = saved.shoot;
-        let restoredFrames = saved.frames;
-
-        if (restoredShoot.sourceKind === 'local-files') {
-          const ok = await rehydrateLocalFramesFromStore(restoredFrames, preview, store);
-          restoredShoot = { ...restoredShoot, needsFileReselect: !ok };
-        } else if (restoredShoot.sourceKind === 'local-folder') {
-          const handle = await store.loadDirectoryHandle(restoredShoot.id);
-          if (handle) {
-            const perm = await (
-              handle as FileSystemDirectoryHandle & {
-                queryPermission?: (desc: { mode: 'read' }) => Promise<PermissionState>;
-              }
-            ).queryPermission?.({ mode: 'read' });
-
-            if (perm === 'granted') {
-              const entries = await readFilesFromDirectoryHandle(handle);
-              for (const entry of entries) {
-                preview.registerBlob(`folder://${entry.relativePath}`, entry.file);
-              }
-              restoredShoot = { ...restoredShoot, needsFolderRegrant: false };
-            } else {
-              restoredShoot = { ...restoredShoot, needsFolderRegrant: true };
-            }
-          } else {
-            restoredShoot = { ...restoredShoot, needsFolderRegrant: true };
-          }
-        }
-
+    async function initialiseProjects() {
+      try {
+        const saved = await store.listProjects();
         if (!active) return;
-        setCullingState({
-          shoot: restoredShoot,
-          frames: restoredFrames,
-          selectedFrameId: saved.selectedFrameId ?? restoredFrames[0]?.id ?? null,
-          compareRightFrameId:
-            saved.compareRightFrameId ?? restoredFrames[1]?.id ?? null,
-          filter: saved.filter ?? 'all',
-          searchQuery: saved.searchQuery ?? '',
-          keeperTarget: saved.keeperTarget ?? DEFAULT_KEEPER_TARGET,
-          autoAdvance: saved.autoAdvance ?? true,
-          undoStack: saved.undoStack ?? [],
-          redoStack: saved.redoStack ?? [],
-        });
-      } else {
-        // Fresh 500-frame demo shoot with smooth progressive frame reveal
-        const fullDemo = createDemoShootState(500);
-        setLoadingProgress({ loaded: 60, total: 500 });
-        setCullingState({
-          ...fullDemo,
-          frames: fullDemo.frames.slice(0, 60),
-        });
-
-        let loaded = 60;
-        const step = () => {
-          if (!active) return;
-          loaded = Math.min(500, loaded + 110);
-          setCullingState((prev) => ({
-            ...prev,
-            frames: fullDemo.frames.slice(0, loaded),
-          }));
-          if (loaded < 500) {
-            setLoadingProgress({ loaded, total: 500 });
-            setTimeout(step, 25);
-          } else {
-            setLoadingProgress(null);
-          }
-        };
-        setTimeout(step, 25);
+        if (saved.length) {
+          setProjects(saved);
+          return;
+        }
+        const legacy = await store.loadActiveState();
+        if (!active) return;
+        const demo = createDemoShootState(500);
+        const initial = legacy?.shoot && Array.isArray(legacy.frames)
+          ? { ...createDemoShootState(0), ...legacy, shoot: legacy.shoot, frames: legacy.frames }
+          : demo;
+        await store.saveProject(initial);
+        if (initial.shoot.id !== demo.shoot.id) await store.saveProject(demo);
+        if (active) setProjects(await store.listProjects());
+      } catch {
+        if (active) setProjectError('Could not open the local project catalogue. Reload to try again.');
+      } finally {
+        if (active) setProjectBusy(false);
       }
-
-      if (active) setHydrated(true);
-    };
-
-    restore();
-    return () => {
-      active = false;
-    };
+    }
+    void initialiseProjects();
+    return () => { active = false; };
   }, []);
 
-  // Persist cullingState whenever it changes after initial hydration
   useEffect(() => {
-    if (!hydrated) return;
+    if (projectsOpen) return;
+    void storeRef.current!.saveProject(cullingState).catch(() => {
+      setProjectError('Project changes could not be saved. Check available browser storage.');
+    });
+  }, [cullingState, projectsOpen]);
+
+  function enterProject(state: CullingState) {
+    setCullingState(state);
+    setEditing(false);
+    setInfoFrameId(undefined);
+    setShowPhotoInfo(false);
+    setMultiSelect(false);
+    setSelectedIds(new Set());
+    setBatchUndo(null);
+    setRelinkStatus(undefined);
+    setFolderError(null);
+    setBannerDismissed(false);
+    setZoomLevel(1);
+    setPanOffset({ x: 0, y: 0 });
+    setPrefs((prev) => ({ ...prev, viewMode: 'grid' }));
+    setProjectsOpen(false);
+  }
+
+  async function openProject(id: string) {
     const store = storeRef.current!;
-    store.saveCullingState(cullingState);
-  }, [cullingState, hydrated]);
+    const preview = previewProviderRef.current!;
+    setProjectBusy(true);
+    setProjectError(undefined);
+    try {
+      const state = await store.loadProject(id);
+      if (!state) throw new Error('Project unavailable');
+      preview.clear();
+      const shoot = { ...state.shoot };
+      const localFrames = state.frames.filter((frame) => frame.sourceKind === 'file');
+      shoot.needsFileReselect = !await rehydrateLocalFramesFromStore(localFrames, preview, store);
+
+      const hasFolderFrames = state.frames.some((frame) => frame.sourceKind === 'directory-handle');
+      if (hasFolderFrames) {
+        const handle = await store.loadDirectoryHandle(shoot.id);
+        try {
+          const permission = await (handle as (FileSystemDirectoryHandle & {
+            queryPermission?: (options: { mode: 'read' }) => Promise<PermissionState>;
+          }) | null)?.queryPermission?.({ mode: 'read' });
+          if (handle && permission === 'granted') {
+            const entries = await readFilesFromDirectoryHandle(handle);
+            for (const entry of entries) preview.registerBlob(`folder://${entry.relativePath}`, entry.file);
+          }
+        } catch {
+          // Keep the project available for catalogue editing until the source is reconnected.
+        }
+        shoot.needsFolderRegrant = state.frames.some((frame) =>
+          frame.sourceKind === 'directory-handle' && !preview.hasBlob(frame.stableKey)
+        );
+      }
+      enterProject({ ...state, shoot });
+    } catch {
+      setProjectError('Could not open this project. Try again.');
+    } finally {
+      setProjectBusy(false);
+    }
+  }
+
+  async function newProject(name: string) {
+    setProjectBusy(true);
+    setProjectError(undefined);
+    try {
+      const state = createEmptyProject(`project-${crypto.randomUUID()}`, name);
+      await storeRef.current!.saveProject(state);
+      previewProviderRef.current!.clear();
+      enterProject(state);
+    } catch {
+      setProjectError('Could not create the project. Check available browser storage.');
+    } finally {
+      setProjectBusy(false);
+    }
+  }
+
+  async function backToProjects() {
+    const store = storeRef.current!;
+    setProjectBusy(true);
+    setProjectError(undefined);
+    try {
+      await store.saveProject(cullingState);
+      setProjects(await store.listProjects());
+      setProjectsOpen(true);
+    } catch {
+      setProjectError('Could not save the project. Keep this tab open and retry after freeing storage.');
+    } finally {
+      setProjectBusy(false);
+    }
+  }
 
   const counts = useMemo(
     () => computeCullCounts(cullingState.frames),
@@ -258,6 +294,41 @@ export default function App() {
       selectedFrameId: frameId,
     }));
   }, []);
+
+  function selectGridPhoto(id: string, modifiers: { shift: boolean; toggle: boolean }) {
+    if (multiSelect || modifiers.shift || modifiers.toggle) {
+      setMultiSelect(true);
+      setSelectedIds((previous) => {
+        const next = new Set(previous);
+        const target = visibleFrames.findIndex((frame) => frame.id === id);
+        if (modifiers.shift && selectedVisibleIndex >= 0 && target >= 0) {
+          const start = Math.min(selectedVisibleIndex, target);
+          const end = Math.max(selectedVisibleIndex, target);
+          for (const frame of visibleFrames.slice(start, end + 1)) next.add(frame.id);
+        } else if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+        return next;
+      });
+    }
+    handleSelectFrame(id);
+  }
+
+  function rateOrFlagPhotos(id: string, change: { rating: number } | { flag: CullDecision }) {
+    const targets = multiSelect && selectedIds.has(id) ? selectedIds : new Set([id]);
+    if ('rating' in change) {
+      setCullingState((previous) => ({
+        ...previous,
+        frames: previous.frames.map((frame) => targets.has(frame.id) ? { ...frame, rating: change.rating } : frame),
+        shoot: { ...previous.shoot, lastUpdatedAt: Date.now() },
+      }));
+    } else {
+      setCullingState((previous) => [...targets].reduce((state, frameId) =>
+        applyDecisionWithHistory(state, frameId, change.flag, { allowAdvance: false }), previous));
+    }
+  }
 
   const handleStepFrame = useCallback(
     (delta: number) => {
@@ -388,7 +459,7 @@ export default function App() {
     [selectedFrame, handleDecideFrame, toggleCompareView, prefs.knobMode, handleStepFrame]
   );
 
-  const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames'>) => {
+  const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames' | 'rating' | 'framing'>) => {
     setCullingState((prev) => ({
       ...prev,
       shoot: { ...prev.shoot, lastUpdatedAt: Date.now() },
@@ -398,7 +469,7 @@ export default function App() {
     }));
   };
 
-  const addVirtualCopy = () => {
+  const addVirtualCopy = (framing?: PhotoFraming) => {
     if (!selectedFrame) return;
     const id = `copy-${crypto.randomUUID()}`;
     const sourceId = selectedFrame.id;
@@ -406,6 +477,7 @@ export default function App() {
       const index = prev.frames.findIndex((frame) => frame.id === sourceId);
       if (index < 0) return prev;
       const copy = createVirtualCopy(prev.frames[index], prev.frames, id);
+      if (framing) copy.framing = framing;
       const frames = [...prev.frames.slice(0, index + 1), copy, ...prev.frames.slice(index + 1)];
       const visible = filterFrames([copy], prev.filter, prev.searchQuery).length > 0;
       return {
@@ -476,6 +548,13 @@ export default function App() {
   // Global keyboard listener wired through unified resolveKeyboardCommand
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (projectsOpen || loadingProgress) return;
+      if (e.key === 'Escape' && showPhotoInfo) {
+        setShowPhotoInfo(false);
+        setInfoFrameId(undefined);
+        infoTriggerRef.current?.focus();
+        return;
+      }
       const isModalOpen = openShootModal || macroPadModal;
       if (editing) {
         if (!isModalOpen && e.key === 'Escape') setEditing(false);
@@ -498,125 +577,57 @@ export default function App() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
-
-  // Shoot loading handlers
-  const handleLoadDemoShoot = () => {
-    setRelinkStatus(undefined);
-    setBatchUndo(null);
-    previewProviderRef.current?.clear();
-    const demo = createDemoShootState(500);
-    setCullingState(demo);
-    setBannerDismissed(false);
-    setOpenShootModal(false);
-    setZoomLevel(1);
-    setPanOffset({ x: 0, y: 0 });
-  };
+  }, [projectsOpen, loadingProgress, showPhotoInfo, editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
 
   const handleSelectLocalFiles = async (files: File[]) => {
-    setRelinkStatus(undefined);
-    setBatchUndo(null);
-    setOpenShootModal(false);
-    setBannerDismissed(false);
-    setFolderError(null);
-    const preview = previewProviderRef.current!;
-    const store = storeRef.current!;
-    preview.clear();
-
-    setLoadingProgress({ loaded: 0, total: files.length });
-    const { shoot, frames } = await loadLocalFileListShoot(
-      files,
-      preview,
-      store,
-      ({ frames: partial, loaded, total }) => {
-        setLoadingProgress({ loaded, total });
-        setCullingState((prev) => ({
-          ...prev,
-          frames: partial,
-          selectedFrameId: prev.selectedFrameId ?? partial[0]?.id ?? null,
-        }));
-      }
-    );
-
-    setLoadingProgress(null);
-    setCullingState({
-      shoot,
-      frames,
-      selectedFrameId: frames[0]?.id ?? null,
-      compareRightFrameId: frames[1]?.id ?? null,
-      filter: 'all',
-      searchQuery: '',
-      keeperTarget: cullingState.keeperTarget,
-      autoAdvance: cullingState.autoAdvance,
-      undoStack: [],
-      redoStack: [],
+    const existing = new Set(cullingState.frames.map((frame) => frame.stableKey));
+    const additions = files.filter((file) => {
+      const key = getLocalFileKey(file);
+      if (existing.has(key)) return false;
+      existing.add(key);
+      return true;
     });
-    setZoomLevel(1);
-    setPanOffset({ x: 0, y: 0 });
+    if (!additions.length) {
+      setFolderError('These photos are already in the project.');
+      return;
+    }
+    setOpenShootModal(false);
+    setFolderError(null);
+    setProjectError(undefined);
+    setLoadingProgress({ loaded: 0, total: additions.length });
+    try {
+      const { frames } = await loadLocalFileListShoot(
+        additions, previewProviderRef.current!, storeRef.current!,
+        ({ loaded, total }) => setLoadingProgress({ loaded, total })
+      );
+      const importId = crypto.randomUUID().slice(0, 8);
+      setCullingState((prev) => appendProjectPhotos(prev, frames, importId));
+      setPrefs((prev) => ({ ...prev, viewMode: 'grid' }));
+    } catch {
+      setProjectError('Could not add the photos. Try selecting the files again.');
+    } finally {
+      setLoadingProgress(null);
+    }
   };
 
   const handleOpenLocalFolder = async () => {
-    setFolderError(null);
     try {
-      const picker = (
-        window as Window & {
-          showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
-        }
-      ).showDirectoryPicker;
-      if (!picker) {
-        setFolderError('Folder picker is not supported in this browser.');
-        return;
-      }
-
-      const dirHandle = await picker();
-      setRelinkStatus(undefined);
-      setBatchUndo(null);
-      setOpenShootModal(false);
-      setBannerDismissed(false);
-
-      const preview = previewProviderRef.current!;
-      const store = storeRef.current!;
-      preview.clear();
-
-      const { shoot, frames } = await loadDirectoryHandleShoot(
-        dirHandle,
-        preview,
-        store,
-        ({ frames: partial, loaded, total }) => {
-          setLoadingProgress({ loaded, total });
-          setCullingState((prev) => ({
-            ...prev,
-            frames: partial,
-            selectedFrameId: prev.selectedFrameId ?? partial[0]?.id ?? null,
-          }));
-        }
-      );
-
-      setLoadingProgress(null);
-      setCullingState({
-        shoot,
-        frames,
-        selectedFrameId: frames[0]?.id ?? null,
-        compareRightFrameId: frames[1]?.id ?? null,
-        filter: 'all',
-        searchQuery: '',
-        keeperTarget: cullingState.keeperTarget,
-        autoAdvance: cullingState.autoAdvance,
-        undoStack: [],
-        redoStack: [],
-      });
-    } catch (err) {
-      if ((err as Error)?.name !== 'AbortError') {
-        setFolderError(
-          'Folder access was blocked or cancelled. Use Select Files instead if inside a restricted frame.'
-        );
-      }
+      const picker = (window as Window & {
+        showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
+      }).showDirectoryPicker;
+      if (!picker) return;
+      const handle = await picker();
+      const entries = await readFilesFromDirectoryHandle(handle);
+      if (entries.length) await handleSelectLocalFiles(entries.map(({ file }) => file));
+      else setFolderError('This folder has no supported photos.');
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') setFolderError('Could not read the folder. Try selecting files.');
     }
   };
 
   const reconnectFileSelection = (files: File[]) => {
     const preview = previewProviderRef.current!;
-    const expected = new Set(cullingState.frames.map((frame) => frame.stableKey));
+    const expected = new Set(cullingState.frames.filter((frame) => frame.sourceKind === 'file').map((frame) => frame.stableKey));
     let recovered = 0;
     for (const file of files) {
       const key = getLocalFileKey(file);
@@ -640,38 +651,50 @@ export default function App() {
     const preview = previewProviderRef.current!;
     const { shoot } = cullingState;
 
-    if (shoot.sourceKind === 'local-files') {
+    if (shoot.needsFileReselect && !shoot.needsFolderRegrant) {
       relinkInput.current?.click();
       return;
     }
-    if (shoot.sourceKind === 'local-folder') {
-      const handle = await store.loadDirectoryHandle(shoot.id);
-      if (handle) {
-        const perm = await (
-          handle as FileSystemDirectoryHandle & {
-            requestPermission?: (desc: { mode: 'read' }) => Promise<PermissionState>;
-          }
-        ).requestPermission?.({ mode: 'read' });
-
-        if (perm === 'granted') {
-          const entries = await readFilesFromDirectoryHandle(handle);
-          for (const entry of entries) {
-            preview.registerBlob(`folder://${entry.relativePath}`, entry.file);
-          }
-          setCullingState((prev) => ({
-            ...prev,
-            shoot: { ...prev.shoot, needsFolderRegrant: false },
-          }));
-          return;
-        }
+    if (!shoot.needsFolderRegrant) return;
+    try {
+      const stored = await store.loadDirectoryHandle(shoot.id);
+      const permission = await (stored as (FileSystemDirectoryHandle & {
+        requestPermission?: (options: { mode: 'read' }) => Promise<PermissionState>;
+      }) | null)?.requestPermission?.({ mode: 'read' });
+      const handle = permission === 'granted' ? stored : await (window as Window & {
+        showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
+      }).showDirectoryPicker?.();
+      if (!handle || (shoot.folderName && handle.name !== shoot.folderName)) {
+        setRelinkStatus('Select the original folder to restore its photos.');
+        return;
       }
+      const entries = await readFilesFromDirectoryHandle(handle);
+      const expected = new Set(cullingState.frames.filter((frame) => frame.sourceKind === 'directory-handle').map((frame) => frame.stableKey));
+      for (const entry of entries) {
+        const key = `folder://${entry.relativePath}`;
+        if (expected.has(key)) preview.registerBlob(key, entry.file);
+      }
+      await store.saveDirectoryHandle(shoot.id, handle);
+      const incomplete = [...expected].some((key) => !preview.hasBlob(key));
+      setRelinkStatus(incomplete ? 'Some photos are missing from the original folder.' : undefined);
+      setPreviewRevision((previous) => previous + 1);
+      setCullingState((previous) => ({
+        ...previous,
+        shoot: { ...previous.shoot, needsFolderRegrant: incomplete },
+      }));
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') setRelinkStatus('Could not reopen the original folder in this browser.');
     }
-    setOpenShootModal(true);
   };
 
   const needsAccess = Boolean(
     cullingState.shoot.needsFolderRegrant || cullingState.shoot.needsFileReselect
   );
+
+  if (projectsOpen) {
+    return <ProjectList projects={projects} loading={projectBusy} error={projectError}
+      onOpen={(id) => void openProject(id)} onCreate={(name) => void newProject(name)} />;
+  }
 
   return (
     <div className="h-dvh w-full flex flex-col pb-[env(safe-area-inset-bottom)] bg-[#101114] text-zinc-100 overflow-hidden">
@@ -738,20 +761,31 @@ export default function App() {
             showShortcutsOverlay: !prev.showShortcutsOverlay,
           }))
         }
-        onOpenShootModal={() => setOpenShootModal(true)}
+        onOpenShootModal={() => { setFolderError(null); setOpenShootModal(true); }}
+        onBackToProjects={() => void backToProjects()}
+        actionsDisabled={Boolean(loadingProgress) || projectBusy}
         onOpenMacroPadModal={() => setMacroPadModal(true)}
         loadingProgress={loadingProgress}
+        onToggleMultiSelect={prefs.viewMode === 'grid' ? () => {
+          if (multiSelect) setSelectedIds(new Set());
+          setMultiSelect(!multiSelect);
+        } : undefined}
+        multiSelect={multiSelect}
         showFilmstrip={prefs.showFilmstrip}
         onToggleFilmstrip={toggleFilmstrip}
         showPhotoInfo={showPhotoInfo}
-        onTogglePhotoInfo={() => setShowPhotoInfo((visible) => !visible)}
+        onTogglePhotoInfo={() => {
+          setInfoFrameId(undefined);
+          infoTriggerRef.current = null;
+          setShowPhotoInfo((visible) => !visible);
+        }}
         autoAdvance={cullingState.autoAdvance}
         onToggleAutoAdvance={() =>
           setCullingState((prev) => ({ ...prev, autoAdvance: !prev.autoAdvance }))
         }
         onClearDecision={selectedFrame && selectedFrame.decision !== 'unreviewed' ? () => executeCommand('cull.unreviewed') : undefined}
         onRedo={cullingState.redoStack.length ? () => executeCommand('cull.redo') : undefined}
-        onEditPhoto={selectedFrame && hydrated && !loadingProgress ? () => setEditing(true) : undefined}
+        onEditPhoto={selectedFrame && !loadingProgress ? () => setEditing(true) : undefined}
       />}
 
       <input ref={relinkInput} type="file" hidden multiple accept=".jpg,.jpeg,.png,.webp,.nef"
@@ -771,6 +805,8 @@ export default function App() {
       />
 
       {/* Main Workspace Split */}
+      {projectError && <p role="alert" className="bg-orange-950 px-3 py-2 text-sm text-orange-100">{projectError}</p>}
+
       <main key={previewRevision} className="relative flex-1 flex min-h-0 min-w-0">
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {editing && selectedFrame && (
@@ -783,6 +819,7 @@ export default function App() {
               copiedEdit={copiedEdit}
               onCopyEdit={setCopiedEdit}
               onCreateVirtualCopy={addVirtualCopy}
+              onFramingChange={(framing) => updateFrame(selectedFrame.id, { framing })}
               onRemoveVirtualCopy={selectedFrame.virtualCopy ? removeVirtualCopy : undefined}
               panelSide={prefs.editPanelSide}
               onPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, editPanelSide: side }))}
@@ -794,13 +831,39 @@ export default function App() {
               onSubjectsChange={(subjectNames) => updateFrame(selectedFrame.id, { subjectNames })}
             />
           )}
-          {!editing && prefs.viewMode === 'grid' && (
+          {!editing && cullingState.frames.length === 0 && (
+            <div className="grid flex-1 place-items-center p-4">
+              <div className="text-center">
+                <h2 className="mb-3 text-sm text-zinc-300">This project has no photos yet</h2>
+                <button type="button" disabled={Boolean(loadingProgress)} onClick={() => setOpenShootModal(true)}
+                  className="min-h-11 rounded-lg bg-sky-200 px-4 text-sm font-semibold text-zinc-950 disabled:opacity-40">Add photos</button>
+              </div>
+            </div>
+          )}
+
+          {!editing && multiSelect && prefs.viewMode === 'grid' && (
+            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#15171C] px-3 text-sm">
+              <span>{selectedIds.size} selected</span>
+              <button type="button" className="min-h-11 px-2" onClick={() => {
+                setMultiSelect(false);
+                setSelectedIds(new Set());
+              }}>Done</button>
+            </div>
+          )}
+          {!editing && cullingState.frames.length > 0 && prefs.viewMode === 'grid' && (
             <VirtualizedContactSheet
               frames={visibleFrames}
               selectedFrameId={selectedFrame?.id ?? null}
               previewProvider={previewProviderRef.current!}
               needsAccess={needsAccess}
-              onSelectFrame={handleSelectFrame}
+              onSelectFrame={selectGridPhoto}
+              markedIds={selectedIds}
+              multiSelect={multiSelect}
+              onInfo={(id, trigger) => {
+                setInfoFrameId(id);
+                infoTriggerRef.current = trigger;
+                setShowPhotoInfo(true);
+              }}
               onOpenLoupe={(frameId) => {
                 handleSelectFrame(frameId);
                 setPrefs((prev) => ({ ...prev, viewMode: 'loupe' }));
@@ -811,7 +874,7 @@ export default function App() {
             />
           )}
 
-          {!editing && prefs.viewMode === 'loupe' && (
+          {!editing && cullingState.frames.length > 0 && prefs.viewMode === 'loupe' && (
             <LoupePreview
               frame={selectedFrame}
               previewProvider={previewProviderRef.current!}
@@ -834,7 +897,7 @@ export default function App() {
             />
           )}
 
-          {!editing && prefs.viewMode === 'compare' && (
+          {!editing && cullingState.frames.length > 0 && prefs.viewMode === 'compare' && (
             <CompareView
               leftFrame={selectedFrame}
               rightFrame={compareRightFrame}
@@ -890,7 +953,7 @@ export default function App() {
               frames={visibleFrames}
               selectedFrameId={selectedFrame?.id ?? null}
               compareRightFrameId={compareRightFrame?.id ?? null}
-              isCompareMode={!editing && prefs.viewMode === 'compare'}
+              isCompareMode={!editing && cullingState.frames.length > 0 && prefs.viewMode === 'compare'}
               previewProvider={previewProviderRef.current!}
               needsAccess={needsAccess}
               onSelectFrame={handleSelectFrame}
@@ -902,7 +965,16 @@ export default function App() {
         </div>
 
         {!editing && showPhotoInfo && (
-          <ExifInspector frame={selectedFrame} onClose={() => setShowPhotoInfo(false)} />
+          <ExifInspector onRate={(id, rating) => rateOrFlagPhotos(id, { rating })}
+            onFlag={(id, flag) => rateOrFlagPhotos(id, { flag })}
+            batchCount={multiSelect && selectedIds.has(infoFrameId ?? selectedFrame?.id ?? '') ? selectedIds.size : 0}
+            frame={infoFrameId ? cullingState.frames.find((frame) => frame.id === infoFrameId) ?? null : selectedFrame}
+            onClose={() => {
+              setShowPhotoInfo(false);
+              setInfoFrameId(undefined);
+              infoTriggerRef.current?.focus();
+            }}
+          />
         )}
       </main>
 
@@ -935,7 +1007,6 @@ export default function App() {
       <OpenShootModal
         open={openShootModal}
         onClose={() => setOpenShootModal(false)}
-        onLoadDemoShoot={handleLoadDemoShoot}
         onSelectLocalFiles={handleSelectLocalFiles}
         onOpenLocalFolder={handleOpenLocalFolder}
         folderError={folderError}

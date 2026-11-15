@@ -37,8 +37,6 @@ export async function loadLocalFileListShoot(
     .filter((f) => isSupportedPhotoFilename(f.name))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
-  await store.clearLocalFileBlobs();
-
   const shootId = `local-files-${Date.now()}`;
   const rawFrames: PhotoFrame[] = [];
   let storedAllBlobs = true;
@@ -64,7 +62,7 @@ export async function loadLocalFileListShoot(
           stableKey,
           filename: file.name,
           sequenceIndex: idx,
-          decision: 'unreviewed',
+          decision: exif.rejectedByMetadata ? 'reject' : 'unreviewed',
           burstGroupId: null,
           burstIndex: 1,
           burstCount: 1,
@@ -162,7 +160,7 @@ export async function loadDirectoryHandleShoot(
           stableKey,
           filename: entry.name,
           sequenceIndex: idx,
-          decision: 'unreviewed',
+          decision: exif.rejectedByMetadata ? 'reject' : 'unreviewed',
           burstGroupId: null,
           burstIndex: 1,
           burstCount: 1,
@@ -205,16 +203,16 @@ export async function rehydrateLocalFramesFromStore(
   previewProvider: BrowserPreviewProvider,
   store: BrowserCatalogueStore
 ): Promise<boolean> {
+  const missing = [...new Set(frames.filter((frame) => !frame.isDemo).map((frame) => frame.stableKey))]
+    .filter((key) => !previewProvider.hasBlob(key));
   let allFound = true;
-  for (const frame of frames) {
-    if (frame.isDemo) continue;
-    if (previewProvider.hasBlob(frame.stableKey)) continue;
-    const blob = await store.loadLocalFileBlob(frame.stableKey);
-    if (blob) {
-      previewProvider.registerBlob(frame.stableKey, blob);
-    } else {
-      allFound = false;
-    }
+  for (let offset = 0; offset < missing.length; offset += 12) {
+    const restored = await Promise.all(missing.slice(offset, offset + 12).map(async (key) => {
+      const blob = await store.loadLocalFileBlob(key);
+      if (blob) previewProvider.registerBlob(key, blob);
+      return Boolean(blob);
+    }));
+    if (restored.some((found) => !found)) allFound = false;
   }
   return allFound;
 }

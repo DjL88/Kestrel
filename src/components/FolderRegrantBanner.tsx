@@ -28,9 +28,9 @@ export const FolderRegrantBanner: React.FC<FolderRegrantBannerProps> = ({
       <div className="flex items-center gap-2">
         <FolderKey className="w-4 h-4 text-amber-300 shrink-0" aria-hidden="true" />
         <span>
-          {mode === 'folder'
+          {status ?? (mode === 'folder'
             ? `Browser security paused read access to "${folderName ?? 'your folder'}" after reload. Your culling decisions are preserved.`
-            : status ?? 'Re-select the original files to restore previews and keep your edits and virtual copies.'}
+            : 'Re-select the original files to restore previews and keep your edits and virtual copies.')}
         </span>
       </div>
       <div className="flex items-center gap-2 shrink-0">

@@ -102,3 +102,11 @@ Compare uses one shared viewport at every screen width. Drag the divider, pinch 
 **Manual sliders** and the quick adjustment buttons update the same recipe. Neutral is the identity operation on the decoded raster; Warmth and Colour are explicit transforms of that raster. Nikon Picture Controls and RAW white balance require a native, colour-managed path and verified reference images.
 
 Create a **virtual copy** from Edit options to try a different look with its own recipe and culling status. It shares the original source file, and removing a copy leaves the source alone. Reselecting unavailable local sources from the reconnect banner retains all catalogue versions. Under **Layout**, pin or hide the filmstrip and dock the desktop adjustment panel on either side.
+
+### Projects and photo metadata
+
+Kestrel opens on **Projects**. Create a project or open the demo, then use **Add photos** to append files or drag a batch into the import dialog. Projects keep independent catalogues on the current browser. On upgrade, an existing single-shoot catalogue is brought into Projects. Selected files that exceed browser storage can be reconnected when the project is reopened.
+
+Use the grid’s **Info** button, right-click, or touch and hold to access ratings, Keep/Reject flags and camera metadata. Shift-click, Ctrl/Cmd-click, or use **Select photos** in Workspace options to rate or flag several photos from the same panel. Embedded XMP ratings, including the XMP reject value, are read where available. New ratings and flags stay in Kestrel’s catalogue and do not rewrite source files.
+
+**Crop & straighten** offers aspect-ratio choices, crop positioning, rotation and fine straightening. **Make crop copy** uses a small local detail scan to place a 4:5 or 5:4 crop on a virtual copy. The edit preview and export use the same framing. All image operations run on the device. Production deployments cache the application and demo assets after the first successful load when the browser allows service workers. Clearing browser storage removes local project data and the offline cache.

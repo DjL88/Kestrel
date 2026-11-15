@@ -1,4 +1,5 @@
 import { ChevronDown } from 'lucide-react';
+import { DEFAULT_FRAMING, detailAnchor, drawFramedPhoto, type PhotoFraming } from '../core/photoFraming';
 import { PhotoViewport } from './PhotoViewport';
 import { useEffect, useRef, useState } from 'react';
 import { DEFAULT_EDIT, EDIT_CHOICES, applyPhotoEdit, isNeutralEdit, type PhotoEdit } from '../core/photoEdits';
@@ -15,7 +16,8 @@ interface Props {
   copiedEdit: PhotoEdit | null;
   onCopyEdit: (edit: PhotoEdit) => void;
   keeperCount: number;
-  onCreateVirtualCopy: () => void;
+  onCreateVirtualCopy: (framing?: PhotoFraming) => void;
+  onFramingChange: (framing: PhotoFraming) => void;
   onRemoveVirtualCopy?: () => void;
   panelSide: 'left' | 'right';
   onPanelSideChange: (side: 'left' | 'right') => void;
@@ -28,11 +30,12 @@ interface Props {
 
 export function PhotoEditor({
   frame, provider, needsAccess, onEdit, copiedEdit, onCopyEdit, keeperCount,
-  onApplyToKeepers, onUndoKeeperEdits, onSubjectsChange, onCreateVirtualCopy, onRemoveVirtualCopy,
+  onApplyToKeepers, onUndoKeeperEdits, onSubjectsChange, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange,
   panelSide, onPanelSideChange, showFilmstrip, onToggleFilmstrip,
 }: Props) {
   const originalCanvas = useRef<HTMLCanvasElement>(null);
   const editedCanvas = useRef<HTMLCanvasElement>(null);
+  const sourceCanvas = useRef<HTMLCanvasElement | null>(null);
   const originalPixels = useRef<ImageData | null>(null);
   const [sourceState, setSourceState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [compare, setCompare] = useState(false);
@@ -45,6 +48,7 @@ export function PhotoEditor({
   const [editNotice, setEditNotice] = useState('');
   const [exportError, setExportError] = useState(false);
   const edit = frame.edit ?? DEFAULT_EDIT;
+  const framing = frame.framing ?? DEFAULT_FRAMING;
   const isRaw = /\.(nef|nrw)$/i.test(frame.filename) && !frame.isDemo;
 
   useEffect(() => {
@@ -52,6 +56,7 @@ export function PhotoEditor({
     const image = new Image();
     setSourceState('loading');
     originalPixels.current = null;
+    sourceCanvas.current = null;
 
     async function load() {
       const url = await provider.getFullPreviewUrl(frame);
@@ -61,14 +66,14 @@ export function PhotoEditor({
       await image.decode();
       if (!active) return;
 
-      const canvas = originalCanvas.current!;
+      const canvas = document.createElement('canvas');
       const scale = Math.min(1, MAX_EDGE / Math.max(image.naturalWidth, image.naturalHeight));
       canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
       canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
       const context = canvas.getContext('2d', { willReadFrequently: true });
       if (!context) throw new Error('Canvas unavailable');
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      originalPixels.current = context.getImageData(0, 0, canvas.width, canvas.height);
+      sourceCanvas.current = canvas;
       setSourceState('ready');
     }
 
@@ -80,6 +85,30 @@ export function PhotoEditor({
   }, [frame.id, provider, needsAccess]);
 
   useEffect(() => {
+    const source = sourceCanvas.current;
+    const original = originalCanvas.current;
+    if (!source || !original || sourceState !== 'ready') return;
+    drawFramedPhoto(source, original, framing);
+    originalPixels.current = original.getContext('2d')!.getImageData(0, 0, original.width, original.height);
+  }, [framing, sourceState]);
+
+  function createCropCopy() {
+    const source = sourceCanvas.current;
+    if (!source) return;
+    const small = document.createElement('canvas');
+    small.width = 64;
+    small.height = 64;
+    const context = small.getContext('2d');
+    if (!context) return;
+    context.translate(32, 32);
+    context.rotate(framing.turns * Math.PI / 2);
+    context.drawImage(source, -32, -32, 64, 64);
+    const anchor = detailAnchor(context.getImageData(0, 0, 64, 64).data, 64, 64);
+    const portrait = (framing.turns % 2 ? source.width : source.height) > (framing.turns % 2 ? source.height : source.width);
+    onCreateVirtualCopy({ ...framing, ...anchor, ratio: portrait ? 4 / 5 : 5 / 4 });
+  }
+
+  useEffect(() => {
     const pixels = originalPixels.current;
     const canvas = editedCanvas.current;
     if (sourceState !== 'ready' || !pixels || !canvas) return;
@@ -89,7 +118,7 @@ export function PhotoEditor({
     const output = new ImageData(new Uint8ClampedArray(pixels.data), pixels.width, pixels.height);
     applyPhotoEdit(output.data, edit);
     context.putImageData(output, 0, 0);
-  }, [edit, sourceState]);
+  }, [edit, framing, sourceState]);
 
   function download() {
     const canvas = editedCanvas.current;
@@ -174,6 +203,42 @@ export function PhotoEditor({
           </fieldset>
         ))}
         <details className="border-t border-white/10">
+          <summary className="min-h-11 cursor-pointer py-3 text-sm">Crop &amp; straighten</summary>
+          <fieldset disabled={sourceState !== 'ready'} className="space-y-2">
+            <div className="flex flex-wrap">
+              <button type="button" className={button} onClick={createCropCopy}>Make crop copy</button>
+              <button type="button" className={button} onClick={() => onFramingChange({
+                ...framing, turns: (framing.turns + 1) % 4, x: 1 - framing.y, y: framing.x,
+              })}>Rotate 90°</button>
+              <button type="button" className={button} onClick={() => onFramingChange(DEFAULT_FRAMING)}>Reset crop</button>
+            </div>
+            <label className="flex min-h-11 items-center justify-between gap-2 text-sm">
+              Aspect ratio
+              <select value={framing.ratio ?? ''} onChange={(event) => onFramingChange({ ...framing, ratio: Number(event.target.value) || null })}
+                className="min-h-10 rounded-md bg-[#252830] px-2">
+                <option value="">Original</option>
+                <option value={1}>Square</option>
+                <option value={4 / 5}>4:5</option>
+                <option value={5 / 4}>5:4</option>
+                <option value={3 / 2}>3:2</option>
+                <option value={2 / 3}>2:3</option>
+              </select>
+            </label>
+            <label className="block text-xs">Straighten <output>{framing.straighten.toFixed(1)}°</output>
+              <input type="range" min={-12} max={12} step={0.1} value={framing.straighten}
+                onChange={(event) => onFramingChange({ ...framing, straighten: event.target.valueAsNumber })}
+                className="block min-h-10 w-full accent-sky-300" />
+            </label>
+            {framing.ratio && (['x', 'y'] as const).map((axis) => (
+              <label key={axis} className="block text-xs">{axis === 'x' ? 'Horizontal crop position' : 'Vertical crop position'}
+                <input type="range" min={0} max={1} step={0.01} value={framing[axis]}
+                  onChange={(event) => onFramingChange({ ...framing, [axis]: event.target.valueAsNumber })}
+                  className="block min-h-10 w-full accent-sky-300" />
+              </label>
+            ))}
+          </fieldset>
+        </details>
+        <details className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
             Edit options <ChevronDown className="h-4 w-4" aria-hidden="true" />
           </summary>
@@ -218,7 +283,7 @@ export function PhotoEditor({
           )}
           <p role="status" className="text-xs text-zinc-400">{editNotice}</p>
           <div className="flex flex-wrap gap-1 border-t border-white/10 pt-1">
-            <button type="button" className={button} onClick={onCreateVirtualCopy}>Create virtual copy</button>
+            <button type="button" className={button} onClick={() => onCreateVirtualCopy()}>Create virtual copy</button>
             {onRemoveVirtualCopy && <button type="button" className={button} aria-expanded={confirmRemove} onClick={() => setConfirmRemove(!confirmRemove)}>Remove virtual copy</button>}
           </div>
           {confirmRemove && onRemoveVirtualCopy && (

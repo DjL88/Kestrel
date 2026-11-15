@@ -44,3 +44,20 @@ test('extractEmbeddedJpegFromRawBuffer finds largest embedded JPEG preview strea
   assert.equal(extracted.bytes[0], 0xff);
   assert.equal(extracted.bytes[1], 0xd8);
 });
+
+test('embedded XMP ratings and reject flags are parsed from a JPEG segment', async () => {
+  const { parseImageExif } = await import('./exifParser');
+  function jpeg(rating: number): Blob {
+    const xml = '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">' +
+      `<rdf:Description xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmp:Rating="${rating}"/></rdf:RDF></x:xmpmeta>`;
+    const packet = Buffer.from('http://ns.adobe.com/xap/1.0/\0' + xml);
+    const segmentSize = packet.length + 2;
+    const bytes = Buffer.concat([Buffer.from([255, 216, 255, 225, segmentSize >> 8, segmentSize & 255]), packet, Buffer.from([255, 217])]);
+    // exifr uses a byte reader in Node instead of the browser Blob reader.
+    return bytes as unknown as Blob;
+  }
+  assert.equal((await parseImageExif(jpeg(4), 'rating.jpg')).rating, 4);
+  const rejected = await parseImageExif(jpeg(-1), 'rejected.jpg');
+  assert.equal(rejected.rating, undefined);
+  assert.equal(rejected.rejectedByMetadata, true);
+});
