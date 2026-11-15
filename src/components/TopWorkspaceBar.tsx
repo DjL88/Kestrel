@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ChevronDown, Ellipsis, Plus, Search, Undo2 } from 'lucide-react';
+import { ArchiveRestore, ArrowLeft, ChevronDown, Download, Ellipsis, Eraser, FileDown, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Search, Trash2, Undo2 } from 'lucide-react';
 import type { ProjectSettings } from '../core/projectSettings';
 import { ThemePicker } from './ThemePicker';
 import { messages as m } from '../i18n/messages';
@@ -37,6 +37,12 @@ interface TopWorkspaceBarProps {
   autoAdvance: boolean;
   onToggleAutoAdvance: () => void;
   onClearDecision?: () => void;
+  /** Exports what is selected: the selected photos, else the current photo. */
+  onExport?: () => void;
+  exportLabel?: string;
+  /** What Undo and Redo would do, in words. */
+  undoLabel?: string;
+  redoLabel?: string;
   settings?: ProjectSettings;
   onSettingsChange?: (settings: ProjectSettings) => void;
   onRemoveFromLibrary?: () => void;
@@ -70,6 +76,27 @@ function RatingSelect({ value, onChange, className = '' }: { value: RatingFilter
         {[5, 4, 3, 2, 1, 0].map((n) => <option key={n} value={`eq:${n}`}>{n === 0 ? 'Unrated' : `Exactly ${n}★`}</option>)}
       </optgroup>
     </select>
+  );
+}
+
+function MenuSection({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+  return (
+    <section aria-labelledby={id} className="border-t border-white/10 pt-2">
+      <h3 id={id} className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">{title}</h3>
+      <div className="grid grid-cols-2 gap-1">{children}</div>
+    </section>
+  );
+}
+
+function MenuItem({ icon, children, onClick, disabled, pressed, wide }: {
+  icon: React.ReactNode; children: React.ReactNode; onClick: () => void; disabled?: boolean; pressed?: boolean; wide?: boolean;
+}) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} aria-pressed={pressed}
+      className={`flex min-h-10 min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:text-zinc-500 disabled:hover:bg-transparent aria-pressed:bg-sky-300/15 ${wide ? 'col-span-2' : ''}`}>
+      <span className="shrink-0 text-zinc-400">{icon}</span>
+      <span className="min-w-0 truncate">{children}</span>
+    </button>
   );
 }
 
@@ -121,33 +148,42 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
             `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter === 'all' || filter === 'reject' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}${props.ratingFilter ? ' · Rating filter' : ''}`}
         </div>
       </div>
-      <div className="flex shrink-0 items-center">
-        <button type="button" onClick={props.onOpenShootModal} disabled={props.actionsDisabled} className={actionClass} aria-label="Add photos to project">
+      <div className="flex shrink-0 items-center gap-1">
+        <button type="button" onClick={props.onOpenShootModal} disabled={props.actionsDisabled} className={`${actionClass} border border-white/12`} aria-label="Add photos to project" title="Add photos">
           <Plus className="h-4 w-4" aria-hidden="true" />
-          <span className="hidden sm:inline">Add photos</span>
+          <span className="hidden sm:inline">Add</span>
         </button>
-        <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto || props.actionsDisabled} className={`${actionClass} text-sky-200 disabled:opacity-40`}>Edit</button>
+        <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto || props.actionsDisabled} title="Open the selected photo in the editor"
+          className={`${actionClass} border border-sky-300/50 text-sky-100 hover:bg-sky-300/15 disabled:opacity-40`}>
+          <Pencil className="h-4 w-4" aria-hidden="true" />Edit
+        </button>
+        <button type="button" onClick={props.onExport} disabled={!props.onExport || props.actionsDisabled} title="Export the selected photos"
+          className={`${actionClass} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover disabled:opacity-40`}>
+          <Download className="h-4 w-4" aria-hidden="true" />{props.exportLabel ?? 'Export'}
+        </button>
         <div ref={menuRef}>
           <button ref={triggerRef} type="button" disabled={props.actionsDisabled} className={actionClass} onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Workspace options" aria-expanded={menuOpen} aria-controls="workspace-options">
             <Ellipsis className="h-5 w-5" aria-hidden="true" />
           </button>
           {menuOpen && (
-            <div id="workspace-options" data-workspace-options className="workspace-popover absolute right-2 top-full mt-1 max-h-[calc(100dvh_-_4rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-3 shadow-2xl sm:right-4">
-              <div className="space-y-2">
-                <div className="space-y-2 md:hidden">
-                <label className="block text-xs font-medium text-zinc-400">
-                  Search photos
-                  <input type="search" value={searchQuery} onChange={(event) => props.onSearchChange(event.target.value)}
-                    placeholder="Subject name or filename"
-                    className="mt-1 min-h-10 w-full rounded-md border border-white/10 bg-black/20 px-2 text-base text-zinc-100 sm:text-sm" />
-                </label>
-                <label className="block text-xs font-medium text-zinc-400">
-                  Rating
-                  <RatingSelect value={props.ratingFilter} onChange={props.onRatingFilterChange} className="mt-1 w-full" />
-                </label>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
+            <div id="workspace-options" data-workspace-options className="workspace-popover absolute right-2 top-full mt-1 max-h-[calc(100dvh-4rem)] w-[min(26rem,calc(100vw-1rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-3 shadow-2xl sm:right-4">
+              <div className="space-y-3">
+                <section aria-label="Find photos" className="space-y-2 md:hidden">
+                  <label className="block text-xs font-medium text-zinc-400">
+                    Search photos
+                    <input type="search" value={searchQuery} onChange={(event) => props.onSearchChange(event.target.value)}
+                      placeholder="Subject name or filename"
+                      className="mt-1 min-h-10 w-full rounded-md border border-white/10 bg-black/20 px-2 text-base text-zinc-100 sm:text-sm" />
+                  </label>
+                  <label className="block text-xs font-medium text-zinc-400">
+                    Rating
+                    <RatingSelect value={props.ratingFilter} onChange={props.onRatingFilterChange} className="mt-1 w-full" />
+                  </label>
+                </section>
+
+                <section aria-labelledby="menu-view" className="grid grid-cols-2 gap-2">
+                  <h3 id="menu-view" className="sr-only">View</h3>
                   <label className="relative text-xs font-medium text-zinc-400">
                     Show
                     <select aria-label="Show photos" value={filter} onChange={(event) => choose(() => props.onFilterChange(event.target.value as FilterState))}
@@ -164,55 +200,66 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-2 bottom-3 h-4 w-4" aria-hidden="true" />
                   </label>
-                </div>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-1 border-t border-white/10 pt-2">
-                <button type="button" className={actionClass} aria-pressed={showPhotoInfo} onClick={() => choose(props.onTogglePhotoInfo)}>{showPhotoInfo ? 'Hide photo info' : 'Photo info'}</button>
-                <button type="button" className={actionClass} onClick={() => choose(props.onOpenMacroPadModal, false)}>Macro pad</button>
-                <button type="button" className={actionClass} onClick={() => choose(props.onBackupProject)}>Back up project</button>
-                <button type="button" className={actionClass} onClick={() => choose(props.onAutoCull, false)}>{m.autoCull}</button>
-                {props.onToggleMultiSelect && <button type="button" className={actionClass} onClick={() => choose(() => props.onToggleMultiSelect?.())}>
-                  {props.multiSelect ? 'Done selecting' : 'Select photos'}
-                </button>}
-                {props.onClearDecision && <button type="button" className={actionClass} onClick={() => choose(() => props.onClearDecision?.())}>Clear decision</button>}
-                {props.onRemoveFromLibrary && <button type="button" className={actionClass} onClick={() => choose(() => props.onRemoveFromLibrary?.(), false)}>Remove from library…</button>}
-                {props.onOpenRemoved && <button type="button" className={actionClass} onClick={() => choose(() => props.onOpenRemoved?.(), false)}>Removed photos ({props.removedCount ?? 0})</button>}
-                {props.onRedo && <button type="button" className={actionClass} onClick={() => choose(() => props.onRedo?.())}>Redo decision</button>}
-              </div>
-              <details className="mt-2 border-t border-white/10 pt-2">
-                <summary className="min-h-10 cursor-pointer py-2 text-sm text-zinc-300">Layout</summary>
-                <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
-                  <input type="checkbox" checked={props.showFilmstrip} onChange={props.onToggleFilmstrip} />
-                  Pin filmstrip
-                </label>
-                <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
-                  <input type="checkbox" checked={props.focusMode} onChange={props.onToggleFocusMode} />
-                  Focus mode
-                </label>
-                <ThemePicker />
-              </details>
-              <details className="mt-2 border-t border-white/10 pt-2">
-                <summary className="min-h-10 cursor-pointer py-2 text-sm text-zinc-300">Culling settings</summary>
-                <div className="space-y-2 px-1 pb-2 text-sm">
-                  <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={autoAdvance} onChange={props.onToggleAutoAdvance} />Auto-advance</label>
-                  {props.settings && props.onSettingsChange && <>
-                    <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={props.settings.autoCull}
-                      onChange={(event) => props.onSettingsChange?.({ ...props.settings!, autoCull: event.target.checked })} />Auto-cull after adding photos</label>
-                    <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={props.settings.autoEdit}
-                      onChange={(event) => props.onSettingsChange?.({ ...props.settings!, autoEdit: event.target.checked })} />Auto-edit when first opening a photo</label>
-                  </>}
-                  <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={showShortcutsOverlay} onChange={props.onToggleShortcutsOverlay} />Show shortcut guide</label>
-                  <label className="flex items-center justify-between gap-2">
-                    Keeper target
-                    <input type="number" min={1} max={9999} value={keeperTarget}
-                      onChange={(event) => {
-                        const next = event.target.valueAsNumber;
-                        if (Number.isInteger(next) && next >= 1 && next <= 9999) props.onKeeperTargetChange(next);
-                      }}
-                      className="min-h-9 w-20 rounded-md border border-white/10 bg-black/20 px-2 text-right" />
+                </section>
+
+                <MenuSection id="menu-history" title="Undo and redo">
+                  <MenuItem wide icon={<Undo2 className="h-4 w-4" aria-hidden="true" />} disabled={!props.onUndo}
+                    onClick={() => choose(() => props.onUndo?.())}>{props.undoLabel ? `Undo: ${props.undoLabel}` : 'Nothing to undo'}</MenuItem>
+                  <MenuItem wide icon={<Redo2 className="h-4 w-4" aria-hidden="true" />} disabled={!props.onRedo}
+                    onClick={() => choose(() => props.onRedo?.())}>{props.redoLabel ? `Redo: ${props.redoLabel}` : 'Nothing to redo'}</MenuItem>
+                </MenuSection>
+
+                <MenuSection id="menu-selection" title="Photos">
+                  {props.onToggleMultiSelect && <MenuItem icon={<ListChecks className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(() => props.onToggleMultiSelect?.())}>
+                    {props.multiSelect ? 'Done selecting' : 'Select photos'}</MenuItem>}
+                  <MenuItem icon={<Eraser className="h-4 w-4" aria-hidden="true" />} disabled={!props.onClearDecision} onClick={() => choose(() => props.onClearDecision?.())}>Clear decision</MenuItem>
+                  <MenuItem icon={<Trash2 className="h-4 w-4" aria-hidden="true" />} disabled={!props.onRemoveFromLibrary} onClick={() => choose(() => props.onRemoveFromLibrary?.(), false)}>Remove from library…</MenuItem>
+                  <MenuItem icon={<ArchiveRestore className="h-4 w-4" aria-hidden="true" />} disabled={!props.onOpenRemoved} onClick={() => choose(() => props.onOpenRemoved?.(), false)}>Removed photos ({props.removedCount ?? 0})</MenuItem>
+                  <MenuItem icon={<Info className="h-4 w-4" aria-hidden="true" />} pressed={showPhotoInfo} onClick={() => choose(props.onTogglePhotoInfo)}>{showPhotoInfo ? 'Hide photo info' : 'Photo info'}</MenuItem>
+                </MenuSection>
+
+                <MenuSection id="menu-project" title="Project">
+                  <MenuItem icon={<ScanSearch className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onAutoCull, false)}>{m.autoCull}</MenuItem>
+                  <MenuItem icon={<FileDown className="h-4 w-4" aria-hidden="true" />} disabled={!props.onExportKeepers} onClick={() => choose(() => props.onExportKeepers?.())}>Export keepers</MenuItem>
+                  <MenuItem icon={<Save className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onBackupProject)}>Back up project</MenuItem>
+                  <MenuItem icon={<Keyboard className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onOpenMacroPadModal, false)}>Macro pad</MenuItem>
+                </MenuSection>
+
+                <details className="border-t border-white/10 pt-1">
+                  <summary className="min-h-10 cursor-pointer py-2 text-sm text-zinc-300">Layout and display</summary>
+                  <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
+                    <input type="checkbox" checked={props.showFilmstrip} onChange={props.onToggleFilmstrip} />
+                    Pin filmstrip
                   </label>
-                </div>
-              </details>
+                  <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
+                    <input type="checkbox" checked={props.focusMode} onChange={props.onToggleFocusMode} />
+                    Focus mode
+                  </label>
+                  <ThemePicker />
+                </details>
+                <details className="border-t border-white/10 pt-1">
+                  <summary className="min-h-10 cursor-pointer py-2 text-sm text-zinc-300">Culling settings</summary>
+                  <div className="space-y-2 px-1 pb-2 text-sm">
+                    <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={autoAdvance} onChange={props.onToggleAutoAdvance} />Auto-advance</label>
+                    {props.settings && props.onSettingsChange && <>
+                      <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={props.settings.autoCull}
+                        onChange={(event) => props.onSettingsChange?.({ ...props.settings!, autoCull: event.target.checked })} />Auto-cull after adding photos</label>
+                      <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={props.settings.autoEdit}
+                        onChange={(event) => props.onSettingsChange?.({ ...props.settings!, autoEdit: event.target.checked })} />Auto-edit when first opening a photo</label>
+                    </>}
+                    <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={showShortcutsOverlay} onChange={props.onToggleShortcutsOverlay} />Show shortcut guide</label>
+                    <label className="flex items-center justify-between gap-2">
+                      Keeper target
+                      <input type="number" min={1} max={9999} value={keeperTarget}
+                        onChange={(event) => {
+                          const next = event.target.valueAsNumber;
+                          if (Number.isInteger(next) && next >= 1 && next <= 9999) props.onKeeperTargetChange(next);
+                        }}
+                        className="min-h-9 w-20 rounded-md border border-white/10 bg-black/20 px-2 text-right" />
+                    </label>
+                  </div>
+                </details>
+              </div>
             </div>
           )}
         </div>
@@ -236,15 +283,6 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
             className="min-h-10 w-full rounded-md border border-white/10 bg-black/20 pl-8 pr-2 text-sm text-zinc-100" />
         </label>
         <RatingSelect value={props.ratingFilter} onChange={props.onRatingFilterChange} />
-      </div>
-      <div className="flex shrink-0 items-center">
-      {props.onExportKeepers && <button type="button" disabled={props.actionsDisabled} className={`${actionClass} text-sky-200`}
-        onClick={props.onExportKeepers} aria-label="Export keepers"><span className="sm:hidden">Export</span><span className="hidden sm:inline">Export keepers</span></button>}
-      <button type="button" disabled={!props.onUndo || props.actionsDisabled}
-        onClick={props.onUndo} aria-label="Undo last flag"
-        className={`${actionClass} text-zinc-300 disabled:opacity-35`}>
-        <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Undo</span>
-      </button>
       </div>
     </nav>
     </>

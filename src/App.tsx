@@ -1,4 +1,5 @@
 import { newId } from './core/ids';
+import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
 import { AutoCullPanel } from './components/AutoCullPanel';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -454,6 +455,11 @@ export default function App() {
   );
 
   // Moving a Keeper to Trash, or removing a photo from Trash, asks first. Both are reversible and never touch the file.
+  // Header Export uses the selection: the ticked photos in selection mode, otherwise the current photo.
+  const exportSelection = useMemo(
+    () => multiSelect && selectedIds.size ? liveFrames.filter((frame) => selectedIds.has(frame.id)) : selectedFrame ? [selectedFrame] : [],
+    [multiSelect, selectedIds, liveFrames, selectedFrame]
+  );
   const stateRef = useRef(cullingState);
   stateRef.current = cullingState;
   const [pendingAction, setPendingAction] = useState<{ kind: 'trash' | 'remove' | 'reset'; frameIds: string[]; allowAdvance?: boolean } | null>(null);
@@ -971,6 +977,10 @@ export default function App() {
         onExportKeepers={cullingState.filter === 'keep' && visibleFrames.length
           ? () => setExportFrames(visibleFrames) : undefined}
         onUndo={cullingState.undoStack.length ? () => executeCommand('cull.undo') : undefined}
+        undoLabel={undoLabel(cullingState)}
+        redoLabel={redoLabel(cullingState)}
+        onExport={exportSelection.length ? () => setExportFrames(exportSelection) : undefined}
+        exportLabel={exportSelection.length > 1 ? `Export ${exportSelection.length}` : 'Export'}
         showFilmstrip={prefs.showFilmstrip}
         onToggleFilmstrip={toggleFilmstrip}
         showPhotoInfo={showPhotoInfo}
