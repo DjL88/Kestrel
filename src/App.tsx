@@ -22,6 +22,8 @@ import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
 import { AutoCullPanel } from './components/AutoCullPanel';
 import { BatchLookDialog } from './components/BatchLookDialog';
+import { suggestKeeperAutoEdits, applyKeeperAutoEdits } from './providers/batchAutoEdit';
+import { tasks } from './core/taskStore';
 import { applyKeeperLook, previewKeeperLook } from './core/batchLooks';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { restoreProjectBackup } from './core/projectBackup';
@@ -122,6 +124,7 @@ export default function App() {
   const [editing, setEditing] = useState(false);
   const [autoCullOpen, setAutoCullOpen] = useState(false);
   const [batchLookOpen, setBatchLookOpen] = useState(false);
+  const [autoAdjustOpen, setAutoAdjustOpen] = useState(false);
   const [autoCullStart, setAutoCullStart] = useState(false);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
   const [showPhotoInfo, setShowPhotoInfo] = useState(false);
@@ -776,6 +779,34 @@ export default function App() {
   const filmstripVisible = prefs.showFilmstrip && !prefs.focusMode;
   const toggleFilmstrip = () => setPrefs((prev) => ({ ...prev, showFilmstrip: !prev.showFilmstrip }));
 
+  const autoAdjustKeepers = async () => {
+    const projectId = cullingState.shoot.id;
+    const frames = cullingState.frames;
+    const candidates = previewKeeperLook(frames).eligible;
+    const controller = new AbortController();
+    const task = tasks.start('Auto-adjusting keepers', { total: candidates, cancel: () => controller.abort() });
+    setAutoAdjustOpen(false);
+    try {
+      const edits = await suggestKeeperAutoEdits(frames, previewProviderRef.current!, controller.signal,
+        (count) => task.progress(count));
+      if (controller.signal.aborted || stateRef.current.shoot.id !== projectId) {
+        if (!controller.signal.aborted) task.finish('Project changed; no edits applied');
+        return;
+      }
+      const at = Date.now();
+      setCullingState((prev) => prev.shoot.id !== projectId ? prev : {
+        ...prev, shoot: { ...prev.shoot, lastUpdatedAt: at },
+        frames: applyKeeperAutoEdits(prev.frames, edits, at),
+      });
+      task.finish(`${edits.size} keepers adjusted`);
+      showToast(`Auto-adjusted ${edits.size} keepers. Originals remain unchanged.`);
+    } catch (error) {
+      if (controller.signal.aborted || task.cancelled) return;
+      task.fail(error instanceof Error ? error.message : 'Auto-adjust could not finish');
+      showToast('Auto-adjust could not finish. No edits were applied.');
+    }
+  };
+
   const applyEditToKeepers = (edit: PhotoEdit) => {
     const applied = { ...edit };
     const previous = new Map(
@@ -1178,6 +1209,7 @@ export default function App() {
           setPrefs((prev) => ({ ...prev, focusMode: !prev.focusMode }));
         }}
         onBatchLook={previewKeeperLook(cullingState.frames).total > 0 ? () => setBatchLookOpen(true) : undefined}
+        onAutoAdjustKeepers={previewKeeperLook(cullingState.frames).eligible > 0 ? () => setAutoAdjustOpen(true) : undefined}
         onExportKeepers={cullingState.filter === 'keep' && visibleFrames.length
           ? () => setExportFrames(visibleFrames) : undefined}
         onUndo={cullingState.undoStack.length ? () => executeCommand('cull.undo') : undefined}
@@ -1474,6 +1506,12 @@ export default function App() {
         }}
         onClose={() => setAutoCullOpen(false)} />}
 
+      {autoAdjustOpen && <ConfirmDialog title="Auto-adjust unedited keepers?" confirmLabel="Auto-adjust keepers" cancelLabel="Cancel"
+        onConfirm={() => void autoAdjustKeepers()} onCancel={() => setAutoAdjustOpen(false)}>
+        <p>Kestrel will analyse each unedited keeper locally and adjust its light, colour and tone. Already edited photos stay unchanged.</p>
+        <p>{previewKeeperLook(cullingState.frames).eligible} keepers are eligible. The task can be cancelled. No changes are applied until the scan finishes.</p>
+        <p>Nothing is uploaded or modified in your original files. You can undo the result for each photo.</p>
+      </ConfirmDialog>}
       {batchLookOpen && <BatchLookDialog frames={cullingState.frames} onClose={() => setBatchLookOpen(false)}
         onApply={(look, includeEdited) => {
           const at = Date.now();
