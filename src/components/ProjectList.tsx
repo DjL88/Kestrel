@@ -26,7 +26,7 @@ interface Props {
 const ACTION = 76;
 
 /**
- * A project row that, for a finger only, slides left to reveal Archive, and further to reveal Delete.
+ * A project row that, for a finger only (touch events never come from a mouse or pen), slides left to reveal Archive, and further to reveal Delete.
  * A mouse or pen never slides it: desktop keeps its visible buttons, and nothing moves by accident.
  */
 function SwipeRow({ children, archived, title, onArchive, onDelete, disabled }: {
@@ -53,21 +53,22 @@ function SwipeRow({ children, archived, title, onArchive, onDelete, disabled }: 
       </div>
       <div data-testid="swipe-row" className="relative flex touch-pan-y items-center gap-1 bg-kestrel-raised pr-1"
         style={{ transform: `translateX(${offset}px)`, transition: dragging ? 'none' : 'transform 160ms ease-out' }}
-        onPointerDown={(event) => {
-          if (event.pointerType !== 'touch' || !event.isPrimary) return;
-          start.current = { x: event.clientX, y: event.clientY, from: offset, moved: false };
+        onTouchStart={(event) => {
+          if (event.touches.length !== 1) return;
+          const touch = event.touches[0];
+          start.current = { x: touch.clientX, y: touch.clientY, from: offset, moved: false };
         }}
-        onPointerMove={(event) => {
+        onTouchMove={(event) => {
           const s0 = start.current;
-          if (!s0 || event.pointerType !== 'touch') return;
-          const dx = event.clientX - s0.x, dy = event.clientY - s0.y;
+          if (!s0 || event.touches.length !== 1) return;
+          const dx = event.touches[0].clientX - s0.x, dy = event.touches[0].clientY - s0.y;
           if (!s0.moved && (Math.abs(dx) < 8 || Math.abs(dy) > Math.abs(dx))) return;
           s0.moved = true;
           setDragging(true);
           setOffset(Math.max(-ACTION * 2, Math.min(0, s0.from + dx)));
         }}
-        onPointerUp={() => { const s0 = start.current; start.current = null; setDragging(false); if (s0?.moved) setOffset((value) => settle(value)); }}
-        onPointerCancel={() => { start.current = null; setDragging(false); setOffset((value) => settle(value)); }}
+        onTouchEnd={() => { const s0 = start.current; start.current = null; setDragging(false); if (s0?.moved) setOffset((value) => settle(value)); }}
+        onTouchCancel={() => { start.current = null; setDragging(false); setOffset((value) => settle(value)); }}
         onClickCapture={(event) => { if (offset !== 0) { event.preventDefault(); event.stopPropagation(); back(); } }}>
         {children}
       </div>
