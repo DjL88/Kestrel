@@ -15,4 +15,6 @@ test('empty and malformed custom dates cannot start export', () => {
   assert.equal(parseCustomExportDate('  '), null);
   assert.equal(parseCustomExportDate('not a date'), null);
   assert.equal(parseCustomExportDate('2026-13-15T12:30'), null);
+  assert.equal(parseCustomExportDate('2026-02-30T12:30'), null);
+  assert.equal(parseCustomExportDate('2026-11-15T24:30'), null);
 });
