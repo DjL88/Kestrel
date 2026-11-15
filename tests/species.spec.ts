@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 // The stand-in model always "sees" a red kite, so the whole path can be tested without the real 89 MB model.
 const standIn = readFileSync('tests/fixtures/stand-in-species.onnx');
 
-test('species suggestions: download once, look at the photo, accept a name, and it becomes a tag', async ({ page }) => {
+test('species suggestions: with automatic tagging off, accept a name and it becomes a tag', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('kestrel.autoTag.v1', 'off'));
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
@@ -54,6 +55,7 @@ test('species suggestions: download once, look at the photo, accept a name, and 
 });
 
 test('a suggestion can be dismissed, and the choice is not kept as a tag', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('kestrel.autoTag.v1', 'off'));
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
@@ -87,7 +89,7 @@ async function openBurst(page: import('@playwright/test').Page) {
   if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
-  await panel.getByRole('button', { name: 'Use Red kite' }).click({ timeout: 30000 });
+  // The photo is tagged by itself (the stand-in is always sure), then the rest of the burst is offered.
   return panel.getByRole('group', { name: 'Tag similar photos' });
 }
 
@@ -119,4 +121,67 @@ test('agreeing tags the whole burst, setting Wildlife where no kind was chosen',
     await expect(subject.getByRole('list', { name: 'Tags' }).getByRole('listitem')).toHaveText(['Red kite']);
     await expect(subject.getByRole('button', { name: 'Wildlife' })).toHaveAttribute('aria-pressed', 'true');
   }
+});
+
+
+test('when the model is sure the photo is tagged automatically, marked Auto, and can be kept', async ({ page }) => {
+  await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
+  await page.goto('/');
+  await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
+  await page.getByRole('tab', { name: 'Crop' }).waitFor();
+  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  await page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: /^Download/ }).click();
+  const subject = page.getByRole('region', { name: 'What is in this photo' });
+  const tag = subject.getByRole('list', { name: 'Tags' }).getByRole('listitem');
+  await expect(tag).toContainText('Red kite', { timeout: 30000 });
+  await expect(tag.getByText('Auto', { exact: true })).toBeVisible();
+  await expect(subject.getByRole('button', { name: 'Wildlife' })).toHaveAttribute('aria-pressed', 'true');
+  // Keeping it makes it an ordinary tag.
+  await tag.getByRole('button', { name: 'Keep tag Red kite' }).click();
+  await expect(tag.getByText('Auto', { exact: true })).toHaveCount(0);
+  await expect(tag).toContainText('Red kite');
+});
+
+test('an automatic tag that is removed is never put back on that photo', async ({ page }) => {
+  await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
+  await page.goto('/');
+  await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
+  await page.getByRole('tab', { name: 'Crop' }).waitFor();
+  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  const panel = page.getByRole('region', { name: 'Species suggestions' });
+  await panel.getByRole('button', { name: /^Download/ }).click();
+  const subject = page.getByRole('region', { name: 'What is in this photo' });
+  await expect(subject.getByRole('list', { name: 'Tags' })).toContainText('Red kite', { timeout: 30000 });
+  await subject.getByRole('button', { name: 'Remove tag Red kite' }).click();
+  await expect(subject.getByRole('list', { name: 'Tags' })).toHaveCount(0);
+  // Looking again does not tag it a second time. The name is offered as a suggestion to accept, nothing more.
+  await panel.getByRole('button', { name: 'Look again' }).click();
+  await expect(panel.getByRole('button', { name: 'Use Red kite' })).toBeVisible({ timeout: 30000 });
+  await expect(subject.getByRole('list', { name: 'Tags' })).toHaveCount(0);
+  // Accepting it by hand makes it an ordinary tag, with no Auto marker.
+  await panel.getByRole('button', { name: 'Use Red kite' }).click();
+  await expect(subject.getByRole('list', { name: 'Tags' }).getByRole('listitem')).toHaveText(['Red kite']);
+  await expect(subject.getByText('Auto', { exact: true })).toHaveCount(0);
+});
+
+test('automatic tagging can be switched off, and then a new photo is only offered a name', async ({ page }) => {
+  await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
+  await page.goto('/');
+  await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
+  await page.getByRole('tab', { name: 'Crop' }).waitFor();
+  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  const panel = page.getByRole('region', { name: 'Species suggestions' });
+  await panel.getByRole('button', { name: /^Download/ }).click();
+  await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('list', { name: 'Tags' })).toContainText('Red kite', { timeout: 30000 });
+  await panel.getByLabel('Tag automatically when it is sure').uncheck();
+  // A different photo: the model is just as sure, but nothing is added until it is accepted.
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  const toProjects = page.getByRole('button', { name: 'Back to projects' });
+  if (await toProjects.isVisible()) await toProjects.click();
+  await page.getByTestId('quick-edit-input').setInputFiles({
+    name: 'another.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
+  });
+  await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: 'Use Red kite' })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('list', { name: 'Tags' })).toHaveCount(0);
 });

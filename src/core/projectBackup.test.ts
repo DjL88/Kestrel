@@ -48,3 +48,18 @@ test('a portable backup restores complete subject grids and rejects the wrong de
     assert.throws(() => restoreProjectBackup(encodeProjectBackup(project), 'restored'), /invalid catalogue data/);
   }
 });
+
+test('a backup keeps kind, tags, automatic tags and declined names, and rejects damaged ones', () => {
+  const project = createDemoShootState(2);
+  project.frames[0] = { ...project.frames[0], subjectKind: 'wildlife', tags: ['Red kite', 'Moorland'], autoTags: ['Red kite'], declinedTags: ['Barn owl'] };
+  const restored = restoreProjectBackup(encodeProjectBackup(project), 'new-project', 1000);
+  assert.equal(restored.frames[0].subjectKind, 'wildlife');
+  assert.deepEqual(restored.frames[0].tags, ['Red kite', 'Moorland']);
+  assert.deepEqual(restored.frames[0].autoTags, ['Red kite']);
+  assert.deepEqual(restored.frames[0].declinedTags, ['Barn owl']);
+  for (const damage of [{ autoTags: 'Red kite' }, { declinedTags: [3] }, { tags: [1] }, { subjectKind: 'person' }]) {
+    const broken = JSON.parse(encodeProjectBackup(project));
+    Object.assign(broken.project.frames[0], damage);
+    assert.throws(() => restoreProjectBackup(JSON.stringify(broken), 'x'), /not a readable|invalid|could not/i, JSON.stringify(damage));
+  }
+});
