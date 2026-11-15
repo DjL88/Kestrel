@@ -22,6 +22,8 @@ import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
 import { AutoCullPanel } from './components/AutoCullPanel';
 import { BatchLookDialog } from './components/BatchLookDialog';
+import { SelectionLookDialog } from './components/SelectionLookDialog';
+import { applySelectedLook, previewSelectedLook } from './core/selectedLooks';
 import { suggestKeeperAutoEdits, applyKeeperAutoEdits } from './providers/batchAutoEdit';
 import { tasks } from './core/taskStore';
 import { applyKeeperLook, previewKeeperLook } from './core/batchLooks';
@@ -145,6 +147,8 @@ export default function App() {
   // A temporary edit queue limits Next/Previous and the filmstrip to selected photos.
   const [editQueueIds, setEditQueueIds] = useState<string[] | null>(null);
   const [confirmPasteSelection, setConfirmPasteSelection] = useState(false);
+  const [selectionLookOpen, setSelectionLookOpen] = useState(false);
+  const [editTogether, setEditTogether] = useState(false);
   const [infoFrameId, setInfoFrameId] = useState<string>();
   const infoTriggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -511,13 +515,15 @@ export default function App() {
     const ids = selectedVisibleFrames.map((frame) => frame.id);
     if (!ids.length) return;
     setEditQueueIds(ids);
+    setEditTogether(false);
     handleSelectFrame(ids[0]);
     setEditing(true);
-    setMultiSelect(false);
-    setSelectedIds(new Set());
+    // Carry the marked photos into Edit so bulk actions work immediately.
+    setMultiSelect(true);
+    setSelectedIds(new Set(ids));
     setPrefs((prev) => ({ ...prev, showFilmstrip: true, focusMode: false }));
   };
-  const leaveEditor = () => { setEditing(false); setEditQueueIds(null); setMultiSelect(false); setSelectedIds(new Set()); };
+  const leaveEditor = () => { setEditing(false); setEditQueueIds(null); setEditTogether(false); setMultiSelect(false); setSelectedIds(new Set()); };
 
   const pasteToSelection = () => {
     if (!copiedEdit || !selectedVisibleFrames.length) return;
@@ -1162,6 +1168,20 @@ export default function App() {
         <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-kestrel-panel px-3 py-1">
           <button type="button" onClick={leaveEditor} className="min-h-11 shrink-0 rounded-md px-2 text-sm font-medium hover:bg-white/10">Back</button>
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? 'Edit photo'}</h1>
+          {multiSelect && selectedVisibleFrames.length > 0 && (
+            <div className="flex shrink-0 items-center gap-1" role="group" aria-label="Selected photo actions">
+              {selectedVisibleFrames.length > 1 && <button type="button" aria-pressed={editTogether}
+                onClick={() => setEditTogether((value) => !value)}
+                className={`min-h-11 rounded-md border px-2 text-xs font-medium focus-visible:outline-2 focus-visible:outline-sky-300 ${editTogether ? 'border-sky-200 bg-white/15' : 'border-white/15 hover:bg-white/10'}`}>
+                {editTogether ? 'Editing together ✓' : 'Edit together'}
+              </button>}
+              <span className="hidden text-xs tabular-nums text-zinc-300 sm:inline">{selectedVisibleFrames.length} selected</span>
+              <button type="button" onClick={() => setSelectionLookOpen(true)}
+                className="min-h-11 rounded-md border border-white/15 px-2 text-xs font-medium hover:bg-white/10">Apply look</button>
+              <button type="button" onClick={() => setExportFrames(selectedVisibleFrames)}
+                className="min-h-11 rounded-md bg-kestrel-copper px-2 text-xs font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!">Export {selectedVisibleFrames.length}</button>
+            </div>
+          )>
           {!filmstripVisible && (
             <div className="flex shrink-0">
               <button type="button" aria-label="Previous photo" title="Previous photo" disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) <= 0} onClick={() => handleStepFrame(-1)}
@@ -1316,7 +1336,22 @@ export default function App() {
               bindings={prefs.bindings}
               provider={previewProviderRef.current!}
               needsAccess={needsAccess}
-              onEdit={(edit) => updateFrame(selectedFrame.id, { edit: isEmptyEdit(edit) ? undefined : { ...edit } })}
+              onEdit={(edit) => {
+                 if (!editTogether || !multiSelect || selectedVisibleFrames.length < 2) {
+                   updateFrame(selectedFrame.id, { edit: isEmptyEdit(edit) ? undefined : { ...edit } });
+                   return;
+                 }
+                 const ids = new Set(selectedVisibleFrames.map((frame) => frame.id));
+                 const at = Date.now();
+                 setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: at },
+                   frames: prev.frames.map((frame) => {
+                     if (!ids.has(frame.id)) return frame;
+                     // Share only global adjustments; local masks remain unique to each photograph.
+                     const nextEdit = { ...edit, masks: frame.id === selectedFrame.id ? edit.masks : frame.edit?.masks };
+                     return recordEdit(frame, { edit: isEmptyEdit(nextEdit) ? undefined : nextEdit }, at);
+                   }),
+                 }));
+               }}
               copiedEdit={copiedEdit}
               onCopyEdit={setCopiedEdit}
               onHistoryStep={(direction) => stepPhotoHistory(selectedFrame.id, direction)}
@@ -1344,13 +1379,15 @@ export default function App() {
           )}
 
           {!editing && multiSelect && (
-            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#15171C] px-3 text-sm">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-1 border-b border-white/10 bg-[#15171C] px-2 text-sm">
               <span>{selectedIds.size} selected</span>
-              <div className="flex items-center">
+              <div className="flex flex-wrap items-center gap-x-1">
               <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 px-2 text-sky-200 disabled:opacity-40"
                 onClick={() => setExportFrames(selectedVisibleFrames)}>
                 Export selected
               </button>
+              <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 px-2 text-sky-200 disabled:opacity-40"
+                onClick={() => setSelectionLookOpen(true)}>Apply look</button>
               <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 px-2 text-sky-200 disabled:opacity-40"
                 onClick={startSelectedEditing}>Edit selected</button>
               <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 px-2 text-orange-200 disabled:opacity-40"
@@ -1459,7 +1496,7 @@ export default function App() {
 
           {editing && selectedFrame && (
             <div role="toolbar" aria-label="Filmstrip controls"
-              className={`flex shrink-0 items-center gap-1 border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'md:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'md:pr-[var(--editor-panel-w,0px)]') : ''}`}>
+              className={`flex shrink-0 flex-wrap items-center gap-1 border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'md:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'md:pr-[var(--editor-panel-w,0px)]') : ''}`}>
               <button type="button" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10"
                 onClick={() => { setCopiedEdit(selectedFrame.edit ?? DEFAULT_EDIT); showToast('Adjustments copied'); }}>
                 <Copy className="h-4 w-4" aria-hidden="true" /> Copy
@@ -1469,11 +1506,17 @@ export default function App() {
                 <ClipboardPaste className="h-4 w-4" aria-hidden="true" /> Paste
               </button>
               <button type="button" aria-pressed={multiSelect} className="inline-flex min-h-11 items-center rounded-md px-2 text-xs hover:bg-white/10"
-                onClick={() => { setMultiSelect((current) => !current); setSelectedIds(new Set()); }}>{multiSelect ? 'Done selecting' : 'Select photos'}</button>
+                onClick={() => {
+                  setEditTogether(false);
+                  if (multiSelect) { setMultiSelect(false); setSelectedIds(new Set()); }
+                  else { setMultiSelect(true); setSelectedIds(new Set([selectedFrame.id])); }
+                }}>{multiSelect ? 'Done selecting' : 'Select photos'}</button>
               {multiSelect && <>
                 <span role="status" className="shrink-0 text-xs text-zinc-300">{selectedVisibleFrames.length} selected</span>
                 <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setExportFrames(selectedVisibleFrames)}>Export</button>
+                <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
+                  onClick={() => setSelectionLookOpen(true)}>Apply look</button>
                 <button type="button" disabled={!selectedVisibleFrames.length || !copiedEdit} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setConfirmPasteSelection(true)}>Paste to selected</button>
                 <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs text-orange-200 hover:bg-white/10 disabled:opacity-40"
@@ -1522,6 +1565,14 @@ export default function App() {
         )}
       </main>
 
+      {selectionLookOpen && <SelectionLookDialog frames={cullingState.frames} ids={new Set(selectedVisibleFrames.map((frame) => frame.id))}
+        onClose={() => setSelectionLookOpen(false)} onApply={(look, includeEdited) => {
+          const at = Date.now();
+          const ids = new Set(selectedVisibleFrames.map((frame) => frame.id));
+          setCullingState((prev) => ({ ...prev, frames: applySelectedLook(prev.frames, ids, look, includeEdited, at),
+            shoot: { ...prev.shoot, lastUpdatedAt: at } }));
+          showToast(`Applied a look to ${previewSelectedLook(cullingState.frames, ids, includeEdited).eligible} selected photos.`);
+        }} />}
       {confirmPasteSelection && <ConfirmDialog title={`Paste adjustments to ${selectedVisibleFrames.length} photos?`}
         confirmLabel="Apply adjustments" cancelLabel="Cancel" onCancel={() => setConfirmPasteSelection(false)}
         onConfirm={pasteToSelection}>
