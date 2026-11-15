@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createDemoShootState } from '../src/core/cullingEngine';
 import { encodeProjectBackup } from '../src/core/projectBackup';
 import { HELPER_CONSENT_VERSION } from '../src/core/onlineHelper';
+import { openPhotoInfo } from './helpers';
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 const GOOGLE = '**/generativelanguage.googleapis.com/**';
@@ -173,7 +174,7 @@ async function openAutoTab(page: Page) {
   await page.getByRole('button', { name: 'View bird-1.png' }).click();
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  await openPhotoInfo(page);
 }
 
 test('one photo can be asked about by hand, and the answer is only a suggestion to accept', async ({ page }) => {

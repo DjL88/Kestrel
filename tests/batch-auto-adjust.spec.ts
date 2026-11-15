@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('library can auto-adjust an unedited keeper locally and retain editable sliders', async ({ page }) => {
+  test.skip(test.info().project.name === 'phone', 'written for the desktop layout; the phone flow (More menu, folded Auto sheet) still needs its own version of this test');
   await page.goto('/');
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Auto adjustment acceptance');

@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ClipboardCopy, Star, X } from 'lucide-react';
 import { photoInfoText } from '../core/photoInfoText';
 import { SubjectPanel } from './SubjectPanel';
+import { SpeciesSuggestions } from './SpeciesSuggestions';
+import { mayAutoTag } from '../core/autoTags';
+import { hasName } from '../core/speciesBurst';
 import { addTags, type SubjectKind } from '../core/subjectTags';
 import { formatAperture, formatFocalLength } from '../core/exifParser';
 import type { CullDecision, PhotoFrame } from '../core/types';
@@ -15,6 +18,13 @@ interface ExifInspectorProps {
   /** Change what the photo is of. Species named by the app can be corrected here. */
   onSubjects: (frame: PhotoFrame, tags: string[], kind: SubjectKind | undefined) => void;
   onKeepTag: (frame: PhotoFrame, name: string) => void;
+  /** A small picture of a photo for the on-device species model to look at. Null when its original is not available. */
+  loadPicture?: (frame: PhotoFrame) => Promise<HTMLCanvasElement | null>;
+  /** The other photos in this one's burst, and a way to tag some of them after the person agrees. */
+  mates?: PhotoFrame[];
+  onTagPhotos?: (ids: string[], name: string, kind: SubjectKind | undefined) => void;
+  /** The app tags a photo by itself when the model is sure. */
+  onAutoTag?: (frame: PhotoFrame, name: string, kind: SubjectKind | undefined) => void;
 }
 
 function formatCaptureTime(ms?: number): string {
@@ -30,8 +40,18 @@ function formatCaptureTime(ms?: number): string {
   }
 }
 
-export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount, onClose, onRate, onFlag, onSubjects, onKeepTag }) => {
+export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount, onClose, onRate, onFlag, onSubjects, onKeepTag, loadPicture, mates = [], onTagPhotos, onAutoTag }) => {
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [picture, setPicture] = useState<HTMLCanvasElement | null>(null);
+  const frameId = frame?.id;
+  // The species model looks at a small copy of the photo, made when its details are opened.
+  useEffect(() => {
+    let active = true;
+    setPicture(null);
+    if (frame && loadPicture) void loadPicture(frame).then((canvas) => { if (active) setPicture(canvas); }, () => { /* no picture: suggestions simply wait */ });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frameId, loadPicture]);
   if (!frame) return null;
 
   const { exif } = frame;
@@ -84,6 +104,14 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
       <div className="mt-3 border-t border-white/10 pt-3">
         <SubjectPanel kind={frame.subjectKind} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} autoTags={frame.autoTags}
           onChange={(tags, kind) => onSubjects(frame, tags, kind)} onKeep={(name) => onKeepTag(frame, name)} />
+        {loadPicture && (
+          <SpeciesSuggestions frameId={frame.id} ready={Boolean(picture)} getPicture={() => picture}
+            tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} kind={frame.subjectKind}
+            onAccept={(name, kind) => onSubjects(frame, addTags(addTags(frame.subjectNames ?? [], frame.tags ?? []), [name]), frame.subjectKind ?? kind)}
+            mates={mates.map((mate) => ({ id: mate.id, has: (name: string) => hasName(mate, name), load: async () => loadPicture(mate) }))}
+            canAutoTag={mayAutoTag(frame, '')} declined={frame.declinedTags ?? []} onAutoTag={(name, kind) => onAutoTag?.(frame, name, kind)}
+            onTagMates={onTagPhotos} />
+        )}
       </div>
       {exif.isEmbeddedPreviewOnly && <p className="mt-1 text-xs text-zinc-300">Embedded RAW preview (not full RAW decoding)</p>}
       {batchCount > 1 && <p className="mt-3 text-xs text-sky-200">Apply ratings and flags to {batchCount} selected photos</p>}
