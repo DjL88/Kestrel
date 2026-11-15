@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { restoreProjectBackup } from './core/projectBackup';
+import { saveProjectBackupFile } from './providers/projectBackupFile';
 import { ProjectList } from './components/ProjectList';
 import { appendProjectPhotos, createEmptyProject } from './core/projects';
 import { createVirtualCopy } from './core/virtualCopies';
@@ -87,6 +89,7 @@ export default function App() {
   const [projects, setProjects] = useState<ShootDescriptor[]>([]);
   const [projectBusy, setProjectBusy] = useState(true);
   const [projectError, setProjectError] = useState<string>();
+  const [backupNotice, setBackupNotice] = useState<string>();
   const [multiSelect, setMultiSelect] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [infoFrameId, setInfoFrameId] = useState<string>();
@@ -153,6 +156,7 @@ export default function App() {
   function enterProject(state: CullingState) {
     const filter = state.filter === 'all' ? 'unreviewed' : state.filter;
     const visible = filterFrames(state.frames, filter, state.searchQuery);
+    setBackupNotice(undefined);
     setCullingState({
       ...state,
       filter,
@@ -224,6 +228,34 @@ export default function App() {
       setProjectError('Could not create the project. Check available browser storage.');
     } finally {
       setProjectBusy(false);
+    }
+  }
+
+  async function restoreBackup(file: File) {
+    const store = storeRef.current!;
+    setProjectBusy(true);
+    setProjectError(undefined);
+    try {
+      const state = restoreProjectBackup(await file.text(), `project-${crypto.randomUUID()}`);
+      await store.saveProject(state);
+      await openProject(state.shoot.id);
+    } catch (reason) {
+      setProjectError(reason instanceof Error ? reason.message : 'Could not restore this project backup.');
+    } finally {
+      setProjectBusy(false);
+    }
+  }
+
+  async function backupProject() {
+    setProjectError(undefined);
+    setBackupNotice(undefined);
+    try {
+      const result = await saveProjectBackupFile(cullingState);
+      if (result !== 'cancelled') setBackupNotice(result === 'saved' ?
+        'Catalogue backup saved. Keep the original photos separately.' :
+        'Catalogue backup downloaded. Keep the original photos separately.');
+    } catch {
+      setProjectError('Could not save the catalogue backup. Try another destination.');
     }
   }
 
@@ -702,7 +734,7 @@ export default function App() {
 
   if (projectsOpen) {
     return <ProjectList projects={projects} loading={projectBusy} error={projectError}
-      onOpen={(id) => void openProject(id)} onCreate={(name) => void newProject(name)} />;
+      onOpen={(id) => void openProject(id)} onCreate={(name) => void newProject(name)} onRestore={(file) => void restoreBackup(file)} />;
   }
 
   return (
@@ -772,6 +804,7 @@ export default function App() {
         }
         onOpenShootModal={() => { setFolderError(null); setOpenShootModal(true); }}
         onBackToProjects={() => void backToProjects()}
+        onBackupProject={() => void backupProject()}
         actionsDisabled={Boolean(loadingProgress) || projectBusy}
         onOpenMacroPadModal={() => setMacroPadModal(true)}
         loadingProgress={loadingProgress}
@@ -822,6 +855,11 @@ export default function App() {
       />
 
       {/* Main Workspace Split */}
+      {backupNotice && <div className="flex items-center justify-between gap-2 border-b border-white/8 px-3 text-sm text-zinc-300">
+        <p role="status">{backupNotice}</p>
+        <button type="button" className="min-h-11 px-2" onClick={() => setBackupNotice(undefined)}>Dismiss</button>
+      </div>}
+
       {projectError && <p role="alert" className="bg-orange-950 px-3 py-2 text-sm text-orange-100">{projectError}</p>}
 
       <main key={previewRevision} className="relative flex-1 flex min-h-0 min-w-0">
