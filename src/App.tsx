@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react';
 import { recordEdit, stepEdit } from './core/editHistory';
 import { AutoCullPanel } from './components/AutoCullPanel';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -750,7 +751,7 @@ export default function App() {
     <div className="h-dvh w-full flex flex-col pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden">
       {editing ? (
         <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-kestrel-panel px-3 py-1">
-          <button type="button" onClick={() => setEditing(false)} className="min-h-11 shrink-0 rounded-md px-2 text-sm font-medium hover:bg-white/10">Back</button>
+          <button type="button" onClick={() => setEditing(false)} className="kestrel-button shrink-0" aria-label="Back to Library"><ArrowLeft className="h-4 w-4" aria-hidden="true" /> Library</button>
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? 'Edit photo'}</h1>
           {!filmstripVisible && (
             <div className="flex shrink-0">

@@ -32,11 +32,11 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
             if (file) onRestore(file);
           }} />
           <button type="button" onClick={() => backupInput.current?.click()} disabled={loading}
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm text-zinc-300 hover:bg-white/8">
+            className="kestrel-button">
             <FolderUp className="h-4 w-4" aria-hidden="true" /> Restore backup
           </button>
           <button type="button" onClick={() => setCreating(!creating)} disabled={loading}
-            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-kestrel-copper px-3 text-sm font-semibold text-zinc-950 disabled:opacity-50">
+            className="kestrel-button kestrel-button-primary">
             <Plus className="h-4 w-4" aria-hidden="true" /> New project
           </button>
           </div>
@@ -52,8 +52,8 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
                 className="mt-1 min-h-11 w-full rounded-lg border border-white/15 bg-black/20 px-3" />
             </label>
             <div className="mt-2 flex justify-end gap-2">
-              <button type="button" onClick={() => setCreating(false)} className="min-h-11 rounded-md px-3 text-sm hover:bg-white/8">Cancel</button>
-              <button type="submit" disabled={!name.trim() || loading} className="min-h-11 rounded-md bg-kestrel-copper px-3 text-sm font-semibold text-zinc-950 disabled:opacity-40">Create project</button>
+              <button type="button" onClick={() => setCreating(false)} className="kestrel-button">Cancel</button>
+              <button type="submit" disabled={!name.trim() || loading} className="kestrel-button kestrel-button-primary">Create project</button>
             </div>
           </form>
         )}
