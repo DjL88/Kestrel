@@ -1,9 +1,9 @@
 import type { PhotoFrame } from './types';
-import { TONE_CONTROLS, type PhotoEdit } from './photoEdits';
+import { DETAIL_CONTROLS, TONE_CONTROLS, type PhotoEdit } from './photoEdits';
 import type { PhotoFraming } from './photoFraming';
 
 type Snapshot = { edit?: PhotoEdit; framing?: PhotoFraming };
-export type EditKind = 'light' | 'warmth' | 'colour' | 'adjustments' | 'tone' | 'crop' | 'rotation' | 'straighten';
+export type EditKind = 'light' | 'warmth' | 'colour' | 'adjustments' | 'tone' | 'detail' | 'crop' | 'rotation' | 'straighten';
 
 export interface EditHistory {
   cursor: number;
@@ -16,11 +16,12 @@ function classify(before: Snapshot, after: Snapshot): EditKind {
     if ((before.framing?.straighten ?? 0) !== (after.framing?.straighten ?? 0)) return 'straighten';
     return 'crop';
   }
-  const fields = (['exposure', 'warmth', 'colour', ...TONE_CONTROLS.map(({ key }) => key)] as const).filter((field) =>
+  const fields = (['exposure', 'warmth', 'colour', ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const).filter((field) =>
     (before.edit?.[field] ?? 0) !== (after.edit?.[field] ?? 0));
   if (fields.length !== 1) return 'adjustments';
   if (fields[0] === 'exposure') return 'light';
-  return fields[0] === 'warmth' || fields[0] === 'colour' ? fields[0] : 'tone';
+  if (fields[0] === 'warmth' || fields[0] === 'colour') return fields[0];
+  return DETAIL_CONTROLS.some(({ key }) => key === fields[0]) ? 'detail' : 'tone';
 }
 
 export function recordEdit(frame: PhotoFrame, patch: Snapshot, at: number): PhotoFrame {

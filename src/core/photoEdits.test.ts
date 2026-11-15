@@ -64,3 +64,45 @@ test('vibrance lifts muted colours more than saturated ones', () => {
   applyPhotoEdit(vivid, { ...DEFAULT_EDIT, vibrance: 2 });
   assert.ok(spread(muted) / before[0] > spread(vivid) / before[1]);
 });
+
+import { applyDetail, hasDetail } from './photoEdits';
+
+function edgeImage(size = 64) {
+  const pixels = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y += 1) for (let x = 0; x < size; x += 1) {
+    const v = x < size / 2 ? 90 : 160;
+    pixels.set([v, v, v, 255], (y * size + x) * 4);
+  }
+  return pixels;
+}
+
+test('detail controls on zero leave pixels untouched and report no detail', () => {
+  assert.equal(hasDetail(DEFAULT_EDIT), false);
+  const pixels = edgeImage();
+  const copy = new Uint8ClampedArray(pixels);
+  applyDetail(pixels, 64, 64, DEFAULT_EDIT, 64);
+  assert.deepEqual(pixels, copy);
+});
+
+test('sharpening leaves flat areas alone and steepens an edge', () => {
+  const pixels = edgeImage();
+  applyDetail(pixels, 64, 64, { ...DEFAULT_EDIT, sharpen: 2 }, 2200);
+  const at = (x: number) => pixels[(32 * 64 + x) * 4];
+  assert.equal(at(2), 90);
+  assert.equal(at(61), 160);
+  assert.ok(at(31) < 90, 'dark side of the edge gets darker');
+  assert.ok(at(32) > 160, 'bright side of the edge gets brighter');
+});
+
+test('negative texture softens an edge', () => {
+  const pixels = edgeImage();
+  applyDetail(pixels, 64, 64, { ...DEFAULT_EDIT, texture: -2 }, 2200);
+  const at = (x: number) => pixels[(32 * 64 + x) * 4];
+  assert.ok(at(31) > 90 && at(32) < 160);
+});
+
+test('detail never adds a colour cast to grey', () => {
+  const pixels = edgeImage();
+  applyDetail(pixels, 64, 64, { ...DEFAULT_EDIT, clarity: 2, sharpen: 1 }, 2200);
+  for (let i = 0; i < pixels.length; i += 4) assert.equal(pixels[i], pixels[i + 1]);
+});

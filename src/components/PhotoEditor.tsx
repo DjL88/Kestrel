@@ -4,9 +4,11 @@ import { ChevronDown } from 'lucide-react';
 import { DEFAULT_FRAMING, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, thirdsCropAnchor, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
 import { downloadExport } from '../providers/browserExport';
+import { Histogram } from './Histogram';
+import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
 import { PhotoViewport } from './PhotoViewport';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, applyCanvasPhotoEdit, isNeutralEdit, type PhotoEdit } from '../core/photoEdits';
+import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, DETAIL_CONTROLS, applyCanvasPhotoEdit, isNeutralEdit, type PhotoEdit } from '../core/photoEdits';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 
@@ -108,6 +110,7 @@ export function PhotoEditor({
     return () => observer.disconnect();
   }, []);
 
+  const [histogram, setHistogram] = useState<HistogramData | null>(null);
   const source = sourceState === 'ready' ? sourceImage.current : null;
   const guide = cropOpen && !previewCrop;
   const ratio = guide ? null : framing.ratio;
@@ -136,6 +139,16 @@ export function PhotoEditor({
     const scale = Math.min(1, FIT_PREVIEW_EDGE / Math.max(size.width, size.height));
     drawFramedPhoto(source, canvas, displayFraming, { scale });
     applyCanvasPhotoEdit(canvas, edit);
+    // A small copy keeps the histogram cheap, and it reads the edited result.
+    const small = document.createElement('canvas');
+    const shrink = Math.min(1, 256 / Math.max(canvas.width, canvas.height));
+    small.width = Math.max(1, Math.round(canvas.width * shrink));
+    small.height = Math.max(1, Math.round(canvas.height * shrink));
+    const smallContext = small.getContext('2d', { willReadFrequently: true });
+    if (smallContext) {
+      smallContext.drawImage(canvas, 0, 0, small.width, small.height);
+      setHistogram(computeHistogram(smallContext.getImageData(0, 0, small.width, small.height).data));
+    }
   }, [source, displayFraming, edit, size?.width, size?.height]);
 
   useEffect(() => {
@@ -153,7 +166,7 @@ export function PhotoEditor({
       const scale = Math.min(1, detail.scale * window.devicePixelRatio, Math.sqrt(5_000_000 / (region.width * region.height)));
       if (scale <= 0) return;
       drawFramedPhoto(source, editedDetail.current, displayFraming, { region, scale });
-      applyCanvasPhotoEdit(editedDetail.current, edit);
+      applyCanvasPhotoEdit(editedDetail.current, edit, Math.max(size!.width, size!.height) * scale);
       if (displayCompare && originalDetail.current) {
         drawFramedPhoto(source, originalDetail.current, displayFraming, { region, scale });
       }
@@ -311,6 +324,7 @@ export function PhotoEditor({
             'Used when cropping exports. Re-mark after changing the crop.'}</p>
         </details>
         {isRaw && <p className="text-xs text-zinc-300">Editing embedded JPEG preview</p>}
+        <Histogram data={histogram} />
         <div className="space-y-2 px-1 py-2">
           {EDIT_CHOICES.map(({ key, label, options }, index) => (
             <fieldset key={key} disabled={sourceState !== 'ready'} className="min-w-0 disabled:opacity-45">
@@ -350,6 +364,26 @@ export function PhotoEditor({
                   <output className="tabular-nums text-zinc-400">{Math.round((edit[key] ?? 0) * 50)}</output>
                 </span>
                 <input type="range" min={-2} max={2} step={0.05} value={edit[key] ?? 0} aria-label={`${label} adjustment`}
+                  disabled={sourceState !== 'ready'}
+                  onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
+                  onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
+                  className="block min-h-9 w-full accent-sky-300 disabled:opacity-45 lg:min-h-7" />
+              </label>
+            ))}
+          </div>
+        </details>
+        <details className="border-t border-white/10">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
+            Detail <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </summary>
+          <div className="space-y-1 px-1 pb-2">
+            {DETAIL_CONTROLS.map(({ key, label }) => (
+              <label key={key} className="block">
+                <span className="flex items-center justify-between text-xs text-zinc-300">
+                  <span>{label}</span>
+                  <output className="tabular-nums text-zinc-400">{Math.round((edit[key] ?? 0) * 50)}</output>
+                </span>
+                <input type="range" min={key === 'sharpen' ? 0 : -2} max={2} step={0.05} value={edit[key] ?? 0} aria-label={`${label} adjustment`}
                   disabled={sourceState !== 'ready'}
                   onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
                   onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
