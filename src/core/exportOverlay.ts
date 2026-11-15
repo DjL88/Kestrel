@@ -1,4 +1,5 @@
 import type { ExifMetadata } from './types';
+import type { WatermarkOptions } from './watermark';
 
 export interface OverlayOptions {
   on: boolean;
@@ -14,6 +15,8 @@ export interface OverlayOptions {
   place: 'bottom' | 'top';
   /** Light text on a dark fade, or dark text on a light fade. */
   tone: 'light' | 'dark';
+  /** A text or picture mark, drawn whether or not the text overlay is on. */
+  watermark?: WatermarkOptions;
 }
 
 export const NO_OVERLAY: OverlayOptions = { on: false, camera: true, lens: true, settings: true, date: false, place: 'bottom', tone: 'light' };

@@ -6,11 +6,14 @@ import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFrami
 import { exportFilename, type ExportProfile } from '../core/exportProfiles';
 import { planExportFraming, type ExportFraming, type FocusPoint } from '../core/exportFraming';
 import type { BarStyle } from '../core/exportFormats';
+import { hasWatermark, watermarkSpots } from '../core/watermark';
 import { overlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { datedExport } from '../core/exportTimestamp';
+import type { WatermarkOptions } from '../core/watermark';
 import { fitScale, maxCanvasPixels } from '../core/exportLimits';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
+import { isDesktopApp, saveWithDialog } from './desktopShell';
 
 export async function loadExportSource(frame: PhotoFrame, provider: Pick<BrowserPreviewProvider, 'getFullPreviewUrl' | 'hasBlob'>) {
   const url = await provider.getFullPreviewUrl(frame);
@@ -93,7 +96,41 @@ async function composeExport(
     const lines = overlayLines(frame.exif, extras.overlay);
     if (lines.length) drawOverlay(output, lines, extras.overlay);
   }
+  const mark = extras.overlay?.watermark;
+  if (mark && hasWatermark(mark)) await drawWatermark(output, mark);
   return { canvas, output, bordered: Boolean(border) };
+}
+
+let markPicture: { data: string; image: HTMLImageElement } | undefined;
+
+/** Draw the person's text or picture mark. Sizes follow the picture, so a preview and the full export look the same. */
+async function drawWatermark(target: HTMLCanvasElement, mark: WatermarkOptions) {
+  const context = target.getContext('2d');
+  if (!context) return;
+  const { width, height } = target;
+  context.save();
+  context.globalAlpha = Math.min(1, Math.max(0.05, mark.opacity));
+  let markWidth: number, markHeight: number, paint: (x: number, y: number) => void;
+  if (mark.kind === 'image' && mark.imageData) {
+    if (markPicture?.data !== mark.imageData) markPicture = { data: mark.imageData, image: await loadImage(mark.imageData) };
+    const image = markPicture.image;
+    markWidth = Math.max(8, Math.round(Math.max(width, height) * mark.size));
+    markHeight = Math.round(markWidth * (image.naturalHeight / image.naturalWidth));
+    paint = (x, y) => context.drawImage(image, x, y, markWidth, markHeight);
+  } else {
+    const size = Math.max(10, Math.round(Math.min(width, height) * mark.size));
+    context.font = `600 ${size}px Inter, system-ui, -apple-system, "Segoe UI", sans-serif`;
+    context.textBaseline = 'top';
+    markWidth = Math.ceil(context.measureText(mark.text).width);
+    markHeight = Math.ceil(size * 1.2);
+    context.fillStyle = mark.tone === 'dark' ? '#111111' : '#ffffff';
+    // A soft shadow keeps white text readable on bright skies and dark text readable on shadows.
+    context.shadowColor = mark.tone === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
+    context.shadowBlur = size / 6;
+    paint = (x, y) => context.fillText(mark.text, x, y);
+  }
+  for (const spot of watermarkSpots(width, height, markWidth, markHeight, mark.position)) paint(Math.round(spot.x), Math.round(spot.y));
+  context.restore();
 }
 
 /** Print lines of text over the bottom or top of a picture, on a soft fade so they stay readable on any photo. */
@@ -176,6 +213,15 @@ export async function renderExport(
 }
 
 export function downloadExport(blob: Blob, name: string) {
+  if (isDesktopApp()) {
+    // The desktop app has no browser download bar, so it asks where to save. If that fails, fall back to a browser download.
+    saveWithDialog(blob, name).catch(() => downloadInBrowser(blob, name));
+    return;
+  }
+  downloadInBrowser(blob, name);
+}
+
+function downloadInBrowser(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
