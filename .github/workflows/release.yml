@@ -40,6 +40,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - run: npm ci
+      - name: Verify release tag matches web, native and Rust versions
+        env:
+          KESTREL_RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node --test scripts/check-release-version.test.mjs
+          node scripts/check-release-version.mjs
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
