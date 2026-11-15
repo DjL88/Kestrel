@@ -32,7 +32,11 @@ test('species suggestions: download once, look at the photo, accept a name, and 
 
   // The model stays on the device: after a reload there is no second download, and the photo is looked at straight away.
   await page.reload();
-  await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
+  // A different photo this time: the first one is already tagged, so a suggestion for it would rightly stay hidden.
+  await page.getByTestId('quick-edit-input').setInputFiles({
+    name: 'second.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
+  });
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
   await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: /^Download/ })).toHaveCount(0);

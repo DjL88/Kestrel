@@ -701,7 +701,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         {tab === 'auto' && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
         <SubjectPanel kind={frame.subjectKind} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} disabled={sourceState !== 'ready'} onChange={onSubjectsChange} />
-        <SpeciesSuggestions frameId={frame.id} ready={sourceState === 'ready'} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} kind={frame.subjectKind}
+        <SpeciesSuggestions frameId={frame.id} ready={sourceState === 'ready' && Boolean(source)} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} kind={frame.subjectKind}
           getPicture={() => {
             if (!source) return null;
             const canvas = document.createElement('canvas');

@@ -4,6 +4,9 @@ dist/
 coverage/
 .DS_Store
 *.log
+
+# Large optional model files, fetched by npm run model:species
+/public/models/
 .env*
 !.env.example
 
