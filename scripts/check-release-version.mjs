@@ -6,10 +6,18 @@ const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/;
 
 /** Read just the [package] version, not dependency versions in Cargo.toml. */
 export function cargoPackageVersion(toml) {
-  const section = /^\[package\]\s*$([\s\S]*?)(?=^\[|\s*$)/m.exec(toml)?.[1];
-  const version = section && /^version\s*=\s*"([^"]+)"\s*(?:#.*)?$/m.exec(section)?.[1];
-  if (!version) throw new Error('Cargo.toml [package] version is missing.');
-  return version;
+  let inPackage = false;
+  for (const line of toml.split(/\r?\n/)) {
+    if (/^\s*\[/.test(line)) {
+      inPackage = /^\s*\[package\]\s*(?:#.*)?$/.test(line);
+      continue;
+    }
+    if (inPackage) {
+      const version = /^\s*version\s*=\s*"([^"]+)"\s*(?:#.*)?$/.exec(line)?.[1];
+      if (version) return version;
+    }
+  }
+  throw new Error('Cargo.toml [package] version is missing.');
 }
 
 /** Validates the three version sources and optional GitHub release tag. */
