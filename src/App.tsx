@@ -3,6 +3,8 @@ import { useAccess } from './providers/useAccess';
 import { loadLicence } from './providers/licenceStore';
 import { PaidNotice } from './components/PaidNotice';
 import { SyncFolderDialog } from './components/SyncFolderDialog';
+import { WatchFolderDialog } from './components/WatchFolderDialog';
+import { useFolderWatch } from './providers/useFolderWatch';
 import { DropOverlay } from './components/DropOverlay';
 import { useDropPhotos } from './providers/useDropPhotos';
 import { DesktopUpdate } from './components/DesktopUpdate';
@@ -99,6 +101,7 @@ export default function App() {
   const { can } = useAccess();
   const [syncOpen, setSyncOpen] = useState(false);
   useEffect(() => { void loadLicence(); }, []);
+  const [watchOpen, setWatchOpen] = useState(false);
   const [paidDialog, setPaidDialog] = useState<string | null>(null);
   useDesktopMenu();
   const storeRef = useRef<BrowserCatalogueStore | null>(null);
@@ -837,6 +840,7 @@ export default function App() {
   const handleSelectLocalFilesRef = useRef<(files: File[]) => Promise<void>>(async () => {});
   const onDroppedPhotos = useCallback((files: File[]) => { if (projectsOpen) void quickEditRef.current(files); else void droppedInProjectRef.current(files); }, [projectsOpen]);
   const drop = useDropPhotos(onDroppedPhotos);
+  const watch = useFolderWatch(useCallback((files: File[]) => { void droppedInProjectRef.current(files); }, []));
 
   const handleSelectLocalFiles = async (files: File[], options?: { openEditor?: boolean }) => {
     // A photo that was removed from the library does not count as already added, so adding it again brings it back.
@@ -1044,6 +1048,8 @@ export default function App() {
       <DesktopUpdate />
       {syncOpen && <SyncFolderDialog title={cullingState.shoot.title} projectId={cullingState.shoot.id} frames={cullingState.frames} onClose={() => setSyncOpen(false)}
         onApply={(frames) => setCullingState((prev) => ({ ...prev, frames, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } }))} />}
+      {watchOpen && <WatchFolderDialog onStart={(source, includeExisting) => void watch.start(source, includeExisting)} onClose={() => setWatchOpen(false)} />}
+      {watch.status && <p role="status" className="fixed bottom-3 left-3 z-40 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/15 bg-kestrel-raised px-3 py-2 text-xs text-zinc-100 shadow-lg">{watch.status.error ?? `Watching “${watch.status.folder}” · ${watch.status.imported} new photo${watch.status.imported === 1 ? '' : 's'} added`}</p>}
       {paidDialog && (
         <div role="dialog" aria-modal="true" aria-label={`${paidDialog} is part of Kestrel Paid`} className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
           onKeyDown={(event) => { if (event.key === 'Escape') setPaidDialog(null); }}>
@@ -1128,6 +1134,8 @@ export default function App() {
         onOpenShootModal={() => { setFolderError(null); setOpenShootModal(true); }}
         onBackToProjects={() => void backToProjects()}
         onBackupProject={() => void backupProject()}
+        watching={watch.status?.folder ?? null}
+        onWatchFolder={() => { if (watch.status) watch.stop(); else setWatchOpen(true); }}
         onSyncFolder={() => setSyncOpen(true)}
         onAutoCull={() => { if (!can('smartCulling')) { setPaidDialog('Auto-cull'); return; } setAutoCullStart(false); setAutoCullOpen(true); }}
         settings={cullingState.settings ?? LEGACY_SETTINGS}
