@@ -59,12 +59,16 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
       return fetchModel(input, init);
     };
   });
-  await page.getByText('Masks', { exact: true }).click();
+  await page.getByRole('tab', { name: 'Masks' }).click();
   await page.getByRole('button', { name: 'Find subject', exact: true }).click();
+  // The sliders live on the Edit tab, so change the edit there while detection is still waiting for the model.
+  await page.getByRole('tab', { name: 'Edit' }).click();
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.2');
   await page.evaluate(() => window.dispatchEvent(new Event('test-resume-model')));
+  await page.getByRole('tab', { name: 'Masks' }).click();
   await expect(page.getByText('Photo edits changed. Find the subject or background again.')).toBeVisible({ timeout: 15000 });
+  await page.getByRole('tab', { name: 'Edit' }).click();
   await expect(light).toHaveValue('0.2');
   await light.press('ArrowLeft');
   await expect(light).toHaveValue('0.1');
