@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { EXPORT_FORMATS, PLATFORMS, formatById, shapeLabel, sizeLabel, type BarStyle, type ExportFormat, type Fit } from '../core/exportFormats';
 import type { FocusPoint } from '../core/exportFraming';
@@ -67,6 +67,17 @@ export function ExportWizard(props: Props) {
   const current = positionable[Math.min(index, Math.max(0, positionable.length - 1))];
   const frame = frames[Math.min(photo, frames.length - 1)];
   const at = STEPS.findIndex((entry) => entry.id === step);
+  const content = useRef<HTMLDivElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const stepKey = step === 'position' ? `position-${index}` : step;
+  const previousStep = useRef(stepKey);
+
+  useLayoutEffect(() => {
+    if (previousStep.current === stepKey) return;
+    previousStep.current = stepKey;
+    if (content.current) content.current.scrollTop = 0;
+    heading.current?.focus({ preventScroll: true });
+  }, [stepKey]);
 
   useEffect(() => { if (step === 'size' && platform === 'custom') props.onCustomOn(true); }, [step, platform]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -101,10 +112,10 @@ export function ExportWizard(props: Props) {
         ))}
       </ol>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-2">
+      <div ref={content} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-2">
         {step === 'platform' && (
           <section aria-label="Where is it going?" className="space-y-2">
-            <h3 className="text-sm font-medium text-zinc-100">Where is it going?</h3>
+            <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-zinc-100">Where is it going?</h3>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {[{ id: 'master', label: 'Full size' }, ...PLATFORMS, { id: 'custom', label: 'Custom size' }].map((entry) => (
                 <button key={entry.id} type="button" aria-pressed={platform === entry.id} onClick={() => { setPlatform(entry.id); setStep('size'); }}
@@ -121,7 +132,7 @@ export function ExportWizard(props: Props) {
 
         {step === 'size' && (
           <section aria-label={`${platformName} sizes`} className="space-y-2">
-            <h3 className="text-sm font-medium text-zinc-100">{platformName}: which size?</h3>
+            <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-zinc-100">{platformName}: which size?</h3>
             {platform === 'custom' ? props.customSlot : (
               <div className="space-y-1.5">
                 {choices.map((format) => (
@@ -139,7 +150,7 @@ export function ExportWizard(props: Props) {
         {step === 'position' && current && frame && (
           <section aria-label="Position" className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-medium text-zinc-100">Position · {current.label} <span className="font-normal text-zinc-400">({index + 1} of {positionable.length})</span></h3>
+              <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-zinc-100">Position · {current.label} <span className="font-normal text-zinc-400">({index + 1} of {positionable.length})</span></h3>
               {frames.length > 1 && (
                 <span className="flex items-center gap-1 text-xs text-zinc-300">
                   <button type="button" className="grid h-9 w-9 place-items-center rounded-md hover:bg-white/10 disabled:opacity-40" aria-label="Previous photo" disabled={photo === 0} onClick={() => setPhoto(photo - 1)}><ChevronLeft className="h-4 w-4" aria-hidden="true" /></button>
@@ -174,7 +185,7 @@ export function ExportWizard(props: Props) {
 
         {step === 'review' && (
           <section aria-label="Ready to export" className="space-y-3">
-            <h3 className="text-sm font-medium text-zinc-100">Ready to export</h3>
+            <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-zinc-100">Ready to export</h3>
             <ul className="space-y-1">
               {selected.map((format) => (
                 <li key={format.id} className="flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2 text-sm">

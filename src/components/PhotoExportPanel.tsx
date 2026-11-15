@@ -135,7 +135,8 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
         const stops = [...(dialog.current?.querySelectorAll<HTMLElement>('button, input, select, summary, [tabindex="0"]') ?? [])]
           .filter((item) => !item.matches(':disabled') && item.getClientRects().length > 0);
         const boundary = event.shiftKey ? stops[0] : stops.at(-1);
-        if (stops.length && (!stops.some((stop) => stop === document.activeElement) || document.activeElement === boundary)) {
+        const focused = document.activeElement;
+        if (stops.length && (focused === title.current || !dialog.current?.contains(focused) || focused === boundary)) {
           event.preventDefault();
           (event.shiftKey ? stops.at(-1) : stops[0])?.focus();
         }
