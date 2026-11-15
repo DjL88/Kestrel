@@ -35,9 +35,10 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
   if (!frame) return null;
 
   const { exif } = frame;
+  const selectedFrame = frame;
   async function copyInfo() {
     try {
-      await navigator.clipboard.writeText(photoInfoText(frame));
+      await navigator.clipboard.writeText(photoInfoText(selectedFrame));
       setCopyStatus('Photo details copied.');
     } catch {
       setCopyStatus('Could not copy. Allow clipboard access or try again.');
