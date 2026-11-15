@@ -152,9 +152,16 @@ export default function App() {
   // Avoid recomputing and saving every selected photograph for each slider tick.
   // The active photograph changes immediately; the group catches up after dragging stops.
   const linkedEditTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingLinkedEdit = useRef<(() => void) | null>(null);
   const cancelLinkedEdit = () => {
     if (linkedEditTimer.current !== null) clearTimeout(linkedEditTimer.current);
     linkedEditTimer.current = null;
+    pendingLinkedEdit.current = null;
+  };
+  const flushLinkedEdit = () => {
+    const commit = pendingLinkedEdit.current;
+    cancelLinkedEdit();
+    commit?.();
   };
   const [infoFrameId, setInfoFrameId] = useState<string>();
   const infoTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -451,6 +458,7 @@ export default function App() {
   }, [visibleFrames, selectedFrame]);
 
   const handleSelectFrame = useCallback((frameId: string) => {
+    flushLinkedEdit();
     setZoomLevel(1);
     setPanOffset({ x: 0, y: 0 });
     setCullingState((prev) => ({
@@ -501,6 +509,7 @@ export default function App() {
 
   const handleStepFrame = useCallback(
     (delta: number) => {
+      flushLinkedEdit();
       setZoomLevel(1);
       setPanOffset({ x: 0, y: 0 });
       setCullingState((prev) => {
@@ -530,7 +539,7 @@ export default function App() {
     setSelectedIds(new Set(ids));
     setPrefs((prev) => ({ ...prev, showFilmstrip: true, focusMode: false }));
   };
-  const leaveEditor = () => { cancelLinkedEdit(); setEditing(false); setEditQueueIds(null); setEditTogether(false); setMultiSelect(false); setSelectedIds(new Set()); };
+  const leaveEditor = () => { flushLinkedEdit(); setEditing(false); setEditQueueIds(null); setEditTogether(false); setMultiSelect(false); setSelectedIds(new Set()); };
 
   const pasteToSelection = () => {
     if (!copiedEdit || !selectedVisibleFrames.length) return;
@@ -1341,12 +1350,11 @@ export default function App() {
                 const activeId = selectedFrame.id;
                 const ids = new Set(selectedVisibleFrames.map((frame) => frame.id));
                 const globalEdit = { ...edit, masks: undefined };
-                linkedEditTimer.current = setTimeout(() => {
-                  linkedEditTimer.current = null;
+                pendingLinkedEdit.current = () => {
                   if (stateRef.current.shoot.id !== projectId) return;
                   const at = Date.now();
                   setCullingState((prev) => {
-                    if (prev.shoot.id !== projectId || prev.selectedFrameId !== activeId) return prev;
+                    if (prev.shoot.id !== projectId) return prev;
                     let changed = false;
                     const frames = prev.frames.map((frame) => {
                       if (!ids.has(frame.id) || frame.id === activeId || frame.removedAt) return frame;
@@ -1357,7 +1365,8 @@ export default function App() {
                     });
                     return changed ? { ...prev, frames, shoot: { ...prev.shoot, lastUpdatedAt: at } } : prev;
                   });
-                }, 250);
+                };
+                linkedEditTimer.current = setTimeout(flushLinkedEdit, 250);
               }}
               onApplyLook={(look) => {
                 const ids = new Set(multiSelect ? selectedVisibleFrames.map((frame) => frame.id) : []);
@@ -1530,13 +1539,14 @@ export default function App() {
               <button type="button" aria-pressed={multiSelect} className="inline-flex min-h-11 items-center rounded-md px-2 text-xs hover:bg-white/10"
                 onClick={() => {
                   cancelLinkedEdit();
+                  flushLinkedEdit();
                   setEditTogether(false);
                   if (multiSelect) { setMultiSelect(false); setSelectedIds(new Set()); }
                   else { setMultiSelect(true); setSelectedIds(new Set([selectedFrame.id])); }
                 }}>{multiSelect ? 'Done selecting' : 'Select photos'}</button>
               {multiSelect && <>
                 {selectedVisibleFrames.length > 1 && <button type="button" aria-pressed={editTogether}
-                  onClick={() => { cancelLinkedEdit(); setEditTogether((value) => !value); }}
+                  onClick={() => { flushLinkedEdit(); setEditTogether((value) => !value); }}
                   className={`min-h-11 rounded-md border px-2 text-xs font-medium focus-visible:outline-2 focus-visible:outline-sky-300 ${editTogether ? 'border-sky-200 bg-white/15' : 'border-white/15 hover:bg-white/10'}`}>
                   {editTogether ? 'Editing together ✓' : 'Edit together'}
                 </button>}
