@@ -2,12 +2,45 @@
 
 **Decision context:** Mac and Windows betas first; a separate standalone Kestrel domain is planned but not yet registered or verified. Public download site is being built in PR #131. Do not hardcode a speculative domain. The exact name, registrar control and trademark clearance require owner validation.
 
-## Proposed product split
+## Three-tier product split — Mac and Windows first
 
-- **Kestrel Local:** £29 GBP one-time *proposed* price. Permanent use of the purchased local desktop editor. Works offline, stores originals and catalogues locally and supports independent export and backup. Define whether major future upgrades are included before checkout.
-- **Kestrel Cloud:** £2.99 GBP/month *proposed* entry-level price, **50 GB candidate cap**. Optional subscription for encrypted private cloud storage / sync, subject to a full financial and capacity review. Cloud is not required for desktop activation or local functionality after activation.
-- Never describe local filesystem storage as a finite amount of cloud quota: its capacity is determined by the customer's own disk.
-- Confirm whether the prices shown to UK consumers include VAT and calculate taxes by country before taking payments. Do not represent this text as a live offer.
+| Tier | Price | Entitlements |
+| --- | --- | --- |
+| **Free** | £0 | Basic local editing and export, user-owned projects/backups, offline. No registration required. |
+| **Paid** | £29 one-off (proposed) | Lifetime local desktop app, full import → cull → edit → export, all local advanced tools, unlimited permitted personal use. No mandatory cloud or continuous sign-in. |
+| **Subscribe** | £2.99/month (proposed, in addition to the one-off licence) | All Paid benefits plus optional private cloud sync/storage and hosted AI assistance while subscribed; 50 GB is only a candidate tier pending cost validation. |
+
+**Unresolved purchase design:** If a Free user subscribes without already owning Paid, checkout should either bundle a Paid entitlement or make the £29 prerequisite explicit. Do not charge and silently leave their editing features locked. Existing paid customers should never have to repurchase their local licence.
+
+The native desktop beta includes Free and Paid. Cloud subscription and hosted AI ship only after the service has passed access-control, privacy, security, cost and billing tests. Do not advertise them as live.
+
+### Data minimisation and login
+
+- Free needs **no account**. The paid desktop app can activate once and cache a verifiable, signed entitlement locally for offline use. Its independent backup and export remain available without online validation.
+- The intended cloud account uses **username + password + selected country**. A hosted identity service holds properly salted, slow password hashes and authentication secrets. Never hold passwords in plaintext or implement password storage in the frontend. If only usernames are collected, offer secure recovery codes: without an email address or another verified factor, password recovery is genuinely harder. Passkeys may be an optional upgrade.
+- Use a random, non-guessable internal account ID; usernames are not security boundaries and may change. Only store that ID, a unique username, **cloud data-residency country**, opaque identity-provider subject, licence/plan state, minimal billing-provider subscription reference, account timestamps and verified device identifiers when needed.
+- No card data, postal addresses, legal names, full payment receipts, API secrets or identity documents in the Kestrel application database. A hosted **merchant of record** (e.g. Paddle, subject to commercial approval) collects required billing email/address, payment methods, tax and invoices. Kestrel may still be a controller/processor for the minimum linked identifiers, login events and IP-related logs; do not promise to store *zero* customer data.
+- Hosted checkout + verified webhook → server-side subscription entitlement. Validate provider signatures, deduplicate webhook IDs, handle refunds/disputes, and reconcile subscription status. Never unlock access solely from a browser redirect or a client-set flag.
+- A username/password pair is not a licence secret: server issues a signed, revocable device licence, securely bound to the account. **Five active desktop devices is a possible soft cap**, with a self-service device list, revoke, hardware changes and offline tolerance. No silent device fingerprinting, invasive telemetry or routine activation limits unless abuse justifies them.
+
+### Country and privacy
+
+- At first **cloud activation**, show a plain-language storage-country choice (residence/data-location preference). Do not infer it solely from IP, browser locale, billing country or language.
+- Map chosen countries to supported *verified* storage/data-processing regions, subject to the legal/data-residency assessment. Example design: UK → UK-resident provider if guaranteed; EU member → approved EU region; US → approved US region. For other countries, explain the proposed location and gain explicit agreement or decline service until supported. A self-declared country does not establish tax residence or lawful transfer grounds.
+- Pin the region per account/project before writing any cloud objects. Keep image objects, previews, catalogue metadata, auth tenancy data, queue payloads, operational logs and backups within the stated scope of the residency promise. No automatic cross-region fallback; country changes require a deliberate migration process with notice, checksum verification and deletion of prior copies.
+- Each user's cloud objects private by default, immutable originals, scoped short-lived signed URLs, authenticated project membership, per-account quota and full audit of security-sensitive changes. Choose encryption-at-rest/in-transit and a documented operator access policy.
+- User data protection rights, legitimate operational logging, incident response, clear privacy notice and retention/deletion controls still apply even when personal collection is minimised.
+
+### Subscription cancellation and cloud lifecycle
+
+1. Until the **end of the last paid subscription period**, cloud uploads and authorised hosted AI remain available. On cancellation or overdue payment, a server may disable uploads immediately under the published policy; no accidental charges or silent resubscriptions.
+2. After paid access ends, **uploads and hosted AI stop**. Existing remote files remain **read-only and downloadable for 365 days**, giving the owner time to export or resubscribe. Local originals and edits remain untouched.
+3. The backend records the final paid-through timestamp *from verified billing events*. Server time governs expiry (not the desktop clock). Provide the exact read-only deadline in the account UI and repeated advance deletion warnings through the chosen recovery channel. If a user refuses all external contact details, warn that external reminders may be impossible; show notices on login instead.
+4. After the 365-day window, remote data is **eligible for deletion** only according to a separately published, reviewed retention/deletion process; no auto-deletion is implemented by this code. Preserve a short additional operational buffer where applicable. Restoration after permanent deletion cannot be promised.
+5. Resubscription before deletion restores cloud upload/AI permissions subject to a new verified entitlement and quota. If the account exceeds a reduced quota, allow download before upload.
+6. The one-off Paid licence is **permanent**, independent of cloud status. Never hold users' local work hostage to a failed payment.
+
+The `commercialAccess.ts` capability helper is deliberately **not** wired to any real billing system or filesystem locks. Server-side authorization is mandatory for any future cloud call. Its year-long download window is for planned UI behaviour only, and does not schedule deletion.
 
 ### Costs to validate before setting cloud quota
 
