@@ -4,8 +4,6 @@ test('macro pad mode and knob controls have accessible names and touch targets',
   await page.goto('/');
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Macro pad test');
-  await page.getByRole('button', { name: 'Next' }).click();
-  await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Create project' }).click();
   await page.getByRole('button', { name: page.viewportSize()!.width < 768 ? 'More' : 'Workspace options', exact: true }).click();
   await page.getByText('Macro pad', { exact: true }).click();
