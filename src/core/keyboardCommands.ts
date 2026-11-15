@@ -286,6 +286,19 @@ export function normalizeKeyChord(event: KeyEventLike): string | null {
 function normalizeKeyFallback(key: string): string {
   if (!key) return '';
   if (key === ' ') return 'Space';
+  // Some embedded browsers and accessibility keyboards omit KeyboardEvent.code.
+  // Match the physical-code names used by the default bindings where possible.
+  const punctuation: Record<string, string> = {
+    '/': 'Slash',
+    '\\': 'Backslash',
+    '-': 'Minus',
+    '=': 'Equal',
+    '[': 'BracketLeft',
+    ']': 'BracketRight',
+    ',': 'Comma',
+    '.': 'Period',
+  };
+  if (punctuation[key]) return punctuation[key];
   if (key.length === 1 && /[a-z]/i.test(key)) {
     return `Key${key.toUpperCase()}`;
   }
