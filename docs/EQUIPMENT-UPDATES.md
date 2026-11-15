@@ -15,7 +15,7 @@ The repository already has `src/providers/modelStore.ts` for local blob storage 
 
 ## What the scheduled worker does today
 
-The GitHub Actions workflow `.github/workflows/equipment-watch.yml` checks the official [Lensfun source repository](https://github.com/lensfun/lensfun) **weekly** and on manual dispatch. It raises a deduplicated GitHub issue when a previously unseen upstream commit SHA is found. It does not collect any customer information, download user photos, alter Kestrel's product catalogue, package a binary, create a release or merge a PR.
+The GitHub Actions workflow `.github/workflows/equipment-watch.yml` checks the official [Lensfun](https://github.com/lensfun/lensfun) and [LibRaw](https://github.com/LibRaw/LibRaw) upstream repositories **weekly** and on manual dispatch. It raises a deduplicated GitHub issue for previously unseen upstream commit SHAs. Lensfun changes are optical-data candidates; LibRaw changes may require a native decoder/app release, never a silent data update. It does not collect any customer information, download user photos, alter Kestrel's product catalogue, package a binary, create a release or merge a PR.
 
 This is **candidate discovery**, not profile publication. GitHub Actions scheduling is best-effort, so occasional delays or skipped checks are harmless. If Issues are disabled or the workflow token cannot write issues, the job reports an error rather than silently pushing unreviewed content.
 
