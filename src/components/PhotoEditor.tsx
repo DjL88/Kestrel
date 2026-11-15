@@ -29,6 +29,8 @@ const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map((
 const PANEL_KEY = 'kestrel-panel-width-v1';
 
 interface Props {
+  /** Suggest colour and tone the first time a photo is opened, when the project asked for it. */
+  autoEdit?: boolean;
   frame: PhotoFrame;
   provider: BrowserPreviewProvider;
   needsAccess: boolean;
@@ -51,7 +53,7 @@ interface Props {
   onSubjectsChange: (names: string[]) => void;
 }
 
-export function PhotoEditor({
+export function PhotoEditor({ autoEdit,
   frame, provider, needsAccess, bindings, onEdit, onHistoryStep, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onSubjectsChange, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, showFilmstrip, onToggleFilmstrip,
@@ -236,6 +238,18 @@ export function PhotoEditor({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [bindings, copiedEdit, dial, edit, exportOpen, guide, onCopyEdit, onEdit, onHistoryStep, source]);
+
+  // Auto-edit: the first time a photo with no edit history is ready, suggest colour and tone and say why.
+  useEffect(() => {
+    if (!autoEdit || !source || frame.edit || frame.editHistory?.steps.length) return;
+    const sample = sampleOrientedSource(256);
+    if (!sample) return;
+    const { edit: suggestion, notes } = autoEnhance(sample.data);
+    setAutoNotes(notes);
+    if (Object.values(suggestion).some((value) => value !== 0)) onEdit({ ...DEFAULT_EDIT, ...suggestion });
+    // Once per photo: the editor is re-created for each photo, and later edits leave a history behind.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source]);
 
   // Alt (Option) + scroll wheel changes the selected dial control, for scroll tools and macro pads.
   const wheelState = useRef({ edit, dial, onEdit });

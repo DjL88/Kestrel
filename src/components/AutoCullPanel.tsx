@@ -14,11 +14,13 @@ interface Props {
   onUndo: () => void;
   onInspect: (frame: PhotoFrame) => void;
   onClose: () => void;
+  /** Start the scan as soon as the panel opens, for projects that asked for auto-cull. */
+  autoStart?: boolean;
 }
 
 const button = 'min-h-11 rounded-md px-3 text-sm font-medium hover:bg-white/10 disabled:opacity-45';
 
-export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo, onInspect, onClose }: Props) {
+export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo, onInspect, onClose, autoStart }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const running = useRef<AbortController | null>(null);
   const [autoMove, setAutoMove] = useState(true);
@@ -31,6 +33,12 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo,
   useEffect(() => {
     dialog.current?.showModal();
     return () => running.current?.abort();
+  }, []);
+
+  useEffect(() => {
+    if (autoStart) void scan();
+    // Only on opening: later changes to the photo list must not restart a scan.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const candidates = frames.filter((frame) => frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);

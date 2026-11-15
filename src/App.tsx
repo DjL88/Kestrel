@@ -9,6 +9,7 @@ import { createVirtualCopy } from './core/virtualCopies';
 import { PhotoExportPanel } from './components/PhotoExportPanel';
 import { PhotoEditor } from './components/PhotoEditor';
 import type { PhotoFraming } from './core/photoFraming';
+import { LEGACY_SETTINGS, type ProjectSettings } from './core/projectSettings';
 import { isEmptyEdit, type PhotoEdit } from './core/photoEdits';
 import { CompareView } from './components/CompareView';
 import { ExifInspector } from './components/ExifInspector';
@@ -88,6 +89,7 @@ export default function App() {
   );
   const [editing, setEditing] = useState(false);
   const [autoCullOpen, setAutoCullOpen] = useState(false);
+  const [autoCullStart, setAutoCullStart] = useState(false);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
   const [showPhotoInfo, setShowPhotoInfo] = useState(false);
   const [copiedEdit, setCopiedEdit] = useState<PhotoEdit | null>(null);
@@ -223,11 +225,11 @@ export default function App() {
     }
   }
 
-  async function newProject(name: string) {
+  async function newProject(name: string, options?: { keeperTarget: number; settings: ProjectSettings }) {
     setProjectBusy(true);
     setProjectError(undefined);
     try {
-      const state = createEmptyProject(`project-${crypto.randomUUID()}`, name);
+      const state = createEmptyProject(`project-${crypto.randomUUID()}`, name, options);
       await storeRef.current!.saveProject(state);
       previewProviderRef.current!.clear();
       enterProject(state);
@@ -712,6 +714,10 @@ export default function App() {
       );
       const importId = crypto.randomUUID().slice(0, 8);
       setCullingState((prev) => appendProjectPhotos(prev, frames, importId));
+      if (cullingState.settings?.autoCull) {
+        setAutoCullStart(true);
+        setAutoCullOpen(true);
+      }
       setPrefs((prev) => ({ ...prev, viewMode: 'grid' }));
     } catch {
       setProjectError('Could not add the photos. Try selecting the files again.');
@@ -803,7 +809,7 @@ export default function App() {
 
   if (projectsOpen) {
     return <ProjectList projects={projects} loading={projectBusy} error={projectError}
-      onOpen={(id) => void openProject(id)} onCreate={(name) => void newProject(name)} onRestore={(file) => void restoreBackup(file)} />;
+      onOpen={(id) => void openProject(id)} onCreate={(name, options) => void newProject(name, options)} onRestore={(file) => void restoreBackup(file)} />;
   }
 
   return (
@@ -874,7 +880,9 @@ export default function App() {
         onOpenShootModal={() => { setFolderError(null); setOpenShootModal(true); }}
         onBackToProjects={() => void backToProjects()}
         onBackupProject={() => void backupProject()}
-        onAutoCull={() => setAutoCullOpen(true)}
+        onAutoCull={() => { setAutoCullStart(false); setAutoCullOpen(true); }}
+        settings={cullingState.settings ?? LEGACY_SETTINGS}
+        onSettingsChange={(settings) => setCullingState((prev) => ({ ...prev, settings, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } }))}
         actionsDisabled={Boolean(loadingProgress) || projectBusy}
         onOpenMacroPadModal={() => setMacroPadModal(true)}
         loadingProgress={loadingProgress}
@@ -940,6 +948,7 @@ export default function App() {
           {editing && selectedFrame && (
             <PhotoEditor
               key={selectedFrame.id}
+              autoEdit={!!cullingState.settings?.autoEdit}
               frame={selectedFrame}
               bindings={prefs.bindings}
               provider={previewProviderRef.current!}
@@ -1152,7 +1161,7 @@ export default function App() {
           onRestore={(ids) => setCullingState((prev) => restoreRemoved(prev, ids))} />
       )}
 
-      {autoCullOpen && <AutoCullPanel frames={cullingState.frames} keeperTarget={cullingState.keeperTarget}
+      {autoCullOpen && <AutoCullPanel autoStart={autoCullStart} frames={cullingState.frames} keeperTarget={cullingState.keeperTarget}
         provider={previewProviderRef.current!}
         onApply={(results) => setCullingState((previous) => applyAutoCullDecisions(previous, results))}
         onUndo={() => setCullingState((previous) => undoDecision(previous))}

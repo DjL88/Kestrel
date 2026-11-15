@@ -1,9 +1,16 @@
 import { createDemoShootState } from './cullingEngine';
+import type { ProjectSettings } from './projectSettings';
 import type { CullingState, PhotoFrame } from './types';
 
-export function createEmptyProject(id: string, title: string): CullingState {
+export function createEmptyProject(
+  id: string, title: string, options?: { keeperTarget?: number; settings?: ProjectSettings },
+): CullingState {
   const empty = createDemoShootState(0);
-  return { ...empty, shoot: { ...empty.shoot, id, title, sourceKind: 'local-files' } };
+  return {
+    ...empty, shoot: { ...empty.shoot, id, title, sourceKind: 'local-files' },
+    ...(options?.keeperTarget ? { keeperTarget: options.keeperTarget } : {}),
+    ...(options?.settings ? { settings: options.settings } : {}),
+  };
 }
 
 export function appendProjectPhotos(
