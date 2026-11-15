@@ -1,11 +1,12 @@
 import { newId } from '../core/ids';
 import { Eraser, Paintbrush, Plus, Trash2 } from 'lucide-react';
 import { ScanSearch } from 'lucide-react';
-import { LOCAL_KEYS, MAX_MASKS, createMask, type LocalKey, type Mask } from '../core/maskTypes';
+import { LOCAL_DETAIL_KEYS, LOCAL_KEYS, MAX_MASKS, createMask, type LocalKey, type Mask } from '../core/maskTypes';
 
 const LABELS: Record<LocalKey, string> = {
   exposure: 'Light', warmth: 'Warmth', colour: 'Colour', contrast: 'Contrast', highlights: 'Highlights',
   shadows: 'Shadows', whites: 'Whites', blacks: 'Blacks', vibrance: 'Vibrance',
+  texture: 'Texture', clarity: 'Clarity', sharpen: 'Sharpening',
 };
 const KIND_NAMES = { linear: 'Gradient', radial: 'Oval', brush: 'Brush', subject: 'Subject' } as const;
 
@@ -124,9 +125,28 @@ export function MaskPanel(props: Props) {
               <p className="text-xs text-zinc-500">Painting needs a pointer or finger. Gradient and oval masks can be set with the keyboard.</p>
             </div>
           )}
+          {masks.length > 1 && (
+            <label className="block text-xs text-zinc-300">
+              Limit this mask
+              <select aria-label="Limit this mask" value={selected.limit ? `${selected.limit.mode}:${selected.limit.id}` : 'none'}
+                onChange={(event) => {
+                  const [mode, ...rest] = event.target.value.split(':');
+                  update({ limit: mode === 'none' ? undefined : { mode: mode as 'intersect' | 'subtract', id: rest.join(':') } });
+                }}
+                className="mt-1 min-h-10 w-full rounded-md border border-white/10 bg-kestrel-panel px-2 text-sm text-zinc-100">
+                <option value="none">Not limited</option>
+                {masks.filter((other) => other.id !== selected.id).map((other) => (
+                  <option key={`i${other.id}`} value={`intersect:${other.id}`}>Only where it overlaps {maskName(masks, other)}</option>
+                ))}
+                {masks.filter((other) => other.id !== selected.id).map((other) => (
+                  <option key={`s${other.id}`} value={`subtract:${other.id}`}>Everywhere except {maskName(masks, other)}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <div className="space-y-1 pt-1">
             {LOCAL_KEYS.map((key) => (
-              <label key={key} className="block text-xs text-zinc-300">
+              <label key={key} className={`block text-xs text-zinc-300 ${key === LOCAL_DETAIL_KEYS[0] ? 'mt-2 border-t border-white/10 pt-2' : ''}`}>
                 <span className="flex justify-between"><span>{LABELS[key]}</span><output className="tabular-nums text-zinc-400">{Math.round((selected.edit[key] ?? 0) * 50)}</output></span>
                 <input type="range" min={-2} max={2} step={0.05} value={selected.edit[key] ?? 0} aria-label={`${LABELS[key]} for this mask`}
                   onChange={(event) => update({ edit: { ...selected.edit, [key]: event.target.valueAsNumber } })}
@@ -136,7 +156,10 @@ export function MaskPanel(props: Props) {
             ))}
           </div>
           <button type="button" className={`${chip} inline-flex w-full items-center justify-center gap-1`}
-            onClick={() => { props.onChange(masks.filter((mask) => mask.id !== selected.id)); props.onSelect(null); }}>
+            onClick={() => {
+              props.onChange(masks.filter((mask) => mask.id !== selected.id).map((mask) => mask.limit?.id === selected.id ? { ...mask, limit: undefined } : mask));
+              props.onSelect(null);
+            }}>
             <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />Delete this mask
           </button>
         </div>
