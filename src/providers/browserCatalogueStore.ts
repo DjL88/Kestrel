@@ -78,10 +78,9 @@ async function idbSet<T>(storeName: string, key: string, value: T): Promise<void
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(storeName, 'readwrite');
-      const store = tx.objectStore(storeName);
-      const req = store.put(value, key);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => resolve();
+      tx.onabort = () => reject(tx.error ?? new Error('Catalogue write was interrupted'));
+      tx.objectStore(storeName).put(value, key);
     });
   } finally {
     db.close();
