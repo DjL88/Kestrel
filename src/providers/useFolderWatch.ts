@@ -30,7 +30,16 @@ export function useFolderWatch(onFiles: (files: File[]) => void) {
         const ready = lookAgain(state, await source.list());
         if (ready.length) {
           const files: File[] = [];
-          for (const entry of ready) { try { files.push(await source.read(entry.name)); } catch { /* it will not be offered again; skip a file that vanished */ } }
+          for (const entry of ready) {
+            try {
+              files.push(await source.read(entry.name));
+            } catch {
+              // A file may vanish or be temporarily locked after it settled.
+              // Retest it rather than permanently losing a valid arriving photo.
+              state.done.delete(entry.name);
+              state.seen.delete(entry.name);
+            }
+          }
           if (files.length && !token.stop) { handler.current(files); imported += files.length; setStatus({ folder: source.name, imported, error: null }); }
         }
       } catch { if (!token.stop) setStatus({ folder: source.name, imported, error: 'The folder stopped answering. Is the drive still connected?' }); }
