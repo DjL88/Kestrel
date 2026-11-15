@@ -1507,6 +1507,7 @@ export default function App() {
               </button>
               <button type="button" aria-pressed={multiSelect} className="inline-flex min-h-11 items-center rounded-md px-2 text-xs hover:bg-white/10"
                 onClick={() => {
+                  setEditTogether(false);
                   if (multiSelect) { setMultiSelect(false); setSelectedIds(new Set()); }
                   else { setMultiSelect(true); setSelectedIds(new Set([selectedFrame.id])); }
                 }}>{multiSelect ? 'Done selecting' : 'Select photos'}</button>
