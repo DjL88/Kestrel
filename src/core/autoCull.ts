@@ -83,6 +83,15 @@ export function limitAutoKeepers(
     accepted.add(result.frameId);
     if (burst) occupied.add(burst);
   }
-  return suggestions.map((result) => result.decision === 'keep' && result.confidence === 'high' && !accepted.has(result.frameId)
-    ? { ...result, confidence: 'medium', score: 79 } : result);
+  // Stale scans may contain duplicate suggestions for the same frame. Never expose
+  // two high-confidence auto-keep actions for one photograph.
+  const emitted = new Set<string>();
+  return suggestions.map((result) => {
+    if (result.decision !== 'keep' || result.confidence !== 'high') return result;
+    if (accepted.has(result.frameId) && !emitted.has(result.frameId)) {
+      emitted.add(result.frameId);
+      return result;
+    }
+    return { ...result, confidence: 'medium', score: 79 };
+  });
 }
