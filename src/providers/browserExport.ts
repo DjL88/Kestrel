@@ -11,6 +11,7 @@ import { datedExport } from '../core/exportTimestamp';
 import { fitScale, maxCanvasPixels } from '../core/exportLimits';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
+import { isDesktopApp, saveWithDialog } from './desktopShell';
 
 export async function loadExportSource(frame: PhotoFrame, provider: Pick<BrowserPreviewProvider, 'getFullPreviewUrl' | 'hasBlob'>) {
   const url = await provider.getFullPreviewUrl(frame);
@@ -176,6 +177,15 @@ export async function renderExport(
 }
 
 export function downloadExport(blob: Blob, name: string) {
+  if (isDesktopApp()) {
+    // The desktop app has no browser download bar, so it asks where to save. If that fails, fall back to a browser download.
+    saveWithDialog(blob, name).catch(() => downloadInBrowser(blob, name));
+    return;
+  }
+  downloadInBrowser(blob, name);
+}
+
+function downloadInBrowser(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

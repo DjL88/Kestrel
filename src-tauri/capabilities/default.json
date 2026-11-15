@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "What the Kestrel window may do: show save dialogs and write the file the user picked.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:allow-save",
+    "dialog:allow-open",
+    "fs:allow-write-file",
+    "opener:allow-reveal-item-in-dir"
+  ]
+}

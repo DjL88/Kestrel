@@ -13,3 +13,5 @@ coverage/
 # Playwright run output
 /test-results/
 /playwright-report/
+/src-tauri/target/
+/src-tauri/gen/
