@@ -45,6 +45,8 @@ test('Auto Mono look applies to both selected photographs, but not the third', a
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   const slider = page.getByRole('slider', { name: 'Colour adjustment' });
   await expect(slider).toHaveValue('-2');
+  await filmstrip.getByRole('button', { name: 'Select photo-1.png' }).click();
+  await expect(slider).toHaveValue('-2');
   await filmstrip.getByRole('button', { name: 'Select photo-2.png' }).click();
   await expect(slider).toHaveValue('-2');
 
