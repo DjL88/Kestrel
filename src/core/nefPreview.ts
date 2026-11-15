@@ -83,8 +83,12 @@ async function hasUsefulDimensions(preview: Blob): Promise<boolean> {
     const length = data.getUint16(offset + 2);
     if (length < 2) break;
     if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
-      return length >= 8 && offset + 9 <= data.byteLength &&
-        Math.max(data.getUint16(offset + 5), data.getUint16(offset + 7)) >= 640;
+      // Both dimensions must be plausible. A corrupt SOF with a 1-pixel
+      // height used to pass because only the larger dimension was checked.
+      if (length < 8 || offset + 9 > data.byteLength) return false;
+      const height = data.getUint16(offset + 5);
+      const width = data.getUint16(offset + 7);
+      return width >= 320 && height >= 320 && Math.max(width, height) >= 640;
     }
     offset += 2 + length;
   }
