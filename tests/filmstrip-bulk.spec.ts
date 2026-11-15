@@ -29,7 +29,7 @@ test('select multiple photos in Library, edit just that queue and export togethe
   await page.getByRole('button', { name: 'Select frame-3.png' }).click();
   await expect(page.getByText('2 selected', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Edit selected' }).click();
-  const film = page.getByRole('region', { name: 'Shoot filmstrip' });
+  const film = page.locator('[aria-label="Shoot filmstrip"]');
   await expect(film.getByRole('button', { name: 'Jump to frame frame-1.png' })).toBeVisible();
   await expect(film.getByRole('button', { name: 'Jump to frame frame-3.png' })).toBeVisible();
   await expect(film.getByRole('button', { name: 'Jump to frame frame-2.png' })).toHaveCount(0);
@@ -66,7 +66,7 @@ test('filmstrip selection can bulk export and paste slider edits, keeping origin
   const bar = page.getByRole('toolbar', { name: 'Filmstrip controls' });
   await bar.getByRole('button', { name: 'Copy', exact: true }).click();
   await bar.getByRole('button', { name: 'Select photos' }).click();
-  const film = page.getByRole('region', { name: 'Shoot filmstrip' });
+  const film = page.locator('[aria-label="Shoot filmstrip"]');
   await film.getByRole('button', { name: 'Select batch-2.png' }).click();
   await film.getByRole('button', { name: 'Select batch-3.png' }).click();
   await expect(bar.getByRole('status')).toHaveText('2 selected');
