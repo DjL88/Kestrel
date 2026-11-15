@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PhotoEditor } from './components/PhotoEditor';
-import { isNeutralEdit } from './core/photoEdits';
+import { isNeutralEdit, type PhotoEdit } from './core/photoEdits';
 import { CompareView } from './components/CompareView';
 import { ExifInspector } from './components/ExifInspector';
 import { Filmstrip } from './components/Filmstrip';
@@ -69,6 +69,12 @@ export default function App() {
     createDemoShootState(500)
   );
   const [editing, setEditing] = useState(false);
+  const [showPhotoInfo, setShowPhotoInfo] = useState(false);
+  const [copiedEdit, setCopiedEdit] = useState<PhotoEdit | null>(null);
+  const [batchUndo, setBatchUndo] = useState<{
+    applied: PhotoEdit;
+    previous: ReadonlyMap<string, PhotoEdit | undefined>;
+  } | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   // Viewport zoom/pan state
@@ -388,6 +394,35 @@ export default function App() {
     }));
   };
 
+  const applyEditToKeepers = (edit: PhotoEdit) => {
+    const applied = { ...edit };
+    const previous = new Map(
+      cullingState.frames.filter((frame) => frame.decision === 'keep').map((frame) => [frame.id, frame.edit])
+    );
+    setBatchUndo({ applied, previous });
+    setCullingState((prev) => ({
+      ...prev,
+      shoot: { ...prev.shoot, lastUpdatedAt: Date.now() },
+      frames: prev.frames.map((frame) =>
+        previous.has(frame.id) ? { ...frame, edit: applied } : frame
+      ),
+    }));
+  };
+
+  const undoKeeperEdits = () => {
+    if (!batchUndo) return;
+    setCullingState((prev) => ({
+      ...prev,
+      shoot: { ...prev.shoot, lastUpdatedAt: Date.now() },
+      frames: prev.frames.map((frame) =>
+        frame.edit === batchUndo.applied && batchUndo.previous.has(frame.id)
+          ? { ...frame, edit: batchUndo.previous.get(frame.id) }
+          : frame
+      ),
+    }));
+    setBatchUndo(null);
+  };
+
   // Global keyboard listener wired through unified resolveKeyboardCommand
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -396,7 +431,8 @@ export default function App() {
         if (!isModalOpen && e.key === 'Escape') setEditing(false);
         return;
       }
-      const isSuppressed = isModalOpen || isEditableElement(e.target);
+      const isSuppressed = isModalOpen || isEditableElement(e.target) ||
+        (e.target instanceof Element && Boolean(e.target.closest('[data-workspace-options]')));
 
       const cmd = resolveKeyboardCommand({
         event: e,
@@ -416,6 +452,7 @@ export default function App() {
 
   // Shoot loading handlers
   const handleLoadDemoShoot = () => {
+    setBatchUndo(null);
     previewProviderRef.current?.clear();
     const demo = createDemoShootState(500);
     setCullingState(demo);
@@ -426,6 +463,7 @@ export default function App() {
   };
 
   const handleSelectLocalFiles = async (files: File[]) => {
+    setBatchUndo(null);
     setOpenShootModal(false);
     setBannerDismissed(false);
     setFolderError(null);
@@ -479,6 +517,7 @@ export default function App() {
       }
 
       const dirHandle = await picker();
+      setBatchUndo(null);
       setOpenShootModal(false);
       setBannerDismissed(false);
 
@@ -616,6 +655,14 @@ export default function App() {
         onOpenShootModal={() => setOpenShootModal(true)}
         onOpenMacroPadModal={() => setMacroPadModal(true)}
         loadingProgress={loadingProgress}
+        showPhotoInfo={showPhotoInfo}
+        onTogglePhotoInfo={() => setShowPhotoInfo((visible) => !visible)}
+        autoAdvance={cullingState.autoAdvance}
+        onToggleAutoAdvance={() =>
+          setCullingState((prev) => ({ ...prev, autoAdvance: !prev.autoAdvance }))
+        }
+        onClearDecision={selectedFrame && selectedFrame.decision !== 'unreviewed' ? () => executeCommand('cull.unreviewed') : undefined}
+        onRedo={cullingState.redoStack.length ? () => executeCommand('cull.redo') : undefined}
         onEditPhoto={selectedFrame && hydrated && !loadingProgress ? () => setEditing(true) : undefined}
       />}
 
@@ -628,7 +675,7 @@ export default function App() {
       />
 
       {/* Main Workspace Split */}
-      <main className="flex-1 flex min-h-0 min-w-0">
+      <main className="relative flex-1 flex min-h-0 min-w-0">
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {editing && selectedFrame && (
             <PhotoEditor
@@ -636,7 +683,12 @@ export default function App() {
               frame={selectedFrame}
               provider={previewProviderRef.current!}
               needsAccess={needsAccess}
-              onEdit={(edit) => updateFrame(selectedFrame.id, { edit: isNeutralEdit(edit) ? undefined : edit })}
+              onEdit={(edit) => updateFrame(selectedFrame.id, { edit: isNeutralEdit(edit) ? undefined : { ...edit } })}
+              copiedEdit={copiedEdit}
+              onCopyEdit={setCopiedEdit}
+              keeperCount={counts.keep}
+              onApplyToKeepers={applyEditToKeepers}
+              onUndoKeeperEdits={batchUndo ? undoKeeperEdits : undefined}
               onSubjectsChange={(subjectNames) => updateFrame(selectedFrame.id, { subjectNames })}
             />
           )}
@@ -665,15 +717,7 @@ export default function App() {
               onZoomChange={setZoomLevel}
               panOffset={panOffset}
               onPanChange={setPanOffset}
-              autoAdvance={cullingState.autoAdvance}
-              onToggleAutoAdvance={() =>
-                setCullingState((prev) => ({
-                  ...prev,
-                  autoAdvance: !prev.autoAdvance,
-                }))
-              }
               canUndo={cullingState.undoStack.length > 0}
-              canRedo={cullingState.redoStack.length > 0}
               hasPrev={selectedVisibleIndex > 0}
               hasNext={
                 selectedVisibleIndex !== -1 &&
@@ -755,17 +799,9 @@ export default function App() {
           )}
         </div>
 
-        {/* Factual EXIF & Decision Rail */}
-        {!editing && <ExifInspector
-          frame={selectedFrame}
-          onDecision={(frameId, decision) =>
-            handleDecideFrame(
-              frameId,
-              decision,
-              decision === 'unreviewed' ? false : undefined
-            )
-          }
-        />}
+        {!editing && showPhotoInfo && (
+          <ExifInspector frame={selectedFrame} onClose={() => setShowPhotoInfo(false)} />
+        )}
       </main>
 
       <MacroPadModal
