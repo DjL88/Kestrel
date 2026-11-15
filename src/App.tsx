@@ -1,3 +1,4 @@
+import { OnlineHelperDialog } from './components/OnlineHelperDialog';
 import { useSpeciesScan } from './useSpeciesScan';
 import { SpeciesScanBanner } from './components/SpeciesScanBanner';
 import type { SubjectKind } from './core/subjectTags';
@@ -1188,6 +1189,7 @@ export default function App() {
             </div>
           )}
           {!editing && <SpeciesScanBanner scan={scan} />}
+          <OnlineHelperDialog />
           {!editing && visibleFrames.length > 0 && prefs.viewMode === 'grid' && (
             <VirtualizedContactSheet
               flash={scan.flash}
