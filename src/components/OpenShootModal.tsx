@@ -43,7 +43,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
       aria-labelledby="open-shoot-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4"
     >
-      <div className="w-full max-w-xl bg-[#14161A] border border-white/12 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-xl bg-[#14161A] border border-white/12 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-4">
           <div>
             <h2 id="open-shoot-title" className="text-base font-semibold text-zinc-100">
@@ -65,7 +65,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
 
         <div className="p-5 space-y-3 overflow-y-auto">
           {/* Option 1: Local Image Files */}
-          <div className="p-4 rounded-lg bg-[#1A1D23] border border-white/10 flex items-center justify-between gap-4">
+          <div className="p-4 rounded-lg bg-[#1A1D23] border border-white/10 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-sm font-semibold text-zinc-100">
                 Choose Local Image Files
@@ -100,7 +100,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
           </div>
 
           {/* Option 2: Local Folder (File System Access API) */}
-          <div className="p-4 rounded-lg bg-[#1A1D23] border border-white/10 flex items-center justify-between gap-4">
+          <div className="p-4 rounded-lg bg-[#1A1D23] border border-white/10 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-sm font-semibold text-zinc-100">
                 Open Local Folder (Browser Handle)
@@ -126,7 +126,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
           </div>
 
           {/* Option 3: Labelled Demo Shoot */}
-          <div className="p-4 rounded-lg bg-[#1A1D23] border border-white/10 flex items-center justify-between gap-4">
+          <div className="p-4 rounded-lg bg-[#1A1D23] border border-white/10 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-sm font-semibold text-zinc-100">
                 500-Frame Demo Shoot (Simulated Nikon Z8 / Z5II)

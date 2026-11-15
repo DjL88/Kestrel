@@ -76,3 +76,15 @@ npm run build
 1. Initialize a Tauri v2 shell (`src-tauri/`) wrapping this Vite/React frontend.
 2. Collect three real camera samples from your Z8 and Z5II covering each NEF compression mode you shoot (**Lossless Compressed**, **High Efficiency ★**, and **High Efficiency**).
 3. Build a 50-line Rust CLI/Tauri command test harness implementing `MetadataExtractor` (`kamadak-exif` / `exiv2`) and `RawDecoder` (`libraw` / Nikon SDK) against those three sample files, verifying both embedded preview extraction speed and 16-bit full RAW decode colour/dimensions before wiring the remaining Edit/Sync slices.
+
+### Browser photo editor
+
+Select a photo and choose **Edit**. Light, Warmth and Colour use reversible per-frame choices saved with the active catalogue. Use **Show original** to compare and **Export JPEG** to download a new file.
+
+Preview and export use the same edited sRGB canvas. JPEG encoding is lossy. The browser caps the longest edge at 3,200 pixels and strips source metadata during export. For Nikon NEFs the source is the embedded preview, where available. A native RAW decoder and Nikon Picture Controls are separate work. The demo editor uses the underlying demo JPEG without the simulated culling blur or framing.
+
+Subject names entered in **Edit** are stored in the catalogue and searchable from the culling workspace. Separate names with commas for group photos.
+
+### Assisted selection design
+
+Keep two suggestion goals: a total keeper count (such as 50), or a count per confirmed individual (such as three per dog). Rank for focus and subject visibility, then prefer different bursts, poses or compositions. Keep identity confidence independent of photo quality. Offer provisional groups for review and naming, with merge and split controls. Exclude unresolved identities from confirmed quotas, report shortfalls and count a group photo once in the total even when it covers several subjects. Suggestions should be reviewable and preserve explicit Keep/Reject decisions.

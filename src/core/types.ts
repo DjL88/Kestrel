@@ -1,3 +1,5 @@
+import type { PhotoEdit } from './photoEdits';
+
 export type CullDecision = 'unreviewed' | 'keep' | 'reject';
 
 export type FilterState = 'all' | CullDecision;
@@ -47,6 +49,8 @@ export interface PhotoFrame {
   filename: string;
   sequenceIndex: number;
   decision: CullDecision;
+  edit?: PhotoEdit;
+  subjectNames?: string[];
   burstGroupId: string | null;
   burstIndex: number;
   burstCount: number;

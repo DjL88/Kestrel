@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PhotoEditor } from './components/PhotoEditor';
+import { isNeutralEdit } from './core/photoEdits';
 import { CompareView } from './components/CompareView';
 import { ExifInspector } from './components/ExifInspector';
 import { Filmstrip } from './components/Filmstrip';
@@ -66,6 +68,7 @@ export default function App() {
   const [cullingState, setCullingState] = useState<CullingState>(() =>
     createDemoShootState(500)
   );
+  const [editing, setEditing] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   // Viewport zoom/pan state
@@ -375,10 +378,24 @@ export default function App() {
     [selectedFrame, handleDecideFrame, toggleCompareView, prefs.knobMode, handleStepFrame]
   );
 
+  const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames'>) => {
+    setCullingState((prev) => ({
+      ...prev,
+      shoot: { ...prev.shoot, lastUpdatedAt: Date.now() },
+      frames: prev.frames.map((frame) =>
+        frame.id === frameId ? { ...frame, ...patch } : frame
+      ),
+    }));
+  };
+
   // Global keyboard listener wired through unified resolveKeyboardCommand
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const isModalOpen = openShootModal || macroPadModal;
+      if (editing) {
+        if (!isModalOpen && e.key === 'Escape') setEditing(false);
+        return;
+      }
       const isSuppressed = isModalOpen || isEditableElement(e.target);
 
       const cmd = resolveKeyboardCommand({
@@ -395,7 +412,7 @@ export default function App() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [openShootModal, macroPadModal, prefs.bindings, executeCommand]);
+  }, [editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
 
   // Shoot loading handlers
   const handleLoadDemoShoot = () => {
@@ -540,8 +557,13 @@ export default function App() {
   );
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#101114] text-zinc-100 overflow-hidden">
-      <TopWorkspaceBar
+    <div className="h-dvh w-full flex flex-col pb-[env(safe-area-inset-bottom)] bg-[#101114] text-zinc-100 overflow-hidden">
+      {editing ? (
+        <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-[#14161A] px-3 py-1">
+          <button type="button" onClick={() => setEditing(false)} className="min-h-11 rounded-md px-3 text-sm font-medium hover:bg-white/10">Back to culling</button>
+          <h1 className="text-sm font-semibold">Edit photo</h1>
+        </header>
+      ) : <TopWorkspaceBar
         shoot={cullingState.shoot}
         counts={counts}
         filter={cullingState.filter}
@@ -594,7 +616,8 @@ export default function App() {
         onOpenShootModal={() => setOpenShootModal(true)}
         onOpenMacroPadModal={() => setMacroPadModal(true)}
         loadingProgress={loadingProgress}
-      />
+        onEditPhoto={selectedFrame && hydrated && !loadingProgress ? () => setEditing(true) : undefined}
+      />}
 
       <FolderRegrantBanner
         visible={needsAccess && !bannerDismissed}
@@ -607,7 +630,17 @@ export default function App() {
       {/* Main Workspace Split */}
       <main className="flex-1 flex min-h-0 min-w-0">
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          {prefs.viewMode === 'grid' && (
+          {editing && selectedFrame && (
+            <PhotoEditor
+              key={selectedFrame.id}
+              frame={selectedFrame}
+              provider={previewProviderRef.current!}
+              needsAccess={needsAccess}
+              onEdit={(edit) => updateFrame(selectedFrame.id, { edit: isNeutralEdit(edit) ? undefined : edit })}
+              onSubjectsChange={(subjectNames) => updateFrame(selectedFrame.id, { subjectNames })}
+            />
+          )}
+          {!editing && prefs.viewMode === 'grid' && (
             <VirtualizedContactSheet
               frames={visibleFrames}
               selectedFrameId={selectedFrame?.id ?? null}
@@ -624,7 +657,7 @@ export default function App() {
             />
           )}
 
-          {prefs.viewMode === 'loupe' && (
+          {!editing && prefs.viewMode === 'loupe' && (
             <LoupePreview
               frame={selectedFrame}
               previewProvider={previewProviderRef.current!}
@@ -655,7 +688,7 @@ export default function App() {
             />
           )}
 
-          {prefs.viewMode === 'compare' && (
+          {!editing && prefs.viewMode === 'compare' && (
             <CompareView
               leftFrame={selectedFrame}
               rightFrame={compareRightFrame}
@@ -706,12 +739,12 @@ export default function App() {
           )}
 
           {/* Persistent Filmstrip in Loupe & Compare Modes */}
-          {prefs.viewMode !== 'grid' && visibleFrames.length > 0 && (
+          {(editing || prefs.viewMode !== 'grid') && visibleFrames.length > 0 && (
             <Filmstrip
               frames={visibleFrames}
               selectedFrameId={selectedFrame?.id ?? null}
               compareRightFrameId={compareRightFrame?.id ?? null}
-              isCompareMode={prefs.viewMode === 'compare'}
+              isCompareMode={!editing && prefs.viewMode === 'compare'}
               previewProvider={previewProviderRef.current!}
               needsAccess={needsAccess}
               onSelectFrame={handleSelectFrame}
@@ -723,7 +756,7 @@ export default function App() {
         </div>
 
         {/* Factual EXIF & Decision Rail */}
-        <ExifInspector
+        {!editing && <ExifInspector
           frame={selectedFrame}
           onDecision={(frameId, decision) =>
             handleDecideFrame(
@@ -732,7 +765,7 @@ export default function App() {
               decision === 'unreviewed' ? false : undefined
             )
           }
-        />
+        />}
       </main>
 
       <MacroPadModal

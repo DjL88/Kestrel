@@ -168,7 +168,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
         </div>
 
         {/* Top-Left Decision & Burst Context */}
-        <div className="absolute top-3 left-4 flex items-center gap-2 pointer-events-none">
+        <div className="absolute top-3 left-2 sm:left-4 flex items-center gap-1 sm:gap-2 pointer-events-none">
           <div
             data-testid="loupe-decision-indicator"
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-semibold backdrop-blur-sm ${decisionCue.classes}`}
@@ -185,14 +185,14 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
           )}
 
           {frame.exif.isEmbeddedPreviewOnly && (
-            <div className="px-2.5 py-1 rounded-md bg-amber-500/15 border border-amber-400/30 text-[11px] text-amber-200 backdrop-blur-sm">
+            <div className="hidden sm:block px-2.5 py-1 rounded-md bg-amber-500/15 border border-amber-400/30 text-[11px] text-amber-200 backdrop-blur-sm">
               Embedded NEF preview — full RAW decode requires desktop build
             </div>
           )}
         </div>
 
         {/* Top-Right Zoom Readout */}
-        <div className="absolute top-3 right-4 flex items-center gap-1.5 bg-[#14161A]/85 border border-white/10 rounded-md px-2 py-1 text-xs text-zinc-300 backdrop-blur-sm">
+        <div className="absolute top-3 right-2 sm:right-4 flex items-center gap-1.5 bg-[#14161A]/85 border border-white/10 rounded-md px-2 py-1 text-xs text-zinc-300 backdrop-blur-sm">
           <button
             type="button"
             onClick={() => {
@@ -232,7 +232,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
         </div>
 
         {/* Quiet Optional Shortcut Overlay */}
-        <div className="absolute bottom-3 right-4 z-10">
+        <div className="absolute bottom-3 right-4 z-10 hidden lg:block">
           <ShortcutOverlay
             bindings={bindings}
             knobMode={knobMode}
@@ -242,7 +242,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
       </div>
 
       {/* Bottom Decision & Navigation Control Strip (Shared Command Handler) */}
-      <div className="shrink-0 bg-[#14161A] border-t border-white/10 px-4 py-2 flex flex-wrap items-center justify-between gap-3">
+      <div className="cull-actions shrink-0 bg-[#14161A] border-t border-white/10 px-2 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2">
         {/* Prev / Next Navigation */}
         <div className="flex items-center gap-1.5">
           <button
@@ -268,7 +268,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
         </div>
 
         {/* Primary Culling Decisions */}
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => onExecuteCommand('cull.keep')}
@@ -280,7 +280,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
           >
             <Check className="w-3.5 h-3.5 text-sky-300" aria-hidden="true" />
             <span>Keep</span>
-            <kbd className="ml-1 font-mono text-[10px] text-zinc-400">
+            <kbd className="hidden lg:inline ml-1 font-mono text-[10px] text-zinc-400">
               {formatChordLabel(bindings['cull.keep'])}
             </kbd>
           </button>
@@ -296,21 +296,22 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
           >
             <X className="w-3.5 h-3.5 text-orange-300" aria-hidden="true" />
             <span>Reject</span>
-            <kbd className="ml-1 font-mono text-[10px] text-zinc-400">
+            <kbd className="hidden lg:inline ml-1 font-mono text-[10px] text-zinc-400">
               {formatChordLabel(bindings['cull.reject'])}
             </kbd>
           </button>
 
           <button
             type="button"
+            aria-label="Clear decision"
             onClick={() => onExecuteCommand('cull.unreviewed')}
             className="px-2.5 py-1.5 text-xs font-medium rounded-md border border-white/10 bg-[#1D2026] hover:bg-[#262A32] text-zinc-300 flex items-center gap-1 transition-colors focus-visible:outline-2 focus-visible:outline-sky-400"
           >
             <CircleDashed className="w-3.5 h-3.5 text-zinc-400" aria-hidden="true" />
-            <span>Clear</span>
+            <span className="hidden sm:inline">Clear</span>
           </button>
 
-          <div className="w-px h-5 bg-white/10 mx-1" aria-hidden="true" />
+          <div className="hidden sm:block w-px h-5 bg-white/10 mx-1" aria-hidden="true" />
 
           <button
             type="button"
@@ -320,7 +321,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
             className="px-2.5 py-1.5 text-xs font-medium rounded-md border border-white/10 bg-[#1D2026] hover:bg-[#262A32] disabled:opacity-40 disabled:pointer-events-none text-zinc-200 flex items-center gap-1 transition-colors focus-visible:outline-2 focus-visible:outline-sky-400"
           >
             <Undo2 className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Undo</span>
+            <span className="hidden sm:inline">Undo</span>
           </button>
 
           <button
@@ -331,13 +332,13 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
             className="px-2.5 py-1.5 text-xs font-medium rounded-md border border-white/10 bg-[#1D2026] hover:bg-[#262A32] disabled:opacity-40 disabled:pointer-events-none text-zinc-200 flex items-center gap-1 transition-colors focus-visible:outline-2 focus-visible:outline-sky-400"
           >
             <Redo2 className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Redo</span>
+            <span className="hidden sm:inline">Redo</span>
           </button>
 
           <button
             type="button"
             onClick={() => onExecuteCommand('cull.compare')}
-            className="px-2.5 py-1.5 text-xs font-medium rounded-md border border-white/10 bg-[#1D2026] hover:bg-[#262A32] text-zinc-200 flex items-center gap-1.5 transition-colors focus-visible:outline-2 focus-visible:outline-sky-400"
+            className="hidden sm:flex px-2.5 py-1.5 text-xs font-medium rounded-md border border-white/10 bg-[#1D2026] hover:bg-[#262A32] text-zinc-200 items-center gap-1.5 transition-colors focus-visible:outline-2 focus-visible:outline-sky-400"
           >
             <Columns2 className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Compare</span>
