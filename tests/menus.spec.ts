@@ -53,6 +53,8 @@ test('the editor can go full screen and come back', async ({ page }) => {
 
 test('rating filter is one row of stars: tap sets, tap again clears, the symbol flips to exactly', async ({ page }) => {
   await makeProject(page, 'Stars');
+  // On a phone the rating row lives in the menu sheet.
+  if (page.viewportSize()!.width < 768) await page.getByRole('button', { name: 'Workspace options' }).click();
   const three = page.getByRole('button', { name: '3 stars or more' });
   await three.click();
   await expect(three).toHaveAttribute('aria-pressed', 'true');
