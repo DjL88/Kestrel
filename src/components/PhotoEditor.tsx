@@ -10,12 +10,6 @@ import { PhotoExportPanel } from './PhotoExportPanel';
 import { downloadExport } from '../providers/browserExport';
 import { gridSizeFor } from '../core/subjectModel';
 import { QuickAdjust } from './QuickAdjust';
-import { SubjectPanel } from './SubjectPanel';
-import { hasName } from '../core/speciesBurst';
-import { mayAutoTag } from '../core/autoTags';
-import { rememberSpecies } from '../providers/speciesLearning';
-import { SpeciesSuggestions } from './SpeciesSuggestions';
-import { addTags, type SubjectKind } from '../core/subjectTags';
 import { AreaSelector } from './AreaSelector';
 import { placeInRegion, regionPixels, type Region } from '../core/subjectRegion';
 import { Histogram } from './Histogram';
@@ -88,20 +82,11 @@ interface Props {
   showFilmstrip: boolean;
   onApplyToKeepers: (edit: PhotoEdit) => void;
   onUndoKeeperEdits?: () => void;
-  /** Saves what the photo is of. Older subject names are folded into the tags. */
-  onSubjectsChange: (tags: string[], kind: SubjectKind | undefined) => void;
-  /** The app tags a photo by itself when the model is sure. Returns nothing when the photo is not eligible. */
-  onAutoTag?: (name: string, kind: SubjectKind | undefined) => void;
-  /** The user keeps an automatic tag, making it an ordinary one. */
-  onKeepTag?: (name: string) => void;
-  /** The other photos in this one's burst, and a way to tag some of them after the user agrees. */
-  burstMates?: PhotoFrame[];
-  onTagPhotos?: (ids: string[], name: string, kind: SubjectKind | undefined) => void;
 }
 
 export function PhotoEditor({ autoEdit, onOpenMacroPad,
   frame, provider, needsAccess, bindings, onEdit, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
-  onApplyToKeepers, onUndoKeeperEdits, onSubjectsChange, onAutoTag, onKeepTag, burstMates, onTagPhotos, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
+  onApplyToKeepers, onUndoKeeperEdits, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, showFilmstrip,
 }: Props) {
   const originalCanvas = useRef<HTMLCanvasElement>(null);
@@ -737,7 +722,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:relative md:z-10 ${showFilmstrip ? 'md:-mb-[156px] md:pb-[172px] ' : ''}md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
         {!isPhone && tabList}
         {tab === 'auto' && !can('autoTab') && (
-          <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto"><PaidNotice title="The Auto tab">Automatic colour and tone, subject and species suggestions, and the online helper are here.</PaidNotice></div>
+          <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto"><PaidNotice title="The Auto tab">Automatic colour and tone adjustments and local editing advice are here.</PaidNotice></div>
         )}
         {tab === 'auto' && can('autoTab') && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
@@ -774,25 +759,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               <button type="button" className="min-h-9 text-xs text-zinc-400 underline hover:text-white" onClick={() => setOpinions(null)}>Hide opinion</button>
             </section>
           )}
-        <SubjectPanel kind={frame.subjectKind} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} autoTags={frame.autoTags} disabled={sourceState !== 'ready'} onChange={onSubjectsChange} onKeep={(name) => { rememberSpecies(name); onKeepTag?.(name); }} />
-        <SpeciesSuggestions frameId={frame.id} ready={sourceState === 'ready' && Boolean(source)} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} kind={frame.subjectKind}
-          getPicture={() => {
-            if (!source) return null;
-            const canvas = document.createElement('canvas');
-            drawFramedPhoto(source, canvas, { ...DEFAULT_FRAMING, turns: framing.turns }, { scale: Math.min(1, 448 / Math.max(source.naturalWidth, source.naturalHeight)) });
-            return canvas;
-          }}
-          onAccept={(name, kind) => onSubjectsChange(addTags(addTags(frame.subjectNames ?? [], frame.tags ?? []), [name]), frame.subjectKind ?? kind)}
-          mates={(burstMates ?? []).map((mate) => ({ id: mate.id, has: (name: string) => hasName(mate, name), load: async () => {
-            const url = await provider.getFullPreviewUrl(mate);
-            if (!url) return null;
-            const image = await loadImage(url);
-            const canvas = document.createElement('canvas');
-            drawFramedPhoto(image, canvas, DEFAULT_FRAMING, { scale: Math.min(1, 448 / Math.max(image.naturalWidth, image.naturalHeight)) });
-            return canvas;
-          } }))}
-          canAutoTag={mayAutoTag(frame, '')} declined={frame.declinedTags ?? []} onAutoTag={onAutoTag}
-          onTagMates={onTagPhotos} />
         <Histogram data={histogram} teach />
 
           </div>
