@@ -39,6 +39,7 @@ test('extractEmbeddedJpegFromRawBuffer finds largest embedded JPEG preview strea
   bytes[100] = 0xff;
   bytes[101] = 0xd8;
   bytes[102] = 0xff;
+  bytes[103] = 0xe1; // APP1 is a valid marker after SOI
   bytes[5098] = 0xff;
   bytes[5099] = 0xd9;
 
@@ -48,6 +49,19 @@ test('extractEmbeddedJpegFromRawBuffer finds largest embedded JPEG preview strea
   assert.equal(extracted.bytes.length, 5000);
   assert.equal(extracted.bytes[0], 0xff);
   assert.equal(extracted.bytes[1], 0xd8);
+});
+
+test('NEF preview scan ignores invalid SOI marker candidates', () => {
+  for (const marker of [0x00, 0xff, 0xd8, 0xd9]) {
+    const bytes = new Uint8Array(5200);
+    bytes.set([0xff, 0xd8, 0xff, marker], 100);
+    bytes.set([0xff, 0xd9], 5098);
+    assert.equal(extractEmbeddedJpegFromRawBuffer(bytes.buffer), null, `marker ${marker.toString(16)}`);
+  }
+  const bytes = new Uint8Array(5200);
+  bytes.set([0xff, 0xd8, 0xff, 0xe1], 100);
+  bytes.set([0xff, 0xd9], 5098);
+  assert.equal(extractEmbeddedJpegFromRawBuffer(bytes.buffer)?.bytes.length, 5000);
 });
 
 test('embedded XMP ratings and reject flags are parsed from a JPEG segment', async () => {
