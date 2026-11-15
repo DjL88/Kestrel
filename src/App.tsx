@@ -127,6 +127,7 @@ export default function App() {
   const [autoCullOpen, setAutoCullOpen] = useState(false);
   const [batchLookOpen, setBatchLookOpen] = useState(false);
   const [autoAdjustOpen, setAutoAdjustOpen] = useState(false);
+  const [autoAdjustSelectedOpen, setAutoAdjustSelectedOpen] = useState(false);
   const autoAdjustController = useRef<AbortController | null>(null);
   const [autoCullStart, setAutoCullStart] = useState(false);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
@@ -824,6 +825,47 @@ export default function App() {
   const filmstripVisible = prefs.showFilmstrip && !prefs.focusMode;
   const toggleFilmstrip = () => setPrefs((prev) => ({ ...prev, showFilmstrip: !prev.showFilmstrip }));
 
+  const autoAdjustSelected = async () => {
+    if (autoAdjustController.current) return;
+    // Snapshot the selection and project before analysing, so later clicks cannot
+    // silently change the target set of an in-progress operation.
+    const projectId = cullingState.shoot.id;
+    const frames = cullingState.frames;
+    const ids = new Set(selectedVisibleFrames.map((frame) => frame.id));
+    const candidates = frames.filter((frame) => ids.has(frame.id) && !frame.removedAt && !frame.virtualCopy &&
+      !frame.editHistory?.steps.length && (!frame.edit || isEmptyEdit(frame.edit))).length;
+    if (!candidates) { setAutoAdjustSelectedOpen(false); return; }
+    const controller = new AbortController();
+    autoAdjustController.current = controller;
+    const task = tasks.start('Auto-adjusting selected photos', { total: candidates, cancel: () => controller.abort() });
+    setAutoAdjustSelectedOpen(false);
+    try {
+      const suggestions = await suggestKeeperAutoEdits(frames, previewProviderRef.current!, controller.signal,
+        (count) => task.progress(count), ids);
+      // Never apply results from a previous project or an aborted scan.
+      if (controller.signal.aborted || stateRef.current.shoot.id !== projectId) {
+        if (!controller.signal.aborted) task.finish('Project changed; no edits applied');
+        return;
+      }
+      const at = Date.now();
+      let applied = 0;
+      setCullingState((prev) => {
+        if (prev.shoot.id !== projectId) return prev;
+        const nextFrames = applyKeeperAutoEdits(prev.frames, suggestions, at, ids);
+        applied = nextFrames.filter((frame, i) => frame !== prev.frames[i]).length;
+        return applied ? { ...prev, shoot: { ...prev.shoot, lastUpdatedAt: at }, frames: nextFrames } : prev;
+      });
+      task.finish(`${suggestions.size} photos analysed with usable adjustments`);
+      showToast(`Auto-adjusted selected photos with usable previews. Original files unchanged.`);
+    } catch (error) {
+      if (controller.signal.aborted || task.cancelled) return;
+      task.fail(error instanceof Error ? error.message : 'Could not auto-adjust the selection');
+      showToast('Could not auto-adjust the selection. Nothing was changed.');
+    } finally {
+      if (autoAdjustController.current === controller) autoAdjustController.current = null;
+    }
+  };
+
   const autoAdjustKeepers = async () => {
     if (autoAdjustController.current) return;
     const projectId = cullingState.shoot.id;
@@ -1403,6 +1445,8 @@ export default function App() {
               </button>
               <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 px-2 text-sky-200 disabled:opacity-40"
                 onClick={() => setSelectionLookOpen(true)}>Apply look</button>
+              <button type="button" disabled={!!autoAdjustController.current} onClick={() => setAutoAdjustSelectedOpen(true)}
+                className="min-h-11 rounded-md border border-white/15 px-2 text-xs font-medium hover:bg-white/10 disabled:opacity-40">Auto-adjust selected</button>
               <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 px-2 text-sky-200 disabled:opacity-40"
                 onClick={startSelectedEditing}>Edit selected</button>
               <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 px-2 text-orange-200 disabled:opacity-40"
@@ -1532,6 +1576,8 @@ export default function App() {
                   onClick={() => setExportFrames(selectedVisibleFrames)}>Export</button>
                 <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setSelectionLookOpen(true)}>Apply look</button>
+                <button type="button" disabled={!!autoAdjustController.current} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
+                  onClick={() => setAutoAdjustSelectedOpen(true)}>Auto-adjust</button>
                 <button type="button" disabled={!selectedVisibleFrames.length || !copiedEdit} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setConfirmPasteSelection(true)}>Paste to selected</button>
                 <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs text-orange-200 hover:bg-white/10 disabled:opacity-40"
@@ -1580,6 +1626,15 @@ export default function App() {
         )}
       </main>
 
+      {autoAdjustSelectedOpen && <ConfirmDialog title="Auto-adjust selected photos?" confirmLabel="Analyse selected photos"
+        cancelLabel="Cancel" onCancel={() => setAutoAdjustSelectedOpen(false)}
+        confirmDisabled={!selectedVisibleFrames.some((frame) => !frame.removedAt && !frame.virtualCopy &&
+          !frame.editHistory?.steps.length && (!frame.edit || isEmptyEdit(frame.edit)))}
+        onConfirm={() => void autoAdjustSelected()}>
+        <p>Each selected photo gets its own local light and colour adjustments. These are not the same preset applied to everyone.</p>
+        <p>Already-edited photos are protected. Missing or damaged previews will be skipped; you can cancel before changes are applied.</p>
+        <p>Originals, masks and crops remain untouched. Per-photo edit history supports undo.</p>
+      </ConfirmDialog>}
       {selectionLookOpen && <SelectionLookDialog frames={cullingState.frames} ids={new Set(selectedVisibleFrames.map((frame) => frame.id))}
         onClose={() => setSelectionLookOpen(false)} onApply={(look, includeEdited) => {
           const at = Date.now();

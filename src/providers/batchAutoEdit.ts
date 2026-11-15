@@ -8,9 +8,10 @@ import { loadImage } from './loadImage';
 /** Preview-sized local analysis for each keeper, never uploaded or written to the original. */
 export async function suggestKeeperAutoEdits(
   frames: PhotoFrame[], provider: BrowserPreviewProvider, signal: AbortSignal, onProgress: (done: number) => void,
+  targetIds?: ReadonlySet<string>,
 ): Promise<Map<string, PhotoEdit>> {
   const candidates = frames.filter((frame) =>
-    frame.decision === 'keep' && !frame.removedAt && !frame.virtualCopy &&
+    (targetIds ? targetIds.has(frame.id) : frame.decision === 'keep') && !frame.removedAt && !frame.virtualCopy &&
     !frame.editHistory?.steps.length && (!frame.edit || isEmptyEdit(frame.edit)));
   const edits = new Map<string, PhotoEdit>();
   const canvas = document.createElement('canvas');
@@ -45,10 +46,12 @@ export async function suggestKeeperAutoEdits(
 }
 
 /** Stale scan results cannot overwrite an existing edit, a changed decision or a removed photograph. */
-export function applyKeeperAutoEdits(frames: PhotoFrame[], edits: ReadonlyMap<string, PhotoEdit>, at: number): PhotoFrame[] {
+export function applyKeeperAutoEdits(
+  frames: PhotoFrame[], edits: ReadonlyMap<string, PhotoEdit>, at: number, targetIds?: ReadonlySet<string>,
+): PhotoFrame[] {
   return frames.map((frame) => {
     const suggested = edits.get(frame.id);
-    if (!suggested || frame.decision !== 'keep' || frame.removedAt || frame.virtualCopy ||
+    if (!suggested || !(targetIds ? targetIds.has(frame.id) : frame.decision === 'keep') || frame.removedAt || frame.virtualCopy ||
         frame.editHistory?.steps.length || (frame.edit && !isEmptyEdit(frame.edit))) return frame;
     return recordEdit(frame, { edit: suggested }, at);
   });

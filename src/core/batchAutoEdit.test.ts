@@ -27,3 +27,28 @@ test('stale batch results do not overwrite a photograph edited after analysis be
   const next = applyKeeperAutoEdits([current], new Map([['one', { ...DEFAULT_EDIT, warmth: -1 }]]), 500);
   assert.strictEqual(next[0], current);
 });
+
+test('selected local Auto Edit can adjust unreviewed photos while leaving an unselected keeper alone', () => {
+  const frames = [make('chosen', 'unreviewed'), make('other', 'keep'), make('rejected', 'reject')];
+  const ids = new Set(['chosen']);
+  const changes = new Map(frames.map((frame) => [frame.id, { ...DEFAULT_EDIT, contrast: 0.6 }]));
+  const next = applyKeeperAutoEdits(frames, changes, 250, ids);
+  assert.equal(next[0].edit?.contrast, 0.6);
+  assert.equal(next[0].editHistory?.steps.length, 1);
+  assert.strictEqual(next[1], frames[1]);
+  assert.strictEqual(next[2], frames[2]);
+});
+
+test('selected auto edit respects stale decisions, manual changes, removed photos and virtual copies', () => {
+  const ids = new Set(['new', 'edited', 'removed', 'virtual']);
+  const frames = [
+    make('new', 'unreviewed'),
+    { ...make('edited', 'keep'), edit: { ...DEFAULT_EDIT, warmth: 1 } },
+    { ...make('removed', 'unreviewed'), removedAt: 40 },
+    { ...make('virtual', 'unreviewed'), virtualCopy: { originalFrameId: 'new', number: 1 } },
+  ];
+  const changes = new Map(frames.map((frame) => [frame.id, { ...DEFAULT_EDIT, exposure: 1.1 }]));
+  const result = applyKeeperAutoEdits(frames, changes, 500, ids);
+  assert.equal(result[0].edit?.exposure, 1.1);
+  for (let i = 1; i < frames.length; i++) assert.strictEqual(result[i], frames[i]);
+});
