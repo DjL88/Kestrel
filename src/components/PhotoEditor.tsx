@@ -97,6 +97,7 @@ export function PhotoEditor({ autoEdit,
   const [tab, setTab] = useState<Tab>('edit');
   const [previewRecipe, setPreviewRecipe] = useState<{ edit?: PhotoEdit; framing?: PhotoFraming } | null>(null);
   const cropEntry = useRef<PhotoFraming | null>(null);
+  const panelScroll = useRef<HTMLDivElement>(null);
   const cropOpen = tab === 'crop';
   const [previewCrop, setPreviewCrop] = useState(false);
   const [gridLines, setGridLines] = useState(true);
@@ -263,6 +264,8 @@ export function PhotoEditor({ autoEdit,
     setPreviewCrop(false);
     setTransform(FIT_VIEW);
     setPreviewRecipe(null);
+    // Each tab opens at its top. Otherwise the new tab inherits the old scroll position and starts under the tab bar.
+    panelScroll.current?.scrollTo({ top: 0 });
     if (tab === 'crop') cropEntry.current = frame.framing ?? DEFAULT_FRAMING;
     else setMarkFocus(false);
     // Only when the tab changes.
@@ -492,8 +495,8 @@ export function PhotoEditor({ autoEdit,
         )}
       </div>
       <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
-      <div style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`max-h-[44%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
-        <div role="tablist" aria-label="Editing tools" className="sticky top-0 z-10 -mx-3 -mt-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 md:-mx-4 md:-mt-4 md:px-3"
+      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`scroll-pt-14 max-h-[44%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
+        <div role="tablist" aria-label="Editing tools" className="sticky top-0 z-10 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 md:-mx-4 md:px-3"
           onKeyDown={(event) => {
             const order = TABS.map((entry) => entry.id);
             const at = order.indexOf(tab);
