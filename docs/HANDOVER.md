@@ -68,10 +68,14 @@ Where things stand and what is left, in order. Older detail: `AUDIT-2.md`, `AUDI
 
 **Still not tested:** Z8/Z5II lossless NEF, Canon R-series CR3, Sony HE, the develop button in the running desktop app (browser tests fake the native call), Windows and Linux builds of the decoder.
 
-**HE / HE\*:** no open decoder exists; options are the full-size camera preview (works now), Nikon NX Studio or Adobe DNG Converter to convert, licensing intoPIX's TicoRAW decoder (cost unknown), or shooting Lossless compressed. See the PR #172 thread.
+**HE / HE\*:** no open decoder exists. **On a Mac it works**: when the built-in decoder fails, the app asks macOS's own RAW engine (`/usr/bin/sips`) and gets a full-size, upright, neutral picture (tested on the owner's Z8 HE\* file, 8256x5504, about 3 s; cleaner at 100% than the camera's JPEG). Other platforms:
+- **iOS/iPadOS:** probably the same Apple engine; not built or tested.
+- **Windows:** Nikon's NEF Codec and Microsoft's Raw Image Extension are proprietary and cannot be bundled; sources suggest neither reads HE\*. HE\* files use the full-size camera preview there.
+- **Android:** the platform decodes DNG only; apps bring their own decoder (Snapseed added NEF). The owner says an app on their phone opens NEF; which app, and whether it decodes or just shows the preview, is unknown. HE\* uses the preview.
+- **Everywhere:** only a licensed decoder (intoPIX's TicoRAW, price unknown), converting to DNG, or shooting Lossless covers every platform.
 
 **Next, in order:**
-1. Click **Develop from RAW** in the real Mac app on the Z8 HE\\* file (this is the first real in-app test of the decoder and the Mac HE fallback).
+1. Click **Develop from RAW** in the real Mac app on the Z8 HE\* file (this is the first real in-app test of the decoder and the Mac HE fallback).
 2. Send or find Z8/Z5II lossless NEFs and a Canon R CR3 to test.
 3. Keep developed pictures across restarts; 16-bit editing and colour management.
 4. Queue scheduling (limit heavy jobs at once) and register species scan, thumbnails and watch-folder imports as tasks.
