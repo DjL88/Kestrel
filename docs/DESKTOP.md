@@ -36,3 +36,24 @@ To publish one:
 3. `release.yml` builds Mac (universal), Windows and Linux, and creates a **draft** release. Publish the draft and apps pick it up.
 
 Apple notarisation and Windows signing are still separate; until then first installs show an "unidentified developer" or SmartScreen warning.
+
+## Signing and notarising checklist
+Needs accounts only the owner can create, so none of this is switched on. Do it in this order, testing on real machines between steps.
+
+**macOS** (Apple Developer Program membership):
+1. Create a "Developer ID Application" certificate; export it as `.p12` and base64 it.
+2. Add repository secrets: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` (an app-specific password), `APPLE_TEAM_ID`.
+3. Pass those as `env` to the `tauri-action` step in `release.yml`. Tauri then signs and notarises the `.app` and `.dmg`.
+4. Check on a clean Mac: download the DMG from the draft release, open it with no warning, and confirm `spctl -a -vv Kestrel.app` says "Notarized Developer ID".
+
+**Windows** (a code-signing certificate; an EV or cloud-signing service avoids SmartScreen warnings sooner):
+1. Choose the signing route (certificate file, Azure Trusted Signing or similar) and add its secrets.
+2. Set `bundle.windows.signCommand` or the certificate thumbprint in the release build only.
+3. Check on a clean PC: the installer shows the publisher name, installs and uninstalls cleanly, and an install over an older version keeps the catalogue.
+
+**Before turning updates on** (`UPDATER_ENABLED`): publish two real releases, update from the first to the second on both systems, confirm the catalogue and open project survive, and confirm a tampered update file is refused. Keep the update key backed up.
+
+## Native checks still to do
+- Moving a project: originals moved or backed up to another drive are found again by name, size and modified time.
+- External drive and network share: add photos from them, unplug, reopen the project, reconnect.
+- Crash recovery: force-quit during an edit and during an export; reopen and confirm the last saved edit and the catalogue are intact.
