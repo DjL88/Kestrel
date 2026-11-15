@@ -112,7 +112,8 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   }, []);
 
   useEffect(() => {
-    title.current?.focus();
+    // Focus the title for screen readers without scrolling: the header sits above the scroll area, so scrolling would push the content under it.
+    title.current?.focus({ preventScroll: true });
   }, [resultsReady]);
 
   // Load the pictures the previews need, a few at a time.
@@ -399,8 +400,8 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   const canShare = files.length > 0 && navigator.canShare?.({ files });
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-3 max-md:p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
-      <section ref={dialog} className="workspace-popover flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-y-auto rounded-xl border border-white/15 bg-kestrel-raised p-4 shadow-xl max-md:h-full max-md:max-h-none max-md:rounded-none max-md:border-0">
-        <header className="sticky top-0 z-10 -mx-4 -mt-4 mb-1 flex items-center justify-between gap-2 border-b border-white/10 bg-kestrel-raised px-2 py-1">
+      <section ref={dialog} className={`workspace-popover flex max-h-[92dvh] w-full ${resultsReady ? 'max-w-xl' : 'max-w-4xl'} flex-col overflow-hidden rounded-xl border border-white/15 bg-kestrel-raised shadow-xl max-md:h-full max-md:max-h-none max-md:rounded-none max-md:border-0`}>
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-raised px-2 py-1">
           <button type="button" onClick={onClose} aria-label="Close export" title="Close export" className={button}><X className="h-5 w-5" aria-hidden="true" /></button>
           <h2 id="export-title" ref={title} tabIndex={-1} className="min-w-0 flex-1 truncate text-center text-base font-semibold">Export {frames.length === 1 ? 'photo' : `${frames.length} photos`}</h2>
           {resultsReady || wizard ? <span className="w-11" /> : (
@@ -410,6 +411,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
             </button>
           )}
         </header>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
         {!resultsReady && (
           <p className="mt-1 text-center">
             <button type="button" onClick={() => changeView(wizard ? 'list' : 'wizard')} className="min-h-10 px-3 text-xs text-zinc-300 underline underline-offset-4 hover:text-white">
@@ -500,6 +502,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
           </form>
         )}
         {error && <p role="alert" className="mt-2 text-sm text-orange-200">{error}</p>}
+        </div>
       </section>
     </div>
   );
