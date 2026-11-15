@@ -106,3 +106,17 @@ test('detail never adds a colour cast to grey', () => {
   applyDetail(pixels, 64, 64, { ...DEFAULT_EDIT, clarity: 2, sharpen: 1 }, 2200);
   for (let i = 0; i < pixels.length; i += 4) assert.equal(pixels[i], pixels[i + 1]);
 });
+
+test('Colour -2 produces grayscale pixels while retaining alpha and allowing tonal adjustments', () => {
+  const source = new Uint8ClampedArray([210, 95, 35, 123, 20, 200, 110, 255]);
+  const mono = new Uint8ClampedArray(source);
+  applyPhotoEdit(mono, { ...DEFAULT_EDIT, colour: -2, contrast: 0.5, vibrance: 1.5 });
+  for (let index = 0; index < mono.length; index += 4) {
+    assert.equal(mono[index], mono[index + 1]);
+    assert.equal(mono[index], mono[index + 2]);
+    assert.equal(mono[index + 3], source[index + 3]);
+  }
+  const colour = new Uint8ClampedArray(source);
+  applyPhotoEdit(colour, { ...DEFAULT_EDIT, colour: -1.9 });
+  assert.notEqual(colour[0], colour[1], 'positions above -2 retain colour');
+});
