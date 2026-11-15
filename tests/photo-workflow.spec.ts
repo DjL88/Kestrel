@@ -231,6 +231,12 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await expect(page.getByRole('slider', { name: 'Light adjustment' })).toHaveValue('0.1');
+  // Mobile quick-adjust states use words and a checkmark as well as colour.
+  if (page.viewportSize()!.width < 768) {
+    await expect(page.getByRole('button', { name: 'Light, adjusted' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Warmth, unchanged' })).toBeVisible();
+    await expect(page.getByText('(adjusted)', { exact: true })).toBeVisible();
+  }
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
   await page.getByRole('tab', { name: 'Crop' }).click();
   await page.getByLabel('Aspect ratio').selectOption('1');
