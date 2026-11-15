@@ -50,4 +50,4 @@ jobs:
           releaseName: Kestrel ${{ github.ref_name }}
           releaseBody: Desktop builds. Unsigned by Apple and Microsoft until signing is set up.
           releaseDraft: true
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":true}}'

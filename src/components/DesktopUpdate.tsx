@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { isDesktopApp } from '../providers/desktopShell';
 
+/** Off until signing, update and rollback have been tested on real machines. Switch on in the release that first ships updates. */
+export const UPDATER_ENABLED = false;
+
 type Pending = { version: string; install: () => Promise<void> };
 
 /** Tells the person, once, when a newer desktop version is ready. It never installs without a tap. */
@@ -10,7 +13,7 @@ export function DesktopUpdate() {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (!isDesktopApp()) return;
+    if (!UPDATER_ENABLED || !isDesktopApp()) return;
     let cancelled = false;
     void (async () => {
       try {
