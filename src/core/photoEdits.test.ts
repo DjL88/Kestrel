@@ -25,3 +25,42 @@ test('warmth changes red and blue in opposite directions', () => {
   assert.equal(pixels[1], 100);
   assert.ok(pixels[2] < 100);
 });
+
+const pixel = (value: number, edit: Partial<typeof DEFAULT_EDIT>) => {
+  const pixels = new Uint8ClampedArray([value, value, value, 255]);
+  applyPhotoEdit(pixels, { ...DEFAULT_EDIT, ...edit });
+  return pixels[0];
+};
+
+test('shadows lift dark tones far more than bright ones', () => {
+  assert.ok(pixel(40, { shadows: 2 }) - 40 > 3 * (pixel(220, { shadows: 2 }) - 220));
+});
+
+test('highlights recovery darkens bright tones and leaves dark tones', () => {
+  assert.ok(pixel(230, { highlights: -2 }) < 230);
+  assert.ok(Math.abs(pixel(30, { highlights: -2 }) - 30) <= 1);
+});
+
+test('contrast spreads tones around mid grey and keeps neutrals neutral', () => {
+  assert.ok(pixel(60, { contrast: 1 }) < 60);
+  assert.ok(pixel(200, { contrast: 1 }) > 200);
+  const pixels = new Uint8ClampedArray([90, 90, 90, 255]);
+  applyPhotoEdit(pixels, { ...DEFAULT_EDIT, contrast: 1, shadows: 1, vibrance: 1 });
+  assert.equal(pixels[0], pixels[1]);
+  assert.equal(pixels[1], pixels[2]);
+});
+
+test('whites and blacks move the end points', () => {
+  assert.ok(pixel(250, { whites: 2 }) >= 250);
+  assert.ok(pixel(8, { blacks: 2 }) > 8);
+});
+
+test('vibrance lifts muted colours more than saturated ones', () => {
+  const muted = new Uint8ClampedArray([120, 110, 100, 255]);
+  const vivid = new Uint8ClampedArray([250, 40, 20, 255]);
+  const spread = (p: Uint8ClampedArray) => Math.max(p[0], p[1], p[2]) - Math.min(p[0], p[1], p[2]);
+  const before = [spread(muted), spread(vivid)];
+  applyPhotoEdit(muted, { ...DEFAULT_EDIT, vibrance: 2 });
+  applyPhotoEdit(vivid, { ...DEFAULT_EDIT, vibrance: 2 });
+  assert.ok(spread(muted) / before[0] > spread(vivid) / before[1]);
+});

@@ -1,18 +1,27 @@
-import { THEME_STORAGE_KEY, parseTheme, type ThemeName } from '../core/theme';
+import { DEFAULT_DISPLAY, THEME_STORAGE_KEY, parseDisplay, parseTheme, type DisplaySettings } from '../core/theme';
 
-export function loadTheme(): ThemeName {
+const DISPLAY_KEY = 'kestrel-display-v1';
+
+export function loadDisplay(): DisplaySettings {
   try {
-    return parseTheme(localStorage.getItem(THEME_STORAGE_KEY));
+    const stored = localStorage.getItem(DISPLAY_KEY);
+    if (stored) return parseDisplay(JSON.parse(stored));
+    // Migrate the theme-only setting from the previous release.
+    return { ...DEFAULT_DISPLAY, theme: parseTheme(localStorage.getItem(THEME_STORAGE_KEY)) };
   } catch {
-    return 'default';
+    return DEFAULT_DISPLAY;
   }
 }
 
-export function applyTheme(theme: ThemeName): void {
-  document.documentElement.dataset.theme = theme;
+export function applyDisplay(settings: DisplaySettings): void {
+  const root = document.documentElement;
+  root.dataset.theme = settings.theme;
+  root.dataset.textSize = settings.textSize;
+  root.dataset.font = settings.font;
+  root.dataset.calm = String(settings.calm);
   try {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
+    localStorage.setItem(DISPLAY_KEY, JSON.stringify(settings));
   } catch {
-    // Storage can be blocked. The theme still applies for this session.
+    // Storage can be blocked. The settings still apply for this session.
   }
 }

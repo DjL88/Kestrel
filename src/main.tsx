@@ -1,9 +1,16 @@
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
+import '@fontsource/plus-jakarta-sans/latin-400.css';
+import '@fontsource/plus-jakarta-sans/latin-600.css';
+import '@fontsource/plus-jakarta-sans/latin-700.css';
+import '@fontsource/inter/latin-400.css';
+import '@fontsource/inter/latin-500.css';
+import '@fontsource/atkinson-hyperlegible/latin-400.css';
+import '@fontsource/atkinson-hyperlegible/latin-700.css';
 import './index.css';
-import { applyTheme, loadTheme } from './providers/browserTheme.ts';
+import { applyDisplay, loadDisplay } from './providers/browserTheme.ts';
 
-applyTheme(loadTheme());
+applyDisplay(loadDisplay());
 
 createRoot(document.getElementById('root')!).render(<App />);
 
