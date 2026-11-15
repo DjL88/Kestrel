@@ -1,7 +1,7 @@
 import { newId } from '../core/ids';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
-import { ChevronDown, Columns2, Crop, Download, History, Layers, Redo2, SlidersHorizontal, Undo2 } from 'lucide-react';
+import { ChevronDown, Columns2, Lightbulb, Crop, Download, History, Layers, Redo2, SlidersHorizontal, Undo2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
@@ -10,6 +10,8 @@ import { downloadExport } from '../providers/browserExport';
 import { Histogram } from './Histogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
+import { applyFix, critique, toneOnlyEdit, type Opinion } from '../core/critique';
+import { fullContext } from '../core/masks';
 import { MaskOverlay } from './MaskOverlay';
 import { MaskPanel } from './MaskPanel';
 import { createSubjectMask, framingKey } from '../core/maskTypes';
@@ -86,6 +88,8 @@ export function PhotoEditor({ autoEdit,
   });
   const cornerDrag = useRef<{ corner: CropCorner; x: number; y: number; point: { x: number; y: number } } | null>(null);
   const [autoNotes, setAutoNotes] = useState<string[]>([]);
+  // Once asked for, the opinion stays up to date as the edit changes, until it is hidden.
+  const [opinions, setOpinions] = useState<Opinion[] | null>(null);
   const [selectedMaskId, setSelectedMaskId] = useState<string | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [detectNotice, setDetectNotice] = useState('');
@@ -304,6 +308,38 @@ export function PhotoEditor({ autoEdit,
     node.addEventListener('wheel', onWheel, { passive: false, capture: true });
     return () => node.removeEventListener('wheel', onWheel, { capture: true });
   }, []);
+
+  function updateOpinions() {
+    if (!source || !outputSize) return;
+    const scale = Math.min(1, 320 / Math.max(outputSize.width, outputSize.height));
+    const fresh = () => {
+      const canvas = document.createElement('canvas');
+      drawFramedPhoto(source, canvas, framing, { scale });
+      return canvas;
+    };
+    const read = (canvas: HTMLCanvasElement) => {
+      const image = canvas.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, canvas.width, canvas.height);
+      return { data: image.data, width: image.width, height: image.height };
+    };
+    const original = fresh();
+    const tone = fresh();
+    const result = fresh();
+    applyCanvasPhotoEdit(tone, toneOnlyEdit(edit));
+    applyCanvasPhotoEdit(result, edit);
+    const subject = edit.masks?.find((mask) => mask.kind === 'subject' && !mask.invert) ?? edit.masks?.find((mask) => mask.kind === 'subject');
+    setOpinions(critique({
+      source: read(original), toneOnly: read(tone), after: read(result), edit,
+      subject: subject ? { mask: subject, context: fullContext(original.width, original.height) } : undefined,
+    }));
+  }
+
+  useEffect(() => {
+    if (!opinions) return;
+    const timer = window.setTimeout(updateOpinions, 400);
+    return () => window.clearTimeout(timer);
+    // Refresh after the edit settles. The first opinion is made by the button.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [edit, framing]);
 
   /** Detect on the unedited, cropped photo, so the result matches what the mask will be laid over. */
   async function findSubject(background: boolean, replaceId?: string) {
@@ -530,6 +566,28 @@ export function PhotoEditor({ autoEdit,
           {autoNotes.length > 0 && <ul role="status" className="list-disc space-y-0.5 pl-4 pt-1 text-xs text-zinc-300">
             {autoNotes.map((note) => <li key={note}>{note}</li>)}
           </ul>}
+        </div>
+        <div className="space-y-2 px-1">
+          <button type="button" disabled={sourceState !== 'ready'} title="Check this edit for halos, noise, clipping and tone. Runs on this device."
+            className={`${button} inline-flex w-full items-center justify-center gap-1.5 border border-white/10 font-semibold`} onClick={updateOpinions}>
+            <Lightbulb className="h-4 w-4" aria-hidden="true" />Get an opinion
+          </button>
+          {opinions && (
+            <section aria-label="Opinion on this edit" className="space-y-2 rounded-md border border-white/10 p-2">
+              {opinions.length === 0 && <p role="status" className="text-sm text-zinc-300">Nothing stands out. This edit looks balanced: no halos, no clipping, no extra noise.</p>}
+              {opinions.map((opinion) => (
+                <div key={opinion.id} className="space-y-1 text-sm">
+                  <p className="font-semibold text-zinc-100">{opinion.severity === 'warning' ? 'Watch out: ' : 'Tip: '}{opinion.title}</p>
+                  <p className="text-xs text-zinc-300">{opinion.detail}</p>
+                  {opinion.fix && (
+                    <button type="button" className={`${button} border border-white/15 text-xs`}
+                      onClick={() => onEdit(applyFix(edit, opinion.fix!))}>{opinion.fixLabel ?? 'Apply'}</button>
+                  )}
+                </div>
+              ))}
+              <button type="button" className="min-h-9 text-xs text-zinc-400 underline hover:text-white" onClick={() => setOpinions(null)}>Hide opinion</button>
+            </section>
+          )}
         </div>
         <details className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
