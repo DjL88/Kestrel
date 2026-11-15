@@ -1,6 +1,15 @@
-import { useSyncExternalStore, useState } from 'react';
-import { Loader2, X } from 'lucide-react';
-import { tasks, type Task } from '../core/taskStore';
+import { useEffect, useSyncExternalStore, useState } from 'react';
+import { AlertTriangle, CheckCircle2, Clock, Loader2, X } from 'lucide-react';
+import { taskHealth, tasks, type Health, type Task } from '../core/taskStore';
+
+/** Each level has its own word and icon as well as a colour, so it never depends on telling colours apart. */
+const HEALTH: Record<Health, { word: string; classes: string; Icon: typeof Clock }> = {
+  idle: { word: 'Tasks', classes: 'border-white/15 bg-kestrel-raised text-zinc-100', Icon: CheckCircle2 },
+  ok: { word: 'Working', classes: 'border-sky-300/60 bg-sky-400/15 text-sky-50', Icon: Loader2 },
+  busy: { word: 'Busy', classes: 'border-amber-300/70 bg-amber-400/20 text-amber-50', Icon: Clock },
+  stalled: { word: 'Stuck?', classes: 'border-red-300/80 bg-red-500/25 text-red-50', Icon: AlertTriangle },
+  problem: { word: 'Problem', classes: 'border-red-300/80 bg-red-500/25 text-red-50', Icon: AlertTriangle },
+};
 
 const label = (task: Task) => {
   if (task.state === 'running') return task.total ? `${task.done} of ${task.total}` : task.done ? `${task.done} done` : 'Working…';
@@ -11,7 +20,17 @@ const label = (task: Task) => {
 export function TaskManager() {
   const list = useSyncExternalStore(tasks.subscribe, tasks.list, tasks.list);
   const [open, setOpen] = useState(false);
+  const [at, setAt] = useState(() => Date.now());
+  const anyRunning = list.some((task) => task.state === 'running');
+  // Look again every few seconds while something runs, so a task that stops moving is noticed.
+  useEffect(() => {
+    if (!anyRunning) return;
+    const timer = window.setInterval(() => setAt(Date.now()), 3000);
+    return () => window.clearInterval(timer);
+  }, [anyRunning]);
   if (!list.length) return null;
+  const health = taskHealth(list, Math.max(at, ...list.map((task) => task.updatedAt)));
+  const { word, classes, Icon } = HEALTH[health];
   const running = list.filter((task) => task.state === 'running').length;
   return (
     <div className="fixed bottom-3 right-3 z-[70] flex max-w-[calc(100vw-1.5rem)] flex-col items-end gap-2">
@@ -39,9 +58,9 @@ export function TaskManager() {
         </section>
       )}
       <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}
-        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/15 bg-kestrel-raised px-4 text-sm text-zinc-100 shadow-lg hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-        {running > 0 && <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />}
-        {running > 0 ? `${running} task${running === 1 ? '' : 's'} running` : 'Tasks'}
+        className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium shadow-lg hover:brightness-125 focus-visible:outline-2 focus-visible:outline-sky-300 ${classes}`}>
+        <Icon className={`h-4 w-4 ${health === 'ok' ? 'motion-safe:animate-spin' : ''}`} aria-hidden="true" />
+        {running > 0 ? `${word} · ${running} task${running === 1 ? '' : 's'}` : word}
       </button>
     </div>
   );
