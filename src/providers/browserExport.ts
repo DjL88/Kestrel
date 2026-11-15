@@ -25,11 +25,9 @@ export interface ExportExtras {
   stem?: string;
   /** Shooting details printed on the picture. */
   overlay?: OverlayOptions;
-  /** Used for the overlay date when the photo records none. */
-  dateMs?: number;
   /** How far in the crop looks, from 1 (as much as the shape allows) to 4. */
   zoom?: number;
-  /** Make a small version no larger than this on its long side, for previews. */
+  /** Limit the long edge of the generated preview. */
   previewEdge?: number;
 }
 
@@ -83,7 +81,7 @@ async function composeExport(
     context.drawImage(canvas, Math.floor((output.width - canvas.width) / 2), Math.floor((output.height - canvas.height) / 2));
   }
   if (extras.overlay?.on) {
-    const lines = overlayLines(frame.exif, extras.overlay, extras.dateMs);
+    const lines = overlayLines(frame.exif, extras.overlay);
     if (lines.length) drawOverlay(output, lines, extras.overlay);
   }
   return { canvas, output, bordered: Boolean(border) };
@@ -94,7 +92,7 @@ function drawOverlay(target: HTMLCanvasElement, lines: string[], options: Overla
   const context = target.getContext('2d');
   if (!context) return;
   const { width, height } = target;
-  let size = Math.max(10, Math.round(Math.min(width, height) * 0.032));
+  let size = Math.max(10, Math.round(Math.min(width, height) * 0.032 * (options.scale ?? 1)));
   const family = 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif';
   // Shrink the text if the longest line would not fit.
   context.font = `500 ${size}px ${family}`;
@@ -106,15 +104,18 @@ function drawOverlay(target: HTMLCanvasElement, lines: string[], options: Overla
   const fade = context.createLinearGradient(0, bottom ? height - block * 1.6 : 0, 0, bottom ? height : block * 1.6);
   const shade = options.tone === 'light' ? '0, 0, 0' : '255, 255, 255';
   fade.addColorStop(bottom ? 0 : 1, `rgba(${shade}, 0)`);
-  fade.addColorStop(bottom ? 1 : 0, `rgba(${shade}, 0.62)`);
+  fade.addColorStop(bottom ? 1 : 0, `rgba(${shade}, ${options.shade ?? 0.62})`);
   context.fillStyle = fade;
   context.fillRect(0, bottom ? height - block * 1.6 : 0, width, block * 1.6);
   context.fillStyle = options.tone === 'light' ? '#ffffff' : '#111111';
   context.textBaseline = 'alphabetic';
+  const alignment = options.align ?? 'left';
+  context.textAlign = alignment === 'centre' ? 'center' : alignment;
+  const x = alignment === 'centre' ? width / 2 : alignment === 'right' ? width - pad : pad;
   lines.forEach((line, index) => {
     context.font = `${index === 0 ? 600 : 500} ${size}px ${family}`;
     const y = bottom ? height - pad - (lines.length - 1 - index) * lineHeight : pad + size + index * lineHeight;
-    context.fillText(line, pad, y, width - pad * 2);
+    context.fillText(line, x, y, width - pad * 2);
   });
 }
 

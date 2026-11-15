@@ -31,6 +31,12 @@ test('export wizard: platform, size, position, then export', async ({ page }) =>
   const preview = page.getByRole('img', { name: /as Post · 4:5/ });
   await expect(preview).toBeVisible();
   await expect.poll(() => preview.evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(0.8);
+  const snapshot = await preview.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
+  await page.getByRole('checkbox', { name: 'Show text overlay' }).check();
+  await page.getByLabel('Title', { exact: true }).fill('Kestrel at dusk');
+  await page.getByLabel('Location', { exact: true }).fill('Herefordshire');
+  await page.getByLabel('Alignment').selectOption('centre');
+  await expect.poll(() => preview.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())).not.toBe(snapshot);
   await page.getByRole('button', { name: /Turn Post · 4:5 on its side/ }).click();
   await expect.poll(() => page.getByRole('img', { name: /as Post · 5:4/ }).evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(1.25);
   await next.click();
@@ -38,6 +44,7 @@ test('export wizard: platform, size, position, then export', async ({ page }) =>
   // 4. Review, back and forward keep the choices, then export.
   await expect(page.getByRole('region', { name: 'Ready to export' })).toBeVisible();
   await expect(page.getByText('Post · 5:4').first()).toBeVisible();
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Kestrel at dusk');
   await page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Position' })).toBeVisible();
   await next.click();
@@ -132,8 +139,8 @@ test('file names: my own name and a number, shown as an example and used for the
   await page.getByLabel('Name', { exact: true }).fill('Red Kite');
   await page.getByRole('combobox', { name: 'Number' }).selectOption('sequence');
   await expect(page.getByText(/Example: .*Red-Kite_4x5\.jpg/)).toBeVisible();
-  await page.getByLabel('Print shooting details on the picture').check();
-  await expect(page.getByText('Only details the photo records are printed')).toBeVisible();
+  await page.getByLabel('Show text overlay').check();
+  await expect(page.getByText('There are no matching shooting details')).toBeVisible();
   await page.getByRole('button', { name: 'Prepare 1 file' }).click();
   await expect(page.getByRole('status').filter({ hasText: '1 file ready' })).toBeVisible({ timeout: 30000 });
   const download = page.waitForEvent('download');
@@ -159,7 +166,7 @@ test('details overlay: the photo’s own camera and settings are printed on the 
   await page.waitForTimeout(500);
   const before = await bottomBrightness();
   await page.getByRole('button', { name: 'Next', exact: true }).click();
-  await page.getByLabel('Print shooting details on the picture').check();
+  await page.getByLabel('Show text overlay').check();
   await page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true }).click();
   await expect.poll(async () => (await bottomBrightness()) < before - 15, { timeout: 10000 }).toBe(true);
 });

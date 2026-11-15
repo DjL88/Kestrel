@@ -57,7 +57,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   const collections = page.getByRole('navigation', { name: 'Photo collections' });
   await expect(collections.getByRole('button', { name: 'To review 10' })).toBeVisible();
   await expectIconButtonsHaveTooltips(page, 'the library');
-  await page.getByRole('button', { name: 'Workspace options' }).click();
+  await page.getByRole('button', { name: page.viewportSize()!.width < 768 ? 'More' : 'Workspace options', exact: true }).click();
   await expectIconButtonsHaveTooltips(page, 'the workspace menu');
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Keep frame-01.png', exact: true }).click();
@@ -80,11 +80,10 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   if ((page.viewportSize()?.width ?? 0) >= 768) {
     const panelFitsWindow = () => page.evaluate(() => document.querySelector('[role=tablist]')!.parentElement!.getBoundingClientRect().bottom <= window.innerHeight + 1);
     expect(await panelFitsWindow()).toBe(true);
-    await page.getByText('Edit options', { exact: true }).click();
-    await page.getByText('Layout', { exact: true }).click();
-    await page.getByRole('checkbox', { name: 'Pin filmstrip' }).uncheck();
+    const strip = page.getByRole('toolbar', { name: 'Filmstrip controls' });
+    await strip.getByRole('button', { name: 'Hide filmstrip' }).click();
     await expect.poll(panelFitsWindow).toBe(true);
-    await page.getByRole('checkbox', { name: 'Pin filmstrip' }).check();
+    await strip.getByRole('button', { name: 'Pin filmstrip' }).click();
     await expect.poll(panelFitsWindow).toBe(true);
   }
   // The built-in opinion answers for an unedited photo, and stays on the page.
@@ -94,6 +93,12 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await page.getByRole('button', { name: 'Hide opinion' }).click();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await light.press('ArrowRight');
+  await expect(light).toHaveValue('0.1');
+  const filmstrip = page.getByRole('toolbar', { name: 'Filmstrip controls' });
+  await filmstrip.getByRole('button', { name: 'Copy', exact: true }).click();
+  await light.press('ArrowLeft');
+  await expect(light).toHaveValue('0');
+  await filmstrip.getByRole('button', { name: 'Paste', exact: true }).click();
   await expect(light).toHaveValue('0.1');
 
   // Hold the local model fetch until another adjustment has been committed.
@@ -276,7 +281,7 @@ test('quick edit opens a photo straight in the editor and it can be moved to a p
   await expect(page.getByText('Quick edits').first()).toBeVisible();
   await page.getByRole('button', { name: /Quick edits/ }).first().click();
   await page.getByRole('button', { name: 'View quick.png' }).click();
-  await page.getByRole('button', { name: 'Workspace options' }).click();
+  await page.getByRole('button', { name: page.viewportSize()!.width < 768 ? 'More' : 'Workspace options', exact: true }).click();
   await page.getByRole('button', { name: 'Move to project…' }).click();
   await page.getByLabel('Destination project').selectOption({ label: 'Destination (0)' });
   await page.getByRole('button', { name: 'Move photos' }).click();

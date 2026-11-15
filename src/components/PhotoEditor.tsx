@@ -78,7 +78,6 @@ interface Props {
   panelSide: 'left' | 'right';
   onPanelSideChange: (side: 'left' | 'right') => void;
   showFilmstrip: boolean;
-  onToggleFilmstrip: () => void;
   onApplyToKeepers: (edit: PhotoEdit) => void;
   onUndoKeeperEdits?: () => void;
   /** Saves what the photo is of. Older subject names are folded into the tags. */
@@ -91,7 +90,7 @@ interface Props {
 export function PhotoEditor({ autoEdit, onOpenMacroPad,
   frame, provider, needsAccess, bindings, onEdit, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onSubjectsChange, burstMates, onTagPhotos, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
-  panelSide, onPanelSideChange, showFilmstrip, onToggleFilmstrip,
+  panelSide, onPanelSideChange, showFilmstrip,
 }: Props) {
   const originalCanvas = useRef<HTMLCanvasElement>(null);
   const editedCanvas = useRef<HTMLCanvasElement>(null);
@@ -700,10 +699,43 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
       </div>
       <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
-      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:relative md:z-10 ${showFilmstrip ? 'md:-mb-[112px] ' : ''}md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
+      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:relative md:z-10 ${showFilmstrip ? 'md:-mb-[156px] ' : ''}md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
         {!isPhone && tabList}
         {tab === 'auto' && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
+        <div className="grid grid-cols-2 gap-2 px-1">
+          <button type="button" title="Auto colour and tone" disabled={sourceState !== 'ready'} className={`${button} w-full whitespace-normal border border-white/10 font-semibold`}
+            onClick={() => {
+              const sample = sampleOrientedSource(256);
+              if (!sample) return;
+              const { edit: suggestion, notes } = autoEnhance(sample.data);
+              onEdit({ ...edit, ...suggestion });
+              setAutoNotes(notes);
+            }}>Auto</button>
+          <button type="button" disabled={sourceState !== 'ready'} title="Check this edit for halos, noise, clipping and tone. Runs on this device."
+            className={`${button} inline-flex w-full items-center justify-center gap-1.5 border border-white/10 font-semibold`} onClick={updateOpinions}>
+            <Lightbulb className="h-4 w-4" aria-hidden="true" />Get an opinion
+          </button>
+        </div>
+          {autoNotes.length > 0 && <ul role="status" className="list-disc space-y-0.5 pl-4 pt-1 text-xs text-zinc-300">
+            {autoNotes.map((note) => <li key={note}>{note}</li>)}
+          </ul>}
+          {opinions && (
+            <section aria-label="Opinion on this edit" className="space-y-2 rounded-md border border-white/10 p-2">
+              {opinions.length === 0 && <p role="status" className="text-sm text-zinc-300">Nothing stands out. This edit looks balanced: no halos, no clipping, no extra noise.</p>}
+              {opinions.map((opinion) => (
+                <div key={opinion.id} className="space-y-1 text-sm">
+                  <p className="font-semibold text-zinc-100">{opinion.severity === 'warning' ? 'Watch out: ' : 'Tip: '}{opinion.title}</p>
+                  <p className="text-xs text-zinc-300">{opinion.detail}</p>
+                  {opinion.fix && (
+                    <button type="button" className={`${button} border border-white/15 text-xs`}
+                      onClick={() => onEdit(applyFix(edit, opinion.fix!))}>{opinion.fixLabel ?? 'Apply'}</button>
+                  )}
+                </div>
+              ))}
+              <button type="button" className="min-h-9 text-xs text-zinc-400 underline hover:text-white" onClick={() => setOpinions(null)}>Hide opinion</button>
+            </section>
+          )}
         <SubjectPanel kind={frame.subjectKind} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} disabled={sourceState !== 'ready'} onChange={onSubjectsChange} />
         <SpeciesSuggestions frameId={frame.id} ready={sourceState === 'ready' && Boolean(source)} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} kind={frame.subjectKind}
           getPicture={() => {
@@ -723,41 +755,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           } }))}
           onTagMates={onTagPhotos} />
         <Histogram data={histogram} teach />
-        <div className="px-1">
-          <button type="button" disabled={sourceState !== 'ready'} className={`${button} w-full border border-white/10 font-semibold`}
-            onClick={() => {
-              const sample = sampleOrientedSource(256);
-              if (!sample) return;
-              const { edit: suggestion, notes } = autoEnhance(sample.data);
-              onEdit({ ...edit, ...suggestion });
-              setAutoNotes(notes);
-            }}>Auto colour and tone</button>
-          {autoNotes.length > 0 && <ul role="status" className="list-disc space-y-0.5 pl-4 pt-1 text-xs text-zinc-300">
-            {autoNotes.map((note) => <li key={note}>{note}</li>)}
-          </ul>}
-        </div>
-        <div className="space-y-2 px-1">
-          <button type="button" disabled={sourceState !== 'ready'} title="Check this edit for halos, noise, clipping and tone. Runs on this device."
-            className={`${button} inline-flex w-full items-center justify-center gap-1.5 border border-white/10 font-semibold`} onClick={updateOpinions}>
-            <Lightbulb className="h-4 w-4" aria-hidden="true" />Get an opinion
-          </button>
-          {opinions && (
-            <section aria-label="Opinion on this edit" className="space-y-2 rounded-md border border-white/10 p-2">
-              {opinions.length === 0 && <p role="status" className="text-sm text-zinc-300">Nothing stands out. This edit looks balanced: no halos, no clipping, no extra noise.</p>}
-              {opinions.map((opinion) => (
-                <div key={opinion.id} className="space-y-1 text-sm">
-                  <p className="font-semibold text-zinc-100">{opinion.severity === 'warning' ? 'Watch out: ' : 'Tip: '}{opinion.title}</p>
-                  <p className="text-xs text-zinc-300">{opinion.detail}</p>
-                  {opinion.fix && (
-                    <button type="button" className={`${button} border border-white/15 text-xs`}
-                      onClick={() => onEdit(applyFix(edit, opinion.fix!))}>{opinion.fixLabel ?? 'Apply'}</button>
-                  )}
-                </div>
-              ))}
-              <button type="button" className="min-h-9 text-xs text-zinc-400 underline hover:text-white" onClick={() => setOpinions(null)}>Hide opinion</button>
-            </section>
-          )}
-        </div>
+
           </div>
         )}
         {tab === 'export' && (
@@ -870,16 +868,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             Edit options <ChevronDown className="h-4 w-4" aria-hidden="true" />
           </summary>
           <div className="flex flex-wrap gap-1">
-            <button type="button" disabled={sourceState !== 'ready'} className={button} onClick={() => {
-              onCopyEdit(edit);
-              setEditNotice('Adjustments copied');
-            }}>Copy adjustments</button>
-            <button type="button" disabled={!copiedEdit || sourceState !== 'ready'} className={button} onClick={() => {
-              if (!copiedEdit) return;
-              onEdit(copiedEdit);
-
-              setEditNotice('Adjustments pasted');
-            }}>Paste adjustments</button>
             <button type="button" disabled={isEmptyEdit(edit)} className={button} onClick={() => {
               onEdit(DEFAULT_EDIT);
 
@@ -930,9 +918,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                 <option value="right">Right</option>
               </select>
             </label>
-            <label className="flex min-h-11 items-center gap-2 text-sm">
-              <input type="checkbox" checked={showFilmstrip} onChange={onToggleFilmstrip} /> Pin filmstrip
-            </label>
+
           </details>
           {!frame.isDemo && <button type="button" className={button} disabled={!provider.getOriginal(frame.stableKey)}
             onClick={() => {

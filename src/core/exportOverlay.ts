@@ -2,6 +2,11 @@ import type { ExifMetadata } from './types';
 
 export interface OverlayOptions {
   on: boolean;
+  title?: string;
+  location?: string;
+  align?: 'left' | 'centre' | 'right';
+  scale?: number;
+  shade?: number;
   camera: boolean;
   lens: boolean;
   settings: boolean;
@@ -26,13 +31,13 @@ export function settingsLine(exif: ExifMetadata): string {
 }
 
 /** The lines to print on a photo. Only what the photo actually records, and only what was switched on. */
-export function overlayLines(exif: ExifMetadata, options: OverlayOptions, fallbackDateMs?: number): string[] {
+export function overlayLines(exif: ExifMetadata, options: OverlayOptions): string[] {
   if (!options.on) return [];
-  const lines: string[] = [];
+  const lines = [options.title?.trim(), options.location?.trim()].filter((line): line is string => Boolean(line));
   if (options.camera && exif.camera) lines.push(exif.camera);
   if (options.lens && exif.lens) lines.push(exif.lens);
   if (options.settings) { const line = settingsLine(exif); if (line) lines.push(line); }
-  const when = exif.capturedAtMs ?? fallbackDateMs;
+  const when = exif.capturedAtMs;
   if (options.date && when && Number.isFinite(when)) lines.push(new Date(when).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }));
   return lines;
 }

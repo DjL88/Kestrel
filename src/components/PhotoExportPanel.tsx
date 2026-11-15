@@ -11,7 +11,7 @@ import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider
 import { ExportPreviewTile } from './ExportPreviewTile';
 import { ExportWizard } from './ExportWizard';
 import { KEEP_NAMES, stemFor, type NameTemplate } from '../core/exportNaming';
-import { NO_OVERLAY, type OverlayOptions } from '../core/exportOverlay';
+import { NO_OVERLAY, overlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { exportFilename } from '../core/exportProfiles';
 import { SocialIcon } from './SocialIcon';
 
@@ -175,7 +175,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
           await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
           if (cancelled.current) return;
           output.push(await renderExport(image, frame, toProfile(format), date, controller.signal, framingFor(format.fit), undefined, {
-            focus: anchorFor(frame, format), bars, zoom: zoomFor(frame, format), stem, overlay, dateMs: date.getTime(),
+            focus: anchorFor(frame, format), bars, zoom: zoomFor(frame, format), stem, overlay,
           }));
           setProgress(output.length);
         }
@@ -298,10 +298,18 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   );
   const overlayBlock = (
     <fieldset className="space-y-2 rounded-lg border border-white/10 p-3">
-      <legend className="px-1 text-sm font-medium text-zinc-100">Photo details</legend>
-      <label className={check}><input type="checkbox" checked={overlay.on} onChange={(event) => setOverlay((prior) => ({ ...prior, on: event.target.checked }))} />Print shooting details on the picture</label>
+      <legend className="px-1 text-sm font-medium text-zinc-100">Text overlay</legend>
+      <label className={check}><input type="checkbox" checked={overlay.on} onChange={(event) => setOverlay((prior) => ({ ...prior, on: event.target.checked }))} />Show text overlay</label>
       {overlay.on && (
         <>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="text-xs">Title
+              <input className={field} maxLength={100} value={overlay.title ?? ''} onChange={(event) => setOverlay((prior) => ({ ...prior, title: event.target.value }))} />
+            </label>
+            <label className="text-xs">Location
+              <input className={field} maxLength={100} value={overlay.location ?? ''} onChange={(event) => setOverlay((prior) => ({ ...prior, location: event.target.value }))} />
+            </label>
+          </div>
           <div className="grid grid-cols-2 gap-x-3">
             {([['camera', 'Camera'], ['lens', 'Lens'], ['settings', 'Settings'], ['date', 'Date']] as const).map(([key, label]) => (
               <label key={key} className={check}><input type="checkbox" checked={overlay[key]} onChange={(event) => setOverlay((prior) => ({ ...prior, [key]: event.target.checked }))} />{label}</label>
@@ -319,15 +327,33 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
               </select>
             </label>
           </div>
-          <p className="text-xs text-zinc-400">Only details the photo records are printed. Nothing is made up, and the preview shows exactly what you get.</p>
+          <label className="block text-xs">Alignment
+            <select className={field} value={overlay.align ?? 'left'} onChange={(event) => setOverlay((prior) => ({ ...prior, align: event.target.value as OverlayOptions['align'] }))}>
+              <option value="left">Left</option><option value="centre">Centre</option><option value="right">Right</option>
+            </select>
+          </label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="text-xs">Text size
+              <input type="range" min={0.75} max={1.75} step={0.05} className="block min-h-11 w-full" value={overlay.scale ?? 1}
+                onChange={(event) => setOverlay((prior) => ({ ...prior, scale: event.target.valueAsNumber }))} />
+            </label>
+            <label className="text-xs">Background shade
+              <input type="range" min={0} max={1} step={0.05} className="block min-h-11 w-full" value={overlay.shade ?? 0.62}
+                onChange={(event) => setOverlay((prior) => ({ ...prior, shade: event.target.valueAsNumber }))} />
+            </label>
+          </div>
+          {frames.every((frame) => overlayLines(frame.exif, overlay).length === 0) && (
+            <p role="status" className="text-xs text-zinc-400">There are no matching shooting details. Add a title or location to see an overlay.</p>
+          )}
         </>
       )}
     </fieldset>
   );
+  const wizard = view === 'wizard' && !resultsReady;
   const optionsBlock = (
     <>
       {namingBlock}
-      {overlayBlock}
+      {!wizard && overlayBlock}
               <fieldset disabled={progress !== null} className="space-y-2">
                 {anyBars && (
                   <label className="block text-sm">Borders
@@ -374,7 +400,6 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
     </>
   );
 
-  const wizard = view === 'wizard' && !resultsReady;
   const changeView = (next: 'wizard' | 'list') => { setView(next); try { localStorage.setItem('kestrel.exportView', next); } catch { /* Optional preference. */ } };
   const blocked = Boolean(customOn && customResult && 'error' in customResult);
   const canShare = files.length > 0 && navigator.canShare?.({ files });
@@ -425,7 +450,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
               selected={selected} fits={fits} onFit={(id, fit) => setFits((prior) => ({ ...prior, [id]: fit }))} bars={bars} onBars={setBars}
               anchorFor={anchorFor} onAnchor={(frame, format, anchor) => setAnchors((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: anchor }))}
               zoomFor={zoomFor} onZoom={(frame, format, zoom) => setZooms((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))}
-              onTurn={(id) => setTurned((prior) => ({ ...prior, [id]: !prior[id] }))} overlay={overlay} reviewSlot={optionsBlock}
+              onTurn={(id) => setTurned((prior) => ({ ...prior, [id]: !prior[id] }))} overlay={overlay} overlaySlot={overlayBlock} reviewSlot={optionsBlock}
               busy={progress !== null} total={total} progress={progress} blocked={blocked} onPrepare={() => void prepare()} />
             {progress !== null && <progress aria-label="Export progress" className="mt-2 block w-full" value={progress} max={total} />}
           </>

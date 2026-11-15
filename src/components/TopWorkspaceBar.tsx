@@ -97,6 +97,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const footerMore = useRef<HTMLButtonElement>(null);
+  const restoreMenuFocus = () => (footerMore.current?.getClientRects().length ? footerMore.current : triggerRef.current)?.focus();
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -106,7 +107,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key !== 'Escape') return;
       setMenuOpen(false);
-      triggerRef.current?.focus();
+      restoreMenuFocus();
     }
     document.addEventListener('pointerdown', closeOutside);
     document.addEventListener('keydown', closeOnEscape);
@@ -119,12 +120,12 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
   function choose(action: () => void, restoreFocus = true) {
     action();
     setMenuOpen(false);
-    if (restoreFocus) triggerRef.current?.focus();
+    if (restoreFocus) restoreMenuFocus();
   }
 
   return (
     <>
-    <header className="relative z-20 flex min-w-0 shrink-0 items-center justify-between gap-2 pt-0.5 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
+    <header className="relative z-20 flex min-w-0 shrink-0 items-center justify-between gap-3 py-1.5 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
       <button type="button" onClick={props.onBackToProjects} disabled={props.actionsDisabled} className={actionClass} aria-label="Back to projects" title="Back to projects">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Projects</span>
       </button>
@@ -135,7 +136,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
             `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter === 'all' || filter === 'reject' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}${props.ratingFilter ? ' · Rating filter' : ''}`}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-2">
         <button type="button" onClick={props.onOpenShootModal} disabled={props.actionsDisabled} className={`${actionClass} border border-white/12 max-md:hidden`} aria-label="Add photos to project" title="Add photos">
           <Plus className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">Add</span>
@@ -151,7 +152,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           <span className="tabular-nums sm:hidden" aria-hidden="true">{props.exportLabel?.replace('Export', '').trim()}</span>
         </button>
         <div ref={menuRef}>
-          <button ref={triggerRef} type="button" disabled={props.actionsDisabled} className={actionClass} onClick={() => setMenuOpen(!menuOpen)}
+          <button ref={triggerRef} type="button" disabled={props.actionsDisabled} className={`${actionClass} max-md:hidden`} onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Workspace options" title="Workspace options" aria-expanded={menuOpen} aria-controls="workspace-options">
             <Ellipsis className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -266,7 +267,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           <Icon className="h-5 w-5" aria-hidden="true" /><span>{label}</span>
         </button>
       ))}
-      <button ref={footerMore} type="button" aria-expanded={menuOpen} aria-controls="workspace-options" title="More: filters, selection, project and help"
+      <button ref={footerMore} type="button" disabled={props.actionsDisabled} aria-expanded={menuOpen} aria-controls="workspace-options" title="More: filters, selection, project and help"
         onClick={() => setMenuOpen(!menuOpen)}
         className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 aria-expanded:text-white">
         <Ellipsis className="h-5 w-5" aria-hidden="true" /><span>More</span>
@@ -282,7 +283,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           </button>
         ))}
       </div>
-      <div className="hidden min-w-0 flex-1 items-center justify-center gap-2 md:flex">
+      <div className="hidden min-w-0 flex-1 items-center justify-end gap-2 md:flex">
         <label className="relative block w-full max-w-64">
           <span className="sr-only">Search photos</span>
           <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden="true" />
