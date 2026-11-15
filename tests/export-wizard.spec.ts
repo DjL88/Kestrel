@@ -44,3 +44,46 @@ test('export wizard: platform, size, position, then export', async ({ page }) =>
   await page.getByRole('button', { name: 'Prepare 1 file' }).click();
   await expect(page.getByRole('status').filter({ hasText: '1 file ready' })).toBeVisible({ timeout: 30000 });
 });
+
+async function openWizard(page: import('@playwright/test').Page) {
+  await page.goto('/');
+  const png = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 900; canvas.height = 600;
+    const c = canvas.getContext('2d')!;
+    c.fillStyle = '#334'; c.fillRect(0, 0, 900, 600);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await page.getByTestId('quick-edit-input').setInputFiles({ name: 'w.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+  await page.getByRole('tab', { name: 'Export' }).click();
+  await page.getByRole('button', { name: 'Choose formats and export…' }).click();
+}
+
+test('the wizard ignores earlier saved choices and shows the size that was picked', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('kestrel.lastExport.v2', JSON.stringify(['tt-story', 'th-34', 'master'])));
+  await openWizard(page);
+  await page.getByRole('button', { name: 'Instagram' }).click();
+  await page.getByRole('checkbox', { name: /Square · 1:1/ }).check();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /Position · Square · 1:1/ })).toBeVisible();
+  await expect(page.getByText('TikTok')).toHaveCount(0);
+  await expect(page.getByText(/1 of 1\)/)).toBeVisible();
+});
+
+test('on a short screen the step scrolls and Next stays in view', async ({ page }) => {
+  await page.setViewportSize({ width: page.viewportSize()!.width, height: 480 });
+  await openWizard(page);
+  await page.getByRole('button', { name: 'Instagram' }).click();
+  await page.getByRole('checkbox', { name: /Post · 4:5/ }).check();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  const next = page.getByRole('button', { name: 'Next', exact: true });
+  await expect(next).toBeVisible();
+  const height = page.viewportSize()!.height;
+  const box = (await next.boundingBox())!;
+  expect(box.y + box.height).toBeLessThanOrEqual(height);
+  // The part below the picture is reachable by scrolling, and stays above the buttons.
+  const fits = page.getByLabel('How it fits');
+  await fits.scrollIntoViewIfNeeded();
+  const fitsBox = (await fits.boundingBox())!;
+  expect(fitsBox.y + fitsBox.height).toBeLessThanOrEqual(box.y + 1);
+});
