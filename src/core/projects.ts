@@ -135,3 +135,34 @@ export function moveFrames(source: CullingState, target: CullingState, frameIds:
       shoot: { ...source.shoot, totalFrames: sourceFrames.length, lastUpdatedAt: now } },
   };
 }
+
+export type ProjectSort = 'edited' | 'created' | 'name';
+
+/** Lower-case text a project can be found by: its photos' file names, subject names and tags. */
+export function projectSearchText(frames: readonly { filename: string; subjectNames?: string[]; tags?: string[]; removedAt?: number }[]): string {
+  return frames.filter((frame) => !frame.removedAt)
+    .map((frame) => [frame.filename, ...(frame.subjectNames ?? []), ...(frame.tags ?? [])].join(' ')).join('\n').toLowerCase();
+}
+
+/** Every word typed must appear in the project's title or one of its photos. Photo-only matches are reported so the list can say why. */
+export function filterProjects<T extends { id: string; title: string }>(
+  projects: readonly T[], query: string, photoText: Readonly<Record<string, string>>,
+): { project: T; viaPhotos: boolean }[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  return projects.flatMap((project) => {
+    if (!words.length) return [{ project, viaPhotos: false }];
+    const title = project.title.toLowerCase();
+    const photos = photoText[project.id] ?? '';
+    if (!words.every((word) => title.includes(word) || photos.includes(word))) return [];
+    return [{ project, viaPhotos: !words.every((word) => title.includes(word)) }];
+  });
+}
+
+export function sortProjects<T extends { title: string; createdAt: number; lastUpdatedAt: number }>(projects: readonly T[], sort: ProjectSort): T[] {
+  const by = {
+    edited: (a: T, b: T) => b.lastUpdatedAt - a.lastUpdatedAt,
+    created: (a: T, b: T) => b.createdAt - a.createdAt,
+    name: (a: T, b: T) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base', numeric: true }),
+  }[sort];
+  return [...projects].sort(by);
+}

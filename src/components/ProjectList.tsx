@@ -1,14 +1,16 @@
 import { useRef, useState } from 'react';
-import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, SquareChevronsRight, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Search, SquareChevronsRight, Trash2 } from 'lucide-react';
 import kestrelMark from '../assets/kestrel-mark.svg';
 import type { ShootDescriptor } from '../core/types';
 import { NewProjectWizard } from './NewProjectWizard';
 import type { ProjectSettings } from '../core/projectSettings';
-import { inboxFirst, splitProjects } from '../core/projects';
+import { filterProjects, inboxFirst, sortProjects, splitProjects, type ProjectSort } from '../core/projects';
 import { formatProjectDate } from '../core/formatDate';
 
 interface Props {
   projects: ShootDescriptor[];
+  /** Searchable text of each project's photos, by project id. */
+  photoText?: Record<string, string>;
   loading: boolean;
   error?: string;
   onOpen: (id: string) => void;
@@ -21,8 +23,10 @@ interface Props {
   onQuickEdit: (files: File[]) => void;
 }
 
-export function ProjectList({ projects, loading, error, onOpen, onCreate, onRestore, onArchive, onUnarchive, onDelete, onQuickEdit }: Props) {
+export function ProjectList({ projects, photoText = {}, loading, error, onOpen, onCreate, onRestore, onArchive, onUnarchive, onDelete, onQuickEdit }: Props) {
   const [creating, setCreating] = useState(false);
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<ProjectSort>('edited');
   const backupInput = useRef<HTMLInputElement>(null);
   const quickInput = useRef<HTMLInputElement>(null);
   return (
@@ -59,6 +63,25 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
           </button>
           </div>
         </header>
+        {projects.length > 1 && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <label className="relative min-w-0 flex-1 basis-56">
+              <span className="sr-only">Search projects and photos</span>
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden="true" />
+              <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects and photos"
+                className="min-h-11 w-full rounded-md border border-white/15 bg-kestrel-raised pl-9 pr-3 text-sm placeholder:text-zinc-500 focus-visible:outline-2 focus-visible:outline-sky-300" />
+            </label>
+            <label className="flex items-center gap-2 text-sm text-zinc-300">
+              <span>Sort</span>
+              <select value={sort} onChange={(event) => setSort(event.target.value as ProjectSort)}
+                className="min-h-11 rounded-md border border-white/15 bg-kestrel-raised px-2 text-sm text-zinc-100 focus-visible:outline-2 focus-visible:outline-sky-300">
+                <option value="edited">Last edited</option>
+                <option value="created">Newest created</option>
+                <option value="name">Name</option>
+              </select>
+            </label>
+          </div>
+        )}
         {creating && <NewProjectWizard loading={loading} onCancel={() => setCreating(false)} onCreate={onCreate} />}
         {error && <p role="alert" className="mb-3 text-sm text-orange-200">{error}</p>}
         {loading && <p role="status" className="mb-3 text-sm text-zinc-400">Opening catalogue…</p>}
@@ -68,16 +91,18 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
           </p>
         )}
         {(() => {
-          const { active, archived } = splitProjects(projects);
+          const { active: allActive, archived: allArchived } = splitProjects(projects);
+          const active = filterProjects(inboxFirst(sortProjects(allActive, sort)), query, photoText);
+          const archived = filterProjects(sortProjects(allArchived, sort), query, photoText);
           const action = 'grid h-11 w-11 shrink-0 place-items-center rounded-md text-zinc-300 hover:bg-white/10 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-45';
-          const row = (project: ShootDescriptor, isArchived: boolean) => (
+          const row = ({ project, viaPhotos }: { project: ShootDescriptor; viaPhotos: boolean }, isArchived: boolean) => (
             <li key={project.id} className="flex items-center gap-1 pr-1">
               <button type="button" disabled={loading} onClick={() => onOpen(project.id)}
                 className="flex min-w-0 flex-1 items-center gap-3 rounded-md p-3 text-left hover:bg-white/6 disabled:opacity-55">
                 <Folder className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden="true" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{project.title}{project.inbox && <span className="ml-2 rounded bg-sky-300/15 px-1.5 py-0.5 text-xs font-normal text-sky-100">Quick edits</span>}</span>
-                  <span className="block text-xs text-zinc-400">{project.totalFrames} {project.totalFrames === 1 ? 'photo' : 'photos'}</span>
+                  <span className="block text-xs text-zinc-400">{project.totalFrames} {project.totalFrames === 1 ? 'photo' : 'photos'}{viaPhotos && ' · matches photos inside'}</span>
                   <span className="block text-xs text-zinc-400">
                     Created <time dateTime={project.createdAt ? new Date(project.createdAt).toISOString() : undefined}>{formatProjectDate(project.createdAt)}</time>
                     {' · '}Last edited <time dateTime={project.lastUpdatedAt ? new Date(project.lastUpdatedAt).toISOString() : undefined}>{formatProjectDate(project.lastUpdatedAt, true)}</time>
@@ -101,11 +126,12 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
             </li>
           );
           return <>
-            {active.length > 0 && <ul className="divide-y divide-white/8 rounded-xl border border-white/10 bg-kestrel-raised">{inboxFirst(active).map((project) => row(project, false))}</ul>}
+            {query.trim() && !active.length && !archived.length && <p role="status" className="rounded-xl border border-white/10 bg-kestrel-raised p-4 text-sm text-zinc-300">No projects or photos match “{query.trim()}”.</p>}
+            {active.length > 0 && <ul className="divide-y divide-white/8 rounded-xl border border-white/10 bg-kestrel-raised">{active.map((hit) => row(hit, false))}</ul>}
             {archived.length > 0 && (
               <details className="mt-4 rounded-xl border border-white/10 bg-kestrel-raised">
                 <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm text-zinc-300">Archived ({archived.length})</summary>
-                <ul className="divide-y divide-white/8 border-t border-white/10">{archived.map((project) => row(project, true))}</ul>
+                <ul className="divide-y divide-white/8 border-t border-white/10">{archived.map((hit) => row(hit, true))}</ul>
               </details>
             )}
           </>;

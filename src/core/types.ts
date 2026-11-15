@@ -67,6 +67,8 @@ export interface PhotoFrame {
   rating?: number;
   virtualCopy?: { originalFrameId: string; number: number };
   subjectNames?: string[];
+  /** Labels such as a species, kept with the photo so projects can be searched by them. Always a suggestion the user can edit. */
+  tags?: string[];
   burstGroupId: string | null;
   burstIndex: number;
   burstCount: number;

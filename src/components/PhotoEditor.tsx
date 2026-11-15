@@ -44,6 +44,9 @@ const TABS: { id: Tab; label: string; Icon: typeof Crop }[] = [
   { id: 'export', label: 'Export', Icon: Download },
 ];
 
+/** The modifier key people expect on this device, for shortcut hints in tooltips. */
+const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
+
 interface Props {
   /** Opens the macro pad settings and how-to, on the Edit tab. */
   onOpenMacroPad?: () => void;
@@ -101,6 +104,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [detectNotice, setDetectNotice] = useState('');
   const [brushRadius, setBrushRadius] = useState(0.05);
   const [erase, setErase] = useState(false);
+  const [paintOn, setPaintOn] = useState(false);
   const [showMaskOverlay, setShowMaskOverlay] = useState(true);
   const [dialUsed, setDialUsed] = useState(false);
   const [quickChoices, setQuickChoices] = useState(false);
@@ -143,6 +147,24 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const savedEdit = frame.edit ?? DEFAULT_EDIT;
   // While a history step is being previewed, draw that step's recipe instead of the saved one.
   const edit = (previewRecipe ? previewRecipe.edit : frame.edit) ?? DEFAULT_EDIT;
+  // Painting is always a deliberate choice: leaving a mask or the Masks tab switches it off.
+  useEffect(() => { setPaintOn(false); }, [selectedMaskId, tab]);
+  // Delete or Backspace removes the selected mask, as in Lightroom. Typing in a field is never touched.
+  useEffect(() => {
+    if (tab !== 'masks' || !selectedMaskId) return;
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.key !== 'Delete' && event.key !== 'Backspace') || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"], dialog, [role="dialog"]')) return;
+      const masks = edit.masks ?? [];
+      if (!masks.some((mask) => mask.id === selectedMaskId)) return;
+      event.preventDefault();
+      onEdit({ ...edit, masks: masks.filter((mask) => mask.id !== selectedMaskId).map((mask) => mask.limit?.id === selectedMaskId ? { ...mask, limit: undefined } : mask) });
+      setSelectedMaskId(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [tab, selectedMaskId, edit, onEdit]);
   const framing = (previewRecipe ? previewRecipe.framing : frame.framing) ?? DEFAULT_FRAMING;
   // Subject detection must not apply its result if the saved edit or crop changed while it ran.
   const detectionContext = useRef<{ edit: PhotoEdit; crop: string } | null>(null);
@@ -474,12 +496,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
   return (
     <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-kestrel-stage">
-      <div role="toolbar" aria-label="Editor actions" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-panel px-2 sm:px-4">
+      <div role="toolbar" aria-label="Editor actions" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-panel px-2 pt-0.5 sm:px-4">
         <div className="flex items-center gap-1">
-          <button type="button" className={`${button} inline-flex items-center`} aria-label="Undo" title="Undo" disabled={!frame.editHistory?.cursor} onClick={() => onHistoryStep(-1)}>
+          <button type="button" className={`${button} inline-flex items-center`} aria-label="Undo" title={`Undo (${MOD}+Z)`} disabled={!frame.editHistory?.cursor} onClick={() => onHistoryStep(-1)}>
             <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Undo</span>
           </button>
-          <button type="button" className={`${button} inline-flex items-center`} aria-label="Redo" title="Redo" disabled={!frame.editHistory || frame.editHistory.cursor >= frame.editHistory.steps.length} onClick={() => onHistoryStep(1)}>
+          <button type="button" className={`${button} inline-flex items-center`} aria-label="Redo" title={`Redo (${MOD}+Shift+Z)`} disabled={!frame.editHistory || frame.editHistory.cursor >= frame.editHistory.steps.length} onClick={() => onHistoryStep(1)}>
             <Redo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Redo</span>
           </button>
           <button type="button" aria-pressed={displayCompare} disabled={sourceState !== 'ready' || guide} onClick={() => setCompare(!compare)}
@@ -524,7 +546,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               style={{ left: position.left + position.width * frame.focusPoint.x, top: position.top + position.height * frame.focusPoint.y }} />}
             {tab === 'masks' && !guide && position && size && !displayCompare && showMaskOverlay && edit.masks?.find((mask) => mask.id === selectedMaskId) && (
               <MaskOverlay mask={edit.masks.find((mask) => mask.id === selectedMaskId)!} masks={edit.masks} aspect={size.height / size.width} rect={position}
-                brushRadius={brushRadius} erase={erase}
+                brushRadius={brushRadius} paintOn={paintOn} erase={erase}
                 onChange={(next) => onEdit({ ...edit, masks: edit.masks!.map((mask) => mask.id === next.id ? next : mask) })} />
             )}
             {cropRect && <div style={cropRect}
@@ -898,7 +920,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         {tab === 'masks' && (
           <div role="tabpanel" id="panel-masks" aria-labelledby="tab-masks">
             <MaskPanel masks={edit.masks ?? []} selectedId={selectedMaskId} disabled={sourceState !== 'ready'}
-              brushRadius={brushRadius} erase={erase} showOverlay={showMaskOverlay}
+              brushRadius={brushRadius} paintOn={paintOn} onPaintOn={setPaintOn} erase={erase} showOverlay={showMaskOverlay}
               onSelect={setSelectedMaskId} onChange={(masks) => onEdit({ ...edit, masks })}
               onBrushRadius={setBrushRadius} onErase={setErase} onShowOverlay={setShowMaskOverlay}
               onFindSubject={(background) => void findSubject(background)} onRefind={(id) => void findSubject(false, id)}
