@@ -16,7 +16,7 @@ import { PresetPanel } from './PresetPanel';
 import { autoEnhance } from '../core/autoEnhance';
 import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
 import { PhotoViewport } from './PhotoViewport';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, DETAIL_CONTROLS, isNeutralEdit, isEmptyEdit, type PhotoEdit } from '../core/photoEdits';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
@@ -97,6 +97,12 @@ export function PhotoEditor({ autoEdit,
   const [editNotice, setEditNotice] = useState('');
   const edit = frame.edit ?? DEFAULT_EDIT;
   const framing = frame.framing ?? DEFAULT_FRAMING;
+  const detectionContext = useRef<{ edit: PhotoEdit; crop: string } | null>(null);
+  const cropKey = framingKey(framing);
+  useLayoutEffect(() => {
+    detectionContext.current = { edit, crop: cropKey };
+    return () => { detectionContext.current = null; };
+  }, [edit, cropKey]);
   const isRaw = /\.(nef|nrw)$/i.test(frame.filename) && !frame.isDemo;
 
   useEffect(() => {
@@ -275,13 +281,18 @@ export function PhotoEditor({ autoEdit,
 
   /** Detect on the unedited, cropped photo, so the result matches what the mask will be laid over. */
   async function findSubject(background: boolean, replaceId?: string) {
-    if (!source || !outputSize) return;
+    const startedFor = detectionContext.current;
+    if (!source || !outputSize || !startedFor) return;
     setDetecting(true);
     setDetectNotice('');
     try {
       const preview = document.createElement('canvas');
       drawFramedPhoto(source, preview, framing, { scale: Math.min(1, 640 / Math.max(outputSize.width, outputSize.height)) });
       const { grid, assessment } = await detectSubject(preview);
+      if (detectionContext.current !== startedFor) {
+        if (detectionContext.current) setDetectNotice('Photo edits changed. Find the subject or background again.');
+        return;
+      }
       if (!assessment.usable) {
         setDetectNotice(assessment.reason);
         return;
@@ -299,9 +310,11 @@ export function PhotoEditor({ autoEdit,
       }
       setDetectNotice(assessment.reason);
     } catch (error) {
-      setDetectNotice(error instanceof Error ? error.message : 'Subject detection failed.');
+      if (detectionContext.current === startedFor) {
+        setDetectNotice(error instanceof Error ? error.message : 'Subject detection failed.');
+      }
     } finally {
-      setDetecting(false);
+      if (detectionContext.current) setDetecting(false);
     }
   }
 
