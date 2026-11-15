@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, RectangleHorizontal, X } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import {
-  EXPORT_FORMATS, LEGACY_FORMAT_IDS, PLATFORMS, canTurn, customFormat, formatById, framingFor, shapeLabel, sizeLabel, toProfile, turnFormat,
+  EXPORT_FORMATS, LEGACY_FORMAT_IDS, PLATFORMS, customFormat, formatById, framingFor, shapeLabel, sizeLabel, toProfile, turnFormat,
   type BarStyle, type CustomSize, type ExportFormat, type Fit,
 } from '../core/exportFormats';
 import type { FocusPoint } from '../core/exportFraming';
@@ -55,6 +55,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   const [customOn, setCustomOn] = useState(false);
   const [custom, setCustom] = useState<CustomSize>(DEFAULT_CUSTOM);
   const [anchors, setAnchors] = useState<Record<string, FocusPoint>>({});
+  const [zooms, setZooms] = useState<Record<string, number>>({});
   const [sources, setSources] = useState<Record<string, HTMLImageElement>>({});
   const [timestamp, setTimestamp] = useState<'now' | 'capture' | 'custom'>('now');
   const [customDate, setCustomDate] = useState('');
@@ -80,6 +81,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   }, [chosen, fits, overrides, turned, customResult]);
   const total = selected.length * frames.length;
   const resultsReady = files.length > 0;
+  const zoomFor = (frame: PhotoFrame, format: ExportFormat) => zooms[`${frame.id}|${format.id}`] ?? 1;
   const anchorFor = (frame: PhotoFrame, format: ExportFormat): FocusPoint => anchors[`${frame.id}|${format.id}`] ?? frame.focusPoint ?? { x: 0.5, y: 0.5 };
 
   useEffect(() => {
@@ -159,7 +161,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
           await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
           if (cancelled.current) return;
           output.push(await renderExport(image, frame, toProfile(format), date, controller.signal, framingFor(format.fit), undefined, {
-            focus: anchorFor(frame, format), bars,
+            focus: anchorFor(frame, format), bars, zoom: zoomFor(frame, format),
           }));
           setProgress(output.length);
         }
@@ -204,19 +206,6 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
             <span className="block text-xs text-zinc-400">{sizeLabel(shownFormat)}</span>
           </span>
         </label>
-        {on && canTurn(format) && (fits[format.id] ?? format.fit) !== 'keep' && (() => {
-          const shown = turned[format.id] ? turnFormat(format) : format;
-          const next = turnFormat(shown);
-          return (
-            <button type="button" className="mx-2 mb-1 inline-flex min-h-10 items-center gap-1.5 rounded-md border border-white/15 px-2 text-xs text-zinc-200 hover:bg-white/10"
-              title={`Turn the shape on its side. The photo is not rotated.`}
-              aria-label={`Turn ${shown.label} from ${shapeLabel(shown.width, shown.height)} to ${shapeLabel(next.width, next.height)}`}
-              onClick={() => setTurned((prior) => ({ ...prior, [format.id]: !prior[format.id] }))}>
-              <RectangleHorizontal className={`h-4 w-4 ${shown.height > shown.width ? 'rotate-90' : ''}`} aria-hidden="true" />
-              {shapeLabel(shown.width, shown.height)} → {shapeLabel(next.width, next.height)}
-            </button>
-          );
-        })()}
         {on && format.id !== 'master' && (
           <label className="block px-2 pb-2 text-xs text-zinc-300">
             <span className="sr-only">How {format.label} fits the photo</span>
@@ -333,7 +322,9 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {tiles.map(({ frame, format }) => (
                       <ExportPreviewTile key={`${frame.id}|${format.id}`} frame={frame} source={sources[frame.id]} format={format} bars={bars}
-                        anchor={anchorFor(frame, format)} onAnchor={(anchor) => setAnchors((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: anchor }))} />
+                        anchor={anchorFor(frame, format)} onAnchor={(anchor) => setAnchors((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: anchor }))}
+                        zoom={zoomFor(frame, format)} onZoom={(zoom) => setZooms((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))}
+                        platform={format.platform} onTurn={() => setTurned((prior) => ({ ...prior, [format.id]: !prior[format.id] }))} />
                     ))}
                   </div>
                 )}
