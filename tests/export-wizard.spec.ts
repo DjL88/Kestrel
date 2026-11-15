@@ -131,7 +131,7 @@ test('file names: my own name and a number, shown as an example and used for the
   await expect(page.getByText(/Example: .*w_4x5\.jpg/)).toBeVisible();
   await page.getByLabel('Use my own name and a number').check();
   await page.getByLabel('Name', { exact: true }).fill('Red Kite');
-  await page.getByLabel('Number', { exact: true }).selectOption('sequence');
+  await page.getByRole('combobox', { name: 'Number' }).selectOption('sequence');
   await expect(page.getByText(/Example: .*Red-Kite_4x5\.jpg/)).toBeVisible();
   await page.getByLabel('Print shooting details on the picture').check();
   await expect(page.getByText('Only details the photo records are printed')).toBeVisible();
@@ -140,4 +140,27 @@ test('file names: my own name and a number, shown as an example and used for the
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download', exact: true }).click();
   expect((await download).suggestedFilename()).toMatch(/Red-Kite_4x5\.jpg$/);
+});
+
+test('details overlay: the photo’s own camera and settings are printed on the preview', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
+  await openExportDialog(page);
+  await page.getByRole('button', { name: 'Instagram' }).click();
+  await page.getByRole('checkbox', { name: /Post · 4:5/ }).check();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  const picture = page.getByRole('img', { name: /as Post · 4:5/ });
+  const bottomBrightness = () => picture.evaluate((canvas: HTMLCanvasElement) => {
+    const c = canvas.getContext('2d')!;
+    const d = c.getImageData(0, Math.floor(canvas.height * 0.8), canvas.width, Math.floor(canvas.height * 0.2)).data;
+    let sum = 0; for (let i = 0; i < d.length; i += 4) sum += (d[i] + d[i + 1] + d[i + 2]) / 3;
+    return sum / (d.length / 4);
+  });
+  await expect(picture).toBeVisible();
+  await page.waitForTimeout(500);
+  const before = await bottomBrightness();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByLabel('Print shooting details on the picture').check();
+  await page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true }).click();
+  await expect.poll(async () => (await bottomBrightness()) < before - 15, { timeout: 10000 }).toBe(true);
 });
