@@ -60,7 +60,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
       }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4"
     >
-      <div className="w-full max-w-xl bg-[#14161A] border border-white/12 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
+      <div className="w-full max-w-xl bg-kestrel-panel border border-white/12 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-4">
           <div>
             <h2 id="open-shoot-title" className="text-base font-semibold text-zinc-100">
@@ -74,7 +74,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close Add photos modal"
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-white/8"
+            className="grid min-h-11 min-w-11 place-items-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-white/8"
           >
             <X className="w-4 h-4" aria-hidden="true" />
           </button>
@@ -85,7 +85,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
           <div className="p-4 rounded-lg bg-[#1A1D23] border border-white/10 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-sm font-semibold text-zinc-100">
-                Choose Local Image Files
+                Image files
               </div>
               <p className="text-xs text-zinc-400 mt-1">
                 Drop photos here or select files. NEFs use embedded previews.
@@ -107,10 +107,10 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="px-3.5 py-2 text-xs font-semibold bg-zinc-100 hover:bg-white text-zinc-950 rounded-lg whitespace-nowrap shrink-0 flex items-center gap-1.5"
+              className="min-h-11 px-3.5 py-2 text-sm font-semibold bg-zinc-100 hover:bg-white text-zinc-950 rounded-lg whitespace-nowrap shrink-0 flex items-center gap-1.5"
             >
               <ImagePlus className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Select Files</span>
+              <span>Choose files</span>
             </button>
           </div>
 
@@ -126,17 +126,17 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
               <p className="text-xs text-zinc-400 mt-1">
                 {canPickFolder
                   ? 'Add supported photos from a folder.'
-                  : 'Folder picker is unavailable in this browser/iframe context. Use Select Files above.'}
+                  : 'Folder picker is unavailable in this browser/iframe context. Use Choose files above.'}
               </p>
             </div>
             <button
               type="button"
               disabled={!canPickFolder}
               onClick={onOpenLocalFolder}
-              className="px-3.5 py-2 text-xs font-semibold bg-[#252932] hover:bg-[#2F3440] disabled:opacity-40 disabled:pointer-events-none text-zinc-100 border border-white/12 rounded-lg whitespace-nowrap shrink-0 flex items-center gap-1.5"
+              className="min-h-11 px-3.5 py-2 text-sm font-semibold bg-[#252932] hover:bg-[#2F3440] disabled:opacity-40 disabled:pointer-events-none text-zinc-100 border border-white/12 rounded-lg whitespace-nowrap shrink-0 flex items-center gap-1.5"
             >
               <FolderOpen className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Pick Folder</span>
+              <span>Choose folder</span>
             </button>
           </div>
 

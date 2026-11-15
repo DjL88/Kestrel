@@ -54,7 +54,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
 }) => {
   if (!frame) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#0D0E11] text-zinc-400 p-8 text-center">
+      <div className="flex-1 flex flex-col items-center justify-center bg-kestrel-stage text-zinc-400 p-8 text-center">
         <p className="text-sm font-medium text-zinc-300">No frames match this filter</p>
         <p className="text-xs text-zinc-500 mt-1">
           Switch back to All or adjust your search query to continue reviewing.
@@ -64,7 +64,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
   }
 
   return (
-    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[#0B0C0E]">
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-kestrel-stage">
       <PhotoViewport
         zoom={zoomLevel} pan={panOffset} onTransform={(zoom, pan) => {
           onZoomChange(zoom);
@@ -77,7 +77,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
         <ShortcutOverlay bindings={bindings} knobMode={knobMode} visible={showShortcutsOverlay} />
       </div>
 
-      <div className="flex min-h-13 shrink-0 items-center justify-between gap-1 border-t border-white/8 bg-[#14161A] px-1.5 sm:px-4">
+      <div className="flex min-h-13 shrink-0 items-center justify-between gap-1 border-t border-white/8 bg-kestrel-panel px-1.5 sm:px-4">
         <button type="button" disabled={!hasPrev} onClick={() => onStepFrame(-1)} aria-label="Previous frame"
           className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:opacity-30">
           <ChevronLeft className="h-5 w-5" aria-hidden="true" />

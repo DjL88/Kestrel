@@ -228,7 +228,7 @@ export function PhotoEditor({
 
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
   return (
-    <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-[#0B0C0E] lg:flex-row">
+    <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-kestrel-stage lg:flex-row">
       <div ref={stage} className="relative flex min-h-0 flex-1 bg-black">
         <PhotoViewport zoom={transform.zoom} pan={transform.pan}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
@@ -274,12 +274,12 @@ export function PhotoEditor({
           </p>
         )}
       </div>
-      <div className={`max-h-[44%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-[#14161A] p-3 lg:max-h-none lg:w-72 lg:border-t-0 lg:p-4 ${panelSide === 'left' ? 'lg:order-first lg:border-r' : 'lg:border-l'}`}>
+      <div className={`max-h-[44%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 lg:max-h-none lg:w-72 lg:border-t-0 lg:p-4 ${panelSide === 'left' ? 'lg:order-first lg:border-r' : 'lg:border-l'}`}>
         <div className="flex flex-wrap justify-between gap-2">
           <button type="button" className={button} aria-pressed={displayCompare} disabled={sourceState !== 'ready' || guide} onClick={() => setCompare(!compare)}>
             Before / after
           </button>
-          <button type="button" className={`${button} bg-sky-200 font-semibold !text-zinc-950 hover:bg-sky-100`}
+          <button type="button" className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover`}
             disabled={sourceState !== 'ready'} onClick={() => setExportOpen(true)}>
             Export
           </button>

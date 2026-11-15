@@ -34,7 +34,7 @@ export function CompareView({
     <section aria-label="Compare photos" className="flex min-h-0 flex-1 flex-col">
       <PhotoViewport base={photo(rightFrame)} overlay={photo(leftFrame)} labels={['A', 'B']}
         zoom={zoomLevel} pan={panOffset} onTransform={onTransform} />
-      <div className="flex flex-wrap items-center justify-between gap-x-2 border-t border-white/10 bg-[#14161A] px-1 sm:px-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 border-t border-white/10 bg-kestrel-panel px-1 sm:px-3">
         <div className="flex min-w-0 flex-1 items-center">
           <button type="button" className={control} onClick={() => onStepSide('right', -1)} aria-label="Previous photo B"><ChevronLeft className="h-4 w-4" /></button>
           <span className="truncate text-xs text-zinc-300" title={rightFrame?.filename}>B · {rightFrame?.filename ?? 'Select photo'}</span>

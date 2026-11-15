@@ -27,7 +27,7 @@ export const ShortcutOverlay: React.FC<ShortcutOverlayProps> = ({
   return (
     <div
       aria-label="Active macro pad shortcuts"
-      className="pointer-events-none select-none bg-[#101114]/85 backdrop-blur-sm border border-white/10 rounded-lg px-3 py-2 text-[11px] text-zinc-300 shadow-lg max-w-xs"
+      className="pointer-events-none select-none bg-kestrel-canvas/85 backdrop-blur-sm border border-white/10 rounded-lg px-3 py-2 text-[11px] text-zinc-300 shadow-lg max-w-xs"
     >
       <div className="flex items-center justify-between gap-4 text-zinc-400 mb-1.5">
         <span className="font-medium text-zinc-200">Cull Mode Keys</span>

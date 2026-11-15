@@ -65,7 +65,7 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo,
 
   return (
     <dialog ref={dialog} onCancel={(event) => { event.preventDefault(); onClose(); }} aria-labelledby="auto-cull-title"
-      className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-xl border border-white/15 bg-[#191B20] p-4 text-zinc-100 backdrop:bg-black/75">
+      className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-xl border border-white/15 bg-kestrel-raised p-4 text-zinc-100 backdrop:bg-black/75">
       <header className="flex items-center justify-between">
         <h2 id="auto-cull-title" className="font-semibold">{m.autoCull}</h2>
         <button type="button" className={button} aria-label={m.closeAutoCull} onClick={onClose}><X className="h-5 w-5" aria-hidden="true" /></button>
@@ -74,7 +74,7 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo,
       {!results && <div className="mt-3 space-y-2">
         <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={autoMove}
           disabled={progress !== undefined} onChange={(event) => setAutoMove(event.target.checked)} />{m.autoMove}</label>
-        <button type="button" className={`${button} bg-sky-200 text-zinc-950 hover:bg-sky-100`}
+        <button type="button" className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover`}
           disabled={!candidates.length || progress !== undefined} onClick={() => void scan()}>
           {progress === undefined ? m.scan : m.scanning(formatCount.format(progress), formatCount.format(total))}
         </button>
