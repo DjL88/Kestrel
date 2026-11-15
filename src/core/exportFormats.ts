@@ -132,3 +132,16 @@ export function customFormat(input: CustomSize): { format: ExportFormat } | { er
     quality: input.format === 'png' ? 1 : input.quality / 100, prefix: input.prefix.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 24),
   } };
 }
+
+/** A format can be turned on its side (4:5 becomes 5:4) when it has a fixed, non-square shape. The photo itself is not rotated. */
+export function canTurn(format: ExportFormat): boolean {
+  return format.width > 0 && format.height > 0 && format.width !== format.height && format.fit !== 'keep';
+}
+
+/** The same format with width and height swapped. A format that cannot be turned comes back unchanged. */
+export function turnFormat(format: ExportFormat): ExportFormat {
+  if (!canTurn(format)) return format;
+  const before = shapeLabel(format.width, format.height);
+  const after = shapeLabel(format.height, format.width);
+  return { ...format, width: format.height, height: format.width, label: format.label.replace(before, after) };
+}
