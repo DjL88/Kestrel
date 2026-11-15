@@ -1181,7 +1181,7 @@ export default function App() {
               <button type="button" onClick={() => setExportFrames(selectedVisibleFrames)}
                 className="min-h-11 rounded-md bg-kestrel-copper px-2 text-xs font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!">Export {selectedVisibleFrames.length}</button>
             </div>
-          )>
+          )}
           {!filmstripVisible && (
             <div className="flex shrink-0">
               <button type="button" aria-label="Previous photo" title="Previous photo" disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) <= 0} onClick={() => handleStepFrame(-1)}
