@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDemoShootState } from './cullingEngine';
+import { createSubjectMask } from './maskTypes';
+import { DEFAULT_EDIT } from './photoEdits';
 import { createVirtualCopy } from './virtualCopies';
 import { encodeProjectBackup, restoreProjectBackup } from './projectBackup';
 
@@ -29,4 +31,20 @@ test('restore rejects invalid catalogue data and orphaned virtual copies', () =>
   assert.throws(() => restoreProjectBackup(encodeProjectBackup(project), 'new'), /invalid photo links/);
   copy.framing = { turns: 0, straighten: 0, ratio: -1, x: 0.5, y: 0.5 };
   assert.throws(() => restoreProjectBackup(encodeProjectBackup(project), 'new'), /invalid catalogue data/);
+});
+
+test('a portable backup restores complete subject grids and rejects the wrong decoded byte count', () => {
+  const project = createDemoShootState(1);
+  for (const [w, h] of [[8, 8], [8, 10], [9, 9]]) {
+    const data = Buffer.alloc(w * h, 127).toString('base64');
+    const mask = createSubjectMask('subject', { w, h, data }, 'original-framing', 'medium');
+    project.frames[0].edit = { ...DEFAULT_EDIT, masks: [mask] };
+    const restored = restoreProjectBackup(encodeProjectBackup(project), 'restored');
+    assert.deepEqual(restored.frames[0].edit?.masks, [mask]);
+
+    // Same text length and plausible characters, but a different decoded byte count.
+    mask.grid.data = data.endsWith('=') ? data.replace(/=+$/, (padding) => 'A'.repeat(padding.length))
+      : data.slice(0, -1) + '=';
+    assert.throws(() => restoreProjectBackup(encodeProjectBackup(project), 'restored'), /invalid catalogue data/);
+  }
 });
