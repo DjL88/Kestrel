@@ -1,3 +1,4 @@
+import type { EditHistory } from './editHistory';
 import type { PhotoFraming } from './photoFraming';
 import type { PhotoEdit } from './photoEdits';
 
@@ -53,6 +54,7 @@ export interface PhotoFrame {
   sequenceIndex: number;
   decision: CullDecision;
   edit?: PhotoEdit;
+  editHistory?: EditHistory;
   framing?: PhotoFraming;
   rating?: number;
   virtualCopy?: { originalFrameId: string; number: number };
@@ -80,6 +82,7 @@ export interface ShootDescriptor {
 
 export interface DecisionHistoryEntry {
   frameId: string;
+  batch?: { frameId: string; prevDecision: CullDecision; nextDecision: CullDecision }[];
   prevDecision: CullDecision;
   nextDecision: CullDecision;
   prevSelectedId: string | null;

@@ -462,12 +462,43 @@ export function applyDecisionWithHistory(
   };
 }
 
+export function applyAutoCullDecisions(
+  state: CullingState, requested: { frameId: string; decision: 'keep' | 'reject' }[],
+): CullingState {
+  const byId = new Map(requested.map((result) => [result.frameId, result.decision]));
+  const batch: NonNullable<CullingState['undoStack'][number]['batch']> = [];
+  const frames = state.frames.map((frame) => {
+    const decision = byId.get(frame.id);
+    if (!decision || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) return frame;
+    batch.push({ frameId: frame.id, prevDecision: frame.decision, nextDecision: decision });
+    return { ...frame, decision };
+  });
+  if (!batch.length) return state;
+  const visible = filterFrames(frames, state.filter, state.searchQuery);
+  const selectedFrameId = visible.some((frame) => frame.id === state.selectedFrameId)
+    ? state.selectedFrameId : visible[0]?.id ?? null;
+  return {
+    ...state, frames, selectedFrameId,
+    shoot: { ...state.shoot, lastUpdatedAt: Date.now() },
+    undoStack: [...state.undoStack.slice(-199), {
+      ...batch[0], batch, prevSelectedId: state.selectedFrameId, nextSelectedId: selectedFrameId,
+    }],
+    redoStack: [],
+  };
+}
+
+function restoreFlags(state: CullingState, entry: CullingState['undoStack'][number], direction: 'prevDecision' | 'nextDecision') {
+  const changes = new Map((entry.batch ?? [entry]).map((change) => [change.frameId, change[direction]]));
+  return state.frames.map((frame) => {
+    const decision = changes.get(frame.id);
+    return decision ? { ...frame, decision } : frame;
+  });
+}
+
 export function undoDecision(state: CullingState): CullingState {
   if (state.undoStack.length === 0) return state;
   const entry = state.undoStack[state.undoStack.length - 1];
-  const updatedFrames = state.frames.map((f) =>
-    f.id === entry.frameId ? { ...f, decision: entry.prevDecision } : f
-  );
+  const updatedFrames = restoreFlags(state, entry, 'prevDecision');
 
   return {
     ...state,
@@ -476,7 +507,7 @@ export function undoDecision(state: CullingState): CullingState {
       lastUpdatedAt: Date.now(),
     },
     frames: updatedFrames,
-    selectedFrameId: entry.frameId,
+    selectedFrameId: entry.batch ? entry.prevSelectedId : entry.frameId,
     undoStack: state.undoStack.slice(0, -1),
     redoStack: [...state.redoStack, entry],
   };
@@ -485,9 +516,7 @@ export function undoDecision(state: CullingState): CullingState {
 export function redoDecision(state: CullingState): CullingState {
   if (state.redoStack.length === 0) return state;
   const entry = state.redoStack[state.redoStack.length - 1];
-  const updatedFrames = state.frames.map((f) =>
-    f.id === entry.frameId ? { ...f, decision: entry.nextDecision } : f
-  );
+  const updatedFrames = restoreFlags(state, entry, 'nextDecision');
 
   const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery);
   const candidateSelection =

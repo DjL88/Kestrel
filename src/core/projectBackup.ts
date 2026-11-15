@@ -70,7 +70,7 @@ export function encodeProjectBackup(state: CullingState): string {
     format: FORMAT,
     version: 1,
     project: {
-      shoot: state.shoot, frames: state.frames, selectedFrameId: state.selectedFrameId,
+      shoot: state.shoot, frames: state.frames.map(({ editHistory: _history, ...frame }) => frame), selectedFrameId: state.selectedFrameId,
       compareRightFrameId: state.compareRightFrameId, filter: state.filter, searchQuery: state.searchQuery,
       keeperTarget: state.keeperTarget, autoAdvance: state.autoAdvance,
     },
@@ -102,7 +102,7 @@ export function restoreProjectBackup(contents: string, id: string, now = Date.no
       needsFolderRegrant: frames.some((frame) => frame.sourceKind === 'directory-handle'),
       needsFileReselect: frames.some((frame) => frame.sourceKind === 'file'),
     },
-    frames, filter: filter as FilterState, searchQuery, keeperTarget, autoAdvance,
+    frames: frames.map(({ editHistory: _history, ...frame }) => frame), filter: filter as FilterState, searchQuery, keeperTarget, autoAdvance,
     selectedFrameId: existingId(selectedFrameId),
     compareRightFrameId: existingId(compareRightFrameId),
     undoStack: [], redoStack: [],

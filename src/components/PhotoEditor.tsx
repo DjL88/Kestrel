@@ -1,3 +1,4 @@
+import { messages as m } from '../i18n/messages';
 import { ChevronDown } from 'lucide-react';
 import { DEFAULT_FRAMING, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, thirdsCropAnchor, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
@@ -20,6 +21,7 @@ interface Props {
   needsAccess: boolean;
   bindings: KeyBindingsMap;
   onEdit: (edit: PhotoEdit) => void;
+  onHistoryStep: (direction: -1 | 1) => void;
   copiedEdit: PhotoEdit | null;
   onCopyEdit: (edit: PhotoEdit) => void;
   keeperCount: number;
@@ -36,7 +38,7 @@ interface Props {
 }
 
 export function PhotoEditor({
-  frame, provider, needsAccess, bindings, onEdit, copiedEdit, onCopyEdit, keeperCount,
+  frame, provider, needsAccess, bindings, onEdit, onHistoryStep, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onSubjectsChange, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange,
   panelSide, onPanelSideChange, showFilmstrip, onToggleFilmstrip,
 }: Props) {
@@ -162,6 +164,11 @@ export function PhotoEditor({
       if (event.defaultPrevented || exportOpen || !source || event.key === 'Tab') return;
       const target = event.target instanceof HTMLElement ? event.target : null;
       if (target?.isContentEditable || target?.closest('textarea, select, input:not([type="range"])')) return;
+      if ((event.metaKey || event.ctrlKey) && !event.altKey && event.code === 'KeyZ') {
+        event.preventDefault();
+        onHistoryStep(event.shiftKey ? 1 : -1);
+        return;
+      }
       const command = resolveKeyboardCommand({ event, bindings, activeMode: 'edit', isSuppressed: false });
       if (!command) return;
       event.preventDefault();
@@ -188,7 +195,7 @@ export function PhotoEditor({
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [bindings, copiedEdit, dial, edit, exportOpen, guide, onCopyEdit, onEdit, source]);
+  }, [bindings, copiedEdit, dial, edit, exportOpen, guide, onCopyEdit, onEdit, onHistoryStep, source]);
 
   function sampleOrientedSource() {
     if (!source) return null;
@@ -355,6 +362,25 @@ export function PhotoEditor({
               </label>
             ))}
           </fieldset>
+        </details>
+        <details className="border-t border-white/10">
+          <summary className="min-h-11 cursor-pointer py-3 text-sm">{m.editHistory}</summary>
+          {!frame.editHistory?.steps.length ? <p className="pb-2 text-sm text-zinc-400">{m.emptyHistory}</p> : (
+            <>
+              <div className="flex gap-2">
+                <button type="button" className={button} disabled={!frame.editHistory.cursor} onClick={() => onHistoryStep(-1)}>{m.undo}</button>
+                <button type="button" className={button} disabled={frame.editHistory.cursor >= frame.editHistory.steps.length}
+                  onClick={() => onHistoryStep(1)}>{m.redo}</button>
+              </div>
+              <ol className="max-h-48 overflow-y-auto pb-2 text-sm">
+                {frame.editHistory.steps.map((step, index) => <li key={index}
+                  aria-current={index === frame.editHistory!.cursor - 1 ? 'step' : undefined}
+                  className={`rounded px-2 py-1 ${index >= frame.editHistory!.cursor ? 'text-zinc-500' : 'text-zinc-200'} aria-[current=step]:bg-white/10`}>
+                  {m.historyStep[step.kind]}
+                </li>)}
+              </ol>
+            </>
+          )}
         </details>
         <details className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">

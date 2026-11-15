@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ChevronDown, Ellipsis, Plus, Undo2 } from 'lucide-react';
+import { messages as m } from '../i18n/messages';
 import type { CullCounts, FilterState, ShootDescriptor, WorkspaceViewMode } from '../core/types';
 
 interface TopWorkspaceBarProps {
@@ -15,6 +16,7 @@ interface TopWorkspaceBarProps {
   onViewModeChange: (mode: WorkspaceViewMode) => void;
   showShortcutsOverlay: boolean;
   onToggleShortcutsOverlay: () => void;
+  onAutoCull: () => void;
   onBackupProject: () => void;
   onBackToProjects: () => void;
   actionsDisabled: boolean;
@@ -39,7 +41,7 @@ interface TopWorkspaceBarProps {
 }
 
 const filterLabels: Record<FilterState, string> = {
-  all: 'All photos', unreviewed: 'To review', keep: 'Keepers', reject: 'Rejected',
+  all: m.allPhotos, unreviewed: m.review, keep: m.keepers, reject: m.trash,
 };
 
 const viewLabels: Record<WorkspaceViewMode, string> = {
@@ -137,6 +139,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                 <button type="button" className={actionClass} aria-pressed={showPhotoInfo} onClick={() => choose(props.onTogglePhotoInfo)}>{showPhotoInfo ? 'Hide photo info' : 'Photo info'}</button>
                 <button type="button" className={actionClass} onClick={() => choose(props.onOpenMacroPadModal, false)}>Macro pad</button>
                 <button type="button" className={actionClass} onClick={() => choose(props.onBackupProject)}>Back up project</button>
+                <button type="button" className={actionClass} onClick={() => choose(props.onAutoCull, false)}>{m.autoCull}</button>
                 {props.onToggleMultiSelect && <button type="button" className={actionClass} onClick={() => choose(() => props.onToggleMultiSelect?.())}>
                   {props.multiSelect ? 'Done selecting' : 'Select photos'}
                 </button>}
@@ -176,11 +179,11 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
       </div>
     </header>
     <nav aria-label="Photo collections" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-[#14161A] px-2 sm:px-4">
-      <div className="flex items-center gap-1">
-        {(['unreviewed', 'keep'] as const).map((collection) => (
+      <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
+        {(['unreviewed', 'keep', 'reject'] as const).map((collection) => (
           <button key={collection} type="button" aria-current={filter === collection ? 'page' : undefined}
             disabled={props.actionsDisabled} onClick={() => props.onFilterChange(collection)}
-            className="flex min-h-11 items-center gap-2 border-b-2 border-transparent px-2 text-sm text-zinc-300 hover:text-white aria-[current=page]:border-sky-200 aria-[current=page]:text-white motion-safe:transition-colors">
+            className="flex min-h-11 shrink-0 items-center gap-1.5 border-b-2 border-transparent px-2 text-sm text-zinc-300 hover:text-white aria-[current=page]:border-sky-200 aria-[current=page]:text-white motion-safe:transition-colors">
             {filterLabels[collection]} <span className="text-xs tabular-nums text-zinc-400">{counts[collection]}</span>
           </button>
         ))}
