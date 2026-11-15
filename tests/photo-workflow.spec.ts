@@ -69,4 +69,14 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(page.getByRole('slider', { name: 'Light adjustment' })).toHaveValue('0.1');
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
+  await page.getByText('Crop & straighten', { exact: true }).click();
+  await page.getByLabel('Aspect ratio').selectOption('1');
+  await page.getByText('Crop & straighten', { exact: true }).click();
+  await page.getByText('Export focus', { exact: true }).click();
+  await page.getByRole('button', { name: 'Mark focus point' }).click();
+  await page.getByRole('button', { name: 'Place export focus point' }).press('Enter');
+  await expect(page.getByRole('button', { name: 'Move focus point' })).toBeVisible();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  const saved = page.getByRole('img', { name: 'frame-01.png' });
+  await expect.poll(() => saved.evaluate((node: HTMLImageElement) => node.naturalWidth > 0 && node.naturalWidth === node.naturalHeight)).toBeTruthy();
 });

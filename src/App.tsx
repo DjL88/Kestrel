@@ -500,7 +500,7 @@ export default function App() {
     [selectedFrame, handleDecideFrame, toggleCompareView, prefs.knobMode, handleStepFrame]
   );
 
-  const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames' | 'rating' | 'framing'>) => {
+  const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames' | 'rating' | 'framing' | 'focusPoint'>) => {
     const at = Date.now();
     const isRecipe = 'edit' in patch || 'framing' in patch;
     setCullingState((prev) => ({
@@ -526,7 +526,7 @@ export default function App() {
       const index = prev.frames.findIndex((frame) => frame.id === sourceId);
       if (index < 0) return prev;
       const copy = createVirtualCopy(prev.frames[index], prev.frames, id);
-      if (framing) copy.framing = framing;
+      if (framing) { copy.framing = framing; copy.focusPoint = undefined; }
       const frames = [...prev.frames.slice(0, index + 1), copy, ...prev.frames.slice(index + 1)];
       const visible = filterFrames([copy], prev.filter, prev.searchQuery).length > 0;
       return {
@@ -886,6 +886,7 @@ export default function App() {
               onCopyEdit={setCopiedEdit}
               onHistoryStep={(direction) => stepPhotoHistory(selectedFrame.id, direction)}
               onCreateVirtualCopy={addVirtualCopy}
+              onFocusPoint={(focusPoint) => updateFrame(selectedFrame.id, { focusPoint })}
               onFramingChange={(framing) => updateFrame(selectedFrame.id, { framing })}
               onRemoveVirtualCopy={selectedFrame.virtualCopy ? removeVirtualCopy : undefined}
               panelSide={prefs.editPanelSide}

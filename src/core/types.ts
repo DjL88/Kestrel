@@ -1,3 +1,4 @@
+import type { FocusPoint } from './exportFraming';
 import type { EditHistory } from './editHistory';
 import type { PhotoFraming } from './photoFraming';
 import type { PhotoEdit } from './photoEdits';
@@ -56,6 +57,7 @@ export interface PhotoFrame {
   edit?: PhotoEdit;
   editHistory?: EditHistory;
   framing?: PhotoFraming;
+  focusPoint?: FocusPoint;
   rating?: number;
   virtualCopy?: { originalFrameId: string; number: number };
   subjectNames?: string[];

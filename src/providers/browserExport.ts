@@ -1,6 +1,7 @@
 import { applyCanvasExportEdit, DEFAULT_EDIT } from '../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFraming';
-import { exportFilename, exportScale, type ExportProfile } from '../core/exportProfiles';
+import { exportFilename, type ExportProfile } from '../core/exportProfiles';
+import { planExportFraming, type ExportFraming } from '../core/exportFraming';
 import { datedExport } from '../core/exportTimestamp';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
@@ -14,20 +15,29 @@ export async function loadExportSource(frame: PhotoFrame, provider: BrowserPrevi
   return source;
 }
 
-export async function renderExport(source: HTMLImageElement, frame: PhotoFrame, profile: ExportProfile, date: Date, signal?: AbortSignal) {
+export async function renderExport(source: HTMLImageElement, frame: PhotoFrame, profile: ExportProfile, date: Date, signal?: AbortSignal, mode: ExportFraming = 'fit', longEdge?: number) {
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const { width, height } = framedSize(source.naturalWidth, source.naturalHeight, framing);
-  const scale = exportScale(width, height, profile);
+  const { scale, region, border } = planExportFraming(width, height, profile, mode, frame.focusPoint, longEdge);
   const mime = profile.format === 'png' ? 'image/png' : 'image/jpeg';
   const canvas = document.createElement('canvas');
+  const output = border ? document.createElement('canvas') : canvas;
   try {
-    drawFramedPhoto(source, canvas, framing, { scale });
+    drawFramedPhoto(source, canvas, framing, { scale, region });
     await applyCanvasExportEdit(canvas, frame.edit ?? DEFAULT_EDIT, signal);
     signal?.throwIfAborted();
+    if (border) {
+      output.width = border.width;
+      output.height = border.height;
+      const context = output.getContext('2d')!;
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, output.width, output.height);
+      context.drawImage(canvas, Math.floor((output.width - canvas.width) / 2), Math.floor((output.height - canvas.height) / 2));
+    }
     const raw = !frame.isDemo && /\.(nef|nrw)$/i.test(frame.filename);
     const name = exportFilename(frame.filename, profile, raw);
     for (const quality of profile.maxBytes ? [profile.quality, ...[0.88, 0.82, 0.74, 0.65].filter((value) => value < profile.quality)] : [profile.quality]) {
-      const encoded = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mime, quality));
+      const encoded = await new Promise<Blob | null>((resolve) => output.toBlob(resolve, mime, quality));
       if (!encoded || encoded.type !== mime) throw new Error(`Could not encode ${name} at ${canvas.width} × ${canvas.height} px.`);
       const file = datedExport(encoded, name, date);
       if (!profile.maxBytes || file.size <= profile.maxBytes) return file;
@@ -36,6 +46,7 @@ export async function renderExport(source: HTMLImageElement, frame: PhotoFrame, 
   } finally {
     canvas.width = 0;
     canvas.height = 0;
+    if (border) { output.width = 0; output.height = 0; }
   }
 }
 

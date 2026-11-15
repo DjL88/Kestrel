@@ -1,3 +1,4 @@
+import type { ExportFraming } from '../core/exportFraming';
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { EXPORT_PROFILES, type ExportProfile } from '../core/exportProfiles';
@@ -24,6 +25,8 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
     } catch { /* Use defaults when storage is unavailable. */ }
     return ['master'];
   });
+  const [framing, setFraming] = useState<ExportFraming>('fit');
+  const [longEdge, setLongEdge] = useState<number>();
   const [profiles, setProfiles] = useState<ExportProfile[]>(() => [...EXPORT_PROFILES]);
   const [timestamp, setTimestamp] = useState<'now' | 'capture' | 'custom'>('now');
   const [custom, setCustom] = useState('');
@@ -93,7 +96,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
           if (cancelled.current) return;
           await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
           if (cancelled.current) return;
-          output.push(await renderExport(image, frame, profile, date, controller.signal));
+          output.push(await renderExport(image, frame, profile, date, controller.signal, framing, longEdge));
           setProgress(output.length);
         }
       }
@@ -160,7 +163,23 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
                 </label>
               ))}
             </fieldset>
-            <p className="text-xs text-zinc-400">Social versions use JPEG and retain the current framing. Choose one or more.</p>
+            <p className="text-xs text-zinc-400">Social versions use JPEG. Choose one or more.</p>
+            <fieldset disabled={progress !== null} className="space-y-2">
+              <label className="block text-sm">Framing
+                <select className={`${field} mt-1`} value={framing} onChange={(event) => setFraming(event.target.value as ExportFraming)}>
+                  <option value="fit">Fit inside preset</option>
+                  <option value="focus">Crop around focus point</option>
+                  <option value="border">Fit with white borders</option>
+                  <option value="long">Long edge only</option>
+                </select>
+              </label>
+              {framing === 'focus' && <p className="text-xs text-zinc-400">Photos without a focus point crop from the centre. Full-size PNG keeps its framing.</p>}
+              {framing === 'border' && <p className="text-xs text-zinc-400">Fits the edited photo inside the preset without cropping. Full-size PNG keeps its framing.</p>}
+              {framing === 'long' && <label className="block text-sm">Long edge (px)
+                <input className={field} type="number" min={1} max={12000} value={longEdge ?? ''}
+                  placeholder="Use each preset’s long edge" onChange={(event) => setLongEdge(event.target.valueAsNumber || undefined)} />
+              </label>}
+            </fieldset>
             <fieldset disabled={progress !== null} className="space-y-2">
               <label className="block text-sm">Photo date
                 <select className={`${field} mt-1`} value={timestamp} onChange={(event) => setTimestamp(event.target.value as typeof timestamp)}>
