@@ -1,0 +1,141 @@
+group,common,scientific
+bird,Red kite,Milvus milvus
+bird,Black kite,Milvus migrans
+bird,Common buzzard,Buteo buteo
+bird,Rough-legged buzzard,Buteo lagopus
+bird,Honey buzzard,Pernis apivorus
+bird,Western marsh harrier,Circus aeruginosus
+bird,Hen harrier,Circus cyaneus
+bird,Montagu's harrier,Circus pygargus
+bird,Eurasian sparrowhawk,Accipiter nisus
+bird,Northern goshawk,Accipiter gentilis
+bird,Golden eagle,Aquila chrysaetos
+bird,White-tailed eagle,Haliaeetus albicilla
+bird,Osprey,Pandion haliaetus
+bird,Common kestrel,Falco tinnunculus
+bird,Eurasian hobby,Falco subbuteo
+bird,Merlin,Falco columbarius
+bird,Peregrine falcon,Falco peregrinus
+bird,Barn owl,Tyto alba
+bird,Tawny owl,Strix aluco
+bird,Little owl,Athene noctua
+bird,Long-eared owl,Asio otus
+bird,Short-eared owl,Asio flammeus
+bird,Eurasian jay,Garrulus glandarius
+bird,Eurasian magpie,Pica pica
+bird,Eurasian jackdaw,Corvus monedula
+bird,Rook,Corvus frugilegus
+bird,Carrion crow,Corvus corone
+bird,Common raven,Corvus corax
+bird,Red-billed chough,Pyrrhocorax pyrrhocorax
+bird,Great tit,Parus major
+bird,Eurasian blue tit,Cyanistes caeruleus
+bird,Coal tit,Periparus ater
+bird,Long-tailed tit,Aegithalos caudatus
+bird,Marsh tit,Poecile palustris
+bird,Eurasian nuthatch,Sitta europaea
+bird,Eurasian treecreeper,Certhia familiaris
+bird,European robin,Erithacus rubecula
+bird,Eurasian wren,Troglodytes troglodytes
+bird,Dunnock,Prunella modularis
+bird,Common blackbird,Turdus merula
+bird,Song thrush,Turdus philomelos
+bird,Mistle thrush,Turdus viscivorus
+bird,Fieldfare,Turdus pilaris
+bird,Redwing,Turdus iliacus
+bird,European stonechat,Saxicola rubicola
+bird,Whinchat,Saxicola rubetra
+bird,Northern wheatear,Oenanthe oenanthe
+bird,Common redstart,Phoenicurus phoenicurus
+bird,European pied flycatcher,Ficedula hypoleuca
+bird,Spotted flycatcher,Muscicapa striata
+bird,Goldcrest,Regulus regulus
+bird,Common chiffchaff,Phylloscopus collybita
+bird,Willow warbler,Phylloscopus trochilus
+bird,Eurasian blackcap,Sylvia atricapilla
+bird,House sparrow,Passer domesticus
+bird,Eurasian tree sparrow,Passer montanus
+bird,Common chaffinch,Fringilla coelebs
+bird,Brambling,Fringilla montifringilla
+bird,European goldfinch,Carduelis carduelis
+bird,European greenfinch,Chloris chloris
+bird,Eurasian siskin,Spinus spinus
+bird,Common linnet,Linaria cannabina
+bird,Common redpoll,Acanthis flammea
+bird,Eurasian bullfinch,Pyrrhula pyrrhula
+bird,Hawfinch,Coccothraustes coccothraustes
+bird,Yellowhammer,Emberiza citrinella
+bird,Reed bunting,Emberiza schoeniclus
+bird,Meadow pipit,Anthus pratensis
+bird,Pied wagtail,Motacilla alba
+bird,Grey wagtail,Motacilla cinerea
+bird,Common starling,Sturnus vulgaris
+bird,Eurasian skylark,Alauda arvensis
+bird,Barn swallow,Hirundo rustica
+bird,Common house martin,Delichon urbicum
+bird,Common swift,Apus apus
+bird,Great spotted woodpecker,Dendrocopos major
+bird,European green woodpecker,Picus viridis
+bird,Common kingfisher,Alcedo atthis
+bird,Common cuckoo,Cuculus canorus
+bird,Stock dove,Columba oenas
+bird,Common wood pigeon,Columba palumbus
+bird,Eurasian collared dove,Streptopelia decaocto
+bird,Grey heron,Ardea cinerea
+bird,Little egret,Egretta garzetta
+bird,Eurasian bittern,Botaurus stellaris
+bird,Mute swan,Cygnus olor
+bird,Whooper swan,Cygnus cygnus
+bird,Greylag goose,Anser anser
+bird,Canada goose,Branta canadensis
+bird,Mallard,Anas platyrhynchos
+bird,Eurasian teal,Anas crecca
+bird,Eurasian wigeon,Mareca penelope
+bird,Tufted duck,Aythya fuligula
+bird,Common goldeneye,Bucephala clangula
+bird,Common eider,Somateria mollissima
+bird,Eurasian coot,Fulica atra
+bird,Common moorhen,Gallinula chloropus
+bird,Eurasian oystercatcher,Haematopus ostralegus
+bird,Northern lapwing,Vanellus vanellus
+bird,Eurasian curlew,Numenius arquata
+bird,Common snipe,Gallinago gallinago
+bird,Common redshank,Tringa totanus
+bird,Atlantic puffin,Fratercula arctica
+bird,Razorbill,Alca torda
+bird,Common guillemot,Uria aalge
+bird,Northern gannet,Morus bassanus
+bird,European herring gull,Larus argentatus
+bird,Black-headed gull,Chroicocephalus ridibundus
+bird,Black grouse,Lyrurus tetrix
+bird,Red grouse,Lagopus lagopus
+bird,Common pheasant,Phasianus colchicus
+bird,Capercaillie,Tetrao urogallus
+mammal,Red fox,Vulpes vulpes
+mammal,European badger,Meles meles
+mammal,Red deer,Cervus elaphus
+mammal,Roe deer,Capreolus capreolus
+mammal,Fallow deer,Dama dama
+mammal,Sika deer,Cervus nippon
+mammal,European hare,Lepus europaeus
+mammal,Mountain hare,Lepus timidus
+mammal,European rabbit,Oryctolagus cuniculus
+mammal,Red squirrel,Sciurus vulgaris
+mammal,Grey squirrel,Sciurus carolinensis
+mammal,European hedgehog,Erinaceus europaeus
+mammal,Stoat,Mustela erminea
+mammal,European otter,Lutra lutra
+mammal,European pine marten,Martes martes
+mammal,Grey seal,Halichoerus grypus
+mammal,Harbour seal,Phoca vitulina
+mammal,Common bottlenose dolphin,Tursiops truncatus
+mammal,Harbour porpoise,Phocoena phocoena
+mammal,Eurasian beaver,Castor fiber
+mammal,Wild boar,Sus scrofa
+mammal,Scottish wildcat,Felis silvestris
+mammal,Domestic cat,Felis catus
+mammal,Domestic dog,Canis lupus familiaris
+mammal,Horse,Equus caballus
+mammal,Highland cow,Bos taurus
+mammal,Sheep,Ovis aries
+other,Human,Homo sapiens

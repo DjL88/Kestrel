@@ -11,6 +11,7 @@ import { downloadExport } from '../providers/browserExport';
 import { gridSizeFor } from '../core/subjectModel';
 import { QuickAdjust } from './QuickAdjust';
 import { SubjectPanel } from './SubjectPanel';
+import { SpeciesSuggestions } from './SpeciesSuggestions';
 import { addTags, type SubjectKind } from '../core/subjectTags';
 import { AreaSelector } from './AreaSelector';
 import { placeInRegion, regionPixels, type Region } from '../core/subjectRegion';
@@ -700,6 +701,14 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         {tab === 'auto' && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
         <SubjectPanel kind={frame.subjectKind} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} disabled={sourceState !== 'ready'} onChange={onSubjectsChange} />
+        <SpeciesSuggestions frameId={frame.id} ready={sourceState === 'ready'} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} kind={frame.subjectKind}
+          getPicture={() => {
+            if (!source) return null;
+            const canvas = document.createElement('canvas');
+            drawFramedPhoto(source, canvas, { ...DEFAULT_FRAMING, turns: framing.turns }, { scale: Math.min(1, 448 / Math.max(source.naturalWidth, source.naturalHeight)) });
+            return canvas;
+          }}
+          onAccept={(name, kind) => onSubjectsChange(addTags(addTags(frame.subjectNames ?? [], frame.tags ?? []), [name]), frame.subjectKind ?? kind)} />
         <Histogram data={histogram} teach />
         <div className="px-1">
           <button type="button" disabled={sourceState !== 'ready'} className={`${button} w-full border border-white/10 font-semibold`}
