@@ -26,3 +26,31 @@ The model ships inside the app. The 15 MB WebAssembly runtime is cached the firs
 
 ### Swapping the model
 Update `SUBJECT_MODEL` in `src/core/subjectModel.ts` (file, size, checksum, input size) and check the new model's licence and output format first. Larger models such as IS-Net or BiRefNet cut fine detail better but are tens to hundreds of megabytes.
+
+## Species suggestions model (optional, downloaded by the user)
+
+Suggests what a photo shows ("Red kite · Milvus milvus · likely") from the image half of BioCLIP (MIT licence). It is not bundled: it is an 89 MB download the user chooses to make, kept on the device for offline use. See `SPECIES-TAGGING-SPIKE.md` for how it was made and measured.
+
+| | |
+| --- | --- |
+| File | `image_int8.onnx` (image encoder only, int8 on the matrix layers) |
+| Size | 89,041,951 bytes |
+| SHA-256 | `ea4095eb31a279643dc7ea89b90b2168b4807df0fce3c40b72a43a771caee8a2` |
+| Input | 1 × 3 × 224 × 224, centre square crop, normalised with the CLIP mean and standard deviation |
+| Output | 512 numbers, normalised |
+
+**Turning it on.** The app only shows the feature when it is built with the address of the file:
+
+```
+VITE_SPECIES_MODEL_URL=https://example.com/kestrel/bioclip-image-int8.onnx
+```
+
+Put the file somewhere a web page may fetch it from. That means either the same site as the app, or a host that sends CORS headers. Checked on 15 Nov 2026: **GitHub release assets send no CORS headers, so a web page cannot download from them** (they are fine for the native desktop and phone apps later, which are not bound by CORS). Hugging Face file links do send them. A storage bucket with CORS switched on also works. For local use, put it in `public/models/` (not committed) and use `/models/bioclip-image-int8.onnx`. The download is checked against the SHA-256 above before it is kept. A different file needs `VITE_SPECIES_MODEL_SHA256` and `VITE_SPECIES_MODEL_BYTES` as well.
+
+**Making the model file and the names.** `tools/species/` has what is needed, using a Python with `torch`, `open_clip_torch`, `onnx` and `onnxruntime`:
+
+- Export the image half to ONNX (opset 17) and quantise only `MatMul` and `Gemm` to int8. Quantising the first (convolution) layer breaks the browser runtime, and half precision gave invalid numbers.
+- `make_labels.py` turns `species-uk.csv` into `src/assets/species/uk.json`: one small vector per name, so no text model ships. Add a species by adding a row and running it again.
+- `make_stand_in.py` makes a tiny stand-in model for tests that always "sees" one species.
+
+**What it learns.** The model never retrains. Names a person accepts are counted on the device and rise a little in the order next time, up to a small cap, so a clear match always wins.
