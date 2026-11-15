@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Trash2, Zap } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, SquareChevronsRight, Trash2 } from 'lucide-react';
 import kestrelMark from '../assets/kestrel-mark.svg';
 import type { ShootDescriptor } from '../core/types';
 import { NewProjectWizard } from './NewProjectWizard';
@@ -51,7 +51,7 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
           }} />
           <button type="button" onClick={() => quickInput.current?.click()} disabled={loading} title="Open a photo straight into the editor, without making a project"
             className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-sky-300/50 px-3 text-sm text-sky-100 hover:bg-sky-300/15 disabled:opacity-50">
-            <Zap className="h-4 w-4" aria-hidden="true" /> Quick edit
+            <SquareChevronsRight className="h-4 w-4" aria-hidden="true" /> Quick edit
           </button>
           <button type="button" onClick={() => setCreating(!creating)} disabled={loading}
             className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-kestrel-copper px-3 text-sm font-semibold text-zinc-950 disabled:opacity-50">
