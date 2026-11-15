@@ -150,6 +150,20 @@ export default function App() {
   const [confirmPasteSelection, setConfirmPasteSelection] = useState(false);
   const [selectionLookOpen, setSelectionLookOpen] = useState(false);
   const [editTogether, setEditTogether] = useState(false);
+  // Avoid recomputing and saving every selected photograph for each slider tick.
+  // The active photograph changes immediately; the group catches up after dragging stops.
+  const linkedEditTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingLinkedEdit = useRef<(() => void) | null>(null);
+  const cancelLinkedEdit = () => {
+    if (linkedEditTimer.current !== null) clearTimeout(linkedEditTimer.current);
+    linkedEditTimer.current = null;
+    pendingLinkedEdit.current = null;
+  };
+  const flushLinkedEdit = () => {
+    const commit = pendingLinkedEdit.current;
+    cancelLinkedEdit();
+    commit?.();
+  };
   const [infoFrameId, setInfoFrameId] = useState<string>();
   const infoTriggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -445,6 +459,7 @@ export default function App() {
   }, [visibleFrames, selectedFrame]);
 
   const handleSelectFrame = useCallback((frameId: string) => {
+    flushLinkedEdit();
     setZoomLevel(1);
     setPanOffset({ x: 0, y: 0 });
     setCullingState((prev) => ({
@@ -495,6 +510,7 @@ export default function App() {
 
   const handleStepFrame = useCallback(
     (delta: number) => {
+      flushLinkedEdit();
       setZoomLevel(1);
       setPanOffset({ x: 0, y: 0 });
       setCullingState((prev) => {
@@ -524,7 +540,7 @@ export default function App() {
     setSelectedIds(new Set(ids));
     setPrefs((prev) => ({ ...prev, showFilmstrip: true, focusMode: false }));
   };
-  const leaveEditor = () => { setEditing(false); setEditQueueIds(null); setEditTogether(false); setMultiSelect(false); setSelectedIds(new Set()); };
+  const leaveEditor = () => { flushLinkedEdit(); setEditing(false); setEditQueueIds(null); setEditTogether(false); setMultiSelect(false); setSelectedIds(new Set()); };
 
   const pasteToSelection = () => {
     if (!copiedEdit || !selectedVisibleFrames.length) return;
@@ -1211,18 +1227,7 @@ export default function App() {
           <button type="button" onClick={leaveEditor} className="min-h-11 shrink-0 rounded-md px-2 text-sm font-medium hover:bg-white/10">Back</button>
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? 'Edit photo'}</h1>
           {multiSelect && selectedVisibleFrames.length > 0 && (
-            <div className="flex shrink-0 items-center gap-1" role="group" aria-label="Selected photo actions">
-              {selectedVisibleFrames.length > 1 && <button type="button" aria-pressed={editTogether}
-                onClick={() => setEditTogether((value) => !value)}
-                className={`min-h-11 rounded-md border px-2 text-xs font-medium focus-visible:outline-2 focus-visible:outline-sky-300 ${editTogether ? 'border-sky-200 bg-white/15' : 'border-white/15 hover:bg-white/10'}`}>
-                {editTogether ? 'Editing together ✓' : 'Edit together'}
-              </button>}
-              <span className="hidden text-xs tabular-nums text-zinc-300 sm:inline">{selectedVisibleFrames.length} selected</span>
-              <button type="button" onClick={() => setSelectionLookOpen(true)}
-                className="min-h-11 rounded-md border border-white/15 px-2 text-xs font-medium hover:bg-white/10">Apply look</button>
-              <button type="button" onClick={() => setExportFrames(selectedVisibleFrames)}
-                className="min-h-11 rounded-md bg-kestrel-copper px-2 text-xs font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!">Export {selectedVisibleFrames.length}</button>
-            </div>
+            <span className="shrink-0 text-xs tabular-nums text-zinc-300">{selectedVisibleFrames.length} selected</span>
           )}
           {!filmstripVisible && (
             <div className="flex shrink-0">
@@ -1379,21 +1384,32 @@ export default function App() {
               provider={previewProviderRef.current!}
               needsAccess={needsAccess}
               onEdit={(edit) => {
-                 if (!editTogether || !multiSelect || selectedVisibleFrames.length < 2) {
-                   updateFrame(selectedFrame.id, { edit: isEmptyEdit(edit) ? undefined : { ...edit } });
-                   return;
-                 }
-                 const ids = new Set(selectedVisibleFrames.map((frame) => frame.id));
-                 const at = Date.now();
-                 setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: at },
-                   frames: prev.frames.map((frame) => {
-                     if (!ids.has(frame.id)) return frame;
-                     // Share only global adjustments; local masks remain unique to each photograph.
-                     const nextEdit = { ...edit, masks: frame.id === selectedFrame.id ? edit.masks : frame.edit?.masks };
-                     return recordEdit(frame, { edit: isEmptyEdit(nextEdit) ? undefined : nextEdit }, at);
-                   }),
-                 }));
-               }}
+                // Always update the active photo immediately so slider dragging remains fluid.
+                updateFrame(selectedFrame.id, { edit: isEmptyEdit(edit) ? undefined : { ...edit } });
+                cancelLinkedEdit();
+                if (!editTogether || !multiSelect || selectedVisibleFrames.length < 2) return;
+                const projectId = cullingState.shoot.id;
+                const activeId = selectedFrame.id;
+                const ids = new Set(selectedVisibleFrames.map((frame) => frame.id));
+                const globalEdit = { ...edit, masks: undefined };
+                pendingLinkedEdit.current = () => {
+                  if (stateRef.current.shoot.id !== projectId) return;
+                  const at = Date.now();
+                  setCullingState((prev) => {
+                    if (prev.shoot.id !== projectId) return prev;
+                    let changed = false;
+                    const frames = prev.frames.map((frame) => {
+                      if (!ids.has(frame.id) || frame.id === activeId || frame.removedAt) return frame;
+                      const nextEdit = { ...globalEdit, masks: frame.edit?.masks };
+                      const next = recordEdit(frame, { edit: isEmptyEdit(nextEdit) ? undefined : nextEdit }, at);
+                      if (next !== frame) changed = true;
+                      return next;
+                    });
+                    return changed ? { ...prev, frames, shoot: { ...prev.shoot, lastUpdatedAt: at } } : prev;
+                  });
+                };
+                linkedEditTimer.current = setTimeout(flushLinkedEdit, 250);
+              }}
               onApplyLook={(look) => {
                 const ids = new Set(multiSelect ? selectedVisibleFrames.map((frame) => frame.id) : []);
                 if (ids.size < 2) {
@@ -1560,17 +1576,24 @@ export default function App() {
                 onClick={() => { setCopiedEdit(selectedFrame.edit ?? DEFAULT_EDIT); showToast('Adjustments copied'); }}>
                 <Copy className="h-4 w-4" aria-hidden="true" /> Copy
               </button>
-              <button type="button" disabled={!copiedEdit} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
+              {!multiSelect && <button type="button" disabled={!copiedEdit} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
                 onClick={() => { if (copiedEdit) { updateFrame(selectedFrame.id, { edit: isEmptyEdit(copiedEdit) ? undefined : { ...copiedEdit } }); showToast('Adjustments pasted'); } }}>
                 <ClipboardPaste className="h-4 w-4" aria-hidden="true" /> Paste
-              </button>
+              </button>}
               <button type="button" aria-pressed={multiSelect} className="inline-flex min-h-11 items-center rounded-md px-2 text-xs hover:bg-white/10"
                 onClick={() => {
+                  cancelLinkedEdit();
+                  flushLinkedEdit();
                   setEditTogether(false);
                   if (multiSelect) { setMultiSelect(false); setSelectedIds(new Set()); }
                   else { setMultiSelect(true); setSelectedIds(new Set([selectedFrame.id])); }
                 }}>{multiSelect ? 'Done selecting' : 'Select photos'}</button>
               {multiSelect && <>
+                {selectedVisibleFrames.length > 1 && <button type="button" aria-pressed={editTogether}
+                  onClick={() => { flushLinkedEdit(); setEditTogether((value) => !value); }}
+                  className={`min-h-11 rounded-md border px-2 text-xs font-medium focus-visible:outline-2 focus-visible:outline-sky-300 ${editTogether ? 'border-sky-200 bg-white/15' : 'border-white/15 hover:bg-white/10'}`}>
+                  {editTogether ? 'Editing together ✓' : 'Edit together'}
+                </button>}
                 <span role="status" className="shrink-0 text-xs text-zinc-300">{selectedVisibleFrames.length} selected</span>
                 <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setExportFrames(selectedVisibleFrames)}>Export</button>
