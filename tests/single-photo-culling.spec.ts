@@ -36,4 +36,10 @@ test('single-photo review keeps touch controls in reach after a keypad decision'
   }
   await controls.getByRole('button', { name: 'Undo last decision' }).click();
   await expect(controls.getByRole('button', { name: /^Keep / })).toBeVisible();
+
+  await page.getByRole('button', { name: 'To review 1', exact: true }).click();
+  await controls.getByRole('button', { name: /^Keep / }).click();
+  await expect(page.getByText('You’re caught up.', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Undo last decision', exact: true }).click();
+  await expect(controls.getByRole('button', { name: /^Keep / })).toBeVisible();
 });
