@@ -345,12 +345,11 @@ test('unknown camera frames can join a burst without changing its known identity
 
 
 test('explicit restore invalidates stale redo of a library removal', () => {
-  const removed = removeFromLibrary(projectWith(['reject', 'keep']), ['f0']);
-  const undone = undoDecision(removed);
-  const redone = redoDecision(undone);
-  const undoneAgain = undoDecision(redone);
-  // A separate explicit restore should not leave a prior redo action available.
-  const restored = restoreRemoved({ ...undoneAgain, frames: redone.frames }, ['f0']);
+  const removed = removeFromLibrary(projectWith(['reject', 'unreviewed']), ['f0']);
+  const reviewed = applyDecisionWithHistory(removed, 'f1', 'keep', { allowAdvance: false });
+  const undoneReview = undoDecision(reviewed);
+  // Restore the removed photo while a different decision remains redoable.
+  const restored = restoreRemoved(undoneReview, ['f0']);
   assert.equal(restored.frames[0].removedAt, undefined);
   assert.equal(restored.redoStack.length, 0);
   assert.equal(redoDecision(restored), restored);
