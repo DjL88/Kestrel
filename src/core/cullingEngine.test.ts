@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   applyDecisionWithHistory,
+  applyAutoCullDecisions,
   assignBurstGroups,
   computeCullCounts,
   createDemoShootState,
@@ -216,4 +217,30 @@ test('keep to trash is an ordinary reversible decision, never a removal', () => 
   assert.equal(state.frames[0].decision, 'reject');
   assert.equal(state.frames[0].removedAt, undefined);
   assert.equal(undo(state).frames[0].decision, 'keep');
+});
+
+
+test('auto cull cannot reclassify a removed photo, even from stale scan results', () => {
+  const project = projectWith(['unreviewed', 'unreviewed']);
+  const state = {
+    ...project,
+    frames: [{ ...project.frames[0], removedAt: 1234 }, project.frames[1]],
+  };
+  const updated = applyAutoCullDecisions(state, [
+    { frameId: 'f0', decision: 'keep' },
+    { frameId: 'f1', decision: 'keep' },
+  ]);
+  assert.equal(updated.frames[0].decision, 'unreviewed');
+  assert.equal(updated.frames[0].removedAt, 1234);
+  assert.equal(updated.frames[1].decision, 'keep');
+  assert.equal(updated.undoStack.length, 1);
+  assert.deepEqual(updated.undoStack[0].batch?.map((item) => item.frameId), ['f1']);
+  assert.equal(undoDecision(updated).frames[1].decision, 'unreviewed');
+});
+
+test('auto cull does not create a history entry for removed-only results', () => {
+  const project = projectWith(['unreviewed']);
+  const state = { ...project, frames: [{ ...project.frames[0], removedAt: 1234 }] };
+  const updated = applyAutoCullDecisions(state, [{ frameId: 'f0', decision: 'reject' }]);
+  assert.equal(updated, state);
 });

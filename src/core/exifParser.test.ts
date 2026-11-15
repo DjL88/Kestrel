@@ -6,6 +6,7 @@ import {
   formatCameraLabel,
   formatFocalLength,
   formatShutterSpeed,
+  isNikonEmbeddedPreviewFile,
 } from './exifParser';
 
 test('EXIF formatting returns blank strings when values are missing', () => {
@@ -60,4 +61,19 @@ test('embedded XMP ratings and reject flags are parsed from a JPEG segment', asy
   const rejected = await parseImageExif(jpeg(-1), 'rejected.jpg');
   assert.equal(rejected.rating, undefined);
   assert.equal(rejected.rejectedByMetadata, true);
+});
+
+test('Nikon NEF and NRW filenames share the embedded-preview route', () => {
+  assert.equal(isNikonEmbeddedPreviewFile('Z8_0001.NEF'), true);
+  assert.equal(isNikonEmbeddedPreviewFile('COOLPIX_0001.nrw'), true);
+  assert.equal(isNikonEmbeddedPreviewFile('photo.nef.jpg'), false);
+  assert.equal(isNikonEmbeddedPreviewFile('photo.jpg'), false);
+  assert.equal(isNikonEmbeddedPreviewFile('photo.dng'), false);
+});
+
+test('NRW metadata never claims full RAW decoding, including parse failure', async () => {
+  const { parseImageExif } = await import('./exifParser');
+  const metadata = await parseImageExif(new Blob([new Uint8Array(8)]), 'NIKON.NRW');
+  assert.equal(metadata.formatLabel, 'NRW Embedded Preview');
+  assert.equal(metadata.isEmbeddedPreviewOnly, true);
 });
