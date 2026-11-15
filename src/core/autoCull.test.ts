@@ -11,7 +11,7 @@ test('a flat dark preview is advisory and unavailable images receive no decision
 });
 
 test('confidence limit preserves keeper headroom and one automatic pick per burst', () => {
-  const photos = generateDemoShootFrames(3).map((frame) => ({ ...frame, burstGroupId: 'one' }));
+  const photos = generateDemoShootFrames(3).map((frame) => ({ ...frame, isDemo: false, burstGroupId: 'one' }));
   const suggestions: CullSuggestion[] = photos.map((frame, index) => ({
     frameId: frame.id, decision: 'keep', confidence: 'high', reason: 'clearDetail', score: 90 + index,
   }));
@@ -48,4 +48,19 @@ test('malformed preview dimensions and pixel buffers never receive automatic dec
   unavailable(new Uint8ClampedArray(0), 100_000, 100_000);
   const valid = scorePreview('valid', new Uint8ClampedArray(96 * 96 * 4), 96, 96);
   assert.equal(valid.reason, 'flat');
+});
+
+
+test('stale or removed frames cannot consume automatic keeper headroom', () => {
+  const photos = generateDemoShootFrames(4).map((frame, index) => ({
+    ...frame, isDemo: false, burstGroupId: null,
+    decision: index === 1 ? 'reject' as const : 'unreviewed' as const,
+    ...(index === 0 ? { removedAt: 123 } : {}),
+  }));
+  const suggestions: CullSuggestion[] = photos.map((frame, index) => ({
+    frameId: frame.id, decision: 'keep', confidence: 'high', reason: 'clearDetail', score: 99 - index,
+  }));
+  const result = limitAutoKeepers(suggestions, photos, 1);
+  assert.deepEqual(result.filter((item) => item.confidence === 'high').map((item) => item.frameId), [photos[2].id]);
+  assert.equal(result[3].confidence, 'medium');
 });
