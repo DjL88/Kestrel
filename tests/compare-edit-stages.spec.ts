@@ -23,7 +23,7 @@ test('Before/After can compare a previous edit and a chosen history stage withou
   await expect(exposure).toHaveValue('0.1');
   await expect(warmth).toHaveValue('0.1');
   await picker.selectOption('original');
-  await expect(page.locator('span.rounded.bg-black\\/75').filter({ hasText: /^Original$/ })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Original photo' })).toBeVisible();
   await picker.selectOption('step:1');
   await expect(page.getByText('Edit 1', { exact: true })).toBeVisible();
   // Comparison must never undo a slider change.
