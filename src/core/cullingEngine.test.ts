@@ -342,3 +342,16 @@ test('unknown camera frames can join a burst without changing its known identity
   assert.ok(grouped[0].burstGroupId);
   assert.ok(grouped.every((frame) => frame.burstGroupId === grouped[0].burstGroupId));
 });
+
+
+test('explicit restore invalidates stale redo of a library removal', () => {
+  const removed = removeFromLibrary(projectWith(['reject', 'keep']), ['f0']);
+  const undone = undoDecision(removed);
+  const redone = redoDecision(undone);
+  const undoneAgain = undoDecision(redone);
+  // A separate explicit restore should not leave a prior redo action available.
+  const restored = restoreRemoved({ ...undoneAgain, frames: redone.frames }, ['f0']);
+  assert.equal(restored.frames[0].removedAt, undefined);
+  assert.equal(restored.redoStack.length, 0);
+  assert.equal(redoDecision(restored), restored);
+});
