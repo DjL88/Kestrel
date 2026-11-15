@@ -46,6 +46,7 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
     onTransform(zoom > 1 ? 1 : 2, FIT_VIEW.pan);
   }
 
+  const zoomAction = zoom > 1 ? 'Fit photo' : 'Zoom in';
   const layer = { transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` };
   return (
     <div ref={view} className="relative min-h-0 flex-1 touch-none overflow-hidden bg-black"
@@ -109,9 +110,9 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
           </>}
         </>
       )}
-      <button type="button" onClick={toggleZoom} aria-label={zoom > 1 ? 'Fit photo' : 'Zoom in'} title={zoom > 1 ? 'Fit photo' : 'Zoom in'}
-        className="absolute right-2 top-2 min-h-11 min-w-11 rounded-md bg-black/70 px-2 text-xs tabular-nums">
-        {zoom === 1 ? 'Fit' : `${Math.round(zoom * 100)}%`}
+      <button type="button" onClick={toggleZoom} title={zoomAction}
+        className="absolute right-2 top-2 min-h-11 min-w-11 rounded-md bg-black/70 px-2 text-xs focus-visible:outline-2 focus-visible:outline-sky-300">
+        {zoomAction}
       </button>
     </div>
   );

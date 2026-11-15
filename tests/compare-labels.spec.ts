@@ -24,4 +24,13 @@ test('compare identifies both photos and updates the names when swapped', async 
   await page.getByRole('button', { name: 'Swap photos A and B' }).click();
   await expect(a).toHaveText('A · kestrel-b.png');
   await expect(b).toHaveText('B · kestrel-a.png');
+  const compare = page.getByRole('region', { name: 'Compare photos' });
+  const zoom = compare.getByRole('button', { name: 'Zoom in', exact: true });
+  await expect(zoom).toHaveText('Zoom in');
+  expect((await zoom.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await zoom.click();
+  const fit = compare.getByRole('button', { name: 'Fit photo', exact: true });
+  await expect(fit).toHaveText('Fit photo');
+  await fit.press('Enter');
+  await expect(zoom).toHaveText('Zoom in');
 });
