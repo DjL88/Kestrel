@@ -1,11 +1,14 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { Star, X } from 'lucide-react';
 import { formatAperture, formatFocalLength } from '../core/exifParser';
-import type { PhotoFrame } from '../core/types';
+import type { CullDecision, PhotoFrame } from '../core/types';
 
 interface ExifInspectorProps {
   frame: PhotoFrame | null;
   onClose: () => void;
+  batchCount: number;
+  onRate: (id: string, rating: number) => void;
+  onFlag: (id: string, decision: CullDecision) => void;
 }
 
 function formatCaptureTime(ms?: number): string {
@@ -21,10 +24,11 @@ function formatCaptureTime(ms?: number): string {
   }
 }
 
-export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, onClose }) => {
+export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount, onClose, onRate, onFlag }) => {
   if (!frame) return null;
 
   const { exif } = frame;
+  const rating = frame.rating ?? exif.rating ?? 0;
   const rows: { label: string; value: string }[] = [
     { label: 'Camera', value: exif.camera ?? '' },
     { label: 'Lens', value: exif.lens ?? '' },
@@ -58,6 +62,26 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, onClose }) 
       {frame.burstGroupId && <p className="mt-1 text-xs text-zinc-400">Burst frame {frame.burstIndex} of {frame.burstCount}</p>}
       {Boolean(frame.subjectNames?.length) && <p className="mt-1 text-xs text-zinc-300">{frame.subjectNames?.join(', ')}</p>}
       {exif.isEmbeddedPreviewOnly && <p className="mt-1 text-xs text-zinc-300">Embedded NEF preview</p>}
+      {batchCount > 1 && <p className="mt-3 text-xs text-sky-200">Apply ratings and flags to {batchCount} selected photos</p>}
+      <div className="mt-3 border-y border-white/10 py-2">
+        <div role="group" aria-label={`Star rating, ${rating} of 5`} className="flex flex-wrap">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button key={star} type="button" aria-label={`Rate ${star} of 5 stars`} aria-pressed={rating === star}
+              onClick={() => onRate(frame.id, star)} className="grid h-11 w-10 place-items-center rounded-md hover:bg-white/8">
+              <Star className={`h-5 w-5 ${rating >= star ? 'fill-current text-sky-200' : 'text-zinc-400'}`} aria-hidden="true" />
+            </button>
+          ))}
+          {(rating > 0 || batchCount > 1) && <button type="button" onClick={() => onRate(frame.id, 0)} className="min-h-11 px-2 text-xs text-zinc-300">Clear stars</button>}
+        </div>
+        <div role="group" aria-label="Photo flag" className="flex flex-wrap gap-1">
+          {(['unreviewed', 'keep', 'reject'] as const).map((flag) => (
+            <button key={flag} type="button" aria-pressed={frame.decision === flag} onClick={() => onFlag(frame.id, flag)}
+              className="min-h-11 rounded-md px-2 text-xs capitalize text-zinc-300 hover:bg-white/8 aria-pressed:bg-white/15 aria-pressed:text-white">
+              {flag === 'unreviewed' ? 'Unflagged' : flag}
+            </button>
+          ))}
+        </div>
+      </div>
       <dl className="mt-4 space-y-2 text-xs">
         {rows.filter(({ value }) => value).map(({ label, value }) => (
           <div key={label} className="grid grid-cols-[auto_1fr] items-baseline gap-2">

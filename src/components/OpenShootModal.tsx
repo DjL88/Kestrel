@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FolderOpen, ImagePlus, Sparkles, X } from 'lucide-react';
+import { FolderOpen, ImagePlus, X } from 'lucide-react';
 import { isSupportedPhotoFilename, supportsDirectoryPicker } from '../providers/localShootLoader';
 
 interface OpenShootModalProps {
   open: boolean;
   onClose: () => void;
-  onLoadDemoShoot: () => void;
   onSelectLocalFiles: (files: File[]) => void;
   onOpenLocalFolder: () => void;
   folderError: string | null;
@@ -14,7 +13,6 @@ interface OpenShootModalProps {
 export const OpenShootModal: React.FC<OpenShootModalProps> = ({
   open,
   onClose,
-  onLoadDemoShoot,
   onSelectLocalFiles,
   onOpenLocalFolder,
   folderError,
@@ -66,16 +64,16 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-4">
           <div>
             <h2 id="open-shoot-title" className="text-base font-semibold text-zinc-100">
-              Open Shoot
+              Add photos
             </h2>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Originals are read-only. Culling decisions persist locally in your browser.
+              Add files to this project. Originals stay read-only.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close Open Shoot modal"
+            aria-label="Close Add photos modal"
             className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-white/8"
           >
             <X className="w-4 h-4" aria-hidden="true" />
@@ -116,22 +114,20 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
             </button>
           </div>
 
+          {folderError && <p role="alert" className="text-sm text-orange-200">{folderError}</p>}
           {dropError && <p role="alert" className="text-sm text-orange-200">Choose a JPEG, PNG, WebP or Nikon NEF file.</p>}
 
           {/* Option 2: Local Folder (File System Access API) */}
           <div className="p-4 rounded-lg bg-[#1A1D23] border border-white/10 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-sm font-semibold text-zinc-100">
-                Open Local Folder (Browser Handle)
+                Choose a folder
               </div>
               <p className="text-xs text-zinc-400 mt-1">
                 {canPickFolder
-                  ? 'Scan a folder directly without copying files. Requires one-click re-grant after browser restarts.'
+                  ? 'Add supported photos from a folder.'
                   : 'Folder picker is unavailable in this browser/iframe context. Use Select Files above.'}
               </p>
-              {folderError && (
-                <p className="text-xs text-orange-300 mt-1.5">{folderError}</p>
-              )}
             </div>
             <button
               type="button"
@@ -144,43 +140,6 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
             </button>
           </div>
 
-          {/* Option 3: Labelled Demo Shoot */}
-          <div className="p-4 rounded-lg bg-[#1A1D23] border border-white/10 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-zinc-100">
-                500-Frame Demo Shoot (Simulated Nikon Z8 / Z5II)
-              </div>
-              <p className="text-xs text-zinc-400 mt-1">
-                Wildlife, bird, and Coco bursts across 500 frames for testing Compare mode,
-                virtualized scrolling, and macro pad shortcuts.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onLoadDemoShoot}
-              className="px-3.5 py-2 text-xs font-semibold bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 border border-sky-400/40 rounded-lg whitespace-nowrap shrink-0 flex items-center gap-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Load Demo</span>
-            </button>
-          </div>
-
-          {/* Persistence Comparison Note */}
-          <div className="pt-2 border-t border-white/8 text-[11px] text-zinc-400 space-y-1">
-            <div className="font-semibold text-zinc-300">
-              What persists in Browser vs Native Desktop (Tauri)
-            </div>
-            <p>
-              <span className="text-zinc-200 font-medium">Browser prototype:</span> Persists
-              decisions, selection, filter, keeper target, keymap, and small JPEG blobs in
-              IndexedDB. Folder handles require a one-click permission re-grant after reload.
-            </p>
-            <p>
-              <span className="text-zinc-200 font-medium">Native desktop target:</span> Persists
-              all shoots in local SQLite keyed by stable volume/relative-path IDs, extracts full
-              NEF previews natively, and keeps NAS relinking automatic.
-            </p>
-          </div>
         </div>
       </div>
     </div>

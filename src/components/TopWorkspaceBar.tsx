@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Ellipsis, FolderOpen } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Ellipsis, Plus } from 'lucide-react';
 import type { CullCounts, FilterState, ShootDescriptor, WorkspaceViewMode } from '../core/types';
 
 interface TopWorkspaceBarProps {
@@ -15,9 +15,13 @@ interface TopWorkspaceBarProps {
   onViewModeChange: (mode: WorkspaceViewMode) => void;
   showShortcutsOverlay: boolean;
   onToggleShortcutsOverlay: () => void;
+  onBackToProjects: () => void;
+  actionsDisabled: boolean;
   onOpenShootModal: () => void;
   onOpenMacroPadModal: () => void;
   onEditPhoto?: () => void;
+  multiSelect: boolean;
+  onToggleMultiSelect?: () => void;
   showFilmstrip: boolean;
   onToggleFilmstrip: () => void;
   showPhotoInfo: boolean;
@@ -74,21 +78,24 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
 
   return (
     <header className="relative z-20 flex min-w-0 shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-[#14161A] px-2 sm:px-4">
-      <div className="min-w-0">
+      <button type="button" onClick={props.onBackToProjects} disabled={props.actionsDisabled} className={actionClass} aria-label="Back to projects">
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Projects</span>
+      </button>
+      <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-semibold text-zinc-100" title={shoot.title}>{shoot.title}</div>
         <div className="truncate text-xs text-zinc-400" aria-live="polite">
           {loadingProgress ? `Opening ${loadingProgress.loaded}/${loadingProgress.total}` :
-            `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter !== 'all' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}`}
+            `${shoot.sourceKind === 'demo' ? 'Demo · ' : 'Library · '}${counts.keep}/${keeperTarget} keepers${filter !== 'all' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}`}
         </div>
       </div>
       <div className="flex shrink-0 items-center">
-        <button type="button" onClick={props.onOpenShootModal} className={actionClass} aria-label="Open shoot">
-          <FolderOpen className="h-4 w-4" aria-hidden="true" />
-          <span className="hidden sm:inline">Open</span>
+        <button type="button" onClick={props.onOpenShootModal} disabled={props.actionsDisabled} className={actionClass} aria-label="Add photos to project">
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden sm:inline">Add photos</span>
         </button>
-        <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto} className={`${actionClass} text-sky-200 disabled:opacity-40`}>Edit</button>
+        <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto || props.actionsDisabled} className={`${actionClass} text-sky-200 disabled:opacity-40`}>Edit</button>
         <div ref={menuRef}>
-          <button ref={triggerRef} type="button" className={actionClass} onClick={() => setMenuOpen(!menuOpen)}
+          <button ref={triggerRef} type="button" disabled={props.actionsDisabled} className={actionClass} onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Workspace options" aria-expanded={menuOpen} aria-controls="workspace-options">
             <Ellipsis className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -123,6 +130,9 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
               <div className="mt-3 grid grid-cols-2 gap-1 border-t border-white/10 pt-2">
                 <button type="button" className={actionClass} aria-pressed={showPhotoInfo} onClick={() => choose(props.onTogglePhotoInfo)}>{showPhotoInfo ? 'Hide photo info' : 'Photo info'}</button>
                 <button type="button" className={actionClass} onClick={() => choose(props.onOpenMacroPadModal, false)}>Macro pad</button>
+                {props.onToggleMultiSelect && <button type="button" className={actionClass} onClick={() => choose(() => props.onToggleMultiSelect?.())}>
+                  {props.multiSelect ? 'Done selecting' : 'Select photos'}
+                </button>}
                 {props.onClearDecision && <button type="button" className={actionClass} onClick={() => choose(() => props.onClearDecision?.())}>Clear decision</button>}
                 {props.onRedo && <button type="button" className={actionClass} onClick={() => choose(() => props.onRedo?.())}>Redo decision</button>}
               </div>

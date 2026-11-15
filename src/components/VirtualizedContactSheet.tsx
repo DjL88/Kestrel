@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, CircleDashed, X } from 'lucide-react';
+import { Check, CircleDashed, Info, Star, X } from 'lucide-react';
 import type { CullDecision, PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { FrameImage } from './FrameImage';
@@ -9,7 +9,10 @@ interface VirtualizedContactSheetProps {
   selectedFrameId: string | null;
   previewProvider: BrowserPreviewProvider;
   needsAccess: boolean;
-  onSelectFrame: (frameId: string) => void;
+  onSelectFrame: (frameId: string, modifiers: { shift: boolean; toggle: boolean }) => void;
+  markedIds: ReadonlySet<string>;
+  multiSelect: boolean;
+  onInfo: (frameId: string, trigger: HTMLButtonElement | null) => void;
   onOpenLoupe: (frameId: string) => void;
   onDecideFrame: (frameId: string, decision: CullDecision) => void;
 }
@@ -24,12 +27,24 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   previewProvider,
   needsAccess,
   onSelectFrame,
+  markedIds,
+  multiSelect,
+  onInfo,
   onOpenLoupe,
   onDecideFrame,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: 1120, height: 640 });
   const [scrollTop, setScrollTop] = useState(0);
+  const press = useRef<{ x: number; y: number; timer: number } | null>(null);
+  const longPressed = useRef(false);
+
+  function cancelPress() {
+    if (press.current) window.clearTimeout(press.current.timer);
+    press.current = null;
+  }
+
+  useEffect(() => cancelPress, []);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -132,7 +147,8 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
               }}
             >
               {rowFrames.map((frame) => {
-                const isSelected = frame.id === selectedFrameId;
+                const isMarked = markedIds.has(frame.id);
+                const isSelected = multiSelect ? isMarked : frame.id === selectedFrameId;
                 const isKeep = frame.decision === 'keep';
                 const isReject = frame.decision === 'reject';
 
@@ -141,7 +157,8 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                     key={frame.id}
                     role="article"
                     aria-label={`Frame ${frame.filename}`}
-                    className={`flex flex-col rounded-lg border overflow-hidden transition-colors ${
+                    onContextMenu={(event) => { event.preventDefault(); onInfo(frame.id, event.currentTarget.querySelector('[data-info-button]')); }}
+                    className={`relative flex flex-col rounded-lg border overflow-hidden transition-colors ${
                       isSelected
                         ? 'border-sky-400 bg-[#1B1F27] ring-1 ring-sky-400/50'
                         : isKeep
@@ -154,8 +171,27 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                     {/* Clickable Thumbnail */}
                     <button
                       type="button"
-                      onClick={() => onSelectFrame(frame.id)}
-                      onDoubleClick={() => onOpenLoupe(frame.id)}
+                      onPointerDown={(event) => {
+                        longPressed.current = false;
+                        if (event.pointerType !== 'touch') return;
+                        cancelPress();
+                        const card = event.currentTarget.parentElement;
+                        press.current = { x: event.clientX, y: event.clientY, timer: window.setTimeout(() => {
+                          longPressed.current = true;
+                          onInfo(frame.id, card?.querySelector('[data-info-button]') ?? null);
+                        }, 500) };
+                      }}
+                      onPointerMove={(event) => {
+                        if (press.current && Math.hypot(event.clientX - press.current.x, event.clientY - press.current.y) > 10) cancelPress();
+                      }}
+                      onPointerCancel={cancelPress}
+                      onPointerUp={cancelPress}
+                      onClick={(event) => {
+                        if (!longPressed.current) onSelectFrame(frame.id, { shift: event.shiftKey, toggle: event.ctrlKey || event.metaKey });
+                        longPressed.current = false;
+                      }}
+                      onDoubleClick={() => { if (!multiSelect) onOpenLoupe(frame.id); }}
+                      aria-pressed={isSelected}
                       aria-label={`Select ${frame.filename}`}
                       className="relative flex-1 w-full overflow-hidden focus-visible:outline-2 focus-visible:outline-sky-400 text-left"
                     >
@@ -177,6 +213,12 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                       )}
                     </button>
 
+                    <button type="button" data-info-button onClick={(event) => onInfo(frame.id, event.currentTarget)}
+                      aria-label={`Photo info and rating for ${frame.filename}`}
+                      className="absolute top-0 right-0 grid h-11 w-11 place-items-center rounded-md focus-visible:outline-2 focus-visible:outline-sky-300">
+                      <span className="grid h-6 w-6 place-items-center rounded-full bg-black/75"><Info className="h-4 w-4" aria-hidden="true" /></span>
+                    </button>
+
                     {/* Card Footer: Number, Filename & Colorblind-safe Decision Control */}
                     <div className="h-[44px] shrink-0 px-2.5 flex items-center justify-between gap-2 border-t border-white/6">
                       <div className="min-w-0">
@@ -185,6 +227,8 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         </div>
                         <div className="text-[10px] font-mono tabular-nums text-zinc-500">
                           #{String(frame.sequenceIndex).padStart(4, '0')}
+                          {Boolean(frame.rating ?? frame.exif.rating) && <span className="ml-1 inline-flex items-center gap-0.5 text-zinc-300">
+                            <Star className="h-2.5 w-2.5" aria-hidden="true" />{frame.rating ?? frame.exif.rating}</span>}
                         </div>
                       </div>
 

@@ -4,7 +4,7 @@ import {
   type KnobFunction,
 } from '../core/keyboardCommands';
 import type { CatalogueStore } from '../core/platformBoundaries';
-import type { CullingState, WorkspaceViewMode } from '../core/types';
+import type { CullingState, ShootDescriptor, WorkspaceViewMode } from '../core/types';
 
 const DB_NAME = 'kestrel-cull-v1';
 const DB_VERSION = 1;
@@ -12,6 +12,7 @@ const STORE_CATALOGUE = 'catalogue';
 const STORE_FILES = 'localFiles';
 const STORE_HANDLES = 'directoryHandles';
 
+const PROJECT_PREFIX = 'project:';
 const ACTIVE_KEY = 'active-shoot-state';
 const PREFS_STORAGE_KEY = 'kestrel.preferences.v1';
 
@@ -54,23 +55,25 @@ function openDatabase(): Promise<IDBDatabase> {
 }
 
 async function idbGet<T>(storeName: string, key: string): Promise<T | null> {
+  let db: IDBDatabase | undefined;
   try {
-    const db = await openDatabase();
+    db = await openDatabase();
+    const connection = db;
     return await new Promise((resolve, reject) => {
-      const tx = db.transaction(storeName, 'readonly');
-      const store = tx.objectStore(storeName);
-      const req = store.get(key);
-      req.onsuccess = () => resolve((req.result as T) ?? null);
-      req.onerror = () => reject(req.error);
+      const request = connection.transaction(storeName, 'readonly').objectStore(storeName).get(key);
+      request.onsuccess = () => resolve((request.result as T) ?? null);
+      request.onerror = () => reject(request.error);
     });
   } catch {
     return null;
+  } finally {
+    db?.close();
   }
 }
 
 async function idbSet<T>(storeName: string, key: string, value: T): Promise<void> {
+  const db = await openDatabase();
   try {
-    const db = await openDatabase();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(storeName, 'readwrite');
       const store = tx.objectStore(storeName);
@@ -78,8 +81,8 @@ async function idbSet<T>(storeName: string, key: string, value: T): Promise<void
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
-  } catch {
-    // Graceful no-op if storage quota exceeded
+  } finally {
+    db.close();
   }
 }
 
@@ -128,6 +131,55 @@ export function savePreferences(prefs: UserPreferences): void {
 }
 
 export class BrowserCatalogueStore implements CatalogueStore {
+  private projectWrite = Promise.resolve();
+
+  async listProjects(): Promise<ShootDescriptor[]> {
+    await this.projectWrite;
+    const db = await openDatabase();
+    try {
+      return await new Promise((resolve, reject) => {
+        const range = IDBKeyRange.bound(PROJECT_PREFIX, `${PROJECT_PREFIX}\uffff`);
+        const cursor = db.transaction(STORE_CATALOGUE).objectStore(STORE_CATALOGUE).openCursor(range);
+        const projects: ShootDescriptor[] = [];
+        cursor.onerror = () => reject(cursor.error);
+        cursor.onsuccess = () => {
+          const row = cursor.result;
+          if (!row) {
+            resolve(projects.sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt));
+            return;
+          }
+          if (row.value?.shoot) projects.push(row.value.shoot);
+          row.continue();
+        };
+      });
+    } finally {
+      db.close();
+    }
+  }
+
+  async loadProject(id: string): Promise<CullingState | null> {
+    await this.projectWrite;
+    return idbGet<CullingState>(STORE_CATALOGUE, PROJECT_PREFIX + id);
+  }
+
+  saveProject(state: CullingState): Promise<void> {
+    const write = this.projectWrite.then(async () => {
+      const db = await openDatabase();
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const tx = db.transaction(STORE_CATALOGUE, 'readwrite');
+          tx.oncomplete = () => resolve();
+          tx.onabort = () => reject(tx.error ?? new Error('Catalogue write was interrupted'));
+          tx.objectStore(STORE_CATALOGUE).put(state, PROJECT_PREFIX + state.shoot.id);
+        });
+      } finally {
+        db.close();
+      }
+    });
+    this.projectWrite = write.catch(() => {});
+    return write;
+  }
+
   async loadActiveState(): Promise<Partial<CullingState> | null> {
     const idbState = await idbGet<CullingState>(STORE_CATALOGUE, ACTIVE_KEY);
 

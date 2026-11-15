@@ -111,6 +111,14 @@ export function extractEmbeddedJpegFromRawBuffer(
   return null;
 }
 
+export function readEmbeddedRating(xmp: unknown, tiff: unknown): Pick<ExifMetadata, 'rating' | 'rejectedByMetadata'> {
+  const value = xmp ?? tiff;
+  const number = typeof value === 'number' ? value : typeof value === 'string' && /^-?[0-5]$/.test(value.trim()) ? Number(value) : NaN;
+  if (number === -1) return { rejectedByMetadata: true };
+  if (Number.isInteger(number) && number >= 0 && number <= 5) return { rating: number };
+  return {};
+}
+
 export async function parseImageExif(
   file: Blob,
   filename: string
@@ -119,31 +127,9 @@ export async function parseImageExif(
   const isNef = lower.endsWith('.nef');
 
   try {
-    const parsed = await exifr.parse(file, {
-      pick: [
-        'Make',
-        'Model',
-        'LensModel',
-        'LensInfo',
-        'FocalLength',
-        'FNumber',
-        'ExposureTime',
-        'ISO',
-        'DateTimeOriginal',
-        'CreateDate',
-        'ExifImageWidth',
-        'ExifImageHeight',
-        'ImageWidth',
-        'ImageHeight',
-      ],
-    });
-
-    if (!parsed) {
-      return {
-        formatLabel: isNef ? 'NEF Embedded Preview (Simulated Browser Fallback)' : 'JPEG',
-        isEmbeddedPreviewOnly: isNef,
-      };
-    }
+    const segments = await exifr.parse(file, { xmp: true, mergeOutput: false, gps: false, interop: false });
+    const parsed = { ...segments?.ifd0, ...segments?.exif };
+    const rating = readEmbeddedRating(segments?.xmp?.Rating, parsed.Rating);
 
     const capturedDate = parsed.DateTimeOriginal ?? parsed.CreateDate;
     const capturedAtMs =
@@ -169,6 +155,7 @@ export async function parseImageExif(
         : undefined;
 
     return {
+      ...rating,
       camera: formatCameraLabel(parsed.Make, parsed.Model),
       lens: typeof parsed.LensModel === 'string' && parsed.LensModel.trim() ? parsed.LensModel.trim() : undefined,
       focalLengthMm:
@@ -184,7 +171,7 @@ export async function parseImageExif(
       capturedAtMs,
       width,
       height,
-      formatLabel: isNef ? 'NEF Embedded Preview' : lower.endsWith('.png') ? 'PNG' : 'JPEG',
+      formatLabel: isNef ? 'NEF Embedded Preview' : lower.endsWith('.png') ? 'PNG' : lower.endsWith('.webp') ? 'WebP' : 'JPEG',
       isEmbeddedPreviewOnly: isNef,
     };
   } catch {

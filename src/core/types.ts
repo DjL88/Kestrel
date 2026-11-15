@@ -1,3 +1,4 @@
+import type { PhotoFraming } from './photoFraming';
 import type { PhotoEdit } from './photoEdits';
 
 export type CullDecision = 'unreviewed' | 'keep' | 'reject';
@@ -29,6 +30,8 @@ export interface DemoFrameVariant {
 }
 
 export interface ExifMetadata {
+  rating?: number;
+  rejectedByMetadata?: boolean;
   camera?: string;
   lens?: string;
   focalLengthMm?: number;
@@ -50,6 +53,8 @@ export interface PhotoFrame {
   sequenceIndex: number;
   decision: CullDecision;
   edit?: PhotoEdit;
+  framing?: PhotoFraming;
+  rating?: number;
   virtualCopy?: { originalFrameId: string; number: number };
   subjectNames?: string[];
   burstGroupId: string | null;
