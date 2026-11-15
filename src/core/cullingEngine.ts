@@ -477,7 +477,7 @@ export function applyAutoCullDecisions(
   const batch: NonNullable<CullingState['undoStack'][number]['batch']> = [];
   const frames = state.frames.map((frame) => {
     const decision = byId.get(frame.id);
-    if (!decision || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) return frame;
+    if (!decision || frame.removedAt || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) return frame;
     batch.push({ frameId: frame.id, prevDecision: frame.decision, nextDecision: decision });
     return { ...frame, decision };
   });
