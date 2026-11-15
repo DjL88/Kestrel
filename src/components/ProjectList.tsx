@@ -3,6 +3,7 @@ import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Search, 
 import kestrelMark from '../assets/kestrel-mark.svg';
 import type { ShootDescriptor } from '../core/types';
 import { NewProjectWizard } from './NewProjectWizard';
+import { CatalogueStorage } from './CatalogueStorage';
 import type { ProjectSettings } from '../core/projectSettings';
 import { filterProjects, inboxFirst, sortProjects, splitProjects, type ProjectSort } from '../core/projects';
 import { formatProjectDate } from '../core/formatDate';
@@ -195,6 +196,7 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
             )}
           </>;
         })()}
+        {projects.length > 0 && <CatalogueStorage />}
       </div>
     </main>
   );
