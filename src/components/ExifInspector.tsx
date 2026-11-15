@@ -1,5 +1,7 @@
 import React from 'react';
 import { Star, X } from 'lucide-react';
+import { SubjectPanel } from './SubjectPanel';
+import { addTags, type SubjectKind } from '../core/subjectTags';
 import { formatAperture, formatFocalLength } from '../core/exifParser';
 import type { CullDecision, PhotoFrame } from '../core/types';
 
@@ -9,6 +11,9 @@ interface ExifInspectorProps {
   batchCount: number;
   onRate: (id: string, rating: number) => void;
   onFlag: (id: string, decision: CullDecision) => void;
+  /** Change what the photo is of. Species named by the app can be corrected here. */
+  onSubjects: (frame: PhotoFrame, tags: string[], kind: SubjectKind | undefined) => void;
+  onKeepTag: (frame: PhotoFrame, name: string) => void;
 }
 
 function formatCaptureTime(ms?: number): string {
@@ -24,7 +29,7 @@ function formatCaptureTime(ms?: number): string {
   }
 }
 
-export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount, onClose, onRate, onFlag }) => {
+export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount, onClose, onRate, onFlag, onSubjects, onKeepTag }) => {
   if (!frame) return null;
 
   const { exif } = frame;
@@ -60,7 +65,10 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
       <p className="break-words text-sm text-zinc-200">{frame.filename}</p>
       {exif.formatLabel && <p className="mt-1 text-xs text-zinc-400">{exif.formatLabel}</p>}
       {frame.burstGroupId && <p className="mt-1 text-xs text-zinc-400">Burst frame {frame.burstIndex} of {frame.burstCount}</p>}
-      {Boolean(frame.subjectNames?.length) && <p className="mt-1 text-xs text-zinc-300">{frame.subjectNames?.join(', ')}</p>}
+      <div className="mt-3 border-t border-white/10 pt-3">
+        <SubjectPanel kind={frame.subjectKind} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} autoTags={frame.autoTags}
+          onChange={(tags, kind) => onSubjects(frame, tags, kind)} onKeep={(name) => onKeepTag(frame, name)} />
+      </div>
       {exif.isEmbeddedPreviewOnly && <p className="mt-1 text-xs text-zinc-300">Embedded NEF preview</p>}
       {batchCount > 1 && <p className="mt-3 text-xs text-sky-200">Apply ratings and flags to {batchCount} selected photos</p>}
       <div className="mt-3 border-y border-white/10 py-2">

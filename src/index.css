@@ -133,3 +133,10 @@ html[data-calm="true"] *, html[data-calm="true"] *::before, html[data-calm="true
   transition: none !important;
   scroll-behavior: auto !important;
 }
+
+@keyframes subject-flash {
+  0% { opacity: 0; }
+  25% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}

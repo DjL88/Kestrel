@@ -4,6 +4,9 @@ import type { CullDecision, PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { DecisionButtons } from './DecisionButtons';
 import { isEdited } from '../core/editedState';
+import { SubjectFlash } from './SubjectFlash';
+import { speciesShown } from '../core/autoTags';
+import type { SubjectGrid } from '../core/maskTypes';
 import { FrameImage } from './FrameImage';
 
 interface VirtualizedContactSheetProps {
@@ -15,6 +18,8 @@ interface VirtualizedContactSheetProps {
   markedIds: ReadonlySet<string>;
   multiSelect: boolean;
   onInfo: (frameId: string, trigger: HTMLButtonElement | null) => void;
+  /** The photo whose subject is being shown just now, while the species is worked out. */
+  flash?: { frameId: string; grid: SubjectGrid } | null;
   onOpenLoupe: (frameId: string) => void;
   onDecideFrame: (frameId: string, decision: CullDecision) => void;
   onResetFrame: (frameId: string) => void;
@@ -35,6 +40,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   markedIds,
   multiSelect,
   onInfo,
+  flash,
   onOpenLoupe,
   onDecideFrame,
   onResetFrame,
@@ -233,9 +239,19 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         className="w-full h-full"
                         imgClassName="object-cover"
                       />
+                      {flash?.frameId === frame.id && <SubjectFlash grid={flash.grid} />}
+                      {(() => {
+                        const species = speciesShown(frame);
+                        return species ? (
+                          <span data-testid="species-label" className="absolute inset-x-0 bottom-0 flex items-center gap-1 truncate bg-black/65 px-2 py-1 text-xs text-zinc-100">
+                            <span className="truncate">Species: {species.name}</span>
+                            {species.auto && <span className="shrink-0 rounded bg-sky-300/25 px-1 text-[10px] font-medium uppercase tracking-wide text-sky-100" title="Named automatically. Open the photo info to keep or change it.">Auto</span>}
+                          </span>
+                        ) : null;
+                      })()}
                       {isEdited(frame) && (
                         <span role="img" aria-label="Edited" title="Edited"
-                          className="absolute bottom-1.5 left-1.5 grid h-6 w-6 place-items-center rounded-full border border-white/20 bg-kestrel-canvas/85 text-sky-200">
+                          className={`absolute left-1.5 ${speciesShown(frame) ? 'bottom-8' : 'bottom-1.5'} grid h-6 w-6 place-items-center rounded-full border border-white/20 bg-kestrel-canvas/85 text-sky-200`}>
                           <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
                         </span>
                       )}

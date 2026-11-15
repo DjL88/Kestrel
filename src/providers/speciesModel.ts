@@ -2,6 +2,9 @@ import { sha256Hex } from '../core/sha256';
 import { SPECIES_MODEL, centreSquare, preprocessSpecies } from '../core/speciesModel';
 import { decodeVector, normalise, type SpeciesLabel } from '../core/speciesMatch';
 import { friendlyToolError } from '../core/toolErrors';
+import { subjectCrop, type SquareCrop } from '../core/subjectCrop';
+import type { SubjectGrid } from '../core/maskTypes';
+import { detectSubject } from './subjectDetector';
 
 export type SpeciesStatus = 'unavailable' | 'not-downloaded' | 'ready';
 
@@ -93,10 +96,10 @@ export function loadSpeciesLabels(): Promise<Labels> {
 }
 
 /** What the model "sees" in a picture, as a unit-length vector. Runs on this device. */
-export async function embedPicture(picture: CanvasImageSource & { width: number; height: number }): Promise<Float32Array> {
+export async function embedPicture(picture: CanvasImageSource & { width: number; height: number }, crop?: SquareCrop): Promise<Float32Array> {
   const { ort, session } = await loadSession();
   const size = SPECIES_MODEL.size;
-  const square = centreSquare(picture.width, picture.height);
+  const square = crop ?? centreSquare(picture.width, picture.height);
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -107,4 +110,23 @@ export async function embedPicture(picture: CanvasImageSource & { width: number;
   const input = preprocessSpecies(context.getImageData(0, 0, size, size).data, size);
   const results = await session.run({ [session.inputNames[0]]: new ort.Tensor('float32', input, [1, 3, size, size]) });
   return normalise(Float32Array.from(results[session.outputNames[0]].data as Float32Array));
+}
+
+export interface PictureAnalysis {
+  /** Where the subject is, when one was found. Used to show it and to choose what the species model looks at. */
+  grid: SubjectGrid | null;
+  embedding: Float32Array;
+}
+
+/**
+ * Find the subject, then show the species model a square around it rather than the middle of the frame, so an animal
+ * off to one side is not cut out. If no subject is found the centre square is used, exactly as before.
+ */
+export async function analysePicture(picture: HTMLCanvasElement): Promise<PictureAnalysis> {
+  let grid: SubjectGrid | null = null;
+  try {
+    const found = await detectSubject(picture);
+    if (found.assessment.usable) grid = found.grid;
+  } catch { /* Without a mask the species model simply looks at the centre. */ }
+  return { grid, embedding: await embedPicture(picture, subjectCrop(picture.width, picture.height, grid)) };
 }
