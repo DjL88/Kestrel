@@ -61,6 +61,20 @@ export class BrowserPreviewProvider implements PreviewProvider {
     return task;
   }
 
+  /** Pictures developed from the RAW sensor data, kept for this session. They stand in for the embedded preview. */
+  private developed = new Map<string, Blob>();
+
+  isDeveloped(stableKey: string): boolean { return this.developed.has(stableKey); }
+
+  /** Use a developed picture from now on for this photo, in the editor and in exports. */
+  setDeveloped(frame: PhotoFrame, picture: Blob): void {
+    this.developed.set(frame.stableKey, picture);
+    const stale = this.fullUrlCache.get(frame.id);
+    if (stale) URL.revokeObjectURL(stale);
+    this.fullUrlCache.delete(frame.id);
+    this.fullUrlOrder = this.fullUrlOrder.filter((id) => id !== frame.id);
+  }
+
   async getFullPreviewUrl(frame: PhotoFrame): Promise<string> {
     if (frame.isDemo && frame.demoVariant) {
       return DEMO_ASSET_URLS[frame.demoVariant.assetKey];
@@ -79,8 +93,8 @@ export class BrowserPreviewProvider implements PreviewProvider {
       return '';
     }
 
-    let previewBlob: Blob = blob;
-    if (isNikonEmbeddedPreviewFile(frame.filename)) {
+    let previewBlob: Blob = this.developed.get(frame.stableKey) ?? blob;
+    if (previewBlob === blob && isNikonEmbeddedPreviewFile(frame.filename)) {
       const extracted = await extractNefPreview(blob);
       if (!extracted) return '';
       previewBlob = extracted;

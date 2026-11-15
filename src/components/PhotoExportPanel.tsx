@@ -530,7 +530,9 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
           </p>
         )}
         {!resultsReady && frames.some((frame) => !frame.isDemo && isNikonEmbeddedPreviewFile(frame.filename)) && (
-          <p className="mb-2 text-center text-xs text-zinc-300">Nikon files export from their embedded JPEG previews, including Full size.</p>
+          <p className="mb-2 text-center text-xs text-zinc-300">{frames.filter((frame) => !frame.isDemo && isNikonEmbeddedPreviewFile(frame.filename)).every((frame) => provider.isDeveloped(frame.stableKey))
+            ? 'RAW files export from the full-size picture developed from the RAW data.'
+            : 'RAW files that are not developed export from the preview stored in the file, including Full size.'}</p>
         )}
         {resultsReady ? (
           <div className="space-y-3">

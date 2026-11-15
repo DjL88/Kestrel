@@ -13,6 +13,8 @@ export interface Task {
   total: number | null;
   detail?: string;
   startedAt: number;
+  /** When progress last moved, so a stuck task can be told from a slow one. */
+  updatedAt: number;
   endedAt?: number;
 }
 
@@ -50,12 +52,12 @@ export function createTaskStore(now: () => number = Date.now) {
   return {
     start(title: string, options: { total?: number | null; cancel?: () => void } = {}): TaskHandle {
       const id = nextId++;
-      tasks = [...tasks, { id, title, state: 'running', done: 0, total: options.total ?? null, startedAt: now() }];
+      tasks = [...tasks, { id, title, state: 'running', done: 0, total: options.total ?? null, startedAt: now(), updatedAt: now() }];
       if (options.cancel) cancels.set(id, options.cancel);
       emit();
       return {
         id,
-        progress: (done, total, detail) => { if (isRunning(id)) update(id, { done, ...(total !== undefined ? { total } : {}), ...(detail !== undefined ? { detail } : {}) }); },
+        progress: (done, total, detail) => { if (isRunning(id)) update(id, { done, updatedAt: now(), ...(total !== undefined ? { total } : {}), ...(detail !== undefined ? { detail } : {}) }); },
         finish: (detail) => { if (isRunning(id)) { cancels.delete(id); update(id, { state: 'done', endedAt: now(), ...(detail ? { detail } : {}) }); trim(); } },
         fail: (message) => { if (isRunning(id)) { cancels.delete(id); update(id, { state: 'failed', endedAt: now(), detail: message }); trim(); } },
         get cancelled() { return cancelledIds.has(id); },
@@ -79,3 +81,28 @@ export function createTaskStore(now: () => number = Date.now) {
 }
 
 export const tasks = createTaskStore();
+
+export type Health = 'idle' | 'ok' | 'busy' | 'stalled' | 'problem';
+
+const STALLED_MS = 20_000;
+const LONG_REMAINING_MS = 60_000;
+
+/**
+ * How the workload looks, for the traffic-light button.
+ * problem: a task failed. stalled: a running task has not moved for 20 seconds.
+ * busy: three or more tasks at once, or one that will take over a minute more. ok: working normally. idle: nothing running.
+ */
+export function taskHealth(list: Task[], at: number): Health {
+  if (list.some((task) => task.state === 'failed')) return 'problem';
+  const running = list.filter((task) => task.state === 'running');
+  if (!running.length) return 'idle';
+  if (running.some((task) => at - task.updatedAt > STALLED_MS)) return 'stalled';
+  if (running.length >= 3) return 'busy';
+  for (const task of running) {
+    if (task.total && task.done > 0) {
+      const rate = task.done / Math.max(1, at - task.startedAt);
+      if ((task.total - task.done) / rate > LONG_REMAINING_MS) return 'busy';
+    }
+  }
+  return 'ok';
+}
