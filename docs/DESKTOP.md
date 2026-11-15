@@ -24,3 +24,13 @@ npm run desktop:build    # release bundle in src-tauri/target/release/bundle
 
 ## Not verified
 Only the macOS build on this machine has been run. Windows and Linux builds run in CI (`desktop.yml`) and have not been opened by a person.
+
+## Updates
+The app checks `https://github.com/DjL88/Kestrel/releases/latest/download/latest.json` when it opens. If a newer signed version exists it shows "Install and restart"; nothing installs without a tap, and nothing is shown when offline or when there is no release yet.
+
+To publish one:
+1. One-off: add the **private** update key as the repository secret `TAURI_SIGNING_PRIVATE_KEY`. It was generated at `~/.kestrel-signing/kestrel.key` (no password) on the development Mac and is not in the repository. Back it up: without it, installed apps cannot be updated. The matching public key is in `src-tauri/tauri.conf.json`.
+2. Raise `version` in `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`, merge, then `git tag v0.1.1 && git push origin v0.1.1`.
+3. `release.yml` builds Mac (universal), Windows and Linux, and creates a **draft** release. Publish the draft and apps pick it up.
+
+Apple notarisation and Windows signing are still separate; until then first installs show an "unidentified developer" or SmartScreen warning.

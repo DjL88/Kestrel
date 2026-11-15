@@ -182,3 +182,45 @@ test('details overlay: the photo’s own camera and settings are printed on the 
   await page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true }).click();
   await expect.poll(async () => (await bottomBrightness()) < before - 15, { timeout: 10000 }).toBe(true);
 });
+
+test('watermark: text and a picture each change the preview, wherever they are put', async ({ page }) => {
+  await page.goto('/');
+  const png = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 900; canvas.height = 600;
+    const c = canvas.getContext('2d')!;
+    c.fillStyle = '#334455'; c.fillRect(0, 0, 900, 600);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await page.getByTestId('quick-edit-input').setInputFiles({ name: 'mark.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+  await openExportDialog(page);
+  await page.getByRole('button', { name: 'Instagram' }).click();
+  await page.getByRole('checkbox', { name: /Post · 4:5/ }).check();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  const preview = page.getByRole('img', { name: /as Post · 4:5/ });
+  await expect(preview).toBeVisible();
+  const mark = page.getByRole('group', { name: 'Watermark' });
+  const picture = () => preview.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
+  const plain = await picture();
+
+  await mark.getByRole('checkbox', { name: 'Add a watermark' }).check();
+  await expect(page.getByText('Type some text to see the watermark.')).toBeVisible();
+  await mark.getByLabel('Text', { exact: true }).fill('© Kestrel');
+  await expect.poll(picture).not.toBe(plain);
+  const bottomRight = await picture();
+  await mark.getByLabel('Position').selectOption('top-left');
+  await expect.poll(picture).not.toBe(bottomRight);
+
+  await mark.getByLabel('Type').selectOption('image');
+  await expect(page.getByText('Choose a picture to see the watermark.')).toBeVisible();
+  const logo = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 80; canvas.height = 40;
+    const c = canvas.getContext('2d')!; c.fillStyle = '#ff7733'; c.fillRect(0, 0, 80, 40);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const withText = await picture();
+  await mark.getByLabel('Picture', { exact: true }).setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: Buffer.from(logo, 'base64') });
+  await expect(page.getByText('Picture chosen.')).toBeVisible();
+  await expect.poll(picture).not.toBe(withText);
+});

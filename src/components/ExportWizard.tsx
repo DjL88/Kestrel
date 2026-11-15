@@ -198,7 +198,7 @@ export function ExportWizard(props: Props) {
               ))}
             </ul>
             <button type="button" className={quiet} onClick={() => setStep('platform')}><Plus className="h-4 w-4" aria-hidden="true" />Add another place</button>
-            {frame && selected[0] && props.overlay.on && (
+            {frame && selected[0] && (props.overlay.on || props.overlay.watermark?.on) && (
               <div className="mx-auto max-w-md">
                 <ExportPreviewTile key={`review-${frame.id}|${selected[0].id}`} large frame={frame}
                   source={props.sources[frame.id]} format={selected[0]} bars={props.bars}

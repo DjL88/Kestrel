@@ -11,15 +11,39 @@
   },
   "app": {
     "windows": [
-      { "title": "Kestrel", "width": 1360, "height": 860, "minWidth": 900, "minHeight": 600, "dragDropEnabled": false }
+      {
+        "title": "Kestrel",
+        "width": 1360,
+        "height": 860,
+        "minWidth": 900,
+        "minHeight": 600,
+        "dragDropEnabled": false
+      }
     ],
-    "security": { "csp": null }
+    "security": {
+      "csp": null
+    }
   },
   "bundle": {
     "active": true,
     "targets": "all",
     "category": "Photography",
     "shortDescription": "Calm photo culling and editing for wildlife photographers",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg2ODc1ODA5QjlFQjVDODcKUldTSFhPdTVDVmlIaHA4YTdUK1VUZ25GSVVmYklPZDZUTC9wdkM2ZmQvUVFCSjVYVE85Y3J5cmMK",
+      "endpoints": [
+        "https://github.com/DjL88/Kestrel/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

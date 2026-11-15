@@ -13,6 +13,7 @@ import { ExportPreviewTile } from './ExportPreviewTile';
 import { ExportWizard } from './ExportWizard';
 import { returnFocus } from './focusReturn';
 import { KEEP_NAMES, stemFor, type NameTemplate } from '../core/exportNaming';
+import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, type WatermarkOptions } from '../core/watermark';
 import { NO_OVERLAY, overlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { exportFilename } from '../core/exportProfiles';
 import { SocialIcon } from './SocialIcon';
@@ -71,6 +72,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   const [zooms, setZooms] = useState<Record<string, number>>({});
   const [naming, setNaming] = useState<NameTemplate>(KEEP_NAMES);
   const [overlay, setOverlay] = useState<OverlayOptions>(NO_OVERLAY);
+  const [markNote, setMarkNote] = useState<string | null>(null);
   const [sources, setSources] = useState<Record<string, HTMLImageElement>>({});
   const [timestamp, setTimestamp] = useState<'now' | 'capture' | 'custom'>('now');
   const [customDate, setCustomDate] = useState('');
@@ -294,7 +296,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
       {exampleName && <p className="text-xs text-zinc-400">Example: <span className="text-zinc-200">{exampleName}</span></p>}
     </fieldset>
   );
-  const overlayBlock = (
+  const textOverlayBlock = (
     <fieldset className="space-y-2 rounded-lg border border-white/10 p-3">
       <legend className="px-1 text-sm font-medium text-zinc-100">Text overlay</legend>
       <label className={check}><input type="checkbox" checked={overlay.on} onChange={(event) => setOverlay((prior) => ({ ...prior, on: event.target.checked }))} />Show text overlay</label>
@@ -347,6 +349,61 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
       )}
     </fieldset>
   );
+  const mark = overlay.watermark ?? NO_WATERMARK;
+  const setMark = (change: Partial<WatermarkOptions>) => setOverlay((prior) => ({ ...prior, watermark: { ...(prior.watermark ?? NO_WATERMARK), ...change } }));
+  function chooseMarkPicture(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith('image/') || file.size > 3_000_000) { setMarkNote('Choose a picture under 3 MB, ideally a PNG with a clear background.'); return; }
+    const reader = new FileReader();
+    reader.onload = () => { setMarkNote(null); setMark({ kind: 'image', imageData: String(reader.result), on: true }); };
+    reader.readAsDataURL(file);
+  }
+  const watermarkBlock = (
+    <fieldset className="space-y-2 rounded-lg border border-white/10 p-3">
+      <legend className="px-1 text-sm font-medium text-zinc-100">Watermark</legend>
+      <label className={check}><input type="checkbox" checked={mark.on} onChange={(event) => setMark({ on: event.target.checked })} />Add a watermark</label>
+      {mark.on && (
+        <div className="space-y-2">
+          <label className="block text-sm text-zinc-300">Type
+            <select className={field} value={mark.kind} onChange={(event) => setMark({ kind: event.target.value as WatermarkOptions['kind'] })}>
+              <option value="text">Text</option><option value="image">Picture</option>
+            </select>
+          </label>
+          {mark.kind === 'text' ? (
+            <label className="block text-sm text-zinc-300">Text
+              <input className={field} maxLength={80} placeholder="© Your name" value={mark.text} onChange={(event) => setMark({ text: event.target.value })} />
+            </label>
+          ) : (
+            <label className="block text-sm text-zinc-300">Picture
+              <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="block min-h-11 w-full py-2 text-sm" onChange={(event) => chooseMarkPicture(event.target.files?.[0])} />
+              {mark.imageData && <span className="text-xs text-zinc-400">Picture chosen. Choose another to replace it.</span>}
+            </label>
+          )}
+          {markNote && <p role="status" className="text-xs text-amber-200">{markNote}</p>}
+          <label className="block text-sm text-zinc-300">Position
+            <select className={field} value={mark.position} onChange={(event) => setMark({ position: event.target.value as WatermarkOptions['position'] })}>
+              {WATERMARK_POSITIONS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+          </label>
+          {mark.kind === 'text' && (
+            <label className="block text-sm text-zinc-300">Colour
+              <select className={field} value={mark.tone} onChange={(event) => setMark({ tone: event.target.value as WatermarkOptions['tone'] })}>
+                <option value="light">White</option><option value="dark">Black</option>
+              </select>
+            </label>
+          )}
+          <label className="block text-sm text-zinc-300">Size
+            <input type="range" min={0.03} max={mark.kind === 'image' ? 0.5 : 0.2} step={0.01} className="block min-h-11 w-full" value={mark.size} onChange={(event) => setMark({ size: Number(event.target.value) })} />
+          </label>
+          <label className="block text-sm text-zinc-300">Strength
+            <input type="range" min={0.15} max={1} step={0.05} className="block min-h-11 w-full" value={mark.opacity} onChange={(event) => setMark({ opacity: Number(event.target.value) })} />
+          </label>
+          {!hasWatermark(mark) && <p role="status" className="text-xs text-zinc-400">{mark.kind === 'text' ? 'Type some text to see the watermark.' : 'Choose a picture to see the watermark.'}</p>}
+        </div>
+      )}
+    </fieldset>
+  );
+  const overlayBlock = <>{textOverlayBlock}{watermarkBlock}</>;
   const wizard = view === 'wizard' && !resultsReady;
   const optionsBlock = (
     <>

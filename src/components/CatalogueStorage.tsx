@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { isDesktopApp } from '../providers/desktopShell';
 
 type StorageState = 'checking' | 'standard' | 'requesting' | 'persistent' | 'declined' | 'unavailable';
 
@@ -12,6 +13,24 @@ const message: Record<StorageState, string> = {
 };
 
 export function CatalogueStorage() {
+  if (isDesktopApp()) return <DesktopStorage />;
+  return <BrowserStorage />;
+}
+
+/** The desktop app keeps its catalogue in its own data folder, which is not cleared like a browser tab's storage. */
+function DesktopStorage() {
+  return (
+    <details className="mt-4 rounded-xl border border-white/10 bg-kestrel-raised">
+      <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm text-zinc-200">Catalogue storage</summary>
+      <div className="space-y-2 px-3 pb-3 text-sm text-zinc-300">
+        <p role="status">The catalogue is kept in Kestrel’s own app data, not in a browser, so the system does not clear it to free space.</p>
+        <p className="text-xs text-zinc-400">It can still be lost if the app’s data is deleted. Choose <strong>Back up project</strong> in Workspace options and keep the backup and your original photos somewhere safe.</p>
+      </div>
+    </details>
+  );
+}
+
+function BrowserStorage() {
   const [state, setState] = useState<StorageState>('checking');
 
   useEffect(() => {

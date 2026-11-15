@@ -9,6 +9,12 @@ Where things stand and what is left, in order. Older detail: `AUDIT-2.md`, `AUDI
 - **Not run since the desktop changes:** the Playwright e2e suite. Run `npm run build && npm run test:e2e` before merging.
 - **Not verified:** the Finder reveal after saving (just added), the Windows and Linux builds (CI has never run), real phones, screen readers, the macro pad, real NEFs, a real Gemini call, species accuracy on the user's own photos.
 
+## Added after the first handover
+- Native Mac menus (File, Edit, View, Window) and a desktop-aware storage panel.
+- Watermark (text or picture, six positions, size, strength) in the export step; shown in previews. Unit and e2e tested. Not yet remembered between sessions.
+- Auto-update: `DesktopUpdate` banner, `release.yml` (tag `v*` builds a draft release). **Needs the secret `TAURI_SIGNING_PRIVATE_KEY`** (see `DESKTOP.md`). Untested end to end: needs two real releases.
+- Full e2e suite: 120 passed.
+
 ## Next session, first steps
 1. Run the e2e suite on `feat/desktop-shell`, commit, open the PR to `main`.
 2. Run the "Desktop app" workflow in GitHub Actions and download the Windows `.exe` and `.msi`.
