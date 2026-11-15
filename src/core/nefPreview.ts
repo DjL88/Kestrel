@@ -85,7 +85,8 @@ async function hasUsefulDimensions(preview: Blob): Promise<boolean> {
     if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
       // Both dimensions must be plausible. A corrupt SOF with a 1-pixel
       // height used to pass because only the larger dimension was checked.
-      if (length < 8 || offset + 9 > data.byteLength) return false;
+      // A truncated or fabricated SOF segment must not certify a RAW preview.
+      if (length < 8 || offset + 2 + length > data.byteLength) return false;
       const height = data.getUint16(offset + 5);
       const width = data.getUint16(offset + 7);
       return width >= 320 && height >= 320 && Math.max(width, height) >= 640;

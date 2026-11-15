@@ -34,12 +34,14 @@ const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
 const PANEL_KEY = 'kestrel-panel-width-v1';
 const SHEET_KEY = 'kestrel-sheet-v1';
-type Tab = 'edit' | 'crop' | 'masks' | 'history';
+type Tab = 'auto' | 'crop' | 'edit' | 'masks' | 'history' | 'export';
 const TABS: { id: Tab; label: string; Icon: typeof Crop }[] = [
-  { id: 'edit', label: 'Edit', Icon: SlidersHorizontal },
+  { id: 'auto', label: 'Auto', Icon: Lightbulb },
   { id: 'crop', label: 'Crop', Icon: Crop },
+  { id: 'edit', label: 'Edit', Icon: SlidersHorizontal },
   { id: 'masks', label: 'Masks', Icon: SquircleDashed },
   { id: 'history', label: 'History', Icon: History },
+  { id: 'export', label: 'Export', Icon: Download },
 ];
 
 /** The modifier key people expect on this device, for shortcut hints in tooltips. */
@@ -106,7 +108,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [showMaskOverlay, setShowMaskOverlay] = useState(true);
   const [dialUsed, setDialUsed] = useState(false);
   const [quickChoices, setQuickChoices] = useState(false);
-  const [tab, setTab] = useState<Tab>('edit');
+  const [tab, setTab] = useState<Tab>('auto');
   const [previewRecipe, setPreviewRecipe] = useState<{ edit?: PhotoEdit; framing?: PhotoFraming } | null>(null);
   const cropEntry = useRef<PhotoFraming | null>(null);
   const panelScroll = useRef<HTMLDivElement>(null);
@@ -465,7 +467,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const tabList = (
     <div role="tablist" aria-label="Editing tools"
       className={isPhone
-        ? 'grid shrink-0 grid-cols-4 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]'
+        ? 'grid shrink-0 grid-cols-6 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]'
         : 'sticky top-0 z-10 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 md:-mx-4 md:px-3'}
       onKeyDown={(event) => {
         const order = TABS.map((entry) => entry.id);
@@ -517,10 +519,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             <Keyboard className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Macro pad</span>
           </button>
         )}
-        <button type="button" className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
-          disabled={sourceState !== 'ready'} onClick={() => setExportOpen(true)}>
-          <Download className="h-4 w-4" aria-hidden="true" />Export
-        </button>
         </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
@@ -623,9 +621,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
       <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:relative md:z-10 ${showFilmstrip ? 'md:-mb-[112px] ' : ''}md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
         {!isPhone && tabList}
-        {tab === 'edit' && (
-          <div role="tabpanel" id="panel-edit" aria-labelledby="tab-edit" className="space-y-2">
-        <Histogram data={histogram} />
+        {tab === 'auto' && (
+          <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
+        <Histogram data={histogram} teach />
         <div className="px-1">
           <button type="button" disabled={sourceState !== 'ready'} className={`${button} w-full border border-white/10 font-semibold`}
             onClick={() => {
@@ -661,6 +659,18 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             </section>
           )}
         </div>
+          </div>
+        )}
+        {tab === 'export' && (
+          <div role="tabpanel" id="panel-export" aria-labelledby="tab-export" className="space-y-2 px-1 pt-2">
+            <p className="text-sm text-zinc-300">Pick a platform and shape, preview the crop, then save.</p>
+            <button type="button" disabled={sourceState !== 'ready'} className={`${button} w-full border border-white/10 font-semibold`} onClick={() => setExportOpen(true)}>
+              Choose formats and export…
+            </button>
+          </div>
+        )}
+        {tab === 'edit' && (
+          <div role="tabpanel" id="panel-edit" aria-labelledby="tab-edit" className="space-y-2">
         <details className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
             Presets <ChevronDown className="h-4 w-4" aria-hidden="true" />

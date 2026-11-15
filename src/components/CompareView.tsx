@@ -36,9 +36,12 @@ export function CompareView({
       <PhotoViewport base={photo(rightFrame)} overlay={photo(leftFrame)} labels={['A', 'B']}
         zoom={zoomLevel} pan={panOffset} onTransform={onTransform} />
       <div className="flex flex-wrap items-center justify-between gap-x-2 border-t border-white/10 bg-kestrel-panel px-1 sm:px-3">
-        <div className="flex min-w-0 flex-1 items-center">
+        <div className="flex w-full min-w-0 items-center sm:w-auto sm:flex-1">
+          <span data-testid="compare-photo-a" className="min-w-0 flex-1 truncate px-2 text-xs text-zinc-300" title={leftFrame?.filename}>
+            A · {leftFrame?.filename ?? 'Select photo'}
+          </span>
           <button type="button" className={control} onClick={() => onStepSide('right', -1)} aria-label="Previous photo B" title="Previous photo B"><ChevronLeft className="h-4 w-4" /></button>
-          <span className="truncate text-xs text-zinc-300" title={rightFrame?.filename}>B · {rightFrame?.filename ?? 'Select photo'}</span>
+          <span data-testid="compare-photo-b" className="min-w-0 flex-1 truncate text-xs text-zinc-300" title={rightFrame?.filename}>B · {rightFrame?.filename ?? 'Select photo'}</span>
           <button type="button" className={control} onClick={() => onStepSide('right', 1)} aria-label="Next photo B" title="Next photo B"><ChevronRight className="h-4 w-4" /></button>
         </div>
         <button type="button" className={control} onClick={onSwapPanes} aria-label="Swap photos A and B" title="Swap photos A and B"><ArrowLeftRight className="h-4 w-4" /></button>
