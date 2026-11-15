@@ -50,18 +50,26 @@ const smoothstep = (low: number, high: number, x: number) => {
 };
 const toByte = (value: number) => encoded[Math.min(4095, Math.max(0, Math.round(value * 4095)))];
 
+/** Shader-ready constants. The CPU path and the GPU shader both read these, so they cannot drift apart. */
+export function editParams(edit: PhotoEdit) {
+  return {
+    gain: 2 ** (edit.exposure * 0.4),
+    warmth: edit.warmth * 0.08,
+    colour: edit.colour * 0.2,
+    contrast: 1 + (edit.contrast ?? 0) * 0.35,
+    highlights: (edit.highlights ?? 0) * 0.3,
+    shadows: (edit.shadows ?? 0) * 0.3,
+    blackPoint: -(edit.blacks ?? 0) * 0.02,
+    whitePoint: 1 - (edit.whites ?? 0) * 0.08,
+    vibrance: (edit.vibrance ?? 0) * 0.3,
+  };
+}
+export type EditParams = ReturnType<typeof editParams>;
+
 /** Apply adjustments to a browser-decoded sRGB image. Shared maths for preview, export and tests. */
 export function applyPhotoEdit(pixels: Uint8ClampedArray, edit: PhotoEdit): void {
   if (isNeutralEdit(edit)) return;
-  const gain = 2 ** (edit.exposure * 0.4);
-  const warmth = edit.warmth * 0.08;
-  const colour = edit.colour * 0.2;
-  const contrast = 1 + (edit.contrast ?? 0) * 0.35;
-  const highlights = (edit.highlights ?? 0) * 0.3;
-  const shadows = (edit.shadows ?? 0) * 0.3;
-  const blackPoint = -(edit.blacks ?? 0) * 0.02;
-  const whitePoint = 1 - (edit.whites ?? 0) * 0.08;
-  const vibrance = (edit.vibrance ?? 0) * 0.3;
+  const { gain, warmth, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance } = editParams(edit);
   const tonal = highlights !== 0 || shadows !== 0 || blackPoint !== 0 || whitePoint !== 1;
   const curved = contrast !== 1;
 
@@ -119,13 +127,23 @@ function* editCanvasStrips(canvas: HTMLCanvasElement, edit: PhotoEdit): Generato
   }
 }
 
+type GpuRenderer = (canvas: HTMLCanvasElement, edit: PhotoEdit) => boolean;
+let gpuRenderer: GpuRenderer | null = null;
+/** Register a GPU renderer. It returns false when it cannot handle the canvas, and the CPU path runs instead. */
+export function setGpuRenderer(renderer: GpuRenderer | null): void {
+  gpuRenderer = renderer;
+}
+
 export function applyCanvasPhotoEdit(canvas: HTMLCanvasElement, edit: PhotoEdit): void {
+  if (isNeutralEdit(edit)) return;
+  if (gpuRenderer?.(canvas, edit)) return;
   for (const _ of editCanvasStrips(canvas, edit)) {
     // The fit preview has a bounded raster, so render it in one pass.
   }
 }
 
 export async function applyCanvasExportEdit(canvas: HTMLCanvasElement, edit: PhotoEdit, signal?: AbortSignal): Promise<void> {
+  if (!isNeutralEdit(edit) && gpuRenderer?.(canvas, edit)) return;
   let lastYield = performance.now();
   for (const _ of editCanvasStrips(canvas, edit)) {
     signal?.throwIfAborted();
