@@ -165,6 +165,11 @@ export class BrowserCatalogueStore implements CatalogueStore {
   }
 
   saveProject(state: CullingState): Promise<void> {
+    return this.saveProjects([state]);
+  }
+
+  /** Commit all project records together when transferring photos between them. */
+  saveProjects(states: readonly CullingState[]): Promise<void> {
     const write = this.projectWrite.then(async () => {
       const db = await openDatabase();
       try {
@@ -172,7 +177,13 @@ export class BrowserCatalogueStore implements CatalogueStore {
           const tx = db.transaction(STORE_CATALOGUE, 'readwrite');
           tx.oncomplete = () => resolve();
           tx.onabort = () => reject(tx.error ?? new Error('Catalogue write was interrupted'));
-          tx.objectStore(STORE_CATALOGUE).put(state, PROJECT_PREFIX + state.shoot.id);
+          const catalogue = tx.objectStore(STORE_CATALOGUE);
+          try {
+            for (const state of states) catalogue.put(state, PROJECT_PREFIX + state.shoot.id);
+          } catch (error) {
+            tx.abort();
+            reject(error);
+          }
         });
       } finally {
         db.close();
