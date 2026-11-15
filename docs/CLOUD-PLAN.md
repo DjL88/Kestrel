@@ -8,6 +8,25 @@ Status: **for approval.** No cloud resources exist, nothing is billed, and the a
 - Originals stay local unless the person turns on full-resolution backup separately.
 - Never delete local work because a payment fails. Cloud data stays readable for 365 days after a subscription ends (`commercialAccess.ts`); deletion is a separate, announced, later job.
 
+## 1a. Strategy update: use your own storage first
+Decision: customers bring their own storage as part of **Paid (£29 once)**; Kestrel's managed UK storage is the optional extra. This keeps our running costs near zero, keeps photos where the person already trusts, and fits the privacy promise.
+
+Connector order (each a small PR, all behind the same `StorageConnector` contract in `src/core/storageConnectors.ts`):
+1. **Sync folder.** The person picks any folder; Kestrel writes its sync files there. If that folder is in iCloud Drive, Dropbox, OneDrive or Google Drive's desktop app, their own app does the uploading. No logins, secrets or API approvals. Desktop first.
+2. **S3-compatible** (AWS S3, Backblaze B2, Cloudflare R2, MinIO, many NAS boxes). The person's own keys, stored in the system keychain, never sent to us. A "test connection" button and clear error messages.
+3. **WebDAV / NAS** (Synology, QNAP, Nextcloud).
+4. **Google Drive and Dropbox sign-in** (OAuth, narrow per-app-folder access). Most work, and Google may need to review the app; needed for phones. Later.
+5. **Kestrel managed storage** (this plan's London bucket) for people who want it with no setup.
+
+What is synced is the same at every connector: recipes and ratings (tiny), then previews, then optional originals, each turned on separately. One shared, versioned layout (`kestrel/v1/...`) so a project can move between connectors. Files are checksummed; the app never overwrites a newer remote copy silently (conflicts are shown); the local catalogue stays the record.
+
+"Free AWS" is not free: AWS's free tier is small and expires, and customers pay their own provider. The app says "your storage", not "free storage".
+
+Cloud and AI (£2.99/month) then sells what a folder cannot: managed UK storage, sync service for people without their own storage, hosted AI help, and bigger storage tiers priced at cost plus a margin. Over a £1.50 monthly storage cost the person is offered a larger tier or their own storage; uploads pause at 100% while downloads and local work continue; nothing is charged automatically and nothing is deleted.
+
+## 1b. An AI-friendly backend
+Goal: assistants such as Claude can analyse a person's photos and do things, with the person in control. Detailed in `docs/AI-INTEGRATION.md`. Summary: a local MCP server in the desktop app (off by default), read-only first, with reduced previews sent only with explicit consent; the same tool definitions later exposed by the cloud API for subscribers; every edit a proposal the person approves and can undo.
+
 ## 2. Change from the earlier idea: email and password
 The brief preferred username-only with recovery codes. Email and password is now the plan, because receipts, recovery and sharing need an address. What stays the same: no other personal data, a random internal account ID (never the email) as the authorisation boundary, and recovery through the email address (recovery codes can be added later as a second route). `cloudInterfaces.ts` will change `username` to `email` and add email verification before this is built.
 
@@ -49,6 +68,7 @@ Storage in London is roughly $0.02–0.03 per GB-month; downloads out of Google 
 Paddle's fee comes out of income. The risk is heavy users filling 50 GB and restoring often: restoring 50 GB once costs about $6 in downloads. Mitigations: previews and recipes first (small), full-resolution backup as a separate opt-in, a fair-use cap, and a review of the allowance after real usage. Set a Google Cloud **budget alert** before creating anything.
 
 ## 7. Build order (each step a small PR)
+0. Storage connector contract and sync layout (`storageConnectors.ts`), then the sync-folder connector, which needs no cloud at all.
 1. Approve this plan and the region table.
 2. Create the Google Cloud project, budget alert and the London bucket together (see section 8). Nothing public.
 3. API skeleton on Cloud Run: health check, sign-up and sign-in against a test database. No real customers.
