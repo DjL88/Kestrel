@@ -138,6 +138,8 @@ export default function App() {
   const [backupNotice, setBackupNotice] = useState<string>();
   const [multiSelect, setMultiSelect] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  // A temporary edit queue limits Next/Previous and the filmstrip to selected photos.
+  const [editQueueIds, setEditQueueIds] = useState<string[] | null>(null);
   const [infoFrameId, setInfoFrameId] = useState<string>();
   const infoTriggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -390,6 +392,11 @@ export default function App() {
     [cullingState.frames, cullingState.filter, cullingState.searchQuery, cullingState.ratingFilter]
   );
 
+  const editorFrames = useMemo(() =>
+    editQueueIds?.length ? visibleFrames.filter((frame) => editQueueIds.includes(frame.id)) : visibleFrames,
+    [visibleFrames, editQueueIds]);
+  const editorIndex = editorFrames.findIndex((frame) => frame.id === cullingState.selectedFrameId);
+
   const selectedFrame: PhotoFrame | null = useMemo(() => {
     if (!cullingState.selectedFrameId) return visibleFrames[0] ?? null;
     return (
@@ -482,7 +489,8 @@ export default function App() {
       setPanOffset({ x: 0, y: 0 });
       setCullingState((prev) => {
         const currentVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter);
-        const nextId = stepSelection(currentVisible, prev.selectedFrameId, delta);
+        const available = editQueueIds?.length ? currentVisible.filter((frame) => editQueueIds.includes(frame.id)) : currentVisible;
+        const nextId = stepSelection(available, prev.selectedFrameId, delta);
         if (!nextId || nextId === prev.selectedFrameId) return prev;
         return {
           ...prev,
@@ -490,14 +498,27 @@ export default function App() {
         };
       });
     },
-    []
+    [editQueueIds]
   );
+
+  const selectedVisibleFrames = visibleFrames.filter((frame) => selectedIds.has(frame.id));
+  const startSelectedEditing = () => {
+    const ids = selectedVisibleFrames.map((frame) => frame.id);
+    if (!ids.length) return;
+    setEditQueueIds(ids);
+    handleSelectFrame(ids[0]);
+    setEditing(true);
+    setMultiSelect(false);
+    setSelectedIds(new Set());
+    setPrefs((prev) => ({ ...prev, showFilmstrip: true, focusMode: false }));
+  };
+  const leaveEditor = () => { setEditing(false); setEditQueueIds(null); setMultiSelect(false); setSelectedIds(new Set()); };
 
   // Moving a Keeper to Trash, or removing a photo from Trash, asks first. Both are reversible and never touch the file.
   // Header Export uses the selection: the ticked photos in selection mode, otherwise the current photo.
   const exportSelection = useMemo(
-    () => multiSelect && selectedIds.size ? liveFrames.filter((frame) => selectedIds.has(frame.id)) : selectedFrame ? [selectedFrame] : [],
-    [multiSelect, selectedIds, liveFrames, selectedFrame]
+    () => multiSelect && selectedIds.size ? visibleFrames.filter((frame) => selectedIds.has(frame.id)) : selectedFrame ? [selectedFrame] : [],
+    [multiSelect, selectedIds, visibleFrames, selectedFrame]
   );
   const [moveOpen, setMoveOpen] = useState(false);
   const [toast, setToast] = useState('');
@@ -1086,13 +1107,13 @@ export default function App() {
       <DropOverlay dragging={drop.dragging} message={drop.message} onDismiss={drop.clearMessage} />
       {editing ? (
         <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-kestrel-panel px-3 py-1">
-          <button type="button" onClick={() => setEditing(false)} className="min-h-11 shrink-0 rounded-md px-2 text-sm font-medium hover:bg-white/10">Back</button>
+          <button type="button" onClick={leaveEditor} className="min-h-11 shrink-0 rounded-md px-2 text-sm font-medium hover:bg-white/10">Back</button>
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? 'Edit photo'}</h1>
           {!filmstripVisible && (
             <div className="flex shrink-0">
-              <button type="button" aria-label="Previous photo" title="Previous photo" disabled={selectedVisibleIndex <= 0} onClick={() => handleStepFrame(-1)}
+              <button type="button" aria-label="Previous photo" title="Previous photo" disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) <= 0} onClick={() => handleStepFrame(-1)}
                 className="h-11 w-11 rounded-md text-lg disabled:opacity-30">‹</button>
-              <button type="button" aria-label="Next photo" title="Next photo" disabled={selectedVisibleIndex < 0 || selectedVisibleIndex >= visibleFrames.length - 1} onClick={() => handleStepFrame(1)}
+              <button type="button" aria-label="Next photo" title="Next photo" disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) < 0 || (editQueueIds ? editorIndex >= editorFrames.length - 1 : selectedVisibleIndex >= visibleFrames.length - 1)} onClick={() => handleStepFrame(1)}
                 className="h-11 w-11 rounded-md text-lg disabled:opacity-30">›</button>
             </div>
           )}
@@ -1268,14 +1289,18 @@ export default function App() {
             </div>
           )}
 
-          {!editing && multiSelect && prefs.viewMode === 'grid' && (
+          {!editing && multiSelect && (
             <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#15171C] px-3 text-sm">
               <span>{selectedIds.size} selected</span>
               <div className="flex items-center">
-              <button type="button" disabled={!selectedIds.size} className="min-h-11 px-2 text-sky-200 disabled:opacity-40"
-                onClick={() => setExportFrames(cullingState.frames.filter((frame) => selectedIds.has(frame.id)))}>
+              <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 px-2 text-sky-200 disabled:opacity-40"
+                onClick={() => setExportFrames(selectedVisibleFrames)}>
                 Export selected
               </button>
+              <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 px-2 text-sky-200 disabled:opacity-40"
+                onClick={startSelectedEditing}>Edit selected</button>
+              <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 px-2 text-orange-200 disabled:opacity-40"
+                onClick={() => setPendingAction({ kind: 'trash', frameIds: selectedVisibleFrames.map((frame) => frame.id), allowAdvance: false })}>Trash selected</button>
               <button type="button" className="min-h-11 px-2" onClick={() => {
                 setMultiSelect(false);
                 setSelectedIds(new Set());
@@ -1400,13 +1425,16 @@ export default function App() {
           {filmstripVisible && (editing || prefs.viewMode !== 'grid') && visibleFrames.length > 0 && (
             <div className={editing ? (prefs.editPanelSide === 'left' ? 'md:pl-[var(--editor-panel-w,0px)]' : 'md:pr-[var(--editor-panel-w,0px)]') : undefined}>
             <Filmstrip
-              frames={visibleFrames}
+              frames={editing ? editorFrames : visibleFrames}
               selectedFrameId={selectedFrame?.id ?? null}
               compareRightFrameId={compareRightFrame?.id ?? null}
               isCompareMode={!editing && visibleFrames.length > 0 && prefs.viewMode === 'compare'}
               previewProvider={previewProviderRef.current!}
               needsAccess={needsAccess}
               onSelectFrame={handleSelectFrame}
+              markedIds={selectedIds}
+              multiSelect={multiSelect}
+              onSelectMarked={selectGridPhoto}
               onSelectCompareRight={(id) =>
                 setCullingState((prev) => ({ ...prev, compareRightFrameId: id }))
               }
