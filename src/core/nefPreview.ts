@@ -95,7 +95,10 @@ export async function extractNefPreview(file: Blob): Promise<Blob | null> {
   if (located && await hasUsefulDimensions(located)) return located;
   const fallback = extractEmbeddedJpegFromRawBuffer(await file.slice(0, FALLBACK_BYTES).arrayBuffer());
   if (fallback && fallback.bytes.length > (located?.size ?? 0)) {
-    return new Blob([fallback.bytes.slice()], { type: 'image/jpeg' });
+    const candidate = new Blob([fallback.bytes.slice()], { type: 'image/jpeg' });
+    // A byte-pattern match alone is not proof of a decodable photo preview.
+    // Reject tiny or malformed JPEGs rather than offering them as NEF previews.
+    if (await hasUsefulDimensions(candidate)) return candidate;
   }
-  return located;
+  return located && await hasUsefulDimensions(located) ? located : null;
 }
