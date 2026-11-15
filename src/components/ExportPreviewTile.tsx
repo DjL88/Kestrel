@@ -20,6 +20,8 @@ interface Props {
   /** Turns the shape on its side (4:5 to 5:4). Absent when the format cannot be turned. */
   onTurn?: () => void;
   platform?: SocialIconId;
+  /** A taller picture, for when it is the one thing on the screen. */
+  large?: boolean;
 }
 
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
@@ -29,7 +31,7 @@ const clamp = (value: number) => Math.min(1, Math.max(0, value));
  * direction to choose what stays in, and zoom in to look closer. While a finger or mouse is down the picture is drawn
  * quickly without the edit, and the finished one replaces it as soon as it lets go.
  */
-export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, onAnchor, onZoom, onTurn, platform }: Props) {
+export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, onAnchor, onZoom, onTurn, platform, large = false }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [busy, setBusy] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -149,7 +151,7 @@ export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, o
           onDoubleClick={movable ? () => { onAnchor({ x: 0.5, y: 0.5 }); onZoom(1); } : undefined}
           onPointerDown={movable ? down : undefined} onPointerMove={movable ? move : undefined}
           onPointerUp={movable ? up : undefined} onPointerCancel={movable ? up : undefined}
-          className={`relative grid h-48 touch-none place-items-center overflow-hidden rounded-md bg-black/40 ${movable ? 'cursor-grab focus-visible:outline-2 focus-visible:outline-sky-300 active:cursor-grabbing' : ''}`}>
+          className={`relative grid ${large ? 'h-[min(46dvh,30rem)]' : 'h-48'} touch-none place-items-center overflow-hidden rounded-md bg-black/40 ${movable ? 'cursor-grab focus-visible:outline-2 focus-visible:outline-sky-300 active:cursor-grabbing' : ''}`}>
           <canvas ref={canvas} aria-label={`Preview of ${frame.filename} as ${caption}`} role="img" className={`max-h-full max-w-full ${busy ? 'opacity-40' : ''}`} />
           {busy && !failed && <span className="absolute text-xs text-zinc-300" role="status">Drawing…</span>}
           {failed && <span className="absolute px-2 text-center text-xs text-orange-200" role="status">Could not draw this preview</span>}

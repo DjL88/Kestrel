@@ -1,0 +1,195 @@
+import { useEffect, useState, type ReactNode } from 'react';
+import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { EXPORT_FORMATS, PLATFORMS, formatById, shapeLabel, sizeLabel, type BarStyle, type ExportFormat, type Fit } from '../core/exportFormats';
+import type { FocusPoint } from '../core/exportFraming';
+import type { PhotoFrame } from '../core/types';
+import { ExportPreviewTile } from './ExportPreviewTile';
+import { SocialIcon } from './SocialIcon';
+
+type Step = 'platform' | 'size' | 'position' | 'review';
+const STEPS: { id: Step; label: string }[] = [
+  { id: 'platform', label: 'Where to' }, { id: 'size', label: 'Size' }, { id: 'position', label: 'Position' }, { id: 'review', label: 'Export' },
+];
+const FIT_LABELS: Record<Fit, string> = { fill: 'Crop to fill the shape', bars: 'Whole photo, with borders', keep: 'Keep the photo’s shape' };
+const field = 'min-h-10 w-full rounded-md border border-white/15 bg-[#15171C] px-2 text-base sm:text-sm';
+const quiet = 'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-white/15 px-3 text-sm font-medium hover:bg-white/10 disabled:opacity-45';
+const primary = 'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-kestrel-copper px-4 text-sm font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-45';
+
+interface Props {
+  frames: PhotoFrame[];
+  sources: Record<string, HTMLImageElement>;
+  chosen: string[];
+  onToggle: (id: string, on: boolean) => void;
+  customOn: boolean;
+  onCustomOn: (on: boolean) => void;
+  /** The custom size form. */
+  customSlot: ReactNode;
+  /** The formats as they will be made, with any turn, fit and name changes applied. */
+  selected: ExportFormat[];
+  fits: Record<string, Fit>;
+  onFit: (id: string, fit: Fit) => void;
+  bars: BarStyle;
+  onBars: (bars: BarStyle) => void;
+  anchorFor: (frame: PhotoFrame, format: ExportFormat) => FocusPoint;
+  onAnchor: (frame: PhotoFrame, format: ExportFormat, anchor: FocusPoint) => void;
+  zoomFor: (frame: PhotoFrame, format: ExportFormat) => number;
+  onZoom: (frame: PhotoFrame, format: ExportFormat, zoom: number) => void;
+  onTurn: (id: string) => void;
+  /** Date, borders, file names and the like, shown on the last step. */
+  reviewSlot: ReactNode;
+  busy: boolean;
+  total: number;
+  progress: number | null;
+  blocked: boolean;
+  onPrepare: () => void;
+}
+
+/** A small rectangle in the shape of a format, so sizes can be told apart at a glance. */
+function ShapeGlyph({ width, height }: { width: number; height: number }) {
+  const ratio = width && height ? width / height : 1;
+  const box = ratio >= 1 ? { width: 28, height: Math.max(8, 28 / ratio) } : { width: Math.max(8, 28 * ratio), height: 28 };
+  return <span className="grid h-8 w-8 shrink-0 place-items-center" aria-hidden="true"><span className="block rounded-[3px] border-2 border-zinc-300" style={box} /></span>;
+}
+
+/** Export as a short walk: where it is going, which size, where the crop sits, then export. */
+export function ExportWizard(props: Props) {
+  const { frames, selected, chosen } = props;
+  const [step, setStep] = useState<Step>('platform');
+  const [platform, setPlatform] = useState<string>('');
+  const [index, setIndex] = useState(0);
+  const [photo, setPhoto] = useState(0);
+  const positionable = selected.filter((format) => format.id !== 'master');
+  const current = positionable[Math.min(index, Math.max(0, positionable.length - 1))];
+  const frame = frames[Math.min(photo, frames.length - 1)];
+  const at = STEPS.findIndex((entry) => entry.id === step);
+
+  useEffect(() => { if (step === 'size' && platform === 'custom') props.onCustomOn(true); }, [step, platform]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const countFor = (id: string) => id === 'master' ? Number(chosen.includes('master')) : id === 'custom' ? Number(props.customOn)
+    : EXPORT_FORMATS.filter((format) => format.platform === id && chosen.includes(format.id)).length;
+  const choices = platform === 'master' ? [formatById('master')!] : EXPORT_FORMATS.filter((format) => format.platform === platform);
+  const platformName = platform === 'master' ? 'Full size' : platform === 'custom' ? 'Custom size' : PLATFORMS.find((entry) => entry.id === platform)?.label ?? '';
+
+  const next = () => {
+    if (step === 'platform') return setStep('size');
+    if (step === 'size') { setIndex(0); return setStep(positionable.length ? 'position' : 'review'); }
+    if (step === 'position') return index < positionable.length - 1 ? setIndex(index + 1) : setStep('review');
+    props.onPrepare();
+  };
+  const back = () => {
+    if (step === 'size') return setStep('platform');
+    if (step === 'position') return index > 0 ? setIndex(index - 1) : setStep('size');
+    if (step === 'review') { setIndex(Math.max(0, positionable.length - 1)); return setStep(positionable.length ? 'position' : 'size'); }
+  };
+  const canNext = step === 'platform' ? Boolean(platform) : step === 'review' ? props.total > 0 && !props.busy && !props.blocked : props.total > 0 && !props.blocked;
+  const nextLabel = step === 'review' ? (props.progress !== null ? `Preparing ${props.progress}/${props.total}…` : `Prepare ${props.total} ${props.total === 1 ? 'file' : 'files'}`)
+    : step === 'position' && index < positionable.length - 1 ? 'Next size' : 'Next';
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <ol aria-label="Export steps" className="flex items-center justify-center gap-1 text-xs text-zinc-400">
+        {STEPS.map((entry, position) => (
+          <li key={entry.id} aria-current={entry.id === step ? 'step' : undefined}
+            className={`flex items-center gap-1 rounded-full px-2.5 py-1 ${entry.id === step ? 'bg-sky-300/20 text-sky-100' : position < at ? 'text-zinc-200' : ''}`}>
+            <span className="tabular-nums">{position + 1}</span><span className={entry.id === step ? '' : 'max-sm:sr-only'}>{entry.label}</span>
+          </li>
+        ))}
+      </ol>
+
+      <div className="min-h-0 flex-1 space-y-3">
+        {step === 'platform' && (
+          <section aria-label="Where is it going?" className="space-y-2">
+            <h3 className="text-sm font-medium text-zinc-100">Where is it going?</h3>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {[{ id: 'master', label: 'Full size' }, ...PLATFORMS, { id: 'custom', label: 'Custom size' }].map((entry) => (
+                <button key={entry.id} type="button" aria-pressed={platform === entry.id} onClick={() => { setPlatform(entry.id); setStep('size'); }}
+                  className="relative flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg border border-white/12 bg-white/5 px-2 text-sm text-zinc-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 aria-pressed:border-sky-300">
+                  {entry.id === 'master' || entry.id === 'custom' ? <ShapeGlyph width={entry.id === 'master' ? 4 : 1} height={entry.id === 'master' ? 3 : 1} /> : <SocialIcon id={entry.id as never} className="h-6 w-6" />}
+                  {entry.label}
+                  {countFor(entry.id) > 0 && <span className="absolute right-1.5 top-1.5 rounded-full bg-sky-300/25 px-1.5 text-xs text-sky-100">{countFor(entry.id)}</span>}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-zinc-400">You can pick more than one place. Sizes are common starting points, so check a platform’s current advice before posting.</p>
+          </section>
+        )}
+
+        {step === 'size' && (
+          <section aria-label={`${platformName} sizes`} className="space-y-2">
+            <h3 className="text-sm font-medium text-zinc-100">{platformName}: which size?</h3>
+            {platform === 'custom' ? props.customSlot : (
+              <div className="space-y-1.5">
+                {choices.map((format) => (
+                  <label key={format.id} className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border border-white/12 bg-white/5 px-3 hover:bg-white/10 has-[:checked]:border-sky-300">
+                    <input type="checkbox" checked={chosen.includes(format.id)} onChange={(event) => props.onToggle(format.id, event.target.checked)} />
+                    <ShapeGlyph width={format.width} height={format.height} />
+                    <span className="min-w-0 flex-1"><span className="block text-sm">{format.label}</span><span className="block text-xs text-zinc-400">{sizeLabel(format)}</span></span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {step === 'position' && current && frame && (
+          <section aria-label="Position" className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-medium text-zinc-100">Position · {current.label} <span className="font-normal text-zinc-400">({index + 1} of {positionable.length})</span></h3>
+              {frames.length > 1 && (
+                <span className="flex items-center gap-1 text-xs text-zinc-300">
+                  <button type="button" className="grid h-9 w-9 place-items-center rounded-md hover:bg-white/10 disabled:opacity-40" aria-label="Previous photo" disabled={photo === 0} onClick={() => setPhoto(photo - 1)}><ChevronLeft className="h-4 w-4" aria-hidden="true" /></button>
+                  Photo {photo + 1} of {frames.length}
+                  <button type="button" className="grid h-9 w-9 place-items-center rounded-md hover:bg-white/10 disabled:opacity-40" aria-label="Next photo" disabled={photo >= frames.length - 1} onClick={() => setPhoto(photo + 1)}><ChevronRight className="h-4 w-4" aria-hidden="true" /></button>
+                </span>
+              )}
+            </div>
+            <div className="mx-auto max-w-md">
+              <ExportPreviewTile key={`${frame.id}|${current.id}`} large frame={frame} source={props.sources[frame.id]} format={current} bars={props.bars}
+                anchor={props.anchorFor(frame, current)} onAnchor={(anchor) => props.onAnchor(frame, current, anchor)}
+                zoom={props.zoomFor(frame, current)} onZoom={(zoom) => props.onZoom(frame, current, zoom)}
+                platform={current.platform} onTurn={() => props.onTurn(current.id)} />
+            </div>
+            {chosen.includes(current.id) && (
+              <label className="block text-sm">How it fits
+                <select className={`${field} mt-1`} value={props.fits[current.id] ?? current.fit} onChange={(event) => props.onFit(current.id, event.target.value as Fit)}>
+                  {(Object.keys(FIT_LABELS) as Fit[]).map((fit) => <option key={fit} value={fit}>{FIT_LABELS[fit]}</option>)}
+                </select>
+              </label>
+            )}
+            {current.fit === 'bars' && (
+              <label className="block text-sm">Borders
+                <select className={`${field} mt-1`} value={props.bars} onChange={(event) => props.onBars(event.target.value as BarStyle)}>
+                  <option value="white">White</option><option value="black">Black</option><option value="blur">A blurred copy of the photo</option>
+                </select>
+              </label>
+            )}
+          </section>
+        )}
+
+        {step === 'review' && (
+          <section aria-label="Ready to export" className="space-y-3">
+            <h3 className="text-sm font-medium text-zinc-100">Ready to export</h3>
+            <ul className="space-y-1">
+              {selected.map((format) => (
+                <li key={format.id} className="flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2 text-sm">
+                  {format.platform ? <SocialIcon id={format.platform} className="h-5 w-5 shrink-0 text-zinc-200" /> : <ShapeGlyph width={format.width} height={format.height} />}
+                  <span className="min-w-0 flex-1"><span className="block truncate">{format.label}</span><span className="block text-xs text-zinc-400">{sizeLabel(format)}{format.width ? ` · ${shapeLabel(format.width, format.height)}` : ''}</span></span>
+                  <span className="text-xs text-zinc-400">× {frames.length}</span>
+                  <button type="button" className="min-h-10 rounded-md px-2 text-xs text-zinc-300 underline underline-offset-4 hover:text-white" aria-label={`Remove ${format.label}`}
+                    onClick={() => (format.id === 'custom' ? props.onCustomOn(false) : props.onToggle(format.id, false))}>Remove</button>
+                </li>
+              ))}
+            </ul>
+            <button type="button" className={quiet} onClick={() => setStep('platform')}><Plus className="h-4 w-4" aria-hidden="true" />Add another place</button>
+            {props.reviewSlot}
+          </section>
+        )}
+      </div>
+
+      <div className="sticky bottom-0 -mx-4 -mb-4 flex items-center justify-between gap-2 border-t border-white/10 bg-kestrel-raised px-4 py-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <button type="button" className={quiet} onClick={back} disabled={step === 'platform' || props.progress !== null}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</button>
+        {step !== 'platform' && <button type="button" className={primary} onClick={next} disabled={!canNext}>{nextLabel}{step !== 'review' && <ArrowRight className="h-4 w-4" aria-hidden="true" />}</button>}
+      </div>
+    </div>
+  );
+}
