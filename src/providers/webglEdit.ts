@@ -35,8 +35,9 @@ void main() {
     c *= f;
   }
   float y = luma(c);
-  float saturation = 1.0 + colour;
-  if (vibrance != 0.0) {
+  bool monochrome = colour <= -1.0;
+  float saturation = monochrome ? 0.0 : 1.0 + colour;
+  if (!monochrome && vibrance != 0.0) {
     float high = max(c.r, max(c.g, c.b));
     float chroma = high > 0.0 ? (high - min(c.r, min(c.g, c.b))) / high : 0.0;
     saturation += vibrance * (1.0 - min(1.0, chroma));
