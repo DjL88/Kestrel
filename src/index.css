@@ -70,3 +70,40 @@
     linear-gradient(to right, transparent calc(33.333% - .5px), rgb(255 255 255 / 0.55) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.667% - .5px), rgb(255 255 255 / 0.55) calc(66.667% - .5px) calc(66.667% + .5px), transparent calc(66.667% + .5px)),
     linear-gradient(to bottom, transparent calc(33.333% - .5px), rgb(255 255 255 / 0.55) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.667% - .5px), rgb(255 255 255 / 0.55) calc(66.667% - .5px) calc(66.667% + .5px), transparent calc(66.667% + .5px));
 }
+
+/* Display themes. Only chrome and text change, never the photographs. */
+html[data-theme="night"] {
+  --color-kestrel-canvas: #0d0f12;
+  --color-kestrel-panel: #121418;
+  --color-kestrel-raised: #181b20;
+  --color-kestrel-ink: #cfc9bf;
+  --color-zinc-100: #cfc9bf;
+  --color-zinc-200: #bdb7ad;
+  --color-zinc-300: #a8a299;
+  --color-zinc-400: #8a857d;
+}
+
+html[data-theme="contrast"] {
+  --color-kestrel-canvas: #000000;
+  --color-kestrel-panel: #0a0a0a;
+  --color-kestrel-raised: #161616;
+  --color-kestrel-ink: #ffffff;
+  --color-zinc-200: #f4f4f5;
+  --color-zinc-300: #e4e4e7;
+  --color-zinc-400: #d4d4d8;
+  --color-zinc-500: #c4c4cc;
+}
+
+html[data-theme="contrast"] :focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* Larger touch targets on touchscreens. */
+@media (pointer: coarse) {
+  .decision-button {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+}
