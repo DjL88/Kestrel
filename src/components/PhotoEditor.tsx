@@ -9,6 +9,8 @@ import { computeHistogram, type Histogram as HistogramData } from '../core/histo
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
 import { MaskOverlay } from './MaskOverlay';
 import { MaskPanel } from './MaskPanel';
+import { createSubjectMask, framingKey } from '../core/maskTypes';
+import { detectSubject } from '../providers/subjectDetector';
 import { PresetPanel } from './PresetPanel';
 import { autoEnhance } from '../core/autoEnhance';
 import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
@@ -71,6 +73,8 @@ export function PhotoEditor({
   const cornerDrag = useRef<{ corner: CropCorner; x: number; y: number; point: { x: number; y: number } } | null>(null);
   const [autoNotes, setAutoNotes] = useState<string[]>([]);
   const [selectedMaskId, setSelectedMaskId] = useState<string | null>(null);
+  const [detecting, setDetecting] = useState(false);
+  const [detectNotice, setDetectNotice] = useState('');
   const [brushRadius, setBrushRadius] = useState(0.05);
   const [erase, setErase] = useState(false);
   const [showMaskOverlay, setShowMaskOverlay] = useState(true);
@@ -253,6 +257,38 @@ export function PhotoEditor({
     node.addEventListener('wheel', onWheel, { passive: false, capture: true });
     return () => node.removeEventListener('wheel', onWheel, { capture: true });
   }, []);
+
+  /** Detect on the unedited, cropped photo, so the result matches what the mask will be laid over. */
+  async function findSubject(background: boolean, replaceId?: string) {
+    if (!source || !outputSize) return;
+    setDetecting(true);
+    setDetectNotice('');
+    try {
+      const preview = document.createElement('canvas');
+      drawFramedPhoto(source, preview, framing, { scale: Math.min(1, 640 / Math.max(outputSize.width, outputSize.height)) });
+      const { grid, assessment } = await detectSubject(preview);
+      if (!assessment.usable) {
+        setDetectNotice(assessment.reason);
+        return;
+      }
+      const masks = edit.masks ?? [];
+      const key = framingKey(framing);
+      if (replaceId) {
+        onEdit({ ...edit, masks: masks.map((mask) => mask.id === replaceId && mask.kind === 'subject'
+          ? { ...mask, grid, framingKey: key, confidence: assessment.confidence, strokes: [] } : mask) });
+      } else {
+        const mask = { ...createSubjectMask(crypto.randomUUID(), grid, key, assessment.confidence), invert: background };
+        onEdit({ ...edit, masks: [...masks, mask] });
+        setSelectedMaskId(mask.id);
+        setShowMaskOverlay(true);
+      }
+      setDetectNotice(assessment.reason);
+    } catch (error) {
+      setDetectNotice(error instanceof Error ? error.message : 'Subject detection failed.');
+    } finally {
+      setDetecting(false);
+    }
+  }
 
   function sampleOrientedSource(edge = 112) {
     if (!source) return null;
@@ -459,7 +495,9 @@ export function PhotoEditor({
           <MaskPanel masks={edit.masks ?? []} selectedId={selectedMaskId} disabled={sourceState !== 'ready'}
             brushRadius={brushRadius} erase={erase} showOverlay={showMaskOverlay}
             onSelect={setSelectedMaskId} onChange={(masks) => onEdit({ ...edit, masks })}
-            onBrushRadius={setBrushRadius} onErase={setErase} onShowOverlay={setShowMaskOverlay} />
+            onBrushRadius={setBrushRadius} onErase={setErase} onShowOverlay={setShowMaskOverlay}
+            onFindSubject={(background) => void findSubject(background)} onRefind={(id) => void findSubject(false, id)}
+            detecting={detecting} detectNotice={detectNotice} currentFramingKey={framingKey(framing)} />
         </details>
         <details className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">

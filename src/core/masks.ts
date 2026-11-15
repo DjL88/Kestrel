@@ -20,11 +20,36 @@ const smoothstep = (low: number, high: number, x: number) => {
 const BRUSH_WIDTH = 384;
 const brushCache = new WeakMap<Mask, { aspect: number; rows: number; grid: Float32Array }>();
 
-function brushGrid(mask: Extract<Mask, { kind: 'brush' }>, aspect: number) {
+function decodeGrid(data: string, count: number): Uint8Array {
+  const binary = atob(data);
+  const bytes = new Uint8Array(count);
+  for (let i = 0; i < count && i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+/** Fill the brush grid from a detected subject, resampled smoothly to the brush resolution. */
+function seedFromSubject(grid: Float32Array, rows: number, subject: Extract<Mask, { kind: 'subject' }>['grid']) {
+  const bytes = decodeGrid(subject.data, subject.w * subject.h);
+  const at = (x: number, y: number) => bytes[Math.min(subject.h - 1, y) * subject.w + Math.min(subject.w - 1, x)] / 255;
+  for (let y = 0; y < rows; y += 1) {
+    const fy = Math.min(subject.h - 1.001, Math.max(0, ((y + 0.5) / rows) * subject.h - 0.5));
+    const y0 = Math.floor(fy);
+    const ty = fy - y0;
+    for (let x = 0; x < BRUSH_WIDTH; x += 1) {
+      const fx = Math.min(subject.w - 1.001, Math.max(0, ((x + 0.5) / BRUSH_WIDTH) * subject.w - 0.5));
+      const x0 = Math.floor(fx);
+      const tx = fx - x0;
+      grid[y * BRUSH_WIDTH + x] = (at(x0, y0) * (1 - tx) + at(x0 + 1, y0) * tx) * (1 - ty) + (at(x0, y0 + 1) * (1 - tx) + at(x0 + 1, y0 + 1) * tx) * ty;
+    }
+  }
+}
+
+function brushGrid(mask: Extract<Mask, { kind: 'brush' | 'subject' }>, aspect: number) {
   const cached = brushCache.get(mask);
   if (cached && cached.aspect === aspect) return cached;
   const rows = Math.max(1, Math.round(BRUSH_WIDTH * aspect));
   const grid = new Float32Array(BRUSH_WIDTH * rows);
+  if (mask.kind === 'subject') seedFromSubject(grid, rows, mask.grid);
   const dab = (cx: number, cy: number, radius: number, erase: boolean) => {
     const rGrid = radius * BRUSH_WIDTH;
     const x0 = Math.max(0, Math.floor(cx * BRUSH_WIDTH - rGrid));
@@ -74,7 +99,7 @@ function sampleBrush(made: { rows: number; grid: Float32Array }, nx: number, ny:
 export function maskAlpha(mask: Mask, width: number, height: number, context: MaskContext): Float32Array {
   const alpha = new Float32Array(width * height);
   const { aspect, view } = context;
-  const brush = mask.kind === 'brush' ? brushGrid(mask, aspect) : null;
+  const brush = mask.kind === 'brush' || mask.kind === 'subject' ? brushGrid(mask, aspect) : null;
   let dx = 0;
   let dy = 0;
   let lengthSquared = 1;
@@ -90,6 +115,8 @@ export function maskAlpha(mask: Mask, width: number, height: number, context: Ma
     high = 0.5 + width01 / 2;
   }
   if (mask.kind === 'radial') inner = Math.min(0.999, 1 - mask.feather);
+  // Detected subjects are thresholded so the edge follows the subject, and softness sets how gradual that edge is.
+  const soften = 0.04 + 0.4 * mask.feather;
   for (let y = 0; y < height; y += 1) {
     const ny = view.y + ((y + 0.5) / height) * view.h;
     for (let x = 0; x < width; x += 1) {
@@ -101,6 +128,8 @@ export function maskAlpha(mask: Mask, width: number, height: number, context: Ma
       } else if (mask.kind === 'radial') {
         const d = Math.hypot((nx - mask.cx) / mask.rx, ((ny - mask.cy) * aspect) / mask.ry);
         a = 1 - smoothstep(inner, 1, d);
+      } else if (mask.kind === 'subject') {
+        a = smoothstep(0.5 - soften, 0.5 + soften, sampleBrush(brush!, nx, ny));
       } else {
         a = sampleBrush(brush!, nx, ny);
       }
