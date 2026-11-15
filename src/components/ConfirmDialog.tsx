@@ -7,10 +7,11 @@ interface Props {
   cancelLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
+  confirmDisabled?: boolean;
 }
 
 /** Modal confirmation. Focus starts on the safe choice, Escape cancels and Tab stays inside. */
-export function ConfirmDialog({ title, children, confirmLabel, cancelLabel, onConfirm, onCancel }: Props) {
+export function ConfirmDialog({ title, children, confirmLabel, cancelLabel, onConfirm, onCancel, confirmDisabled }: Props) {
   const cancel = useRef<HTMLButtonElement>(null);
   const confirm = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -25,8 +26,10 @@ export function ConfirmDialog({ title, children, confirmLabel, cancelLabel, onCo
         event.stopPropagation();
         if (event.key === 'Escape') { event.preventDefault(); onCancel(); }
         if (event.key === 'Tab') {
-          const order = [cancel.current, confirm.current];
-          const at = order.indexOf(document.activeElement as HTMLButtonElement);
+          // Keep focus inside the dialog, whatever controls it holds.
+          const order = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), a[href]')];
+          if (!order.length) return;
+          const at = order.indexOf(document.activeElement as HTMLElement);
           event.preventDefault();
           order[(at + (event.shiftKey ? order.length - 1 : 1)) % order.length]?.focus();
         }
@@ -38,8 +41,8 @@ export function ConfirmDialog({ title, children, confirmLabel, cancelLabel, onCo
         <div className="flex flex-wrap justify-end gap-2 pt-1">
           <button ref={cancel} type="button" onClick={onCancel}
             className="min-h-11 rounded-md border border-white/20 px-4 text-sm font-semibold hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">{cancelLabel}</button>
-          <button ref={confirm} type="button" onClick={onConfirm}
-            className="min-h-11 rounded-md bg-kestrel-copper px-4 text-sm font-semibold text-zinc-950 hover:bg-kestrel-copper-hover focus-visible:outline-2 focus-visible:outline-sky-300">{confirmLabel}</button>
+          <button ref={confirm} type="button" onClick={onConfirm} disabled={confirmDisabled}
+            className="min-h-11 rounded-md bg-kestrel-copper px-4 text-sm font-semibold text-zinc-950 hover:bg-kestrel-copper-hover focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-40">{confirmLabel}</button>
         </div>
       </div>
     </div>

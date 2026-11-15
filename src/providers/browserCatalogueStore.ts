@@ -3,6 +3,7 @@ import {
   type KeyBindingsMap,
   type KnobFunction,
 } from '../core/keyboardCommands';
+import { unreferencedBlobKeys } from '../core/projects';
 import type { CatalogueStore } from '../core/platformBoundaries';
 import type { CullingState, ShootDescriptor, WorkspaceViewMode } from '../core/types';
 
@@ -172,6 +173,41 @@ export class BrowserCatalogueStore implements CatalogueStore {
           tx.oncomplete = () => resolve();
           tx.onabort = () => reject(tx.error ?? new Error('Catalogue write was interrupted'));
           tx.objectStore(STORE_CATALOGUE).put(state, PROJECT_PREFIX + state.shoot.id);
+        });
+      } finally {
+        db.close();
+      }
+    });
+    this.projectWrite = write.catch(() => {});
+    return write;
+  }
+
+  /** Every project's state, for checking which stored photo copies are shared. */
+  private async allProjectStates(): Promise<CullingState[]> {
+    const ids = (await this.listProjects()).map((project) => project.id);
+    const states = await Promise.all(ids.map((id) => this.loadProject(id)));
+    return states.filter((state): state is CullingState => !!state);
+  }
+
+  /**
+   * Remove a project's catalogue from this browser, and free the stored copies of photos nothing else uses.
+   * Files on the user's disk are never touched.
+   */
+  async deleteProject(id: string): Promise<void> {
+    const project = await this.loadProject(id);
+    if (!project) return;
+    const others = (await this.allProjectStates()).filter((state) => state.shoot.id !== id);
+    const keys = unreferencedBlobKeys(project, others);
+    const write = this.projectWrite.then(async () => {
+      const db = await openDatabase();
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const tx = db.transaction([STORE_CATALOGUE, STORE_FILES, STORE_HANDLES], 'readwrite');
+          tx.oncomplete = () => resolve();
+          tx.onabort = () => reject(tx.error ?? new Error('Deleting the project was interrupted'));
+          tx.objectStore(STORE_CATALOGUE).delete(PROJECT_PREFIX + id);
+          tx.objectStore(STORE_HANDLES).delete(id);
+          for (const key of keys) tx.objectStore(STORE_FILES).delete(key);
         });
       } finally {
         db.close();

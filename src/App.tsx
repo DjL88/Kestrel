@@ -4,7 +4,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { restoreProjectBackup } from './core/projectBackup';
 import { saveProjectBackupFile } from './providers/projectBackupFile';
 import { ProjectList } from './components/ProjectList';
-import { appendProjectPhotos, createEmptyProject } from './core/projects';
+import { appendProjectPhotos, createEmptyProject, setArchived } from './core/projects';
+import { ProjectActionDialog } from './components/ProjectActionDialog';
 import { createVirtualCopy } from './core/virtualCopies';
 import { PhotoExportPanel } from './components/PhotoExportPanel';
 import { PhotoEditor } from './components/PhotoEditor';
@@ -223,6 +224,54 @@ export default function App() {
     } finally {
       setProjectBusy(false);
     }
+  }
+
+  const [projectAction, setProjectAction] = useState<{ kind: 'archive' | 'delete'; project: ShootDescriptor } | null>(null);
+
+  async function refreshProjects() {
+    setProjects(await storeRef.current!.listProjects());
+  }
+
+  async function confirmProjectAction() {
+    const action = projectAction;
+    setProjectAction(null);
+    if (!action) return;
+    setProjectBusy(true);
+    setProjectError(undefined);
+    try {
+      const store = storeRef.current!;
+      if (action.kind === 'delete') await store.deleteProject(action.project.id);
+      else {
+        const state = await store.loadProject(action.project.id);
+        if (state) await store.saveProject(setArchived(state, Date.now()));
+      }
+      await refreshProjects();
+    } catch {
+      setProjectError(action.kind === 'delete' ? 'Could not delete the project. Nothing was changed.' : 'Could not archive the project. Nothing was changed.');
+    } finally {
+      setProjectBusy(false);
+    }
+  }
+
+  async function unarchiveProject(id: string) {
+    setProjectBusy(true);
+    setProjectError(undefined);
+    try {
+      const store = storeRef.current!;
+      const state = await store.loadProject(id);
+      if (state) await store.saveProject(setArchived(state, undefined));
+      await refreshProjects();
+    } catch {
+      setProjectError('Could not restore the project.');
+    } finally {
+      setProjectBusy(false);
+    }
+  }
+
+  async function backUpProject(id: string) {
+    const state = await storeRef.current!.loadProject(id);
+    if (!state) throw new Error('Project not found');
+    return saveProjectBackupFile(state);
   }
 
   async function newProject(name: string, options?: { keeperTarget: number; settings: ProjectSettings }) {
@@ -808,8 +857,14 @@ export default function App() {
   );
 
   if (projectsOpen) {
-    return <ProjectList projects={projects} loading={projectBusy} error={projectError}
-      onOpen={(id) => void openProject(id)} onCreate={(name, options) => void newProject(name, options)} onRestore={(file) => void restoreBackup(file)} />;
+    return <>
+      <ProjectList projects={projects} loading={projectBusy} error={projectError}
+        onOpen={(id) => void openProject(id)} onCreate={(name, options) => void newProject(name, options)} onRestore={(file) => void restoreBackup(file)}
+        onArchive={(project) => setProjectAction({ kind: 'archive', project })} onDelete={(project) => setProjectAction({ kind: 'delete', project })}
+        onUnarchive={(id) => void unarchiveProject(id)} />
+      {projectAction && <ProjectActionDialog kind={projectAction.kind} project={projectAction.project}
+        onBackup={() => backUpProject(projectAction.project.id)} onConfirm={() => void confirmProjectAction()} onCancel={() => setProjectAction(null)} />}
+    </>;
   }
 
   return (

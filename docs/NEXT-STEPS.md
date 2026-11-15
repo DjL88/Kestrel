@@ -103,3 +103,10 @@ Three single-question steps: name, target number of photos (chips or typed, 1 to
 - **Auto-cull** starts the scan by itself when photos are added to the project. It uses the existing rules (clear results move, everything is reversible, Trash never touches files).
 - **Auto-edit** suggests colour and tone the first time a photo with no edit history is opened, and shows the reasons. Resetting a photo does not trigger it again.
 - Not done: auto-cull after opening a whole folder (only the file picker and drag-in path starts it), more wizard questions (export destinations, subject names), and applying auto-edit to a whole batch of keepers at once.
+
+## Archive and delete projects (feat/archive-delete-projects)
+Each project on the Projects page has Archive and Delete buttons. Archived projects move into a collapsed "Archived (n)" list with Restore and Delete.
+- **Archive** asks first and offers a backup. It only sets `archivedAt`, so it is fully reversible.
+- **Delete** offers a backup, says plainly that it cannot be undone, and stays locked until "I understand this cannot be undone" is ticked. Focus starts on the safe button, and Escape cancels.
+- Delete removes the project's catalogue, its folder link and the photo copies Kestrel stored in this browser, but keeps any copy that another project also uses. Files on the user's computer are never touched.
+- Not done: bulk archive, a backup reminder before closing the browser, and an automatic backup before every delete.
