@@ -5,6 +5,7 @@ import { PaidNotice } from './components/PaidNotice';
 import { SyncFolderDialog } from './components/SyncFolderDialog';
 import { WatchFolderDialog } from './components/WatchFolderDialog';
 import { useFolderWatch } from './providers/useFolderWatch';
+import { PHOTO_ACCEPT } from './core/rawFormats';
 import { DropOverlay } from './components/DropOverlay';
 import { useDropPhotos } from './providers/useDropPhotos';
 import { DesktopUpdate } from './components/DesktopUpdate';
@@ -100,8 +101,8 @@ function isEditableElement(target: EventTarget | null): boolean {
 export default function App() {
   const { can } = useAccess();
   const [syncOpen, setSyncOpen] = useState(false);
-  useEffect(() => { void loadLicence(); }, []);
   const [watchOpen, setWatchOpen] = useState(false);
+  useEffect(() => { void loadLicence(); }, []);
   const [paidDialog, setPaidDialog] = useState<string | null>(null);
   useDesktopMenu();
   const storeRef = useRef<BrowserCatalogueStore | null>(null);
@@ -1046,7 +1047,7 @@ export default function App() {
   return (
     <div className={`h-dvh w-full flex flex-col pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden ${editing ? '' : 'max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]'}`}>
       <DesktopUpdate />
-      {syncOpen && <SyncFolderDialog title={cullingState.shoot.title} projectId={cullingState.shoot.id} frames={cullingState.frames} onClose={() => setSyncOpen(false)}
+      {syncOpen && <SyncFolderDialog title={cullingState.shoot.title} projectId={cullingState.shoot.id} updatedAt={cullingState.shoot.lastUpdatedAt} frames={cullingState.frames} onClose={() => setSyncOpen(false)}
         onApply={(frames) => setCullingState((prev) => ({ ...prev, frames, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } }))} />}
       {watchOpen && <WatchFolderDialog onStart={(source, includeExisting) => void watch.start(source, includeExisting)} onClose={() => setWatchOpen(false)} />}
       {watch.status && <p role="status" className="fixed bottom-3 left-3 z-40 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/15 bg-kestrel-raised px-3 py-2 text-xs text-zinc-100 shadow-lg">{watch.status.error ?? `Watching “${watch.status.folder}” · ${watch.status.imported} new photo${watch.status.imported === 1 ? '' : 's'} added`}</p>}
@@ -1181,7 +1182,7 @@ export default function App() {
         onEditPhoto={selectedFrame && !loadingProgress ? () => setEditing(true) : undefined}
       />}
 
-      <input ref={relinkInput} type="file" hidden multiple accept=".jpg,.jpeg,.png,.webp,.nef,.nrw"
+      <input ref={relinkInput} type="file" hidden multiple accept={PHOTO_ACCEPT}
         onChange={(event) => {
           const files = Array.from(event.target.files ?? []);
           if (files.length) void reconnectFileSelection(files);

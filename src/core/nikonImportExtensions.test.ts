@@ -9,7 +9,7 @@ test('Nikon NRW and NEF are accepted for both file and folder import filtering',
 });
 
 test('unsupported and deceptive filenames remain excluded', () => {
-  for (const name of ['DSC_0001.NRW.exe', 'DSC_0001', '.nrw.bak', 'DSC_0001.cr3']) {
+  for (const name of ['DSC_0001.NRW.exe', 'DSC_0001', '.nrw.bak', 'DSC_0001.cr3.exe', 'notes.txt', 'movie.mov']) {
     assert.equal(isSupportedPhotoFilename(name), false, name);
   }
 });

@@ -56,3 +56,47 @@ test('malformed or hostile sync data is rejected wholly, never partially applied
   for (const item of invalid) assert.equal(parseSnapshot(JSON.stringify(item)), null);
   assert.equal(parseSnapshot('X'.repeat(8_000_001)), null);
 });
+
+import { identityOf, isNewerHere, looksLikeAnotherProject } from './projectSnapshot.ts';
+
+const shot = (key: string, filename: string, taken: number | undefined, extra: Partial<PhotoFrame> = {}) =>
+  ({ id: key, stableKey: key, filename, decision: 'unreviewed', isDemo: false, exif: taken === undefined ? {} : { capturedAtMs: taken }, ...extra }) as unknown as PhotoFrame;
+
+test('the same photo is found even when it was imported a different way on each device', () => {
+  const there = buildSnapshot('x', [shot('local-file://DSC_1.NEF::900::111', 'DSC_1.NEF', 5000, { decision: 'keep', rating: 5 })], new Date(), 'p-there');
+  const here = [shot('folder://2026/DSC_1.NEF', 'dsc_1.nef', 5000)];
+  assert.equal(identityOf(here[0]), 'dsc_1.nef|5000');
+  assert.deepEqual(planApply(here, there), { matching: 1, changed: 1, missingHere: 0 });
+  assert.equal(applySnapshot(here, there)[0].rating, 5);
+});
+
+test('different photos with the same name but another capture time are not mixed up', () => {
+  const there = buildSnapshot('x', [shot('a', 'IMG_0001.CR3', 1000, { decision: 'keep' })], new Date());
+  assert.equal(planApply([shot('b', 'IMG_0001.CR3', 2000)], there).matching, 0);
+});
+
+test('a saved copy with another project id and few matching photos is flagged; the same project or a good match is not', () => {
+  const frames = [shot('1', 'a.jpg', 1), shot('2', 'b.jpg', 2), shot('3', 'c.jpg', 3), shot('4', 'd.jpg', 4)];
+  const other = buildSnapshot('Kite', [shot('x', 'x.jpg', 9), shot('y', 'y.jpg', 8), shot('1', 'a.jpg', 1)], new Date(), 'other');
+  assert.equal(looksLikeAnotherProject(frames, other, 'mine'), true);
+  assert.equal(looksLikeAnotherProject(frames, { ...other, projectId: 'mine' }, 'mine'), false);
+  const sameJob = buildSnapshot('Kite', frames, new Date(), 'their-id');
+  assert.equal(looksLikeAnotherProject(frames, sameJob, 'mine'), false);
+  assert.equal(looksLikeAnotherProject(frames, buildSnapshot('Kite', [], new Date(), 'z'), 'mine'), false);
+});
+
+test('newer work on this device than the saved copy is flagged', () => {
+  const snap = buildSnapshot('x', [], new Date('2026-11-15T10:00:00Z'));
+  assert.equal(isNewerHere(Date.parse('2026-11-15T12:00:00Z'), snap), true);
+  assert.equal(isNewerHere(Date.parse('2026-11-15T09:00:00Z'), snap), false);
+  assert.equal(isNewerHere(undefined, snap), false);
+});
+
+test('identity and project id survive saving and reading, and bad ones are refused', () => {
+  const snap = buildSnapshot('x', [shot('a', 'a.jpg', 10)], new Date(), 'pid');
+  const back = parseSnapshot(JSON.stringify(snap));
+  assert.equal(back?.projectId, 'pid');
+  assert.equal(back?.photos[0].identity, 'a.jpg|10');
+  const bad = JSON.parse(JSON.stringify(snap)); bad.photos[0].identity = 5;
+  assert.equal(parseSnapshot(JSON.stringify(bad)), null);
+});

@@ -80,7 +80,7 @@ test('originals reconnected to a restored catalogue stay available after reopeni
 
   const reopen = page.getByRole('button', { name: 'Re-open Files', exact: true });
   await expect(reopen).toBeVisible();
-  await page.locator('input[type="file"][accept=".jpg,.jpeg,.png,.webp,.nef,.nrw"]').evaluate((input: HTMLInputElement, data) => {
+  await page.locator('input[type="file"][accept*=".nrw"]').evaluate((input: HTMLInputElement, data) => {
     const transfer = new DataTransfer();
     transfer.items.add(new File([new Uint8Array(data.bytes)], data.filename, { type: 'image/png', lastModified: data.lastModified }));
     input.files = transfer.files;
