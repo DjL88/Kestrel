@@ -34,7 +34,8 @@ test('select multiple photos in Library, edit just that queue and export togethe
   await expect(film.getByRole('button', { name: 'Select frame-3.png' })).toBeVisible();
   await expect(film.getByRole('button', { name: 'Select frame-2.png' })).toHaveCount(0);
   const batch = page.getByRole('toolbar', { name: 'Filmstrip controls' });
-  await expect(batch.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
+  // Primary Export handles selected photos; the filmstrip has no duplicate Export action.
+  await expect(batch.getByRole('button', { name: 'Export', exact: true })).toHaveCount(0);
   await expect(batch.getByRole('button', { name: 'Edit together' })).toBeVisible();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await batch.getByRole('button', { name: 'Edit together' }).click();
