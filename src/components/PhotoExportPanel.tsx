@@ -13,6 +13,7 @@ import { ExportPreviewTile } from './ExportPreviewTile';
 import { ExportWizard } from './ExportWizard';
 import { returnFocus } from './focusReturn';
 import { KEEP_NAMES, stemFor, uniqueExportFilename, type NameTemplate } from '../core/exportNaming';
+import { parseWatermark } from '../core/watermarkStore';
 import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, type WatermarkOptions } from '../core/watermark';
 import { NO_OVERLAY, overlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { exportFilename } from '../core/exportProfiles';
@@ -71,7 +72,9 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   const [anchors, setAnchors] = useState<Record<string, FocusPoint>>({});
   const [zooms, setZooms] = useState<Record<string, number>>({});
   const [naming, setNaming] = useState<NameTemplate>(KEEP_NAMES);
-  const [overlay, setOverlay] = useState<OverlayOptions>(NO_OVERLAY);
+  const [overlay, setOverlay] = useState<OverlayOptions>(() => {
+    try { return { ...NO_OVERLAY, watermark: parseWatermark(localStorage.getItem('kestrel.watermark.v1')) }; } catch { return NO_OVERLAY; }
+  });
   const [markNote, setMarkNote] = useState<string | null>(null);
   const [sources, setSources] = useState<Record<string, HTMLImageElement>>({});
   const [timestamp, setTimestamp] = useState<'now' | 'capture' | 'custom'>('now');
@@ -355,6 +358,10 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
     </fieldset>
   );
   const mark = overlay.watermark ?? NO_WATERMARK;
+  useEffect(() => {
+    // The watermark is remembered for next time. A picture too big for storage is simply not remembered.
+    try { localStorage.setItem('kestrel.watermark.v1', JSON.stringify(mark)); } catch { /* storage full or blocked */ }
+  }, [mark]);
   const setMark = (change: Partial<WatermarkOptions>) => setOverlay((prior) => ({ ...prior, watermark: { ...(prior.watermark ?? NO_WATERMARK), ...change } }));
   function chooseMarkPicture(file: File | undefined) {
     if (!file) return;

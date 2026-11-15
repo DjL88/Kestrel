@@ -224,3 +224,29 @@ test('watermark: text and a picture each change the preview, wherever they are p
   await expect(page.getByText('Picture chosen.')).toBeVisible();
   await expect.poll(picture).not.toBe(withText);
 });
+
+test('watermark settings are remembered the next time Kestrel opens', async ({ page }) => {
+  await page.goto('/');
+  const png = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 300; canvas.height = 200;
+    canvas.getContext('2d')!.fillRect(0, 0, 300, 200);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const open = async () => {
+    await page.getByTestId('quick-edit-input').setInputFiles({ name: 'keep.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+    await openExportDialog(page);
+    await page.getByRole('button', { name: 'Instagram' }).click();
+    await page.getByRole('checkbox', { name: /Post · 4:5/ }).check();
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+    return page.getByRole('group', { name: 'Watermark' });
+  };
+  let mark = await open();
+  await mark.getByRole('checkbox', { name: 'Add a watermark' }).check();
+  await mark.getByLabel('Text', { exact: true }).fill('© Remembered');
+  await mark.getByLabel('Position').selectOption('centre');
+  await page.reload();
+  mark = await open();
+  await expect(mark.getByRole('checkbox', { name: 'Add a watermark' })).toBeChecked();
+  await expect(mark.getByLabel('Text', { exact: true })).toHaveValue('© Remembered');
+  await expect(mark.getByLabel('Position')).toHaveValue('centre');
+});
