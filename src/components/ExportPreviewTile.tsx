@@ -151,8 +151,8 @@ export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, o
           onDoubleClick={movable ? () => { onAnchor({ x: 0.5, y: 0.5 }); onZoom(1); } : undefined}
           onPointerDown={movable ? down : undefined} onPointerMove={movable ? move : undefined}
           onPointerUp={movable ? up : undefined} onPointerCancel={movable ? up : undefined}
-          className={`relative grid ${large ? 'h-[min(46dvh,30rem)]' : 'h-48'} touch-none place-items-center overflow-hidden rounded-md bg-black/40 ${movable ? 'cursor-grab focus-visible:outline-2 focus-visible:outline-sky-300 active:cursor-grabbing' : ''}`}>
-          <canvas ref={canvas} aria-label={`Preview of ${frame.filename} as ${caption}`} role="img" className={`max-h-full max-w-full ${busy ? 'opacity-40' : ''}`} />
+          className={`relative grid ${large ? 'h-[min(46dvh,30rem)]' : 'h-48'} touch-none place-items-center overflow-hidden rounded-md bg-zinc-700/50 ${movable ? 'cursor-grab focus-visible:outline-2 focus-visible:outline-sky-300 active:cursor-grabbing' : ''}`}>
+          <canvas ref={canvas} aria-label={`Preview of ${frame.filename} as ${caption}`} role="img" className={`max-h-full max-w-full shadow-[0_0_0_1px_rgba(255,255,255,0.55),0_4px_18px_rgba(0,0,0,0.5)] ${busy ? 'opacity-40' : ''}`} />
           {busy && !failed && <span className="absolute text-xs text-zinc-300" role="status">Drawing…</span>}
           {failed && <span className="absolute px-2 text-center text-xs text-orange-200" role="status">Could not draw this preview</span>}
         </div>

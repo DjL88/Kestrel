@@ -58,7 +58,9 @@ export function ExportWizard(props: Props) {
   const [platform, setPlatform] = useState<string>('');
   const [index, setIndex] = useState(0);
   const [photo, setPhoto] = useState(0);
-  const positionable = selected.filter((format) => format.id !== 'master');
+  // Always in the same order as the size list, however the choices were made, with a custom size last.
+  const order = (format: ExportFormat) => { const at = EXPORT_FORMATS.findIndex((entry) => entry.id === format.id); return at < 0 ? EXPORT_FORMATS.length : at; };
+  const positionable = selected.filter((format) => format.id !== 'master').sort((a, b) => order(a) - order(b));
   const current = positionable[Math.min(index, Math.max(0, positionable.length - 1))];
   const frame = frames[Math.min(photo, frames.length - 1)];
   const at = STEPS.findIndex((entry) => entry.id === step);
@@ -86,7 +88,7 @@ export function ExportWizard(props: Props) {
     : step === 'position' && index < positionable.length - 1 ? 'Next size' : 'Next';
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
       <ol aria-label="Export steps" className="flex items-center justify-center gap-1 text-xs text-zinc-400">
         {STEPS.map((entry, position) => (
           <li key={entry.id} aria-current={entry.id === step ? 'step' : undefined}
@@ -96,7 +98,7 @@ export function ExportWizard(props: Props) {
         ))}
       </ol>
 
-      <div className="min-h-0 flex-1 space-y-3">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-2">
         {step === 'platform' && (
           <section aria-label="Where is it going?" className="space-y-2">
             <h3 className="text-sm font-medium text-zinc-100">Where is it going?</h3>
@@ -186,7 +188,7 @@ export function ExportWizard(props: Props) {
         )}
       </div>
 
-      <div className="sticky bottom-0 -mx-4 -mb-4 flex items-center justify-between gap-2 border-t border-white/10 bg-kestrel-raised px-4 py-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-t border-white/10 bg-kestrel-raised px-4 py-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <button type="button" className={quiet} onClick={back} disabled={step === 'platform' || props.progress !== null}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</button>
         {step !== 'platform' && <button type="button" className={primary} onClick={next} disabled={!canNext}>{nextLabel}{step !== 'review' && <ArrowRight className="h-4 w-4" aria-hidden="true" />}</button>}
       </div>
