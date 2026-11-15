@@ -231,6 +231,9 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await page.getByRole('button', { name: 'Apply crop' }).click();
   // The crop must still be in place after applying it: a square photo, not the original 4:3.
   await expect.poll(() => page.getByRole('img', { name: 'Edited photo' }).evaluate((canvas: HTMLCanvasElement) => canvas.width === canvas.height)).toBe(true);
+  // On a phone the Edit tab opens as quick adjust, and the rest of the controls are one tap away.
+  const allControls = page.getByRole('button', { name: 'All controls' });
+  if (await allControls.isVisible()) await allControls.click();
   await page.getByText('Export focus', { exact: true }).click();
   await page.getByRole('button', { name: 'Mark focus point' }).click();
   await page.getByRole('button', { name: 'Place export focus point' }).press('Enter');

@@ -107,3 +107,40 @@ test('subject panel: pick a kind, add tags by typing and with quick words, remov
   await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('button', { name: 'Wildlife' })).toHaveAttribute('aria-pressed', 'true');
   await expect(tags).toHaveText(['Bird of prey', 'Moorland']);
 });
+
+test('phone editing: one big slider, chips to choose, nudge and reset, and the full list one tap away', async ({ page }) => {
+  test.skip(page.viewportSize()!.width >= 768, 'Quick adjust is the phone layout');
+  await page.goto('/');
+  await page.getByTestId('quick-edit-input').setInputFiles({
+    name: 'f.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
+  });
+  await page.getByRole('tab', { name: 'Edit', exact: true }).click();
+  const quick = page.getByRole('region', { name: 'Quick adjust' });
+  await expect(quick).toBeVisible();
+  // Light is first. The slider, its buttons and the chips are all big enough for a thumb.
+  const slider = quick.getByRole('slider', { name: 'Light adjustment' });
+  await expect(slider).toBeVisible();
+  for (const name of ['Light down', 'Light up', 'Reset Light', 'Step back', 'Step forward']) {
+    const box = (await quick.getByRole('button', { name, exact: true }).boundingBox())!;
+    expect(box.height, `${name} is thumb sized`).toBeGreaterThanOrEqual(44);
+  }
+  await quick.getByRole('button', { name: 'Light up' }).click();
+  await expect(slider).toHaveValue('0.1');
+  await expect(quick.getByText('0.04 EV')).toBeVisible();
+  // Choose another adjustment from the chips, nudge it, and the first one shows it has been changed.
+  await quick.getByRole('button', { name: 'Contrast', exact: true }).click();
+  await quick.getByRole('button', { name: 'Contrast up' }).click();
+  await expect(quick.getByRole('slider', { name: 'Contrast adjustment' })).toHaveValue('0.05');
+  await expect(quick.getByRole('button', { name: /^Light/ }).getByLabel('changed')).toBeVisible();
+  await quick.getByRole('button', { name: 'Reset Contrast' }).click();
+  await expect(quick.getByRole('slider', { name: 'Contrast adjustment' })).toHaveValue('0');
+  // Stepping back undoes the Light change.
+  await quick.getByRole('button', { name: 'Step back' }).click();
+  // The full list is still there.
+  await quick.getByRole('button', { name: 'All controls' }).click();
+  await expect(page.getByRole('button', { name: 'Back to quick adjust' })).toBeVisible();
+  await expect(page.getByRole('slider', { name: 'Texture adjustment' })).toBeVisible();
+  await page.getByRole('button', { name: 'Back to quick adjust' }).click();
+  await expect(quick).toBeVisible();
+});

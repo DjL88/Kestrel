@@ -9,6 +9,7 @@ import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFr
 import { PhotoExportPanel } from './PhotoExportPanel';
 import { downloadExport } from '../providers/browserExport';
 import { gridSizeFor } from '../core/subjectModel';
+import { QuickAdjust } from './QuickAdjust';
 import { SubjectPanel } from './SubjectPanel';
 import { addTags, type SubjectKind } from '../core/subjectTags';
 import { AreaSelector } from './AreaSelector';
@@ -114,6 +115,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [paintOn, setPaintOn] = useState(false);
   const [showMaskOverlay, setShowMaskOverlay] = useState(true);
   const [dialUsed, setDialUsed] = useState(false);
+  // On a phone the Edit tab opens as one big slider within thumb reach. The full list is one tap away.
+  const [allControls, setAllControls] = useState(false);
   const [quickChoices, setQuickChoices] = useState(false);
   const [tab, setTab] = useState<Tab>('auto');
   const [previewRecipe, setPreviewRecipe] = useState<{ edit?: PhotoEdit; framing?: PhotoFraming } | null>(null);
@@ -745,6 +748,16 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
         {tab === 'edit' && (
           <div role="tabpanel" id="panel-edit" aria-labelledby="tab-edit" className="space-y-2">
+        {isPhone && (allControls ? (
+          <button type="button" className="mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-white/12 px-3 text-xs text-zinc-200 hover:bg-white/10" onClick={() => setAllControls(false)}>
+            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />Back to quick adjust
+          </button>
+        ) : (
+          <QuickAdjust edit={edit} disabled={sourceState !== 'ready'} onEdit={onEdit}
+            canStepBack={Boolean(frame.editHistory?.cursor)} canStepForward={Boolean(frame.editHistory && frame.editHistory.cursor < frame.editHistory.steps.length)}
+            onStepBack={() => onHistoryStep(-1)} onStepForward={() => onHistoryStep(1)} peeking={displayCompare} onPeek={() => setCompare(!compare)} onShowAll={() => setAllControls(true)} />
+        ))}
+        <div className={isPhone && !allControls ? 'hidden' : 'space-y-2'}>
         <details className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
             Presets <ChevronDown className="h-4 w-4" aria-hidden="true" />
@@ -906,6 +919,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             }}>Download original</button>}
           {outputSize && <p className="mt-2 text-xs text-zinc-400">Output {outputSize.width.toLocaleString()} × {outputSize.height.toLocaleString()} px</p>}
         </details>
+        </div>
           </div>
         )}
         {tab === 'crop' && (
