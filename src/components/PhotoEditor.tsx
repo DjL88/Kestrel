@@ -759,6 +759,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               <button type="button" className="min-h-9 text-xs text-zinc-400 underline hover:text-white" onClick={() => setOpinions(null)}>Hide opinion</button>
             </section>
           )}
+        <section aria-label="Photo looks" className="space-y-1 border-t border-white/10 pt-2">
+          <h3 className="text-sm font-medium text-zinc-100">Looks</h3>
+          <PresetPanel edit={edit} disabled={sourceState !== 'ready'} onApply={(next) => onEdit({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />
+        </section>
         <Histogram data={histogram} teach />
 
           </div>
@@ -783,12 +787,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             onStepBack={() => onHistoryStep(-1)} onStepForward={() => onHistoryStep(1)} peeking={displayCompare} onPeek={() => setCompare(!compare)} onShowAll={() => setAllControls(true)} />
         ))}
         <div className={isPhone && !allControls ? 'hidden' : 'space-y-2'}>
-        <details className="border-t border-white/10">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
-            Presets <ChevronDown className="h-4 w-4" aria-hidden="true" />
-          </summary>
-          <PresetPanel edit={edit} disabled={sourceState !== 'ready'} onApply={(next) => onEdit({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />
-        </details>
         <div className="space-y-2 px-1 py-2">
           {EDIT_CHOICES.map(({ key, label, options }, index) => (
             <fieldset key={key} disabled={sourceState !== 'ready'} className="min-w-0 disabled:opacity-45">
@@ -796,7 +794,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                 <span className="flex items-center justify-between text-xs text-zinc-300">
                   <span>{label}{dialUsed && dial === index && <span className="ml-2 text-sky-200">Dial</span>}</span>
                   <output className="tabular-nums text-zinc-400">{key === 'exposure' ? `${(edit[key] * 0.4).toFixed(2)} EV` :
-                    `${Math.round(edit[key] * (key === 'warmth' ? 8 : 20))}%`}</output>
+                    key === 'colour' && edit.colour === -2 ? 'Monochrome' : `${Math.round(edit[key] * (key === 'warmth' ? 8 : 20))}%`}</output>
                 </span>
                 <input type="range" min={-2} max={2} step={0.1} value={edit[key]} aria-label={`${label} adjustment`}
                   onFocus={() => setDial(index)}
