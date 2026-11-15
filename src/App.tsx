@@ -1404,6 +1404,8 @@ export default function App() {
             <PhotoEditor
               key={selectedFrame.id}
               onExportRequested={recordDownloadedEdits}
+              exportCount={multiSelect && selectedVisibleFrames.length > 1 ? selectedVisibleFrames.length : 1}
+              onExport={() => setExportFrames(multiSelect && selectedVisibleFrames.length > 1 ? selectedVisibleFrames : [selectedFrame])}
               onOpenMacroPad={() => { setMacroPadMode('edit'); setMacroPadModal(true); }}
               autoEdit={!!cullingState.settings?.autoEdit}
               frame={selectedFrame}
@@ -1622,8 +1624,6 @@ export default function App() {
                   {editTogether ? 'Editing together ✓' : 'Edit together'}
                 </button>}
                 <span role="status" className="shrink-0 text-xs text-zinc-300">{selectedVisibleFrames.length} selected</span>
-                <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
-                  onClick={() => setExportFrames(selectedVisibleFrames)}>Export</button>
                 <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setSelectionLookOpen(true)}>Apply look</button>
                 <button type="button" disabled={!!autoAdjustController.current} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"

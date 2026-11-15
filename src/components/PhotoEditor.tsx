@@ -68,6 +68,9 @@ interface Props {
   needsAccess: boolean;
   bindings: KeyBindingsMap;
   onEdit: (edit: PhotoEdit) => void;
+  /** Route primary Export through the existing single/batch export workflow. */
+  onExport?: () => void;
+  exportCount?: number;
   onExportRequested?: (frames: readonly PhotoFrame[]) => void;
   /** Applying a named look is a deliberate batch action when multiple photos are selected. */
   onApplyLook?: (edit: PhotoEdit) => void;
@@ -89,7 +92,7 @@ interface Props {
 }
 
 export function PhotoEditor({ autoEdit, onOpenMacroPad,
-  frame, provider, needsAccess, bindings, onEdit, onApplyLook, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
+  frame, provider, needsAccess, bindings, onEdit, onApplyLook, onExport, exportCount = 1, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, showFilmstrip,
 }: Props) {
@@ -177,6 +180,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [markFocus, setMarkFocus] = useState(false);
   const [transform, setTransform] = useState({ zoom: 1, pan: { x: 0, y: 0 } });
   const [exportOpen, setExportOpen] = useState(false);
+  const openExport = () => { if (onExport) onExport(); else setExportOpen(true); };
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [confirmApply, setConfirmApply] = useState(false);
   const [editNotice, setEditNotice] = useState('');
@@ -646,9 +650,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             {fullscreen ? <Minimize className="h-4 w-4" aria-hidden="true" /> : <Maximize className="h-4 w-4" aria-hidden="true" />}
           </button>
         )}
-        <button type="button" disabled={sourceState !== 'ready'} onClick={() => setExportOpen(true)} title="Export this photo for social media or full size"
+        <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? `Export ${exportCount} selected photos` : "Export this photo for social media or full size"}
           className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover! max-md:hidden`}>
-          <Download className="h-4 w-4" aria-hidden="true" />Export
+          <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? `Export ${exportCount}` : "Export"}
         </button>
         {onOpenMacroPad && (
           <button type="button" className={`${button} inline-flex items-center`} onClick={onOpenMacroPad}
@@ -810,7 +814,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         {tab === 'export' && (
           <div role="tabpanel" id="panel-export" aria-labelledby="tab-export" className="space-y-2 px-1 pt-2">
             <p className="text-sm text-zinc-300">Pick a platform and shape, preview the crop, then save.</p>
-            <button type="button" disabled={sourceState !== 'ready'} className={`${button} w-full border border-white/10 font-semibold`} onClick={() => setExportOpen(true)}>
+            <button type="button" disabled={sourceState !== 'ready'} className={`${button} w-full border border-white/10 font-semibold`} onClick={openExport}>
               Choose formats and export…
             </button>
           </div>
@@ -1092,7 +1096,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       </div>
       {isPhone && tabList}
       </div>
-      {exportOpen && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} onDownloadRequested={onExportRequested} />}
+      {exportOpen && !onExport && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} onDownloadRequested={onExportRequested} />}
     </section>
   );
 }
