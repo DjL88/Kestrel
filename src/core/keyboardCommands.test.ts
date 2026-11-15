@@ -87,3 +87,22 @@ test('ambiguous remapped culling shortcuts never trigger an arbitrary decision',
     event: { key: 'k', code: 'KeyK' }, bindings: crossMode, activeMode: 'cull', isSuppressed: false,
   })?.id, 'cull.keep');
 });
+
+test('code-less keyboard events retain punctuation shortcut bindings', () => {
+  const cases: Array<[string, string]> = [
+    ['/', 'Slash'], ['\\', 'Backslash'], ['-', 'Minus'],
+    ['=', 'Equal'], ['[', 'BracketLeft'], [']', 'BracketRight'],
+    [',', 'Comma'], ['.', 'Period'],
+  ];
+  for (const [key, chord] of cases) {
+    assert.equal(normalizeKeyChord({ key, code: '' }), chord);
+  }
+  assert.equal(resolveKeyboardCommand({
+    event: { key: '/', code: '' },
+    bindings: DEFAULT_KEY_BINDINGS, activeMode: 'cull', isSuppressed: false,
+  })?.id, 'cull.toggleShortcuts');
+  assert.equal(resolveKeyboardCommand({
+    event: { key: '\\', code: '' },
+    bindings: DEFAULT_KEY_BINDINGS, activeMode: 'edit', isSuppressed: false,
+  })?.id, 'edit.beforeAfter');
+});
