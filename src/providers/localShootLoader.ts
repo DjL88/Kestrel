@@ -4,7 +4,7 @@ import type { PhotoFrame, ShootDescriptor } from '../core/types';
 import type { BrowserCatalogueStore } from './browserCatalogueStore';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 
-const SUPPORTED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.nef']);
+const SUPPORTED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.nef', '.nrw']);
 
 export function isSupportedPhotoFilename(name: string): boolean {
   const lower = name.toLowerCase();

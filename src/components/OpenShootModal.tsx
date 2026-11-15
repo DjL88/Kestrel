@@ -88,14 +88,14 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
                 Image files
               </div>
               <p className="text-xs text-zinc-400 mt-1">
-                Drop photos here or select files. NEFs use embedded previews.
+                Drop photos here or select files. Nikon NEF/NRW files use embedded JPEG previews, not full RAW decoding.
               </p>
             </div>
             <input
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".jpg,.jpeg,.png,.webp,.nef,image/jpeg,image/png,image/webp"
+              accept=".jpg,.jpeg,.png,.webp,.nef,.nrw,image/jpeg,image/png,image/webp"
               className="hidden"
               data-testid="local-file-input"
               onChange={(e) => {
@@ -115,7 +115,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
           </div>
 
           {folderError && <p role="alert" className="text-sm text-orange-200">{folderError}</p>}
-          {dropError && <p role="alert" className="text-sm text-orange-200">Choose a JPEG, PNG, WebP or Nikon NEF file.</p>}
+          {dropError && <p role="alert" className="text-sm text-orange-200">Choose a JPEG, PNG, WebP or Nikon NEF or NRW file.</p>}
 
           {/* Option 2: Local Folder (File System Access API) */}
           <div className="p-4 rounded-lg bg-[#1A1D23] border border-white/10 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
