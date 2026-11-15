@@ -37,7 +37,7 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
 
   async function analyse() {
     const picture = getPicture();
-    if (!picture) return;
+    if (!picture) { setError('The photo is not ready to look at yet. Try again in a moment.'); return; }
     const mine = ++run.current;
     setBusy(true);
     setError('');
