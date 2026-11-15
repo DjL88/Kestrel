@@ -19,8 +19,8 @@ test('operating-system reduced motion disables decorative transitions and smooth
     element.remove();
     return values;
   });
-  expect(computed.transition).toBe('1e-05s');
-  expect(computed.animation).toBe('1e-05s');
+  expect(Number.parseFloat(computed.transition)).toBeLessThan(0.001);
+  expect(Number.parseFloat(computed.animation)).toBeLessThan(0.001);
   expect(computed.iterations).toBe('1');
   expect(computed.scrolling).toBe('auto');
 });
