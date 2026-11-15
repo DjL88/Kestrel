@@ -47,6 +47,13 @@ export function validExifDimension(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : undefined;
 }
 
+/** Prefer original capture time, falling back only when that tag is unusable. */
+export function validExifCaptureTimestamp(original: unknown, created: unknown): number | undefined {
+  return [original, created]
+    .find((value): value is Date => value instanceof Date && Number.isFinite(value.getTime()))
+    ?.getTime();
+}
+
 export function formatFocalLength(focalLengthMm?: number): string {
   if (
     typeof focalLengthMm !== 'number' ||
@@ -152,9 +159,7 @@ export async function parseImageExif(
     const rating = readEmbeddedRating(segments?.xmp?.Rating, parsed.Rating);
 
     // A malformed DateTimeOriginal must not mask a valid CreateDate fallback.
-    const capturedAtMs = [parsed.DateTimeOriginal, parsed.CreateDate]
-      .find((value): value is Date => value instanceof Date && Number.isFinite(value.getTime()))
-      ?.getTime();
+    const capturedAtMs = validExifCaptureTimestamp(parsed.DateTimeOriginal, parsed.CreateDate);
 
     const shutter = formatShutterSpeed(
       typeof parsed.ExposureTime === 'number' ? parsed.ExposureTime : undefined
