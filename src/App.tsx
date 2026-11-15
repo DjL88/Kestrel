@@ -1238,8 +1238,6 @@ export default function App() {
               bindings={prefs.bindings}
               provider={previewProviderRef.current!}
               needsAccess={needsAccess}
-              burstMates={burstMates(cullingState.frames, selectedFrame)}
-              onTagPhotos={(ids, name, kind) => setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() }, frames: tagFrames(prev.frames, ids, name, kind) }))}
               onEdit={(edit) => updateFrame(selectedFrame.id, { edit: isEmptyEdit(edit) ? undefined : { ...edit } })}
               copiedEdit={copiedEdit}
               onCopyEdit={setCopiedEdit}
@@ -1255,9 +1253,6 @@ export default function App() {
               keeperCount={counts.keep}
               onApplyToKeepers={applyEditToKeepers}
               onUndoKeeperEdits={batchUndo ? undoKeeperEdits : undefined}
-              onSubjectsChange={(tags, subjectKind) => setSubjects(selectedFrame, tags, subjectKind)}
-              onAutoTag={(name, kind) => { if (mayAutoTag(selectedFrame, name)) updateFrame(selectedFrame.id, { ...applyAutoTag(selectedFrame, name), ...(selectedFrame.subjectKind || !kind ? {} : { subjectKind: kind }) }); }}
-              onKeepTag={(name) => keepTag(selectedFrame, name)}
             />
           )}
           {!editing && liveFrames.length === 0 && (
