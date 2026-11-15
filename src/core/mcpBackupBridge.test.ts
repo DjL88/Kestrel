@@ -77,3 +77,26 @@ test('reject invalid backup, unknown tool and bad arguments without crashing or 
   ]);
   for (const item of wrong) assert.equal(item.result.isError, true);
 });
+
+test('unrecognised edit fields never leak through read-only MCP tools', () => {
+  const privateProject = JSON.parse(JSON.stringify(sample));
+  privateProject.project.frames[0].edit = {
+    exposure: 0.5, warmth: 0, colour: 0,
+    privateFilePath: '/Users/private/Secrets/Raw.NEF', apiToken: 'NEVER-EXPOSE',
+    masks: [{ kind: 'brush', enabled: true, hiddenPath: '/private/mask' }],
+  };
+  privateProject.project.frames[0].framing = {
+    ratio: 1.5, turns: 1, straighten: 0, x: 0.5, y: 0.5, hiddenCredentials: 'SECRET',
+  };
+  privateProject.project.frames[0].focusPoint = { x: 0.2, y: 0.7, privateNote: 'DO-NOT-RETURN' };
+  const result = run(privateProject, [
+    call(1, 'tools/call', { name: 'get_edit_recipe', arguments: { photo_id: 'p1' } }),
+  ]);
+  const output = JSON.stringify(result);
+  assert.doesNotMatch(output, /NEVER-EXPOSE|Users\\/private|SECRET|DO-NOT-RETURN|hiddenPath/);
+  const recipe = JSON.parse(result[0].result.content[0].text);
+  assert.equal(recipe.edit.exposure, 0.5);
+  assert.deepEqual(recipe.edit.masks, [{ kind: 'brush', enabled: true }]);
+  assert.equal(recipe.framing.ratio, 1.5);
+  assert.deepEqual(recipe.focusPoint, { x: 0.2, y: 0.7 });
+});
