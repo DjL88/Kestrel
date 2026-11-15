@@ -10,6 +10,8 @@ interface Props {
   aspect: number;
   rect: CSSProperties;
   brushRadius: number;
+  /** Brush masks only paint while a paint or erase tool is switched on, so the photo can still be panned and zoomed. */
+  paintOn?: boolean;
   erase: boolean;
   onChange: (mask: Mask) => void;
 }
@@ -44,7 +46,7 @@ function Handle({ x, y, label, onMove }: { x: number; y: number; label: string; 
 }
 
 /** Direct editing of the selected mask on the photo. Geometry is in the framed photo's own 0 to 1 space. */
-export function MaskOverlay({ mask, masks, aspect, rect, brushRadius, erase, onChange }: Props) {
+export function MaskOverlay({ mask, masks, aspect, rect, brushRadius, paintOn = false, erase, onChange }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const shade = useRef<HTMLCanvasElement>(null);
   const [box, setBox] = useState({ w: 1, h: 1 });
@@ -118,7 +120,7 @@ export function MaskOverlay({ mask, masks, aspect, rect, brushRadius, erase, onC
       strokeLinecap="round" strokeLinejoin="round" strokeDasharray={erase ? `${brushRadius * w} ${brushRadius * w}` : undefined} />;
   }
 
-  const painting = mask.kind === 'brush' || mask.kind === 'subject';
+  const painting = (mask.kind === 'brush' || mask.kind === 'subject') && paintOn;
   return (
     <div ref={root} className={`absolute z-10 ${painting ? 'pointer-events-auto cursor-crosshair touch-none' : 'pointer-events-none'}`} style={rect}
       onPointerDown={painting ? (event) => {

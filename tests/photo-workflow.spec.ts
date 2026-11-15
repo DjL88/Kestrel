@@ -123,6 +123,19 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await light.press('ArrowLeft');
   await expect(light).toHaveValue('0.1');
 
+  // Delete removes the selected mask, and a brush only paints once Paint is switched on.
+  await page.getByRole('tab', { name: 'Masks' }).click();
+  await page.getByRole('button', { name: /^Brush$/ }).click();
+  await expect(page.getByRole('tab', { name: /Masks\s*1/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Paint', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('button', { name: 'Paint', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Paint', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Paint', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Paint', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('Delete');
+  await expect(page.getByRole('tab', { name: /Masks\s*1/ })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Edit' }).click();
+
   await page.getByRole('button', { name: 'Export', exact: true }).click();
   const exportHeading = page.getByRole('heading', { name: 'Export photo' });
   const prepare = page.getByRole('button', { name: 'Prepare 1 file', exact: true });

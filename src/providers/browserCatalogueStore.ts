@@ -1,3 +1,4 @@
+import { projectSearchText } from '../core/projects';
 import {
   DEFAULT_KEY_BINDINGS,
   type KeyBindingsMap,
@@ -157,6 +158,12 @@ export class BrowserCatalogueStore implements CatalogueStore {
     } finally {
       db.close();
     }
+  }
+
+  /** Searchable text for each project's photos, so the home page can find a project by what is inside it. */
+  async searchIndex(): Promise<Record<string, string>> {
+    const states = await this.allProjectStates();
+    return Object.fromEntries(states.map((state) => [state.shoot.id, projectSearchText(state.frames)]));
   }
 
   async loadProject(id: string): Promise<CullingState | null> {
