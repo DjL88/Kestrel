@@ -855,7 +855,7 @@ export default function App() {
       }
       const isModalOpen = openShootModal || macroPadModal;
       if (editing) {
-        if (!isModalOpen && e.key === 'Escape') setEditing(false);
+        if (!isModalOpen && e.key === 'Escape') { setEditing(false); setEditQueueIds(null); setMultiSelect(false); setSelectedIds(new Set()); }
         return;
       }
       const isSuppressed = isModalOpen || isEditableElement(e.target) ||
@@ -1205,10 +1205,10 @@ export default function App() {
         actionsDisabled={Boolean(loadingProgress) || projectBusy}
         onOpenMacroPadModal={() => { setMacroPadMode('cull'); setMacroPadModal(true); }}
         loadingProgress={loadingProgress}
-        onToggleMultiSelect={prefs.viewMode === 'grid' ? () => {
+        onToggleMultiSelect={() => {
           if (multiSelect) setSelectedIds(new Set());
           setMultiSelect(!multiSelect);
-        } : undefined}
+        }}
         multiSelect={multiSelect}
         focusMode={prefs.focusMode}
         onToggleFocusMode={() => {
@@ -1241,7 +1241,7 @@ export default function App() {
         removedCount={removedFrames(cullingState.frames).length}
         onOpenRemoved={removedFrames(cullingState.frames).length ? () => setRemovedOpen(true) : undefined}
         onRedo={cullingState.redoStack.length ? () => executeCommand('cull.redo') : undefined}
-        onEditPhoto={selectedFrame && !loadingProgress ? () => setEditing(true) : undefined}
+        onEditPhoto={selectedFrame && !loadingProgress ? () => { setEditQueueIds(null); setEditing(true); } : undefined}
       />}
 
       <input ref={relinkInput} type="file" hidden multiple accept={PHOTO_ACCEPT}
