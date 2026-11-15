@@ -101,3 +101,11 @@ Primary upstream references:
 - Free exports are limited to `FREE_DAILY_EXPORT_LIMIT` (10) photos per local day, counted on the device (`src/core/dailyAllowance.ts`). It is an honest limit, not a lock: the count is in local storage. Backup and recovery are never counted or blocked.
 - **Beta: everything is open** (`useAccess.ts`) until licence activation exists. To see and test the Free experience: `VITE_KESTREL_PLAN=free KESTREL_PLAN_PREVIEW=free npx playwright test tests/free-plan.spec.ts`. Those tests skip in normal runs.
 - Apple notarisation will use the owner's Apple ID as the repository secret `APPLE_ID` (never committed), plus an app-specific password and Team ID the owner creates.
+
+## Current decision: keep it simple (supersedes the three tiers above)
+- **Free** and **Paid, £29 once**. No accounts, no cloud, no user data. The monthly Cloud + AI plan is parked; a "Pro" with ongoing costs (managed storage, hosted AI, sync through our servers) is only built if customers ask, and the app never depends on it or advertises it inside the editor.
+- **Storage is the customer's own:** a sync folder (works with iCloud Drive, Dropbox, OneDrive, Google Drive's app), their own S3-compatible bucket, or a NAS. Several devices can share one folder. See `docs/CLOUD-PLAN.md` section 1a and `src/core/storageConnectors.ts`.
+- **Paid is unlocked by an offline licence key** (`src/core/licence.ts`): "KESTREL1.<details>.<signature>", checked in the app against a built-in public key. No server, no login, works offline. It holds no personal data; the buyer's email and receipt stay with the payment provider (proposed: Paddle). Keys can be shared; that is accepted. A lost key is re-sent from the receipt.
+- **Issuing keys:** `node tools/licence/issue.mjs` signs one with the private key at `~/.kestrel-signing/licence.key.pem` (owner's Mac only, never in the repo; back it up, as losing it means no new keys can be issued and a new public key would need a new app release). A tiny payment-webhook function can run the same code later.
+- **Hosted AI** stays a quiet fallback: only when on-device cannot answer, with consent, and failing silently.
+- **Next:** the app reads and verifies the stored key (`useAccess.ts`), a "Enter licence key" screen, then the sync-folder connector. Until then everything stays open (beta).
