@@ -71,6 +71,10 @@ export interface PhotoFrame {
   tags?: string[];
   /** What the photo is mainly of, chosen by the user. */
   subjectKind?: import('./subjectTags').SubjectKind;
+  /** Tags the app added by itself and the user has not yet kept. Always also in `tags`. */
+  autoTags?: string[];
+  /** Names the user removed from this photo, so the app never adds them to it again. */
+  declinedTags?: string[];
   burstGroupId: string | null;
   burstIndex: number;
   burstCount: number;

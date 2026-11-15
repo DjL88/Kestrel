@@ -1,3 +1,4 @@
+import { applyAutoTag, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTags';
 import { burstMates, tagFrames } from './core/speciesBurst';
 import { Copy, ClipboardPaste, Pin, PinOff } from 'lucide-react';
 import { newId } from './core/ids';
@@ -659,7 +660,7 @@ export default function App() {
     [selectedFrame, handleDecideFrame, toggleCompareView, prefs.knobMode, handleStepFrame]
   );
 
-  const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames' | 'tags' | 'subjectKind' | 'rating' | 'framing' | 'focusPoint'>) => {
+  const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames' | 'tags' | 'subjectKind' | 'autoTags' | 'declinedTags' | 'rating' | 'framing' | 'focusPoint'>) => {
     const at = Date.now();
     const isRecipe = 'edit' in patch || 'framing' in patch;
     setCullingState((prev) => ({
@@ -1136,7 +1137,9 @@ export default function App() {
               keeperCount={counts.keep}
               onApplyToKeepers={applyEditToKeepers}
               onUndoKeeperEdits={batchUndo ? undoKeeperEdits : undefined}
-              onSubjectsChange={(tags, subjectKind) => updateFrame(selectedFrame.id, { tags, subjectNames: [], subjectKind })}
+              onSubjectsChange={(tags, subjectKind) => updateFrame(selectedFrame.id, { tags, subjectNames: [], subjectKind, ...reconcileAuto(selectedFrame, tags) })}
+              onAutoTag={(name, kind) => { if (mayAutoTag(selectedFrame, name)) updateFrame(selectedFrame.id, { ...applyAutoTag(selectedFrame, name), ...(selectedFrame.subjectKind || !kind ? {} : { subjectKind: kind }) }); }}
+              onKeepTag={(name) => updateFrame(selectedFrame.id, { autoTags: keepAuto(selectedFrame, name) })}
             />
           )}
           {!editing && liveFrames.length === 0 && (

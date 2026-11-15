@@ -41,6 +41,9 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   if (value.rating !== undefined && (!number(value.rating, 0, 5) || !Number.isInteger(value.rating))) return false;
   if (value.removedAt !== undefined && !number(value.removedAt, 0)) return false;
   if (value.tags !== undefined && (!Array.isArray(value.tags) || value.tags.length > 24 || !value.tags.every(text))) return false;
+  for (const field of ['autoTags', 'declinedTags']) {
+    if (value[field] !== undefined && (!Array.isArray(value[field]) || (value[field] as unknown[]).length > 48 || !(value[field] as unknown[]).every(text))) return false;
+  }
   if (value.subjectKind !== undefined && !['wildlife', 'people', 'landscape', 'other'].includes(value.subjectKind as string)) return false;
   if (value.subjectNames !== undefined && (!Array.isArray(value.subjectNames) || !value.subjectNames.every(text))) return false;
   for (const field of ['camera', 'lens', 'shutterSpeed', 'formatLabel']) {

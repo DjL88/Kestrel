@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bird, Mountain, Plus, Tag, UserRound, X } from 'lucide-react';
+import { Bird, Check, Mountain, Plus, Tag, UserRound, X } from 'lucide-react';
 import { STARTER_TAGS, SUBJECT_KINDS, addTags, parseTagInput, removeTag, type SubjectKind } from '../core/subjectTags';
 
 const ICONS: Record<SubjectKind, typeof Bird> = { wildlife: Bird, people: UserRound, landscape: Mountain, other: Tag };
@@ -7,7 +7,10 @@ const ICONS: Record<SubjectKind, typeof Bird> = { wildlife: Bird, people: UserRo
 interface Props {
   kind: SubjectKind | undefined;
   tags: string[];
+  /** Tags the app added by itself and the user has not kept yet. They are marked, and can be kept or removed. */
+  autoTags?: string[];
   disabled?: boolean;
+  onKeep?: (tag: string) => void;
   onChange: (tags: string[], kind: SubjectKind | undefined) => void;
 }
 
@@ -15,7 +18,7 @@ interface Props {
  * What a photo is of, in the user's own words. Choose a kind, then add tags by typing or tapping a quick word.
  * Tags stay on this device and make photos easy to find from the search boxes.
  */
-export function SubjectPanel({ kind, tags, disabled, onChange }: Props) {
+export function SubjectPanel({ kind, tags, autoTags = [], disabled, onKeep, onChange }: Props) {
   const [text, setText] = useState('');
   const add = (incoming: string[]) => {
     const next = addTags(tags, incoming);
@@ -40,8 +43,15 @@ export function SubjectPanel({ kind, tags, disabled, onChange }: Props) {
       {tags.length > 0 && (
         <ul aria-label="Tags" className="flex flex-wrap gap-1">
           {tags.map((tag) => (
-            <li key={tag} className="inline-flex items-center rounded-full bg-white/10 pl-3 text-sm text-zinc-100">
+            <li key={tag} className={`inline-flex items-center rounded-full pl-3 text-sm text-zinc-100 ${autoTags.some((entry) => entry.toLowerCase() === tag.toLowerCase()) ? 'border border-dashed border-sky-300/60 bg-sky-300/10' : 'bg-white/10'}`}>
               {tag}
+              {autoTags.some((entry) => entry.toLowerCase() === tag.toLowerCase()) && (
+                <>
+                  <span className="ml-1.5 rounded bg-sky-300/20 px-1.5 text-[11px] font-medium uppercase tracking-wide text-sky-100" title="Added automatically because the model was sure. Keep it or remove it.">Auto</span>
+                  <button type="button" disabled={disabled} aria-label={`Keep tag ${tag}`} title={`Keep ${tag}`} onClick={() => onKeep?.(tag)}
+                    className="grid h-9 w-9 place-items-center rounded-full text-emerald-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300"><Check className="h-3.5 w-3.5" aria-hidden="true" /></button>
+                </>
+              )}
               <button type="button" disabled={disabled} aria-label={`Remove tag ${tag}`} title={`Remove ${tag}`} onClick={() => onChange(removeTag(tags, tag), kind)}
                 className="grid h-9 w-9 place-items-center rounded-full hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300"><X className="h-3.5 w-3.5" aria-hidden="true" /></button>
             </li>
