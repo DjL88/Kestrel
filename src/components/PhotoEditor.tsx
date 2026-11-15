@@ -261,6 +261,18 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
 
   const [histogram, setHistogram] = useState<HistogramData | null>(null);
   const source = sourceState === 'ready' ? sourceImage.current : null;
+  // Compute one small, unedited sample when the photo or framing changes.
+  // All look thumbnails share it, instead of decoding or processing the full image twelve times.
+  const lookPreviewSource = useMemo(() => {
+    if (!source || tab !== 'auto') return null;
+    try {
+      const canvas = document.createElement('canvas');
+      drawFramedPhoto(source, canvas, framing, { scale: Math.min(1, 160 / Math.max(source.naturalWidth, source.naturalHeight)) });
+      return canvas.getContext('2d', { willReadFrequently: true })?.getImageData(0, 0, canvas.width, canvas.height) ?? null;
+    } catch {
+      return null;
+    }
+  }, [source, framing, tab]);
   const guide = cropOpen && !previewCrop;
   const displayFraming = useMemo(() => displayFramingFor(framing, guide), [framing, guide]);
   const displayCompare = compare && !guide && sourceState === 'ready';
@@ -761,7 +773,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           )}
         <section aria-label="Photo looks" className="space-y-1 border-t border-white/10 pt-2">
           <h3 className="text-sm font-medium text-zinc-100">Looks</h3>
-          <PresetPanel edit={edit} disabled={sourceState !== 'ready'} onApply={(next) => onEdit({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />
+          <PresetPanel edit={edit} disabled={sourceState !== 'ready'} previewSource={lookPreviewSource} onApply={(next) => onEdit({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />
         </section>
         <Histogram data={histogram} teach />
 
