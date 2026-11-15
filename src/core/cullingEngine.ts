@@ -148,7 +148,8 @@ export function assignBurstGroups(
       currTs - prevTs <= maxGapMs
       // Two cameras can shoot within the same millisecond window; do not
       // mistake interleaved Z8/Z5II captures for a single burst.
-      && (!prev.exif.camera || !frame.exif.camera || prev.exif.camera === frame.exif.camera)
+      // Missing camera tags must not bridge two different known cameras.
+      && (!frame.exif.camera || !currentCluster.some((member) => member.exif.camera && member.exif.camera !== frame.exif.camera))
     ) {
       currentCluster.push(frame);
     } else {

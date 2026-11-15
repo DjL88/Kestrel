@@ -27,3 +27,15 @@ python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
 The harness uses QA-only Python dependencies and makes no network requests during a comparison. Keep originals and reference exports on local or mounted storage. The JSON report records SHA-256 fingerprints of both TIFFs and their shared ICC profile without recording file paths. Pass the optional `--source-nef` argument to include the original NEF checksum in the same report. Supply all five benchmark detail flags with the original NEF to keep body, firmware, compression and renderer builds in the report. These fields are operator supplied. Use one report per body, firmware and compression combination. The fingerprints identify files and profiles. They do not establish how an image was rendered. No SDK binaries or camera samples are bundled.
+
+## Coverage across cameras and firmware
+
+Summarise the reports for the exact NX Studio and candidate builds under test. Repeat a firmware flag if comparing several versions of a body.
+
+```sh
+python scripts/summarise_nikon_coverage.py reports/*.json \
+  --z8-firmware 'your Z8 firmware version' --z5ii-firmware 'your Z5II firmware version' \
+  --nx-studio-build 'your NX Studio build' --candidate-build 'your candidate build'
+```
+
+Each firmware gets separate lossless, HE and HE* rows. A count of zero means no matching report was supplied. A positive count shows how many distinct source NEFs were compared. Judge colour and compatibility using the individual reports and notes from the test session.
