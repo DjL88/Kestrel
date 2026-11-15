@@ -463,7 +463,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           onClick={() => chooseTab(id)}
           className={isPhone
             ? 'relative flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs text-zinc-300 focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:text-white aria-selected:after:absolute aria-selected:after:top-0 aria-selected:after:h-0.5 aria-selected:after:w-10 aria-selected:after:bg-sky-200'
-            : 'flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1 border-b-2 border-transparent px-1.5 text-sm text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:border-sky-200 aria-selected:text-white'}>
+            : 'flex min-h-12 flex-1 shrink-0 flex-col items-center justify-center gap-0.5 border-b-2 border-transparent px-1 text-xs text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:border-sky-200 aria-selected:text-white'}>
           <Icon className={isPhone ? 'h-5 w-5' : 'h-4 w-4'} aria-hidden="true" />
           <span>{label}{id === 'masks' && edit.masks?.length ? <span className="ml-1 text-xs tabular-nums text-zinc-400">{edit.masks.length}</span> : null}</span>
         </button>
