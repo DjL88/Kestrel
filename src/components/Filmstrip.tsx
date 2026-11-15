@@ -128,7 +128,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
               <button
                 type="button"
                 onClick={(e) => {
-                  if (onSelectMarked && (multiSelect || e.shiftKey || e.metaKey || e.ctrlKey)) {
+                  if (onSelectMarked && (multiSelect || e.metaKey || e.ctrlKey || (e.shiftKey && !isCompareMode))) {
                     onSelectMarked(frame.id, { shift: e.shiftKey, toggle: e.ctrlKey || e.metaKey });
                   } else if (isCompareMode && e.shiftKey && onSelectCompareRight) {
                     onSelectCompareRight(frame.id);
