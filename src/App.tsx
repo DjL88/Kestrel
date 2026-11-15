@@ -23,6 +23,7 @@ import { Copy, ClipboardPaste, Pin, PinOff } from 'lucide-react';
 import { newId } from './core/ids';
 import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
+import { markExportRequested } from './core/compareStages';
 import { AutoCullPanel } from './components/AutoCullPanel';
 import { BatchLookDialog } from './components/BatchLookDialog';
 import { SelectionLookDialog } from './components/SelectionLookDialog';
@@ -765,6 +766,18 @@ export default function App() {
     }));
   };
 
+  const recordDownloadedEdits = (exported: readonly PhotoFrame[]) => {
+    if (!exported.length) return;
+    const at = Date.now();
+    // Snapshot the actual frames sent to export, not potentially newer edits.
+    const snapshots = new Map(exported.map((frame) => [frame.id, markExportRequested(frame, at).lastExport]));
+    setCullingState((prev) => ({
+      ...prev, shoot: { ...prev.shoot, lastUpdatedAt: at },
+      frames: prev.frames.map((frame) => snapshots.has(frame.id)
+        ? { ...frame, lastExport: snapshots.get(frame.id) } : frame),
+    }));
+  };
+
   // Tags and kind for any photo, from the editor or from the info pop-up.
   const setSubjects = (frame: PhotoFrame, tags: string[], subjectKind: SubjectKind | undefined) =>
     updateFrame(frame.id, { tags, subjectNames: [], subjectKind, ...reconcileAuto(frame, tags) });
@@ -1390,6 +1403,7 @@ export default function App() {
           {editing && selectedFrame && (
             <PhotoEditor
               key={selectedFrame.id}
+              onExportRequested={recordDownloadedEdits}
               onOpenMacroPad={() => { setMacroPadMode('edit'); setMacroPadModal(true); }}
               autoEdit={!!cullingState.settings?.autoEdit}
               frame={selectedFrame}
@@ -1746,7 +1760,7 @@ export default function App() {
           setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: at },
             frames: applyKeeperLook(prev.frames, look, includeEdited, at) }));
         }} />}
-      {exportFrames.length > 0 && <PhotoExportPanel frames={exportFrames} provider={previewProviderRef.current!}
+      {exportFrames.length > 0 && <PhotoExportPanel onDownloadRequested={recordDownloadedEdits} frames={exportFrames} provider={previewProviderRef.current!}
         onClose={() => setExportFrames([])} />}
 
       <MacroPadModal

@@ -30,6 +30,8 @@ interface Props {
   provider: BrowserPreviewProvider;
   source?: HTMLImageElement | null;
   onClose: () => void;
+  /** Called when the user requests a file download; the browser may still ask where to save. */
+  onDownloadRequested?: (frames: readonly PhotoFrame[]) => void;
 }
 
 const button = 'min-h-11 rounded-md px-3 text-sm font-medium hover:bg-white/10 disabled:opacity-45';
@@ -65,7 +67,7 @@ function loadChosen(freshStart = false): string[] {
   return freshStart ? [] : ['master'];
 }
 
-export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
+export function PhotoExportPanel({ frames, provider, source, onClose, onDownloadRequested }: Props) {
   const [chosen, setChosen] = useState<string[]>(() => loadChosen(readView() === 'wizard'));
   const [fits, setFits] = useState<Record<string, Fit>>({});
   const [overrides, setOverrides] = useState<Record<string, { prefix?: string; quality?: number }>>({});
@@ -539,9 +541,9 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
             <p role="status" className="text-sm text-zinc-300">{files.length} {files.length === 1 ? 'file ready' : 'files ready'}</p>
             <div className="flex flex-wrap gap-2">
               {files.length === 1 && <button type="button" className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
-                onClick={() => downloadExport(files[0], files[0].name)}>Download</button>}
+                onClick={() => { downloadExport(files[0], files[0].name); onDownloadRequested?.(frames.slice(0, 1)); }}>Download</button>}
               {files.length > 1 && <button type="button" disabled={!zip} className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
-                onClick={() => { if (zip) downloadExport(zip, 'kestrel-exports.zip'); }}>{zip ? 'Download ZIP' : 'Packing ZIP…'}</button>}
+                onClick={() => { if (zip) { downloadExport(zip, 'kestrel-exports.zip'); onDownloadRequested?.(frames); } }}>{zip ? 'Download ZIP' : 'Packing ZIP…'}</button>}
               {canShare && <button type="button" className={button} onClick={() => {
                 void navigator.share({ files }).catch((reason) => {
                   if ((reason as Error).name !== 'AbortError') setError('Could not share these files. Try downloading them.');
@@ -552,7 +554,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
             {files.length > 1 && files.length <= 12 && <details>
               <summary className="min-h-11 cursor-pointer py-2 text-sm">Download individual files</summary>
               {files.map((file, index) => <button type="button" className={`${button} block max-w-full truncate`}
-                key={index} onClick={() => downloadExport(file, file.name)}>{file.name}</button>)}
+                key={index} onClick={() => { downloadExport(file, file.name); const frame = frames[Math.floor(index / selected.length)]; if (frame) onDownloadRequested?.([frame]); }}>{file.name}</button>)}
             </details>}
           </div>
         ) : wizard ? (

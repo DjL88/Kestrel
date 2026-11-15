@@ -62,6 +62,8 @@ export interface PhotoFrame {
   decision: CullDecision;
   edit?: PhotoEdit;
   editHistory?: EditHistory;
+  /** Edit recipe when the user last requested a file download, stored locally. */
+  lastExport?: { at: number; edit?: PhotoEdit; framing?: PhotoFraming };
   framing?: PhotoFraming;
   focusPoint?: FocusPoint;
   rating?: number;
