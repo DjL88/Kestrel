@@ -54,3 +54,22 @@ export function appendProjectPhotos(
     },
   };
 }
+
+/**
+ * Stored copies of local photos that only this project uses, and so can be freed when it is deleted.
+ * A copy shared with another project (the same file added twice) is kept.
+ */
+export function unreferencedBlobKeys(project: CullingState, others: readonly CullingState[]): string[] {
+  const used = new Set(others.flatMap((other) => other.frames.filter((frame) => frame.sourceKind === 'file').map((frame) => frame.stableKey)));
+  return [...new Set(project.frames.filter((frame) => frame.sourceKind === 'file').map((frame) => frame.stableKey))]
+    .filter((key) => !used.has(key));
+}
+
+export function setArchived(project: CullingState, archivedAt: number | undefined): CullingState {
+  const { archivedAt: _previous, ...shoot } = project.shoot;
+  return { ...project, shoot: archivedAt ? { ...shoot, archivedAt } : shoot };
+}
+
+export function splitProjects<T extends { archivedAt?: number }>(projects: readonly T[]): { active: T[]; archived: T[] } {
+  return { active: projects.filter((project) => !project.archivedAt), archived: projects.filter((project) => project.archivedAt) };
+}

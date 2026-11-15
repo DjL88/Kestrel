@@ -82,6 +82,8 @@ export interface ShootDescriptor {
   needsFileReselect?: boolean;
   createdAt: number;
   lastUpdatedAt: number;
+  /** Set when the project is archived. Archived projects are hidden from the main list and can be restored. */
+  archivedAt?: number;
 }
 
 export interface DecisionHistoryEntry {
