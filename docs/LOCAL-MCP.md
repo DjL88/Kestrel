@@ -31,7 +31,7 @@ On Windows use Windows paths (escaped backslashes in JSON), such as `C:\\Users\\
 - `get_project_summary`: project title and number of keepers, rejects and unreviewed photos
 - `list_photos`: paginated names, ratings, decisions and labels, optionally filtered by decision
 - `get_photo_info`: selected photo's camera, lens and exposure settings, rating and tags; excludes GPS, serial numbers and local file paths
-- `get_edit_recipe`: selected photo's reversible edit, framing and focus point
+- `get_edit_recipe`: selected photo's recognised tone and detail adjustments, crop, focus point, and mask-type summary; unknown backup fields and mask internals are deliberately not shared
 
 There are **no write tools**. The process runs only over **stdio**, does not listen on a port and makes no network request. The selected backup remains unchanged. The server never opens photo files, scans directories, fetches external APIs or shares photo pixels.
 
@@ -46,3 +46,5 @@ The tool exposes data from a Kestrel backup only after explicit user selection. 
 - It doesn't grant hosted AI subscription access or use a cloud service.
 
 Run unit/integration tests with `npm test`, including `src/core/mcpBackupBridge.test.ts` (spawns the real MCP process).
+
+**Privacy clarification:** The read-only MCP bridge returns an allowlisted edit summary, not the complete unfiltered backup recipe. Unknown fields inside imported JSON are never passed to the assistant; full editable backups remain local. Mask geometry and model payloads are omitted because they could be large or contain data not required for a photographic summary.
