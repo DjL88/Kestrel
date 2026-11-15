@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Download } from 'lucide-react';
 import { megabytes } from '../core/speciesModel';
 import type { useSpeciesScan } from '../useSpeciesScan';
-import { openHelperDialog } from '../providers/helperSettings';
+import { ONLINE_HELPER_VISIBLE, openHelperDialog } from '../providers/helperSettings';
 
 /**
  * On the project page: offers to turn on species recognition, and shows how far the background look has got.
@@ -13,7 +13,7 @@ export function SpeciesScanBanner({ scan }: { scan: ReturnType<typeof useSpecies
   if (scan.status === 'checking') return null;
   if (scan.error) return <p role="alert" className="mx-2 mb-2 rounded-lg border border-orange-300/30 bg-orange-300/10 px-3 py-2 text-sm text-orange-100">{scan.error}</p>;
   const offlineAvailable = scan.status === 'not-downloaded';
-  if (!scan.helperOn && (offlineAvailable || scan.status === 'unavailable')) {
+  if (!scan.helperOn && (offlineAvailable || (scan.status === 'unavailable' && ONLINE_HELPER_VISIBLE))) {
     if (hidden || scan.pending === 0) return null;
     return (
       <section aria-label="Species recognition" className="mx-2 mb-2 rounded-lg border border-white/12 bg-white/5 px-3">
@@ -28,7 +28,7 @@ export function SpeciesScanBanner({ scan }: { scan: ReturnType<typeof useSpecies
                 {offlineAvailable && <button type="button" onClick={() => void scan.download()} className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-white/20 px-3 text-sm font-medium hover:bg-white/10">
                   <Download className="h-4 w-4" aria-hidden="true" />Download ({megabytes(scan.size)})
                 </button>}
-                <button type="button" onClick={() => openHelperDialog()} className="min-h-11 px-2 text-sm text-zinc-300 underline underline-offset-4 hover:text-white">Online helper settings</button>
+                {ONLINE_HELPER_VISIBLE && <button type="button" onClick={() => openHelperDialog()} className="min-h-11 px-2 text-sm text-zinc-300 underline underline-offset-4 hover:text-white">Online helper settings</button>}
                 <button type="button" onClick={() => setHidden(true)} className="min-h-11 px-2 text-sm text-zinc-300 underline underline-offset-4 hover:text-white">Not now</button>
               </>
             ) : <progress aria-label="Downloading species recognition" className="block w-48" value={scan.downloading} max={1} />}
