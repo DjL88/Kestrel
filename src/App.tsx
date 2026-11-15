@@ -842,6 +842,9 @@ export default function App() {
   const onDroppedPhotos = useCallback((files: File[]) => { if (projectsOpen) void quickEditRef.current(files); else void droppedInProjectRef.current(files); }, [projectsOpen]);
   const drop = useDropPhotos(onDroppedPhotos);
   const watch = useFolderWatch(useCallback((files: File[]) => { void droppedInProjectRef.current(files); }, []));
+  // Watching belongs to the current project. Never silently import into another
+  // project after switching workspaces or returning to the home screen.
+  useEffect(() => { if (projectsOpen) watch.stop(); }, [projectsOpen, cullingState.shoot.id, watch.stop]);
 
   const handleSelectLocalFiles = async (files: File[], options?: { openEditor?: boolean }) => {
     // A photo that was removed from the library does not count as already added, so adding it again brings it back.
