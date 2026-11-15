@@ -4,7 +4,11 @@ export interface PhotoFraming {
   straighten: number;
   x: number;
   y: number;
+  /** Crop box size as a fraction of the largest box for the ratio. Absent or 1 means the largest. */
+  size?: number;
 }
+
+export const MIN_CROP_SIZE = 0.08;
 
 export const DEFAULT_FRAMING: PhotoFraming = { ratio: null, turns: 0, straighten: 0, x: 0.5, y: 0.5 };
 
@@ -12,10 +16,37 @@ export interface PixelRect { x: number; y: number; width: number; height: number
 
 export function cropRectangle(width: number, height: number, framing: PhotoFraming) {
   const ratio = framing.ratio ?? width / height;
-  const w = Math.max(1, Math.round(Math.min(width, height * ratio)));
-  const h = Math.max(1, Math.round(Math.min(height, width / ratio)));
+  const size = Math.max(MIN_CROP_SIZE, Math.min(1, framing.size ?? 1));
+  const w = Math.max(1, Math.round(Math.min(width, height * ratio) * size));
+  const h = Math.max(1, Math.round(Math.min(height, width / ratio) * size));
   const clamp = (value: number, max: number) => Math.round(Math.max(0, Math.min(max, value)));
   return { width: w, height: h, x: clamp(framing.x * width - w / 2, width - w), y: clamp(framing.y * height - h / 2, height - h) };
+}
+
+export type CropCorner = 'tl' | 'tr' | 'bl' | 'br';
+
+/**
+ * Drag one corner of the crop box to a point, in pixels of the (rotated) image. The opposite corner stays put and
+ * the ratio is kept. With no ratio chosen yet, the photo's own ratio is locked in, so the first drag never distorts it.
+ */
+export function resizeCrop(
+  width: number, height: number, framing: PhotoFraming, corner: CropCorner, pointer: { x: number; y: number },
+): PhotoFraming {
+  const ratio = framing.ratio ?? width / height;
+  const box = cropRectangle(width, height, { ...framing, ratio });
+  const right = corner === 'tr' || corner === 'br';
+  const bottom = corner === 'bl' || corner === 'br';
+  // The corner that stays fixed is the opposite one.
+  const fixed = { x: right ? box.x : box.x + box.width, y: bottom ? box.y : box.y + box.height };
+  const room = { x: right ? width - fixed.x : fixed.x, y: bottom ? height - fixed.y : fixed.y };
+  const wanted = Math.max(Math.abs(pointer.x - fixed.x), Math.abs(pointer.y - fixed.y) * ratio);
+  const largest = Math.min(width, height * ratio);
+  const w = Math.max(largest * MIN_CROP_SIZE, Math.min(wanted, room.x, room.y * ratio));
+  const h = w / ratio;
+  const left = right ? fixed.x : fixed.x - w;
+  const top = bottom ? fixed.y : fixed.y - h;
+  const clamp = (value: number) => Math.max(0, Math.min(1, value));
+  return { ...framing, ratio, size: Math.min(1, w / largest), x: clamp((left + w / 2) / width), y: clamp((top + h / 2) / height) };
 }
 
 /** Estimate a crop anchor from local detail in a small preview. */

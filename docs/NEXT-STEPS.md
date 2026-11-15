@@ -88,3 +88,8 @@ Gradient, oval and brush masks, each with its own Light, Warmth, Colour, Contras
 - Geometry is stored 0 to 1 across the framed (cropped) photo, with lengths in photo widths, so masks stay round at any ratio. Changing the crop afterwards moves masks with the crop box.
 - Rendering: the whole-photo edit runs on the GPU when it can. Masks run on the CPU afterwards in bands, using the same edit maths on a copy blended by mask strength. GPU masks are a later optimisation.
 - Not done: subject and background masks (needs an ONNX model, see the prompt above), mask copy and paste between photos, a brush cursor preview, keyboard painting.
+
+## Crop corners (feat/crop-corners)
+The crop box has four draggable corners. The opposite corner stays fixed and the chosen aspect ratio is kept. With "Original" selected, the first drag locks the photo's own ratio, so it never distorts. Corners also work with the arrow keys (Shift for larger steps), and a Crop size slider covers touch and keyboard. Double-click the slider to go back to the largest box. Dragging the box still moves it.
+- Stored as `framing.size` (0.08 to 1, absent means the largest box), validated in backups and counted by the edited marker.
+- Free-form crops with no locked ratio are not supported by the framing model. Choose a ratio, or lock the original one.

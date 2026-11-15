@@ -55,7 +55,7 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   const framing = value.framing;
   if (framing !== undefined && (!record(framing) || (framing.ratio !== null && !number(framing.ratio, 0.01, 100)) ||
     !number(framing.turns, 0, 3) || !Number.isInteger(framing.turns) || !number(framing.straighten, -12, 12) ||
-    !number(framing.x, 0, 1) || !number(framing.y, 0, 1))) return false;
+    !number(framing.x, 0, 1) || !number(framing.y, 0, 1) || (framing.size !== undefined && !number(framing.size, 0.05, 1)))) return false;
   const focus = value.focusPoint;
   if (focus !== undefined && (!record(focus) || !number(focus.x, 0, 1) || !number(focus.y, 0, 1))) return false;
   const copy = value.virtualCopy;

@@ -50,3 +50,53 @@ test('auto-level accepts a strong horizon and skips a flat photo', async () => {
   const crop = cropRectangle(1200, 800, { ...DEFAULT_FRAMING, ...anchor, ratio: 1 });
   assert.ok(Math.abs((420 - crop.x) / crop.width - 1 / 3) < 0.01);
 });
+
+import { resizeCrop, DEFAULT_FRAMING as FRAMING } from './photoFraming';
+
+test('a smaller size shrinks the crop box and keeps its ratio', () => {
+  const full = cropRectangle(6000, 4000, { ...FRAMING, ratio: 1.5 });
+  const half = cropRectangle(6000, 4000, { ...FRAMING, ratio: 1.5, size: 0.5 });
+  assert.equal(half.width, full.width / 2);
+  assert.ok(Math.abs(half.width / half.height - 1.5) < 0.01);
+});
+
+test('dragging the bottom-right corner in keeps the top-left corner and the ratio', () => {
+  const framing = resizeCrop(6000, 4000, { ...FRAMING, ratio: 1.5 }, 'br', { x: 4000, y: 2500 });
+  const box = cropRectangle(6000, 4000, framing);
+  assert.equal(box.x, 0);
+  assert.equal(box.y, 0);
+  assert.ok(Math.abs(box.width / box.height - 1.5) < 0.01);
+  assert.ok(box.width < 6000);
+});
+
+test('the opposite corner stays fixed whichever corner is dragged', () => {
+  const start = cropRectangle(6000, 4000, { ...FRAMING, ratio: 1, size: 0.6 });
+  for (const corner of ['tl', 'tr', 'bl', 'br'] as const) {
+    const framing = resizeCrop(6000, 4000, { ...FRAMING, ratio: 1, size: 0.6 }, corner, {
+      x: corner.endsWith('l') ? start.x + start.width * 0.3 : start.x + start.width * 0.7,
+      y: corner.startsWith('t') ? start.y + start.height * 0.3 : start.y + start.height * 0.7,
+    });
+    const box = cropRectangle(6000, 4000, framing);
+    const fixedX = corner.endsWith('l') ? start.x + start.width : start.x;
+    const fixedY = corner.startsWith('t') ? start.y + start.height : start.y;
+    const gotX = corner.endsWith('l') ? box.x + box.width : box.x;
+    const gotY = corner.startsWith('t') ? box.y + box.height : box.y;
+    assert.ok(Math.abs(gotX - fixedX) <= 2, `${corner} x`);
+    assert.ok(Math.abs(gotY - fixedY) <= 2, `${corner} y`);
+    assert.ok(box.width < start.width);
+  }
+});
+
+test('the box cannot be dragged outside the photo or smaller than the minimum', () => {
+  const out = resizeCrop(6000, 4000, { ...FRAMING, ratio: 1.5, size: 0.5, x: 0.5, y: 0.5 }, 'br', { x: 99999, y: 99999 });
+  const box = cropRectangle(6000, 4000, out);
+  assert.ok(box.x + box.width <= 6000 && box.y + box.height <= 4000);
+  const tiny = resizeCrop(6000, 4000, { ...FRAMING, ratio: 1.5 }, 'br', { x: 0, y: 0 });
+  assert.ok(tiny.size! >= 0.08);
+});
+
+test('with no ratio chosen, the first drag locks the photo’s own ratio', () => {
+  const framing = resizeCrop(6000, 4000, FRAMING, 'tl', { x: 1500, y: 1000 });
+  assert.equal(framing.ratio, 1.5);
+  assert.ok(framing.size! < 1);
+});

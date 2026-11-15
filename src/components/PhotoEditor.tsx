@@ -1,7 +1,7 @@
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
 import { ChevronDown } from 'lucide-react';
-import { DEFAULT_FRAMING, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, thirdsCropAnchor, type PhotoFraming } from '../core/photoFraming';
+import { DEFAULT_FRAMING, MIN_CROP_SIZE, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
 import { downloadExport } from '../providers/browserExport';
 import { Histogram } from './Histogram';
@@ -68,6 +68,7 @@ export function PhotoEditor({
   const [panelWidth, setPanelWidth] = useState(() => {
     try { return clampPanelWidth(Number(localStorage.getItem(PANEL_KEY)) || PANEL_DEFAULT); } catch { return PANEL_DEFAULT; }
   });
+  const cornerDrag = useRef<{ corner: CropCorner; x: number; y: number; point: { x: number; y: number } } | null>(null);
   const [autoNotes, setAutoNotes] = useState<string[]>([]);
   const [selectedMaskId, setSelectedMaskId] = useState<string | null>(null);
   const [brushRadius, setBrushRadius] = useState(0.05);
@@ -312,7 +313,7 @@ export function PhotoEditor({
                 brushRadius={brushRadius} erase={erase}
                 onChange={(next) => onEdit({ ...edit, masks: edit.masks!.map((mask) => mask.id === next.id ? next : mask) })} />
             )}
-            {cropRect && <div aria-hidden="true" style={cropRect}
+            {cropRect && <div style={cropRect}
               className={`crop-guide absolute border border-white/90 ${gridLines ? 'crop-thirds' : ''} ${framing.ratio ? 'cursor-move' : 'pointer-events-none'}`}
               onPointerDown={(event) => {
                 if (!framing.ratio) return;
@@ -332,7 +333,41 @@ export function PhotoEditor({
               }}
               onLostPointerCapture={() => { cropDrag.current = null; }}
               onDoubleClick={(event) => event.stopPropagation()}
-            />}
+            >
+              {outputSize && size && fit > 0 && (['tl', 'tr', 'bl', 'br'] as CropCorner[]).map((corner) => {
+                const point = { x: outputSize.x + (corner.endsWith('r') ? outputSize.width : 0), y: outputSize.y + (corner.startsWith('b') ? outputSize.height : 0) };
+                const names = { tl: 'top left', tr: 'top right', bl: 'bottom left', br: 'bottom right' };
+                const apply = (target: { x: number; y: number }) => onFramingChange(resizeCrop(size.width, size.height, framing, corner, target));
+                return (
+                  <button key={corner} type="button" aria-label={`Crop corner, ${names[corner]}. Arrow keys resize it.`} title="Drag to resize the crop"
+                    className="pointer-events-auto absolute grid h-11 w-11 touch-none place-items-center focus-visible:outline-none"
+                    style={{ [corner.startsWith('t') ? 'top' : 'bottom']: -22, [corner.endsWith('l') ? 'left' : 'right']: -22, cursor: corner === 'tl' || corner === 'br' ? 'nwse-resize' : 'nesw-resize' }}
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                      cornerDrag.current = { corner, x: event.clientX, y: event.clientY, point };
+                    }}
+                    onPointerMove={(event) => {
+                      const start = cornerDrag.current;
+                      if (!start || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+                      const scale = fit * transform.zoom;
+                      apply({ x: start.point.x + (event.clientX - start.x) / scale, y: start.point.y + (event.clientY - start.y) / scale });
+                    }}
+                    onLostPointerCapture={() => { cornerDrag.current = null; }}
+                    onDoubleClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => {
+                      const step = size.width * (event.shiftKey ? 0.05 : 0.01);
+                      const delta = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];
+                      if (!delta) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      apply({ x: point.x + delta[0], y: point.y + delta[1] });
+                    }}>
+                    <span className="h-3.5 w-3.5 border-2 border-white bg-black/60 shadow-[0_0_0_1.5px_#000]" />
+                  </button>
+                );
+              })}
+            </div>}
           </>}
           overlay={<>
             <canvas ref={originalCanvas} aria-label="Original photo" role="img"
@@ -502,6 +537,14 @@ export function PhotoEditor({
                 <option value={9 / 16}>9:16</option>
                 <option value={2 / 3}>2:3</option>
               </select>
+            </label>
+            <label className="block px-1 pb-1">
+              <span className="flex items-center justify-between text-xs text-zinc-300"><span>Crop size</span>
+                <output className="tabular-nums text-zinc-400">{Math.round((framing.size ?? 1) * 100)}%</output></span>
+              <input type="range" min={MIN_CROP_SIZE} max={1} step={0.01} value={framing.size ?? 1} aria-label="Crop size"
+                onChange={(event) => size && onFramingChange({ ...framing, ratio: framing.ratio ?? size.width / size.height, size: event.target.valueAsNumber })}
+                onDoubleClick={() => onFramingChange({ ...framing, size: undefined })}
+                className="block min-h-9 w-full accent-sky-300 lg:min-h-7" />
             </label>
             <label className="block text-xs">Straighten <output>{framing.straighten.toFixed(1)}°</output>
               <input type="range" min={-12} max={12} step={0.1} value={framing.straighten}

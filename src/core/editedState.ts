@@ -9,5 +9,5 @@ export function isEdited(frame: Pick<PhotoFrame, 'edit' | 'framing'>): boolean {
   if (edit && (!isNeutralEdit(edit) || hasActiveMasks(edit.masks))) return true;
   if (!framing) return false;
   return framing.ratio !== DEFAULT_FRAMING.ratio || framing.turns !== DEFAULT_FRAMING.turns ||
-    framing.straighten !== DEFAULT_FRAMING.straighten || framing.x !== DEFAULT_FRAMING.x || framing.y !== DEFAULT_FRAMING.y;
+    framing.straighten !== DEFAULT_FRAMING.straighten || (framing.size ?? 1) !== 1 || framing.x !== DEFAULT_FRAMING.x || framing.y !== DEFAULT_FRAMING.y;
 }
