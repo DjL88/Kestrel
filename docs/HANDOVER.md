@@ -71,7 +71,7 @@ Where things stand and what is left, in order. Older detail: `AUDIT-2.md`, `AUDI
 **HE / HE\*:** no open decoder exists; options are the full-size camera preview (works now), Nikon NX Studio or Adobe DNG Converter to convert, licensing intoPIX's TicoRAW decoder (cost unknown), or shooting Lossless compressed. See the PR #172 thread.
 
 **Next, in order:**
-1. Merge #172 after its builds; click Develop from RAW in the real Mac app.
+1. Click **Develop from RAW** in the real Mac app on the Z8 HE\\* file (this is the first real in-app test of the decoder and the Mac HE fallback).
 2. Send or find Z8/Z5II lossless NEFs and a Canon R CR3 to test.
 3. Keep developed pictures across restarts; 16-bit editing and colour management.
 4. Queue scheduling (limit heavy jobs at once) and register species scan, thumbnails and watch-folder imports as tasks.
