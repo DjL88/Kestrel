@@ -1,5 +1,6 @@
-import React from 'react';
-import { Star, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { ClipboardCopy, Star, X } from 'lucide-react';
+import { photoInfoText } from '../core/photoInfoText';
 import { SubjectPanel } from './SubjectPanel';
 import { addTags, type SubjectKind } from '../core/subjectTags';
 import { formatAperture, formatFocalLength } from '../core/exifParser';
@@ -30,9 +31,18 @@ function formatCaptureTime(ms?: number): string {
 }
 
 export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount, onClose, onRate, onFlag, onSubjects, onKeepTag }) => {
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
   if (!frame) return null;
 
   const { exif } = frame;
+  async function copyInfo() {
+    try {
+      await navigator.clipboard.writeText(photoInfoText(frame));
+      setCopyStatus('Photo details copied.');
+    } catch {
+      setCopyStatus('Could not copy. Allow clipboard access or try again.');
+    }
+  }
   const rating = frame.rating ?? exif.rating ?? 0;
   const rows: { label: string; value: string }[] = [
     { label: 'Camera', value: exif.camera ?? '' },
@@ -63,6 +73,11 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
         </button>
       </div>
       <p className="break-words text-sm text-zinc-200">{frame.filename}</p>
+      <button type="button" onClick={() => void copyInfo()} title="Copy camera details, rating and decision; excludes location and file paths"
+        className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-md border border-white/15 px-3 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">
+        <ClipboardCopy className="h-4 w-4" aria-hidden="true" />Copy photo details
+      </button>
+      {copyStatus && <p role="status" className="mt-1 text-xs text-zinc-300">{copyStatus}</p>}
       {exif.formatLabel && <p className="mt-1 text-xs text-zinc-400">{exif.formatLabel}</p>}
       {frame.burstGroupId && <p className="mt-1 text-xs text-zinc-400">Burst frame {frame.burstIndex} of {frame.burstCount}</p>}
       <div className="mt-3 border-t border-white/10 pt-3">
