@@ -1,0 +1,72 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  DEFAULT_KEY_BINDINGS,
+  detectKeymapConflicts,
+  formatChordLabel,
+  normalizeKeyChord,
+  resolveKeyboardCommand,
+} from './keyboardCommands';
+
+test('normalizeKeyChord builds deterministic chord strings and ignores standalone modifiers', () => {
+  assert.equal(normalizeKeyChord({ key: 'Shift', code: 'ShiftLeft', shiftKey: true }), null);
+  assert.equal(normalizeKeyChord({ key: 'k', code: 'KeyK' }), 'KeyK');
+  assert.equal(
+    normalizeKeyChord({ key: 'Z', code: 'KeyZ', shiftKey: true }),
+    'Shift+KeyZ'
+  );
+  assert.equal(normalizeKeyChord({ key: ' ', code: 'Space' }), 'Space');
+});
+
+test('resolveKeyboardCommand blocks decision repeat while allowing navigation repeat', () => {
+  const keepInitial = resolveKeyboardCommand({
+    event: { key: 'k', code: 'KeyK', repeat: false },
+    bindings: DEFAULT_KEY_BINDINGS,
+    activeMode: 'cull',
+    isSuppressed: false,
+  });
+  assert.equal(keepInitial?.id, 'cull.keep');
+
+  const keepRepeated = resolveKeyboardCommand({
+    event: { key: 'k', code: 'KeyK', repeat: true },
+    bindings: DEFAULT_KEY_BINDINGS,
+    activeMode: 'cull',
+    isSuppressed: false,
+  });
+  assert.equal(keepRepeated, null);
+
+  const navRepeated = resolveKeyboardCommand({
+    event: { key: 'ArrowRight', code: 'ArrowRight', repeat: true },
+    bindings: DEFAULT_KEY_BINDINGS,
+    activeMode: 'cull',
+    isSuppressed: false,
+  });
+  assert.equal(navRepeated?.id, 'cull.knobCw');
+});
+
+test('resolveKeyboardCommand suppresses all commands when typing or inside modal', () => {
+  const suppressed = resolveKeyboardCommand({
+    event: { key: 'k', code: 'KeyK', repeat: false },
+    bindings: DEFAULT_KEY_BINDINGS,
+    activeMode: 'cull',
+    isSuppressed: true,
+  });
+  assert.equal(suppressed, null);
+});
+
+test('detectKeymapConflicts finds duplicate bindings within a mode', () => {
+  assert.deepEqual(detectKeymapConflicts(DEFAULT_KEY_BINDINGS, 'cull'), {});
+
+  const conflicted = {
+    ...DEFAULT_KEY_BINDINGS,
+    'cull.reject': 'KeyK',
+  };
+  const conflicts = detectKeymapConflicts(conflicted, 'cull');
+  assert.deepEqual(conflicts['KeyK'], ['cull.keep', 'cull.reject']);
+});
+
+test('formatChordLabel produces concise readable keycaps', () => {
+  assert.equal(formatChordLabel('KeyK'), 'K');
+  assert.equal(formatChordLabel('Shift+KeyZ'), 'Shift+Z');
+  assert.equal(formatChordLabel('ArrowRight'), '→');
+});
