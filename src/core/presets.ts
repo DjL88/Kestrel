@@ -39,6 +39,13 @@ export const BUILT_IN_PRESETS: Preset[] = [
   { id: 'mono-soft', name: 'Mono soft', builtIn: true, edit: sanitiseEdit({ colour: -2, contrast: -0.3, highlights: -0.45, shadows: 0.5, texture: -0.2 }) },
 ];
 
+/** A selected look is identified by its actual global slider values, not a stale button click. */
+export function matchesPresetEdit(current: PhotoEdit, preset: PhotoEdit): boolean {
+  const a = sanitiseEdit(current);
+  const b = sanitiseEdit(preset);
+  return KEYS.every((key) => (a[key] ?? 0) === (b[key] ?? 0));
+}
+
 export function parsePresets(json: string | null): Preset[] {
   if (!json) return [];
   try {

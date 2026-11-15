@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { BUILT_IN_PRESETS, addPreset, parsePresets, removePreset, sanitiseEdit } from './presets';
+import { BUILT_IN_PRESETS, addPreset, matchesPresetEdit, parsePresets, removePreset, sanitiseEdit } from './presets';
 
 test('sanitising drops unknown keys, clamps values and ignores masks', () => {
   const edit = sanitiseEdit({ exposure: 9, shadows: -9, warmth: 'hot', masks: [{}], evil: 1, contrast: NaN });
@@ -43,4 +43,13 @@ test('twelve built-in looks include three distinct real monochrome slider recipe
   }
   assert.notDeepEqual(mono[0].edit, mono[1].edit);
   assert.notDeepEqual(mono[1].edit, mono[2].edit);
+});
+
+test('selected look follows actual slider settings, not the last clicked button', () => {
+  const natural = BUILT_IN_PRESETS.find((preset) => preset.id === 'natural')!;
+  assert.equal(matchesPresetEdit(natural.edit, natural.edit), true);
+  assert.equal(matchesPresetEdit({ ...natural.edit, masks: [] }, natural.edit), true);
+  assert.equal(matchesPresetEdit({ ...natural.edit, exposure: 0.1 }, natural.edit), false);
+  const mono = BUILT_IN_PRESETS.find((preset) => preset.id === 'mono-bold')!;
+  assert.equal(matchesPresetEdit(mono.edit, natural.edit), false);
 });
