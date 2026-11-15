@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ChevronDown, Ellipsis, Plus, Undo2 } from 'lucide-react';
+import { ThemePicker } from './ThemePicker';
 import { messages as m } from '../i18n/messages';
 import type { CullCounts, FilterState, ShootDescriptor, WorkspaceViewMode } from '../core/types';
 
@@ -156,6 +157,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   <input type="checkbox" checked={props.focusMode} onChange={props.onToggleFocusMode} />
                   Focus mode
                 </label>
+                <ThemePicker />
               </details>
               <details className="mt-2 border-t border-white/10 pt-2">
                 <summary className="min-h-10 cursor-pointer py-2 text-sm text-zinc-300">Culling settings</summary>

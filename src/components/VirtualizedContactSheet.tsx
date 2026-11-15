@@ -263,7 +263,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                           }}
                           aria-label={`Keep ${frame.filename}`}
                           aria-pressed={isKeep}
-                          className={`px-1.5 py-1 rounded text-[11px] font-medium border flex items-center gap-1 motion-safe:transition-colors ${
+                          className={`decision-button px-1.5 py-1 rounded text-[11px] font-medium border flex items-center gap-1 motion-safe:transition-colors ${
                             isKeep
                               ? 'bg-sky-500/20 border-sky-400/60 text-sky-200'
                               : 'bg-white/4 border-white/10 text-zinc-400 hover:text-zinc-200'
@@ -280,7 +280,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                           }}
                           aria-label={`Reject ${frame.filename}`}
                           aria-pressed={isReject}
-                          className={`px-1.5 py-1 rounded text-[11px] font-medium border flex items-center gap-1 motion-safe:transition-colors ${
+                          className={`decision-button px-1.5 py-1 rounded text-[11px] font-medium border flex items-center gap-1 motion-safe:transition-colors ${
                             isReject
                               ? 'bg-orange-500/20 border-orange-400/60 text-orange-200'
                               : 'bg-white/4 border-white/10 text-zinc-400 hover:text-zinc-200'
