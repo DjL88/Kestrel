@@ -382,8 +382,11 @@ export function resolveKeyboardCommand({
   if (!chord) return null;
 
   const commands = activeMode === 'cull' ? CULL_COMMANDS : EDIT_COMMANDS;
-  const matched = commands.find((cmd) => bindings[cmd.id] === chord);
-  if (!matched) return null;
+  // A remapped chord shared by two commands is ambiguous: do not silently
+  // execute whichever command happens to appear first in the list.
+  const matches = commands.filter((cmd) => bindings[cmd.id] === chord);
+  if (matches.length !== 1) return null;
+  const matched = matches[0];
 
   if (event.repeat && !matched.allowRepeat) {
     return null;

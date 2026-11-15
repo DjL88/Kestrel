@@ -70,3 +70,20 @@ test('formatChordLabel produces concise readable keycaps', () => {
   assert.equal(formatChordLabel('Shift+KeyZ'), 'Shift+Z');
   assert.equal(formatChordLabel('ArrowRight'), '→');
 });
+
+
+test('ambiguous remapped culling shortcuts never trigger an arbitrary decision', () => {
+  const bindings = { ...DEFAULT_KEY_BINDINGS, 'cull.reject': 'KeyK' };
+  assert.equal(resolveKeyboardCommand({
+    event: { key: 'k', code: 'KeyK' }, bindings, activeMode: 'cull', isSuppressed: false,
+  }), null);
+  // A non-conflicting command remains usable.
+  assert.equal(resolveKeyboardCommand({
+    event: { key: 'u', code: 'KeyU' }, bindings, activeMode: 'cull', isSuppressed: false,
+  })?.id, 'cull.unreviewed');
+  // Conflicts are scoped to the active mode, not all commands.
+  const crossMode = { ...DEFAULT_KEY_BINDINGS, 'edit.copy': 'KeyK' };
+  assert.equal(resolveKeyboardCommand({
+    event: { key: 'k', code: 'KeyK' }, bindings: crossMode, activeMode: 'cull', isSuppressed: false,
+  })?.id, 'cull.keep');
+});
