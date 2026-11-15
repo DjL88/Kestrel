@@ -64,7 +64,11 @@ export function limitAutoKeepers(
   const accepted = new Set<string>();
   for (const result of [...suggestions].sort((a, b) => b.score - a.score)) {
     if (result.decision !== 'keep' || result.confidence !== 'high' || accepted.size >= remainingKeepers) continue;
-    const burst = byId.get(result.frameId)?.burstGroupId;
+    // A stale scan result cannot reserve keeper headroom for a photo that was
+    // removed or manually reviewed while the scan was running.
+    const frame = byId.get(result.frameId);
+    if (!frame || frame.removedAt || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) continue;
+    const burst = frame.burstGroupId;
     if (burst && occupied.has(burst)) continue;
     accepted.add(result.frameId);
     if (burst) occupied.add(burst);
