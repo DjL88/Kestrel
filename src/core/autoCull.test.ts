@@ -136,3 +136,19 @@ test('invalid or fractional keeper budgets never auto-accept beyond the safe int
   assert.equal(limitAutoKeepers(suggestions, photos, 1.9).filter((item) => item.confidence === 'high').length, 1);
   assert.equal(limitAutoKeepers(suggestions, photos, 2).filter((item) => item.confidence === 'high').length, 2);
 });
+
+test('repeated scan suggestions never create duplicate high-confidence keeper actions', () => {
+  const photos = generateDemoShootFrames(2).map((frame) => ({
+    ...frame, isDemo: false, burstGroupId: null, decision: 'unreviewed' as const,
+  }));
+  const suggestions: CullSuggestion[] = [
+    { frameId: photos[0].id, decision: 'keep', confidence: 'high', reason: 'clearDetail', score: 99 },
+    { frameId: photos[0].id, decision: 'keep', confidence: 'high', reason: 'clearDetail', score: 98 },
+    { frameId: photos[1].id, decision: 'keep', confidence: 'high', reason: 'clearDetail', score: 97 },
+  ];
+  const result = limitAutoKeepers(suggestions, photos, 2);
+  assert.deepEqual(result.filter((item) => item.confidence === 'high').map((item) => item.frameId),
+    [photos[0].id, photos[1].id]);
+  assert.equal(result[1].confidence, 'medium');
+  assert.equal(suggestions[1].confidence, 'high', 'input suggestions remain unchanged');
+});
