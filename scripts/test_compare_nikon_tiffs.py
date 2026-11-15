@@ -26,6 +26,15 @@ class CompareNikonTiffsTests(unittest.TestCase):
         tifffile.imwrite(file, pixels, photometric="rgb", extratags=tags)
         return file
 
+    def test_rejects_self_comparison_including_aliases(self):
+        pixels = np.zeros((4, 4, 3), dtype=np.uint16)
+        reference = self.write("reference.tif", pixels)
+        alias = self.root / "alias.tif"
+        alias.symlink_to(reference)
+        for candidate in (reference, alias):
+            with self.subTest(candidate=candidate), self.assertRaisesRegex(ValueError, "same file"):
+                compare(reference, candidate)
+
     def test_reports_channel_error_and_changed_pixels(self):
         reference = np.full((65, 12, 3), 18000, dtype=np.uint16)
         candidate = reference.copy()
