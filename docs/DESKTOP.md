@@ -78,3 +78,8 @@ KESTREL_RELEASE_TAG=v0.1.1 node scripts/check-release-version.mjs
 ```
 
 Use the actual intended tag in the last command. Normal CI checks consistency on every PR. The desktop release workflow also rejects a mismatching `vX.Y.Z` tag **before it invokes the installer publishing action**, avoiding a misleading download or auto-update. The updater itself remains disabled until real signed update and rollback validation is complete.
+
+## Android (debug build works)
+`src-tauri/gen/android` is the generated Android Studio project (committed; build output is ignored). To build on a Mac: install JDK 17 and the Android command-line tools (`brew install openjdk@17` and `brew install --cask android-commandlinetools`), then the SDK pieces (`platform-tools`, `platforms;android-34`, `build-tools;34.0.0`, `ndk;27.0.12077973`), add the Rust targets (`rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android`), set `JAVA_HOME`, `ANDROID_HOME` and `NDK_HOME`, and run `npx tauri android build --debug --apk --target aarch64`.
+
+Menus, the updater, restart and reveal-in-Finder are desktop-only (`capabilities/desktop.json`, `#[cfg(desktop)]`). **Not yet verified:** the app has not been run on a phone or emulator, so touch behaviour, file picking, saving and photo import on Android are untested. Play Store release needs a signing key (a keystore the owner keeps safe), a Play Console app listing and the owner's developer account.
