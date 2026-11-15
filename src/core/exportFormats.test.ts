@@ -72,3 +72,18 @@ test('custom sizes are checked and explained', () => {
   const unsafe = customFormat({ width: 100, height: 100, fit: 'fill', format: 'jpeg', quality: 90, prefix: 'a/b:c' });
   if ('format' in unsafe) assert.equal(unsafe.format.prefix, 'a_b_c');
 });
+
+test('a fixed shape can be turned on its side, and squares, full size and keep-shape cannot', async () => {
+  const { canTurn, turnFormat, formatById, shapeLabel } = await import('./exportFormats');
+  const post = formatById('ig-45')!;
+  assert.equal(canTurn(post), true);
+  const turned = turnFormat(post);
+  assert.deepEqual([turned.width, turned.height], [1350, 1080]);
+  assert.equal(shapeLabel(turned.width, turned.height), '5:4');
+  assert.equal(turned.label, 'Post · 5:4', 'the name follows the shape');
+  assert.deepEqual([turnFormat(turned).width, turnFormat(turned).height], [1080, 1350], 'turning twice returns to the start');
+  assert.equal(canTurn(formatById('ig-11')!), false);
+  assert.equal(canTurn(formatById('master')!), false);
+  assert.equal(canTurn(formatById('fb-keep')!), false);
+  assert.equal(turnFormat(formatById('ig-11')!), formatById('ig-11'));
+});
