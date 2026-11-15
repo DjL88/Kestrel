@@ -87,3 +87,37 @@ test('on a short screen the step scrolls and Next stays in view', async ({ page 
   const fitsBox = (await fits.boundingBox())!;
   expect(fitsBox.y + fitsBox.height).toBeLessThanOrEqual(box.y + 1);
 });
+
+test('the wizard buttons are never cropped', async ({ page }) => {
+  await openWizard(page);
+  await page.getByRole('button', { name: 'Instagram' }).click();
+  await page.getByRole('checkbox', { name: /Post · 4:5/ }).check();
+  for (const label of ['Back', 'Next']) {
+    const button = page.getByRole('dialog').getByRole('button', { name: label, exact: true });
+    const whole = await button.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const dialog = element.closest('section')!.getBoundingClientRect();
+      // Every corner of the button must be what the user sees there, not a clipped-away edge.
+      const corners = [[box.left + 9, box.top + 9], [box.right - 9, box.top + 9], [box.left + 9, box.bottom - 2], [box.right - 9, box.bottom - 2]];
+      return { seen: corners.every(([x, y]) => element.contains(document.elementFromPoint(x, y))), inside: box.bottom <= dialog.bottom - 8 };
+    });
+    expect(whole, `${label} is fully visible`).toEqual({ seen: true, inside: true });
+  }
+});
+
+test('with several sizes chosen, every position step matches its own size', async ({ page }) => {
+  await openWizard(page);
+  await page.getByRole('button', { name: 'Instagram' }).click();
+  // Chosen out of order on purpose.
+  for (const name of [/Story or Reel cover · 9:16/, /Square · 1:1/, /Post · 4:5/]) await page.getByRole('checkbox', { name }).check();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  const shapes: [RegExp, number, string][] = [[/Post · 4:5/, 0.8, '1 of 3'], [/Square · 1:1/, 1, '2 of 3'], [/Story or Reel cover · 9:16/, 0.56, '3 of 3']];
+  for (const [label, ratio, counter] of shapes) {
+    await expect(page.getByRole('heading', { name: label })).toContainText(counter);
+    const picture = page.getByRole('img', { name: new RegExp(`as ${label.source}`) });
+    await expect.poll(() => picture.evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(ratio);
+    await page.getByRole('button', { name: /^Next/ }).click();
+  }
+  await expect(page.getByRole('region', { name: 'Ready to export' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Prepare 3 files' })).toBeVisible();
+});

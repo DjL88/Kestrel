@@ -58,7 +58,9 @@ export function ExportWizard(props: Props) {
   const [platform, setPlatform] = useState<string>('');
   const [index, setIndex] = useState(0);
   const [photo, setPhoto] = useState(0);
-  const positionable = selected.filter((format) => format.id !== 'master');
+  // Always in the same order as the size list, however the choices were made, with a custom size last.
+  const order = (format: ExportFormat) => { const at = EXPORT_FORMATS.findIndex((entry) => entry.id === format.id); return at < 0 ? EXPORT_FORMATS.length : at; };
+  const positionable = selected.filter((format) => format.id !== 'master').sort((a, b) => order(a) - order(b));
   const current = positionable[Math.min(index, Math.max(0, positionable.length - 1))];
   const frame = frames[Math.min(photo, frames.length - 1)];
   const at = STEPS.findIndex((entry) => entry.id === step);
@@ -186,7 +188,7 @@ export function ExportWizard(props: Props) {
         )}
       </div>
 
-      <div className="-mx-4 -mb-4 flex shrink-0 items-center justify-between gap-2 border-t border-white/10 bg-kestrel-raised px-4 py-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-t border-white/10 bg-kestrel-raised px-4 py-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <button type="button" className={quiet} onClick={back} disabled={step === 'platform' || props.progress !== null}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</button>
         {step !== 'platform' && <button type="button" className={primary} onClick={next} disabled={!canNext}>{nextLabel}{step !== 'review' && <ArrowRight className="h-4 w-4" aria-hidden="true" />}</button>}
       </div>
