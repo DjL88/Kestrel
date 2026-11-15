@@ -91,6 +91,7 @@ export default function App() {
   if (!storeRef.current) storeRef.current = new BrowserCatalogueStore();
 
   const relinkInput = useRef<HTMLInputElement>(null);
+  const relinkingFiles = useRef(false);
   const previewProviderRef = useRef<BrowserPreviewProvider | null>(null);
   if (!previewProviderRef.current) previewProviderRef.current = new BrowserPreviewProvider();
 
@@ -909,25 +910,40 @@ export default function App() {
     }
   };
 
-  const reconnectFileSelection = (files: File[]) => {
+  const reconnectFileSelection = async (files: File[]) => {
+    if (relinkingFiles.current) return;
     const preview = previewProviderRef.current!;
+    const store = storeRef.current!;
+    const projectId = cullingState.shoot.id;
     const expected = new Set(cullingState.frames.filter((frame) => frame.sourceKind === 'file').map((frame) => frame.stableKey));
     let recovered = 0;
-    for (const file of files) {
-      const key = getLocalFileKey(file);
-      if (!expected.has(key) || preview.hasBlob(key)) continue;
-      preview.registerBlob(key, file);
-      recovered += 1;
+    let temporary = 0;
+    relinkingFiles.current = true;
+    setRelinkStatus('Reconnecting originals…');
+    try {
+      for (const file of files) {
+        if (stateRef.current.shoot.id !== projectId) return;
+        const key = getLocalFileKey(file);
+        if (!expected.has(key) || preview.hasBlob(key)) continue;
+        const saved = await store.saveLocalFileBlob(key, file);
+        if (stateRef.current.shoot.id !== projectId) return;
+        preview.registerBlob(key, file);
+        recovered += 1;
+        if (!saved) temporary += 1;
+      }
+      const missing = [...expected].filter((key) => !preview.hasBlob(key)).length;
+      setRelinkStatus(recovered ? (missing ? `${missing} source files still need to be reselected.` : undefined) :
+        'None of the selected files match the missing originals in this shoot.');
+      if (!recovered) return;
+      if (temporary) showToast('Some originals could only be reconnected for this session.');
+      setPreviewRevision((previous) => previous + 1);
+      setCullingState((previous) => previous.shoot.id === projectId ? {
+        ...previous,
+        shoot: { ...previous.shoot, needsFileReselect: missing > 0 },
+      } : previous);
+    } finally {
+      relinkingFiles.current = false;
     }
-    const missing = [...expected].filter((key) => !preview.hasBlob(key)).length;
-    setRelinkStatus(recovered ? `${missing} source files still need to be reselected.` :
-      'None of the selected files match the missing originals in this shoot.');
-    if (!recovered) return;
-    setPreviewRevision((previous) => previous + 1);
-    setCullingState((previous) => ({
-      ...previous,
-      shoot: { ...previous.shoot, needsFileReselect: missing > 0 },
-    }));
   };
 
   const handleReconnectFolderOrFiles = async () => {
@@ -1106,10 +1122,10 @@ export default function App() {
         onEditPhoto={selectedFrame && !loadingProgress ? () => setEditing(true) : undefined}
       />}
 
-      <input ref={relinkInput} type="file" hidden multiple accept=".jpg,.jpeg,.png,.webp,.nef"
+      <input ref={relinkInput} type="file" hidden multiple accept=".jpg,.jpeg,.png,.webp,.nef,.nrw"
         onChange={(event) => {
           const files = Array.from(event.target.files ?? []);
-          if (files.length) reconnectFileSelection(files);
+          if (files.length) void reconnectFileSelection(files);
           event.target.value = '';
         }}
       />
