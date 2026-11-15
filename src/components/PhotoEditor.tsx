@@ -252,7 +252,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     setDeveloping(true); setDevelopNote(null);
     const task = tasks.start(`Developing ${frame.filename} from RAW`);
     try {
-      const developed = await developRaw(original);
+      const developed = await developRaw(original, /\.([a-z0-9]+)$/i.exec(frame.filename)?.[1] ?? 'nef');
       // Turn it the way the camera's own preview is turned; the RAW data is stored sideways and some rotation flags are wrong.
       provider.setDeveloped(frame, await matchPreviewOrientation(developed, await extractRawPreview(original).catch(() => null)));
       task.finish();
