@@ -23,6 +23,8 @@ interface VirtualizedContactSheetProps {
 const GAP_PX = 12;
 const PADDING_PX = 16;
 const FOOTER_HEIGHT = 44;
+// Narrow cards stack the filename above the buttons, so the three touch-sized buttons fit.
+const STACKED_FOOTER_HEIGHT = 76;
 
 export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = ({
   frames,
@@ -81,7 +83,9 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   }, [viewport.width, columns]);
 
   // 3:2 thumbnail + footer height
-  const cardHeight = Math.round((cardWidth * 2) / 3) + FOOTER_HEIGHT;
+  const stacked = columns <= 2;
+  const footerHeight = stacked ? STACKED_FOOTER_HEIGHT : FOOTER_HEIGHT;
+  const cardHeight = Math.round((cardWidth * 2) / 3) + footerHeight;
   const rowStride = cardHeight + GAP_PX;
   const totalRows = Math.ceil(frames.length / columns);
   const totalHeight = Math.max(0, totalRows * rowStride + PADDING_PX * 2);
@@ -252,7 +256,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                     </button>
 
                     {/* Card Footer: Number, Filename & Colorblind-safe Decision Control */}
-                    <div className="h-[44px] shrink-0 px-2.5 flex items-center justify-between gap-2 border-t border-white/6">
+                    <div style={{ height: footerHeight }} className={`shrink-0 border-t border-white/6 ${stacked ? 'flex flex-col justify-center gap-1 px-1.5' : 'flex items-center justify-between gap-2 px-2.5'}`}>
                       <div className="min-w-0">
                         <div className="text-[11px] font-medium text-zinc-200 truncate">
                           {frame.filename}
@@ -265,7 +269,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         </div>
                       </div>
 
-                      <DecisionButtons decision={frame.decision} filename={frame.filename} edited={isEdited(frame)}
+                      <DecisionButtons stretch={stacked} decision={frame.decision} filename={frame.filename} edited={isEdited(frame)}
                         onKeep={() => onDecideFrame(frame.id, 'keep')}
                         onBackToReview={() => onDecideFrame(frame.id, 'unreviewed')}
                         onTrash={() => onDecideFrame(frame.id, 'reject')}

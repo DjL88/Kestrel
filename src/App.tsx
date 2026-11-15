@@ -166,7 +166,7 @@ export default function App() {
 
   function enterProject(state: CullingState) {
     const filter = state.filter === 'all' ? 'unreviewed' : state.filter;
-    const visible = filterFrames(state.frames, filter, state.searchQuery);
+    const visible = filterFrames(state.frames, filter, state.searchQuery, state.ratingFilter);
     setBackupNotice(undefined);
     setCullingState({
       ...state,
@@ -344,9 +344,10 @@ export default function App() {
       filterFrames(
         cullingState.frames,
         cullingState.filter,
-        cullingState.searchQuery
+        cullingState.searchQuery,
+        cullingState.ratingFilter
       ),
-    [cullingState.frames, cullingState.filter, cullingState.searchQuery]
+    [cullingState.frames, cullingState.filter, cullingState.searchQuery, cullingState.ratingFilter]
   );
 
   const selectedFrame: PhotoFrame | null = useMemo(() => {
@@ -440,7 +441,7 @@ export default function App() {
       setZoomLevel(1);
       setPanOffset({ x: 0, y: 0 });
       setCullingState((prev) => {
-        const currentVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery);
+        const currentVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter);
         const nextId = stepSelection(currentVisible, prev.selectedFrameId, delta);
         if (!nextId || nextId === prev.selectedFrameId) return prev;
         return {
@@ -516,7 +517,7 @@ export default function App() {
       return { ...prev, viewMode: nextMode };
     });
     setCullingState((prev) => {
-      const pool = filterFrames(prev.frames, prev.filter, prev.searchQuery);
+      const pool = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter);
       const pair = getDefaultComparePair(
         pool.length > 0 ? pool : prev.frames.filter((frame) => !frame.removedAt),
         prev.selectedFrameId
@@ -640,7 +641,7 @@ export default function App() {
       const copy = createVirtualCopy(prev.frames[index], prev.frames, id);
       if (framing) { copy.framing = framing; copy.focusPoint = undefined; }
       const frames = [...prev.frames.slice(0, index + 1), copy, ...prev.frames.slice(index + 1)];
-      const visible = filterFrames([copy], prev.filter, prev.searchQuery).length > 0;
+      const visible = filterFrames([copy], prev.filter, prev.searchQuery, prev.ratingFilter).length > 0;
       return {
         ...prev, frames, selectedFrameId: id,
         shoot: { ...prev.shoot, totalFrames: frames.length, lastUpdatedAt: Date.now() },
@@ -656,7 +657,7 @@ export default function App() {
     const originalId = selectedFrame.virtualCopy.originalFrameId;
     setCullingState((prev) => {
       const frames = prev.frames.filter((frame) => frame.id !== removedId);
-      const visible = filterFrames(frames, prev.filter, prev.searchQuery);
+      const visible = filterFrames(frames, prev.filter, prev.searchQuery, prev.ratingFilter);
       const cleanHistory = (items: CullingState['undoStack']) => items
         .filter((item) => item.frameId !== removedId)
         .map((item) => ({
@@ -889,7 +890,7 @@ export default function App() {
         filter={cullingState.filter}
         onFilterChange={(next: FilterState) => {
           setCullingState((prev) => {
-            const nextVisible = filterFrames(prev.frames, next, prev.searchQuery);
+            const nextVisible = filterFrames(prev.frames, next, prev.searchQuery, prev.ratingFilter);
             const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
             return {
               ...prev,
@@ -900,10 +901,18 @@ export default function App() {
             };
           });
         }}
+        ratingFilter={cullingState.ratingFilter ?? null}
+        onRatingFilterChange={(next) =>
+          setCullingState((prev) => {
+            const nextVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, next);
+            const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
+            return { ...prev, ratingFilter: next, selectedFrameId: stillVisible ? prev.selectedFrameId : nextVisible[0]?.id ?? null };
+          })
+        }
         searchQuery={cullingState.searchQuery}
         onSearchChange={(q) =>
           setCullingState((prev) => {
-            const nextVisible = filterFrames(prev.frames, prev.filter, q);
+            const nextVisible = filterFrames(prev.frames, prev.filter, q, prev.ratingFilter);
             const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
             return {
               ...prev,

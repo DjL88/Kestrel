@@ -7,6 +7,8 @@ interface Props {
   edited: boolean;
   /** Show words beside the icons, for roomy places such as the loupe bar. */
   labels?: boolean;
+  /** Spread the buttons across the full width, for narrow cards. */
+  stretch?: boolean;
   onKeep: () => void;
   onBackToReview: () => void;
   onTrash: () => void;
@@ -18,14 +20,14 @@ interface Props {
  * To review: Keep or Trash. Keepers: cross returns it to review, and Trash moves it on.
  * Trash: cross returns it to review, and Trash removes it from the library. Reset is always beside them.
  */
-export function DecisionButtons({ decision, filename, edited, labels = false, onKeep, onBackToReview, onTrash, onReset }: Props) {
+export function DecisionButtons({ decision, filename, edited, labels = false, stretch = false, onKeep, onBackToReview, onTrash, onReset }: Props) {
   const base = labels
     ? 'inline-flex h-11 items-center gap-1.5 rounded-md px-2.5 text-sm text-zinc-200 hover:bg-white/8'
     : 'decision-button inline-flex min-h-7 min-w-7 items-center justify-center rounded border border-white/10 bg-white/4 px-1.5 text-zinc-300 hover:text-zinc-100';
   const stop = (action: () => void) => (event: { stopPropagation: () => void }) => { event.stopPropagation(); action(); };
   const trashLabel = decision === 'reject' ? `Remove ${filename} from the library` : `Move ${filename} to Trash`;
   return (
-    <div className="flex shrink-0 items-center gap-1">
+    <div className={stretch ? 'grid w-full grid-cols-3 gap-1' : 'flex shrink-0 items-center gap-1'}>
       {decision === 'unreviewed' ? (
         <button type="button" onClick={stop(onKeep)} aria-label={`Keep ${filename}`} title="Keep" className={`${base} hover:bg-sky-500/15`}>
           <Check className="h-3.5 w-3.5" aria-hidden="true" />{labels && 'Keep'}
