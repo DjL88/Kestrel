@@ -1,6 +1,11 @@
 import exifr from 'exifr';
 import type { ExifMetadata } from './types';
 
+/** Nikon TIFF-based RAW formats supported by the embedded-JPEG preview adapter. */
+export function isNikonEmbeddedPreviewFile(filename: string): boolean {
+  return /\.(nef|nrw)$/i.test(filename);
+}
+
 export function formatShutterSpeed(exposureTimeSec?: number): string {
   if (
     typeof exposureTimeSec !== 'number' ||
@@ -124,7 +129,7 @@ export async function parseImageExif(
   filename: string
 ): Promise<ExifMetadata> {
   const lower = filename.toLowerCase();
-  const isNef = lower.endsWith('.nef');
+  const isNikonRaw = isNikonEmbeddedPreviewFile(filename);
 
   try {
     const segments = await exifr.parse(file, { xmp: true, mergeOutput: false, gps: false, interop: false });
@@ -171,13 +176,13 @@ export async function parseImageExif(
       capturedAtMs,
       width,
       height,
-      formatLabel: isNef ? 'NEF Embedded Preview' : lower.endsWith('.png') ? 'PNG' : lower.endsWith('.webp') ? 'WebP' : 'JPEG',
-      isEmbeddedPreviewOnly: isNef,
+      formatLabel: isNikonRaw ? `${lower.endsWith('.nrw') ? 'NRW' : 'NEF'} Embedded Preview` : lower.endsWith('.png') ? 'PNG' : lower.endsWith('.webp') ? 'WebP' : 'JPEG',
+      isEmbeddedPreviewOnly: isNikonRaw,
     };
   } catch {
     return {
-      formatLabel: isNef ? 'NEF Embedded Preview' : undefined,
-      isEmbeddedPreviewOnly: isNef,
+      formatLabel: isNikonRaw ? `${lower.endsWith('.nrw') ? 'NRW' : 'NEF'} Embedded Preview` : undefined,
+      isEmbeddedPreviewOnly: isNikonRaw,
     };
   }
 }

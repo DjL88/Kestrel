@@ -1,4 +1,5 @@
 import { extractNefPreview } from '../core/nefPreview';
+import { isNikonEmbeddedPreviewFile } from '../core/exifParser';
 import {
   NativeRawUnsupportedError,
   type PreviewProvider,
@@ -15,7 +16,7 @@ export class BrowserRawDecoder implements RawDecoder {
 
   supportsExtension(filename: string): boolean {
     const lower = filename.toLowerCase();
-    return lower.endsWith('.nef') || lower.endsWith('.nrw');
+    return isNikonEmbeddedPreviewFile(filename);
   }
 
   async decodeFullRaw(_stableKey: string, filename: string): Promise<never> {
@@ -79,7 +80,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     }
 
     let previewBlob: Blob = blob;
-    if (frame.filename.toLowerCase().endsWith('.nef')) {
+    if (isNikonEmbeddedPreviewFile(frame.filename)) {
       const extracted = await extractNefPreview(blob);
       if (!extracted) return '';
       previewBlob = extracted;
@@ -135,7 +136,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     if (!blob) return '';
 
     let sourceBlob: Blob = blob;
-    if (frame.filename.toLowerCase().endsWith('.nef')) {
+    if (isNikonEmbeddedPreviewFile(frame.filename)) {
       const extracted = await extractNefPreview(blob);
       if (!extracted) return '';
       sourceBlob = extracted;
