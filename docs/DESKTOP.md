@@ -58,6 +58,9 @@ Needs accounts only the owner can create, so none of this is switched on. Do it 
 - External drive and network share: add photos from them, unplug, reopen the project, reconnect.
 - Crash recovery: force-quit during an edit and during an export; reopen and confirm the last saved edit and the catalogue are intact.
 
+## Unsigned beta (current decision)
+First releases are unsigned on both systems. Mac testers right-click, Open on first launch; Windows testers use More info, Run anyway. The website explains this under "Installing the beta". Signing is added later: Apple once the membership is active, Windows when a certificate is bought (or via the Microsoft Store). The signing checklist above still applies.
+
 ## Consistent release versions
 
 Kestrel displays the web package version in the About footer. The native application and signed updates have their own version fields. To keep the public footer, installer and GitHub release aligned, **all three must match**:
