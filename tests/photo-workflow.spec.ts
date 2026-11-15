@@ -1,5 +1,20 @@
 import { expect, test } from '@playwright/test';
 
+import type { Page } from '@playwright/test';
+
+/** Every visible button that shows only an icon must have a tooltip. Hidden-from-sight text does not count as a label. */
+async function expectIconButtonsHaveTooltips(page: Page, where: string) {
+  const untitled = await page.evaluate(() => [...document.querySelectorAll('button')].flatMap((button) => {
+    const box = button.getBoundingClientRect();
+    if (!box.width || !box.height) return [];
+    const copy = button.cloneNode(true) as HTMLElement;
+    copy.querySelectorAll('.sr-only, [aria-hidden="true"]:not(svg)').forEach((node) => node.remove());
+    const visibleText = (copy.textContent ?? '').trim();
+    return visibleText || button.getAttribute('title') ? [] : [button.getAttribute('aria-label') ?? button.id ?? button.className.slice(0, 40)];
+  }));
+  expect(untitled, `icon-only buttons without a tooltip on ${where}`).toEqual([]);
+}
+
 test('import ten photos, keep and edit a frame, export it and reopen offline', async ({ page, context }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
@@ -40,12 +55,17 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
 
   const collections = page.getByRole('navigation', { name: 'Photo collections' });
   await expect(collections.getByRole('button', { name: 'To review 10' })).toBeVisible();
+  await expectIconButtonsHaveTooltips(page, 'the library');
+  await page.getByRole('button', { name: 'Workspace options' }).click();
+  await expectIconButtonsHaveTooltips(page, 'the workspace menu');
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Keep frame-01.png', exact: true }).click();
   await expect(collections.getByRole('button', { name: 'To review 9' })).toBeVisible();
   await collections.getByRole('button', { name: 'Keepers 1' }).click();
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   const light = page.getByRole('slider', { name: 'Light adjustment' });
   await expect(light).toBeEnabled();
+  await expectIconButtonsHaveTooltips(page, 'the editor');
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');
 

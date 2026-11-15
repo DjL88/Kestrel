@@ -139,7 +139,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
   return (
     <>
     <header className="relative z-20 flex min-w-0 shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
-      <button type="button" onClick={props.onBackToProjects} disabled={props.actionsDisabled} className={actionClass} aria-label="Back to projects">
+      <button type="button" onClick={props.onBackToProjects} disabled={props.actionsDisabled} className={actionClass} aria-label="Back to projects" title="Back to projects">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Projects</span>
       </button>
       <div className="min-w-0 flex-1">
@@ -164,7 +164,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
         </button>
         <div ref={menuRef}>
           <button ref={triggerRef} type="button" disabled={props.actionsDisabled} className={actionClass} onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Workspace options" aria-expanded={menuOpen} aria-controls="workspace-options">
+            aria-label="Workspace options" title="Workspace options" aria-expanded={menuOpen} aria-controls="workspace-options">
             <Ellipsis className="h-5 w-5" aria-hidden="true" />
           </button>
           {menuOpen && (

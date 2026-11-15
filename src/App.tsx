@@ -962,9 +962,9 @@ export default function App() {
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? 'Edit photo'}</h1>
           {!filmstripVisible && (
             <div className="flex shrink-0">
-              <button type="button" aria-label="Previous photo" disabled={selectedVisibleIndex <= 0} onClick={() => handleStepFrame(-1)}
+              <button type="button" aria-label="Previous photo" title="Previous photo" disabled={selectedVisibleIndex <= 0} onClick={() => handleStepFrame(-1)}
                 className="h-11 w-11 rounded-md text-lg disabled:opacity-30">‹</button>
-              <button type="button" aria-label="Next photo" disabled={selectedVisibleIndex < 0 || selectedVisibleIndex >= visibleFrames.length - 1} onClick={() => handleStepFrame(1)}
+              <button type="button" aria-label="Next photo" title="Next photo" disabled={selectedVisibleIndex < 0 || selectedVisibleIndex >= visibleFrames.length - 1} onClick={() => handleStepFrame(1)}
                 className="h-11 w-11 rounded-md text-lg disabled:opacity-30">›</button>
             </div>
           )}
@@ -1261,6 +1261,7 @@ export default function App() {
 
           {/* Persistent Filmstrip in Loupe & Compare Modes */}
           {filmstripVisible && (editing || prefs.viewMode !== 'grid') && visibleFrames.length > 0 && (
+            <div className={editing ? (prefs.editPanelSide === 'left' ? 'md:pl-[var(--editor-panel-w,0px)]' : 'md:pr-[var(--editor-panel-w,0px)]') : undefined}>
             <Filmstrip
               frames={visibleFrames}
               selectedFrameId={selectedFrame?.id ?? null}
@@ -1273,6 +1274,7 @@ export default function App() {
                 setCullingState((prev) => ({ ...prev, compareRightFrameId: id }))
               }
             />
+            </div>
           )}
         </div>
 

@@ -31,7 +31,7 @@ export function PresetPanel({ edit, disabled, onApply }: Props) {
             <button type="button" disabled={disabled} className={`${chip} min-w-0 flex-1 truncate`}
               onClick={() => { onApply(preset.edit); setNotice(`Applied ${preset.name}`); }}>{preset.name}</button>
             {!preset.builtIn && (
-              <button type="button" aria-label={`Delete preset ${preset.name}`} className={`${chip} px-2`}
+              <button type="button" aria-label={`Delete preset ${preset.name}`} title={`Delete preset ${preset.name}`} className={`${chip} px-2`}
                 onClick={() => update(removePreset(custom, preset.id), `Deleted ${preset.name}`)}>
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
               </button>

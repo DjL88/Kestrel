@@ -1,3 +1,4 @@
+import { loadImage } from './loadImage';
 import { sha256Hex } from '../core/sha256';
 import { limitAutoKeepers, scorePreview, type CullSuggestion } from '../core/autoCull';
 import type { PhotoFrame } from '../core/types';
@@ -35,9 +36,7 @@ export async function scanForCulling(
       if (!url) {
         results.push(missing);
       } else {
-        const image = new Image();
-        image.src = url;
-        await image.decode();
+        const image = await loadImage(url);
         signal.throwIfAborted();
         const scale = Math.min(1, 256 / Math.max(image.naturalWidth, image.naturalHeight));
         canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));

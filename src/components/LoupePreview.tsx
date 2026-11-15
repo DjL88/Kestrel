@@ -80,7 +80,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
       </div>
 
       <div className="flex min-h-13 shrink-0 items-center justify-between gap-1 border-t border-white/8 bg-kestrel-panel px-1.5 sm:px-4">
-        <button type="button" disabled={!hasPrev} onClick={() => onStepFrame(-1)} aria-label="Previous frame"
+        <button type="button" disabled={!hasPrev} onClick={() => onStepFrame(-1)} aria-label="Previous frame" title="Previous frame"
           className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:opacity-30">
           <ChevronLeft className="h-5 w-5" aria-hidden="true" />
         </button>
@@ -90,12 +90,12 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
             onBackToReview={() => onExecuteCommand('cull.unreviewed')}
             onTrash={() => onExecuteCommand('cull.reject')}
             onReset={onResetFrame} />
-          <button type="button" disabled={!canUndo} onClick={() => onExecuteCommand('cull.undo')} aria-label="Undo last decision"
+          <button type="button" disabled={!canUndo} onClick={() => onExecuteCommand('cull.undo')} aria-label="Undo last decision" title="Undo last decision"
             className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:invisible">
             <Undo2 className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
-        <button type="button" disabled={!hasNext} onClick={() => onStepFrame(1)} aria-label="Next frame"
+        <button type="button" disabled={!hasNext} onClick={() => onStepFrame(1)} aria-label="Next frame" title="Next frame"
           className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:opacity-30">
           <ChevronRight className="h-5 w-5" aria-hidden="true" />
         </button>

@@ -1,3 +1,4 @@
+import { loadImage } from './loadImage';
 import { applyCanvasExportEdit } from '../core/canvasEdit';
 import { DEFAULT_EDIT } from '../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFraming';
@@ -10,10 +11,7 @@ import type { BrowserPreviewProvider } from './browserPreviewProvider';
 export async function loadExportSource(frame: PhotoFrame, provider: BrowserPreviewProvider) {
   const url = await provider.getFullPreviewUrl(frame);
   if (!url) throw new Error(`Reconnect ${frame.filename} to export it.`);
-  const source = new Image();
-  source.src = url;
-  await source.decode();
-  return source;
+  return loadImage(url);
 }
 
 export async function renderExport(source: HTMLImageElement, frame: PhotoFrame, profile: ExportProfile, date: Date, signal?: AbortSignal, mode: ExportFraming = 'fit', longEdge?: number) {

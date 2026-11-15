@@ -126,7 +126,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
                     onSelectFrame(frame.id);
                   }
                 }}
-                aria-label={`Jump to frame ${frame.filename}`}
+                aria-label={`Jump to frame ${frame.filename}`} title={`Jump to frame ${frame.filename}`}
                 className={`relative flex-1 rounded overflow-hidden border transition-colors focus-visible:outline-2 focus-visible:outline-sky-400 ${
                   isLeftActive
                     ? 'border-sky-400 ring-2 ring-sky-400/50'

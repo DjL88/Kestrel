@@ -76,7 +76,7 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo,
       className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-xl border border-white/15 bg-kestrel-raised p-4 text-zinc-100 backdrop:bg-black/75">
       <header className="flex items-center justify-between">
         <h2 id="auto-cull-title" className="font-semibold">{m.autoCull}</h2>
-        <button type="button" className={button} aria-label={m.closeAutoCull} onClick={onClose}><X className="h-5 w-5" aria-hidden="true" /></button>
+        <button type="button" className={button} aria-label={m.closeAutoCull} title={m.closeAutoCull} onClick={onClose}><X className="h-5 w-5" aria-hidden="true" /></button>
       </header>
       <p className="text-sm text-zinc-300">{m.description}</p>
       {!results && <div className="mt-3 space-y-2">
