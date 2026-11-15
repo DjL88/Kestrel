@@ -29,3 +29,24 @@ test('a portable backup restores the photo’s undo and redo controls', async ({
   await expect(undo).toBeEnabled();
   await expect(redo).toBeDisabled();
 });
+
+
+test('Projects counts the same photos as All photos after restoring a catalogue with removed items', async ({ page }) => {
+  const project = createDemoShootState(2);
+  project.shoot.title = 'Photo count fixture';
+  project.frames[1].removedAt = 1000;
+
+  await page.goto('/');
+  await page.locator('input[type="file"][accept=".json,application/json"]').setInputFiles({
+    name: 'count.kestrel.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(encodeProjectBackup(project)),
+  });
+  await expect(page.getByRole('button', { name: 'All photos 1', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Back to projects' }).click();
+  const projectRow = page.getByRole('button', { name: /^Photo count fixture \(restored\)/ });
+  await expect(projectRow).toContainText('1 photo');
+  await expect(projectRow).not.toContainText('2 photos');
+  await page.reload();
+  await expect(projectRow).toContainText('1 photo');
+});
