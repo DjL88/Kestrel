@@ -222,10 +222,6 @@ export class BrowserCatalogueStore implements CatalogueStore {
    * Files on the user's disk are never touched.
    */
   async deleteProject(id: string): Promise<void> {
-    const project = await this.loadProject(id);
-    if (!project) return;
-    const others = (await this.allProjectStates()).filter((state) => state.shoot.id !== id);
-    const keys = unreferencedBlobKeys(project, others);
     const write = this.projectWrite.then(async () => {
       const db = await openDatabase();
       try {
@@ -234,13 +230,34 @@ export class BrowserCatalogueStore implements CatalogueStore {
           tx.oncomplete = () => resolve();
           tx.onabort = () => reject(tx.error ?? new Error('Deleting the project was interrupted'));
           const catalogue = tx.objectStore(STORE_CATALOGUE);
-          catalogue.delete(PROJECT_PREFIX + id);
-          // These are committed atomically with deletion. A crash cannot
-          // resurrect a deleted project via an older localStorage fallback.
-          catalogue.put(true, LEGACY_MIGRATION_BLOCKED);
-          catalogue.delete(ACTIVE_KEY);
-          tx.objectStore(STORE_HANDLES).delete(id);
-          for (const key of keys) tx.objectStore(STORE_FILES).delete(key);
+          const projectKey = PROJECT_PREFIX + id;
+          const request = catalogue.get(projectKey);
+          request.onsuccess = () => {
+            const project = request.result as CullingState | undefined;
+            if (!project) return;
+            // Read references under the same write lock as deletion. A restore or
+            // transfer in another tab must not make a pre-deletion snapshot stale.
+            const keys = new Set(unreferencedBlobKeys(project, []));
+            const range = IDBKeyRange.bound(PROJECT_PREFIX, `${PROJECT_PREFIX}\uffff`);
+            const cursor = catalogue.openCursor(range);
+            cursor.onsuccess = () => {
+              const row = cursor.result;
+              if (row) {
+                if (row.key !== projectKey) {
+                  const other = row.value as CullingState;
+                  for (const frame of other.frames) keys.delete(frame.stableKey);
+                }
+                row.continue();
+                return;
+              }
+              catalogue.delete(projectKey);
+              // Commit recovery cleanup with deletion, including on a crash.
+              catalogue.put(true, LEGACY_MIGRATION_BLOCKED);
+              catalogue.delete(ACTIVE_KEY);
+              tx.objectStore(STORE_HANDLES).delete(id);
+              for (const key of keys) tx.objectStore(STORE_FILES).delete(key);
+            };
+          };
         });
       } finally {
         db.close();
