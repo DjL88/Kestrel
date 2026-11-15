@@ -37,6 +37,21 @@ test('grid actions are reachable at every width and never run off the screen', a
   }
 });
 
+test('workspace selectors use a single shared chevron', async ({ page }) => {
+  await makeProject(page, 'Workspace selectors');
+  const phone = page.viewportSize()!.width < 768;
+  await page.getByRole('button', { name: phone ? 'More' : 'Workspace options', exact: true }).click();
+  const menu = page.locator('#workspace-options');
+
+  for (const name of ['Show photos', 'View']) {
+    const select = menu.getByRole('combobox', { name, exact: true });
+    await expect(select).toBeVisible();
+    await expect(select).toHaveCSS('appearance', 'none');
+    await expect(select).toHaveCSS('background-image', /data:image\/svg\+xml/);
+    await expect(select.locator('..').locator('svg')).toHaveCount(0);
+  }
+});
+
 test('the editor can go full screen and come back', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles({

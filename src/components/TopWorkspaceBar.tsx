@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArchiveRestore, ArrowLeft, ChevronDown, Download, Ellipsis, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Search, Trash2, Undo2 } from 'lucide-react';
+import { ArchiveRestore, ArrowLeft, Download, Ellipsis, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Search, Trash2, Undo2 } from 'lucide-react';
 import type { ProjectSettings } from '../core/projectSettings';
 import { ThemePicker } from './ThemePicker';
 import { messages as m } from '../i18n/messages';
@@ -174,21 +174,19 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
 
                 <section aria-labelledby="menu-view" className="grid grid-cols-2 gap-2">
                   <h3 id="menu-view" className="sr-only">View</h3>
-                  <label className="relative text-xs font-medium text-zinc-400">
+                  <label className="text-xs font-medium text-zinc-400">
                     Show
                     <select aria-label="Show photos" value={filter} onChange={(event) => choose(() => props.onFilterChange(event.target.value as FilterState))}
-                      className="mt-1 min-h-10 w-full appearance-none rounded-md border border-white/10 bg-kestrel-panel px-2 pr-6 text-sm text-zinc-100">
+                      className="mt-1 min-h-10 w-full rounded-md border border-white/10 bg-kestrel-panel ps-2 text-sm text-zinc-100">
                       {Object.entries(filterLabels).map(([id, label]) => <option key={id} value={id}>{label} ({counts[id as FilterState]})</option>)}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-2 bottom-3 h-4 w-4" aria-hidden="true" />
                   </label>
-                  <label className="relative text-xs font-medium text-zinc-400">
+                  <label className="text-xs font-medium text-zinc-400">
                     View
                     <select aria-label="View" value={viewMode} onChange={(event) => choose(() => props.onViewModeChange(event.target.value as WorkspaceViewMode))}
-                      className="mt-1 min-h-10 w-full appearance-none rounded-md border border-white/10 bg-kestrel-panel px-2 pr-6 text-sm text-zinc-100">
+                      className="mt-1 min-h-10 w-full rounded-md border border-white/10 bg-kestrel-panel ps-2 text-sm text-zinc-100">
                       {Object.entries(viewLabels).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-2 bottom-3 h-4 w-4" aria-hidden="true" />
                   </label>
                 </section>
 
