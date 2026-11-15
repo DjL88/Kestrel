@@ -1,3 +1,4 @@
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -26,7 +27,13 @@ class CompareNikonTiffsTests(unittest.TestCase):
         reference = np.full((65, 12, 3), 18000, dtype=np.uint16)
         candidate = reference.copy()
         candidate[64, 0, :] = [0, 18000, 65535]
-        result = compare(self.write("reference.tif", reference), self.write("candidate.tif", candidate))
+        reference_file = self.write("reference.tif", reference)
+        candidate_file = self.write("candidate.tif", candidate)
+        result = compare(reference_file, candidate_file)
+        self.assertEqual(result["reference_tiff_sha256"], hashlib.sha256(reference_file.read_bytes()).hexdigest())
+        self.assertEqual(result["candidate_tiff_sha256"], hashlib.sha256(candidate_file.read_bytes()).hexdigest())
+        self.assertEqual(result["icc_profile_sha256"], hashlib.sha256(b"test-profile").hexdigest())
+        self.assertNotEqual(result["reference_tiff_sha256"], result["candidate_tiff_sha256"])
         self.assertEqual(result["changed_pixels"], 1)
         self.assertEqual(result["maximum_channel_error_rgb"], [18000, 0, 47535])
         self.assertEqual(result["width"], 12)
