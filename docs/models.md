@@ -45,7 +45,7 @@ Suggests what a photo shows ("Red kite · Milvus milvus · likely") from the ima
 VITE_SPECIES_MODEL_URL=https://example.com/kestrel/bioclip-image-int8.onnx
 ```
 
-Put the file anywhere that serves it with permissive CORS (a release asset, a bucket, or `public/` on the same site). For local use, put it in `public/models/` (not committed) and use `/models/bioclip-image-int8.onnx`. The download is checked against the SHA-256 above before it is kept. A different file needs `VITE_SPECIES_MODEL_SHA256` and `VITE_SPECIES_MODEL_BYTES` as well.
+Put the file somewhere a web page may fetch it from. That means either the same site as the app, or a host that sends CORS headers. Checked on 15 Nov 2026: **GitHub release assets send no CORS headers, so a web page cannot download from them** (they are fine for the native desktop and phone apps later, which are not bound by CORS). Hugging Face file links do send them. A storage bucket with CORS switched on also works. For local use, put it in `public/models/` (not committed) and use `/models/bioclip-image-int8.onnx`. The download is checked against the SHA-256 above before it is kept. A different file needs `VITE_SPECIES_MODEL_SHA256` and `VITE_SPECIES_MODEL_BYTES` as well.
 
 **Making the model file and the names.** `tools/species/` has what is needed, using a Python with `torch`, `open_clip_torch`, `onnx` and `onnxruntime`:
 
