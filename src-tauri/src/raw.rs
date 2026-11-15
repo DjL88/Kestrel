@@ -10,10 +10,19 @@ use rawler::decoders::RawDecodeParams;
 use rawler::imgop::develop::RawDevelop;
 use rawler::rawsource::RawSource;
 
+/// A plain-English reason for a decoder error, so the person sees what is going on rather than a library message.
+fn explain(error: &str) -> String {
+    if error.contains("HighEfficen") {
+        "This is a Nikon High Efficiency (HE) RAW file, a compressed mode Kestrel cannot decode yet.".to_string()
+    } else {
+        format!("This RAW file could not be read: {error}")
+    }
+}
+
 pub fn develop(bytes: &[u8]) -> Result<Vec<u8>, String> {
     let source = RawSource::new_from_slice(bytes);
     let raw = rawler::decode(&source, &RawDecodeParams { image_index: 0 })
-        .map_err(|error| format!("This RAW file could not be read: {error}"))?;
+        .map_err(|error| explain(&error.to_string()))?;
     let developed = RawDevelop::default()
         .develop_intermediate(&raw)
         .map_err(|error| format!("This RAW file could not be developed: {error}"))?
@@ -51,6 +60,13 @@ mod tests {
             let spread = image.pixels().step_by(997).map(|p| p[1] as i32).max().unwrap() - image.pixels().step_by(997).map(|p| p[1] as i32).min().unwrap();
             assert!(spread > 60, "{name}: picture has no contrast (spread {spread})");
         }
+    }
+
+    #[test]
+    fn nikon_high_efficiency_is_explained_in_plain_words() {
+        let message = super::explain("Failed to decode image, possibly corrupt image: NEF compression Some(HighEfficencyStar) is not supported");
+        assert!(message.contains("High Efficiency") && !message.contains("Some("), "{message}");
+        assert!(super::explain("something else").contains("could not be read"));
     }
 
     #[test]
