@@ -39,7 +39,7 @@ function load(): Promise<Loaded> {
 export interface DetectedSubject { grid: SubjectGrid; assessment: SubjectAssessment }
 
 /** Find the most prominent subject in an unedited preview. Runs entirely on this device. */
-export async function detectSubject(preview: HTMLCanvasElement): Promise<DetectedSubject> {
+export async function detectSubject(preview: HTMLCanvasElement, options: { maxCoverage?: number } = {}): Promise<DetectedSubject> {
   const { ort, session } = await load();
   const size = SUBJECT_MODEL.inputSize;
   const small = document.createElement('canvas');
@@ -54,5 +54,5 @@ export async function detectSubject(preview: HTMLCanvasElement): Promise<Detecte
   const output = results[session.outputNames[0]].data as Float32Array;
   const map = normaliseMap(output);
   const { w, h } = gridSizeFor(preview.height / preview.width);
-  return { grid: toGrid(map, size, w, h), assessment: assessSubject(map) };
+  return { grid: toGrid(map, size, w, h), assessment: assessSubject(map, options.maxCoverage) };
 }

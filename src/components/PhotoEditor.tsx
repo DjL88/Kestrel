@@ -8,6 +8,9 @@ import { formatClock } from '../core/formatDate';
 import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
 import { downloadExport } from '../providers/browserExport';
+import { gridSizeFor } from '../core/subjectModel';
+import { AreaSelector } from './AreaSelector';
+import { placeInRegion, regionPixels, type Region } from '../core/subjectRegion';
 import { Histogram } from './Histogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
@@ -101,6 +104,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [detectNotice, setDetectNotice] = useState('');
   const [brushRadius, setBrushRadius] = useState(0.05);
   const [erase, setErase] = useState(false);
+  const [selectingArea, setSelectingArea] = useState(false);
   const [showMaskOverlay, setShowMaskOverlay] = useState(true);
   const [dialUsed, setDialUsed] = useState(false);
   const [quickChoices, setQuickChoices] = useState(false);
@@ -412,6 +416,40 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     }
   }
 
+  /** Look for the subject only inside a dragged box, then lay the result back over the whole framed photo. */
+  async function findInArea(region: Region) {
+    const startedFor = detectionContext.current;
+    if (!source || !outputSize || !startedFor) return;
+    setSelectingArea(false);
+    setDetecting(true);
+    setDetectNotice('');
+    try {
+      const preview = document.createElement('canvas');
+      drawFramedPhoto(source, preview, framing, { scale: Math.min(1, 640 / Math.max(outputSize.width, outputSize.height)) });
+      const box = regionPixels(region, preview.width, preview.height);
+      const piece = document.createElement('canvas');
+      piece.width = box.w;
+      piece.height = box.h;
+      piece.getContext('2d')?.drawImage(preview, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+      const { grid, assessment } = await detectSubject(piece, { maxCoverage: 0.98 });
+      if (detectionContext.current !== startedFor) {
+        if (detectionContext.current) setDetectNotice('Photo edits changed. Select the area again.');
+        return;
+      }
+      if (!assessment.usable) { setDetectNotice(assessment.reason); return; }
+      const full = gridSizeFor(preview.height / preview.width);
+      const mask = createSubjectMask(newId(), placeInRegion(grid, region, full.w, full.h), framingKey(framing), assessment.confidence);
+      onEdit({ ...edit, masks: [...(edit.masks ?? []), mask] });
+      setSelectedMaskId(mask.id);
+      setShowMaskOverlay(true);
+      setDetectNotice(assessment.reason);
+    } catch (error) {
+      if (detectionContext.current === startedFor) setDetectNotice(error instanceof Error ? error.message : 'Subject detection failed.');
+    } finally {
+      if (detectionContext.current) setDetecting(false);
+    }
+  }
+
   function sampleOrientedSource(edge = 112) {
     if (!source) return null;
     const canvas = document.createElement('canvas');
@@ -526,6 +564,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               <MaskOverlay mask={edit.masks.find((mask) => mask.id === selectedMaskId)!} masks={edit.masks} aspect={size.height / size.width} rect={position}
                 brushRadius={brushRadius} erase={erase}
                 onChange={(next) => onEdit({ ...edit, masks: edit.masks!.map((mask) => mask.id === next.id ? next : mask) })} />
+            )}
+            {tab === 'masks' && selectingArea && !guide && position && size && !displayCompare && (
+              <AreaSelector rect={position} onSelect={(region) => void findInArea(region)} onCancel={() => setSelectingArea(false)} />
             )}
             {cropRect && <div style={cropRect}
               className={`crop-guide absolute border border-white/90 ${gridLines ? 'crop-thirds' : ''} ${framing.ratio ? 'cursor-move' : 'pointer-events-none'}`}
@@ -901,7 +942,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               brushRadius={brushRadius} erase={erase} showOverlay={showMaskOverlay}
               onSelect={setSelectedMaskId} onChange={(masks) => onEdit({ ...edit, masks })}
               onBrushRadius={setBrushRadius} onErase={setErase} onShowOverlay={setShowMaskOverlay}
-              onFindSubject={(background) => void findSubject(background)} onRefind={(id) => void findSubject(false, id)}
+              onFindSubject={(background) => void findSubject(background)} onRefind={(id) => void findSubject(false, id)} selectingArea={selectingArea} onSelectArea={setSelectingArea}
               detecting={detecting} detectNotice={detectNotice} currentFramingKey={framingKey(framing)} />
 
           </div>

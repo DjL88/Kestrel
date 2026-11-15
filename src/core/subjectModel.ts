@@ -55,7 +55,8 @@ export interface SubjectAssessment {
   reason: string;
 }
 
-export function assessSubject(map: Float32Array): SubjectAssessment {
+/** `maxCoverage` is how much of the picture may be subject. Looking inside a chosen area allows more, since the area is already tight. */
+export function assessSubject(map: Float32Array, maxCoverage = 0.92): SubjectAssessment {
   let subject = 0;
   let decisive = 0;
   for (const value of map) {
@@ -65,7 +66,7 @@ export function assessSubject(map: Float32Array): SubjectAssessment {
   const coverage = subject / Math.max(1, map.length);
   const share = decisive / Math.max(1, map.length);
   if (coverage < 0.01) return { coverage, decisive: share, confidence: 'low', usable: false, reason: 'No clear subject found.' };
-  if (coverage > 0.92) return { coverage, decisive: share, confidence: 'low', usable: false, reason: 'Nearly the whole photo looks like the subject, so there is nothing to separate.' };
+  if (coverage > maxCoverage) return { coverage, decisive: share, confidence: 'low', usable: false, reason: 'Nearly the whole photo looks like the subject, so there is nothing to separate.' };
   const confidence = share > 0.9 ? 'high' : share > 0.8 ? 'medium' : 'low';
   return { coverage, decisive: share, confidence, usable: true,
     reason: confidence === 'low' ? 'The edges are uncertain. Check the mask and refine it with the brush.' : confidence === 'medium' ? 'Check the edges, especially around fine detail.' : 'The subject stands out clearly.' };

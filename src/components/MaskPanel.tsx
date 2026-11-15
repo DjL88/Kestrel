@@ -1,6 +1,6 @@
 import { newId } from '../core/ids';
 import { Eraser, Paintbrush, Plus, Trash2 } from 'lucide-react';
-import { ScanSearch } from 'lucide-react';
+import { ScanSearch, SquareDashedMousePointer } from 'lucide-react';
 import { LOCAL_DETAIL_KEYS, LOCAL_KEYS, MAX_MASKS, createMask, type LocalKey, type Mask } from '../core/maskTypes';
 
 const LABELS: Record<LocalKey, string> = {
@@ -30,6 +30,8 @@ interface Props {
   onShowOverlay: (show: boolean) => void;
   onFindSubject: (background: boolean) => void;
   onRefind: (id: string) => void;
+  selectingArea: boolean;
+  onSelectArea: (on: boolean) => void;
   detecting: boolean;
   detectNotice: string;
   currentFramingKey: string;
@@ -66,6 +68,10 @@ export function MaskPanel(props: Props) {
             <ScanSearch className="h-3.5 w-3.5" aria-hidden="true" />{props.detecting ? 'Finding…' : 'Find background'}
           </button>
         </div>
+        <button type="button" aria-pressed={props.selectingArea} disabled={disabled || props.detecting || masks.length >= MAX_MASKS}
+          className={`${chip} inline-flex w-full items-center justify-center gap-1 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15`} onClick={() => props.onSelectArea(!props.selectingArea)}>
+          <SquareDashedMousePointer className="h-3.5 w-3.5" aria-hidden="true" />{props.selectingArea ? 'Cancel select area' : 'Select area'}
+        </button>
         <p role="status" className="min-h-4 text-xs text-zinc-300">{props.detectNotice}</p>
         <p className="text-xs text-zinc-500">Runs on this device with a small model that finds the most prominent subject. It is not trained on wildlife in particular, so always check the edges.</p>
       </div>
