@@ -64,3 +64,57 @@ test('a suggestion can be dismissed, and the choice is not kept as a tag', async
   await expect(panel.getByText('Nothing else to suggest.')).toBeVisible();
   await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('list', { name: 'Tags' })).toHaveCount(0);
 });
+
+async function openBurst(page: import('@playwright/test').Page) {
+  await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
+  await page.goto('/');
+  // Three shots with the same capture time are one burst. Make a project and add them.
+  await page.getByRole('button', { name: 'New project' }).click();
+  await page.getByRole('textbox', { name: 'Project name' }).fill('Burst');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByRole('checkbox', { name: /Auto-cull/ }).uncheck();
+  await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
+  await page.getByRole('button', { name: 'Create project' }).click();
+  const photo = readFileSync('tests/fixtures/exif-photo.jpg');
+  await page.getByRole('button', { name: 'Add photos', exact: true }).click();
+  await page.getByTestId('local-file-input').setInputFiles(['DSC_0101.jpg', 'DSC_0102.jpg', 'DSC_0103.jpg'].map((name) => ({ name, mimeType: 'image/jpeg', buffer: photo })));
+  await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 3' })).toBeVisible({ timeout: 30000 });
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByRole('tab', { name: 'Crop' }).waitFor();
+  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  const panel = page.getByRole('region', { name: 'Species suggestions' });
+  await panel.getByRole('button', { name: /^Download/ }).click();
+  await panel.getByRole('button', { name: 'Use Red kite' }).click({ timeout: 30000 });
+  return panel.getByRole('group', { name: 'Tag similar photos' });
+}
+
+async function tagsOf(page: import('@playwright/test').Page, filename: string) {
+  await page.getByRole('button', { name: `Jump to frame ${filename}` }).click();
+  await page.getByRole('region', { name: 'Photo editor' }).waitFor();
+  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  const subject = page.getByRole('region', { name: 'What is in this photo' });
+  await expect(subject).toBeVisible();
+  return subject;
+}
+
+test('accepting a name offers it to the rest of the burst, and declining changes nothing for them', async ({ page }) => {
+  const offer = await openBurst(page);
+  await expect(offer).toContainText('2 other photos in this burst look the same', { timeout: 30000 });
+  await offer.getByRole('button', { name: 'No thanks' }).click();
+  await expect(offer).toHaveCount(0);
+  const other = await tagsOf(page, 'DSC_0102.jpg');
+  await expect(other.getByRole('list', { name: 'Tags' })).toHaveCount(0);
+});
+
+test('agreeing tags the whole burst, setting Wildlife where no kind was chosen', async ({ page }) => {
+  const offer = await openBurst(page);
+  await expect(offer).toContainText('2 other photos in this burst look the same', { timeout: 30000 });
+  await offer.getByRole('button', { name: 'Tag all 2' }).click();
+  await expect(offer).toHaveCount(0);
+  for (const name of ['DSC_0102.jpg', 'DSC_0103.jpg']) {
+    const subject = await tagsOf(page, name);
+    await expect(subject.getByRole('list', { name: 'Tags' }).getByRole('listitem')).toHaveText(['Red kite']);
+    await expect(subject.getByRole('button', { name: 'Wildlife' })).toHaveAttribute('aria-pressed', 'true');
+  }
+});

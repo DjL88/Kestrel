@@ -59,3 +59,20 @@ test('near-identical photos are found for one correction to cover a whole burst'
   const others = [{ id: 'burst-2', embedding: Float32Array.from([1, 0.05, 0, 0]) }, { id: 'other', embedding: Float32Array.from([0, 1, 0, 0]) }];
   assert.deepEqual(similarPhotos(Float32Array.from([1, 0, 0, 0]), others), ['burst-2']);
 });
+
+test('a burst is the other shots of the same moment, and tagging one name covers them without touching anything else', async () => {
+  const { burstMates, hasName, tagFrames } = await import('./speciesBurst');
+  const { generateDemoShootFrames } = await import('./cullingEngine');
+  const [a, b, c, d] = generateDemoShootFrames(4).map((frame, index) => ({ ...frame, burstGroupId: index < 3 ? 'burst-1' : null }));
+  const frames = [a, { ...b, removedAt: 1 }, c, d];
+  assert.deepEqual(burstMates(frames, a).map((frame) => frame.id), [c.id], 'removed photos and other bursts are left out');
+  assert.deepEqual(burstMates(frames, d), [], 'a single frame has no burst');
+  const tagged = tagFrames(frames, [c.id, d.id], 'Red kite', 'wildlife');
+  assert.deepEqual(tagged[2].tags, ['Red kite']);
+  assert.equal(tagged[2].subjectKind, 'wildlife');
+  assert.equal(tagged[0], frames[0], 'photos not chosen are the same objects');
+  const again = tagFrames(tagged, [c.id], 'red kite', 'people');
+  assert.equal(again[2], tagged[2], 'a photo that already has the name is not changed');
+  assert.equal(tagFrames([{ ...c, subjectKind: 'other' }], [c.id], 'Red kite', 'wildlife')[0].subjectKind, 'other', 'a kind you chose is kept');
+  assert.equal(hasName({ subjectNames: ['Red Kite'] }, 'red kite'), true);
+});
