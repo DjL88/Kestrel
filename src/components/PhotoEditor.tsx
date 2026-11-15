@@ -663,7 +663,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         <PhotoViewport zoom={transform.zoom} pan={transform.pan}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
           overlayMode={displayCompare ? 'wipe' : 'hidden'}
-          labels={[before.label, 'Now']}
+          labels={displayCompare ? [before.label, 'Now'] : undefined}
           base={<>
             <canvas ref={editedCanvas} aria-label="Edited photo" role="img"
               hidden={sourceState !== 'ready'} className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />
