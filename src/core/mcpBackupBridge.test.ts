@@ -93,7 +93,7 @@ test('unrecognised edit fields never leak through read-only MCP tools', () => {
     call(1, 'tools/call', { name: 'get_edit_recipe', arguments: { photo_id: 'p1' } }),
   ]);
   const output = JSON.stringify(result);
-  assert.doesNotMatch(output, /NEVER-EXPOSE|Users\\/private|SECRET|DO-NOT-RETURN|hiddenPath/);
+  assert.doesNotMatch(output, /NEVER-EXPOSE|Users|SECRET|DO-NOT-RETURN|hiddenPath/);
   const recipe = JSON.parse(result[0].result.content[0].text);
   assert.equal(recipe.edit.exposure, 0.5);
   assert.deepEqual(recipe.edit.masks, [{ kind: 'brush', enabled: true }]);
