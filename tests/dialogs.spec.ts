@@ -20,6 +20,17 @@ async function problemsWith(root: Locator, touch: boolean, inline: boolean): Pro
     // An overlay must fit. Inline content (a side panel, a form on the page) scrolls, so only its width matters.
     if (isInline ? (box.left < -1 || box.right > vw + 1) : (box.left < -1 || box.top < -1 || box.right > vw + 1 || box.bottom > vh + 1)) out.push(`the panel is off the screen (${Math.round(box.left)},${Math.round(box.top)} to ${Math.round(box.right)},${Math.round(box.bottom)} on ${vw}x${vh})`);
     if (document.documentElement.scrollWidth > vw + 1) out.push(`the page scrolls sideways (${document.documentElement.scrollWidth} wide on ${vw})`);
+    // Text must not be half hidden under a header or bar. Look at the top of the panel as it first opens, before anything is scrolled.
+    for (const scroller of [panel, ...panel.querySelectorAll<HTMLElement>('*')]) if (scroller.scrollTop) scroller.scrollTop = 0;
+    for (const text of panel.querySelectorAll<HTMLElement>('[role="status"], [role="alert"], h2, h3, h4')) {
+      if (text.closest('[inert], [aria-hidden="true"], [hidden], details:not([open])') && text.tagName !== 'SUMMARY') continue;
+      const t = text.getBoundingClientRect();
+      if (t.width <= 1 || t.height <= 1 || t.top > box.top + 140 || t.bottom < box.top) continue;
+      for (const [x, y] of [[t.left + 3, t.top + 3], [t.left + t.width / 2, t.top + t.height / 2]]) {
+        const hit = document.elementFromPoint(x, y);
+        if (hit && !text.contains(hit) && !hit.contains(text)) { out.push(`"${(text.textContent ?? '').trim().slice(0, 30)}" is partly hidden under something`); break; }
+      }
+    }
     const name = (el: Element) => (el.getAttribute('aria-label') || el.textContent || el.getAttribute('title') || el.tagName).trim().replace(/\s+/g, ' ').slice(0, 36);
     const seen = new Set<string>();
     for (const el of panel.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, summary, [role="slider"]')) {
@@ -182,6 +193,22 @@ const scenarios: Scenario[] = [
     await dialog.getByRole('button', { name: 'Guide me step by step' }).click();
     await closes(page, dialog);
   } },
+  { name: 'export results', run: async (page, _t, check) => {
+    await project(page, 'Results', 1);
+    await page.getByRole('button', { name: 'View bird-1.png' }).click();
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await page.getByRole('tab', { name: 'Crop' }).waitFor();
+    await openExportDialog(page);
+    const dialog = page.getByRole('dialog', { name: /Export/ });
+    await dialog.getByRole('button', { name: 'Instagram' }).click();
+    await dialog.getByRole('checkbox', { name: /Post · 4:5/ }).check();
+    await dialog.getByRole('button', { name: 'Next', exact: true }).click();
+    await dialog.getByRole('button', { name: /^Next/ }).click();
+    await dialog.getByRole('button', { name: /^Prepare/ }).click();
+    await expect(dialog.getByRole('status').filter({ hasText: /ready/ })).toBeVisible({ timeout: 30000 });
+    await check('export: results', dialog);
+    await closes(page, dialog);
+  } },
   { name: 'online helper', run: async (page, _t, check) => {
     await project(page);
     const banner = page.getByRole('region', { name: 'Species recognition' });
@@ -211,9 +238,12 @@ for (const scenario of scenarios) {
   test(`dialogs fit and work: ${scenario.name}`, async ({ page }, info) => {
     test.setTimeout(150000);
     const phone = info.project.name === 'phone';
+    const before = report.length;
     for (const size of phone ? PHONE : DESKTOP) {
       await page.setViewportSize({ width: size.w, height: size.h });
       await scenario.run(page, phone, (label, root, inline) => audit(page, `${label} [${size.n}]`, root, phone, inline));
     }
+    // Every problem found is a failure, listed together so one run shows everything that needs fixing.
+    expect([...new Set(report.slice(before))], 'problems found').toEqual([]);
   });
 }
