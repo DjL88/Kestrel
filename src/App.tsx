@@ -1184,8 +1184,16 @@ export default function App() {
           )}
           {!editing && liveFrames.length > 0 && !visibleFrames.length && (
             <div className="grid flex-1 place-items-center p-4">
-              <p className="text-sm text-zinc-300">{cullingState.searchQuery ? 'No photos match this search.' : cullingState.filter === 'unreviewed' ? 'You’re caught up. Your picks are in Keepers.' :
-                cullingState.filter === 'keep' ? 'Flag a photo as Keep to see it here.' : 'Trash is empty.'}</p>
+              <div className="space-y-3 text-center">
+                <p className="text-sm text-zinc-300">{cullingState.searchQuery ? 'No photos match this search.' : cullingState.filter === 'unreviewed' ? 'You’re caught up. Your picks are in Keepers.' :
+                  cullingState.filter === 'keep' ? 'Flag a photo as Keep to see it here.' : 'Trash is empty.'}</p>
+                {cullingState.filter === 'unreviewed' && counts.unreviewed === 0 && cullingState.undoStack.length > 0 && (
+                  <button type="button" onClick={() => executeCommand('cull.undo')}
+                    className="min-h-11 rounded-md border border-white/15 px-3 text-sm text-zinc-100 hover:bg-white/10">
+                    Undo last decision
+                  </button>
+                )}
+              </div>
             </div>
           )}
           {!editing && <SpeciesScanBanner scan={scan} />}
