@@ -1625,8 +1625,6 @@ export default function App() {
                 </button>}
                 <span role="status" className="shrink-0 text-xs text-zinc-300">{selectedVisibleFrames.length} selected</span>
                 <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
-                  onClick={() => setExportFrames(selectedVisibleFrames)}>Export</button>
-                <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setSelectionLookOpen(true)}>Apply look</button>
                 <button type="button" disabled={!!autoAdjustController.current} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setAutoAdjustSelectedOpen(true)}>Auto-adjust</button>
