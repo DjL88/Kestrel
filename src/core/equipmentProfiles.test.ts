@@ -34,9 +34,10 @@ test('reject unknown fields, duplicate IDs, ambiguous aliases, executable URLs a
 });
 
 test('reject bogus revisions and do not apply older or identical catalogue updates', () => {
+  const current = parseEquipmentCatalogue(catalogue)!;
   assert.equal(parseEquipmentCatalogue({ ...catalogue, revision: 0 }), null);
   assert.equal(parseEquipmentCatalogue({ ...catalogue, revision: 1.5 }), null);
-  assert.equal(selectEquipmentUpdate(catalogue, { ...catalogue, revision: 1 }), null);
-  assert.equal(selectEquipmentUpdate(catalogue, catalogue), null);
-  assert.equal(selectEquipmentUpdate(catalogue, { ...catalogue, revision: 3 })?.revision, 3);
+  assert.equal(selectEquipmentUpdate(current, { ...catalogue, revision: 1 }), null);
+  assert.equal(selectEquipmentUpdate(current, catalogue), null);
+  assert.equal(selectEquipmentUpdate(current, { ...catalogue, revision: 3 })?.revision, 3);
 });
