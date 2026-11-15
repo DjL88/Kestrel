@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Columns2, Minus, Plus, Redo2, RotateCcw, SlidersHorizontal, Undo2 } from 'lucide-react';
+import { Check, Columns2, Minus, Plus, Redo2, RotateCcw, SlidersHorizontal, Undo2 } from 'lucide-react';
 import { QUICK_CONTROLS, changedKeys, controlFor, nudge, valueOf, valueText, type QuickKey } from '../core/quickControls';
 import type { PhotoEdit } from '../core/photoEdits';
 
@@ -47,15 +47,16 @@ export function QuickAdjust({ edit, disabled, onEdit, canStepBack, canStepForwar
       <div role="group" aria-label="Choose what to adjust" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
         {QUICK_CONTROLS.map((entry) => (
           <button key={entry.key} ref={entry.key === key ? selected : undefined} type="button" aria-pressed={entry.key === key} disabled={disabled} onClick={() => setKey(entry.key)}
+            aria-label={`${entry.label}${changed.includes(entry.key) ? ', adjusted' : ', unchanged'}`}
             className="relative min-h-11 shrink-0 rounded-full border border-white/12 px-3.5 text-sm text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-45 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/20 aria-pressed:text-white">
             {entry.label}
-            {changed.includes(entry.key) && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-amber-300" aria-label="changed" />}
+            {changed.includes(entry.key) && <span className="ml-1.5 inline-flex align-middle text-sky-200" aria-label="Adjusted" title="Adjusted from the original"><Check className="h-3.5 w-3.5" aria-hidden="true" /></span>}
           </button>
         ))}
       </div>
 
       <div className="flex items-center justify-between px-1">
-        <span className="text-sm font-medium text-zinc-100">{control.label}</span>
+        <span className="text-sm font-medium text-zinc-100">{control.label}{value !== 0 && <span className="ml-2 text-xs font-normal text-sky-200">(adjusted)</span>}</span>
         <output className="text-lg tabular-nums text-zinc-100" aria-live="off">{valueText(key, value)}</output>
       </div>
       <div className="flex items-center gap-2">

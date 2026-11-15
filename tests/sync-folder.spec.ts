@@ -46,3 +46,31 @@ test('bringing changes from a folder with no saved copy says so', async ({ page 
   await dialog.getByRole('button', { name: 'Bring changes from a folder' }).click();
   await expect(dialog.getByRole('status')).toContainText('has no saved copy');
 });
+
+test('sending never silently replaces another project’s saved copy with the same name', async ({ page }) => {
+  test.skip(test.info().project.name === 'phone', 'the menu layout differs on phone; covered on desktop');
+  await useFolder(page);
+  await page.goto('/');
+  // Another project's copy, saved under the same file name, with photos that are not in this project.
+  await page.evaluate(async () => {
+    const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('sync-test', { create: true });
+    let dir = root;
+    for (const part of ['kestrel', 'v1', 'recipes', 'quick-edits']) dir = await dir.getDirectoryHandle(part, { create: true });
+    const file = await dir.getFileHandle('project.json', { create: true });
+    const writable = await file.createWritable();
+    const photos = ['a', 'b', 'c', 'd'].map((n) => ({ key: `other-${n}`, decision: 'keep', identity: `other-${n}.jpg|1` }));
+    await writable.write(JSON.stringify({ format: 'kestrel-project-sync', version: 1, title: 'Quick edits', savedAt: new Date().toISOString(), projectId: 'someone-else', photos }));
+    await writable.close();
+  });
+  const dialog = await openSync(page);
+  await dialog.getByRole('button', { name: 'Send this project to a folder' }).click();
+  const confirm = dialog.getByRole('group', { name: 'Confirm replacing a saved copy' });
+  await expect(confirm).toContainText('different project');
+  await confirm.getByRole('button', { name: 'Cancel' }).click();
+  const kept = await page.evaluate(async () => {
+    let dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('sync-test');
+    for (const part of ['kestrel', 'v1', 'recipes', 'quick-edits']) dir = await dir.getDirectoryHandle(part);
+    return (await (await dir.getFileHandle('project.json')).getFile()).text();
+  });
+  expect(kept).toContain('someone-else');
+});

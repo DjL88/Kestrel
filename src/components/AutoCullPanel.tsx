@@ -1,3 +1,4 @@
+import { tasks } from '../core/taskStore';
 import { useEffect, useRef, useState } from 'react';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
 import { X } from 'lucide-react';
@@ -55,20 +56,23 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo,
 
   async function scan() {
     const controller = new AbortController();
+    const task = tasks.start('Assisted culling', { total: candidates.length, cancel: () => controller.abort() });
     running.current = controller;
     setTotal(candidates.length);
     setProgress(0);
     setFailed(false);
     try {
       const next = await scanForCulling(candidates, frames, provider, keeperTarget, controller.signal,
-        (count) => { if (!controller.signal.aborted) setProgress(count); });
+        (count) => { if (!controller.signal.aborted) setProgress(count); task.progress(count); });
       if (controller.signal.aborted) return;
+      task.finish();
       setResults(next);
       if (autoMove) apply(next.flatMap((result) =>
         result.confidence === 'high' && result.decision ? [{ frameId: result.frameId, decision: result.decision }] : []));
     } catch {
-      if (!controller.signal.aborted) setFailed(true);
+      if (!controller.signal.aborted) { setFailed(true); task.fail('Could not finish looking at the photos'); }
     } finally {
+      task.fail('Stopped before it finished'); // does nothing if it finished or was cancelled
       if (!controller.signal.aborted) setProgress(undefined);
     }
   }
