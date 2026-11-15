@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useLicence } from './licenceStore';
 import { accessCapabilities, type AccessSnapshot, type Capabilities } from '../core/commercialAccess';
 import { featureAvailable, type Feature } from '../core/features';
 
@@ -10,15 +11,16 @@ import { featureAvailable, type Feature } from '../core/features';
 /** A build made with VITE_KESTREL_PLAN=free shows the Free experience, so it can be tested. Normal builds stay open. */
 export const BETA_ALL_FEATURES_OPEN = import.meta.env.VITE_KESTREL_PLAN !== 'free';
 
-export function currentSnapshot(): AccessSnapshot {
-  return BETA_ALL_FEATURES_OPEN
+export function currentSnapshot(licensed = false): AccessSnapshot {
+  return BETA_ALL_FEATURES_OPEN || licensed
     ? { plan: 'paid', licence: 'active', cloud: 'none', online: false, cachedLocalLicence: true }
     : { plan: 'free', licence: 'unlicensed', cloud: 'none', online: false, cachedLocalLicence: false };
 }
 
 export function useAccess(): { capabilities: Capabilities; can: (feature: Feature) => boolean } {
+  const licensed = useLicence().status === 'valid';
   return useMemo(() => {
-    const capabilities = accessCapabilities(currentSnapshot());
+    const capabilities = accessCapabilities(currentSnapshot(licensed));
     return { capabilities, can: (feature: Feature) => featureAvailable(feature, capabilities) };
-  }, []);
+  }, [licensed]);
 }
