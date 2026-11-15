@@ -6,7 +6,7 @@ export interface WatchStatus { folder: string; imported: number; error: string |
 const EVERY_MS = 2000;
 
 /** Look at a chosen folder every couple of seconds and hand over photos as they finish arriving. */
-export function useFolderWatch(onFiles: (files: File[]) => void) {
+export function useFolderWatch(onFiles: (files: File[]) => Promise<number>) {
   const [status, setStatus] = useState<WatchStatus | null>(null);
   const run = useRef<{ stop: boolean } | null>(null);
   const handler = useRef(onFiles);
@@ -52,7 +52,26 @@ export function useFolderWatch(onFiles: (files: File[]) => void) {
             }
             files.push(file);
           }
-          if (files.length && !token.stop) { handler.current(files); imported += files.length; setStatus({ folder: source.name, imported, error: null }); }
+          if (files.length && !token.stop) {
+            try {
+              const added = await handler.current(files);
+              if (!token.stop) {
+                imported += added;
+                setStatus({ folder: source.name, imported, error: null });
+              }
+            } catch {
+              // Reoffer this batch after it settles, rather than declaring a
+              // failed import successful and silently dropping photographs.
+              for (const entry of ready) {
+                state.done.delete(entry.name);
+                state.seen.delete(entry.name);
+              }
+              if (!token.stop) setStatus({
+                folder: source.name, imported,
+                error: 'Some watched photos could not be added. Kestrel will retry.',
+              });
+            }
+          }
         }
       } catch { if (!token.stop) setStatus({ folder: source.name, imported, error: 'The folder stopped answering. Is the drive still connected?' }); }
       if (!token.stop) window.setTimeout(() => void tick(), EVERY_MS);

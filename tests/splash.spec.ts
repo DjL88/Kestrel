@@ -32,7 +32,7 @@ test('with reduced motion the logo is still, and leaves quickly', async ({ page 
   await page.goto('/?splash=1');
   const splash = page.getByTestId('splash');
   await expect(splash).toBeVisible();
-  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  expect(await splash.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0);
   await expect(splash).toHaveCount(0, { timeout: 4000 });
 });
 

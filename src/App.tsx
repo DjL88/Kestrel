@@ -838,16 +838,18 @@ export default function App() {
   }, [projectsOpen, loadingProgress, exportFrames.length, autoCullOpen, pendingAction, removedOpen, showPhotoInfo, editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
 
   const droppedInProjectRef = useRef<(files: File[]) => Promise<void>>(async () => {});
+  const watchImportRef = useRef<(files: File[]) => Promise<number>>(async () => 0);
   const quickEditRef = useRef<(files: File[]) => Promise<void>>(async () => {});
   const handleSelectLocalFilesRef = useRef<(files: File[]) => Promise<void>>(async () => {});
   const onDroppedPhotos = useCallback((files: File[]) => { if (projectsOpen) void quickEditRef.current(files); else void droppedInProjectRef.current(files); }, [projectsOpen]);
   const drop = useDropPhotos(onDroppedPhotos);
-  const watch = useFolderWatch(useCallback((files: File[]) => { void droppedInProjectRef.current(files); }, []));
+  const watch = useFolderWatch(useCallback((files: File[]) => watchImportRef.current(files), []));
   // Watching belongs to the current project. Never silently import into another
   // project after switching workspaces or returning to the home screen.
   useEffect(() => { if (projectsOpen) watch.stop(); }, [projectsOpen, cullingState.shoot.id, watch.stop]);
 
-  const handleSelectLocalFiles = async (files: File[], options?: { openEditor?: boolean }) => {
+  const handleSelectLocalFiles = async (files: File[], options?: { openEditor?: boolean; watched?: boolean; onImported?: (count: number) => void }) => {
+    const targetProjectId = cullingState.shoot.id;
     // A photo that was removed from the library does not count as already added, so adding it again brings it back.
     const existing = new Set(cullingState.frames.filter((frame) => !frame.removedAt).map((frame) => frame.stableKey));
     const additions = files.filter((file) => {
@@ -878,8 +880,12 @@ export default function App() {
         additions, previewProviderRef.current!, storeRef.current!,
         ({ loaded, total }) => setLoadingProgress({ loaded, total })
       );
+      // The photographer may switch projects while a watched file is loading.
+      // In that case, never append its frames to whichever project is open now.
+      if (options?.watched && stateRef.current.shoot.id !== targetProjectId) return;
       const importId = newId().slice(0, 8);
       setCullingState((prev) => {
+        if (options?.watched && prev.shoot.id !== targetProjectId) return prev;
         const next = appendProjectPhotos(prev, frames, importId);
         const first = options?.openEditor ? next.frames.find((frame) => frame.id.startsWith(`${importId}-`)) : undefined;
         return first ? { ...next, filter: 'all', selectedFrameId: first.id } : next;
@@ -891,8 +897,10 @@ export default function App() {
         setAutoCullOpen(true);
       }
       setPrefs((prev) => ({ ...prev, viewMode: 'grid' }));
+      options?.onImported?.(frames.length);
     } catch {
       setProjectError('Could not add the photos. Try selecting the files again.');
+      if (options?.watched) throw new Error('Kestrel could not import the watched photos. They will be retried.');
     } finally {
       setLoadingProgress(null);
     }
@@ -979,11 +987,17 @@ export default function App() {
    * Photos dropped into an open project. Any that are the project's own missing originals (moved or backed up to another
    * drive) are reconnected, matched by name, size and modified time. The rest are added as new photos.
    */
-  const handleDroppedInProject = async (files: File[]) => {
+  const handleDroppedInProject = async (files: File[], watched = false): Promise<number> => {
     const preview = previewProviderRef.current!;
     const { reconnect, add } = splitDropped(files, cullingState.frames, getLocalFileKey, (key) => preview.hasBlob(key));
     if (reconnect.length) await reconnectFileSelection(reconnect);
-    if (add.length || !reconnect.length) await handleSelectLocalFiles(add.length ? add : files);
+    let imported = 0;
+    if (add.length || !reconnect.length) {
+      await handleSelectLocalFiles(add.length ? add : files, {
+        watched, onImported: (count) => { imported = count; },
+      });
+    }
+    return imported;
   };
 
   const handleReconnectFolderOrFiles = async () => {
@@ -1033,7 +1047,8 @@ export default function App() {
 
   quickEditRef.current = quickEdit;
   handleSelectLocalFilesRef.current = (files) => handleSelectLocalFiles(files);
-  droppedInProjectRef.current = handleDroppedInProject;
+  droppedInProjectRef.current = async (files) => { await handleDroppedInProject(files); };
+  watchImportRef.current = (files) => handleDroppedInProject(files, true);
 
   if (projectsOpen) {
     return <>
