@@ -33,8 +33,8 @@ test('select multiple photos in Library, edit just that queue and export togethe
   await expect(film.getByRole('button', { name: 'Select frame-1.png' })).toBeVisible();
   await expect(film.getByRole('button', { name: 'Select frame-3.png' })).toBeVisible();
   await expect(film.getByRole('button', { name: 'Select frame-2.png' })).toHaveCount(0);
-  const batch = page.getByRole('group', { name: 'Selected photo actions' });
-  await expect(batch.getByRole('button', { name: 'Export 2' })).toBeVisible();
+  const batch = page.getByRole('toolbar', { name: 'Filmstrip controls' });
+  await expect(batch.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
   await expect(batch.getByRole('button', { name: 'Edit together' })).toBeVisible();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await batch.getByRole('button', { name: 'Edit together' }).click();
@@ -42,6 +42,8 @@ test('select multiple photos in Library, edit just that queue and export togethe
   const light = page.getByRole('slider', { name: 'Light adjustment' });
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');
+  // Wait for the deliberately deferred selected-photo edit before navigating.
+  await page.waitForTimeout(350);
   await page.getByRole('button', { name: 'Next photo' }).click();
   await expect(light).toHaveValue('0.1');
   await batch.getByRole('button', { name: 'Export 2' }).click();
