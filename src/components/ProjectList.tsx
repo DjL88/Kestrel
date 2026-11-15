@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { ChevronRight, Folder, FolderUp, Plus } from 'lucide-react';
+import kestrelMark from '../assets/kestrel-mark.svg';
 import type { ShootDescriptor } from '../core/types';
 
 interface Props {
@@ -18,6 +19,10 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
   return (
     <main className="h-dvh overflow-auto bg-[#101114] px-4 text-zinc-100 sm:px-8">
       <div className="mx-auto max-w-3xl py-8 sm:py-14">
+        <div className="mb-7 flex items-center gap-2.5">
+          <img src={kestrelMark} alt="" className="h-8 w-8" />
+          <span className="text-sm font-semibold tracking-wide text-zinc-200">Kestrel</span>
+        </div>
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
           <div className="flex items-center gap-2">
@@ -54,21 +59,28 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
         )}
         {error && <p role="alert" className="mb-3 text-sm text-orange-200">{error}</p>}
         {loading && <p role="status" className="mb-3 text-sm text-zinc-400">Opening catalogue…</p>}
-        <ul className="divide-y divide-white/8 rounded-xl border border-white/10 bg-[#181A1F]">
-          {projects.map((project) => (
-            <li key={project.id}>
-              <button type="button" disabled={loading} onClick={() => onOpen(project.id)}
-                className="flex w-full items-center gap-3 rounded-md p-3 text-left hover:bg-white/6 disabled:opacity-55">
-                <Folder className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden="true" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{project.title}</span>
-                  <span className="block text-xs text-zinc-400">{project.totalFrames} {project.totalFrames === 1 ? 'photo' : 'photos'}</span>
-                </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden="true" />
-              </button>
-            </li>
-          ))}
-        </ul>
+        {!loading && !error && !projects.length && !creating && (
+          <p className="rounded-xl border border-white/10 bg-[#181A1F] p-4 text-sm text-zinc-300">
+            Create a project to import photos, or restore a Kestrel backup.
+          </p>
+        )}
+        {projects.length > 0 && (
+          <ul className="divide-y divide-white/8 rounded-xl border border-white/10 bg-[#181A1F]">
+            {projects.map((project) => (
+              <li key={project.id}>
+                <button type="button" disabled={loading} onClick={() => onOpen(project.id)}
+                  className="flex w-full items-center gap-3 rounded-md p-3 text-left hover:bg-white/6 disabled:opacity-55">
+                  <Folder className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden="true" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{project.title}</span>
+                    <span className="block text-xs text-zinc-400">{project.totalFrames} {project.totalFrames === 1 ? 'photo' : 'photos'}</span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </main>
   );

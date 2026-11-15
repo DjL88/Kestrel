@@ -35,7 +35,7 @@ self.addEventListener('fetch', event => {
   const navigation = request.mode === 'navigate' && url.origin + url.pathname === root;
   if (!navigation && !assets.has(request.url)) return;
   event.respondWith(caches.open(cacheName)
-    .then(cache => cache.match(navigation ? root : request))
+    .then(cache => cache.match(navigation ? root : request.url, { ignoreVary: true }))
     .then(cached => cached || fetch(request)));
 });
 `,

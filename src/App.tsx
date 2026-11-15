@@ -75,7 +75,7 @@ export default function App() {
 
   const [prefs, setPrefs] = useState<UserPreferences>(() => loadPreferences());
   const [cullingState, setCullingState] = useState<CullingState>(() =>
-    createDemoShootState(500)
+    createEmptyProject('uninitialised', '')
   );
   const [editing, setEditing] = useState(false);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
@@ -129,13 +129,10 @@ export default function App() {
         }
         const legacy = await store.loadActiveState();
         if (!active) return;
-        const demo = createDemoShootState(500);
-        const initial = legacy?.shoot && Array.isArray(legacy.frames)
-          ? { ...createDemoShootState(0), ...legacy, shoot: legacy.shoot, frames: legacy.frames }
-          : demo;
-        await store.saveProject(initial);
-        if (initial.shoot.id !== demo.shoot.id) await store.saveProject(demo);
-        if (active) setProjects(await store.listProjects());
+        if (legacy?.shoot && Array.isArray(legacy.frames)) {
+          await store.saveProject({ ...createDemoShootState(0), ...legacy, shoot: legacy.shoot, frames: legacy.frames });
+          if (active) setProjects(await store.listProjects());
+        }
       } catch {
         if (active) setProjectError('Could not open the local project catalogue. Reload to try again.');
       } finally {
