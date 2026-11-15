@@ -27,7 +27,7 @@ test('grid actions are reachable at every width and never run off the screen', a
     const footer = page.getByRole('toolbar', { name: 'Photo actions' });
     const box = (await footer.boundingBox())!;
     expect(box.y + box.height).toBeGreaterThan(page.viewportSize()!.height - 2);
-    await page.getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('button', { name: 'Workspace options' }).click();
     const sheet = page.locator('#workspace-options');
     await expect(sheet).toBeVisible();
     expect((await sheet.boundingBox())!.y + (await sheet.boundingBox())!.height).toBeLessThanOrEqual(box.y + 1);
