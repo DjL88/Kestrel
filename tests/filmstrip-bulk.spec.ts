@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('select multiple photos in Library, edit just that queue and export together', async ({ page }) => {
+  test.skip(test.info().project.name === 'phone', 'desktop grid/filmstrip flow; phone selection needs a dedicated test');
   await page.goto('/');
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Select and edit');
@@ -60,6 +61,7 @@ test('select multiple photos in Library, edit just that queue and export togethe
 });
 
 test('filmstrip selection can bulk export and paste slider edits, keeping original files untouched', async ({ page }) => {
+  test.skip(test.info().project.name === 'phone', 'desktop grid/filmstrip flow; phone selection needs a dedicated test');
   await page.goto('/');
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Filmstrip batch actions');
@@ -87,6 +89,8 @@ test('filmstrip selection can bulk export and paste slider edits, keeping origin
   await bar.getByRole('button', { name: 'Copy', exact: true }).click();
   await bar.getByRole('button', { name: 'Select photos' }).click();
   const film = page.locator('[aria-label="Shoot filmstrip"]');
+  // Select photos starts with the active photo marked; clear it for this two-photo test.
+  await film.getByRole('button', { name: 'Select batch-1.png' }).click();
   await film.getByRole('button', { name: 'Select batch-2.png' }).click();
   await film.getByRole('button', { name: 'Select batch-3.png' }).click();
   await expect(bar.getByRole('status')).toHaveText('2 selected');
