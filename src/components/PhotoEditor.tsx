@@ -67,6 +67,8 @@ interface Props {
   needsAccess: boolean;
   bindings: KeyBindingsMap;
   onEdit: (edit: PhotoEdit) => void;
+  /** Applying a named look is a deliberate batch action when multiple photos are selected. */
+  onApplyLook?: (edit: PhotoEdit) => void;
   onHistoryStep: (direction: -1 | 1) => void;
   /** Restore the photo to how it was after this many history steps. */
   onHistoryJump: (cursor: number) => void;
@@ -85,7 +87,7 @@ interface Props {
 }
 
 export function PhotoEditor({ autoEdit, onOpenMacroPad,
-  frame, provider, needsAccess, bindings, onEdit, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
+  frame, provider, needsAccess, bindings, onEdit, onApplyLook, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, showFilmstrip,
 }: Props) {
@@ -773,7 +775,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           )}
         <section aria-label="Photo looks" className="space-y-1 border-t border-white/10 pt-2">
           <h3 className="text-sm font-medium text-zinc-100">Looks</h3>
-          <PresetPanel edit={edit} disabled={sourceState !== 'ready'} previewSource={lookPreviewSource} onApply={(next) => onEdit({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />
+          <PresetPanel edit={edit} disabled={sourceState !== 'ready'} previewSource={lookPreviewSource} onApply={(next) => (onApplyLook ?? onEdit)({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />
         </section>
         <Histogram data={histogram} teach />
 

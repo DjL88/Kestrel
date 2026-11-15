@@ -1352,6 +1352,21 @@ export default function App() {
                    }),
                  }));
                }}
+              onApplyLook={(look) => {
+                const ids = new Set(multiSelect ? selectedVisibleFrames.map((frame) => frame.id) : []);
+                if (ids.size < 2) {
+                  updateFrame(selectedFrame.id, { edit: isEmptyEdit(look) ? undefined : { ...look } });
+                  return;
+                }
+                const at = Date.now();
+                // Applying a named look is an explicit batch action. Never copy the
+                // active photo's local masks onto another selected photograph.
+                const globalLook = { ...look, masks: undefined };
+                setCullingState((prev) => ({ ...prev,
+                  shoot: { ...prev.shoot, lastUpdatedAt: at },
+                  frames: applySelectedLook(prev.frames, ids, globalLook, true, at),
+                }));
+              }}
               copiedEdit={copiedEdit}
               onCopyEdit={setCopiedEdit}
               onHistoryStep={(direction) => stepPhotoHistory(selectedFrame.id, direction)}
