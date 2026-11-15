@@ -59,3 +59,45 @@ test('does not return a malformed TIFF-located preview', async () => {
   new DataView(header.buffer).setUint32(44, fake.length, true);
   assert.equal(await extractNefPreview(new Blob([header, fake])), null);
 });
+
+test('tries the next TIFF preview when the largest candidate is malformed', async () => {
+  const malformed = new Uint8Array(jpeg.length + 1);
+  malformed.set([0xff, 0xd8, 0xff, 0xe0, 0, 2]);
+  malformed.set([0xff, 0xd9], malformed.length - 2);
+  const header = container(true);
+  const view = new DataView(header.buffer);
+  view.setUint32(44, malformed.length, true);
+  view.setUint32(52, header.length, true);
+  const secondDirectory = container(true, offset + malformed.length).slice(26, 56);
+  const file = new Blob([
+    header,
+    secondDirectory,
+    new Uint8Array(offset - header.length - secondDirectory.length),
+    malformed,
+    jpeg,
+  ]);
+
+  const preview = await extractNefPreview(file);
+  assert.ok(preview);
+  assert.deepEqual(new Uint8Array(await preview.arrayBuffer()), jpeg);
+});
+
+test('NEF preview requires plausible width and height, not just one large dimension', async () => {
+  function preview(width: number, height: number) {
+    const bytes = new Uint8Array(5000);
+    const view = new DataView(bytes.buffer);
+    bytes.set([0xff, 0xd8, 0xff, 0xc0], 0);
+    view.setUint16(4, 17); // SOF0 length
+    bytes[6] = 8; // precision
+    view.setUint16(7, height);
+    view.setUint16(9, width);
+    bytes.set([0xff, 0xd9], bytes.length - 2);
+    return bytes;
+  }
+  const header = container(true, 64);
+  new DataView(header.buffer).setUint32(44, 5000, true);
+  assert.equal(await extractNefPreview(new Blob([header, preview(8256, 1)])), null);
+  assert.equal(await extractNefPreview(new Blob([header, preview(1, 5504)])), null);
+  assert.equal((await extractNefPreview(new Blob([header, preview(8256, 5504)])))?.size, 5000);
+  assert.equal((await extractNefPreview(new Blob([header, preview(640, 480)])))?.size, 5000);
+});
