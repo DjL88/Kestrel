@@ -32,6 +32,7 @@ async function composeExport(
   source: HTMLImageElement, frame: PhotoFrame, profile: ExportProfile, signal: AbortSignal | undefined,
   mode: ExportFraming, longEdge: number | undefined, extras: ExportExtras,
 ) {
+  signal?.throwIfAborted();
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const { width, height } = framedSize(source.naturalWidth, source.naturalHeight, framing);
   const plan = planExportFraming(width, height, profile, mode, extras.focus ?? frame.focusPoint, longEdge);
@@ -94,7 +95,9 @@ export async function renderExport(
     const raw = !frame.isDemo && /\.(nef|nrw)$/i.test(frame.filename);
     const name = exportFilename(frame.filename, profile, raw);
     for (const quality of profile.maxBytes ? [profile.quality, ...[0.88, 0.82, 0.74, 0.65].filter((value) => value < profile.quality)] : [profile.quality]) {
+      signal?.throwIfAborted();
       const encoded = await new Promise<Blob | null>((resolve) => output.toBlob(resolve, mime, quality));
+      signal?.throwIfAborted();
       if (!encoded || encoded.type !== mime) throw new Error(`Could not encode ${name} at ${output.width} × ${output.height} px.`);
       const file = datedExport(encoded, name, date);
       if (!profile.maxBytes || file.size <= profile.maxBytes) return file;
