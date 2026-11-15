@@ -66,7 +66,9 @@ mod tests {
         let Some(dir) = samples() else { eprintln!("skipped: KESTREL_RAW_SAMPLES not set"); return };
         let expected = [("nikon-d7200.nef", 6000, 4000), ("canon-5d2-sraw.cr2", 3861, 2574), ("sony-a7rv.arw", 6240, 4160), // This Nikon D3 portrait shot says "normal" orientation in its own flags, so the decoder returns it landscape (4256 x 2832).
             // The app turns it to match the camera's preview (see matchPreviewOrientation).
-            ("portrait-d3.nef", 4256, 2832)];
+            ("portrait-d3.nef", 4256, 2832),
+            ("filesamples-cr2.cr2", 8688, 5792), ("filesamples-raf.raf", 6240, 4160), ("filesamples-rw2.rw2", 4608, 3072),
+            ("filesamples-orf.orf", 3264, 2448), ("filesamples-dng.dng", 3456, 2304)];
         for (name, width, height) in expected {
             let path = dir.join(name);
             if !path.exists() { eprintln!("skipped {name}: not found"); continue; }
