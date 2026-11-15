@@ -13,6 +13,10 @@ export function isSupportedPhotoFilename(name: string): boolean {
   return SUPPORTED_EXTENSIONS.has(lower.slice(dot));
 }
 
+export function getLocalFileKey(file: File): string {
+  return `local-file://${file.name}::${file.size}::${file.lastModified}`;
+}
+
 export function supportsDirectoryPicker(): boolean {
   return typeof window !== 'undefined' && typeof (window as Window & { showDirectoryPicker?: unknown }).showDirectoryPicker === 'function';
 }
@@ -45,7 +49,7 @@ export async function loadLocalFileListShoot(
     const processed = await Promise.all(
       chunk.map(async (file, offset) => {
         const idx = i + offset + 1;
-        const stableKey = `local-file://${file.name}::${file.size}::${file.lastModified}`;
+        const stableKey = getLocalFileKey(file);
         previewProvider.registerBlob(stableKey, file);
         const saved = await store.saveLocalFileBlob(stableKey, file);
         if (!saved) storedAllBlobs = false;

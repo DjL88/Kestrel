@@ -3,6 +3,7 @@ import { FolderKey } from 'lucide-react';
 
 interface FolderRegrantBannerProps {
   visible: boolean;
+  status?: string;
   mode: 'folder' | 'files';
   folderName?: string;
   onReconnect: () => void;
@@ -11,6 +12,7 @@ interface FolderRegrantBannerProps {
 
 export const FolderRegrantBanner: React.FC<FolderRegrantBannerProps> = ({
   visible,
+  status,
   mode,
   folderName,
   onReconnect,
@@ -28,7 +30,7 @@ export const FolderRegrantBanner: React.FC<FolderRegrantBannerProps> = ({
         <span>
           {mode === 'folder'
             ? `Browser security paused read access to "${folderName ?? 'your folder'}" after reload. Your culling decisions are preserved.`
-            : 'Some local files were too large for browser storage. Re-select them to restore previews while keeping all decisions.'}
+            : status ?? 'Re-select the original files to restore previews and keep your edits and virtual copies.'}
         </span>
       </div>
       <div className="flex items-center gap-2 shrink-0">

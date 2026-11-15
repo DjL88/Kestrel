@@ -18,6 +18,8 @@ interface TopWorkspaceBarProps {
   onOpenShootModal: () => void;
   onOpenMacroPadModal: () => void;
   onEditPhoto?: () => void;
+  showFilmstrip: boolean;
+  onToggleFilmstrip: () => void;
   showPhotoInfo: boolean;
   onTogglePhotoInfo: () => void;
   autoAdvance: boolean;
@@ -124,6 +126,13 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                 {props.onClearDecision && <button type="button" className={actionClass} onClick={() => choose(() => props.onClearDecision?.())}>Clear decision</button>}
                 {props.onRedo && <button type="button" className={actionClass} onClick={() => choose(() => props.onRedo?.())}>Redo decision</button>}
               </div>
+              <details className="mt-2 border-t border-white/10 pt-2">
+                <summary className="min-h-10 cursor-pointer py-2 text-sm text-zinc-300">Layout</summary>
+                <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
+                  <input type="checkbox" checked={props.showFilmstrip} onChange={props.onToggleFilmstrip} />
+                  Pin filmstrip
+                </label>
+              </details>
               <details className="mt-2 border-t border-white/10 pt-2">
                 <summary className="min-h-10 cursor-pointer py-2 text-sm text-zinc-300">Culling settings</summary>
                 <div className="space-y-2 px-1 pb-2 text-sm">

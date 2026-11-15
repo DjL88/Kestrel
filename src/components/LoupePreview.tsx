@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import type React from 'react';
 import {
   Check,
   ChevronLeft,
@@ -13,6 +13,7 @@ import {
 } from '../core/keyboardCommands';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
+import { PhotoViewport } from './PhotoViewport';
 import { FrameImage } from './FrameImage';
 import { ShortcutOverlay } from './ShortcutOverlay';
 
@@ -51,11 +52,6 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
   onExecuteCommand,
   onStepFrame,
 }) => {
-  const [dragging, setDragging] = useState(false);
-  const dragStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(
-    null
-  );
-
   if (!frame) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-[#0D0E11] text-zinc-400 p-8 text-center">
@@ -67,92 +63,18 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
     );
   }
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (zoomLevel <= 1 || (e.target instanceof Element && e.target.closest('button'))) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    setDragging(true);
-    dragStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      panX: panOffset.x,
-      panY: panOffset.y,
-    };
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragging || !dragStartRef.current) return;
-    const dx = e.clientX - dragStartRef.current.x;
-    const dy = e.clientY - dragStartRef.current.y;
-    onPanChange({
-      x: dragStartRef.current.panX + dx,
-      y: dragStartRef.current.panY + dy,
-    });
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragging) return;
-    setDragging(false);
-    dragStartRef.current = null;
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
-  };
-
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (Math.abs(e.deltaY) < 4) return;
-    const factor = e.deltaY < 0 ? 1.15 : 0.87;
-    const next = Math.max(1, Math.min(4, Number((zoomLevel * factor).toFixed(2))));
-    onZoomChange(next);
-    if (next <= 1) onPanChange({ x: 0, y: 0 });
-  };
-
   return (
-    <div className="flex-1 flex flex-col bg-[#0B0C0E] min-w-0 min-h-0 relative">
-      {/* Main Photograph Stage */}
-      <div
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onDoubleClick={() => onExecuteCommand('cull.toggleZoom')}
-        onWheel={handleWheel}
-        className={`flex-1 relative flex items-center justify-center overflow-hidden p-2 sm:p-4 ${
-          zoomLevel > 1 ? (dragging ? 'touch-none cursor-grabbing' : 'touch-none cursor-grab') : 'cursor-default'
-        }`}
-      >
-        <div className="w-full h-full flex items-center justify-center">
-          <div className="relative w-full h-full max-w-full max-h-full flex items-center justify-center">
-            <FrameImage
-              frame={frame}
-              previewProvider={previewProvider}
-              variant="full"
-              needsAccess={needsAccess}
-              zoomScale={zoomLevel}
-              panOffset={panOffset}
-              className="w-full h-full rounded-md"
-              imgClassName="object-contain"
-            />
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onExecuteCommand('cull.toggleZoom')}
-          onDoubleClick={(event) => event.stopPropagation()}
-          aria-label={zoomLevel === 1 ? 'Zoom in' : 'Fit photo'}
-          className="absolute top-2 right-2 min-h-11 min-w-11 rounded-md bg-black/65 px-2 text-xs tabular-nums text-zinc-200 hover:bg-black/90"
-        >
-          {zoomLevel === 1 ? 'Fit' : `${Math.round(zoomLevel * 100)}%`}
-        </button>
-
-        {/* Quiet Optional Shortcut Overlay */}
-        <div className="absolute bottom-3 right-4 z-10 hidden lg:block">
-          <ShortcutOverlay
-            bindings={bindings}
-            knobMode={knobMode}
-            visible={showShortcutsOverlay}
-          />
-        </div>
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[#0B0C0E]">
+      <PhotoViewport
+        zoom={zoomLevel} pan={panOffset} onTransform={(zoom, pan) => {
+          onZoomChange(zoom);
+          onPanChange(pan);
+        }}
+        base={<FrameImage frame={frame} previewProvider={previewProvider} variant="full"
+          needsAccess={needsAccess} className="h-full w-full" imgClassName="object-contain" />}
+      />
+      <div className="absolute right-4 bottom-16 z-10 hidden lg:block">
+        <ShortcutOverlay bindings={bindings} knobMode={knobMode} visible={showShortcutsOverlay} />
       </div>
 
       <div className="flex min-h-13 shrink-0 items-center justify-between gap-1 border-t border-white/8 bg-[#14161A] px-1.5 sm:px-4">

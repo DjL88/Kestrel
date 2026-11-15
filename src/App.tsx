@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createVirtualCopy } from './core/virtualCopies';
 import { PhotoEditor } from './components/PhotoEditor';
 import { isNeutralEdit, type PhotoEdit } from './core/photoEdits';
 import { CompareView } from './components/CompareView';
@@ -43,6 +44,7 @@ import {
 } from './providers/browserCatalogueStore';
 import { BrowserPreviewProvider } from './providers/browserPreviewProvider';
 import {
+  getLocalFileKey,
   loadDirectoryHandleShoot,
   loadLocalFileListShoot,
   readFilesFromDirectoryHandle,
@@ -61,6 +63,7 @@ export default function App() {
   const storeRef = useRef<BrowserCatalogueStore | null>(null);
   if (!storeRef.current) storeRef.current = new BrowserCatalogueStore();
 
+  const relinkInput = useRef<HTMLInputElement>(null);
   const previewProviderRef = useRef<BrowserPreviewProvider | null>(null);
   if (!previewProviderRef.current) previewProviderRef.current = new BrowserPreviewProvider();
 
@@ -80,12 +83,13 @@ export default function App() {
   // Viewport zoom/pan state
   const [zoomLevel, setZoomLevel] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  const [matchedCompareZoom, setMatchedCompareZoom] = useState(true);
 
   // Modals & status
   const [openShootModal, setOpenShootModal] = useState(false);
   const [macroPadModal, setMacroPadModal] = useState(false);
   const [folderError, setFolderError] = useState<string | null>(null);
+  const [relinkStatus, setRelinkStatus] = useState<string>();
+  const [previewRevision, setPreviewRevision] = useState(0);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState<{
     loaded: number;
@@ -394,6 +398,52 @@ export default function App() {
     }));
   };
 
+  const addVirtualCopy = () => {
+    if (!selectedFrame) return;
+    const id = `copy-${crypto.randomUUID()}`;
+    const sourceId = selectedFrame.id;
+    setCullingState((prev) => {
+      const index = prev.frames.findIndex((frame) => frame.id === sourceId);
+      if (index < 0) return prev;
+      const copy = createVirtualCopy(prev.frames[index], prev.frames, id);
+      const frames = [...prev.frames.slice(0, index + 1), copy, ...prev.frames.slice(index + 1)];
+      const visible = filterFrames([copy], prev.filter, prev.searchQuery).length > 0;
+      return {
+        ...prev, frames, selectedFrameId: id,
+        shoot: { ...prev.shoot, totalFrames: frames.length, lastUpdatedAt: Date.now() },
+        filter: visible ? prev.filter : 'all',
+        searchQuery: visible ? prev.searchQuery : '',
+      };
+    });
+  };
+
+  const removeVirtualCopy = () => {
+    if (!selectedFrame?.virtualCopy) return;
+    const removedId = selectedFrame.id;
+    const originalId = selectedFrame.virtualCopy.originalFrameId;
+    setCullingState((prev) => {
+      const frames = prev.frames.filter((frame) => frame.id !== removedId);
+      const visible = filterFrames(frames, prev.filter, prev.searchQuery);
+      const cleanHistory = (items: CullingState['undoStack']) => items
+        .filter((item) => item.frameId !== removedId)
+        .map((item) => ({
+          ...item,
+          prevSelectedId: item.prevSelectedId === removedId ? originalId : item.prevSelectedId,
+          nextSelectedId: item.nextSelectedId === removedId ? originalId : item.nextSelectedId,
+        }));
+      return {
+        ...prev, frames,
+        selectedFrameId: visible.find((frame) => frame.id === originalId)?.id ?? visible[0]?.id ?? originalId,
+        compareRightFrameId: prev.compareRightFrameId === removedId ? null : prev.compareRightFrameId,
+        undoStack: cleanHistory(prev.undoStack),
+        redoStack: cleanHistory(prev.redoStack),
+        shoot: { ...prev.shoot, totalFrames: frames.length, lastUpdatedAt: Date.now() },
+      };
+    });
+  };
+
+  const toggleFilmstrip = () => setPrefs((prev) => ({ ...prev, showFilmstrip: !prev.showFilmstrip }));
+
   const applyEditToKeepers = (edit: PhotoEdit) => {
     const applied = { ...edit };
     const previous = new Map(
@@ -452,6 +502,7 @@ export default function App() {
 
   // Shoot loading handlers
   const handleLoadDemoShoot = () => {
+    setRelinkStatus(undefined);
     setBatchUndo(null);
     previewProviderRef.current?.clear();
     const demo = createDemoShootState(500);
@@ -463,6 +514,7 @@ export default function App() {
   };
 
   const handleSelectLocalFiles = async (files: File[]) => {
+    setRelinkStatus(undefined);
     setBatchUndo(null);
     setOpenShootModal(false);
     setBannerDismissed(false);
@@ -517,6 +569,7 @@ export default function App() {
       }
 
       const dirHandle = await picker();
+      setRelinkStatus(undefined);
       setBatchUndo(null);
       setOpenShootModal(false);
       setBannerDismissed(false);
@@ -561,11 +614,36 @@ export default function App() {
     }
   };
 
+  const reconnectFileSelection = (files: File[]) => {
+    const preview = previewProviderRef.current!;
+    const expected = new Set(cullingState.frames.map((frame) => frame.stableKey));
+    let recovered = 0;
+    for (const file of files) {
+      const key = getLocalFileKey(file);
+      if (!expected.has(key) || preview.hasBlob(key)) continue;
+      preview.registerBlob(key, file);
+      recovered += 1;
+    }
+    const missing = [...expected].filter((key) => !preview.hasBlob(key)).length;
+    setRelinkStatus(recovered ? `${missing} source files still need to be reselected.` :
+      'None of the selected files match the missing originals in this shoot.');
+    if (!recovered) return;
+    setPreviewRevision((previous) => previous + 1);
+    setCullingState((previous) => ({
+      ...previous,
+      shoot: { ...previous.shoot, needsFileReselect: missing > 0 },
+    }));
+  };
+
   const handleReconnectFolderOrFiles = async () => {
     const store = storeRef.current!;
     const preview = previewProviderRef.current!;
     const { shoot } = cullingState;
 
+    if (shoot.sourceKind === 'local-files') {
+      relinkInput.current?.click();
+      return;
+    }
     if (shoot.sourceKind === 'local-folder') {
       const handle = await store.loadDirectoryHandle(shoot.id);
       if (handle) {
@@ -599,8 +677,16 @@ export default function App() {
     <div className="h-dvh w-full flex flex-col pb-[env(safe-area-inset-bottom)] bg-[#101114] text-zinc-100 overflow-hidden">
       {editing ? (
         <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-[#14161A] px-3 py-1">
-          <button type="button" onClick={() => setEditing(false)} className="min-h-11 rounded-md px-3 text-sm font-medium hover:bg-white/10">Back to culling</button>
-          <h1 className="text-sm font-semibold">Edit photo</h1>
+          <button type="button" onClick={() => setEditing(false)} className="min-h-11 shrink-0 rounded-md px-2 text-sm font-medium hover:bg-white/10">Back</button>
+          <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? 'Edit photo'}</h1>
+          {!prefs.showFilmstrip && (
+            <div className="flex shrink-0">
+              <button type="button" aria-label="Previous photo" disabled={selectedVisibleIndex <= 0} onClick={() => handleStepFrame(-1)}
+                className="h-11 w-11 rounded-md text-lg disabled:opacity-30">‹</button>
+              <button type="button" aria-label="Next photo" disabled={selectedVisibleIndex < 0 || selectedVisibleIndex >= visibleFrames.length - 1} onClick={() => handleStepFrame(1)}
+                className="h-11 w-11 rounded-md text-lg disabled:opacity-30">›</button>
+            </div>
+          )}
         </header>
       ) : <TopWorkspaceBar
         shoot={cullingState.shoot}
@@ -655,6 +741,8 @@ export default function App() {
         onOpenShootModal={() => setOpenShootModal(true)}
         onOpenMacroPadModal={() => setMacroPadModal(true)}
         loadingProgress={loadingProgress}
+        showFilmstrip={prefs.showFilmstrip}
+        onToggleFilmstrip={toggleFilmstrip}
         showPhotoInfo={showPhotoInfo}
         onTogglePhotoInfo={() => setShowPhotoInfo((visible) => !visible)}
         autoAdvance={cullingState.autoAdvance}
@@ -666,7 +754,15 @@ export default function App() {
         onEditPhoto={selectedFrame && hydrated && !loadingProgress ? () => setEditing(true) : undefined}
       />}
 
+      <input ref={relinkInput} type="file" hidden multiple accept=".jpg,.jpeg,.png,.webp,.nef"
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []);
+          if (files.length) reconnectFileSelection(files);
+          event.target.value = '';
+        }}
+      />
       <FolderRegrantBanner
+        status={relinkStatus}
         visible={needsAccess && !bannerDismissed}
         mode={cullingState.shoot.needsFolderRegrant ? 'folder' : 'files'}
         folderName={cullingState.shoot.folderName}
@@ -675,7 +771,7 @@ export default function App() {
       />
 
       {/* Main Workspace Split */}
-      <main className="relative flex-1 flex min-h-0 min-w-0">
+      <main key={previewRevision} className="relative flex-1 flex min-h-0 min-w-0">
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {editing && selectedFrame && (
             <PhotoEditor
@@ -686,6 +782,12 @@ export default function App() {
               onEdit={(edit) => updateFrame(selectedFrame.id, { edit: isNeutralEdit(edit) ? undefined : { ...edit } })}
               copiedEdit={copiedEdit}
               onCopyEdit={setCopiedEdit}
+              onCreateVirtualCopy={addVirtualCopy}
+              onRemoveVirtualCopy={selectedFrame.virtualCopy ? removeVirtualCopy : undefined}
+              panelSide={prefs.editPanelSide}
+              onPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, editPanelSide: side }))}
+              showFilmstrip={prefs.showFilmstrip}
+              onToggleFilmstrip={toggleFilmstrip}
               keeperCount={counts.keep}
               onApplyToKeepers={applyEditToKeepers}
               onUndoKeeperEdits={batchUndo ? undoKeeperEdits : undefined}
@@ -739,11 +841,11 @@ export default function App() {
               previewProvider={previewProviderRef.current!}
               needsAccess={needsAccess}
               zoomLevel={zoomLevel}
-              onZoomChange={setZoomLevel}
               panOffset={panOffset}
-              onPanChange={setPanOffset}
-              matchedZoom={matchedCompareZoom}
-              onToggleMatchedZoom={() => setMatchedCompareZoom((v) => !v)}
+              onTransform={(zoom, pan) => {
+                setZoomLevel(zoom);
+                setPanOffset(pan);
+              }}
               onSwapPanes={() => {
                 setCullingState((prev) => ({
                   ...prev,
@@ -783,7 +885,7 @@ export default function App() {
           )}
 
           {/* Persistent Filmstrip in Loupe & Compare Modes */}
-          {(editing || prefs.viewMode !== 'grid') && visibleFrames.length > 0 && (
+          {prefs.showFilmstrip && (editing || prefs.viewMode !== 'grid') && visibleFrames.length > 0 && (
             <Filmstrip
               frames={visibleFrames}
               selectedFrameId={selectedFrame?.id ?? null}

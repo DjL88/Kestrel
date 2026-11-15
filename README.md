@@ -94,3 +94,11 @@ Keep two suggestion goals: a total keeper count (such as 50), or a count per con
 The culling toolbar keeps Open and Edit visible. Workspace options contains search, filters, view selection, photo metadata and culling settings. In the editor, open **Edit options** to name subjects, copy or paste adjustments, or apply the current photo's settings to all keepers. Applying to keepers confirms the scope first. **Undo last batch** restores the affected adjustments during the current session and preserves photos manually edited since that batch. Originals stay read-only.
 
 For assisted selection, the next milestone is a reviewable shortlist using confirmed subject names, followed by local focus and burst ranking. Proposed identity groups can then feed the same quota workflow. For Nikon RAW, validate decoding on real Z8 and Z5II files and use the same colour transform and edit recipe for the interactive preview and full-resolution export before adding Nikon colour profiles.
+
+### Wipe comparison, virtual copies and layout
+
+Compare uses one shared viewport at every screen width. Drag the divider, pinch to zoom and drag a zoomed image to inspect the same area in both layers. In Edit, **Before / after** compares the rendered source and edited output at identical coordinates. Burst photos can differ in framing, so this view synchronizes viewport coordinates without attempting to align subjects.
+
+**Manual sliders** and the quick adjustment buttons update the same recipe. Neutral is the identity operation on the decoded raster; Warmth and Colour are explicit transforms of that raster. Nikon Picture Controls and RAW white balance require a native, colour-managed path and verified reference images.
+
+Create a **virtual copy** from Edit options to try a different look with its own recipe and culling status. It shares the original source file, and removing a copy leaves the source alone. Reselecting unavailable local sources from the reconnect banner retains all catalogue versions. Under **Layout**, pin or hide the filmstrip and dock the desktop adjustment panel on either side.

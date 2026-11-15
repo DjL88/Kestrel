@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { FolderOpen, ImagePlus, Sparkles, X } from 'lucide-react';
-import { supportsDirectoryPicker } from '../providers/localShootLoader';
+import { isSupportedPhotoFilename, supportsDirectoryPicker } from '../providers/localShootLoader';
 
 interface OpenShootModalProps {
   open: boolean;
@@ -20,10 +20,20 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
   folderError,
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [dropError, setDropError] = useState(false);
+  function selectFiles(files: File[]) {
+    const photos = files.filter((file) => isSupportedPhotoFilename(file.name));
+    setDropError(!photos.length);
+    if (photos.length) onSelectLocalFiles(photos);
+  }
+
   const canPickFolder = supportsDirectoryPicker();
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setDropError(false);
+      return;
+    }
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Escape') {
         e.preventDefault();
@@ -41,6 +51,15 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="open-shoot-title"
+      onDragOver={(event) => {
+        if (!event.dataTransfer.types.includes('Files')) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        selectFiles(Array.from(event.dataTransfer.files));
+      }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4"
     >
       <div className="w-full max-w-xl bg-[#14161A] border border-white/12 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
@@ -71,8 +90,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
                 Choose Local Image Files
               </div>
               <p className="text-xs text-zinc-400 mt-1">
-                Import local JPEGs (with real EXIF camera, lens &amp; timestamp burst grouping).
-                Dropping .NEF files extracts embedded previews only.
+                Drop photos here or select files. NEFs use embedded previews.
               </p>
             </div>
             <input
@@ -84,9 +102,8 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
               data-testid="local-file-input"
               onChange={(e) => {
                 const list = Array.from(e.target.files ?? []);
-                if (list.length > 0) {
-                  onSelectLocalFiles(list);
-                }
+                if (list.length > 0) selectFiles(list);
+                e.target.value = '';
               }}
             />
             <button
@@ -98,6 +115,8 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
               <span>Select Files</span>
             </button>
           </div>
+
+          {dropError && <p role="alert" className="text-sm text-orange-200">Choose a JPEG, PNG, WebP or Nikon NEF file.</p>}
 
           {/* Option 2: Local Folder (File System Access API) */}
           <div className="p-4 rounded-lg bg-[#1A1D23] border border-white/10 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
