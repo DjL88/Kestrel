@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { lookAgain, startWatching, type Listing } from './folderWatch.ts';
+import { lookAgain, matchesStableTransfer, startWatching, type Listing } from './folderWatch.ts';
 
 const file = (name: string, size: number, modified = 1): Listing => ({ name, size, modified });
 
@@ -44,4 +44,22 @@ test('several photos arrive in the order they were taken', () => {
   const listing = [file('b.jpg', 5, 20), file('a.jpg', 5, 30), file('c.jpg', 5, 10)];
   lookAgain(state, listing);
   assert.deepEqual(lookAgain(state, listing).map((f) => f.name), ['c.jpg', 'b.jpg', 'a.jpg']);
+});
+
+test('a same-sized replacement or continued transfer must settle again', () => {
+  const watch = startWatching([], true);
+  assert.deepEqual(lookAgain(watch, [file('bird.ARW', 1000, 10)]), []);
+  assert.deepEqual(lookAgain(watch, [file('bird.ARW', 1000, 11)]), [], 'mtime changed despite equal size');
+  assert.deepEqual(lookAgain(watch, [file('bird.ARW', 1000, 11)]).map((f) => f.name), ['bird.ARW']);
+});
+
+test('post-read verification rejects an in-flight transfer even if the file was offered', () => {
+  const expected = file('bird.CR3', 1000, 10);
+  const original = { size: 1000, lastModified: 10 };
+  assert.equal(matchesStableTransfer(expected, original, expected), true);
+  assert.equal(matchesStableTransfer(expected, { size: 1200, lastModified: 10 }, expected), false);
+  assert.equal(matchesStableTransfer(expected, { size: 1000, lastModified: 11 }, expected), false);
+  assert.equal(matchesStableTransfer(expected, original, file('bird.CR3', 1000, 11)), false);
+  assert.equal(matchesStableTransfer(expected, original, file('bird.CR3', 1200, 10)), false);
+  assert.equal(matchesStableTransfer(expected, original, undefined), false);
 });
