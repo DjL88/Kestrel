@@ -29,10 +29,14 @@ export const BUILT_IN_PRESETS: Preset[] = [
   { id: 'warm', name: 'Golden warmth', builtIn: true, edit: sanitiseEdit({ warmth: 0.8, vibrance: 0.4, shadows: 0.3, contrast: 0.2 }) },
   { id: 'cool', name: 'Cool and crisp', builtIn: true, edit: sanitiseEdit({ warmth: -0.7, contrast: 0.4, clarity: 0.4, sharpen: 0.6 }) },
   // Approximations only. They are not Nikon's colour science or Picture Control data.
-  { id: 'neutral-ish', name: 'Neutral-style', builtIn: true, edit: sanitiseEdit({ contrast: -0.2, colour: -0.2 }) },
   { id: 'vivid-ish', name: 'Vivid-style', builtIn: true, edit: sanitiseEdit({ contrast: 0.6, colour: 1.2, vibrance: 0.4, sharpen: 0.5 }) },
   { id: 'landscape-ish', name: 'Landscape-style', builtIn: true, edit: sanitiseEdit({ contrast: 0.4, colour: 0.7, vibrance: 0.5, clarity: 0.5, highlights: -0.3, shadows: 0.3 }) },
   { id: 'portrait-ish', name: 'Portrait-style', builtIn: true, edit: sanitiseEdit({ contrast: -0.1, colour: 0.1, warmth: 0.2, texture: -0.3, shadows: 0.3 }) },
+  // Full desaturation at Colour -2 is rendered as grayscale on CPU and GPU.
+  // Three distinct tonal recipes, not a colour overlay or Nikon Picture Control.
+  { id: 'mono-natural', name: 'Mono natural', builtIn: true, edit: sanitiseEdit({ colour: -2, contrast: 0.15, highlights: -0.2, shadows: 0.25, sharpen: 0.35 }) },
+  { id: 'mono-bold', name: 'Mono bold', builtIn: true, edit: sanitiseEdit({ colour: -2, contrast: 1.1, blacks: -0.6, clarity: 0.6, sharpen: 0.5 }) },
+  { id: 'mono-soft', name: 'Mono soft', builtIn: true, edit: sanitiseEdit({ colour: -2, contrast: -0.3, highlights: -0.45, shadows: 0.5, texture: -0.2 }) },
 ];
 
 export function parsePresets(json: string | null): Preset[] {
