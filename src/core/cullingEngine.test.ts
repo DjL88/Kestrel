@@ -138,3 +138,13 @@ test('getDefaultComparePair picks burst neighbor when available', () => {
   assert.equal(lastPair.leftId, frames[2].id);
   assert.equal(lastPair.rightId, frames[3].id);
 });
+
+test('search finds confirmed subject names alongside the decision filter', () => {
+  const [first, second] = generateDemoShootFrames(2);
+  const frames = [
+    { ...first, decision: 'keep' as const, subjectNames: ['Coco', 'Mabel'] },
+    second,
+  ];
+  assert.deepEqual(filterFrames(frames, 'keep', ' MABEL '), [frames[0]]);
+  assert.deepEqual(filterFrames(frames, 'reject', 'Mabel'), []);
+});

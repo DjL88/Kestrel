@@ -77,7 +77,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
       ref={scrollerRef}
       onScroll={(e) => setScrollLeft(e.currentTarget.scrollLeft)}
       aria-label="Shoot filmstrip"
-      className="h-[112px] shrink-0 bg-[#121418] border-t border-white/10 overflow-x-auto overflow-y-hidden relative select-none"
+      className="h-[80px] sm:h-[112px] shrink-0 bg-[#121418] border-t border-white/10 overflow-x-auto overflow-y-hidden relative select-none"
     >
       <div style={{ width: totalWidth, height: '100%', position: 'relative' }}>
         {visibleIndices.map((idx) => {
@@ -101,9 +101,8 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
                 left,
                 top: 8,
                 width: ITEM_WIDTH,
-                height: 92,
               }}
-              className="flex flex-col"
+              className="flex h-[60px] flex-col sm:h-[92px]"
             >
               {/* Burst Group Connector Line */}
               <div className="h-2.5 flex items-center relative mb-1">

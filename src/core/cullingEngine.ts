@@ -331,6 +331,7 @@ export function filterFrames(
       frame.exif.camera ?? '',
       frame.exif.lens ?? '',
       frame.demoVariant?.demoSceneLabel ?? '',
+      ...(frame.subjectNames ?? []),
     ]
       .join(' ')
       .toLowerCase();

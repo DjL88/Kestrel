@@ -42,3 +42,10 @@
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+@media (max-width: 639px) {
+  .cull-actions button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
