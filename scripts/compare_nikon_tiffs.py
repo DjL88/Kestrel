@@ -40,6 +40,9 @@ def sha256_file(path):
 
 
 def compare(reference_path, candidate_path, *, source_nef=None):
+    # A self-comparison cannot establish agreement between independent renderers.
+    if Path(reference_path).samefile(candidate_path):
+        raise ValueError("Reference and candidate are the same file. Supply independent TIFF exports.")
     reference, profile = read_rgb16(reference_path)
     candidate, candidate_profile = read_rgb16(candidate_path)
     if reference.shape != candidate.shape:
