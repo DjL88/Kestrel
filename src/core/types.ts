@@ -75,6 +75,8 @@ export interface PhotoFrame {
   autoTags?: string[];
   /** Names the user removed from this photo, so the app never adds them to it again. */
   declinedTags?: string[];
+  /** Set once the species model has looked at this photo, so it is not looked at again. */
+  speciesChecked?: boolean;
   burstGroupId: string | null;
   burstIndex: number;
   burstCount: number;

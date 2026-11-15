@@ -1,5 +1,5 @@
 import { rankSpecies, type SpeciesLabel, type Suggestion } from './speciesMatch';
-import { addTags } from './subjectTags';
+import { addTags, type SubjectKind } from './subjectTags';
 
 /** Tags the app added by itself, and names the user has removed so they are never added again to that photo. */
 export interface AutoState {
@@ -46,4 +46,28 @@ export function qualifiesForAutoTag(
   if (!shouldAutoTag(suggested.probability)) return false;
   const strongest = rankSpecies(embedding, labels, vectors)[0];
   return strongest?.index === suggested.index && shouldAutoTag(strongest.probability);
+}
+
+/** Photos the species model has not looked at yet: still in the library, never checked, and with nothing of the user's own on them. */
+export function scanCandidates<T extends { id: string; removedAt?: number; speciesChecked?: boolean; tags?: readonly string[]; subjectNames?: readonly string[] }>(frames: readonly T[]): T[] {
+  return frames.filter((frame) => !frame.removedAt && !frame.speciesChecked && !(frame.tags?.length) && !(frame.subjectNames?.length));
+}
+
+/**
+ * What to store after a photo has been looked at. It is always marked as checked. A name is added only when the model was
+ * sure, the photo may take it, and it is on the species list the model knows.
+ */
+export function scanPatch(
+  frame: { tags?: readonly string[]; subjectNames?: readonly string[]; subjectKind?: string } & AutoState,
+  best: { name: string; probability: number; kind?: SubjectKind } | undefined,
+): { speciesChecked: true; tags?: string[]; autoTags?: string[]; subjectKind?: SubjectKind } {
+  if (!best || !shouldAutoTag(best.probability) || !mayAutoTag(frame, best.name)) return { speciesChecked: true };
+  return { speciesChecked: true, ...applyAutoTag(frame, best.name), ...(frame.subjectKind || !best.kind ? {} : { subjectKind: best.kind }) };
+}
+
+/** The species to show on a photo's card: an automatic tag the user has not kept yet, or the first tag of a wildlife photo. */
+export function speciesShown(frame: { autoTags?: readonly string[]; tags?: readonly string[]; subjectKind?: string }): { name: string; auto: boolean } | null {
+  if (frame.autoTags?.length) return { name: frame.autoTags[0], auto: true };
+  if (frame.subjectKind === 'wildlife' && frame.tags?.length) return { name: frame.tags[0], auto: false };
+  return null;
 }
