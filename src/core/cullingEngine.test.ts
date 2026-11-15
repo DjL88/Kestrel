@@ -244,3 +244,20 @@ test('auto cull does not create a history entry for removed-only results', () =>
   const updated = applyAutoCullDecisions(state, [{ frameId: 'f0', decision: 'reject' }]);
   assert.equal(updated, state);
 });
+
+test('manual culling ignores stale decisions for removed photos without changing history or selection', () => {
+  const project = projectWith(['reject', 'unreviewed']);
+  const removed = removeFromLibrary(project, ['f0']);
+  const before = removed.undoStack.length;
+  for (const decision of ['keep', 'reject', 'unreviewed'] as const) {
+    const next = applyDecisionWithHistory(removed, 'f0', decision);
+    assert.equal(next, removed, 'removed photo must be unchanged');
+    assert.equal(next.undoStack.length, before);
+    assert.equal(next.selectedFrameId, 'f1');
+  }
+  // An explicit restore permits normal culling again.
+  const restored = restoreRemoved(removed, ['f0']);
+  const kept = applyDecisionWithHistory(restored, 'f0', 'keep', { allowAdvance: false });
+  assert.equal(kept.frames[0].decision, 'keep');
+  assert.equal(kept.frames[0].removedAt, undefined);
+});
