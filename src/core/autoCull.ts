@@ -12,7 +12,13 @@ export interface CullSuggestion {
 }
 
 export function scorePreview(frameId: string, pixels: Uint8ClampedArray, width: number, height: number): CullSuggestion {
-  if (width < 64 || height < 64) return { frameId, decision: null, confidence: 'low', score: 0, reason: 'unavailable' };
+  // A truncated or malformed preview must never produce a confident culling decision.
+  // Check dimensions before allocating the luminance buffer (including overflow).
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) ||
+      width < 64 || height < 64 || width * height > 16_777_216 ||
+      pixels.length !== width * height * 4) {
+    return { frameId, decision: null, confidence: 'low', score: 0, reason: 'unavailable' };
+  }
   const luma = new Float32Array(width * height);
   let dark = 0;
   let bright = 0;
