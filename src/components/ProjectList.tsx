@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { ChevronRight, Folder, FolderUp, Plus } from 'lucide-react';
 import kestrelMark from '../assets/kestrel-mark.svg';
 import type { ShootDescriptor } from '../core/types';
+import { formatProjectDate } from '../core/formatDate';
 
 interface Props {
   projects: ShootDescriptor[];
@@ -74,6 +75,10 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{project.title}</span>
                     <span className="block text-xs text-zinc-400">{project.totalFrames} {project.totalFrames === 1 ? 'photo' : 'photos'}</span>
+                    <span className="block text-xs text-zinc-400">
+                      Created <time dateTime={project.createdAt ? new Date(project.createdAt).toISOString() : undefined}>{formatProjectDate(project.createdAt)}</time>
+                      {' · '}Last edited <time dateTime={project.lastUpdatedAt ? new Date(project.lastUpdatedAt).toISOString() : undefined}>{formatProjectDate(project.lastUpdatedAt, true)}</time>
+                    </span>
                   </span>
                   <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden="true" />
                 </button>

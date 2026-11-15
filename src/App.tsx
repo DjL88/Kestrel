@@ -13,6 +13,9 @@ import { isNeutralEdit, type PhotoEdit } from './core/photoEdits';
 import { CompareView } from './components/CompareView';
 import { ExifInspector } from './components/ExifInspector';
 import { Filmstrip } from './components/Filmstrip';
+import { isEdited } from './core/editedState';
+import { ConfirmDialog } from './components/ConfirmDialog';
+import { RemovedPhotosPanel } from './components/RemovedPhotosPanel';
 import { FolderRegrantBanner } from './components/FolderRegrantBanner';
 import { LoupePreview } from './components/LoupePreview';
 import { MacroPadModal } from './components/MacroPadModal';
@@ -22,6 +25,9 @@ import { VirtualizedContactSheet } from './components/VirtualizedContactSheet';
 import {
   DEFAULT_KEEPER_TARGET,
   applyDecisionWithHistory,
+  removeFromLibrary,
+  removedFrames,
+  restoreRemoved,
   computeCullCounts,
   createDemoShootState,
   filterFrames,
@@ -275,6 +281,7 @@ export default function App() {
     }
   }
 
+  const liveFrames = useMemo(() => cullingState.frames.filter((frame) => !frame.removedAt), [cullingState.frames]);
   const counts = useMemo(
     () => computeCullCounts(cullingState.frames),
     [cullingState.frames]
@@ -307,7 +314,7 @@ export default function App() {
       if (found) return found;
     }
     const pair = getDefaultComparePair(
-      visibleFrames.length > 0 ? visibleFrames : cullingState.frames,
+      visibleFrames.length > 0 ? visibleFrames : liveFrames,
       selectedFrame?.id ?? null
     );
     return (
@@ -366,6 +373,11 @@ export default function App() {
         shoot: { ...previous.shoot, lastUpdatedAt: Date.now() },
       }));
     } else {
+      const keepers = [...targets].filter((frameId) => stateRef.current.frames.find((frame) => frame.id === frameId)?.decision === 'keep');
+      if (change.flag === 'reject' && keepers.length) {
+        setPendingAction({ kind: 'trash', frameIds: [...targets], allowAdvance: false });
+        return;
+      }
       setCullingState((previous) => [...targets].reduce((state, frameId) =>
         applyDecisionWithHistory(state, frameId, change.flag, { allowAdvance: false }), previous));
     }
@@ -388,14 +400,62 @@ export default function App() {
     []
   );
 
+  // Moving a Keeper to Trash, or removing a photo from Trash, asks first. Both are reversible and never touch the file.
+  const stateRef = useRef(cullingState);
+  stateRef.current = cullingState;
+  const [pendingAction, setPendingAction] = useState<{ kind: 'trash' | 'remove' | 'reset'; frameIds: string[]; allowAdvance?: boolean } | null>(null);
+  const [removedOpen, setRemovedOpen] = useState(false);
+
   const handleDecideFrame = useCallback(
     (frameId: string, decision: CullDecision, allowAdvance?: boolean) => {
+      const frame = stateRef.current.frames.find((candidate) => candidate.id === frameId);
+      if (frame && decision === 'reject') {
+        if (frame.decision === 'reject') {
+          setPendingAction({ kind: 'remove', frameIds: [frameId] });
+          return;
+        }
+        if (frame.decision === 'keep') {
+          setPendingAction({ kind: 'trash', frameIds: [frameId], allowAdvance });
+          return;
+        }
+      }
       setCullingState((prev) =>
         applyDecisionWithHistory(prev, frameId, decision, { allowAdvance })
       );
     },
     []
   );
+
+  const resetFrames = (ids: string[]) => setCullingState((prev) => {
+    const targets = new Set(ids);
+    return {
+      ...prev,
+      shoot: { ...prev.shoot, lastUpdatedAt: Date.now() },
+      frames: prev.frames.map((frame) => targets.has(frame.id) && isEdited(frame)
+        ? recordEdit(frame, { edit: undefined, framing: undefined }, Date.now()) : frame),
+    };
+  });
+
+  // One photo resets straight away, and each reset stays in that photo's edit history. Several photos ask first.
+  const requestReset = (ids: string[]) => {
+    const edited = ids.filter((id) => { const frame = stateRef.current.frames.find((candidate) => candidate.id === id); return frame && isEdited(frame); });
+    if (!edited.length) return;
+    if (edited.length > 1) setPendingAction({ kind: 'reset', frameIds: edited });
+    else resetFrames(edited);
+  };
+
+  const confirmPending = () => {
+    const action = pendingAction;
+    setPendingAction(null);
+    if (!action) return;
+    if (action.kind === 'reset') {
+      resetFrames(action.frameIds);
+      return;
+    }
+    setCullingState((prev) => action.kind === 'remove'
+      ? removeFromLibrary(prev, action.frameIds)
+      : action.frameIds.reduce((state, id) => applyDecisionWithHistory(state, id, 'reject', { allowAdvance: action.allowAdvance ?? false }), prev));
+  };
 
   const toggleCompareView = useCallback(() => {
     setPrefs((prev) => {
@@ -406,7 +466,7 @@ export default function App() {
     setCullingState((prev) => {
       const pool = filterFrames(prev.frames, prev.filter, prev.searchQuery);
       const pair = getDefaultComparePair(
-        pool.length > 0 ? pool : prev.frames,
+        pool.length > 0 ? pool : prev.frames.filter((frame) => !frame.removedAt),
         prev.selectedFrameId
       );
       return {
@@ -598,7 +658,7 @@ export default function App() {
   // Global keyboard listener wired through unified resolveKeyboardCommand
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (projectsOpen || loadingProgress || exportFrames.length || autoCullOpen) return;
+      if (projectsOpen || loadingProgress || exportFrames.length || autoCullOpen || pendingAction || removedOpen) return;
       if (e.key === 'Escape' && showPhotoInfo) {
         setShowPhotoInfo(false);
         setInfoFrameId(undefined);
@@ -627,7 +687,7 @@ export default function App() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [projectsOpen, loadingProgress, exportFrames.length, autoCullOpen, showPhotoInfo, editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
+  }, [projectsOpen, loadingProgress, exportFrames.length, autoCullOpen, pendingAction, removedOpen, showPhotoInfo, editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
 
   const handleSelectLocalFiles = async (files: File[]) => {
     const existing = new Set(cullingState.frames.map((frame) => frame.stableKey));
@@ -844,6 +904,9 @@ export default function App() {
           setCullingState((prev) => ({ ...prev, autoAdvance: !prev.autoAdvance }))
         }
         onClearDecision={selectedFrame && selectedFrame.decision !== 'unreviewed' ? () => executeCommand('cull.unreviewed') : undefined}
+        onRemoveFromLibrary={selectedFrame?.decision === 'reject' ? () => setPendingAction({ kind: 'remove', frameIds: [selectedFrame.id] }) : undefined}
+        removedCount={removedFrames(cullingState.frames).length}
+        onOpenRemoved={removedFrames(cullingState.frames).length ? () => setRemovedOpen(true) : undefined}
         onRedo={cullingState.redoStack.length ? () => executeCommand('cull.redo') : undefined}
         onEditPhoto={selectedFrame && !loadingProgress ? () => setEditing(true) : undefined}
       />}
@@ -901,7 +964,7 @@ export default function App() {
               onSubjectsChange={(subjectNames) => updateFrame(selectedFrame.id, { subjectNames })}
             />
           )}
-          {!editing && cullingState.frames.length === 0 && (
+          {!editing && liveFrames.length === 0 && (
             <div className="grid flex-1 place-items-center p-4">
               <div className="text-center">
                 <h2 className="mb-3 text-sm text-zinc-300">This project has no photos yet</h2>
@@ -926,7 +989,7 @@ export default function App() {
               </div>
             </div>
           )}
-          {!editing && cullingState.frames.length > 0 && !visibleFrames.length && (
+          {!editing && liveFrames.length > 0 && !visibleFrames.length && (
             <div className="grid flex-1 place-items-center p-4">
               <p className="text-sm text-zinc-300">{cullingState.searchQuery ? 'No photos match this search.' : cullingState.filter === 'unreviewed' ? 'You’re caught up. Your picks are in Keepers.' :
                 cullingState.filter === 'keep' ? 'Flag a photo as Keep to see it here.' : 'Trash is empty.'}</p>
@@ -934,6 +997,7 @@ export default function App() {
           )}
           {!editing && visibleFrames.length > 0 && prefs.viewMode === 'grid' && (
             <VirtualizedContactSheet
+              onResetFrame={(id) => requestReset(multiSelect && selectedIds.has(id) ? [...selectedIds] : [id])}
               frames={visibleFrames}
               selectedFrameId={selectedFrame?.id ?? null}
               previewProvider={previewProviderRef.current!}
@@ -976,6 +1040,7 @@ export default function App() {
               showShortcutsOverlay={prefs.showShortcutsOverlay && !prefs.focusMode}
               onExecuteCommand={executeCommand}
               onStepFrame={handleStepFrame}
+              onResetFrame={() => selectedFrame && requestReset([selectedFrame.id])}
             />
           )}
 
@@ -1000,7 +1065,7 @@ export default function App() {
               }}
               onStepSide={(side, delta) => {
                 const pool =
-                  visibleFrames.length > 0 ? visibleFrames : cullingState.frames;
+                  visibleFrames.length > 0 ? visibleFrames : liveFrames;
                 if (side === 'left') {
                   const nextId = stepSelection(pool, selectedFrame?.id ?? null, delta);
                   if (nextId) {
@@ -1059,6 +1124,33 @@ export default function App() {
           />
         )}
       </main>
+
+      {pendingAction?.kind === 'trash' && (() => {
+        const moving = pendingAction.frameIds.filter((id) => cullingState.frames.find((frame) => frame.id === id)?.decision === 'keep').length;
+        return (
+          <ConfirmDialog title={moving > 1 ? `Move ${moving} Keepers to Trash?` : 'Move this Keeper to Trash?'}
+            confirmLabel="Move to Trash" cancelLabel="Keep it" onConfirm={confirmPending} onCancel={() => setPendingAction(null)}>
+            <p>{moving > 1 ? 'They leave Keepers and go to Trash.' : 'It leaves Keepers and goes to Trash.'} Your original files are not changed, and Undo puts them back.</p>
+          </ConfirmDialog>
+        );
+      })()}
+      {pendingAction?.kind === 'reset' && (
+        <ConfirmDialog title={`Reset ${pendingAction.frameIds.length} photos to original?`} confirmLabel="Reset photos" cancelLabel="Cancel"
+          onConfirm={confirmPending} onCancel={() => setPendingAction(null)}>
+          <p>Adjustments, crops and rotation on these photos go back to the original. Your original files are not changed, and each photo’s Undo in the editor can bring its edits back.</p>
+        </ConfirmDialog>
+      )}
+      {pendingAction?.kind === 'remove' && (
+        <ConfirmDialog title="Remove from the library?" confirmLabel="Remove from library" cancelLabel="Cancel"
+          onConfirm={confirmPending} onCancel={() => setPendingAction(null)}>
+          <p>{cullingState.frames.find((frame) => frame.id === pendingAction.frameIds[0])?.filename ?? 'This photo'} will disappear from Kestrel’s views, counts and exports.</p>
+          <p><strong>Your original file is not deleted.</strong> You can bring it back from Workspace options, Removed photos, or press Undo.</p>
+        </ConfirmDialog>
+      )}
+      {removedOpen && (
+        <RemovedPhotosPanel frames={removedFrames(cullingState.frames)} onClose={() => setRemovedOpen(false)}
+          onRestore={(ids) => setCullingState((prev) => restoreRemoved(prev, ids))} />
+      )}
 
       {autoCullOpen && <AutoCullPanel frames={cullingState.frames} keeperTarget={cullingState.keeperTarget}
         provider={previewProviderRef.current!}
