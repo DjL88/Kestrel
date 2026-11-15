@@ -79,7 +79,8 @@ export function editParams(edit: PhotoEdit) {
   return {
     gain: 2 ** (edit.exposure * 0.4),
     warmth: edit.warmth * 0.08,
-    colour: edit.colour * 0.2,
+    // Colour -2 is fully monochrome. Other slider positions keep their existing scale.
+    colour: edit.colour === -2 ? -1 : edit.colour * 0.2,
     contrast: 1 + (edit.contrast ?? 0) * 0.35,
     highlights: (edit.highlights ?? 0) * 0.3,
     shadows: (edit.shadows ?? 0) * 0.3,
@@ -176,8 +177,9 @@ export function applyPhotoEdit(pixels: Uint8ClampedArray, edit: PhotoEdit): void
       blue *= factor;
     }
     const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-    let saturation = 1 + colour;
-    if (vibrance !== 0) {
+    const monochrome = colour === -1;
+    let saturation = monochrome ? 0 : 1 + colour;
+    if (!monochrome && vibrance !== 0) {
       const high = Math.max(red, green, blue);
       const chroma = high > 0 ? (high - Math.min(red, green, blue)) / high : 0;
       saturation += vibrance * (1 - Math.min(1, chroma));
