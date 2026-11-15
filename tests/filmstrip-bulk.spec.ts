@@ -43,6 +43,8 @@ test('select multiple photos in Library, edit just that queue and export togethe
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');
   // Navigation flushes a pending linked adjustment, even when it happens immediately.
+  // The arrow buttons are available after unpinning the persistent filmstrip.
+  await batch.getByRole('button', { name: 'Hide filmstrip' }).click();
   await page.getByRole('button', { name: 'Next photo' }).click();
   await expect(light).toHaveValue('0.1');
   await batch.getByRole('button', { name: 'Export 2' }).click();
