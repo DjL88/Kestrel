@@ -59,7 +59,7 @@ export function limitAutoKeepers(
   suggestions: CullSuggestion[], frames: PhotoFrame[], remainingKeepers: number,
 ): CullSuggestion[] {
   const byId = new Map(frames.map((frame) => [frame.id, frame]));
-  const occupied = new Set(frames.filter((frame) => frame.decision === 'keep' && frame.burstGroupId)
+  const occupied = new Set(frames.filter((frame) => !frame.removedAt && frame.decision === 'keep' && frame.burstGroupId)
     .map((frame) => frame.burstGroupId!));
   const accepted = new Set<string>();
   for (const result of [...suggestions].sort((a, b) => b.score - a.score)) {
