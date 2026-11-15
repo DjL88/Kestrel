@@ -22,6 +22,8 @@ interface MacroPadModalProps {
   onResetBindings: () => void;
   knobMode: KnobFunction;
   onKnobModeChange: (mode: KnobFunction) => void;
+  /** Which tab to show when it opens, for example Edit mode when opened from the editor. */
+  openTo?: PadMode;
 }
 
 export const MacroPadModal: React.FC<MacroPadModalProps> = ({
@@ -32,9 +34,19 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
   onResetBindings,
   knobMode,
   onKnobModeChange,
+  openTo,
 }) => {
   const [padTab, setPadTab] = useState<PadMode>('cull');
   const [capturingId, setCapturingId] = useState<CommandId | null>(null);
+  // The last key Kestrel received while the dialog was open, so a pad's real behaviour can be checked.
+  const [received, setReceived] = useState<{ chord: string; label: string } | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setPadTab(openTo ?? 'cull');
+      setReceived(null);
+    }
+  }, [open, openTo]);
 
   useEffect(() => {
     if (!open) {
@@ -59,14 +71,25 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
       }
 
       if (e.code === 'Escape') {
+        // Closing the dialog must not also close the editor behind it.
         e.preventDefault();
+        e.stopPropagation();
         onClose();
+        return;
       }
+      const chord = normalizeKeyChord(e);
+      if (chord) {
+        const list = padTab === 'cull' ? CULL_COMMANDS : EDIT_COMMANDS;
+        const match = list.find((command) => (bindings[command.id] ?? DEFAULT_KEY_BINDINGS[command.id]) === chord);
+        setReceived({ chord, label: match ? `${match.label} (${padTab === 'cull' ? 'Cull' : 'Edit'} mode)` : `Not assigned in ${padTab === 'cull' ? 'Cull' : 'Edit'} mode` });
+      }
+      // Testing the pad must not also move sliders or photos behind the dialog. Its own fields keep their keys.
+      if (!(e.target as Element | null)?.closest?.('select, input, textarea, [contenteditable]')) e.stopPropagation();
     };
 
     window.addEventListener('keydown', handleKey, true);
     return () => window.removeEventListener('keydown', handleKey, true);
-  }, [open, capturingId, onUpdateBinding, onClose]);
+  }, [open, capturingId, onUpdateBinding, onClose, padTab, bindings]);
 
   if (!open) return null;
 
@@ -227,6 +250,22 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
               </div>
             </div>
           )}
+
+          <details open className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-zinc-300">
+            <summary className="min-h-9 cursor-pointer font-semibold text-zinc-100">How to use a macro pad</summary>
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5">
+              <li>A macro pad sends ordinary keys. In the pad&apos;s own software, set each key and each knob turn to send the shortcut shown below (for example, the sixth key sends Q, and the knob sends - and =). Kestrel cannot see the pad&apos;s own settings.</li>
+              <li>Or change Kestrel to match the pad: click a key below, then press the key on the pad. Clashes are marked in orange.</li>
+              <li><strong>In the editor:</strong> press the Cycle key to choose a slider (its name shows &quot;Dial&quot;), then turn the knob to change it. Reset clears the photo&apos;s edits, and Compare flips between before and after.</li>
+              <li>No pad? Hold <kbd className="rounded bg-white/10 px-1">Alt</kbd> (Option on a Mac) and scroll over the photo to change the chosen slider, and press the Cycle key to move to the next one.</li>
+            </ol>
+            <div role="status" aria-live="polite" className="mt-3 rounded-md border border-white/10 p-2">
+              <div className="text-xs font-semibold text-zinc-100">Test your pad</div>
+              <p className="text-xs">{received
+                ? <>Kestrel received <kbd className="rounded bg-white/10 px-1">{formatChordLabel(received.chord)}</kbd>: {received.label}.</>
+                : 'Press a key or turn the knob. This shows what Kestrel receives. Volume and media keys cannot be seen by a web page, so set the knob to send ordinary keys such as - and =.'}</p>
+            </div>
+          </details>
 
           {/* Hardware Layout: 2x3 Keys + 1 Rotary Knob */}
           <div className="p-4 rounded-xl bg-kestrel-stage border border-white/10 grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-4 items-center">
