@@ -1,3 +1,5 @@
+import { recordEdit, stepEdit } from './core/editHistory';
+import { AutoCullPanel } from './components/AutoCullPanel';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { restoreProjectBackup } from './core/projectBackup';
 import { saveProjectBackupFile } from './providers/projectBackupFile';
@@ -27,6 +29,7 @@ import {
   redoDecision,
   stepSelection,
   undoDecision,
+  applyAutoCullDecisions,
 } from './core/cullingEngine';
 import {
   DEFAULT_KEY_BINDINGS,
@@ -78,6 +81,7 @@ export default function App() {
     createEmptyProject('uninitialised', '')
   );
   const [editing, setEditing] = useState(false);
+  const [autoCullOpen, setAutoCullOpen] = useState(false);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
   const [showPhotoInfo, setShowPhotoInfo] = useState(false);
   const [copiedEdit, setCopiedEdit] = useState<PhotoEdit | null>(null);
@@ -497,12 +501,20 @@ export default function App() {
   );
 
   const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames' | 'rating' | 'framing'>) => {
+    const at = Date.now();
+    const isRecipe = 'edit' in patch || 'framing' in patch;
     setCullingState((prev) => ({
       ...prev,
-      shoot: { ...prev.shoot, lastUpdatedAt: Date.now() },
-      frames: prev.frames.map((frame) =>
-        frame.id === frameId ? { ...frame, ...patch } : frame
-      ),
+      shoot: { ...prev.shoot, lastUpdatedAt: at },
+      frames: prev.frames.map((frame) => frame.id !== frameId ? frame :
+        isRecipe ? recordEdit(frame, patch, at) : { ...frame, ...patch }),
+    }));
+  };
+
+  const stepPhotoHistory = (frameId: string, direction: -1 | 1) => {
+    setCullingState((prev) => ({
+      ...prev, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() },
+      frames: prev.frames.map((frame) => frame.id === frameId ? stepEdit(frame, direction) : frame),
     }));
   };
 
@@ -564,7 +576,7 @@ export default function App() {
       ...prev,
       shoot: { ...prev.shoot, lastUpdatedAt: Date.now() },
       frames: prev.frames.map((frame) =>
-        previous.has(frame.id) ? { ...frame, edit: applied } : frame
+        previous.has(frame.id) ? recordEdit(frame, { edit: applied }, Date.now()) : frame
       ),
     }));
   };
@@ -576,7 +588,7 @@ export default function App() {
       shoot: { ...prev.shoot, lastUpdatedAt: Date.now() },
       frames: prev.frames.map((frame) =>
         frame.edit === batchUndo.applied && batchUndo.previous.has(frame.id)
-          ? { ...frame, edit: batchUndo.previous.get(frame.id) }
+          ? recordEdit(frame, { edit: batchUndo.previous.get(frame.id) }, Date.now())
           : frame
       ),
     }));
@@ -586,7 +598,7 @@ export default function App() {
   // Global keyboard listener wired through unified resolveKeyboardCommand
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (projectsOpen || loadingProgress || exportFrames.length) return;
+      if (projectsOpen || loadingProgress || exportFrames.length || autoCullOpen) return;
       if (e.key === 'Escape' && showPhotoInfo) {
         setShowPhotoInfo(false);
         setInfoFrameId(undefined);
@@ -615,7 +627,7 @@ export default function App() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [projectsOpen, loadingProgress, exportFrames.length, showPhotoInfo, editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
+  }, [projectsOpen, loadingProgress, exportFrames.length, autoCullOpen, showPhotoInfo, editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
 
   const handleSelectLocalFiles = async (files: File[]) => {
     const existing = new Set(cullingState.frames.map((frame) => frame.stableKey));
@@ -802,6 +814,7 @@ export default function App() {
         onOpenShootModal={() => { setFolderError(null); setOpenShootModal(true); }}
         onBackToProjects={() => void backToProjects()}
         onBackupProject={() => void backupProject()}
+        onAutoCull={() => setAutoCullOpen(true)}
         actionsDisabled={Boolean(loadingProgress) || projectBusy}
         onOpenMacroPadModal={() => setMacroPadModal(true)}
         loadingProgress={loadingProgress}
@@ -871,6 +884,7 @@ export default function App() {
               onEdit={(edit) => updateFrame(selectedFrame.id, { edit: isNeutralEdit(edit) ? undefined : { ...edit } })}
               copiedEdit={copiedEdit}
               onCopyEdit={setCopiedEdit}
+              onHistoryStep={(direction) => stepPhotoHistory(selectedFrame.id, direction)}
               onCreateVirtualCopy={addVirtualCopy}
               onFramingChange={(framing) => updateFrame(selectedFrame.id, { framing })}
               onRemoveVirtualCopy={selectedFrame.virtualCopy ? removeVirtualCopy : undefined}
@@ -914,7 +928,7 @@ export default function App() {
           {!editing && cullingState.frames.length > 0 && !visibleFrames.length && (
             <div className="grid flex-1 place-items-center p-4">
               <p className="text-sm text-zinc-300">{cullingState.searchQuery ? 'No photos match this search.' : cullingState.filter === 'unreviewed' ? 'You’re caught up. Your picks are in Keepers.' :
-                cullingState.filter === 'keep' ? 'Flag a photo as Keep to see it here.' : 'No rejected photos.'}</p>
+                cullingState.filter === 'keep' ? 'Flag a photo as Keep to see it here.' : 'Trash is empty.'}</p>
             </div>
           )}
           {!editing && visibleFrames.length > 0 && prefs.viewMode === 'grid' && (
@@ -1044,6 +1058,21 @@ export default function App() {
           />
         )}
       </main>
+
+      {autoCullOpen && <AutoCullPanel frames={cullingState.frames} keeperTarget={cullingState.keeperTarget}
+        provider={previewProviderRef.current!}
+        onApply={(results) => setCullingState((previous) => applyAutoCullDecisions(previous, results))}
+        onUndo={() => setCullingState((previous) => undoDecision(previous))}
+        onInspect={(frame) => {
+          setAutoCullOpen(false);
+          setPrefs((previous) => ({ ...previous, viewMode: 'loupe' }));
+          setCullingState((previous) => ({
+            ...previous, filter: frame.decision, searchQuery: '', selectedFrameId: frame.id,
+          }));
+          setZoomLevel(1);
+          setPanOffset({ x: 0, y: 0 });
+        }}
+        onClose={() => setAutoCullOpen(false)} />}
 
       {exportFrames.length > 0 && <PhotoExportPanel frames={exportFrames} provider={previewProviderRef.current!}
         onClose={() => setExportFrames([])} />}

@@ -17,6 +17,7 @@ export function createVirtualCopy(source: PhotoFrame, frames: readonly PhotoFram
     burstGroupId: null,
     burstIndex: 1,
     burstCount: 1,
+    editHistory: undefined,
     edit: source.edit ? { ...source.edit } : undefined,
     virtualCopy: { originalFrameId: rootId, number: next },
   };

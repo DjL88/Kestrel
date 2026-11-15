@@ -149,3 +149,10 @@ Keep sign-in optional. If a paid tier is added, separate entitlement from file s
 ### Local model acceptance
 
 Treat ONNX models as optional, versioned downloads with a pinned checksum, size, runtime requirements, and checked code and weight licenses. Keep real subject masks and eye landmarks separate from crop heuristics. Validate candidates on rights-cleared examples of birds, dogs and difficult backgrounds, then verify CPU/GPU timing, memory use, confidence and abstention. Store reviewed geometry in source coordinates and verify it against preview and export. An ONNX export alone is not evidence that the model works on wildlife.
+### Auto-cull and edit history
+
+Open **Workspace options → Auto-cull** to scan unreviewed local originals. Image detail and clipping are measured on small previews. Byte-for-byte duplicates are detected within a scan when source files can be hashed. The score describes the rule’s confidence and is not a calibrated probability or a subject/eye score. High confidence decisions can move automatically. Trash is a reversible catalogue flag and never deletes a file. A pass respects the keeper target, picks at most one automatic keeper per burst and leaves existing flags, virtual copies and uncertain results alone.
+
+**Edit history** is collapsed in the editing rail. Undo and Redo restore the selected photo’s tonal and framing recipes. Nearby changes to the same slider are grouped. History is retained in the local catalogue; portable backups retain the current recipe rather than the edit timeline.
+
+New culling and history labels live in a British English message table. Keep decision codes and model output independent of display language so another locale can translate the labels without changing catalogue data.
