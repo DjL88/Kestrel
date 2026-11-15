@@ -51,5 +51,5 @@ export async function scanForCulling(
     onProgress(results.length);
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
   }
-  return limitAutoKeepers(results, all, Math.max(0, goal - all.filter((frame) => frame.decision === 'keep').length));
+  return limitAutoKeepers(results, all, Math.max(0, goal - all.filter((frame) => !frame.removedAt && frame.decision === 'keep').length));
 }
