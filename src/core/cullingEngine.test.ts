@@ -261,3 +261,25 @@ test('manual culling ignores stale decisions for removed photos without changing
   assert.equal(kept.frames[0].decision, 'keep');
   assert.equal(kept.frames[0].removedAt, undefined);
 });
+
+test('auto advance never jumps into removed or filtered-out photos at the end of a queue', () => {
+  const base = createDemoShootState(4);
+  const frames = base.frames.map((frame, index) => ({
+    ...frame,
+    ...(index === 2 ? { removedAt: 1234 } : {}),
+  }));
+  const lastVisible = frames[1];
+  const state = {
+    ...base, frames, selectedFrameId: lastVisible.id,
+    searchQuery: lastVisible.filename,
+  };
+  const decided = applyDecisionWithHistory(state, lastVisible.id, 'keep');
+  assert.equal(decided.selectedFrameId, lastVisible.id);
+  assert.equal(decided.frames[1].decision, 'keep');
+  assert.equal(decided.undoStack.length, 1);
+  assert.equal(undoDecision(decided).selectedFrameId, lastVisible.id);
+
+  const all = { ...base, frames, selectedFrameId: frames[3].id };
+  const last = applyDecisionWithHistory(all, frames[3].id, 'reject');
+  assert.equal(last.selectedFrameId, frames[3].id);
+});
