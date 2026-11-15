@@ -10,6 +10,7 @@ import {
   validExifPositiveNumber,
   validExifDimension,
   validExifCaptureTimestamp,
+  readEmbeddedRating,
 } from './exifParser';
 
 test('EXIF formatting returns blank strings when values are missing', () => {
@@ -117,4 +118,13 @@ test('capture timestamp falls back when DateTimeOriginal is malformed', () => {
   assert.equal(validExifCaptureTimestamp('invalid', created), created.getTime());
   assert.equal(validExifCaptureTimestamp(undefined, created), created.getTime());
   assert.equal(validExifCaptureTimestamp(new Date(NaN), 'invalid'), undefined);
+});
+
+test('malformed XMP rating falls back to TIFF without overriding valid XMP decisions', () => {
+  assert.deepEqual(readEmbeddedRating('not-a-rating', 4), { rating: 4 });
+  assert.deepEqual(readEmbeddedRating(9, '3'), { rating: 3 });
+  assert.deepEqual(readEmbeddedRating(undefined, -1), { rejectedByMetadata: true });
+  assert.deepEqual(readEmbeddedRating(-1, 5), { rejectedByMetadata: true });
+  assert.deepEqual(readEmbeddedRating(2, 5), { rating: 2 });
+  assert.deepEqual(readEmbeddedRating('invalid', 8), {});
 });
