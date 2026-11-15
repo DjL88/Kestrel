@@ -4,6 +4,9 @@ import { SPECIES_MODEL, megabytes } from '../core/speciesModel';
 import { confidenceWord, kindFor, personalBonus, pickSuggestions, rankSpecies, similarPhotos, type Suggestion } from '../core/speciesMatch';
 import { qualifiesForAutoTag } from '../core/autoTags';
 import { readAutoTag, readSpeciesCounts, rememberSpecies, saveAutoTag } from '../providers/speciesLearning';
+import { helperReady, failureMessage, type HelperAnswer } from '../core/onlineHelper';
+import { openHelperDialog, useHelperSettings } from '../providers/helperSettings';
+import { HelperError, geminiTransport, imageForHelper } from '../providers/onlineHelper';
 import type { SubjectKind } from '../core/subjectTags';
 import { downloadSpeciesModel, embedPicture, loadSpeciesLabels, speciesStatus, type SpeciesStatus } from '../providers/speciesModel';
 
@@ -37,6 +40,10 @@ const MAX_MATES = 30;
  */
 export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onAccept, mates = [], onTagMates, canAutoTag = false, declined = [], onAutoTag }: Props) {
   const [autoOn, setAutoOn] = useState(readAutoTag);
+  const helper = useHelperSettings();
+  const [asking, setAsking] = useState(false);
+  const [onlineAnswer, setOnlineAnswer] = useState<HelperAnswer | null>(null);
+  const [onlineNote, setOnlineNote] = useState('');
   // The latest values, read after the model has finished, since they may have changed while it was thinking.
   const latest = useRef({ canAutoTag, declined, onAutoTag, autoOn });
   latest.current = { canAutoTag, declined, onAutoTag, autoOn };
@@ -127,7 +134,57 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
     }
   }
 
-  if (status === 'checking' || status === 'unavailable') return null;
+  if (status === 'checking') return null;
+
+  /** One photo, by hand: ask the online helper and offer its answer like any other suggestion. */
+  async function askOnline() {
+    const picture = getPicture();
+    if (!picture) return;
+    setAsking(true);
+    setOnlineNote('');
+    setOnlineAnswer(null);
+    try {
+      const answer = await geminiTransport(helper.key).ask(imageForHelper(picture));
+      if (answer.species) setOnlineAnswer(answer); else setOnlineNote('The online helper could not name this one.');
+    } catch (failure) {
+      const reason = failure instanceof HelperError ? failure.failure : 'other';
+      setOnlineNote(failureMessage(reason).text || 'The online helper could not be reached. Try again later.');
+    } finally {
+      setAsking(false);
+    }
+  }
+  const helperOn = helperReady(helper, { online: navigator.onLine });
+  const onlineBlock = (
+    <div className="space-y-1.5">
+      {helperOn ? (
+        <button type="button" disabled={asking || !ready} onClick={() => void askOnline()} className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-white/15 px-3 text-sm font-medium hover:bg-white/10 disabled:opacity-45">
+          {asking ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}{asking ? 'Asking…' : 'Ask the online helper about this photo'}
+        </button>
+      ) : (
+        <button type="button" onClick={() => openHelperDialog()} className="min-h-10 text-xs text-zinc-300 underline underline-offset-4 hover:text-white">{helper.key ? 'Online helper is off or offline. Open its settings' : 'Or set up the optional online helper'}</button>
+      )}
+      {helperOn && <button type="button" onClick={() => openHelperDialog()} className="block min-h-10 text-xs text-zinc-400 underline underline-offset-4 hover:text-white">Online helper settings</button>}
+      {onlineNote && <p role="status" className="text-xs text-zinc-400">{onlineNote}</p>}
+      {onlineAnswer?.species && !tags.some((tag) => tag.toLowerCase() === onlineAnswer.species!.toLowerCase()) && (
+        <ul aria-label="Online suggestion" className="space-y-1">
+          <li className="flex items-center gap-1 rounded-lg bg-white/5 pl-3 text-sm">
+            <span className="min-w-0 flex-1 py-2">
+              <span className="block truncate text-zinc-100">{onlineAnswer.species}</span>
+              <span className="block text-xs text-zinc-400">{onlineAnswer.scientific ? <i>{onlineAnswer.scientific}</i> : 'Named online'} · {onlineAnswer.confidence === 'high' ? 'likely' : onlineAnswer.confidence === 'medium' ? 'possible' : 'unsure'}</span>
+            </span>
+            <button type="button" aria-label={`Use ${onlineAnswer.species}`} title={`Add the tag ${onlineAnswer.species}`} onClick={() => { onAccept(onlineAnswer.species!, kind ?? onlineAnswer.kind); setOnlineAnswer(null); }}
+              className="grid h-11 w-11 place-items-center rounded-md text-emerald-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300"><Check className="h-5 w-5" aria-hidden="true" /></button>
+            <button type="button" aria-label={`Not ${onlineAnswer.species}`} title={`Not ${onlineAnswer.species}`} onClick={() => setOnlineAnswer(null)}
+              className="grid h-11 w-11 place-items-center rounded-md text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300"><X className="h-5 w-5" aria-hidden="true" /></button>
+          </li>
+        </ul>
+      )}
+    </div>
+  );
+
+  if (status === 'unavailable') {
+    return <section aria-label="Species suggestions" className="space-y-2 px-1 pb-2"><h3 className="text-sm font-medium text-zinc-100">Suggest what is in your photos</h3>{onlineBlock}</section>;
+  }
 
   if (status === 'not-downloaded') {
     return (
@@ -145,6 +202,7 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
           </div>
         )}
         {error && <p role="alert" className="text-xs text-orange-200">{error}</p>}
+        {onlineBlock}
       </section>
     );
   }
