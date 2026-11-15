@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { exportOpener, openExportDialog } from './helpers';
 
 import type { Page } from '@playwright/test';
 
@@ -139,8 +140,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await expect(page.getByRole('tab', { name: /Masks\s*1/ })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Edit' }).click();
 
-  await page.getByRole('tab', { name: 'Export' }).click();
-  await page.getByRole('button', { name: 'Choose formats and export…' }).click();
+  await openExportDialog(page);
   const exportHeading = page.getByRole('heading', { name: 'Export photo' });
   await page.getByRole('button', { name: 'Show all formats at once' }).click();
   await exportHeading.focus();
@@ -212,7 +212,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   expect(png.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([640, 480]);
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: 'Choose formats and export…' })).toBeFocused();
+  await expect(exportOpener(page)).toBeFocused();
 
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await page.getByRole('button', { name: 'Back to projects' }).click();

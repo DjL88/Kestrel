@@ -151,6 +151,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     const request = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
     request.catch(() => { /* the browser refused; the editor carries on as before */ });
   };
+  // A saved or resized layout can leave the Export tab selected on a screen that has no such tab.
+  useEffect(() => { if (!isPhone && tab === 'export') setTab('auto'); }, [isPhone, tab]);
   const cropOpen = tab === 'crop';
   const [previewCrop, setPreviewCrop] = useState(false);
   const [gridLines, setGridLines] = useState(true);
@@ -517,13 +519,16 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   }
 
   /** One tab bar. On a phone it is a bottom toolbar of large icons, and on wider screens the top of the side panel. */
+  // On a phone Export is the last tab in the bottom bar. On a wider screen it is a button in the header instead,
+  // which leaves the side panel's tabs with room to breathe.
+  const visibleTabs = isPhone ? TABS : TABS.filter((entry) => entry.id !== 'export');
   const tabList = (
     <div role="tablist" aria-label="Editing tools"
       className={isPhone
         ? 'grid shrink-0 grid-cols-6 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]'
         : 'sticky top-0 z-10 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 md:-mx-4 md:px-3'}
       onKeyDown={(event) => {
-        const order = TABS.map((entry) => entry.id);
+        const order = visibleTabs.map((entry) => entry.id);
         const at = order.indexOf(tab);
         const next = event.key === 'ArrowRight' ? order[(at + 1) % order.length] : event.key === 'ArrowLeft' ? order[(at + order.length - 1) % order.length]
           : event.key === 'Home' ? order[0] : event.key === 'End' ? order[order.length - 1] : null;
@@ -532,14 +537,14 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         setTab(next);
         document.getElementById(`tab-${next}`)?.focus();
       }}>
-      {TABS.map(({ id, label, Icon }) => (
+      {visibleTabs.map(({ id, label, Icon }) => (
         <button key={id} id={`tab-${id}`} role="tab" type="button" aria-selected={tab === id} aria-controls={`panel-${id}`} tabIndex={tab === id ? 0 : -1}
           aria-expanded={isPhone ? sheetOpen && tab === id : undefined}
           onClick={() => chooseTab(id)}
           className={isPhone
             ? 'relative flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs text-zinc-300 focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:text-white aria-selected:after:absolute aria-selected:after:top-0 aria-selected:after:h-0.5 aria-selected:after:w-10 aria-selected:after:bg-sky-200'
-            : 'flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1 border-b-2 border-transparent px-1.5 text-sm text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:border-sky-200 aria-selected:text-white'}>
-          <Icon className={isPhone ? 'h-5 w-5' : 'h-4 w-4'} aria-hidden="true" />
+            : 'flex min-h-14 flex-1 shrink-0 flex-col items-center justify-center gap-1 border-b-2 border-transparent px-2 text-xs text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:border-sky-200 aria-selected:text-white'}>
+          <Icon className="h-5 w-5" aria-hidden="true" />
           <span>{label}{id === 'masks' && edit.masks?.length ? <span className="ml-1 text-xs tabular-nums text-zinc-400">{edit.masks.length}</span> : null}</span>
         </button>
       ))}
@@ -572,6 +577,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             {fullscreen ? <Minimize className="h-4 w-4" aria-hidden="true" /> : <Maximize className="h-4 w-4" aria-hidden="true" />}
           </button>
         )}
+        <button type="button" disabled={sourceState !== 'ready'} onClick={() => setExportOpen(true)} title="Export this photo for social media or full size"
+          className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover! max-md:hidden`}>
+          <Download className="h-4 w-4" aria-hidden="true" />Export
+        </button>
         {onOpenMacroPad && (
           <button type="button" className={`${button} inline-flex items-center`} onClick={onOpenMacroPad}
             aria-label="Macro pad and shortcuts" title="Macro pad and shortcuts: set up your pad and see how to use it">
