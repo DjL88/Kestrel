@@ -22,6 +22,8 @@ import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
 import { AutoCullPanel } from './components/AutoCullPanel';
 import { BatchLookDialog } from './components/BatchLookDialog';
+import { SelectionLookDialog } from './components/SelectionLookDialog';
+import { applySelectedLook, previewSelectedLook } from './core/selectedLooks';
 import { suggestKeeperAutoEdits, applyKeeperAutoEdits } from './providers/batchAutoEdit';
 import { tasks } from './core/taskStore';
 import { applyKeeperLook, previewKeeperLook } from './core/batchLooks';
@@ -145,6 +147,7 @@ export default function App() {
   // A temporary edit queue limits Next/Previous and the filmstrip to selected photos.
   const [editQueueIds, setEditQueueIds] = useState<string[] | null>(null);
   const [confirmPasteSelection, setConfirmPasteSelection] = useState(false);
+  const [selectionLookOpen, setSelectionLookOpen] = useState(false);
   const [infoFrameId, setInfoFrameId] = useState<string>();
   const infoTriggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -1344,13 +1347,15 @@ export default function App() {
           )}
 
           {!editing && multiSelect && (
-            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#15171C] px-3 text-sm">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-1 border-b border-white/10 bg-[#15171C] px-2 text-sm">
               <span>{selectedIds.size} selected</span>
-              <div className="flex items-center">
+              <div className="flex flex-wrap items-center gap-x-1">
               <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 px-2 text-sky-200 disabled:opacity-40"
                 onClick={() => setExportFrames(selectedVisibleFrames)}>
                 Export selected
               </button>
+              <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 px-2 text-sky-200 disabled:opacity-40"
+                onClick={() => setSelectionLookOpen(true)}>Apply look</button>
               <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 px-2 text-sky-200 disabled:opacity-40"
                 onClick={startSelectedEditing}>Edit selected</button>
               <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 px-2 text-orange-200 disabled:opacity-40"
@@ -1459,7 +1464,7 @@ export default function App() {
 
           {editing && selectedFrame && (
             <div role="toolbar" aria-label="Filmstrip controls"
-              className={`flex shrink-0 items-center gap-1 border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'md:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'md:pr-[var(--editor-panel-w,0px)]') : ''}`}>
+              className={`flex shrink-0 flex-wrap items-center gap-1 border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'md:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'md:pr-[var(--editor-panel-w,0px)]') : ''}`}>
               <button type="button" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10"
                 onClick={() => { setCopiedEdit(selectedFrame.edit ?? DEFAULT_EDIT); showToast('Adjustments copied'); }}>
                 <Copy className="h-4 w-4" aria-hidden="true" /> Copy
@@ -1474,6 +1479,8 @@ export default function App() {
                 <span role="status" className="shrink-0 text-xs text-zinc-300">{selectedVisibleFrames.length} selected</span>
                 <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setExportFrames(selectedVisibleFrames)}>Export</button>
+                <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
+                  onClick={() => setSelectionLookOpen(true)}>Apply look</button>
                 <button type="button" disabled={!selectedVisibleFrames.length || !copiedEdit} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setConfirmPasteSelection(true)}>Paste to selected</button>
                 <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs text-orange-200 hover:bg-white/10 disabled:opacity-40"
@@ -1522,6 +1529,14 @@ export default function App() {
         )}
       </main>
 
+      {selectionLookOpen && <SelectionLookDialog frames={cullingState.frames} ids={new Set(selectedVisibleFrames.map((frame) => frame.id))}
+        onClose={() => setSelectionLookOpen(false)} onApply={(look, includeEdited) => {
+          const at = Date.now();
+          const ids = new Set(selectedVisibleFrames.map((frame) => frame.id));
+          setCullingState((prev) => ({ ...prev, frames: applySelectedLook(prev.frames, ids, look, includeEdited, at),
+            shoot: { ...prev.shoot, lastUpdatedAt: at } }));
+          showToast(`Applied a look to ${previewSelectedLook(cullingState.frames, ids, includeEdited).eligible} selected photos.`);
+        }} />}
       {confirmPasteSelection && <ConfirmDialog title={`Paste adjustments to ${selectedVisibleFrames.length} photos?`}
         confirmLabel="Apply adjustments" cancelLabel="Cancel" onCancel={() => setConfirmPasteSelection(false)}
         onConfirm={pasteToSelection}>
