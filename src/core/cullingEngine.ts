@@ -409,6 +409,9 @@ export function applyDecisionWithHistory(
   if (targetIdx === -1) return state;
 
   const targetFrame = state.frames[targetIdx];
+  // A stale filmstrip/compare callback must never reclassify a photo already removed
+  // from the library. Restoration is a separate, explicit action.
+  if (targetFrame.removedAt) return state;
   const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery, state.ratingFilter);
   const visibleIdx = visibleBefore.findIndex((f) => f.id === frameId);
 

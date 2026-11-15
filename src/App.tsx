@@ -489,8 +489,7 @@ export default function App() {
         showToast(result.skipped ? 'Nothing moved: those photos are already in that project.' : 'Nothing to move.');
         return;
       }
-      // Save the destination first, so a failure part way leaves a copy in both places rather than losing photos.
-      await store.saveProject(result.target);
+      await store.saveProjects([result.source, result.target]);
       setCullingState(result.source);
       setSelectedIds(new Set());
       setMultiSelect(false);
