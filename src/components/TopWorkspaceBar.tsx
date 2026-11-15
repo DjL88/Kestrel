@@ -4,7 +4,7 @@ import type { ProjectSettings } from '../core/projectSettings';
 import { ThemePicker } from './ThemePicker';
 import { messages as m } from '../i18n/messages';
 import type { CullCounts, FilterState, RatingFilter, ShootDescriptor, WorkspaceViewMode } from '../core/types';
-import { decodeRatingFilter, encodeRatingFilter } from '../core/ratingFilter';
+import { RatingFilterControl } from './RatingFilterControl';
 
 interface TopWorkspaceBarProps {
   shoot: ShootDescriptor;
@@ -64,21 +64,6 @@ const filterLabels: Record<FilterState, string> = {
 const viewLabels: Record<WorkspaceViewMode, string> = {
   loupe: 'Single photo', grid: 'Grid', compare: 'Compare',
 };
-
-function RatingSelect({ value, onChange, className = '' }: { value: RatingFilter | null; onChange: (filter: RatingFilter | null) => void; className?: string }) {
-  return (
-    <select aria-label="Filter by rating" value={encodeRatingFilter(value)} onChange={(event) => onChange(decodeRatingFilter(event.target.value))}
-      className={`min-h-10 rounded-md border border-white/10 bg-kestrel-panel px-2 text-sm text-zinc-100 ${className}`}>
-      <option value="any">Any rating</option>
-      <optgroup label="At least">
-        {[1, 2, 3, 4, 5].map((n) => <option key={n} value={`min:${n}`}>{n}★ or more</option>)}
-      </optgroup>
-      <optgroup label="Exactly">
-        {[5, 4, 3, 2, 1, 0].map((n) => <option key={n} value={`eq:${n}`}>{n === 0 ? 'Unrated' : `Exactly ${n}★`}</option>)}
-      </optgroup>
-    </select>
-  );
-}
 
 function MenuSection({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
@@ -182,7 +167,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   </label>
                   <label className="block text-xs font-medium text-zinc-400">
                     Rating
-                    <RatingSelect value={props.ratingFilter} onChange={props.onRatingFilterChange} className="mt-1 w-full" />
+                    <RatingFilterControl value={props.ratingFilter} onChange={props.onRatingFilterChange} className="mt-1 w-full" />
                   </label>
                 </section>
 
@@ -304,7 +289,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           <input type="search" value={searchQuery} onChange={(event) => props.onSearchChange(event.target.value)} placeholder="Search name or subject"
             className="min-h-10 w-full rounded-md border border-white/10 bg-black/20 pl-8 pr-2 text-sm text-zinc-100" />
         </label>
-        <RatingSelect value={props.ratingFilter} onChange={props.onRatingFilterChange} />
+        <RatingFilterControl value={props.ratingFilter} onChange={props.onRatingFilterChange} />
       </div>
     </nav>
     </>

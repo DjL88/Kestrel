@@ -50,3 +50,16 @@ test('the editor can go full screen and come back', async ({ page }) => {
   await page.getByRole('button', { name: 'Leave full screen' }).click();
   await expect(page.getByRole('button', { name: 'Full screen' })).toHaveAttribute('aria-pressed', 'false');
 });
+
+test('rating filter is one row of stars: tap sets, tap again clears, the symbol flips to exactly', async ({ page }) => {
+  await makeProject(page, 'Stars');
+  // On a phone the rating row lives in the menu sheet.
+  if (page.viewportSize()!.width < 768) await page.getByRole('button', { name: 'Workspace options' }).click();
+  const three = page.getByRole('button', { name: '3 stars or more' });
+  await three.click();
+  await expect(three).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: /Matching this rating or more/ }).click();
+  await expect(page.getByRole('button', { name: 'Exactly 3 stars' })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Exactly 3 stars' }).click();
+  await expect(page.getByRole('button', { name: 'Exactly 3 stars' })).toHaveAttribute('aria-pressed', 'false');
+});

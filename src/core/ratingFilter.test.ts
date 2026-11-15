@@ -42,3 +42,13 @@ test('the rating filter combines with the collection and the search', () => {
   assert.equal(filterFrames(frames, 'all', 'a.jpg', { mode: 'exactly', value: 2 }).length, 1);
   assert.equal(filterFrames(frames, 'all', '').length, 3);
 });
+
+test('star picking: tap sets, same tap clears, flipping keeps the stars', async () => {
+  const { pickRating, flipRatingMode } = await import('./ratingFilter');
+  assert.deepEqual(pickRating(null, 'atLeast', 4), { mode: 'atLeast', value: 4 });
+  assert.equal(pickRating({ mode: 'atLeast', value: 4 }, 'atLeast', 4), null);
+  assert.deepEqual(pickRating({ mode: 'atLeast', value: 4 }, 'exactly', 4), { mode: 'exactly', value: 4 });
+  assert.equal(flipRatingMode({ mode: 'atLeast', value: 3 }), 'exactly');
+  assert.equal(flipRatingMode({ mode: 'exactly', value: 3 }), 'atLeast');
+  assert.equal(flipRatingMode(null), 'exactly');
+});
