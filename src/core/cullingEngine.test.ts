@@ -312,3 +312,33 @@ test('bursts still group when camera metadata is unavailable', () => {
   assert.equal(grouped[0].burstGroupId, 'burst-1');
   assert.equal(grouped[1].burstGroupId, 'burst-1');
 });
+
+
+test('unknown camera metadata cannot bridge distinct known cameras into one burst', () => {
+  const frames = generateDemoShootFrames(3).map((frame, index) => ({
+    ...frame,
+    exif: {
+      ...frame.exif,
+      camera: index === 0 ? 'NIKON Z 8' : index === 1 ? undefined : 'NIKON Z 5II',
+      capturedAtMs: 1000 + index * 100,
+    },
+  }));
+  const grouped = assignBurstGroups(frames);
+  assert.equal(grouped[0].burstGroupId, 'burst-1');
+  assert.equal(grouped[1].burstGroupId, 'burst-1');
+  assert.equal(grouped[2].burstGroupId, null);
+});
+
+test('unknown camera frames can join a burst without changing its known identity', () => {
+  const frames = generateDemoShootFrames(3).map((frame, index) => ({
+    ...frame,
+    exif: {
+      ...frame.exif,
+      camera: index === 1 ? undefined : 'NIKON Z 8',
+      capturedAtMs: 1000 + index * 100,
+    },
+  }));
+  const grouped = assignBurstGroups(frames);
+  assert.ok(grouped[0].burstGroupId);
+  assert.ok(grouped.every((frame) => frame.burstGroupId === grouped[0].burstGroupId));
+});
