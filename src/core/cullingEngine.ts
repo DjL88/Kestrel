@@ -424,9 +424,10 @@ export function applyDecisionWithHistory(
     } else if (visibleIdx > 0 && state.filter !== 'all' && nextDecision !== state.filter) {
       // Last item in a filtered bucket removed by state change -> move to previous visible
       nextSelectedId = visibleBefore[visibleIdx - 1].id;
-    } else if (targetIdx + 1 < state.frames.length && state.filter === 'all') {
-      nextSelectedId = state.frames[targetIdx + 1].id;
     }
+    // Do not fall back to the raw catalogue: it can contain removed photos
+    // or frames excluded by search/rating filters. At the end of the visible
+    // queue, stay on the current photo until the user chooses another.
   }
 
   // If decision is unchanged, still advance if autoAdvance is enabled and user pressed Keep/Reject
