@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { ChevronDown, RectangleHorizontal, X } from 'lucide-react';
 import {
-  EXPORT_FORMATS, LEGACY_FORMAT_IDS, PLATFORMS, customFormat, formatById, framingFor, shapeLabel, sizeLabel, toProfile,
+  EXPORT_FORMATS, LEGACY_FORMAT_IDS, PLATFORMS, canTurn, customFormat, formatById, framingFor, shapeLabel, sizeLabel, toProfile, turnFormat,
   type BarStyle, type CustomSize, type ExportFormat, type Fit,
 } from '../core/exportFormats';
 import type { FocusPoint } from '../core/exportFraming';
@@ -49,6 +49,8 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   const [chosen, setChosen] = useState<string[]>(loadChosen);
   const [fits, setFits] = useState<Record<string, Fit>>({});
   const [overrides, setOverrides] = useState<Record<string, { prefix?: string; quality?: number }>>({});
+  const [turned, setTurned] = useState<Record<string, boolean>>({});
+  const [openPlatforms, setOpenPlatforms] = useState<Record<string, boolean>>({});
   const [bars, setBars] = useState<BarStyle>('white');
   const [customOn, setCustomOn] = useState(false);
   const [custom, setCustom] = useState<CustomSize>(DEFAULT_CUSTOM);
@@ -71,10 +73,11 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
       const format = formatById(id);
       if (!format) return [];
       const edit = overrides[id];
-      return [{ ...format, fit: format.id === 'master' ? format.fit : fits[id] ?? format.fit, prefix: edit?.prefix ?? format.prefix, quality: edit?.quality ?? format.quality }];
+      const made = { ...format, fit: format.id === 'master' ? format.fit : fits[id] ?? format.fit, prefix: edit?.prefix ?? format.prefix, quality: edit?.quality ?? format.quality };
+      return [turned[id] ? turnFormat(made) : made];
     });
     return customResult && 'format' in customResult ? [...base, customResult.format] : base;
-  }, [chosen, fits, overrides, customResult]);
+  }, [chosen, fits, overrides, turned, customResult]);
   const total = selected.length * frames.length;
   const resultsReady = files.length > 0;
   const anchorFor = (frame: PhotoFrame, format: ExportFormat): FocusPoint => anchors[`${frame.id}|${format.id}`] ?? frame.focusPoint ?? { x: 0.5, y: 0.5 };
@@ -191,15 +194,29 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   const formatRow = (format: ExportFormat) => {
     const on = chosen.includes(format.id);
     const current = fits[format.id] ?? format.fit;
+    const shownFormat = turned[format.id] ? turnFormat(format) : format;
     return (
       <div key={format.id} className="rounded-md bg-white/5">
         <label className="flex min-h-11 items-center gap-2 px-2 text-sm">
           <input type="checkbox" checked={on} onChange={(event) => toggle(format.id, event.target.checked)} />
           <span className="min-w-0 flex-1">
-            <span className="block">{format.label}</span>
-            <span className="block text-xs text-zinc-400">{sizeLabel(format)}</span>
+            <span className="block">{shownFormat.label}</span>
+            <span className="block text-xs text-zinc-400">{sizeLabel(shownFormat)}</span>
           </span>
         </label>
+        {on && canTurn(format) && (fits[format.id] ?? format.fit) !== 'keep' && (() => {
+          const shown = turned[format.id] ? turnFormat(format) : format;
+          const next = turnFormat(shown);
+          return (
+            <button type="button" className="mx-2 mb-1 inline-flex min-h-10 items-center gap-1.5 rounded-md border border-white/15 px-2 text-xs text-zinc-200 hover:bg-white/10"
+              title={`Turn the shape on its side. The photo is not rotated.`}
+              aria-label={`Turn ${shown.label} from ${shapeLabel(shown.width, shown.height)} to ${shapeLabel(next.width, next.height)}`}
+              onClick={() => setTurned((prior) => ({ ...prior, [format.id]: !prior[format.id] }))}>
+              <RectangleHorizontal className={`h-4 w-4 ${shown.height > shown.width ? 'rotate-90' : ''}`} aria-hidden="true" />
+              {shapeLabel(shown.width, shown.height)} → {shapeLabel(next.width, next.height)}
+            </button>
+          );
+        })()}
         {on && format.id !== 'master' && (
           <label className="block px-2 pb-2 text-xs text-zinc-300">
             <span className="sr-only">How {format.label} fits the photo</span>
@@ -215,11 +232,17 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
 
   const canShare = files.length > 0 && navigator.canShare?.({ files });
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-3" role="dialog" aria-modal="true" aria-labelledby="export-title">
-      <section ref={dialog} className="workspace-popover flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-y-auto rounded-xl border border-white/15 bg-kestrel-raised p-4 shadow-xl">
-        <header className="flex items-center justify-between gap-2">
-          <h2 id="export-title" ref={title} tabIndex={-1} className="text-base font-semibold">Export {frames.length === 1 ? 'photo' : `${frames.length} photos`}</h2>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-3 max-md:p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
+      <section ref={dialog} className="workspace-popover flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-y-auto rounded-xl border border-white/15 bg-kestrel-raised p-4 shadow-xl max-md:h-dvh max-md:max-h-none max-md:rounded-none max-md:border-0">
+        <header className="sticky top-0 z-10 -mx-4 -mt-4 mb-1 flex items-center justify-between gap-2 border-b border-white/10 bg-kestrel-raised px-2 py-1">
           <button type="button" onClick={onClose} aria-label="Close export" title="Close export" className={button}><X className="h-5 w-5" aria-hidden="true" /></button>
+          <h2 id="export-title" ref={title} tabIndex={-1} className="min-w-0 flex-1 truncate text-center text-base font-semibold">Export {frames.length === 1 ? 'photo' : `${frames.length} photos`}</h2>
+          {resultsReady ? <span className="w-11" /> : (
+            <button type="submit" form="export-form" aria-label={progress !== null ? `Preparing ${progress} of ${total}` : `Prepare ${total} ${total === 1 ? 'file' : 'files'}`} disabled={!total || progress !== null || Boolean(customOn && customResult && 'error' in customResult)}
+              className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}>
+              {progress !== null ? `${progress}/${total}…` : total > 1 ? `Prepare ${total}` : 'Prepare'}
+            </button>
+          )}
         </header>
         {resultsReady ? (
           <div className="space-y-3">
@@ -243,18 +266,27 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
             </details>}
           </div>
         ) : (
-          <form className="mt-2 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]" onSubmit={(event) => { event.preventDefault(); void prepare(); }}>
+          <form id="export-form" className="mt-2 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]" onSubmit={(event) => { event.preventDefault(); void prepare(); }}>
             <fieldset disabled={progress !== null} className="min-w-0 space-y-3">
               <legend className="mb-1 text-sm font-medium text-zinc-100">Choose formats</legend>
               {formatRow(formatById('master')!)}
-              {PLATFORMS.map((platform) => (
-                <fieldset key={platform.id} className="space-y-1">
-                  <legend className="mb-1 flex items-center gap-2 text-sm font-medium text-zinc-100">
-                    <SocialIcon id={platform.id} className="h-4 w-4 text-zinc-200" />{platform.label}
-                  </legend>
-                  {EXPORT_FORMATS.filter((format) => format.platform === platform.id).map(formatRow)}
-                </fieldset>
-              ))}
+              {PLATFORMS.map((platform) => {
+                const formats = EXPORT_FORMATS.filter((format) => format.platform === platform.id);
+                const count = formats.filter((format) => chosen.includes(format.id)).length;
+                const open = openPlatforms[platform.id] ?? count > 0;
+                return (
+                  <details key={platform.id} open={open} className="rounded-md border border-white/10"
+                    onToggle={(event) => { const now = event.currentTarget.open; if (now !== open) setOpenPlatforms((prior) => ({ ...prior, [platform.id]: now })); }}>
+                    <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-2 text-sm font-medium text-zinc-100 [&::-webkit-details-marker]:hidden">
+                      <SocialIcon id={platform.id} className="h-4 w-4 text-zinc-200" />
+                      <span className="flex-1">{platform.label}</span>
+                      {count > 0 && <span className="rounded-full bg-sky-300/20 px-2 text-xs text-sky-100">{count} chosen</span>}
+                      <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+                    </summary>
+                    <div className="space-y-1 p-1">{formats.map(formatRow)}</div>
+                  </details>
+                );
+              })}
               <fieldset className="space-y-2 rounded-md bg-white/5 p-2">
                 <label className="flex min-h-11 items-center gap-2 text-sm font-medium text-zinc-100">
                   <input type="checkbox" checked={customOn} onChange={(event) => setCustomOn(event.target.checked)} />Custom size
@@ -352,10 +384,6 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
               )}
             </div>
             <div className="space-y-2 md:col-span-2">
-              <button type="submit" disabled={!total || progress !== null || Boolean(customOn && customResult && 'error' in customResult)}
-                className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}>
-                {progress !== null ? `Preparing ${progress}/${total}…` : `Prepare ${total} ${total === 1 ? 'file' : 'files'}`}
-              </button>
               {progress !== null && <progress aria-label="Export progress" className="block w-full" value={progress} max={total} />}
             </div>
           </form>

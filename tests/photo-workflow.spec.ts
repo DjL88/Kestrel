@@ -144,15 +144,25 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   const exportHeading = page.getByRole('heading', { name: 'Export photo' });
   const prepare = page.getByRole('button', { name: 'Prepare 1 file', exact: true });
   await expect(exportHeading).toBeFocused();
-  await page.keyboard.press('Shift+Tab');
-  await expect(prepare).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'Close export' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(prepare).toBeFocused();
   // Formats are grouped by platform, and a preview has the shape its format promises (a story is 9:16).
-  const instagram = page.getByRole('group', { name: 'Instagram' });
+  // Platforms are accordions: Instagram opens on demand and says how many formats are chosen.
+  const instagram = page.locator('details', { has: page.getByText('Instagram', { exact: true }) });
+  await expect(instagram).not.toHaveAttribute('open', '');
+  await instagram.getByText('Instagram', { exact: true }).click();
   await instagram.getByRole('checkbox', { name: /Story or Reel cover/ }).check();
   await expect.poll(() => page.getByRole('img', { name: /as Story or Reel cover/ }).evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(0.56);
   await expect(page.getByRole('button', { name: 'Prepare 2 files', exact: true })).toBeVisible();
+  await expect(instagram.getByText('1 chosen')).toBeVisible();
+  // The ratio can be turned on its side: the photo stays upright, the shape changes.
+  await instagram.getByRole('checkbox', { name: /Post · 4:5/ }).check();
+  await expect.poll(() => page.getByRole('img', { name: /as Post · 4:5/ }).evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(0.8);
+  await instagram.getByRole('button', { name: /Turn Post · 4:5 from 4:5 to 5:4/ }).click();
+  await expect.poll(() => page.getByRole('img', { name: /as Post · 5:4/ }).evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(1.25);
+  await instagram.getByRole('checkbox', { name: /Post · 5:4/ }).uncheck();
   await instagram.getByRole('checkbox', { name: /Story or Reel cover/ }).uncheck();
   await expect(prepare).toBeVisible();
   // A custom size that is not a whole number is explained and cannot be prepared.
