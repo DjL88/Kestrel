@@ -20,7 +20,10 @@ test('export wizard: platform, size, position, then export', async ({ page }) =>
   await expect(page.getByRole('button', { name: 'Next', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Instagram' }).click();
 
-  // 2. Size.
+  // 2. Size. Keyboard focus starts at the heading, then moves to the first option.
+  await expect(page.getByRole('heading', { name: 'Instagram: which size?' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('region', { name: 'Instagram sizes' }).getByRole('checkbox').first()).toBeFocused();
   await expect(page.getByRole('region', { name: 'Instagram sizes' })).toBeVisible();
   const next = page.getByRole('button', { name: 'Next', exact: true });
   await page.getByRole('checkbox', { name: /Post · 4:5/ }).check();
@@ -42,10 +45,12 @@ test('export wizard: platform, size, position, then export', async ({ page }) =>
   await next.click();
 
   // 4. Review, back and forward keep the choices, then export.
+  await expect(page.getByRole('heading', { name: 'Ready to export' })).toBeFocused();
   await expect(page.getByRole('region', { name: 'Ready to export' })).toBeVisible();
   await expect(page.getByText('Post · 5:4').first()).toBeVisible();
   await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Kestrel at dusk');
   await page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /^Position/ })).toBeFocused();
   await expect(page.getByRole('region', { name: 'Position' })).toBeVisible();
   await next.click();
   await page.getByRole('button', { name: 'Prepare 1 file' }).click();
@@ -92,6 +97,11 @@ test('on a short screen the step scrolls and Next stays in view', async ({ page 
   await fits.scrollIntoViewIfNeeded();
   const fitsBox = (await fits.boundingBox())!;
   expect(fitsBox.y + fitsBox.height).toBeLessThanOrEqual(box.y + 1);
+  const scrollOffset = (name: RegExp) => page.getByRole('heading', { name })
+    .evaluate((element) => element.closest('section')!.parentElement!.scrollTop);
+  await expect.poll(() => scrollOffset(/^Position/)).toBeGreaterThan(0);
+  await next.click();
+  await expect.poll(() => scrollOffset(/^Ready to export/)).toBe(0);
 });
 
 test('the wizard buttons are never cropped', async ({ page }) => {
@@ -119,7 +129,9 @@ test('with several sizes chosen, every position step matches its own size', asyn
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   const shapes: [RegExp, number, string][] = [[/Post · 4:5/, 0.8, '1 of 3'], [/Square · 1:1/, 1, '2 of 3'], [/Story or Reel cover · 9:16/, 0.56, '3 of 3']];
   for (const [label, ratio, counter] of shapes) {
-    await expect(page.getByRole('heading', { name: label })).toContainText(counter);
+    const heading = page.getByRole('heading', { name: label });
+    await expect(heading).toContainText(counter);
+    await expect(heading).toBeFocused();
     const picture = page.getByRole('img', { name: new RegExp(`as ${label.source}`) });
     await expect.poll(() => picture.evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(ratio);
     await page.getByRole('button', { name: /^Next/ }).click();
