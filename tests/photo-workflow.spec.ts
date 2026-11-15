@@ -142,6 +142,10 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await page.getByRole('tab', { name: 'Export' }).click();
   await page.getByRole('button', { name: 'Choose formats and export…' }).click();
   const exportHeading = page.getByRole('heading', { name: 'Export photo' });
+  await page.getByRole('button', { name: 'Show all formats at once' }).click();
+  await exportHeading.focus();
+  await page.getByRole('checkbox', { name: /Full size/ }).check();
+  await exportHeading.focus();
   const prepare = page.getByRole('button', { name: 'Prepare 1 file', exact: true });
   await expect(exportHeading).toBeFocused();
   await page.keyboard.press('Tab');
