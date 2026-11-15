@@ -11,6 +11,7 @@ import { downloadExport } from '../providers/browserExport';
 import { gridSizeFor } from '../core/subjectModel';
 import { QuickAdjust } from './QuickAdjust';
 import { SubjectPanel } from './SubjectPanel';
+import { hasName } from '../core/speciesBurst';
 import { SpeciesSuggestions } from './SpeciesSuggestions';
 import { addTags, type SubjectKind } from '../core/subjectTags';
 import { AreaSelector } from './AreaSelector';
@@ -82,11 +83,14 @@ interface Props {
   onUndoKeeperEdits?: () => void;
   /** Saves what the photo is of. Older subject names are folded into the tags. */
   onSubjectsChange: (tags: string[], kind: SubjectKind | undefined) => void;
+  /** The other photos in this one's burst, and a way to tag some of them after the user agrees. */
+  burstMates?: PhotoFrame[];
+  onTagPhotos?: (ids: string[], name: string, kind: SubjectKind | undefined) => void;
 }
 
 export function PhotoEditor({ autoEdit, onOpenMacroPad,
   frame, provider, needsAccess, bindings, onEdit, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
-  onApplyToKeepers, onUndoKeeperEdits, onSubjectsChange, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
+  onApplyToKeepers, onUndoKeeperEdits, onSubjectsChange, burstMates, onTagPhotos, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, showFilmstrip, onToggleFilmstrip,
 }: Props) {
   const originalCanvas = useRef<HTMLCanvasElement>(null);
@@ -708,7 +712,16 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             drawFramedPhoto(source, canvas, { ...DEFAULT_FRAMING, turns: framing.turns }, { scale: Math.min(1, 448 / Math.max(source.naturalWidth, source.naturalHeight)) });
             return canvas;
           }}
-          onAccept={(name, kind) => onSubjectsChange(addTags(addTags(frame.subjectNames ?? [], frame.tags ?? []), [name]), frame.subjectKind ?? kind)} />
+          onAccept={(name, kind) => onSubjectsChange(addTags(addTags(frame.subjectNames ?? [], frame.tags ?? []), [name]), frame.subjectKind ?? kind)}
+          mates={(burstMates ?? []).map((mate) => ({ id: mate.id, has: (name: string) => hasName(mate, name), load: async () => {
+            const url = await provider.getFullPreviewUrl(mate);
+            if (!url) return null;
+            const image = await loadImage(url);
+            const canvas = document.createElement('canvas');
+            drawFramedPhoto(image, canvas, DEFAULT_FRAMING, { scale: Math.min(1, 448 / Math.max(image.naturalWidth, image.naturalHeight)) });
+            return canvas;
+          } }))}
+          onTagMates={onTagPhotos} />
         <Histogram data={histogram} teach />
         <div className="px-1">
           <button type="button" disabled={sourceState !== 'ready'} className={`${button} w-full border border-white/10 font-semibold`}

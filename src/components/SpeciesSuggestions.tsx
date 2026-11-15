@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Download, Loader2, RefreshCw, X } from 'lucide-react';
 import { SPECIES_MODEL, megabytes } from '../core/speciesModel';
-import { confidenceWord, kindFor, personalBonus, pickSuggestions, rankSpecies, recordAccepted, type SpeciesCounts, type Suggestion } from '../core/speciesMatch';
+import { confidenceWord, kindFor, personalBonus, pickSuggestions, rankSpecies, recordAccepted, similarPhotos, type SpeciesCounts, type Suggestion } from '../core/speciesMatch';
 import type { SubjectKind } from '../core/subjectTags';
 import { downloadSpeciesModel, embedPicture, loadSpeciesLabels, speciesStatus, type SpeciesStatus } from '../providers/speciesModel';
 
@@ -17,13 +17,20 @@ interface Props {
   kind: SubjectKind | undefined;
   /** Add this name as a tag, and set the kind when none is chosen yet. */
   onAccept: (name: string, kind: SubjectKind | undefined) => void;
+  /** The other photos in this burst, each able to produce a picture for the model to look at. */
+  mates?: { id: string; /** Does it already carry this name? */ has: (name: string) => boolean; load: () => Promise<HTMLCanvasElement | null> }[];
+  /** Add the name to these other photos. Only called after the user agrees. */
+  onTagMates?: (ids: string[], name: string, kind: SubjectKind | undefined) => void;
 }
+
+/** Most photos looked at when offering a name to a burst, so a long burst stays quick. */
+const MAX_MATES = 30;
 
 /**
  * Suggests what a photo shows, using a model that runs on this device once it has been downloaded. Every suggestion is
  * a chip to accept or dismiss. Nothing is added until the user taps it, and nothing leaves the device.
  */
-export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onAccept }: Props) {
+export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onAccept, mates = [], onTagMates }: Props) {
   const [status, setStatus] = useState<SpeciesStatus | 'checking'>('checking');
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -32,6 +39,9 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
   const [dismissed, setDismissed] = useState<string[]>([]);
   const abort = useRef<AbortController | null>(null);
   const run = useRef(0);
+  const embedding = useRef<Float32Array | null>(null);
+  const [offer, setOffer] = useState<{ name: string; kind: SubjectKind | undefined; ids: string[] } | null>(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => { void speciesStatus().then(setStatus); return () => abort.current?.abort(); }, []);
 
@@ -42,9 +52,10 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
     setBusy(true);
     setError('');
     try {
-      const [{ labels, vectors }, embedding] = await Promise.all([loadSpeciesLabels(), embedPicture(picture)]);
+      const [{ labels, vectors }, embedding_] = await Promise.all([loadSpeciesLabels(), embedPicture(picture)]);
       if (mine !== run.current) return;
-      setResults(pickSuggestions(rankSpecies(embedding, labels, vectors, personalBonus(labels, readCounts()))));
+      embedding.current = embedding_;
+      setResults(pickSuggestions(rankSpecies(embedding_, labels, vectors, personalBonus(labels, readCounts()))));
       setDismissed([]);
     } catch (reason) {
       if (mine === run.current) setError(reason instanceof Error ? reason.message : 'Could not look at this photo.');
@@ -57,10 +68,33 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
   useEffect(() => {
     setResults(null);
     setDismissed([]);
+    setOffer(null);
     if (status === 'ready' && ready) void analyse();
     return () => { run.current += 1; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frameId, status, ready]);
+
+  /** After a name is accepted, see which other shots of the burst look like the same animal, and offer them the same name. */
+  async function findSimilar(name: string, chosenKind: SubjectKind | undefined) {
+    const mine = embedding.current;
+    if (!mine || !onTagMates || !mates.some((entry) => !entry.has(name))) return;
+    const at = run.current;
+    setChecking(true);
+    setOffer(null);
+    try {
+      const found: { id: string; embedding: Float32Array }[] = [];
+      for (const mate of mates.filter((entry) => !entry.has(name)).slice(0, MAX_MATES)) {
+        const picture = await mate.load().catch(() => null);
+        if (!picture) continue;
+        found.push({ id: mate.id, embedding: await embedPicture(picture) });
+        if (at !== run.current) return;
+      }
+      const ids = similarPhotos(mine, found);
+      if (ids.length) setOffer({ name, kind: chosenKind, ids });
+    } catch { /* The offer is a convenience. Without it the photo is simply tagged on its own. */ } finally {
+      setChecking(false);
+    }
+  }
 
   async function download() {
     abort.current = new AbortController();
@@ -120,7 +154,9 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
                 onClick={() => {
                   const counts = recordAccepted(readCounts(), entry.label.common);
                   try { localStorage.setItem(COUNTS_KEY, JSON.stringify(counts)); } catch { /* Learning is a bonus, not a need. */ }
-                  onAccept(entry.label.common, kind ?? kindFor(entry.label));
+                  const chosenKind = kind ?? kindFor(entry.label);
+                  onAccept(entry.label.common, chosenKind);
+                  void findSimilar(entry.label.common, chosenKind);
                 }}
                 className="grid h-11 w-11 place-items-center rounded-md text-emerald-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300"><Check className="h-5 w-5" aria-hidden="true" /></button>
               <button type="button" aria-label={`Not ${entry.label.common}`} title={`Not ${entry.label.common}`} onClick={() => setDismissed((prior) => [...prior, entry.label.common])}
@@ -128,6 +164,17 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
             </li>
           ))}
         </ul>
+      )}
+      {checking && <p role="status" className="flex items-center gap-1.5 text-xs text-zinc-400"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />Checking the rest of the burst…</p>}
+      {offer && (
+        <div role="group" aria-label="Tag similar photos" className="space-y-1.5 rounded-lg border border-sky-300/40 bg-sky-300/10 p-2">
+          <p className="text-sm text-zinc-100">{offer.ids.length === 1 ? '1 other photo in this burst looks the same.' : `${offer.ids.length} other photos in this burst look the same.`} Tag {offer.ids.length === 1 ? 'it' : 'them'} as {offer.name} too?</p>
+          <div className="flex gap-1">
+            <button type="button" className="inline-flex min-h-11 items-center rounded-md bg-sky-300/25 px-3 text-sm font-medium text-white hover:bg-sky-300/35"
+              onClick={() => { onTagMates?.(offer.ids, offer.name, offer.kind); setOffer(null); }}>Tag {offer.ids.length === 1 ? 'it' : `all ${offer.ids.length}`}</button>
+            <button type="button" className="min-h-11 rounded-md px-3 text-sm text-zinc-300 hover:bg-white/10" onClick={() => setOffer(null)}>No thanks</button>
+          </div>
+        </div>
       )}
       {error && <p role="alert" className="text-xs text-orange-200">{error}</p>}
       <p className="text-xs text-zinc-500">A suggestion, not a fact. Check it before you use it.</p>

@@ -1,3 +1,4 @@
+import { burstMates, tagFrames } from './core/speciesBurst';
 import { newId } from './core/ids';
 import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
@@ -1117,6 +1118,8 @@ export default function App() {
               bindings={prefs.bindings}
               provider={previewProviderRef.current!}
               needsAccess={needsAccess}
+              burstMates={burstMates(cullingState.frames, selectedFrame)}
+              onTagPhotos={(ids, name, kind) => setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() }, frames: tagFrames(prev.frames, ids, name, kind) }))}
               onEdit={(edit) => updateFrame(selectedFrame.id, { edit: isEmptyEdit(edit) ? undefined : { ...edit } })}
               copiedEdit={copiedEdit}
               onCopyEdit={setCopiedEdit}
