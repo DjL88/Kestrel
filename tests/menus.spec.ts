@@ -144,10 +144,10 @@ test('phone editing: one big slider, chips to choose, nudge and reset, and the f
   await expect(slider).toHaveValue('0.1');
   await expect(quick.getByText('0.04 EV')).toBeVisible();
   // Choose another adjustment from the chips, nudge it, and the first one shows it has been changed.
-  await quick.getByRole('button', { name: 'Contrast', exact: true }).click();
+  await quick.getByRole('button', { name: 'Contrast, unchanged', exact: true }).click();
   await quick.getByRole('button', { name: 'Contrast up' }).click();
   await expect(quick.getByRole('slider', { name: 'Contrast adjustment' })).toHaveValue('0.05');
-  await expect(quick.getByRole('button', { name: /^Light/ }).getByLabel('changed')).toBeVisible();
+  await expect(quick.getByRole('button', { name: 'Light, adjusted', exact: true })).toBeVisible();
   await quick.getByRole('button', { name: 'Reset Contrast' }).click();
   await expect(quick.getByRole('slider', { name: 'Contrast adjustment' })).toHaveValue('0');
   // Stepping back undoes the Light change.
