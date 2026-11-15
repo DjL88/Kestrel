@@ -7,6 +7,12 @@ export type CullDecision = 'unreviewed' | 'keep' | 'reject';
 
 export type FilterState = 'all' | CullDecision;
 
+/** Show only photos with a star rating at least, or exactly, this value. 0 means unrated. */
+export interface RatingFilter {
+  mode: 'atLeast' | 'exactly';
+  value: number;
+}
+
 export type WorkspaceViewMode = 'loupe' | 'grid' | 'compare';
 
 export type DemoAssetKey =
@@ -106,6 +112,7 @@ export interface CullingState {
   compareRightFrameId: string | null;
   filter: FilterState;
   searchQuery: string;
+  ratingFilter?: RatingFilter | null;
   keeperTarget: number;
   autoAdvance: boolean;
   undoStack: DecisionHistoryEntry[];

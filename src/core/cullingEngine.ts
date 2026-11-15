@@ -1,3 +1,4 @@
+import { matchesRating } from './ratingFilter';
 import type {
   CullCounts,
   CullDecision,
@@ -5,6 +6,7 @@ import type {
   DemoAssetKey,
   FilterState,
   PhotoFrame,
+  RatingFilter,
   ShootDescriptor,
 } from './types';
 
@@ -321,7 +323,8 @@ export function computeCullCounts(frames: readonly PhotoFrame[]): CullCounts {
 export function filterFrames(
   frames: readonly PhotoFrame[],
   filter: FilterState,
-  searchQuery: string = ''
+  searchQuery: string = '',
+  ratingFilter?: RatingFilter | null
 ): PhotoFrame[] {
   const query = searchQuery.trim().toLowerCase();
   return frames.filter((frame) => {
@@ -329,6 +332,7 @@ export function filterFrames(
     if (filter !== 'all' && frame.decision !== filter) {
       return false;
     }
+    if (!matchesRating(frame, ratingFilter)) return false;
     if (!query) return true;
     const haystack = [
       frame.filename,
@@ -405,7 +409,7 @@ export function applyDecisionWithHistory(
   if (targetIdx === -1) return state;
 
   const targetFrame = state.frames[targetIdx];
-  const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery);
+  const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery, state.ratingFilter);
   const visibleIdx = visibleBefore.findIndex((f) => f.id === frameId);
 
   const shouldAdvance = options?.allowAdvance ?? state.autoAdvance;
@@ -438,7 +442,7 @@ export function applyDecisionWithHistory(
   );
 
   // Ensure selected frame stays valid if filtered out
-  const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery);
+  const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery, state.ratingFilter);
   if (nextSelectedId && !visibleAfter.some((f) => f.id === nextSelectedId)) {
     // Removing the current photo should leave the eye at the same place in the queue.
     const nextIndex = Math.max(0, Math.min(visibleAfter.length - 1, visibleIdx));
@@ -478,7 +482,7 @@ export function applyAutoCullDecisions(
     return { ...frame, decision };
   });
   if (!batch.length) return state;
-  const visible = filterFrames(frames, state.filter, state.searchQuery);
+  const visible = filterFrames(frames, state.filter, state.searchQuery, state.ratingFilter);
   const selectedFrameId = visible.some((frame) => frame.id === state.selectedFrameId)
     ? state.selectedFrameId : visible[0]?.id ?? null;
   return {
@@ -511,10 +515,10 @@ export function removeFromLibrary(state: CullingState, frameIds: string[]): Cull
   const targets = state.frames.filter((frame) => ids.has(frame.id) && frame.decision === 'reject' && !frame.removedAt);
   if (!targets.length) return state;
   const removing = new Set(targets.map((frame) => frame.id));
-  const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery);
+  const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery, state.ratingFilter);
   const firstIndex = visibleBefore.findIndex((frame) => removing.has(frame.id));
   const frames = state.frames.map((frame) => removing.has(frame.id) ? { ...frame, removedAt: Date.now() } : frame);
-  const visibleAfter = filterFrames(frames, state.filter, state.searchQuery);
+  const visibleAfter = filterFrames(frames, state.filter, state.searchQuery, state.ratingFilter);
   const selectedFrameId = state.selectedFrameId && visibleAfter.some((frame) => frame.id === state.selectedFrameId)
     ? state.selectedFrameId
     : visibleAfter[Math.max(0, Math.min(visibleAfter.length - 1, firstIndex))]?.id ?? null;
@@ -569,7 +573,7 @@ export function redoDecision(state: CullingState): CullingState {
   const entry = state.redoStack[state.redoStack.length - 1];
   const updatedFrames = restoreFlags(state, entry, 'nextDecision');
 
-  const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery);
+  const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery, state.ratingFilter);
   const candidateSelection =
     entry.nextSelectedId && visibleAfter.some((f) => f.id === entry.nextSelectedId)
       ? entry.nextSelectedId

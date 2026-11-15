@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ChevronDown, Ellipsis, Plus, Undo2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Ellipsis, Plus, Search, Undo2 } from 'lucide-react';
 import type { ProjectSettings } from '../core/projectSettings';
 import { ThemePicker } from './ThemePicker';
 import { messages as m } from '../i18n/messages';
-import type { CullCounts, FilterState, ShootDescriptor, WorkspaceViewMode } from '../core/types';
+import type { CullCounts, FilterState, RatingFilter, ShootDescriptor, WorkspaceViewMode } from '../core/types';
+import { decodeRatingFilter, encodeRatingFilter } from '../core/ratingFilter';
 
 interface TopWorkspaceBarProps {
   shoot: ShootDescriptor;
@@ -11,6 +12,8 @@ interface TopWorkspaceBarProps {
   filter: FilterState;
   onFilterChange: (next: FilterState) => void;
   searchQuery: string;
+  ratingFilter: RatingFilter | null;
+  onRatingFilterChange: (filter: RatingFilter | null) => void;
   onSearchChange: (q: string) => void;
   keeperTarget: number;
   onKeeperTargetChange: (target: number) => void;
@@ -54,6 +57,21 @@ const filterLabels: Record<FilterState, string> = {
 const viewLabels: Record<WorkspaceViewMode, string> = {
   loupe: 'Single photo', grid: 'Grid', compare: 'Compare',
 };
+
+function RatingSelect({ value, onChange, className = '' }: { value: RatingFilter | null; onChange: (filter: RatingFilter | null) => void; className?: string }) {
+  return (
+    <select aria-label="Filter by rating" value={encodeRatingFilter(value)} onChange={(event) => onChange(decodeRatingFilter(event.target.value))}
+      className={`min-h-10 rounded-md border border-white/10 bg-kestrel-panel px-2 text-sm text-zinc-100 ${className}`}>
+      <option value="any">Any rating</option>
+      <optgroup label="At least">
+        {[1, 2, 3, 4, 5].map((n) => <option key={n} value={`min:${n}`}>{n}★ or more</option>)}
+      </optgroup>
+      <optgroup label="Exactly">
+        {[5, 4, 3, 2, 1, 0].map((n) => <option key={n} value={`eq:${n}`}>{n === 0 ? 'Unrated' : `Exactly ${n}★`}</option>)}
+      </optgroup>
+    </select>
+  );
+}
 
 const actionClass = 'inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-md px-2.5 text-sm font-medium hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300';
 
@@ -100,7 +118,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
         <div className="truncate text-sm font-semibold text-zinc-100" title={shoot.title}>{shoot.title}</div>
         <div className="truncate text-xs text-zinc-400">
           {loadingProgress ? `Opening ${loadingProgress.loaded}/${loadingProgress.total}` :
-            `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter === 'all' || filter === 'reject' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}`}
+            `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter === 'all' || filter === 'reject' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}${props.ratingFilter ? ' · Rating filter' : ''}`}
         </div>
       </div>
       <div className="flex shrink-0 items-center">
@@ -117,12 +135,18 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           {menuOpen && (
             <div id="workspace-options" data-workspace-options className="workspace-popover absolute right-2 top-full mt-1 max-h-[calc(100dvh_-_4rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-3 shadow-2xl sm:right-4">
               <div className="space-y-2">
+                <div className="space-y-2 md:hidden">
                 <label className="block text-xs font-medium text-zinc-400">
                   Search photos
                   <input type="search" value={searchQuery} onChange={(event) => props.onSearchChange(event.target.value)}
                     placeholder="Subject name or filename"
                     className="mt-1 min-h-10 w-full rounded-md border border-white/10 bg-black/20 px-2 text-base text-zinc-100 sm:text-sm" />
                 </label>
+                <label className="block text-xs font-medium text-zinc-400">
+                  Rating
+                  <RatingSelect value={props.ratingFilter} onChange={props.onRatingFilterChange} className="mt-1 w-full" />
+                </label>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <label className="relative text-xs font-medium text-zinc-400">
                     Show
@@ -196,13 +220,22 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
     </header>
     <nav aria-label="Photo collections" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
       <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
-        {(['unreviewed', 'keep', 'reject'] as const).map((collection) => (
+        {(['all', 'unreviewed', 'keep', 'reject'] as const).map((collection) => (
           <button key={collection} type="button" aria-current={filter === collection ? 'page' : undefined}
             disabled={props.actionsDisabled} onClick={() => props.onFilterChange(collection)}
             className="flex min-h-11 shrink-0 items-center gap-1.5 border-b-2 border-transparent px-2 text-sm text-zinc-300 hover:text-white aria-[current=page]:border-sky-200 aria-[current=page]:text-white motion-safe:transition-colors">
             {filterLabels[collection]} <span className="text-xs tabular-nums text-zinc-400">{counts[collection]}</span>
           </button>
         ))}
+      </div>
+      <div className="hidden min-w-0 flex-1 items-center justify-center gap-2 md:flex">
+        <label className="relative block w-full max-w-64">
+          <span className="sr-only">Search photos</span>
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden="true" />
+          <input type="search" value={searchQuery} onChange={(event) => props.onSearchChange(event.target.value)} placeholder="Search name or subject"
+            className="min-h-10 w-full rounded-md border border-white/10 bg-black/20 pl-8 pr-2 text-sm text-zinc-100" />
+        </label>
+        <RatingSelect value={props.ratingFilter} onChange={props.onRatingFilterChange} />
       </div>
       <div className="flex shrink-0 items-center">
       {props.onExportKeepers && <button type="button" disabled={props.actionsDisabled} className={`${actionClass} text-sky-200`}
