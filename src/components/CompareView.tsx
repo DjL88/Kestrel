@@ -1,5 +1,6 @@
 import { ArrowLeftRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { CullDecision, PhotoFrame } from '../core/types';
+import { toggleCompareDecision } from '../core/compareDecision';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { FrameImage } from './FrameImage';
 import { PhotoViewport } from './PhotoViewport';
@@ -41,17 +42,21 @@ export function CompareView({
           <button type="button" className={control} onClick={() => onStepSide('right', 1)} aria-label="Next photo B"><ChevronRight className="h-4 w-4" /></button>
         </div>
         <button type="button" className={control} onClick={onSwapPanes} aria-label="Swap photos A and B"><ArrowLeftRight className="h-4 w-4" /></button>
-        {leftFrame && (
-          <div className="flex">
-            {(['keep', 'reject'] as const).map((decision) => (
-              <button type="button" key={decision} className={`${control} capitalize aria-pressed:bg-white/15`}
-                aria-label={`${decision} photo A`} aria-pressed={leftFrame.decision === decision}
-                onClick={() => onDecideFrame(leftFrame.id, leftFrame.decision === decision ? 'unreviewed' : decision)}>
-                {decision} A
-              </button>
-            ))}
-          </div>
-        )}
+        {([['A', leftFrame], ['B', rightFrame]] as const).map(([side, frame]) => (
+          frame && (side === 'A' || frame.id !== leftFrame?.id) && (
+            <div key={side} role="group" aria-label={`Decisions for photo ${side}`} className="flex items-center">
+              {(['keep', 'reject'] as const).map((decision) => (
+                <button type="button" key={decision}
+                  className={`${control} capitalize aria-pressed:bg-white/15`}
+                  aria-label={`${decision} photo ${side}`}
+                  aria-pressed={frame.decision === decision}
+                  onClick={() => onDecideFrame(frame.id, toggleCompareDecision(frame.decision, decision))}>
+                  {decision} {side}
+                </button>
+              ))}
+            </div>
+          )
+        ))}
         <button type="button" className={control} onClick={onExitCompare}>Done</button>
       </div>
     </section>
