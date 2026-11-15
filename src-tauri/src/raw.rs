@@ -35,14 +35,32 @@ fn explain(error: &str) -> String {
     }
 }
 
+/// Give each decode its own private workspace. Two photos of equal byte length may be
+/// developed concurrently; a shared path would overwrite one input or delete the
+/// other's output. create_dir is atomic, so a stale directory is never reused.
+#[cfg(target_os = "macos")]
+fn unique_system_decode_folder() -> Result<std::path::PathBuf, String> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    for _ in 0..64 {
+        let serial = NEXT.fetch_add(1, Ordering::Relaxed);
+        let folder = std::env::temp_dir().join(format!("kestrel-raw-{}-{serial}", std::process::id()));
+        match std::fs::create_dir(&folder) {
+            Ok(()) => return Ok(folder),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(format!("Could not prepare a temporary RAW workspace: {error}")),
+        }
+    }
+    Err("Could not allocate a private RAW workspace.".to_string())
+}
+
 /// macOS can read RAW formats the built-in decoder cannot, including Nikon High Efficiency (HE and HE*) files, because the
 /// system's own RAW engine includes licensed decoders. `sips` is part of macOS and uses that engine. The result is Apple's
 /// neutral rendering at the file's full size, already turned the right way up. Used only when the built-in decoder fails.
 #[cfg(target_os = "macos")]
 fn develop_with_system(bytes: &[u8], extension: &str) -> Result<Vec<u8>, String> {
     use std::process::Command;
-    let folder = std::env::temp_dir().join(format!("kestrel-raw-{}-{}", std::process::id(), bytes.len()));
-    std::fs::create_dir_all(&folder).map_err(|error| error.to_string())?;
+    let folder = unique_system_decode_folder()?;
     let input = folder.join(format!("in.{extension}"));
     let output = folder.join("out.jpg");
     let result = (|| {
@@ -150,6 +168,15 @@ mod tests {
         let jpeg = super::develop_any(&bytes, "nef").expect("the system decoder reads HE*");
         let image = image::load_from_memory_with_format(&jpeg, image::ImageFormat::Jpeg).unwrap().to_rgb8();
         assert_eq!((image.width(), image.height()), (8256, 5504));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn simultaneous_system_decodes_never_share_a_workspace() {
+        let folders: Vec<_> = (0..32).map(|_| super::unique_system_decode_folder().unwrap()).collect();
+        let unique: std::collections::HashSet<_> = folders.iter().collect();
+        assert_eq!(unique.len(), folders.len());
+        for folder in folders { std::fs::remove_dir(folder).unwrap(); }
     }
 
     #[test]
