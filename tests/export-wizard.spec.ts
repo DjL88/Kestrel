@@ -55,8 +55,7 @@ async function openWizard(page: import('@playwright/test').Page) {
     return canvas.toDataURL('image/png').split(',')[1];
   });
   await page.getByTestId('quick-edit-input').setInputFiles({ name: 'w.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
-  await page.getByRole('tab', { name: 'Export' }).click();
-  await page.getByRole('button', { name: 'Choose formats and export…' }).click();
+  await openExportDialog(page);
 }
 
 test('the wizard ignores earlier saved choices and shows the size that was picked', async ({ page }) => {
