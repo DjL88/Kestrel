@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { framingFor, shapeLabel, toProfile, type BarStyle, type ExportFormat } from '../core/exportFormats';
-import type { FocusPoint } from '../core/exportFraming';
+import { Minus, Plus, RectangleHorizontal } from 'lucide-react';
+import { canTurn, framingFor, shapeLabel, toProfile, type BarStyle, type ExportFormat } from '../core/exportFormats';
+import { MAX_ZOOM, clampAnchor, clampZoom, planExportFraming, type FocusPoint } from '../core/exportFraming';
+import { DEFAULT_FRAMING, framedSize } from '../core/photoFraming';
+import type { SocialIconId } from '../core/socialIcons';
 import type { PhotoFrame } from '../core/types';
-import { renderExportPreview } from '../providers/browserExport';
+import { drawCropQuickly, renderExportPreview } from '../providers/browserExport';
+import { SocialIcon } from './SocialIcon';
 
 interface Props {
   frame: PhotoFrame;
@@ -10,41 +14,48 @@ interface Props {
   format: ExportFormat;
   bars: BarStyle;
   anchor: FocusPoint;
+  zoom: number;
   onAnchor: (anchor: FocusPoint) => void;
+  onZoom: (zoom: number) => void;
+  /** Turns the shape on its side (4:5 to 5:4). Absent when the format cannot be turned. */
+  onTurn?: () => void;
+  platform?: SocialIconId;
 }
 
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
 
 /**
- * A small picture of one photo in one format, drawn by the same code that makes the file.
- * When the format crops, drag the picture (or use the arrow keys) to choose what stays in.
+ * One photo in one format, drawn by the same code that makes the file. When the format crops, drag the picture in any
+ * direction to choose what stays in, and zoom in to look closer. While a finger or mouse is down the picture is drawn
+ * quickly without the edit, and the finished one replaces it as soon as it lets go.
  */
-export function ExportPreviewTile({ frame, source, format, bars, anchor, onAnchor }: Props) {
+export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, onAnchor, onZoom, onTurn, platform }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [busy, setBusy] = useState(true);
   const [failed, setFailed] = useState(false);
-  // How far the crop moves for a drag across the tile, as a share of the photo.
-  const reach = useRef({ x: 0, y: 0 });
-  const drag = useRef<{ x: number; y: number; anchor: FocusPoint } | null>(null);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const gesture = useRef<{ x: number; y: number; anchor: FocusPoint; zoom: number; spread: number } | null>(null);
+  const frameRequest = useRef(0);
   const movable = format.fit === 'fill' && format.width > 0;
+
+  /** How much of the photo the crop covers, so a drag can be turned into a move. */
+  const span = (useZoom: number) => {
+    if (!source) return null;
+    const { width, height } = framedSize(source.naturalWidth, source.naturalHeight, frame.framing ?? DEFAULT_FRAMING);
+    const { region } = planExportFraming(width, height, toProfile(format), 'focus', anchor, undefined, useZoom);
+    return { width, height, region };
+  };
 
   useEffect(() => {
     if (!source) return;
     let cancelled = false;
-    // A short pause lets a drag settle before the next picture is drawn.
     const timer = window.setTimeout(async () => {
       try {
-        const small = await renderExportPreview(source, frame, toProfile(format), framingFor(format.fit), { focus: anchor, bars });
+        const small = await renderExportPreview(source, frame, toProfile(format), framingFor(format.fit), { focus: anchor, bars, zoom }, undefined);
         if (cancelled || !canvas.current) return;
         canvas.current.width = small.width;
         canvas.current.height = small.height;
         canvas.current.getContext('2d')!.drawImage(small, 0, 0);
-        // The crop covers this share of the photo, so a drag across the tile moves it by that much.
-        const photoShare = source.naturalWidth && source.naturalHeight && format.width && format.height
-          ? Math.min(1, (source.naturalHeight * (format.width / format.height)) / source.naturalWidth) : 1;
-        const photoShareY = source.naturalWidth && source.naturalHeight && format.width && format.height
-          ? Math.min(1, (source.naturalWidth / (format.width / format.height)) / source.naturalHeight) : 1;
-        reach.current = { x: photoShare, y: photoShareY };
         setFailed(false);
         setBusy(false);
       } catch {
@@ -52,46 +63,116 @@ export function ExportPreviewTile({ frame, source, format, bars, anchor, onAncho
       }
     }, 60);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [source, frame, format.id, format.fit, format.width, format.height, bars, anchor.x, anchor.y]);
+  }, [source, frame, format.id, format.fit, format.width, format.height, bars, zoom, anchor.x, anchor.y]);
 
-  const move = (event: PointerEvent<HTMLDivElement>) => {
-    const start = drag.current;
-    if (!start || !canvas.current) return;
-    const box = canvas.current.getBoundingClientRect();
-    // Dragging the picture right moves the crop left across the photo.
-    onAnchor({
-      x: clamp(start.anchor.x - ((event.clientX - start.x) / box.width) * reach.current.x),
-      y: clamp(start.anchor.y - ((event.clientY - start.y) / box.height) * reach.current.y),
+  const quickDraw = (next: FocusPoint, nextZoom: number) => {
+    cancelAnimationFrame(frameRequest.current);
+    frameRequest.current = requestAnimationFrame(() => {
+      if (!source || !canvas.current) return;
+      drawCropQuickly(source, frame, toProfile(format), { focus: next, zoom: nextZoom }, canvas.current);
     });
   };
+  useEffect(() => () => cancelAnimationFrame(frameRequest.current), []);
+
+  /** A position that stays inside the range where moving the crop has an effect. */
+  const settle = (point: FocusPoint, useZoom: number): FocusPoint => {
+    const info = span(useZoom);
+    if (!info) return { x: clamp(point.x), y: clamp(point.y) };
+    return { x: clampAnchor(point.x, info.width, info.region.width), y: clampAnchor(point.y, info.height, info.region.height) };
+  };
+
+  const down = (event: PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const points = [...pointers.current.values()];
+    gesture.current = { x: event.clientX, y: event.clientY, anchor: settle(anchor, zoom), zoom,
+      spread: points.length === 2 ? Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y) : 0 };
+  };
+  const move = (event: PointerEvent<HTMLDivElement>) => {
+    const start = gesture.current;
+    if (!start || !canvas.current || !pointers.current.has(event.pointerId)) return;
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const points = [...pointers.current.values()];
+    let nextZoom = zoom;
+    if (points.length === 2 && start.spread > 0) {
+      // Pinch: the distance between two fingers sets the zoom.
+      nextZoom = clampZoom(start.zoom * (Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y) / start.spread));
+    }
+    const info = span(nextZoom);
+    if (!info) return;
+    const box = canvas.current.getBoundingClientRect();
+    // Dragging the picture right moves the crop left across the photo, by the share of the photo the crop covers.
+    const next = settle({
+      x: start.anchor.x - ((event.clientX - start.x) / box.width) * (info.region.width / info.width),
+      y: start.anchor.y - ((event.clientY - start.y) / box.height) * (info.region.height / info.height),
+    }, nextZoom);
+    live.current = { anchor: next, zoom: nextZoom };
+    quickDraw(next, nextZoom);
+  };
+  const live = useRef<{ anchor: FocusPoint; zoom: number } | null>(null);
+  const up = (event: PointerEvent<HTMLDivElement>) => {
+    pointers.current.delete(event.pointerId);
+    if (pointers.current.size === 0) {
+      gesture.current = null;
+      if (live.current) {
+        onAnchor(live.current.anchor);
+        if (live.current.zoom !== zoom) onZoom(live.current.zoom);
+        live.current = null;
+      }
+    } else {
+      // One finger of a pinch lifted: carry on dragging from where the other one is.
+      const rest = [...pointers.current.values()][0];
+      gesture.current = { x: rest.x, y: rest.y, anchor: live.current?.anchor ?? anchor, zoom: live.current?.zoom ?? zoom, spread: 0 };
+    }
+  };
+
   const key = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = event.shiftKey ? 0.1 : 0.03;
     const delta = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];
+    if (event.key === '+' || event.key === '=') { event.preventDefault(); onZoom(clampZoom(zoom + 0.25)); return; }
+    if (event.key === '-') { event.preventDefault(); onZoom(clampZoom(zoom - 0.25)); return; }
     if (!delta) return;
     event.preventDefault();
-    onAnchor({ x: clamp(anchor.x + delta[0]), y: clamp(anchor.y + delta[1]) });
+    onAnchor(settle({ x: anchor.x + delta[0], y: anchor.y + delta[1] }, zoom));
   };
 
-  // Most labels already name their shape. Keep-shape and custom ones do not, so add it.
   const shape = format.width ? shapeLabel(format.width, format.height) : '';
   const caption = shape && !format.label.includes(shape) ? `${format.label} · ${shape}` : format.label;
-  const hint = !movable ? (format.fit === 'bars' ? 'Whole photo, with borders' : 'Keeps the photo’s own shape') : 'Drag to choose what stays in';
+  const hint = !movable ? (format.fit === 'bars' ? 'Whole photo, with borders' : 'Keeps the photo’s own shape') : 'Drag to move, pinch or use the slider to zoom';
   return (
     <figure className="flex flex-col gap-1">
-      <div role={movable ? 'group' : undefined} tabIndex={movable ? 0 : undefined}
-        aria-label={movable ? `Crop position for ${frame.filename} as ${caption}. Arrow keys move it.` : undefined}
-        title={movable ? 'Drag to move the crop, double-click to centre it' : undefined}
-        onKeyDown={movable ? key : undefined}
-        onDoubleClick={movable ? () => onAnchor({ x: 0.5, y: 0.5 }) : undefined}
-        onPointerDown={movable ? (event) => { event.currentTarget.setPointerCapture(event.pointerId); drag.current = { x: event.clientX, y: event.clientY, anchor }; } : undefined}
-        onPointerMove={movable ? move : undefined}
-        onPointerUp={movable ? () => { drag.current = null; } : undefined}
-        onPointerCancel={movable ? () => { drag.current = null; } : undefined}
-        className={`relative grid h-40 touch-none place-items-center overflow-hidden rounded-md bg-black/40 ${movable ? 'cursor-grab focus-visible:outline-2 focus-visible:outline-sky-300 active:cursor-grabbing' : ''}`}>
-        <canvas ref={canvas} aria-label={`Preview of ${frame.filename} as ${caption}`} role="img" className={`max-h-full max-w-full ${busy ? 'opacity-40' : ''}`} />
-        {busy && !failed && <span className="absolute text-xs text-zinc-300" role="status">Drawing…</span>}
-        {failed && <span className="absolute px-2 text-center text-xs text-orange-200" role="status">Could not draw this preview</span>}
+      <div className="relative">
+        <div role={movable ? 'group' : undefined} tabIndex={movable ? 0 : undefined}
+          aria-label={movable ? `Crop position for ${frame.filename} as ${caption}. Arrow keys move it. Plus and minus zoom.` : undefined}
+          title={movable ? 'Drag to move the crop in any direction, double-click to reset' : undefined}
+          onKeyDown={movable ? key : undefined}
+          onDoubleClick={movable ? () => { onAnchor({ x: 0.5, y: 0.5 }); onZoom(1); } : undefined}
+          onPointerDown={movable ? down : undefined} onPointerMove={movable ? move : undefined}
+          onPointerUp={movable ? up : undefined} onPointerCancel={movable ? up : undefined}
+          className={`relative grid h-48 touch-none place-items-center overflow-hidden rounded-md bg-black/40 ${movable ? 'cursor-grab focus-visible:outline-2 focus-visible:outline-sky-300 active:cursor-grabbing' : ''}`}>
+          <canvas ref={canvas} aria-label={`Preview of ${frame.filename} as ${caption}`} role="img" className={`max-h-full max-w-full ${busy ? 'opacity-40' : ''}`} />
+          {busy && !failed && <span className="absolute text-xs text-zinc-300" role="status">Drawing…</span>}
+          {failed && <span className="absolute px-2 text-center text-xs text-orange-200" role="status">Could not draw this preview</span>}
+        </div>
+        {platform && (
+          <span className="pointer-events-none absolute left-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-zinc-100" aria-hidden="true">
+            <SocialIcon id={platform} className="h-4 w-4" />
+          </span>
+        )}
+        {onTurn && canTurn(format) && (
+          <button type="button" onClick={onTurn} className="absolute right-1.5 top-1.5 inline-flex min-h-9 items-center gap-1 rounded-full bg-black/65 px-2.5 text-xs text-zinc-100 hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-sky-300"
+            aria-label={`Turn ${caption} on its side`} title="Turn the shape on its side. The photo is not rotated.">
+            <RectangleHorizontal className={`h-4 w-4 ${format.height > format.width ? 'rotate-90' : ''}`} aria-hidden="true" />{shape}
+          </button>
+        )}
       </div>
+      {movable && (
+        <div className="flex items-center gap-1">
+          <button type="button" className="grid h-9 w-9 shrink-0 place-items-center rounded-md hover:bg-white/10" aria-label="Zoom out" onClick={() => onZoom(clampZoom(zoom - 0.25))}><Minus className="h-4 w-4" aria-hidden="true" /></button>
+          <input type="range" min={1} max={MAX_ZOOM} step={0.05} value={zoom} aria-label={`Zoom ${caption}`} onChange={(event) => onZoom(clampZoom(event.target.valueAsNumber))} className="min-h-9 w-full accent-sky-300" />
+          <button type="button" className="grid h-9 w-9 shrink-0 place-items-center rounded-md hover:bg-white/10" aria-label="Zoom in" onClick={() => onZoom(clampZoom(zoom + 0.25))}><Plus className="h-4 w-4" aria-hidden="true" /></button>
+        </div>
+      )}
       <figcaption className="text-xs text-zinc-300"><span className="block truncate">{frame.filename}</span><span className="block text-zinc-400">{caption}. {hint}.</span></figcaption>
     </figure>
   );

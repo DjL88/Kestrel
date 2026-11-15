@@ -18,3 +18,22 @@ test('white borders preserve source framing and long edge never upscales', () =>
   assert.equal(planExportFraming(4000, 2000, profile, 'long', undefined, 1200).scale, 0.3);
   assert.equal(planExportFraming(400, 200, profile, 'long', undefined, 1200).scale, 1);
 });
+
+test('zoom shrinks the crop without changing its shape, and the anchor is kept inside its working range', async () => {
+  const { planExportFraming, clampAnchor, clampZoom, MAX_ZOOM } = await import('./exportFraming');
+  const profile = { id: 'p', label: 'p', prefix: '', width: 1080, height: 1350, quality: 0.9, format: 'jpeg' as const };
+  const flat = planExportFraming(6000, 4000, profile, 'focus', { x: 0.5, y: 0.5 }, undefined, 1).region;
+  const close = planExportFraming(6000, 4000, profile, 'focus', { x: 0.5, y: 0.5 }, undefined, 2).region;
+  assert.equal(close.width, Math.round(flat.width / 2));
+  assert.equal(close.height, Math.round(flat.height / 2));
+  assert.ok(Math.abs(close.width / close.height - 0.8) < 0.01, 'still 4:5');
+  // Zoomed in, the crop can move up and down as well as across.
+  assert.ok(close.height < 4000);
+  assert.equal(clampZoom(0.2), 1);
+  assert.equal(clampZoom(99), MAX_ZOOM);
+  assert.equal(clampZoom(Number.NaN), 1);
+  // A crop 3200 wide in a 6000 wide photo: the centre can sit between 0.267 and 0.733 of the way across.
+  assert.equal(Math.round(clampAnchor(0, 6000, 3200) * 1000), 267);
+  assert.equal(Math.round(clampAnchor(1, 6000, 3200) * 1000), 733);
+  assert.equal(clampAnchor(0.9, 4000, 4000), 0.5, 'a crop as big as the photo has nothing to move');
+});

@@ -20,6 +20,8 @@ export interface ExportExtras {
   focus?: FocusPoint;
   /** What goes in the borders when the whole photo is kept inside a fixed shape. */
   bars?: BarStyle;
+  /** How far in the crop looks, from 1 (as much as the shape allows) to 4. */
+  zoom?: number;
   /** Make a small version no larger than this on its long side, for previews. */
   previewEdge?: number;
 }
@@ -35,7 +37,7 @@ async function composeExport(
   signal?.throwIfAborted();
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const { width, height } = framedSize(source.naturalWidth, source.naturalHeight, framing);
-  const plan = planExportFraming(width, height, profile, mode, extras.focus ?? frame.focusPoint, longEdge);
+  const plan = planExportFraming(width, height, profile, mode, extras.focus ?? frame.focusPoint, longEdge, extras.zoom);
   const { region } = plan;
   let { scale, border } = plan;
   if (extras.previewEdge) {
@@ -74,6 +76,19 @@ async function composeExport(
     context.drawImage(canvas, Math.floor((output.width - canvas.width) / 2), Math.floor((output.height - canvas.height) / 2));
   }
   return { canvas, output, bordered: Boolean(border) };
+}
+
+/**
+ * A quick, unedited draw of the crop, for while a picture is being dragged. It is cheap enough to run on every frame.
+ * The finished preview, with the edit applied, replaces it a moment after the drag stops.
+ */
+export function drawCropQuickly(source: HTMLImageElement, frame: PhotoFrame, profile: ExportProfile, extras: ExportExtras, target: HTMLCanvasElement) {
+  const framing = frame.framing ?? DEFAULT_FRAMING;
+  const { width, height } = framedSize(source.naturalWidth, source.naturalHeight, framing);
+  const plan = planExportFraming(width, height, profile, 'focus', extras.focus ?? frame.focusPoint, undefined, extras.zoom);
+  const finalWidth = plan.region.width * plan.scale, finalHeight = plan.region.height * plan.scale;
+  const shrink = Math.min(1, 240 / Math.max(finalWidth, finalHeight));
+  drawFramedPhoto(source, target, framing, { scale: plan.scale * shrink, region: plan.region });
 }
 
 /** A small picture of what an export will look like, as a canvas the caller can draw. */
