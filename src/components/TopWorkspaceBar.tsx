@@ -138,7 +138,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
 
   return (
     <>
-    <header className="relative z-20 flex min-w-0 shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
+    <header className="relative z-20 flex min-w-0 shrink-0 items-center justify-between gap-2 pt-0.5 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
       <button type="button" onClick={props.onBackToProjects} disabled={props.actionsDisabled} className={actionClass} aria-label="Back to projects" title="Back to projects">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Projects</span>
       </button>
@@ -154,13 +154,15 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           <Plus className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">Add</span>
         </button>
-        <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto || props.actionsDisabled} title="Open the selected photo in the editor"
+        <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto || props.actionsDisabled} aria-label="Edit" title="Open the selected photo in the editor"
           className={`${actionClass} border border-sky-300/50 text-sky-100 hover:bg-sky-300/15 disabled:opacity-40`}>
-          <Pencil className="h-4 w-4" aria-hidden="true" />Edit
+          <Pencil className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Edit</span>
         </button>
-        <button type="button" onClick={props.onExport} disabled={!props.onExport || props.actionsDisabled} title="Export the selected photos"
+        <button type="button" onClick={props.onExport} disabled={!props.onExport || props.actionsDisabled} aria-label={props.exportLabel ?? 'Export'} title="Export the selected photos"
           className={`${actionClass} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-40`}>
-          <Download className="h-4 w-4" aria-hidden="true" />{props.exportLabel ?? 'Export'}
+          <Download className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden sm:inline">{props.exportLabel ?? 'Export'}</span>
+          <span className="tabular-nums sm:hidden" aria-hidden="true">{props.exportLabel?.replace('Export', '').trim()}</span>
         </button>
         <div ref={menuRef}>
           <button ref={triggerRef} type="button" disabled={props.actionsDisabled} className={actionClass} onClick={() => setMenuOpen(!menuOpen)}

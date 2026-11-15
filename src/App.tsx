@@ -103,6 +103,7 @@ export default function App() {
   } | null>(null);
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [projects, setProjects] = useState<ShootDescriptor[]>([]);
+  const [photoText, setPhotoText] = useState<Record<string, string>>({});
   const [projectBusy, setProjectBusy] = useState(true);
   const [projectError, setProjectError] = useState<string>();
   const [backupNotice, setBackupNotice] = useState<string>();
@@ -159,6 +160,13 @@ export default function App() {
     void initialiseProjects();
     return () => { active = false; };
   }, []);
+  // The home page search also looks inside projects, so rebuild what it can search whenever the list changes.
+  useEffect(() => {
+    if (!projectsOpen || !storeRef.current) return;
+    let current = true;
+    storeRef.current.searchIndex().then((index) => { if (current) setPhotoText(index); }, () => { /* search falls back to titles only */ });
+    return () => { current = false; };
+  }, [projects, projectsOpen]);
 
   useEffect(() => {
     if (projectsOpen) return;
@@ -945,7 +953,7 @@ export default function App() {
 
   if (projectsOpen) {
     return <>
-      <ProjectList projects={projects} loading={projectBusy} error={projectError}
+      <ProjectList projects={projects} photoText={photoText} loading={projectBusy} error={projectError}
         onOpen={(id) => void openProject(id)} onCreate={(name, options) => void newProject(name, options)} onRestore={(file) => void restoreBackup(file)}
         onArchive={(project) => setProjectAction({ kind: 'archive', project })} onDelete={(project) => setProjectAction({ kind: 'delete', project })}
         onUnarchive={(id) => void unarchiveProject(id)} onQuickEdit={(files) => void quickEdit(files)} />

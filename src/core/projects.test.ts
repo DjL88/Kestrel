@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendProjectPhotos, createEmptyProject } from './projects';
+import { appendProjectPhotos, createEmptyProject, filterProjects, projectSearchText, sortProjects } from './projects';
 import { generateDemoShootFrames } from './cullingEngine';
 
 test('adding photos is additive, keeps decisions, and deduplicates originals across imports', () => {
@@ -104,4 +104,32 @@ test('removed photos are never moved', () => {
   const source = framesFor(createInboxProject(), ['a']);
   const removed = { ...source, frames: [{ ...source.frames[0], removedAt: 5 }] };
   assert.equal(moveFrames(removed, createEmptyProject('t', 'T'), [removed.frames[0].id], 'mv5').moved, 0);
+});
+
+test('search finds projects by title and by the photos inside them', () => {
+  const projects = [
+    { id: 'a', title: 'Spring walk', createdAt: 1, lastUpdatedAt: 5 },
+    { id: 'b', title: 'Hide day', createdAt: 2, lastUpdatedAt: 9 },
+  ];
+  const text = {
+    a: projectSearchText([{ filename: 'DSC_0001.NEF' }]),
+    b: projectSearchText([{ filename: 'DSC_0107.NEF', subjectNames: ['Red Kite'], tags: ['Bird of Prey'] }, { filename: 'gone.jpg', tags: ['Fox'], removedAt: 1 }]),
+  };
+  assert.deepEqual(filterProjects(projects, '', text).map((hit) => hit.project.id), ['a', 'b']);
+  assert.deepEqual(filterProjects(projects, 'spring', text), [{ project: projects[0], viaPhotos: false }]);
+  assert.deepEqual(filterProjects(projects, 'red kite', text), [{ project: projects[1], viaPhotos: true }]);
+  assert.deepEqual(filterProjects(projects, 'hide prey', text), [{ project: projects[1], viaPhotos: true }]);
+  assert.equal(filterProjects(projects, 'fox', text).length, 0, 'removed photos are not searched');
+  assert.equal(filterProjects(projects, 'unicorn', text).length, 0);
+});
+
+test('projects sort by last edited, created or name', () => {
+  const items = [
+    { title: 'Trip 10', createdAt: 3, lastUpdatedAt: 1 },
+    { title: 'trip 2', createdAt: 1, lastUpdatedAt: 3 },
+    { title: 'Alps', createdAt: 2, lastUpdatedAt: 2 },
+  ];
+  assert.deepEqual(sortProjects(items, 'edited').map((p) => p.title), ['trip 2', 'Alps', 'Trip 10']);
+  assert.deepEqual(sortProjects(items, 'created').map((p) => p.title), ['Trip 10', 'Alps', 'trip 2']);
+  assert.deepEqual(sortProjects(items, 'name').map((p) => p.title), ['Alps', 'trip 2', 'Trip 10']);
 });

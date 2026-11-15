@@ -21,6 +21,8 @@ interface Props {
   selectedId: string | null;
   disabled: boolean;
   brushRadius: number;
+  paintOn: boolean;
+  onPaintOn: (on: boolean) => void;
   erase: boolean;
   showOverlay: boolean;
   onSelect: (id: string | null) => void;
@@ -38,7 +40,7 @@ interface Props {
 }
 
 export function MaskPanel(props: Props) {
-  const { masks, selectedId, disabled, brushRadius, erase, showOverlay } = props;
+  const { masks, selectedId, disabled, brushRadius, erase, showOverlay, paintOn } = props;
   const selected = masks.find((mask) => mask.id === selectedId) ?? null;
   const update = (patch: Partial<Mask>) => selected && props.onChange(masks.map((mask) => mask.id === selected.id ? { ...mask, ...patch } as Mask : mask));
   const add = (kind: Exclude<Mask['kind'], 'subject'>) => {
@@ -120,15 +122,15 @@ export function MaskPanel(props: Props) {
                   onChange={(event) => props.onBrushRadius(event.target.valueAsNumber)} className="block min-h-9 w-full accent-sky-300 md:min-h-7" />
               </label>
               <div className="flex gap-1">
-                <button type="button" aria-pressed={!erase} className={`${chip} flex-1 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15`} onClick={() => props.onErase(false)}>
+                <button type="button" aria-pressed={paintOn && !erase} className={`${chip} flex-1 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15`} onClick={() => { const off = paintOn && !erase; props.onErase(false); props.onPaintOn(!off); }}>
                   <Paintbrush className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />{selected.kind === 'subject' ? 'Add' : 'Paint'}
                 </button>
-                <button type="button" aria-pressed={erase} className={`${chip} flex-1 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15`} onClick={() => props.onErase(true)}>
+                <button type="button" aria-pressed={paintOn && erase} className={`${chip} flex-1 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15`} onClick={() => { const off = paintOn && erase; props.onErase(true); props.onPaintOn(!off); }}>
                   <Eraser className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />{selected.kind === 'subject' ? 'Remove' : 'Erase'}
                 </button>
                 <button type="button" className={chip} onClick={() => update({ strokes: [] })} disabled={!('strokes' in selected) || !selected.strokes.length}>{selected.kind === 'subject' ? 'Undo refining' : 'Clear'}</button>
               </div>
-              <p className="text-xs text-zinc-500">Painting needs a pointer or finger. Gradient and oval masks can be set with the keyboard.</p>
+              <p className="text-xs text-zinc-500">{paintOn ? 'Painting is on. Press it again to pan and zoom.' : 'Choose Paint or Erase to start. Until then you can pan and zoom.'} Painting needs a pointer or finger. Gradient and oval masks can be set with the keyboard.</p>
             </div>
           )}
           {masks.length > 1 && (
