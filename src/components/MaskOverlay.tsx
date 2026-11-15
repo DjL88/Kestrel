@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { effectiveAlpha } from '../core/masks';
-import type { Mask } from '../core/maskTypes';
+import { createBrushStroke, type Mask } from '../core/maskTypes';
 
 interface Props {
   mask: Mask;
@@ -140,7 +140,7 @@ export function MaskOverlay({ mask, masks, aspect, rect, brushRadius, paintOn = 
       } : undefined}
       onPointerUp={painting ? () => {
         if (live && live.length >= 2 && (mask.kind === 'brush' || mask.kind === 'subject') && mask.strokes.length < 300) {
-          onChange({ ...mask, strokes: [...mask.strokes, { radius: brushRadius, erase, points: live.map((v) => Math.round(v * 10000) / 10000) }] });
+          onChange({ ...mask, strokes: [...mask.strokes, createBrushStroke(live, brushRadius, erase, mask.invert)] });
         }
         setLive(null);
       } : undefined}>
