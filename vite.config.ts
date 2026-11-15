@@ -7,6 +7,9 @@ import {offlineBuild} from './offline-build.ts';
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss(), offlineBuild()],
+    // Build the on-device runtime up front. Found only when first used, a dev server can re-bundle it mid-session and the
+    // page then fails with "Failed to fetch dynamically imported module".
+    optimizeDeps: { include: ['onnxruntime-web/wasm'] },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
