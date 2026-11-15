@@ -2,6 +2,9 @@ export interface PhotoEdit {
   exposure: number;
   warmth: number;
   colour: number;
+  contrast?: number;
+  highlights?: number;
+  shadows?: number;
 }
 
 export const DEFAULT_EDIT: PhotoEdit = { exposure: 0, warmth: 0, colour: 0 };
@@ -10,10 +13,13 @@ export const EDIT_CHOICES = [
   { key: 'exposure', label: 'Light', options: ['Darker', 'Neutral', 'Brighter'] },
   { key: 'warmth', label: 'Warmth', options: ['Cooler', 'Neutral', 'Warmer'] },
   { key: 'colour', label: 'Colour', options: ['Softer', 'Neutral', 'Richer'] },
+  { key: 'contrast', label: 'Contrast', options: ['Softer', 'Neutral', 'Stronger'] },
+  { key: 'highlights', label: 'Highlights', options: ['Lower', 'Neutral', 'Lift'] },
+  { key: 'shadows', label: 'Shadows', options: ['Lower', 'Neutral', 'Lift'] },
 ] as const;
 
 export function isNeutralEdit(edit: PhotoEdit): boolean {
-  return edit.exposure === 0 && edit.warmth === 0 && edit.colour === 0;
+  return edit.exposure === 0 && edit.warmth === 0 && edit.colour === 0 && !edit.contrast && !edit.highlights && !edit.shadows;
 }
 
 const linear = Array.from({ length: 256 }, (_, index) => {
@@ -33,14 +39,25 @@ export function applyPhotoEdit(pixels: Uint8ClampedArray, edit: PhotoEdit): void
   const warmth = edit.warmth * 0.08;
   const saturation = 1 + edit.colour * 0.2;
 
+  const contrast = (edit.contrast ?? 0) * 0.32;
+  const highlights = (edit.highlights ?? 0) * 0.55;
+  const shadows = (edit.shadows ?? 0) * 0.55;
+  const hasTone = Boolean(contrast || highlights || shadows);
   for (let index = 0; index < pixels.length; index += 4) {
     const red = linear[pixels[index]] * gain * (1 + warmth);
     const green = linear[pixels[index + 1]] * gain;
     const blue = linear[pixels[index + 2]] * gain * (1 - warmth);
     const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-    pixels[index] = toByte(luminance + (red - luminance) * saturation);
-    pixels[index + 1] = toByte(luminance + (green - luminance) * saturation);
-    pixels[index + 2] = toByte(luminance + (blue - luminance) * saturation);
+    let offset = 0;
+    if (hasTone) {
+      const l = Math.min(1, luminance);
+      const shadowWeight = (1 - l) ** 3;
+      const highlightWeight = l ** 2;
+      offset = l * (1 - l) * (contrast * (2 * l - 1) + shadows * shadowWeight + highlights * highlightWeight);
+    }
+    pixels[index] = toByte(offset + luminance + (red - luminance) * saturation);
+    pixels[index + 1] = toByte(offset + luminance + (green - luminance) * saturation);
+    pixels[index + 2] = toByte(offset + luminance + (blue - luminance) * saturation);
   }
 }
 

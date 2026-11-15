@@ -1,3 +1,4 @@
+import { PhotoEditHistory } from './PhotoEditHistory';
 import { messages as m } from '../i18n/messages';
 import { ChevronDown } from 'lucide-react';
 import { DEFAULT_FRAMING, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, thirdsCropAnchor, type PhotoFraming } from '../core/photoFraming';
@@ -54,6 +55,7 @@ export function PhotoEditor({
   const [compare, setCompare] = useState(false);
   const [dial, setDial] = useState(0);
   const [dialUsed, setDialUsed] = useState(false);
+  const [toneOpen, setToneOpen] = useState(false);
   const [quickChoices, setQuickChoices] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
   const [previewCrop, setPreviewCrop] = useState(false);
@@ -181,13 +183,13 @@ export function PhotoEditor({
         case 'edit.wbNeutral': onEdit({ ...edit, warmth: 0 }); break;
         case 'edit.prevControl':
           setDialUsed(true);
-          setDial((index) => (index + 1) % EDIT_CHOICES.length);
+          setDial((index) => (index + 1) % (toneOpen ? EDIT_CHOICES.length : 3));
           break;
         case 'edit.knobCcw':
         case 'edit.knobCw': {
           setDialUsed(true);
           const step = command.id === 'edit.knobCw' ? 0.1 : -0.1;
-          const value = Math.max(-2, Math.min(2, Math.round((edit[key] + step) * 10) / 10));
+          const value = Math.max(-2, Math.min(2, Math.round(((edit[key] ?? 0) + step) * 10) / 10));
           onEdit({ ...edit, [key]: value });
           break;
         }
@@ -195,7 +197,7 @@ export function PhotoEditor({
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [bindings, copiedEdit, dial, edit, exportOpen, guide, onCopyEdit, onEdit, onHistoryStep, source]);
+  }, [bindings, copiedEdit, dial, edit, exportOpen, guide, onCopyEdit, onEdit, onHistoryStep, source, toneOpen]);
 
   function sampleOrientedSource() {
     if (!source) return null;
@@ -286,15 +288,15 @@ export function PhotoEditor({
         </div>
         {isRaw && <p className="text-xs text-zinc-300">Editing embedded JPEG preview</p>}
         <div className="space-y-2 px-1 py-2">
-          {EDIT_CHOICES.map(({ key, label, options }, index) => (
+          {EDIT_CHOICES.map(({ key, label, options }, index) => index >= 3 && !toneOpen ? null : (
             <fieldset key={key} disabled={sourceState !== 'ready'} className="min-w-0 disabled:opacity-45">
               <label className="block">
                 <span className="flex items-center justify-between text-xs text-zinc-300">
                   <span>{label}{dialUsed && dial === index && <span className="ml-2 text-sky-200">Dial</span>}</span>
                   <output className="tabular-nums text-zinc-400">{key === 'exposure' ? `${(edit[key] * 0.4).toFixed(2)} EV` :
-                    `${Math.round(edit[key] * (key === 'warmth' ? 8 : 20))}%`}</output>
+                    `${Math.round((edit[key] ?? 0) * (key === 'warmth' ? 8 : key === 'colour' ? 20 : 50))}%`}</output>
                 </span>
-                <input type="range" min={-2} max={2} step={0.1} value={edit[key]} aria-label={`${label} adjustment`}
+                <input type="range" min={-2} max={2} step={0.1} value={edit[key] ?? 0} aria-label={`${label} adjustment`}
                   onFocus={() => setDial(index)}
                   onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
                   onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
@@ -302,13 +304,17 @@ export function PhotoEditor({
               </label>
               {quickChoices && <div className="flex gap-1">
                 {options.map((name, index) => (
-                  <button type="button" key={name} aria-pressed={edit[key] === index - 1}
+                  <button type="button" key={name} aria-pressed={(edit[key] ?? 0) === index - 1}
                     onClick={() => onEdit({ ...edit, [key]: index - 1 })}
                     className="min-h-11 rounded px-2 text-xs hover:bg-white/8 aria-pressed:bg-sky-300/15 lg:min-h-7">{name}</button>
                 ))}
               </div>}
             </fieldset>
           ))}
+          <button type="button" aria-expanded={toneOpen} onClick={() => {
+            if (toneOpen && dial >= 3) setDial(0);
+            setToneOpen(!toneOpen);
+          }} className="min-h-10 rounded-md px-1 text-xs text-zinc-300 hover:text-white lg:min-h-7">Tone controls</button>
           <button type="button" aria-expanded={quickChoices} onClick={() => setQuickChoices(!quickChoices)}
             className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white lg:min-h-7">Quick choices</button>
         </div>
@@ -365,22 +371,7 @@ export function PhotoEditor({
         </details>
         <details className="border-t border-white/10">
           <summary className="min-h-11 cursor-pointer py-3 text-sm">{m.editHistory}</summary>
-          {!frame.editHistory?.steps.length ? <p className="pb-2 text-sm text-zinc-400">{m.emptyHistory}</p> : (
-            <>
-              <div className="flex gap-2">
-                <button type="button" className={button} disabled={!frame.editHistory.cursor} onClick={() => onHistoryStep(-1)}>{m.undo}</button>
-                <button type="button" className={button} disabled={frame.editHistory.cursor >= frame.editHistory.steps.length}
-                  onClick={() => onHistoryStep(1)}>{m.redo}</button>
-              </div>
-              <ol className="max-h-48 overflow-y-auto pb-2 text-sm">
-                {frame.editHistory.steps.map((step, index) => <li key={index}
-                  aria-current={index === frame.editHistory!.cursor - 1 ? 'step' : undefined}
-                  className={`rounded px-2 py-1 ${index >= frame.editHistory!.cursor ? 'text-zinc-500' : 'text-zinc-200'} aria-[current=step]:bg-white/10`}>
-                  {m.historyStep[step.kind]}
-                </li>)}
-              </ol>
-            </>
-          )}
+          <PhotoEditHistory frame={frame} onHistoryStep={onHistoryStep} />
         </details>
         <details className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">

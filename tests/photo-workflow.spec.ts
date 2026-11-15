@@ -59,6 +59,15 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await page.getByRole('button', { name: 'Close export' }).click();
 
   await page.getByRole('button', { name: 'Back', exact: true }).click();
+  const info = page.getByRole('button', { name: 'Photo info and rating for frame-01.png', exact: true });
+  await info.click();
+  const inspector = page.getByRole('complementary', { name: 'Photo info' });
+  await expect(inspector.getByRole('img', { name: /tonal distribution/ })).toBeVisible();
+  await inspector.getByRole('button', { name: 'Edit history', exact: true }).click();
+  await expect(inspector.getByText('Light', { exact: true })).toBeVisible();
+  await inspector.getByRole('button', { name: 'Undo', exact: true }).click();
+  await inspector.getByRole('button', { name: 'Redo', exact: true }).click();
+  await inspector.getByRole('button', { name: 'Close photo info' }).click();
   await page.getByRole('button', { name: 'Back to projects' }).click();
   await expect(page.getByRole('button', { name: 'Ten-photo test 10 photos' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);

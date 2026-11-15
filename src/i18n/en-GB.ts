@@ -18,6 +18,7 @@ export const enGB = {
   historyStep: {
     light: 'Light', warmth: 'Warmth', colour: 'Colour', adjustments: 'Adjustments',
     crop: 'Crop', rotation: 'Rotation', straighten: 'Straighten',
+    contrast: 'Contrast', highlights: 'Highlights', shadows: 'Shadows',
   },
   undo: 'Undo',
   reviewPhoto: 'Open photo',

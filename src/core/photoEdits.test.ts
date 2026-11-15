@@ -25,3 +25,20 @@ test('warmth changes red and blue in opposite directions', () => {
   assert.equal(pixels[1], 100);
   assert.ok(pixels[2] < 100);
 });
+
+test('new tone controls keep legacy recipes neutral and adjust different tonal ranges', () => {
+  const grey = new Uint8ClampedArray([64, 64, 64, 255, 216, 216, 216, 255]);
+  const legacy = { exposure: 0, warmth: 0, colour: 0 };
+  const unchanged = grey.slice();
+  applyPhotoEdit(unchanged, legacy);
+  assert.deepEqual(unchanged, grey);
+  const lifted = grey.slice();
+  applyPhotoEdit(lifted, { ...legacy, shadows: 2 });
+  assert.ok(lifted[0] - grey[0] > lifted[4] - grey[4]);
+  const recovered = grey.slice();
+  applyPhotoEdit(recovered, { ...legacy, highlights: -2 });
+  assert.ok(grey[4] - recovered[4] > grey[0] - recovered[0]);
+  const contrasted = grey.slice();
+  applyPhotoEdit(contrasted, { ...legacy, contrast: 2 });
+  assert.ok(contrasted[0] < grey[0] && contrasted[4] > grey[4]);
+});
