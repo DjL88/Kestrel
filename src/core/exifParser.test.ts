@@ -7,6 +7,8 @@ import {
   formatFocalLength,
   formatShutterSpeed,
   isNikonEmbeddedPreviewFile,
+  validExifPositiveNumber,
+  validExifDimension,
 } from './exifParser';
 
 test('EXIF formatting returns blank strings when values are missing', () => {
@@ -76,4 +78,18 @@ test('NRW metadata never claims full RAW decoding, including parse failure', asy
   const metadata = await parseImageExif(new Blob([new Uint8Array(8)]), 'NIKON.NRW');
   assert.equal(metadata.formatLabel, 'NRW Embedded Preview');
   assert.equal(metadata.isEmbeddedPreviewOnly, true);
+});
+
+test('rejects corrupt numeric EXIF values instead of displaying impossible camera settings', () => {
+  for (const invalid of [NaN, Infinity, -Infinity, 0, -1, '8256', null, undefined]) {
+    assert.equal(validExifPositiveNumber(invalid), undefined);
+    assert.equal(validExifDimension(invalid), undefined);
+  }
+  assert.equal(validExifPositiveNumber(5.6), 5.6);
+  assert.equal(validExifPositiveNumber(8256), 8256);
+  assert.equal(validExifDimension(8256), 8256);
+  assert.equal(validExifDimension(5504), 5504);
+  assert.equal(validExifDimension(8256.5), undefined);
+  assert.equal(validExifDimension(Number.MAX_SAFE_INTEGER + 1), undefined);
+  assert.equal(formatFocalLength(Infinity), '');
 });
