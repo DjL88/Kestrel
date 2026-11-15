@@ -45,7 +45,16 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await expect(light).toHaveValue('0.1');
 
   await page.getByRole('button', { name: 'Export', exact: true }).click();
-  await page.getByRole('button', { name: 'Prepare 1 file', exact: true }).click();
+  const exportHeading = page.getByRole('heading', { name: 'Export photo' });
+  const prepare = page.getByRole('button', { name: 'Prepare 1 file', exact: true });
+  await expect(exportHeading).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(prepare).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Close export' })).toBeFocused();
+  await prepare.click();
+  await expect(page.getByRole('status').filter({ hasText: '1 file ready' })).toBeVisible();
+  await expect(exportHeading).toBeFocused();
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download', exact: true }).click();
   const download = await downloadEvent;
@@ -56,7 +65,8 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   const png = Buffer.concat(chunks);
   expect(png.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([640, 480]);
-  await page.getByRole('button', { name: 'Close export' }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeFocused();
 
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await page.getByRole('button', { name: 'Back to projects' }).click();
