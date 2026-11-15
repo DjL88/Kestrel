@@ -556,7 +556,8 @@ export function restoreRemoved(state: CullingState, frameIds: string[]): Culling
     const { removedAt: _removedAt, ...kept } = frame;
     return kept;
   });
-  return { ...state, frames, shoot: { ...state.shoot, lastUpdatedAt: Date.now() } };
+  // Explicit restoration is a new user action: an earlier redo must not silently remove it again.
+  return { ...state, frames, shoot: { ...state.shoot, lastUpdatedAt: Date.now() }, redoStack: [] };
 }
 
 export function undoDecision(state: CullingState): CullingState {
