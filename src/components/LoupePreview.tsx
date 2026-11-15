@@ -79,7 +79,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
         <ShortcutOverlay bindings={bindings} knobMode={knobMode} visible={showShortcutsOverlay} />
       </div>
 
-      <div className="flex min-h-13 shrink-0 items-center justify-between gap-1 border-t border-white/8 bg-kestrel-panel px-1.5 sm:px-4">
+      <div role="group" aria-label="Single photo controls" className="flex min-h-13 shrink-0 items-center justify-between gap-1 border-t border-white/8 bg-kestrel-panel px-1.5 sm:px-4">
         <button type="button" disabled={!hasPrev} onClick={() => onStepFrame(-1)} aria-label="Previous frame" title="Previous frame"
           className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:opacity-30">
           <ChevronLeft className="h-5 w-5" aria-hidden="true" />
