@@ -1,7 +1,8 @@
 name: Release desktop apps
 
 # Push a tag such as v0.1.1 to build signed update files for every desktop system and publish them as a GitHub release.
-# Needs the repository secret TAURI_SIGNING_PRIVATE_KEY (see docs/DESKTOP.md). Apple and Windows signing are separate.
+# Unsigned beta builds: no secrets needed. When the updater is switched on, add TAURI_SIGNING_PRIVATE_KEY to the env of the
+# tauri-action step and `--config '{"bundle":{"createUpdaterArtifacts":true}}'` to args (see docs/DESKTOP.md).
 on:
   push:
     tags: ['v*']
@@ -43,11 +44,9 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
         with:
           tagName: ${{ github.ref_name }}
           releaseName: Kestrel ${{ github.ref_name }}
           releaseBody: Desktop builds. Unsigned by Apple and Microsoft until signing is set up.
           releaseDraft: true
-          args: ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":true}}'
+          args: ${{ matrix.args }}
