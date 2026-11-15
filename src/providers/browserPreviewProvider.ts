@@ -1,4 +1,4 @@
-import { extractEmbeddedJpegFromRawBuffer } from '../core/exifParser';
+import { extractNefPreview } from '../core/nefPreview';
 import {
   NativeRawUnsupportedError,
   type PreviewProvider,
@@ -80,10 +80,9 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
     let previewBlob: Blob = blob;
     if (frame.filename.toLowerCase().endsWith('.nef')) {
-      const buffer = await blob.slice(0, 14 * 1024 * 1024).arrayBuffer();
-      const extracted = extractEmbeddedJpegFromRawBuffer(buffer);
+      const extracted = await extractNefPreview(blob);
       if (!extracted) return '';
-      previewBlob = new Blob([extracted.bytes.slice()], { type: 'image/jpeg' });
+      previewBlob = extracted;
     }
 
     const objectUrl = URL.createObjectURL(previewBlob);
@@ -137,10 +136,9 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
     let sourceBlob: Blob = blob;
     if (frame.filename.toLowerCase().endsWith('.nef')) {
-      const buffer = await blob.slice(0, 14 * 1024 * 1024).arrayBuffer();
-      const extracted = extractEmbeddedJpegFromRawBuffer(buffer);
+      const extracted = await extractNefPreview(blob);
       if (!extracted) return '';
-      sourceBlob = new Blob([extracted.bytes.slice()], { type: 'image/jpeg' });
+      sourceBlob = extracted;
     }
 
     try {
