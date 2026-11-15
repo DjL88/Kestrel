@@ -31,6 +31,8 @@ test('species suggestions: download once, look at the photo, accept a name, and 
   await expect(panel.getByRole('list', { name: 'Suggested names' })).toHaveCount(0);
 
   // The model and accepted tag stay on the device. Reopening the same photo must not offer the tag again.
+  // The catalogue saves a moment after a change, so give it that moment before reloading.
+  await page.waitForTimeout(2000);
   await page.reload();
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
