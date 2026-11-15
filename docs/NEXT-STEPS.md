@@ -136,3 +136,12 @@ Under 768 px wide the editor tools are a bottom bar of four large icons (Edit, C
 ## Macro pad in the editor (feat/macro-pad-in-editor)
 The editor toolbar has a **Macro pad** button that opens the pad settings on the Edit tab. The dialog now starts with a short how-to (a pad only sends ordinary keys, so either set the pad's software to send the shown keys or click a key here and press the pad's key; in the editor the Cycle key picks a slider and the knob changes it; Alt plus scroll works without a pad) and a **Test your pad** box that names the key Kestrel just received and what it does in the current mode. While the dialog is open those keys do not reach the photo or sliders behind it. Volume and media keys cannot be seen by a web page, so a knob must be set to send ordinary keys such as - and =.
 - Not tested with the real SinLoon pad (not here yet). The key names come from the pad sending standard key events.
+## Get an opinion (feat/critique)
+**Get an opinion** (Edit tab) checks the current edit on this device, with no network and no generative model, and keeps itself up to date as the sliders move until it is hidden. It compares the original, the edit without its sharpening, and the finished edit, and can say:
+- **Sharpening looks heavy**: pixels pushed past the range of their surroundings (halos and ringing).
+- **The edit is amplifying noise**: grain in smooth areas compared with the original.
+- **Highlights are clipping / Shadows are crushed**, but only when the edit caused it.
+- **Your subject is darker (or much brighter) than its surroundings**, when the photo has a subject mask. The fix lifts the subject mask.
+- **Tones are bunched together** and **Colours are very strong**.
+Each has a one-tap fix that nudges the right sliders (Apply). Thresholds are hand-set and were checked on constructed pictures and one fox photo, not on a library of your own edits, so tune them against your own work.
+- Not done: opinions about composition (crop, subject placement, eye sharpness, which needs Nikon focus data), a "how would I improve this" suggestion that combines several fixes, and an optional Gemini second opinion for taste, which would need an explicit opt-in because it sends the photo off the device.

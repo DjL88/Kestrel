@@ -74,6 +74,10 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await expect(page.getByText('Cycle Adjustment (Edit mode)')).toBeVisible();
   await expect(light).toHaveValue('0');
   await page.keyboard.press('Escape');
+  // The built-in opinion answers for an unedited photo, and stays on the page.
+  await page.getByRole('button', { name: 'Get an opinion' }).click();
+  await expect(page.getByRole('region', { name: 'Opinion on this edit' })).toBeVisible();
+  await page.getByRole('button', { name: 'Hide opinion' }).click();
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');
 
