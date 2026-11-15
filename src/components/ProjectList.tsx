@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Search, SquareChevronsRight, Trash2 } from 'lucide-react';
 import kestrelMark from '../assets/kestrel-mark.svg';
 import { version as appVersion } from '../../package.json';
+import { PHOTO_ACCEPT } from '../core/rawFormats';
 import { LicenceAndSettings } from './LicenceAndSettings';
 import type { ShootDescriptor } from '../core/types';
 import { NewProjectWizard } from './NewProjectWizard';
@@ -105,7 +106,7 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
             className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm text-zinc-300 hover:bg-white/8 max-sm:hidden">
             <FolderUp className="h-4 w-4" aria-hidden="true" /> Restore backup
           </button>
-          <input ref={quickInput} type="file" accept=".jpg,.jpeg,.png,.webp,.nef,image/jpeg,image/png,image/webp" multiple hidden data-testid="quick-edit-input" onChange={(event) => {
+          <input ref={quickInput} type="file" accept={PHOTO_ACCEPT} multiple hidden data-testid="quick-edit-input" onChange={(event) => {
             const files = [...(event.target.files ?? [])];
             event.target.value = '';
             if (files.length) onQuickEdit(files);

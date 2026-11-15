@@ -1,4 +1,4 @@
-import { isNikonEmbeddedPreviewFile } from '../core/exifParser';
+import { isRawPreviewFile as isNikonEmbeddedPreviewFile } from '../core/rawFormats';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, X } from 'lucide-react';
 import {

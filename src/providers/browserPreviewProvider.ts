@@ -1,5 +1,5 @@
 import { extractNefPreview } from '../core/nefPreview';
-import { isNikonEmbeddedPreviewFile } from '../core/exifParser';
+import { isRawPreviewFile as isNikonEmbeddedPreviewFile } from '../core/rawFormats';
 import {
   NativeRawUnsupportedError,
   type PreviewProvider,

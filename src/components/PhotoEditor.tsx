@@ -42,6 +42,7 @@ import { visiblePhotoDetail } from '../core/visiblePhotoDetail';
 
 const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
+import { isRawPreviewFile } from '../core/rawFormats';
 import { PaidNotice } from './PaidNotice';
 import { useAccess } from '../providers/useAccess';
 const PANEL_KEY = 'kestrel-panel-width-v1';
@@ -212,7 +213,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     detectionContext.current = { edit: savedEdit, crop: cropKey };
     return () => { detectionContext.current = null; };
   }, [savedEdit, cropKey]);
-  const isRaw = /\.(nef|nrw)$/i.test(frame.filename) && !frame.isDemo;
+  const isRaw = isRawPreviewFile(frame.filename) && !frame.isDemo;
 
   useEffect(() => {
     let active = true;

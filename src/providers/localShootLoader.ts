@@ -1,10 +1,11 @@
+import { PHOTO_EXTENSIONS } from '../core/rawFormats';
 import { assignBurstGroups } from '../core/cullingEngine';
 import { parseImageExif } from '../core/exifParser';
 import type { PhotoFrame, ShootDescriptor } from '../core/types';
 import type { BrowserCatalogueStore } from './browserCatalogueStore';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 
-const SUPPORTED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.nef', '.nrw']);
+const SUPPORTED_EXTENSIONS = new Set(PHOTO_EXTENSIONS);
 
 export function isSupportedPhotoFilename(name: string): boolean {
   const lower = name.toLowerCase();
