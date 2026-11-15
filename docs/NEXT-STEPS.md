@@ -76,3 +76,9 @@ Do not claim parity with NX Studio until that comparison passes.
 
 **Moveable panels**
 > Let the user dock the adjustments panel left, right or bottom, and split it into collapsible groups (Basic, Colour, Tone, Detail, Presets) that can be reordered by drag or keyboard. Persist the layout locally, keep touch targets at 44px on touch devices, and keep every function reachable without drag.
+
+## Trash, removal and reset (feat/safe-trash)
+- Buttons follow where a photo is. To review: Keep, Trash, Reset. Keepers and Trash: a cross sends it back to review, and the bin moves it on (Keepers to Trash, Trash to removed). Reset is always beside them.
+- Keeper to Trash, and removal from the library, ask first. Removal sets `removedAt` on the photo. The original file is never touched, the record stays so it can be restored (Workspace options, Removed photos) or undone, and adding the same file again revives it as an unreviewed photo.
+- One photo resets straight away and stays in its edit history. Several photos ask first.
+- The edited marker (sliders icon) shows on grid cards and the filmstrip. When masks are merged, extend `isEdited` in `src/core/editedState.ts` to count active masks.

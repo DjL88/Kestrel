@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, SlidersHorizontal, X } from 'lucide-react';
+import { isEdited } from '../core/editedState';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { FrameImage } from './FrameImage';
@@ -147,6 +148,12 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
                   imgClassName="object-cover"
                 />
 
+                {isEdited(frame) && (
+                  <span role="img" aria-label="Edited" title="Edited"
+                    className="absolute top-1 left-1 grid h-4 w-4 place-items-center rounded-full bg-kestrel-canvas/85 text-sky-200">
+                    <SlidersHorizontal className="h-2.5 w-2.5" aria-hidden="true" />
+                  </span>
+                )}
                 {/* Frame index */}
                 <span className="absolute bottom-1 left-1 px-1 py-0.2 rounded bg-kestrel-canvas/80 text-[10px] font-mono tabular-nums text-zinc-200">
                   {frame.sequenceIndex}

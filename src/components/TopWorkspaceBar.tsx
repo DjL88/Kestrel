@@ -33,6 +33,9 @@ interface TopWorkspaceBarProps {
   autoAdvance: boolean;
   onToggleAutoAdvance: () => void;
   onClearDecision?: () => void;
+  onRemoveFromLibrary?: () => void;
+  removedCount?: number;
+  onOpenRemoved?: () => void;
   onExportKeepers?: () => void;
   onUndo?: () => void;
   focusMode: boolean;
@@ -145,6 +148,8 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   {props.multiSelect ? 'Done selecting' : 'Select photos'}
                 </button>}
                 {props.onClearDecision && <button type="button" className={actionClass} onClick={() => choose(() => props.onClearDecision?.())}>Clear decision</button>}
+                {props.onRemoveFromLibrary && <button type="button" className={actionClass} onClick={() => choose(() => props.onRemoveFromLibrary?.(), false)}>Remove from library…</button>}
+                {props.onOpenRemoved && <button type="button" className={actionClass} onClick={() => choose(() => props.onOpenRemoved?.(), false)}>Removed photos ({props.removedCount ?? 0})</button>}
                 {props.onRedo && <button type="button" className={actionClass} onClick={() => choose(() => props.onRedo?.())}>Redo decision</button>}
               </div>
               <details className="mt-2 border-t border-white/10 pt-2">

@@ -1,10 +1,8 @@
 import type React from 'react';
 import {
-  Check,
   ChevronLeft,
   ChevronRight,
   Undo2,
-  X,
 } from 'lucide-react';
 import {
   type CommandId,
@@ -14,6 +12,8 @@ import {
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { PhotoViewport } from './PhotoViewport';
+import { DecisionButtons } from './DecisionButtons';
+import { isEdited } from '../core/editedState';
 import { FrameImage } from './FrameImage';
 import { ShortcutOverlay } from './ShortcutOverlay';
 
@@ -33,6 +33,7 @@ interface LoupePreviewProps {
   showShortcutsOverlay: boolean;
   onExecuteCommand: (commandId: CommandId) => void;
   onStepFrame: (delta: number) => void;
+  onResetFrame: () => void;
 }
 
 export const LoupePreview: React.FC<LoupePreviewProps> = ({
@@ -51,6 +52,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
   showShortcutsOverlay,
   onExecuteCommand,
   onStepFrame,
+  onResetFrame,
 }) => {
   if (!frame) {
     return (
@@ -83,14 +85,11 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
           <ChevronLeft className="h-5 w-5" aria-hidden="true" />
         </button>
         <div className="flex min-w-0 items-center gap-1 sm:gap-2">
-          <button type="button" aria-pressed={frame.decision === 'keep'} onClick={() => onExecuteCommand('cull.keep')}
-            className="inline-flex h-11 items-center gap-1.5 rounded-md px-2.5 text-sm text-zinc-200 hover:bg-white/8 aria-pressed:bg-sky-300/15 aria-pressed:text-sky-200">
-            <Check className="h-4 w-4" aria-hidden="true" /> Keep
-          </button>
-          <button type="button" aria-pressed={frame.decision === 'reject'} onClick={() => onExecuteCommand('cull.reject')}
-            className="inline-flex h-11 items-center gap-1.5 rounded-md px-2.5 text-sm text-zinc-200 hover:bg-white/8 aria-pressed:bg-orange-300/15 aria-pressed:text-orange-200">
-            <X className="h-4 w-4" aria-hidden="true" /> Reject
-          </button>
+          <DecisionButtons labels decision={frame.decision} filename={frame.filename} edited={isEdited(frame)}
+            onKeep={() => onExecuteCommand('cull.keep')}
+            onBackToReview={() => onExecuteCommand('cull.unreviewed')}
+            onTrash={() => onExecuteCommand('cull.reject')}
+            onReset={onResetFrame} />
           <button type="button" disabled={!canUndo} onClick={() => onExecuteCommand('cull.undo')} aria-label="Undo last decision"
             className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:invisible">
             <Undo2 className="h-4 w-4" aria-hidden="true" />

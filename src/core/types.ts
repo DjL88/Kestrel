@@ -68,6 +68,8 @@ export interface PhotoFrame {
   isDemo: boolean;
   demoVariant?: DemoFrameVariant;
   sourceKind: 'demo' | 'file' | 'directory-handle';
+  /** Set when the photo was removed from the library. The original file is never touched, and Restore clears this. */
+  removedAt?: number;
 }
 
 export interface ShootDescriptor {
@@ -85,6 +87,8 @@ export interface ShootDescriptor {
 export interface DecisionHistoryEntry {
   frameId: string;
   batch?: { frameId: string; prevDecision: CullDecision; nextDecision: CullDecision }[];
+  /** True when this step removed photos from the library, so undo restores them. */
+  removal?: boolean;
   prevDecision: CullDecision;
   nextDecision: CullDecision;
   prevSelectedId: string | null;
