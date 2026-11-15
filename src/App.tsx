@@ -1,3 +1,4 @@
+import { splitDropped } from './core/dropSplit';
 import { DropOverlay } from './components/DropOverlay';
 import { useDropPhotos } from './providers/useDropPhotos';
 import { DesktopUpdate } from './components/DesktopUpdate';
@@ -823,9 +824,10 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [projectsOpen, loadingProgress, exportFrames.length, autoCullOpen, pendingAction, removedOpen, showPhotoInfo, editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
 
+  const droppedInProjectRef = useRef<(files: File[]) => Promise<void>>(async () => {});
   const quickEditRef = useRef<(files: File[]) => Promise<void>>(async () => {});
   const handleSelectLocalFilesRef = useRef<(files: File[]) => Promise<void>>(async () => {});
-  const onDroppedPhotos = useCallback((files: File[]) => { if (projectsOpen) void quickEditRef.current(files); else void handleSelectLocalFilesRef.current(files); }, [projectsOpen]);
+  const onDroppedPhotos = useCallback((files: File[]) => { if (projectsOpen) void quickEditRef.current(files); else void droppedInProjectRef.current(files); }, [projectsOpen]);
   const drop = useDropPhotos(onDroppedPhotos);
 
   const handleSelectLocalFiles = async (files: File[], options?: { openEditor?: boolean }) => {
@@ -956,6 +958,17 @@ export default function App() {
     }
   };
 
+  /**
+   * Photos dropped into an open project. Any that are the project's own missing originals (moved or backed up to another
+   * drive) are reconnected, matched by name, size and modified time. The rest are added as new photos.
+   */
+  const handleDroppedInProject = async (files: File[]) => {
+    const preview = previewProviderRef.current!;
+    const { reconnect, add } = splitDropped(files, cullingState.frames, getLocalFileKey, (key) => preview.hasBlob(key));
+    if (reconnect.length) await reconnectFileSelection(reconnect);
+    if (add.length || !reconnect.length) await handleSelectLocalFiles(add.length ? add : files);
+  };
+
   const handleReconnectFolderOrFiles = async () => {
     const store = storeRef.current!;
     const preview = previewProviderRef.current!;
@@ -1003,6 +1016,7 @@ export default function App() {
 
   quickEditRef.current = quickEdit;
   handleSelectLocalFilesRef.current = (files) => handleSelectLocalFiles(files);
+  droppedInProjectRef.current = handleDroppedInProject;
 
   if (projectsOpen) {
     return <>
