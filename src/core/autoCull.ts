@@ -19,14 +19,13 @@ export function scorePreview(frameId: string, pixels: Uint8ClampedArray, width: 
       pixels.length !== width * height * 4) {
     return { frameId, decision: null, confidence: 'low', score: 0, reason: 'unavailable' };
   }
-  // Transparent pixels are not photographic exposure data. A fully transparent
-  // canvas can otherwise look like a confidently flat, black photograph.
-  let visible = 0;
+  // Alpha is not exposure. Even a partly transparent canvas can make the
+  // transparent background look like a flat, dark photograph or create sharp
+  // artificial edges. Only score fully opaque photographic previews.
   for (let i = 3; i < pixels.length; i += 4) {
-    if (pixels[i] !== 0) visible += 1;
-  }
-  if (visible === 0) {
-    return { frameId, decision: null, confidence: 'low', score: 0, reason: 'unavailable' };
+    if (pixels[i] !== 255) {
+      return { frameId, decision: null, confidence: 'low', score: 0, reason: 'unavailable' };
+    }
   }
   const luma = new Float32Array(width * height);
   let dark = 0;

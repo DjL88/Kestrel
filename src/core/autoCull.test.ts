@@ -97,3 +97,26 @@ test('a fully transparent preview cannot trigger an automatic flat-image rejecti
   assert.deepEqual({ decision: result.decision, confidence: result.confidence, reason: result.reason },
     { decision: null, confidence: 'low', reason: 'unavailable' });
 });
+
+
+test('partially transparent previews cannot produce confident culling decisions', () => {
+  const pixels = new Uint8ClampedArray(96 * 96 * 4);
+  for (let i = 0; i < pixels.length; i += 4) {
+    pixels[i] = (i / 4) % 2 ? 255 : 0;
+    pixels[i + 1] = 100;
+    pixels[i + 2] = 80;
+    pixels[i + 3] = 255;
+  }
+  // One invisible pixel, one semi-transparent pixel: neither is reliable
+  // photographic data for automatic keep/reject.
+  for (const alpha of [0, 128, 254]) {
+    pixels[3] = alpha;
+    const result = scorePreview('partial-alpha', pixels, 96, 96);
+    assert.deepEqual(
+      { decision: result.decision, confidence: result.confidence, reason: result.reason },
+      { decision: null, confidence: 'low', reason: 'unavailable' },
+    );
+  }
+  pixels[3] = 255;
+  assert.notEqual(scorePreview('opaque', pixels, 96, 96).reason, 'unavailable');
+});
