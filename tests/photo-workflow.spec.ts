@@ -66,6 +66,10 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   const light = page.getByRole('slider', { name: 'Light adjustment' });
   await expect(light).toBeEnabled();
   await expectIconButtonsHaveTooltips(page, 'the editor');
+  // The built-in opinion answers for an unedited photo, and stays on the page.
+  await page.getByRole('button', { name: 'Get an opinion' }).click();
+  await expect(page.getByRole('region', { name: 'Opinion on this edit' })).toBeVisible();
+  await page.getByRole('button', { name: 'Hide opinion' }).click();
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');
 
