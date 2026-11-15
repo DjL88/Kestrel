@@ -1,5 +1,6 @@
 import { loadImage } from './loadImage';
 import { sha256Hex } from '../core/sha256';
+import { duplicateAnchorKeys } from '../core/duplicateAnchors';
 import { limitAutoKeepers, scorePreview, type CullSuggestion } from '../core/autoCull';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
@@ -18,6 +19,20 @@ export async function scanForCulling(
     if (blob) sizes.set(blob.size, (sizes.get(blob.size) ?? 0) + 1);
   }
   const seenHashes = new Set<string>();
+  // A second scan must not select a byte-identical copy of a keeper already
+  // accepted in an earlier pass. Only read keeper originals of matching size.
+  for (const stableKey of duplicateAnchorKeys(all, new Set(sizes.keys()),
+    (key) => provider.getOriginal(key)?.size)) {
+    signal.throwIfAborted();
+    const anchor = provider.getOriginal(stableKey);
+    if (!anchor || (anchor.size > 8 * 1024 * 1024 && !globalThis.crypto?.subtle)) continue;
+    try {
+      seenHashes.add(await sha256Hex(await anchor.arrayBuffer()));
+    } catch {
+      signal.throwIfAborted();
+      // If an anchor cannot be hashed, do not infer that a candidate is a duplicate.
+    }
+  }
   for (const frame of candidates) {
     signal.throwIfAborted();
     const missing: CullSuggestion = { frameId: frame.id, decision: null, confidence: 'low', score: 0, reason: 'unavailable' };
