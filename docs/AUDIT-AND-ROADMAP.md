@@ -136,6 +136,21 @@ See section 6.
 ### Phase 9: platform
 - [ ] Rendering off the main thread, GPU masks, Tauri desktop and mobile apps, optional sync of decisions and edits.
 
+### Phase 10: other cameras' raw files (Canon, Sony, Fujifilm, Panasonic, OM, Pentax)
+
+- Today Kestrel is checked against Nikon NEF only, and mostly reads the preview inside the file. Each maker's raw format (CR2/CR3, ARW, RAF, RW2, ORF, PEF, DNG) needs the same checks: preview, orientation, EXIF, colour.
+- Route: read the embedded full-size preview first for every format (fast, works offline), then decode real raw data on the device with an open-source decoder compiled to WebAssembly (LibRaw is the usual choice; check its licence and size before adopting).
+- Work needed: a per-format test file from the user, a table of what each format gives us (preview size, EXIF, focus data), and a clear "preview only" or "full raw" label in the photo info so nothing is promised that is not true.
+- Focus-point data is different for each maker (see Phase 8). Do Nikon first, then add others one at a time as sample files arrive.
+
+### Phase 11: import and remote, as an alternative to SnapBridge and NX Studio
+
+- **Import (first, achievable):** bring photos in from a card reader, camera over USB, or a phone's Photos app, with no account. Browsers can read a card or folder now. Camera-over-USB uses the PTP protocol (WebUSB on desktop Chrome and Android Chrome, native on other platforms). iPhone and iPad Safari cannot talk to a camera directly, so use the Files or Photos route there, and the native app later.
+- **Wi-Fi and Bluetooth (needs the native apps):** SnapBridge-style background transfer needs a native app on each platform and the maker's own protocol or SDK. Nikon, Canon and Sony offer camera SDKs, which are licensed and have terms to read before we commit. Plan this after the Tauri builds exist (Phase 9).
+- **Tethering (a nice extra):** shoot with the camera connected and see each photo appear in the project as it is taken. On laptops, libgphoto2 (open source) covers many cameras over USB. On Android, USB host mode is possible. On iPad it depends on the platform's camera support. Each needs a hardware test with the user's own cameras before we promise it.
+- **Principles:** nothing leaves the device, no sign-in, works offline, and a camera that is not supported fails with a plain message and a manual import instead.
+- **What is needed from the user:** which cameras and phones to support first, and a card or two of sample raw files per maker.
+
 ## 6. The optional photo helper (design)
 
 **Goal:** an opinion that can understand a photo ("the bird's eye is soft", "busy background") and tags for later search ("Red Kite", "Bird of Prey"), without the app depending on it.
