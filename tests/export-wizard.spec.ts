@@ -55,8 +55,7 @@ async function openWizard(page: import('@playwright/test').Page) {
     return canvas.toDataURL('image/png').split(',')[1];
   });
   await page.getByTestId('quick-edit-input').setInputFiles({ name: 'w.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
-  await page.getByRole('tab', { name: 'Export' }).click();
-  await page.getByRole('button', { name: 'Choose formats and export…' }).click();
+  await openExportDialog(page);
 }
 
 test('the wizard ignores earlier saved choices and shows the size that was picked', async ({ page }) => {
@@ -120,4 +119,47 @@ test('with several sizes chosen, every position step matches its own size', asyn
   }
   await expect(page.getByRole('region', { name: 'Ready to export' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Prepare 3 files' })).toBeVisible();
+});
+
+test('file names: my own name and a number, shown as an example and used for the download', async ({ page }) => {
+  await openWizard(page);
+  await page.getByRole('button', { name: 'Instagram' }).click();
+  await page.getByRole('checkbox', { name: /Post · 4:5/ }).check();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.getByText(/Example: .*w_4x5\.jpg/)).toBeVisible();
+  await page.getByLabel('Use my own name and a number').check();
+  await page.getByLabel('Name', { exact: true }).fill('Red Kite');
+  await page.getByRole('combobox', { name: 'Number' }).selectOption('sequence');
+  await expect(page.getByText(/Example: .*Red-Kite_4x5\.jpg/)).toBeVisible();
+  await page.getByLabel('Print shooting details on the picture').check();
+  await expect(page.getByText('Only details the photo records are printed')).toBeVisible();
+  await page.getByRole('button', { name: 'Prepare 1 file' }).click();
+  await expect(page.getByRole('status').filter({ hasText: '1 file ready' })).toBeVisible({ timeout: 30000 });
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download', exact: true }).click();
+  expect((await download).suggestedFilename()).toMatch(/Red-Kite_4x5\.jpg$/);
+});
+
+test('details overlay: the photo’s own camera and settings are printed on the preview', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
+  await openExportDialog(page);
+  await page.getByRole('button', { name: 'Instagram' }).click();
+  await page.getByRole('checkbox', { name: /Post · 4:5/ }).check();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  const picture = page.getByRole('img', { name: /as Post · 4:5/ });
+  const bottomBrightness = () => picture.evaluate((canvas: HTMLCanvasElement) => {
+    const c = canvas.getContext('2d')!;
+    const d = c.getImageData(0, Math.floor(canvas.height * 0.8), canvas.width, Math.floor(canvas.height * 0.2)).data;
+    let sum = 0; for (let i = 0; i < d.length; i += 4) sum += (d[i] + d[i + 1] + d[i + 2]) / 3;
+    return sum / (d.length / 4);
+  });
+  await expect(picture).toBeVisible();
+  await page.waitForTimeout(500);
+  const before = await bottomBrightness();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByLabel('Print shooting details on the picture').check();
+  await page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true }).click();
+  await expect.poll(async () => (await bottomBrightness()) < before - 15, { timeout: 10000 }).toBe(true);
 });

@@ -10,6 +10,9 @@ import { archiveExports, downloadExport, loadExportSource, renderExport } from '
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { ExportPreviewTile } from './ExportPreviewTile';
 import { ExportWizard } from './ExportWizard';
+import { KEEP_NAMES, stemFor, type NameTemplate } from '../core/exportNaming';
+import { NO_OVERLAY, type OverlayOptions } from '../core/exportOverlay';
+import { exportFilename } from '../core/exportProfiles';
 import { SocialIcon } from './SocialIcon';
 
 interface Props {
@@ -64,6 +67,8 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   const [custom, setCustom] = useState<CustomSize>(DEFAULT_CUSTOM);
   const [anchors, setAnchors] = useState<Record<string, FocusPoint>>({});
   const [zooms, setZooms] = useState<Record<string, number>>({});
+  const [naming, setNaming] = useState<NameTemplate>(KEEP_NAMES);
+  const [overlay, setOverlay] = useState<OverlayOptions>(NO_OVERLAY);
   const [sources, setSources] = useState<Record<string, HTMLImageElement>>({});
   const [timestamp, setTimestamp] = useState<'now' | 'capture' | 'custom'>('now');
   const [customDate, setCustomDate] = useState('');
@@ -159,8 +164,9 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
     const pickedDate = timestamp === 'custom' ? new Date(customDate) : null;
     const output: File[] = [];
     try {
-      for (const frame of frames) {
+      for (const [frameIndex, frame] of frames.entries()) {
         if (cancelled.current) return;
+        const stem = stemFor(naming, frame.filename, frameIndex, frames.length);
         const image = source && frames.length === 1 ? source : await loadExportSource(frame, provider);
         const recorded = frame.exif.capturedAtMs ?? (provider.getOriginal(frame.stableKey) as File | undefined)?.lastModified;
         const date = pickedDate ?? (timestamp === 'capture' && Number.isFinite(recorded) ? new Date(recorded!) : started);
@@ -169,7 +175,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
           await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
           if (cancelled.current) return;
           output.push(await renderExport(image, frame, toProfile(format), date, controller.signal, framingFor(format.fit), undefined, {
-            focus: anchorFor(frame, format), bars, zoom: zoomFor(frame, format),
+            focus: anchorFor(frame, format), bars, zoom: zoomFor(frame, format), stem, overlay, dateMs: date.getTime(),
           }));
           setProgress(output.length);
         }
@@ -265,8 +271,63 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
       )}
     </fieldset>
   );
+  const firstFormat = selected.find((format) => format.id !== 'custom') ?? selected[0];
+  const exampleName = frames[0] && firstFormat
+    ? exportFilename((() => { const stem = stemFor(naming, frames[0].filename, 0, frames.length); return stem ? `${stem}.${firstFormat.format}` : frames[0].filename; })(), toProfile(firstFormat), false) : '';
+  const check = 'flex min-h-10 items-center gap-2 text-sm';
+  const namingBlock = (
+    <fieldset className="space-y-2 rounded-lg border border-white/10 p-3">
+      <legend className="px-1 text-sm font-medium text-zinc-100">File names</legend>
+      <label className={check}><input type="radio" name="naming" checked={!naming.name} onChange={() => setNaming(KEEP_NAMES)} />Keep each photo’s own name</label>
+      <label className={check}><input type="radio" name="naming" checked={Boolean(naming.name)} onChange={() => setNaming((prior) => ({ ...prior, name: prior.name || 'Photo' }))} />Use my own name and a number</label>
+      {naming.name && (
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className="text-xs">Name
+            <input className={field} maxLength={60} value={naming.name} onChange={(event) => setNaming((prior) => ({ ...prior, name: event.target.value }))} />
+          </label>
+          <label className="text-xs">Number
+            <select className={field} value={naming.numbers} onChange={(event) => setNaming((prior) => ({ ...prior, numbers: event.target.value as NameTemplate['numbers'] }))}>
+              <option value="original">From the original photo’s number</option>
+              <option value="sequence">Counting 01, 02, 03…</option>
+            </select>
+          </label>
+        </div>
+      )}
+      {exampleName && <p className="text-xs text-zinc-400">Example: <span className="text-zinc-200">{exampleName}</span></p>}
+    </fieldset>
+  );
+  const overlayBlock = (
+    <fieldset className="space-y-2 rounded-lg border border-white/10 p-3">
+      <legend className="px-1 text-sm font-medium text-zinc-100">Photo details</legend>
+      <label className={check}><input type="checkbox" checked={overlay.on} onChange={(event) => setOverlay((prior) => ({ ...prior, on: event.target.checked }))} />Print shooting details on the picture</label>
+      {overlay.on && (
+        <>
+          <div className="grid grid-cols-2 gap-x-3">
+            {([['camera', 'Camera'], ['lens', 'Lens'], ['settings', 'Settings'], ['date', 'Date']] as const).map(([key, label]) => (
+              <label key={key} className={check}><input type="checkbox" checked={overlay[key]} onChange={(event) => setOverlay((prior) => ({ ...prior, [key]: event.target.checked }))} />{label}</label>
+            ))}
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="text-xs">Where
+              <select className={field} value={overlay.place} onChange={(event) => setOverlay((prior) => ({ ...prior, place: event.target.value as OverlayOptions['place'] }))}>
+                <option value="bottom">Along the bottom</option><option value="top">Along the top</option>
+              </select>
+            </label>
+            <label className="text-xs">Text
+              <select className={field} value={overlay.tone} onChange={(event) => setOverlay((prior) => ({ ...prior, tone: event.target.value as OverlayOptions['tone'] }))}>
+                <option value="light">Light, on a dark fade</option><option value="dark">Dark, on a light fade</option>
+              </select>
+            </label>
+          </div>
+          <p className="text-xs text-zinc-400">Only details the photo records are printed. Nothing is made up, and the preview shows exactly what you get.</p>
+        </>
+      )}
+    </fieldset>
+  );
   const optionsBlock = (
     <>
+      {namingBlock}
+      {overlayBlock}
               <fieldset disabled={progress !== null} className="space-y-2">
                 {anyBars && (
                   <label className="block text-sm">Borders
@@ -364,7 +425,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
               selected={selected} fits={fits} onFit={(id, fit) => setFits((prior) => ({ ...prior, [id]: fit }))} bars={bars} onBars={setBars}
               anchorFor={anchorFor} onAnchor={(frame, format, anchor) => setAnchors((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: anchor }))}
               zoomFor={zoomFor} onZoom={(frame, format, zoom) => setZooms((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))}
-              onTurn={(id) => setTurned((prior) => ({ ...prior, [id]: !prior[id] }))} reviewSlot={optionsBlock}
+              onTurn={(id) => setTurned((prior) => ({ ...prior, [id]: !prior[id] }))} overlay={overlay} reviewSlot={optionsBlock}
               busy={progress !== null} total={total} progress={progress} blocked={blocked} onPrepare={() => void prepare()} />
             {progress !== null && <progress aria-label="Export progress" className="mt-2 block w-full" value={progress} max={total} />}
           </>
@@ -403,7 +464,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
                       <ExportPreviewTile key={`${frame.id}|${format.id}`} frame={frame} source={sources[frame.id]} format={format} bars={bars}
                         anchor={anchorFor(frame, format)} onAnchor={(anchor) => setAnchors((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: anchor }))}
                         zoom={zoomFor(frame, format)} onZoom={(zoom) => setZooms((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))}
-                        platform={format.platform} onTurn={() => setTurned((prior) => ({ ...prior, [format.id]: !prior[format.id] }))} />
+                        platform={format.platform} overlay={overlay} onTurn={() => setTurned((prior) => ({ ...prior, [format.id]: !prior[format.id] }))} />
                     ))}
                   </div>
                 )}
