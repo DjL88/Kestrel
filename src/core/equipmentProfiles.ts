@@ -38,7 +38,7 @@ function record(value: unknown): value is Record<string, unknown> {
 }
 function label(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= MAX_LABEL &&
-    value === value.trim() && !/[\\u0000-\\u001f\\u007f<>]/.test(value);
+    value === value.trim() && !/[\u0000-\u001f\u007f<>]/.test(value);
 }
 function sourceUrl(value: unknown): value is string {
   if (typeof value !== 'string' || value.length > MAX_URL) return false;
