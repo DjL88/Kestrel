@@ -12,7 +12,7 @@ import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider
 import { ExportPreviewTile } from './ExportPreviewTile';
 import { ExportWizard } from './ExportWizard';
 import { returnFocus } from './focusReturn';
-import { KEEP_NAMES, stemFor, type NameTemplate } from '../core/exportNaming';
+import { KEEP_NAMES, stemFor, uniqueExportFilename, type NameTemplate } from '../core/exportNaming';
 import { NO_OVERLAY, overlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { exportFilename } from '../core/exportProfiles';
 import { SocialIcon } from './SocialIcon';
@@ -169,6 +169,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
     const started = new Date();
     const pickedDate = timestamp === 'custom' ? new Date(customDate) : null;
     const output: File[] = [];
+    const usedExportNames = new Set<string>();
     try {
       for (const [frameIndex, frame] of frames.entries()) {
         if (cancelled.current) return;
@@ -180,9 +181,13 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
           if (cancelled.current) return;
           await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
           if (cancelled.current) return;
-          output.push(await renderExport(image, frame, toProfile(format), date, controller.signal, framingFor(format.fit), undefined, {
+          const rendered = await renderExport(image, frame, toProfile(format), date, controller.signal, framingFor(format.fit), undefined, {
             focus: anchorFor(frame, format), bars, zoom: zoomFor(frame, format), stem, overlay,
-          }));
+          });
+          const uniqueName = uniqueExportFilename(rendered.name, usedExportNames);
+          output.push(uniqueName === rendered.name
+            ? rendered
+            : new File([rendered], uniqueName, { type: rendered.type, lastModified: rendered.lastModified }));
           setProgress(output.length);
         }
       }

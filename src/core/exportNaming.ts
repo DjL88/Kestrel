@@ -32,3 +32,21 @@ export function stemFor(template: NameTemplate, filename: string, index: number,
   const number = (template.numbers === 'original' ? shortNumber(filename) : null) ?? sequenceNumber(index, total);
   return total === 1 && template.numbers === 'sequence' ? name : `${name}-${number}`;
 }
+
+/**
+ * Give every exported file a distinct name, including on case-insensitive disks.
+ * Camera counters can wrap, and photos imported from separate folders can share names.
+ * The first occurrence keeps its name; later ones gain a numbered suffix.
+ */
+export function uniqueExportFilename(filename: string, used: Set<string>): string {
+  const dot = filename.lastIndexOf('.');
+  const stem = dot > 0 ? filename.slice(0, dot) : filename;
+  const extension = dot > 0 ? filename.slice(dot) : '';
+  let candidate = filename;
+  let suffix = 2;
+  while (used.has(candidate.toLocaleLowerCase('en-US'))) {
+    candidate = `${stem}-${suffix++}${extension}`;
+  }
+  used.add(candidate.toLocaleLowerCase('en-US'));
+  return candidate;
+}
