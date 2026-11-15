@@ -26,6 +26,8 @@ npm run desktop:build    # release bundle in src-tauri/target/release/bundle
 Only the macOS build on this machine has been run. Windows and Linux builds run in CI (`desktop.yml`) and have not been opened by a person.
 
 ## Updates
+**Currently switched off** (`UPDATER_ENABLED` in `src/components/DesktopUpdate.tsx`) until signing, update and rollback are tested on real Mac and Windows machines. Update files are made only by `release.yml`, never by ordinary CI.
+
 The app checks `https://github.com/DjL88/Kestrel/releases/latest/download/latest.json` when it opens. If a newer signed version exists it shows "Install and restart"; nothing installs without a tap, and nothing is shown when offline or when there is no release yet.
 
 To publish one:
