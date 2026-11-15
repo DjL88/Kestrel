@@ -63,7 +63,7 @@ function Panel() {
         <h2 id="helper-title" className="shrink-0 px-5 pb-2 pt-5 text-lg font-semibold">Online helper (optional)</h2>
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 pb-3">
         <div className="space-y-2 text-sm text-zinc-300">
-          <p>Optional. When the species model is not on this device and you are online, it can name the animal or bird in a photo and say whether it is wildlife, people or a landscape. It stays off until you turn it on here.</p>
+          <p>Optional. When local identification is unavailable or unsure and you are online, it can name the animal or bird in a photo and say whether it is wildlife, people or a landscape. It stays off until you turn it on here.</p>
           <ul className="list-disc space-y-1 pl-5">
             <li><strong className="text-zinc-100">Sent:</strong> a small copy of each photo (about 640 pixels), with no file name, camera data or location, to Google Gemini using your own key. Your original never leaves. People are never named.</li>
             <li>At most {HELPER_SESSION_CAP} photos in a session, one at a time.</li>
