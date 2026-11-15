@@ -37,7 +37,7 @@ def sha256_file(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def compare(reference_path, candidate_path):
+def compare(reference_path, candidate_path, *, source_nef=None):
     reference, profile = read_rgb16(reference_path)
     candidate, candidate_profile = read_rgb16(candidate_path)
     if reference.shape != candidate.shape:
@@ -58,7 +58,7 @@ def compare(reference_path, candidate_path):
         maxima = np.maximum(maxima, delta.max(axis=(0, 1)))
         changed += int(np.count_nonzero(np.any(delta != 0, axis=2)))
     pixel_count = height * width
-    return {
+    report = {
         "reference_tiff_sha256": sha256_file(reference_path),
         "candidate_tiff_sha256": sha256_file(candidate_path),
         "icc_profile_sha256": hashlib.sha256(profile).hexdigest(),
@@ -72,14 +72,19 @@ def compare(reference_path, candidate_path):
         "sample_range": [0, 65535],
     }
 
+    if source_nef is not None:
+        report["source_nef_sha256"] = sha256_file(source_nef)
+    return report
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reference", type=Path, help="NX Studio 16-bit TIFF")
     parser.add_argument("candidate", type=Path, help="candidate 16-bit TIFF from the same NEF")
+    parser.add_argument("--source-nef", type=Path, help="optional original NEF to fingerprint")
     args = parser.parse_args()
     try:
-        result = compare(args.reference, args.candidate)
+        result = compare(args.reference, args.candidate, source_nef=args.source_nef)
     except (OSError, ValueError) as error:
         parser.exit(2, f"{error}\n")
     print(json.dumps(result, indent=2))
