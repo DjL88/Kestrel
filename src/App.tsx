@@ -140,6 +140,7 @@ export default function App() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   // A temporary edit queue limits Next/Previous and the filmstrip to selected photos.
   const [editQueueIds, setEditQueueIds] = useState<string[] | null>(null);
+  const [confirmPasteSelection, setConfirmPasteSelection] = useState(false);
   const [infoFrameId, setInfoFrameId] = useState<string>();
   const infoTriggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -513,6 +514,22 @@ export default function App() {
     setPrefs((prev) => ({ ...prev, showFilmstrip: true, focusMode: false }));
   };
   const leaveEditor = () => { setEditing(false); setEditQueueIds(null); setMultiSelect(false); setSelectedIds(new Set()); };
+
+  const pasteToSelection = () => {
+    if (!copiedEdit || !selectedVisibleFrames.length) return;
+    const ids = new Set(selectedVisibleFrames.map((frame) => frame.id));
+    const at = Date.now();
+    setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: at },
+      frames: prev.frames.map((frame) => {
+        if (!ids.has(frame.id)) return frame;
+        // Copy global adjustments only; preserve the destination's masks and framing.
+        const edit = { ...copiedEdit, masks: frame.edit?.masks };
+        return recordEdit(frame, { edit }, at);
+      }),
+    }));
+    setConfirmPasteSelection(false);
+    showToast(`Applied copied adjustments to ${ids.size} photos. Undo is available per photo.`);
+  };
 
   // Moving a Keeper to Trash, or removing a photo from Trash, asks first. Both are reversible and never touch the file.
   // Header Export uses the selection: the ticked photos in selection mode, otherwise the current photo.
@@ -1414,6 +1431,17 @@ export default function App() {
                 onClick={() => { if (copiedEdit) { updateFrame(selectedFrame.id, { edit: isEmptyEdit(copiedEdit) ? undefined : { ...copiedEdit } }); showToast('Adjustments pasted'); } }}>
                 <ClipboardPaste className="h-4 w-4" aria-hidden="true" /> Paste
               </button>
+              <button type="button" aria-pressed={multiSelect} className="inline-flex min-h-11 items-center rounded-md px-2 text-xs hover:bg-white/10"
+                onClick={() => { setMultiSelect((current) => !current); setSelectedIds(new Set()); }}>{multiSelect ? 'Done selecting' : 'Select photos'}</button>
+              {multiSelect && <>
+                <span role="status" className="shrink-0 text-xs text-zinc-300">{selectedVisibleFrames.length} selected</span>
+                <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
+                  onClick={() => setExportFrames(selectedVisibleFrames)}>Export</button>
+                <button type="button" disabled={!selectedVisibleFrames.length || !copiedEdit} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
+                  onClick={() => setConfirmPasteSelection(true)}>Paste to selected</button>
+                <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs text-orange-200 hover:bg-white/10 disabled:opacity-40"
+                  onClick={() => setPendingAction({ kind: 'trash', frameIds: selectedVisibleFrames.map((frame) => frame.id) })}>Trash</button>
+              </>}
               <button type="button" aria-pressed={filmstripVisible} className="ml-auto inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10"
                 onClick={() => setPrefs((prev) => ({ ...prev, showFilmstrip: !filmstripVisible, focusMode: false }))}>
                 {filmstripVisible ? <PinOff className="h-4 w-4" aria-hidden="true" /> : <Pin className="h-4 w-4" aria-hidden="true" />}
@@ -1457,6 +1485,12 @@ export default function App() {
         )}
       </main>
 
+      {confirmPasteSelection && <ConfirmDialog title={`Paste adjustments to ${selectedVisibleFrames.length} photos?`}
+        confirmLabel="Apply adjustments" cancelLabel="Cancel" onCancel={() => setConfirmPasteSelection(false)}
+        onConfirm={pasteToSelection}>
+        <p>Copy the current global slider adjustments to these photos. Each photo keeps its existing crop and local masks.</p>
+        <p>Original files are never modified. The edit history on each photo lets you undo the change.</p>
+      </ConfirmDialog>}
       {pendingAction?.kind === 'trash' && (() => {
         const moving = pendingAction.frameIds.filter((id) => cullingState.frames.find((frame) => frame.id === id)?.decision === 'keep').length;
         return (
