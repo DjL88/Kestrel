@@ -84,11 +84,29 @@ def main():
     parser.add_argument("reference", type=Path, help="NX Studio 16-bit TIFF")
     parser.add_argument("candidate", type=Path, help="candidate 16-bit TIFF from the same NEF")
     parser.add_argument("--source-nef", type=Path, help="optional original NEF to fingerprint")
+    capture = parser.add_argument_group("optional benchmark details (supply the whole group with --source-nef)")
+    capture.add_argument("--body", choices=("Z8", "Z5II"))
+    capture.add_argument("--firmware")
+    capture.add_argument("--compression", choices=("lossless", "HE", "HE*"))
+    capture.add_argument("--nx-studio-build")
+    capture.add_argument("--candidate-build")
     args = parser.parse_args()
+    details = {
+        "body": args.body,
+        "firmware": args.firmware,
+        "compression": args.compression,
+        "nx_studio_build": args.nx_studio_build,
+        "candidate_build": args.candidate_build,
+    }
+    has_details = any(value is not None for value in details.values())
+    if has_details and (not args.source_nef or not all(value and value.strip() for value in details.values())):
+        parser.error("benchmark details require --source-nef and all five detail flags")
     try:
         result = compare(args.reference, args.candidate, source_nef=args.source_nef)
     except (OSError, ValueError) as error:
         parser.exit(2, f"{error}\n")
+    if has_details:
+        result["reported_benchmark_details"] = details
     print(json.dumps(result, indent=2))
 
 
