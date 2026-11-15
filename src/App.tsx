@@ -1,3 +1,6 @@
+import { useSpeciesScan } from './useSpeciesScan';
+import { SpeciesScanBanner } from './components/SpeciesScanBanner';
+import type { SubjectKind } from './core/subjectTags';
 import { applyAutoTag, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTags';
 import { burstMates, tagFrames } from './core/speciesBurst';
 import { Copy, ClipboardPaste, Pin, PinOff } from 'lucide-react';
@@ -671,6 +674,17 @@ export default function App() {
     }));
   };
 
+  // Tags and kind for any photo, from the editor or from the info pop-up.
+  const setSubjects = (frame: PhotoFrame, tags: string[], subjectKind: SubjectKind | undefined) =>
+    updateFrame(frame.id, { tags, subjectNames: [], subjectKind, ...reconcileAuto(frame, tags) });
+  const keepTag = (frame: PhotoFrame, name: string) => updateFrame(frame.id, { autoTags: keepAuto(frame, name) });
+
+  // After photos are added, name the species in the background. The subject flashes up on each card as it is found.
+  const scan = useSpeciesScan({
+    frames: cullingState.frames, provider: previewProviderRef.current, active: !projectsOpen && !editing,
+    onResult: (frameId, patch) => setCullingState((prev) => ({ ...prev, frames: prev.frames.map((frame) => (frame.id === frameId ? { ...frame, ...patch } : frame)) })),
+  });
+
   const jumpPhotoHistory = (frameId: string, cursor: number) => {
     setCullingState((prev) => ({
       ...prev, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() },
@@ -1137,9 +1151,9 @@ export default function App() {
               keeperCount={counts.keep}
               onApplyToKeepers={applyEditToKeepers}
               onUndoKeeperEdits={batchUndo ? undoKeeperEdits : undefined}
-              onSubjectsChange={(tags, subjectKind) => updateFrame(selectedFrame.id, { tags, subjectNames: [], subjectKind, ...reconcileAuto(selectedFrame, tags) })}
+              onSubjectsChange={(tags, subjectKind) => setSubjects(selectedFrame, tags, subjectKind)}
               onAutoTag={(name, kind) => { if (mayAutoTag(selectedFrame, name)) updateFrame(selectedFrame.id, { ...applyAutoTag(selectedFrame, name), ...(selectedFrame.subjectKind || !kind ? {} : { subjectKind: kind }) }); }}
-              onKeepTag={(name) => updateFrame(selectedFrame.id, { autoTags: keepAuto(selectedFrame, name) })}
+              onKeepTag={(name) => keepTag(selectedFrame, name)}
             />
           )}
           {!editing && liveFrames.length === 0 && (
@@ -1173,8 +1187,10 @@ export default function App() {
                 cullingState.filter === 'keep' ? 'Flag a photo as Keep to see it here.' : 'Trash is empty.'}</p>
             </div>
           )}
+          {!editing && <SpeciesScanBanner scan={scan} />}
           {!editing && visibleFrames.length > 0 && prefs.viewMode === 'grid' && (
             <VirtualizedContactSheet
+              flash={scan.flash}
               onResetFrame={(id) => requestReset(multiSelect && selectedIds.has(id) ? [...selectedIds] : [id])}
               frames={visibleFrames}
               selectedFrameId={selectedFrame?.id ?? null}
@@ -1310,7 +1326,7 @@ export default function App() {
         </div>
 
         {!editing && showPhotoInfo && (
-          <ExifInspector onRate={(id, rating) => rateOrFlagPhotos(id, { rating })}
+          <ExifInspector onSubjects={(frame, tags, kind) => setSubjects(frame, tags, kind)} onKeepTag={(frame, name) => keepTag(frame, name)} onRate={(id, rating) => rateOrFlagPhotos(id, { rating })}
             onFlag={(id, flag) => rateOrFlagPhotos(id, { flag })}
             batchCount={multiSelect && selectedIds.has(infoFrameId ?? selectedFrame?.id ?? '') ? selectedIds.size : 0}
             frame={infoFrameId ? cullingState.frames.find((frame) => frame.id === infoFrameId) ?? null : selectedFrame}

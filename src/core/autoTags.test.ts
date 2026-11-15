@@ -30,3 +30,26 @@ test('an automatic tag is marked, kept, or removed and remembered', () => {
   // Keeping it makes it an ordinary tag, not a declined one.
   assert.deepEqual(keepAuto({ autoTags: ['Red kite', 'Moorland'] }, 'red kite'), ['Moorland']);
 });
+
+test('only photos nobody has looked at, and with no tags of their own, are scanned', async () => {
+  const { scanCandidates } = await import('./autoTags');
+  const frames = [{ id: 'a' }, { id: 'b', speciesChecked: true }, { id: 'c', tags: ['Moorland'] }, { id: 'd', removedAt: 1 }, { id: 'e', subjectNames: ['Coco'] }, { id: 'f' }];
+  assert.deepEqual(scanCandidates(frames).map((frame) => frame.id), ['a', 'f']);
+});
+
+test('after a look the photo is always marked checked, and tagged only when the model was sure', async () => {
+  const { scanPatch } = await import('./autoTags');
+  assert.deepEqual(scanPatch({}, { name: 'Red kite', probability: 0.95, kind: 'wildlife' }), { speciesChecked: true, tags: ['Red kite'], autoTags: ['Red kite'], subjectKind: 'wildlife' });
+  assert.deepEqual(scanPatch({}, { name: 'Red kite', probability: 0.6, kind: 'wildlife' }), { speciesChecked: true }, 'not sure enough');
+  assert.deepEqual(scanPatch({}, undefined), { speciesChecked: true }, 'nothing stood out');
+  assert.deepEqual(scanPatch({ declinedTags: ['Red kite'] }, { name: 'Red kite', probability: 0.99 }), { speciesChecked: true }, 'removed before');
+  assert.deepEqual(scanPatch({ subjectKind: 'other' }, { name: 'Red kite', probability: 0.99, kind: 'wildlife' }), { speciesChecked: true, tags: ['Red kite'], autoTags: ['Red kite'] }, 'a kind you chose is kept');
+});
+
+test('a card shows an automatic species, or the first tag of a wildlife photo, and nothing for others', async () => {
+  const { speciesShown } = await import('./autoTags');
+  assert.deepEqual(speciesShown({ autoTags: ['Red kite'], tags: ['Red kite'] }), { name: 'Red kite', auto: true });
+  assert.deepEqual(speciesShown({ subjectKind: 'wildlife', tags: ['Barn owl', 'Perched'] }), { name: 'Barn owl', auto: false });
+  assert.equal(speciesShown({ subjectKind: 'people', tags: ['Sam'] }), null);
+  assert.equal(speciesShown({}), null);
+});
