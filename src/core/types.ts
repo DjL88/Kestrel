@@ -69,6 +69,8 @@ export interface PhotoFrame {
   subjectNames?: string[];
   /** Labels such as a species, kept with the photo so projects can be searched by them. Always a suggestion the user can edit. */
   tags?: string[];
+  /** What the photo is mainly of, chosen by the user. */
+  subjectKind?: import('./subjectTags').SubjectKind;
   burstGroupId: string | null;
   burstIndex: number;
   burstCount: number;
