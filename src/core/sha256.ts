@@ -7,20 +7,21 @@ const K = Uint32Array.from([
   0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 ]);
 
-/** Plain SHA-256 for browsers that do not offer crypto.subtle (plain http on a local network). */
-export function sha256Plain(input: Uint8Array): string {
-  const length = input.length;
-  const padded = new Uint8Array(((length + 9 + 63) >> 6) << 6);
-  padded.set(input);
-  padded[length] = 0x80;
-  const view = new DataView(padded.buffer);
-  view.setUint32(padded.length - 8, Math.floor((length * 8) / 0x100000000));
-  view.setUint32(padded.length - 4, (length * 8) >>> 0);
-  const h = Uint32Array.from([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
-  const w = new Uint32Array(64);
-  const rotr = (x: number, n: number) => (x >>> n) | (x << (32 - n));
-  for (let offset = 0; offset < padded.length; offset += 64) {
-    for (let i = 0; i < 16; i += 1) w[i] = view.getUint32(offset + i * 4);
+/**
+ * SHA-256 worked out a piece at a time, so a large file can be checked as it arrives without ever holding a second copy.
+ * It works in every browser, including plain http on a local network where the built-in version is switched off.
+ */
+export class Sha256Stream {
+  private readonly h = Uint32Array.from([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
+  private readonly w = new Uint32Array(64);
+  private readonly pending = new Uint8Array(64);
+  private filled = 0;
+  private length = 0;
+
+  private block(bytes: Uint8Array, offset: number) {
+    const { w, h } = this;
+    const rotr = (x: number, n: number) => (x >>> n) | (x << (32 - n));
+    for (let i = 0; i < 16; i += 1) { const at = offset + i * 4; w[i] = ((bytes[at] << 24) | (bytes[at + 1] << 16) | (bytes[at + 2] << 8) | bytes[at + 3]) >>> 0; }
     for (let i = 16; i < 64; i += 1) {
       const s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
       const s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
@@ -34,7 +35,39 @@ export function sha256Plain(input: Uint8Array): string {
     }
     h[0] += a; h[1] += b; h[2] += c; h[3] += d; h[4] += e; h[5] += f; h[6] += g; h[7] += hh;
   }
-  return [...h].map((word) => word.toString(16).padStart(8, '0')).join('');
+
+  update(chunk: Uint8Array): this {
+    this.length += chunk.length;
+    let at = 0;
+    if (this.filled) {
+      const take = Math.min(64 - this.filled, chunk.length);
+      this.pending.set(chunk.subarray(0, take), this.filled);
+      this.filled += take;
+      at = take;
+      if (this.filled === 64) { this.block(this.pending, 0); this.filled = 0; }
+    }
+    for (; at + 64 <= chunk.length; at += 64) this.block(chunk, at);
+    if (at < chunk.length) { this.pending.set(chunk.subarray(at), 0); this.filled = chunk.length - at; }
+    return this;
+  }
+
+  /** The finished hash as hex. Call once, after the last piece. */
+  digest(): string {
+    const bits = this.length * 8;
+    const tail = new Uint8Array(this.filled + 1 + ((119 - this.filled) % 64) + 8);
+    tail.set(this.pending.subarray(0, this.filled));
+    tail[this.filled] = 0x80;
+    const view = new DataView(tail.buffer);
+    view.setUint32(tail.length - 8, Math.floor(bits / 0x100000000));
+    view.setUint32(tail.length - 4, bits >>> 0);
+    for (let at = 0; at < tail.length; at += 64) this.block(tail, at);
+    return [...this.h].map((word) => word.toString(16).padStart(8, '0')).join('');
+  }
+}
+
+/** Plain SHA-256 for browsers that do not offer crypto.subtle (plain http on a local network). */
+export function sha256Plain(input: Uint8Array): string {
+  return new Sha256Stream().update(input).digest();
 }
 
 /** SHA-256 as hex, using the browser's own implementation when it is available. */

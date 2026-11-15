@@ -69,7 +69,9 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await expectIconButtonsHaveTooltips(page, 'the editor');
   // The macro pad is reachable from the editor, opens on Edit mode, explains itself, and its test box names the key pressed.
   await page.getByRole('button', { name: 'Macro pad and shortcuts' }).click();
-  await expect(page.getByText('How to use a macro pad')).toBeVisible();
+  // The instructions start folded away, so the keymap is what shows first. Open them to read how it works.
+  await page.getByText('How to use a macro pad').click();
+  await expect(page.getByText(/A macro pad sends ordinary keys/)).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Edit mode' })).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('q');
   await expect(page.getByText('Cycle Adjustment (Edit mode)')).toBeVisible();

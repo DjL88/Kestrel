@@ -1,4 +1,5 @@
-import { sha256Hex } from '../core/sha256';
+import { Sha256Stream } from '../core/sha256';
+import { getModel, hasModel, putModel, removeModel } from './modelStore';
 import { SPECIES_MODEL, centreSquare, preprocessSpecies } from '../core/speciesModel';
 import { decodeVector, normalise, type SpeciesLabel } from '../core/speciesMatch';
 import { friendlyToolError } from '../core/toolErrors';
@@ -15,15 +16,10 @@ interface Labels { labels: SpeciesLabel[]; vectors: Float32Array[] }
 let loading: Promise<Loaded> | null = null;
 let labelsLoading: Promise<Labels> | null = null;
 
-async function cached(): Promise<Response | undefined> {
-  if (!SPECIES_MODEL.url || typeof caches === 'undefined') return undefined;
-  try { return await (await caches.open(SPECIES_MODEL.cache)).match(SPECIES_MODEL.url); } catch { return undefined; }
-}
-
 /** Is the feature set up, and has the model been downloaded to this device? Never throws. */
 export async function speciesStatus(): Promise<SpeciesStatus> {
   if (!SPECIES_MODEL.url) return 'unavailable';
-  return (await cached()) ? 'ready' : 'not-downloaded';
+  return (await hasModel(SPECIES_MODEL.cache, SPECIES_MODEL.url)) ? 'ready' : 'not-downloaded';
 }
 
 /** Download the model once, check it, and keep it on this device for offline use. */
@@ -34,42 +30,46 @@ export async function downloadSpeciesModel(onProgress: (fraction: number) => voi
     if (!response.ok || !response.body) throw new Error('The model could not be downloaded.');
     const total = Number(response.headers.get('content-length')) || SPECIES_MODEL.bytes;
     const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
+    // The file is checked as it arrives and kept as a list of pieces, so it is never held in memory a second time.
+    const hash = new Sha256Stream();
+    const pieces: Uint8Array[] = [];
     let received = 0;
     for (;;) {
       const { value, done } = await reader.read();
       if (done) break;
-      chunks.push(value);
+      hash.update(value);
+      pieces.push(value);
       received += value.length;
-      onProgress(Math.min(1, received / total));
+      onProgress(Math.min(0.98, received / total));
     }
-    const bytes = new Uint8Array(received);
-    let at = 0;
-    for (const chunk of chunks) { bytes.set(chunk, at); at += chunk.length; }
-    if (bytes.byteLength !== SPECIES_MODEL.bytes || (await sha256Hex(bytes.buffer)) !== SPECIES_MODEL.sha256) {
+    if (received !== SPECIES_MODEL.bytes || hash.digest() !== SPECIES_MODEL.sha256) {
       throw new Error('The downloaded model does not match its checksum, so it was not kept. Try again.');
     }
-    const store = await caches.open(SPECIES_MODEL.cache);
-    await store.put(SPECIES_MODEL.url, new Response(bytes, { headers: { 'content-type': 'application/octet-stream' } }));
+    try {
+      await putModel(SPECIES_MODEL.cache, SPECIES_MODEL.url, new Blob(pieces as BlobPart[], { type: 'application/octet-stream' }));
+    } catch (storage) {
+      console.warn('Species model could not be stored', storage);
+      throw new Error('There is not enough room on this device to keep the model (about 90 MB). Free some space and try again.');
+    }
     onProgress(1);
   } catch (error) {
     if ((error as Error).name === 'AbortError') throw error;
     console.warn('Species model download failed', error);
     const text = error instanceof Error ? error.message : '';
-    throw new Error(/checksum|could not be downloaded|not set up/.test(text) ? text : friendlyToolError(error, 'species model'));
+    throw new Error(/checksum|could not be downloaded|not set up|not enough room/.test(text) ? text : friendlyToolError(error, 'species model'));
   }
 }
 
 export async function removeSpeciesModel(): Promise<void> {
   loading = null;
-  try { await caches.delete(SPECIES_MODEL.cache); } catch { /* Nothing was stored. */ }
+  await removeModel(SPECIES_MODEL.cache, SPECIES_MODEL.url);
 }
 
 function loadSession(): Promise<Loaded> {
   loading ??= (async () => {
-    const response = await cached();
-    if (!response) throw new Error('The species model has not been downloaded.');
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    const stored = await getModel(SPECIES_MODEL.cache, SPECIES_MODEL.url);
+    if (!stored) throw new Error('The species model has not been downloaded.');
+    const bytes = new Uint8Array(await stored.arrayBuffer());
     const ort = await import('onnxruntime-web/wasm').catch(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 500));
       return import('onnxruntime-web/wasm');

@@ -70,6 +70,8 @@ test('a suggestion can be dismissed, and the choice is not kept as a tag', async
 });
 
 async function openBurst(page: import('@playwright/test').Page) {
+  // These tests move between photos with the filmstrip, which a phone now starts without.
+  await page.addInitScript(() => localStorage.setItem('kestrel.preferences.v1', JSON.stringify({ showFilmstrip: true })));
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
   await page.goto('/');
   // Three shots with the same capture time are one burst. Make a project and add them.
@@ -185,4 +187,43 @@ test('automatic tagging can be switched off, and then a new photo is only offere
   });
   await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: 'Use Red kite' })).toBeVisible({ timeout: 30000 });
   await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('list', { name: 'Tags' })).toHaveCount(0);
+});
+
+test('the model downloads and is kept on a phone over plain http, where Cache Storage and built-in hashing are switched off', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('kestrel.autoTag.v1', 'off');
+    // This is what a browser does on http://192.168.x.x: no Cache Storage, no crypto.subtle.
+    Object.defineProperty(window, 'caches', { value: undefined, configurable: true });
+    Object.defineProperty(crypto, 'subtle', { value: undefined, configurable: true });
+  });
+  await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
+  await page.goto('/');
+  expect(await page.evaluate(() => typeof caches)).toBe('undefined');
+  await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
+  await page.getByRole('tab', { name: 'Crop' }).waitFor();
+  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  const panel = page.getByRole('region', { name: 'Species suggestions' });
+  await panel.getByRole('button', { name: /^Download/ }).click();
+  await expect(panel.getByRole('list', { name: 'Suggested names' })).toContainText('Red kite', { timeout: 30000 });
+  await expect(panel.getByRole('alert')).toHaveCount(0);
+  // It is kept: after a reload there is no second download.
+  await page.reload();
+  await page.getByTestId('quick-edit-input').setInputFiles({ name: 'again.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64') });
+  await page.getByRole('tab', { name: 'Crop' }).waitFor();
+  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('list', { name: 'Suggested names' })).toContainText('Red kite', { timeout: 30000 });
+  await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: /^Download/ })).toHaveCount(0);
+});
+
+test('a download that does not match its fingerprint is refused, and nothing is kept', async ({ page }) => {
+  await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: Buffer.concat([standIn, Buffer.from('tampered')]), contentType: 'application/octet-stream' }));
+  await page.goto('/');
+  await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
+  await page.getByRole('tab', { name: 'Crop' }).waitFor();
+  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  const panel = page.getByRole('region', { name: 'Species suggestions' });
+  await panel.getByRole('button', { name: /^Download/ }).click();
+  await expect(panel.getByRole('alert')).toContainText('does not match its checksum');
+  await expect(panel.getByRole('button', { name: /^Download/ })).toBeVisible();
 });

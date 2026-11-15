@@ -134,7 +134,7 @@ test('with several sizes chosen, every position step matches its own size', asyn
     await expect(heading).toBeFocused();
     const picture = page.getByRole('img', { name: new RegExp(`as ${label.source}`) });
     await expect.poll(() => picture.evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(ratio);
-    await page.getByRole('button', { name: /^Next/ }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /^Next/ }).click();
   }
   await expect(page.getByRole('region', { name: 'Ready to export' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Prepare 3 files' })).toBeVisible();
