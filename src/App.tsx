@@ -1,5 +1,6 @@
 import { splitDropped } from './core/dropSplit';
 import { useAccess } from './providers/useAccess';
+import { loadLicence } from './providers/licenceStore';
 import { PaidNotice } from './components/PaidNotice';
 import { DropOverlay } from './components/DropOverlay';
 import { useDropPhotos } from './providers/useDropPhotos';
@@ -95,6 +96,7 @@ function isEditableElement(target: EventTarget | null): boolean {
 
 export default function App() {
   const { can } = useAccess();
+  useEffect(() => { void loadLicence(); }, []);
   const [paidDialog, setPaidDialog] = useState<string | null>(null);
   useDesktopMenu();
   const storeRef = useRef<BrowserCatalogueStore | null>(null);

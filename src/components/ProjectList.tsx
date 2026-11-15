@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Search, SquareChevronsRight, Trash2 } from 'lucide-react';
 import kestrelMark from '../assets/kestrel-mark.svg';
 import { version as appVersion } from '../../package.json';
+import { LicenceAndSettings } from './LicenceAndSettings';
 import type { ShootDescriptor } from '../core/types';
 import { NewProjectWizard } from './NewProjectWizard';
 import { CatalogueStorage } from './CatalogueStorage';
@@ -79,6 +80,7 @@ function SwipeRow({ children, archived, title, onArchive, onDelete, disabled }: 
 }
 
 export function ProjectList({ projects, photoText = {}, loading, error, onOpen, onCreate, onRestore, onArchive, onUnarchive, onDelete, onQuickEdit }: Props) {
+  const [licenceOpen, setLicenceOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<ProjectSort>('edited');
@@ -204,10 +206,14 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
               <p className="font-medium text-zinc-300">About Kestrel</p>
               <p className="mt-1 max-w-lg">Thoughtful photo culling and editing, built around a simpler workflow and respect for your originals.</p>
             </div>
-            <p className="shrink-0 font-mono" aria-label={`Kestrel version ${appVersion}`}>Version {appVersion}</p>
+            <div className="flex shrink-0 items-center gap-3">
+              <button type="button" onClick={() => setLicenceOpen(true)} className="min-h-11 rounded-md px-2 text-zinc-300 underline hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">Licence and settings</button>
+              <p className="font-mono" aria-label={`Kestrel version ${appVersion}`}>Version {appVersion}</p>
+            </div>
           </div>
         </footer>
       </div>
+      {licenceOpen && <LicenceAndSettings onClose={() => setLicenceOpen(false)} />}
     </main>
   );
 }
