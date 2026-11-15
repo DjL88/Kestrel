@@ -7,6 +7,8 @@ export interface ExportProfile {
   quality: number;
   format: 'png' | 'jpeg';
   maxBytes?: number;
+  /** Added to the file name, so different formats of one photo never share a name. */
+  suffix?: string;
 }
 
 export const EXPORT_PROFILES: readonly ExportProfile[] = [
@@ -26,5 +28,5 @@ export function exportFilename(name: string, profile: ExportProfile, isRaw: bool
   const safe = (value: string) => value.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_');
   const stem = safe(name.replace(/\.[^.]+$/, ''));
   const extension = profile.format === 'png' ? 'png' : 'jpg';
-  return `${safe(profile.prefix)}${stem}${isRaw ? '-preview' : ''}${profile.id === 'master' ? '-kestrel' : ''}.${extension}`;
+  return `${safe(profile.prefix)}${stem}${isRaw ? '-preview' : ''}${profile.suffix ? `_${safe(profile.suffix)}` : ''}${profile.id === 'master' ? '-kestrel' : ''}.${extension}`;
 }
