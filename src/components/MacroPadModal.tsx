@@ -104,7 +104,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
       >
         <div className="flex items-center justify-between gap-2 w-full">
           <span className="text-[10px] font-mono text-zinc-400">{cmd.padSlot}</span>
-          <kbd className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded bg-[#0D0E11] border border-white/15 text-zinc-100">
+          <kbd className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded bg-kestrel-stage border border-white/15 text-zinc-100">
             {isCapturing ? 'Press key…' : formatChordLabel(chord)}
           </kbd>
         </div>
@@ -120,7 +120,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
       aria-labelledby="macropad-modal-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4"
     >
-      <div className="w-full max-w-2xl bg-[#14161A] border border-white/12 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-2xl bg-kestrel-panel border border-white/12 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
         {/* Header */}
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-4">
           <div>
@@ -135,7 +135,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close Macro Pad settings"
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-white/8"
+            className="grid min-h-11 min-w-11 place-items-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-white/8"
           >
             <X className="w-4 h-4" aria-hidden="true" />
           </button>
@@ -148,7 +148,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
             <div
               role="tablist"
               aria-label="Macro pad mode"
-              className="flex items-center bg-[#0D0E11] p-0.5 rounded-lg border border-white/10"
+              className="flex items-center bg-kestrel-stage p-0.5 rounded-lg border border-white/10"
             >
               <button
                 type="button"
@@ -164,7 +164,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                Cull Mode (Active)
+                Cull mode
               </button>
               <button
                 type="button"
@@ -180,7 +180,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                Edit Mode (Planned Slice 2)
+                Edit mode
               </button>
             </div>
 
@@ -191,7 +191,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
                   aria-label="Rotary knob function in Cull mode"
                   value={knobMode}
                   onChange={(e) => onKnobModeChange(e.target.value as KnobFunction)}
-                  className="bg-[#0D0E11] border border-white/12 rounded-md px-2.5 py-1 text-xs text-zinc-200 focus:border-sky-400 focus:outline-none"
+                  className="bg-kestrel-stage border border-white/12 rounded-md px-2.5 py-1 text-xs text-zinc-200 focus:border-sky-400 focus:outline-none"
                 >
                   <option value="navigate">Previous / Next Frame</option>
                   <option value="zoom">Zoom Out / Zoom In</option>
@@ -230,7 +230,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
           )}
 
           {/* Hardware Layout: 2x3 Keys + 1 Rotary Knob */}
-          <div className="p-4 rounded-xl bg-[#0D0E11] border border-white/10 grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-4 items-center">
+          <div className="p-4 rounded-xl bg-kestrel-stage border border-white/10 grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-4 items-center">
             <div className="grid grid-cols-3 gap-2.5">
               {sixPadKeys.map((cmd) => renderCommandChip(cmd))}
             </div>
@@ -277,7 +277,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
           {secondaryCommands.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-xs font-semibold text-zinc-300">Additional Keyboard Shortcuts</h3>
-              <div className="divide-y divide-white/8 border border-white/10 rounded-lg bg-[#0D0E11]">
+              <div className="divide-y divide-white/8 border border-white/10 rounded-lg bg-kestrel-stage">
                 {secondaryCommands.map((cmd) => {
                   const isCapturing = capturingId === cmd.id;
                   const hasConflict = conflictCommandIds.has(cmd.id);

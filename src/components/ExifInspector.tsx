@@ -49,7 +49,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
   return (
     <aside
       aria-label="Photo info"
-      className="workspace-popover absolute inset-x-2 top-2 z-10 max-h-[calc(100%_-_1rem)] overflow-y-auto rounded-xl border border-white/12 bg-[#191B20] p-4 shadow-2xl sm:right-2 sm:left-auto sm:w-72 lg:static lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-0 lg:border-l lg:shadow-none"
+      className="workspace-popover absolute inset-x-2 top-2 z-10 max-h-[calc(100%_-_1rem)] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-4 shadow-2xl sm:right-2 sm:left-auto sm:w-72 lg:static lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-0 lg:border-l lg:shadow-none"
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Photo info</h2>

@@ -96,7 +96,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   }
 
   return (
-    <div className={`relative overflow-hidden bg-[#0B0C0E] ${className}`}>
+    <div className={`relative overflow-hidden bg-kestrel-stage ${className}`}>
       {loading && (
         <div
           className="absolute inset-0 bg-[#181A1E] motion-safe:animate-pulse"

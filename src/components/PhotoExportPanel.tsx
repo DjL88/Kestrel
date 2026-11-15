@@ -122,7 +122,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   const canShare = files.length > 0 && navigator.canShare?.({ files });
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-3" role="dialog" aria-modal="true" aria-labelledby="export-title">
-      <section ref={dialog} className="workspace-popover flex max-h-[90dvh] w-full max-w-lg flex-col overflow-y-auto rounded-xl border border-white/15 bg-[#191B20] p-4 shadow-xl">
+      <section ref={dialog} className="workspace-popover flex max-h-[90dvh] w-full max-w-lg flex-col overflow-y-auto rounded-xl border border-white/15 bg-kestrel-raised p-4 shadow-xl">
         <header className="flex items-center justify-between gap-2">
           <h2 id="export-title" ref={title} tabIndex={-1} className="text-base font-semibold">Export {frames.length === 1 ? 'photo' : `${frames.length} photos`}</h2>
           <button type="button" onClick={onClose} aria-label="Close export" className={button}><X className="h-5 w-5" aria-hidden="true" /></button>
@@ -131,9 +131,9 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
           <div className="space-y-3">
             <p role="status" className="text-sm text-zinc-300">{files.length} {files.length === 1 ? 'file ready' : 'files ready'}</p>
             <div className="flex flex-wrap gap-2">
-              {files.length === 1 && <button type="button" className={`${button} bg-sky-200 text-zinc-950 hover:bg-sky-100`}
+              {files.length === 1 && <button type="button" className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover`}
                 onClick={() => downloadExport(files[0], files[0].name)}>Download</button>}
-              {files.length > 1 && <button type="button" disabled={archiving} className={`${button} bg-sky-200 text-zinc-950 hover:bg-sky-100`}
+              {files.length > 1 && <button type="button" disabled={archiving} className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover`}
                 onClick={() => void downloadZip()}>{archiving ? 'Packing ZIP…' : 'Download ZIP'}</button>}
               {canShare && <button type="button" className={button} onClick={() => {
                 void navigator.share({ files }).catch((reason) => {
@@ -199,7 +199,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
                 ))}
               </fieldset>
             </details>
-            <button type="submit" disabled={!total || progress !== null} className={`${button} bg-sky-200 text-zinc-950 hover:bg-sky-100`}>
+            <button type="submit" disabled={!total || progress !== null} className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover`}>
               {progress !== null ? `Preparing ${progress}/${total}…` : `Prepare ${total} ${total === 1 ? 'file' : 'files'}`}
             </button>
             {progress !== null && <progress aria-label="Export progress" className="block w-full" value={progress} max={total} />}

@@ -17,11 +17,11 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
   const [name, setName] = useState('');
   const backupInput = useRef<HTMLInputElement>(null);
   return (
-    <main className="h-dvh overflow-auto bg-[#101114] px-4 text-zinc-100 sm:px-8">
+    <main className="h-dvh overflow-auto bg-kestrel-canvas px-4 text-zinc-100 sm:px-8">
       <div className="mx-auto max-w-3xl py-8 sm:py-14">
         <div className="mb-7 flex items-center gap-2.5">
-          <img src={kestrelMark} alt="" className="h-8 w-8" />
-          <span className="text-sm font-semibold tracking-wide text-zinc-200">Kestrel</span>
+          <img src={kestrelMark} alt="" className="h-10 w-10" />
+          <span className="text-lg font-semibold tracking-tight text-kestrel-ink">Kestrel</span>
         </div>
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
@@ -36,13 +36,13 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
             <FolderUp className="h-4 w-4" aria-hidden="true" /> Restore backup
           </button>
           <button type="button" onClick={() => setCreating(!creating)} disabled={loading}
-            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-sky-200 px-3 text-sm font-semibold text-zinc-950 disabled:opacity-50">
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-kestrel-copper px-3 text-sm font-semibold text-zinc-950 disabled:opacity-50">
             <Plus className="h-4 w-4" aria-hidden="true" /> New project
           </button>
           </div>
         </header>
         {creating && (
-          <form className="mb-4 rounded-xl border border-white/10 bg-[#181A1F] p-3" onSubmit={(event) => {
+          <form className="mb-4 rounded-xl border border-white/10 bg-kestrel-raised p-3" onSubmit={(event) => {
             event.preventDefault();
             if (name.trim()) onCreate(name.trim());
           }}>
@@ -53,19 +53,19 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
             </label>
             <div className="mt-2 flex justify-end gap-2">
               <button type="button" onClick={() => setCreating(false)} className="min-h-11 rounded-md px-3 text-sm hover:bg-white/8">Cancel</button>
-              <button type="submit" disabled={!name.trim() || loading} className="min-h-11 rounded-md bg-sky-200 px-3 text-sm font-semibold text-zinc-950 disabled:opacity-40">Create project</button>
+              <button type="submit" disabled={!name.trim() || loading} className="min-h-11 rounded-md bg-kestrel-copper px-3 text-sm font-semibold text-zinc-950 disabled:opacity-40">Create project</button>
             </div>
           </form>
         )}
         {error && <p role="alert" className="mb-3 text-sm text-orange-200">{error}</p>}
         {loading && <p role="status" className="mb-3 text-sm text-zinc-400">Opening catalogue…</p>}
         {!loading && !error && !projects.length && !creating && (
-          <p className="rounded-xl border border-white/10 bg-[#181A1F] p-4 text-sm text-zinc-300">
+          <p className="rounded-xl border border-white/10 bg-kestrel-raised p-4 text-sm text-zinc-300">
             Create a project to import photos, or restore a Kestrel backup.
           </p>
         )}
         {projects.length > 0 && (
-          <ul className="divide-y divide-white/8 rounded-xl border border-white/10 bg-[#181A1F]">
+          <ul className="divide-y divide-white/8 rounded-xl border border-white/10 bg-kestrel-raised">
             {projects.map((project) => (
               <li key={project.id}>
                 <button type="button" disabled={loading} onClick={() => onOpen(project.id)}

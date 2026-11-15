@@ -85,7 +85,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
 
   return (
     <>
-    <header className="relative z-20 flex min-w-0 shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-[#14161A] px-2 sm:px-4">
+    <header className="relative z-20 flex min-w-0 shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
       <button type="button" onClick={props.onBackToProjects} disabled={props.actionsDisabled} className={actionClass} aria-label="Back to projects">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Projects</span>
       </button>
@@ -108,7 +108,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
             <Ellipsis className="h-5 w-5" aria-hidden="true" />
           </button>
           {menuOpen && (
-            <div id="workspace-options" data-workspace-options className="workspace-popover absolute right-2 top-full mt-1 max-h-[calc(100dvh_-_4rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-white/12 bg-[#191B20] p-3 shadow-2xl sm:right-4">
+            <div id="workspace-options" data-workspace-options className="workspace-popover absolute right-2 top-full mt-1 max-h-[calc(100dvh_-_4rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-3 shadow-2xl sm:right-4">
               <div className="space-y-2">
                 <label className="block text-xs font-medium text-zinc-400">
                   Search photos
@@ -119,16 +119,16 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                 <div className="grid grid-cols-2 gap-2">
                   <label className="relative text-xs font-medium text-zinc-400">
                     Show
-                    <select value={filter} onChange={(event) => choose(() => props.onFilterChange(event.target.value as FilterState))}
-                      className="mt-1 min-h-10 w-full appearance-none rounded-md border border-white/10 bg-[#14161A] px-2 pr-6 text-sm text-zinc-100">
+                    <select aria-label="Show photos" value={filter} onChange={(event) => choose(() => props.onFilterChange(event.target.value as FilterState))}
+                      className="mt-1 min-h-10 w-full appearance-none rounded-md border border-white/10 bg-kestrel-panel px-2 pr-6 text-sm text-zinc-100">
                       {Object.entries(filterLabels).map(([id, label]) => <option key={id} value={id}>{label} ({counts[id as FilterState]})</option>)}
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-2 bottom-3 h-4 w-4" aria-hidden="true" />
                   </label>
                   <label className="relative text-xs font-medium text-zinc-400">
                     View
-                    <select value={viewMode} onChange={(event) => choose(() => props.onViewModeChange(event.target.value as WorkspaceViewMode))}
-                      className="mt-1 min-h-10 w-full appearance-none rounded-md border border-white/10 bg-[#14161A] px-2 pr-6 text-sm text-zinc-100">
+                    <select aria-label="View" value={viewMode} onChange={(event) => choose(() => props.onViewModeChange(event.target.value as WorkspaceViewMode))}
+                      className="mt-1 min-h-10 w-full appearance-none rounded-md border border-white/10 bg-kestrel-panel px-2 pr-6 text-sm text-zinc-100">
                       {Object.entries(viewLabels).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-2 bottom-3 h-4 w-4" aria-hidden="true" />
@@ -178,7 +178,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
         </div>
       </div>
     </header>
-    <nav aria-label="Photo collections" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-[#14161A] px-2 sm:px-4">
+    <nav aria-label="Photo collections" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
       <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
         {(['unreviewed', 'keep', 'reject'] as const).map((collection) => (
           <button key={collection} type="button" aria-current={filter === collection ? 'page' : undefined}

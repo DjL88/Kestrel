@@ -148,7 +148,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
                 />
 
                 {/* Frame index */}
-                <span className="absolute bottom-1 left-1 px-1 py-0.2 rounded bg-[#101114]/80 text-[10px] font-mono tabular-nums text-zinc-200">
+                <span className="absolute bottom-1 left-1 px-1 py-0.2 rounded bg-kestrel-canvas/80 text-[10px] font-mono tabular-nums text-zinc-200">
                   {frame.sequenceIndex}
                 </span>
 
@@ -171,7 +171,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
                 )}
 
                 {isCompareMode && (isLeftActive || isRightActive) && (
-                  <span className="absolute top-1 left-1 px-1 rounded bg-[#101114]/85 text-[9px] font-mono font-semibold text-zinc-100 border border-white/15">
+                  <span className="absolute top-1 left-1 px-1 rounded bg-kestrel-canvas/85 text-[9px] font-mono font-semibold text-zinc-100 border border-white/15">
                     {isLeftActive ? 'A' : 'B'}
                   </span>
                 )}

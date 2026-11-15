@@ -106,7 +106,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
 
   if (frames.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#0D0E11] text-zinc-400 p-8 text-center">
+      <div className="flex-1 flex flex-col items-center justify-center bg-kestrel-stage text-zinc-400 p-8 text-center">
         <p className="text-sm font-medium text-zinc-300">No frames match this filter</p>
         <p className="text-xs text-zinc-500 mt-1">
           Clear the search or pick All to see the full contact sheet.
@@ -125,7 +125,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
       ref={containerRef}
       onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
       data-testid="virtualized-contact-sheet"
-      className="flex-1 overflow-y-auto bg-[#0D0E11] relative min-w-0 min-h-0"
+      className="flex-1 overflow-y-auto bg-kestrel-stage relative min-w-0 min-h-0"
     >
       <div style={{ height: totalHeight, position: 'relative' }}>
         {visibleRows.map((rowIndex) => {
@@ -228,8 +228,8 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
 
                       {/* Burst Group Indicator Strip */}
                       {frame.burstGroupId && (
-                        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-[#101114]/80 text-[10px] font-mono tabular-nums text-zinc-200 border border-white/10">
-                          B{frame.burstGroupId.replace('burst-', '')} · {frame.burstIndex}/
+                        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-kestrel-canvas/80 text-[10px] font-mono tabular-nums text-zinc-200 border border-white/10">
+                          Burst {frame.burstIndex}/
                           {frame.burstCount}
                         </div>
                       )}

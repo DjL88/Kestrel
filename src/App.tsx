@@ -747,9 +747,9 @@ export default function App() {
   }
 
   return (
-    <div className="h-dvh w-full flex flex-col pb-[env(safe-area-inset-bottom)] bg-[#101114] text-zinc-100 overflow-hidden">
+    <div className="h-dvh w-full flex flex-col pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden">
       {editing ? (
-        <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-[#14161A] px-3 py-1">
+        <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-kestrel-panel px-3 py-1">
           <button type="button" onClick={() => setEditing(false)} className="min-h-11 shrink-0 rounded-md px-2 text-sm font-medium hover:bg-white/10">Back</button>
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? 'Edit photo'}</h1>
           {!filmstripVisible && (
@@ -905,7 +905,7 @@ export default function App() {
               <div className="text-center">
                 <h2 className="mb-3 text-sm text-zinc-300">This project has no photos yet</h2>
                 <button type="button" disabled={Boolean(loadingProgress)} onClick={() => setOpenShootModal(true)}
-                  className="min-h-11 rounded-lg bg-sky-200 px-4 text-sm font-semibold text-zinc-950 disabled:opacity-40">Add photos</button>
+                  className="min-h-11 rounded-lg bg-kestrel-copper px-4 text-sm font-semibold text-zinc-950 disabled:opacity-40">Add photos</button>
               </div>
             </div>
           )}

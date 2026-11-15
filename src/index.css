@@ -1,7 +1,14 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-kestrel-canvas: #111317;
+  --color-kestrel-stage: #0c0e11;
+  --color-kestrel-panel: #171a1f;
+  --color-kestrel-raised: #202329;
+  --color-kestrel-ink: #f5f3ef;
+  --color-kestrel-copper: #f2ae79;
+  --color-kestrel-copper-hover: #f8c396;
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
@@ -11,8 +18,8 @@
   #root {
     height: 100%;
     font-family: var(--font-sans);
-    background-color: #101114;
-    color: #f4f4f5;
+    background-color: var(--color-kestrel-canvas);
+    color: var(--color-kestrel-ink);
   }
 
   * {
