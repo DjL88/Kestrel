@@ -18,6 +18,7 @@ import { useAccess } from '../providers/useAccess';
 import { FREE_DAILY_EXPORT_LIMIT } from '../core/features';
 import { parseUsage, recordUse, remainingToday } from '../core/dailyAllowance';
 import { parseCustomExportDate } from '../core/exportDateInput';
+import { exportMayContinue } from '../core/exportCancellation';
 import { parseWatermark } from '../core/watermarkStore';
 import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, type WatermarkOptions } from '../core/watermark';
 import { NO_OVERLAY, overlayLines, type OverlayOptions } from '../core/exportOverlay';
@@ -202,18 +203,20 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
     const usedExportNames = new Set<string>();
     try {
       for (const [frameIndex, frame] of frames.entries()) {
-        if (cancelled.current) return;
+        if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
         const stem = stemFor(naming, frame.filename, frameIndex, frames.length);
         const image = source && frames.length === 1 ? source : await loadExportSource(frame, provider);
         const recorded = frame.exif.capturedAtMs ?? (provider.getOriginal(frame.stableKey) as File | undefined)?.lastModified;
         const date = pickedDate ?? (timestamp === 'capture' && Number.isFinite(recorded) ? new Date(recorded!) : started);
+        if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
         for (const format of selected) {
-          if (cancelled.current) return;
+          if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
           await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-          if (cancelled.current) return;
+          if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
           const rendered = await renderExport(image, frame, toProfile(format), date, controller.signal, framingFor(format.fit), undefined, {
             focus: anchorFor(frame, format), bars, zoom: zoomFor(frame, format), stem, overlay,
           });
+          if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
           const uniqueName = uniqueExportFilename(rendered.name, usedExportNames);
           output.push(uniqueName === rendered.name
             ? rendered
@@ -222,6 +225,8 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
           task.progress(output.length);
         }
       }
+      // Stop must never publish partial results or charge the Free allowance.
+      if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
       if (!unlimited && output.length) { try { localStorage.setItem(USAGE_KEY, JSON.stringify(recordUse(readUsage(), new Date(), output.length))); } catch { /* the count is best effort */ } }
       task.finish();
       setFiles(output);
@@ -230,7 +235,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
         archiveExports(output).then((packed) => { if (!cancelled.current) setZip(packed); }, () => { if (!cancelled.current) setError('Could not create the ZIP. Try a smaller export selection.'); });
       }
     } catch (reason) {
-      if (!controller.signal.aborted) { const message = reason instanceof Error ? reason.message : 'Could not prepare the exports.'; setError(message); task.fail(message); }
+      if (!controller.signal.aborted && !task.cancelled && !cancelled.current) { const message = reason instanceof Error ? reason.message : 'Could not prepare the exports.'; setError(message); task.fail(message); }
     } finally {
       task.fail('Stopped before it finished'); // does nothing if the task already finished or was cancelled
       activeExport.current = null;
