@@ -12,14 +12,16 @@ const raw = (() => {
 
 // The real decoder runs in the desktop app. Here the page believes it is in the desktop app and the native call is faked:
 // it answers with a 3000 x 2000 picture, so the test can see that the editor and export switch to the developed picture.
-async function asDesktop(page: import('@playwright/test').Page, behaviour: 'works' | 'fails') {
-  await page.addInitScript((mode) => {
+async function asDesktop(page: import('@playwright/test').Page, behaviour: 'works' | 'fails' | 'sideways') {
+  await page.addInitScript(([mode, kiteBase64]) => {
     const w = window as unknown as { __TAURI_INTERNALS__: unknown; __developCalls: number };
     w.__developCalls = 0;
     const shown: number[] = [];
+    const blobs: Blob[] = [];
+    (w as unknown as { __blobs: Blob[] }).__blobs = blobs;
     (w as unknown as { __shown: number[] }).__shown = shown;
     const original = URL.createObjectURL.bind(URL);
-    URL.createObjectURL = (object: Blob | MediaSource) => { if (object instanceof Blob) shown.push(object.size); return original(object); };
+    URL.createObjectURL = (object: Blob | MediaSource) => { if (object instanceof Blob) { shown.push(object.size); blobs.push(object); } return original(object); };
     w.__TAURI_INTERNALS__ = {
       transformCallback: () => 1,
       metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main', windowLabel: 'main' } },
@@ -27,6 +29,15 @@ async function asDesktop(page: import('@playwright/test').Page, behaviour: 'work
         if (command !== 'develop_raw') return 0;
         w.__developCalls += 1;
         if (mode === 'fails') throw 'This RAW file could not be read: unsupported compression.';
+        if (mode === 'sideways') {
+          // The same picture as the embedded preview, but lying on its side, as raw sensor data comes out.
+          const bytes = Uint8Array.from(atob(kiteBase64 as string), (ch) => ch.charCodeAt(0));
+          const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
+          const turned = document.createElement('canvas'); turned.width = bitmap.height; turned.height = bitmap.width;
+          const g = turned.getContext('2d')!; g.translate(turned.width / 2, turned.height / 2); g.rotate(-Math.PI / 2); g.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
+          const sideways = await new Promise<Blob>((resolve) => turned.toBlob((b) => resolve(b!), 'image/jpeg', 0.9));
+          return sideways.arrayBuffer();
+        }
         const canvas = document.createElement('canvas'); canvas.width = 3000; canvas.height = 2000;
         const c = canvas.getContext('2d')!; c.fillStyle = '#446'; c.fillRect(0, 0, 3000, 2000);
         const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.9));
@@ -34,7 +45,7 @@ async function asDesktop(page: import('@playwright/test').Page, behaviour: 'work
         return blob.arrayBuffer();
       },
     };
-  }, behaviour);
+  }, [behaviour, jpeg.toString('base64')] as const);
 }
 
 const openEdit = async (page: import('@playwright/test').Page) => {
@@ -70,4 +81,20 @@ test('outside the desktop app there is no Develop button, only the honest previe
   await openEdit(page);
   await expect(page.getByText('Editing embedded JPEG preview')).toBeVisible({ timeout: 20000 });
   await expect(page.getByRole('button', { name: 'Develop from RAW' })).toHaveCount(0);
+});
+
+test('a developed picture that comes out sideways is turned to match the camera preview', async ({ page }) => {
+  await asDesktop(page, 'sideways');
+  await openEdit(page);
+  await page.getByRole('button', { name: 'Develop from RAW' }).click({ timeout: 20000 });
+  await expect(page.getByText('Developed from the RAW file')).toBeVisible({ timeout: 30000 });
+  const shape = await page.evaluate(async () => {
+    const blobs = (window as unknown as { __blobs: Blob[] }).__blobs.filter((b) => b.type === 'image/jpeg');
+    const sizes: string[] = [];
+    for (const blob of blobs) { const bm = await createImageBitmap(blob); sizes.push(`${bm.width}x${bm.height}`); bm.close(); }
+    return sizes;
+  });
+  // The preview is landscape. Every full-size picture handed to the editor after developing must be landscape too.
+  const last = shape.at(-1)!.split('x').map(Number);
+  expect(last[0], `last picture ${shape.at(-1)}`).toBeGreaterThan(last[1]);
 });

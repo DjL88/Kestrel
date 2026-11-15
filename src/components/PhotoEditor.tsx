@@ -44,7 +44,8 @@ const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
 import { isRawPreviewFile } from '../core/rawFormats';
 import { tasks } from '../core/taskStore';
-import { canDevelopRaw, developRaw } from '../providers/rawDevelop';
+import { canDevelopRaw, developRaw, matchPreviewOrientation } from '../providers/rawDevelop';
+import { extractRawPreview } from '../core/nefPreview';
 import { PaidNotice } from './PaidNotice';
 import { useAccess } from '../providers/useAccess';
 const PANEL_KEY = 'kestrel-panel-width-v1';
@@ -251,7 +252,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     setDeveloping(true); setDevelopNote(null);
     const task = tasks.start(`Developing ${frame.filename} from RAW`);
     try {
-      provider.setDeveloped(frame, await developRaw(original));
+      const developed = await developRaw(original);
+      // Turn it the way the camera's own preview is turned; the RAW data is stored sideways and some rotation flags are wrong.
+      provider.setDeveloped(frame, await matchPreviewOrientation(developed, await extractRawPreview(original).catch(() => null)));
       task.finish();
       setDevelopedRev((count) => count + 1);
     } catch (error) {

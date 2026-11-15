@@ -6,9 +6,25 @@
 //! inside the file. Newer lossy modes (for example Nikon High Efficiency) must be checked with real files before being claimed.
 
 use image::codecs::jpeg::JpegEncoder;
+use image::{imageops, RgbImage};
 use rawler::decoders::RawDecodeParams;
 use rawler::imgop::develop::RawDevelop;
 use rawler::rawsource::RawSource;
+
+/// Turn the picture the way the camera was held, from the file's EXIF orientation (1 to 8). The sensor data is always stored
+/// sideways-on, so without this a portrait photograph comes out lying on its side.
+fn apply_orientation(image: RgbImage, exif_orientation: u16) -> RgbImage {
+    match exif_orientation {
+        2 => imageops::flip_horizontal(&image),
+        3 => imageops::rotate180(&image),
+        4 => imageops::flip_vertical(&image),
+        5 => imageops::flip_horizontal(&imageops::rotate90(&image)),
+        6 => imageops::rotate90(&image),
+        7 => imageops::flip_horizontal(&imageops::rotate270(&image)),
+        8 => imageops::rotate270(&image),
+        _ => image,
+    }
+}
 
 /// A plain-English reason for a decoder error, so the person sees what is going on rather than a library message.
 fn explain(error: &str) -> String {
@@ -28,7 +44,7 @@ pub fn develop(bytes: &[u8]) -> Result<Vec<u8>, String> {
         .map_err(|error| format!("This RAW file could not be developed: {error}"))?
         .to_dynamic_image()
         .ok_or_else(|| "This RAW file produced no picture.".to_string())?;
-    let rgb = developed.to_rgb8();
+    let rgb = apply_orientation(developed.to_rgb8(), raw.orientation.to_u16());
     let mut out = Vec::with_capacity((rgb.width() * rgb.height()) as usize / 4);
     JpegEncoder::new_with_quality(&mut out, 95)
         .encode_image(&rgb)
@@ -48,7 +64,9 @@ mod tests {
     #[test]
     fn real_files_develop_at_full_size_with_real_picture_content() {
         let Some(dir) = samples() else { eprintln!("skipped: KESTREL_RAW_SAMPLES not set"); return };
-        let expected = [("nikon-d7200.nef", 6000, 4000), ("canon-5d2-sraw.cr2", 3861, 2574), ("sony-a7rv.arw", 6240, 4160)];
+        let expected = [("nikon-d7200.nef", 6000, 4000), ("canon-5d2-sraw.cr2", 3861, 2574), ("sony-a7rv.arw", 6240, 4160), // This Nikon D3 portrait shot says "normal" orientation in its own flags, so the decoder returns it landscape (4256 x 2832).
+            // The app turns it to match the camera's preview (see matchPreviewOrientation).
+            ("portrait-d3.nef", 4256, 2832)];
         for (name, width, height) in expected {
             let path = dir.join(name);
             if !path.exists() { eprintln!("skipped {name}: not found"); continue; }
@@ -60,6 +78,27 @@ mod tests {
             let spread = image.pixels().step_by(997).map(|p| p[1] as i32).max().unwrap() - image.pixels().step_by(997).map(|p| p[1] as i32).min().unwrap();
             assert!(spread > 60, "{name}: picture has no contrast (spread {spread})");
         }
+    }
+
+    #[test]
+    fn every_exif_orientation_turns_the_picture_the_right_way() {
+        // A 3 x 2 picture: top row 1 2 3, bottom row 4 5 6 (red channel carries the number).
+        let picture = || image::RgbImage::from_fn(3, 2, |x, y| image::Rgb([(y * 3 + x + 1) as u8, 0, 0]));
+        let layout = |image: &image::RgbImage| -> Vec<Vec<u8>> { (0..image.height()).map(|y| (0..image.width()).map(|x| image.get_pixel(x, y)[0]).collect()).collect() };
+        let expect = [
+            (1, vec![vec![1, 2, 3], vec![4, 5, 6]]),
+            (2, vec![vec![3, 2, 1], vec![6, 5, 4]]),
+            (3, vec![vec![6, 5, 4], vec![3, 2, 1]]),
+            (4, vec![vec![4, 5, 6], vec![1, 2, 3]]),
+            (5, vec![vec![1, 4], vec![2, 5], vec![3, 6]]),
+            (6, vec![vec![4, 1], vec![5, 2], vec![6, 3]]),
+            (7, vec![vec![6, 3], vec![5, 2], vec![4, 1]]),
+            (8, vec![vec![3, 6], vec![2, 5], vec![1, 4]]),
+        ];
+        for (orientation, wanted) in expect {
+            assert_eq!(layout(&super::apply_orientation(picture(), orientation)), wanted, "orientation {orientation}");
+        }
+        assert_eq!(layout(&super::apply_orientation(picture(), 0)), layout(&picture()), "unknown leaves it alone");
     }
 
     #[test]
