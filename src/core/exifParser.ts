@@ -38,6 +38,15 @@ export function formatAperture(fNumber?: number): string {
   return `f/${formatted}`;
 }
 
+/** Invalid or non-finite camera metadata must never reach the UI or catalogue. */
+export function validExifPositiveNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+export function validExifDimension(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : undefined;
+}
+
 export function formatFocalLength(focalLengthMm?: number): string {
   if (
     typeof focalLengthMm !== 'number' ||
@@ -147,32 +156,20 @@ export async function parseImageExif(
     );
 
     const width =
-      typeof parsed.ExifImageWidth === 'number'
-        ? parsed.ExifImageWidth
-        : typeof parsed.ImageWidth === 'number'
-        ? parsed.ImageWidth
-        : undefined;
+      validExifDimension(parsed.ExifImageWidth) ?? validExifDimension(parsed.ImageWidth);
     const height =
-      typeof parsed.ExifImageHeight === 'number'
-        ? parsed.ExifImageHeight
-        : typeof parsed.ImageHeight === 'number'
-        ? parsed.ImageHeight
-        : undefined;
+      validExifDimension(parsed.ExifImageHeight) ?? validExifDimension(parsed.ImageHeight);
 
     return {
       ...rating,
       camera: formatCameraLabel(parsed.Make, parsed.Model),
       lens: typeof parsed.LensModel === 'string' && parsed.LensModel.trim() ? parsed.LensModel.trim() : undefined,
       focalLengthMm:
-        typeof parsed.FocalLength === 'number' && parsed.FocalLength > 0
-          ? parsed.FocalLength
-          : undefined,
+        validExifPositiveNumber(parsed.FocalLength),
       apertureF:
-        typeof parsed.FNumber === 'number' && parsed.FNumber > 0
-          ? parsed.FNumber
-          : undefined,
+        validExifPositiveNumber(parsed.FNumber),
       shutterSpeed: shutter || undefined,
-      iso: typeof parsed.ISO === 'number' && parsed.ISO > 0 ? parsed.ISO : undefined,
+      iso: validExifPositiveNumber(parsed.ISO),
       capturedAtMs,
       width,
       height,
