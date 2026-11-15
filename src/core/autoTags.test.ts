@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AUTO_MINIMUM, applyAutoTag, keepAuto, mayAutoTag, reconcileAuto, shouldAutoTag } from './autoTags';
-import { confidenceWord } from './speciesMatch';
+import { AUTO_MINIMUM, applyAutoTag, keepAuto, mayAutoTag, reconcileAuto, qualifiesForAutoTag, shouldAutoTag } from './autoTags';
+import { confidenceWord, rankSpecies, type SpeciesLabel } from './speciesMatch';
 
 test('only a clearly sure result is tagged automatically, and that is exactly what "likely" means', () => {
   assert.equal(shouldAutoTag(0.95), true);
@@ -29,6 +29,23 @@ test('an automatic tag is marked, kept, or removed and remembered', () => {
   assert.deepEqual(reconcileAuto({ autoTags: ['Red kite'], declinedTags: ['Barn owl'] }, []), { autoTags: [], declinedTags: ['Barn owl', 'Red kite'] });
   // Keeping it makes it an ordinary tag, not a declined one.
   assert.deepEqual(keepAuto({ autoTags: ['Red kite', 'Moorland'] }, 'red kite'), ['Moorland']);
+});
+
+test('personal preferences cannot turn a close species match into an automatic tag', () => {
+  const labels: SpeciesLabel[] = [
+    { common: 'Red kite', scientific: 'Milvus milvus', group: 'bird', vector: '', scale: 1 },
+    { common: 'Black kite', scientific: 'Milvus migrans', group: 'bird', vector: '', scale: 1 },
+  ];
+  const vectors = [Float32Array.of(1, 0), Float32Array.of(0, 1)];
+  const nearTie = Float32Array.of(1, 0.995);
+  const boosted = rankSpecies(nearTie, labels, vectors, [1.5, 0])[0];
+  assert.ok(shouldAutoTag(boosted.probability), 'the personalised score appears strong');
+  assert.equal(qualifiesForAutoTag(boosted, nearTie, labels, vectors), false);
+
+  const clear = Float32Array.of(1, 0);
+  const winner = rankSpecies(clear, labels, vectors, [0, 1.5])[0];
+  assert.equal(qualifiesForAutoTag(winner, clear, labels, vectors), true);
+  assert.equal(shouldAutoTag(Infinity), false);
 });
 
 test('only photos nobody has looked at, and with no tags of their own, are scanned', async () => {

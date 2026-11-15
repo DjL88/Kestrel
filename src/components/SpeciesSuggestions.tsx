@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, Download, Loader2, RefreshCw, X } from 'lucide-react';
 import { SPECIES_MODEL, megabytes } from '../core/speciesModel';
 import { confidenceWord, kindFor, personalBonus, pickSuggestions, rankSpecies, similarPhotos, type Suggestion } from '../core/speciesMatch';
-import { shouldAutoTag } from '../core/autoTags';
+import { qualifiesForAutoTag } from '../core/autoTags';
 import { readAutoTag, readSpeciesCounts, rememberSpecies, saveAutoTag } from '../providers/speciesLearning';
 import type { SubjectKind } from '../core/subjectTags';
 import { downloadSpeciesModel, embedPicture, loadSpeciesLabels, speciesStatus, type SpeciesStatus } from '../providers/speciesModel';
@@ -33,7 +33,7 @@ const MAX_MATES = 30;
 
 /**
  * Suggests what a photo shows, using a model that runs on this device once it has been downloaded. Every suggestion is
- * a chip to accept or dismiss. Nothing is added until the user taps it, and nothing leaves the device.
+ * a chip to accept or dismiss. Optional automatic tags are marked for review. Photos stay on the device.
  */
 export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onAccept, mates = [], onTagMates, canAutoTag = false, declined = [], onAutoTag }: Props) {
   const [autoOn, setAutoOn] = useState(readAutoTag);
@@ -66,10 +66,10 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
       embedding.current = embedding_;
       const picked = pickSuggestions(rankSpecies(embedding_, labels, vectors, personalBonus(labels, readSpeciesCounts())));
       setResults(picked);
-      // When the model is clearly sure, tag the photo by itself. It is marked automatic and is easy to keep or remove.
+      // A strong match must also lead before personal ranking preferences are applied.
       const best = picked[0];
       const now = latest.current;
-      if (best && now.autoOn && now.canAutoTag && shouldAutoTag(best.probability) && !now.declined.some((name) => name.toLowerCase() === best.label.common.toLowerCase())) {
+      if (best && now.autoOn && now.canAutoTag && qualifiesForAutoTag(best, embedding_, labels, vectors) && !now.declined.some((name) => name.toLowerCase() === best.label.common.toLowerCase())) {
         now.onAutoTag?.(best.label.common, kindFor(best.label));
         void findSimilar(best.label.common, kindFor(best.label));
       }
@@ -195,9 +195,9 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
       {error && <p role="alert" className="text-xs text-orange-200">{error}</p>}
       <label className="flex min-h-10 items-center gap-2 text-xs text-zinc-300">
         <input type="checkbox" checked={autoOn} onChange={(event) => { setAutoOn(event.target.checked); saveAutoTag(event.target.checked); }} />
-        Tag automatically when it is sure
+        Automatically tag strong matches
       </label>
-      <p className="text-xs text-zinc-500">A suggestion, not a fact. Check it before you use it.</p>
+      <p className="text-xs text-zinc-500">Check suggested and automatic tags. Confidence is relative to the names this model knows.</p>
     </section>
   );
 }

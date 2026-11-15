@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { scanCandidates, scanPatch } from './core/autoTags';
+import { qualifiesForAutoTag, scanCandidates, scanPatch } from './core/autoTags';
 import type { SubjectGrid } from './core/maskTypes';
 import { SPECIES_MODEL } from './core/speciesModel';
 import { kindFor, personalBonus, pickSuggestions, rankSpecies } from './core/speciesMatch';
@@ -56,7 +56,9 @@ export function useSpeciesScan({ frames, provider, active, onResult }: Options) 
         if (!picture) { skipped.current.add(frame.id); continue; } // A file that is not available now is tried again next time.
         const { grid, embedding } = await analysePicture(picture);
         if (cancelled.current) break;
-        const best = pickSuggestions(rankSpecies(embedding, labels, vectors, personalBonus(labels, readSpeciesCounts())))[0];
+        const top = pickSuggestions(rankSpecies(embedding, labels, vectors, personalBonus(labels, readSpeciesCounts())))[0];
+        // Personal preferences can reorder suggestions but never qualify a name: the model's own ranking must be sure too.
+        const best = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
         if (grid) {
           setFlash({ frameId: frame.id, grid });
           await new Promise((resolve) => window.setTimeout(resolve, FLASH_MS));

@@ -102,11 +102,13 @@ async function tagsOf(page: import('@playwright/test').Page, filename: string) {
   return subject;
 }
 
-test('accepting a name offers it to the rest of the burst, and declining changes nothing for them', async ({ page }) => {
+test('declining a burst offer leaves the other photos untagged', async ({ page }) => {
   const offer = await openBurst(page);
   await expect(offer).toContainText('2 other photos in this burst look the same', { timeout: 30000 });
   await offer.getByRole('button', { name: 'No thanks' }).click();
   await expect(offer).toHaveCount(0);
+  // Disable per-photo auto-tagging before opening another frame so the assertion tests the burst action alone.
+  await page.getByLabel('Automatically tag strong matches').uncheck();
   const other = await tagsOf(page, 'DSC_0102.jpg');
   await expect(other.getByRole('list', { name: 'Tags' })).toHaveCount(0);
 });
@@ -173,7 +175,7 @@ test('automatic tagging can be switched off, and then a new photo is only offere
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
   await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('list', { name: 'Tags' })).toContainText('Red kite', { timeout: 30000 });
-  await panel.getByLabel('Tag automatically when it is sure').uncheck();
+  await panel.getByLabel('Automatically tag strong matches').uncheck();
   // A different photo: the model is just as sure, but nothing is added until it is accepted.
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   const toProjects = page.getByRole('button', { name: 'Back to projects' });

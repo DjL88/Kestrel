@@ -1,3 +1,4 @@
+import { rankSpecies, type SpeciesLabel, type Suggestion } from './speciesMatch';
 import { addTags, type SubjectKind } from './subjectTags';
 
 /** Tags the app added by itself, and names the user has removed so they are never added again to that photo. */
@@ -34,9 +35,18 @@ export function keepAuto(previous: AutoState, name: string): string[] {
   return (previous.autoTags ?? []).filter((tag) => !sameName(tag, name));
 }
 
-/** Automatic tagging is only for names the model is clearly sure of. */
+/** Minimum share of the unpersonalised ranking for automatic tagging. */
 export const AUTO_MINIMUM = 0.8;
-export const shouldAutoTag = (probability: number) => probability >= AUTO_MINIMUM;
+export const shouldAutoTag = (probability: number) => probability >= AUTO_MINIMUM && probability <= 1;
+
+/** Personal preferences can reorder suggestions, but cannot qualify a name for automatic tagging. */
+export function qualifiesForAutoTag(
+  suggested: Suggestion, embedding: Float32Array, labels: readonly SpeciesLabel[], vectors: readonly Float32Array[],
+): boolean {
+  if (!shouldAutoTag(suggested.probability)) return false;
+  const strongest = rankSpecies(embedding, labels, vectors)[0];
+  return strongest?.index === suggested.index && shouldAutoTag(strongest.probability);
+}
 
 /** Photos the species model has not looked at yet: still in the library, never checked, and with nothing of the user's own on them. */
 export function scanCandidates<T extends { id: string; removedAt?: number; speciesChecked?: boolean; tags?: readonly string[]; subjectNames?: readonly string[] }>(frames: readonly T[]): T[] {
