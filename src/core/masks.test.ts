@@ -75,7 +75,7 @@ test('validation accepts good masks and rejects bad ones', () => {
   const good = [{ ...createMask('linear', 'a'), edit: { exposure: 1 } }, createMask('radial', 'b'), createMask('brush', 'c')];
   assert.equal(validMasks(good), true);
   assert.equal(validMasks([{ ...good[0], edit: { exposure: 9 } }]), false);
-  assert.equal(validMasks([{ ...good[0], edit: { sharpen: 1 } }]), false);
+  assert.equal(validMasks([{ ...good[0], edit: { bogus: 1 } }]), false);
   assert.equal(validMasks([{ ...good[1], rx: 0 }]), false);
   assert.equal(validMasks([{ ...good[2], strokes: [{ radius: 0.1, erase: false, points: [0.1] }] }]), false);
   assert.equal(validMasks([{ id: 'x', kind: 'weird', invert: false, feather: 0, edit: {} }]), false);
@@ -105,4 +105,50 @@ import { isEmptyEdit } from './photoEdits';
 test('an edit that only holds an empty mask is kept, so the mask can be adjusted', () => {
   assert.equal(isEmptyEdit(DEFAULT_EDIT), true);
   assert.equal(isEmptyEdit({ ...DEFAULT_EDIT, masks: [createMask('radial', 'a')] }), false);
+});
+
+import { effectiveAlpha } from './masks';
+
+test('limiting a mask to another keeps only the overlap, and subtracting removes the overlap', () => {
+  const left: Mask = { ...createMask('radial', 'left'), kind: 'radial', cx: 0.35, cy: 0.5, rx: 0.3, ry: 0.3, feather: 0 };
+  const right: Mask = { ...createMask('radial', 'right'), kind: 'radial', cx: 0.65, cy: 0.5, rx: 0.3, ry: 0.3, feather: 0 };
+  const masks = [left, right];
+  const both = effectiveAlpha({ ...left, limit: { id: 'right', mode: 'intersect' } }, masks, W, H, ctx);
+  assert.ok(at(both, 50, 40) > 0.95, 'the overlap in the middle stays');
+  assert.ok(at(both, 12, 40) < 0.01, 'the part of the first mask outside the second goes');
+  const only = effectiveAlpha({ ...left, limit: { id: 'right', mode: 'subtract' } }, masks, W, H, ctx);
+  assert.ok(at(only, 50, 40) < 0.01, 'the overlap is removed');
+  assert.ok(at(only, 12, 40) > 0.95, 'the rest of the first mask stays');
+});
+
+test('a limit pointing at a deleted mask or at itself is ignored', () => {
+  const mask: Mask = { ...createMask('radial', 'a'), kind: 'radial', cx: 0.5, cy: 0.5, rx: 0.3, ry: 0.3, limit: { id: 'gone', mode: 'intersect' } };
+  const plain = maskAlpha({ ...mask, limit: undefined }, W, H, ctx);
+  assert.deepEqual(effectiveAlpha(mask, [mask], W, H, ctx), plain);
+  assert.deepEqual(effectiveAlpha({ ...mask, limit: { id: 'a', mode: 'subtract' } }, [mask], W, H, ctx), plain);
+});
+
+test('limits are validated, and self references are rejected', () => {
+  const base = createMask('radial', 'a');
+  assert.equal(validMasks([{ ...base, limit: { id: 'b', mode: 'intersect' } }]), true);
+  assert.equal(validMasks([{ ...base, limit: { id: 'a', mode: 'intersect' } }]), false);
+  assert.equal(validMasks([{ ...base, limit: { id: 'b', mode: 'merge' } }]), false);
+  assert.equal(validMasks([{ ...base, limit: 'b' }]), false);
+});
+
+test('a mask can sharpen and add clarity locally, and only inside its area', () => {
+  const size = 80;
+  const pixels = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y += 1) for (let x = 0; x < size; x += 1) {
+    const v = x < size / 2 ? 90 : 160;
+    pixels.set([v, v, v, 255], (y * size + x) * 4);
+  }
+  const copy = new Uint8ClampedArray(pixels);
+  const mask: Mask = { ...createMask('linear', 'g'), kind: 'linear', x1: 0.5, y1: 0, x2: 0.5, y2: 0.6, feather: 0, edit: { sharpen: 2, clarity: 1 } };
+  applyMasks(pixels, size, size, [mask], { ...fullContext(size, size), imageEdge: 2200 });
+  const row = (y: number, x: number) => pixels[(y * size + x) * 4];
+  assert.ok(row(10, 38) < 90, 'inside the mask the dark side of the edge gets darker');
+  assert.ok(row(10, 41) > 160, 'and the bright side gets brighter');
+  assert.equal(row(75, 38), copy[(75 * size + 38) * 4], 'outside the mask nothing changes');
+  assert.equal(validMasks([mask]), true);
 });

@@ -1,6 +1,6 @@
 import { applyDetail, applyPhotoEdit, hasDetail, isNeutralEdit, isNeutralGlobal, isNeutralTone, type PhotoEdit } from './photoEdits';
 import { applyMasks, fullContext, type MaskContext } from './masks';
-import { hasActiveMasks } from './maskTypes';
+import { hasActiveMasks, usesDetail } from './maskTypes';
 
 function applyCanvasDetail(canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge: number): void {
   if (!hasDetail(edit)) return;
@@ -12,16 +12,17 @@ function applyCanvasDetail(canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge
 }
 
 /** Masks run in bands so a full-size export never holds several whole-image buffers at once. */
-function applyCanvasMasks(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: MaskContext): void {
+function applyCanvasMasks(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: MaskContext, imageEdge: number): void {
   if (!hasActiveMasks(edit.masks)) return;
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Canvas unavailable');
-  const rows = Math.max(1, Math.floor(1_000_000 / canvas.width));
+  // Detail controls look at neighbouring pixels, so a mask that uses them is processed in one piece to avoid seams.
+  const rows = usesDetail(edit.masks) ? canvas.height : Math.max(1, Math.floor(1_000_000 / canvas.width));
   for (let y = 0; y < canvas.height; y += rows) {
     const band = Math.min(rows, canvas.height - y);
     const pixels = context.getImageData(0, y, canvas.width, band);
     applyMasks(pixels.data, canvas.width, band, edit.masks, {
-      aspect: mask.aspect,
+      aspect: mask.aspect, imageEdge,
       view: { x: mask.view.x, y: mask.view.y + mask.view.h * (y / canvas.height), w: mask.view.w, h: mask.view.h * (band / canvas.height) },
     });
     context.putImageData(pixels, 0, y);
@@ -63,7 +64,7 @@ export function applyCanvasPhotoEdit(
     }
     applyCanvasDetail(canvas, edit, imageEdge);
   }
-  applyCanvasMasks(canvas, edit, maskContext);
+  applyCanvasMasks(canvas, edit, maskContext, imageEdge);
 }
 
 export async function applyCanvasExportEdit(canvas: HTMLCanvasElement, edit: PhotoEdit, signal?: AbortSignal): Promise<void> {
@@ -80,5 +81,5 @@ export async function applyCanvasExportEdit(canvas: HTMLCanvasElement, edit: Pho
     applyCanvasDetail(canvas, edit, edge);
   }
   signal?.throwIfAborted();
-  applyCanvasMasks(canvas, edit, fullContext(canvas.width, canvas.height));
+  applyCanvasMasks(canvas, edit, fullContext(canvas.width, canvas.height), edge);
 }

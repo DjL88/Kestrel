@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
-import { maskAlpha } from '../core/masks';
+import { effectiveAlpha } from '../core/masks';
 import type { Mask } from '../core/maskTypes';
 
 interface Props {
   mask: Mask;
+  /** All the photo's masks, so a limit to another mask shows in the shading. */
+  masks: Mask[];
   /** Height divided by width of the framed photo. */
   aspect: number;
   rect: CSSProperties;
@@ -42,7 +44,7 @@ function Handle({ x, y, label, onMove }: { x: number; y: number; label: string; 
 }
 
 /** Direct editing of the selected mask on the photo. Geometry is in the framed photo's own 0 to 1 space. */
-export function MaskOverlay({ mask, aspect, rect, brushRadius, erase, onChange }: Props) {
+export function MaskOverlay({ mask, masks, aspect, rect, brushRadius, erase, onChange }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const shade = useRef<HTMLCanvasElement>(null);
   const [box, setBox] = useState({ w: 1, h: 1 });
@@ -65,7 +67,7 @@ export function MaskOverlay({ mask, aspect, rect, brushRadius, erase, onChange }
     canvas.height = height;
     const context = canvas.getContext('2d');
     if (!context) return;
-    const alpha = maskAlpha(mask, width, height, { aspect, view: { x: 0, y: 0, w: 1, h: 1 } });
+    const alpha = effectiveAlpha(mask, masks, width, height, { aspect, view: { x: 0, y: 0, w: 1, h: 1 } });
     const image = context.createImageData(width, height);
     for (let i = 0; i < alpha.length; i += 1) {
       image.data[i * 4] = 78;
@@ -74,7 +76,7 @@ export function MaskOverlay({ mask, aspect, rect, brushRadius, erase, onChange }
       image.data[i * 4 + 3] = Math.round(alpha[i] * 110);
     }
     context.putImageData(image, 0, 0);
-  }, [mask, aspect]);
+  }, [mask, masks, aspect]);
 
   const toNorm = (event: PointerEvent<HTMLElement>) => {
     const bounds = root.current!.getBoundingClientRect();
