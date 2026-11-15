@@ -6,6 +6,7 @@ import { DEFAULT_FRAMING, framedSize } from '../core/photoFraming';
 import type { SocialIconId } from '../core/socialIcons';
 import type { PhotoFrame } from '../core/types';
 import { drawCropQuickly, renderExportPreview } from '../providers/browserExport';
+import type { OverlayOptions } from '../core/exportOverlay';
 import { SocialIcon } from './SocialIcon';
 
 interface Props {
@@ -20,6 +21,8 @@ interface Props {
   /** Turns the shape on its side (4:5 to 5:4). Absent when the format cannot be turned. */
   onTurn?: () => void;
   platform?: SocialIconId;
+  /** Shooting details printed on the picture, shown in the preview too. */
+  overlay?: OverlayOptions;
   /** A taller picture, for when it is the one thing on the screen. */
   large?: boolean;
 }
@@ -31,7 +34,7 @@ const clamp = (value: number) => Math.min(1, Math.max(0, value));
  * direction to choose what stays in, and zoom in to look closer. While a finger or mouse is down the picture is drawn
  * quickly without the edit, and the finished one replaces it as soon as it lets go.
  */
-export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, onAnchor, onZoom, onTurn, platform, large = false }: Props) {
+export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, onAnchor, onZoom, onTurn, platform, overlay, large = false }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [busy, setBusy] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -53,7 +56,7 @@ export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, o
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       try {
-        const small = await renderExportPreview(source, frame, toProfile(format), framingFor(format.fit), { focus: anchor, bars, zoom }, undefined);
+        const small = await renderExportPreview(source, frame, toProfile(format), framingFor(format.fit), { focus: anchor, bars, zoom, overlay }, undefined);
         if (cancelled || !canvas.current) return;
         canvas.current.width = small.width;
         canvas.current.height = small.height;
@@ -65,7 +68,7 @@ export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, o
       }
     }, 60);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [source, frame, format.id, format.fit, format.width, format.height, bars, zoom, anchor.x, anchor.y]);
+  }, [source, frame, format.id, format.fit, format.width, format.height, bars, zoom, anchor.x, anchor.y, JSON.stringify(overlay)]);
 
   const quickDraw = (next: FocusPoint, nextZoom: number) => {
     cancelAnimationFrame(frameRequest.current);

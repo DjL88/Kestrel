@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Plus } from 'lucide-r
 import { EXPORT_FORMATS, PLATFORMS, formatById, shapeLabel, sizeLabel, type BarStyle, type ExportFormat, type Fit } from '../core/exportFormats';
 import type { FocusPoint } from '../core/exportFraming';
 import type { PhotoFrame } from '../core/types';
+import type { OverlayOptions } from '../core/exportOverlay';
 import { ExportPreviewTile } from './ExportPreviewTile';
 import { SocialIcon } from './SocialIcon';
 
@@ -35,6 +36,7 @@ interface Props {
   zoomFor: (frame: PhotoFrame, format: ExportFormat) => number;
   onZoom: (frame: PhotoFrame, format: ExportFormat, zoom: number) => void;
   onTurn: (id: string) => void;
+  overlay: OverlayOptions;
   /** Date, borders, file names and the like, shown on the last step. */
   reviewSlot: ReactNode;
   busy: boolean;
@@ -149,7 +151,7 @@ export function ExportWizard(props: Props) {
               <ExportPreviewTile key={`${frame.id}|${current.id}`} large frame={frame} source={props.sources[frame.id]} format={current} bars={props.bars}
                 anchor={props.anchorFor(frame, current)} onAnchor={(anchor) => props.onAnchor(frame, current, anchor)}
                 zoom={props.zoomFor(frame, current)} onZoom={(zoom) => props.onZoom(frame, current, zoom)}
-                platform={current.platform} onTurn={() => props.onTurn(current.id)} />
+                platform={current.platform} overlay={props.overlay} onTurn={() => props.onTurn(current.id)} />
             </div>
             {chosen.includes(current.id) && (
               <label className="block text-sm">How it fits
