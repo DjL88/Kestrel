@@ -1,6 +1,7 @@
 """Compare two matched, full-resolution TIFF renders without modifying either file."""
 
 import argparse
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -31,6 +32,11 @@ def read_rgb16(path):
         return page.asarray(out="memmap"), profile.value
 
 
+def sha256_file(path):
+    with open(path, "rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
 def compare(reference_path, candidate_path):
     reference, profile = read_rgb16(reference_path)
     candidate, candidate_profile = read_rgb16(candidate_path)
@@ -53,6 +59,9 @@ def compare(reference_path, candidate_path):
         changed += int(np.count_nonzero(np.any(delta != 0, axis=2)))
     pixel_count = height * width
     return {
+        "reference_tiff_sha256": sha256_file(reference_path),
+        "candidate_tiff_sha256": sha256_file(candidate_path),
+        "icc_profile_sha256": hashlib.sha256(profile).hexdigest(),
         "width": width,
         "height": height,
         "channels": ["red", "green", "blue"],
