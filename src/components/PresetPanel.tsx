@@ -1,3 +1,4 @@
+import { newId } from '../core/ids';
 import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { BUILT_IN_PRESETS, addPreset, removePreset, type Preset } from '../core/presets';
@@ -42,7 +43,7 @@ export function PresetPanel({ edit, disabled, onApply }: Props) {
       <form className="flex gap-1" onSubmit={(event) => {
         event.preventDefault();
         if (!name.trim() || isNeutralEdit(edit)) return;
-        update(addPreset(custom, name, edit, crypto.randomUUID()), `Saved ${name.trim()}`);
+        update(addPreset(custom, name, edit, newId()), `Saved ${name.trim()}`);
         setName('');
       }}>
         <input value={name} onChange={(event) => setName(event.target.value)} maxLength={40} placeholder="Name this look"

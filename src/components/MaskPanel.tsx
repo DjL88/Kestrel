@@ -1,3 +1,4 @@
+import { newId } from '../core/ids';
 import { Eraser, Paintbrush, Plus, Trash2 } from 'lucide-react';
 import { ScanSearch } from 'lucide-react';
 import { LOCAL_KEYS, MAX_MASKS, createMask, type LocalKey, type Mask } from '../core/maskTypes';
@@ -38,7 +39,7 @@ export function MaskPanel(props: Props) {
   const selected = masks.find((mask) => mask.id === selectedId) ?? null;
   const update = (patch: Partial<Mask>) => selected && props.onChange(masks.map((mask) => mask.id === selected.id ? { ...mask, ...patch } as Mask : mask));
   const add = (kind: Exclude<Mask['kind'], 'subject'>) => {
-    const mask = createMask(kind, crypto.randomUUID());
+    const mask = createMask(kind, newId());
     props.onChange([...masks, mask]);
     props.onSelect(mask.id);
     props.onShowOverlay(true);

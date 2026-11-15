@@ -1,3 +1,4 @@
+import { sha256Hex } from '../core/sha256';
 import modelUrl from '../assets/models/u2netp.onnx?url';
 import { SUBJECT_MODEL, assessSubject, gridSizeFor, normaliseMap, preprocess, toGrid, type SubjectAssessment } from '../core/subjectModel';
 import type { SubjectGrid } from '../core/maskTypes';
@@ -7,10 +8,6 @@ interface Loaded { ort: Ort; session: import('onnxruntime-web/wasm').InferenceSe
 
 let loading: Promise<Loaded> | null = null;
 
-async function sha256(bytes: ArrayBuffer): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-}
 
 /** Loads the runtime and the bundled model once. The model is checked against its recorded checksum first. */
 function load(): Promise<Loaded> {
@@ -18,7 +15,7 @@ function load(): Promise<Loaded> {
     const response = await fetch(modelUrl);
     if (!response.ok) throw new Error('The subject model could not be loaded.');
     const bytes = await response.arrayBuffer();
-    if (bytes.byteLength !== SUBJECT_MODEL.bytes || (await sha256(bytes)) !== SUBJECT_MODEL.sha256) {
+    if (bytes.byteLength !== SUBJECT_MODEL.bytes || (await sha256Hex(bytes)) !== SUBJECT_MODEL.sha256) {
       throw new Error('The subject model file does not match its checksum, so it was not used.');
     }
     const ort = await import('onnxruntime-web/wasm');

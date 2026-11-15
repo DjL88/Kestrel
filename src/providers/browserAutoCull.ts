@@ -1,3 +1,4 @@
+import { sha256Hex } from '../core/sha256';
 import { limitAutoKeepers, scorePreview, type CullSuggestion } from '../core/autoCull';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
@@ -21,9 +22,8 @@ export async function scanForCulling(
     const missing: CullSuggestion = { frameId: frame.id, decision: null, confidence: 'low', score: 0, reason: 'unavailable' };
     try {
       const blob = provider.getOriginal(frame.stableKey);
-      if (blob && blob.size <= 32 * 1024 * 1024 && (sizes.get(blob.size) ?? 0) > 1 && crypto.subtle) {
-        const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
-        const hash = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+      if (blob && blob.size <= 32 * 1024 * 1024 && (sizes.get(blob.size) ?? 0) > 1 && (globalThis.crypto?.subtle || blob.size <= 8 * 1024 * 1024)) {
+        const hash = await sha256Hex(await blob.arrayBuffer());
         if (seenHashes.has(hash)) {
           results.push({ frameId: frame.id, decision: 'reject', confidence: 'high', score: 100, reason: 'duplicate' });
           onProgress(results.length);
