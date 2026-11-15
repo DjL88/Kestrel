@@ -8,9 +8,12 @@ import '@fontsource/inter/latin-500.css';
 import '@fontsource/atkinson-hyperlegible/latin-400.css';
 import '@fontsource/atkinson-hyperlegible/latin-700.css';
 import './index.css';
+import { setGpuRenderer } from './core/photoEdits.ts';
+import { renderEditOnGpu } from './providers/webglEdit.ts';
 import { applyDisplay, loadDisplay } from './providers/browserTheme.ts';
 
 applyDisplay(loadDisplay());
+setGpuRenderer(renderEditOnGpu);
 
 createRoot(document.getElementById('root')!).render(<App />);
 
