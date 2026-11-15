@@ -43,6 +43,8 @@ import { visiblePhotoDetail } from '../core/visiblePhotoDetail';
 const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
 import { isRawPreviewFile } from '../core/rawFormats';
+import { tasks } from '../core/taskStore';
+import { canDevelopRaw, developRaw } from '../providers/rawDevelop';
 import { PaidNotice } from './PaidNotice';
 import { useAccess } from '../providers/useAccess';
 const PANEL_KEY = 'kestrel-panel-width-v1';
@@ -110,6 +112,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [showDetail, setShowDetail] = useState(false);
   const [sourceState, setSourceState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [developedRev, setDevelopedRev] = useState(0);
+  const [developing, setDeveloping] = useState(false);
+  const [developNote, setDevelopNote] = useState<string | null>(null);
   const [compare, setCompare] = useState(false);
   const [dial, setDial] = useState(0);
   const [panelWidth, setPanelWidth] = useState(() => {
@@ -237,7 +242,24 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     });
     return () => { active = false; };
     // Catalogue edits replace the frame object while keeping the source for this ID.
-  }, [frame.id, provider, needsAccess]);
+  }, [frame.id, provider, needsAccess, developedRev]);
+
+  /** Decode the RAW sensor data (desktop app only) and use the full-size result in place of the embedded preview. */
+  async function developFromRaw() {
+    const original = provider.getOriginal(frame.stableKey);
+    if (!original) { setDevelopNote('Reconnect the original file first.'); return; }
+    setDeveloping(true); setDevelopNote(null);
+    const task = tasks.start(`Developing ${frame.filename} from RAW`);
+    try {
+      provider.setDeveloped(frame, await developRaw(original));
+      task.finish();
+      setDevelopedRev((count) => count + 1);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'This RAW file could not be developed.';
+      setDevelopNote(`${message} Kestrel keeps using the preview stored in the file.`);
+      task.fail(message);
+    } finally { setDeveloping(false); }
+  }
 
   useEffect(() => {
     const node = stage.current;
@@ -876,7 +898,17 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           <p className="px-1 pb-2 text-xs text-zinc-400">{markFocus ? 'Tap the subject. Press Enter on the photo to use the centre.' :
             'Used when cropping exports. Re-mark after changing the crop.'}</p>
         </details>
-        {isRaw && <p className="text-xs text-zinc-300">Editing embedded JPEG preview</p>}
+        {isRaw && (
+          <div className="space-y-1 pb-2">
+            <p className="text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey) ? 'Developed from the RAW file' : 'Editing embedded JPEG preview'}</p>
+            {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
+              <button type="button" className={`${button} w-full border border-white/10`} disabled={developing || sourceState !== 'ready'} onClick={() => void developFromRaw()}>
+                {developing ? 'Developing…' : 'Develop from RAW'}
+              </button>
+            )}
+            {developNote && <p role="status" className="text-xs text-amber-200">{developNote}</p>}
+          </div>
+        )}
         <details className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
             Edit options <ChevronDown className="h-4 w-4" aria-hidden="true" />

@@ -1,7 +1,22 @@
 #[cfg(desktop)]
+mod raw;
+#[cfg(desktop)]
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 #[cfg(desktop)]
 use tauri::Emitter;
+
+/// Develop a RAW file the page sends as raw bytes, and return the full-size picture as JPEG bytes.
+#[cfg(desktop)]
+#[tauri::command]
+async fn develop_raw(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Response, String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else { return Err("No file was sent.".into()) };
+    let bytes = bytes.to_vec();
+    // A decoder can panic on a damaged file; run it apart so that becomes an error message, not a crash.
+    let jpeg = tauri::async_runtime::spawn_blocking(move || raw::develop(&bytes))
+        .await
+        .map_err(|_| "This RAW file could not be read.".to_string())??;
+    Ok(tauri::ipc::Response::new(jpeg))
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -15,6 +30,7 @@ pub fn run() {
     let builder = builder
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .invoke_handler(tauri::generate_handler![develop_raw])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "Kestrel", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,
