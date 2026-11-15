@@ -28,3 +28,13 @@ export function describeRatingFilter(filter: RatingFilter | null | undefined): s
   if (filter.mode === 'exactly') return filter.value === 0 ? 'Unrated' : `Exactly ${filter.value}★`;
   return `${filter.value}★ or more`;
 }
+
+/** Choosing the star you already have switched on clears the filter, so one tap undoes it. */
+export function pickRating(current: RatingFilter | null | undefined, mode: RatingFilter['mode'], value: number): RatingFilter | null {
+  return current && current.mode === mode && current.value === value ? null : { mode, value };
+}
+
+/** Switch between "this many or more" and "exactly this many", keeping the chosen stars. */
+export function flipRatingMode(current: RatingFilter | null | undefined): RatingFilter['mode'] {
+  return current?.mode === 'exactly' ? 'atLeast' : 'exactly';
+}
