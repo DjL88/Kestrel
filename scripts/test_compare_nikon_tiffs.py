@@ -57,6 +57,32 @@ class CompareNikonTiffsTests(unittest.TestCase):
         self.assertNotIn(str(source), report)
         self.assertNotIn("source_nef_sha256", compare(reference, candidate))
 
+    def test_cli_keeps_capture_and_renderer_details_with_the_pixel_results(self):
+        pixels = np.zeros((4, 4, 3), dtype=np.uint16)
+        reference = self.write("reference.tif", pixels)
+        candidate = self.write("candidate.tif", pixels)
+        source = self.root / "synthetic.NEF"
+        source.write_bytes(b"synthetic original")
+        script = Path(__file__).with_name("compare_nikon_tiffs.py")
+        command = [sys.executable, script, reference, candidate, "--source-nef", source]
+        for body, compression in [("Z8", "HE*"), ("Z5II", "HE"), ("Z5II", "lossless")]:
+            with self.subTest(body=body, compression=compression):
+                output = subprocess.check_output([
+                    *command, "--body", body, "--firmware", "C 1.00", "--compression", compression,
+                    "--nx-studio-build", "reference-test", "--candidate-build", "candidate-test",
+                ], text=True)
+                report = json.loads(output)
+                self.assertEqual(report["reported_benchmark_details"], {
+                    "body": body, "firmware": "C 1.00", "compression": compression,
+                    "nx_studio_build": "reference-test", "candidate_build": "candidate-test",
+                })
+                self.assertEqual(report["changed_pixels"], 0)
+                self.assertNotIn(str(self.root), output)
+
+        incomplete = subprocess.run([*command, "--body", "Z8"], capture_output=True, text=True)
+        self.assertEqual(incomplete.returncode, 2)
+        self.assertIn("all five detail flags", incomplete.stderr)
+
     def test_rejects_compressed_or_tiled_tiffs(self):
         pixels = np.zeros((32, 32, 3), dtype=np.uint16)
         reference = self.write("reference.tif", pixels)

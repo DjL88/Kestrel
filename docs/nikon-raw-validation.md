@@ -20,8 +20,10 @@ For each body, keep a local, rights-cleared sample for each available compressio
 
 ```sh
 python -m pip install numpy tifffile
-python scripts/compare_nikon_tiffs.py reference.tif candidate.tif --source-nef original.NEF
+python scripts/compare_nikon_tiffs.py reference.tif candidate.tif --source-nef original.NEF \
+  --body Z8 --firmware 'your firmware version' --compression 'HE*' \
+  --nx-studio-build 'your NX Studio build' --candidate-build 'your candidate build'
 python -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-The harness uses QA-only Python dependencies and makes no network requests during a comparison. Keep originals and reference exports on local or mounted storage. The JSON report records SHA-256 fingerprints of both TIFFs and their shared ICC profile without recording file paths. Pass the optional `--source-nef` argument to include the original NEF checksum in the same report. Keep the report alongside the firmware and compression setting to identify the exact comparison later. The fingerprints identify files and profiles. They do not establish how an image was rendered. No SDK binaries or camera samples are bundled.
+The harness uses QA-only Python dependencies and makes no network requests during a comparison. Keep originals and reference exports on local or mounted storage. The JSON report records SHA-256 fingerprints of both TIFFs and their shared ICC profile without recording file paths. Pass the optional `--source-nef` argument to include the original NEF checksum in the same report. Supply all five benchmark detail flags with the original NEF to keep body, firmware, compression and renderer builds in the report. These fields are operator supplied. Use one report per body, firmware and compression combination. The fingerprints identify files and profiles. They do not establish how an image was rendered. No SDK binaries or camera samples are bundled.
