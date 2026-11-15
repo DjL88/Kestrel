@@ -18,6 +18,8 @@ interface FilmstripProps {
   multiSelect?: boolean;
   onSelectMarked?: (frameId: string, modifiers: { shift: boolean; toggle: boolean }) => void;
   onSelectCompareRight?: (frameId: string) => void;
+  /** Right-click (or the Menu key) on a photo. */
+  onPhotoMenu?: (frameId: string, x: number, y: number) => void;
 }
 
 const ITEM_WIDTH = 108;
@@ -37,6 +39,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
   multiSelect = false,
   onSelectMarked,
   onSelectCompareRight,
+  onPhotoMenu,
 }) => {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -136,6 +139,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
                     onSelectFrame(frame.id);
                   }
                 }}
+                onContextMenu={(event) => { if (!onPhotoMenu) return; event.preventDefault(); onPhotoMenu(frame.id, event.clientX, event.clientY); }}
                 aria-pressed={isMarked}
                 aria-label={`${multiSelect ? 'Select' : 'Jump to frame'} ${frame.filename}`} title={`${multiSelect ? 'Select' : 'Jump to frame'} ${frame.filename}`}
                 className={`relative flex-1 rounded overflow-hidden border transition-colors focus-visible:outline-2 focus-visible:outline-sky-400 ${
