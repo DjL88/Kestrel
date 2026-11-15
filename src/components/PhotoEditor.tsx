@@ -6,12 +6,15 @@ import { PhotoExportPanel } from './PhotoExportPanel';
 import { downloadExport } from '../providers/browserExport';
 import { Histogram } from './Histogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
+import { applyCanvasPhotoEdit } from '../core/canvasEdit';
+import { MaskOverlay } from './MaskOverlay';
+import { MaskPanel } from './MaskPanel';
 import { PresetPanel } from './PresetPanel';
 import { autoEnhance } from '../core/autoEnhance';
 import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
 import { PhotoViewport } from './PhotoViewport';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, DETAIL_CONTROLS, applyCanvasPhotoEdit, isNeutralEdit, type PhotoEdit } from '../core/photoEdits';
+import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, DETAIL_CONTROLS, isNeutralEdit, isEmptyEdit, type PhotoEdit } from '../core/photoEdits';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 
@@ -66,6 +69,10 @@ export function PhotoEditor({
     try { return clampPanelWidth(Number(localStorage.getItem(PANEL_KEY)) || PANEL_DEFAULT); } catch { return PANEL_DEFAULT; }
   });
   const [autoNotes, setAutoNotes] = useState<string[]>([]);
+  const [selectedMaskId, setSelectedMaskId] = useState<string | null>(null);
+  const [brushRadius, setBrushRadius] = useState(0.05);
+  const [erase, setErase] = useState(false);
+  const [showMaskOverlay, setShowMaskOverlay] = useState(true);
   const [dialUsed, setDialUsed] = useState(false);
   const [quickChoices, setQuickChoices] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
@@ -175,7 +182,10 @@ export function PhotoEditor({
       const scale = Math.min(1, detail.scale * window.devicePixelRatio, Math.sqrt(5_000_000 / (region.width * region.height)));
       if (scale <= 0) return;
       drawFramedPhoto(source, editedDetail.current, displayFraming, { region, scale });
-      applyCanvasPhotoEdit(editedDetail.current, edit, Math.max(size!.width, size!.height) * scale);
+      applyCanvasPhotoEdit(editedDetail.current, edit, Math.max(size!.width, size!.height) * scale, {
+        aspect: size!.height / size!.width,
+        view: { x: region.x / size!.width, y: region.y / size!.height, w: region.width / size!.width, h: region.height / size!.height },
+      });
       if (displayCompare && originalDetail.current) {
         drawFramedPhoto(source, originalDetail.current, displayFraming, { region, scale });
       }
@@ -297,6 +307,11 @@ export function PhotoEditor({
             {!guide && position && frame.focusPoint && <span aria-hidden="true"
               className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_#000]"
               style={{ left: position.left + position.width * frame.focusPoint.x, top: position.top + position.height * frame.focusPoint.y }} />}
+            {!guide && position && size && !displayCompare && showMaskOverlay && edit.masks?.find((mask) => mask.id === selectedMaskId) && (
+              <MaskOverlay mask={edit.masks.find((mask) => mask.id === selectedMaskId)!} aspect={size.height / size.width} rect={position}
+                brushRadius={brushRadius} erase={erase}
+                onChange={(next) => onEdit({ ...edit, masks: edit.masks!.map((mask) => mask.id === next.id ? next : mask) })} />
+            )}
             {cropRect && <div aria-hidden="true" style={cropRect}
               className={`crop-guide absolute border border-white/90 ${gridLines ? 'crop-thirds' : ''} ${framing.ratio ? 'cursor-move' : 'pointer-events-none'}`}
               onPointerDown={(event) => {
@@ -373,7 +388,7 @@ export function PhotoEditor({
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
             Presets <ChevronDown className="h-4 w-4" aria-hidden="true" />
           </summary>
-          <PresetPanel edit={edit} disabled={sourceState !== 'ready'} onApply={(next) => onEdit({ ...next })} />
+          <PresetPanel edit={edit} disabled={sourceState !== 'ready'} onApply={(next) => onEdit({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />
         </details>
         <div className="space-y-2 px-1 py-2">
           {EDIT_CHOICES.map(({ key, label, options }, index) => (
@@ -402,6 +417,15 @@ export function PhotoEditor({
           <button type="button" aria-expanded={quickChoices} onClick={() => setQuickChoices(!quickChoices)}
             className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white lg:min-h-7">Quick choices</button>
         </div>
+        <details className="border-t border-white/10">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
+            Masks{edit.masks?.length ? ` (${edit.masks.length})` : ''} <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </summary>
+          <MaskPanel masks={edit.masks ?? []} selectedId={selectedMaskId} disabled={sourceState !== 'ready'}
+            brushRadius={brushRadius} erase={erase} showOverlay={showMaskOverlay}
+            onSelect={setSelectedMaskId} onChange={(masks) => onEdit({ ...edit, masks })}
+            onBrushRadius={setBrushRadius} onErase={setErase} onShowOverlay={setShowMaskOverlay} />
+        </details>
         <details className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
             Tone <ChevronDown className="h-4 w-4" aria-hidden="true" />
@@ -527,7 +551,7 @@ export function PhotoEditor({
 
               setEditNotice('Adjustments pasted');
             }}>Paste adjustments</button>
-            <button type="button" disabled={isNeutralEdit(edit)} className={button} onClick={() => {
+            <button type="button" disabled={isEmptyEdit(edit)} className={button} onClick={() => {
               onEdit(DEFAULT_EDIT);
 
               setEditNotice('Adjustments reset');

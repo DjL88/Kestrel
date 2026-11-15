@@ -9,7 +9,7 @@ import { createVirtualCopy } from './core/virtualCopies';
 import { PhotoExportPanel } from './components/PhotoExportPanel';
 import { PhotoEditor } from './components/PhotoEditor';
 import type { PhotoFraming } from './core/photoFraming';
-import { isNeutralEdit, type PhotoEdit } from './core/photoEdits';
+import { isEmptyEdit, type PhotoEdit } from './core/photoEdits';
 import { CompareView } from './components/CompareView';
 import { ExifInspector } from './components/ExifInspector';
 import { Filmstrip } from './components/Filmstrip';
@@ -944,7 +944,7 @@ export default function App() {
               bindings={prefs.bindings}
               provider={previewProviderRef.current!}
               needsAccess={needsAccess}
-              onEdit={(edit) => updateFrame(selectedFrame.id, { edit: isNeutralEdit(edit) ? undefined : { ...edit } })}
+              onEdit={(edit) => updateFrame(selectedFrame.id, { edit: isEmptyEdit(edit) ? undefined : { ...edit } })}
               copiedEdit={copiedEdit}
               onCopyEdit={setCopiedEdit}
               onHistoryStep={(direction) => stepPhotoHistory(selectedFrame.id, direction)}
