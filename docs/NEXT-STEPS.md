@@ -132,3 +132,13 @@ The maker note layout is documented in ExifTool's Nikon tables, but it varies by
 ## Phone layout (feat/phone-layout)
 Under 768 px wide the editor tools are a bottom bar of four large icons (Edit, Crop, Masks, History) with the tool sheet above it, and the photo takes the rest of the height. Tapping the open tab again folds the sheet away for a full-height photo (the choice is remembered). Folding the Crop tool away applies the crop, because its Apply button lives in the sheet. Masks keep their handles on the photo while the sheet is folded. Wider screens keep the right-hand panel with tabs at its top.
 - Not done: swiping the sheet up and down, hiding the filmstrip automatically on phones, and a landscape-phone layout.
+
+## Get an opinion (feat/critique)
+**Get an opinion** (Edit tab) checks the current edit on this device, with no network and no generative model, and keeps itself up to date as the sliders move until it is hidden. It compares the original, the edit without its sharpening, and the finished edit, and can say:
+- **Sharpening looks heavy**: pixels pushed past the range of their surroundings (halos and ringing).
+- **The edit is amplifying noise**: grain in smooth areas compared with the original.
+- **Highlights are clipping / Shadows are crushed**, but only when the edit caused it.
+- **Your subject is darker (or much brighter) than its surroundings**, when the photo has a subject mask. The fix lifts the subject mask.
+- **Tones are bunched together** and **Colours are very strong**.
+Each has a one-tap fix that nudges the right sliders (Apply). Thresholds are hand-set and were checked on constructed pictures and one fox photo, not on a library of your own edits, so tune them against your own work.
+- Not done: opinions about composition (crop, subject placement, eye sharpness, which needs Nikon focus data), a "how would I improve this" suggestion that combines several fixes, and an optional Gemini second opinion for taste, which would need an explicit opt-in because it sends the photo off the device.
