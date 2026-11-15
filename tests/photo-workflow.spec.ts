@@ -49,6 +49,30 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');
 
+  // Hold the local model fetch until another adjustment has been committed.
+  await page.evaluate(() => {
+    const fetchModel = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      if (typeof input === 'string' && /u2netp.*\.onnx/.test(input)) {
+        await new Promise<void>((resolve) => window.addEventListener('test-resume-model', () => resolve(), { once: true }));
+      }
+      return fetchModel(input, init);
+    };
+  });
+  await page.getByRole('tab', { name: 'Masks' }).click();
+  await page.getByRole('button', { name: 'Find subject', exact: true }).click();
+  // The sliders live on the Edit tab, so change the edit there while detection is still waiting for the model.
+  await page.getByRole('tab', { name: 'Edit' }).click();
+  await light.press('ArrowRight');
+  await expect(light).toHaveValue('0.2');
+  await page.evaluate(() => window.dispatchEvent(new Event('test-resume-model')));
+  await page.getByRole('tab', { name: 'Masks' }).click();
+  await expect(page.getByText('Photo edits changed. Find the subject or background again.')).toBeVisible({ timeout: 15000 });
+  await page.getByRole('tab', { name: 'Edit' }).click();
+  await expect(light).toHaveValue('0.2');
+  await light.press('ArrowLeft');
+  await expect(light).toHaveValue('0.1');
+
   await page.getByRole('button', { name: 'Export', exact: true }).click();
   const exportHeading = page.getByRole('heading', { name: 'Export photo' });
   const prepare = page.getByRole('button', { name: 'Prepare 1 file', exact: true });
