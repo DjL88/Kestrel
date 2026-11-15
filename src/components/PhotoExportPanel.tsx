@@ -462,7 +462,13 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
                     <option value="custom">Choose date and time…</option>
                   </select>
                 </label>
-                {timestamp === 'custom' && <input required type="datetime-local" aria-label="Custom photo date and time" className={field} value={customDate} onChange={(event) => setCustomDate(event.target.value)} />}
+                {timestamp === 'custom' && (
+                  <div className="space-y-1">
+                    <input required type="datetime-local" aria-label="Custom photo date and time" aria-describedby="export-date-hint"
+                      className={field} value={customDate} onChange={(event) => setCustomDate(event.target.value)} />
+                    {!parseCustomExportDate(customDate) && <p id="export-date-hint" className="text-xs text-orange-200">Choose a date and time to continue.</p>}
+                  </div>
+                )}
               </fieldset>
               {selected.some((format) => format.format === 'jpeg') && (
                 <details>
