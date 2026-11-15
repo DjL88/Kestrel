@@ -64,6 +64,14 @@ test('300 photos, target 20: initial Auto Cull, Auto Edit and keeper export hand
   await page.getByRole('tab', { name: 'Auto' }).click();
   // Editing stays focused on improving the image, not metadata entry.
   await expect(page.getByRole('button', { name: 'Get an opinion' })).toBeVisible();
+  const looks = page.getByRole('region', { name: 'Photo looks' });
+  await expect(looks).toBeVisible();
+  await expect(looks.getByRole('button', { name: 'Mono natural' })).toBeVisible();
+  await looks.getByRole('button', { name: 'Mono natural' }).click();
+  await page.getByRole('tab', { name: 'Edit', exact: true }).click();
+  await expect(page.getByRole('slider', { name: 'Colour adjustment' })).toHaveValue('-2');
+  await expect(page.getByText('Monochrome', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Auto' }).click();
   await expect(page.getByRole('heading', { name: 'What is this a photo of?' })).toHaveCount(0);
   await expect(page.getByPlaceholder('Add a tag')).toHaveCount(0);
   await page.getByRole('button', { name: 'Back', exact: true }).click();
