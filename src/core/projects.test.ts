@@ -44,3 +44,64 @@ test('archiving sets a date, restoring clears it, and the lists split cleanly', 
   assert.equal(active.length, 1);
   assert.equal(gone.length, 1);
 });
+
+import { INBOX_ID, createInboxProject, inboxFirst, moveFrames } from './projects';
+
+function framesFor(project: CullingState, keys: string[]) {
+  return { ...project, frames: keys.map((key, i) => ({ id: `${project.shoot.id}-${i}`, stableKey: key, filename: `${key}.jpg`, sequenceIndex: i + 1, decision: 'keep', burstGroupId: null, burstIndex: 0, burstCount: 1, exif: {}, isDemo: false, sourceKind: 'file', edit: { exposure: 1, warmth: 0, colour: 0 } } as PhotoFrame)) };
+}
+import type { CullingState, PhotoFrame } from './types';
+
+test('the Quick edits bucket is flagged, has the helpers off and sorts first', () => {
+  const inbox = createInboxProject();
+  assert.equal(inbox.shoot.id, INBOX_ID);
+  assert.equal(inbox.shoot.inbox, true);
+  assert.deepEqual(inbox.settings, { autoCull: false, autoEdit: false });
+  const list = inboxFirst([{ id: 'a' }, { id: 'q', inbox: true }, { id: 'b' }] as { id: string; inbox?: boolean }[]);
+  assert.deepEqual(list.map((p) => p.id), ['q', 'a', 'b']);
+});
+
+test('moving photos takes their edits along and leaves the rest', () => {
+  const source = framesFor(createInboxProject(), ['a', 'b', 'c']);
+  const target = framesFor(createEmptyProject('t', 'Target'), ['z']);
+  const result = moveFrames(source, target, [source.frames[0].id, source.frames[2].id], 'mv1');
+  assert.equal(result.moved, 2);
+  assert.deepEqual(result.source.frames.map((f) => f.stableKey), ['b']);
+  assert.deepEqual(result.target.frames.map((f) => f.stableKey), ['z', 'a', 'c']);
+  assert.equal(result.target.frames[1].edit?.exposure, 1, 'edits travel with the photo');
+  assert.equal(result.target.frames[1].sequenceIndex, 2);
+  assert.equal(result.target.shoot.totalFrames, 3);
+  assert.equal(result.source.shoot.totalFrames, 1);
+  assert.equal(new Set(result.target.frames.map((f) => f.id)).size, 3, 'ids stay unique');
+  assert.deepEqual(result.source.undoStack, []);
+});
+
+test('a photo already in the target stays put, and nothing happens if nothing can move', () => {
+  const source = framesFor(createInboxProject(), ['a', 'b']);
+  const target = framesFor(createEmptyProject('t', 'Target'), ['a']);
+  const result = moveFrames(source, target, source.frames.map((f) => f.id), 'mv2');
+  assert.equal(result.moved, 1);
+  assert.equal(result.skipped, 1);
+  assert.deepEqual(result.source.frames.map((f) => f.stableKey), ['a'], 'the duplicate was not removed from the source');
+  const none = moveFrames(source, target, [source.frames[0].id], 'mv3');
+  assert.equal(none.moved, 0);
+  assert.equal(none.source, source);
+  assert.equal(none.target, target);
+});
+
+test('a photo and its virtual copies always move together, with links kept', () => {
+  const base = framesFor(createInboxProject(), ['a', 'b']);
+  const copy = { ...base.frames[0], id: 'copy-1', virtualCopy: { originalFrameId: base.frames[0].id, number: 1 }, sequenceIndex: 3 } as PhotoFrame;
+  const source = { ...base, frames: [...base.frames, copy] };
+  const result = moveFrames(source, createEmptyProject('t', 'T'), ['copy-1'], 'mv4');
+  assert.equal(result.moved, 2);
+  const movedCopy = result.target.frames.find((f) => f.virtualCopy)!;
+  assert.ok(result.target.frames.some((f) => f.id === movedCopy.virtualCopy!.originalFrameId), 'the link points at the moved original');
+  assert.deepEqual(result.source.frames.map((f) => f.stableKey), ['b']);
+});
+
+test('removed photos are never moved', () => {
+  const source = framesFor(createInboxProject(), ['a']);
+  const removed = { ...source, frames: [{ ...source.frames[0], removedAt: 5 }] };
+  assert.equal(moveFrames(removed, createEmptyProject('t', 'T'), [removed.frames[0].id], 'mv5').moved, 0);
+});

@@ -1,11 +1,13 @@
 import { newId } from './core/ids';
+import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
 import { AutoCullPanel } from './components/AutoCullPanel';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { restoreProjectBackup } from './core/projectBackup';
 import { saveProjectBackupFile } from './providers/projectBackupFile';
 import { ProjectList } from './components/ProjectList';
-import { appendProjectPhotos, createEmptyProject, setArchived } from './core/projects';
+import { INBOX_ID, appendProjectPhotos, createEmptyProject, createInboxProject, moveFrames, setArchived } from './core/projects';
+import { MoveToProjectDialog } from './components/MoveToProjectDialog';
 import { ProjectActionDialog } from './components/ProjectActionDialog';
 import { createVirtualCopy } from './core/virtualCopies';
 import { PhotoExportPanel } from './components/PhotoExportPanel';
@@ -454,6 +456,40 @@ export default function App() {
   );
 
   // Moving a Keeper to Trash, or removing a photo from Trash, asks first. Both are reversible and never touch the file.
+  // Header Export uses the selection: the ticked photos in selection mode, otherwise the current photo.
+  const exportSelection = useMemo(
+    () => multiSelect && selectedIds.size ? liveFrames.filter((frame) => selectedIds.has(frame.id)) : selectedFrame ? [selectedFrame] : [],
+    [multiSelect, selectedIds, liveFrames, selectedFrame]
+  );
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [toast, setToast] = useState('');
+  const moveIds = multiSelect && selectedIds.size ? [...selectedIds] : selectedFrame ? [selectedFrame.id] : [];
+  const showToast = (message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast((current) => (current === message ? '' : current)), 6000);
+  };
+
+  async function moveSelectionTo(targetId: string) {
+    setMoveOpen(false);
+    try {
+      const store = storeRef.current!;
+      const target = await store.loadProject(targetId);
+      if (!target) throw new Error('Project unavailable');
+      const result = moveFrames(cullingState, target, moveIds, newId().slice(0, 8));
+      if (!result.moved) {
+        showToast(result.skipped ? 'Nothing moved: those photos are already in that project.' : 'Nothing to move.');
+        return;
+      }
+      // Save the destination first, so a failure part way leaves a copy in both places rather than losing photos.
+      await store.saveProject(result.target);
+      setCullingState(result.source);
+      setSelectedIds(new Set());
+      setMultiSelect(false);
+      showToast(`Moved ${result.moved} ${result.moved === 1 ? 'photo' : 'photos'} to ${target.shoot.title}${result.skipped ? `. ${result.skipped} already there stayed here.` : '.'}`);
+    } catch {
+      showToast('Could not move the photos. Nothing was changed.');
+    }
+  }
   const stateRef = useRef(cullingState);
   stateRef.current = cullingState;
   const [pendingAction, setPendingAction] = useState<{ kind: 'trash' | 'remove' | 'reset'; frameIds: string[]; allowAdvance?: boolean } | null>(null);
@@ -749,8 +785,9 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [projectsOpen, loadingProgress, exportFrames.length, autoCullOpen, pendingAction, removedOpen, showPhotoInfo, editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
 
-  const handleSelectLocalFiles = async (files: File[]) => {
-    const existing = new Set(cullingState.frames.map((frame) => frame.stableKey));
+  const handleSelectLocalFiles = async (files: File[], options?: { openEditor?: boolean }) => {
+    // A photo that was removed from the library does not count as already added, so adding it again brings it back.
+    const existing = new Set(cullingState.frames.filter((frame) => !frame.removedAt).map((frame) => frame.stableKey));
     const additions = files.filter((file) => {
       const key = getLocalFileKey(file);
       if (existing.has(key)) return false;
@@ -758,6 +795,15 @@ export default function App() {
       return true;
     });
     if (!additions.length) {
+      if (options?.openEditor) {
+        // Quick edit of a photo that is already in Quick edits: open the one that is there.
+        const present = cullingState.frames.find((frame) => !frame.removedAt && frame.stableKey === getLocalFileKey(files[0]));
+        if (present) {
+          setCullingState((prev) => ({ ...prev, filter: 'all', selectedFrameId: present.id }));
+          setEditing(true);
+          return;
+        }
+      }
       setFolderError('These photos are already in the project.');
       return;
     }
@@ -771,8 +817,14 @@ export default function App() {
         ({ loaded, total }) => setLoadingProgress({ loaded, total })
       );
       const importId = newId().slice(0, 8);
-      setCullingState((prev) => appendProjectPhotos(prev, frames, importId));
-      if (cullingState.settings?.autoCull) {
+      setCullingState((prev) => {
+        const next = appendProjectPhotos(prev, frames, importId);
+        const first = options?.openEditor ? next.frames.find((frame) => frame.id.startsWith(`${importId}-`)) : undefined;
+        return first ? { ...next, filter: 'all', selectedFrameId: first.id } : next;
+      });
+      if (options?.openEditor) {
+        setEditing(true);
+      } else if (cullingState.settings?.autoCull) {
         setAutoCullStart(true);
         setAutoCullOpen(true);
       }
@@ -783,6 +835,32 @@ export default function App() {
       setLoadingProgress(null);
     }
   };
+
+  // Quick edit: open the Quick edits bucket, then import the chosen photos and go straight to the editor.
+  const quickFiles = useRef<File[] | null>(null);
+  async function quickEdit(files: File[]) {
+    if (!files.length) return;
+    setProjectBusy(true);
+    setProjectError(undefined);
+    try {
+      const store = storeRef.current!;
+      if (!(await store.loadProject(INBOX_ID))) await store.saveProject(createInboxProject());
+      quickFiles.current = files;
+      await openProject(INBOX_ID);
+    } catch {
+      quickFiles.current = null;
+      setProjectError('Could not open Quick edits. Check available browser storage.');
+      setProjectBusy(false);
+    }
+  }
+  useEffect(() => {
+    if (!quickFiles.current || projectsOpen || cullingState.shoot.id !== INBOX_ID) return;
+    const files = quickFiles.current;
+    quickFiles.current = null;
+    void handleSelectLocalFiles(files, { openEditor: true });
+    // Runs once the Quick edits bucket is open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectsOpen, cullingState.shoot.id]);
 
   const handleOpenLocalFolder = async () => {
     try {
@@ -870,7 +948,7 @@ export default function App() {
       <ProjectList projects={projects} loading={projectBusy} error={projectError}
         onOpen={(id) => void openProject(id)} onCreate={(name, options) => void newProject(name, options)} onRestore={(file) => void restoreBackup(file)}
         onArchive={(project) => setProjectAction({ kind: 'archive', project })} onDelete={(project) => setProjectAction({ kind: 'delete', project })}
-        onUnarchive={(id) => void unarchiveProject(id)} />
+        onUnarchive={(id) => void unarchiveProject(id)} onQuickEdit={(files) => void quickEdit(files)} />
       {projectAction && <ProjectActionDialog kind={projectAction.kind} project={projectAction.project}
         onBackup={() => backUpProject(projectAction.project.id)} onConfirm={() => void confirmProjectAction()} onCancel={() => setProjectAction(null)} />}
     </>;
@@ -971,6 +1049,10 @@ export default function App() {
         onExportKeepers={cullingState.filter === 'keep' && visibleFrames.length
           ? () => setExportFrames(visibleFrames) : undefined}
         onUndo={cullingState.undoStack.length ? () => executeCommand('cull.undo') : undefined}
+        undoLabel={undoLabel(cullingState)}
+        redoLabel={redoLabel(cullingState)}
+        onExport={exportSelection.length ? () => setExportFrames(exportSelection) : undefined}
+        exportLabel={exportSelection.length > 1 ? `Export ${exportSelection.length}` : 'Export'}
         showFilmstrip={prefs.showFilmstrip}
         onToggleFilmstrip={toggleFilmstrip}
         showPhotoInfo={showPhotoInfo}
@@ -983,6 +1065,7 @@ export default function App() {
         onToggleAutoAdvance={() =>
           setCullingState((prev) => ({ ...prev, autoAdvance: !prev.autoAdvance }))
         }
+        onMoveToProject={moveIds.length ? () => { void refreshProjects().finally(() => setMoveOpen(true)); } : undefined}
         onClearDecision={selectedFrame && selectedFrame.decision !== 'unreviewed' ? () => executeCommand('cull.unreviewed') : undefined}
         onRemoveFromLibrary={selectedFrame?.decision === 'reject' ? () => setPendingAction({ kind: 'remove', frameIds: [selectedFrame.id] }) : undefined}
         removedCount={removedFrames(cullingState.frames).length}
@@ -1234,6 +1317,9 @@ export default function App() {
           onRestore={(ids) => setCullingState((prev) => restoreRemoved(prev, ids))} />
       )}
 
+      {moveOpen && <MoveToProjectDialog count={moveIds.length} onCancel={() => setMoveOpen(false)} onConfirm={(id) => void moveSelectionTo(id)}
+        projects={projects.filter((project) => project.id !== cullingState.shoot.id && !project.archivedAt)} />}
+      {toast && <p role="status" className="fixed bottom-4 left-1/2 z-50 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg border border-white/15 bg-kestrel-raised px-4 py-2 text-sm shadow-2xl">{toast}</p>}
       {autoCullOpen && <AutoCullPanel autoStart={autoCullStart} frames={cullingState.frames} keeperTarget={cullingState.keeperTarget}
         provider={previewProviderRef.current!}
         onApply={(results) => setCullingState((previous) => applyAutoCullDecisions(previous, results))}
