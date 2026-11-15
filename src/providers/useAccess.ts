@@ -7,7 +7,8 @@ import { featureAvailable, type Feature } from '../core/features';
  * this is the one place that changes: it will read the cached signed entitlement instead of this fixed snapshot.
  * Free never needs an account, and local recovery and backup are never gated (see `commercialAccess.ts`).
  */
-export const BETA_ALL_FEATURES_OPEN = true;
+/** A build made with VITE_KESTREL_PLAN=free shows the Free experience, so it can be tested. Normal builds stay open. */
+export const BETA_ALL_FEATURES_OPEN = import.meta.env.VITE_KESTREL_PLAN !== 'free';
 
 export function currentSnapshot(): AccessSnapshot {
   return BETA_ALL_FEATURES_OPEN
