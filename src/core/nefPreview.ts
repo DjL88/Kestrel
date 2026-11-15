@@ -66,7 +66,8 @@ async function locatePreview(file: Blob): Promise<Blob | null> {
     const first = await read(offset, 3);
     const last = await read(offset + length - 2, 2);
     if (first?.getUint16(0) === 0xffd8 && first.getUint8(2) === 0xff && last?.getUint16(0) === 0xffd9) {
-      return file.slice(offset, offset + length, 'image/jpeg');
+      const preview = file.slice(offset, offset + length, 'image/jpeg');
+      if (await hasUsefulDimensions(preview)) return preview;
     }
   }
   return null;
@@ -92,13 +93,13 @@ async function hasUsefulDimensions(preview: Blob): Promise<boolean> {
 
 export async function extractNefPreview(file: Blob): Promise<Blob | null> {
   const located = await locatePreview(file);
-  if (located && await hasUsefulDimensions(located)) return located;
+  if (located) return located;
   const fallback = extractEmbeddedJpegFromRawBuffer(await file.slice(0, FALLBACK_BYTES).arrayBuffer());
-  if (fallback && fallback.bytes.length > (located?.size ?? 0)) {
+  if (fallback) {
     const candidate = new Blob([fallback.bytes.slice()], { type: 'image/jpeg' });
     // A byte-pattern match alone is not proof of a decodable photo preview.
     // Reject tiny or malformed JPEGs rather than offering them as NEF previews.
     if (await hasUsefulDimensions(candidate)) return candidate;
   }
-  return located && await hasUsefulDimensions(located) ? located : null;
+  return null;
 }
