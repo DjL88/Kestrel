@@ -57,6 +57,18 @@ class CompareNikonTiffsTests(unittest.TestCase):
         self.assertNotIn(str(source), report)
         self.assertNotIn("source_nef_sha256", compare(reference, candidate))
 
+    def test_rejects_compressed_or_tiled_tiffs(self):
+        pixels = np.zeros((32, 32, 3), dtype=np.uint16)
+        reference = self.write("reference.tif", pixels)
+        for name, options in [
+            ("compressed.tif", {"compression": "deflate"}),
+            ("tiled.tif", {"tile": (16, 16)}),
+        ]:
+            candidate = self.root / name
+            tifffile.imwrite(candidate, pixels, photometric="rgb", extratags=[(34675, "B", 12, b"test-profile", False)], **options)
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, "uncompressed, non-tiled"):
+                compare(reference, candidate)
+
     def test_rejects_unmatched_profile_size_orientation_and_depth(self):
         pixels = np.zeros((12, 12, 3), dtype=np.uint16)
         reference = self.write("reference.tif", pixels)
