@@ -1,5 +1,6 @@
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
+import { Splash } from './components/Splash.tsx';
 import '@fontsource/plus-jakarta-sans/latin-400.css';
 import '@fontsource/plus-jakarta-sans/latin-600.css';
 import '@fontsource/plus-jakarta-sans/latin-700.css';
@@ -15,7 +16,7 @@ import { applyDisplay, loadDisplay } from './providers/browserTheme.ts';
 applyDisplay(loadDisplay());
 setGpuRenderer(renderEditOnGpu);
 
-createRoot(document.getElementById('root')!).render(<App />);
+createRoot(document.getElementById('root')!).render(<><App /><Splash /></>);
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   const worker = new URL(`${import.meta.env.BASE_URL}offline.js`, location.href);
