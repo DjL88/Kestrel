@@ -1,5 +1,7 @@
-/** Controls a mask can adjust locally. Detail controls stay global. */
-export const LOCAL_KEYS = ['exposure', 'warmth', 'colour', 'contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance'] as const;
+/** Controls a mask can adjust locally, tone and colour first, then detail. */
+export const LOCAL_KEYS = ['exposure', 'warmth', 'colour', 'contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen'] as const;
+/** The local controls that need neighbouring pixels, so a mask using them cannot be processed in separate bands. */
+export const LOCAL_DETAIL_KEYS = ['texture', 'clarity', 'sharpen'] as const;
 export type LocalKey = (typeof LOCAL_KEYS)[number];
 export type LocalEdit = Partial<Record<LocalKey, number>>;
 
@@ -28,8 +30,12 @@ export type MaskShape =
    */
   | { kind: 'subject'; grid: SubjectGrid; framingKey: string; confidence: 'high' | 'medium' | 'low'; strokes: BrushStroke[] };
 
+/** Restrict a mask by another one: only where it overlaps (intersect), or everywhere except it (subtract). */
+export interface MaskLimit { id: string; mode: 'intersect' | 'subtract' }
+
 export type Mask = MaskShape & {
   id: string;
+  limit?: MaskLimit;
   invert: boolean;
   /** 0 is a crisp edge, 1 is the softest transition. */
   feather: number;
@@ -37,6 +43,10 @@ export type Mask = MaskShape & {
 };
 
 export const MAX_MASKS = 12;
+
+export function usesDetail(masks: Mask[] | undefined): boolean {
+  return !!masks?.some((mask) => LOCAL_DETAIL_KEYS.some((key) => !!mask.edit[key]));
+}
 
 export function hasActiveMasks(masks: Mask[] | undefined): boolean {
   return !!masks?.some((mask) => LOCAL_KEYS.some((key) => !!mask.edit[key]));
@@ -68,6 +78,11 @@ export function validMasks(value: unknown): value is Mask[] {
     if (typeof raw !== 'object' || raw === null) return false;
     const mask = raw as Record<string, unknown>;
     if (typeof mask.id !== 'string' || !mask.id || typeof mask.invert !== 'boolean' || !finite(mask.feather, 0, 1)) return false;
+    if (mask.limit !== undefined) {
+      const limit = mask.limit as Record<string, unknown> | null;
+      if (typeof limit !== 'object' || limit === null || typeof limit.id !== 'string' || !limit.id || limit.id === mask.id ||
+        (limit.mode !== 'intersect' && limit.mode !== 'subtract')) return false;
+    }
     const edit = mask.edit;
     if (typeof edit !== 'object' || edit === null) return false;
     if (!Object.entries(edit).every(([key, number]) => (LOCAL_KEYS as readonly string[]).includes(key) && finite(number, -2, 2))) return false;

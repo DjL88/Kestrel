@@ -100,3 +100,16 @@ test('with no ratio chosen, the first drag locks the photo’s own ratio', () =>
   assert.equal(framing.ratio, 1.5);
   assert.ok(framing.size! < 1);
 });
+
+import { displayFramingFor } from './photoFraming';
+
+test('the preview keeps the crop size once the crop tool is closed, and shows the whole photo while it is open', () => {
+  const saved = { ...FRAMING, ratio: 1.5, size: 0.5, x: 0.3, y: 0.6 };
+  assert.equal(displayFramingFor(saved, false).size, 0.5);
+  assert.equal(displayFramingFor(saved, false).x, 0.3);
+  const open = displayFramingFor(saved, true);
+  assert.equal(open.ratio, null);
+  assert.equal(open.size, undefined);
+  assert.equal(cropRectangle(6000, 4000, open).width, 6000);
+  assert.ok(cropRectangle(6000, 4000, displayFramingFor(saved, false)).width < 6000);
+});

@@ -110,3 +110,21 @@ Each project on the Projects page has Archive and Delete buttons. Archived proje
 - **Delete** offers a backup, says plainly that it cannot be undone, and stays locked until "I understand this cannot be undone" is ticked. Focus starts on the safe button, and Escape cancels.
 - Delete removes the project's catalogue, its folder link and the photo copies Kestrel stored in this browser, but keeps any copy that another project also uses. Files on the user's computer are never touched.
 - Not done: bulk archive, a backup reminder before closing the browser, and an automatic backup before every delete.
+
+## Masks: detail and limits
+Each mask can now also set Texture, Clarity and Sharpening, and can be limited by another mask: "Only where it overlaps" (intersect) or "Everywhere except" (subtract). Example: the subject mask limited to a gradient lifts only the top of the bird. The shading on the photo shows the limited area. Limits point at one other mask, using that mask's own shape only, so they cannot loop; deleting the other mask clears the limit. A mask that uses detail is processed in one piece instead of in bands, to avoid seams.
+
+## What Kestrel reads from camera files today, and what Nikon adds
+Read now (via exifr): star rating and reject flag, camera, lens, focal length, aperture, shutter, ISO, capture time, pixel size and format.
+**Not read yet:** anything in Nikon's maker note. That includes the AF area mode and the focus point position, whether focus was achieved, focus mode, the camera's own subject detection mode, Picture Control, image quality (RAW, fine, and so on) and white balance. exifr does not decode Nikon maker notes.
+What it would unlock:
+1. Show the focus point on the photo, and judge sharpness at the focus point instead of across the frame (auto-cull).
+2. When subject detection finds several objects, choose the one that contains the focus point.
+3. Show and filter by Picture Control, quality and focus result.
+The maker note layout is documented in ExifTool's Nikon tables, but it varies by camera and firmware, so it has to be built and checked against real Z8 and Z5II NEF and JPEG files. Do not trust it from documentation alone. **Next step needs 5 to 10 sample files from your cameras, covering single-point, wide-area and subject-detect AF.**
+
+## Lightroom layout notes (from general knowledge, not checked against the latest builds)
+- Desktop: image in the middle, a right-hand column of modules (histogram, Edit with Light, Color, Effects, Detail, Optics, Geometry, then Masking), a left-hand column for presets and history, a filmstrip below, and a slim toolbar under the photo with Before/After, rating and zoom. Crop is a tool that overlays the photo with Done.
+- Phone: the photo takes the screen, a bottom row of tool icons (presets, crop, light, colour, effects, detail, optics, geometry, masking) opens one slider group at a time above the row, with back, undo, redo and share at the top.
+- Kestrel today matches the desktop idea (right column with tabs, a toolbar with Before/After and Export). Biggest gap for phones: sliders are in a stacked panel under the photo, not a bottom tool row with one group at a time.
+- Suggested next layout step: on phones, put the four tabs in a bottom bar, show one slider group at a time, and keep the photo full height.

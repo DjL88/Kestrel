@@ -1,8 +1,10 @@
-import { applyPhotoEdit, type PhotoEdit } from './photoEdits';
+import { applyDetail, applyPhotoEdit, type PhotoEdit } from './photoEdits';
 import { LOCAL_KEYS, hasActiveMasks, type Mask } from './maskTypes';
 
 /** Which part of the framed photo a canvas shows. A zoomed region covers a sub-rectangle. */
 export interface MaskContext {
+  /** The whole photo's long edge in this canvas's pixels, so detail scales match the rest of the edit. Defaults to the canvas. */
+  imageEdge?: number;
   /** Height divided by width of the whole framed photo. */
   aspect: number;
   view: { x: number; y: number; w: number; h: number };
@@ -139,14 +141,29 @@ export function maskAlpha(mask: Mask, width: number, height: number, context: Ma
   return alpha;
 }
 
+/**
+ * A mask's strength once it has been limited by another mask. Only the other mask's own shape is used, never its own
+ * limit, so masks cannot loop. A limit that points at a deleted mask is ignored.
+ */
+export function effectiveAlpha(mask: Mask, masks: readonly Mask[], width: number, height: number, context: MaskContext): Float32Array {
+  const alpha = maskAlpha(mask, width, height, context);
+  const other = mask.limit ? masks.find((candidate) => candidate.id === mask.limit!.id && candidate.id !== mask.id) : undefined;
+  if (!mask.limit || !other) return alpha;
+  const limiter = maskAlpha(other, width, height, context);
+  for (let i = 0; i < alpha.length; i += 1) alpha[i] *= mask.limit.mode === 'intersect' ? limiter[i] : 1 - limiter[i];
+  return alpha;
+}
+
 /** Apply local adjustments. Each mask runs the normal edit maths on a copy and blends it in by its strength. */
 export function applyMasks(pixels: Uint8ClampedArray, width: number, height: number, masks: Mask[] | undefined, context: MaskContext): void {
   if (!masks || !hasActiveMasks(masks)) return;
   for (const mask of masks) {
     if (!LOCAL_KEYS.some((key) => mask.edit[key])) continue;
-    const alpha = maskAlpha(mask, width, height, context);
+    const alpha = effectiveAlpha(mask, masks, width, height, context);
     const adjusted = new Uint8ClampedArray(pixels);
-    applyPhotoEdit(adjusted, { exposure: 0, warmth: 0, colour: 0, ...mask.edit } as PhotoEdit);
+    const local = { exposure: 0, warmth: 0, colour: 0, ...mask.edit } as PhotoEdit;
+    applyPhotoEdit(adjusted, local);
+    applyDetail(adjusted, width, height, local, context.imageEdge ?? Math.max(width, height));
     for (let i = 0; i < alpha.length; i += 1) {
       const a = alpha[i];
       if (a <= 0) continue;

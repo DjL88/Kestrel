@@ -1,5 +1,5 @@
 import { newId } from './core/ids';
-import { recordEdit, stepEdit } from './core/editHistory';
+import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
 import { AutoCullPanel } from './components/AutoCullPanel';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { restoreProjectBackup } from './core/projectBackup';
@@ -624,6 +624,13 @@ export default function App() {
     }));
   };
 
+  const jumpPhotoHistory = (frameId: string, cursor: number) => {
+    setCullingState((prev) => ({
+      ...prev, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() },
+      frames: prev.frames.map((frame) => frame.id === frameId ? jumpToStep(frame, cursor) : frame),
+    }));
+  };
+
   const stepPhotoHistory = (frameId: string, direction: -1 | 1) => {
     setCullingState((prev) => ({
       ...prev, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() },
@@ -1022,6 +1029,7 @@ export default function App() {
               copiedEdit={copiedEdit}
               onCopyEdit={setCopiedEdit}
               onHistoryStep={(direction) => stepPhotoHistory(selectedFrame.id, direction)}
+              onHistoryJump={(cursor) => jumpPhotoHistory(selectedFrame.id, cursor)}
               onCreateVirtualCopy={addVirtualCopy}
               onFocusPoint={(focusPoint) => updateFrame(selectedFrame.id, { focusPoint })}
               onFramingChange={(framing) => updateFrame(selectedFrame.id, { framing })}

@@ -7,3 +7,10 @@ export function formatProjectDate(ms: number | undefined, withTime = false): str
   const date = new Date(ms);
   return withTime ? `${DATE.format(date)}, ${TIME.format(date)}` : DATE.format(date);
 }
+
+const CLOCK = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+
+/** Time of day such as "14:05:09", for the edit history. */
+export function formatClock(ms: number): string {
+  return Number.isFinite(ms) && ms > 0 ? CLOCK.format(new Date(ms)) : '';
+}

@@ -152,3 +152,13 @@ export function drawFramedPhoto(
   context.drawImage(source, -source.naturalWidth / 2, -source.naturalHeight / 2);
   context.resetTransform();
 }
+
+/**
+ * The framing the preview should draw. While the crop tool is open the whole photo shows with the crop box on top,
+ * so ratio, position and size are ignored. Otherwise every part of the saved framing, including the crop size, applies.
+ */
+export function displayFramingFor(framing: PhotoFraming, cropToolOpen: boolean): PhotoFraming {
+  return cropToolOpen
+    ? { ratio: null, x: 0.5, y: 0.5, turns: framing.turns, straighten: framing.straighten }
+    : { ratio: framing.ratio, x: framing.x, y: framing.y, turns: framing.turns, straighten: framing.straighten, size: framing.size };
+}

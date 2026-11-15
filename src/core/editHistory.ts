@@ -56,3 +56,24 @@ export function stepEdit(frame: PhotoFrame, direction: -1 | 1): PhotoFrame {
     editHistory: { ...history, cursor: history.cursor + direction },
   };
 }
+
+/** The recipe as it stood with this many steps applied. Zero is the original, before any edit. */
+export function recipeAt(history: EditHistory, cursor: number): Snapshot | undefined {
+  if (!history.steps.length) return undefined;
+  const at = Math.max(0, Math.min(history.steps.length, cursor));
+  return at === 0 ? history.steps[0].before : history.steps[at - 1].after;
+}
+
+/** Restore the photo to how it was after the given number of steps. Later steps stay available to redo. */
+export function jumpToStep(frame: PhotoFrame, cursor: number): PhotoFrame {
+  const history = frame.editHistory;
+  if (!history) return frame;
+  const at = Math.max(0, Math.min(history.steps.length, cursor));
+  const recipe = recipeAt(history, at);
+  if (!recipe || at === history.cursor) return frame;
+  return {
+    ...frame, edit: recipe.edit, framing: recipe.framing,
+    focusPoint: JSON.stringify(frame.framing) === JSON.stringify(recipe.framing) ? frame.focusPoint : undefined,
+    editHistory: { ...history, cursor: at },
+  };
+}
