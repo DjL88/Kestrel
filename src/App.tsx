@@ -2,6 +2,7 @@ import { splitDropped } from './core/dropSplit';
 import { useAccess } from './providers/useAccess';
 import { loadLicence } from './providers/licenceStore';
 import { PaidNotice } from './components/PaidNotice';
+import { SyncFolderDialog } from './components/SyncFolderDialog';
 import { DropOverlay } from './components/DropOverlay';
 import { useDropPhotos } from './providers/useDropPhotos';
 import { DesktopUpdate } from './components/DesktopUpdate';
@@ -96,6 +97,7 @@ function isEditableElement(target: EventTarget | null): boolean {
 
 export default function App() {
   const { can } = useAccess();
+  const [syncOpen, setSyncOpen] = useState(false);
   useEffect(() => { void loadLicence(); }, []);
   const [paidDialog, setPaidDialog] = useState<string | null>(null);
   useDesktopMenu();
@@ -1040,6 +1042,8 @@ export default function App() {
   return (
     <div className={`h-dvh w-full flex flex-col pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden ${editing ? '' : 'max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]'}`}>
       <DesktopUpdate />
+      {syncOpen && <SyncFolderDialog title={cullingState.shoot.title} projectId={cullingState.shoot.id} frames={cullingState.frames} onClose={() => setSyncOpen(false)}
+        onApply={(frames) => setCullingState((prev) => ({ ...prev, frames, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } }))} />}
       {paidDialog && (
         <div role="dialog" aria-modal="true" aria-label={`${paidDialog} is part of Kestrel Paid`} className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
           onKeyDown={(event) => { if (event.key === 'Escape') setPaidDialog(null); }}>
@@ -1124,6 +1128,7 @@ export default function App() {
         onOpenShootModal={() => { setFolderError(null); setOpenShootModal(true); }}
         onBackToProjects={() => void backToProjects()}
         onBackupProject={() => void backupProject()}
+        onSyncFolder={() => setSyncOpen(true)}
         onAutoCull={() => { if (!can('smartCulling')) { setPaidDialog('Auto-cull'); return; } setAutoCullStart(false); setAutoCullOpen(true); }}
         settings={cullingState.settings ?? LEGACY_SETTINGS}
         onSettingsChange={(settings) => setCullingState((prev) => ({ ...prev, settings, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } }))}

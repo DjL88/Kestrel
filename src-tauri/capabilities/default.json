@@ -9,6 +9,10 @@
     "core:default",
     "dialog:allow-save",
     "dialog:allow-open",
-    "fs:allow-write-file"
+    "fs:allow-write-file",
+    "fs:allow-read-file",
+    "fs:allow-mkdir",
+    "fs:allow-read-dir",
+    "fs:allow-remove"
   ]
 }
