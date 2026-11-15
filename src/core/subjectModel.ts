@@ -31,11 +31,22 @@ export function preprocess(rgba: Uint8ClampedArray, size = SUBJECT_MODEL.inputSi
   return out;
 }
 
+/** Only a complete float map can be used to build a local mask. */
+export function readSubjectMap(output: unknown, size: number): Float32Array {
+  if (!(output instanceof Float32Array) || output.length !== size * size) {
+    throw new Error('Subject detection returned an incomplete mask. Try again or use a manual mask.');
+  }
+  return normaliseMap(output);
+}
+
 /** The network's first output is an unscaled probability map. Stretch it to 0..1 so faint maps stay usable. */
 export function normaliseMap(output: Float32Array): Float32Array {
   let low = Infinity;
   let high = -Infinity;
   for (const value of output) {
+    if (!Number.isFinite(value)) {
+      throw new Error('Subject detection returned an invalid mask. Try again or use a manual mask.');
+    }
     if (value < low) low = value;
     if (value > high) high = value;
   }
