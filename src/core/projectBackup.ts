@@ -46,7 +46,8 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   }
   const edit = value.edit;
   if (edit !== undefined && (!record(edit) || !number(edit.exposure, -2, 2) ||
-    !number(edit.warmth, -2, 2) || !number(edit.colour, -2, 2))) return false;
+    !number(edit.warmth, -2, 2) || !number(edit.colour, -2, 2) ||
+    [edit.contrast, edit.highlights, edit.shadows].some((value) => value !== undefined && !number(value, -2, 2)))) return false;
   const framing = value.framing;
   if (framing !== undefined && (!record(framing) || (framing.ratio !== null && !number(framing.ratio, 0.01, 100)) ||
     !number(framing.turns, 0, 3) || !Number.isInteger(framing.turns) || !number(framing.straighten, -12, 12) ||

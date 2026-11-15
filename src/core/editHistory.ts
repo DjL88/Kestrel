@@ -3,7 +3,7 @@ import type { PhotoEdit } from './photoEdits';
 import type { PhotoFraming } from './photoFraming';
 
 type Snapshot = { edit?: PhotoEdit; framing?: PhotoFraming };
-export type EditKind = 'light' | 'warmth' | 'colour' | 'adjustments' | 'crop' | 'rotation' | 'straighten';
+export type EditKind = 'light' | 'warmth' | 'colour' | 'adjustments' | 'crop' | 'rotation' | 'straighten' | 'contrast' | 'highlights' | 'shadows';
 
 export interface EditHistory {
   cursor: number;
@@ -16,7 +16,7 @@ function classify(before: Snapshot, after: Snapshot): EditKind {
     if ((before.framing?.straighten ?? 0) !== (after.framing?.straighten ?? 0)) return 'straighten';
     return 'crop';
   }
-  const fields = (['exposure', 'warmth', 'colour'] as const).filter((field) =>
+  const fields = (['exposure', 'warmth', 'colour', 'contrast', 'highlights', 'shadows'] as const).filter((field) =>
     (before.edit?.[field] ?? 0) !== (after.edit?.[field] ?? 0));
   if (fields.length !== 1) return 'adjustments';
   return fields[0] === 'exposure' ? 'light' : fields[0];

@@ -1046,7 +1046,7 @@ export default function App() {
         </div>
 
         {!editing && showPhotoInfo && (
-          <ExifInspector onRate={(id, rating) => rateOrFlagPhotos(id, { rating })}
+          <ExifInspector provider={previewProviderRef.current!} onHistoryStep={stepPhotoHistory} onRate={(id, rating) => rateOrFlagPhotos(id, { rating })}
             onFlag={(id, flag) => rateOrFlagPhotos(id, { flag })}
             batchCount={multiSelect && selectedIds.has(infoFrameId ?? selectedFrame?.id ?? '') ? selectedIds.size : 0}
             frame={infoFrameId ? cullingState.frames.find((frame) => frame.id === infoFrameId) ?? null : selectedFrame}

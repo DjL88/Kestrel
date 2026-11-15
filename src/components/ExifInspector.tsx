@@ -1,4 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { PhotoEditHistory } from './PhotoEditHistory';
+import { PhotoHistogram } from './PhotoHistogram';
+import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
+import { messages as m } from '../i18n/messages';
 import { Star, X } from 'lucide-react';
 import { formatAperture, formatFocalLength } from '../core/exifParser';
 import type { CullDecision, PhotoFrame } from '../core/types';
@@ -7,6 +11,8 @@ interface ExifInspectorProps {
   frame: PhotoFrame | null;
   onClose: () => void;
   batchCount: number;
+  provider: BrowserPreviewProvider;
+  onHistoryStep: (id: string, direction: -1 | 1) => void;
   onRate: (id: string, rating: number) => void;
   onFlag: (id: string, decision: CullDecision) => void;
 }
@@ -24,7 +30,8 @@ function formatCaptureTime(ms?: number): string {
   }
 }
 
-export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount, onClose, onRate, onFlag }) => {
+export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount, provider, onHistoryStep, onClose, onRate, onFlag }) => {
+  const [view, setView] = useState<'details' | 'history'>('details');
   if (!frame) return null;
 
   const { exif } = frame;
@@ -58,6 +65,16 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
         </button>
       </div>
       <p className="break-words text-sm text-zinc-200">{frame.filename}</p>
+      <div role="group" aria-label="Photo info sections" className="mt-2 flex gap-1 border-b border-white/10">
+        <button type="button" aria-pressed={view === 'details'} onClick={() => setView('details')}
+          className="min-h-11 rounded-md px-2 text-sm aria-pressed:bg-white/10">Details</button>
+        <button type="button" aria-pressed={view === 'history'} onClick={() => setView('history')}
+          className="min-h-11 rounded-md px-2 text-sm aria-pressed:bg-white/10">{m.editHistory}</button>
+      </div>
+      {view === 'history' ? (
+        <div className="mt-3"><PhotoEditHistory frame={frame} onHistoryStep={(direction) => onHistoryStep(frame.id, direction)} /></div>
+      ) : <>
+      <PhotoHistogram frame={frame} provider={provider} />
       {exif.formatLabel && <p className="mt-1 text-xs text-zinc-400">{exif.formatLabel}</p>}
       {frame.burstGroupId && <p className="mt-1 text-xs text-zinc-400">Burst frame {frame.burstIndex} of {frame.burstCount}</p>}
       {Boolean(frame.subjectNames?.length) && <p className="mt-1 text-xs text-zinc-300">{frame.subjectNames?.join(', ')}</p>}
@@ -77,7 +94,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
           {(['unreviewed', 'keep', 'reject'] as const).map((flag) => (
             <button key={flag} type="button" aria-pressed={frame.decision === flag} onClick={() => onFlag(frame.id, flag)}
               className="min-h-11 rounded-md px-2 text-xs capitalize text-zinc-300 hover:bg-white/8 aria-pressed:bg-white/15 aria-pressed:text-white">
-              {flag === 'unreviewed' ? 'Unflagged' : flag}
+              {flag === 'unreviewed' ? 'Unflagged' : flag === 'reject' ? m.trash : m.keep}
             </button>
           ))}
         </div>
@@ -90,6 +107,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
           </div>
         ))}
       </dl>
+      </>}
     </aside>
   );
 };
