@@ -86,7 +86,7 @@ export function ExportWizard(props: Props) {
     : step === 'position' && index < positionable.length - 1 ? 'Next size' : 'Next';
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
       <ol aria-label="Export steps" className="flex items-center justify-center gap-1 text-xs text-zinc-400">
         {STEPS.map((entry, position) => (
           <li key={entry.id} aria-current={entry.id === step ? 'step' : undefined}
@@ -96,7 +96,7 @@ export function ExportWizard(props: Props) {
         ))}
       </ol>
 
-      <div className="min-h-0 flex-1 space-y-3">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-2">
         {step === 'platform' && (
           <section aria-label="Where is it going?" className="space-y-2">
             <h3 className="text-sm font-medium text-zinc-100">Where is it going?</h3>
@@ -186,7 +186,7 @@ export function ExportWizard(props: Props) {
         )}
       </div>
 
-      <div className="sticky bottom-0 -mx-4 -mb-4 flex items-center justify-between gap-2 border-t border-white/10 bg-kestrel-raised px-4 py-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+      <div className="-mx-4 -mb-4 flex shrink-0 items-center justify-between gap-2 border-t border-white/10 bg-kestrel-raised px-4 py-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <button type="button" className={quiet} onClick={back} disabled={step === 'platform' || props.progress !== null}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</button>
         {step !== 'platform' && <button type="button" className={primary} onClick={next} disabled={!canNext}>{nextLabel}{step !== 'review' && <ArrowRight className="h-4 w-4" aria-hidden="true" />}</button>}
       </div>

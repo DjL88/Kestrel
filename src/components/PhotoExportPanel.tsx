@@ -34,6 +34,8 @@ function readView(): 'wizard' | 'list' {
 }
 
 function loadChosen(freshStart = false): string[] {
+  // The step-by-step guide starts with nothing chosen. Earlier choices are still remembered for the list.
+  if (freshStart) return [];
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
     if (Array.isArray(saved)) {
