@@ -34,7 +34,7 @@ test('Auto Mono look applies to both selected photographs, but not the third', a
   const filmstrip = page.locator('[aria-label="Shoot filmstrip"]');
   await filmstrip.getByRole('button', { name: 'Select photo-2.png' }).click();
 
-  const actions = page.getByRole('group', { name: 'Selected photo actions' });
+  const actions = page.getByRole('toolbar', { name: 'Filmstrip controls' });
   await expect(actions.getByText('2 selected')).toBeVisible();
   await expect(actions.getByRole('button', { name: 'Edit together' })).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('tab', { name: 'Auto' }).click();
