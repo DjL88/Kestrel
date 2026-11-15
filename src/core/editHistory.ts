@@ -5,6 +5,8 @@ import type { PhotoFraming } from './photoFraming';
 type Snapshot = { edit?: PhotoEdit; framing?: PhotoFraming };
 export type EditKind = 'light' | 'warmth' | 'colour' | 'adjustments' | 'tone' | 'detail' | 'mask' | 'crop' | 'rotation' | 'straighten';
 
+export const MAX_EDIT_HISTORY_STEPS = 60;
+
 export interface EditHistory {
   cursor: number;
   steps: { kind: EditKind; before: Snapshot; after: Snapshot; at: number }[];
@@ -39,7 +41,7 @@ export function recordEdit(frame: PhotoFrame, patch: Snapshot, at: number): Phot
   } else {
     steps.push({ kind, before, after, at });
   }
-  const retained = steps.slice(-60);
+  const retained = steps.slice(-MAX_EDIT_HISTORY_STEPS);
   return { ...frame, ...after, focusPoint: before.framing === after.framing ? frame.focusPoint : undefined, editHistory: { steps: retained, cursor: retained.length } };
 }
 
@@ -51,7 +53,7 @@ export function stepEdit(frame: PhotoFrame, direction: -1 | 1): PhotoFrame {
   if (!step) return frame;
   const recipe = direction === -1 ? step.before : step.after;
   return {
-    ...frame, ...recipe,
+    ...frame, edit: recipe.edit, framing: recipe.framing,
     focusPoint: JSON.stringify(frame.framing) === JSON.stringify(recipe.framing) ? frame.focusPoint : undefined,
     editHistory: { ...history, cursor: history.cursor + direction },
   };
