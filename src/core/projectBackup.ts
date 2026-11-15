@@ -51,6 +51,8 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   if (framing !== undefined && (!record(framing) || (framing.ratio !== null && !number(framing.ratio, 0.01, 100)) ||
     !number(framing.turns, 0, 3) || !Number.isInteger(framing.turns) || !number(framing.straighten, -12, 12) ||
     !number(framing.x, 0, 1) || !number(framing.y, 0, 1))) return false;
+  const focus = value.focusPoint;
+  if (focus !== undefined && (!record(focus) || !number(focus.x, 0, 1) || !number(focus.y, 0, 1))) return false;
   const copy = value.virtualCopy;
   if (copy !== undefined && (!record(copy) || !key(copy.originalFrameId) || !number(copy.number, 1))) return false;
   if (!value.isDemo) return value.sourceKind !== 'demo' && value.demoVariant === undefined;

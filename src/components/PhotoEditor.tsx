@@ -1,3 +1,4 @@
+import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
 import { ChevronDown } from 'lucide-react';
 import { DEFAULT_FRAMING, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, thirdsCropAnchor, type PhotoFraming } from '../core/photoFraming';
@@ -26,6 +27,7 @@ interface Props {
   onCopyEdit: (edit: PhotoEdit) => void;
   keeperCount: number;
   onCreateVirtualCopy: (framing?: PhotoFraming) => void;
+  onFocusPoint: (point?: FocusPoint) => void;
   onFramingChange: (framing: PhotoFraming) => void;
   onRemoveVirtualCopy?: () => void;
   panelSide: 'left' | 'right';
@@ -39,7 +41,7 @@ interface Props {
 
 export function PhotoEditor({
   frame, provider, needsAccess, bindings, onEdit, onHistoryStep, copiedEdit, onCopyEdit, keeperCount,
-  onApplyToKeepers, onUndoKeeperEdits, onSubjectsChange, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange,
+  onApplyToKeepers, onUndoKeeperEdits, onSubjectsChange, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, showFilmstrip, onToggleFilmstrip,
 }: Props) {
   const originalCanvas = useRef<HTMLCanvasElement>(null);
@@ -60,6 +62,7 @@ export function PhotoEditor({
   const [gridLines, setGridLines] = useState(true);
   const [cropNotice, setCropNotice] = useState('');
   const cropDrag = useRef<{ x: number; y: number; anchorX: number; anchorY: number } | null>(null);
+  const [markFocus, setMarkFocus] = useState(false);
   const [transform, setTransform] = useState({ zoom: 1, pan: { x: 0, y: 0 } });
   const [exportOpen, setExportOpen] = useState(false);
   const [subjectInput, setSubjectInput] = useState(() => frame.subjectNames?.join(', ') ?? '');
@@ -239,6 +242,18 @@ export function PhotoEditor({
               hidden={sourceState !== 'ready'} className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />
             {detail && <canvas ref={editedDetail} aria-hidden="true" hidden={!showDetail}
               className="absolute" style={detail.style} />}
+            {!guide && position && markFocus && <button type="button" aria-label="Place export focus point"
+              className="absolute z-10 cursor-crosshair focus-visible:outline-2 focus-visible:outline-sky-200" style={position}
+              onClick={(event) => {
+                const bounds = event.currentTarget.getBoundingClientRect();
+                const clamp = (value: number) => Math.min(1, Math.max(0, value));
+                onFocusPoint(event.detail ? { x: clamp((event.clientX - bounds.left) / bounds.width),
+                  y: clamp((event.clientY - bounds.top) / bounds.height) } : { x: 0.5, y: 0.5 });
+                setMarkFocus(false);
+              }} />}
+            {!guide && position && frame.focusPoint && <span aria-hidden="true"
+              className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_#000]"
+              style={{ left: position.left + position.width * frame.focusPoint.x, top: position.top + position.height * frame.focusPoint.y }} />}
             {cropRect && <div aria-hidden="true" style={cropRect}
               className={`crop-guide absolute border border-white/90 ${gridLines ? 'crop-thirds' : ''} ${framing.ratio ? 'cursor-move' : 'pointer-events-none'}`}
               onPointerDown={(event) => {
@@ -284,6 +299,17 @@ export function PhotoEditor({
             Export
           </button>
         </div>
+        <details className="border-b border-white/10 pb-1">
+          <summary className="min-h-11 cursor-pointer py-3 text-sm">Export focus</summary>
+          <button type="button" className={button} disabled={!position || guide} aria-pressed={markFocus} onClick={() => {
+            setCompare(false);
+            setTransform(FIT_VIEW);
+            setMarkFocus(!markFocus);
+          }}>{markFocus ? 'Cancel placement' : frame.focusPoint ? 'Move focus point' : 'Mark focus point'}</button>
+          {frame.focusPoint && <button type="button" className={button} onClick={() => onFocusPoint(undefined)}>Clear</button>}
+          <p className="px-1 pb-2 text-xs text-zinc-400">{markFocus ? 'Tap the subject. Press Enter on the photo to use the centre.' :
+            'Used when cropping exports. Re-mark after changing the crop.'}</p>
+        </details>
         {isRaw && <p className="text-xs text-zinc-300">Editing embedded JPEG preview</p>}
         <div className="space-y-2 px-1 py-2">
           {EDIT_CHOICES.map(({ key, label, options }, index) => (

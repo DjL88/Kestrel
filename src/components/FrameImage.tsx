@@ -1,3 +1,6 @@
+import { applyCanvasPhotoEdit, DEFAULT_EDIT, isNeutralEdit } from '../core/photoEdits';
+import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFraming';
+import { loadExportSource } from '../providers/browserExport';
 import React, { useEffect, useState } from 'react';
 import { ImageOff } from 'lucide-react';
 import type { PhotoFrame } from '../core/types';
@@ -31,12 +34,31 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [errored, setErrored] = useState<boolean>(false);
 
+  const edited = Boolean((frame.edit && !isNeutralEdit(frame.edit)) || (frame.framing &&
+    (frame.framing.ratio || frame.framing.turns || frame.framing.straighten)));
+
   useEffect(() => {
     let cancelled = false;
+    let renderedUrl: string | undefined;
     setLoading(true);
     setErrored(false);
 
     const load = async () => {
+      if (edited) {
+        const source = await loadExportSource(frame, previewProvider);
+        if (cancelled) return;
+        const canvas = document.createElement('canvas');
+        const framing = frame.framing ?? DEFAULT_FRAMING;
+        const size = framedSize(source.naturalWidth, source.naturalHeight, framing);
+        drawFramedPhoto(source, canvas, framing, { scale: Math.min(1, (variant === 'thumb' ? 400 : 2200) / Math.max(size.width, size.height)) });
+        applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT);
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+        if (cancelled) return;
+        if (!blob) throw new Error('Preview unavailable');
+        renderedUrl = URL.createObjectURL(blob);
+        setSrc(renderedUrl);
+        return;
+      }
       const url =
         variant === 'full'
           ? await previewProvider.getFullPreviewUrl(frame)
@@ -47,14 +69,17 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       }
     };
 
-    load();
+    void load().catch(() => {
+      if (!cancelled) { setSrc(''); setLoading(false); }
+    });
     return () => {
       cancelled = true;
+      if (renderedUrl) URL.revokeObjectURL(renderedUrl);
     };
-  }, [frame, previewProvider, variant, needsAccess]);
+  }, [frame.id, frame.edit, frame.framing, edited, previewProvider, variant, needsAccess]);
 
   const demoStyle: React.CSSProperties = {};
-  if (frame.isDemo && frame.demoVariant) {
+  if (!edited && frame.isDemo && frame.demoVariant) {
     const { panX, panY, cropScale, softnessPx } = frame.demoVariant;
     const totalScale = cropScale * zoomScale;
     const tx = panOffset.x + panX * 2.5;
@@ -118,7 +143,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           style={demoStyle}
           className={`w-full h-full select-none motion-safe:transition-opacity motion-safe:duration-150 ${
             loading ? 'opacity-0' : 'opacity-100'
-          } ${imgClassName}`}
+          } ${edited && variant === 'thumb' ? 'object-contain' : imgClassName}`}
         />
       )}
     </div>

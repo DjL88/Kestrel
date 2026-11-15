@@ -37,7 +37,7 @@ export function recordEdit(frame: PhotoFrame, patch: Snapshot, at: number): Phot
     steps.push({ kind, before, after, at });
   }
   const retained = steps.slice(-60);
-  return { ...frame, ...after, editHistory: { steps: retained, cursor: retained.length } };
+  return { ...frame, ...after, focusPoint: before.framing === after.framing ? frame.focusPoint : undefined, editHistory: { steps: retained, cursor: retained.length } };
 }
 
 export function stepEdit(frame: PhotoFrame, direction: -1 | 1): PhotoFrame {
@@ -46,8 +46,10 @@ export function stepEdit(frame: PhotoFrame, direction: -1 | 1): PhotoFrame {
   const index = direction === -1 ? history.cursor - 1 : history.cursor;
   const step = history.steps[index];
   if (!step) return frame;
+  const recipe = direction === -1 ? step.before : step.after;
   return {
-    ...frame, ...(direction === -1 ? step.before : step.after),
+    ...frame, ...recipe,
+    focusPoint: JSON.stringify(frame.framing) === JSON.stringify(recipe.framing) ? frame.focusPoint : undefined,
     editHistory: { ...history, cursor: history.cursor + direction },
   };
 }
