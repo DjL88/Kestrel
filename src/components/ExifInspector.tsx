@@ -77,7 +77,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
         className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-md border border-white/15 px-3 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">
         <ClipboardCopy className="h-4 w-4" aria-hidden="true" />Copy photo details
       </button>
-      {copyStatus && <p role="status" className="mt-1 text-xs text-zinc-300">{copyStatus}</p>
+      {copyStatus && <p role="status" className="mt-1 text-xs text-zinc-300">{copyStatus}</p>}
       {exif.formatLabel && <p className="mt-1 text-xs text-zinc-400">{exif.formatLabel}</p>}
       {frame.burstGroupId && <p className="mt-1 text-xs text-zinc-400">Burst frame {frame.burstIndex} of {frame.burstCount}</p>}
       <div className="mt-3 border-t border-white/10 pt-3">
