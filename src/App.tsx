@@ -1,3 +1,4 @@
+import { newId } from './core/ids';
 import { recordEdit, stepEdit } from './core/editHistory';
 import { AutoCullPanel } from './components/AutoCullPanel';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -278,7 +279,7 @@ export default function App() {
     setProjectBusy(true);
     setProjectError(undefined);
     try {
-      const state = createEmptyProject(`project-${crypto.randomUUID()}`, name, options);
+      const state = createEmptyProject(`project-${newId()}`, name, options);
       await storeRef.current!.saveProject(state);
       previewProviderRef.current!.clear();
       enterProject(state);
@@ -294,7 +295,7 @@ export default function App() {
     setProjectBusy(true);
     setProjectError(undefined);
     try {
-      const state = restoreProjectBackup(await file.text(), `project-${crypto.randomUUID()}`);
+      const state = restoreProjectBackup(await file.text(), `project-${newId()}`);
       await store.saveProject(state);
       await openProject(state.shoot.id);
     } catch (reason) {
@@ -631,7 +632,7 @@ export default function App() {
 
   const addVirtualCopy = (framing?: PhotoFraming) => {
     if (!selectedFrame) return;
-    const id = `copy-${crypto.randomUUID()}`;
+    const id = `copy-${newId()}`;
     const sourceId = selectedFrame.id;
     setCullingState((prev) => {
       const index = prev.frames.findIndex((frame) => frame.id === sourceId);
@@ -761,7 +762,7 @@ export default function App() {
         additions, previewProviderRef.current!, storeRef.current!,
         ({ loaded, total }) => setLoadingProgress({ loaded, total })
       );
-      const importId = crypto.randomUUID().slice(0, 8);
+      const importId = newId().slice(0, 8);
       setCullingState((prev) => appendProjectPhotos(prev, frames, importId));
       if (cullingState.settings?.autoCull) {
         setAutoCullStart(true);

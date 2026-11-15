@@ -1,3 +1,4 @@
+import { newId } from '../core/ids';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
 import { ChevronDown } from 'lucide-react';
@@ -291,7 +292,7 @@ export function PhotoEditor({ autoEdit,
         onEdit({ ...edit, masks: masks.map((mask) => mask.id === replaceId && mask.kind === 'subject'
           ? { ...mask, grid, framingKey: key, confidence: assessment.confidence, strokes: [] } : mask) });
       } else {
-        const mask = { ...createSubjectMask(crypto.randomUUID(), grid, key, assessment.confidence), invert: background };
+        const mask = { ...createSubjectMask(newId(), grid, key, assessment.confidence), invert: background };
         onEdit({ ...edit, masks: [...masks, mask] });
         setSelectedMaskId(mask.id);
         setShowMaskOverlay(true);
