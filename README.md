@@ -79,9 +79,9 @@ npm run build
 
 ### Browser photo editor
 
-Select a photo and choose **Edit**. Light, Warmth and Colour use reversible per-frame choices saved with the active catalogue. Use **Show original** to compare and **Export JPEG** to download a new file.
+Select a photo and choose **Edit**. Light, Warmth and Colour use reversible per-frame choices saved with the active catalogue. Use **Before / after** to compare and **Export** to choose an output.
 
-Preview and export use the same edited sRGB canvas. JPEG encoding is lossy. The browser caps the longest edge at 3,200 pixels and strips source metadata during export. For Nikon NEFs the source is the embedded preview, where available. A native RAW decoder and Nikon Picture Controls are separate work. The demo editor uses the underlying demo JPEG without the simulated culling blur or framing.
+Preview and export use the same sRGB render operations. Full-size PNG retains the rendered pixel dimensions and social JPEGs are resized only when a selected preset calls for it. For Nikon NEFs the source is the embedded preview, where available. A native RAW decoder and Nikon Picture Controls are separate work. The demo editor uses the underlying demo JPEG without the simulated culling blur or framing.
 
 Subject names entered in **Edit** are stored in the catalogue and searchable from the culling workspace. Separate names with commas for group photos.
 
@@ -99,7 +99,7 @@ For assisted selection, the next milestone is a reviewable shortlist using confi
 
 Compare uses one shared viewport at every screen width. Drag the divider, pinch to zoom and drag a zoomed image to inspect the same area in both layers. In Edit, **Before / after** compares the rendered source and edited output at identical coordinates. Burst photos can differ in framing, so this view synchronizes viewport coordinates without attempting to align subjects.
 
-**Manual sliders** and the quick adjustment buttons update the same recipe. Neutral is the identity operation on the decoded raster; Warmth and Colour are explicit transforms of that raster. Nikon Picture Controls and RAW white balance require a native, colour-managed path and verified reference images.
+Sliders and **Quick choices** update the same recipe. Neutral is the identity operation on the decoded raster; Warmth and Colour are explicit transforms of that raster. Nikon Picture Controls and RAW white balance require a native, colour-managed path and verified reference images.
 
 Create a **virtual copy** from Edit options to try a different look with its own recipe and culling status. It shares the original source file, and removing a copy leaves the source alone. Reselecting unavailable local sources from the reconnect banner retains all catalogue versions. Under **Layout**, pin or hide the filmstrip and dock the desktop adjustment panel on either side.
 
@@ -109,4 +109,14 @@ Kestrel opens on **Projects**. Create a project or open the demo, then use **Add
 
 Use the grid’s **Info** button, right-click, or touch and hold to access ratings, Keep/Reject flags and camera metadata. Shift-click, Ctrl/Cmd-click, or use **Select photos** in Workspace options to rate or flag several photos from the same panel. Embedded XMP ratings, including the XMP reject value, are read where available. New ratings and flags stay in Kestrel’s catalogue and do not rewrite source files.
 
-**Crop & straighten** offers aspect-ratio choices, crop positioning, rotation and fine straightening. **Make crop copy** uses a small local detail scan to place a 4:5 or 5:4 crop on a virtual copy. The edit preview and export use the same framing. All image operations run on the device. Production deployments cache the application and demo assets after the first successful load when the browser allows service workers. Clearing browser storage removes local project data and the offline cache.
+**Crop & straighten** offers aspect-ratio choices, crop positioning, rotation and fine straightening. **Auto crop copy** uses a small local detail scan to place a 4:5 or 5:4 crop on a virtual copy. The edit preview and export use the same framing. All image operations run on the device. Production deployments cache the application and demo assets after the first successful load when the browser allows service workers. Clearing browser storage removes local project data and the offline cache.
+
+### Review, crop and export
+
+The Library opens in **To review** for new projects and existing projects previously showing all photos. **Keep** moves the photo into **Keepers**, and the review queue stays at the current position. Undo is accessible from either collection. Focus mode hides the filmstrip and shortcut tips. Interface transitions respect reduced-motion settings.
+
+Edit opens with compact sliders. Quick choices write to the same adjustment values. The macro pad supports copy, paste, before/after, reset, neutral warmth and dial adjustment. **Crop & straighten** shows a draggable crop rectangle with optional thirds lines and a preview of the cut. Straightening fills the output using valid source pixels. Auto-level looks for a strong, continuous horizon or level line. Auto crop creates a virtual copy, placing a detail estimate near a third where the source allows and retaining the selected ratio and rotation. It does not identify subjects or eyes.
+
+The editor draws a bounded fit preview and increases detail in the visible area when you zoom. Full-size export renders from the decoded source at the final crop dimensions. **Export** supports one photo, a grid selection or the visible Keepers. Select one or more destinations. Full-size PNG is lossless at the rendered 8-bit sRGB stage. Social JPEGs use configurable size, quality and filename prefixes, retain framing, and never upscale. Facebook, TikTok and Threads defaults are practical framing and file-size choices, not upload limits. X's preset checks the published 5 MB photo limit. Choose export time, recorded capture time where available, or a custom date. The rendered files carry the selected photo timestamp. Share or save through the device share sheet where supported, or download a ZIP. Camera metadata beyond the date is not copied into rendered exports. Download the original from Edit options to retain the source file and all its metadata.
+
+**Next image-analysis work:** validate local subject segmentation and eye-location models on birds, dogs and other wildlife. The editor should show a reviewable mask, confidence and a manual correction route. Confirmed eye/subject coordinates can feed crop and culling. The mask geometry and adjustments must render consistently in zoom tiles and exports. Online compute may be offered as an opt-in fallback, without becoming a dependency for import, editing or export.

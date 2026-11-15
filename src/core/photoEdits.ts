@@ -43,3 +43,32 @@ export function applyPhotoEdit(pixels: Uint8ClampedArray, edit: PhotoEdit): void
     pixels[index + 2] = toByte(luminance + (blue - luminance) * saturation);
   }
 }
+
+function* editCanvasStrips(canvas: HTMLCanvasElement, edit: PhotoEdit): Generator<void> {
+  if (isNeutralEdit(edit)) return;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Canvas unavailable');
+  const rows = Math.max(1, Math.floor(262144 / canvas.width));
+  for (let y = 0; y < canvas.height; y += rows) {
+    const pixels = context.getImageData(0, y, canvas.width, Math.min(rows, canvas.height - y));
+    applyPhotoEdit(pixels.data, edit);
+    context.putImageData(pixels, 0, y);
+    yield;
+  }
+}
+
+export function applyCanvasPhotoEdit(canvas: HTMLCanvasElement, edit: PhotoEdit): void {
+  for (const _ of editCanvasStrips(canvas, edit)) {
+    // The fit preview has a bounded raster, so render it in one pass.
+  }
+}
+
+export async function applyCanvasExportEdit(canvas: HTMLCanvasElement, edit: PhotoEdit, signal?: AbortSignal): Promise<void> {
+  let lastYield = performance.now();
+  for (const _ of editCanvasStrips(canvas, edit)) {
+    signal?.throwIfAborted();
+    if (performance.now() - lastYield < 16) continue;
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    lastYield = performance.now();
+  }
+}

@@ -99,7 +99,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     <div className={`relative overflow-hidden bg-[#0B0C0E] ${className}`}>
       {loading && (
         <div
-          className="absolute inset-0 bg-[#181A1E] animate-pulse"
+          className="absolute inset-0 bg-[#181A1E] motion-safe:animate-pulse"
           aria-hidden="true"
         />
       )}
@@ -116,7 +116,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
             setLoading(false);
           }}
           style={demoStyle}
-          className={`w-full h-full select-none transition-opacity duration-150 ${
+          className={`w-full h-full select-none motion-safe:transition-opacity motion-safe:duration-150 ${
             loading ? 'opacity-0' : 'opacity-100'
           } ${imgClassName}`}
         />

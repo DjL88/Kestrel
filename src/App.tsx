@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ProjectList } from './components/ProjectList';
 import { appendProjectPhotos, createEmptyProject } from './core/projects';
 import { createVirtualCopy } from './core/virtualCopies';
+import { PhotoExportPanel } from './components/PhotoExportPanel';
 import { PhotoEditor } from './components/PhotoEditor';
 import type { PhotoFraming } from './core/photoFraming';
 import { isNeutralEdit, type PhotoEdit } from './core/photoEdits';
@@ -75,6 +76,7 @@ export default function App() {
     createDemoShootState(500)
   );
   const [editing, setEditing] = useState(false);
+  const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
   const [showPhotoInfo, setShowPhotoInfo] = useState(false);
   const [copiedEdit, setCopiedEdit] = useState<PhotoEdit | null>(null);
   const [batchUndo, setBatchUndo] = useState<{
@@ -149,7 +151,13 @@ export default function App() {
   }, [cullingState, projectsOpen]);
 
   function enterProject(state: CullingState) {
-    setCullingState(state);
+    const filter = state.filter === 'all' ? 'unreviewed' : state.filter;
+    const visible = filterFrames(state.frames, filter, state.searchQuery);
+    setCullingState({
+      ...state,
+      filter,
+      selectedFrameId: visible.find((frame) => frame.id === state.selectedFrameId)?.id ?? visible[0]?.id ?? null,
+    });
     setEditing(false);
     setInfoFrameId(undefined);
     setShowPhotoInfo(false);
@@ -514,6 +522,7 @@ export default function App() {
     });
   };
 
+  const filmstripVisible = prefs.showFilmstrip && !prefs.focusMode;
   const toggleFilmstrip = () => setPrefs((prev) => ({ ...prev, showFilmstrip: !prev.showFilmstrip }));
 
   const applyEditToKeepers = (edit: PhotoEdit) => {
@@ -548,7 +557,7 @@ export default function App() {
   // Global keyboard listener wired through unified resolveKeyboardCommand
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (projectsOpen || loadingProgress) return;
+      if (projectsOpen || loadingProgress || exportFrames.length) return;
       if (e.key === 'Escape' && showPhotoInfo) {
         setShowPhotoInfo(false);
         setInfoFrameId(undefined);
@@ -577,7 +586,7 @@ export default function App() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [projectsOpen, loadingProgress, showPhotoInfo, editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
+  }, [projectsOpen, loadingProgress, exportFrames.length, showPhotoInfo, editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
 
   const handleSelectLocalFiles = async (files: File[]) => {
     const existing = new Set(cullingState.frames.map((frame) => frame.stableKey));
@@ -702,7 +711,7 @@ export default function App() {
         <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-[#14161A] px-3 py-1">
           <button type="button" onClick={() => setEditing(false)} className="min-h-11 shrink-0 rounded-md px-2 text-sm font-medium hover:bg-white/10">Back</button>
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? 'Edit photo'}</h1>
-          {!prefs.showFilmstrip && (
+          {!filmstripVisible && (
             <div className="flex shrink-0">
               <button type="button" aria-label="Previous photo" disabled={selectedVisibleIndex <= 0} onClick={() => handleStepFrame(-1)}
                 className="h-11 w-11 rounded-md text-lg disabled:opacity-30">‹</button>
@@ -771,6 +780,14 @@ export default function App() {
           setMultiSelect(!multiSelect);
         } : undefined}
         multiSelect={multiSelect}
+        focusMode={prefs.focusMode}
+        onToggleFocusMode={() => {
+          setShowPhotoInfo(false);
+          setPrefs((prev) => ({ ...prev, focusMode: !prev.focusMode }));
+        }}
+        onExportKeepers={cullingState.filter === 'keep' && visibleFrames.length
+          ? () => setExportFrames(visibleFrames) : undefined}
+        onUndo={cullingState.undoStack.length ? () => executeCommand('cull.undo') : undefined}
         showFilmstrip={prefs.showFilmstrip}
         onToggleFilmstrip={toggleFilmstrip}
         showPhotoInfo={showPhotoInfo}
@@ -813,6 +830,7 @@ export default function App() {
             <PhotoEditor
               key={selectedFrame.id}
               frame={selectedFrame}
+              bindings={prefs.bindings}
               provider={previewProviderRef.current!}
               needsAccess={needsAccess}
               onEdit={(edit) => updateFrame(selectedFrame.id, { edit: isNeutralEdit(edit) ? undefined : { ...edit } })}
@@ -823,8 +841,10 @@ export default function App() {
               onRemoveVirtualCopy={selectedFrame.virtualCopy ? removeVirtualCopy : undefined}
               panelSide={prefs.editPanelSide}
               onPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, editPanelSide: side }))}
-              showFilmstrip={prefs.showFilmstrip}
-              onToggleFilmstrip={toggleFilmstrip}
+              showFilmstrip={filmstripVisible}
+              onToggleFilmstrip={() => setPrefs((prev) => ({
+                ...prev, showFilmstrip: !filmstripVisible, focusMode: false,
+              }))}
               keeperCount={counts.keep}
               onApplyToKeepers={applyEditToKeepers}
               onUndoKeeperEdits={batchUndo ? undoKeeperEdits : undefined}
@@ -844,13 +864,25 @@ export default function App() {
           {!editing && multiSelect && prefs.viewMode === 'grid' && (
             <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#15171C] px-3 text-sm">
               <span>{selectedIds.size} selected</span>
+              <div className="flex items-center">
+              <button type="button" disabled={!selectedIds.size} className="min-h-11 px-2 text-sky-200 disabled:opacity-40"
+                onClick={() => setExportFrames(cullingState.frames.filter((frame) => selectedIds.has(frame.id)))}>
+                Export selected
+              </button>
               <button type="button" className="min-h-11 px-2" onClick={() => {
                 setMultiSelect(false);
                 setSelectedIds(new Set());
               }}>Done</button>
+              </div>
             </div>
           )}
-          {!editing && cullingState.frames.length > 0 && prefs.viewMode === 'grid' && (
+          {!editing && cullingState.frames.length > 0 && !visibleFrames.length && (
+            <div className="grid flex-1 place-items-center p-4">
+              <p className="text-sm text-zinc-300">{cullingState.searchQuery ? 'No photos match this search.' : cullingState.filter === 'unreviewed' ? 'You’re caught up. Your picks are in Keepers.' :
+                cullingState.filter === 'keep' ? 'Flag a photo as Keep to see it here.' : 'No rejected photos.'}</p>
+            </div>
+          )}
+          {!editing && visibleFrames.length > 0 && prefs.viewMode === 'grid' && (
             <VirtualizedContactSheet
               frames={visibleFrames}
               selectedFrameId={selectedFrame?.id ?? null}
@@ -874,7 +906,7 @@ export default function App() {
             />
           )}
 
-          {!editing && cullingState.frames.length > 0 && prefs.viewMode === 'loupe' && (
+          {!editing && visibleFrames.length > 0 && prefs.viewMode === 'loupe' && (
             <LoupePreview
               frame={selectedFrame}
               previewProvider={previewProviderRef.current!}
@@ -891,13 +923,13 @@ export default function App() {
               needsAccess={needsAccess}
               bindings={prefs.bindings}
               knobMode={prefs.knobMode}
-              showShortcutsOverlay={prefs.showShortcutsOverlay}
+              showShortcutsOverlay={prefs.showShortcutsOverlay && !prefs.focusMode}
               onExecuteCommand={executeCommand}
               onStepFrame={handleStepFrame}
             />
           )}
 
-          {!editing && cullingState.frames.length > 0 && prefs.viewMode === 'compare' && (
+          {!editing && visibleFrames.length > 0 && prefs.viewMode === 'compare' && (
             <CompareView
               leftFrame={selectedFrame}
               rightFrame={compareRightFrame}
@@ -948,12 +980,12 @@ export default function App() {
           )}
 
           {/* Persistent Filmstrip in Loupe & Compare Modes */}
-          {prefs.showFilmstrip && (editing || prefs.viewMode !== 'grid') && visibleFrames.length > 0 && (
+          {filmstripVisible && (editing || prefs.viewMode !== 'grid') && visibleFrames.length > 0 && (
             <Filmstrip
               frames={visibleFrames}
               selectedFrameId={selectedFrame?.id ?? null}
               compareRightFrameId={compareRightFrame?.id ?? null}
-              isCompareMode={!editing && cullingState.frames.length > 0 && prefs.viewMode === 'compare'}
+              isCompareMode={!editing && visibleFrames.length > 0 && prefs.viewMode === 'compare'}
               previewProvider={previewProviderRef.current!}
               needsAccess={needsAccess}
               onSelectFrame={handleSelectFrame}
@@ -977,6 +1009,9 @@ export default function App() {
           />
         )}
       </main>
+
+      {exportFrames.length > 0 && <PhotoExportPanel frames={exportFrames} provider={previewProviderRef.current!}
+        onClose={() => setExportFrames([])} />}
 
       <MacroPadModal
         open={macroPadModal}

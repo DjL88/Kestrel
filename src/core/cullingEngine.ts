@@ -436,7 +436,9 @@ export function applyDecisionWithHistory(
   // Ensure selected frame stays valid if filtered out
   const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery);
   if (nextSelectedId && !visibleAfter.some((f) => f.id === nextSelectedId)) {
-    nextSelectedId = visibleAfter[0]?.id ?? null;
+    // Removing the current photo should leave the eye at the same place in the queue.
+    const nextIndex = Math.max(0, Math.min(visibleAfter.length - 1, visibleIdx));
+    nextSelectedId = visibleAfter[nextIndex]?.id ?? null;
   }
 
   const entry = {

@@ -148,3 +148,14 @@ test('search finds confirmed subject names alongside the decision filter', () =>
   assert.deepEqual(filterFrames(frames, 'keep', ' MABEL '), [frames[0]]);
   assert.deepEqual(filterFrames(frames, 'reject', 'Mabel'), []);
 });
+
+test('flagged keepers leave the review queue and the queue stays near the current frame', () => {
+  const project = createDemoShootState(5);
+  const current = project.frames[2];
+  const state = { ...project, filter: 'unreviewed' as const, selectedFrameId: current.id };
+  const kept = applyDecisionWithHistory(state, current.id, 'keep', { allowAdvance: false });
+  assert.equal(kept.selectedFrameId, project.frames[3].id);
+  assert.equal(filterFrames(kept.frames, 'keep')[0].id, current.id);
+  assert.ok(!filterFrames(kept.frames, 'unreviewed').some((frame) => frame.id === current.id));
+  assert.equal(undoDecision(kept).selectedFrameId, current.id);
+});

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ChevronDown, Ellipsis, Plus } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Ellipsis, Plus, Undo2 } from 'lucide-react';
 import type { CullCounts, FilterState, ShootDescriptor, WorkspaceViewMode } from '../core/types';
 
 interface TopWorkspaceBarProps {
@@ -29,12 +29,16 @@ interface TopWorkspaceBarProps {
   autoAdvance: boolean;
   onToggleAutoAdvance: () => void;
   onClearDecision?: () => void;
+  onExportKeepers?: () => void;
+  onUndo?: () => void;
+  focusMode: boolean;
+  onToggleFocusMode: () => void;
   onRedo?: () => void;
   loadingProgress?: { loaded: number; total: number } | null;
 }
 
 const filterLabels: Record<FilterState, string> = {
-  all: 'All photos', unreviewed: 'Unreviewed', keep: 'Keepers', reject: 'Rejected',
+  all: 'All photos', unreviewed: 'To review', keep: 'Keepers', reject: 'Rejected',
 };
 
 const viewLabels: Record<WorkspaceViewMode, string> = {
@@ -77,15 +81,16 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
   }
 
   return (
+    <>
     <header className="relative z-20 flex min-w-0 shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-[#14161A] px-2 sm:px-4">
       <button type="button" onClick={props.onBackToProjects} disabled={props.actionsDisabled} className={actionClass} aria-label="Back to projects">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Projects</span>
       </button>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-semibold text-zinc-100" title={shoot.title}>{shoot.title}</div>
-        <div className="truncate text-xs text-zinc-400" aria-live="polite">
+        <div className="truncate text-xs text-zinc-400">
           {loadingProgress ? `Opening ${loadingProgress.loaded}/${loadingProgress.total}` :
-            `${shoot.sourceKind === 'demo' ? 'Demo · ' : 'Library · '}${counts.keep}/${keeperTarget} keepers${filter !== 'all' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}`}
+            `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter === 'all' || filter === 'reject' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}`}
         </div>
       </div>
       <div className="flex shrink-0 items-center">
@@ -100,7 +105,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
             <Ellipsis className="h-5 w-5" aria-hidden="true" />
           </button>
           {menuOpen && (
-            <div id="workspace-options" data-workspace-options className="absolute right-2 top-full mt-1 max-h-[calc(100dvh_-_4rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-white/12 bg-[#191B20] p-3 shadow-2xl sm:right-4">
+            <div id="workspace-options" data-workspace-options className="workspace-popover absolute right-2 top-full mt-1 max-h-[calc(100dvh_-_4rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-white/12 bg-[#191B20] p-3 shadow-2xl sm:right-4">
               <div className="space-y-2">
                 <label className="block text-xs font-medium text-zinc-400">
                   Search photos
@@ -142,6 +147,10 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   <input type="checkbox" checked={props.showFilmstrip} onChange={props.onToggleFilmstrip} />
                   Pin filmstrip
                 </label>
+                <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
+                  <input type="checkbox" checked={props.focusMode} onChange={props.onToggleFocusMode} />
+                  Focus mode
+                </label>
               </details>
               <details className="mt-2 border-t border-white/10 pt-2">
                 <summary className="min-h-10 cursor-pointer py-2 text-sm text-zinc-300">Culling settings</summary>
@@ -164,5 +173,26 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
         </div>
       </div>
     </header>
+    <nav aria-label="Photo collections" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-[#14161A] px-2 sm:px-4">
+      <div className="flex items-center gap-1">
+        {(['unreviewed', 'keep'] as const).map((collection) => (
+          <button key={collection} type="button" aria-current={filter === collection ? 'page' : undefined}
+            disabled={props.actionsDisabled} onClick={() => props.onFilterChange(collection)}
+            className="flex min-h-11 items-center gap-2 border-b-2 border-transparent px-2 text-sm text-zinc-300 hover:text-white aria-[current=page]:border-sky-200 aria-[current=page]:text-white motion-safe:transition-colors">
+            {filterLabels[collection]} <span className="text-xs tabular-nums text-zinc-400">{counts[collection]}</span>
+          </button>
+        ))}
+      </div>
+      <div className="flex shrink-0 items-center">
+      {props.onExportKeepers && <button type="button" disabled={props.actionsDisabled} className={`${actionClass} text-sky-200`}
+        onClick={props.onExportKeepers} aria-label="Export keepers"><span className="sm:hidden">Export</span><span className="hidden sm:inline">Export keepers</span></button>}
+      <button type="button" disabled={!props.onUndo || props.actionsDisabled}
+        onClick={props.onUndo} aria-label="Undo last flag"
+        className={`${actionClass} text-zinc-300 disabled:opacity-35`}>
+        <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Undo</span>
+      </button>
+      </div>
+    </nav>
+    </>
   );
 }
