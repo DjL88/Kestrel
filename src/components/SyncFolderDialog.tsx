@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import { applySnapshot, buildSnapshot, parseSnapshot, planApply, syncNameFor, type ProjectSnapshot } from '../core/projectSnapshot';
+import { applySnapshot, buildSnapshot, isNewerHere, looksLikeAnotherProject, parseSnapshot, planApply, syncNameFor, type ProjectSnapshot } from '../core/projectSnapshot';
 import { syncPath } from '../core/storageConnectors';
 import type { PhotoFrame } from '../core/types';
 import { pickSyncFolder } from '../providers/folderConnector';
+import type { StorageConnector } from '../core/storageConnectors';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
 
 const action = 'min-h-11 rounded-md border border-white/15 px-3 text-sm text-zinc-100 hover:bg-white/8 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-sky-300';
 
-interface Props { title: string; projectId: string; frames: PhotoFrame[]; onApply: (frames: PhotoFrame[]) => void; onClose: () => void }
+interface Props { title: string; projectId: string; updatedAt?: number; frames: PhotoFrame[]; onApply: (frames: PhotoFrame[]) => void; onClose: () => void }
 
 /** Send a project's decisions and edits to a folder you choose, or bring them from one. Nothing leaves the device but into that folder. */
-export function SyncFolderDialog({ title, frames, onApply, onClose }: Props) {
+export function SyncFolderDialog({ title, projectId, updatedAt, frames, onApply, onClose }: Props) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  const [pending, setPending] = useState<{ snapshot: ProjectSnapshot; matching: number; changed: number; missingHere: number; from: string } | null>(null);
+  const [pending, setPending] = useState<{ snapshot: ProjectSnapshot; matching: number; changed: number; missingHere: number; from: string; another: boolean; newerHere: boolean } | null>(null);
+  const [replacing, setReplacing] = useState<{ connector: StorageConnector; existing: ProjectSnapshot; from: string } | null>(null);
   const previous = useRef<HTMLElement | null>(focusBeforeOpening());
   const heading = useRef<HTMLHeadingElement>(null);
   const name = syncNameFor(title);
@@ -38,10 +40,18 @@ export function SyncFolderDialog({ title, frames, onApply, onClose }: Props) {
     if (picked === 'unsupported') { setNote('This browser cannot pick a folder. Use the Kestrel desktop app, or Chrome or Edge.'); return; }
     const test = await picked.connector.test();
     if (!test.ok) { setNote(test.reason); return; }
-    const snapshot = buildSnapshot(title, frames, new Date());
-    await picked.connector.put(path, new TextEncoder().encode(JSON.stringify(snapshot)), '');
-    setNote(`Saved ${snapshot.photos.length} photos' decisions and edits to “${picked.name}”.`);
+    // Two projects with the same title share a file name. Never replace another project's copy without asking.
+    const existingBytes = await picked.connector.get(path);
+    const existing = existingBytes ? parseSnapshot(new TextDecoder().decode(existingBytes)) : null;
+    if (existing && looksLikeAnotherProject(frames, existing, projectId)) { setReplacing({ connector: picked.connector, existing, from: picked.name }); return; }
+    await save(picked.connector, picked.name);
   });
+
+  async function save(connector: StorageConnector, folder: string) {
+    const snapshot = buildSnapshot(title, frames, new Date(), projectId);
+    await connector.put(path, new TextEncoder().encode(JSON.stringify(snapshot)), '');
+    setNote(`Saved ${snapshot.photos.length} photos' decisions and edits to “${folder}”.`);
+  }
 
   const bring = () => run(async () => {
     const picked = await pickSyncFolder();
@@ -50,7 +60,7 @@ export function SyncFolderDialog({ title, frames, onApply, onClose }: Props) {
     const bytes = await picked.connector.get(path);
     const snapshot = bytes ? parseSnapshot(new TextDecoder().decode(bytes)) : null;
     if (!snapshot) { setNote(`“${picked.name}” has no saved copy of “${title}”. Send it from your other device first.`); return; }
-    setPending({ snapshot, ...planApply(frames, snapshot), from: picked.name });
+    setPending({ snapshot, ...planApply(frames, snapshot), from: picked.name, another: looksLikeAnotherProject(frames, snapshot, projectId), newerHere: isNewerHere(updatedAt, snapshot) });
   });
 
   return (
@@ -60,17 +70,28 @@ export function SyncFolderDialog({ title, frames, onApply, onClose }: Props) {
           <h2 id="sync-title" ref={heading} tabIndex={-1} className="text-base font-semibold text-zinc-100 focus:outline-none">Sync folder</h2>
         </header>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 text-sm text-zinc-300">
-          {pending ? (
+          {replacing ? (
+            <div className="space-y-3" role="group" aria-label="Confirm replacing a saved copy">
+              <p>“{replacing.from}” already holds a saved copy called “{replacing.existing.title}” that looks like a <strong>different project</strong> ({replacing.existing.photos.length} photos, saved {new Date(replacing.existing.savedAt).toLocaleString('en-GB')}). Sending this project would replace it.</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className={action} disabled={busy} onClick={() => void run(async () => { await save(replacing.connector, replacing.from); setReplacing(null); })}>Replace that copy</button>
+                <button type="button" className={action} onClick={() => setReplacing(null)}>Cancel</button>
+              </div>
+            </div>
+          ) : pending ? (
             <div className="space-y-3" role="group" aria-label="Confirm bringing changes">
+              {pending.another && <p role="alert" className="text-amber-200">This saved copy looks like a <strong>different project</strong>: few of its photos are in this one. Check you chose the right folder.</p>}
+              {pending.newerHere && <p role="alert" className="text-amber-200">You changed this project on this device <strong>after</strong> that copy was saved. Bringing it would undo your newer work here.</p>}
               <p><strong>{pending.changed}</strong> of the <strong>{pending.matching}</strong> matching photos would change here.</p>
               <p>This replaces their decisions, ratings, tags and edits on this device with the saved copy from “{pending.from}”. Photos not in it are left alone{pending.missingHere ? `, and ${pending.missingHere} in it are not in this project` : ''}. Use <strong>Back up project</strong> first if you want a way back.</p>
               <div className="flex flex-wrap gap-2">
-                <button type="button" className={action} disabled={!pending.changed} onClick={() => { onApply(applySnapshot(frames, pending.snapshot)); setNote(`Brought ${pending.changed} photos up to date.`); setPending(null); }}>Replace {pending.changed} photos</button>
+                <button type="button" className={action} disabled={!pending.changed} onClick={() => { onApply(applySnapshot(frames, pending.snapshot)); setNote(`Brought ${pending.changed} photos up to date.`); setPending(null); }}>{pending.another || pending.newerHere ? 'Replace anyway' : `Replace ${pending.changed} photos`}</button>
                 <button type="button" className={action} onClick={() => setPending(null)}>Cancel</button>
               </div>
             </div>
           ) : (
             <>
+              <p role="note" className="rounded-md border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-amber-100"><strong>Experimental.</strong> This is a manual hand-over, not automatic sync, and it has not been tested on every system. Back up the project first.</p>
               <p>Keep this project's decisions, ratings, tags and edits in step between your devices through any folder you choose, such as one in iCloud Drive, Dropbox, OneDrive or a shared drive. Only that small file goes into the folder. Your photos are never copied or changed.</p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" className={action} disabled={busy} onClick={() => void send()}>Send this project to a folder</button>
