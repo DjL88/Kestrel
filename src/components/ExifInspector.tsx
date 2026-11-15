@@ -31,10 +31,10 @@ function formatCaptureTime(ms?: number): string {
 }
 
 export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount, onClose, onRate, onFlag, onSubjects, onKeepTag }) => {
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
   if (!frame) return null;
 
   const { exif } = frame;
-  const [copyStatus, setCopyStatus] = useState<string | null>(null);
   async function copyInfo() {
     try {
       await navigator.clipboard.writeText(photoInfoText(frame));
