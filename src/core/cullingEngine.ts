@@ -1,3 +1,4 @@
+import { searchWords } from './subjectTags';
 import { matchesRating } from './ratingFilter';
 import type {
   CullCounts,
@@ -339,7 +340,7 @@ export function filterFrames(
       frame.exif.camera ?? '',
       frame.exif.lens ?? '',
       frame.demoVariant?.demoSceneLabel ?? '',
-      ...(frame.subjectNames ?? []),
+      ...searchWords(frame),
     ]
       .join(' ')
       .toLowerCase();

@@ -657,7 +657,7 @@ export default function App() {
     [selectedFrame, handleDecideFrame, toggleCompareView, prefs.knobMode, handleStepFrame]
   );
 
-  const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames' | 'rating' | 'framing' | 'focusPoint'>) => {
+  const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames' | 'tags' | 'subjectKind' | 'rating' | 'framing' | 'focusPoint'>) => {
     const at = Date.now();
     const isRecipe = 'edit' in patch || 'framing' in patch;
     setCullingState((prev) => ({
@@ -1135,7 +1135,7 @@ export default function App() {
               keeperCount={counts.keep}
               onApplyToKeepers={applyEditToKeepers}
               onUndoKeeperEdits={batchUndo ? undoKeeperEdits : undefined}
-              onSubjectsChange={(subjectNames) => updateFrame(selectedFrame.id, { subjectNames })}
+              onSubjectsChange={(tags, subjectKind) => updateFrame(selectedFrame.id, { tags, subjectNames: [], subjectKind })}
             />
           )}
           {!editing && liveFrames.length === 0 && (
