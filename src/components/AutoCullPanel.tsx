@@ -82,7 +82,7 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo,
       {!results && <div className="mt-3 space-y-2">
         <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={autoMove}
           disabled={progress !== undefined} onChange={(event) => setAutoMove(event.target.checked)} />{m.autoMove}</label>
-        <button type="button" className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover`}
+        <button type="button" className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
           disabled={!candidates.length || progress !== undefined} onClick={() => void scan()}>
           {progress === undefined ? m.scan : m.scanning(formatCount.format(progress), formatCount.format(total))}
         </button>

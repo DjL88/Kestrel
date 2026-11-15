@@ -450,7 +450,7 @@ export function PhotoEditor({ autoEdit,
             <span className="rounded bg-black/40 px-1.5 text-xs">{displayCompare ? 'On' : 'Off'}</span>
           </button>
         </div>
-        <button type="button" className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover`}
+        <button type="button" className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
           disabled={sourceState !== 'ready'} onClick={() => setExportOpen(true)}>
           <Download className="h-4 w-4" aria-hidden="true" />Export
         </button>
@@ -757,7 +757,7 @@ export function PhotoEditor({ autoEdit,
         {tab === 'crop' && (
           <div role="tabpanel" id="panel-crop" aria-labelledby="tab-crop" className="space-y-2">
             <div className="flex flex-wrap gap-2">
-              <button type="button" disabled={sourceState !== 'ready'} className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover`}
+              <button type="button" disabled={sourceState !== 'ready'} className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
                 onClick={() => setTab('edit')}>Apply crop</button>
               <button type="button" disabled={sourceState !== 'ready'} className={`${button} border border-white/15`}
                 onClick={() => { if (cropEntry.current) onFramingChange(cropEntry.current); setTab('edit'); }}>Cancel</button>

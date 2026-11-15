@@ -54,7 +54,7 @@ export function ProjectList({ projects, loading, error, onOpen, onCreate, onRest
             <Zap className="h-4 w-4" aria-hidden="true" /> Quick edit
           </button>
           <button type="button" onClick={() => setCreating(!creating)} disabled={loading}
-            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-kestrel-copper px-3 text-sm font-semibold text-zinc-950 disabled:opacity-50">
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-kestrel-copper hover:bg-kestrel-copper-hover! px-3 text-sm font-semibold text-zinc-950 disabled:opacity-50">
             <Plus className="h-4 w-4" aria-hidden="true" /> New project
           </button>
           </div>

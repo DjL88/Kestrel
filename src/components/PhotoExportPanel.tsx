@@ -138,9 +138,9 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
           <div className="space-y-3">
             <p role="status" className="text-sm text-zinc-300">{files.length} {files.length === 1 ? 'file ready' : 'files ready'}</p>
             <div className="flex flex-wrap gap-2">
-              {files.length === 1 && <button type="button" className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover`}
+              {files.length === 1 && <button type="button" className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
                 onClick={() => downloadExport(files[0], files[0].name)}>Download</button>}
-              {files.length > 1 && <button type="button" disabled={archiving} className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover`}
+              {files.length > 1 && <button type="button" disabled={archiving} className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
                 onClick={() => void downloadZip()}>{archiving ? 'Packing ZIP…' : 'Download ZIP'}</button>}
               {canShare && <button type="button" className={button} onClick={() => {
                 void navigator.share({ files }).catch((reason) => {
@@ -222,7 +222,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
                 ))}
               </fieldset>
             </details>
-            <button type="submit" disabled={!total || progress !== null} className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover`}>
+            <button type="submit" disabled={!total || progress !== null} className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}>
               {progress !== null ? `Preparing ${progress}/${total}…` : `Prepare ${total} ${total === 1 ? 'file' : 'files'}`}
             </button>
             {progress !== null && <progress aria-label="Export progress" className="block w-full" value={progress} max={total} />}
