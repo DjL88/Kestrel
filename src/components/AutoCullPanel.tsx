@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
 import { X } from 'lucide-react';
 import type { CullSuggestion } from '../core/autoCull';
+import { summarizeCullSuggestions } from '../core/autoCullSummary';
 import type { PhotoFrame } from '../core/types';
 import { messages as m, formatCount } from '../i18n/messages';
 import { scanForCulling } from '../providers/browserAutoCull';
@@ -45,6 +46,7 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo,
   }, []);
 
   const candidates = frames.filter((frame) => !frame.removedAt && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
+  const summary = results ? summarizeCullSuggestions(results) : null;
   const high = (results ?? []).flatMap((result) =>
     result.confidence === 'high' && result.decision ? [{ frameId: result.frameId, decision: result.decision }] : []);
 
@@ -96,6 +98,12 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo,
       </div>}
       {failed && <p role="alert" className="mt-2 text-sm text-orange-200">{m.scanFailed}</p>}
       {results && <div className="mt-3 space-y-3">
+        {summary && <section aria-label="Auto-cull summary" className="space-y-1 rounded-md border border-white/15 p-3 text-sm">
+          <p className="font-semibold">Scan finished · {formatCount.format(summary.total)} photos</p>
+          <p>{formatCount.format(summary.automaticKeep)} suggested keepers · {formatCount.format(summary.automaticDuplicate)} exact duplicates</p>
+          <p>{formatCount.format(summary.needReview)} still need your review.</p>
+          {summary.needReview > 0 && <p className="text-xs text-zinc-400">A target of {formatCount.format(keeperTarget)} keepers does not mean the other photos are automatically rejected. Uncertain photos stay in To review.</p>}
+        </section>}
         {high.length > 0 && (applied ? <div className="flex flex-wrap items-center gap-2">
           <p role="status" className="text-sm">{m.moved(formatCount.format(high.length))}</p>
           <button type="button" className={button} onClick={() => { onUndo(); setApplied(false); }}>{m.undo}</button>
