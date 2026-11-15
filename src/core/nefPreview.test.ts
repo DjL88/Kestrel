@@ -101,3 +101,17 @@ test('NEF preview requires plausible width and height, not just one large dimens
   assert.equal((await extractNefPreview(new Blob([header, preview(8256, 5504)])))?.size, 5000);
   assert.equal((await extractNefPreview(new Blob([header, preview(640, 480)])))?.size, 5000);
 });
+
+test('rejects a truncated JPEG SOF segment even when width and height look valid', async () => {
+  const bytes = new Uint8Array(5000);
+  const view = new DataView(bytes.buffer);
+  bytes.set([0xff, 0xd8, 0xff, 0xc0], 0);
+  view.setUint16(4, 6000); // Claims more SOF bytes than the entire preview contains.
+  bytes[6] = 8;
+  view.setUint16(7, 5504);
+  view.setUint16(9, 8256);
+  bytes.set([0xff, 0xd9], bytes.length - 2);
+  const header = container(true, 64);
+  new DataView(header.buffer).setUint32(44, bytes.length, true);
+  assert.equal(await extractNefPreview(new Blob([header, bytes])), null);
+});
