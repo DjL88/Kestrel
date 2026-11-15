@@ -50,6 +50,7 @@ export interface PhotoFrame {
   sequenceIndex: number;
   decision: CullDecision;
   edit?: PhotoEdit;
+  virtualCopy?: { originalFrameId: string; number: number };
   subjectNames?: string[];
   burstGroupId: string | null;
   burstIndex: number;

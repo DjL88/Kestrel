@@ -20,6 +20,8 @@ export interface UserPreferences {
   showShortcutsOverlay: boolean;
   bindings: KeyBindingsMap;
   knobMode: KnobFunction;
+  showFilmstrip: boolean;
+  editPanelSide: 'left' | 'right';
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -27,6 +29,8 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   showShortcutsOverlay: false,
   bindings: DEFAULT_KEY_BINDINGS,
   knobMode: 'navigate',
+  showFilmstrip: true,
+  editPanelSide: 'right',
 };
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -103,6 +107,8 @@ export function loadPreferences(): UserPreferences {
       showShortcutsOverlay:
         parsed.showShortcutsOverlay ?? DEFAULT_PREFERENCES.showShortcutsOverlay,
       knobMode: parsed.knobMode ?? DEFAULT_PREFERENCES.knobMode,
+      showFilmstrip: parsed.showFilmstrip ?? DEFAULT_PREFERENCES.showFilmstrip,
+      editPanelSide: parsed.editPanelSide === 'left' ? 'left' : 'right',
       bindings: {
         ...DEFAULT_KEY_BINDINGS,
         ...(parsed.bindings ?? {}),
