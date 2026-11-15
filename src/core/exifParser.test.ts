@@ -93,3 +93,11 @@ test('rejects corrupt numeric EXIF values instead of displaying impossible camer
   assert.equal(validExifDimension(Number.MAX_SAFE_INTEGER + 1), undefined);
   assert.equal(formatFocalLength(Infinity), '');
 });
+
+
+test('malformed camera make/model values do not crash EXIF formatting', () => {
+  assert.equal(formatCameraLabel({ invalid: true }, 'NIKON Z 8'), 'NIKON Z 8');
+  assert.equal(formatCameraLabel('NIKON CORPORATION', ['Z 5II']), 'NIKON CORPORATION');
+  assert.equal(formatCameraLabel(123, null), undefined);
+  assert.equal(formatCameraLabel('  Nikon  ', '  Z 5II  '), 'Nikon Z 5II');
+});

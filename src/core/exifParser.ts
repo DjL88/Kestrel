@@ -58,9 +58,11 @@ export function formatFocalLength(focalLengthMm?: number): string {
   return `${Math.round(focalLengthMm)}mm`;
 }
 
-export function formatCameraLabel(make?: string, model?: string): string | undefined {
-  const cleanMake = make?.trim() ?? '';
-  const cleanModel = model?.trim() ?? '';
+export function formatCameraLabel(make?: unknown, model?: unknown): string | undefined {
+  // Corrupt EXIF may contain non-string Make/Model values. Preserve other
+  // metadata rather than letting .trim() throw and discard the whole parse.
+  const cleanMake = typeof make === 'string' ? make.trim() : '';
+  const cleanModel = typeof model === 'string' ? model.trim() : '';
   if (!cleanMake && !cleanModel) return undefined;
   if (!cleanMake) return cleanModel;
   if (!cleanModel) return cleanMake;
