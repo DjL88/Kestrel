@@ -29,9 +29,46 @@ fn apply_orientation(image: RgbImage, exif_orientation: u16) -> RgbImage {
 /// A plain-English reason for a decoder error, so the person sees what is going on rather than a library message.
 fn explain(error: &str) -> String {
     if error.contains("HighEfficen") {
-        "This is a Nikon High Efficiency (HE) RAW file, a compressed mode Kestrel cannot decode yet.".to_string()
+        "This is a Nikon High Efficiency (HE) RAW file, a compressed mode Kestrel cannot decode on this computer (a Mac can).".to_string()
     } else {
         format!("This RAW file could not be read: {error}")
+    }
+}
+
+/// macOS can read RAW formats the built-in decoder cannot, including Nikon High Efficiency (HE and HE*) files, because the
+/// system's own RAW engine includes licensed decoders. `sips` is part of macOS and uses that engine. The result is Apple's
+/// neutral rendering at the file's full size, already turned the right way up. Used only when the built-in decoder fails.
+#[cfg(target_os = "macos")]
+fn develop_with_system(bytes: &[u8], extension: &str) -> Result<Vec<u8>, String> {
+    use std::process::Command;
+    let folder = std::env::temp_dir().join(format!("kestrel-raw-{}-{}", std::process::id(), bytes.len()));
+    std::fs::create_dir_all(&folder).map_err(|error| error.to_string())?;
+    let input = folder.join(format!("in.{extension}"));
+    let output = folder.join("out.jpg");
+    let result = (|| {
+        std::fs::write(&input, bytes).map_err(|error| error.to_string())?;
+        let status = Command::new("/usr/bin/sips")
+            .args(["-s", "format", "jpeg", "-s", "formatOptions", "95"])
+            .arg(&input).arg("--out").arg(&output)
+            .output()
+            .map_err(|error| error.to_string())?;
+        if !status.status.success() { return Err("macOS could not read this RAW file either.".to_string()); }
+        std::fs::read(&output).map_err(|_| "macOS could not read this RAW file either.".to_string())
+    })();
+    let _ = std::fs::remove_dir_all(&folder);
+    result
+}
+
+#[cfg(not(target_os = "macos"))]
+fn develop_with_system(_bytes: &[u8], _extension: &str) -> Result<Vec<u8>, String> {
+    Err("No system RAW decoder is available on this computer.".to_string())
+}
+
+/// Develop a RAW file: the built-in decoder first, then (on a Mac) the system's, for modes such as Nikon HE and HE*.
+pub fn develop_any(bytes: &[u8], extension: &str) -> Result<Vec<u8>, String> {
+    match develop(bytes) {
+        Ok(jpeg) => Ok(jpeg),
+        Err(error) => develop_with_system(bytes, extension).map_err(|_| error),
     }
 }
 
@@ -99,6 +136,20 @@ mod tests {
             assert_eq!(layout(&super::apply_orientation(picture(), orientation)), wanted, "orientation {orientation}");
         }
         assert_eq!(layout(&super::apply_orientation(picture(), 0)), layout(&picture()), "unknown leaves it alone");
+    }
+
+    /// Only a Mac can do this, and the file is the owner's own Z8 HE* picture, not kept in the repository.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn a_mac_develops_nikon_high_efficiency_files_through_the_system() {
+        let Some(dir) = samples() else { eprintln!("skipped: KESTREL_RAW_SAMPLES not set"); return };
+        let path = dir.join("z8-he.nef");
+        if !path.exists() { eprintln!("skipped: z8-he.nef not found"); return; }
+        let bytes = std::fs::read(&path).unwrap();
+        assert!(super::develop(&bytes).is_err(), "the built-in decoder should not read HE* (if it can now, this fallback is no longer needed for it)");
+        let jpeg = super::develop_any(&bytes, "nef").expect("the system decoder reads HE*");
+        let image = image::load_from_memory_with_format(&jpeg, image::ImageFormat::Jpeg).unwrap().to_rgb8();
+        assert_eq!((image.width(), image.height()), (8256, 5504));
     }
 
     #[test]

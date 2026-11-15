@@ -11,8 +11,11 @@ use tauri::Emitter;
 async fn develop_raw(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Response, String> {
     let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else { return Err("No file was sent.".into()) };
     let bytes = bytes.to_vec();
+    // The file's extension, so the system decoder on a Mac knows what it is given.
+    let extension = request.headers().get("x-file-extension").and_then(|value| value.to_str().ok())
+        .filter(|value| value.chars().all(|c| c.is_ascii_alphanumeric()) && !value.is_empty() && value.len() <= 5).unwrap_or("nef").to_string();
     // A decoder can panic on a damaged file; run it apart so that becomes an error message, not a crash.
-    let jpeg = tauri::async_runtime::spawn_blocking(move || raw::develop(&bytes))
+    let jpeg = tauri::async_runtime::spawn_blocking(move || raw::develop_any(&bytes, &extension))
         .await
         .map_err(|_| "This RAW file could not be read.".to_string())??;
     Ok(tauri::ipc::Response::new(jpeg))
