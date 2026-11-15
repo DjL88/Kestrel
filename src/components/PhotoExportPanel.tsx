@@ -13,6 +13,7 @@ import { ExportPreviewTile } from './ExportPreviewTile';
 import { ExportWizard } from './ExportWizard';
 import { returnFocus } from './focusReturn';
 import { KEEP_NAMES, stemFor, uniqueExportFilename, type NameTemplate } from '../core/exportNaming';
+import { tasks } from '../core/taskStore';
 import { useAccess } from '../providers/useAccess';
 import { FREE_DAILY_EXPORT_LIMIT } from '../core/features';
 import { parseUsage, recordUse, remainingToday } from '../core/dailyAllowance';
@@ -193,6 +194,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
     setError('');
     const controller = new AbortController();
     activeExport.current = controller;
+    const task = tasks.start(`Exporting ${frames.length * selected.length} file${frames.length * selected.length === 1 ? '' : 's'}`, { total: frames.length * selected.length, cancel: () => controller.abort() });
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chosen)); } catch { /* Optional preference. */ }
     const started = new Date();
     const pickedDate = timestamp === 'custom' ? parseCustomExportDate(customDate) : null;
@@ -217,17 +219,20 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
             ? rendered
             : new File([rendered], uniqueName, { type: rendered.type, lastModified: rendered.lastModified }));
           setProgress(output.length);
+          task.progress(output.length);
         }
       }
       if (!unlimited && output.length) { try { localStorage.setItem(USAGE_KEY, JSON.stringify(recordUse(readUsage(), new Date(), output.length))); } catch { /* the count is best effort */ } }
+      task.finish();
       setFiles(output);
       setZip(null);
       if (output.length > 1) {
         archiveExports(output).then((packed) => { if (!cancelled.current) setZip(packed); }, () => { if (!cancelled.current) setError('Could not create the ZIP. Try a smaller export selection.'); });
       }
     } catch (reason) {
-      if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Could not prepare the exports.');
+      if (!controller.signal.aborted) { const message = reason instanceof Error ? reason.message : 'Could not prepare the exports.'; setError(message); task.fail(message); }
     } finally {
+      task.fail('Stopped before it finished'); // does nothing if the task already finished or was cancelled
       activeExport.current = null;
       if (!cancelled.current) setProgress(null);
     }
