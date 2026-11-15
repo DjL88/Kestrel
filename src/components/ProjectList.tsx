@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Search, SquareChevronsRight, Trash2 } from 'lucide-react';
 import kestrelMark from '../assets/kestrel-mark.svg';
+import { version as appVersion } from '../../package.json';
 import type { ShootDescriptor } from '../core/types';
 import { NewProjectWizard } from './NewProjectWizard';
 import { CatalogueStorage } from './CatalogueStorage';
@@ -197,6 +198,15 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
           </>;
         })()}
         {projects.length > 0 && <CatalogueStorage />}
+        <footer aria-label="About Kestrel" className="mt-14 border-t border-white/10 pt-5 pb-4 text-xs leading-relaxed text-zinc-400">
+          <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
+            <div className="min-w-0">
+              <p className="font-medium text-zinc-300">About Kestrel</p>
+              <p className="mt-1 max-w-lg">Thoughtful photo culling and editing, built around a simpler workflow and respect for your originals.</p>
+            </div>
+            <p className="shrink-0 font-mono" aria-label={`Kestrel version ${appVersion}`}>Version {appVersion}</p>
+          </div>
+        </footer>
       </div>
     </main>
   );
