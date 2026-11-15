@@ -30,13 +30,14 @@ test('species suggestions: download once, look at the photo, accept a name, and 
   // An accepted name is not offered again.
   await expect(panel.getByRole('list', { name: 'Suggested names' })).toHaveCount(0);
 
-  // The model stays on the device: after a reload there is no second download, and the photo is looked at straight away.
+  // The model and accepted tag stay on the device. Reopening the same photo must not offer the tag again.
   await page.reload();
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
   await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: /^Download/ })).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('list', { name: 'Suggested names' })).toContainText('Red kite', { timeout: 30000 });
+  await expect(panel.getByText('Nothing else to suggest.')).toBeVisible({ timeout: 15000 });
+  await expect(subject.getByRole('list', { name: 'Tags' }).getByRole('listitem')).toHaveText(['Red kite']);
 });
 
 test('a suggestion can be dismissed, and the choice is not kept as a tag', async ({ page }) => {

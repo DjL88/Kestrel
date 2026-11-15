@@ -37,6 +37,7 @@ interface Props {
   onZoom: (frame: PhotoFrame, format: ExportFormat, zoom: number) => void;
   onTurn: (id: string) => void;
   overlay: OverlayOptions;
+  overlaySlot: ReactNode;
   /** Date, borders, file names and the like, shown on the last step. */
   reviewSlot: ReactNode;
   busy: boolean;
@@ -167,6 +168,7 @@ export function ExportWizard(props: Props) {
                 </select>
               </label>
             )}
+            {props.overlaySlot}
           </section>
         )}
 
@@ -185,6 +187,16 @@ export function ExportWizard(props: Props) {
               ))}
             </ul>
             <button type="button" className={quiet} onClick={() => setStep('platform')}><Plus className="h-4 w-4" aria-hidden="true" />Add another place</button>
+            {frame && selected[0] && props.overlay.on && (
+              <div className="mx-auto max-w-md">
+                <ExportPreviewTile key={`review-${frame.id}|${selected[0].id}`} large frame={frame}
+                  source={props.sources[frame.id]} format={selected[0]} bars={props.bars}
+                  anchor={props.anchorFor(frame, selected[0])} zoom={props.zoomFor(frame, selected[0])}
+                  onAnchor={(anchor) => props.onAnchor(frame, selected[0], anchor)}
+                  onZoom={(zoom) => props.onZoom(frame, selected[0], zoom)} overlay={props.overlay} />
+              </div>
+            )}
+            {props.overlaySlot}
             {props.reviewSlot}
           </section>
         )}

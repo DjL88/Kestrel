@@ -1,3 +1,4 @@
+import { Copy, ClipboardPaste, Pin, PinOff } from 'lucide-react';
 import { newId } from './core/ids';
 import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
@@ -14,7 +15,7 @@ import { PhotoExportPanel } from './components/PhotoExportPanel';
 import { PhotoEditor } from './components/PhotoEditor';
 import type { PhotoFraming } from './core/photoFraming';
 import { LEGACY_SETTINGS, type ProjectSettings } from './core/projectSettings';
-import { isEmptyEdit, type PhotoEdit } from './core/photoEdits';
+import { DEFAULT_EDIT, isEmptyEdit, type PhotoEdit } from './core/photoEdits';
 import { CompareView } from './components/CompareView';
 import { ExifInspector } from './components/ExifInspector';
 import { Filmstrip } from './components/Filmstrip';
@@ -1129,9 +1130,6 @@ export default function App() {
               panelSide={prefs.editPanelSide}
               onPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, editPanelSide: side }))}
               showFilmstrip={filmstripVisible}
-              onToggleFilmstrip={() => setPrefs((prev) => ({
-                ...prev, showFilmstrip: !filmstripVisible, focusMode: false,
-              }))}
               keeperCount={counts.keep}
               onApplyToKeepers={applyEditToKeepers}
               onUndoKeeperEdits={batchUndo ? undoKeeperEdits : undefined}
@@ -1268,6 +1266,24 @@ export default function App() {
             />
           )}
 
+          {editing && selectedFrame && (
+            <div role="toolbar" aria-label="Filmstrip controls"
+              className={`flex shrink-0 items-center gap-1 border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'md:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'md:pr-[var(--editor-panel-w,0px)]') : ''}`}>
+              <button type="button" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10"
+                onClick={() => { setCopiedEdit(selectedFrame.edit ?? DEFAULT_EDIT); showToast('Adjustments copied'); }}>
+                <Copy className="h-4 w-4" aria-hidden="true" /> Copy
+              </button>
+              <button type="button" disabled={!copiedEdit} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
+                onClick={() => { if (copiedEdit) { updateFrame(selectedFrame.id, { edit: isEmptyEdit(copiedEdit) ? undefined : { ...copiedEdit } }); showToast('Adjustments pasted'); } }}>
+                <ClipboardPaste className="h-4 w-4" aria-hidden="true" /> Paste
+              </button>
+              <button type="button" aria-pressed={filmstripVisible} className="ml-auto inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10"
+                onClick={() => setPrefs((prev) => ({ ...prev, showFilmstrip: !filmstripVisible, focusMode: false }))}>
+                {filmstripVisible ? <PinOff className="h-4 w-4" aria-hidden="true" /> : <Pin className="h-4 w-4" aria-hidden="true" />}
+                {filmstripVisible ? 'Hide filmstrip' : 'Pin filmstrip'}
+              </button>
+            </div>
+          )}
           {/* Persistent Filmstrip in Loupe & Compare Modes */}
           {filmstripVisible && (editing || prefs.viewMode !== 'grid') && visibleFrames.length > 0 && (
             <div className={editing ? (prefs.editPanelSide === 'left' ? 'md:pl-[var(--editor-panel-w,0px)]' : 'md:pr-[var(--editor-panel-w,0px)]') : undefined}>

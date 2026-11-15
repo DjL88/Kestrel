@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('home page: a finger swipe reveals Archive then Delete, a mouse never moves a row', async ({ page, context, isMobile }) => {
+test('home page: a finger swipe reveals Archive and Delete, a mouse never moves a row', async ({ page, context, isMobile }) => {
   test.skip(!isMobile, 'Real touch input is only available on the phone project');
   const cdp = await context.newCDPSession(page);
   await page.goto('/');
@@ -41,7 +41,6 @@ test('home page: a finger swipe reveals Archive then Delete, a mouse never moves
   await expect.poll(shift).toBeLessThan(-60);
   await expect(page.getByRole('button', { name: 'Archive Swipe me' }).first()).toBeVisible();
 
-  await finger(-200);
   await expect.poll(shift).toBeLessThan(-140);
   await expect(page.getByRole('button', { name: 'Delete Swipe me' }).first()).toBeVisible();
 
