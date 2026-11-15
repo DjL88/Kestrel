@@ -28,6 +28,9 @@ export interface UserPreferences {
   editPanelSide: 'left' | 'right';
 }
 
+/** A phone starts without the filmstrip, so the photo gets the room. It can be pinned from the bar under the photo. */
+const smallScreen = () => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 767px)').matches === true;
+
 export const DEFAULT_PREFERENCES: UserPreferences = {
   viewMode: 'loupe',
   showShortcutsOverlay: false,
@@ -106,7 +109,7 @@ async function idbDeleteStore(storeName: string): Promise<void> {
 export function loadPreferences(): UserPreferences {
   try {
     const raw = localStorage.getItem(PREFS_STORAGE_KEY);
-    if (!raw) return DEFAULT_PREFERENCES;
+    if (!raw) return { ...DEFAULT_PREFERENCES, showFilmstrip: !smallScreen() };
     const parsed = JSON.parse(raw) as Partial<UserPreferences>;
     const bindings = { ...DEFAULT_KEY_BINDINGS, ...parsed.bindings };
     if (bindings['edit.prevControl'] === 'Tab') bindings['edit.prevControl'] = DEFAULT_KEY_BINDINGS['edit.prevControl'];
@@ -115,7 +118,7 @@ export function loadPreferences(): UserPreferences {
       showShortcutsOverlay:
         parsed.showShortcutsOverlay ?? DEFAULT_PREFERENCES.showShortcutsOverlay,
       knobMode: parsed.knobMode ?? DEFAULT_PREFERENCES.knobMode,
-      showFilmstrip: parsed.showFilmstrip ?? DEFAULT_PREFERENCES.showFilmstrip,
+      showFilmstrip: parsed.showFilmstrip ?? !smallScreen(),
       focusMode: parsed.focusMode ?? DEFAULT_PREFERENCES.focusMode,
       editPanelSide: parsed.editPanelSide === 'left' ? 'left' : 'right',
       bindings,

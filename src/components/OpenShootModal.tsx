@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { focusBeforeOpening, returnFocus } from './focusReturn';
 import { FolderOpen, ImagePlus, X } from 'lucide-react';
 import { isSupportedPhotoFilename, supportsDirectoryPicker } from '../providers/localShootLoader';
 
@@ -32,6 +33,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
       setDropError(false);
       return;
     }
+    const previous = focusBeforeOpening();
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Escape') {
         e.preventDefault();
@@ -39,7 +41,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
       }
     };
     window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
+    return () => { window.removeEventListener('keydown', onKeyDown, true); returnFocus(previous); };
   }, [open, onClose]);
 
   if (!open) return null;

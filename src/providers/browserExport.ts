@@ -7,6 +7,7 @@ import { planExportFraming, type ExportFraming, type FocusPoint } from '../core/
 import type { BarStyle } from '../core/exportFormats';
 import { overlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { datedExport } from '../core/exportTimestamp';
+import { fitScale, maxCanvasPixels } from '../core/exportLimits';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 
@@ -45,12 +46,16 @@ async function composeExport(
   const plan = planExportFraming(width, height, profile, mode, extras.focus ?? frame.focusPoint, longEdge, extras.zoom);
   const { region } = plan;
   let { scale, border } = plan;
-  if (extras.previewEdge) {
+  {
     const finalWidth = border ? border.width : region.width * scale;
     const finalHeight = border ? border.height : region.height * scale;
-    const shrink = Math.min(1, extras.previewEdge / Math.max(finalWidth, finalHeight));
-    scale *= shrink;
-    if (border) border = { width: Math.max(1, Math.round(border.width * shrink)), height: Math.max(1, Math.round(border.height * shrink)) };
+    // A preview is small. A real export is limited by what this device can draw: an iPhone refuses about 16.7 megapixels.
+    const shrink = Math.min(extras.previewEdge ? Math.min(1, extras.previewEdge / Math.max(finalWidth, finalHeight)) : 1,
+      fitScale(finalWidth, finalHeight, maxCanvasPixels({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints })));
+    if (shrink < 1) {
+      scale *= shrink;
+      if (border) border = { width: Math.max(1, Math.round(border.width * shrink)), height: Math.max(1, Math.round(border.height * shrink)) };
+    }
   }
   const canvas = document.createElement('canvas');
   const output = border ? document.createElement('canvas') : canvas;

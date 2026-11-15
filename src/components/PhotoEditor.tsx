@@ -705,7 +705,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
       </div>
       <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
-      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:relative md:z-10 ${showFilmstrip ? 'md:-mb-[156px] ' : ''}md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
+      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:relative md:z-10 ${showFilmstrip ? 'md:-mb-[156px] md:pb-[172px] ' : ''}md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
         {!isPhone && tabList}
         {tab === 'auto' && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
@@ -804,19 +804,19 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   onFocus={() => setDial(index)}
                   onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
                   onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
-                  className="block min-h-9 w-full accent-sky-300 lg:min-h-7" />
+                  className="block min-h-9 w-full accent-sky-300 desk:min-h-7" />
               </label>
               {quickChoices && <div className="flex gap-1">
                 {options.map((name, index) => (
                   <button type="button" key={name} aria-pressed={edit[key] === index - 1}
                     onClick={() => onEdit({ ...edit, [key]: index - 1 })}
-                    className="min-h-11 rounded px-2 text-xs hover:bg-white/8 aria-pressed:bg-sky-300/15 lg:min-h-7">{name}</button>
+                    className="min-h-11 rounded px-2 text-xs hover:bg-white/8 aria-pressed:bg-sky-300/15 desk:min-h-7">{name}</button>
                 ))}
               </div>}
             </fieldset>
           ))}
           <button type="button" aria-expanded={quickChoices} onClick={() => setQuickChoices(!quickChoices)}
-            className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white lg:min-h-7">Quick choices</button>
+            className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white desk:min-h-7">Quick choices</button>
         </div>
         <details open className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
@@ -833,7 +833,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   disabled={sourceState !== 'ready'}
                   onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
                   onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
-                  className="block min-h-9 w-full accent-sky-300 disabled:opacity-45 lg:min-h-7" />
+                  className="block min-h-9 w-full accent-sky-300 disabled:opacity-45 desk:min-h-7" />
               </label>
             ))}
           </div>
@@ -853,7 +853,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   disabled={sourceState !== 'ready'}
                   onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
                   onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
-                  className="block min-h-9 w-full accent-sky-300 disabled:opacity-45 lg:min-h-7" />
+                  className="block min-h-9 w-full accent-sky-300 disabled:opacity-45 desk:min-h-7" />
               </label>
             ))}
           </div>
@@ -982,7 +982,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               <input type="range" min={MIN_CROP_SIZE} max={1} step={0.01} value={framing.size ?? 1} aria-label="Crop size"
                 onChange={(event) => size && onFramingChange({ ...framing, ratio: framing.ratio ?? size.width / size.height, size: event.target.valueAsNumber })}
                 onDoubleClick={() => onFramingChange({ ...framing, size: undefined })}
-                className="block min-h-9 w-full accent-sky-300 lg:min-h-7" />
+                className="block min-h-9 w-full accent-sky-300 desk:min-h-7" />
             </label>
             <label className="block text-xs">Straighten <output>{framing.straighten.toFixed(1)}°</output>
               <input type="range" min={-12} max={12} step={0.1} value={framing.straighten}

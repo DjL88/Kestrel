@@ -43,7 +43,7 @@ export function Histogram({ data, teach = false }: { data: HistogramData | null;
       {teach && (
         <>
           <details className="pt-1 text-xs text-zinc-400">
-            <summary className="min-h-8 cursor-pointer py-1">How to read this</summary>
+            <summary className="flex min-h-11 cursor-pointer items-center">How to read this</summary>
             <p className="pb-1">Left is dark, right is bright. Taller means more of the picture is at that brightness. The dashed lines show red and blue. Anything piled against either edge has lost detail.</p>
           </details>
           <ul className="space-y-2 pt-1" aria-label="What the histogram says">

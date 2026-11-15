@@ -1,0 +1,13 @@
+/** What the device can draw at once. iPhone and iPad refuse a picture much larger than about 16.7 megapixels. */
+export function maxCanvasPixels(env: { userAgent: string; platform?: string; maxTouchPoints?: number }): number {
+  const ios = /iPhone|iPad|iPod/.test(env.userAgent) || (env.platform === 'MacIntel' && (env.maxTouchPoints ?? 0) > 1);
+  if (ios) return 16_777_216;
+  if (/Android/.test(env.userAgent)) return 50_000_000;
+  return 120_000_000;
+}
+
+/** How much to scale a picture of this size so it stays within the limit. 1 means it already fits. */
+export function fitScale(width: number, height: number, limit: number): number {
+  const pixels = width * height;
+  return pixels > limit ? Math.sqrt(limit / pixels) * 0.999 : 1;
+}

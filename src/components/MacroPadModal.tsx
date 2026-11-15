@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { focusBeforeOpening, returnFocus } from './focusReturn';
 import { AlertTriangle, RotateCcw, X } from 'lucide-react';
 import {
   CULL_COMMANDS,
@@ -47,6 +48,13 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
       setReceived(null);
     }
   }, [open, openTo]);
+
+  // Focus goes back where it came from, or to the menu button when it came from a menu item.
+  useEffect(() => {
+    if (!open) return;
+    const previous = focusBeforeOpening();
+    return () => returnFocus(previous);
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -251,8 +259,8 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
             </div>
           )}
 
-          <details open className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-zinc-300">
-            <summary className="min-h-9 cursor-pointer font-semibold text-zinc-100">How to use a macro pad</summary>
+          <details className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-zinc-300">
+            <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-zinc-100">How to use a macro pad</summary>
             <ol className="mt-2 list-decimal space-y-1.5 pl-5">
               <li>A macro pad sends ordinary keys. In the pad&apos;s own software, set each key and each knob turn to send the shortcut shown below (for example, the sixth key sends Q, and the knob sends - and =). Kestrel cannot see the pad&apos;s own settings.</li>
               <li>Or change Kestrel to match the pad: click a key below, then press the key on the pad. Clashes are marked in orange.</li>

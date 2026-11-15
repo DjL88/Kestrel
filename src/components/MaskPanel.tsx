@@ -49,7 +49,7 @@ export function MaskPanel(props: Props) {
     props.onSelect(mask.id);
     props.onShowOverlay(true);
   };
-  const chip = 'min-h-11 rounded-md border border-white/10 px-2 text-xs text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400 md:min-h-9';
+  const chip = 'min-h-11 rounded-md border border-white/10 px-2 text-xs text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400 desk:min-h-9';
   return (
     <div className="space-y-2 px-1 pb-2">
       <p className="text-xs text-zinc-400">Masks adjust part of the photo. Add one, drag its handles on the photo, then move its sliders.</p>
@@ -101,7 +101,7 @@ export function MaskPanel(props: Props) {
             <label className="block text-xs text-zinc-300">
               <span className="flex justify-between"><span>Edge softness</span><output className="tabular-nums text-zinc-400">{Math.round(selected.feather * 100)}</output></span>
               <input type="range" min={0} max={1} step={0.01} value={selected.feather} aria-label="Edge softness"
-                onChange={(event) => update({ feather: event.target.valueAsNumber })} className="block min-h-9 w-full accent-sky-300 md:min-h-7" />
+                onChange={(event) => update({ feather: event.target.valueAsNumber })} className="block min-h-9 w-full accent-sky-300 desk:min-h-7" />
             </label>
           )}
           {selected.kind === 'subject' && (
@@ -119,7 +119,7 @@ export function MaskPanel(props: Props) {
               <label className="block text-xs text-zinc-300">
                 <span className="flex justify-between"><span>Brush size</span><output className="tabular-nums text-zinc-400">{Math.round(brushRadius * 200)}</output></span>
                 <input type="range" min={0.01} max={0.2} step={0.005} value={brushRadius} aria-label="Brush size"
-                  onChange={(event) => props.onBrushRadius(event.target.valueAsNumber)} className="block min-h-9 w-full accent-sky-300 md:min-h-7" />
+                  onChange={(event) => props.onBrushRadius(event.target.valueAsNumber)} className="block min-h-9 w-full accent-sky-300 desk:min-h-7" />
               </label>
               <div className="flex gap-1">
                 <button type="button" aria-pressed={paintOn && !erase} className={`${chip} flex-1 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15`} onClick={() => { const off = paintOn && !erase; props.onErase(false); props.onPaintOn(!off); }}>
@@ -159,7 +159,7 @@ export function MaskPanel(props: Props) {
                 <input type="range" min={-2} max={2} step={0.05} value={selected.edit[key] ?? 0} aria-label={`${LABELS[key]} for this mask`}
                   onChange={(event) => update({ edit: { ...selected.edit, [key]: event.target.valueAsNumber } })}
                   onDoubleClick={() => update({ edit: { ...selected.edit, [key]: 0 } })}
-                  className="block min-h-9 w-full accent-sky-300 md:min-h-7" />
+                  className="block min-h-9 w-full accent-sky-300 desk:min-h-7" />
               </label>
             ))}
           </div>

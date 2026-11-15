@@ -10,6 +10,7 @@ import { archiveExports, downloadExport, loadExportSource, renderExport } from '
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { ExportPreviewTile } from './ExportPreviewTile';
 import { ExportWizard } from './ExportWizard';
+import { returnFocus } from './focusReturn';
 import { KEEP_NAMES, stemFor, type NameTemplate } from '../core/exportNaming';
 import { NO_OVERLAY, overlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { exportFilename } from '../core/exportProfiles';
@@ -74,7 +75,9 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   const [customDate, setCustomDate] = useState('');
   const [progress, setProgress] = useState<number | null>(null);
   const [files, setFiles] = useState<File[]>([]);
-  const [archiving, setArchiving] = useState(false);
+  // The ZIP is packed as soon as the files are ready, so Download is an immediate tap. A download started after waiting
+  // is ignored by iPhone Safari, which only allows it straight from a tap.
+  const [zip, setZip] = useState<Blob | null>(null);
   const [error, setError] = useState('');
   const cancelled = useRef(false);
   const activeExport = useRef<AbortController | null>(null);
@@ -103,7 +106,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
     return () => {
       cancelled.current = true;
       activeExport.current?.abort();
-      previous?.focus();
+      returnFocus(previous);
     };
   }, []);
 
@@ -182,6 +185,10 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
         }
       }
       setFiles(output);
+      setZip(null);
+      if (output.length > 1) {
+        archiveExports(output).then((packed) => { if (!cancelled.current) setZip(packed); }, () => { if (!cancelled.current) setError('Could not create the ZIP. Try a smaller export selection.'); });
+      }
     } catch (reason) {
       if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Could not prepare the exports.');
     } finally {
@@ -190,18 +197,6 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
     }
   }
 
-  async function downloadZip() {
-    setArchiving(true);
-    setError('');
-    try {
-      const zip = await archiveExports(files);
-      if (!cancelled.current) downloadExport(zip, 'kestrel-exports.zip');
-    } catch {
-      setError('Could not create the ZIP. Try a smaller export selection.');
-    } finally {
-      setArchiving(false);
-    }
-  }
 
   const toggle = (id: string, on: boolean) => setChosen((previous) => on ? [...previous, id] : previous.filter((item) => item !== id));
   const tiles = previewFrames.flatMap((frame) => selected.map((format) => ({ frame, format }))).slice(0, MAX_TILES);
@@ -406,7 +401,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   const canShare = files.length > 0 && navigator.canShare?.({ files });
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-3 max-md:p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
-      <section ref={dialog} className="workspace-popover flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-y-auto rounded-xl border border-white/15 bg-kestrel-raised p-4 shadow-xl max-md:h-dvh max-md:max-h-none max-md:rounded-none max-md:border-0">
+      <section ref={dialog} className="workspace-popover flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-y-auto rounded-xl border border-white/15 bg-kestrel-raised p-4 shadow-xl max-md:h-full max-md:max-h-none max-md:rounded-none max-md:border-0">
         <header className="sticky top-0 z-10 -mx-4 -mt-4 mb-1 flex items-center justify-between gap-2 border-b border-white/10 bg-kestrel-raised px-2 py-1">
           <button type="button" onClick={onClose} aria-label="Close export" title="Close export" className={button}><X className="h-5 w-5" aria-hidden="true" /></button>
           <h2 id="export-title" ref={title} tabIndex={-1} className="min-w-0 flex-1 truncate text-center text-base font-semibold">Export {frames.length === 1 ? 'photo' : `${frames.length} photos`}</h2>
@@ -430,14 +425,14 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
             <div className="flex flex-wrap gap-2">
               {files.length === 1 && <button type="button" className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
                 onClick={() => downloadExport(files[0], files[0].name)}>Download</button>}
-              {files.length > 1 && <button type="button" disabled={archiving} className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
-                onClick={() => void downloadZip()}>{archiving ? 'Packing ZIP…' : 'Download ZIP'}</button>}
+              {files.length > 1 && <button type="button" disabled={!zip} className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
+                onClick={() => { if (zip) downloadExport(zip, 'kestrel-exports.zip'); }}>{zip ? 'Download ZIP' : 'Packing ZIP…'}</button>}
               {canShare && <button type="button" className={button} onClick={() => {
                 void navigator.share({ files }).catch((reason) => {
                   if ((reason as Error).name !== 'AbortError') setError('Could not share these files. Try downloading them.');
                 });
               }}>Share / save to device</button>}
-              <button type="button" className={button} onClick={() => setFiles([])}>Change settings</button>
+              <button type="button" className={button} onClick={() => { setFiles([]); setZip(null); }}>Change settings</button>
             </div>
             {files.length > 1 && files.length <= 12 && <details>
               <summary className="min-h-11 cursor-pointer py-2 text-sm">Download individual files</summary>

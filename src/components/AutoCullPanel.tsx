@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { focusBeforeOpening, returnFocus } from './focusReturn';
 import { X } from 'lucide-react';
 import type { CullSuggestion } from '../core/autoCull';
 import type { PhotoFrame } from '../core/types';
@@ -31,8 +32,9 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo,
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    const previous = focusBeforeOpening();
     dialog.current?.showModal();
-    return () => running.current?.abort();
+    return () => { running.current?.abort(); returnFocus(previous); };
   }, []);
 
   useEffect(() => {

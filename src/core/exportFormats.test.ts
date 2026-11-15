@@ -87,3 +87,16 @@ test('a fixed shape can be turned on its side, and squares, full size and keep-s
   assert.equal(canTurn(formatById('fb-keep')!), false);
   assert.equal(turnFormat(formatById('ig-11')!), formatById('ig-11'));
 });
+
+test('a picture too large for the device is scaled to fit, and one that fits is left alone', async () => {
+  const { maxCanvasPixels, fitScale } = await import('./exportLimits');
+  const iphone = maxCanvasPixels({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)' });
+  const ipad = maxCanvasPixels({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X)', platform: 'MacIntel', maxTouchPoints: 5 });
+  const mac = maxCanvasPixels({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X)', platform: 'MacIntel', maxTouchPoints: 0 });
+  assert.equal(iphone, 16_777_216);
+  assert.equal(ipad, iphone, 'an iPad that asks for the desktop site is still an iPad');
+  assert.ok(mac > iphone && maxCanvasPixels({ userAgent: 'Mozilla/5.0 (Linux; Android 15)' }) > iphone);
+  assert.equal(fitScale(4000, 3000, iphone), 1);
+  const z8 = fitScale(8256, 5504, iphone);
+  assert.ok(z8 < 0.62 && Math.round(8256 * z8) * Math.round(5504 * z8) <= iphone, 'a Z8 frame comes down to fit an iPhone');
+});

@@ -16,7 +16,7 @@ export function SpeciesScanBanner({ scan }: { scan: ReturnType<typeof useSpecies
     if (hidden || scan.pending === 0) return null;
     return (
       <section aria-label="Species recognition" className="mx-2 mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-white/12 bg-white/5 px-3 py-2">
-        <p className="min-w-0 flex-1 basis-56 text-sm text-zinc-200">An online helper can name the birds and animals in your photos. It is optional and off until you turn it on.</p>
+        <p className="min-w-0 flex-1 basis-56 text-sm text-zinc-200">An optional online helper can name the birds and animals.</p>
         <button type="button" onClick={() => openHelperDialog()} className="inline-flex min-h-11 items-center rounded-md border border-white/20 px-3 text-sm font-medium hover:bg-white/10">Set up the online helper</button>
         <button type="button" onClick={() => setHidden(true)} className="min-h-11 px-2 text-sm text-zinc-300 underline underline-offset-4 hover:text-white">Not now</button>
       </section>
@@ -26,7 +26,7 @@ export function SpeciesScanBanner({ scan }: { scan: ReturnType<typeof useSpecies
     if (hidden || scan.pending === 0) return null;
     return (
       <section aria-label="Species recognition" className="mx-2 mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-white/12 bg-white/5 px-3 py-2">
-        <p className="min-w-0 flex-1 basis-56 text-sm text-zinc-200">Name the birds and animals in your photos automatically. A {megabytes(scan.size)} download, then it works offline and nothing leaves this device.</p>
+        <p className="min-w-0 flex-1 basis-56 text-sm text-zinc-200">Name the birds and animals for you. {megabytes(scan.size)} once, then offline.</p>
         {scan.downloading === null ? (
           <>
             <button type="button" onClick={() => void scan.download()} className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-white/20 px-3 text-sm font-medium hover:bg-white/10">

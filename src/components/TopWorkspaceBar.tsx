@@ -152,7 +152,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           <span className="tabular-nums sm:hidden" aria-hidden="true">{props.exportLabel?.replace('Export', '').trim()}</span>
         </button>
         <div ref={menuRef}>
-          <button ref={triggerRef} type="button" disabled={props.actionsDisabled} className={`${actionClass} max-md:hidden`} onClick={() => setMenuOpen(!menuOpen)}
+          <button ref={triggerRef} data-focus-fallback type="button" disabled={props.actionsDisabled} className={`${actionClass} max-md:hidden`} onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Workspace options" title="Workspace options" aria-expanded={menuOpen} aria-controls="workspace-options">
             <Ellipsis className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -265,7 +265,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           <Icon className="h-5 w-5" aria-hidden="true" /><span>{label}</span>
         </button>
       ))}
-      <button ref={footerMore} type="button" disabled={props.actionsDisabled} aria-expanded={menuOpen} aria-controls="workspace-options" title="More: filters, selection, project and help"
+      <button ref={footerMore} data-focus-fallback type="button" disabled={props.actionsDisabled} aria-expanded={menuOpen} aria-controls="workspace-options" title="More: filters, selection, project and help"
         onClick={() => setMenuOpen(!menuOpen)}
         className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 aria-expanded:text-white">
         <Ellipsis className="h-5 w-5" aria-hidden="true" /><span>More</span>

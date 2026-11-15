@@ -165,17 +165,17 @@ export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, o
           </span>
         )}
         {onTurn && canTurn(format) && (
-          <button type="button" onClick={onTurn} className="absolute right-1.5 top-1.5 inline-flex min-h-9 items-center gap-1 rounded-full bg-black/65 px-2.5 text-xs text-zinc-100 hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-sky-300"
+          <button type="button" onClick={onTurn} className="absolute right-1.5 top-1.5 inline-flex min-h-11 items-center gap-1 rounded-full bg-black/65 px-3 desk:min-h-9 text-xs text-zinc-100 hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-sky-300"
             aria-label={`Turn ${caption} on its side`} title="Turn the shape on its side. The photo is not rotated.">
             <RectangleHorizontal className={`h-4 w-4 ${format.height > format.width ? 'rotate-90' : ''}`} aria-hidden="true" />{shape}
           </button>
         )}
       </div>
       {movable && (
-        <div className="flex items-center gap-1">
-          <button type="button" className="grid h-9 w-9 shrink-0 place-items-center rounded-md hover:bg-white/10" aria-label="Zoom out" onClick={() => onZoom(clampZoom(zoom - 0.25))}><Minus className="h-4 w-4" aria-hidden="true" /></button>
-          <input type="range" min={1} max={MAX_ZOOM} step={0.05} value={zoom} aria-label={`Zoom ${caption}`} onChange={(event) => onZoom(clampZoom(event.target.valueAsNumber))} className="min-h-9 w-full accent-sky-300" />
-          <button type="button" className="grid h-9 w-9 shrink-0 place-items-center rounded-md hover:bg-white/10" aria-label="Zoom in" onClick={() => onZoom(clampZoom(zoom + 0.25))}><Plus className="h-4 w-4" aria-hidden="true" /></button>
+        <div className="flex flex-wrap items-center gap-1">
+          <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 desk:h-9 desk:w-9" aria-label="Zoom out" onClick={() => onZoom(clampZoom(zoom - 0.25))}><Minus className="h-4 w-4" aria-hidden="true" /></button>
+          <input type="range" min={1} max={MAX_ZOOM} step={0.05} value={zoom} aria-label={`Zoom ${caption}`} onChange={(event) => onZoom(clampZoom(event.target.valueAsNumber))} className="min-h-11 min-w-[7rem] flex-1 accent-sky-300 desk:min-h-9" />
+          <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 desk:h-9 desk:w-9" aria-label="Zoom in" onClick={() => onZoom(clampZoom(zoom + 0.25))}><Plus className="h-4 w-4" aria-hidden="true" /></button>
         </div>
       )}
       <figcaption className="text-xs text-zinc-300"><span className="block truncate">{frame.filename}</span><span className="block text-zinc-400">{caption}. {hint}.</span></figcaption>
