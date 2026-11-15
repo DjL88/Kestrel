@@ -70,6 +70,44 @@ function safeCamera(exif) {
   }
   return out;
 }
+/** Only known, bounded edit values may cross the assistant trust boundary. */
+function safeEdit(edit) {
+  if (!validObject(edit)) return null;
+  const keys = ['exposure', 'warmth', 'colour', 'contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen'];
+  const out = {};
+  for (const key of keys) {
+    const v = edit[key];
+    if (typeof v === 'number' && Number.isFinite(v) && v >= -2 && v <= 2) out[key] = v;
+  }
+  if (Array.isArray(edit.masks)) {
+    out.masks = edit.masks.slice(0, 50).map((mask) => {
+      if (!validObject(mask)) return null;
+      const summary = {};
+      for (const key of ['kind', 'type']) {
+        if (safeText(mask[key], 40)) summary[key] = mask[key];
+      }
+      if (typeof mask.enabled === 'boolean') summary.enabled = mask.enabled;
+      return summary;
+    }).filter(Boolean);
+  }
+  return out;
+}
+function safeFraming(framing) {
+  if (!validObject(framing)) return null;
+  const out = {};
+  for (const key of ['ratio', 'turns', 'straighten', 'x', 'y', 'size']) {
+    const value = framing[key];
+    if (value === null && key === 'ratio') out[key] = null;
+    else if (typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= 100) out[key] = value;
+  }
+  return out;
+}
+function safePoint(point) {
+  if (!validObject(point) || typeof point.x !== 'number' || typeof point.y !== 'number' ||
+    !Number.isFinite(point.x) || !Number.isFinite(point.y) ||
+    point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1) return null;
+  return { x: point.x, y: point.y };
+}
 function photoShort(f) {
   return { id: f.id, filename: f.filename, decision: f.decision, rating: f.rating ?? 0,
     tags: Array.isArray(f.tags) ? f.tags.filter((v) => safeText(v, 160)).slice(0, 24) : [] };
@@ -106,8 +144,9 @@ async function invoke(name, args) {
     }
     // The backup contains only serialised edit instructions, not image pixels.
     // Return no history to avoid huge responses, and never disclose file paths.
-    return ok({ id: f.id, edit: f.edit ?? null, framing: f.framing ?? null,
-      focusPoint: f.focusPoint ?? null, historySteps: f.editHistory?.steps?.length ?? 0 });
+    return ok({ id: f.id, edit: safeEdit(f.edit), framing: safeFraming(f.framing),
+      focusPoint: safePoint(f.focusPoint),
+      historySteps: Array.isArray(f.editHistory?.steps) ? Math.min(1000, f.editHistory.steps.length) : 0 });
   }
   return fail('Unknown tool.');
 }
