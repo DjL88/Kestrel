@@ -38,6 +38,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   const [scrollTop, setScrollTop] = useState(0);
   const press = useRef<{ x: number; y: number; timer: number } | null>(null);
   const longPressed = useRef(false);
+  const touchFrame = useRef<string | null>(null);
 
   function cancelPress() {
     if (press.current) window.clearTimeout(press.current.timer);
@@ -173,6 +174,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                       type="button"
                       onPointerDown={(event) => {
                         longPressed.current = false;
+                        touchFrame.current = event.pointerType === 'touch' ? frame.id : null;
                         if (event.pointerType !== 'touch') return;
                         cancelPress();
                         const card = event.currentTarget.parentElement;
@@ -182,17 +184,37 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         }, 500) };
                       }}
                       onPointerMove={(event) => {
-                        if (press.current && Math.hypot(event.clientX - press.current.x, event.clientY - press.current.y) > 10) cancelPress();
+                        if (press.current && Math.hypot(event.clientX - press.current.x, event.clientY - press.current.y) > 10) {
+                          cancelPress();
+                          touchFrame.current = null;
+                        }
                       }}
-                      onPointerCancel={cancelPress}
+                      onPointerCancel={() => {
+                        cancelPress();
+                        touchFrame.current = null;
+                      }}
                       onPointerUp={cancelPress}
                       onClick={(event) => {
-                        if (!longPressed.current) onSelectFrame(frame.id, { shift: event.shiftKey, toggle: event.ctrlKey || event.metaKey });
+                        const tapped = event.detail > 0 && touchFrame.current === frame.id;
+                        const held = longPressed.current;
+                        touchFrame.current = null;
                         longPressed.current = false;
+                        if (held) return;
+
+                        const modifiers = { shift: event.shiftKey, toggle: event.ctrlKey || event.metaKey };
+                        if (tapped && !multiSelect && !modifiers.shift && !modifiers.toggle) onOpenLoupe(frame.id);
+                        else onSelectFrame(frame.id, modifiers);
                       }}
-                      onDoubleClick={() => { if (!multiSelect) onOpenLoupe(frame.id); }}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' || multiSelect || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
+                        event.preventDefault();
+                        if (!event.repeat) onOpenLoupe(frame.id);
+                      }}
+                      onDoubleClick={(event) => {
+                        if (!multiSelect && !event.shiftKey && !event.ctrlKey && !event.metaKey) onOpenLoupe(frame.id);
+                      }}
                       aria-pressed={isSelected}
-                      aria-label={`Select ${frame.filename}`}
+                      aria-label={`${multiSelect ? 'Select' : 'View'} ${frame.filename}`}
                       className="relative flex-1 w-full overflow-hidden focus-visible:outline-2 focus-visible:outline-sky-400 text-left"
                     >
                       <FrameImage
