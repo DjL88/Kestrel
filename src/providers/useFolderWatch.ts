@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { lookAgain, startWatching, type WatchState } from '../core/folderWatch';
+import { lookAgain, matchesStableTransfer, startWatching, type WatchState } from '../core/folderWatch';
 import type { FolderSource } from './folderSource';
 
 export interface WatchStatus { folder: string; imported: number; error: string | null }
@@ -32,7 +32,16 @@ export function useFolderWatch(onFiles: (files: File[]) => void) {
           const files: File[] = [];
           for (const entry of ready) {
             try {
-              files.push(await source.read(entry.name));
+              const file = await source.read(entry.name);
+              // A read is not an atomic snapshot on every filesystem.
+              // Confirm that the camera did not keep writing while we read.
+              const latest = (await source.list()).find((item) => item.name === entry.name);
+              if (!matchesStableTransfer(entry, file, latest)) {
+                state.done.delete(entry.name);
+                state.seen.delete(entry.name);
+                continue;
+              }
+              files.push(file);
             } catch {
               // A file may vanish or be temporarily locked after it settled.
               // Retest it rather than permanently losing a valid arriving photo.
