@@ -102,8 +102,10 @@ export function extractEmbeddedJpegFromRawBuffer(
 
   let i = 0;
   while (i < view.length - 4) {
-    // Look for JPEG SOI + JFIF/EXIF/DQT/SOF marker (0xFF 0xD8 0xFF)
-    if (view[i] === 0xff && view[i + 1] === 0xd8 && view[i + 2] === 0xff) {
+    // Look for JPEG SOI followed by a valid JPEG marker (0xFF 0xD8 0xFF, then a non-stuffed marker code)
+    if (view[i] === 0xff && view[i + 1] === 0xd8 && view[i + 2] === 0xff &&
+      view[i + 3] !== 0x00 && view[i + 3] !== 0xff &&
+      view[i + 3] !== 0xd8 && view[i + 3] !== 0xd9) {
       const start = i;
       // Search forward for EOI (0xFF 0xD9) up to a reasonable preview bound
       let j = i + 3;
