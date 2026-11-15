@@ -516,8 +516,9 @@ export default function App() {
     setEditQueueIds(ids);
     handleSelectFrame(ids[0]);
     setEditing(true);
-    setMultiSelect(false);
-    setSelectedIds(new Set());
+    // Carry the marked photos into Edit so bulk actions work immediately.
+    setMultiSelect(true);
+    setSelectedIds(new Set(ids));
     setPrefs((prev) => ({ ...prev, showFilmstrip: true, focusMode: false }));
   };
   const leaveEditor = () => { setEditing(false); setEditQueueIds(null); setMultiSelect(false); setSelectedIds(new Set()); };
@@ -1474,7 +1475,10 @@ export default function App() {
                 <ClipboardPaste className="h-4 w-4" aria-hidden="true" /> Paste
               </button>
               <button type="button" aria-pressed={multiSelect} className="inline-flex min-h-11 items-center rounded-md px-2 text-xs hover:bg-white/10"
-                onClick={() => { setMultiSelect((current) => !current); setSelectedIds(new Set()); }}>{multiSelect ? 'Done selecting' : 'Select photos'}</button>
+                onClick={() => {
+                  if (multiSelect) { setMultiSelect(false); setSelectedIds(new Set()); }
+                  else { setMultiSelect(true); setSelectedIds(new Set([selectedFrame.id])); }
+                }}>{multiSelect ? 'Done selecting' : 'Select photos'}</button>
               {multiSelect && <>
                 <span role="status" className="shrink-0 text-xs text-zinc-300">{selectedVisibleFrames.length} selected</span>
                 <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
