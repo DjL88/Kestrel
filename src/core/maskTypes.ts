@@ -100,7 +100,9 @@ export function validMasks(value: unknown): value is Mask[] {
       if (typeof grid !== 'object' || grid === null) return false;
       const { w, h, data } = grid;
       if (!Number.isInteger(w) || !Number.isInteger(h) || !finite(w, 8, 512) || !finite(h, 8, 512)) return false;
-      if (typeof data !== 'string' || data.length !== 4 * Math.ceil((w as number) * (h as number) / 3) || !/^[A-Za-z0-9+/]*={0,2}$/.test(data)) return false;
+      const cells = w * h;
+      const expectedPadding = (3 - cells % 3) % 3;
+      if (typeof data !== 'string' || data.length !== 4 * Math.ceil(cells / 3) || !/^[A-Za-z0-9+/]*={0,2}$/.test(data) || (data.match(/=+$/)?.[0].length ?? 0) !== expectedPadding) return false;
       return typeof mask.framingKey === 'string' && mask.framingKey.length <= 80 &&
         ['high', 'medium', 'low'].includes(mask.confidence as string) && strokesValid(mask.strokes);
     }

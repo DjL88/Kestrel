@@ -81,6 +81,33 @@ test('editor: Export is a header button on desktop and a tab on phones, and tabs
   expect(tab.height).toBeGreaterThanOrEqual(48);
 });
 
+test('subject panel: pick a kind, add tags by typing and with quick words, remove one', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('quick-edit-input').setInputFiles({
+    name: 'f.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
+  });
+  // Auto is the first tab and already open. On a phone tapping an open tab folds its sheet away.
+  if ((await page.getByRole('tab', { name: 'Auto' }).getAttribute('aria-selected')) !== 'true') await page.getByRole('tab', { name: 'Auto' }).click();
+  const panel = page.getByRole('region', { name: 'What is in this photo' });
+  await expect(panel.getByRole('button', { name: 'Bird' })).toHaveCount(0); // quick tags wait for a kind
+  await panel.getByRole('button', { name: 'Wildlife' }).click();
+  await expect(panel.getByRole('button', { name: 'Wildlife' })).toHaveAttribute('aria-pressed', 'true');
+  await panel.getByRole('button', { name: /Bird of prey/ }).click();
+  await panel.getByLabel('Add a tag').fill('Red Kite, red kite, Moorland');
+  await page.keyboard.press('Enter');
+  const tags = panel.getByRole('list', { name: 'Tags' }).getByRole('listitem');
+  await expect(tags).toHaveText(['Bird of prey', 'Red Kite', 'Moorland']);
+  await expect(panel.getByRole('button', { name: /Bird of prey/ })).toHaveCount(1); // only the chip's remove button, not a quick word again
+  await panel.getByRole('button', { name: 'Remove tag Red Kite' }).click();
+  await expect(tags).toHaveText(['Bird of prey', 'Moorland']);
+  // The kind and tags survive moving between tabs.
+  await page.getByRole('tab', { name: 'Edit' }).click();
+  await page.getByRole('tab', { name: 'Auto' }).click();
+  await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('button', { name: 'Wildlife' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(tags).toHaveText(['Bird of prey', 'Moorland']);
+});
+
 test('phone editing: one big slider, chips to choose, nudge and reset, and the full list one tap away', async ({ page }) => {
   test.skip(page.viewportSize()!.width >= 768, 'Quick adjust is the phone layout');
   await page.goto('/');

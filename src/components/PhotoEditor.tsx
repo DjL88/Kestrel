@@ -10,6 +10,8 @@ import { PhotoExportPanel } from './PhotoExportPanel';
 import { downloadExport } from '../providers/browserExport';
 import { gridSizeFor } from '../core/subjectModel';
 import { QuickAdjust } from './QuickAdjust';
+import { SubjectPanel } from './SubjectPanel';
+import { addTags, type SubjectKind } from '../core/subjectTags';
 import { AreaSelector } from './AreaSelector';
 import { placeInRegion, regionPixels, type Region } from '../core/subjectRegion';
 import { Histogram } from './Histogram';
@@ -77,7 +79,8 @@ interface Props {
   onToggleFilmstrip: () => void;
   onApplyToKeepers: (edit: PhotoEdit) => void;
   onUndoKeeperEdits?: () => void;
-  onSubjectsChange: (names: string[]) => void;
+  /** Saves what the photo is of. Older subject names are folded into the tags. */
+  onSubjectsChange: (tags: string[], kind: SubjectKind | undefined) => void;
 }
 
 export function PhotoEditor({ autoEdit, onOpenMacroPad,
@@ -164,7 +167,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [markFocus, setMarkFocus] = useState(false);
   const [transform, setTransform] = useState({ zoom: 1, pan: { x: 0, y: 0 } });
   const [exportOpen, setExportOpen] = useState(false);
-  const [subjectInput, setSubjectInput] = useState(() => frame.subjectNames?.join(', ') ?? '');
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [confirmApply, setConfirmApply] = useState(false);
   const [editNotice, setEditNotice] = useState('');
@@ -697,6 +699,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         {!isPhone && tabList}
         {tab === 'auto' && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
+        <SubjectPanel kind={frame.subjectKind} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} disabled={sourceState !== 'ready'} onChange={onSubjectsChange} />
         <Histogram data={histogram} teach />
         <div className="px-1">
           <button type="button" disabled={sourceState !== 'ready'} className={`${button} w-full border border-white/10 font-semibold`}
@@ -895,26 +898,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               <button type="button" className={button} onClick={onRemoveVirtualCopy}>Remove copy</button>
             </div>
           )}
-          <form className="space-y-1 border-t border-white/10 pt-3" onSubmit={(event) => {
-            event.preventDefault();
-            const names = new Map<string, string>();
-            for (const entry of subjectInput.split(',')) {
-              const name = entry.trim().replace(/\s+/g, ' ');
-              if (name && !names.has(name.toLowerCase())) names.set(name.toLowerCase(), name);
-            }
-            const next = [...names.values()];
-            onSubjectsChange(next);
-            setSubjectInput(next.join(', '));
-          }}>
-            <label htmlFor="photo-subject-names" className="text-xs font-medium text-zinc-300">Subject names</label>
-            <div className="flex gap-1">
-              <input id="photo-subject-names" type="text" value={subjectInput} maxLength={240} placeholder="e.g. Coco, Mabel"
-                onChange={(event) => setSubjectInput(event.target.value)}
-                className="min-w-0 flex-1 rounded-md border border-white/15 bg-black/20 px-2 text-base lg:text-sm"
-              />
-              <button type="submit" className={button} disabled={subjectInput === (frame.subjectNames?.join(', ') ?? '')}>Save</button>
-            </div>
-          </form>
           <details className="border-t border-white/10">
             <summary className="min-h-11 cursor-pointer py-3 text-sm text-zinc-300">Layout</summary>
             <label className="hidden min-h-11 items-center justify-between gap-2 text-sm lg:flex">
