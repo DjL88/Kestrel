@@ -30,3 +30,17 @@ test('stored presets that are corrupt are ignored rather than crashing', () => {
   assert.equal(list.length, 1);
   assert.equal(list[0].edit.exposure, 1);
 });
+
+test('twelve built-in looks include three distinct real monochrome slider recipes', () => {
+  assert.equal(BUILT_IN_PRESETS.length, 12);
+  const mono = BUILT_IN_PRESETS.filter((preset) => preset.id.startsWith('mono-'));
+  assert.equal(mono.length, 3);
+  assert.deepEqual(mono.map((preset) => preset.name), ['Mono natural', 'Mono bold', 'Mono soft']);
+  for (const preset of mono) {
+    assert.equal(preset.edit.colour, -2);
+    assert.equal(preset.edit.warmth, 0);
+    assert.deepEqual(sanitiseEdit(preset.edit), preset.edit);
+  }
+  assert.notDeepEqual(mono[0].edit, mono[1].edit);
+  assert.notDeepEqual(mono[1].edit, mono[2].edit);
+});
