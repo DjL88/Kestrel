@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ChevronDown, Ellipsis, Plus, Undo2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Download, Ellipsis, Plus, SlidersHorizontal, Undo2 } from 'lucide-react';
 import { messages as m } from '../i18n/messages';
 import type { CullCounts, FilterState, ShootDescriptor, WorkspaceViewMode } from '../core/types';
 
@@ -48,7 +48,7 @@ const viewLabels: Record<WorkspaceViewMode, string> = {
   loupe: 'Single photo', grid: 'Grid', compare: 'Compare',
 };
 
-const actionClass = 'inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-md px-2.5 text-sm font-medium hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300';
+const actionClass = 'kestrel-button';
 
 export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
   const {
@@ -85,7 +85,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
 
   return (
     <>
-    <header className="relative z-20 flex min-w-0 shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
+    <header className="relative z-20 flex min-w-0 shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4 py-1">
       <button type="button" onClick={props.onBackToProjects} disabled={props.actionsDisabled} className={actionClass} aria-label="Back to projects">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Projects</span>
       </button>
@@ -96,12 +96,12 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
             `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter === 'all' || filter === 'reject' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}`}
         </div>
       </div>
-      <div className="flex shrink-0 items-center">
+      <div className="flex shrink-0 items-center gap-1.5">
         <button type="button" onClick={props.onOpenShootModal} disabled={props.actionsDisabled} className={actionClass} aria-label="Add photos to project">
           <Plus className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">Add photos</span>
         </button>
-        <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto || props.actionsDisabled} className={`${actionClass} text-sky-200 disabled:opacity-40`}>Edit</button>
+        <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto || props.actionsDisabled} className={actionClass} aria-label="Edit" title="Edit"><SlidersHorizontal className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Edit</span></button>
         <div ref={menuRef}>
           <button ref={triggerRef} type="button" disabled={props.actionsDisabled} className={actionClass} onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Workspace options" aria-expanded={menuOpen} aria-controls="workspace-options">
@@ -136,15 +136,15 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                 </div>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-1 border-t border-white/10 pt-2">
-                <button type="button" className={actionClass} aria-pressed={showPhotoInfo} onClick={() => choose(props.onTogglePhotoInfo)}>{showPhotoInfo ? 'Hide photo info' : 'Photo info'}</button>
-                <button type="button" className={actionClass} onClick={() => choose(props.onOpenMacroPadModal, false)}>Macro pad</button>
-                <button type="button" className={actionClass} onClick={() => choose(props.onBackupProject)}>Back up project</button>
-                <button type="button" className={actionClass} onClick={() => choose(props.onAutoCull, false)}>{m.autoCull}</button>
-                {props.onToggleMultiSelect && <button type="button" className={actionClass} onClick={() => choose(() => props.onToggleMultiSelect?.())}>
+                <button type="button" className="kestrel-button border-transparent bg-transparent" aria-pressed={showPhotoInfo} onClick={() => choose(props.onTogglePhotoInfo)}>{showPhotoInfo ? 'Hide photo info' : 'Photo info'}</button>
+                <button type="button" className="kestrel-button border-transparent bg-transparent" onClick={() => choose(props.onOpenMacroPadModal, false)}>Macro pad</button>
+                <button type="button" className="kestrel-button border-transparent bg-transparent" onClick={() => choose(props.onBackupProject)}>Back up project</button>
+                <button type="button" className="kestrel-button border-transparent bg-transparent" onClick={() => choose(props.onAutoCull, false)}>{m.autoCull}</button>
+                {props.onToggleMultiSelect && <button type="button" className="kestrel-button border-transparent bg-transparent" onClick={() => choose(() => props.onToggleMultiSelect?.())}>
                   {props.multiSelect ? 'Done selecting' : 'Select photos'}
                 </button>}
-                {props.onClearDecision && <button type="button" className={actionClass} onClick={() => choose(() => props.onClearDecision?.())}>Clear decision</button>}
-                {props.onRedo && <button type="button" className={actionClass} onClick={() => choose(() => props.onRedo?.())}>Redo decision</button>}
+                {props.onClearDecision && <button type="button" className="kestrel-button border-transparent bg-transparent" onClick={() => choose(() => props.onClearDecision?.())}>Clear decision</button>}
+                {props.onRedo && <button type="button" className="kestrel-button border-transparent bg-transparent" onClick={() => choose(() => props.onRedo?.())}>Redo decision</button>}
               </div>
               <details className="mt-2 border-t border-white/10 pt-2">
                 <summary className="min-h-10 cursor-pointer py-2 text-sm text-zinc-300">Layout</summary>
@@ -178,7 +178,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
         </div>
       </div>
     </header>
-    <nav aria-label="Photo collections" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
+    <nav aria-label="Photo collections" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4 py-1">
       <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
         {(['unreviewed', 'keep', 'reject'] as const).map((collection) => (
           <button key={collection} type="button" aria-current={filter === collection ? 'page' : undefined}
@@ -188,12 +188,12 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           </button>
         ))}
       </div>
-      <div className="flex shrink-0 items-center">
-      {props.onExportKeepers && <button type="button" disabled={props.actionsDisabled} className={`${actionClass} text-sky-200`}
-        onClick={props.onExportKeepers} aria-label="Export keepers"><span className="sm:hidden">Export</span><span className="hidden sm:inline">Export keepers</span></button>}
+      <div className="flex shrink-0 items-center gap-1.5">
+      {props.onExportKeepers && <button type="button" disabled={props.actionsDisabled} className={actionClass}
+        onClick={props.onExportKeepers} aria-label="Export keepers" title="Export keepers"><Download className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Export keepers</span></button>}
       <button type="button" disabled={!props.onUndo || props.actionsDisabled}
         onClick={props.onUndo} aria-label="Undo last flag"
-        className={`${actionClass} text-zinc-300 disabled:opacity-35`}>
+        className={actionClass}>
         <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Undo</span>
       </button>
       </div>

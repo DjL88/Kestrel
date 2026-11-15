@@ -1,5 +1,5 @@
 import { messages as m } from '../i18n/messages';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Download } from 'lucide-react';
 import { DEFAULT_FRAMING, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, thirdsCropAnchor, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
 import { downloadExport } from '../providers/browserExport';
@@ -226,7 +226,7 @@ export function PhotoEditor({
     setCropNotice(correction ? `Straightened by ${correction}°` : 'The detected line is already level.');
   }
 
-  const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
+  const button = 'kestrel-button';
   return (
     <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-kestrel-stage lg:flex-row">
       <div ref={stage} className="relative flex min-h-0 flex-1 bg-black">
@@ -279,9 +279,9 @@ export function PhotoEditor({
           <button type="button" className={button} aria-pressed={displayCompare} disabled={sourceState !== 'ready' || guide} onClick={() => setCompare(!compare)}>
             Before / after
           </button>
-          <button type="button" className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover`}
+          <button type="button" className={`${button} kestrel-button-primary`}
             disabled={sourceState !== 'ready'} onClick={() => setExportOpen(true)}>
-            Export
+            <Download className="h-4 w-4" aria-hidden="true" /> Export
           </button>
         </div>
         {isRaw && <p className="text-xs text-zinc-300">Editing embedded JPEG preview</p>}

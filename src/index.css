@@ -12,6 +12,32 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
+@layer components {
+  .kestrel-button {
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-md border border-white/20 bg-white/4 px-2.5 text-sm font-medium text-kestrel-ink hover:border-white/35 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kestrel-copper disabled:pointer-events-none disabled:opacity-45;
+  }
+
+  .kestrel-button-primary {
+    @apply border-kestrel-copper bg-kestrel-copper font-semibold text-zinc-950 hover:border-kestrel-copper-hover hover:bg-kestrel-copper-hover;
+  }
+
+  .kestrel-button[aria-pressed="true"],
+  .kestrel-button[aria-expanded="true"] {
+    @apply border-kestrel-copper/70 bg-kestrel-copper/12;
+  }
+
+  .kestrel-button svg {
+    flex-shrink: 0;
+  }
+
+  @media (min-width: 768px) and (pointer: fine) {
+    .kestrel-button {
+      min-height: 2rem;
+      min-width: 2rem;
+    }
+  }
+}
+
 @layer base {
   html,
   body,

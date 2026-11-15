@@ -58,7 +58,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([640, 480]);
   await page.getByRole('button', { name: 'Close export' }).click();
 
-  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByRole('button', { name: 'Back to Library', exact: true }).click();
   await page.getByRole('button', { name: 'Back to projects' }).click();
   await expect(page.getByRole('button', { name: 'Ten-photo test 10 photos' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
