@@ -202,18 +202,20 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
     const usedExportNames = new Set<string>();
     try {
       for (const [frameIndex, frame] of frames.entries()) {
-        if (cancelled.current) return;
+        if (cancelled.current || controller.signal.aborted || task.cancelled) return;
         const stem = stemFor(naming, frame.filename, frameIndex, frames.length);
         const image = source && frames.length === 1 ? source : await loadExportSource(frame, provider);
         const recorded = frame.exif.capturedAtMs ?? (provider.getOriginal(frame.stableKey) as File | undefined)?.lastModified;
         const date = pickedDate ?? (timestamp === 'capture' && Number.isFinite(recorded) ? new Date(recorded!) : started);
+        if (cancelled.current || controller.signal.aborted || task.cancelled) return;
         for (const format of selected) {
-          if (cancelled.current) return;
+          if (cancelled.current || controller.signal.aborted || task.cancelled) return;
           await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-          if (cancelled.current) return;
+          if (cancelled.current || controller.signal.aborted || task.cancelled) return;
           const rendered = await renderExport(image, frame, toProfile(format), date, controller.signal, framingFor(format.fit), undefined, {
             focus: anchorFor(frame, format), bars, zoom: zoomFor(frame, format), stem, overlay,
           });
+          if (cancelled.current || controller.signal.aborted || task.cancelled) return;
           const uniqueName = uniqueExportFilename(rendered.name, usedExportNames);
           output.push(uniqueName === rendered.name
             ? rendered
@@ -222,6 +224,8 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
           task.progress(output.length);
         }
       }
+      // Stop must never publish partial results or charge the Free allowance.
+      if (cancelled.current || controller.signal.aborted || task.cancelled) return;
       if (!unlimited && output.length) { try { localStorage.setItem(USAGE_KEY, JSON.stringify(recordUse(readUsage(), new Date(), output.length))); } catch { /* the count is best effort */ } }
       task.finish();
       setFiles(output);
@@ -230,7 +234,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
         archiveExports(output).then((packed) => { if (!cancelled.current) setZip(packed); }, () => { if (!cancelled.current) setError('Could not create the ZIP. Try a smaller export selection.'); });
       }
     } catch (reason) {
-      if (!controller.signal.aborted) { const message = reason instanceof Error ? reason.message : 'Could not prepare the exports.'; setError(message); task.fail(message); }
+      if (!controller.signal.aborted && !task.cancelled && !cancelled.current) { const message = reason instanceof Error ? reason.message : 'Could not prepare the exports.'; setError(message); task.fail(message); }
     } finally {
       task.fail('Stopped before it finished'); // does nothing if the task already finished or was cancelled
       activeExport.current = null;
