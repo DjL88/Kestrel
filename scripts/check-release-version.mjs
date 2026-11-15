@@ -2,12 +2,12 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SEMVER = /^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/;
+const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/;
 
 /** Read just the [package] version, not dependency versions in Cargo.toml. */
 export function cargoPackageVersion(toml) {
-  const section = /^\\[package\\]\\s*$([\\s\\S]*?)(?=^\\[|\\s*$)/m.exec(toml)?.[1];
-  const version = section && /^version\\s*=\\s*"([^"]+)"\\s*(?:#.*)?$/m.exec(section)?.[1];
+  const section = /^\[package\]\s*$([\s\S]*?)(?=^\[|\s*$)/m.exec(toml)?.[1];
+  const version = section && /^version\s*=\s*"([^"]+)"\s*(?:#.*)?$/m.exec(section)?.[1];
   if (!version) throw new Error('Cargo.toml [package] version is missing.');
   return version;
 }
@@ -41,9 +41,9 @@ export function checkRepositoryVersions(root, tag) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const version = checkRepositoryVersions(resolve(fileURLToPath(new URL('..', import.meta.url))), process.env.KESTREL_RELEASE_TAG || undefined);
-    process.stdout.write(`Kestrel versions match: v${version}\\n`);
+    process.stdout.write(`Kestrel versions match: v${version}\n`);
   } catch (error) {
-    process.stderr.write(`Kestrel release blocked: ${error.message}\\n`);
+    process.stderr.write(`Kestrel release blocked: ${error.message}\n`);
     process.exitCode = 1;
   }
 }
