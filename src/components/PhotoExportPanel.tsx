@@ -40,11 +40,11 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   const title = useRef<HTMLHeadingElement>(null);
   const destinations = profiles.filter(({ id }) => chosen.includes(id));
   const total = destinations.length * frames.length;
+  const resultsReady = files.length > 0;
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     cancelled.current = false;
-    title.current?.focus();
     return () => {
       cancelled.current = true;
       activeExport.current?.abort();
@@ -53,12 +53,16 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   }, []);
 
   useEffect(() => {
+    title.current?.focus();
+  }, [resultsReady]);
+
+  useEffect(() => {
     function close(event: KeyboardEvent) {
       if (event.key === 'Tab') {
         const stops = [...(dialog.current?.querySelectorAll<HTMLElement>('button, input, select, summary, [tabindex="0"]') ?? [])]
           .filter((item) => !item.matches(':disabled') && item.getClientRects().length > 0);
         const boundary = event.shiftKey ? stops[0] : stops.at(-1);
-        if (stops.length && (!dialog.current?.contains(document.activeElement) || document.activeElement === boundary)) {
+        if (stops.length && (!stops.some((stop) => stop === document.activeElement) || document.activeElement === boundary)) {
           event.preventDefault();
           (event.shiftKey ? stops.at(-1) : stops[0])?.focus();
         }
@@ -130,7 +134,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
           <h2 id="export-title" ref={title} tabIndex={-1} className="text-base font-semibold">Export {frames.length === 1 ? 'photo' : `${frames.length} photos`}</h2>
           <button type="button" onClick={onClose} aria-label="Close export" className={button}><X className="h-5 w-5" aria-hidden="true" /></button>
         </header>
-        {files.length ? (
+        {resultsReady ? (
           <div className="space-y-3">
             <p role="status" className="text-sm text-zinc-300">{files.length} {files.length === 1 ? 'file ready' : 'files ready'}</p>
             <div className="flex flex-wrap gap-2">
