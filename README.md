@@ -88,3 +88,9 @@ Subject names entered in **Edit** are stored in the catalogue and searchable fro
 ### Assisted selection design
 
 Keep two suggestion goals: a total keeper count (such as 50), or a count per confirmed individual (such as three per dog). Rank for focus and subject visibility, then prefer different bursts, poses or compositions. Keep identity confidence independent of photo quality. Offer provisional groups for review and naming, with merge and split controls. Exclude unresolved identities from confirmed quotas, report shortfalls and count a group photo once in the total even when it covers several subjects. Suggestions should be reviewable and preserve explicit Keep/Reject decisions.
+
+### Workspace and batch adjustments
+
+The culling toolbar keeps Open and Edit visible. Workspace options contains search, filters, view selection, photo metadata and culling settings. In the editor, open **Edit options** to name subjects, copy or paste adjustments, or apply the current photo's settings to all keepers. Applying to keepers confirms the scope first. **Undo last batch** restores the affected adjustments during the current session and preserves photos manually edited since that batch. Originals stay read-only.
+
+For assisted selection, the next milestone is a reviewable shortlist using confirmed subject names, followed by local focus and burst ranking. Proposed identity groups can then feed the same quota workflow. For Nikon RAW, validate decoding on real Z8 and Z5II files and use the same colour transform and edit recipe for the interactive preview and full-resolution export before adding Nikon colour profiles.

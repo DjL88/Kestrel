@@ -1,13 +1,5 @@
-import React, { useState } from 'react';
-import {
-  Columns2,
-  FolderOpen,
-  Grid2x2,
-  Keyboard,
-  Maximize2,
-  Search,
-  SlidersHorizontal,
-} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, Ellipsis, FolderOpen } from 'lucide-react';
 import type { CullCounts, FilterState, ShootDescriptor, WorkspaceViewMode } from '../core/types';
 
 interface TopWorkspaceBarProps {
@@ -26,253 +18,132 @@ interface TopWorkspaceBarProps {
   onOpenShootModal: () => void;
   onOpenMacroPadModal: () => void;
   onEditPhoto?: () => void;
+  showPhotoInfo: boolean;
+  onTogglePhotoInfo: () => void;
+  autoAdvance: boolean;
+  onToggleAutoAdvance: () => void;
+  onClearDecision?: () => void;
+  onRedo?: () => void;
   loadingProgress?: { loaded: number; total: number } | null;
 }
 
-export const TopWorkspaceBar: React.FC<TopWorkspaceBarProps> = ({
-  shoot,
-  counts,
-  filter,
-  onFilterChange,
-  searchQuery,
-  onSearchChange,
-  keeperTarget,
-  onKeeperTargetChange,
-  viewMode,
-  onViewModeChange,
-  showShortcutsOverlay,
-  onToggleShortcutsOverlay,
-  onOpenShootModal,
-  onOpenMacroPadModal,
-  loadingProgress,
-  onEditPhoto,
-}) => {
-  const [searchOpen, setSearchOpen] = useState(false);
-  const showSearch = searchOpen || Boolean(searchQuery);
-  const filterTabs: { id: FilterState; label: string; count: number }[] = [
-    { id: 'all', label: 'All', count: counts.all },
-    { id: 'unreviewed', label: 'Unreviewed', count: counts.unreviewed },
-    { id: 'keep', label: 'Keep', count: counts.keep },
-    { id: 'reject', label: 'Reject', count: counts.reject },
-  ];
+const filterLabels: Record<FilterState, string> = {
+  all: 'All photos', unreviewed: 'Unreviewed', keep: 'Keepers', reject: 'Rejected',
+};
 
-  const targetMet = counts.keep >= keeperTarget && keeperTarget > 0;
+const viewLabels: Record<WorkspaceViewMode, string> = {
+  loupe: 'Single photo', grid: 'Grid', compare: 'Compare',
+};
+
+const actionClass = 'inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-md px-2.5 text-sm font-medium hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300';
+
+export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
+  const {
+    shoot, counts, filter, searchQuery, viewMode, keeperTarget, showShortcutsOverlay,
+    loadingProgress, onEditPhoto, showPhotoInfo, autoAdvance,
+  } = props;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function closeOutside(event: PointerEvent) {
+      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) setMenuOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return;
+      setMenuOpen(false);
+      triggerRef.current?.focus();
+    }
+    document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [menuOpen]);
+
+  function choose(action: () => void, restoreFocus = true) {
+    action();
+    setMenuOpen(false);
+    if (restoreFocus) triggerRef.current?.focus();
+  }
 
   return (
-    <header className="shrink-0 bg-[#14161A] border-b border-white/10 px-2 sm:px-4 py-2 flex flex-wrap xl:flex-nowrap items-center justify-between gap-2.5">
-      {/* Left Zone: Brand & Shoot Context */}
-      <div className="order-0 flex items-center gap-1.5 min-w-0 sm:gap-2.5">
-        <span className="text-base font-bold tracking-tight text-zinc-100 whitespace-nowrap shrink-0">
-          Kestrel
-        </span>
-        <span className="text-zinc-600 select-none" aria-hidden="true">
-          /
-        </span>
-        <div className="flex items-center gap-2 min-w-0">
-          <span
-            className="text-xs font-medium text-zinc-200 truncate hidden sm:block max-w-[165px]"
-            title={shoot.title}
-          >
-            {shoot.title}
-          </span>
-          <span className="text-[11px] text-zinc-400 whitespace-nowrap shrink-0 tabular-nums">
-            {shoot.sourceKind === 'demo' ? 'Simulated RAW' : 'Local'}
-            <span className="mx-1" aria-hidden="true">
-              ·
-            </span>
-            {counts.all}
-          </span>
-          {loadingProgress && loadingProgress.loaded < loadingProgress.total && (
-            <span className="text-[11px] font-mono text-sky-400 whitespace-nowrap shrink-0 tabular-nums">
-              {loadingProgress.loaded}/{loadingProgress.total}
-            </span>
+    <header className="relative z-20 flex min-w-0 shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-[#14161A] px-2 sm:px-4">
+      <div className="min-w-0">
+        <div className="truncate text-sm font-semibold text-zinc-100" title={shoot.title}>{shoot.title}</div>
+        <div className="truncate text-xs text-zinc-400" aria-live="polite">
+          {loadingProgress ? `Opening ${loadingProgress.loaded}/${loadingProgress.total}` :
+            `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter !== 'all' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}`}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center">
+        <button type="button" onClick={props.onOpenShootModal} className={actionClass} aria-label="Open shoot">
+          <FolderOpen className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden sm:inline">Open</span>
+        </button>
+        <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto} className={`${actionClass} text-sky-200 disabled:opacity-40`}>Edit</button>
+        <div ref={menuRef}>
+          <button ref={triggerRef} type="button" className={actionClass} onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Workspace options" aria-expanded={menuOpen} aria-controls="workspace-options">
+            <Ellipsis className="h-5 w-5" aria-hidden="true" />
+          </button>
+          {menuOpen && (
+            <div id="workspace-options" data-workspace-options className="absolute right-2 top-full mt-1 max-h-[calc(100dvh_-_4rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-white/12 bg-[#191B20] p-3 shadow-2xl sm:right-4">
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-zinc-400">
+                  Search photos
+                  <input type="search" value={searchQuery} onChange={(event) => props.onSearchChange(event.target.value)}
+                    placeholder="Subject name or filename"
+                    className="mt-1 min-h-10 w-full rounded-md border border-white/10 bg-black/20 px-2 text-base text-zinc-100 sm:text-sm" />
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="relative text-xs font-medium text-zinc-400">
+                    Show
+                    <select value={filter} onChange={(event) => choose(() => props.onFilterChange(event.target.value as FilterState))}
+                      className="mt-1 min-h-10 w-full appearance-none rounded-md border border-white/10 bg-[#14161A] px-2 pr-6 text-sm text-zinc-100">
+                      {Object.entries(filterLabels).map(([id, label]) => <option key={id} value={id}>{label} ({counts[id as FilterState]})</option>)}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2 bottom-3 h-4 w-4" aria-hidden="true" />
+                  </label>
+                  <label className="relative text-xs font-medium text-zinc-400">
+                    View
+                    <select value={viewMode} onChange={(event) => choose(() => props.onViewModeChange(event.target.value as WorkspaceViewMode))}
+                      className="mt-1 min-h-10 w-full appearance-none rounded-md border border-white/10 bg-[#14161A] px-2 pr-6 text-sm text-zinc-100">
+                      {Object.entries(viewLabels).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2 bottom-3 h-4 w-4" aria-hidden="true" />
+                  </label>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-1 border-t border-white/10 pt-2">
+                <button type="button" className={actionClass} aria-pressed={showPhotoInfo} onClick={() => choose(props.onTogglePhotoInfo)}>{showPhotoInfo ? 'Hide photo info' : 'Photo info'}</button>
+                <button type="button" className={actionClass} onClick={() => choose(props.onOpenMacroPadModal, false)}>Macro pad</button>
+                {props.onClearDecision && <button type="button" className={actionClass} onClick={() => choose(() => props.onClearDecision?.())}>Clear decision</button>}
+                {props.onRedo && <button type="button" className={actionClass} onClick={() => choose(() => props.onRedo?.())}>Redo decision</button>}
+              </div>
+              <details className="mt-2 border-t border-white/10 pt-2">
+                <summary className="min-h-10 cursor-pointer py-2 text-sm text-zinc-300">Culling settings</summary>
+                <div className="space-y-2 px-1 pb-2 text-sm">
+                  <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={autoAdvance} onChange={props.onToggleAutoAdvance} />Auto-advance</label>
+                  <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={showShortcutsOverlay} onChange={props.onToggleShortcutsOverlay} />Show shortcut guide</label>
+                  <label className="flex items-center justify-between gap-2">
+                    Keeper target
+                    <input type="number" min={1} max={9999} value={keeperTarget}
+                      onChange={(event) => {
+                        const next = event.target.valueAsNumber;
+                        if (Number.isInteger(next) && next >= 1 && next <= 9999) props.onKeeperTargetChange(next);
+                      }}
+                      className="min-h-9 w-20 rounded-md border border-white/10 bg-black/20 px-2 text-right" />
+                  </label>
+                </div>
+              </details>
+            </div>
           )}
         </div>
       </div>
-
-      {/* Center Zone: Decision Filter + Keeper Target */}
-      <div className="order-2 w-full flex items-center gap-2 flex-wrap lg:order-none lg:w-auto xl:flex-nowrap">
-        <div
-          role="group"
-          aria-label="Filter frames by culling decision"
-          className="flex min-w-0 items-center bg-[#0D0E11] p-0.5 rounded-lg border border-white/8"
-        >
-          {filterTabs.map((tab) => {
-            const active = filter === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => onFilterChange(tab.id)}
-                aria-pressed={active}
-                className={`min-h-10 lg:min-h-0 px-1.5 sm:px-2 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 flex items-center gap-1 focus-visible:outline-2 focus-visible:outline-sky-400 ${
-                  active
-                    ? 'bg-[#23272F] text-zinc-100'
-                    : 'text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span
-                  className={`font-mono text-[11px] tabular-nums ${
-                    active ? 'text-zinc-200' : 'text-zinc-500'
-                  }`}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Keeper Target Input */}
-        <div className="hidden sm:flex items-center gap-1 text-xs text-zinc-300 bg-[#0D0E11] px-2 py-1 rounded-lg border border-white/8 shrink-0">
-          <span className="text-zinc-400 whitespace-nowrap">Keepers</span>
-          <span
-            className={`font-mono font-semibold tabular-nums ${
-              targetMet ? 'text-sky-300' : 'text-zinc-100'
-            }`}
-            data-testid="keeper-progress"
-          >
-            {counts.keep}
-          </span>
-          <span className="text-zinc-500">/</span>
-          <label htmlFor="keeper-target-input" className="sr-only">
-            Keeper target count
-          </label>
-          <input
-            id="keeper-target-input"
-            type="number"
-            min={1}
-            max={9999}
-            value={keeperTarget}
-            onChange={(e) => {
-              const parsed = parseInt(e.target.value, 10);
-              if (!Number.isNaN(parsed) && parsed > 0) {
-                onKeeperTargetChange(Math.min(9999, parsed));
-              }
-            }}
-            className="w-10 bg-transparent font-mono text-xs text-zinc-200 tabular-nums text-center border-b border-white/15 focus:border-sky-400 focus:outline-none py-0.5"
-          />
-        </div>
-
-        {/* Search Input */}
-        <button type="button" aria-label="Toggle photo search" aria-expanded={showSearch}
-          onClick={() => {
-            if (showSearch) onSearchChange('');
-            setSearchOpen(!showSearch);
-          }}
-          className="grid min-h-11 min-w-10 place-items-center rounded-md border border-white/10 xl:hidden"
-        ><Search className="h-4 w-4" aria-hidden="true" /></button>
-        <div className={`relative ${showSearch ? 'flex w-full sm:w-auto' : 'hidden'} xl:flex items-center shrink-0`}>
-          <Search
-            className="w-3.5 h-3.5 text-zinc-500 absolute left-2 pointer-events-none"
-            aria-hidden="true"
-          />
-          <label htmlFor="frame-search-input" className="sr-only">
-            Find photos by subject name, filename, camera or lens
-          </label>
-          <input
-            id="frame-search-input"
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search…"
-            className="w-full sm:w-28 2xl:w-40 bg-[#0D0E11] border border-white/8 rounded-lg pl-7 pr-2 py-1 text-base lg:text-xs text-zinc-200 placeholder:text-zinc-500 focus:border-sky-400 focus:outline-none"
-          />
-        </div>
-      </div>
-
-      {/* Right Zone: View Modes & Primary Actions */}
-      <div className="min-w-0 flex flex-wrap items-center gap-1 sm:gap-1.5">
-        <div
-          role="group"
-          aria-label="Workspace view mode"
-          className="flex items-center bg-[#0D0E11] p-0.5 rounded-lg border border-white/8"
-        >
-          <button
-            type="button"
-            onClick={() => onViewModeChange('loupe')}
-            aria-pressed={viewMode === 'loupe'}
-            className={`min-h-11 lg:min-h-0 px-1.5 sm:px-2 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 flex items-center gap-1 focus-visible:outline-2 focus-visible:outline-sky-400 ${
-              viewMode === 'loupe'
-                ? 'bg-[#23272F] text-zinc-100'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Maximize2 className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Loupe</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onViewModeChange('grid')}
-            aria-pressed={viewMode === 'grid'}
-            className={`min-h-11 lg:min-h-0 px-1.5 sm:px-2 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 flex items-center gap-1 focus-visible:outline-2 focus-visible:outline-sky-400 ${
-              viewMode === 'grid'
-                ? 'bg-[#23272F] text-zinc-100'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Grid2x2 className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Grid</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onViewModeChange('compare')}
-            aria-pressed={viewMode === 'compare'}
-            className={`min-h-11 lg:min-h-0 px-1.5 sm:px-2 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 flex items-center gap-1 focus-visible:outline-2 focus-visible:outline-sky-400 ${
-              viewMode === 'compare'
-                ? 'bg-[#23272F] text-zinc-100'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Columns2 className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Compare</span>
-          </button>
-        </div>
-
-        <button
-          type="button"
-          onClick={onEditPhoto}
-          disabled={!onEditPhoto}
-          className="min-h-11 lg:min-h-0 rounded-lg bg-sky-200 px-2.5 py-1.5 text-xs font-semibold text-zinc-950 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400"
-        >
-          Edit
-        </button>
-
-        <button
-          type="button"
-          onClick={onOpenMacroPadModal}
-          className="px-2.5 py-1.5 text-xs font-medium text-zinc-200 bg-[#1E2127] hover:bg-[#272B33] border border-white/10 rounded-lg transition-colors whitespace-nowrap shrink-0 hidden lg:flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-sky-400"
-        >
-          <SlidersHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
-          <span>Macro Pad</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onToggleShortcutsOverlay}
-          aria-pressed={showShortcutsOverlay}
-          aria-label="Toggle shortcut overlay"
-          title="Toggle shortcut overlay (/)"
-          className={`px-2 py-1.5 text-xs font-medium border rounded-lg transition-colors whitespace-nowrap shrink-0 hidden lg:flex items-center gap-1 focus-visible:outline-2 focus-visible:outline-sky-400 ${
-            showShortcutsOverlay
-              ? 'bg-sky-500/15 text-sky-200 border-sky-400/40'
-              : 'bg-[#1E2127] text-zinc-300 border-white/10 hover:bg-[#272B33]'
-          }`}
-        >
-          <Keyboard className="w-3.5 h-3.5" aria-hidden="true" />
-          <span className="hidden sm:inline">Keys</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onOpenShootModal}
-          className="min-h-11 lg:min-h-0 px-2.5 py-1.5 text-xs font-semibold text-zinc-950 bg-zinc-100 hover:bg-white rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-sky-400"
-        >
-          <FolderOpen className="w-3.5 h-3.5" aria-hidden="true" />
-          <span>Open Shoot</span>
-        </button>
-      </div>
     </header>
   );
-};
+}

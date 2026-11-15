@@ -24,7 +24,7 @@ export interface UserPreferences {
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
   viewMode: 'loupe',
-  showShortcutsOverlay: true,
+  showShortcutsOverlay: false,
   bindings: DEFAULT_KEY_BINDINGS,
   knobMode: 'navigate',
 };
