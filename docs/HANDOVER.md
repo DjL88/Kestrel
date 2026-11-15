@@ -50,3 +50,31 @@ Where things stand and what is left, in order. Older detail: `AUDIT-2.md`, `AUDI
 - Rust: `. "$HOME/.cargo/env"` in each shell. Build the app with `npx tauri build --debug --bundles app`.
 - Port 4173 stuck: `lsof -ti :4173 | xargs -r kill`. macOS has no `timeout`.
 - Merges only when the user says "Merge now".
+
+
+## End of 15 November 2026 (evening)
+**Merged to main this session (via others and me):** desktop shell, Free/Paid gates, licence keys and settings copy, folder sync with safety checks, drag and drop, watch folder, task manager with traffic-light button, Canon/Sony/Fujifilm and other RAW previews, catalogue performance findings, sync and wording fixes.
+
+**Open:** PR #172, full RAW development in the desktop app (`rawler`). Local checks pass (356 unit, 160 browser, 4 Rust tests on real files). Its Windows and Linux builds were still running when this was written. Merge when they pass.
+
+**Real RAW files tested (not in the repo; scratch folders only):**
+| File | Preview | Full develop |
+| --- | --- | --- |
+| Nikon D7200 NEF, Nikon D3 NEF (portrait) | works | works (D3 needed the orientation fix) |
+| Nikon Z8 NEF, **High Efficiency\*** | works, 8256x5504 | **not supported** (licensed codec) |
+| Canon 5D II sRAW CR2, Canon 5DS CR2 (50 MP) | works | works |
+| Sony A7R V ARW | works | works |
+| Fujifilm X-T3 RAF, Panasonic FZ70 RW2, Olympus E-300 ORF, Canon 350D DNG | works | works |
+
+**Still not tested:** Z8/Z5II lossless NEF, Canon R-series CR3, Sony HE, the develop button in the running desktop app (browser tests fake the native call), Windows and Linux builds of the decoder.
+
+**HE / HE\*:** no open decoder exists; options are the full-size camera preview (works now), Nikon NX Studio or Adobe DNG Converter to convert, licensing intoPIX's TicoRAW decoder (cost unknown), or shooting Lossless compressed. See the PR #172 thread.
+
+**Next, in order:**
+1. Merge #172 after its builds; click Develop from RAW in the real Mac app.
+2. Send or find Z8/Z5II lossless NEFs and a Canon R CR3 to test.
+3. Keep developed pictures across restarts; 16-bit editing and colour management.
+4. Queue scheduling (limit heavy jobs at once) and register species scan, thumbnails and watch-folder imports as tasks.
+5. Fix the "change in the last few ms before closing may not save" weakness (see `docs/PERFORMANCE.md`).
+6. Apple Developer ID signing (membership payment pending on the owner's side); Windows signing when a certificate is bought.
+7. Cloud, accounts and AI are parked (see `docs/COMMERCIAL-RELEASE.md`).
