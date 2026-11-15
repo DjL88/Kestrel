@@ -53,7 +53,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Photo info</h2>
-        <button type="button" onClick={onClose} aria-label="Close photo info" className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10">
+        <button type="button" onClick={onClose} aria-label="Close photo info" title="Close photo info" className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10">
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
@@ -66,7 +66,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
       <div className="mt-3 border-y border-white/10 py-2">
         <div role="group" aria-label={`Star rating, ${rating} of 5`} className="flex flex-wrap">
           {[1, 2, 3, 4, 5].map((star) => (
-            <button key={star} type="button" aria-label={`Rate ${star} of 5 stars`} aria-pressed={rating === star}
+            <button key={star} type="button" aria-label={`Rate ${star} of 5 stars`} title={`Rate ${star} of 5 stars`} aria-pressed={rating === star}
               onClick={() => onRate(frame.id, star)} className="grid h-11 w-10 place-items-center rounded-md hover:bg-white/8">
               <Star className={`h-5 w-5 ${rating >= star ? 'fill-current text-sky-200' : 'text-zinc-400'}`} aria-hidden="true" />
             </button>

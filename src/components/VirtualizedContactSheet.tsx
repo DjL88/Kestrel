@@ -222,7 +222,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         if (!multiSelect && !event.shiftKey && !event.ctrlKey && !event.metaKey) onOpenLoupe(frame.id);
                       }}
                       aria-pressed={isSelected}
-                      aria-label={`${multiSelect ? 'Select' : 'View'} ${frame.filename}`}
+                      aria-label={`${multiSelect ? 'Select' : 'View'} ${frame.filename}`} title={`${multiSelect ? 'Select' : 'View'} ${frame.filename}`}
                       className="relative flex-1 w-full overflow-hidden focus-visible:outline-2 focus-visible:outline-sky-400 text-left"
                     >
                       <FrameImage
@@ -250,7 +250,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                     </button>
 
                     <button type="button" data-info-button onClick={(event) => onInfo(frame.id, event.currentTarget)}
-                      aria-label={`Photo info and rating for ${frame.filename}`}
+                      aria-label={`Photo info and rating for ${frame.filename}`} title={`Photo info and rating for ${frame.filename}`}
                       className="absolute top-0 right-0 grid h-11 w-11 place-items-center rounded-md focus-visible:outline-2 focus-visible:outline-sky-300">
                       <span className="grid h-6 w-6 place-items-center rounded-full bg-black/75"><Info className="h-4 w-4" aria-hidden="true" /></span>
                     </button>

@@ -93,7 +93,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
         key={cmd.id}
         type="button"
         onClick={() => setCapturingId(isCapturing ? null : cmd.id)}
-        aria-label={`Remap ${cmd.label} (currently ${formatChordLabel(chord)})`}
+        aria-label={`Remap ${cmd.label} (currently ${formatChordLabel(chord)})`} title={`Remap ${cmd.label} (currently ${formatChordLabel(chord)})`}
         className={`flex flex-col justify-between p-3 rounded-lg border text-left transition-colors min-h-[76px] focus-visible:outline-2 focus-visible:outline-sky-400 ${
           isCapturing
             ? 'bg-sky-500/20 border-sky-400 text-sky-100'
@@ -134,7 +134,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close Macro Pad settings"
+            aria-label="Close Macro Pad settings" title="Close Macro Pad settings"
             className="grid min-h-11 min-w-11 place-items-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-white/8"
           >
             <X className="w-4 h-4" aria-hidden="true" />

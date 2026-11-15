@@ -1,4 +1,5 @@
 import { newId } from '../core/ids';
+import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
 import { ChevronDown, Columns2, Crop, Download, History, Layers, Redo2, SlidersHorizontal, Undo2 } from 'lucide-react';
@@ -154,8 +155,7 @@ export function PhotoEditor({ autoEdit,
       const url = await provider.getFullPreviewUrl(frame);
       if (!active) return;
       if (!url) throw new Error('Preview unavailable');
-      image.src = url;
-      await image.decode();
+      await loadImage(url, image);
       if (!active) return;
 
       sourceImage.current = image;
@@ -279,6 +279,13 @@ export function PhotoEditor({ autoEdit,
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [bindings, copiedEdit, dial, edit, exportOpen, guide, onCopyEdit, onEdit, onHistoryStep, source]);
+
+  // Tell the filmstrip below how much room the panel takes, because the panel runs down beside it on wide screens.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--editor-panel-w', `${panelWidth + 8}px`);
+    return () => { root.style.removeProperty('--editor-panel-w'); };
+  }, [panelWidth]);
 
   // Opening the crop tab shows the whole photo with the crop box. Remember the crop so Cancel can put it back.
   useEffect(() => {
@@ -429,10 +436,10 @@ export function PhotoEditor({ autoEdit,
     <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-kestrel-stage">
       <div role="toolbar" aria-label="Editor actions" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-panel px-2 sm:px-4">
         <div className="flex items-center gap-1">
-          <button type="button" className={`${button} inline-flex items-center`} aria-label="Undo" disabled={!frame.editHistory?.cursor} onClick={() => onHistoryStep(-1)}>
+          <button type="button" className={`${button} inline-flex items-center`} aria-label="Undo" title="Undo" disabled={!frame.editHistory?.cursor} onClick={() => onHistoryStep(-1)}>
             <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Undo</span>
           </button>
-          <button type="button" className={`${button} inline-flex items-center`} aria-label="Redo" disabled={!frame.editHistory || frame.editHistory.cursor >= frame.editHistory.steps.length} onClick={() => onHistoryStep(1)}>
+          <button type="button" className={`${button} inline-flex items-center`} aria-label="Redo" title="Redo" disabled={!frame.editHistory || frame.editHistory.cursor >= frame.editHistory.steps.length} onClick={() => onHistoryStep(1)}>
             <Redo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Redo</span>
           </button>
           <button type="button" aria-pressed={displayCompare} disabled={sourceState !== 'ready' || guide} onClick={() => setCompare(!compare)}
@@ -459,7 +466,7 @@ export function PhotoEditor({ autoEdit,
               hidden={sourceState !== 'ready'} className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />
             {detail && <canvas ref={editedDetail} aria-hidden="true" hidden={!showDetail}
               className="absolute" style={detail.style} />}
-            {!guide && position && markFocus && <button type="button" aria-label="Place export focus point"
+            {!guide && position && markFocus && <button type="button" aria-label="Place export focus point" title="Place export focus point"
               className="absolute z-10 cursor-crosshair focus-visible:outline-2 focus-visible:outline-sky-200" style={position}
               onClick={(event) => {
                 const bounds = event.currentTarget.getBoundingClientRect();
@@ -546,7 +553,7 @@ export function PhotoEditor({ autoEdit,
         )}
       </div>
       <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
-      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
+      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:relative md:z-10 md:-mb-[112px] md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
         {!isPhone && tabList}
         {tab === 'edit' && (
           <div role="tabpanel" id="panel-edit" aria-labelledby="tab-edit" className="space-y-2">
