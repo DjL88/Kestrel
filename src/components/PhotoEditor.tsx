@@ -6,6 +6,9 @@ import { PhotoExportPanel } from './PhotoExportPanel';
 import { downloadExport } from '../providers/browserExport';
 import { Histogram } from './Histogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
+import { PresetPanel } from './PresetPanel';
+import { autoEnhance } from '../core/autoEnhance';
+import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
 import { PhotoViewport } from './PhotoViewport';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, DETAIL_CONTROLS, applyCanvasPhotoEdit, isNeutralEdit, type PhotoEdit } from '../core/photoEdits';
@@ -17,6 +20,8 @@ import { resolveKeyboardCommand, type KeyBindingsMap } from '../core/keyboardCom
 import { visiblePhotoDetail } from '../core/visiblePhotoDetail';
 
 const FIT_PREVIEW_EDGE = 2200;
+const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
+const PANEL_KEY = 'kestrel-panel-width-v1';
 
 interface Props {
   frame: PhotoFrame;
@@ -57,6 +62,10 @@ export function PhotoEditor({
   const [sourceState, setSourceState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [compare, setCompare] = useState(false);
   const [dial, setDial] = useState(0);
+  const [panelWidth, setPanelWidth] = useState(() => {
+    try { return clampPanelWidth(Number(localStorage.getItem(PANEL_KEY)) || PANEL_DEFAULT); } catch { return PANEL_DEFAULT; }
+  });
+  const [autoNotes, setAutoNotes] = useState<string[]>([]);
   const [dialUsed, setDialUsed] = useState(false);
   const [quickChoices, setQuickChoices] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
@@ -188,7 +197,7 @@ export function PhotoEditor({
       const command = resolveKeyboardCommand({ event, bindings, activeMode: 'edit', isSuppressed: false });
       if (!command) return;
       event.preventDefault();
-      const { key } = EDIT_CHOICES[dial];
+      const key = DIAL_KEYS[dial];
       switch (command.id) {
         case 'edit.copy': onCopyEdit(edit); setEditNotice('Adjustments copied'); break;
         case 'edit.paste': if (copiedEdit) onEdit(copiedEdit); break;
@@ -197,13 +206,13 @@ export function PhotoEditor({
         case 'edit.wbNeutral': onEdit({ ...edit, warmth: 0 }); break;
         case 'edit.prevControl':
           setDialUsed(true);
-          setDial((index) => (index + 1) % EDIT_CHOICES.length);
+          setDial((index) => (index + 1) % DIAL_KEYS.length);
           break;
         case 'edit.knobCcw':
         case 'edit.knobCw': {
           setDialUsed(true);
           const step = command.id === 'edit.knobCw' ? 0.1 : -0.1;
-          const value = Math.max(-2, Math.min(2, Math.round((edit[key] + step) * 10) / 10));
+          const value = Math.max(key === 'sharpen' ? 0 : -2, Math.min(2, Math.round(((edit[key] ?? 0) + step) * 20) / 20));
           onEdit({ ...edit, [key]: value });
           break;
         }
@@ -213,11 +222,32 @@ export function PhotoEditor({
     return () => window.removeEventListener('keydown', onKey);
   }, [bindings, copiedEdit, dial, edit, exportOpen, guide, onCopyEdit, onEdit, onHistoryStep, source]);
 
-  function sampleOrientedSource() {
+  // Alt (Option) + scroll wheel changes the selected dial control, for scroll tools and macro pads.
+  const wheelState = useRef({ edit, dial, onEdit });
+  wheelState.current = { edit, dial, onEdit };
+  useEffect(() => {
+    const node = stage.current;
+    if (!node) return;
+    const onWheel = (event: WheelEvent) => {
+      if (!event.altKey) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const { edit: current, dial: index, onEdit: apply } = wheelState.current;
+      const key = DIAL_KEYS[index];
+      const step = event.deltaY < 0 ? 0.05 : -0.05;
+      const value = Math.max(key === 'sharpen' ? 0 : -2, Math.min(2, Math.round(((current[key] ?? 0) + step) * 20) / 20));
+      setDialUsed(true);
+      apply({ ...current, [key]: value });
+    };
+    node.addEventListener('wheel', onWheel, { passive: false, capture: true });
+    return () => node.removeEventListener('wheel', onWheel, { capture: true });
+  }, []);
+
+  function sampleOrientedSource(edge = 112) {
     if (!source) return null;
     const canvas = document.createElement('canvas');
     const oriented = { ...DEFAULT_FRAMING, turns: framing.turns };
-    drawFramedPhoto(source, canvas, oriented, { scale: Math.min(1, 112 / Math.max(source.naturalWidth, source.naturalHeight)) });
+    drawFramedPhoto(source, canvas, oriented, { scale: Math.min(1, edge / Math.max(source.naturalWidth, source.naturalHeight)) });
     return canvas.getContext('2d')?.getImageData(0, 0, canvas.width, canvas.height);
   }
 
@@ -244,7 +274,7 @@ export function PhotoEditor({
 
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
   return (
-    <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-kestrel-stage lg:flex-row">
+    <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-kestrel-stage md:flex-row">
       <div ref={stage} className="relative flex min-h-0 flex-1 bg-black">
         <PhotoViewport zoom={transform.zoom} pan={transform.pan}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
@@ -302,7 +332,8 @@ export function PhotoEditor({
           </p>
         )}
       </div>
-      <div className={`max-h-[44%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 lg:max-h-none lg:w-72 lg:border-t-0 lg:p-4 ${panelSide === 'left' ? 'lg:order-first lg:border-r' : 'lg:border-l'}`}>
+      <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
+      <div style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`max-h-[44%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
         <div className="flex flex-wrap justify-between gap-2">
           <button type="button" className={button} aria-pressed={displayCompare} disabled={sourceState !== 'ready' || guide} onClick={() => setCompare(!compare)}>
             Before / after
@@ -325,6 +356,25 @@ export function PhotoEditor({
         </details>
         {isRaw && <p className="text-xs text-zinc-300">Editing embedded JPEG preview</p>}
         <Histogram data={histogram} />
+        <div className="px-1">
+          <button type="button" disabled={sourceState !== 'ready'} className={`${button} w-full border border-white/10 font-semibold`}
+            onClick={() => {
+              const sample = sampleOrientedSource(256);
+              if (!sample) return;
+              const { edit: suggestion, notes } = autoEnhance(sample.data);
+              onEdit({ ...edit, ...suggestion });
+              setAutoNotes(notes);
+            }}>Auto colour and tone</button>
+          {autoNotes.length > 0 && <ul role="status" className="list-disc space-y-0.5 pl-4 pt-1 text-xs text-zinc-300">
+            {autoNotes.map((note) => <li key={note}>{note}</li>)}
+          </ul>}
+        </div>
+        <details className="border-t border-white/10">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
+            Presets <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </summary>
+          <PresetPanel edit={edit} disabled={sourceState !== 'ready'} onApply={(next) => onEdit({ ...next })} />
+        </details>
         <div className="space-y-2 px-1 py-2">
           {EDIT_CHOICES.map(({ key, label, options }, index) => (
             <fieldset key={key} disabled={sourceState !== 'ready'} className="min-w-0 disabled:opacity-45">
@@ -360,7 +410,7 @@ export function PhotoEditor({
             {TONE_CONTROLS.map(({ key, label }) => (
               <label key={key} className="block">
                 <span className="flex items-center justify-between text-xs text-zinc-300">
-                  <span>{label}</span>
+                  <span>{label}{dialUsed && DIAL_KEYS[dial] === key && <span className="ml-2 text-sky-200">Dial</span>}</span>
                   <output className="tabular-nums text-zinc-400">{Math.round((edit[key] ?? 0) * 50)}</output>
                 </span>
                 <input type="range" min={-2} max={2} step={0.05} value={edit[key] ?? 0} aria-label={`${label} adjustment`}
@@ -380,7 +430,7 @@ export function PhotoEditor({
             {DETAIL_CONTROLS.map(({ key, label }) => (
               <label key={key} className="block">
                 <span className="flex items-center justify-between text-xs text-zinc-300">
-                  <span>{label}</span>
+                  <span>{label}{dialUsed && DIAL_KEYS[dial] === key && <span className="ml-2 text-sky-200">Dial</span>}</span>
                   <output className="tabular-nums text-zinc-400">{Math.round((edit[key] ?? 0) * 50)}</output>
                 </span>
                 <input type="range" min={key === 'sharpen' ? 0 : -2} max={2} step={0.05} value={edit[key] ?? 0} aria-label={`${label} adjustment`}
@@ -561,5 +611,30 @@ export function PhotoEditor({
       </div>
       {exportOpen && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} />}
     </section>
+  );
+}
+
+function PanelResizer({ width, side, onChange }: { width: number; side: 'left' | 'right'; onChange: (width: number) => void }) {
+  const move = (next: number) => {
+    const clamped = clampPanelWidth(next, window.innerWidth);
+    onChange(clamped);
+    try { localStorage.setItem(PANEL_KEY, String(clamped)); } catch { /* the width still applies for this session */ }
+  };
+  return (
+    <div role="separator" aria-orientation="vertical" aria-label="Resize adjustments panel" aria-valuenow={width} tabIndex={0}
+      className={`${side === 'left' ? 'md:order-[-1]' : ''} hidden w-2 shrink-0 cursor-col-resize bg-white/5 hover:bg-sky-300/30 focus-visible:outline-2 focus-visible:outline-sky-300 md:block`}
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={(event) => {
+        if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+        move(side === 'right' ? window.innerWidth - event.clientX : event.clientX);
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        const grow = (event.key === 'ArrowLeft') === (side === 'right');
+        move(width + (grow ? 20 : -20));
+      }} />
   );
 }

@@ -52,3 +52,27 @@ npm test
 npm run build
 npm run test:e2e   # run `npx playwright install chromium` once first
 ```
+
+## Update: your feedback on layout, assisted editing, Nikon and the macro pad
+
+Done in this branch: the adjustments panel sits beside the photo from 768px wide (it used to need 1024px) and its edge can be dragged or moved with the arrow keys; presets (built-in and your own saved looks); an **Auto colour and tone** button with plain-English reasons; the dial and Alt+scroll wheel now step through every slider.
+
+### Macro pad (SinLoon 6 key + knob)
+`src/core/keyboardCommands.ts` already has a six-key and one-knob profile. Defaults: knob turns send `-` and `=`, the cycle key sends `Q`, `R` resets, `\` toggles before/after, `W` neutralises warmth, Shift+C and Shift+V copy and paste. The vendor software can reassign each key and knob turn to those characters. I could not read the product page, so check the pad's real behaviour when it arrives (some knobs send volume or media keys, which a browser cannot see). Alt+scroll works with any scroll tool.
+
+### Nikon colour, NX Studio and SnapBridge
+Nikon's colour science and Picture Control data are proprietary. The "-style" presets are approximations, not matches. Realistic routes, in order:
+1. Read the Picture Control name and settings stored in the NEF and JPEG metadata and show them.
+2. Import Nikon `.NP3` Picture Control files the user already owns and map their contrast, saturation and hue to the sliders.
+3. Validate any RAW colour path against NX Studio exports with `docs/nikon-raw-validation.md`.
+Do not claim parity with NX Studio until that comparison passes.
+
+### Prompts
+**Masks, then subject detection**
+> Read `docs/ROADMAP.md` and `docs/NEXT-STEPS.md`. Add masks to the edit recipe: linear gradient, radial gradient and brush, each with feather, invert and its own tone and colour adjustments (reuse `applyPhotoEdit` on a copy, then blend by the mask's alpha). Store geometry as normalised coordinates, define how masks behave when the crop changes, validate them in `projectBackup.ts`, and add handles directly on the photo with touch and pointer support. Keep the CPU path as the reference and add GPU masks as a later pass. Add unit tests for the alpha maths. Then add subject and background masks with an optional, checksum-pinned ONNX model (WebGPU with WASM fallback), showing confidence and tap-to-refine. Check the model's licence first and record it in `docs/models.md`.
+
+**Assisted colour**
+> Extend `src/core/autoEnhance.ts`: add skin-tone and green-foliage protection, a confidence value for the white-balance estimate, a "match this photo to another" option for a burst, and a before/after toggle on the Auto button. Subject-aware exposure should use the subject mask once it exists. Keep it explainable, deterministic and offline.
+
+**Moveable panels**
+> Let the user dock the adjustments panel left, right or bottom, and split it into collapsible groups (Basic, Colour, Tone, Detail, Presets) that can be reordered by drag or keyboard. Persist the layout locally, keep touch targets at 44px on touch devices, and keep every function reachable without drag.
