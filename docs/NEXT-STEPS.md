@@ -93,3 +93,7 @@ Gradient, oval and brush masks, each with its own Light, Warmth, Colour, Contras
 The crop box has four draggable corners. The opposite corner stays fixed and the chosen aspect ratio is kept. With "Original" selected, the first drag locks the photo's own ratio, so it never distorts. Corners also work with the arrow keys (Shift for larger steps), and a Crop size slider covers touch and keyboard. Double-click the slider to go back to the largest box. Dragging the box still moves it.
 - Stored as `framing.size` (0.08 to 1, absent means the largest box), validated in backups and counted by the edited marker.
 - Free-form crops with no locked ratio are not supported by the framing model. Choose a ratio, or lock the original one.
+
+## Subject detection (feat/subject-detection)
+**Find subject** and **Find background** (Masks section) run the bundled U²-Net-P model on the device. See `docs/models.md` for the source, licence, checksum and limits. A subject mask works like any other mask (Light, Warmth, Contrast and so on, edge softness), plus **Add** and **Remove** brush refining and **Find again**. Background is the same mask inverted.
+- Not done: tap-to-select a specific subject (needs a promptable model such as MobileSAM), eye and bird-part detection, using the subject mask to measure sharpness in auto-cull, GPU masks, and a wildlife test set with measured accuracy.

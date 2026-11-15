@@ -109,14 +109,14 @@ export function MaskOverlay({ mask, aspect, rect, brushRadius, erase, onChange }
       <Handle x={clamp(mask.cx + mask.rx)} y={mask.cy} label="Oval width. Arrow keys resize it." onMove={(p) => onChange({ ...mask, rx: Math.max(0.01, Math.abs(p.x - mask.cx)) })} />
       <Handle x={mask.cx} y={clamp(mask.cy + mask.ry / aspect)} label="Oval height. Arrow keys resize it." onMove={(p) => onChange({ ...mask, ry: Math.max(0.01, Math.abs(p.y - mask.cy) * aspect) })} />
     </>;
-  } else if (live) {
+  } else if (live && (mask.kind === 'brush' || mask.kind === 'subject')) {
     const points: string[] = [];
     for (let i = 0; i < live.length; i += 2) points.push(`${live[i] * w},${live[i + 1] * h}`);
     shapes = <polyline points={points.join(' ')} fill="none" stroke={erase ? '#f2ae79' : MARK} strokeOpacity="0.7" strokeWidth={brushRadius * 2 * w}
       strokeLinecap="round" strokeLinejoin="round" strokeDasharray={erase ? `${brushRadius * w} ${brushRadius * w}` : undefined} />;
   }
 
-  const painting = mask.kind === 'brush';
+  const painting = mask.kind === 'brush' || mask.kind === 'subject';
   return (
     <div ref={root} className={`absolute z-10 ${painting ? 'pointer-events-auto cursor-crosshair touch-none' : 'pointer-events-none'}`} style={rect}
       onPointerDown={painting ? (event) => {
@@ -135,7 +135,7 @@ export function MaskOverlay({ mask, aspect, rect, brushRadius, erase, onChange }
         setLive([...live, p.x, p.y]);
       } : undefined}
       onPointerUp={painting ? () => {
-        if (live && live.length >= 2 && mask.kind === 'brush' && mask.strokes.length < 300) {
+        if (live && live.length >= 2 && (mask.kind === 'brush' || mask.kind === 'subject') && mask.strokes.length < 300) {
           onChange({ ...mask, strokes: [...mask.strokes, { radius: brushRadius, erase, points: live.map((v) => Math.round(v * 10000) / 10000) }] });
         }
         setLive(null);

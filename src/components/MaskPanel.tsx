@@ -1,15 +1,17 @@
 import { Eraser, Paintbrush, Plus, Trash2 } from 'lucide-react';
+import { ScanSearch } from 'lucide-react';
 import { LOCAL_KEYS, MAX_MASKS, createMask, type LocalKey, type Mask } from '../core/maskTypes';
 
 const LABELS: Record<LocalKey, string> = {
   exposure: 'Light', warmth: 'Warmth', colour: 'Colour', contrast: 'Contrast', highlights: 'Highlights',
   shadows: 'Shadows', whites: 'Whites', blacks: 'Blacks', vibrance: 'Vibrance',
 };
-const KIND_NAMES = { linear: 'Gradient', radial: 'Oval', brush: 'Brush' } as const;
+const KIND_NAMES = { linear: 'Gradient', radial: 'Oval', brush: 'Brush', subject: 'Subject' } as const;
 
 export function maskName(masks: Mask[], mask: Mask): string {
-  const same = masks.filter((candidate) => candidate.kind === mask.kind);
-  return `${KIND_NAMES[mask.kind]} ${same.indexOf(mask) + 1}`;
+  const same = masks.filter((candidate) => candidate.kind === mask.kind && (candidate.kind !== 'subject' || candidate.invert === mask.invert));
+  const base = mask.kind === 'subject' && mask.invert ? 'Background' : KIND_NAMES[mask.kind];
+  return `${base} ${same.indexOf(mask) + 1}`;
 }
 
 interface Props {
@@ -24,13 +26,18 @@ interface Props {
   onBrushRadius: (radius: number) => void;
   onErase: (erase: boolean) => void;
   onShowOverlay: (show: boolean) => void;
+  onFindSubject: (background: boolean) => void;
+  onRefind: (id: string) => void;
+  detecting: boolean;
+  detectNotice: string;
+  currentFramingKey: string;
 }
 
 export function MaskPanel(props: Props) {
   const { masks, selectedId, disabled, brushRadius, erase, showOverlay } = props;
   const selected = masks.find((mask) => mask.id === selectedId) ?? null;
   const update = (patch: Partial<Mask>) => selected && props.onChange(masks.map((mask) => mask.id === selected.id ? { ...mask, ...patch } as Mask : mask));
-  const add = (kind: Mask['kind']) => {
+  const add = (kind: Exclude<Mask['kind'], 'subject'>) => {
     const mask = createMask(kind, crypto.randomUUID());
     props.onChange([...masks, mask]);
     props.onSelect(mask.id);
@@ -47,6 +54,18 @@ export function MaskPanel(props: Props) {
             {KIND_NAMES[kind]}
           </button>
         ))}
+      </div>
+      <div className="space-y-1">
+        <div className="grid grid-cols-2 gap-1">
+          <button type="button" disabled={disabled || props.detecting || masks.length >= MAX_MASKS} className={`${chip} inline-flex items-center justify-center gap-1`} onClick={() => props.onFindSubject(false)}>
+            <ScanSearch className="h-3.5 w-3.5" aria-hidden="true" />{props.detecting ? 'Finding…' : 'Find subject'}
+          </button>
+          <button type="button" disabled={disabled || props.detecting || masks.length >= MAX_MASKS} className={`${chip} inline-flex items-center justify-center gap-1`} onClick={() => props.onFindSubject(true)}>
+            <ScanSearch className="h-3.5 w-3.5" aria-hidden="true" />{props.detecting ? 'Finding…' : 'Find background'}
+          </button>
+        </div>
+        <p role="status" className="min-h-4 text-xs text-zinc-300">{props.detectNotice}</p>
+        <p className="text-xs text-zinc-500">Runs on this device with a small model that finds the most prominent subject. It is not trained on wildlife in particular, so always check the edges.</p>
       </div>
       {masks.length > 0 && (
         <ul className="space-y-1" aria-label="Masks">
@@ -75,7 +94,17 @@ export function MaskPanel(props: Props) {
                 onChange={(event) => update({ feather: event.target.valueAsNumber })} className="block min-h-9 w-full accent-sky-300 md:min-h-7" />
             </label>
           )}
-          {selected.kind === 'brush' && (
+          {selected.kind === 'subject' && (
+            <div className="space-y-1 rounded bg-black/20 p-2 text-xs text-zinc-300">
+              <p>Confidence: <strong>{selected.confidence === 'high' ? 'High' : selected.confidence === 'medium' ? 'Medium' : 'Low'}</strong>.{' '}
+                {selected.confidence === 'high' ? 'The subject stands out clearly.' : selected.confidence === 'medium' ? 'Check the edges, especially around fine detail.' : 'The edges are uncertain. Check them and refine with the brush.'}</p>
+              {selected.framingKey !== props.currentFramingKey && (
+                <p role="alert" className="font-semibold text-orange-200">The crop or rotation has changed since this was found, so the mask may not line up. Find it again.</p>
+              )}
+              <button type="button" className={chip} disabled={props.detecting} onClick={() => props.onRefind(selected.id)}>Find again</button>
+            </div>
+          )}
+          {(selected.kind === 'brush' || selected.kind === 'subject') && (
             <div className="space-y-1">
               <label className="block text-xs text-zinc-300">
                 <span className="flex justify-between"><span>Brush size</span><output className="tabular-nums text-zinc-400">{Math.round(brushRadius * 200)}</output></span>
@@ -84,12 +113,12 @@ export function MaskPanel(props: Props) {
               </label>
               <div className="flex gap-1">
                 <button type="button" aria-pressed={!erase} className={`${chip} flex-1 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15`} onClick={() => props.onErase(false)}>
-                  <Paintbrush className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />Paint
+                  <Paintbrush className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />{selected.kind === 'subject' ? 'Add' : 'Paint'}
                 </button>
                 <button type="button" aria-pressed={erase} className={`${chip} flex-1 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15`} onClick={() => props.onErase(true)}>
-                  <Eraser className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />Erase
+                  <Eraser className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />{selected.kind === 'subject' ? 'Remove' : 'Erase'}
                 </button>
-                <button type="button" className={chip} onClick={() => update({ strokes: [] })} disabled={selected.kind === 'brush' && !selected.strokes.length}>Clear</button>
+                <button type="button" className={chip} onClick={() => update({ strokes: [] })} disabled={!('strokes' in selected) || !selected.strokes.length}>{selected.kind === 'subject' ? 'Undo refining' : 'Clear'}</button>
               </div>
               <p className="text-xs text-zinc-500">Painting needs a pointer or finger. Gradient and oval masks can be set with the keyboard.</p>
             </div>
