@@ -126,3 +126,26 @@ The editor draws a bounded fit preview and increases detail in the visible area 
 In a Library, choose **Workspace options → Back up project**. The versioned JSON preserves the project catalogue, decisions, ratings, subject names, crops, adjustment recipes and virtual copies. Chrome can offer a Save As destination when permitted, including a mounted external drive or NAS. Embedded previews use the browser’s download path when the file picker is unavailable. This backup contains catalogue records only, so retain the source photos separately.
 
 On the Projects screen choose **Restore backup**. Kestrel validates the file and opens the restored catalogue as a separate project. If source files are unavailable in this browser, reconnect them from the Library. The restore process does not authenticate with cloud storage or upload anything. A sync provider can use this catalogue boundary later.
+
+### Test a real photo workflow
+
+Run `npx playwright install chromium` once, then `npm run test:e2e`. The test starts the production build fresh, creates a project, imports ten test-only PNG files through the normal importer, flags and edits a photo, checks the downloaded PNG dimensions, and reopens the persisted edit offline. For a locally installed Chromium, set `KESTREL_CHROME_PATH`. Use actual Z8 and Z5II NEFs separately for decoder, compression-mode and colour acceptance.
+
+New catalogues start empty. Existing demo projects remain readable while their assets are still bundled. Remove those assets in a separate migration that handles legacy demo entries and backups explicitly.
+
+### Offline product direction
+
+Keep edit recipes, catalogue operations and rendering contracts shared. Use per-platform adapters for filesystem access, permissions, hardware and encode/decode.
+
+| Surface | Intended workflow |
+| --- | --- |
+| macOS, Windows and Linux | Desktop application for the full Library and editor, local and mounted-volume folders, and camera/RAW adapters where validated. Verify Nikon SDK runtime availability per OS and CPU before committing to official Nikon rendering on that target. |
+| iOS and Android | Phone layout for culling and quick edits, tablet layout for larger previews and precise controls. Use device photo pickers and save/share sheets with tablet and touch acceptance tests. |
+| Web editor | Offline editing after the app has loaded and cached. The browser remains responsible for filesystem permissions and storage limits. |
+| Browser extension | Explicitly send a user-selected image to a Kestrel workspace. Keep the full catalogue and editor out of the extension and request the minimum site access. |
+
+Keep sign-in optional. If a paid tier is added, separate entitlement from file storage. Local projects, original files and offline editing should work independently of any supported account or sync provider. Any future sync should be opt-in, limited to its stated data, and avoid uploading originals by default.
+
+### Local model acceptance
+
+Treat ONNX models as optional, versioned downloads with a pinned checksum, size, runtime requirements, and checked code and weight licenses. Keep real subject masks and eye landmarks separate from crop heuristics. Validate candidates on rights-cleared examples of birds, dogs and difficult backgrounds, then verify CPU/GPU timing, memory use, confidence and abstention. Store reviewed geometry in source coordinates and verify it against preview and export. An ONNX export alone is not evidence that the model works on wildlife.
