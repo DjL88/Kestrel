@@ -41,7 +41,7 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const candidates = frames.filter((frame) => frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
+  const candidates = frames.filter((frame) => !frame.removedAt && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
   const high = (results ?? []).flatMap((result) =>
     result.confidence === 'high' && result.decision ? [{ frameId: result.frameId, decision: result.decision }] : []);
 
