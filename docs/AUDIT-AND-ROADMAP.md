@@ -1,5 +1,8 @@
 # Kestrel: audit, roadmap and repair plan
 
+> **Audit 2 (15 Nov 2026):** see [AUDIT-2.md](AUDIT-2.md) for the second full audit, the updated status of every request below, and the revised order of work.
+
+
 This replaces the earlier audit in `ROADMAP.md` and the running notes in `NEXT-STEPS.md`, which stay as detail. It was written after the AI Studio round, the ChatGPT pull requests and your latest list of requests.
 
 ## 1. What Kestrel is for
@@ -57,28 +60,28 @@ All four are small, CI-green and mergeable. **Recommended: merge all.**
 
 | # | Request | Phase | Status |
 | --- | --- | --- | --- |
-| 1 | Tab order Auto, Crop, Edit, Masks, History, Export; lightbulb icon for Auto, no sparkles | 1 | Planned, next |
-| 2 | Histogram on the Auto page, and teach how to read it | 1 and 5 | Planned, next |
-| 3 | Export in the tab menu instead of the header | 1 | Planned, next |
-| 4 | Brush only paints when the brush is active, so you can zoom after selecting a mask | 1 | Planned, next |
-| 5 | Delete or Backspace deletes the selected mask | 1 | Planned, next |
-| 6 | A pixel or two of space above the header buttons | 1 | Planned, next |
-| 7 | Shortcuts shown in tooltips | 1 | Planned |
-| 8 | Mobile footer menu (Edit, Export and so on moved out of the header) | 2 | Planned |
-| 9 | Mobile home page tidy: Restore backup in the footer, two buttons 50/50 | 2 | Planned |
-| 10 | Swipe a project to archive, swipe further for trash (touch only) | 2 | Planned |
-| 11 | Projects sorted by last edited, with search and sort by name or date | 2 | Planned |
-| 12 | Image carousel a little taller (about 5:4) on mobile | 2 | Planned |
-| 13 | Full screen button in single photo and edit views, with the macro pad still working | 2 | Planned |
-| 14 | Export: turn a ratio around (4:5 to 5:4) per option | 3 | Planned |
-| 15 | Export: preview that can move left and right and zoom, turn the output, hold the format choice, overlay EXIF | 3 | Planned |
-| 16 | Export: rename files (name plus short number from the original or sequence) | 3 | Planned |
-| 17 | Export: platform sections as an accordion, smoother drag | 3 | Planned |
-| 18 | Select area: brush an area and detect inside it | 4 | Planned |
-| 19 | Ctrl or Cmd with a slider shows clipping as white and black | 4 | Planned |
-| 20 | Compare side by side as well as the wipe | 4 | Planned |
-| 21 | Light denoise tool, on device | 6 | Planned |
-| 22 | Optional helper: opinion and pre-tagging ("Red Kite", "Bird of Prey") | 7 | Designed, last |
+| 1 | Tab order Auto, Crop, Edit, Masks, History, Export; lightbulb icon for Auto, no sparkles | 1 | Done (#63, #83) |
+| 2 | Histogram on the Auto page, and teach how to read it | 1 and 5 | Done (#63) |
+| 3 | Export in the tab menu instead of the header | 1 | Done: tab on phones, header button on desktop (#63, #83) |
+| 4 | Brush only paints when the brush is active, so you can zoom after selecting a mask | 1 | Done (#65) |
+| 5 | Delete or Backspace deletes the selected mask | 1 | Done (#65) |
+| 6 | A pixel or two of space above the header buttons | 1 | Done (#65) |
+| 7 | Shortcuts shown in tooltips | 1 | Partly: Undo, Redo and Compare only |
+| 8 | Mobile footer menu (Edit, Export and so on moved out of the header) | 2 | Done (#70) |
+| 9 | Mobile home page tidy: Restore backup in the footer, two buttons 50/50 | 2 | Done (#74) |
+| 10 | Swipe a project to archive, swipe further for trash (touch only) | 2 | Done, needs a check on a real iPhone (#74, #81) |
+| 11 | Projects sorted by last edited, with search and sort by name or date | 2 | Done (#65) |
+| 12 | Image carousel a little taller (about 5:4) on mobile | 2 | Not done |
+| 13 | Full screen button in single photo and edit views, with the macro pad still working | 2 | Editor only (#70). Not in the grid or single photo view |
+| 14 | Export: turn a ratio around (4:5 to 5:4) per option | 3 | Done (#76, #79) |
+| 15 | Export: preview that can move left and right and zoom, turn the output, hold the format choice, overlay EXIF | 3 | Done (#79, #80, #84) |
+| 16 | Export: rename files (name plus short number from the original or sequence) | 3 | Done (#84) |
+| 17 | Export: platform sections as an accordion, smoother drag | 3 | Done (#76) |
+| 18 | Select area: brush an area and detect inside it | 4 | Done (#68) |
+| 19 | Ctrl or Cmd with a slider shows clipping as white and black | 4 | Not done |
+| 20 | Compare side by side as well as the wipe | 4 | Not done |
+| 21 | Light denoise tool, on device | 6 | Not done |
+| 22 | Optional helper: opinion and pre-tagging ("Red Kite", "Bird of Prey") | 7 | On-device suggestions done (#91, #93, #95). Optional cloud helper not built |
 | 23 | Nikon focus data (AF point, quality, focus result) | 8 | Waiting for sample files |
 
 **Questions you asked**
