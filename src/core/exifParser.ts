@@ -151,11 +151,10 @@ export async function parseImageExif(
     const parsed = { ...segments?.ifd0, ...segments?.exif };
     const rating = readEmbeddedRating(segments?.xmp?.Rating, parsed.Rating);
 
-    const capturedDate = parsed.DateTimeOriginal ?? parsed.CreateDate;
-    const capturedAtMs =
-      capturedDate instanceof Date && !Number.isNaN(capturedDate.getTime())
-        ? capturedDate.getTime()
-        : undefined;
+    // A malformed DateTimeOriginal must not mask a valid CreateDate fallback.
+    const capturedAtMs = [parsed.DateTimeOriginal, parsed.CreateDate]
+      .find((value): value is Date => value instanceof Date && Number.isFinite(value.getTime()))
+      ?.getTime();
 
     const shutter = formatShutterSpeed(
       typeof parsed.ExposureTime === 'number' ? parsed.ExposureTime : undefined
