@@ -120,3 +120,19 @@ test('partially transparent previews cannot produce confident culling decisions'
   pixels[3] = 255;
   assert.notEqual(scorePreview('opaque', pixels, 96, 96).reason, 'unavailable');
 });
+
+test('invalid or fractional keeper budgets never auto-accept beyond the safe integer ceiling', () => {
+  const photos = generateDemoShootFrames(3).map((frame) => ({
+    ...frame, isDemo: false, burstGroupId: null, decision: 'unreviewed' as const,
+  }));
+  const suggestions: CullSuggestion[] = photos.map((frame, index) => ({
+    frameId: frame.id, decision: 'keep', confidence: 'high', reason: 'clearDetail', score: 99 - index,
+  }));
+  for (const budget of [NaN, Infinity, -Infinity, -1, 0, 0.9]) {
+    const result = limitAutoKeepers(suggestions, photos, budget);
+    assert.equal(result.filter((item) => item.confidence === 'high').length, 0, String(budget));
+    assert.equal(result.every((item) => item.decision === 'keep' && item.confidence === 'medium'), true);
+  }
+  assert.equal(limitAutoKeepers(suggestions, photos, 1.9).filter((item) => item.confidence === 'high').length, 1);
+  assert.equal(limitAutoKeepers(suggestions, photos, 2).filter((item) => item.confidence === 'high').length, 2);
+});
