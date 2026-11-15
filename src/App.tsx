@@ -1404,6 +1404,8 @@ export default function App() {
             <PhotoEditor
               key={selectedFrame.id}
               onExportRequested={recordDownloadedEdits}
+              exportCount={multiSelect && selectedVisibleFrames.length > 1 ? selectedVisibleFrames.length : 1}
+              onExport={() => setExportFrames(multiSelect && selectedVisibleFrames.length > 1 ? selectedVisibleFrames : [selectedFrame])}
               onOpenMacroPad={() => { setMacroPadMode('edit'); setMacroPadModal(true); }}
               autoEdit={!!cullingState.settings?.autoEdit}
               frame={selectedFrame}
