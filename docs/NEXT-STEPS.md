@@ -82,3 +82,9 @@ Do not claim parity with NX Studio until that comparison passes.
 - Keeper to Trash, and removal from the library, ask first. Removal sets `removedAt` on the photo. The original file is never touched, the record stays so it can be restored (Workspace options, Removed photos) or undone, and adding the same file again revives it as an unreviewed photo.
 - One photo resets straight away and stays in its edit history. Several photos ask first.
 - The edited marker (sliders icon) shows on grid cards and the filmstrip. When masks are merged, extend `isEdited` in `src/core/editedState.ts` to count active masks.
+
+## Masks (feat/masks-ui)
+Gradient, oval and brush masks, each with its own Light, Warmth, Colour, Contrast, Highlights, Shadows, Whites, Blacks and Vibrance. Handles are dragged on the photo (arrow keys also move them, Shift for bigger steps), softness and invert are in the panel, and the mask is shown in sky blue with an outline so it never relies on colour alone. Painting needs a pointer or finger.
+- Geometry is stored 0 to 1 across the framed (cropped) photo, with lengths in photo widths, so masks stay round at any ratio. Changing the crop afterwards moves masks with the crop box.
+- Rendering: the whole-photo edit runs on the GPU when it can. Masks run on the CPU afterwards in bands, using the same edit maths on a copy blended by mask strength. GPU masks are a later optimisation.
+- Not done: subject and background masks (needs an ONNX model, see the prompt above), mask copy and paste between photos, a brush cursor preview, keyboard painting.

@@ -1,3 +1,4 @@
+import { hasActiveMasks, type Mask } from './maskTypes';
 /** Optional tonal controls. Each runs from -2 to 2 and an absent value means 0. */
 export const TONE_CONTROLS = [
   { key: 'contrast', label: 'Contrast' },
@@ -27,6 +28,8 @@ export interface PhotoEdit {
   texture?: number;
   clarity?: number;
   sharpen?: number;
+  /** Local adjustments. They run after the whole-photo edit, in order. */
+  masks?: Mask[];
 }
 
 export const DEFAULT_EDIT: PhotoEdit = { exposure: 0, warmth: 0, colour: 0 };
@@ -37,11 +40,21 @@ export const EDIT_CHOICES = [
   { key: 'colour', label: 'Colour', options: ['Softer', 'Neutral', 'Richer'] },
 ] as const;
 
-function isNeutralTone(edit: PhotoEdit): boolean {
+export function isNeutralTone(edit: PhotoEdit): boolean {
   return edit.exposure === 0 && edit.warmth === 0 && edit.colour === 0 && TONE_CONTROLS.every(({ key }) => !edit[key]);
 }
 
 export function isNeutralEdit(edit: PhotoEdit): boolean {
+  return isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]) && !hasActiveMasks(edit.masks);
+}
+
+/** Nothing to keep: neutral, and no masks at all (an empty mask is still kept so it can be adjusted). */
+export function isEmptyEdit(edit: PhotoEdit): boolean {
+  return isNeutralEdit(edit) && !edit.masks?.length;
+}
+
+/** Neutral apart from any local masks. Decides whether the whole-photo passes need to run. */
+export function isNeutralGlobal(edit: PhotoEdit): boolean {
   return isNeutralTone(edit) && DETAIL_CONTROLS.every(({ key }) => !edit[key]);
 }
 
@@ -185,55 +198,4 @@ export function applyPhotoEdit(pixels: Uint8ClampedArray, edit: PhotoEdit): void
       pixels[index + 2] = toByte(outBlue);
     }
   }
-}
-
-function applyCanvasDetail(canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge: number): void {
-  if (!hasDetail(edit)) return;
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  if (!context) throw new Error('Canvas unavailable');
-  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-  applyDetail(pixels.data, canvas.width, canvas.height, edit, imageEdge);
-  context.putImageData(pixels, 0, 0);
-}
-
-function* editCanvasStrips(canvas: HTMLCanvasElement, edit: PhotoEdit): Generator<void> {
-  if (isNeutralTone(edit)) return;
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  if (!context) throw new Error('Canvas unavailable');
-  const rows = Math.max(1, Math.floor(262144 / canvas.width));
-  for (let y = 0; y < canvas.height; y += rows) {
-    const pixels = context.getImageData(0, y, canvas.width, Math.min(rows, canvas.height - y));
-    applyPhotoEdit(pixels.data, edit);
-    context.putImageData(pixels, 0, y);
-    yield;
-  }
-}
-
-type GpuRenderer = (canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge: number) => boolean;
-let gpuRenderer: GpuRenderer | null = null;
-/** Register a GPU renderer. It returns false when it cannot handle the canvas, and the CPU path runs instead. */
-export function setGpuRenderer(renderer: GpuRenderer | null): void {
-  gpuRenderer = renderer;
-}
-
-/** imageEdge is the whole image's long edge in this canvas's pixels. It defaults to the canvas, and differs for zoomed regions. */
-export function applyCanvasPhotoEdit(canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge = Math.max(canvas.width, canvas.height)): void {
-  if (isNeutralEdit(edit)) return;
-  if (gpuRenderer?.(canvas, edit, imageEdge)) return;
-  for (const _ of editCanvasStrips(canvas, edit)) {
-    // The fit preview has a bounded raster, so render it in one pass.
-  }
-  applyCanvasDetail(canvas, edit, imageEdge);
-}
-
-export async function applyCanvasExportEdit(canvas: HTMLCanvasElement, edit: PhotoEdit, signal?: AbortSignal): Promise<void> {
-  if (!isNeutralEdit(edit) && gpuRenderer?.(canvas, edit, Math.max(canvas.width, canvas.height))) return;
-  let lastYield = performance.now();
-  for (const _ of editCanvasStrips(canvas, edit)) {
-    signal?.throwIfAborted();
-    if (performance.now() - lastYield < 16) continue;
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    lastYield = performance.now();
-  }
-  applyCanvasDetail(canvas, edit, Math.max(canvas.width, canvas.height));
 }

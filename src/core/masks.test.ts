@@ -82,3 +82,27 @@ test('validation accepts good masks and rejects bad ones', () => {
   assert.equal(validMasks('nope'), false);
   assert.equal(validMasks(Array.from({ length: 13 }, (_, i) => createMask('radial', String(i)))), false);
 });
+
+import { isNeutralEdit, isNeutralGlobal, DEFAULT_EDIT } from './photoEdits';
+import { recordEdit } from './editHistory';
+import type { PhotoFrame } from './types';
+
+test('an edit with only an active mask is not neutral but its whole-photo part is', () => {
+  const edit = { ...DEFAULT_EDIT, masks: [{ ...createMask('radial', 'a'), edit: { exposure: 1 } }] };
+  assert.equal(isNeutralEdit(edit), false);
+  assert.equal(isNeutralGlobal(edit), true);
+  assert.equal(isNeutralEdit({ ...DEFAULT_EDIT, masks: [createMask('radial', 'b')] }), true);
+});
+
+test('mask changes are recorded as their own undoable step', () => {
+  const frame = { id: 'f', edit: DEFAULT_EDIT } as PhotoFrame;
+  const next = recordEdit(frame, { edit: { ...DEFAULT_EDIT, masks: [createMask('linear', 'a')] } }, 1000);
+  assert.equal(next.editHistory?.steps[0].kind, 'mask');
+});
+
+import { isEmptyEdit } from './photoEdits';
+
+test('an edit that only holds an empty mask is kept, so the mask can be adjusted', () => {
+  assert.equal(isEmptyEdit(DEFAULT_EDIT), true);
+  assert.equal(isEmptyEdit({ ...DEFAULT_EDIT, masks: [createMask('radial', 'a')] }), false);
+});

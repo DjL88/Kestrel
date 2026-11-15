@@ -1,4 +1,5 @@
-import { applyCanvasPhotoEdit, DEFAULT_EDIT, isNeutralEdit } from '../core/photoEdits';
+import { applyCanvasPhotoEdit } from '../core/canvasEdit';
+import { DEFAULT_EDIT, isNeutralEdit } from '../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFraming';
 import { loadExportSource } from '../providers/browserExport';
 import React, { useEffect, useState } from 'react';

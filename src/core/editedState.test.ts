@@ -3,6 +3,7 @@ import test from 'node:test';
 import { isEdited } from './editedState';
 import { DEFAULT_EDIT } from './photoEdits';
 import { DEFAULT_FRAMING } from './photoFraming';
+import { createMask } from './maskTypes';
 import { formatProjectDate } from './formatDate';
 
 test('untouched, neutral and default-framed photos are not marked as edited', () => {
@@ -16,6 +17,9 @@ test('any adjustment, crop or rotation marks a photo as edited', () => {
   assert.equal(isEdited({ framing: { ...DEFAULT_FRAMING, ratio: 1.25 } }), true);
   assert.equal(isEdited({ framing: { ...DEFAULT_FRAMING, turns: 1 } }), true);
   assert.equal(isEdited({ framing: { ...DEFAULT_FRAMING, straighten: 1.5 } }), true);
+  const mask = { ...createMask('radial', 'a'), edit: { exposure: 1 } };
+  assert.equal(isEdited({ edit: { ...DEFAULT_EDIT, masks: [mask] } }), true);
+  assert.equal(isEdited({ edit: { ...DEFAULT_EDIT, masks: [createMask('radial', 'b')] } }), false);
 });
 
 test('project dates are British and tolerate missing values', () => {
