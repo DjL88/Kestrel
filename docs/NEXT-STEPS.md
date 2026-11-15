@@ -128,3 +128,7 @@ The maker note layout is documented in ExifTool's Nikon tables, but it varies by
 - Phone: the photo takes the screen, a bottom row of tool icons (presets, crop, light, colour, effects, detail, optics, geometry, masking) opens one slider group at a time above the row, with back, undo, redo and share at the top.
 - Kestrel today matches the desktop idea (right column with tabs, a toolbar with Before/After and Export). Biggest gap for phones: sliders are in a stacked panel under the photo, not a bottom tool row with one group at a time.
 - Suggested next layout step: on phones, put the four tabs in a bottom bar, show one slider group at a time, and keep the photo full height.
+
+## Phone layout (feat/phone-layout)
+Under 768 px wide the editor tools are a bottom bar of four large icons (Edit, Crop, Masks, History) with the tool sheet above it, and the photo takes the rest of the height. Tapping the open tab again folds the sheet away for a full-height photo (the choice is remembered). Folding the Crop tool away applies the crop, because its Apply button lives in the sheet. Masks keep their handles on the photo while the sheet is folded. Wider screens keep the right-hand panel with tabs at its top.
+- Not done: swiping the sheet up and down, hiding the filmstrip automatically on phones, and a landscape-phone layout.

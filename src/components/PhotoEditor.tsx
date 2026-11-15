@@ -30,6 +30,7 @@ import { visiblePhotoDetail } from '../core/visiblePhotoDetail';
 const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
 const PANEL_KEY = 'kestrel-panel-width-v1';
+const SHEET_KEY = 'kestrel-sheet-v1';
 type Tab = 'edit' | 'crop' | 'masks' | 'history';
 const TABS: { id: Tab; label: string; Icon: typeof Crop }[] = [
   { id: 'edit', label: 'Edit', Icon: SlidersHorizontal },
@@ -98,6 +99,26 @@ export function PhotoEditor({ autoEdit,
   const [previewRecipe, setPreviewRecipe] = useState<{ edit?: PhotoEdit; framing?: PhotoFraming } | null>(null);
   const cropEntry = useRef<PhotoFraming | null>(null);
   const panelScroll = useRef<HTMLDivElement>(null);
+  const isPhone = useMediaQuery('(max-width: 767px)');
+  // On a phone the tools open as a sheet above the bar. Tapping the open tab again folds it away for a full-height photo.
+  const [sheetOpen, setSheetOpen] = useState(() => {
+    try { return localStorage.getItem(SHEET_KEY) !== 'closed'; } catch { return true; }
+  });
+  const rememberSheet = (open: boolean) => {
+    setSheetOpen(open);
+    try { localStorage.setItem(SHEET_KEY, open ? 'open' : 'closed'); } catch { /* the sheet still works for this session */ }
+  };
+  const chooseTab = (id: Tab) => {
+    if (!isPhone) { setTab(id); return; }
+    if (id === tab && sheetOpen) {
+      // Folding the crop tool away applies the crop, since its Apply button is inside the sheet.
+      if (id === 'crop') setTab('edit');
+      rememberSheet(false);
+      return;
+    }
+    setTab(id);
+    rememberSheet(true);
+  };
   const cropOpen = tab === 'crop';
   const [previewCrop, setPreviewCrop] = useState(false);
   const [gridLines, setGridLines] = useState(true);
@@ -373,6 +394,36 @@ export function PhotoEditor({ autoEdit,
     setCropNotice(correction ? `Straightened by ${correction}°` : 'The detected line is already level.');
   }
 
+  /** One tab bar. On a phone it is a bottom toolbar of large icons, and on wider screens the top of the side panel. */
+  const tabList = (
+    <div role="tablist" aria-label="Editing tools"
+      className={isPhone
+        ? 'grid shrink-0 grid-cols-4 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]'
+        : 'sticky top-0 z-10 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 md:-mx-4 md:px-3'}
+      onKeyDown={(event) => {
+        const order = TABS.map((entry) => entry.id);
+        const at = order.indexOf(tab);
+        const next = event.key === 'ArrowRight' ? order[(at + 1) % order.length] : event.key === 'ArrowLeft' ? order[(at + order.length - 1) % order.length]
+          : event.key === 'Home' ? order[0] : event.key === 'End' ? order[order.length - 1] : null;
+        if (!next) return;
+        event.preventDefault();
+        setTab(next);
+        document.getElementById(`tab-${next}`)?.focus();
+      }}>
+      {TABS.map(({ id, label, Icon }) => (
+        <button key={id} id={`tab-${id}`} role="tab" type="button" aria-selected={tab === id} aria-controls={`panel-${id}`} tabIndex={tab === id ? 0 : -1}
+          aria-expanded={isPhone ? sheetOpen && tab === id : undefined}
+          onClick={() => chooseTab(id)}
+          className={isPhone
+            ? 'relative flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs text-zinc-300 focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:text-white aria-selected:after:absolute aria-selected:after:top-0 aria-selected:after:h-0.5 aria-selected:after:w-10 aria-selected:after:bg-sky-200'
+            : 'flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1 border-b-2 border-transparent px-1.5 text-sm text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:border-sky-200 aria-selected:text-white'}>
+          <Icon className={isPhone ? 'h-5 w-5' : 'h-4 w-4'} aria-hidden="true" />
+          <span>{label}{id === 'masks' && edit.masks?.length ? <span className="ml-1 text-xs tabular-nums text-zinc-400">{edit.masks.length}</span> : null}</span>
+        </button>
+      ))}
+    </div>
+  );
+
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
   return (
     <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-kestrel-stage">
@@ -495,26 +546,8 @@ export function PhotoEditor({ autoEdit,
         )}
       </div>
       <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
-      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`scroll-pt-14 max-h-[44%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
-        <div role="tablist" aria-label="Editing tools" className="sticky top-0 z-10 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 md:-mx-4 md:px-3"
-          onKeyDown={(event) => {
-            const order = TABS.map((entry) => entry.id);
-            const at = order.indexOf(tab);
-            const next = event.key === 'ArrowRight' ? order[(at + 1) % order.length] : event.key === 'ArrowLeft' ? order[(at + order.length - 1) % order.length]
-              : event.key === 'Home' ? order[0] : event.key === 'End' ? order[order.length - 1] : null;
-            if (!next) return;
-            event.preventDefault();
-            setTab(next);
-            document.getElementById(`tab-${next}`)?.focus();
-          }}>
-          {TABS.map(({ id, label, Icon }) => (
-            <button key={id} id={`tab-${id}`} role="tab" type="button" aria-selected={tab === id} aria-controls={`panel-${id}`} tabIndex={tab === id ? 0 : -1}
-              onClick={() => setTab(id)}
-              className="flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1 border-b-2 border-transparent px-1.5 text-sm text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:border-sky-200 aria-selected:text-white">
-              <Icon className="h-4 w-4" aria-hidden="true" />{label}{id === 'masks' && edit.masks?.length ? <span className="text-xs tabular-nums text-zinc-400">{edit.masks.length}</span> : null}
-            </button>
-          ))}
-        </div>
+      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
+        {!isPhone && tabList}
         {tab === 'edit' && (
           <div role="tabpanel" id="panel-edit" aria-labelledby="tab-edit" className="space-y-2">
         <Histogram data={histogram} />
@@ -818,6 +851,7 @@ export function PhotoEditor({ autoEdit,
           </div>
         )}
       </div>
+      {isPhone && tabList}
       </div>
       {exportOpen && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} />}
     </section>
@@ -847,4 +881,16 @@ function PanelResizer({ width, side, onChange }: { width: number; side: 'left' |
         move(width + (grow ? 20 : -20));
       }} />
   );
+}
+
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const list = window.matchMedia(query);
+    const update = () => setMatches(list.matches);
+    update();
+    list.addEventListener('change', update);
+    return () => list.removeEventListener('change', update);
+  }, [query]);
+  return matches;
 }
