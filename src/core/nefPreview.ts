@@ -62,18 +62,23 @@ async function locatePreview(file: Blob): Promise<Blob | null> {
     }
   }
 
-  for (const { offset, length } of candidates.sort((a, b) => b.length - a.length)) {
+  // JPEG byte size depends on compression and detail. Prefer actual pixel area.
+  let best: { preview: Blob; pixels: number } | null = null;
+  for (const { offset, length } of candidates) {
     const first = await read(offset, 3);
     const last = await read(offset + length - 2, 2);
     if (first?.getUint16(0) === 0xffd8 && first.getUint8(2) === 0xff && last?.getUint16(0) === 0xffd9) {
       const preview = file.slice(offset, offset + length, 'image/jpeg');
-      if (await hasUsefulDimensions(preview)) return preview;
+      const pixels = await usefulPixelCount(preview);
+      if (pixels && (!best || pixels > best.pixels || (pixels === best.pixels && length > best.preview.size))) {
+        best = { preview, pixels };
+      }
     }
   }
-  return null;
+  return best?.preview ?? null;
 }
 
-async function hasUsefulDimensions(preview: Blob): Promise<boolean> {
+async function usefulPixelCount(preview: Blob): Promise<number> {
   const data = new DataView(await preview.slice(0, 256 * 1024).arrayBuffer());
   let offset = 2;
   while (offset + 4 < data.byteLength && data.getUint8(offset) === 0xff) {
@@ -86,14 +91,14 @@ async function hasUsefulDimensions(preview: Blob): Promise<boolean> {
       // Both dimensions must be plausible. A corrupt SOF with a 1-pixel
       // height used to pass because only the larger dimension was checked.
       // A truncated or fabricated SOF segment must not certify a RAW preview.
-      if (length < 8 || offset + 2 + length > data.byteLength) return false;
+      if (length < 8 || offset + 2 + length > data.byteLength) return 0;
       const height = data.getUint16(offset + 5);
       const width = data.getUint16(offset + 7);
-      return width >= 320 && height >= 320 && Math.max(width, height) >= 640;
+      return width >= 320 && height >= 320 && Math.max(width, height) >= 640 ? width * height : 0;
     }
     offset += 2 + length;
   }
-  return false;
+  return 0;
 }
 
 export async function extractNefPreview(file: Blob): Promise<Blob | null> {
@@ -104,7 +109,7 @@ export async function extractNefPreview(file: Blob): Promise<Blob | null> {
     const candidate = new Blob([fallback.bytes.slice()], { type: 'image/jpeg' });
     // A byte-pattern match alone is not proof of a decodable photo preview.
     // Reject tiny or malformed JPEGs rather than offering them as NEF previews.
-    if (await hasUsefulDimensions(candidate)) return candidate;
+    if (await usefulPixelCount(candidate)) return candidate;
   }
   return null;
 }

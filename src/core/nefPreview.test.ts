@@ -56,7 +56,7 @@ test('does not return a malformed TIFF-located preview', async () => {
   fake.set([0xff, 0xd8, 0xff, 0xe0, 0, 2]);
   fake.set([0xff, 0xd9], fake.length - 2);
   const header = container(true, 64);
-  new DataView(header.buffer).setUint32(44, fake.length, true);
+  new DataView(header.buffer).setUint32(48, fake.length, true);
   assert.equal(await extractNefPreview(new Blob([header, fake])), null);
 });
 
@@ -66,7 +66,7 @@ test('tries the next TIFF preview when the largest candidate is malformed', asyn
   malformed.set([0xff, 0xd9], malformed.length - 2);
   const header = container(true);
   const view = new DataView(header.buffer);
-  view.setUint32(44, malformed.length, true);
+  view.setUint32(48, malformed.length, true);
   view.setUint32(52, header.length, true);
   const secondDirectory = container(true, offset + malformed.length).slice(26, 56);
   const file = new Blob([
@@ -95,7 +95,7 @@ test('NEF preview requires plausible width and height, not just one large dimens
     return bytes;
   }
   const header = container(true, 64);
-  new DataView(header.buffer).setUint32(44, 5000, true);
+  new DataView(header.buffer).setUint32(48, 5000, true);
   assert.equal(await extractNefPreview(new Blob([header, preview(8256, 1)])), null);
   assert.equal(await extractNefPreview(new Blob([header, preview(1, 5504)])), null);
   assert.equal((await extractNefPreview(new Blob([header, preview(8256, 5504)])))?.size, 5000);
@@ -112,6 +112,33 @@ test('rejects a truncated JPEG SOF segment even when width and height look valid
   view.setUint16(9, 8256);
   bytes.set([0xff, 0xd9], bytes.length - 2);
   const header = container(true, 64);
-  new DataView(header.buffer).setUint32(44, bytes.length, true);
+  new DataView(header.buffer).setUint32(48, bytes.length, true);
   assert.equal(await extractNefPreview(new Blob([header, bytes])), null);
+});
+
+
+test('prefers more pixels over a larger compressed byte count', async () => {
+  function preview(width: number, height: number, length: number) {
+    const bytes = new Uint8Array(length);
+    bytes.set([0xff, 0xd8, 0xff, 0xc0, 0, 17, 8]);
+    const view = new DataView(bytes.buffer);
+    view.setUint16(7, height);
+    view.setUint16(9, width);
+    bytes.set([0xff, 0xd9], length - 2);
+    return bytes;
+  }
+
+  const lowerResolution = preview(640, 480, 12000);
+  const higherResolution = preview(2048, 1365, 6000);
+  const header = container(true, 94);
+  const view = new DataView(header.buffer);
+  view.setUint32(48, lowerResolution.length, true);
+  view.setUint32(52, 64, true);
+  const secondDirectory = container(true, 94 + lowerResolution.length).slice(26, 56);
+  new DataView(secondDirectory.buffer).setUint32(22, higherResolution.length, true);
+  new DataView(secondDirectory.buffer).setUint32(26, 0, true);
+
+  const result = await extractNefPreview(new Blob([header, secondDirectory, lowerResolution, higherResolution]));
+  assert.ok(result);
+  assert.deepEqual(new Uint8Array(await result.arrayBuffer()), higherResolution);
 });
