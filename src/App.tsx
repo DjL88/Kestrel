@@ -1,4 +1,6 @@
 import { splitDropped } from './core/dropSplit';
+import { useAccess } from './providers/useAccess';
+import { PaidNotice } from './components/PaidNotice';
 import { DropOverlay } from './components/DropOverlay';
 import { useDropPhotos } from './providers/useDropPhotos';
 import { DesktopUpdate } from './components/DesktopUpdate';
@@ -92,6 +94,8 @@ function isEditableElement(target: EventTarget | null): boolean {
 }
 
 export default function App() {
+  const { can } = useAccess();
+  const [paidDialog, setPaidDialog] = useState<string | null>(null);
   useDesktopMenu();
   const storeRef = useRef<BrowserCatalogueStore | null>(null);
   if (!storeRef.current) storeRef.current = new BrowserCatalogueStore();
@@ -690,7 +694,7 @@ export default function App() {
   // After photos are added, name the species in the background. The subject flashes up on each card as it is found.
   const scan = useSpeciesScan({
     projectId: cullingState.shoot.id,
-    frames: cullingState.frames, provider: previewProviderRef.current, active: !projectsOpen && !editing,
+    frames: cullingState.frames, provider: previewProviderRef.current, active: !projectsOpen && !editing && can('speciesId'),
     onResult: (frameId, patch) => setCullingState((prev) => {
       if (prev.shoot.id !== cullingState.shoot.id) return prev;
       return { ...prev, frames: prev.frames.map((frame) =>
@@ -869,7 +873,7 @@ export default function App() {
       });
       if (options?.openEditor) {
         setEditing(true);
-      } else if (cullingState.settings?.autoCull) {
+      } else if (cullingState.settings?.autoCull && can('smartCulling')) {
         setAutoCullStart(true);
         setAutoCullOpen(true);
       }
@@ -1034,6 +1038,15 @@ export default function App() {
   return (
     <div className={`h-dvh w-full flex flex-col pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden ${editing ? '' : 'max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]'}`}>
       <DesktopUpdate />
+      {paidDialog && (
+        <div role="dialog" aria-modal="true" aria-label={`${paidDialog} is part of Kestrel Paid`} className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+          onKeyDown={(event) => { if (event.key === 'Escape') setPaidDialog(null); }}>
+          <div className="w-full max-w-sm space-y-3 rounded-xl border border-white/12 bg-kestrel-panel p-4">
+            <PaidNotice title={paidDialog}>Assisted selection of your best frames.</PaidNotice>
+            <button type="button" autoFocus onClick={() => setPaidDialog(null)} className="min-h-11 w-full rounded-md border border-white/15 px-3 text-sm text-zinc-100 hover:bg-white/8">Close</button>
+          </div>
+        </div>
+      )}
       <DropOverlay dragging={drop.dragging} message={drop.message} onDismiss={drop.clearMessage} />
       {editing ? (
         <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-kestrel-panel px-3 py-1">
@@ -1109,7 +1122,7 @@ export default function App() {
         onOpenShootModal={() => { setFolderError(null); setOpenShootModal(true); }}
         onBackToProjects={() => void backToProjects()}
         onBackupProject={() => void backupProject()}
-        onAutoCull={() => { setAutoCullStart(false); setAutoCullOpen(true); }}
+        onAutoCull={() => { if (!can('smartCulling')) { setPaidDialog('Auto-cull'); return; } setAutoCullStart(false); setAutoCullOpen(true); }}
         settings={cullingState.settings ?? LEGACY_SETTINGS}
         onSettingsChange={(settings) => setCullingState((prev) => ({ ...prev, settings, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } }))}
         actionsDisabled={Boolean(loadingProgress) || projectBusy}
@@ -1249,8 +1262,8 @@ export default function App() {
               </div>
             </div>
           )}
-          {!editing && <SpeciesScanBanner scan={scan} />}
-          <OnlineHelperDialog />
+          {!editing && can('speciesId') && <SpeciesScanBanner scan={scan} />}
+          {can('onlineAi') && <OnlineHelperDialog />}
           {!editing && visibleFrames.length > 0 && prefs.viewMode === 'grid' && (
             <VirtualizedContactSheet
               onResetFrame={(id) => requestReset(multiSelect && selectedIds.has(id) ? [...selectedIds] : [id])}

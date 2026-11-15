@@ -4,7 +4,9 @@ import { generateDemoShootFrames, createDemoShootState, applyAutoCullDecisions, 
 import { limitAutoKeepers, scorePreview, type CullSuggestion } from './autoCull';
 
 test('a flat dark preview is advisory and unavailable images receive no decision', () => {
-  const result = scorePreview('dark', new Uint8ClampedArray(96 * 96 * 4), 96, 96);
+  const opaqueDark = new Uint8ClampedArray(96 * 96 * 4);
+  for (let i = 3; i < opaqueDark.length; i += 4) opaqueDark[i] = 255;
+  const result = scorePreview('dark', opaqueDark, 96, 96);
   assert.equal(result.confidence, 'medium');
   assert.equal(result.decision, 'reject');
   assert.equal(scorePreview('small', new Uint8ClampedArray(4), 1, 1).decision, null);
@@ -46,7 +48,9 @@ test('malformed preview dimensions and pixel buffers never receive automatic dec
   unavailable(new Uint8ClampedArray(96 * 96 * 4), NaN, 96);
   unavailable(new Uint8ClampedArray(96 * 96 * 4), 96.5, 96);
   unavailable(new Uint8ClampedArray(0), 100_000, 100_000);
-  const valid = scorePreview('valid', new Uint8ClampedArray(96 * 96 * 4), 96, 96);
+  const opaque = new Uint8ClampedArray(96 * 96 * 4);
+  for (let i = 3; i < opaque.length; i += 4) opaque[i] = 255;
+  const valid = scorePreview('valid', opaque, 96, 96);
   assert.equal(valid.reason, 'flat');
 });
 
@@ -84,4 +88,12 @@ test('removed keepers do not block an active photo in the same burst', () => {
   const result = limitAutoKeepers(suggestions, photos, 1);
   assert.deepEqual(result.filter((item) => item.confidence === 'high').map((item) => item.frameId), [photos[1].id]);
   assert.equal(result[1].confidence, 'medium');
+});
+
+
+test('a fully transparent preview cannot trigger an automatic flat-image rejection', () => {
+  const transparent = new Uint8ClampedArray(96 * 96 * 4);
+  const result = scorePreview('transparent', transparent, 96, 96);
+  assert.deepEqual({ decision: result.decision, confidence: result.confidence, reason: result.reason },
+    { decision: null, confidence: 'low', reason: 'unavailable' });
 });

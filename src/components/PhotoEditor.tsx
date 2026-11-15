@@ -42,6 +42,8 @@ import { visiblePhotoDetail } from '../core/visiblePhotoDetail';
 
 const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
+import { PaidNotice } from './PaidNotice';
+import { useAccess } from '../providers/useAccess';
 const PANEL_KEY = 'kestrel-panel-width-v1';
 const SHEET_KEY = 'kestrel-sheet-v1';
 type Tab = 'auto' | 'crop' | 'edit' | 'masks' | 'history' | 'export';
@@ -128,7 +130,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   // On a phone the Edit tab opens as one big slider within thumb reach. The full list is one tap away.
   const [allControls, setAllControls] = useState(false);
   const [quickChoices, setQuickChoices] = useState(false);
-  const [tab, setTab] = useState<Tab>('auto');
+  const { can } = useAccess();
+  const [tab, setTab] = useState<Tab>(can('autoTab') ? 'auto' : 'edit');
   const [previewRecipe, setPreviewRecipe] = useState<{ edit?: PhotoEdit; framing?: PhotoFraming } | null>(null);
   const cropEntry = useRef<PhotoFraming | null>(null);
   const panelScroll = useRef<HTMLDivElement>(null);
@@ -707,7 +710,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
       <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:relative md:z-10 ${showFilmstrip ? 'md:-mb-[156px] md:pb-[172px] ' : ''}md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
         {!isPhone && tabList}
-        {tab === 'auto' && (
+        {tab === 'auto' && !can('autoTab') && (
+          <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto"><PaidNotice title="The Auto tab">Automatic colour and tone, subject and species suggestions, and the online helper are here.</PaidNotice></div>
+        )}
+        {tab === 'auto' && can('autoTab') && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
         <div className="grid grid-cols-2 gap-2 px-1">
           <button type="button" title="Auto colour and tone" disabled={sourceState !== 'ready'} className={`${button} w-full whitespace-normal border border-white/10 font-semibold`}
@@ -1000,7 +1006,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
 
           </div>
         )}
-        {tab === 'masks' && (
+        {tab === 'masks' && !can('masks') && (
+          <div role="tabpanel" id="panel-masks" aria-labelledby="tab-masks"><PaidNotice title="Masks and subject detection">Brush, gradient and subject masks, and selecting an area, are here.</PaidNotice></div>
+        )}
+        {tab === 'masks' && can('masks') && (
           <div role="tabpanel" id="panel-masks" aria-labelledby="tab-masks">
             <MaskPanel masks={edit.masks ?? []} selectedId={selectedMaskId} disabled={sourceState !== 'ready'}
               brushRadius={brushRadius} paintOn={paintOn} onPaintOn={setPaintOn} erase={erase} showOverlay={showMaskOverlay}

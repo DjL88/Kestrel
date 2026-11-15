@@ -13,6 +13,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: node --test scripts/check-release-version.test.mjs
+      - run: node scripts/check-release-version.mjs
       - run: npm run lint
       - run: npm test
       - run: npx playwright install --with-deps chromium

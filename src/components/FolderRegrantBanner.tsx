@@ -30,21 +30,21 @@ export const FolderRegrantBanner: React.FC<FolderRegrantBannerProps> = ({
         <span>
           {status ?? (mode === 'folder'
             ? `Browser security paused read access to "${folderName ?? 'your folder'}" after reload. Your culling decisions are preserved.`
-            : 'Re-select the original files to restore previews and keep your edits and virtual copies.')}
+            : 'Re-select the original files to restore previews and keep your edits and virtual copies. Moved them to another drive? Drop the photos or their folder anywhere on this window.')}
         </span>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <button
           type="button"
           onClick={onReconnect}
-          className="px-3 py-1 rounded bg-amber-400 hover:bg-amber-300 text-zinc-950 font-semibold transition-colors"
+          className="min-h-11 px-3 py-1 rounded bg-amber-400 hover:bg-amber-300 text-zinc-950 font-semibold transition-colors"
         >
           {mode === 'folder' ? 'Grant Folder Access' : 'Re-open Files'}
         </button>
         <button
           type="button"
           onClick={onDismiss}
-          className="px-2 py-1 rounded text-amber-200 hover:bg-white/10"
+          className="min-h-11 px-2 py-1 rounded text-amber-200 hover:bg-white/10"
         >
           Dismiss
         </button>

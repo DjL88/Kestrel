@@ -60,3 +60,21 @@ Needs accounts only the owner can create, so none of this is switched on. Do it 
 
 ## Unsigned beta (current decision)
 First releases are unsigned on both systems. Mac testers right-click, Open on first launch; Windows testers use More info, Run anyway. The website explains this under "Installing the beta". Signing is added later: Apple once the membership is active, Windows when a certificate is bought (or via the Microsoft Store). The signing checklist above still applies.
+
+## Consistent release versions
+
+Kestrel displays the web package version in the About footer. The native application and signed updates have their own version fields. To keep the public footer, installer and GitHub release aligned, **all three must match**:
+
+- `package.json` → `version`
+- `src-tauri/tauri.conf.json` → `version`
+- `src-tauri/Cargo.toml` → `[package].version`
+
+Before tagging, update all three, then run:
+
+```bash
+node --test scripts/check-release-version.test.mjs
+node scripts/check-release-version.mjs
+KESTREL_RELEASE_TAG=v0.1.1 node scripts/check-release-version.mjs
+```
+
+Use the actual intended tag in the last command. Normal CI checks consistency on every PR. The desktop release workflow also rejects a mismatching `vX.Y.Z` tag **before it invokes the installer publishing action**, avoiding a misleading download or auto-update. The updater itself remains disabled until real signed update and rollback validation is complete.
