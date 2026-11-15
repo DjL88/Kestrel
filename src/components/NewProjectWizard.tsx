@@ -94,7 +94,7 @@ export function NewProjectWizard({ loading, onCancel, onCreate }: Props) {
           {step === 1 ? 'Cancel' : <><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</>}
         </button>
         <button type="submit" disabled={!valid || loading}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-kestrel-copper px-4 text-sm font-semibold text-zinc-950 disabled:opacity-40">
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-kestrel-copper hover:bg-kestrel-copper-hover! px-4 text-sm font-semibold text-zinc-950 disabled:opacity-40">
           {step < STEPS ? <>Next<ArrowRight className="h-4 w-4" aria-hidden="true" /></> : 'Create project'}
         </button>
       </div>

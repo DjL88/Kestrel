@@ -159,7 +159,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           <Pencil className="h-4 w-4" aria-hidden="true" />Edit
         </button>
         <button type="button" onClick={props.onExport} disabled={!props.onExport || props.actionsDisabled} title="Export the selected photos"
-          className={`${actionClass} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover disabled:opacity-40`}>
+          className={`${actionClass} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-40`}>
           <Download className="h-4 w-4" aria-hidden="true" />{props.exportLabel ?? 'Export'}
         </button>
         <div ref={menuRef}>
