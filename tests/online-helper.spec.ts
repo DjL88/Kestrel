@@ -44,7 +44,9 @@ async function importPhotos(page: Page) {
 }
 
 async function turnOn(page: Page, key = 'test-key-123') {
-  await page.getByRole('region', { name: 'Species recognition' }).getByRole('button', { name: 'Or use the online helper' }).click();
+  const setup = page.getByRole('region', { name: 'Species recognition' });
+  await setup.getByText('Identify birds and animals', { exact: true }).click();
+  await setup.getByRole('button', { name: 'Online helper settings' }).click();
   const dialog = page.getByRole('dialog', { name: 'Online helper (optional)' });
   const save = dialog.getByRole('button', { name: 'Check and turn on' });
   await expect(save).toBeDisabled();
