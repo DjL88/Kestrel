@@ -9,6 +9,7 @@ import {
   isNikonEmbeddedPreviewFile,
   validExifPositiveNumber,
   validExifDimension,
+  validExifCaptureTimestamp,
 } from './exifParser';
 
 test('EXIF formatting returns blank strings when values are missing', () => {
@@ -106,4 +107,14 @@ test('Nikon camera identity ignores TIFF NUL terminators and control bytes', () 
   assert.equal(formatCameraLabel('NIKON CORPORATION\0', 'NIKON Z 8\0'), 'NIKON Z 8');
   assert.equal(formatCameraLabel('Nikon\t', 'Z 5II\n'), 'Nikon Z 5II');
   assert.equal(formatCameraLabel('\0\n', '\0'), undefined);
+});
+
+test('capture timestamp falls back when DateTimeOriginal is malformed', () => {
+  const original = new Date('2026-11-15T10:00:00Z');
+  const created = new Date('2026-11-15T10:01:00Z');
+  assert.equal(validExifCaptureTimestamp(original, created), original.getTime());
+  assert.equal(validExifCaptureTimestamp(new Date(NaN), created), created.getTime());
+  assert.equal(validExifCaptureTimestamp('invalid', created), created.getTime());
+  assert.equal(validExifCaptureTimestamp(undefined, created), created.getTime());
+  assert.equal(validExifCaptureTimestamp(new Date(NaN), 'invalid'), undefined);
 });
