@@ -158,7 +158,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
                   setPadTab('cull');
                   setCapturingId(null);
                 }}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                className={`min-h-11 px-3 text-xs font-medium rounded-md transition-colors ${
                   padTab === 'cull'
                     ? 'bg-[#23272F] text-zinc-100'
                     : 'text-zinc-400 hover:text-zinc-200'
@@ -174,7 +174,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
                   setPadTab('edit');
                   setCapturingId(null);
                 }}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                className={`min-h-11 px-3 text-xs font-medium rounded-md transition-colors ${
                   padTab === 'edit'
                     ? 'bg-[#23272F] text-zinc-100'
                     : 'text-zinc-400 hover:text-zinc-200'
@@ -191,7 +191,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
                   aria-label="Rotary knob function in Cull mode"
                   value={knobMode}
                   onChange={(e) => onKnobModeChange(e.target.value as KnobFunction)}
-                  className="bg-kestrel-stage border border-white/12 rounded-md px-2.5 py-1 text-xs text-zinc-200 focus:border-sky-400 focus:outline-none"
+                  className="bg-kestrel-stage border border-white/12 rounded-md min-h-11 px-2.5 text-xs text-zinc-200 focus:border-sky-400 focus:outline-none"
                 >
                   <option value="navigate">Previous / Next Frame</option>
                   <option value="zoom">Zoom Out / Zoom In</option>
@@ -202,8 +202,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
 
           {padTab === 'edit' && (
             <div className="px-3 py-2 rounded-lg bg-[#1A1D24] border border-white/10 text-xs text-zinc-300">
-              Edit Mode tools arrive in Slice 2. Configure your SinLoon Copy Edit / Paste Edit
-              profile here now; bindings save locally.
+              These shortcuts apply in the editor. Changes are saved on this device.
             </div>
           )}
 
@@ -252,7 +251,9 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
                       key={cmd.id}
                       type="button"
                       onClick={() => setCapturingId(isCapturing ? null : cmd.id)}
-                      className={`px-2 py-1.5 rounded border text-center transition-colors ${
+                      aria-label={`Remap ${cmd.label} (knob ${cmd.padSlot === 'KNOB_CCW' ? 'anticlockwise' : 'clockwise'}, currently ${formatChordLabel(chord)})`}
+                      aria-pressed={isCapturing}
+                      className={`min-h-11 px-2 py-1.5 rounded border text-center transition-colors ${
                         isCapturing
                           ? 'bg-sky-500/20 border-sky-400 text-sky-100'
                           : hasConflict
@@ -294,7 +295,9 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setCapturingId(isCapturing ? null : cmd.id)}
-                        className={`px-2.5 py-1 rounded border font-mono text-xs shrink-0 ${
+                        aria-label={`Remap ${cmd.label} (currently ${formatChordLabel(chord)})`}
+                        aria-pressed={isCapturing}
+                        className={`min-h-11 min-w-11 px-2.5 py-1 rounded border font-mono text-xs shrink-0 ${
                           isCapturing
                             ? 'bg-sky-500/20 border-sky-400 text-sky-100'
                             : hasConflict
@@ -317,7 +320,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
           <button
             type="button"
             onClick={onResetBindings}
-            className="px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-zinc-100 bg-[#1D2026] hover:bg-[#262A32] border border-white/10 rounded-lg flex items-center gap-1.5"
+            className="min-h-11 px-3 text-xs font-medium text-zinc-300 hover:text-zinc-100 bg-[#1D2026] hover:bg-[#262A32] border border-white/10 rounded-lg flex items-center gap-1.5"
           >
             <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Reset Defaults</span>
@@ -326,7 +329,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 text-xs font-semibold text-zinc-950 bg-zinc-100 hover:bg-white rounded-lg"
+            className="min-h-11 min-w-11 px-4 text-xs font-semibold text-zinc-950 bg-zinc-100 hover:bg-white rounded-lg"
           >
             Done
           </button>
