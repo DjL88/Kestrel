@@ -61,10 +61,11 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   });
   await page.getByRole('tab', { name: 'Masks' }).click();
   // The tab bar must never cover the first line of a tab, however far the previous tab was scrolled.
+  // On a phone the bar is at the bottom and the tools sit above it, otherwise the bar is at the top of the panel.
   await expect.poll(() => page.evaluate(() => {
     const bar = document.querySelector('[role=tablist]')!.getBoundingClientRect();
     const first = document.querySelector('#panel-masks')!.firstElementChild!.getBoundingClientRect();
-    return first.top >= bar.bottom - 0.5;
+    return window.innerWidth < 768 ? first.bottom <= bar.top + 0.5 : first.top >= bar.bottom - 0.5;
   })).toBe(true);
   await page.getByRole('button', { name: 'Find subject', exact: true }).click();
   // The sliders live on the Edit tab, so change the edit there while detection is still waiting for the model.
