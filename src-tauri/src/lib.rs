@@ -1,12 +1,18 @@
+#[cfg(desktop)]
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+#[cfg(desktop)]
 use tauri::Emitter;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_opener::init());
+
+    // Menus, restart and the updater exist on desktop only.
+    #[cfg(desktop)]
+    let builder = builder
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .menu(|app| {
@@ -42,7 +48,9 @@ pub fn run() {
         })
         .on_menu_event(|app, event| {
             let _ = app.emit("menu", event.id().0.clone());
-        })
+        });
+
+    builder
         .run(tauri::generate_context!())
         .expect("error while running Kestrel");
 }
