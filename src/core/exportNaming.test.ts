@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { KEEP_NAMES, sequenceNumber, shortNumber, stemFor } from './exportNaming';
+import { KEEP_NAMES, sequenceNumber, shortNumber, stemFor, uniqueExportFilename } from './exportNaming';
 import { NO_OVERLAY, overlayLines, settingsLine } from './exportOverlay';
 
 test('the short number comes from the end of the camera file name', () => {
@@ -32,4 +32,18 @@ test('the overlay prints only what the photo records and what is switched on', (
   assert.deepEqual(overlayLines({ iso: 100 }, { ...on, date: true }), ['ISO 100'], 'missing values leave no gaps');
   assert.deepEqual(overlayLines({}, on), []);
   assert.equal(settingsLine({ apertureF: 8, shutterSpeed: '1/9s' }), 'ƒ/8 · 1/9s');
+});
+
+test('export names stay distinct across repeat camera counters and case-insensitive disks', () => {
+  const used = new Set<string>();
+  const names = [
+    'DSC_0001.jpg', 'DSC_0001.jpg', 'dsc_0001.JPG',
+    'DSC_0001-2.jpg', 'DSC_0001.jpg', 'photo',
+  ].map((name) => uniqueExportFilename(name, used));
+  assert.deepEqual(names, [
+    'DSC_0001.jpg', 'DSC_0001-2.jpg', 'dsc_0001-3.JPG',
+    'DSC_0001-2-2.jpg', 'DSC_0001-4.jpg', 'photo',
+  ]);
+  assert.equal(uniqueExportFilename('photo', used), 'photo-2');
+  assert.equal(used.size, names.length + 1);
 });
