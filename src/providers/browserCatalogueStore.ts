@@ -17,6 +17,9 @@ const STORE_HANDLES = 'directoryHandles';
 
 const PROJECT_PREFIX = 'project:';
 const ACTIVE_KEY = 'active-shoot-state';
+// A deletion means the catalogue has been deliberately managed. Never migrate
+// an obsolete active-state fallback into an empty catalogue after that.
+const LEGACY_MIGRATION_BLOCKED = 'legacy-migration-blocked-after-delete';
 const PREFS_STORAGE_KEY = 'kestrel.preferences.v1';
 
 export interface UserPreferences {
@@ -230,7 +233,12 @@ export class BrowserCatalogueStore implements CatalogueStore {
           const tx = db.transaction([STORE_CATALOGUE, STORE_FILES, STORE_HANDLES], 'readwrite');
           tx.oncomplete = () => resolve();
           tx.onabort = () => reject(tx.error ?? new Error('Deleting the project was interrupted'));
-          tx.objectStore(STORE_CATALOGUE).delete(PROJECT_PREFIX + id);
+          const catalogue = tx.objectStore(STORE_CATALOGUE);
+          catalogue.delete(PROJECT_PREFIX + id);
+          // These are committed atomically with deletion. A crash cannot
+          // resurrect a deleted project via an older localStorage fallback.
+          catalogue.put(true, LEGACY_MIGRATION_BLOCKED);
+          catalogue.delete(ACTIVE_KEY);
           tx.objectStore(STORE_HANDLES).delete(id);
           for (const key of keys) tx.objectStore(STORE_FILES).delete(key);
         });
@@ -239,10 +247,21 @@ export class BrowserCatalogueStore implements CatalogueStore {
       }
     });
     this.projectWrite = write.catch(() => {});
-    return write;
+    await write;
+    try {
+      const legacy = localStorage.getItem('kestrel.activeStateFallback.v1');
+      if (legacy) {
+        const parsed: unknown = JSON.parse(legacy);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) &&
+          'shoot' in parsed && (parsed as { shoot?: { id?: string } }).shoot?.id === id) {
+          localStorage.removeItem('kestrel.activeStateFallback.v1');
+        }
+      }
+    } catch { /* The atomic catalogue marker still prevents resurrection. */ }
   }
 
   async loadActiveState(): Promise<Partial<CullingState> | null> {
+    if (await idbGet<boolean>(STORE_CATALOGUE, LEGACY_MIGRATION_BLOCKED)) return null;
     const idbState = await idbGet<CullingState>(STORE_CATALOGUE, ACTIVE_KEY);
 
     let lsState: CullingState | null = null;
