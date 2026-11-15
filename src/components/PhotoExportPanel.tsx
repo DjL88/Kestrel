@@ -16,6 +16,7 @@ import { KEEP_NAMES, stemFor, uniqueExportFilename, type NameTemplate } from '..
 import { useAccess } from '../providers/useAccess';
 import { FREE_DAILY_EXPORT_LIMIT } from '../core/features';
 import { parseUsage, recordUse, remainingToday } from '../core/dailyAllowance';
+import { parseCustomExportDate } from '../core/exportDateInput';
 import { parseWatermark } from '../core/watermarkStore';
 import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, type WatermarkOptions } from '../core/watermark';
 import { NO_OVERLAY, overlayLines, type OverlayOptions } from '../core/exportOverlay';
@@ -170,6 +171,10 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   const readUsage = () => { try { return parseUsage(localStorage.getItem(USAGE_KEY)); } catch { return null; } };
 
   async function prepare() {
+    if (timestamp === 'custom' && !parseCustomExportDate(customDate)) {
+      setError('Choose a valid date and time before preparing your photos.');
+      return;
+    }
     if (!unlimited) {
       const wanted = frames.length * selected.length;
       const left = remainingToday(readUsage(), new Date(), FREE_DAILY_EXPORT_LIMIT);
@@ -190,7 +195,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
     activeExport.current = controller;
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chosen)); } catch { /* Optional preference. */ }
     const started = new Date();
-    const pickedDate = timestamp === 'custom' ? new Date(customDate) : null;
+    const pickedDate = timestamp === 'custom' ? parseCustomExportDate(customDate) : null;
     const output: File[] = [];
     const usedExportNames = new Set<string>();
     try {
@@ -484,7 +489,8 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
   );
 
   const changeView = (next: 'wizard' | 'list') => { setView(next); try { localStorage.setItem('kestrel.exportView', next); } catch { /* Optional preference. */ } };
-  const blocked = Boolean(customOn && customResult && 'error' in customResult);
+  const invalidDate = timestamp === 'custom' && !parseCustomExportDate(customDate);
+  const blocked = Boolean(customOn && customResult && 'error' in customResult) || invalidDate;
   const canShare = files.length > 0 && navigator.canShare?.({ files });
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-3 max-md:p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
@@ -493,7 +499,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose }: Props) {
           <button type="button" onClick={onClose} aria-label="Close export" title="Close export" className={button}><X className="h-5 w-5" aria-hidden="true" /></button>
           <h2 id="export-title" ref={title} tabIndex={-1} className="min-w-0 flex-1 truncate text-center text-base font-semibold">Export {frames.length === 1 ? 'photo' : `${frames.length} photos`}</h2>
           {resultsReady || wizard ? <span className="w-11" /> : (
-            <button type="submit" form="export-form" aria-label={progress !== null ? `Preparing ${progress} of ${total}` : `Prepare ${total} ${total === 1 ? 'file' : 'files'}`} disabled={!total || progress !== null || Boolean(customOn && customResult && 'error' in customResult)}
+            <button type="submit" form="export-form" aria-label={progress !== null ? `Preparing ${progress} of ${total}` : `Prepare ${total} ${total === 1 ? 'file' : 'files'}`} disabled={!total || progress !== null || blocked}
               className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}>
               {progress !== null ? `${progress}/${total}…` : total > 1 ? `Prepare ${total}` : 'Prepare'}
             </button>
