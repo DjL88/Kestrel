@@ -71,3 +71,21 @@ export async function saveOfflinePreview(key: string, preview: Blob): Promise<bo
   } catch { return false; }
   finally { db?.close(); }
 }
+
+/** Clear only derived preview bytes; never removes originals or catalogue edits. */
+export async function clearOfflinePreviews(): Promise<boolean> {
+  if (typeof indexedDB === 'undefined') return true;
+  let db: IDBDatabase | undefined;
+  try {
+    db = await database();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db!.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+    return true;
+  } catch { return false; }
+  finally { db?.close(); }
+}
