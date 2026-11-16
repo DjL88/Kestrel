@@ -5,7 +5,7 @@ import { isDesktopApp } from './desktopShell';
 export function validateRawExtension(extension: string): string {
   const value = extension.toLowerCase();
   if (!/^[a-z0-9]{2,5}$/.test(value) || !new Set([
-    'nef', 'nrw', 'cr2', 'cr3', 'arw', 'raf', 'rw2', 'orf', 'pef', 'dng', 'srw', '3fr', 'fff', 'iiq', 'k25', 'kdc', 'mos', 'mrw', 'raw', 'rwl', 'x3f',
+    'nef', 'nrw', 'cr2', 'cr3', 'arw', 'raf', 'rw2', 'orf', 'pef', 'dng', 'srw', '3fr',
   ]).has(value)) {
     throw new Error('This RAW file type is not supported for development. The original is unchanged.');
   }
