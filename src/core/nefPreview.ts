@@ -1,6 +1,6 @@
 import { extractEmbeddedJpegFromRawBuffer } from './exifParser';
 
-const FALLBACK_BYTES = 28 * 1024 * 1024;
+const FALLBACK_STEPS = [4, 12, 28].map((megabytes) => megabytes * 1024 * 1024);
 const MAX_PREVIEW_BYTES = 48 * 1024 * 1024;
 // A corrupt JPEG header must not ask the browser to allocate a multi-gigapixel bitmap.
 // Nikon Z8 full-resolution photographs are ~46 MP; allow generous headroom.
@@ -140,11 +140,14 @@ async function usefulPixelCount(preview: Blob): Promise<number> {
 export async function extractRawPreview(file: Blob): Promise<Blob | null> {
   const located = await locatePreview(file);
   if (located) return located;
-  const fallback = extractEmbeddedJpegFromRawBuffer(await file.slice(0, FALLBACK_BYTES).arrayBuffer());
-  if (fallback) {
+  // Most camera-embedded JPEGs are near the front of a RAW file. Probe in
+  // increasing bounded windows to avoid allocating 28 MiB for every thumbnail.
+  // A failed early probe is not proof the file lacks a preview.
+  for (const bytes of FALLBACK_STEPS) {
+    const buffer = await file.slice(0, Math.min(file.size, bytes)).arrayBuffer();
+    const fallback = extractEmbeddedJpegFromRawBuffer(buffer);
+    if (!fallback) continue;
     const candidate = new Blob([fallback.bytes.slice()], { type: 'image/jpeg' });
-    // A byte-pattern match alone is not proof of a decodable photo preview.
-    // Reject tiny or malformed JPEGs rather than offering them as NEF previews.
     if (await usefulPixelCount(candidate)) return candidate;
   }
   return null;
