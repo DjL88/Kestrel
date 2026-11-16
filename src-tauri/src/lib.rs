@@ -61,14 +61,16 @@ pub fn run() {
             ])?;
             let view = Submenu::with_items(app, "View", true, &[
                 &MenuItem::with_id(app, "filmstrip", "Show or hide filmstrip", true, None::<&str>)?,
-                &MenuItem::with_id(app, "appearance", "Appearance && layout…", true, None::<&str>)?,
                 &PredefinedMenuItem::fullscreen(app, None)?,
             ])?;
+            let settings = Submenu::with_items(app, "Settings", true, &[
+                &MenuItem::with_id(app, "appearance", "Appearance and layout…", true, None::<&str>)?,
+                &MenuItem::with_id(app, "macro-pad", "Macro pad and shortcuts…", true, Some("CmdOrCtrl+M"))?,
+            ])?;
             let window = Submenu::with_items(app, "Window", true, &[
-                &MenuItem::with_id(app, "macro-pad", "Macro pad…", true, Some("CmdOrCtrl+M"))?,
                 &PredefinedMenuItem::minimize(app, None)?,
             ])?;
-            Menu::with_items(app, &[&app_menu, &file, &edit, &view, &window])
+            Menu::with_items(app, &[&app_menu, &file, &edit, &view, &settings, &window])
         })
         .on_menu_event(|app, event| {
             let _ = app.emit("menu", event.id().0.clone());
