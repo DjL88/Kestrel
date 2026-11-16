@@ -113,7 +113,7 @@ export function extractEmbeddedJpegFromRawBuffer(
       view[i + 3] !== 0xd8 && view[i + 3] !== 0xd9) {
       const start = i;
       // Search forward for EOI (0xFF 0xD9) up to a reasonable preview bound
-      let j = i + 3;
+      let j = i + 2;
       while (j < view.length - 1) {
         if (view[j] === 0xff && view[j + 1] === 0xd9) {
           const end = j + 2;
@@ -135,6 +135,17 @@ export function extractEmbeddedJpegFromRawBuffer(
           ![0x00, 0xff, 0xd8, 0xd9].includes(view[j + 3])) {
           i = j;
           break;
+        }
+        // Metadata segments can legitimately contain a complete thumbnail JPEG.
+        // Skip their declared payload instead of interpreting its SOI/EOI.
+        const marker = view[j + 1];
+        if (view[j] === 0xff && marker !== 0x00 && marker !== 0xff &&
+          marker !== 0x01 && !(marker >= 0xd0 && marker <= 0xd9) && j + 3 < view.length) {
+          const length = (view[j + 2] << 8) | view[j + 3];
+          if (length >= 2 && j + 2 + length <= view.length) {
+            j += 2 + length;
+            continue;
+          }
         }
         j += 1;
       }

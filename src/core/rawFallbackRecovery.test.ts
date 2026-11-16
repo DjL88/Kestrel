@@ -21,3 +21,14 @@ test('normal embedded JPEG still extracts unchanged', () => {
   bytes.set([0xff, 0xd9], 5100);
   assert.equal(extractEmbeddedJpegFromRawBuffer(bytes.buffer)?.bytes.length, 5002);
 });
+
+test('a JPEG thumbnail inside an EXIF segment does not replace the outer preview', () => {
+  const bytes = new Uint8Array(10_000);
+  bytes.set([0xff, 0xd8, 0xff, 0xe1, 0x17, 0x72], 100);
+  bytes.set([0xff, 0xd8, 0xff, 0xe0], 500);
+  bytes.set([0xff, 0xd9], 5500);
+  bytes.set([0xff, 0xd9], 9100);
+  const result = extractEmbeddedJpegFromRawBuffer(bytes.buffer);
+  assert.ok(result);
+  assert.deepEqual(result.bytes, bytes.slice(100, 9102));
+});
