@@ -533,6 +533,13 @@ export function applyAutoCullDecisions(
   };
 }
 
+/** Do not replay history against an ambiguous catalogue identity. */
+function historyTargetsAreUnique(state: CullingState, entry: CullingState['undoStack'][number]): boolean {
+  const counts = new Map<string, number>();
+  for (const frame of state.frames) counts.set(frame.id, (counts.get(frame.id) ?? 0) + 1);
+  return (entry.batch ?? [entry]).every((change) => counts.get(change.frameId) === 1);
+}
+
 function restoreFlags(state: CullingState, entry: CullingState['undoStack'][number], direction: 'prevDecision' | 'nextDecision') {
   const changes = new Map((entry.batch ?? [entry]).map((change) => [change.frameId, change[direction]]));
   return state.frames.map((frame) => {
@@ -592,6 +599,8 @@ export function restoreRemoved(state: CullingState, frameIds: string[]): Culling
 export function undoDecision(state: CullingState): CullingState {
   if (state.undoStack.length === 0) return state;
   const entry = state.undoStack[state.undoStack.length - 1];
+  // Leave history intact so the user can repair the catalogue before retrying.
+  if (!historyTargetsAreUnique(state, entry)) return state;
   const updatedFrames = restoreFlags(state, entry, 'prevDecision');
 
   return {
@@ -610,6 +619,8 @@ export function undoDecision(state: CullingState): CullingState {
 export function redoDecision(state: CullingState): CullingState {
   if (state.redoStack.length === 0) return state;
   const entry = state.redoStack[state.redoStack.length - 1];
+  // Leave history intact so the user can repair the catalogue before retrying.
+  if (!historyTargetsAreUnique(state, entry)) return state;
   const updatedFrames = restoreFlags(state, entry, 'nextDecision');
 
   const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery, state.ratingFilter);
