@@ -8,6 +8,8 @@ export interface BackupClock {
   lastChangeAt?: number;
   /** When a backup last finished. */
   lastBackupAt?: number;
+  /** Last edit included in the successful snapshot, which can precede completion. */
+  backedUpChangeAt?: number;
   /** When the last try was made, and how many in a row have failed. */
   lastAttemptAt?: number;
   failures: number;
@@ -29,14 +31,14 @@ export type Due = 'nothing' | 'wait' | 'now';
  */
 export function dueForBackup(clock: BackupClock, now: number, leaving = false): Due {
   if (clock.lastChangeAt === undefined) return 'nothing';
-  if (clock.lastBackupAt !== undefined && clock.lastChangeAt <= clock.lastBackupAt) return 'nothing';
+  if (clock.lastBackupAt !== undefined && clock.lastChangeAt <= (clock.backedUpChangeAt ?? clock.lastBackupAt)) return 'nothing';
   if (clock.lastAttemptAt !== undefined && now - clock.lastAttemptAt < retryDelay(clock.failures)) return 'wait';
   if (!leaving && clock.lastBackupAt !== undefined && now - clock.lastBackupAt < MIN_GAP_MS) return 'wait';
   return 'now';
 }
 
-export const afterAttempt = (clock: BackupClock, now: number, ok: boolean): BackupClock =>
-  ok ? { ...clock, lastBackupAt: now, lastAttemptAt: now, failures: 0 } : { ...clock, lastAttemptAt: now, failures: clock.failures + 1 };
+export const afterAttempt = (clock: BackupClock, now: number, ok: boolean, savedChangeAt = clock.lastChangeAt ?? 0): BackupClock =>
+  ok ? { ...clock, lastBackupAt: now, backedUpChangeAt: Math.max(clock.backedUpChangeAt ?? 0, savedChangeAt), lastAttemptAt: now, failures: 0 } : { ...clock, lastAttemptAt: now, failures: clock.failures + 1 };
 
 export const afterChange = (clock: BackupClock, now: number): BackupClock => ({ ...clock, lastChangeAt: now });
 

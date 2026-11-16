@@ -16,15 +16,29 @@ const clocks = new Map<string, BackupClock>();
 function clockFor(projectId: string): BackupClock {
   const held = clocks.get(projectId);
   if (held) return held;
-  let lastBackupAt: number | undefined;
-  try { const stored = (JSON.parse(localStorage.getItem(CLOCK_KEY) ?? '{}') as Record<string, number>)[projectId]; if (Number.isFinite(stored)) lastBackupAt = stored; } catch { /* none */ }
-  const clock: BackupClock = { failures: 0, ...(lastBackupAt !== undefined ? { lastBackupAt } : {}) };
+  let saved: Partial<BackupClock> = {};
+  try {
+    const stored = JSON.parse(localStorage.getItem(CLOCK_KEY) ?? '{}')[projectId];
+    if (typeof stored === 'number' && Number.isFinite(stored)) {
+      // Older clocks recorded completion only. Take one fresh snapshot rather than
+      // assuming edits made during that write were included.
+      saved = { lastBackupAt: stored, backedUpChangeAt: 0 };
+    } else if (stored && Number.isFinite(stored.lastBackupAt) && Number.isFinite(stored.backedUpChangeAt)) {
+      saved = { lastBackupAt: stored.lastBackupAt, backedUpChangeAt: stored.backedUpChangeAt };
+    }
+  } catch { /* none */ }
+  const clock: BackupClock = { ...saved, failures: 0 };
   clocks.set(projectId, clock);
   return clock;
 }
-function rememberBackup(projectId: string, at: number) {
-  try { const all = JSON.parse(localStorage.getItem(CLOCK_KEY) ?? '{}') as Record<string, number>; all[projectId] = at; localStorage.setItem(CLOCK_KEY, JSON.stringify(all)); } catch { /* remembered for this session only */ }
+function rememberBackup(projectId: string, clock: BackupClock) {
+  try {
+    const all = JSON.parse(localStorage.getItem(CLOCK_KEY) ?? '{}');
+    all[projectId] = { lastBackupAt: clock.lastBackupAt, backedUpChangeAt: clock.backedUpChangeAt };
+    localStorage.setItem(CLOCK_KEY, JSON.stringify(all));
+  } catch { /* remembered for this session only */ }
 }
+const inFlight = new Map<string, Promise<BackupStatus>>();
 const statuses = new Map<string, BackupStatus>();
 const listeners = new Set<() => void>();
 let version = 0;
@@ -32,10 +46,10 @@ const setStatus = (projectId: string, status: BackupStatus) => { statuses.set(pr
 
 /** Save a backup of the project to a connection now, and tidy old ones. Never throws: the answer says what happened. */
 export async function backUpNow(state: CullingState, connectionId: string, now = new Date()): Promise<BackupStatus> {
-  const opened = await openConnection(connectionId);
-  if ('problem' in opened) return { state: 'failed', message: opened.message, health: opened.problem, at: now.getTime() };
   const slug = syncNameFor(state.shoot.title);
   try {
+    const opened = await openConnection(connectionId);
+    if ('problem' in opened) return { state: 'failed', message: opened.message, health: opened.problem, at: now.getTime() };
     await opened.connector.put(backupName(slug, now), new TextEncoder().encode(encodeProjectBackup(state)), '');
     // Keep the newest few. A tidy-up that fails is not a failed backup.
     try { for (const name of backupsToDelete(await opened.connector.list(backupFolder(slug)), slug)) await opened.connector.remove(name); } catch { /* old copies stay */ }
@@ -45,18 +59,46 @@ export async function backUpNow(state: CullingState, connectionId: string, now =
   }
 }
 
+/** Observe edits even if a previous snapshot is still being written. */
+function observeChange(state: CullingState): BackupClock {
+  const clock = clockFor(state.shoot.id);
+  const updated = afterChange(clock, Math.max(clock.lastChangeAt ?? 0, state.shoot.lastUpdatedAt ?? 0));
+  clocks.set(state.shoot.id, updated);
+  return updated;
+}
+
+function saveSnapshot(state: CullingState, target: string): Promise<BackupStatus> {
+  const projectId = state.shoot.id;
+  const pending = inFlight.get(projectId);
+  if (pending) return pending.then(() => saveSnapshot(state, target));
+  const savedChangeAt = state.shoot.lastUpdatedAt ?? 0;
+  const task = Promise.resolve().then(async () => {
+    setStatus(projectId, { ...statuses.get(projectId), state: 'working' });
+    const result = await backUpNow(state, target);
+    // Read the latest clock, not the one from before the asynchronous write.
+    const next = afterAttempt(clockFor(projectId), Date.now(), result.state === 'ok', savedChangeAt);
+    clocks.set(projectId, next);
+    if (result.state === 'ok') rememberBackup(projectId, next);
+    setStatus(projectId, result);
+    return result;
+  }).finally(() => { inFlight.delete(projectId); });
+  inFlight.set(projectId, task);
+  return task;
+}
+
 /** Back up this project if it is due. `leaving` skips the usual gap, because the project is being closed. */
 export async function maybeBackUp(state: CullingState, leaving = false): Promise<void> {
   const projectId = state.shoot.id;
   const target = getLocations(projectId).backUpTo;
   if (!target) return;
-  const clock = clockFor(projectId);
-  if (dueForBackup(clock, Date.now(), leaving) !== 'now') return;
-  setStatus(projectId, { ...statuses.get(projectId), state: 'working' });
-  const result = await backUpNow(state, target);
-  clocks.set(projectId, afterAttempt(clock, Date.now(), result.state === 'ok'));
-  if (result.state === 'ok') rememberBackup(projectId, Date.now());
-  setStatus(projectId, result);
+  observeChange(state);
+  const pending = inFlight.get(projectId);
+  if (pending) {
+    if (leaving) { await pending; await maybeBackUp(state, true); }
+    return;
+  }
+  if (dueForBackup(clockFor(projectId), Date.now(), leaving) !== 'now') return;
+  await saveSnapshot(state, target);
 }
 
 /** Back up right now, whatever the clock says (the "Back up now" button). */
@@ -64,12 +106,8 @@ export async function backUpProjectNow(state: CullingState): Promise<BackupStatu
   const projectId = state.shoot.id;
   const target = getLocations(projectId).backUpTo;
   if (!target) { const none: BackupStatus = { state: 'failed', message: 'Choose where to back this project up first.' }; setStatus(projectId, none); return none; }
-  setStatus(projectId, { ...statuses.get(projectId), state: 'working' });
-  const result = await backUpNow(state, target);
-  clocks.set(projectId, afterAttempt(clockFor(projectId), Date.now(), result.state === 'ok'));
-  if (result.state === 'ok') rememberBackup(projectId, Date.now());
-  setStatus(projectId, result);
-  return result;
+  observeChange(state);
+  return saveSnapshot(state, target);
 }
 
 export function useBackupStatus(projectId: string): BackupStatus {

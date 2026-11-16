@@ -100,3 +100,40 @@ test('a connection that is removed no longer appears in a project’s choices, a
   await expect(dialog.getByLabel('Back up to')).toHaveValue('');
   await expect(dialog.getByText('Not set up')).toBeVisible();
 });
+
+test('edits made while a backup is slow are included when leaving the project', async ({ page }) => {
+  await page.goto('/');
+  await addConnection(page, 'Slow NAS');
+  await project(page);
+  const dialog = await openLocations(page);
+  await dialog.getByLabel('Back up to').selectOption({ label: 'Slow NAS' });
+  await dialog.getByRole('button', { name: 'Close' }).click();
+
+  let release!: () => void;
+  let started!: () => void;
+  const hold = new Promise<void>((resolve) => { release = resolve; });
+  const writing = new Promise<void>((resolve) => { started = resolve; });
+  let held = false;
+  await page.route('**/photos/kestrel/v1/backups/**', async (route) => {
+    if (route.request().method() === 'PUT' && !held) {
+      held = true;
+      started();
+      await hold;
+    }
+    await route.continue();
+  });
+  try {
+    await page.getByRole('button', { name: 'Keep k-1.png', exact: true }).click();
+    await writing;
+    await page.getByRole('button', { name: 'Keep k-2.png', exact: true }).click();
+    await page.getByRole('button', { name: 'Back to projects' }).click();
+    release();
+    await expect.poll(backups, { timeout: 15000 }).toHaveLength(2);
+    const files = backups().sort();
+    const first = JSON.parse(s3.objects.get(files[0])!.toString());
+    const latest = JSON.parse(s3.objects.get(files[1])!.toString());
+    expect(first.project.frames.filter((frame: { decision: string }) => frame.decision === 'keep')).toHaveLength(1);
+    expect(latest.project.frames.filter((frame: { decision: string }) => frame.decision === 'keep')).toHaveLength(2);
+    expect(s3.refused).toBe(0);
+  } finally { release(); }
+});
