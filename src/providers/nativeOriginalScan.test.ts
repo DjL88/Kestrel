@@ -33,3 +33,12 @@ test('bounded scan does not follow symlinks or descend indefinitely', async () =
   assert.equal(scan.truncated, true);
   assert.equal(scan.files.length, 0);
 });
+
+test('two unrelated catalogue keys cannot claim one scanned file', () => {
+  const expected = ['key-a', 'key-b'].map(stableKey =>
+    ({ stableKey, filename: 'IMG_0001.CR3', size: 100, lastModified: 50 }));
+  const result = matchScannedOriginals(expected,
+    [{ path: '/shoot/IMG_0001.CR3', name: 'IMG_0001.CR3', size: 100, lastModified: 50 }]);
+  assert.equal(result.matches.size, 0);
+  assert.deepEqual(result.ambiguous, ['key-a', 'key-b']);
+});
