@@ -1,5 +1,7 @@
 # Kestrel: next steps and prompts
 
+**Historical prompts, not current release status.** Start with the [live end-to-end audit and priority order](RELEASE-GAP-AUDIT-2026-11.md). Many items below are now implemented, including CI and the native shell; do not rebuild them from these old prompts.
+
 Read `docs/ROADMAP.md` for the audit and the reasoning. This file is the working plan: what is done, what to do next, and a prompt for each step to paste into ChatGPT, Gemini, AI Studio or Claude Code.
 
 ## Status
