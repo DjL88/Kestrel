@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArchiveRestore, ArrowLeft, Download, Ellipsis, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Search, Trash2, Undo2 } from 'lucide-react';
 import type { ProjectSettings } from '../core/projectSettings';
 import { AppearanceSettings } from './AppearanceSettings';
+import { isDesktopApp } from '../providers/desktopShell';
 import { messages as m } from '../i18n/messages';
 import type { CullCounts, FilterState, RatingFilter, ShootDescriptor, WorkspaceViewMode } from '../core/types';
 import { RatingFilterControl } from './RatingFilterControl';
@@ -224,7 +225,6 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   {props.onWatchFolder && <MenuItem icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onWatchFolder!, props.watching ? true : false)}>{props.watching ? `Stop watching “${props.watching}”` : 'Watch a folder for new photos…'}</MenuItem>}
                   {props.onLocations && <MenuItem icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onLocations!, false)}>Where this project is kept…</MenuItem>}
                   {props.onSyncFolder && <MenuItem icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onSyncFolder!, false)}>Sync folder or cloud (experimental)…</MenuItem>}
-                  <MenuItem icon={<Keyboard className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onOpenMacroPadModal, false)}>Macro pad</MenuItem>
                 </MenuSection>
 
                 <details className="border-t border-white/10 pt-1" open>
@@ -238,6 +238,10 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                     Focus mode
                   </label>
                   <AppearanceSettings side={props.editPanelSide} onSideChange={props.onEditPanelSideChange} />
+                  {isDesktopApp() && <button type="button" onClick={() => choose(props.onOpenMacroPadModal, false)}
+                    className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-zinc-200 hover:bg-white/10">
+                    <Keyboard className="h-4 w-4" aria-hidden="true" />Macro pad & keyboard shortcuts…
+                  </button>}
                 </details>
                 <details className="border-t border-white/10 pt-1">
                   <summary className="min-h-10 cursor-pointer py-2 text-sm text-zinc-300">Culling settings</summary>
