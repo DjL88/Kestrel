@@ -10,6 +10,8 @@ import {
   generateDemoShootFrames,
   getDefaultComparePair,
   redoDecision,
+  removeFromLibrary,
+  restoreRemoved,
   stepSelection,
   undoDecision,
 } from './cullingEngine';
@@ -383,30 +385,38 @@ test('manual culling refuses duplicate photo IDs instead of corrupting undo hist
 });
 
 
-test('explicit Restore invalidates removal Undo but preserves unrelated decision history', () => {
-  let state = projectWith(['reject', 'unreviewed', 'reject']);
-  state = decide(state, 'f1', 'keep', { allowAdvance: false });
-  state = removeFromLibrary(state, ['f0', 'f2']);
-  assert.equal(state.undoStack.length, 2);
-  state = restoreRemoved(state, ['f0']);
+
+test('explicit Restore invalidates batched removal Undo while preserving an unrelated Keep', () => {
+  let state = createDemoShootState(3);
+  const [first, second, third] = state.frames.map((frame) => frame.id);
+  state = applyDecisionWithHistory(state, first, 'reject', { allowAdvance: false });
+  state = applyDecisionWithHistory(state, third, 'reject', { allowAdvance: false });
+  state = applyDecisionWithHistory(state, second, 'keep', { allowAdvance: false });
+  state = removeFromLibrary(state, [first, third]);
+  assert.equal(state.undoStack.length, 4);
+  state = restoreRemoved(state, [first]);
   assert.equal(state.frames[0].removedAt, undefined);
-  assert.equal(state.frames[2].removedAt !== undefined, true);
-  assert.equal(state.undoStack.length, 1, 'partial restore removes the stale batched removal entry');
-  assert.equal(state.undoStack[0].frameId, 'f1');
-  const undone = undo(state);
+  assert.ok(state.frames[2].removedAt);
+  assert.equal(state.undoStack.length, 3);
+  assert.equal(state.undoStack[2].frameId, second);
+  const undone = undoDecision(state);
   assert.equal(undone.frames[1].decision, 'unreviewed');
-  const redone = redo(undone);
-  assert.equal(redone.frames[0].removedAt, undefined, 'redo cannot re-remove restored photo');
+  const redone = redoDecision(undone);
+  assert.equal(redone.frames[0].removedAt, undefined);
   assert.equal(redone.frames[1].decision, 'keep');
 });
 
-test('restoring a photo does not invalidate unrelated removal history', () => {
-  let state = removeFromLibrary(projectWith(['reject', 'reject']), ['f0']);
-  state = removeFromLibrary(state, ['f1']);
-  state = restoreRemoved(state, ['f0']);
-  assert.equal(state.undoStack.length, 1);
-  assert.equal(state.undoStack[0].frameId, 'f1');
-  const undone = undo(state);
+test('restoring one photo preserves unrelated removal history', () => {
+  let state = createDemoShootState(2);
+  const [first, second] = state.frames.map((frame) => frame.id);
+  state = applyDecisionWithHistory(state, first, 'reject', { allowAdvance: false });
+  state = applyDecisionWithHistory(state, second, 'reject', { allowAdvance: false });
+  state = removeFromLibrary(state, [first]);
+  state = removeFromLibrary(state, [second]);
+  state = restoreRemoved(state, [first]);
+  assert.equal(state.undoStack.length, 3);
+  assert.equal(state.undoStack[2].frameId, second);
+  const undone = undoDecision(state);
   assert.equal(undone.frames[0].removedAt, undefined);
   assert.equal(undone.frames[1].removedAt, undefined);
 });
