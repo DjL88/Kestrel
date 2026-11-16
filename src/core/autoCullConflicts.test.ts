@@ -42,7 +42,7 @@ test('stale auto-cull batches cannot overwrite manual, removed or virtual-copy d
   state.frames = state.frames.map((frame, index) => ({
     ...frame,
     isDemo: index === 3,
-    virtualCopy: index === 4,
+    ...(index === 4 ? { virtualCopy: { originalFrameId: state.frames[0].id, number: 1 } } : {}),
     decision: index === 0 ? 'keep' as const : index === 1 ? 'reject' as const : 'unreviewed' as const,
     ...(index === 2 ? { removedAt: Date.now() } : {}),
   }));
