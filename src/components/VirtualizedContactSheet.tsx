@@ -6,6 +6,7 @@ import { DecisionButtons } from './DecisionButtons';
 import { isEdited } from '../core/editedState';
 import { speciesShown } from '../core/autoTags';
 import { FrameImage } from './FrameImage';
+import { openPhotoMenuFromKeyboard } from './PhotoContextMenu';
 
 interface VirtualizedContactSheetProps {
   frames: PhotoFrame[];
@@ -222,6 +223,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         else onSelectFrame(frame.id, modifiers);
                       }}
                       onKeyDown={(event) => {
+                        if (onPhotoMenu && openPhotoMenuFromKeyboard(event, (x, y) => onPhotoMenu(frame.id, x, y))) return;
                         if (event.key !== 'Enter' || multiSelect || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
                         event.preventDefault();
                         if (!event.repeat) onOpenLoupe(frame.id);
@@ -230,6 +232,8 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         if (!multiSelect && !event.shiftKey && !event.ctrlKey && !event.metaKey) onOpenLoupe(frame.id);
                       }}
                       onContextMenu={(event) => { if (!onPhotoMenu) return; event.preventDefault(); onPhotoMenu(frame.id, event.clientX, event.clientY); }}
+                      aria-haspopup={onPhotoMenu ? "menu" : undefined}
+                      aria-keyshortcuts={onPhotoMenu ? "Shift+F10 ContextMenu" : undefined}
                       aria-pressed={isSelected}
                       aria-label={`${multiSelect ? 'Select' : 'View'} ${frame.filename}`} title={`${multiSelect ? 'Select' : 'View'} ${frame.filename}`}
                       className="relative flex-1 w-full overflow-hidden focus-visible:outline-2 focus-visible:outline-sky-400 text-left"

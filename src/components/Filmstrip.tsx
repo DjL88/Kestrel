@@ -4,6 +4,7 @@ import { isEdited } from '../core/editedState';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { FrameImage } from './FrameImage';
+import { openPhotoMenuFromKeyboard } from './PhotoContextMenu';
 
 interface FilmstripProps {
   frames: PhotoFrame[];
@@ -139,7 +140,10 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
                     onSelectFrame(frame.id);
                   }
                 }}
+                onKeyDown={(event) => { if (onPhotoMenu) openPhotoMenuFromKeyboard(event, (x, y) => onPhotoMenu(frame.id, x, y)); }}
                 onContextMenu={(event) => { if (!onPhotoMenu) return; event.preventDefault(); onPhotoMenu(frame.id, event.clientX, event.clientY); }}
+                aria-haspopup={onPhotoMenu ? "menu" : undefined}
+                aria-keyshortcuts={onPhotoMenu ? "Shift+F10 ContextMenu" : undefined}
                 aria-pressed={isMarked}
                 aria-label={`${multiSelect ? 'Select' : 'Jump to frame'} ${frame.filename}`} title={`${multiSelect ? 'Select' : 'Jump to frame'} ${frame.filename}`}
                 className={`relative flex-1 rounded overflow-hidden border transition-colors focus-visible:outline-2 focus-visible:outline-sky-400 ${
