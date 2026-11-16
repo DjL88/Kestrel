@@ -40,12 +40,60 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.localBlobs.set(stableKey, blob);
   }
 
+  /** Photos that stay on the disk: how to read each one, and what it was like when added. Read only when needed. */
+  private linked = new Map<string, { read: () => Promise<Blob>; size: number; lastModified: number }>();
+  private linkedLoading = new Map<string, Promise<Blob | undefined>>();
+  private linkedOrder: string[] = [];
+
+  registerLinked(stableKey: string, info: { read: () => Promise<Blob>; size: number; lastModified: number }): void {
+    this.linked.set(stableKey, info);
+  }
+
   getOriginal(stableKey: string): Blob | undefined {
     return this.localBlobs.get(stableKey);
   }
 
+  /** The original, reading it from the disk first if it is a linked one. Only a few linked photos are held at once. */
+  async ensureOriginal(stableKey: string): Promise<Blob | undefined> {
+    const held = this.localBlobs.get(stableKey);
+    if (held) return held;
+    const link = this.linked.get(stableKey);
+    if (!link) return undefined;
+    const pending = this.linkedLoading.get(stableKey);
+    if (pending) return pending;
+    const task = this.limitReads(link.read).then((blob) => {
+      this.localBlobs.set(stableKey, blob);
+      this.linkedOrder = this.linkedOrder.filter((key) => key !== stableKey);
+      this.linkedOrder.push(stableKey);
+      while (this.linkedOrder.length > 6) {
+        const oldest = this.linkedOrder.shift()!;
+        if (oldest !== stableKey) this.localBlobs.delete(oldest);
+      }
+      return blob;
+    }).catch(() => undefined).finally(() => this.linkedLoading.delete(stableKey));
+    this.linkedLoading.set(stableKey, task);
+    return task;
+  }
+
+  private reading = 0;
+  private readQueue: Array<() => void> = [];
+  /** At most three files are read from the disk at once, so a grid of big RAWs does not fill the memory. */
+  private async limitReads(read: () => Promise<Blob>): Promise<Blob> {
+    if (this.reading >= 3) await new Promise<void>((resolve) => this.readQueue.push(resolve));
+    this.reading += 1;
+    try { return await read(); }
+    finally { this.reading -= 1; this.readQueue.shift()?.(); }
+  }
+
+  /** Size and time of the original without reading it. */
+  originalInfo(stableKey: string): { size: number; lastModified?: number } | undefined {
+    const blob = this.localBlobs.get(stableKey);
+    if (blob) return { size: blob.size, lastModified: (blob as File).lastModified };
+    return this.linked.get(stableKey);
+  }
+
   hasBlob(stableKey: string): boolean {
-    return this.localBlobs.has(stableKey);
+    return this.localBlobs.has(stableKey) || this.linked.has(stableKey);
   }
 
   async getThumbnailUrl(frame: PhotoFrame): Promise<string> {
@@ -102,7 +150,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       return cached;
     }
 
-    const blob = this.localBlobs.get(key);
+    const blob = await this.ensureOriginal(key);
     if (!blob) {
       return '';
     }
@@ -113,7 +161,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       previewBlob = await extractNefPreview(blob);
       // Development, relinking or a project switch may finish while extraction is in flight.
       if (this.localBlobs.get(key) !== blob || this.developed.get(key) !== developed) {
-        return this.localBlobs.has(key) ? this.getFullPreviewUrl(frame) : '';
+        return this.hasBlob(key) ? this.getFullPreviewUrl(frame) : '';
       }
     }
     if (!previewBlob) return '';
@@ -162,12 +210,15 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.fullFrameKeys.clear();
     this.fullUrlOrder = [];
     this.localBlobs.clear();
+    this.linked.clear();
+    this.linkedLoading.clear();
+    this.linkedOrder = [];
     this.developed.clear();
     this.pendingThumbs.clear();
   }
 
   private async buildLocalThumbnailUrl(frame: PhotoFrame): Promise<string> {
-    const blob = this.localBlobs.get(frame.stableKey);
+    const blob = await this.ensureOriginal(frame.stableKey);
     if (!blob) return '';
 
     let sourceBlob: Blob = blob;

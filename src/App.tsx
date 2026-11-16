@@ -1,3 +1,4 @@
+import { pickedFromFile, pickedKey, type PickedPhoto } from './providers/linkedOriginals';
 import { splitDropped } from './core/dropSplit';
 import { useAccess } from './providers/useAccess';
 import { loadLicence } from './providers/licenceStore';
@@ -1073,12 +1074,13 @@ export default function App() {
   // project after switching workspaces or returning to the home screen.
   useEffect(() => { if (projectsOpen) watch.stop(); }, [projectsOpen, cullingState.shoot.id, watch.stop]);
 
-  const handleSelectLocalFiles = async (files: File[], options?: { openEditor?: boolean; watched?: boolean; onImported?: (count: number) => void }) => {
+  const handleSelectLocalFiles = async (picks: Array<File | PickedPhoto>, options?: { openEditor?: boolean; watched?: boolean; onImported?: (count: number) => void }) => {
     const targetProjectId = cullingState.shoot.id;
+    const files = picks.map((pick) => (pick instanceof File ? pickedFromFile(pick) : pick));
     // A photo that was removed from the library does not count as already added, so adding it again brings it back.
     const existing = new Set(cullingState.frames.filter((frame) => !frame.removedAt).map((frame) => frame.stableKey));
     const additions = files.filter((file) => {
-      const key = getLocalFileKey(file);
+      const key = pickedKey(file);
       if (existing.has(key)) return false;
       existing.add(key);
       return true;
@@ -1086,7 +1088,7 @@ export default function App() {
     if (!additions.length) {
       if (options?.openEditor) {
         // Quick edit of a photo that is already in Quick edits: open the one that is there.
-        const present = cullingState.frames.find((frame) => !frame.removedAt && frame.stableKey === getLocalFileKey(files[0]));
+        const present = cullingState.frames.find((frame) => !frame.removedAt && frame.stableKey === pickedKey(files[0]));
         if (present) {
           setCullingState((prev) => ({ ...prev, filter: 'all', selectedFrameId: present.id }));
           setEditing(true);
@@ -1913,6 +1915,12 @@ export default function App() {
           }));
           setZoomLevel(1);
           setPanOffset({ x: 0, y: 0 });
+        }}
+        onShowCollection={(filter) => {
+          // One simple jump: close the dialog and look at the keepers (or what is left to decide) as a grid.
+          setAutoCullOpen(false);
+          setPrefs((previous) => ({ ...previous, viewMode: 'grid' }));
+          setCullingState((previous) => ({ ...previous, filter, searchQuery: '', selectedFrameId: previous.frames.find((frame) => !frame.removedAt && frame.decision === filter)?.id ?? previous.selectedFrameId }));
         }}
         onClose={() => setAutoCullOpen(false)} />}
 

@@ -11,9 +11,11 @@ interface Props {
   zoom: number;
   pan: Point;
   onTransform: (zoom: number, pan: Point) => void;
+  /** How far past "fit" the photo may be zoomed. */
+  maxZoom?: number;
 }
 
-export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoom, pan, onTransform }: Props) {
+export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoom, pan, onTransform, maxZoom = 6 }: Props) {
   const [wipe, setWipe] = useState(50);
   const pointers = useRef(new Map<number, Point>());
   const view = useRef<HTMLDivElement>(null);
@@ -22,7 +24,7 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
 
   function transform(nextZoom: number, previous: Point, next: Point = previous) {
     if (!view.current) return;
-    const updated = transformViewport(current.current, view.current.getBoundingClientRect(), nextZoom, previous, next);
+    const updated = transformViewport(current.current, view.current.getBoundingClientRect(), nextZoom, previous, next, maxZoom);
     current.current = updated;
     onTransform(updated.zoom, updated.pan);
   }

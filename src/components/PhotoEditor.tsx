@@ -26,6 +26,7 @@ import { PresetPanel } from './PresetPanel';
 import { autoEnhance } from '../core/autoEnhance';
 import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
 import { PhotoViewport } from './PhotoViewport';
+import { maxZoomFor, percentFor, stepZoom, zoomForPercent } from '../core/zoomControls';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, DETAIL_CONTROLS, isNeutralEdit, isEmptyEdit, type PhotoEdit } from '../core/photoEdits';
 import type { PhotoFrame } from '../core/types';
@@ -265,7 +266,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
 
   /** Decode the RAW sensor data (desktop app only) and use the full-size result in place of the embedded preview. */
   async function developFromRaw() {
-    const original = provider.getOriginal(frame.stableKey);
+    const original = await provider.ensureOriginal(frame.stableKey);
     if (!original) { setDevelopNote('Reconnect the original file first.'); return; }
     setDeveloping(true); setDevelopNote(null);
     const task = tasks.start(`Developing ${frame.filename} from RAW`);
@@ -321,6 +322,27 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     left: position.left + outputSize.x * fit, top: position.top + outputSize.y * fit,
     width: outputSize.width * fit, height: outputSize.height * fit,
   } : null;
+  const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
+  const maxZoom = maxZoomFor(fit, dpr);
+  const zoomTo = (zoom: number) => setTransform((current) => {
+    const next = Math.max(1, Math.min(maxZoom, zoom));
+    return { zoom: next, pan: next === 1 ? { x: 0, y: 0 } : current.pan };
+  });
+  useEffect(() => {
+    const onZoomKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (event.metaKey || event.ctrlKey || event.altKey || target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      const direction = event.key === '+' || event.key === '=' ? 1 : event.key === '-' ? -1 : 0;
+      if (!direction) return;
+      event.preventDefault();
+      setTransform((current) => {
+        const next = stepZoom(current.zoom, direction, maxZoom);
+        return { zoom: next, pan: next === 1 ? { x: 0, y: 0 } : current.pan };
+      });
+    };
+    window.addEventListener('keydown', onZoomKey);
+    return () => window.removeEventListener('keydown', onZoomKey);
+  }, [maxZoom]);
   const detail = size ? visiblePhotoDetail(size.width, size.height, viewport.width, viewport.height, transform) : null;
 
   useEffect(() => {
@@ -695,7 +717,21 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       </div>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden workspace:flex-row">
       <div ref={stage} className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
-        <PhotoViewport zoom={transform.zoom} pan={transform.pan}
+        {fit > 0 && (
+          <div role="group" aria-label="Zoom" className="absolute bottom-2 right-2 z-30 flex items-center gap-1 rounded-md bg-black/70 p-1 text-xs text-zinc-100">
+            <button type="button" aria-label="Zoom out" title="Zoom out (-)" className="h-7 w-7 rounded hover:bg-white/15"
+              onClick={() => zoomTo(stepZoom(transform.zoom, -1, maxZoom))}>−</button>
+            <span aria-live="polite" aria-label="Zoom level" className="min-w-10 text-center tabular-nums">{percentFor(transform.zoom, fit, dpr)}%</span>
+            <button type="button" aria-label="Zoom in" title="Zoom in (+)" className="h-7 w-7 rounded hover:bg-white/15"
+              onClick={() => zoomTo(stepZoom(transform.zoom, 1, maxZoom))}>+</button>
+            <button type="button" title="Fit to screen " className="h-7 rounded px-1.5 hover:bg-white/15" onClick={() => zoomTo(1)}>Fit</button>
+            <button type="button" title="Actual pixels " className="h-7 rounded px-1.5 hover:bg-white/15"
+              onClick={() => zoomTo(zoomForPercent(100, fit, dpr))}>100%</button>
+            <button type="button" title="Twice actual pixels " className="h-7 rounded px-1.5 hover:bg-white/15"
+              onClick={() => zoomTo(zoomForPercent(200, fit, dpr))}>200%</button>
+          </div>
+        )}
+        <PhotoViewport zoom={transform.zoom} pan={transform.pan} maxZoom={maxZoom}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
           overlayMode={displayCompare ? 'wipe' : 'hidden'}
           labels={displayCompare ? [before.label, 'Now'] : undefined}
@@ -999,9 +1035,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             </div>
           )}
 
-          {!frame.isDemo && <button type="button" className={button} disabled={!provider.getOriginal(frame.stableKey)}
-            onClick={() => {
-              const original = provider.getOriginal(frame.stableKey);
+          {!frame.isDemo && <button type="button" className={button} disabled={!provider.hasBlob(frame.stableKey)}
+            onClick={async () => {
+              const original = await provider.ensureOriginal(frame.stableKey);
               if (original) downloadExport(original, original instanceof File ? original.name : frame.filename);
             }}>Download original</button>}
           {outputSize && <p className="mt-2 text-xs text-zinc-400">Output {outputSize.width.toLocaleString()} × {outputSize.height.toLocaleString()} px</p>}
