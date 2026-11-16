@@ -7,9 +7,9 @@ const message: Record<StorageState, string> = {
   checking: 'Checking browser storage…',
   standard: 'Browser storage can be cleared by your device. Keep a separate project backup.',
   requesting: 'Requesting persistent storage…',
-  persistent: 'Kestrel's browser storage is protected from routine clean-up. Keep a separate backup.',
+  persistent: "Kestrel's browser storage is protected from routine clean-up. Keep a separate backup.",
   declined: 'The browser did not grant persistent storage. Keep a current catalogue backup.',
-  unavailable: 'Browser storage protection isn't available here. Keep a separate project backup.',
+  unavailable: "Browser storage protection isn't available here. Keep a separate project backup.",
 };
 
 export function CatalogueStorage() {
