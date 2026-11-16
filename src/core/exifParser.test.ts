@@ -9,6 +9,7 @@ import {
   isNikonEmbeddedPreviewFile,
   validExifPositiveNumber,
   validExifDimension,
+  validExifIso,
   validExifCaptureTimestamp,
   readEmbeddedRating,
 } from './exifParser';
@@ -141,4 +142,14 @@ test('malformed XMP rating falls back to TIFF without overriding valid XMP decis
   assert.deepEqual(readEmbeddedRating(-1, 5), { rejectedByMetadata: true });
   assert.deepEqual(readEmbeddedRating(2, 5), { rating: 2 });
   assert.deepEqual(readEmbeddedRating('invalid', 8), {});
+});
+
+
+test('Nikon ISO metadata rejects fractional, unsafe and non-numeric values', () => {
+  for (const invalid of [NaN, Infinity, -Infinity, 0, -1, 640.5, '640', null, undefined, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal(validExifIso(invalid), undefined);
+  }
+  assert.equal(validExifIso(64), 64);
+  assert.equal(validExifIso(6400), 6400);
+  assert.equal(validExifIso(102400), 102400);
 });

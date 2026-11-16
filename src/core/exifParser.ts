@@ -44,6 +44,11 @@ export function validExifPositiveNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
+/** ISO sensitivity is a positive integer; reject corrupt fractional or unsafe values. */
+export function validExifIso(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : undefined;
+}
+
 export function validExifDimension(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : undefined;
 }
@@ -185,7 +190,7 @@ export async function parseImageExif(
       apertureF:
         validExifPositiveNumber(parsed.FNumber),
       shutterSpeed: shutter || undefined,
-      iso: validExifPositiveNumber(parsed.ISO),
+      iso: validExifIso(parsed.ISO),
       capturedAtMs,
       width,
       height,
