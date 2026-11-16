@@ -2,6 +2,9 @@ import { useEffect, useSyncExternalStore, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock, Loader2, X } from 'lucide-react';
 import { taskHealth, tasks, type Health, type Task } from '../core/taskStore';
 
+/** How long the button stays after the last piece of work finishes. */
+const SHOW_AFTER_MS = 10_000;
+
 /** Each level has its own word and icon as well as a colour, so it never depends on telling colours apart. */
 const HEALTH: Record<Health, { word: string; classes: string; Icon: typeof Clock }> = {
   idle: { word: 'Tasks', classes: 'border-white/15 bg-kestrel-raised text-zinc-100', Icon: CheckCircle2 },
@@ -22,20 +25,23 @@ export function TaskManager() {
   const [open, setOpen] = useState(false);
   const [at, setAt] = useState(() => Date.now());
   const anyRunning = list.some((task) => task.state === 'running');
-  // Look again every few seconds while something runs, so a task that stops moving is noticed.
+  // Work that finished a moment ago stays in view briefly, then the button goes away so it never sits over other controls.
+  const recent = anyRunning || list.some((task) => task.endedAt !== undefined && at - task.endedAt < SHOW_AFTER_MS);
+  // Look again every second, so a task that stops moving is noticed and a finished one is let go.
   useEffect(() => {
-    if (!anyRunning) return;
-    const timer = window.setInterval(() => setAt(Date.now()), 3000);
+    if (!list.length) return;
+    const timer = window.setInterval(() => setAt(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [anyRunning]);
-  if (!list.length) return null;
+  }, [list.length]);
+  if (!list.length || (!recent && !open)) return null;
   const health = taskHealth(list, Math.max(at, ...list.map((task) => task.updatedAt)));
   const { word, classes, Icon } = HEALTH[health];
   const running = list.filter((task) => task.state === 'running').length;
   return (
-    <div className="fixed bottom-3 right-3 z-[70] flex max-w-[calc(100vw-1.5rem)] flex-col items-end gap-2">
+    // A slim strip at the top of the page, in the flow, so it never sits over a control. The list drops down from it.
+    <div className="relative z-40 flex shrink-0 justify-end border-b border-white/10 bg-kestrel-panel px-2 py-0.5">
       {open && (
-        <section aria-label="Tasks" className="w-80 max-w-full rounded-xl border border-white/15 bg-kestrel-raised p-3 text-sm text-zinc-100 shadow-lg">
+        <section aria-label="Tasks" className="absolute right-2 top-full mt-1 w-80 max-w-[calc(100vw-1rem)] rounded-xl border border-white/15 bg-kestrel-raised p-3 text-sm text-zinc-100 shadow-lg">
           <div className="mb-2 flex items-center justify-between gap-2">
             <h2 className="font-medium">Tasks</h2>
             <button type="button" onClick={() => tasks.clearFinished()} disabled={running === list.length} className="min-h-11 rounded-md px-2 text-xs text-zinc-300 underline hover:bg-white/8 disabled:opacity-40">Clear finished</button>
@@ -58,7 +64,7 @@ export function TaskManager() {
         </section>
       )}
       <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}
-        className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium shadow-lg hover:brightness-125 focus-visible:outline-2 focus-visible:outline-sky-300 ${classes}`}>
+        className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium hover:brightness-125 focus-visible:outline-2 focus-visible:outline-sky-300 ${classes}`}>
         <Icon className={`h-4 w-4 ${health === 'ok' ? 'motion-safe:animate-spin' : ''}`} aria-hidden="true" />
         {running > 0 ? `${word} · ${running} task${running === 1 ? '' : 's'}` : word}
       </button>

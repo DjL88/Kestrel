@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
 import { FolderOpen, ImagePlus, X } from 'lucide-react';
 import { isSupportedPhotoFilename, supportsDirectoryPicker } from '../providers/localShootLoader';
+import { isDesktopApp } from '../providers/desktopShell';
 
 interface OpenShootModalProps {
   open: boolean;
@@ -27,7 +28,8 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
     if (photos.length) onSelectLocalFiles(photos);
   }
 
-  const canPickFolder = supportsDirectoryPicker();
+  // The desktop app is not a web page, so it does not use the browser's folder picker, which asks permission for "this website".
+  const canPickFolder = supportsDirectoryPicker() && !isDesktopApp();
 
   useEffect(() => {
     if (!open) {
@@ -130,7 +132,9 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
               <p className="text-xs text-zinc-400 mt-1">
                 {canPickFolder
                   ? 'Add supported photos from a folder.'
-                  : 'Folder picker is unavailable in this browser/iframe context. Use Choose files above.'}
+                  : isDesktopApp()
+                    ? 'In this app, use Choose files above, then press Ctrl+A (Cmd+A on a Mac) in the file window to take everything in a folder.'
+                    : 'Folder picker is unavailable in this browser/iframe context. Use Choose files above.'}
               </p>
             </div>
             <button

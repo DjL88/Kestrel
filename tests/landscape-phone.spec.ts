@@ -15,7 +15,8 @@ test.describe('a phone turned sideways', () => {
 
 test.describe('a desktop window', () => {
   test.use({ viewport: { width: 1280, height: 390 } });
-  test('still starts with the filmstrip when the window is short but used with a mouse', async ({ page }) => {
+  test('still starts with the filmstrip when the window is short but used with a mouse', async ({ page }, info) => {
+    test.skip(info.project.name === 'phone', 'the phone project is a touch device');
     await page.goto('/');
     await page.getByTestId('quick-edit-input').setInputFiles(photo);
     await page.getByRole('tab', { name: 'Edit' }).click({ timeout: 20000 });

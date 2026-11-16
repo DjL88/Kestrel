@@ -10,6 +10,7 @@ import { WatchFolderDialog } from './components/WatchFolderDialog';
 import { useFolderWatch } from './providers/useFolderWatch';
 import { PHOTO_ACCEPT } from './core/rawFormats';
 import { TaskManager } from './components/TaskManager';
+import { ImportProgress } from './components/ImportProgress';
 import { PhotoContextMenu } from './components/PhotoContextMenu';
 import { ratingFor, targetsFor, type PhotoAction } from './core/photoMenu';
 import { DropOverlay } from './components/DropOverlay';
@@ -1089,11 +1090,14 @@ export default function App() {
     setFolderError(null);
     setProjectError(undefined);
     setLoadingProgress({ loaded: 0, total: additions.length });
+    // Imports appear in the task manager too (a watched folder has its own status, so it is left out).
+    const task = options?.watched ? null : tasks.start(`Adding ${additions.length} photo${additions.length === 1 ? '' : 's'}`, { total: additions.length });
     try {
       const { frames } = await loadLocalFileListShoot(
         additions, previewProviderRef.current!, storeRef.current!,
-        ({ loaded, total }) => setLoadingProgress({ loaded, total })
+        ({ loaded, total }) => { setLoadingProgress({ loaded, total }); task?.progress(loaded, total); }
       );
+      task?.finish();
       // The photographer may switch projects while a watched file is loading.
       // In that case, never append its frames to whichever project is open now.
       if (options?.watched && stateRef.current.shoot.id !== targetProjectId) return;
@@ -1113,9 +1117,11 @@ export default function App() {
       setPrefs((prev) => ({ ...prev, viewMode: 'grid' }));
       options?.onImported?.(frames.length);
     } catch {
+      task?.fail('Could not add the photos.');
       setProjectError('Could not add the photos. Try selecting the files again.');
       if (options?.watched) throw new Error('Kestrel could not import the watched photos. They will be retried.');
     } finally {
+      task?.fail('Stopped before it finished'); // does nothing if it finished
       setLoadingProgress(null);
     }
   };
@@ -1579,6 +1585,7 @@ export default function App() {
               </div>
             </div>
           )}
+          {loadingProgress && <ImportProgress loaded={loadingProgress.loaded} total={loadingProgress.total} />}
           {!editing && can('speciesId') && <SpeciesScanBanner scan={scan} />}
           {can('onlineAi') && <OnlineHelperDialog />}
           {!editing && visibleFrames.length > 0 && prefs.viewMode === 'grid' && (
