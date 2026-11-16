@@ -102,15 +102,24 @@ test('exports can also be saved into an export folder on the NAS, in a dated fol
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   await page.getByRole('button', { name: /^Prepare 1 file/ }).click();
   const save = page.getByRole('button', { name: 'Also save to Originals drive/export' });
+  await page.clock.setFixedTime(new Date('2026-11-16T12:00:00Z'));
   await expect(save).toBeVisible({ timeout: 30000 });
   await save.click();
   await expect(page.getByRole('status').filter({ hasText: 'Saved 1 file to the export folder in Originals drive' })).toBeVisible({ timeout: 15000 });
-  const exported = [...dav.files.keys()].filter((path) => path.startsWith('/photos/export/'));
-  expect(exported).toHaveLength(1);
-  expect(exported[0]).toMatch(/^\/photos\/export\/\d{4}-\d{2}-\d{2} \d{2}-\d{2}\/.*kite.*\.jpg$/);
-  expect(dav.files.get(exported[0])!.length).toBeGreaterThan(1000);
-  // Saving again goes to its own dated folder or name: the first copy is never replaced.
+  const exportFiles = () => [...dav.files.keys()].filter((path) => path.startsWith('/photos/export/'));
+  const [first] = exportFiles();
+  expect(exportFiles()).toHaveLength(1);
+  const datedExport = /^\/photos\/export\/\d{4}-\d{2}-\d{2} \d{2}-\d{2}-[0-9a-f-]{36}\/[^/]*kite[^/]*\.jpg$/;
+  expect(first).toMatch(datedExport);
+  const originalBytes = Buffer.from(dav.files.get(first)!);
+  expect(originalBytes.length).toBeGreaterThan(1000);
+
   await save.click();
-  await expect(page.getByRole('status').filter({ hasText: 'Saved 1 file' })).toBeVisible();
+  await expect.poll(exportFiles).toHaveLength(2);
+  const second = exportFiles().find((path) => path !== first)!;
+  expect(second).toMatch(datedExport);
+  expect(second.slice(0, second.lastIndexOf('/'))).not.toBe(first.slice(0, first.lastIndexOf('/')));
+  expect(dav.files.get(first)).toEqual(originalBytes);
+  expect(dav.files.get(second)).toEqual(originalBytes);
   expect(dav.refused).toBe(0);
 });
