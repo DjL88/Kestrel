@@ -47,6 +47,11 @@ export class BrowserPreviewProvider implements PreviewProvider {
   private linkedOrder: string[] = [];
 
   registerLinked(stableKey: string, info: { read: () => Promise<Blob>; size: number; lastModified: number }): void {
+    const previous = this.linked.get(stableKey);
+    if (previous && (previous.size !== info.size || previous.lastModified !== info.lastModified)) {
+      this.localBlobs.delete(stableKey);
+      this.invalidateFullPreview(stableKey);
+    }
     this.linked.set(stableKey, info);
   }
 
@@ -164,6 +169,13 @@ export class BrowserPreviewProvider implements PreviewProvider {
       const fallbackUrl = URL.createObjectURL(offline);
       this.fullUrlCache.set(key, fallbackUrl);
       this.fullUrlOrder.push(key);
+      while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
+        const oldest = this.fullUrlOrder.shift();
+        if (!oldest) continue;
+        const stale = this.fullUrlCache.get(oldest);
+        if (stale) URL.revokeObjectURL(stale);
+        this.fullUrlCache.delete(oldest);
+      }
       return fallbackUrl;
     }
 
