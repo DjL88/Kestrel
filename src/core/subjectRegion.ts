@@ -50,6 +50,13 @@ export function placeInRegion(local: SubjectGrid, region: Region, fullW: number,
 
 /** Pixel rectangle of a region on a canvas of the given size, for cutting out the area to detect in. */
 export function regionPixels(region: Region, width: number, height: number) {
-  const x = Math.round(region.x * width), y = Math.round(region.y * height);
+  const x = Math.max(0, Math.min(width - 1, Math.round(region.x * width)));
+  const y = Math.max(0, Math.min(height - 1, Math.round(region.y * height)));
   return { x, y, w: Math.max(1, Math.min(width - x, Math.round(region.w * width))), h: Math.max(1, Math.min(height - y, Math.round(region.h * height))) };
+}
+
+/** The normalised bounds of the pixels actually sent to detection. */
+export function sampledRegion(region: Region, width: number, height: number) {
+  const box = regionPixels(region, width, height);
+  return { box, bounds: { x: box.x / width, y: box.y / height, w: box.w / width, h: box.h / height } };
 }

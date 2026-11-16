@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MIN_REGION, placeInRegion, regionFromCorners, regionPixels } from './subjectRegion';
+import { MIN_REGION, placeInRegion, regionFromCorners, regionPixels, sampledRegion } from './subjectRegion';
 
 const solid = (w: number, h: number, value: number) => ({ w, h, data: btoa(String.fromCharCode(value).repeat(w * h)) });
 const cells = (grid: { w: number; h: number; data: string }) => [...atob(grid.data)].map((c) => c.charCodeAt(0));
@@ -45,4 +45,15 @@ test('region pixels stay inside the canvas', () => {
   assert.deepEqual(regionPixels({ x: 0.5, y: 0.5, w: 0.5, h: 0.5 }, 641, 481), { x: 321, y: 241, w: 320, h: 240 });
   const p = regionPixels({ x: 0.99, y: 0.99, w: 0.01, h: 0.01 }, 100, 100);
   assert.ok(p.x + p.w <= 100 && p.y + p.h <= 100);
+});
+
+
+test('mask cells align to sampled pixels at the end of a narrow panorama', () => {
+  const region = { x: 0.51, y: 0.95, w: 0.49, h: 0.05 };
+  const { box, bounds } = sampledRegion(region, 100, 8);
+  assert.deepEqual(box, { x: 51, y: 7, w: 49, h: 1 });
+  const mask = cells(placeInRegion(solid(8, 8, 255), bounds, 100, 8));
+  assert.equal(mask.filter(Boolean).length, 49);
+  assert.ok(mask.slice(751).every((value) => value === 255));
+  assert.ok(mask.slice(0, 751).every((value) => value === 0));
 });
