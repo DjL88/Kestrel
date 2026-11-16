@@ -276,8 +276,9 @@ export class BrowserCatalogueStore implements CatalogueStore {
     });
     this.projectWrite = write.catch(() => {});
     await write;
+    // Finish legacy-state cleanup even if derived-preview storage is unavailable.
+    // The atomic catalogue marker already prevents the deleted project resurfacing.
     const previewsCleared = await deleteOfflinePreviewsForOriginals(orphaned);
-    if (!previewsCleared) throw new Error('Project deleted, but some cached previews could not be cleared. Clear the preview cache before sharing this device.');
     try {
       const legacy = localStorage.getItem('kestrel.activeStateFallback.v1');
       if (legacy) {
@@ -288,6 +289,7 @@ export class BrowserCatalogueStore implements CatalogueStore {
         }
       }
     } catch { /* The atomic catalogue marker still prevents resurrection. */ }
+    if (!previewsCleared) throw new Error('Project deleted, but some cached previews could not be cleared. Clear the preview cache before sharing this device.');
   }
 
   async loadActiveState(): Promise<Partial<CullingState> | null> {
