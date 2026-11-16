@@ -158,6 +158,8 @@ export default function App() {
   const [projectBusy, setProjectBusy] = useState(true);
   const [projectError, setProjectError] = useState<string>();
   const [backupNotice, setBackupNotice] = useState<string>();
+  const [temporaryOriginals, setTemporaryOriginals] = useState<Set<string>>(() => new Set());
+  const [temporaryWarningDismissed, setTemporaryWarningDismissed] = useState(false);
   const [multiSelect, setMultiSelect] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   // A temporary edit queue limits Next/Previous and the filmstrip to selected photos.
@@ -256,6 +258,8 @@ export default function App() {
     const filter = state.filter === 'all' ? 'unreviewed' : state.filter;
     const visible = filterFrames(state.frames, filter, state.searchQuery, state.ratingFilter);
     setBackupNotice(undefined);
+    setTemporaryOriginals(new Set());
+    setTemporaryWarningDismissed(false);
     setCullingState({
       ...state,
       filter,
@@ -1099,17 +1103,23 @@ export default function App() {
     // Imports appear in the task manager too (a watched folder has its own status, so it is left out).
     const task = options?.watched ? null : tasks.start(`Adding ${additions.length} photo${additions.length === 1 ? '' : 's'}`, { total: additions.length });
     try {
-      const { frames } = await loadLocalFileListShoot(
+      const { frames, unstoredKeys } = await loadLocalFileListShoot(
         additions, previewProviderRef.current!, storeRef.current!,
         ({ loaded, total }) => { setLoadingProgress({ loaded, total }); task?.progress(loaded, total); }
       );
+      // Imports must never append photos to a different project if the user switches while they load.
+      if (stateRef.current.shoot.id !== targetProjectId) {
+        task?.finish('Project changed; photos were not added.');
+        return;
+      }
       task?.finish();
-      // The photographer may switch projects while a watched file is loading.
-      // In that case, never append its frames to whichever project is open now.
-      if (options?.watched && stateRef.current.shoot.id !== targetProjectId) return;
+      if (unstoredKeys.length) {
+        setTemporaryOriginals((previous) => new Set([...previous, ...unstoredKeys]));
+        setTemporaryWarningDismissed(false);
+      }
       const importId = newId().slice(0, 8);
       setCullingState((prev) => {
-        if (options?.watched && prev.shoot.id !== targetProjectId) return prev;
+        if (prev.shoot.id !== targetProjectId) return prev;
         const next = appendProjectPhotos(prev, frames, importId);
         const first = options?.openEditor ? next.frames.find((frame) => frame.id.startsWith(`${importId}-`)) : undefined;
         return first ? { ...next, filter: 'all', selectedFrameId: first.id } : next;
@@ -1232,6 +1242,8 @@ export default function App() {
     const expected = new Set(cullingState.frames.filter((frame) => frame.sourceKind === 'file').map((frame) => frame.stableKey));
     let recovered = 0;
     let temporary = 0;
+    const storedKeys: string[] = [];
+    const unstoredKeys: string[] = [];
     relinkingFiles.current = true;
     setRelinkStatus('Reconnecting originals…');
     try {
@@ -1243,13 +1255,22 @@ export default function App() {
         if (stateRef.current.shoot.id !== projectId) return;
         preview.registerBlob(key, file);
         recovered += 1;
-        if (!saved) temporary += 1;
+        if (!saved) { temporary += 1; unstoredKeys.push(key); }
+        else storedKeys.push(key);
       }
       const missing = [...expected].filter((key) => !preview.hasBlob(key)).length;
-      setRelinkStatus(recovered ? (missing ? `${missing} source files still need to be reselected.` : undefined) :
+      setRelinkStatus(recovered ? (missing ? `${missing} source ${missing === 1 ? 'file still needs' : 'files still need'} to be reselected.` : undefined) :
         'None of the selected files match the missing originals in this shoot.');
       if (!recovered) return;
-      if (temporary) showToast('Some originals could only be reconnected for this session.');
+      if (temporary || storedKeys.length) {
+        setTemporaryOriginals((previous) => {
+          const next = new Set(previous);
+          for (const key of storedKeys) next.delete(key);
+          for (const key of unstoredKeys) next.add(key);
+          return next;
+        });
+        if (temporary) setTemporaryWarningDismissed(false);
+      }
       setPreviewRevision((previous) => previous + 1);
       setCullingState((previous) => previous.shoot.id === projectId ? {
         ...previous,
@@ -1509,7 +1530,7 @@ export default function App() {
         onEditPhoto={selectedFrame && !loadingProgress ? () => { setEditQueueIds(null); setEditing(true); } : undefined}
       />}
 
-      <input ref={relinkInput} type="file" hidden multiple accept={PHOTO_ACCEPT}
+      <input ref={relinkInput} type="file" hidden multiple accept={PHOTO_ACCEPT} data-testid="relink-file-input"
         onChange={(event) => {
           const files = Array.from(event.target.files ?? []);
           if (files.length) void reconnectFileSelection(files);
@@ -1526,6 +1547,13 @@ export default function App() {
       />
 
       {/* Main Workspace Split */}
+      {temporaryOriginals.size > 0 && !temporaryWarningDismissed && <div role="alert"
+        className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-amber-400/30 bg-amber-500/12 px-4 py-2 text-sm text-amber-100">
+        <p>Kestrel could not store {temporaryOriginals.size === 1 ? 'one original' : `${temporaryOriginals.size} originals`} for reopening. You can use them now.
+          Keep your original {temporaryOriginals.size === 1 ? 'file' : 'files'}: you may need to reselect {temporaryOriginals.size === 1 ? 'it' : 'them'} after reopening.
+          Project backups do not include original photos.</p>
+        <button type="button" className="min-h-11 px-2 underline" onClick={() => setTemporaryWarningDismissed(true)}>Dismiss</button>
+      </div>}
       {backupNotice && <div className="flex items-center justify-between gap-2 border-b border-white/8 px-3 text-sm text-zinc-300">
         <p role="status">{backupNotice}</p>
         <button type="button" className="min-h-11 px-2" onClick={() => setBackupNotice(undefined)}>Dismiss</button>

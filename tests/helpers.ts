@@ -1,9 +1,14 @@
 import type { Page } from '@playwright/test';
 
-/** Opens the export dialog from the editor. On a phone Export is a tab, on a wider screen it is a button in the header. */
+/** The editor uses tabs on narrow or short screens, and a toolbar on larger workspaces. */
+const usesSheet = (page: Page) => {
+  const viewport = page.viewportSize();
+  return viewport ? viewport.width < 900 || viewport.height < 550 : false;
+};
+
+/** Opens the export dialog from the editor. */
 export async function openExportDialog(page: Page) {
-  const viewport = page.viewportSize() ?? { width: 1280, height: 800 };
-  if (viewport.width < 900 || viewport.height < 550) {
+  if (usesSheet(page)) {
     await page.getByRole('tab', { name: 'Export' }).click();
     await page.getByRole('button', { name: 'Choose formats and export…' }).click();
   } else {
@@ -13,8 +18,7 @@ export async function openExportDialog(page: Page) {
 
 /** The control that opened the export dialog, which should get focus back when it closes. */
 export function exportOpener(page: Page) {
-  const viewport = page.viewportSize() ?? { width: 1280, height: 800 };
-  return (viewport.width < 900 || viewport.height < 550)
+  return usesSheet(page)
     ? page.getByRole('button', { name: 'Choose formats and export…' })
     : page.getByRole('button', { name: 'Export', exact: true });
 }
