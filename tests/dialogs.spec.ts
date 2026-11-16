@@ -142,7 +142,13 @@ const scenarios: Scenario[] = [
     await expect(page.getByRole('complementary', { name: 'Photo info' })).toBeHidden();
   } },
   { name: 'auto-cull', run: async (page, _t, check) => { await project(page); await inMenu(page, /Auto-cull/); await check('auto-cull', page.getByRole('dialog', { name: /Auto-cull/ })); await closes(page, page.getByRole('dialog', { name: /Auto-cull/ })); } },
-  { name: 'macro pad', run: async (page, _t, check) => { await project(page); await inMenu(page, /Macro pad/); await check('macro pad', page.getByRole('dialog').first()); await closes(page, page.getByRole('dialog').first()); } },
+  { name: 'macro pad', run: async (page, _t, check) => {
+    await project(page);
+    await page.evaluate(() => { Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true }); });
+    await inMenu(page, /Macro pad/);
+    await check('macro pad', page.getByRole('dialog').first());
+    await closes(page, page.getByRole('dialog').first());
+  } },
   { name: 'remove from library and removed photos', run: async (page, _t, check) => {
     await project(page);
     await allPhotos(page);
@@ -236,7 +242,6 @@ test.afterAll(() => { if (report.length) console.log('\nPROBLEMS\n' + [...new Se
 
 for (const scenario of scenarios) {
   test(`dialogs fit and work: ${scenario.name}`, async ({ page }, info) => {
-    if (scenario.name === 'macro pad') test.skip(true, 'Macro Pad is only exposed by the native desktop shell, not the browser test server.');
     test.setTimeout(150000);
     const phone = info.project.name === 'phone';
     const before = report.length;

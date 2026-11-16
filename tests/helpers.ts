@@ -1,27 +1,24 @@
-import { expect, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
-const usesPhoneEditorLayout = (page: Page) => {
+/** The editor uses tabs on narrow or short screens, and a toolbar on larger workspaces. */
+const usesSheet = (page: Page) => {
   const viewport = page.viewportSize();
-  return (viewport?.width ?? 1280) < 900 || (viewport?.height ?? 800) < 550;
+  return viewport ? viewport.width < 900 || viewport.height < 550 : false;
 };
 
 /** Opens the export dialog from the editor. */
 export async function openExportDialog(page: Page) {
-  if (usesPhoneEditorLayout(page)) {
+  if (usesSheet(page)) {
     await page.getByRole('tab', { name: 'Export' }).click();
-    const exportButton = page.getByRole('button', { name: 'Choose formats and export…' });
-    await expect(exportButton).toBeEnabled({ timeout: 30000 });
-    await exportButton.click();
+    await page.getByRole('button', { name: 'Choose formats and export…' }).click();
   } else {
-    const exportButton = page.getByRole('button', { name: 'Export', exact: true });
-    await expect(exportButton).toBeEnabled({ timeout: 30000 });
-    await exportButton.click();
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
   }
 }
 
 /** The control that opened the export dialog, which should get focus back when it closes. */
 export function exportOpener(page: Page) {
-  return usesPhoneEditorLayout(page)
+  return usesSheet(page)
     ? page.getByRole('button', { name: 'Choose formats and export…' })
     : page.getByRole('button', { name: 'Export', exact: true });
 }
