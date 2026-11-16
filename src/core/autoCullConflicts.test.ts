@@ -112,3 +112,22 @@ test('malformed null worker entries and invalid frame IDs do not interrupt valid
   assert.equal(changed.undoStack.length, 1);
   assert.deepEqual(undoDecision(changed).frames.map((frame) => frame.decision), ['unreviewed', 'unreviewed']);
 });
+
+test('ambiguous duplicate catalogue IDs cannot classify two photographs with one suggestion', () => {
+  const state = createDemoShootState(3);
+  state.frames = state.frames.map((frame) => ({ ...frame, isDemo: false }));
+  const [first, second, third] = state.frames;
+  // Simulate a damaged catalogue with distinct photographs sharing a persisted ID.
+  state.frames[1] = { ...second, id: first.id };
+  const changed = applyAutoCullDecisions(state, [
+    { frameId: first.id, decision: 'reject' },
+    { frameId: third.id, decision: 'keep' },
+  ]);
+  assert.deepEqual(changed.frames.map((frame) => frame.decision), ['unreviewed', 'unreviewed', 'keep']);
+  assert.equal(changed.undoStack.length, 1);
+  assert.equal(changed.undoStack[0].batch?.length, 1);
+  assert.deepEqual(undoDecision(changed).frames.map((frame) => frame.decision), ['unreviewed', 'unreviewed', 'unreviewed']);
+
+  const ambiguousOnly = applyAutoCullDecisions(state, [{ frameId: first.id, decision: 'keep' }]);
+  assert.equal(ambiguousOnly, state, 'no changes or history for ambiguous IDs');
+});
