@@ -67,3 +67,36 @@ test('the supported RAW makers are recognised by file name only, with their labe
   assert.match(PHOTO_ACCEPT, /\.cr3/);
   assert.match(PHOTO_ACCEPT, /\.arw/);
 });
+
+test('RAW preview rejects a fabricated JPEG SOF with missing component descriptors', async () => {
+  // Build a self-contained synthetic JPEG marker stream. Its SOF advertises
+  // plausible 1200x800 pixels but has no component descriptors.
+  const bytes = new Uint8Array(5000);
+  bytes.set([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x08, 0x08, 0x03, 0x20, 0x04, 0xb0, 0x03], 0);
+  bytes.set([0xff, 0xd9], bytes.length - 2);
+  const file = tiff([[0x0201, 4096], [0x0202, bytes.length]], 4096);
+  // Replace the nominated preview with the malformed JPEG, without using a camera file.
+  const raw = new Blob([file.slice(0, 4096), bytes]);
+  assert.equal(await extractRawPreview(raw), null);
+});
+
+test('RAW preview rejects JPEG SOF component tables with surplus declared bytes', async () => {
+  // JPEG SOF length must be exactly 8 + 3 bytes per component. A padded
+  // segment is not a valid component table, even with plausible dimensions.
+  const bytes = new Uint8Array(5000);
+  bytes.set([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0e, 0x08, 0x03, 0x20, 0x04, 0xb0, 0x01, 0x01, 0x11, 0x00, 0x00], 0);
+  bytes.set([0xff, 0xd9], bytes.length - 2);
+  const file = tiff([[0x0201, 4096], [0x0202, bytes.length]], 4096);
+  assert.equal(await extractRawPreview(new Blob([file.slice(0, 4096), bytes])), null);
+});
+
+test('RAW preview rejects SOF component counts outside the JPEG range', async () => {
+  for (const components of [0, 5]) {
+    const length = 8 + 3 * components;
+    const bytes = new Uint8Array(5000);
+    bytes.set([0xff, 0xd8, 0xff, 0xc0, length >> 8, length & 0xff, 0x08, 0x03, 0x20, 0x04, 0xb0, components], 0);
+    bytes.set([0xff, 0xd9], bytes.length - 2);
+    const file = tiff([[0x0201, 4096], [0x0202, bytes.length]], 4096);
+    assert.equal(await extractRawPreview(new Blob([file.slice(0, 4096), bytes])), null, `components=${components}`);
+  }
+});
