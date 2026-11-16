@@ -170,7 +170,11 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                     key={frame.id}
                     role="article"
                     aria-label={`Frame ${frame.filename}`}
-                    onContextMenu={(event) => { event.preventDefault(); onInfo(frame.id, event.currentTarget.querySelector('[data-info-button]')); }}
+                    onContextMenu={(event) => {
+                      if (event.defaultPrevented) return;
+                      event.preventDefault();
+                      onInfo(frame.id, event.currentTarget.querySelector('[data-info-button]'));
+                    }}
                     className={`relative flex flex-col rounded-lg border overflow-hidden motion-safe:transition-colors ${
                       isSelected
                         ? 'border-sky-400 bg-[#1B1F27] ring-1 ring-sky-400/50'
