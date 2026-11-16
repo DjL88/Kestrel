@@ -2,11 +2,12 @@ import { newId } from '../core/ids';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
-import { ChevronDown, Columns2, Maximize, Minimize, Crop, Download, History, Keyboard, Lightbulb, Redo2, SlidersHorizontal, SquircleDashed, Undo2 } from 'lucide-react';
+import { ChevronDown, Columns2, Maximize, Minimize, Crop, Download, History, Keyboard, Lightbulb, Redo2, Settings2, SlidersHorizontal, SquircleDashed, Undo2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
+import { AppearanceSettings } from './AppearanceSettings';
 import { downloadExport } from '../providers/browserExport';
 import { gridSizeFor } from '../core/subjectModel';
 import { QuickAdjust } from './QuickAdjust';
@@ -141,6 +142,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [previewRecipe, setPreviewRecipe] = useState<{ edit?: PhotoEdit; framing?: PhotoFraming } | null>(null);
   const cropEntry = useRef<PhotoFraming | null>(null);
   const panelScroll = useRef<HTMLDivElement>(null);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const isPhone = useMediaQuery('(max-width: 899px), (max-height: 549px)');
   // On a phone the tools open as a sheet above the bar. Tapping the open tab again folds it away for a full-height photo.
   const [sheetOpen, setSheetOpen] = useState(() => {
@@ -650,6 +652,11 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           )}
         </div>
         <div className="flex items-center gap-1">
+        <button type="button" className={`${button} inline-flex items-center`}
+          aria-label="Appearance and layout settings" aria-expanded={appearanceOpen}
+          onClick={() => setAppearanceOpen(true)} title="Display theme and editing tools side">
+          <Settings2 className="h-4 w-4" aria-hidden="true" />
+        </button>
         {canFullscreen && (
           <button type="button" className={`${button} inline-flex items-center`} aria-pressed={fullscreen} onClick={toggleFullscreen}
             aria-label={fullscreen ? 'Leave full screen' : 'Full screen'} title={fullscreen ? 'Leave full screen (Esc)' : 'Full screen: the photo and tools fill the screen. Keyboard and macro pad keep working.'}>
@@ -971,18 +978,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               <button type="button" className={button} onClick={onRemoveVirtualCopy}>Remove copy</button>
             </div>
           )}
-          <details className="border-t border-white/10">
-            <summary className="min-h-11 cursor-pointer py-3 text-sm text-zinc-300">Layout</summary>
-            <label className="hidden min-h-11 items-center justify-between gap-2 text-sm lg:flex">
-              Adjustment panel
-              <select value={panelSide} onChange={(event) => onPanelSideChange(event.target.value === 'left' ? 'left' : 'right')}
-                className="min-h-10 rounded-md bg-[#252830] px-2">
-                <option value="left">Left</option>
-                <option value="right">Right</option>
-              </select>
-            </label>
 
-          </details>
           {!frame.isDemo && <button type="button" className={button} disabled={!provider.getOriginal(frame.stableKey)}
             onClick={() => {
               const original = provider.getOriginal(frame.stableKey);
@@ -1102,6 +1098,20 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       </div>
       {isPhone && tabList}
       </div>
+      {appearanceOpen && (
+        <div role="presentation" className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] workspace:items-center"
+          onMouseDown={(event) => { if (event.target === event.currentTarget) setAppearanceOpen(false); }}>
+          <section role="dialog" aria-modal="true" aria-label="Appearance and layout settings"
+            onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setAppearanceOpen(false); } }}
+            className="max-h-[85dvh] w-full max-w-md min-w-0 overflow-y-auto rounded-xl border border-white/15 bg-kestrel-panel p-4 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-base font-semibold">Appearance & layout</h2>
+              <button type="button" autoFocus className="min-h-11 rounded-md px-3 text-sm hover:bg-white/10" onClick={() => setAppearanceOpen(false)}>Done</button>
+            </div>
+            <AppearanceSettings side={panelSide} onSideChange={onPanelSideChange} />
+          </section>
+        </div>
+      )}
       {exportOpen && !onExport && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} onDownloadRequested={onExportRequested} />}
     </section>
   );
