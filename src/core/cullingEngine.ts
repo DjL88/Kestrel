@@ -412,6 +412,10 @@ export function applyDecisionWithHistory(
 ): CullingState {
   const targetIdx = state.frames.findIndex((f) => f.id === frameId);
   if (targetIdx === -1) return state;
+  // A damaged catalogue can contain two distinct photos with one ID.
+  // A manual decision would update only the first, but Undo/Redo resolves by ID
+  // and would then silently change both. Refuse ambiguous edits until repaired.
+  if (state.frames.some((frame, index) => index !== targetIdx && frame.id === frameId)) return state;
 
   const targetFrame = state.frames[targetIdx];
   // A stale filmstrip/compare callback must never reclassify a photo already removed

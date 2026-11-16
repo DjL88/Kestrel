@@ -354,3 +354,30 @@ test('explicit restore invalidates stale redo of a library removal', () => {
   assert.equal(restored.redoStack.length, 0);
   assert.equal(redoDecision(restored), restored);
 });
+
+test('manual culling refuses duplicate photo IDs instead of corrupting undo history', () => {
+  const project = projectWith(['unreviewed', 'unreviewed', 'unreviewed']);
+  const duplicated = {
+    ...project,
+    frames: [
+      project.frames[0],
+      { ...project.frames[1], id: project.frames[0].id },
+      project.frames[2],
+    ],
+    selectedFrameId: project.frames[0].id,
+  };
+  for (const decision of ['keep', 'reject'] as const) {
+    const updated = applyDecisionWithHistory(duplicated, project.frames[0].id, decision);
+    assert.equal(updated, duplicated, 'ambiguous photo must remain unchanged');
+    assert.equal(updated.undoStack.length, 0);
+    assert.equal(updated.frames[0].decision, 'unreviewed');
+    assert.equal(updated.frames[1].decision, 'unreviewed');
+  }
+  // Independent, unambiguous photos remain reviewable and reversible.
+  const kept = applyDecisionWithHistory(duplicated, project.frames[2].id, 'keep', { allowAdvance: false });
+  assert.equal(kept.frames[2].decision, 'keep');
+  assert.equal(kept.frames[0].decision, 'unreviewed');
+  assert.equal(kept.frames[1].decision, 'unreviewed');
+  assert.equal(undoDecision(kept).frames[2].decision, 'unreviewed');
+  assert.equal(redoDecision(undoDecision(kept)).frames[2].decision, 'keep');
+});
