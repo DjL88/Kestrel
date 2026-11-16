@@ -499,6 +499,15 @@ export function applyAutoCullDecisions(
     }
   }
   for (const id of conflicts) byId.delete(id);
+  // Corrupt or stale catalogues can contain the same frame ID more than once.
+  // Never classify multiple photographs from a single suggestion.
+  const seenFrameIds = new Set<string>();
+  const ambiguousFrameIds = new Set<string>();
+  for (const frame of state.frames) {
+    if (seenFrameIds.has(frame.id)) ambiguousFrameIds.add(frame.id);
+    seenFrameIds.add(frame.id);
+  }
+  for (const id of ambiguousFrameIds) byId.delete(id);
   const batch: NonNullable<CullingState['undoStack'][number]['batch']> = [];
   const frames = state.frames.map((frame) => {
     const decision = byId.get(frame.id);
