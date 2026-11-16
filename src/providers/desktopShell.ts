@@ -14,6 +14,9 @@ export async function saveWithDialog(blob: Blob, name: string): Promise<boolean>
   if (!path) return false;
   await writeFile(path, new Uint8Array(await blob.arrayBuffer()));
   // Show the saved file in Finder or Explorer. Saving has still worked if this fails.
-  try { (await import('@tauri-apps/plugin-opener')).revealItemInDir(path); } catch { /* ignore */ }
+  try {
+    const { revealItemInDir } = await import('@tauri-apps/plugin-opener');
+    void revealItemInDir(path).catch(() => {});
+  } catch { /* The file has already been saved. */ }
   return true;
 }
