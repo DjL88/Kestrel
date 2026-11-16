@@ -1,5 +1,17 @@
 # Bundled models
 
+## Finding the subject for Auto Cull: YOLOX-tiny
+| | |
+| --- | --- |
+| File | `src/assets/models/yolox_tiny.onnx` |
+| Size | 20,219,662 bytes |
+| SHA-256 | `427cc366d34e27ff7a03e2899b5e3671425c262ea2291f88bb942bc1cc70b0f7` |
+| Model and weights | YOLOX by Megvii, Apache-2.0 (github.com/Megvii-BaseDetection/YOLOX), trained on COCO |
+| Source | The project's release `0.1.1rc0`, file `yolox_tiny.onnx`, downloaded 16 November 2026 |
+| Runtime | onnxruntime-web (MIT), same as below |
+
+It recognises people, animals and vehicles (including aeroplanes) from any camera. Big photos are searched in tiles so a distant subject is not lost. It decides which photos have a subject and how sharp it is; it is not a general scene classifier. A subject outside its 19 classes (a flower, a building) is not found, and Auto Cull then judges by overall detail.
+
 ## Subject detection: U²-Net-P
 | | |
 | --- | --- |
