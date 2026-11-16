@@ -1,5 +1,5 @@
-import { pickedFromFile, pickedKey, linkedReader, type PickedPhoto } from './providers/linkedOriginals';
 import { isDesktopApp } from './providers/desktopShell';
+import { pickFolderNatively, pickedFromFile, pickedKey, linkedReader, type PickedPhoto } from './providers/linkedOriginals';
 import { checkOriginalPaths } from './providers/originalPathStatus';
 import { scanOriginalFolder, matchScannedOriginals } from './providers/nativeOriginalScan';
 import { splitDropped } from './core/dropSplit';
@@ -1177,6 +1177,16 @@ export default function App() {
   }, [projectsOpen, cullingState.shoot.id]);
 
   const handleOpenLocalFolder = async () => {
+    // The desktop app never uses the browser's folder picker (it asks permission for "this website"): photos are linked from the disk.
+    if (isDesktopApp()) {
+      try {
+        const chosen = await pickFolderNatively();
+        if (chosen === 'cancelled') return;
+        if (!chosen.length) { setFolderError('This folder has no supported photos.'); return; }
+        await handleSelectLocalFiles(chosen);
+      } catch { setFolderError('Could not read that folder.'); }
+      return;
+    }
     try {
       const picker = (window as Window & {
         showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
@@ -1382,6 +1392,7 @@ export default function App() {
       return;
     }
     if (!shoot.needsFolderRegrant) return;
+    if (isDesktopApp()) { setRelinkStatus('This project was made in a browser. Add its photos again with Add photos > Choose folder.'); return; }
     try {
       const stored = await store.loadDirectoryHandle(shoot.id);
       const permission = await (stored as (FileSystemDirectoryHandle & {

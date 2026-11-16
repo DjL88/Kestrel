@@ -57,18 +57,22 @@ export function autoEnhance(pixels: Uint8ClampedArray): AutoResult {
     } else notes.push('Colour balance already looks neutral.');
   } else notes.push('No clear neutral areas, so colour balance is left alone.');
 
-  // Exposure: aim the median at a comfortable perceptual level without pushing highlights out.
+  // Exposure: only lift a photo that is really dark. A bright sky or a pale scene is often meant to be bright, so a high median
+  // never darkens a photo on its own: it is only pulled down when the brightest tones are actually blown out.
   const median = at(0.5);
   const medianTone = toPerceptual(median);
-  // Leave a comfortable band alone, and otherwise move toward its nearer edge.
-  const goal = medianTone < 0.38 ? 0.42 : medianTone > 0.6 ? 0.56 : medianTone;
-  let gain = clamp((goal ** 2.2) / Math.max(median, 0.002), 0.35, 4);
   const p99 = at(0.99);
-  if (gain > 1 && p99 * gain > 1) gain = Math.max(1, 1 / Math.max(p99, 0.01));
-  const exposure = clamp(round(Math.log2(gain) / 0.4), -1.5, 1.5);
+  let gain = 1;
+  if (medianTone < 0.38) {
+    gain = clamp((0.42 ** 2.2) / Math.max(median, 0.002), 1, 2.2);
+    if (p99 * gain > 1) gain = Math.max(1, 1 / Math.max(p99, 0.01));
+  } else if (toPerceptual(p99) > 0.985 && medianTone > 0.6) {
+    gain = clamp(0.9 / Math.max(p99, 0.01), 0.6, 1);
+  }
+  const exposure = clamp(round(Math.log2(gain) / 0.4), -1, 1.25);
   if (Math.abs(exposure) >= 0.1) {
     result.exposure = exposure;
-    notes.push(exposure > 0 ? 'Photo is on the dark side, so exposure goes up.' : 'Photo is on the bright side, so exposure goes down.');
+    notes.push(exposure > 0 ? 'Photo is on the dark side, so exposure goes up.' : 'Brightest areas are blown out, so exposure goes down.');
   }
 
   const after = (y: number) => toPerceptual(Math.min(1, y * 2 ** (result.exposure * 0.4)));
@@ -82,10 +86,15 @@ export function autoEnhance(pixels: Uint8ClampedArray): AutoResult {
     result.highlights = -1;
     notes.push('Brightest areas are close to white, so highlights are pulled back.');
   }
-  if (after(at(0.95)) - lowTone < 0.5) {
-    result.contrast = 0.5;
+  // Contrast follows how flat the photo really is, so a photo that is already balanced is left alone.
+  const spread = after(at(0.95)) - lowTone;
+  const flat = clamp(round(((0.4 - spread) / 0.4) * 0.6), 0, 0.6);
+  // A featureless frame (a plain sky) has nothing for contrast to work on.
+  if (flat >= 0.15 && spread >= 0.08) {
+    result.contrast = flat;
     notes.push('Tones are bunched together, so contrast goes up a little.');
   }
+  if (!Object.values(result).some(Boolean)) notes.push('This photo already looks balanced, so it is left as it is.');
   if (chromaSum / count < 0.18) {
     result.vibrance = 0.5;
     notes.push('Colours are muted, so vibrance goes up. Saturation is untouched.');

@@ -14,9 +14,17 @@ test('a dark photo gets brighter and its shadows are lifted', () => {
   assert.ok(edit.shadows > 0);
 });
 
-test('a bright photo is pulled down', () => {
-  const { edit } = autoEnhance(image((x) => [200 + x, 200 + x, 200 + x]));
+test('a photo with blown-out brights is pulled down', () => {
+  const { edit } = autoEnhance(image((x) => [Math.min(255, 215 + x * 2), Math.min(255, 215 + x * 2), Math.min(255, 215 + x * 2)]));
   assert.ok(edit.exposure < 0);
+});
+
+test('a pale sky that is bright on purpose is not darkened, and a balanced photo is left alone', () => {
+  // Measured on 30 real telephoto frames: a helicopter in pale sky has a median tone near 0.87 and nothing clipped.
+  const sky = autoEnhance(image((x) => [185 + x / 8, 205 + x / 8, 235 + x / 12]));
+  assert.ok(sky.edit.exposure >= 0, `exposure ${sky.edit.exposure}`);
+  const balanced = autoEnhance(image((x) => [30 + x * 7, 30 + x * 7, 30 + x * 7]));
+  assert.equal(balanced.edit.contrast, 0);
 });
 
 test('a cool cast on neutral midtones warms the photo, a warm cast cools it', () => {

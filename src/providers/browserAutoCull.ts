@@ -1,7 +1,8 @@
 import { loadImage } from './loadImage';
 import { sha256Hex } from '../core/sha256';
 import { duplicateAnchorKeys } from '../core/duplicateAnchors';
-import { limitAutoKeepers, scorePreview, type CullSuggestion } from '../core/autoCull';
+import { limitAutoKeepers, scorePreview, scoreWithSubject, type CullSuggestion, type SubjectFinding } from '../core/autoCull';
+import { findSubject } from './objectDetector';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 
@@ -10,6 +11,7 @@ export async function scanForCulling(
   signal: AbortSignal, onProgress: (count: number) => void,
 ) {
   const results: CullSuggestion[] = [];
+  const baseById = new Map<string, CullSuggestion>();
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('canvas');
@@ -60,7 +62,15 @@ export async function scanForCulling(
         canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
         canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        results.push(scorePreview(frame.id, context.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height));
+        const base = scorePreview(frame.id, context.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+        // Judge the photo by its subject: its presence and sharpness, not the texture of the whole frame.
+        let finding: SubjectFinding | null | undefined;
+        try {
+          const found = await findSubject(image, signal);
+          finding = found && { label: found.detection.label, score: found.detection.score, size: Math.max(found.detection.box.w, found.detection.box.h), sharpness: found.sharpness };
+        } catch { signal.throwIfAborted(); finding = undefined; }
+        baseById.set(frame.id, base);
+        results.push(finding === undefined ? base : scoreWithSubject(base, finding));
       }
     } catch {
       signal.throwIfAborted();
@@ -68,6 +78,16 @@ export async function scanForCulling(
     }
     onProgress(results.length);
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+  // A shoot with no people, animals or vehicles in it (landscapes, buildings, abstracts) has nothing for the detector to find.
+  // When it finds a subject in very few photos, judge by overall detail as before instead of calling every photo subject-less.
+  const withSubject = results.filter((result) => result.reason !== 'noSubject' && baseById.has(result.frameId)).length;
+  const judged = results.filter((result) => baseById.has(result.frameId)).length;
+  if (judged > 0 && withSubject / judged < 0.15) {
+    for (let i = 0; i < results.length; i += 1) {
+      const base = baseById.get(results[i].frameId);
+      if (base && results[i].reason === 'noSubject') results[i] = base;
+    }
   }
   return limitAutoKeepers(results, all, Math.max(0, goal - all.filter((frame) => !frame.removedAt && frame.decision === 'keep').length));
 }

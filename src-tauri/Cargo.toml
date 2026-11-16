@@ -1,6 +1,6 @@
 [package]
 name = "kestrel"
-version = "26.11.1"
+version = "26.11.2"
 description = "Kestrel desktop app"
 edition = "2021"
 rust-version = "1.77"
