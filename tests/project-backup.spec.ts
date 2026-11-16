@@ -43,8 +43,9 @@ test('desktop backup before deletion handles cancellation and failure, then wait
   const downloads: string[] = [];
   page.on('download', (download) => downloads.push(download.suggestedFilename()));
   await page.getByRole('button', { name: 'Delete Desktop backup fixture (restored)', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Delete “Desktop backup fixture (restored)”?', exact: true });
-  await dialog.getByRole('checkbox').check();
+  const dialog = page.getByRole('alertdialog', { name: 'Delete “Desktop backup fixture (restored)”?', exact: true });
+  await expect(dialog.getByRole('button', { name: 'Keep project', exact: true })).toBeFocused();
+  await dialog.getByRole('checkbox', { name: 'I understand this cannot be undone' }).check();
   const backup = dialog.getByRole('button', { name: 'Back up this project', exact: true });
   const remove = dialog.getByRole('button', { name: 'Delete project permanently' });
   await backup.click();
