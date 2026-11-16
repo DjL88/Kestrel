@@ -186,3 +186,28 @@ test('invalid EXIF IFD pointers do not prevent a safe null result', async () => 
   view.setUint32(18, 0xfffffff0, true);
   assert.equal(await extractNefPreview(new Blob([header])), null);
 });
+
+test('progressive fallback scans in bounded windows instead of reading 28 MiB immediately', async () => {
+  // An invalid TIFF header forces fallback without relying on a real camera RAW.
+  const raw = new Blob([new Uint8Array(30 * 1024 * 1024)]);
+  const lengths: number[] = [];
+  const originalSlice = raw.slice.bind(raw);
+  raw.slice = ((start?: number, end?: number, contentType?: string) => {
+    if (start === 0 && end && end >= 1024 * 1024) lengths.push(end);
+    return originalSlice(start, end, contentType);
+  }) as Blob['slice'];
+  assert.equal(await extractNefPreview(raw), null);
+  assert.deepEqual(lengths, [4, 12, 28].map((size) => size * 1024 * 1024));
+});
+
+test('small RAW files do not request a fallback slice larger than the file', async () => {
+  const raw = new Blob([new Uint8Array(1024)]);
+  const ends: number[] = [];
+  const originalSlice = raw.slice.bind(raw);
+  raw.slice = ((start?: number, end?: number, contentType?: string) => {
+    if (start === 0 && end && end >= 1024) ends.push(end);
+    return originalSlice(start, end, contentType);
+  }) as Blob['slice'];
+  assert.equal(await extractNefPreview(raw), null);
+  assert.ok(ends.every((end) => end <= raw.size));
+});
