@@ -23,6 +23,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [dropError, setDropError] = useState(false);
+  const [nativeError, setNativeError] = useState('');
   function selectFiles(files: File[]) {
     const photos = files.filter((file) => isSupportedPhotoFilename(file.name));
     setDropError(!photos.length);
@@ -31,12 +32,13 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
 
   // In the desktop app, photos are chosen with the system's own dialog and stay where they are on the disk.
   async function chooseNatively(pick: typeof pickPhotosNatively) {
+    setNativeError('');
     try {
       const chosen = await pick();
       if (chosen === 'cancelled') return;
       setDropError(!chosen.length);
       if (chosen.length) onSelectLocalFiles(chosen);
-    } catch { setDropError(true); }
+    } catch (error) { setNativeError(error instanceof Error ? error.message : String(error)); }
   }
 
   // The desktop app is not a web page, so it does not use the browser's folder picker, which asks permission for "this website".
@@ -131,6 +133,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
             </button>
           </div>
 
+          {nativeError && <p role="alert" className="text-sm text-orange-200">Could not read that choice: {nativeError}</p>}
           {folderError && <p role="alert" className="text-sm text-orange-200">{folderError}</p>}
           {dropError && <p role="alert" className="text-sm text-orange-200">Choose a JPEG, PNG, WebP or camera RAW file (NEF, ARW, CR3 and others).</p>}
 

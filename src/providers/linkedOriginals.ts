@@ -61,7 +61,7 @@ export async function pickFolderNatively(): Promise<PickedPhoto[] | 'cancelled'>
   if (!isDesktopApp()) return 'cancelled';
   const { open } = await import('@tauri-apps/plugin-dialog');
   const fs = await import('@tauri-apps/plugin-fs');
-  const chosen = await open({ directory: true, multiple: false, title: 'Choose a folder of photos' });
+  const chosen = await open({ directory: true, multiple: false, recursive: true, title: 'Choose a folder of photos' });
   if (typeof chosen !== 'string') return 'cancelled';
   const root = chosen.replace(/[\\/]+$/, '');
   const names = (await fs.readDir(root)).filter((entry) => entry.isFile && extensions.includes(entry.name.split('.').at(-1)?.toLowerCase() ?? ''));
