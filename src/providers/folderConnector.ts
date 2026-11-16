@@ -29,8 +29,15 @@ export function directoryHandleConnector(root: FileSystemDirectoryHandle): Stora
       const segments = parts(path);
       const file = await (await dir(segments.slice(0, -1), true)).getFileHandle(segments.at(-1)!, { create: true });
       const writable = await file.createWritable();
-      await writable.write(bytes as unknown as BufferSource);
-      await writable.close();
+      try {
+        await writable.write(bytes as unknown as BufferSource);
+        await writable.close();
+      } catch (error) {
+        // Discard the staged replacement and release the handle after a failed
+        // write or commit. Cleanup must never hide the original storage error.
+        try { await writable.abort(); } catch { /* the drive may have disconnected */ }
+        throw error;
+      }
     },
     async get(path) {
       guard(path);
