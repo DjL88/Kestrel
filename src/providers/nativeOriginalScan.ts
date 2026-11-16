@@ -59,4 +59,30 @@ export function matchScannedOriginals(
     else if (possible.length > 1) ambiguous.push(frame.stableKey);
   }
   return { matches, ambiguous };
+}  const matches = new Map<string, string>(), ambiguous: string[] = [];
+  const byIdentity = new Map<string, ScannedOriginal[]>();
+  for (const candidate of candidates) {
+    const identity = JSON.stringify([candidate.name.toLowerCase(), candidate.size, candidate.lastModified]);
+    const group = byIdentity.get(identity) ?? [];
+    group.push(candidate);
+    byIdentity.set(identity, group);
+  }
+  const claimedPaths = new Map<string, string>();
+  for (const frame of expected) {
+    const identity = JSON.stringify([frame.filename.toLowerCase(), frame.size, frame.lastModified]);
+    const possible = byIdentity.get(identity) ?? [];
+    if (possible.length === 1) {
+      const path = possible[0].path;
+      const claimant = claimedPaths.get(path.toLowerCase());
+      if (claimant && claimant !== frame.stableKey) {
+        matches.delete(claimant);
+        if (!ambiguous.includes(claimant)) ambiguous.push(claimant);
+        ambiguous.push(frame.stableKey);
+      } else {
+        matches.set(frame.stableKey, path);
+        claimedPaths.set(path.toLowerCase(), frame.stableKey);
+      }
+    } else if (possible.length > 1) ambiguous.push(frame.stableKey);
+  }
+  return { matches, ambiguous };
 }
