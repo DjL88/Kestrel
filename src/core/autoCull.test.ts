@@ -152,3 +152,32 @@ test('repeated scan suggestions never create duplicate high-confidence keeper ac
   assert.equal(result[1].confidence, 'medium');
   assert.equal(suggestions[1].confidence, 'high', 'input suggestions remain unchanged');
 });
+
+import { scoreWithSubject } from './autoCull.ts';
+const baseResult = { frameId: 'a', decision: 'keep' as const, confidence: 'high' as const, score: 95, reason: 'clearDetail' as const };
+
+test('a frame with no subject is never kept on the texture of its background', () => {
+  const result = scoreWithSubject(baseResult, null);
+  assert.equal(result.decision, null);
+  assert.equal(result.reason, 'noSubject');
+});
+
+test('a speck or a faint guess does not count as a subject', () => {
+  assert.equal(scoreWithSubject(baseResult, { label: 'sheep', score: 0.59, size: 49, sharpness: 20 }).reason, 'noSubject');
+  assert.equal(scoreWithSubject(baseResult, { label: 'bird', score: 0.3, size: 400, sharpness: 20 }).reason, 'noSubject');
+});
+
+test('a sharp subject is a confident keeper, a soft one is not kept', () => {
+  const sharp = scoreWithSubject(baseResult, { label: 'aeroplane', score: 0.9, size: 900, sharpness: 20 });
+  assert.deepEqual([sharp.decision, sharp.confidence, sharp.reason], ['keep', 'high', 'subjectSharp']);
+  const ok = scoreWithSubject(baseResult, { label: 'aeroplane', score: 0.8, size: 500, sharpness: 10 });
+  assert.deepEqual([ok.decision, ok.confidence, ok.reason], ['keep', 'medium', 'subjectOk']);
+  const soft = scoreWithSubject(baseResult, { label: 'aeroplane', score: 0.8, size: 500, sharpness: 5 });
+  assert.deepEqual([soft.decision, soft.reason], [null, 'subjectSoft']);
+  assert.ok(sharp.score > ok.score && ok.score > soft.score);
+});
+
+test('duplicates and unreadable previews are left as they were', () => {
+  const dup = { ...baseResult, decision: 'reject' as const, reason: 'duplicate' as const };
+  assert.equal(scoreWithSubject(dup, null), dup);
+});

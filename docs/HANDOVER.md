@@ -111,3 +111,10 @@ Where things stand and what is left, in order. Older detail: `AUDIT-2.md`, `AUDI
 - Browsers and drag-and-drop still copy (up to 35 MB) as before; a browser cannot keep a path.
 - Not done: a moved or deleted original just shows blank (no "find missing photos" step yet); drag-and-drop in the desktop app does not link; thumbnails are not cached on disk, so a restart re-reads each file once (cap on parallel reads keeps memory flat).
 - Version is now `26.11.1` (year.month.build; MSI needs the first two numbers under 256).
+
+## Subject detector and Auto Cull (16 November)
+- **Why:** Auto Cull scored whole-frame texture, so landscape grass counted as a subject and empty frames were kept. The subject model (U²-Net, 320 px) could not see a jet a few dozen pixels wide.
+- **Now:** `src/assets/models/yolox_tiny.onnx` (YOLOX-tiny, Megvii, **Apache-2.0**, 20.2 MB, sha256 in `src/core/objectDetection.ts`) finds people, animals, vehicles and aeroplanes, any camera. The whole photo is looked at first; if nothing clear is found, big photos are searched in overlapping 2400 px tiles (about 2.3 s a photo, in wasm). `scoreWithSubject` judges by the subject's presence and sharpness; "no clear subject" is never auto-kept. If a shoot has a subject in under 15% of photos (landscapes, buildings) it falls back to overall detail.
+- **Measured on 30 Nikon Z8 Mach Loop frames:** subject found in 29 of 30 (the 30th is an empty landscape). Sharpness reads about 15 to 25 for well-held shots and 5 to 10 for soft or very distant ones; thresholds 14 and 8 come from that and should be re-checked on other genres.
+- **Not done:** the editor's subject mask still uses U²-Net (it will miss small subjects the same way; it could take the detector's box as a hint); thresholds are tuned on one shoot; no RAW+JPEG pairing yet; scan speed (tiles) could use a worker or limit tiles by burst.
+- **Auto edit** (`autoEnhance.ts`): never darkens a bright sky unless highlights are really clipped; contrast follows how flat the photo is; a balanced photo is left alone.

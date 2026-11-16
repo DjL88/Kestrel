@@ -1,7 +1,8 @@
 import type { PhotoFrame } from './types';
 
 export type Confidence = 'high' | 'medium' | 'low';
-export type CullReason = 'duplicate' | 'clearDetail' | 'someDetail' | 'limitedDetail' | 'flat' | 'unavailable';
+export type CullReason = 'duplicate' | 'clearDetail' | 'someDetail' | 'limitedDetail' | 'flat' | 'unavailable'
+  | 'subjectSharp' | 'subjectOk' | 'subjectSoft' | 'noSubject';
 
 export interface CullSuggestion {
   frameId: string;
@@ -61,6 +62,25 @@ export function scorePreview(frameId: string, pixels: Uint8ClampedArray, width: 
     return { frameId, decision: 'keep', confidence: 'medium', score: Math.min(84, Math.round(62 + detail)), reason: 'someDetail' };
   }
   return { frameId, decision: null, confidence: 'low', score: 40, reason: 'limitedDetail' };
+}
+
+/** What the subject detector found in a photo, or null when it found nothing it trusts. */
+export interface SubjectFinding { label: string; score: number; /** Long side of the subject in the photo's own pixels. */ size: number; sharpness: number }
+
+/**
+ * Judge a photo by its subject, not by the texture of the whole frame. A sheep-sized speck or a faint guess does not count as a subject.
+ * Calibrated on 30 real long-lens frames of jets: well-held shots read about 15 to 25, soft or very distant ones about 5 to 10.
+ */
+export function scoreWithSubject(base: CullSuggestion, found: SubjectFinding | null): CullSuggestion {
+  if (base.reason === 'unavailable' || base.reason === 'flat' || base.reason === 'duplicate') return base;
+  const real = found && ((found.score >= 0.45 && found.size >= 120) || found.score >= 0.7);
+  if (!found || !real) return { ...base, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
+  const weight = Math.min(1, found.score / 0.8);
+  if (found.sharpness >= 14) {
+    return { ...base, decision: 'keep', confidence: found.score >= 0.5 ? 'high' : 'medium', score: Math.min(99, Math.round(70 + found.sharpness * 1.1 * weight)), reason: 'subjectSharp' };
+  }
+  if (found.sharpness >= 8) return { ...base, decision: 'keep', confidence: 'medium', score: Math.round(55 + found.sharpness * 1.5 * weight), reason: 'subjectOk' };
+  return { ...base, decision: null, confidence: 'low', score: Math.round(30 + found.sharpness * 2), reason: 'subjectSoft' };
 }
 
 export function limitAutoKeepers(
