@@ -107,6 +107,10 @@ test('rejects corrupt numeric EXIF values instead of displaying impossible camer
   assert.equal(validExifDimension(8256), 8256);
   assert.equal(validExifDimension(5504), 5504);
   assert.equal(validExifDimension(8256.5), undefined);
+  assert.equal(validExifDimension(65_535), 65_535);
+  for (const corrupt of [65_536, 100_000, Number.MAX_SAFE_INTEGER]) {
+    assert.equal(validExifDimension(corrupt), undefined, `oversized EXIF axis ${corrupt}`);
+  }
   assert.equal(validExifDimension(Number.MAX_SAFE_INTEGER + 1), undefined);
   assert.equal(formatFocalLength(Infinity), '');
 });
