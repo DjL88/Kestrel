@@ -30,7 +30,7 @@ export function PhotoContextMenu({ x, y, state, label, onChoose, onClose }: Prop
 
   const enabled = () => [...(root.current?.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]:not(:disabled)') ?? [])];
   useEffect(() => {
-    enabled()[0]?.focus();
+    enabled()[0]?.focus({ preventScroll: true });
     const keep = previous.current;
     const outside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) onClose(); };
     const away = () => onClose();
@@ -47,10 +47,12 @@ export function PhotoContextMenu({ x, y, state, label, onChoose, onClose }: Prop
   }, []);
 
   function onKeyDown(event: React.KeyboardEvent) {
+    // Menu keys belong to the menu, even when they are bound to a culling shortcut.
+    event.stopPropagation();
     const all = enabled();
     const at = all.indexOf(document.activeElement as HTMLButtonElement);
     const move = (to: number) => { event.preventDefault(); all[(to + all.length) % all.length]?.focus(); };
-    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose(); }
+    if (event.key === 'Escape') { event.preventDefault(); onClose(); }
     else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') move(at + 1);
     else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') move(at - 1);
     else if (event.key === 'Home') move(0);
@@ -69,8 +71,8 @@ export function PhotoContextMenu({ x, y, state, label, onChoose, onClose }: Prop
 
   return (
     <div ref={root} role="menu" aria-label={label} onKeyDown={onKeyDown} onContextMenu={(event) => event.preventDefault()}
-      style={{ left: place.left, top: place.top }}
-      className="fixed z-[80] w-60 max-w-[calc(100vw-1rem)] rounded-lg border border-white/15 bg-kestrel-raised p-1 shadow-2xl">
+      style={{ left: place.left, top: place.top, maxHeight: 'calc(100dvh - 16px)' }}
+      className="fixed z-[80] w-60 max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-lg border border-white/15 bg-kestrel-raised p-1 shadow-2xl">
       {groups.map((group, index) => (
         <div key={index} role="group" className={index > 0 ? 'mt-1 border-t border-white/10 pt-1' : undefined}>
           {group.some((item) => item.inline) ? (

@@ -28,6 +28,7 @@ test('right-click on a photo in the library opens a menu of actions that work', 
   await card.click({ button: 'right' });
   const menu = page.getByRole('menu', { name: 'm-1.png' });
   await expect(menu).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Close photo info' })).toHaveCount(0);
   // The first available action has focus, and the arrow keys move through the rest.
   await expect(menu.getByRole('menuitem', { name: 'Edit photo' })).toBeFocused();
   await page.keyboard.press('ArrowDown');
@@ -69,6 +70,27 @@ test('rating, Photo info and Export from the menu', async ({ page }) => {
   await page.getByRole('button', { name: 'Close photo info' }).click();
   await page.getByRole('button', { name: 'View m-3.png' }).click({ button: 'right' });
   await page.getByRole('menuitem', { name: /^Export/ }).click();
+  await expect(page.getByRole('dialog').first()).toBeVisible();
+});
+
+test('photo menu scrolls to its last action on a short screen', async ({ page }) => {
+  await project(page);
+  await page.setViewportSize({ width: 900, height: 320 });
+  const card = page.getByRole('button', { name: 'View m-1.png' });
+  await card.focus();
+  await card.click({ button: 'right' });
+  const menu = page.getByRole('menu', { name: 'm-1.png' });
+  await expect(menu).toBeVisible();
+  const box = (await menu.boundingBox())!;
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(320);
+  await page.keyboard.press('End');
+  const exportAction = menu.getByRole('menuitem', { name: /^Export/ });
+  await expect(exportAction).toBeFocused();
+  await expect(exportAction).toBeInViewport({ ratio: 1 });
+  expect(await menu.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await page.keyboard.press('Enter');
+  await expect(menu).toHaveCount(0);
   await expect(page.getByRole('dialog').first()).toBeVisible();
 });
 
