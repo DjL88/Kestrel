@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
+import { previewCacheKey } from '../providers/offlinePreviewCache';
 import type { PhotoFrame } from './types';
 
 const jpeg = new Uint8Array(await readFile(new URL('../assets/images/demo_red_kite_flight_1794721996053.jpg', import.meta.url)));
@@ -121,7 +122,10 @@ test('cached offline previews remain available after reopening when a linked ori
     },
   };
   const photo = frame('original');
-  await cache.savePreviewPair(photo.stableKey, {
+  const cacheKey = previewCacheKey({
+    stableKey: photo.stableKey, filename: photo.filename, fileSize: 1024, lastModified: 1,
+  });
+  await cache.savePreviewPair(cacheKey, {
     thumbnail: new Blob(['cached thumbnail']),
     review: new Blob(['cached review']),
   });

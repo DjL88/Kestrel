@@ -1,4 +1,7 @@
-import { pickedFromFile, pickedKey, type PickedPhoto } from './providers/linkedOriginals';
+import { pickedFromFile, pickedKey, linkedReader, type PickedPhoto } from './providers/linkedOriginals';
+import { isDesktopApp } from './providers/desktopShell';
+import { checkOriginalPaths } from './providers/originalPathStatus';
+import { scanOriginalFolder, matchScannedOriginals } from './providers/nativeOriginalScan';
 import { splitDropped } from './core/dropSplit';
 import { useAccess } from './providers/useAccess';
 import { loadLicence } from './providers/licenceStore';
@@ -130,7 +133,7 @@ export default function App() {
   const relinkInput = useRef<HTMLInputElement>(null);
   const relinkingFiles = useRef(false);
   const previewProviderRef = useRef<BrowserPreviewProvider | null>(null);
-  if (!previewProviderRef.current) previewProviderRef.current = new BrowserPreviewProvider(storeRef.current);
+  if (!previewProviderRef.current) previewProviderRef.current = new BrowserPreviewProvider();
 
   const [prefs, setPrefs] = useState<UserPreferences>(() => loadPreferences());
   // Left- or right-handed use is read by the whole page's styles, so the home page and every dialog follow it too.
@@ -1303,12 +1306,78 @@ export default function App() {
     return imported;
   };
 
+  /** Desktop originals remain linked at their chosen location, never copied to IndexedDB. */
+  const reconnectDesktopFolder = async () => {
+    if (relinkingFiles.current) return;
+    const projectId = cullingState.shoot.id;
+    relinkingFiles.current = true;
+    setRelinkStatus('Choose the folder containing your originals…');
+    try {
+      const [{ open }, fs] = await Promise.all([
+        import('@tauri-apps/plugin-dialog'), import('@tauri-apps/plugin-fs'),
+      ]);
+      const folder = await open({ directory: true, multiple: false, title: 'Reconnect original photos' });
+      if (typeof folder !== 'string') {
+        setRelinkStatus(undefined);
+        return;
+      }
+      const expected = new Map(cullingState.frames
+        .filter((frame) => frame.sourceKind === 'file' && frame.sourcePath)
+        .map((frame) => [frame.stableKey, frame]));
+      const expectedRecords = [...expected.values()].map((frame) => {
+        const parts = frame.stableKey.split('::');
+        return { stableKey: frame.stableKey, filename: frame.filename,
+          size: Number(parts.at(-2)) || 0, lastModified: Number(parts.at(-1)) || 0 };
+      });
+      const scan = await scanOriginalFolder(folder, fs.readDir, fs.stat,
+        new Set(expectedRecords.map((frame) => frame.filename.toLowerCase())));
+      const { matches: replacements, ambiguous } = matchScannedOriginals(expectedRecords, scan.files);
+      const recovered = replacements.size;
+      if (stateRef.current.shoot.id !== projectId) return;
+      const preview = previewProviderRef.current!;
+      for (const [key, path] of replacements) {
+        const frame = expected.get(key)!;
+        const parts = key.split('::');
+        preview.registerLinked(key, {
+          read: linkedReader(path, frame.filename, Number(parts.at(-1)) || 0),
+          size: Number(parts.at(-2)) || 0, lastModified: Number(parts.at(-1)) || 0,
+        });
+        preview.retryLinkedOriginal(key);
+      }
+      const nextFrames = stateRef.current.frames.map((frame) =>
+        replacements.has(frame.stableKey) ? { ...frame, sourcePath: replacements.get(frame.stableKey) } : frame);
+      const paths = nextFrames.filter((frame) => frame.sourceKind === 'file' && frame.sourcePath).map((frame) => frame.sourcePath!);
+      const statuses = await checkOriginalPaths(paths, fs.stat);
+      const remaining = nextFrames.filter((frame) => frame.sourceKind === 'file' && frame.sourcePath && statuses.get(frame.sourcePath) !== 'available').length;
+      if (stateRef.current.shoot.id !== projectId) return;
+      setCullingState((previous) => previous.shoot.id !== projectId ? previous : {
+        ...previous, frames: nextFrames,
+        shoot: { ...previous.shoot, needsFileReselect: remaining > 0 },
+      });
+      setPreviewRevision((previous) => previous + 1);
+      const details = [ambiguous.length ? `${ambiguous.length} ambiguous matches skipped.` : '',
+        scan.truncated ? 'Folder scan reached its safety limit.' : '',
+        scan.skippedDirectories ? `${scan.skippedDirectories} folders could not be scanned.` : ''].filter(Boolean).join(' ');
+      setRelinkStatus((recovered
+        ? `Reconnected ${recovered} original ${recovered === 1 ? 'photo' : 'photos'}.${remaining ? ` ${remaining} may still need reconnecting.` : ''}`
+        : 'No matching originals found. Choose the folder containing the same files.') + (details ? ` ${details}` : ''));
+    } catch {
+      setRelinkStatus('Could not read that folder. Reconnect the drive or choose another folder.');
+    } finally {
+      relinkingFiles.current = false;
+    }
+  };
+
   const handleReconnectFolderOrFiles = async () => {
     const store = storeRef.current!;
     const preview = previewProviderRef.current!;
     const { shoot } = cullingState;
 
     if (shoot.needsFileReselect && !shoot.needsFolderRegrant) {
+      if (isDesktopApp() && cullingState.frames.some((frame) => frame.sourcePath)) {
+        await reconnectDesktopFolder();
+        return;
+      }
       relinkInput.current?.click();
       return;
     }

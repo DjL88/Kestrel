@@ -5,6 +5,8 @@ import type { PhotoFrame, ShootDescriptor } from '../core/types';
 import type { BrowserCatalogueStore } from './browserCatalogueStore';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 import { linkedReader, pickedFromFile, pickedKey, type PickedPhoto } from './linkedOriginals';
+import { checkOriginalPaths } from './originalPathStatus';
+import { isDesktopApp } from './desktopShell';
 
 const SUPPORTED_EXTENSIONS = new Set(PHOTO_EXTENSIONS);
 
@@ -256,6 +258,16 @@ export async function rehydrateLocalFramesFromStore(
       return Boolean(blob);
     }));
     if (restored.some((found) => !found)) allFound = false;
+  }
+  // A registered reader is not proof that its saved path is still accessible.
+  // Use metadata-only native checks, bounded across the project, without opening NEF bytes.
+  if (isDesktopApp()) {
+    const paths = frames.filter((frame) => !frame.isDemo && frame.sourcePath).map((frame) => frame.sourcePath!);
+    if (paths.length) {
+      const { stat } = await import('@tauri-apps/plugin-fs');
+      const statuses = await checkOriginalPaths(paths, stat);
+      if ([...statuses.values()].some((status) => status !== 'available')) allFound = false;
+    }
   }
   return allFound;
 }
