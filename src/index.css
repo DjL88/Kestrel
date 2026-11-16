@@ -2,6 +2,8 @@
 
 /* Compact sizing is for a wide screen with a mouse. A phone on its side or an iPad is wide but still touch, so it keeps big targets. */
 @custom-variant desk (@media (min-width: 768px) and (pointer: fine));
+/* Workspace layout depends on usable dimensions, not iPhone/iPad/Android labels. */
+@custom-variant workspace (@media (min-width: 900px) and (min-height: 550px));
 
 @theme {
   --color-kestrel-canvas: #0d0e12;
