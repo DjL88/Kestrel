@@ -1,6 +1,7 @@
 import { pickedFromFile, pickedKey, linkedReader, type PickedPhoto } from './providers/linkedOriginals';
 import { isDesktopApp } from './providers/desktopShell';
 import { checkOriginalPaths } from './providers/originalPathStatus';
+import { scanOriginalFolder, matchScannedOriginals } from './providers/nativeOriginalScan';
 import { splitDropped } from './core/dropSplit';
 import { useAccess } from './providers/useAccess';
 import { loadLicence } from './providers/licenceStore';
@@ -1320,23 +1321,15 @@ export default function App() {
       const expected = new Map(cullingState.frames
         .filter((frame) => frame.sourceKind === 'file' && frame.sourcePath)
         .map((frame) => [frame.stableKey, frame]));
-      const entries = await fs.readDir(folder);
-      let recovered = 0;
-      const replacements = new Map<string, string>();
-      for (const entry of entries) {
-        if (!entry.isFile) continue;
-        const path = folder.replace(/[\\/]+$/, '') + '/' + entry.name;
-        const keyCandidates = [...expected.values()].filter((frame) => frame.filename.toLowerCase() === entry.name.toLowerCase());
-        if (!keyCandidates.length) continue;
-        try {
-          const info = await fs.stat(path);
-          const candidate = pickedKey({ name: entry.name, size: info.size, lastModified: info.mtime?.getTime() ?? 0 });
-          const match = expected.get(candidate);
-          if (!match || replacements.has(match.stableKey)) continue;
-          replacements.set(match.stableKey, path);
-          recovered++;
-        } catch { /* A single inaccessible file must not abort other matches. */ }
-      }
+      const expectedRecords = [...expected.values()].map((frame) => {
+        const parts = frame.stableKey.split('::');
+        return { stableKey: frame.stableKey, filename: frame.filename,
+          size: Number(parts.at(-2)) || 0, lastModified: Number(parts.at(-1)) || 0 };
+      });
+      const scan = await scanOriginalFolder(folder, fs.readDir, fs.stat,
+        new Set(expectedRecords.map((frame) => frame.filename.toLowerCase())));
+      const { matches: replacements, ambiguous } = matchScannedOriginals(expectedRecords, scan.files);
+      const recovered = replacements.size;
       if (stateRef.current.shoot.id !== projectId) return;
       const preview = previewProviderRef.current!;
       for (const [key, path] of replacements) {
@@ -1359,9 +1352,12 @@ export default function App() {
         shoot: { ...previous.shoot, needsFileReselect: remaining > 0 },
       });
       setPreviewRevision((previous) => previous + 1);
-      setRelinkStatus(recovered
+      const details = [ambiguous.length ? `${ambiguous.length} ambiguous matches skipped.` : '',
+        scan.truncated ? 'Folder scan reached its safety limit.' : '',
+        scan.skippedDirectories ? `${scan.skippedDirectories} folders could not be scanned.` : ''].filter(Boolean).join(' ');
+      setRelinkStatus((recovered
         ? `Reconnected ${recovered} original ${recovered === 1 ? 'photo' : 'photos'}.${remaining ? ` ${remaining} may still need reconnecting.` : ''}`
-        : 'No matching originals found. Choose the folder containing the same files.');
+        : 'No matching originals found. Choose the folder containing the same files.') + (details ? ` ${details}` : ''));
     } catch {
       setRelinkStatus('Could not read that folder. Reconnect the drive or choose another folder.');
     } finally {
