@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, CloudOff, HelpCircle, Plug, RefreshCw, Trash2 } from 'lucide-react';
 import { HEALTH_TEXT, PROVIDERS, type Health, type ProviderKind } from '../core/connections';
 import { pickSyncFolder } from '../providers/folderConnector';
+import { ProviderIcon } from './ProviderIcon';
+import { WebDavForm } from './WebDavForm';
 import { addConnection, checkAllConnections, checkConnection, removeConnection, setS3Keys, useConnections } from '../providers/connectionStore';
 import { CloudStorageForm } from './CloudStorageForm';
 import type { S3Settings } from '../core/storageConnectors';
@@ -76,9 +78,12 @@ export function ConnectionsPanel() {
           return (
             <li key={connection.id} className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-zinc-200">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-zinc-100">{connection.label}</p>
-                  <p className="truncate text-xs text-zinc-400">{PROVIDERS.find((p) => p.kind === connection.kind)?.label.split(' (')[0]} · {connection.detail}</p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/8 text-zinc-100"><ProviderIcon kind={connection.kind} className="h-5 w-5" /></span>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-zinc-100">{connection.label}</p>
+                    <p className="truncate text-xs text-zinc-400">{PROVIDERS.find((p) => p.kind === connection.kind)?.short} · {connection.detail}</p>
+                  </div>
                 </div>
                 <span className={`inline-flex items-center gap-1.5 ${colour}`} role="status" aria-label={`${connection.label}: ${HEALTH_TEXT[health].word}`}>
                   <Icon className="h-4 w-4" aria-hidden="true" />{HEALTH_TEXT[health].word}
@@ -101,13 +106,20 @@ export function ConnectionsPanel() {
             {PROVIDERS.map((provider) => (
               <label key={provider.kind} className={`flex min-h-11 items-start gap-2 ${provider.available ? '' : 'opacity-60'}`}>
                 <input type="radio" name="provider" className="mt-1" disabled={!provider.available} checked={adding === provider.kind} onChange={() => setAdding(provider.kind)} />
-                <span>{provider.label}{provider.note && <span className="block text-xs text-zinc-400">{provider.note}</span>}</span>
+                <span className="flex items-start gap-2"><ProviderIcon kind={provider.kind} className="mt-0.5 h-4 w-4 shrink-0" /><span>{provider.label}{provider.note && <span className="block text-xs text-zinc-400">{provider.note}</span>}</span></span>
               </label>
             ))}
           </div>
           <label className="block">Name it (for example “Work shared drive”)
             <input className={`${field} mt-1`} value={label} onChange={(event) => setLabel(event.target.value)} />
           </label>
+          {adding === 'webdav' && (
+            <WebDavForm onCancel={() => setAdding(null)} onSaved={(settings, remember) => {
+              const created = addConnection('webdav', label || new URL(settings.url).host, `${new URL(settings.url).host}${new URL(settings.url).pathname.replace(/\/$/, '')}`, { dav: settings, remember });
+              setAdding(null); setLabel('');
+              void checkConnection(created.id);
+            }} />
+          )}
           {adding === 'folder' && <button type="button" className={action} onClick={() => void addFolder()}>Choose the folder…</button>}
           {adding === 's3' && (
             <CloudStorageForm initial={null} persist={false} onCancel={() => setAdding(null)} onSaved={(settings: S3Settings | null, remember?: boolean) => {

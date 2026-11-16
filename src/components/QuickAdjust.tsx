@@ -32,7 +32,7 @@ export function QuickAdjust({ edit, disabled, onEdit, canStepBack, canStepForwar
   const set = (next: number) => onEdit({ ...edit, [key]: next });
   return (
     <section aria-label="Quick adjust" className="space-y-2 px-1 pb-2 pt-1">
-      <div className="flex items-center justify-between gap-1">
+      <div className="hand-row flex items-center justify-between gap-1">
         <span className="flex gap-1">
           <button type="button" className={round} aria-label="Step back" title="Step back one change" disabled={disabled || !canStepBack} onClick={onStepBack}><Undo2 className="h-5 w-5" aria-hidden="true" /></button>
           <button type="button" className={round} aria-label="Step forward" title="Step forward one change" disabled={disabled || !canStepForward} onClick={onStepForward}><Redo2 className="h-5 w-5" aria-hidden="true" /></button>

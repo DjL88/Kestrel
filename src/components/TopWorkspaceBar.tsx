@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArchiveRestore, ArrowLeft, Download, Ellipsis, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Search, Trash2, Undo2 } from 'lucide-react';
+import { Hand, ArchiveRestore, ArrowLeft, Download, Ellipsis, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Search, Trash2, Undo2 } from 'lucide-react';
 import type { ProjectSettings } from '../core/projectSettings';
 import { AppearanceSettings } from './AppearanceSettings';
 import { messages as m } from '../i18n/messages';
@@ -27,6 +27,9 @@ interface TopWorkspaceBarProps {
   onWatchFolder?: () => void;
   onSyncFolder?: () => void;
   onLocations?: () => void;
+  /** Which hand the person uses, and how to change it. */
+  hand?: 'left' | 'right';
+  onHandChange?: (hand: 'left' | 'right') => void;
   onBackToProjects: () => void;
   actionsDisabled: boolean;
   onOpenShootModal: () => void;
@@ -165,7 +168,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
             <Ellipsis className="h-5 w-5" aria-hidden="true" />
           </button>
           {menuOpen && (
-            <div id="workspace-options" data-workspace-options className="workspace-popover fixed inset-x-2 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 max-h-[70dvh] md:absolute md:inset-x-auto md:bottom-auto md:right-2 md:top-full md:mt-1 md:max-h-[calc(100dvh-4rem)] md:w-[min(26rem,calc(100vw-1rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-3 shadow-2xl sm:right-4">
+            <div id="workspace-options" data-workspace-options className="workspace-popover fixed inset-x-2 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 max-h-[70dvh] md:absolute md:inset-x-auto md:bottom-auto md:right-2 md:top-full md:mt-1 md:max-h-[calc(100dvh-8rem)] md:w-[min(26rem,calc(100vw-1rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-3 shadow-2xl sm:right-4">
               <div className="space-y-3">
                 <section aria-label="Find photos" className="space-y-2 md:hidden">
                   <label className="block text-xs font-medium text-zinc-400">
@@ -214,6 +217,13 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   <MenuItem icon={<ArchiveRestore className="h-4 w-4" aria-hidden="true" />} disabled={!props.onOpenRemoved} onClick={() => choose(() => props.onOpenRemoved?.(), false)}>Removed photos ({props.removedCount ?? 0})</MenuItem>
                   <MenuItem icon={<Info className="h-4 w-4" aria-hidden="true" />} pressed={showPhotoInfo} onClick={() => choose(props.onTogglePhotoInfo)}>{showPhotoInfo ? 'Hide photo info' : 'Photo info'}</MenuItem>
                 </MenuSection>
+
+                {props.onHandChange && (
+                  <MenuSection id="menu-settings" title="Settings">
+                    <MenuItem icon={<Hand className="h-4 w-4" aria-hidden="true" />} pressed={props.hand !== 'left'} onClick={() => props.onHandChange!('right')}>Right-handed</MenuItem>
+                    <MenuItem icon={<Hand className="h-4 w-4 -scale-x-100" aria-hidden="true" />} pressed={props.hand === 'left'} onClick={() => props.onHandChange!('left')}>Left-handed</MenuItem>
+                  </MenuSection>
+                )}
 
                 <MenuSection id="menu-project" title="Project">
                   <MenuItem icon={<ScanSearch className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onAutoCull, false)}>{m.autoCull}</MenuItem>

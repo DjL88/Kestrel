@@ -16,6 +16,9 @@ test('an export shows in the task manager, finishes there, and can be cancelled 
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   await page.getByRole('button', { name: /^Prepare 1 file/ }).click();
+  // The export dialog shows its own progress. Once it is closed, the task manager shows the finished job.
+  await expect(page.getByRole('status').filter({ hasText: '1 file ready' })).toBeVisible({ timeout: 30000 });
+  await page.keyboard.press('Escape');
   const pill = page.getByRole('button', { name: /Tasks|task/ });
   await expect(pill).toBeVisible({ timeout: 15000 });
   await pill.click();
@@ -24,4 +27,24 @@ test('an export shows in the task manager, finishes there, and can be cancelled 
   await expect(panel).toContainText('Finished', { timeout: 30000 });
   await panel.getByRole('button', { name: 'Clear finished' }).click();
   await expect(panel).toHaveCount(0); // with nothing left to show, the whole panel goes
+});
+
+test('adding photos shows in the task manager, and finishes there', async ({ page }) => {
+  await page.goto('/');
+  const png = (shade: number) => ({ name: `add-${shade}.png`, mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64') });
+  await page.getByRole('button', { name: 'New project' }).click();
+  await page.getByRole('textbox', { name: 'Project name' }).fill('Adding');
+  await page.getByText('Project options', { exact: true }).click();
+  await page.getByRole('checkbox', { name: /Auto-cull/ }).uncheck();
+  await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('button', { name: 'Add photos', exact: true }).click();
+  // Distinct file names, same tiny picture: the point is the task, not the pixels.
+  await page.getByTestId('local-file-input').setInputFiles([png(1), png(2), png(3)].map((file, i) => ({ ...file, name: `add-${i + 1}.png`, buffer: Buffer.concat([file.buffer, Buffer.from([i])]) })));
+  await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 3' })).toBeVisible({ timeout: 30000 });
+  const pill = page.getByRole('button', { name: /Tasks|task/ });
+  await pill.click();
+  const panel = page.getByRole('region', { name: 'Tasks' });
+  await expect(panel).toContainText('Adding 3 photos');
+  await expect(panel).toContainText('Finished');
 });

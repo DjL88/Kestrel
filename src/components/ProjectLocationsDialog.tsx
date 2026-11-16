@@ -14,6 +14,7 @@ const ROLES: { role: Role; hint: string }[] = [
   { role: 'loadFrom', hint: 'Where Bring changes looks for this project.' },
   { role: 'saveTo', hint: 'Where Send puts this project’s decisions and edits.' },
   { role: 'backUpTo', hint: 'Backed up automatically after you make changes, keeping the newest ten.' },
+  { role: 'exportTo', hint: 'When you export, you can also save copies into an "export" folder here, such as on the drive your originals are on. Each save gets its own dated folder and nothing is overwritten.' },
 ];
 
 /** Choose, for one project, where it loads from, saves to and backs up to, and see whether the backup is working. */

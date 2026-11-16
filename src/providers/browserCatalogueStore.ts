@@ -30,10 +30,14 @@ export interface UserPreferences {
   showFilmstrip: boolean;
   focusMode: boolean;
   editPanelSide: 'left' | 'right';
+  /** Which hand holds the phone or tablet, and works the mouse: mirrors the thumb controls and sets the panel side. */
+  hand: 'left' | 'right';
 }
 
 /** A phone starts without the filmstrip, so the photo gets the room. It can be pinned from the bar under the photo. */
-const smallScreen = () => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 767px)').matches === true;
+const smallScreen = () => typeof window !== 'undefined' &&
+  // A phone held upright, or a phone turned sideways (short, and touched rather than clicked): the photo needs the room.
+  window.matchMedia?.('(max-width: 767px), (max-height: 500px) and (pointer: coarse)').matches === true;
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
   viewMode: 'loupe',
@@ -43,6 +47,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   showFilmstrip: true,
   focusMode: false,
   editPanelSide: 'right',
+  hand: 'right',
 };
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -125,6 +130,7 @@ export function loadPreferences(): UserPreferences {
       showFilmstrip: parsed.showFilmstrip ?? !smallScreen(),
       focusMode: parsed.focusMode ?? DEFAULT_PREFERENCES.focusMode,
       editPanelSide: parsed.editPanelSide === 'left' ? 'left' : 'right',
+      hand: parsed.hand === 'left' ? 'left' : 'right',
       bindings,
     };
   } catch {

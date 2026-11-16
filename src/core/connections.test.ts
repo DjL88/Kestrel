@@ -29,11 +29,12 @@ test('working connections are offered first, broken ones last', () => {
 
 test('a project describes where it lives, and says when a place needs attention', () => {
   const lines = describeLocations({ loadFrom: 'w', backUpTo: 'h' }, [work, home], { w: report('ok'), h: report('offline') });
-  assert.deepEqual(lines, ['Load from: Work shared drive', 'Save to: this device only', 'Back up to: Home NAS (Offline)']);
+  assert.deepEqual(lines, ['Load from: Work shared drive', 'Save to: this device only', 'Back up to: Home NAS (Offline)', 'Also save exports to: this device only']);
 });
 
-test('only folders and S3 storage are ready; Dropbox and Google Drive are listed as coming', () => {
-  assert.deepEqual(PROVIDERS.filter((p) => p.available).map((p) => p.kind), ['folder', 's3']);
+test('folders, a NAS over WebDAV and S3 storage are ready; Dropbox, Google Drive and OneDrive are listed as coming', () => {
+  assert.deepEqual(PROVIDERS.filter((p) => p.available).map((p) => p.kind), ['folder', 'webdav', 's3']);
+  assert.deepEqual(PROVIDERS.filter((p) => !p.available).map((p) => p.kind), ['dropbox', 'googledrive', 'onedrive']);
   assert.ok(PROVIDERS.filter((p) => !p.available).every((p) => p.note));
 });
 
