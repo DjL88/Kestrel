@@ -1,4 +1,5 @@
-import { pickedFromFile, pickedKey, type PickedPhoto } from './providers/linkedOriginals';
+import { pickedFromFile, pickedKey, linkedReader, type PickedPhoto } from './providers/linkedOriginals';
+import { isDesktopApp } from './providers/desktopShell';
 import { splitDropped } from './core/dropSplit';
 import { useAccess } from './providers/useAccess';
 import { loadLicence } from './providers/licenceStore';
@@ -1300,12 +1301,80 @@ export default function App() {
     return imported;
   };
 
+  /** Desktop originals remain linked at their chosen location, never copied to IndexedDB. */
+  const reconnectDesktopFolder = async () => {
+    if (relinkingFiles.current) return;
+    const projectId = cullingState.shoot.id;
+    relinkingFiles.current = true;
+    setRelinkStatus('Choose the folder containing your originals…');
+    try {
+      const [{ open }, fs] = await Promise.all([
+        import('@tauri-apps/plugin-dialog'), import('@tauri-apps/plugin-fs'),
+      ]);
+      const folder = await open({ directory: true, multiple: false, title: 'Reconnect original photos' });
+      if (typeof folder !== 'string') {
+        setRelinkStatus(undefined);
+        return;
+      }
+      const expected = new Map(cullingState.frames
+        .filter((frame) => frame.sourceKind === 'file' && frame.sourcePath)
+        .map((frame) => [frame.stableKey, frame]));
+      const entries = await fs.readDir(folder);
+      let recovered = 0;
+      const replacements = new Map<string, string>();
+      for (const entry of entries) {
+        if (!entry.isFile) continue;
+        const path = folder.replace(/[\\/]+$/, '') + '/' + entry.name;
+        const keyCandidates = [...expected.values()].filter((frame) => frame.filename.toLowerCase() === entry.name.toLowerCase());
+        if (!keyCandidates.length) continue;
+        try {
+          const info = await fs.stat(path);
+          const candidate = pickedKey({ name: entry.name, size: info.size, lastModified: info.mtime?.getTime() ?? 0 });
+          const match = expected.get(candidate);
+          if (!match || replacements.has(match.stableKey)) continue;
+          replacements.set(match.stableKey, path);
+          recovered++;
+        } catch { /* A single inaccessible file must not abort other matches. */ }
+      }
+      if (stateRef.current.shoot.id !== projectId) return;
+      const preview = previewProviderRef.current!;
+      for (const [key, path] of replacements) {
+        const frame = expected.get(key)!;
+        const parts = key.split('::');
+        preview.registerLinked(key, {
+          read: linkedReader(path, frame.filename, Number(parts.at(-1)) || 0),
+          size: Number(parts.at(-2)) || 0, lastModified: Number(parts.at(-1)) || 0,
+        });
+        preview.retryLinkedOriginal(key);
+      }
+      const nextFrames = stateRef.current.frames.map((frame) =>
+        replacements.has(frame.stableKey) ? { ...frame, sourcePath: replacements.get(frame.stableKey) } : frame);
+      const remaining = nextFrames.filter((frame) => frame.sourcePath && !replacements.has(frame.stableKey) && frame.sourceKind === 'file').length;
+      setCullingState((previous) => previous.shoot.id !== projectId ? previous : {
+        ...previous, frames: nextFrames,
+        shoot: { ...previous.shoot, needsFileReselect: remaining > 0 },
+      });
+      setPreviewRevision((previous) => previous + 1);
+      setRelinkStatus(recovered
+        ? `Reconnected ${recovered} original ${recovered === 1 ? 'photo' : 'photos'}.${remaining ? ` ${remaining} may still need reconnecting.` : ''}`
+        : 'No matching originals found. Choose the folder containing the same files.');
+    } catch {
+      setRelinkStatus('Could not read that folder. Reconnect the drive or choose another folder.');
+    } finally {
+      relinkingFiles.current = false;
+    }
+  };
+
   const handleReconnectFolderOrFiles = async () => {
     const store = storeRef.current!;
     const preview = previewProviderRef.current!;
     const { shoot } = cullingState;
 
     if (shoot.needsFileReselect && !shoot.needsFolderRegrant) {
+      if (isDesktopApp() && cullingState.frames.some((frame) => frame.sourcePath)) {
+        await reconnectDesktopFolder();
+        return;
+      }
       relinkInput.current?.click();
       return;
     }
