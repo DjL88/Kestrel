@@ -10,6 +10,12 @@ export function useDesktopMenu() {
     let stop: (() => void) | undefined;
     let cancelled = false;
     void import('@tauri-apps/api/event').then(({ listen }) => listen<string>('menu', ({ payload }) => {
+      if (payload === 'appearance') {
+        const gear = document.querySelector<HTMLButtonElement>('button[aria-label="Appearance and layout settings"]');
+        if (gear) gear.click();
+        else document.querySelector<HTMLButtonElement>('button[aria-label="Workspace options"]')?.click();
+        return;
+      }
       const pattern = BUTTONS[payload];
       const button = pattern && [...document.querySelectorAll('button')].find((item) => pattern.test(item.textContent?.trim() ?? ''));
       button?.click();
