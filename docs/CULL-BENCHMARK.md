@@ -17,3 +17,8 @@ Target >=95% favourite recall overall, with category-specific reporting; explici
 ## Synthetic fixture
 
 `src/core/cullBenchmark.test.ts` contains ten deterministic, artificial labels spanning all five categories. It tests metric semantics and failure modes only; it does not score real images or run subject detection. Run `npm test` and `npm run lint` in a repository checkout, plus Playwright review workflow before merging.
+
+
+## Input-quality safeguards
+
+The evaluator rejects blank/duplicate IDs, unknown categories, non-boolean labels and contradictory favourite/unusable annotations. A malformed prediction (invalid decision, confidence, or non-finite/out-of-range score) cannot remove a favourite: it is counted as missing and remains reviewable. Duplicate prediction IDs are likewise treated as unknown. Unexpected predictions outside the labelled shoot are reported separately. Inspect `invalidPredictions`, `duplicatePredictions`, `unexpectedPredictions`, `missingPredictions`, and `predictionCoverage` before accepting recall numbers. These checks protect the benchmark, **not** the production culling algorithm itself.
