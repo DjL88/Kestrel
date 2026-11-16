@@ -114,6 +114,10 @@ async function usefulPixelCount(preview: Blob): Promise<number> {
       if (length < 8 || offset + 2 + length > data.byteLength) return 0;
       const height = data.getUint16(offset + 5);
       const width = data.getUint16(offset + 7);
+      const components = data.getUint8(offset + 9);
+      // SOF contains one three-byte descriptor per component. Reject truncated
+      // or fabricated headers before trusting their advertised dimensions.
+      if (components < 1 || components > 4 || length < 8 + 3 * components) return 0;
       return width >= 320 && height >= 320 && Math.max(width, height) >= 640 ? width * height : 0;
     }
     offset += 2 + length;
