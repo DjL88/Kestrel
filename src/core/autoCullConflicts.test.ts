@@ -183,3 +183,12 @@ test('invalid culling scores never consume keeper slots or remain high-confidenc
   assert.equal(suggestions[0].score, Infinity, 'input is not mutated');
   assert.equal(Number.isNaN(suggestions[1].score), true);
 });
+
+
+test('zero-size detections cannot automatically keep a photo even with high confidence', () => {
+  const base = { frameId: 'z8-aircraft', decision: 'keep' as const, confidence: 'high' as const, score: 95, reason: 'clearDetail' as const };
+  const result = scoreWithSubject(base, { label: 'aeroplane', score: 0.99, size: 0, sharpness: 30 });
+  assert.deepEqual([result.decision, result.confidence, result.reason], [null, 'low', 'noSubject']);
+  const valid = scoreWithSubject(base, { label: 'aeroplane', score: 0.99, size: 240, sharpness: 30 });
+  assert.deepEqual([valid.decision, valid.confidence, valid.reason], ['keep', 'high', 'subjectSharp']);
+});
