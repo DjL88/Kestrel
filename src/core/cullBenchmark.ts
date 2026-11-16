@@ -31,6 +31,14 @@ export interface CullBenchmarkResult {
   }>;
 }
 
+/** Treat untrusted detector payloads as reviewable, never confident rejects. */
+export function isValidCullBenchmarkPrediction(value: CullSuggestion): boolean {
+  return (value.decision === 'keep' || value.decision === 'reject' || value.decision === null) &&
+    (value.confidence === 'low' || value.confidence === 'medium' || value.confidence === 'high') &&
+    typeof value.score === 'number' && Number.isFinite(value.score) &&
+    value.score >= 0 && value.score <= 100;
+}
+
 /**
  * Evaluate high-recall review recommendations. Any non-reject recommendation
  * (including an honest low-confidence undecided frame) is retained for review.
@@ -69,11 +77,7 @@ export function evaluateCullBenchmark(
     bucket.total += 1;
     if (label.favourite) { favourites += 1; bucket.favourites += 1; }
     const rawPrediction = counts.get(label.id) === 1 ? byId.get(label.id) : undefined;
-    const valid = rawPrediction &&
-      (rawPrediction.decision === 'keep' || rawPrediction.decision === 'reject' || rawPrediction.decision === null) &&
-      (rawPrediction.confidence === 'low' || rawPrediction.confidence === 'medium' || rawPrediction.confidence === 'high') &&
-      typeof rawPrediction.score === 'number' && Number.isFinite(rawPrediction.score) &&
-      rawPrediction.score >= 0 && rawPrediction.score <= 100;
+    const valid = rawPrediction && isValidCullBenchmarkPrediction(rawPrediction);
     if (rawPrediction && !valid) invalidPredictions += 1;
     const prediction = valid ? rawPrediction : undefined;
     if (!prediction) missingPredictions += 1;
