@@ -29,6 +29,7 @@ interface Props {
   onQuickEdit: (files: File[]) => void;
   editPanelSide: 'left' | 'right';
   onEditPanelSideChange: (side: 'left' | 'right') => void;
+  onOpenMacroPad?: () => void;
 }
 
 const ACTION = 76;
@@ -84,7 +85,7 @@ function SwipeRow({ children, archived, title, onArchive, onDelete, disabled }: 
   );
 }
 
-export function ProjectList({ projects, photoText = {}, loading, error, onOpen, onCreate, onRestore, onArchive, onUnarchive, onDelete, onQuickEdit, editPanelSide, onEditPanelSideChange }: Props) {
+export function ProjectList({ projects, photoText = {}, loading, error, onOpen, onCreate, onRestore, onArchive, onUnarchive, onDelete, onQuickEdit, editPanelSide, onEditPanelSideChange, onOpenMacroPad }: Props) {
   const [licenceOpen, setLicenceOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -224,7 +225,7 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
           </div>
         </footer>
       </div>
-      {appearanceOpen && <AppearanceDialog side={editPanelSide} onSideChange={onEditPanelSideChange} onClose={() => setAppearanceOpen(false)} />}
+      {appearanceOpen && <AppearanceDialog side={editPanelSide} onSideChange={onEditPanelSideChange} onOpenMacroPad={onOpenMacroPad} onClose={() => setAppearanceOpen(false)} />}
       {licenceOpen && <LicenceAndSettings onClose={() => setLicenceOpen(false)} />}
     </main>
   );
