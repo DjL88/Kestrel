@@ -482,7 +482,32 @@ export function applyDecisionWithHistory(
 export function applyAutoCullDecisions(
   state: CullingState, requested: { frameId: string; decision: 'keep' | 'reject' }[],
 ): CullingState {
-  const byId = new Map(requested.map((result) => [result.frameId, result.decision]));
+  // A repeated scan may deliver contradictory results for the same photo.
+  // Never let input ordering silently turn a Keep into a Reject (or vice versa).
+  // Conflicting IDs require an explicit human decision instead.
+  const byId = new Map<string, 'keep' | 'reject'>();
+  const conflicts = new Set<string>();
+  for (const result of requested) {
+    // Runtime callers (including persisted or worker results) can bypass TS types.
+    // Invalid decisions must never enter a photo's review history.
+    if (!result || typeof result.frameId !== 'string' || !result.frameId ||
+        (result.decision !== 'keep' && result.decision !== 'reject')) continue;
+    if (byId.has(result.frameId) && byId.get(result.frameId) !== result.decision) {
+      conflicts.add(result.frameId);
+    } else if (!conflicts.has(result.frameId)) {
+      byId.set(result.frameId, result.decision);
+    }
+  }
+  for (const id of conflicts) byId.delete(id);
+  // Corrupt or stale catalogues can contain the same frame ID more than once.
+  // Never classify multiple photographs from a single suggestion.
+  const seenFrameIds = new Set<string>();
+  const ambiguousFrameIds = new Set<string>();
+  for (const frame of state.frames) {
+    if (seenFrameIds.has(frame.id)) ambiguousFrameIds.add(frame.id);
+    seenFrameIds.add(frame.id);
+  }
+  for (const id of ambiguousFrameIds) byId.delete(id);
   const batch: NonNullable<CullingState['undoStack'][number]['batch']> = [];
   const frames = state.frames.map((frame) => {
     const decision = byId.get(frame.id);
