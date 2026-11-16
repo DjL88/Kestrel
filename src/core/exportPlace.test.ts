@@ -29,3 +29,12 @@ test('two files with the same name in one save never replace each other', () => 
 test('every path it makes is one a connector is allowed to write', () => {
   for (const name of ['kite.jpg', '../x.jpg', 'a/b.jpg', '...', 'ü ñ.jpg']) for (const path of exportPaths([{ name }], when)) assert.equal(isWritablePath(path), true, path);
 });
+
+test('separate export runs in the same minute never share destination paths', () => {
+  const first = exportPaths([{ name: 'Z8.NEF.jpg' }], when, '00000000-0000-4000-8000-000000000001');
+  const second = exportPaths([{ name: 'Z8.NEF.jpg' }], when, '00000000-0000-4000-8000-000000000002');
+  assert.notEqual(first[0], second[0]);
+  assert.match(first[0], /^export\/2026-11-16 14-05-00000000/);
+  assert.equal(isWritablePath(first[0]), true);
+  assert.equal(isWritablePath(second[0]), true);
+});
