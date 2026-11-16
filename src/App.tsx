@@ -25,6 +25,7 @@ import { Copy, ClipboardPaste, Pin, PinOff } from 'lucide-react';
 import { newId } from './core/ids';
 import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
+import { markExportRequested } from './core/compareStages';
 import { AutoCullPanel } from './components/AutoCullPanel';
 import { BatchLookDialog } from './components/BatchLookDialog';
 import { SelectionLookDialog } from './components/SelectionLookDialog';
@@ -804,6 +805,18 @@ export default function App() {
     }));
   };
 
+  const recordDownloadedEdits = (exported: readonly PhotoFrame[]) => {
+    if (!exported.length) return;
+    const at = Date.now();
+    // Snapshot the actual frames sent to export, not potentially newer edits.
+    const snapshots = new Map(exported.map((frame) => [frame.id, markExportRequested(frame, at).lastExport]));
+    setCullingState((prev) => ({
+      ...prev, shoot: { ...prev.shoot, lastUpdatedAt: at },
+      frames: prev.frames.map((frame) => snapshots.has(frame.id)
+        ? { ...frame, lastExport: snapshots.get(frame.id) } : frame),
+    }));
+  };
+
   // Tags and kind for any photo, from the editor or from the info pop-up.
   const setSubjects = (frame: PhotoFrame, tags: string[], subjectKind: SubjectKind | undefined) =>
     updateFrame(frame.id, { tags, subjectNames: [], subjectKind, ...reconcileAuto(frame, tags) });
@@ -1437,6 +1450,9 @@ export default function App() {
           {editing && selectedFrame && (
             <PhotoEditor
               key={selectedFrame.id}
+              onExportRequested={recordDownloadedEdits}
+              exportCount={multiSelect && selectedVisibleFrames.length > 1 ? selectedVisibleFrames.length : 1}
+              onExport={() => setExportFrames(multiSelect && selectedVisibleFrames.length > 1 ? selectedVisibleFrames : [selectedFrame])}
               onOpenMacroPad={() => { setMacroPadMode('edit'); setMacroPadModal(true); }}
               autoEdit={!!cullingState.settings?.autoEdit}
               frame={selectedFrame}
@@ -1657,8 +1673,6 @@ export default function App() {
                 </button>}
                 <span role="status" className="shrink-0 text-xs text-zinc-300">{selectedVisibleFrames.length} selected</span>
                 <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
-                  onClick={() => setExportFrames(selectedVisibleFrames)}>Export</button>
-                <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setSelectionLookOpen(true)}>Apply look</button>
                 <button type="button" disabled={!!autoAdjustController.current} className="min-h-11 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setAutoAdjustSelectedOpen(true)}>Auto-adjust</button>
@@ -1795,7 +1809,7 @@ export default function App() {
           setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: at },
             frames: applyKeeperLook(prev.frames, look, includeEdited, at) }));
         }} />}
-      {exportFrames.length > 0 && <PhotoExportPanel frames={exportFrames} provider={previewProviderRef.current!}
+      {exportFrames.length > 0 && <PhotoExportPanel onDownloadRequested={recordDownloadedEdits} frames={exportFrames} provider={previewProviderRef.current!}
         onClose={() => setExportFrames([])} />}
 
       <MacroPadModal

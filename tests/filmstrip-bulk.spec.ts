@@ -34,7 +34,8 @@ test('select multiple photos in Library, edit just that queue and export togethe
   await expect(film.getByRole('button', { name: 'Select frame-3.png' })).toBeVisible();
   await expect(film.getByRole('button', { name: 'Select frame-2.png' })).toHaveCount(0);
   const batch = page.getByRole('toolbar', { name: 'Filmstrip controls' });
-  await expect(batch.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
+  // Primary Export handles selected photos; the filmstrip has no duplicate Export action.
+  await expect(batch.getByRole('button', { name: 'Export', exact: true })).toHaveCount(0);
   await expect(batch.getByRole('button', { name: 'Edit together' })).toBeVisible();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await batch.getByRole('button', { name: 'Edit together' }).click();
@@ -47,7 +48,10 @@ test('select multiple photos in Library, edit just that queue and export togethe
   await batch.getByRole('button', { name: 'Hide filmstrip' }).click();
   await page.getByRole('button', { name: 'Next photo' }).click();
   await expect(light).toHaveValue('0.1');
-  await batch.getByRole('button', { name: 'Export 2' }).click();
+  // The primary Export button follows the selection, even with the filmstrip hidden.
+  const primaryExport = page.getByRole('toolbar', { name: 'Editor actions' }).getByRole('button', { name: 'Export 2' });
+  await expect(primaryExport).toBeVisible();
+  await primaryExport.click();
   await expect(page.getByRole('heading', { name: 'Export 2 photos' })).toBeVisible();
   await page.getByRole('button', { name: 'Close export' }).click();
   await expect(page.getByRole('heading', { name: 'frame-3.png' })).toBeVisible();
@@ -91,6 +95,7 @@ test('filmstrip selection can bulk export and paste slider edits, keeping origin
   await page.getByRole('button', { name: 'Apply adjustments' }).click();
   await film.getByRole('button', { name: 'Select batch-2.png' }).click();
   await expect(light).toHaveValue('0.1');
-  await bar.getByRole('button', { name: 'Export', exact: true }).click();
+  // The primary Editor Export must send both selected frames, not just the active photo.
+  await page.getByRole('toolbar', { name: 'Editor actions' }).getByRole('button', { name: 'Export 2' }).click();
   await expect(page.getByRole('heading', { name: 'Export 2 photos' })).toBeVisible();
 });
