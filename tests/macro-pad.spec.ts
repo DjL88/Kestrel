@@ -5,8 +5,9 @@ test('macro pad mode and knob controls have accessible names and touch targets',
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Macro pad test');
   await page.getByRole('button', { name: 'Create project' }).click();
+  await page.evaluate(() => { Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true }); });
   await page.getByRole('button', { name: page.viewportSize()!.width < 768 ? 'More' : 'Workspace options', exact: true }).click();
-  await page.getByText('Macro pad', { exact: true }).click();
+  await page.getByRole('button', { name: 'Macro pad & keyboard shortcuts…' }).click();
 
   const dialog = page.getByRole('dialog', { name: /Keymap/ });
   const editMode = dialog.getByRole('tab', { name: 'Edit mode' });
@@ -24,4 +25,15 @@ test('macro pad mode and knob controls have accessible names and touch targets',
   await expect(knob).toHaveAttribute('aria-pressed', 'false');
   await dialog.getByRole('button', { name: 'Done' }).click();
   await expect(dialog).toBeHidden();
+});
+
+test('browser and phone menus stay focused and do not advertise desktop macro-pad hardware', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New project' }).click();
+  await page.getByRole('textbox', { name: 'Project name' }).fill('Browser menu test');
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('button', { name: page.viewportSize()!.width < 768 ? 'More' : 'Workspace options', exact: true }).click();
+  const menu = page.locator('#workspace-options');
+  await expect(menu.getByRole('button', { name: /Macro pad/i })).toHaveCount(0);
+  await expect(menu.getByText('Appearance & layout', { exact: true })).toBeVisible();
 });

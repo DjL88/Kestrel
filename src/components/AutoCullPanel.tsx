@@ -26,17 +26,23 @@ const button = 'min-h-11 rounded-md px-3 text-sm font-medium hover:bg-white/10 d
 export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo, onInspect, onClose, autoStart }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const running = useRef<AbortController | null>(null);
+  const taskId = useRef<number | null>(null);
   const [autoMove, setAutoMove] = useState(true);
   const [results, setResults] = useState<CullSuggestion[]>();
   const [applied, setApplied] = useState(false);
   const [progress, setProgress] = useState<number>();
   const [total, setTotal] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [stopped, setStopped] = useState(false);
 
   useEffect(() => {
     const previous = focusBeforeOpening();
     dialog.current?.showModal();
-    return () => { running.current?.abort(); returnFocus(previous); };
+    return () => {
+      if (taskId.current !== null) tasks.cancel(taskId.current);
+      running.current = null;
+      returnFocus(previous);
+    };
   }, []);
 
   useEffect(() => {
@@ -57,12 +63,15 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo,
   }
 
   async function scan() {
+    if (running.current) return;
     const controller = new AbortController();
     const task = tasks.start('Assisted culling', { total: candidates.length, cancel: () => controller.abort() });
     running.current = controller;
+    taskId.current = task.id;
     setTotal(candidates.length);
     setProgress(0);
     setFailed(false);
+    setStopped(false);
     try {
       const next = await scanForCulling(candidates, frames, provider, keeperTarget, controller.signal,
         (count) => { if (!controller.signal.aborted) setProgress(count); task.progress(count); });
@@ -75,7 +84,12 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo,
       if (!controller.signal.aborted) { setFailed(true); task.fail('Could not finish looking at the photos'); }
     } finally {
       task.fail('Stopped before it finished'); // does nothing if it finished or was cancelled
-      if (!controller.signal.aborted) setProgress(undefined);
+      if (running.current === controller) {
+        running.current = null;
+        taskId.current = null;
+        setProgress(undefined);
+        setStopped(controller.signal.aborted);
+      }
     }
   }
 
@@ -94,8 +108,11 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo,
           disabled={!candidates.length || progress !== undefined} onClick={() => void scan()}>
           {progress === undefined ? m.scan : m.scanning(formatCount.format(progress), formatCount.format(total))}
         </button>
+        {progress !== undefined && <button type="button" className={button}
+          onClick={() => { if (taskId.current !== null) tasks.cancel(taskId.current); }}>{m.stopScan}</button>}
         {!candidates.length && <p className="text-sm text-zinc-400">{m.noCandidates}</p>}
       </div>}
+      {stopped && <p role="status" className="mt-2 text-sm text-zinc-300">{m.scanStopped}</p>}
       {failed && <p role="alert" className="mt-2 text-sm text-orange-200">{m.scanFailed}</p>}
       {results && <div className="mt-3 space-y-3">
         {summary && <section aria-label="Auto-cull summary" className="space-y-1 rounded-md border border-white/15 p-3 text-sm">

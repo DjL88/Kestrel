@@ -54,11 +54,15 @@ async function composeExport(
   const { region } = plan;
   let { scale, border } = plan;
   {
-    const finalWidth = border ? border.width : region.width * scale;
-    const finalHeight = border ? border.height : region.height * scale;
-    // A preview is small. A real export is limited by what this device can draw: an iPhone refuses about 16.7 megapixels.
+    const finalWidth = Math.max(1, Math.round(border ? border.width : region.width * scale));
+    const finalHeight = Math.max(1, Math.round(border ? border.height : region.height * scale));
+    const limit = maxCanvasPixels({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints });
+    if (!extras.previewEdge && finalWidth * finalHeight > limit) {
+      throw new Error(`This device cannot safely export ${finalWidth} × ${finalHeight} px. Choose a smaller size or export on a desktop. No smaller file was substituted.`);
+    }
+    // Only the on-screen preview may shrink automatically, never the requested export.
     const shrink = Math.min(extras.previewEdge ? Math.min(1, extras.previewEdge / Math.max(finalWidth, finalHeight)) : 1,
-      fitScale(finalWidth, finalHeight, maxCanvasPixels({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints })));
+      fitScale(finalWidth, finalHeight, limit));
     if (shrink < 1) {
       scale *= shrink;
       if (border) border = { width: Math.max(1, Math.round(border.width * shrink)), height: Math.max(1, Math.round(border.height * shrink)) };
@@ -192,7 +196,7 @@ export async function renderExport(
   mode: ExportFraming = 'fit', longEdge?: number, extras: ExportExtras = {},
 ) {
   const mime = profile.format === 'png' ? 'image/png' : 'image/jpeg';
-  const { canvas, output, bordered } = await composeExport(source, frame, profile, signal, mode, longEdge, extras);
+  const { canvas, output, bordered } = await composeExport(source, frame, profile, signal, mode, longEdge, { ...extras, previewEdge: undefined });
   try {
     const raw = !frame.isDemo && isRawPreviewFile(frame.filename);
     const name = exportFilename(extras.stem ? `${extras.stem}.${profile.format}` : frame.filename, profile, raw);
