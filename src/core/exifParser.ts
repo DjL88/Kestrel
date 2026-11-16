@@ -25,7 +25,9 @@ export function formatShutterSpeed(exposureTimeSec?: number): string {
   }
 
   const denominator = Math.round(1 / exposureTimeSec);
-  // Corrupt subnormal EXIF exposures can overflow 1 / seconds to Infinity.\n  // Never display an impossible 1/Infinitys shutter speed.\n  if (!Number.isSafeInteger(denominator) || denominator <= 1) return '';
+  // Corrupt subnormal EXIF exposures can overflow 1 / seconds to Infinity.
+  // Never display an impossible 1/Infinitys shutter speed.
+  if (!Number.isSafeInteger(denominator) || denominator <= 1) return '';
   return `1/${denominator}s`;
 }
 
