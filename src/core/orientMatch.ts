@@ -32,8 +32,8 @@ export function thumbDifference(a: Thumb, b: Thumb): number {
 
 /**
  * Which turn (clockwise) makes the developed picture look like the preview. Pictures of different shape (one portrait,
- * one landscape) can only differ by 90 or 270; of the same shape, by 0 or 180. The turn is only changed from the
- * natural one when the match is clearly better, so an unclear picture is left as it came.
+ * one landscape) can suggest a quarter-turn; pictures of the same shape can suggest a half-turn. Change the native
+ * orientation only when the image content clearly supports the turn.
  */
 export function bestTurn(
   preview: { thumb: Thumb; portrait: boolean },
@@ -45,6 +45,8 @@ export function bestTurn(
   scored.sort((a, b) => a.error - b.error);
   const [best, other] = scored;
   if (same) return best.turn === 180 && best.error < other.error * 0.8 ? 180 : 0;
-  // A different shape must be turned one way or the other; pick the closer match.
-  return best.turn;
+  // An embedded preview can be cropped differently. Require a clear match over
+  // both the other quarter-turn and the decoder's unchanged orientation.
+  const unchangedError = thumbDifference(preview.thumb, developed.thumb);
+  return best.error < Math.min(other.error, unchangedError) * 0.8 ? best.turn : 0;
 }
