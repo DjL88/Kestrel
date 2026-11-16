@@ -1,0 +1,3 @@
+# QA-only dependencies for the offline Nikon TIFF comparison harness.
+numpy==2.3.5
+tifffile==2026.11.12
