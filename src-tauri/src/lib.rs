@@ -28,7 +28,9 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         // Lets the app talk to the person's own storage (S3-compatible, WebDAV) without a website's cross-origin limits.
-        .plugin(tauri_plugin_http::init());
+        .plugin(tauri_plugin_http::init())
+        // Remembers which folders the person allowed, so a chosen sync or backup folder still works after a restart.
+        .plugin(tauri_plugin_persisted_scope::init());
 
     // Menus, restart and the updater exist on desktop only.
     #[cfg(desktop)]

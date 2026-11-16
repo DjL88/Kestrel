@@ -7,7 +7,7 @@ const field = 'block min-h-11 w-full rounded-md border border-white/15 bg-black/
 const action = 'min-h-11 rounded-md border border-white/15 px-3 text-sm text-zinc-100 hover:bg-white/8 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-sky-300';
 
 /** Where to keep your synced files: any storage that speaks the S3 interface (Amazon S3, Backblaze B2, Cloudflare R2, Wasabi, MinIO, many NAS boxes). */
-export function CloudStorageForm({ initial, onSaved, onCancel }: { initial: S3Settings | null; onSaved: (settings: S3Settings | null) => void; onCancel: () => void }) {
+export function CloudStorageForm({ initial, onSaved, onCancel, persist = true }: { initial: S3Settings | null; onSaved: (settings: S3Settings | null, remember?: boolean) => void; onCancel: () => void; /** Keep these details in the single "my cloud storage" slot. Off when the caller keeps them itself. */ persist?: boolean }) {
   const [endpoint, setEndpoint] = useState(initial?.endpoint ?? '');
   const [region, setRegion] = useState(initial?.region ?? '');
   const [bucket, setBucket] = useState(initial?.bucket ?? '');
@@ -30,8 +30,8 @@ export function CloudStorageForm({ initial, onSaved, onCancel }: { initial: S3Se
     event.preventDefault();
     const problems = checkS3Settings(settings());
     if (problems.length) { setResult({ ok: false, text: problems[0] }); return; }
-    saveCloudSettings(settings(), remember);
-    onSaved(settings());
+    if (persist) saveCloudSettings(settings(), remember);
+    onSaved(settings(), remember);
   }
 
   return (
@@ -64,7 +64,7 @@ export function CloudStorageForm({ initial, onSaved, onCancel }: { initial: S3Se
         <button type="button" className={action} disabled={busy} onClick={() => void test()}>Test connection</button>
         <button type="submit" className={action} disabled={busy}>Save</button>
         <button type="button" className={action} onClick={onCancel}>Cancel</button>
-        {initial && <button type="button" className={action} onClick={() => { forgetCloudSettings(); onSaved(null); }}>Forget these details</button>}
+        {initial && persist && <button type="button" className={action} onClick={() => { forgetCloudSettings(); onSaved(null); }}>Forget these details</button>}
       </div>
     </form>
   );

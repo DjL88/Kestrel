@@ -4,6 +4,7 @@ import kestrelMark from '../assets/kestrel-mark.svg';
 import { version as appVersion } from '../../package.json';
 import { PHOTO_ACCEPT } from '../core/rawFormats';
 import { LicenceAndSettings } from './LicenceAndSettings';
+import { ConnectionsPanel } from './ConnectionsPanel';
 import type { ShootDescriptor } from '../core/types';
 import { NewProjectWizard } from './NewProjectWizard';
 import { CatalogueStorage } from './CatalogueStorage';
@@ -200,6 +201,7 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
             )}
           </>;
         })()}
+        <ConnectionsPanel />
         {projects.length > 0 && <CatalogueStorage />}
         <footer aria-label="About Kestrel" className="mt-14 border-t border-white/10 pt-5 pb-4 text-xs leading-relaxed text-zinc-400">
           <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2">

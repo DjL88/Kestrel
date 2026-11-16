@@ -11,7 +11,7 @@ export type SyncLevel = 'recipes' | 'previews' | 'originals';
 export interface StorageConnector {
   readonly kind: ConnectorKind;
   /** A cheap round trip to show "connected" or a plain reason it is not. */
-  test(): Promise<{ ok: true } | { ok: false; reason: string }>;
+  test(): Promise<{ ok: true } | { ok: false; reason: string; health?: import('./connections').Health }>;
   put(path: string, bytes: Uint8Array, sha256: string): Promise<void>;
   get(path: string): Promise<Uint8Array | null>;
   list(prefix: string): Promise<string[]>;

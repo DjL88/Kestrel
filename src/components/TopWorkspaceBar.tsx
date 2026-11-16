@@ -26,6 +26,7 @@ interface TopWorkspaceBarProps {
   watching?: string | null;
   onWatchFolder?: () => void;
   onSyncFolder?: () => void;
+  onLocations?: () => void;
   onBackToProjects: () => void;
   actionsDisabled: boolean;
   onOpenShootModal: () => void;
@@ -219,6 +220,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   <MenuItem icon={<FileDown className="h-4 w-4" aria-hidden="true" />} disabled={!props.onExportKeepers} onClick={() => choose(() => props.onExportKeepers?.())}>Export keepers</MenuItem>
                   <MenuItem icon={<Save className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onBackupProject)}>Back up project</MenuItem>
                   {props.onWatchFolder && <MenuItem icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onWatchFolder!, props.watching ? true : false)}>{props.watching ? `Stop watching “${props.watching}”` : 'Watch a folder for new photos…'}</MenuItem>}
+                  {props.onLocations && <MenuItem icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onLocations!, false)}>Where this project is kept…</MenuItem>}
                   {props.onSyncFolder && <MenuItem icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onSyncFolder!, false)}>Sync folder or cloud (experimental)…</MenuItem>}
                   <MenuItem icon={<Keyboard className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onOpenMacroPadModal, false)}>Macro pad</MenuItem>
                 </MenuSection>

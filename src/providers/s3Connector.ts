@@ -1,3 +1,4 @@
+import { healthFromFailure } from '../core/connections';
 import { sha256Hex, signV4 } from '../core/sigv4';
 import { checkS3Settings, isInsideSyncRoot, type S3Settings, type StorageConnector } from '../core/storageConnectors';
 import { isDesktopApp } from './desktopShell';
@@ -70,9 +71,9 @@ export function s3Connector(settings: S3Settings, options: { fetchImpl?: FetchLi
       if (problems.length) return { ok: false as const, reason: problems[0] };
       try {
         const response = await send('GET', objectUrl('', { 'list-type': '2', 'max-keys': '1' }));
-        return response.ok ? { ok: true as const } : { ok: false as const, reason: explainS3Failure(response.status) };
+        return response.ok ? { ok: true as const } : { ok: false as const, reason: explainS3Failure(response.status), health: healthFromFailure({ status: response.status }) };
       } catch (error) {
-        return { ok: false as const, reason: error instanceof Error ? error.message : 'Could not reach the storage.' };
+        return { ok: false as const, reason: error instanceof Error ? error.message : 'Could not reach the storage.', health: healthFromFailure({ network: true }) };
       }
     },
     async put(path, bytes) {

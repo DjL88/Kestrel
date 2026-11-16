@@ -6,6 +6,8 @@ import { pickSyncFolder, type PickResult } from '../providers/folderConnector';
 import { CloudStorageForm } from './CloudStorageForm';
 import { loadCloudSettings } from '../providers/cloudSettings';
 import { s3Connector } from '../providers/s3Connector';
+import { openConnection, useConnections } from '../providers/connectionStore';
+import { useProjectLocations } from '../providers/projectLocations';
 import type { S3Settings } from '../core/storageConnectors';
 import type { StorageConnector } from '../core/storageConnectors';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
@@ -16,7 +18,13 @@ interface Props { title: string; projectId: string; updatedAt?: number; frames: 
 
 /** Send a project's decisions and edits to a folder you choose, or bring them from one. Nothing leaves the device but into that folder. */
 export function SyncFolderDialog({ title, projectId, updatedAt, frames, onApply, onClose }: Props) {
-  const [where, setWhere] = useState<'folder' | 'cloud'>(() => { try { return localStorage.getItem('kestrel.syncWhere') === 'cloud' ? 'cloud' : 'folder'; } catch { return 'folder'; } });
+  const locations = useProjectLocations(projectId);
+  const { list: savedConnections } = useConnections();
+  const projectPlace = savedConnections.find((connection) => connection.id === (locations.saveTo ?? locations.loadFrom));
+  const [where, setWhere] = useState<'folder' | 'cloud' | 'project'>(() => {
+    if (locations.saveTo || locations.loadFrom) return 'project';
+    try { return localStorage.getItem('kestrel.syncWhere') === 'cloud' ? 'cloud' : 'folder'; } catch { return 'folder'; }
+  });
   const [cloud, setCloud] = useState<S3Settings | null>(() => loadCloudSettings());
   const [editingCloud, setEditingCloud] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -36,10 +44,16 @@ export function SyncFolderDialog({ title, projectId, updatedAt, frames, onApply,
     return () => { document.removeEventListener('keydown', close, true); returnFocus(keep); };
   }, [onClose]);
 
-  const choose = (next: 'folder' | 'cloud') => { setWhere(next); setNote(null); try { localStorage.setItem('kestrel.syncWhere', next); } catch { /* remembered for this session only */ } };
+  const choose = (next: 'folder' | 'cloud' | 'project') => { setWhere(next); setNote(null); try { localStorage.setItem('kestrel.syncWhere', next); } catch { /* remembered for this session only */ } };
 
   /** The place to send to or bring from: a folder the person picks, or their own cloud storage. */
-  async function chooseLocation(): Promise<PickResult> {
+  async function chooseLocation(role: 'send' | 'bring' = 'send'): Promise<PickResult> {
+    if (where === 'project') {
+      const id = role === 'send' ? locations.saveTo ?? locations.loadFrom : locations.loadFrom ?? locations.saveTo;
+      const opened = id ? await openConnection(id) : { problem: 'missing' as const, message: 'Choose a place for this project first.' };
+      if ('problem' in opened) { setNote(opened.message); return 'cancelled'; }
+      return { connector: opened.connector, name: savedConnections.find((connection) => connection.id === id)?.label ?? 'its place' };
+    }
     if (where === 'cloud') {
       const settings = cloud ?? loadCloudSettings();
       if (!settings) { setEditingCloud(true); setNote('Enter your storage details first.'); return 'cancelled'; }
@@ -73,7 +87,7 @@ export function SyncFolderDialog({ title, projectId, updatedAt, frames, onApply,
   }
 
   const bring = () => run(async () => {
-    const picked = await chooseLocation();
+    const picked = await chooseLocation('bring');
     if (picked === 'cancelled') return;
     if (picked === 'unsupported') { setNote('This browser cannot pick a folder. Use the Kestrel desktop app, or Chrome or Edge.'); return; }
     const bytes = await picked.connector.get(path);
@@ -112,7 +126,7 @@ export function SyncFolderDialog({ title, projectId, updatedAt, frames, onApply,
             <>
               <p role="note" className="rounded-md border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-amber-100"><strong>Experimental.</strong> This is a manual hand-over, not automatic sync, and it has not been tested on every system. Back up the project first.</p>
               <div role="radiogroup" aria-label="Where to keep the synced file" className="flex flex-wrap gap-2">
-                {([['folder', 'A folder'], ['cloud', 'My cloud storage']] as const).map(([id, label]) => (
+                {([...(projectPlace ? [['project', `This project's place: ${projectPlace.label}`] as const] : []), ['folder', 'A folder'] as const, ['cloud', 'My cloud storage'] as const]).map(([id, label]) => (
                   <button key={id} type="button" role="radio" aria-checked={where === id} onClick={() => choose(id)}
                     className={`${action} aria-checked:border-sky-300 aria-checked:bg-sky-300/15`}>{label}</button>
                 ))}
@@ -122,8 +136,8 @@ export function SyncFolderDialog({ title, projectId, updatedAt, frames, onApply,
                 : <p role="status">Using bucket <strong>{cloud.bucket}</strong> at {new URL(cloud.endpoint).host}. <button type="button" className="min-h-11 underline" onClick={() => setEditingCloud(true)}>Change</button></p>)}
               <p>Keep this project's decisions, ratings, tags and edits in step between your devices through any folder you choose, such as one in iCloud Drive, Dropbox, OneDrive or a shared drive. Only that small file goes into the folder. Your photos are never copied or changed.</p>
               <div className="flex flex-wrap gap-2">
-                <button type="button" className={action} disabled={busy} onClick={() => void send()}>{where === 'cloud' ? 'Send this project to my cloud storage' : 'Send this project to a folder'}</button>
-                <button type="button" className={action} disabled={busy} onClick={() => void bring()}>{where === 'cloud' ? 'Bring changes from my cloud storage' : 'Bring changes from a folder'}</button>
+                <button type="button" className={action} disabled={busy} onClick={() => void send()}>{where === 'cloud' ? 'Send this project to my cloud storage' : where === 'project' ? 'Send this project' : 'Send this project to a folder'}</button>
+                <button type="button" className={action} disabled={busy} onClick={() => void bring()}>{where === 'cloud' ? 'Bring changes from my cloud storage' : where === 'project' ? 'Bring changes' : 'Bring changes from a folder'}</button>
               </div>
               <p className="text-xs text-zinc-400">Photos are matched by name, size and date, so it works even if the files are in different places on each device. Devices with a project of the same name find each other's file.</p>
             </>

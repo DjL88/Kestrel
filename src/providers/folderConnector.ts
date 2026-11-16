@@ -1,7 +1,7 @@
 import { isInsideSyncRoot, type StorageConnector } from '../core/storageConnectors';
 import { isDesktopApp } from './desktopShell';
 
-export interface PickedFolder { connector: StorageConnector; name: string }
+export interface PickedFolder { connector: StorageConnector; name: string; /** The folder's path, in the desktop app. */ path?: string; /** The folder's handle, in a browser. */ handle?: FileSystemDirectoryHandle }
 export type PickResult = PickedFolder | 'cancelled' | 'unsupported';
 
 const parts = (path: string) => path.split('/').filter(Boolean);
@@ -51,7 +51,7 @@ export function directoryHandleConnector(root: FileSystemDirectoryHandle): Stora
 }
 
 /** A folder chosen in the desktop app, read and written through the system's own permission to that folder only. */
-async function desktopConnector(root: string): Promise<StorageConnector> {
+export async function desktopFolderConnector(root: string): Promise<StorageConnector> {
   const fs = await import('@tauri-apps/plugin-fs');
   const join = (path: string) => `${root.replace(/[\\/]+$/, '')}/${path}`;
   return {
@@ -78,13 +78,13 @@ export async function pickSyncFolder(): Promise<PickResult> {
     const { open } = await import('@tauri-apps/plugin-dialog');
     const chosen = await open({ directory: true, multiple: false, title: 'Choose a sync folder' });
     if (typeof chosen !== 'string') return 'cancelled';
-    return { connector: await desktopConnector(chosen), name: chosen.split(/[\\/]/).filter(Boolean).at(-1) ?? 'the folder' };
+    return { connector: await desktopFolderConnector(chosen), path: chosen, name: chosen.split(/[\\/]/).filter(Boolean).at(-1) ?? 'the folder' };
   }
   const picker = (window as Window & { showDirectoryPicker?: (options?: { mode?: 'readwrite' }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
   if (!picker) return 'unsupported';
   try {
     const handle = await picker.call(window, { mode: 'readwrite' });
-    return { connector: directoryHandleConnector(handle), name: handle.name };
+    return { connector: directoryHandleConnector(handle), name: handle.name, handle };
   } catch (error) {
     if ((error as Error).name === 'AbortError') return 'cancelled';
     throw error;
