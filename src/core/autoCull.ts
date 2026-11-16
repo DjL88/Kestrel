@@ -108,7 +108,10 @@ export function limitAutoKeepers(
     .map((frame) => frame.burstGroupId!));
   const accepted = new Set<string>();
   for (const result of [...suggestions].sort((a, b) => b.score - a.score)) {
-    if (result.decision !== 'keep' || result.confidence !== 'high' || accepted.size >= safeRemaining) continue;
+    // Corrupt detector scores must not win keeper priority or produce a
+    // confident automatic action. Accept only bounded, finite percentages.
+    if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100 ||
+        result.decision !== 'keep' || result.confidence !== 'high' || accepted.size >= safeRemaining) continue;
     // A stale scan result cannot reserve keeper headroom for a photo that was
     // removed or manually reviewed while the scan was running.
     const frame = byId.get(result.frameId);
@@ -123,6 +126,9 @@ export function limitAutoKeepers(
   const emitted = new Set<string>();
   return suggestions.map((result) => {
     if (result.decision !== 'keep' || result.confidence !== 'high') return result;
+    if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100) {
+      return { ...result, confidence: 'medium', score: 0 };
+    }
     if (accepted.has(result.frameId) && !emitted.has(result.frameId)) {
       emitted.add(result.frameId);
       return result;
