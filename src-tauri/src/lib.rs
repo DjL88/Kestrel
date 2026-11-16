@@ -58,7 +58,7 @@ pub fn run() {
             let view = Submenu::with_items(app, "View", true, &[
                 &MenuItem::with_id(app, "filmstrip", "Show or hide filmstrip", true, None::<&str>)?,
                 &MenuItem::with_id(app, "appearance", "Appearance && layout…", true, None::<&str>)?,
-                &PredefinedMenuItem::fullscreen(app, None)?;
+                &PredefinedMenuItem::fullscreen(app, None)?,
             ])?;
             let window = Submenu::with_items(app, "Window", true, &[
                 &MenuItem::with_id(app, "macro-pad", "Macro pad…", true, Some("CmdOrCtrl+M"))?,
