@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
-import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Search, SquareChevronsRight, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Search, Settings2, SquareChevronsRight, Trash2 } from 'lucide-react';
 import kestrelMark from '../assets/kestrel-mark.svg';
 import { version as appVersion } from '../../package.json';
 import { PHOTO_ACCEPT } from '../core/rawFormats';
 import { LicenceAndSettings } from './LicenceAndSettings';
+import { AppearanceDialog } from './AppearanceDialog';
 import type { ShootDescriptor } from '../core/types';
 import { NewProjectWizard } from './NewProjectWizard';
 import { CatalogueStorage } from './CatalogueStorage';
@@ -25,6 +26,8 @@ interface Props {
   onDelete: (project: ShootDescriptor) => void;
   /** Open photos straight into the editor, without making a project first. */
   onQuickEdit: (files: File[]) => void;
+  editPanelSide: 'left' | 'right';
+  onEditPanelSideChange: (side: 'left' | 'right') => void;
 }
 
 const ACTION = 76;
@@ -80,8 +83,9 @@ function SwipeRow({ children, archived, title, onArchive, onDelete, disabled }: 
   );
 }
 
-export function ProjectList({ projects, photoText = {}, loading, error, onOpen, onCreate, onRestore, onArchive, onUnarchive, onDelete, onQuickEdit }: Props) {
+export function ProjectList({ projects, photoText = {}, loading, error, onOpen, onCreate, onRestore, onArchive, onUnarchive, onDelete, onQuickEdit, editPanelSide, onEditPanelSideChange }: Props) {
   const [licenceOpen, setLicenceOpen] = useState(false);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<ProjectSort>('edited');
@@ -93,6 +97,10 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
         <div className="mb-7 flex items-center gap-2.5">
           <img src={kestrelMark} alt="" className="h-10 w-10" />
           <span className="text-lg font-semibold tracking-tight text-kestrel-ink">Kestrel</span>
+          <button type="button" aria-label="Appearance and layout settings" title="Appearance & layout"
+            onClick={() => setAppearanceOpen(true)} className="ml-auto grid min-h-11 min-w-11 place-items-center rounded-md text-zinc-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+            <Settings2 className="h-5 w-5" aria-hidden="true" />
+          </button>
         </div>
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
@@ -214,6 +222,7 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
           </div>
         </footer>
       </div>
+      {appearanceOpen && <AppearanceDialog side={editPanelSide} onSideChange={onEditPanelSideChange} onClose={() => setAppearanceOpen(false)} />}
       {licenceOpen && <LicenceAndSettings onClose={() => setLicenceOpen(false)} />}
     </main>
   );
