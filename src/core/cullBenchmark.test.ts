@@ -91,3 +91,20 @@ test('ten benchmark safety gates prevent false confidence in bad labels or predi
   assert.equal(repeated.duplicatePredictions, 1);
   assert.equal(repeated.recall, 1);
 });
+
+
+test('automatic Keep precision excludes unknown review candidates and exposes false positives', () => {
+  const result = evaluateCullBenchmark(labels, [
+    prediction('birds-hero', 'keep'),
+    prediction('birds-bad', 'keep'),
+    prediction('aircraft-hero', null),
+  ]);
+  assert.equal(result.autoKeeps, 2);
+  assert.equal(result.correctAutoKeeps, 1);
+  assert.equal(result.autoKeepPrecision, 0.5);
+  assert.equal(result.recall, 1);
+  assert.equal(result.precision, 0.5);
+  const noAutoKeeps = evaluateCullBenchmark(labels, [prediction('birds-hero', null)]);
+  assert.equal(noAutoKeeps.autoKeepPrecision, null);
+  assert.equal(noAutoKeeps.autoKeeps, 0);
+});
