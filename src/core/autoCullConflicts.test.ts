@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { applyAutoCullDecisions, createDemoShootState, undoDecision, redoDecision } from './cullingEngine';
+import { limitAutoKeepers } from './autoCull';
 
 test('conflicting auto-cull suggestions never change a photo, regardless of order', () => {
   for (const reversed of [false, true]) {
@@ -130,4 +131,22 @@ test('ambiguous duplicate catalogue IDs cannot classify two photographs with one
 
   const ambiguousOnly = applyAutoCullDecisions(state, [{ frameId: first.id, decision: 'keep' }]);
   assert.equal(ambiguousOnly, state, 'no changes or history for ambiguous IDs');
+});
+
+test('keeper suggestions never reserve a slot for ambiguous catalogue IDs', () => {
+  const state = createDemoShootState(3);
+  state.frames = state.frames.map((frame) => ({ ...frame, isDemo: false, burstGroupId: null }));
+  const [first, second, third] = state.frames;
+  state.frames[1] = { ...second, id: first.id };
+  const suggestions = [
+    { frameId: first.id, decision: 'keep' as const, confidence: 'high' as const, score: 99, reason: 'clearDetail' as const },
+    { frameId: third.id, decision: 'keep' as const, confidence: 'high' as const, score: 90, reason: 'clearDetail' as const },
+  ];
+  const limited = limitAutoKeepers(suggestions, state.frames, 1);
+  assert.equal(limited[0].confidence, 'medium', 'ambiguous ID must not be auto-kept');
+  assert.equal(limited[1].confidence, 'high', 'valid photo still gets the keeper slot');
+  assert.deepEqual(
+    applyAutoCullDecisions(state, limited.filter((item) => item.confidence === 'high').map((item) => ({ frameId: item.frameId, decision: 'keep' as const }))).frames.map((frame) => frame.decision),
+    ['unreviewed', 'unreviewed', 'keep'],
+  );
 });
