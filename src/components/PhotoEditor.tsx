@@ -2,11 +2,12 @@ import { newId } from '../core/ids';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
-import { ChevronDown, Columns2, Maximize, Minimize, Crop, Download, History, Keyboard, Lightbulb, Redo2, SlidersHorizontal, SquircleDashed, Undo2 } from 'lucide-react';
+import { ChevronDown, Columns2, Maximize, Minimize, Crop, Download, History, Keyboard, Lightbulb, Redo2, Settings2, SlidersHorizontal, SquircleDashed, Undo2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
+import { AppearanceDialog } from './AppearanceDialog';
 import { downloadExport } from '../providers/browserExport';
 import { gridSizeFor } from '../core/subjectModel';
 import { QuickAdjust } from './QuickAdjust';
@@ -141,7 +142,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [previewRecipe, setPreviewRecipe] = useState<{ edit?: PhotoEdit; framing?: PhotoFraming } | null>(null);
   const cropEntry = useRef<PhotoFraming | null>(null);
   const panelScroll = useRef<HTMLDivElement>(null);
-  const isPhone = useMediaQuery('(max-width: 767px)');
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const isPhone = useMediaQuery('(max-width: 899px), (max-height: 549px)');
   // On a phone the tools open as a sheet above the bar. Tapping the open tab again folds it away for a full-height photo.
   const [sheetOpen, setSheetOpen] = useState(() => {
     try { return localStorage.getItem(SHEET_KEY) !== 'closed'; } catch { return true; }
@@ -164,8 +166,14 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   // Full screen uses the whole page, so the macro pad and keyboard shortcuts keep working. Not every browser allows it (iPhone Safari does not).
   const canFullscreen = typeof document !== 'undefined' && Boolean(document.fullscreenEnabled);
   const [fullscreen, setFullscreen] = useState(() => typeof document !== 'undefined' && Boolean(document.fullscreenElement));
+  const [landscapeLocked, setLandscapeLocked] = useState(false);
+  const [orientationNotice, setOrientationNotice] = useState('');
+  const canLockOrientation = isPhone && typeof screen !== 'undefined' && typeof screen.orientation?.lock === 'function';
   useEffect(() => {
-    const sync = () => setFullscreen(Boolean(document.fullscreenElement));
+    const sync = () => {
+      setFullscreen(Boolean(document.fullscreenElement));
+      if (!document.fullscreenElement) { setLandscapeLocked(false); setOrientationNotice(''); }
+    };
     document.addEventListener('fullscreenchange', sync);
     return () => {
       document.removeEventListener('fullscreenchange', sync);
@@ -175,6 +183,16 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const toggleFullscreen = () => {
     const request = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
     request.catch(() => { /* the browser refused; the editor carries on as before */ });
+  };
+  const toggleLandscape = async () => {
+    if (!fullscreen || !canLockOrientation) return;
+    try {
+      if (landscapeLocked) { screen.orientation.unlock(); setLandscapeLocked(false); }
+      else { await screen.orientation.lock('landscape'); setLandscapeLocked(true); }
+      setOrientationNotice('');
+    } catch {
+      setOrientationNotice('This device cannot lock rotation. Turn your device to view the photo in landscape.');
+    }
   };
   // A saved or resized layout can leave the Export tab selected on a screen that has no such tab.
   useEffect(() => { if (!isPhone && tab === 'export') setTab('auto'); }, [isPhone, tab]);
@@ -588,7 +606,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     <div role="tablist" aria-label="Editing tools"
       className={isPhone
         ? 'grid shrink-0 grid-cols-6 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]'
-        : 'sticky top-0 z-10 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 md:-mx-4 md:px-3'}
+        : 'sticky top-0 z-10 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 workspace:-mx-4 workspace:px-3'}
       onKeyDown={(event) => {
         const order = visibleTabs.map((entry) => entry.id);
         const at = order.indexOf(tab);
@@ -615,8 +633,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
 
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
   return (
-    <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-kestrel-stage">
-      <div role="toolbar" aria-label="Editor actions" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-panel px-2 pt-0.5 sm:px-4">
+    <section aria-label="Photo editor" className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden bg-kestrel-stage">
+      <div role="toolbar" aria-label="Editor actions" className="mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center justify-between gap-2 overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 pt-0.5 sm:px-4">
         <div className="flex items-center gap-1">
           <button type="button" className={`${button} inline-flex items-center`} aria-label="Undo" title={`Undo (${MOD}+Z)`} disabled={!frame.editHistory?.cursor} onClick={() => onHistoryStep(-1)}>
             <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Undo</span>
@@ -650,6 +668,18 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           )}
         </div>
         <div className="flex items-center gap-1">
+        <button type="button" className={`${button} inline-flex items-center`}
+          aria-label="Appearance and layout settings" aria-expanded={appearanceOpen}
+          onClick={() => setAppearanceOpen(true)} title="Display theme and editing tools side">
+          <Settings2 className="h-4 w-4" aria-hidden="true" />
+        </button>
+        {canLockOrientation && fullscreen && (
+          <button type="button" className={`${button} inline-flex items-center border border-white/15`}
+            aria-pressed={landscapeLocked} onClick={() => void toggleLandscape()}
+            title="Use landscape for this full-screen photo; return to automatic rotation when finished">
+            {landscapeLocked ? 'Auto rotate' : 'Landscape'}
+          </button>
+        )}
         {canFullscreen && (
           <button type="button" className={`${button} inline-flex items-center`} aria-pressed={fullscreen} onClick={toggleFullscreen}
             aria-label={fullscreen ? 'Leave full screen' : 'Full screen'} title={fullscreen ? 'Leave full screen (Esc)' : 'Full screen: the photo and tools fill the screen. Keyboard and macro pad keep working.'}>
@@ -657,7 +687,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           </button>
         )}
         <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? `Export ${exportCount} selected photos` : "Export this photo for social media or full size"}
-          className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover! max-md:hidden`}>
+          className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover! hidden workspace:inline-flex`}>
           <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? `Export ${exportCount}` : "Export"}
         </button>
         {onOpenMacroPad && (
@@ -668,8 +698,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
         </div>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-      <div ref={stage} className="relative flex min-h-0 flex-1 bg-black">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden workspace:flex-row">
+      <div ref={stage} className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
         <PhotoViewport zoom={transform.zoom} pan={transform.pan}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
           overlayMode={displayCompare ? 'wipe' : 'hidden'}
@@ -769,7 +799,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
       </div>
       <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
-      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:relative md:z-10 ${showFilmstrip ? 'md:-mb-[156px] md:pb-[172px] ' : ''}md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
+      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 ${showFilmstrip ? 'workspace:-mb-[156px] workspace:pb-[172px] ' : ''}workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
         {!isPhone && tabList}
         {tab === 'auto' && !can('autoTab') && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto"><PaidNotice title="The Auto tab">Automatic colour and tone adjustments and local editing advice are here.</PaidNotice></div>
@@ -971,18 +1001,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               <button type="button" className={button} onClick={onRemoveVirtualCopy}>Remove copy</button>
             </div>
           )}
-          <details className="border-t border-white/10">
-            <summary className="min-h-11 cursor-pointer py-3 text-sm text-zinc-300">Layout</summary>
-            <label className="hidden min-h-11 items-center justify-between gap-2 text-sm lg:flex">
-              Adjustment panel
-              <select value={panelSide} onChange={(event) => onPanelSideChange(event.target.value === 'left' ? 'left' : 'right')}
-                className="min-h-10 rounded-md bg-[#252830] px-2">
-                <option value="left">Left</option>
-                <option value="right">Right</option>
-              </select>
-            </label>
 
-          </details>
           {!frame.isDemo && <button type="button" className={button} disabled={!provider.getOriginal(frame.stableKey)}
             onClick={() => {
               const original = provider.getOriginal(frame.stableKey);
@@ -1102,6 +1121,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       </div>
       {isPhone && tabList}
       </div>
+      {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}
+      {appearanceOpen && <AppearanceDialog side={panelSide} onSideChange={onPanelSideChange} onClose={() => setAppearanceOpen(false)} />}
       {exportOpen && !onExport && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} onDownloadRequested={onExportRequested} />}
     </section>
   );
@@ -1115,7 +1136,7 @@ function PanelResizer({ width, side, onChange }: { width: number; side: 'left' |
   };
   return (
     <div role="separator" aria-orientation="vertical" aria-label="Resize adjustments panel" aria-valuenow={width} tabIndex={0}
-      className={`${side === 'left' ? 'md:order-[-1]' : ''} hidden w-2 shrink-0 cursor-col-resize bg-white/5 hover:bg-sky-300/30 focus-visible:outline-2 focus-visible:outline-sky-300 md:block`}
+      className={`${side === 'left' ? 'workspace:order-[-1]' : ''} hidden w-2 shrink-0 cursor-col-resize bg-white/5 hover:bg-sky-300/30 focus-visible:outline-2 focus-visible:outline-sky-300 workspace:block`}
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
