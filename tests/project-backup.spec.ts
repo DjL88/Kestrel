@@ -3,7 +3,75 @@ import { createDemoShootState } from '../src/core/cullingEngine';
 import { recordEdit } from '../src/core/editHistory';
 import { DEFAULT_EDIT } from '../src/core/photoEdits';
 import { createEmptyProject } from '../src/core/projects';
-import { encodeProjectBackup } from '../src/core/projectBackup';
+import { encodeProjectBackup, restoreProjectBackup } from '../src/core/projectBackup';
+
+test('desktop backup before deletion handles cancellation and failure, then waits for a successful write', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Desktop system-save bridge');
+  const project = createDemoShootState(1);
+  project.shoot.title = 'Desktop backup fixture';
+  project.frames[0] = recordEdit(project.frames[0], { edit: { ...DEFAULT_EDIT, exposure: 0.5 } }, 1000);
+  await page.goto('/');
+  await page.locator('input[type="file"][accept=".json,application/json"]').setInputFiles({
+    name: 'desktop.kestrel.json', mimeType: 'application/json', buffer: Buffer.from(encodeProjectBackup(project)),
+  });
+  await expect(page.getByText('Desktop backup fixture (restored)', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Back to projects' }).click();
+  // Install the bridge after startup: this test exercises the system-save boundary, not native RAW processing.
+  await page.evaluate(() => {
+    const w = window as unknown as {
+      __TAURI_INTERNALS__: unknown; __backupBytes: number[]; __backupPath: string;
+      __finishBackup: () => void;
+    };
+    let pickerCalls = 0;
+    w.__TAURI_INTERNALS__ = {
+      invoke: async (command: string, args: unknown, options?: { headers: Record<string, string> }) => {
+        if (command === 'plugin:dialog|save') {
+          pickerCalls++;
+          return pickerCalls === 1 ? null : '/synthetic-volume/fixture.kestrel.json';
+        }
+        if (command === 'plugin:fs|write_file') {
+          if (pickerCalls === 2) throw new Error('Synthetic volume disconnected');
+          w.__backupBytes = Array.from(args as Uint8Array);
+          w.__backupPath = decodeURIComponent(options!.headers.path);
+          await new Promise<void>((resolve) => { w.__finishBackup = resolve; });
+          return;
+        }
+        if (command !== 'plugin:opener|reveal_item_in_dir') throw new Error(`Unexpected native command: ${command}`);
+      },
+    };
+  });
+  const downloads: string[] = [];
+  page.on('download', (download) => downloads.push(download.suggestedFilename()));
+  await page.getByRole('button', { name: 'Delete Desktop backup fixture (restored)', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Delete “Desktop backup fixture (restored)”?', exact: true });
+  await dialog.getByRole('checkbox').check();
+  const backup = dialog.getByRole('button', { name: 'Back up this project', exact: true });
+  const remove = dialog.getByRole('button', { name: 'Delete project permanently' });
+  await backup.click();
+  await expect(dialog.getByRole('status')).toHaveText('No backup was saved.');
+  await backup.click();
+  await expect(dialog.getByRole('status')).toHaveText('The backup could not be made. Try again before you continue.');
+  await backup.click();
+  await expect(dialog.getByRole('button', { name: 'Saving…', exact: true })).toBeDisabled();
+  await expect(remove).toBeDisabled();
+  await expect(dialog.getByRole('status')).toBeEmpty();
+  await expect.poll(() => page.evaluate(() => typeof Reflect.get(window, '__finishBackup'))).toBe('function');
+  await page.evaluate(() => (Reflect.get(window, '__finishBackup') as () => void)());
+  await expect(dialog.getByRole('status')).toHaveText('Backup saved. Restore it from the Projects page whenever you need it.');
+  await expect(remove).toBeEnabled();
+  const saved = await page.evaluate(() => ({
+    bytes: Reflect.get(window, '__backupBytes') as number[], path: Reflect.get(window, '__backupPath') as string,
+  }));
+  expect(saved.path).toBe('/synthetic-volume/fixture.kestrel.json');
+  const restored = restoreProjectBackup(Buffer.from(saved.bytes).toString('utf8'), 'roundtrip');
+  expect(restored.frames).toHaveLength(1);
+  expect(restored.frames[0].id).toBe(project.frames[0].id);
+  expect(restored.frames[0].edit).toEqual(project.frames[0].edit);
+  expect(restored.frames[0].editHistory).toEqual(project.frames[0].editHistory);
+  expect(downloads).toEqual([]);
+  await dialog.getByRole('button', { name: 'Keep project', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Desktop backup fixture \(restored\).*1 photo/ })).toBeVisible();
+});
 
 test('a portable backup restores the photo’s undo and redo controls', async ({ page }) => {
   const project = createDemoShootState(1);
