@@ -15,8 +15,11 @@ import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 import { isDesktopApp, saveWithDialog } from './desktopShell';
 
-export async function loadExportSource(frame: PhotoFrame, provider: Pick<BrowserPreviewProvider, 'getFullPreviewUrl' | 'hasBlob'>) {
+export async function loadExportSource(frame: PhotoFrame, provider: Pick<BrowserPreviewProvider, 'getFullPreviewUrl' | 'hasBlob'> & Partial<Pick<BrowserPreviewProvider, 'isOfflineFallback'>>) {
   const url = await provider.getFullPreviewUrl(frame);
+  if (!frame.isDemo && provider.isOfflineFallback?.(frame.stableKey)) {
+    throw new Error(`Reconnect ${frame.filename} before exporting. The offline review image is not the original photograph.`);
+  }
   if (!url && !frame.isDemo && isRawPreviewFile(frame.filename) && provider.hasBlob(frame.stableKey)) {
     throw new Error(`${frame.filename} has no usable embedded JPEG. Export it from a RAW developer and import the rendered photo.`);
   }

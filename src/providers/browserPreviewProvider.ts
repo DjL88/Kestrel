@@ -292,6 +292,11 @@ export class BrowserPreviewProvider implements PreviewProvider {
     return objectUrl;
   }
 
+  /** A cached review image is safe for viewing, never for exporting as an original. */
+  isOfflineFallback(stableKey: string): boolean {
+    return this.offlineFullKeys.has(stableKey);
+  }
+
   releaseFrame(frameId: string): void {
     const thumb = this.thumbUrlCache.get(frameId);
     if (thumb && thumb.startsWith('blob:')) {
