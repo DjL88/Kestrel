@@ -5,7 +5,7 @@ test.skip(({ viewport }) => (viewport?.width ?? 1280) < 768, 'the sync dialog is
 
 let s3: MockS3;
 test.beforeAll(async () => { s3 = await startMockS3('photos'); });
-test.afterAll(async () => { await s3.close(); });
+test.afterAll(async () => { await s3?.close(); });
 
 const photo = { name: 'cloud.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64') };
 

@@ -3,6 +3,8 @@ import { useAccess } from './providers/useAccess';
 import { loadLicence } from './providers/licenceStore';
 import { PaidNotice } from './components/PaidNotice';
 import { SyncFolderDialog } from './components/SyncFolderDialog';
+import { ProjectLocationsDialog } from './components/ProjectLocationsDialog';
+import { useAutoBackup } from './providers/autoBackup';
 import { WatchFolderDialog } from './components/WatchFolderDialog';
 import { useFolderWatch } from './providers/useFolderWatch';
 import { PHOTO_ACCEPT } from './core/rawFormats';
@@ -113,6 +115,7 @@ function isEditableElement(target: EventTarget | null): boolean {
 export default function App() {
   const { can } = useAccess();
   const [syncOpen, setSyncOpen] = useState(false);
+  const [locationsOpen, setLocationsOpen] = useState(false);
   const [watchOpen, setWatchOpen] = useState(false);
   useEffect(() => { void loadLicence(); }, []);
   const [paidDialog, setPaidDialog] = useState<string | null>(null);
@@ -236,6 +239,8 @@ export default function App() {
       setProjectError('Project changes could not be saved. Check available browser storage.');
     });
   }, [cullingState, projectsOpen]);
+  // Back the open project up on its own to the place chosen for it (if any), without waiting to be asked.
+  useAutoBackup(cullingState, !projectsOpen);
 
   function enterProject(state: CullingState) {
     const filter = state.filter === 'all' ? 'unreviewed' : state.filter;
@@ -1282,6 +1287,7 @@ export default function App() {
       })()}
       <DesktopUpdate />
       <TaskManager />
+      {locationsOpen && <ProjectLocationsDialog state={cullingState} onClose={() => setLocationsOpen(false)} />}
       {syncOpen && <SyncFolderDialog title={cullingState.shoot.title} projectId={cullingState.shoot.id} updatedAt={cullingState.shoot.lastUpdatedAt} frames={cullingState.frames} onClose={() => setSyncOpen(false)}
         onApply={(frames) => setCullingState((prev) => ({ ...prev, frames, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } }))} />}
       {watchOpen && <WatchFolderDialog onStart={(source, includeExisting) => void watch.start(source, includeExisting)} onClose={() => setWatchOpen(false)} />}
@@ -1376,6 +1382,7 @@ export default function App() {
         watching={watch.status?.folder ?? null}
         onWatchFolder={() => { if (watch.status) watch.stop(); else setWatchOpen(true); }}
         onSyncFolder={() => setSyncOpen(true)}
+        onLocations={() => setLocationsOpen(true)}
         onAutoCull={() => { if (!can('smartCulling')) { setPaidDialog('Auto-cull'); return; } setAutoCullStart(false); setAutoCullOpen(true); }}
         settings={cullingState.settings ?? LEGACY_SETTINGS}
         onSettingsChange={(settings) => setCullingState((prev) => ({ ...prev, settings, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } }))}
