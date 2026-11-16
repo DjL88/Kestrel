@@ -30,7 +30,7 @@ export async function discoverPhotoPaths(
     for (const entry of entries) {
       if (visited >= maxEntries || paths.length >= maxPhotos) { truncated = true; break; }
       visited++;
-      if (entry.isSymlink || !entry.name || entry.name === '.' || entry.name === '..' || /[\\\\/]/.test(entry.name)) continue;
+      if (entry.isSymlink || !entry.name || entry.name === '.' || entry.name === '..' || entry.name.includes('/') || entry.name.includes('\\')) continue;
       const path = current.path.replace(/[\\/]+$/, '') + '/' + entry.name;
       if (entry.isDirectory) {
         if (current.depth < maxDepth) queue.push({ path, depth: current.depth + 1 });
