@@ -54,6 +54,29 @@ fn unique_system_decode_folder() -> Result<std::path::PathBuf, String> {
     Err("Could not allocate a private RAW workspace.".to_string())
 }
 
+/// Owns a private decoder directory until the operation leaves scope, including
+/// early errors and unwinding. Never delete a caller-provided path.
+#[cfg(target_os = "macos")]
+struct SystemDecodeWorkspace(std::path::PathBuf);
+
+#[cfg(target_os = "macos")]
+impl SystemDecodeWorkspace {
+    fn new() -> Result<Self, String> {
+        unique_system_decode_folder().map(Self)
+    }
+
+    fn path(&self) -> &std::path::Path {
+        &self.0
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl Drop for SystemDecodeWorkspace {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
 /// Only camera RAW extensions may become part of a temporary filename. Reject path
 /// separators and arbitrary suffixes before writing any caller-provided bytes.
 #[cfg(target_os = "macos")]
@@ -90,9 +113,9 @@ fn validate_system_jpeg(jpeg: &[u8]) -> Result<(), String> {
 fn develop_with_system(bytes: &[u8], extension: &str) -> Result<Vec<u8>, String> {
     use std::process::Command;
     let extension = safe_raw_extension(extension)?;
-    let folder = unique_system_decode_folder()?;
-    let input = folder.join(format!("in.{extension}"));
-    let output = folder.join("out.jpg");
+    let folder = SystemDecodeWorkspace::new()?;
+    let input = folder.path().join(format!("in.{extension}"));
+    let output = folder.path().join("out.jpg");
     let result = (|| {
         std::fs::write(&input, bytes).map_err(|error| error.to_string())?;
         let status = Command::new("/usr/bin/sips")
@@ -107,7 +130,6 @@ fn develop_with_system(bytes: &[u8], extension: &str) -> Result<Vec<u8>, String>
         validate_system_jpeg(&jpeg)?;
         Ok(jpeg)
     })();
-    let _ = std::fs::remove_dir_all(&folder);
     result
 }
 
@@ -227,6 +249,34 @@ mod tests {
         let mut truncated = valid.clone();
         truncated.pop();
         assert!(super::validate_system_jpeg(&truncated).is_err());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn system_workspace_cleans_up_on_error_and_unwind() {
+        // No real camera files or system decoder required. An early error must
+        // remove both the directory and any partially written input.
+        let mut path = None;
+        let failure: Result<(), &str> = (|| {
+            let workspace = super::SystemDecodeWorkspace::new().unwrap();
+            let folder = workspace.path().to_path_buf();
+            std::fs::write(folder.join("in.nef"), b"synthetic").unwrap();
+            path = Some(folder);
+            Err("simulated decoder failure")
+        })();
+        assert!(failure.is_err());
+        assert!(!path.unwrap().exists(), "failed decode left input behind");
+
+        let mut panic_path = None;
+        let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let workspace = super::SystemDecodeWorkspace::new().unwrap();
+            let folder = workspace.path().to_path_buf();
+            std::fs::write(folder.join("out.jpg"), b"partial").unwrap();
+            panic_path = Some(folder);
+            panic!("simulated decoder panic");
+        }));
+        assert!(unwind.is_err());
+        assert!(!panic_path.unwrap().exists(), "unwinding left output behind");
     }
 
     #[cfg(target_os = "macos")]
