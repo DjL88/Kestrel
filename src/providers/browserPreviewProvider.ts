@@ -116,7 +116,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     const generation = this.linkedGeneration.get(stableKey) ?? 0;
     const task = this.limitReads(link.read).then((blob) => {
       // A previous drive read must not resurrect an old original after relinking.
-      if (this.linkedGeneration.get(stableKey) !== generation || this.linked.get(stableKey) !== link) return undefined;
+      if ((this.linkedGeneration.get(stableKey) ?? 0) !== generation || this.linked.get(stableKey) !== link) return undefined;
       this.localBlobs.set(stableKey, blob);
       this.linkedOrder = this.linkedOrder.filter((key) => key !== stableKey);
       this.linkedOrder.push(stableKey);
