@@ -74,12 +74,16 @@ export class BrowserPreviewProvider implements PreviewProvider {
   /** Photos that stay on the disk: how to read each one, and what it was like when added. Read only when needed. */
   private linked = new Map<string, { read: () => Promise<Blob>; size: number; lastModified: number }>();
   private linkedLoading = new Map<string, Promise<Blob | undefined>>();
+  private linkedGeneration = new Map<string, number>();
   private linkedOrder: string[] = [];
 
   registerLinked(stableKey: string, info: { read: () => Promise<Blob>; size: number; lastModified: number }): void {
     const previous = this.linked.get(stableKey);
     if (previous && (previous.size !== info.size || previous.lastModified !== info.lastModified)) {
+      this.linkedGeneration.set(stableKey, (this.linkedGeneration.get(stableKey) ?? 0) + 1);
+      this.linkedLoading.delete(stableKey);
       this.localBlobs.delete(stableKey);
+      this.developed.delete(stableKey);
       this.invalidateFullPreview(stableKey);
     }
     this.linked.set(stableKey, info);
@@ -90,7 +94,10 @@ export class BrowserPreviewProvider implements PreviewProvider {
   /** Retry a reconnected disk without changing catalogue decisions or edits. */
   retryLinkedOriginal(stableKey: string): void {
     if (!this.linked.has(stableKey)) return;
+    this.linkedGeneration.set(stableKey, (this.linkedGeneration.get(stableKey) ?? 0) + 1);
+    this.linkedLoading.delete(stableKey);
     this.localBlobs.delete(stableKey);
+    this.developed.delete(stableKey);
     this.invalidateFullPreview(stableKey);
   }
 
@@ -106,7 +113,10 @@ export class BrowserPreviewProvider implements PreviewProvider {
     if (!link) return undefined;
     const pending = this.linkedLoading.get(stableKey);
     if (pending) return pending;
+    const generation = this.linkedGeneration.get(stableKey) ?? 0;
     const task = this.limitReads(link.read).then((blob) => {
+      // A previous drive read must not resurrect an old original after relinking.
+      if ((this.linkedGeneration.get(stableKey) ?? 0) !== generation || this.linked.get(stableKey) !== link) return undefined;
       this.localBlobs.set(stableKey, blob);
       this.linkedOrder = this.linkedOrder.filter((key) => key !== stableKey);
       this.linkedOrder.push(stableKey);
@@ -115,7 +125,9 @@ export class BrowserPreviewProvider implements PreviewProvider {
         if (oldest !== stableKey) this.localBlobs.delete(oldest);
       }
       return blob;
-    }).catch(() => undefined).finally(() => this.linkedLoading.delete(stableKey));
+    }).catch(() => undefined).finally(() => {
+      if (this.linkedLoading.get(stableKey) === task) this.linkedLoading.delete(stableKey);
+    });
     this.linkedLoading.set(stableKey, task);
     return task;
   }
@@ -326,6 +338,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.localBlobs.clear();
     this.linked.clear();
     this.linkedLoading.clear();
+    this.linkedGeneration.clear();
     this.linkedOrder = [];
     this.developed.clear();
     this.pendingThumbs.clear();

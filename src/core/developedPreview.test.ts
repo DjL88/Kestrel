@@ -190,3 +190,46 @@ test('linked originals generate a small thumbnail and bounded review preview wit
   assert.equal(await saved?.thumbnail.text(), '400x267');
   assert.equal(await saved?.review.text(), '2200x1467');
 });
+
+test('relinking a changed original invalidates its previous RAW development', async (t) => {
+  const provider = new BrowserPreviewProvider();
+  t.after(() => provider.clear());
+  const photo = frame('relinked');
+  provider.registerLinked(photo.stableKey, { read: async () => raw(), size: 100, lastModified: 1 });
+  provider.setDeveloped(photo, new Blob(['old sensor development'], { type: 'image/jpeg' }));
+  assert.equal(provider.isDeveloped(photo.stableKey), true);
+  provider.registerLinked(photo.stableKey, { read: async () => raw(), size: 200, lastModified: 2 });
+  assert.equal(provider.isDeveloped(photo.stableKey), false);
+  assert.deepEqual(new Uint8Array(await (await fetch(await provider.getFullPreviewUrl(photo))).arrayBuffer()), jpeg);
+});
+
+test('a slow previous drive read cannot overwrite a newly linked original', async (t) => {
+  const provider = new BrowserPreviewProvider();
+  t.after(() => provider.clear());
+  const photo = frame('relinked-slow');
+  let release!: (blob: Blob) => void;
+  let started!: () => void;
+  const waiting = new Promise<void>((resolve) => { started = resolve; });
+  const oldRead = new Promise<Blob>((resolve) => { release = resolve; });
+  provider.registerLinked(photo.stableKey, {
+    read: async () => { started(); return oldRead; }, size: 100, lastModified: 1,
+  });
+  const pending = provider.ensureOriginal(photo.stableKey);
+  await waiting;
+  const fresh = new Blob(['new original']);
+  provider.registerLinked(photo.stableKey, { read: async () => fresh, size: 200, lastModified: 2 });
+  assert.equal(await provider.ensureOriginal(photo.stableKey), fresh);
+  release(new Blob(['stale original']));
+  assert.equal(await pending, undefined);
+  assert.equal(provider.getOriginal(photo.stableKey), fresh);
+});
+
+test('retrying a linked original invalidates a previously developed result', async (t) => {
+  const provider = new BrowserPreviewProvider();
+  t.after(() => provider.clear());
+  const photo = frame('retry');
+  provider.registerLinked(photo.stableKey, { read: async () => raw(), size: 100, lastModified: 1 });
+  provider.setDeveloped(photo, new Blob(['old development']));
+  provider.retryLinkedOriginal(photo.stableKey);
+  assert.equal(provider.isDeveloped(photo.stableKey), false);
+});
