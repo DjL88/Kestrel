@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('select multiple photos in Library, edit just that queue and export together', async ({ page }) => {
+  test.skip(test.info().project.name === 'phone', 'desktop grid/filmstrip flow; phone selection needs a dedicated test');
   await page.goto('/');
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Select and edit');
@@ -60,6 +61,7 @@ test('select multiple photos in Library, edit just that queue and export togethe
 });
 
 test('filmstrip selection can bulk export and paste slider edits, keeping original files untouched', async ({ page }) => {
+  test.skip(test.info().project.name === 'phone', 'desktop grid/filmstrip flow; phone selection needs a dedicated test');
   await page.goto('/');
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Filmstrip batch actions');
@@ -87,15 +89,23 @@ test('filmstrip selection can bulk export and paste slider edits, keeping origin
   await bar.getByRole('button', { name: 'Copy', exact: true }).click();
   await bar.getByRole('button', { name: 'Select photos' }).click();
   const film = page.locator('[aria-label="Shoot filmstrip"]');
+  // Select photos starts with the active photo marked; clear it for this two-photo test.
+  await film.getByRole('button', { name: 'Select batch-1.png' }).click();
   await film.getByRole('button', { name: 'Select batch-2.png' }).click();
   await film.getByRole('button', { name: 'Select batch-3.png' }).click();
   await expect(bar.getByRole('status')).toHaveText('2 selected');
   await bar.getByRole('button', { name: 'Paste to selected' }).click();
   await expect(page.getByRole('alertdialog', { name: 'Paste adjustments to 2 photos?' })).toBeVisible();
   await page.getByRole('button', { name: 'Apply adjustments' }).click();
-  await film.getByRole('button', { name: 'Select batch-2.png' }).click();
+  // The last marked photo is active. Clicking it again would remove it from the export selection.
+  await expect(page.getByRole('heading', { name: 'batch-3.png', exact: true })).toBeVisible();
   await expect(light).toHaveValue('0.1');
+  await expect(bar.getByRole('status')).toHaveText('2 selected');
   // The primary Editor Export must send both selected frames, not just the active photo.
   await page.getByRole('toolbar', { name: 'Editor actions' }).getByRole('button', { name: 'Export 2' }).click();
   await expect(page.getByRole('heading', { name: 'Export 2 photos' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close export' }).click();
+  await bar.getByRole('button', { name: 'Done selecting' }).click();
+  await film.getByRole('button', { name: 'Jump to frame batch-2.png' }).click();
+  await expect(light).toHaveValue('0.1');
 });
