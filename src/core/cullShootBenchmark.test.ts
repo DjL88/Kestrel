@@ -48,3 +48,20 @@ test('ambiguous IDs and keys fail closed without changing photographs', () => {
   assert.throws(() => benchmarkShoot([frames[0], { ...frames[1], stableKey: frames[0].stableKey }], labels.slice(0, 2), []), /Ambiguous/);
   assert.equal(frames[0].decision, 'unreviewed');
 });
+
+
+test('invalid detector rejection cannot be reported as a missed favourite', () => {
+  const invalid = { ...suggestion(frames[0].id, 'reject'), score: Number.NaN };
+  const report = benchmarkShoot(frames, labels, [invalid]);
+  assert.equal(report.result.recall, 1);
+  assert.equal(report.result.invalidPredictions, 1);
+  assert.equal(report.predictionCoverage, 0);
+  assert.deepEqual(report.missedFavouriteKeys, []);
+});
+
+test('shoot labels reject contradictory favourite/unusable ground truth', () => {
+  assert.throws(
+    () => benchmarkShoot(frames, labels.map((label, index) => index ? label : { ...label, unusable: true }), []),
+    /Contradictory photographer labels/,
+  );
+});
