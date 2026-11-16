@@ -130,7 +130,7 @@ export default function App() {
   const relinkInput = useRef<HTMLInputElement>(null);
   const relinkingFiles = useRef(false);
   const previewProviderRef = useRef<BrowserPreviewProvider | null>(null);
-  if (!previewProviderRef.current) previewProviderRef.current = new BrowserPreviewProvider();
+  if (!previewProviderRef.current) previewProviderRef.current = new BrowserPreviewProvider(storeRef.current);
 
   const [prefs, setPrefs] = useState<UserPreferences>(() => loadPreferences());
   // Left- or right-handed use is read by the whole page's styles, so the home page and every dialog follow it too.
@@ -1105,7 +1105,7 @@ export default function App() {
     // Imports appear in the task manager too (a watched folder has its own status, so it is left out).
     const task = options?.watched ? null : tasks.start(`Adding ${additions.length} photo${additions.length === 1 ? '' : 's'}`, { total: additions.length });
     try {
-      const { frames, unstoredKeys } = await loadLocalFileListShoot(
+      const { frames, unstoredKeys, uncachedPreviewKeys } = await loadLocalFileListShoot(
         additions, previewProviderRef.current!, storeRef.current!,
         ({ loaded, total }) => { setLoadingProgress({ loaded, total }); task?.progress(loaded, total); }
       );
@@ -1118,6 +1118,9 @@ export default function App() {
       if (unstoredKeys.length) {
         setTemporaryOriginals((previous) => new Set([...previous, ...unstoredKeys]));
         setTemporaryWarningDismissed(false);
+      }
+      if (uncachedPreviewKeys.length) {
+        setProjectError(`Added the photos, but could not save offline previews for ${uncachedPreviewKeys.length} ${uncachedPreviewKeys.length === 1 ? 'photo' : 'photos'}. The originals were not copied; reselect them or reconnect their folder when the source is unavailable.`);
       }
       const importId = newId().slice(0, 8);
       setCullingState((prev) => {

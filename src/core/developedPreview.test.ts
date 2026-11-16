@@ -108,3 +108,81 @@ test('a late preview read cannot refill a cleared project cache', async () => {
   assert.equal(await pending, '');
   assert.equal(await provider.getFullPreviewUrl(photo), '');
 });
+
+test('cached offline previews remain available after reopening when a linked original cannot be read', async (t) => {
+  const persisted = new Map<string, { thumbnail: Blob; review: Blob }>();
+  const cache = {
+    async savePreviewPair(key: string, previews: { thumbnail: Blob; review: Blob }) {
+      persisted.set(key, previews);
+      return true;
+    },
+    async loadPreviewPair(key: string) {
+      return persisted.get(key) ?? null;
+    },
+  };
+  const photo = frame('original');
+  await cache.savePreviewPair(photo.stableKey, {
+    thumbnail: new Blob(['cached thumbnail']),
+    review: new Blob(['cached review']),
+  });
+
+  const provider = new BrowserPreviewProvider(cache);
+  t.after(() => provider.clear());
+  provider.registerLinked(photo.stableKey, {
+    read: async () => { throw new Error('source volume is disconnected'); },
+    size: 1024,
+    lastModified: 1,
+  });
+
+  const thumbnailUrl = await provider.getThumbnailUrl(photo);
+  const reviewUrl = await provider.getFullPreviewUrl(photo);
+  assert.equal(await (await fetch(thumbnailUrl)).text(), 'cached thumbnail');
+  assert.equal(await (await fetch(reviewUrl)).text(), 'cached review');
+});
+
+test('linked originals generate a small thumbnail and bounded review preview without caching the source', async (t) => {
+  const originals = new Map([
+    ['createImageBitmap', Object.getOwnPropertyDescriptor(globalThis, 'createImageBitmap')],
+    ['document', Object.getOwnPropertyDescriptor(globalThis, 'document')],
+  ]);
+  t.after(() => {
+    for (const [key, descriptor] of originals) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+  });
+
+  const dimensions: string[] = [];
+  Object.defineProperty(globalThis, 'createImageBitmap', {
+    configurable: true,
+    value: async () => ({ width: 8256, height: 5504, close() {} }),
+  });
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true,
+    value: {
+      createElement: () => {
+        const canvas = {
+          width: 0,
+          height: 0,
+          getContext: () => ({ drawImage() {} }),
+          toBlob: (callback: (blob: Blob) => void) => {
+            const size = `${canvas.width}x${canvas.height}`;
+            dimensions.push(size);
+            callback(new Blob([size], { type: 'image/jpeg' }));
+          },
+        };
+        return canvas;
+      },
+    },
+  });
+
+  let saved: { thumbnail: Blob; review: Blob } | undefined;
+  const provider = new BrowserPreviewProvider({
+    async savePreviewPair(_key, previews) { saved = previews; return true; },
+    async loadPreviewPair() { return saved ?? null; },
+  });
+  assert.equal(await provider.cacheOfflinePreviews('linked-photo', 'photo.jpg', new Blob(['original'])), true);
+  assert.deepEqual(dimensions, ['400x267', '2200x1467']);
+  assert.equal(await saved?.thumbnail.text(), '400x267');
+  assert.equal(await saved?.review.text(), '2200x1467');
+});

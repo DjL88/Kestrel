@@ -149,7 +149,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           {frame.filename}
         </span>
         <span className="text-[11px] text-zinc-500 mt-0.5">
-          {needsAccess ? 'Folder permission needed' : 'Preview unavailable'}
+          {needsAccess ? 'Original unavailable — reconnect its folder or drive' : 'Preview unavailable'}
         </span>
       </div>
     );

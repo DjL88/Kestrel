@@ -8,12 +8,14 @@ import {
 import { unreferencedBlobKeys } from '../core/projects';
 import type { CatalogueStore } from '../core/platformBoundaries';
 import type { CullingState, ShootDescriptor, WorkspaceViewMode } from '../core/types';
+import type { OfflinePreviewCache, OfflinePreviewPair } from './browserPreviewProvider';
 
 const DB_NAME = 'kestrel-cull-v1';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_CATALOGUE = 'catalogue';
 const STORE_FILES = 'localFiles';
 const STORE_HANDLES = 'directoryHandles';
+const STORE_PREVIEWS = 'offlinePreviews';
 
 const PROJECT_PREFIX = 'project:';
 const ACTIVE_KEY = 'active-shoot-state';
@@ -63,6 +65,9 @@ function openDatabase(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_HANDLES)) {
         db.createObjectStore(STORE_HANDLES);
+      }
+      if (!db.objectStoreNames.contains(STORE_PREVIEWS)) {
+        db.createObjectStore(STORE_PREVIEWS);
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -146,7 +151,7 @@ export function savePreferences(prefs: UserPreferences): void {
   }
 }
 
-export class BrowserCatalogueStore implements CatalogueStore {
+export class BrowserCatalogueStore implements CatalogueStore, OfflinePreviewCache {
   private projectWrite = Promise.resolve();
 
   async listProjects(): Promise<ShootDescriptor[]> {
@@ -232,7 +237,7 @@ export class BrowserCatalogueStore implements CatalogueStore {
       const db = await openDatabase();
       try {
         await new Promise<void>((resolve, reject) => {
-          const tx = db.transaction([STORE_CATALOGUE, STORE_FILES, STORE_HANDLES], 'readwrite');
+          const tx = db.transaction([STORE_CATALOGUE, STORE_FILES, STORE_HANDLES, STORE_PREVIEWS], 'readwrite');
           tx.oncomplete = () => resolve();
           tx.onabort = () => reject(tx.error ?? new Error('Deleting the project was interrupted'));
           const catalogue = tx.objectStore(STORE_CATALOGUE);
@@ -261,7 +266,10 @@ export class BrowserCatalogueStore implements CatalogueStore {
               catalogue.put(true, LEGACY_MIGRATION_BLOCKED);
               catalogue.delete(ACTIVE_KEY);
               tx.objectStore(STORE_HANDLES).delete(id);
-              for (const key of keys) tx.objectStore(STORE_FILES).delete(key);
+              for (const key of keys) {
+                tx.objectStore(STORE_FILES).delete(key);
+                tx.objectStore(STORE_PREVIEWS).delete(key);
+              }
             };
           };
         });
@@ -332,6 +340,19 @@ export class BrowserCatalogueStore implements CatalogueStore {
     return idbGet<Blob>(STORE_FILES, stableKey);
   }
 
+  async savePreviewPair(stableKey: string, previews: OfflinePreviewPair): Promise<boolean> {
+    try {
+      await idbSet(STORE_PREVIEWS, stableKey, previews);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async loadPreviewPair(stableKey: string): Promise<OfflinePreviewPair | null> {
+    return idbGet<OfflinePreviewPair>(STORE_PREVIEWS, stableKey);
+  }
+
   async clearLocalFileBlobs(): Promise<void> {
     await idbDeleteStore(STORE_FILES);
   }
@@ -353,6 +374,7 @@ export class BrowserCatalogueStore implements CatalogueStore {
     await idbDeleteStore(STORE_CATALOGUE);
     await idbDeleteStore(STORE_FILES);
     await idbDeleteStore(STORE_HANDLES);
+    await idbDeleteStore(STORE_PREVIEWS);
     try {
       localStorage.removeItem('kestrel.activeStateFallback.v1');
     } catch {
