@@ -32,6 +32,12 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
   await page.getByRole('button', { name: 'Create project' }).click();
   await checkViewport('Empty library portrait');
+  // The Library More menu exposes the same handedness setting used by the Editor.
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Left side' })).toBeVisible();
+  await page.getByRole('button', { name: 'Left side' }).click();
+  await expect(page.getByRole('button', { name: 'Left side' })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'More', exact: true }).click();
 
   await page.getByRole('button', { name: 'Add photos', exact: true }).click();
   const images = await page.evaluate(() => Array.from({ length: 3 }, (_, i) => {
@@ -51,6 +57,14 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(page.getByRole('toolbar', { name: 'Editor actions' })).toBeVisible();
   await checkViewport('Editor portrait');
+  await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
+  const appearance = page.getByRole('dialog', { name: 'Appearance and layout settings' });
+  await expect(appearance.getByRole('button', { name: 'Left side' })).toHaveAttribute('aria-pressed', 'true');
+  await appearance.getByRole('button', { name: 'Right side' }).click();
+  await expect(appearance.getByRole('button', { name: 'Right side' })).toHaveAttribute('aria-pressed', 'true');
+  await appearance.getByRole('radio', { name: 'Night (dimmer, softer)' }).check();
+  await appearance.getByRole('button', { name: 'Done' }).click();
+  await checkViewport('Editor with changed appearance settings');
 
   // Long action rows must scroll horizontally inside their own containers,
   // not enlarge the page or push the photo out of view.
@@ -58,7 +72,19 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await expect(top).toHaveCSS('overflow-x', 'auto');
   await page.setViewportSize({ width: 667, height: 375 });
   await checkViewport('Editor landscape');
+  const editLayout = () => page.evaluate(() => {
+    const editor = document.querySelector('section[aria-label="Photo editor"]');
+    const layout = [...(editor?.children ?? [])].find((child) => (child as HTMLElement).className.includes('workspace:flex-row'));
+    return layout ? getComputedStyle(layout).flexDirection : 'missing';
+  });
+  expect(await editLayout()).toBe('column');
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
   await page.setViewportSize({ width: 320, height: 568 });
   await checkViewport('Editor small phone');
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await checkViewport('Tablet landscape');
+  expect(await editLayout()).toBe('row');
+  await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
+  await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' })
+    .getByRole('button', { name: 'Right side' })).toHaveAttribute('aria-pressed', 'true');
 });
