@@ -19,7 +19,7 @@ For each body, keep a local, rights-cleared sample for each available compressio
 3. Run the local comparison. The report contains per-channel code-value errors, not a perceptual colour metric or an automatic pass threshold. Review departures side by side before setting release criteria. Record decode speed and peak memory separately.
 
 ```sh
-python -m pip install numpy tifffile
+python -m pip install -r scripts/requirements-nikon-qa.txt
 python scripts/compare_nikon_tiffs.py reference.tif candidate.tif --source-nef original.NEF \
   --body Z8 --firmware 'your firmware version' --compression 'HE*' \
   --nx-studio-build 'your NX Studio build' --candidate-build 'your candidate build'
