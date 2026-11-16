@@ -166,3 +166,20 @@ test('invalid detector measurements cannot silently produce confident automatic 
     assert.deepEqual([result.decision, result.confidence, result.reason], [null, 'low', 'noSubject']);
   }
 });
+
+
+test('invalid culling scores never consume keeper slots or remain high-confidence', () => {
+  const state = createDemoShootState(3);
+  state.frames = state.frames.map((frame) => ({ ...frame, isDemo: false, burstGroupId: null }));
+  const [a, b, c] = state.frames;
+  const suggestions = [
+    { frameId: a.id, decision: 'keep' as const, confidence: 'high' as const, score: Infinity, reason: 'clearDetail' as const },
+    { frameId: b.id, decision: 'keep' as const, confidence: 'high' as const, score: NaN, reason: 'clearDetail' as const },
+    { frameId: c.id, decision: 'keep' as const, confidence: 'high' as const, score: 91, reason: 'clearDetail' as const },
+  ];
+  const limited = limitAutoKeepers(suggestions, state.frames, 1);
+  assert.deepEqual(limited.map((item) => item.confidence), ['medium', 'medium', 'high']);
+  assert.deepEqual(limited.slice(0, 2).map((item) => item.score), [0, 0]);
+  assert.equal(suggestions[0].score, Infinity, 'input is not mutated');
+  assert.equal(Number.isNaN(suggestions[1].score), true);
+});
