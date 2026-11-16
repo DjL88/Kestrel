@@ -54,12 +54,26 @@ fn unique_system_decode_folder() -> Result<std::path::PathBuf, String> {
     Err("Could not allocate a private RAW workspace.".to_string())
 }
 
+/// Only camera RAW extensions may become part of a temporary filename. Reject path
+/// separators and arbitrary suffixes before writing any caller-provided bytes.
+#[cfg(target_os = "macos")]
+fn safe_raw_extension(extension: &str) -> Result<&'static str, String> {
+    match extension.to_ascii_lowercase().as_str() {
+        "nef" => Ok("nef"), "nrw" => Ok("nrw"), "arw" => Ok("arw"),
+        "cr2" => Ok("cr2"), "cr3" => Ok("cr3"), "raf" => Ok("raf"),
+        "dng" => Ok("dng"), "orf" => Ok("orf"), "rw2" => Ok("rw2"),
+        "pef" => Ok("pef"), "srw" => Ok("srw"), "3fr" => Ok("3fr"),
+        _ => Err("Unsupported RAW file extension.".to_string()),
+    }
+}
+
 /// macOS can read RAW formats the built-in decoder cannot, including Nikon High Efficiency (HE and HE*) files, because the
 /// system's own RAW engine includes licensed decoders. `sips` is part of macOS and uses that engine. The result is Apple's
 /// neutral rendering at the file's full size, already turned the right way up. Used only when the built-in decoder fails.
 #[cfg(target_os = "macos")]
 fn develop_with_system(bytes: &[u8], extension: &str) -> Result<Vec<u8>, String> {
     use std::process::Command;
+    let extension = safe_raw_extension(extension)?;
     let folder = unique_system_decode_folder()?;
     let input = folder.join(format!("in.{extension}"));
     let output = folder.join("out.jpg");
@@ -168,6 +182,17 @@ mod tests {
         let jpeg = super::develop_any(&bytes, "nef").expect("the system decoder reads HE*");
         let image = image::load_from_memory_with_format(&jpeg, image::ImageFormat::Jpeg).unwrap().to_rgb8();
         assert_eq!((image.width(), image.height()), (8256, 5504));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn system_decoder_rejects_untrusted_extension_paths() {
+        for bad in ["../escape", "nef/../../escape", "", ".nef", "nef\\\\out", "jpg", "nef\\n"] {
+            assert!(super::safe_raw_extension(bad).is_err(), "accepted {bad:?}");
+        }
+        assert_eq!(super::safe_raw_extension("NEF").unwrap(), "nef");
+        assert_eq!(super::safe_raw_extension("nrw").unwrap(), "nrw");
+        assert_eq!(super::safe_raw_extension("CR3").unwrap(), "cr3");
     }
 
     #[cfg(target_os = "macos")]
