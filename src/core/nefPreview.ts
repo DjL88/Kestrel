@@ -143,14 +143,19 @@ export async function extractRawPreview(file: Blob): Promise<Blob | null> {
   // Most camera-embedded JPEGs are near the front of a RAW file. Probe in
   // increasing bounded windows to avoid allocating 28 MiB for every thumbnail.
   // A failed early probe is not proof the file lacks a preview.
+  let bestFallback: { blob: Blob; pixels: number } | null = null;
   for (const bytes of FALLBACK_STEPS) {
     const buffer = await file.slice(0, Math.min(file.size, bytes)).arrayBuffer();
     const fallback = extractEmbeddedJpegFromRawBuffer(buffer);
     if (!fallback) continue;
     const candidate = new Blob([fallback.bytes.slice()], { type: 'image/jpeg' });
-    if (await usefulPixelCount(candidate)) return candidate;
+    const pixels = await usefulPixelCount(candidate);
+    if (pixels > (bestFallback?.pixels ?? 0)) bestFallback = { blob: candidate, pixels };
+    // A substantial full-frame preview is sufficient; do not keep reading the RAW.
+    // Small camera thumbnails must not hide a larger preview later in the file.
+    if (pixels >= 12_000_000) return candidate;
   }
-  return null;
+  return bestFallback?.blob ?? null;
 }
 
 /** The old name, kept so existing callers keep working. */
