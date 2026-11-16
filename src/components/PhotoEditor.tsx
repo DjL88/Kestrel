@@ -166,8 +166,14 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   // Full screen uses the whole page, so the macro pad and keyboard shortcuts keep working. Not every browser allows it (iPhone Safari does not).
   const canFullscreen = typeof document !== 'undefined' && Boolean(document.fullscreenEnabled);
   const [fullscreen, setFullscreen] = useState(() => typeof document !== 'undefined' && Boolean(document.fullscreenElement));
+  const [landscapeLocked, setLandscapeLocked] = useState(false);
+  const [orientationNotice, setOrientationNotice] = useState('');
+  const canLockOrientation = isPhone && typeof screen !== 'undefined' && typeof screen.orientation?.lock === 'function';
   useEffect(() => {
-    const sync = () => setFullscreen(Boolean(document.fullscreenElement));
+    const sync = () => {
+      setFullscreen(Boolean(document.fullscreenElement));
+      if (!document.fullscreenElement) { setLandscapeLocked(false); setOrientationNotice(''); }
+    };
     document.addEventListener('fullscreenchange', sync);
     return () => {
       document.removeEventListener('fullscreenchange', sync);
@@ -177,6 +183,16 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const toggleFullscreen = () => {
     const request = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
     request.catch(() => { /* the browser refused; the editor carries on as before */ });
+  };
+  const toggleLandscape = async () => {
+    if (!fullscreen || !canLockOrientation) return;
+    try {
+      if (landscapeLocked) { screen.orientation.unlock(); setLandscapeLocked(false); }
+      else { await screen.orientation.lock('landscape'); setLandscapeLocked(true); }
+      setOrientationNotice('');
+    } catch {
+      setOrientationNotice('This device cannot lock rotation. Turn your device to view the photo in landscape.');
+    }
   };
   // A saved or resized layout can leave the Export tab selected on a screen that has no such tab.
   useEffect(() => { if (!isPhone && tab === 'export') setTab('auto'); }, [isPhone, tab]);
@@ -657,6 +673,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           onClick={() => setAppearanceOpen(true)} title="Display theme and editing tools side">
           <Settings2 className="h-4 w-4" aria-hidden="true" />
         </button>
+        {canLockOrientation && fullscreen && (
+          <button type="button" className={`${button} inline-flex items-center border border-white/15`}
+            aria-pressed={landscapeLocked} onClick={() => void toggleLandscape()}
+            title="Use landscape for this full-screen photo; return to automatic rotation when finished">
+            {landscapeLocked ? 'Auto rotate' : 'Landscape'}
+          </button>
+        )}
         {canFullscreen && (
           <button type="button" className={`${button} inline-flex items-center`} aria-pressed={fullscreen} onClick={toggleFullscreen}
             aria-label={fullscreen ? 'Leave full screen' : 'Full screen'} title={fullscreen ? 'Leave full screen (Esc)' : 'Full screen: the photo and tools fill the screen. Keyboard and macro pad keep working.'}>
@@ -1098,6 +1121,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       </div>
       {isPhone && tabList}
       </div>
+      {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}
       {appearanceOpen && (
         <div role="presentation" className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] workspace:items-center"
           onMouseDown={(event) => { if (event.target === event.currentTarget) setAppearanceOpen(false); }}>
