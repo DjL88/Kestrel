@@ -1355,6 +1355,8 @@ export default function App() {
         onKeeperTargetChange={(target) =>
           setCullingState((prev) => ({ ...prev, keeperTarget: target }))
         }
+        editPanelSide={prefs.editPanelSide}
+        onEditPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, editPanelSide: side }))}
         viewMode={prefs.viewMode}
         onViewModeChange={(mode) => {
           if (mode === 'compare') {
