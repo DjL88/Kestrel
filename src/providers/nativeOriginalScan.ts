@@ -51,15 +51,6 @@ export function matchScannedOriginals(
   candidates: readonly ScannedOriginal[],
 ): { matches: Map<string, string>; ambiguous: string[] } {
   const matches = new Map<string, string>(), ambiguous: string[] = [];
-  for (const frame of expected) {
-    const possible = candidates.filter((file) =>
-      file.name.toLowerCase() === frame.filename.toLowerCase() &&
-      file.size === frame.size && file.lastModified === frame.lastModified);
-    if (possible.length === 1) matches.set(frame.stableKey, possible[0].path);
-    else if (possible.length > 1) ambiguous.push(frame.stableKey);
-  }
-  return { matches, ambiguous };
-}  const matches = new Map<string, string>(), ambiguous: string[] = [];
   const byIdentity = new Map<string, ScannedOriginal[]>();
   for (const candidate of candidates) {
     const identity = JSON.stringify([candidate.name.toLowerCase(), candidate.size, candidate.lastModified]);

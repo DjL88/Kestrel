@@ -12,9 +12,9 @@ export function classifyOriginalPathError(error: unknown): Exclude<OriginalPathS
   // Windows network failures must not be mistaken for files that were moved.
   // Check these before the generic 'not found' wording (error 53 includes it).
   if (['enetunreach', 'ehostunreach', 'etimedout', 'econnreset', 'enotconn'].includes(code) ||
-      /os error (53|64|67|121|1231)\\b|network path was not found|network name is no longer available|network is unreachable|connection timed out|transport endpoint is not connected/.test(message)) return 'unavailable';
-  if (code === 'enoent' || code === 'notfound' || /not found|no such file|cannot find the (file|path)|os error 2\\b|os error 3\\b/.test(message)) return 'missing';
-  if (code === 'eacces' || code === 'eperm' || /permission denied|access is denied|not permitted|os error 5\\b|os error 13\\b/.test(message)) return 'permission-denied';
+      /os error (53|64|67|121|1231)\b|network path was not found|network name is no longer available|network is unreachable|connection timed out|transport endpoint is not connected/.test(message)) return 'unavailable';
+  if (code === 'enoent' || code === 'notfound' || /not found|no such file|cannot find the (file|path)|os error 2\b|os error 3\b/.test(message)) return 'missing';
+  if (code === 'eacces' || code === 'eperm' || /permission denied|access is denied|not permitted|os error 5\b|os error 13\b/.test(message)) return 'permission-denied';
   // Includes disconnected SMB/NAS mounts, timeouts, and unknown Tauri errors.
   return 'unavailable';
 }

@@ -33,6 +33,6 @@ test('folder suggestion supports Windows, UNC NAS and POSIX paths', () => {
 test('native OS errors are classified without treating offline drives as deleted originals', () => {
   assert.equal(classifyOriginalPathError(new Error('os error 2')), 'missing');
   assert.equal(classifyOriginalPathError(new Error('os error 5')), 'permission-denied');
-  assert.equal(classifyOriginalPathError(new Error('network path was not found, os error 53')), 'missing');
+  assert.equal(classifyOriginalPathError(new Error('network path was not found, os error 53')), 'unavailable');
   assert.equal(classifyOriginalPathError(new Error('drive disconnected')), 'unavailable');
 });

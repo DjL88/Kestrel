@@ -36,7 +36,7 @@ export async function loadLocalFileListShoot(
   previewProvider: BrowserPreviewProvider,
   store: BrowserCatalogueStore,
   onProgress?: (progress: LocalLoadProgress) => void
-): Promise<{ shoot: ShootDescriptor; frames: PhotoFrame[]; storedAllBlobs: boolean; unstoredKeys: string[] }> {
+): Promise<{ shoot: ShootDescriptor; frames: PhotoFrame[]; storedAllBlobs: boolean; unstoredKeys: string[]; uncachedPreviewKeys: string[] }> {
   const validFiles = files
     .map((f) => (f instanceof File ? pickedFromFile(f) : f))
     .filter((f) => isSupportedPhotoFilename(f.name))
@@ -45,6 +45,7 @@ export async function loadLocalFileListShoot(
   const shootId = `local-files-${Date.now()}`;
   const rawFrames: PhotoFrame[] = [];
   const unstoredKeys: string[] = [];
+  const uncachedPreviewKeys: string[] = [];
 
   const BATCH_SIZE = validFiles.some((photo) => photo.path) ? 4 : 12;
   for (let i = 0; i < validFiles.length; i += BATCH_SIZE) {
@@ -57,10 +58,22 @@ export async function loadLocalFileListShoot(
         if (file.path) {
           // Stays where it is on the disk: nothing is copied into the app, and it is read again when needed.
           previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified), size: file.size, lastModified: file.lastModified });
+          try {
+            if (!await previewProvider.cacheOfflinePreviews(stableKey, file.name, opened)) uncachedPreviewKeys.push(stableKey);
+          } catch {
+            uncachedPreviewKeys.push(stableKey);
+          }
         } else {
           previewProvider.registerBlob(stableKey, opened);
           const saved = await store.saveLocalFileBlob(stableKey, opened);
-          if (!saved) unstoredKeys.push(stableKey);
+          if (!saved) {
+            unstoredKeys.push(stableKey);
+            try {
+              if (!await previewProvider.cacheOfflinePreviews(stableKey, file.name, opened)) uncachedPreviewKeys.push(stableKey);
+            } catch {
+              uncachedPreviewKeys.push(stableKey);
+            }
+          }
         }
 
         const exif = await parseImageExif(opened, file.name);
@@ -112,7 +125,7 @@ export async function loadLocalFileListShoot(
     lastUpdatedAt: now,
   };
 
-  return { shoot, frames: grouped, storedAllBlobs: unstoredKeys.length === 0, unstoredKeys };
+  return { shoot, frames: grouped, storedAllBlobs: unstoredKeys.length === 0, unstoredKeys, uncachedPreviewKeys };
 }
 
 export async function readFilesFromDirectoryHandle(
