@@ -24,6 +24,10 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
 
   await page.goto('/');
   await checkViewport('Projects portrait');
+  await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
+  await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' })).toBeVisible();
+  await page.getByRole('dialog', { name: 'Appearance and layout settings' }).getByRole('button', { name: 'Done' }).click();
+  await checkViewport('Projects appearance sheet closed');
   await page.getByRole('button', { name: 'New project' }).click();
   await checkViewport('Project wizard portrait');
   await page.getByRole('textbox', { name: 'Project name' }).fill('Viewport regression');
