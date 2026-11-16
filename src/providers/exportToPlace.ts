@@ -18,7 +18,10 @@ export function exportPlaceFor(projectId: string): ExportPlace | null {
     async save(files) {
       const opened = await openConnection(id);
       if ('problem' in opened) return { ok: false, message: opened.message };
-      const paths = exportPaths(files, new Date());
+      // A minute-level folder name is not unique: two exports in the same minute
+      // could otherwise replace one another on remote or mounted storage.
+      const runId = crypto.randomUUID();
+      const paths = exportPaths(files, new Date(), runId);
       let count = 0;
       try {
         for (let i = 0; i < files.length; i += 1) { await opened.connector.put(paths[i], new Uint8Array(await files[i].arrayBuffer()), ''); count += 1; }
