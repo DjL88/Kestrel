@@ -67,6 +67,22 @@ fn safe_raw_extension(extension: &str) -> Result<&'static str, String> {
     }
 }
 
+#[cfg(target_os = "macos")]
+fn validate_system_jpeg(jpeg: &[u8]) -> Result<(), String> {
+    use image::ImageReader;
+    use std::io::Cursor;
+    let invalid = || "macOS returned an invalid RAW development.".to_string();
+    if !jpeg.starts_with(&[0xff, 0xd8]) || !jpeg.ends_with(&[0xff, 0xd9]) {
+        return Err(invalid());
+    }
+    let (width, height) = ImageReader::with_format(Cursor::new(jpeg), image::ImageFormat::Jpeg)
+        .into_dimensions().map_err(|_| invalid())?;
+    if width == 0 || height == 0 || (width as u64) * (height as u64) > 200_000_000 {
+        return Err(invalid());
+    }
+    Ok(())
+}
+
 /// macOS can read RAW formats the built-in decoder cannot, including Nikon High Efficiency (HE and HE*) files, because the
 /// system's own RAW engine includes licensed decoders. `sips` is part of macOS and uses that engine. The result is Apple's
 /// neutral rendering at the file's full size, already turned the right way up. Used only when the built-in decoder fails.
@@ -85,7 +101,11 @@ fn develop_with_system(bytes: &[u8], extension: &str) -> Result<Vec<u8>, String>
             .output()
             .map_err(|error| error.to_string())?;
         if !status.status.success() { return Err("macOS could not read this RAW file either.".to_string()); }
-        std::fs::read(&output).map_err(|_| "macOS could not read this RAW file either.".to_string())
+        let jpeg = std::fs::read(&output).map_err(|_| "macOS could not read this RAW file either.".to_string())?;
+        // A successful sips exit alone does not establish a usable preview. Validate
+        // the container and dimensions without decoding a second full-size bitmap.
+        validate_system_jpeg(&jpeg)?;
+        Ok(jpeg)
     })();
     let _ = std::fs::remove_dir_all(&folder);
     result
@@ -193,6 +213,20 @@ mod tests {
         assert_eq!(super::safe_raw_extension("NEF").unwrap(), "nef");
         assert_eq!(super::safe_raw_extension("nrw").unwrap(), "nrw");
         assert_eq!(super::safe_raw_extension("CR3").unwrap(), "cr3");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn system_raw_output_must_be_a_bounded_jpeg() {
+        assert!(super::validate_system_jpeg(&[]).is_err());
+        assert!(super::validate_system_jpeg(&[0xff, 0xd8, 0xff, 0xd9]).is_err());
+        let mut valid = Vec::new();
+        let tiny = image::RgbImage::new(2, 2);
+        image::codecs::jpeg::JpegEncoder::new(&mut valid).encode_image(&tiny).unwrap();
+        assert!(super::validate_system_jpeg(&valid).is_ok());
+        let mut truncated = valid.clone();
+        truncated.pop();
+        assert!(super::validate_system_jpeg(&truncated).is_err());
     }
 
     #[cfg(target_os = "macos")]
