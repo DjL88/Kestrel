@@ -30,6 +30,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
   private fullUrlCache = new Map<string, string>();
   private fullFrameKeys = new Map<string, string>();
   private fullUrlOrder: string[] = [];
+  private offlineFullKeys = new Set<string>();
   private pendingThumbs = new Map<string, Promise<string>>();
 
   registerBlob(stableKey: string, blob: Blob): void {
@@ -39,6 +40,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       this.invalidateFullPreview(stableKey);
     }
     this.localBlobs.set(stableKey, blob);
+    if (this.offlineFullKeys.has(stableKey)) this.invalidateFullPreview(stableKey);
   }
 
   /** Photos that stay on the disk: how to read each one, and what it was like when added. Read only when needed. */
@@ -53,6 +55,8 @@ export class BrowserPreviewProvider implements PreviewProvider {
       this.invalidateFullPreview(stableKey);
     }
     this.linked.set(stableKey, info);
+    // A newly accessible original must replace a low-resolution offline fallback.
+    if (this.offlineFullKeys.has(stableKey)) this.invalidateFullPreview(stableKey);
   }
 
   getOriginal(stableKey: string): Blob | undefined {
@@ -136,6 +140,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     const stale = this.fullUrlCache.get(key);
     if (stale) URL.revokeObjectURL(stale);
     this.fullUrlCache.delete(key);
+    this.offlineFullKeys.delete(key);
     this.fullUrlOrder = this.fullUrlOrder.filter((item) => item !== key);
   }
 
@@ -168,6 +173,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       if (!offline) return '';
       const fallbackUrl = URL.createObjectURL(offline);
       this.fullUrlCache.set(key, fallbackUrl);
+      this.offlineFullKeys.add(key);
       this.fullUrlOrder.push(key);
       while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
         const oldest = this.fullUrlOrder.shift();
@@ -175,6 +181,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
         const stale = this.fullUrlCache.get(oldest);
         if (stale) URL.revokeObjectURL(stale);
         this.fullUrlCache.delete(oldest);
+        this.offlineFullKeys.delete(oldest);
       }
       return fallbackUrl;
     }
@@ -195,6 +202,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
     const objectUrl = URL.createObjectURL(previewBlob);
     this.fullUrlCache.set(key, objectUrl);
+    this.offlineFullKeys.delete(key);
     this.fullUrlOrder.push(key);
 
     while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
@@ -203,6 +211,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
         const oldUrl = this.fullUrlCache.get(oldestKey);
         if (oldUrl) URL.revokeObjectURL(oldUrl);
         this.fullUrlCache.delete(oldestKey);
+        this.offlineFullKeys.delete(oldestKey);
       }
     }
 
@@ -233,6 +242,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.fullUrlCache.clear();
     this.fullFrameKeys.clear();
     this.fullUrlOrder = [];
+    this.offlineFullKeys.clear();
     this.localBlobs.clear();
     this.linked.clear();
     this.linkedLoading.clear();
