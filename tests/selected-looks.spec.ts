@@ -37,6 +37,7 @@ test('select two photos, apply monochrome recipe, keep third photo unchanged', a
   await page.getByRole('button', { name: 'Next photo' }).click();
   await expect(page.getByRole('slider', { name: 'Colour adjustment' })).toHaveValue('-2');
   await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByRole('button', { name: 'Workspace options' }).click();
   await page.getByRole('button', { name: 'Select photos' }).click();
   await page.getByRole('button', { name: 'Select style-3.png' }).click();
   await page.getByRole('button', { name: 'Edit selected' }).click();

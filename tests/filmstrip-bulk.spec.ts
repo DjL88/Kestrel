@@ -97,9 +97,15 @@ test('filmstrip selection can bulk export and paste slider edits, keeping origin
   await bar.getByRole('button', { name: 'Paste to selected' }).click();
   await expect(page.getByRole('alertdialog', { name: 'Paste adjustments to 2 photos?' })).toBeVisible();
   await page.getByRole('button', { name: 'Apply adjustments' }).click();
-  await film.getByRole('button', { name: 'Select batch-2.png' }).click();
+  // The last marked photo is active. Clicking it again would remove it from the export selection.
+  await expect(page.getByRole('heading', { name: 'batch-3.png', exact: true })).toBeVisible();
   await expect(light).toHaveValue('0.1');
+  await expect(bar.getByRole('status')).toHaveText('2 selected');
   // The primary Editor Export must send both selected frames, not just the active photo.
   await page.getByRole('toolbar', { name: 'Editor actions' }).getByRole('button', { name: 'Export 2' }).click();
   await expect(page.getByRole('heading', { name: 'Export 2 photos' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close export' }).click();
+  await bar.getByRole('button', { name: 'Done selecting' }).click();
+  await film.getByRole('button', { name: 'Jump to frame batch-2.png' }).click();
+  await expect(light).toHaveValue('0.1');
 });
