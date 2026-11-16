@@ -134,11 +134,17 @@ export async function loadDirectoryHandleShoot(
   dirHandle: FileSystemDirectoryHandle,
   previewProvider: BrowserPreviewProvider,
   store: BrowserCatalogueStore,
-  onProgress?: (progress: LocalLoadProgress) => void
+  onProgress?: (progress: LocalLoadProgress) => void,
+  options?: {
+    /** Catalogue project that owns this folder permission. */
+    handleKey?: string;
+    /** Reuse an already enumerated folder so the picker path is only walked once. */
+    entries?: Awaited<ReturnType<typeof readFilesFromDirectoryHandle>>;
+  }
 ): Promise<{ shoot: ShootDescriptor; frames: PhotoFrame[] }> {
-  const entries = await readFilesFromDirectoryHandle(dirHandle);
+  const entries = options?.entries ?? await readFilesFromDirectoryHandle(dirHandle);
   const shootId = `local-folder-${dirHandle.name}`;
-  await store.saveDirectoryHandle(shootId, dirHandle);
+  await store.saveDirectoryHandle(options?.handleKey ?? shootId, dirHandle);
 
   const rawFrames: PhotoFrame[] = [];
   const BATCH_SIZE = 16;
