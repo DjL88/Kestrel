@@ -80,7 +80,9 @@ export function scoreWithSubject(base: CullSuggestion, found: SubjectFinding | n
       !Number.isFinite(found.sharpness) || found.sharpness < 0)) {
     return { ...base, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
   }
-  const real = found && ((found.score >= 0.45 && found.size >= 120) || found.score >= 0.7);
+  // Even a very confident detection must occupy real image pixels. A zero-area
+  // bounding box is a detector failure, not a sharp bird or aircraft.
+  const real = found && found.size > 0 && ((found.score >= 0.45 && found.size >= 120) || found.score >= 0.7);
   if (!found || !real) return { ...base, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
   const weight = Math.min(1, found.score / 0.8);
   if (found.sharpness >= 14) {
