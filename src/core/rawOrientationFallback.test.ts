@@ -14,32 +14,66 @@ function mockBitmapDecoder(decode: typeof createImageBitmap, run: () => Promise<
   });
 }
 
-test('a damaged embedded Nikon preview cannot discard an already developed RAW photograph', async () => {
-  let calls = 0;
-  await mockBitmapDecoder((async () => {
-    calls++;
-    throw new Error('Camera JPEG could not be decoded');
-  }) as typeof createImageBitmap, async () => {
+test('an unreadable embedded Nikon preview keeps the validated full-size result', async () => {
+  let closed = 0;
+  await mockBitmapDecoder(async (input) => {
+    if (input === preview) throw new Error('Camera JPEG could not be decoded');
+    assert.strictEqual(input, developed);
+    return { close: () => { closed++; } } as ImageBitmap;
+  }, async () => {
     assert.strictEqual(await matchPreviewOrientation(developed, preview), developed);
   });
-  assert.equal(calls, 1, 'Do not attempt orientation work when the preview is unavailable');
-});
-
-test('if the developed picture cannot decode, close the temporary preview bitmap and report the failure', async () => {
-  let calls = 0;
-  let closed = 0;
-  await mockBitmapDecoder((async () => {
-    if (++calls === 1) return { close: () => { closed++; } } as ImageBitmap;
-    throw new Error('Developed JPEG cannot be decoded');
-  }) as typeof createImageBitmap, async () => {
-    await assert.rejects(matchPreviewOrientation(developed, preview), /Developed JPEG cannot be decoded/);
-  });
-  assert.equal(calls, 2);
   assert.equal(closed, 1);
 });
 
-test('without any camera preview, use the developed picture without decoding an image again', async () => {
-  await mockBitmapDecoder((async () => { throw new Error('Unexpected bitmap call'); }) as typeof createImageBitmap, async () => {
+test('a corrupt native result is refused even with a missing or unreadable camera preview', async () => {
+  const inputs: unknown[] = [];
+  await mockBitmapDecoder(async (input) => {
+    inputs.push(input);
+    throw new Error('Unreadable JPEG');
+  }, async () => {
+    for (const guide of [null, preview]) {
+      await assert.rejects(matchPreviewOrientation(developed, guide), /developed RAW picture could not be opened/);
+    }
+  });
+  assert.deepEqual(inputs, [developed, developed]);
+});
+
+test('without a camera preview, validate and release the native bitmap', async () => {
+  let closed = 0;
+  await mockBitmapDecoder(async (input) => {
+    assert.strictEqual(input, developed);
+    return { close: () => { closed++; } } as ImageBitmap;
+  }, async () => {
     assert.strictEqual(await matchPreviewOrientation(developed, null), developed);
   });
+  assert.equal(closed, 1);
+});
+
+test('when rotation encoding fails, retain the validated native result and release both bitmaps', async (t) => {
+  let closed = 0;
+  const pixels = new Uint8ClampedArray(32 * 32 * 4);
+  const canvas = {
+    width: 0, height: 0,
+    getContext: () => ({
+      drawImage() {}, translate() {}, rotate() {}, getImageData: () => ({ data: pixels }),
+    }),
+    toBlob(callback: (blob: Blob | null) => void) { callback(null); },
+  };
+  const property = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: () => canvas } });
+  t.after(() => {
+    if (property) Object.defineProperty(globalThis, 'document', property);
+    else Reflect.deleteProperty(globalThis, 'document');
+  });
+  await mockBitmapDecoder(async (input) => ({
+    width: input === preview ? 600 : 400,
+    height: input === preview ? 400 : 600,
+    close: () => { closed++; },
+  }) as ImageBitmap, async () => {
+    assert.strictEqual(await matchPreviewOrientation(developed, preview), developed);
+  });
+  assert.equal(closed, 2);
+  assert.equal(canvas.width, 0);
+  assert.equal(canvas.height, 0);
 });
