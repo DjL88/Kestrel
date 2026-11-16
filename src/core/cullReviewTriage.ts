@@ -33,7 +33,7 @@ export function triageCullReview(frames: readonly ReviewCandidate[]): ReviewTria
     const valid = s && Number.isFinite(s.score) && s.score >= 0 && s.score <= 100;
     let priority: ReviewTriage['priority'] = 'review';
     let reason: ReviewTriage['reason'] = 'unscored';
-    if (!valid) { priority = 'urgent'; reason = 'unscored'; }
+    if (!s || !valid) { priority = 'urgent'; reason = 'unscored'; }
     else if (s.decision === 'reject') { priority = 'urgent'; reason = 'possibleFalseReject'; }
     else if (s.decision === null || s.confidence === 'low') { priority = 'urgent'; reason = 'uncertain'; }
     else if (frame.burstGroupId && burstKeepers.has(frame.burstGroupId)) { reason = 'burstAlternative'; }
