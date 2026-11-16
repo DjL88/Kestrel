@@ -49,14 +49,26 @@ test('a virtual copy exports the newly developed pixels at full source dimension
     const provider = new BrowserPreviewProvider();
     const canvas = document.createElement('canvas');
     const encode = (type: string) => new Promise<Blob>((resolve) => canvas.toBlob((blob) => resolve(blob!), type, 1));
-    canvas.width = 512; canvas.height = 384;
+    canvas.width = 640; canvas.height = 480;
     const context = canvas.getContext('2d')!;
     for (let y = 0; y < canvas.height; y += 5) for (let x = 0; x < canvas.width; x += 5) {
       context.fillStyle = (x + y) % 10 ? '#a04820' : '#2084a0';
       context.fillRect(x, y, 5, 5);
     }
     const embedded = await encode('image/jpeg');
-    const original = new Blob([new Uint8Array(64), embedded]);
+    // A TIFF-style NEF container with a real IFD pointing at the embedded JPEG.
+    // Arbitrary zero-prefix bytes are not a valid RAW preview and must fail closed.
+    const header = new Uint8Array(64);
+    const tiff = new DataView(header.buffer);
+    tiff.setUint16(0, 0x4949); tiff.setUint16(2, 42, true);
+    tiff.setUint32(4, 8, true); tiff.setUint16(8, 2, true);
+    for (const [i, tag, value] of [[10, 0x0201, 64], [22, 0x0202, embedded.size]]) {
+      tiff.setUint16(i, tag, true);
+      tiff.setUint16(i + 2, 4, true);
+      tiff.setUint32(i + 4, 1, true);
+      tiff.setUint32(i + 8, value, true);
+    }
+    const original = new Blob([header, embedded]);
     const originalBytes = new Uint8Array(await original.arrayBuffer());
     const frame: PhotoFrame = {
       id: 'original', stableKey: 'generated-nef', filename: 'synthetic-Z8.NEF', sequenceIndex: 1,
@@ -86,7 +98,7 @@ test('a virtual copy exports the newly developed pixels at full source dimension
       };
     } finally { provider.clear(); }
   });
-  expect(result.before).toEqual([512, 384]);
+  expect(result.before).toEqual([640, 480]);
   expect(result.dimensions).toEqual([768, 512]);
   expect(result.pixel).toEqual([50, 150, 200, 255]);
   expect(result.originalUnchanged).toBe(true);
