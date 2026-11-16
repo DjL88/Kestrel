@@ -7,7 +7,7 @@ import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
-import { AppearanceSettings } from './AppearanceSettings';
+import { AppearanceDialog } from './AppearanceDialog';
 import { downloadExport } from '../providers/browserExport';
 import { gridSizeFor } from '../core/subjectModel';
 import { QuickAdjust } from './QuickAdjust';
@@ -1122,20 +1122,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       {isPhone && tabList}
       </div>
       {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}
-      {appearanceOpen && (
-        <div role="presentation" className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] workspace:items-center"
-          onMouseDown={(event) => { if (event.target === event.currentTarget) setAppearanceOpen(false); }}>
-          <section role="dialog" aria-modal="true" aria-label="Appearance and layout settings"
-            onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); setAppearanceOpen(false); } }}
-            className="max-h-[85dvh] w-full max-w-md min-w-0 overflow-y-auto rounded-xl border border-white/15 bg-kestrel-panel p-4 shadow-2xl">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-base font-semibold">Appearance & layout</h2>
-              <button type="button" autoFocus className="min-h-11 rounded-md px-3 text-sm hover:bg-white/10" onClick={() => setAppearanceOpen(false)}>Done</button>
-            </div>
-            <AppearanceSettings side={panelSide} onSideChange={onPanelSideChange} />
-          </section>
-        </div>
-      )}
+      {appearanceOpen && <AppearanceDialog side={panelSide} onSideChange={onPanelSideChange} onClose={() => setAppearanceOpen(false)} />}
       {exportOpen && !onExport && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} onDownloadRequested={onExportRequested} />}
     </section>
   );
