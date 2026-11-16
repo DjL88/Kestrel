@@ -1264,7 +1264,9 @@ export default function App() {
       <ProjectList projects={projects} photoText={photoText} loading={projectBusy} error={projectError}
         onOpen={(id) => void openProject(id)} onCreate={(name, options) => void newProject(name, options)} onRestore={(file) => void restoreBackup(file)}
         onArchive={(project) => setProjectAction({ kind: 'archive', project })} onDelete={(project) => setProjectAction({ kind: 'delete', project })}
-        onUnarchive={(id) => void unarchiveProject(id)} onQuickEdit={(files) => void quickEdit(files)} />
+        onUnarchive={(id) => void unarchiveProject(id)} onQuickEdit={(files) => void quickEdit(files)}
+        editPanelSide={prefs.editPanelSide}
+        onEditPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, editPanelSide: side }))} />
       {projectAction && <ProjectActionDialog kind={projectAction.kind} project={projectAction.project}
         onBackup={() => backUpProject(projectAction.project.id)} onConfirm={() => void confirmProjectAction()} onCancel={() => setProjectAction(null)} />}
     </>;
