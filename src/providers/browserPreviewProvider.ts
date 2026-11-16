@@ -1,3 +1,4 @@
+import { loadOfflinePreview, previewCacheKey, saveOfflinePreview } from './offlinePreviewCache';
 import { extractNefPreview } from '../core/nefPreview';
 import { isRawPreviewFile as isNikonEmbeddedPreviewFile } from '../core/rawFormats';
 import {
@@ -218,6 +219,14 @@ export class BrowserPreviewProvider implements PreviewProvider {
   }
 
   private async buildLocalThumbnailUrl(frame: PhotoFrame): Promise<string> {
+    const info = this.originalInfo(frame.stableKey);
+    const cacheKey = previewCacheKey({ stableKey: frame.stableKey, filename: frame.filename, fileSize: info?.size, lastModified: info?.lastModified });
+    const offline = await loadOfflinePreview(cacheKey);
+    if (offline) {
+      const url = URL.createObjectURL(offline);
+      this.thumbUrlCache.set(frame.id, url);
+      return url;
+    }
     const blob = await this.ensureOriginal(frame.stableKey);
     if (!blob) return '';
 
@@ -251,6 +260,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       const thumbBlob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, 'image/jpeg', 0.82)
       );
+      if (thumbBlob) void saveOfflinePreview(cacheKey, thumbBlob);
       const url = URL.createObjectURL(thumbBlob ?? sourceBlob);
       this.thumbUrlCache.set(frame.id, url);
       return url;
