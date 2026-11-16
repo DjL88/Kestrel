@@ -98,3 +98,10 @@ Where things stand and what is left, in order. Older detail: `AUDIT-2.md`, `AUDI
 - **Cross-device idea, in order:** shared location (done) -> "newer copy available" nudge -> per-photo change times so edits merge -> same-Wi-Fi pairing with a QR code. DxO's per-photo sidecars show the pitfalls (its .dop files are not compatible between Windows and macOS; iCloud offloading lost sidecars), so keep one JSON format and treat "not downloaded yet" as normal.
 - **Claude (MCP):** `docs/MCP.md`. Read-only by default; proposals are files in `kestrel/v1/proposals/` that Kestrel does not yet show: that review screen is next.
 - **Not yet tried by hand:** real S3 services, the desktop HTTP path, connecting Claude Desktop.
+
+## Layouts on tablets, foldables and sideways phones (found 16 November, from screenshots)
+- Foldable inner screen (673x841) and a Duo-style single screen (540x720): get the phone layout. Good.
+- **iPad portrait (820x1180): gets the desktop layout** with a 330 px side panel, so the photo sits in a 490 px column with large black bands. Should use the bottom-sheet layout in portrait, and the side panel only in landscape.
+- **A phone turned sideways (844x390): gets the desktop layout** too; the photo becomes a thin strip. First fix done: the filmstrip no longer starts open on a short touch screen. Still needed: a photo-first landscape layout (controls as a slide-over, chrome hidden).
+- Cause: the layout switches on width only (`isPhone` is `max-width: 767px`); it should consider orientation, height and touch. Needs a test project for tablet (touch, 820x1180 and 1180x820) and landscape phone (844x390).
+- Zoom already exists: pinch, double-tap, wheel and drag (`PhotoViewport`). Missing: a 100% (1:1) button, and re-fit after rotating.

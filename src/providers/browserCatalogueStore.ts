@@ -35,7 +35,9 @@ export interface UserPreferences {
 }
 
 /** A phone starts without the filmstrip, so the photo gets the room. It can be pinned from the bar under the photo. */
-const smallScreen = () => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 767px)').matches === true;
+const smallScreen = () => typeof window !== 'undefined' &&
+  // A phone held upright, or a phone turned sideways (short, and touched rather than clicked): the photo needs the room.
+  window.matchMedia?.('(max-width: 767px), (max-height: 500px) and (pointer: coarse)').matches === true;
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
   viewMode: 'loupe',
