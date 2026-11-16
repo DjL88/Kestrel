@@ -70,7 +70,7 @@
 
 /* The browser viewport, not document content, defines the mobile shell. Long
    toolbars scroll within themselves; never let them widen the page. */
-@media (max-width: 767px) {
+@media (max-width: 899px), (max-height: 549px) {
   #root { height: 100dvh; max-height: 100dvh; overflow: hidden; }
   .mobile-toolbar-scroll {
     min-width: 0;
