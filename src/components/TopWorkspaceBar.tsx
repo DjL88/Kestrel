@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArchiveRestore, ArrowLeft, Download, Ellipsis, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Search, Trash2, Undo2 } from 'lucide-react';
 import type { ProjectSettings } from '../core/projectSettings';
-import { ThemePicker } from './ThemePicker';
+import { AppearanceSettings } from './AppearanceSettings';
 import { messages as m } from '../i18n/messages';
 import type { CullCounts, FilterState, RatingFilter, ShootDescriptor, WorkspaceViewMode } from '../core/types';
 import { RatingFilterControl } from './RatingFilterControl';
@@ -50,6 +50,8 @@ interface TopWorkspaceBarProps {
   redoLabel?: string;
   settings?: ProjectSettings;
   onSettingsChange?: (settings: ProjectSettings) => void;
+  editPanelSide: 'left' | 'right';
+  onEditPanelSideChange: (side: 'left' | 'right') => void;
   onRemoveFromLibrary?: () => void;
   removedCount?: number;
   onOpenRemoved?: () => void;
@@ -225,8 +227,8 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   <MenuItem icon={<Keyboard className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onOpenMacroPadModal, false)}>Macro pad</MenuItem>
                 </MenuSection>
 
-                <details className="border-t border-white/10 pt-1">
-                  <summary className="min-h-10 cursor-pointer py-2 text-sm text-zinc-300">Layout and display</summary>
+                <details className="border-t border-white/10 pt-1" open>
+                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-zinc-200">Appearance & layout</summary>
                   <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
                     <input type="checkbox" checked={props.showFilmstrip} onChange={props.onToggleFilmstrip} />
                     Pin filmstrip
@@ -235,7 +237,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                     <input type="checkbox" checked={props.focusMode} onChange={props.onToggleFocusMode} />
                     Focus mode
                   </label>
-                  <ThemePicker />
+                  <AppearanceSettings side={props.editPanelSide} onSideChange={props.onEditPanelSideChange} />
                 </details>
                 <details className="border-t border-white/10 pt-1">
                   <summary className="min-h-10 cursor-pointer py-2 text-sm text-zinc-300">Culling settings</summary>
