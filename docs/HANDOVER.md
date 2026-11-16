@@ -82,3 +82,10 @@ Where things stand and what is left, in order. Older detail: `AUDIT-2.md`, `AUDI
 5. Fix the "change in the last few ms before closing may not save" weakness (see `docs/PERFORMANCE.md`).
 6. Apple Developer ID signing (membership payment pending on the owner's side); Windows signing when a certificate is bought.
 7. Cloud, accounts and AI are parked (see `docs/COMMERCIAL-RELEASE.md`).
+
+## Final review, night of 15 November
+- **main was red** (29 browser failures). Cause: the editor refactor moved subject and tag controls to the library's Photo info but left the species suggestions rendered nowhere. Fixed in #195 (merged): they are back in Photo info, with their tests.
+- **Still red on main, not mine:** `auto-adjust-selected`, `auto-multi-select-look`, `filmstrip-bulk` (x2), `selected-looks` (desktop and phone). They fail on a clean checkout of main; they look for toolbar and photo-navigation controls ("Selected photo actions", "Next photo", the Light slider) that the latest editor toolbar change moved. Whoever owns that toolbar should fix the tests. Four older phone tests were skipped with a reason (they were written for the desktop layout).
+- **Rule to keep:** run the whole browser suite before merging; the refactor that broke species was merged with a note saying checks had not been run.
+- **New:** right-click menu on photos in the library and filmstrip (#198): Edit, Photo info, Keep/Trash/Review, ratings, copy/paste adjustments, Export, Remove. Touch long-press still means select.
+- **Mac RAW:** Nikon HE/HE* develops through macOS (#179). Click Develop from RAW in the real app to confirm.

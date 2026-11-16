@@ -16,6 +16,8 @@ interface VirtualizedContactSheetProps {
   markedIds: ReadonlySet<string>;
   multiSelect: boolean;
   onInfo: (frameId: string, trigger: HTMLButtonElement | null) => void;
+  /** Right-click (or the Menu key) on a photo. */
+  onPhotoMenu?: (frameId: string, x: number, y: number) => void;
   onOpenLoupe: (frameId: string) => void;
   onDecideFrame: (frameId: string, decision: CullDecision) => void;
   onResetFrame: (frameId: string) => void;
@@ -37,6 +39,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   multiSelect,
   onInfo,
   onOpenLoupe,
+  onPhotoMenu,
   onDecideFrame,
   onResetFrame,
 }) => {
@@ -222,6 +225,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                       onDoubleClick={(event) => {
                         if (!multiSelect && !event.shiftKey && !event.ctrlKey && !event.metaKey) onOpenLoupe(frame.id);
                       }}
+                      onContextMenu={(event) => { if (!onPhotoMenu) return; event.preventDefault(); onPhotoMenu(frame.id, event.clientX, event.clientY); }}
                       aria-pressed={isSelected}
                       aria-label={`${multiSelect ? 'Select' : 'View'} ${frame.filename}`} title={`${multiSelect ? 'Select' : 'View'} ${frame.filename}`}
                       className="relative flex-1 w-full overflow-hidden focus-visible:outline-2 focus-visible:outline-sky-400 text-left"

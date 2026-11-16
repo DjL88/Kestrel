@@ -7,6 +7,8 @@ import { WatchFolderDialog } from './components/WatchFolderDialog';
 import { useFolderWatch } from './providers/useFolderWatch';
 import { PHOTO_ACCEPT } from './core/rawFormats';
 import { TaskManager } from './components/TaskManager';
+import { PhotoContextMenu } from './components/PhotoContextMenu';
+import { ratingFor, targetsFor, type PhotoAction } from './core/photoMenu';
 import { DropOverlay } from './components/DropOverlay';
 import { useDropPhotos } from './providers/useDropPhotos';
 import { DesktopUpdate } from './components/DesktopUpdate';
@@ -561,6 +563,43 @@ export default function App() {
     }));
     setConfirmPasteSelection(false);
     showToast(`Applied copied adjustments to ${ids.size} photos. Undo is available per photo.`);
+  };
+
+  // The right-click menu on a photo (grid or filmstrip). It acts on the whole selection when the photo is part of one.
+  const [photoMenu, setPhotoMenu] = useState<{ frameId: string; x: number; y: number } | null>(null);
+  const openPhotoMenu = (frameId: string, x: number, y: number) => {
+    // A photo outside the current selection becomes the one the menu is about.
+    if (!(multiSelect && selectedIds.has(frameId))) handleSelectFrame(frameId);
+    setPhotoMenu({ frameId, x, y });
+  };
+  const choosePhotoAction = (action: PhotoAction) => {
+    const menu = photoMenu;
+    setPhotoMenu(null);
+    if (!menu) return;
+    const ids = targetsFor(menu.frameId, selectedIds, multiSelect);
+    const chosen = ids.map((id) => cullingState.frames.find((frame) => frame.id === id)).filter((frame): frame is PhotoFrame => Boolean(frame));
+    const rating = ratingFor(action);
+    if (rating !== null) { rateOrFlagPhotos(menu.frameId, { rating }); return; }
+    switch (action) {
+      case 'edit': handleSelectFrame(menu.frameId); setEditQueueIds(null); setEditing(true); break;
+      case 'info': setInfoFrameId(menu.frameId); setShowPhotoInfo(true); break;
+      case 'keep': rateOrFlagPhotos(menu.frameId, { flag: 'keep' }); break;
+      case 'trash': rateOrFlagPhotos(menu.frameId, { flag: 'reject' }); break;
+      case 'unreview': rateOrFlagPhotos(menu.frameId, { flag: 'unreviewed' }); break;
+      case 'copy': { const frame = chosen[0]; if (frame) { setCopiedEdit(frame.edit ?? DEFAULT_EDIT); showToast('Adjustments copied'); } break; }
+      case 'paste': {
+        if (!copiedEdit || !chosen.length) break;
+        const at = Date.now();
+        const target = new Set(chosen.map((frame) => frame.id));
+        // Global adjustments only: each photo keeps its own masks and framing, and each paste is one undo step.
+        setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: at },
+          frames: prev.frames.map((frame) => (target.has(frame.id) ? recordEdit(frame, { edit: { ...copiedEdit, masks: frame.edit?.masks } }, at) : frame)) }));
+        showToast(`Pasted adjustments to ${chosen.length} photo${chosen.length === 1 ? '' : 's'}.`);
+        break;
+      }
+      case 'export': setExportFrames(chosen); break;
+      case 'remove': setPendingAction({ kind: 'remove', frameIds: ids }); break;
+    }
   };
 
   // Moving a Keeper to Trash, or removing a photo from Trash, asks first. Both are reversible and never touch the file.
@@ -1233,6 +1272,14 @@ export default function App() {
 
   return (
     <div className={`h-dvh w-full flex flex-col pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden ${editing ? '' : 'max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]'}`}>
+      {photoMenu && (() => {
+        const frame = cullingState.frames.find((candidate) => candidate.id === photoMenu.frameId);
+        if (!frame) return null;
+        const ids = targetsFor(photoMenu.frameId, selectedIds, multiSelect);
+        return <PhotoContextMenu x={photoMenu.x} y={photoMenu.y} label={ids.length > 1 ? `${ids.length} photos` : frame.filename}
+          state={{ decision: frame.decision, count: ids.length, canPaste: Boolean(copiedEdit), hasEdit: Boolean(frame.edit) }}
+          onChoose={choosePhotoAction} onClose={() => setPhotoMenu(null)} />;
+      })()}
       <DesktopUpdate />
       <TaskManager />
       {syncOpen && <SyncFolderDialog title={cullingState.shoot.title} projectId={cullingState.shoot.id} updatedAt={cullingState.shoot.lastUpdatedAt} frames={cullingState.frames} onClose={() => setSyncOpen(false)}
@@ -1530,6 +1577,7 @@ export default function App() {
               previewProvider={previewProviderRef.current!}
               needsAccess={needsAccess}
               onSelectFrame={selectGridPhoto}
+              onPhotoMenu={openPhotoMenu}
               markedIds={selectedIds}
               multiSelect={multiSelect}
               onInfo={(id, trigger) => {
@@ -1647,6 +1695,7 @@ export default function App() {
           {filmstripVisible && (editing || prefs.viewMode !== 'grid') && visibleFrames.length > 0 && (
             <div className={editing ? (prefs.editPanelSide === 'left' ? 'md:pl-[var(--editor-panel-w,0px)]' : 'md:pr-[var(--editor-panel-w,0px)]') : undefined}>
             <Filmstrip
+              onPhotoMenu={openPhotoMenu}
               frames={editing ? editorFrames : visibleFrames}
               selectedFrameId={selectedFrame?.id ?? null}
               compareRightFrameId={compareRightFrame?.id ?? null}
