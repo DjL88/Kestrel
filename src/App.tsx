@@ -1269,14 +1269,16 @@ export default function App() {
       <ProjectList projects={projects} photoText={photoText} loading={projectBusy} error={projectError}
         onOpen={(id) => void openProject(id)} onCreate={(name, options) => void newProject(name, options)} onRestore={(file) => void restoreBackup(file)}
         onArchive={(project) => setProjectAction({ kind: 'archive', project })} onDelete={(project) => setProjectAction({ kind: 'delete', project })}
-        onUnarchive={(id) => void unarchiveProject(id)} onQuickEdit={(files) => void quickEdit(files)} />
+        onUnarchive={(id) => void unarchiveProject(id)} onQuickEdit={(files) => void quickEdit(files)}
+        editPanelSide={prefs.editPanelSide}
+        onEditPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, editPanelSide: side }))} />
       {projectAction && <ProjectActionDialog kind={projectAction.kind} project={projectAction.project}
         onBackup={() => backUpProject(projectAction.project.id)} onConfirm={() => void confirmProjectAction()} onCancel={() => setProjectAction(null)} />}
     </>;
   }
 
   return (
-    <div className={`h-dvh w-full flex flex-col pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden ${editing ? '' : 'max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]'}`}>
+    <div className={`h-dvh max-h-dvh w-full max-w-full min-w-0 flex flex-col pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden ${editing ? '' : 'max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]'}`}>
       {photoMenu && (() => {
         const frame = cullingState.frames.find((candidate) => candidate.id === photoMenu.frameId);
         if (!frame) return null;
@@ -1361,6 +1363,8 @@ export default function App() {
         onKeeperTargetChange={(target) =>
           setCullingState((prev) => ({ ...prev, keeperTarget: target }))
         }
+        editPanelSide={prefs.editPanelSide}
+        onEditPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, editPanelSide: side }))}
         viewMode={prefs.viewMode}
         onViewModeChange={(mode) => {
           if (mode === 'compare') {
@@ -1454,7 +1458,7 @@ export default function App() {
       {projectError && <p role="alert" className="bg-orange-950 px-3 py-2 text-sm text-orange-100">{projectError}</p>}
 
       <main key={previewRevision} className="relative flex-1 flex min-h-0 min-w-0">
-        <div className="flex-1 flex flex-col min-w-0 min-h-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           {editing && selectedFrame && (
             <PhotoEditor
               initialTab={editorTab}
@@ -1658,7 +1662,7 @@ export default function App() {
 
           {editing && selectedFrame && (
             <div role="toolbar" aria-label="Filmstrip controls"
-              className={`flex shrink-0 flex-wrap items-center gap-1 border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'md:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'md:pr-[var(--editor-panel-w,0px)]') : ''}`}>
+              className={`mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center gap-1 overflow-x-auto border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'md:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'md:pr-[var(--editor-panel-w,0px)]') : ''}`}>
               <button type="button" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10"
                 onClick={() => { setCopiedEdit(selectedFrame.edit ?? DEFAULT_EDIT); showToast('Adjustments copied'); }}>
                 <Copy className="h-4 w-4" aria-hidden="true" /> Copy
