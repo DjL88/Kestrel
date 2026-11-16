@@ -117,7 +117,7 @@ async function usefulPixelCount(preview: Blob): Promise<number> {
       if (length < 8 || offset + 2 + length > data.byteLength) return 0;
       // A zero-bit sample precision is not a JPEG image. Do not trust its
       // advertised dimensions when choosing a RAW embedded preview.
-      if (data.getUint8(offset + 4) === 0) return 0;
+      // JPEG frame sample precision is 8 bits for baseline/extended DCT,\n      // 12 for extended DCT, or up to 16 for lossless JPEG. Reject\n      // fabricated values before trusting the claimed dimensions.\n      const precision = data.getUint8(offset + 4);\n      if (precision < 2 || precision > 16) return 0;
       const height = data.getUint16(offset + 5);
       const width = data.getUint16(offset + 7);
       const components = data.getUint8(offset + 9);
