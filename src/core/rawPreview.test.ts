@@ -79,3 +79,13 @@ test('RAW preview rejects a fabricated JPEG SOF with missing component descripto
   const raw = new Blob([file.slice(0, 4096), bytes]);
   assert.equal(await extractRawPreview(raw), null);
 });
+
+test('RAW preview rejects JPEG SOF component tables with surplus declared bytes', async () => {
+  // JPEG SOF length must be exactly 8 + 3 bytes per component. A padded
+  // segment is not a valid component table, even with plausible dimensions.
+  const bytes = new Uint8Array(5000);
+  bytes.set([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0e, 0x08, 0x03, 0x20, 0x04, 0xb0, 0x01, 0x01, 0x11, 0x00, 0x00], 0);
+  bytes.set([0xff, 0xd9], bytes.length - 2);
+  const file = tiff([[0x0201, 4096], [0x0202, bytes.length]], 4096);
+  assert.equal(await extractRawPreview(new Blob([file.slice(0, 4096), bytes])), null);
+});
