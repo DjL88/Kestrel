@@ -12,7 +12,7 @@ import { downloadExport } from '../providers/browserExport';
 import { gridSizeFor } from '../core/subjectModel';
 import { QuickAdjust } from './QuickAdjust';
 import { AreaSelector } from './AreaSelector';
-import { placeInRegion, regionPixels, type Region } from '../core/subjectRegion';
+import { placeInRegion, sampledRegion, type Region } from '../core/subjectRegion';
 import { Histogram } from './Histogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
@@ -567,7 +567,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     try {
       const preview = document.createElement('canvas');
       drawFramedPhoto(source, preview, framing, { scale: Math.min(1, 640 / Math.max(outputSize.width, outputSize.height)) });
-      const box = regionPixels(region, preview.width, preview.height);
+      const { box, bounds } = sampledRegion(region, preview.width, preview.height);
       const piece = document.createElement('canvas');
       piece.width = box.w;
       piece.height = box.h;
@@ -579,7 +579,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       }
       if (!assessment.usable) { setDetectNotice(assessment.reason); return; }
       const full = gridSizeFor(preview.height / preview.width);
-      const mask = createSubjectMask(newId(), placeInRegion(grid, region, full.w, full.h), framingKey(framing), assessment.confidence);
+      const mask = createSubjectMask(newId(), placeInRegion(grid, bounds, full.w, full.h), framingKey(framing), assessment.confidence);
       onEdit({ ...edit, masks: [...(edit.masks ?? []), mask] });
       setSelectedMaskId(mask.id);
       setShowMaskOverlay(true);
