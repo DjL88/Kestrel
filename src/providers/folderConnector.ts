@@ -1,10 +1,11 @@
-import { isInsideSyncRoot, type StorageConnector } from '../core/storageConnectors';
+import { isInsideSyncRoot, isWritablePath, type StorageConnector } from '../core/storageConnectors';
 import { isDesktopApp } from './desktopShell';
 
 export interface PickedFolder { connector: StorageConnector; name: string; /** The folder's path, in the desktop app. */ path?: string; /** The folder's handle, in a browser. */ handle?: FileSystemDirectoryHandle }
 export type PickResult = PickedFolder | 'cancelled' | 'unsupported';
 
 const parts = (path: string) => path.split('/').filter(Boolean);
+const guardWrite = (path: string) => { if (!isWritablePath(path)) throw new Error('Path is outside the Kestrel folder.'); };
 const guard = (path: string) => { if (!isInsideSyncRoot(path.replace(/\/+$/, ''))) throw new Error('Path is outside the Kestrel folder.'); };
 
 /** A folder opened with the browser's folder picker (Chrome, Edge, and anything else that supports it). */
@@ -24,7 +25,7 @@ export function directoryHandleConnector(root: FileSystemDirectoryHandle): Stora
     kind: 'folder',
     async test() { try { await root.getDirectoryHandle('.kestrel-test', { create: true }); await root.removeEntry('.kestrel-test'); return { ok: true as const }; } catch { return { ok: false as const, reason: 'Kestrel cannot write to that folder. Choose another, or allow access when asked.' }; } },
     async put(path, bytes) {
-      guard(path);
+      guardWrite(path);
       const segments = parts(path);
       const file = await (await dir(segments.slice(0, -1), true)).getFileHandle(segments.at(-1)!, { create: true });
       const writable = await file.createWritable();
@@ -58,7 +59,7 @@ export async function desktopFolderConnector(root: string): Promise<StorageConne
     kind: 'folder',
     async test() { try { await fs.mkdir(join('kestrel/v1'), { recursive: true }); return { ok: true as const }; } catch { return { ok: false as const, reason: 'Kestrel cannot write to that folder. Choose another.' }; } },
     async put(path, bytes) {
-      guard(path);
+      guardWrite(path);
       await fs.mkdir(join(parts(path).slice(0, -1).join('/')), { recursive: true });
       await fs.writeFile(join(path), bytes);
     },

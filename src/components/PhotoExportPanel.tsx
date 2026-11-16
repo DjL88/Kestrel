@@ -24,6 +24,7 @@ import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, type WatermarkOptions 
 import { NO_OVERLAY, overlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { exportFilename } from '../core/exportProfiles';
 import { SocialIcon } from './SocialIcon';
+import type { ExportPlace } from '../providers/exportToPlace';
 
 interface Props {
   frames: PhotoFrame[];
@@ -32,6 +33,8 @@ interface Props {
   onClose: () => void;
   /** Called when the user requests a file download; the browser may still ask where to save. */
   onDownloadRequested?: (frames: readonly PhotoFrame[]) => void;
+  /** A place the person chose for this project's exports (for example the drive the originals are on). */
+  exportPlace?: ExportPlace | null;
 }
 
 const button = 'min-h-11 rounded-md px-3 text-sm font-medium hover:bg-white/10 disabled:opacity-45';
@@ -67,7 +70,9 @@ function loadChosen(freshStart = false): string[] {
   return freshStart ? [] : ['master'];
 }
 
-export function PhotoExportPanel({ frames, provider, source, onClose, onDownloadRequested }: Props) {
+export function PhotoExportPanel({ frames, provider, source, onClose, onDownloadRequested, exportPlace }: Props) {
+  const [placeNote, setPlaceNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const [placeBusy, setPlaceBusy] = useState(false);
   const [chosen, setChosen] = useState<string[]>(() => loadChosen(readView() === 'wizard'));
   const [fits, setFits] = useState<Record<string, Fit>>({});
   const [overrides, setOverrides] = useState<Record<string, { prefix?: string; quality?: number }>>({});
@@ -544,6 +549,12 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
                 onClick={() => { downloadExport(files[0], files[0].name); onDownloadRequested?.(frames.slice(0, 1)); }}>Download</button>}
               {files.length > 1 && <button type="button" disabled={!zip} className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
                 onClick={() => { if (zip) { downloadExport(zip, 'kestrel-exports.zip'); onDownloadRequested?.(frames); } }}>{zip ? 'Download ZIP' : 'Packing ZIP…'}</button>}
+              {exportPlace && <button type="button" className={button} disabled={placeBusy} onClick={async () => {
+                setPlaceBusy(true); setPlaceNote(null);
+                const result = await exportPlace.save(files);
+                setPlaceNote(result.ok ? { ok: true, text: `Saved ${result.count} ${result.count === 1 ? 'file' : 'files'} to the export folder in ${exportPlace.label}.` } : { ok: false, text: result.message });
+                setPlaceBusy(false);
+              }}>{placeBusy ? 'Saving…' : `Also save to ${exportPlace.label}/export`}</button>}
               {canShare && <button type="button" className={button} onClick={() => {
                 void navigator.share({ files }).catch((reason) => {
                   if ((reason as Error).name !== 'AbortError') setError('Could not share these files. Try downloading them.');
@@ -551,6 +562,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
               }}>Share / save to device</button>}
               <button type="button" className={button} onClick={() => { setFiles([]); setZip(null); }}>Change settings</button>
             </div>
+            {placeNote && <p role={placeNote.ok ? 'status' : 'alert'} className={`text-sm ${placeNote.ok ? 'text-emerald-200' : 'text-amber-200'}`}>{placeNote.text}</p>}
             {files.length > 1 && files.length <= 12 && <details>
               <summary className="min-h-11 cursor-pointer py-2 text-sm">Download individual files</summary>
               {files.map((file, index) => <button type="button" className={`${button} block max-w-full truncate`}

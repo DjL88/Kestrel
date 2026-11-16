@@ -33,6 +33,31 @@ export function isInsideSyncRoot(path: string): boolean {
   return path.startsWith(`${SYNC_ROOT}/`) && !path.split('/').some((part) => part === '..' || part === '.' || part === '');
 }
 
+/**
+ * Exports may also be saved to a folder called "export" in a place the person chose (for example beside their originals).
+ * That is the only place outside Kestrel's own folder that is ever written to, and files there are never read or removed.
+ */
+export function isInsideExportRoot(path: string): boolean {
+  return path.startsWith('export/') && !path.split('/').some((part) => part === '..' || part === '.' || part === '');
+}
+
+/** What a connector may write: its own folder, or the export folder. */
+export const isWritablePath = (path: string) => isInsideSyncRoot(path) || isInsideExportRoot(path);
+
+/** The settings for a NAS or server reached over WebDAV (Synology, QNAP, Nextcloud, ownCloud and others). */
+export interface WebDavSettings { url: string; username: string; password: string }
+
+export function checkWebDavSettings(settings: WebDavSettings): string[] {
+  const problems: string[] = [];
+  try {
+    const url = new URL(settings.url);
+    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && isLocalHost(url.hostname))) problems.push('The address must start with https://, unless the NAS is on your home network.');
+  } catch { problems.push('Enter the address of the NAS, such as https://nas.local:5006/photos.'); }
+  if (!settings.username.trim()) problems.push('Enter the user name.');
+  if (!settings.password) problems.push('Enter the password.');
+  return problems;
+}
+
 /** The settings for an S3-compatible bucket. The keys belong in the system keychain, never in the project or in any sync file. */
 export interface S3Settings { endpoint: string; region: string; bucket: string; accessKeyId: string; secretAccessKey: string; pathStyle?: boolean }
 
@@ -61,7 +86,7 @@ export function memoryConnector(): StorageConnector & { files: Map<string, Uint8
   return {
     kind: 'folder', files,
     test: async () => ({ ok: true }),
-    put: async (path, bytes) => { guard(path); files.set(path, bytes); },
+    put: async (path, bytes) => { if (!isWritablePath(path)) throw new Error('Path is outside the Kestrel folder.'); files.set(path, bytes); },
     get: async (path) => { guard(path); return files.get(path) ?? null; },
     list: async (prefix) => { guard(prefix.replace(/\/+$/, '')); return [...files.keys()].filter((key) => key.startsWith(prefix)).sort(); },
     remove: async (path) => { guard(path); files.delete(path); },

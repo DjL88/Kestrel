@@ -28,8 +28,8 @@ test('a connection is added, checked, and shown as connected; Dropbox and Google
   const panel = page.getByRole('region', { name: 'Where my work is kept' });
   await expect(panel).toContainText('Nothing connected yet');
   await panel.getByRole('button', { name: 'Add a connection' }).click();
-  await expect(panel.getByRole('radio', { name: /Dropbox/ })).toBeDisabled();
-  await expect(panel.getByRole('radio', { name: /Google Drive/ })).toBeDisabled();
+  for (const name of [/^Dropbox/, /^Google Drive/, /^Microsoft OneDrive/]) await expect(panel.getByRole('radio', { name })).toBeDisabled();
+  await expect(panel.getByRole('radio', { name: /^A NAS or server over WebDAV/ })).toBeEnabled();
   await panel.getByRole('button', { name: 'Add a connection' }).click(); // close
   await addS3(page, 'Home NAS');
   await expect(panel.getByRole('status', { name: 'Home NAS: Connected' })).toBeVisible({ timeout: 15000 });

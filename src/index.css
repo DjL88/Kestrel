@@ -146,3 +146,6 @@ html[data-calm="true"] *, html[data-calm="true"] *::before, html[data-calm="true
     scroll-behavior: auto !important;
   }
 }
+
+/* Left-handed use mirrors rows of thumb controls, so the ones used most sit under the thumb that holds the phone. */
+[data-hand='left'] .hand-row { flex-direction: row-reverse; }

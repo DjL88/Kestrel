@@ -4,13 +4,15 @@
  * noticed and explained instead of failing quietly. Each project then chooses where it loads from, saves to and
  * backs up to, so work on a shared drive and personal photographs can live in different places.
  */
-export type ProviderKind = 'folder' | 's3' | 'dropbox' | 'googledrive';
+export type ProviderKind = 'folder' | 's3' | 'webdav' | 'dropbox' | 'googledrive' | 'onedrive';
 
-export const PROVIDERS: { kind: ProviderKind; label: string; available: boolean; note?: string }[] = [
-  { kind: 'folder', label: 'A folder (including iCloud Drive, OneDrive, a shared or network drive)', available: true },
-  { kind: 's3', label: 'My cloud storage (S3-compatible: Amazon S3, Backblaze, Cloudflare R2, Wasabi, a NAS)', available: true },
-  { kind: 'dropbox', label: 'Dropbox', available: false, note: 'Coming: needs the app registered with Dropbox.' },
-  { kind: 'googledrive', label: 'Google Drive', available: false, note: 'Coming: needs the app registered with Google.' },
+export const PROVIDERS: { kind: ProviderKind; label: string; short: string; available: boolean; note?: string }[] = [
+  { kind: 'folder', label: 'A folder (including iCloud Drive, OneDrive or Dropbox on this computer, a shared drive, or a NAS mounted as a drive)', short: 'Folder', available: true },
+  { kind: 'webdav', label: 'A NAS or server over WebDAV (Synology, QNAP, Nextcloud, ownCloud and others)', short: 'NAS / WebDAV', available: true },
+  { kind: 's3', label: 'My cloud storage (S3-compatible: Amazon S3, Backblaze, Cloudflare R2, Wasabi, MinIO)', short: 'Cloud storage', available: true },
+  { kind: 'dropbox', label: 'Dropbox', short: 'Dropbox', available: false, note: 'Coming: needs the app registered with Dropbox. Until then, use the Dropbox folder on your computer.' },
+  { kind: 'googledrive', label: 'Google Drive', short: 'Google Drive', available: false, note: 'Coming: needs the app registered with Google. Until then, use the Drive folder on your computer.' },
+  { kind: 'onedrive', label: 'Microsoft OneDrive', short: 'OneDrive', available: false, note: 'Coming: needs the app registered with Microsoft. Until then, use the OneDrive folder on your computer.' },
 ];
 
 export interface Connection {
@@ -37,10 +39,10 @@ export const HEALTH_TEXT: Record<Health, { word: string; advice: string }> = {
 };
 
 /** Where one project loads from, saves to and backs up to. Each is a connection id, or unset for "this device only". */
-export interface ProjectLocations { loadFrom?: string; saveTo?: string; backUpTo?: string }
+export interface ProjectLocations { loadFrom?: string; saveTo?: string; backUpTo?: string; exportTo?: string }
 
 export type Role = keyof ProjectLocations;
-export const ROLE_LABEL: Record<Role, string> = { loadFrom: 'Load from', saveTo: 'Save to', backUpTo: 'Back up to' };
+export const ROLE_LABEL: Record<Role, string> = { loadFrom: 'Load from', saveTo: 'Save to', backUpTo: 'Back up to', exportTo: 'Also save exports to' };
 
 /** Turn a failed request into a health. 401 and 403 mean the sign-in or keys; no answer means offline; 404 means gone. */
 export function healthFromFailure(failure: { status?: number; network?: boolean; missing?: boolean }): Health {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArchiveRestore, ArrowLeft, Download, Ellipsis, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Search, Trash2, Undo2 } from 'lucide-react';
+import { Hand, ArchiveRestore, ArrowLeft, Download, Ellipsis, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Search, Trash2, Undo2 } from 'lucide-react';
 import type { ProjectSettings } from '../core/projectSettings';
 import { ThemePicker } from './ThemePicker';
 import { messages as m } from '../i18n/messages';
@@ -27,6 +27,9 @@ interface TopWorkspaceBarProps {
   onWatchFolder?: () => void;
   onSyncFolder?: () => void;
   onLocations?: () => void;
+  /** Which hand the person uses, and how to change it. */
+  hand?: 'left' | 'right';
+  onHandChange?: (hand: 'left' | 'right') => void;
   onBackToProjects: () => void;
   actionsDisabled: boolean;
   onOpenShootModal: () => void;
@@ -212,6 +215,13 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   <MenuItem icon={<ArchiveRestore className="h-4 w-4" aria-hidden="true" />} disabled={!props.onOpenRemoved} onClick={() => choose(() => props.onOpenRemoved?.(), false)}>Removed photos ({props.removedCount ?? 0})</MenuItem>
                   <MenuItem icon={<Info className="h-4 w-4" aria-hidden="true" />} pressed={showPhotoInfo} onClick={() => choose(props.onTogglePhotoInfo)}>{showPhotoInfo ? 'Hide photo info' : 'Photo info'}</MenuItem>
                 </MenuSection>
+
+                {props.onHandChange && (
+                  <MenuSection id="menu-settings" title="Settings">
+                    <MenuItem icon={<Hand className="h-4 w-4" aria-hidden="true" />} pressed={props.hand !== 'left'} onClick={() => props.onHandChange!('right')}>Right-handed</MenuItem>
+                    <MenuItem icon={<Hand className="h-4 w-4 -scale-x-100" aria-hidden="true" />} pressed={props.hand === 'left'} onClick={() => props.onHandChange!('left')}>Left-handed</MenuItem>
+                  </MenuSection>
+                )}
 
                 <MenuSection id="menu-project" title="Project">
                   <MenuItem icon={<ScanSearch className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onAutoCull, false)}>{m.autoCull}</MenuItem>

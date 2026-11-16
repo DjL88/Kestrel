@@ -1,6 +1,6 @@
 import { healthFromFailure } from '../core/connections';
 import { sha256Hex, signV4 } from '../core/sigv4';
-import { checkS3Settings, isInsideSyncRoot, type S3Settings, type StorageConnector } from '../core/storageConnectors';
+import { checkS3Settings, isInsideSyncRoot, isWritablePath, type S3Settings, type StorageConnector } from '../core/storageConnectors';
 import { isDesktopApp } from './desktopShell';
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -77,7 +77,7 @@ export function s3Connector(settings: S3Settings, options: { fetchImpl?: FetchLi
       }
     },
     async put(path, bytes) {
-      guard(path);
+      if (!isWritablePath(path)) throw new S3Error('Path is outside the Kestrel folder.');
       const response = await send('PUT', objectUrl(path), bytes, 'application/octet-stream');
       if (!response.ok) throw new S3Error(explainS3Failure(response.status), response.status);
     },

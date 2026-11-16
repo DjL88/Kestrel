@@ -5,6 +5,7 @@ import { PaidNotice } from './components/PaidNotice';
 import { SyncFolderDialog } from './components/SyncFolderDialog';
 import { ProjectLocationsDialog } from './components/ProjectLocationsDialog';
 import { useAutoBackup } from './providers/autoBackup';
+import { exportPlaceFor } from './providers/exportToPlace';
 import { WatchFolderDialog } from './components/WatchFolderDialog';
 import { useFolderWatch } from './providers/useFolderWatch';
 import { PHOTO_ACCEPT } from './core/rawFormats';
@@ -129,6 +130,8 @@ export default function App() {
   if (!previewProviderRef.current) previewProviderRef.current = new BrowserPreviewProvider();
 
   const [prefs, setPrefs] = useState<UserPreferences>(() => loadPreferences());
+  // Left- or right-handed use is read by the whole page's styles, so the home page and every dialog follow it too.
+  useEffect(() => { document.documentElement.dataset.hand = prefs.hand; }, [prefs.hand]);
   const [cullingState, setCullingState] = useState<CullingState>(() =>
     createEmptyProject('uninitialised', '')
   );
@@ -1383,6 +1386,8 @@ export default function App() {
         onWatchFolder={() => { if (watch.status) watch.stop(); else setWatchOpen(true); }}
         onSyncFolder={() => setSyncOpen(true)}
         onLocations={() => setLocationsOpen(true)}
+        hand={prefs.hand}
+        onHandChange={(hand) => setPrefs((prev) => ({ ...prev, hand, editPanelSide: hand }))}
         onAutoCull={() => { if (!can('smartCulling')) { setPaidDialog('Auto-cull'); return; } setAutoCullStart(false); setAutoCullOpen(true); }}
         settings={cullingState.settings ?? LEGACY_SETTINGS}
         onSettingsChange={(settings) => setCullingState((prev) => ({ ...prev, settings, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } }))}
@@ -1820,6 +1825,7 @@ export default function App() {
             frames: applyKeeperLook(prev.frames, look, includeEdited, at) }));
         }} />}
       {exportFrames.length > 0 && <PhotoExportPanel onDownloadRequested={recordDownloadedEdits} frames={exportFrames} provider={previewProviderRef.current!}
+        exportPlace={exportPlaceFor(cullingState.shoot.id)}
         onClose={() => setExportFrames([])} />}
 
       <MacroPadModal

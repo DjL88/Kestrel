@@ -1,9 +1,10 @@
 import { useSyncExternalStore } from 'react';
 import { healthFromFailure, newConnectionId, type Connection, type Health, type HealthReport, type ProviderKind } from '../core/connections';
-import type { S3Settings, StorageConnector } from '../core/storageConnectors';
+import type { S3Settings, StorageConnector, WebDavSettings } from '../core/storageConnectors';
 import { directoryHandleConnector } from './folderConnector';
 import { isDesktopApp } from './desktopShell';
 import { s3Connector } from './s3Connector';
+import { webdavConnector } from './webdavConnector';
 
 /**
  * The person's saved connections and how healthy each one is. Details that are not secret (name, where it points) are
@@ -12,6 +13,8 @@ import { s3Connector } from './s3Connector';
 const KEY = 'kestrel.connections.v1';
 const SECRET_PREFIX = 'kestrel.connection-keys.v1.';
 const sessionKeys = new Map<string, S3Settings>();
+const sessionDav = new Map<string, WebDavSettings>();
+const DAV_PREFIX = 'kestrel.connection-dav.v1.';
 const sessionHandles = new Map<string, FileSystemDirectoryHandle>();
 const reports: Record<string, HealthReport | undefined> = {};
 const listeners = new Set<() => void>();
@@ -21,7 +24,7 @@ let snapshot = { list, reports: { ...reports } };
 function read(): Connection[] {
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) ?? '[]') as unknown;
-    return Array.isArray(stored) ? stored.filter((c): c is Connection => Boolean(c && typeof c.id === 'string' && typeof c.label === 'string' && typeof c.detail === 'string' && ['folder', 's3', 'dropbox', 'googledrive'].includes(c.kind))) : [];
+    return Array.isArray(stored) ? stored.filter((c): c is Connection => Boolean(c && typeof c.id === 'string' && typeof c.label === 'string' && typeof c.detail === 'string' && ['folder', 's3', 'webdav', 'dropbox', 'googledrive', 'onedrive'].includes(c.kind))) : [];
   } catch { return []; }
 }
 const publish = () => {
@@ -33,10 +36,11 @@ const publish = () => {
 export const connections = () => list;
 export const healthOf = (id: string) => reports[id];
 
-export function addConnection(kind: ProviderKind, label: string, detail: string, secret?: { s3?: S3Settings; remember?: boolean; handle?: FileSystemDirectoryHandle; path?: string }): Connection {
+export function addConnection(kind: ProviderKind, label: string, detail: string, secret?: { s3?: S3Settings; dav?: WebDavSettings; remember?: boolean; handle?: FileSystemDirectoryHandle; path?: string }): Connection {
   const connection: Connection = { id: newConnectionId(), kind, label: label.trim() || detail, detail };
   list = [...list, connection];
   if (secret?.s3) setS3Keys(connection.id, secret.s3, Boolean(secret.remember));
+  if (secret?.dav) setDavLogin(connection.id, secret.dav, Boolean(secret.remember));
   if (secret?.handle) sessionHandles.set(connection.id, secret.handle);
   if (secret?.path) { try { localStorage.setItem(`kestrel.connection-path.v1.${connection.id}`, secret.path); } catch { /* session only */ } }
   publish();
@@ -45,14 +49,26 @@ export function addConnection(kind: ProviderKind, label: string, detail: string,
 
 export function removeConnection(id: string): void {
   list = list.filter((c) => c.id !== id);
-  sessionKeys.delete(id); sessionHandles.delete(id); delete reports[id];
-  try { localStorage.removeItem(SECRET_PREFIX + id); localStorage.removeItem(`kestrel.connection-path.v1.${id}`); } catch { /* nothing to remove */ }
+  sessionKeys.delete(id); sessionDav.delete(id); sessionHandles.delete(id); delete reports[id];
+  try { localStorage.removeItem(SECRET_PREFIX + id); localStorage.removeItem(DAV_PREFIX + id); localStorage.removeItem(`kestrel.connection-path.v1.${id}`); } catch { /* nothing to remove */ }
   publish();
 }
 
 export function setS3Keys(id: string, settings: S3Settings, remember: boolean): void {
   sessionKeys.set(id, settings);
   try { if (remember) localStorage.setItem(SECRET_PREFIX + id, JSON.stringify(settings)); else localStorage.removeItem(SECRET_PREFIX + id); } catch { /* session only */ }
+}
+
+export function setDavLogin(id: string, settings: WebDavSettings, remember: boolean): void {
+  sessionDav.set(id, settings);
+  try { if (remember) localStorage.setItem(DAV_PREFIX + id, JSON.stringify(settings)); else localStorage.removeItem(DAV_PREFIX + id); } catch { /* session only */ }
+}
+
+function davLoginFor(id: string): WebDavSettings | null {
+  const held = sessionDav.get(id);
+  if (held) return held;
+  try { const stored = JSON.parse(localStorage.getItem(DAV_PREFIX + id) ?? 'null') as WebDavSettings | null; if (stored?.url) { sessionDav.set(id, stored); return stored; } } catch { /* none */ }
+  return null;
 }
 
 function s3KeysFor(id: string): S3Settings | null {
@@ -72,6 +88,11 @@ export async function openConnection(id: string): Promise<Opened> {
     const keys = s3KeysFor(id);
     if (!keys) return { problem: 'needs-signin', message: 'The keys were not remembered. Enter them again to reconnect.' };
     return { connector: s3Connector(keys) };
+  }
+  if (connection.kind === 'webdav') {
+    const login = davLoginFor(id);
+    if (!login) return { problem: 'needs-signin', message: 'The password was not remembered. Enter it again to reconnect.' };
+    return { connector: webdavConnector(login) };
   }
   if (connection.kind === 'folder') {
     if (isDesktopApp()) {
