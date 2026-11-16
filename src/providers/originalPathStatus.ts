@@ -9,8 +9,8 @@ export function classifyOriginalPathError(error: unknown): Exclude<OriginalPathS
   const value = error && typeof error === 'object' ? error as { code?: unknown; message?: unknown } : {};
   const code = typeof value.code === 'string' ? value.code.toLowerCase() : '';
   const message = typeof value.message === 'string' ? value.message.toLowerCase() : '';
-  if (code === 'enoent' || code === 'notfound' || /not found|no such file|cannot find the (file|path)/.test(message)) return 'missing';
-  if (code === 'eacces' || code === 'eperm' || /permission denied|access is denied|not permitted/.test(message)) return 'permission-denied';
+  if (code === 'enoent' || code === 'notfound' || /not found|no such file|cannot find the (file|path)|os error 2\\b|os error 3\\b/.test(message)) return 'missing';
+  if (code === 'eacces' || code === 'eperm' || /permission denied|access is denied|not permitted|os error 5\\b|os error 13\\b/.test(message)) return 'permission-denied';
   // Includes disconnected SMB/NAS mounts, timeouts, and unknown Tauri errors.
   return 'unavailable';
 }
