@@ -54,3 +54,40 @@ test('empty and malformed benchmark labels cannot manufacture a recall result', 
   assert.equal(result.byCategory.landscapes.recall, null);
   assert.throws(() => evaluateCullBenchmark([labels[0], labels[0]], []), /Duplicate benchmark label/);
 });
+
+
+test('ten benchmark safety gates prevent false confidence in bad labels or predictions', () => {
+  const hero = labels[0];
+  const invalidLabels: Array<[string, CullBenchmarkCase]> = [
+    ['blank identity', { ...hero, id: ' ' }],
+    ['non-string identity', { ...hero, id: null as unknown as string }],
+    ['invalid category', { ...hero, category: 'unknown' as CullBenchmarkCase['category'] }],
+    ['non-boolean favourite', { ...hero, favourite: 'yes' as unknown as boolean }],
+    ['non-boolean unusable', { ...hero, unusable: 'yes' as unknown as boolean }],
+    ['contradictory ground truth', { ...hero, unusable: true }],
+  ];
+  for (const [name, invalid] of invalidLabels) {
+    assert.throws(() => evaluateCullBenchmark([invalid], []), undefined, name);
+  }
+  const badPredictions: Array<[string, CullSuggestion]> = [
+    ['NaN score', { ...prediction(hero.id, 'reject'), score: NaN }],
+    ['infinite score', { ...prediction(hero.id, 'reject'), score: Infinity }],
+    ['out-of-range score', { ...prediction(hero.id, 'reject'), score: 101 }],
+    ['invalid decision', { ...prediction(hero.id, 'reject'), decision: 'discard' as CullSuggestion['decision'] }],
+    ['invalid confidence', { ...prediction(hero.id, 'reject'), confidence: 'certain' as CullSuggestion['confidence'] }],
+  ];
+  for (const [name, invalid] of badPredictions) {
+    const result = evaluateCullBenchmark([hero], [invalid]);
+    assert.equal(result.recall, 1, name);
+    assert.equal(result.unsafeRejections, 0, name);
+    assert.equal(result.invalidPredictions, 1, name);
+    assert.equal(result.missingPredictions, 1, name);
+  }
+  const unrelated = evaluateCullBenchmark([hero], [prediction('different-photo', 'reject')]);
+  assert.equal(unrelated.unexpectedPredictions, 1);
+  assert.equal(unrelated.missingPredictions, 1);
+  assert.equal(unrelated.recall, 1);
+  const repeated = evaluateCullBenchmark([hero], [prediction(hero.id, 'reject'), prediction(hero.id, 'reject')]);
+  assert.equal(repeated.duplicatePredictions, 1);
+  assert.equal(repeated.recall, 1);
+});
