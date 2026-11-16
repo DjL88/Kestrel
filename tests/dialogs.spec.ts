@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { mockDesktopShell, openExportDialog } from './helpers';
+import { openExportDialog } from './helpers';
 
 /**
  * Every dialog, pop-up and sheet, at the sizes people really use. Each one must fit the screen, never make the page
@@ -142,7 +142,13 @@ const scenarios: Scenario[] = [
     await expect(page.getByRole('complementary', { name: 'Photo info' })).toBeHidden();
   } },
   { name: 'auto-cull', run: async (page, _t, check) => { await project(page); await inMenu(page, /Auto-cull/); await check('auto-cull', page.getByRole('dialog', { name: /Auto-cull/ })); await closes(page, page.getByRole('dialog', { name: /Auto-cull/ })); } },
-  { name: 'macro pad', run: async (page, _t, check) => { await mockDesktopShell(page); await project(page); await inMenu(page, /Macro pad/); await check('macro pad', page.getByRole('dialog').first()); await closes(page, page.getByRole('dialog').first()); } },
+  { name: 'macro pad', run: async (page, _t, check) => {
+    await project(page);
+    await page.evaluate(() => { Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true }); });
+    await inMenu(page, /Macro pad/);
+    await check('macro pad', page.getByRole('dialog').first());
+    await closes(page, page.getByRole('dialog').first());
+  } },
   { name: 'remove from library and removed photos', run: async (page, _t, check) => {
     await project(page);
     await allPhotos(page);

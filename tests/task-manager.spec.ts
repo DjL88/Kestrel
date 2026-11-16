@@ -48,3 +48,46 @@ test('adding photos shows in the task manager, and finishes there', async ({ pag
   await expect(panel).toContainText('Adding 3 photos');
   await expect(panel).toContainText('Finished');
 });
+
+test('auto-cull can be stopped in its dialog and restarted without partial decisions', async ({ page }) => {
+  await page.addInitScript(() => {
+    const digest = crypto.subtle.digest.bind(crypto.subtle);
+    let first = true;
+    crypto.subtle.digest = async (...args: Parameters<SubtleCrypto['digest']>) => {
+      if (first) {
+        first = false;
+        await new Promise<void>((resolve) => {
+          (window as Window & { releaseCullHash?: () => void }).releaseCullHash = resolve;
+        });
+      }
+      return digest(...args);
+    };
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New project' }).click();
+  await page.getByRole('textbox', { name: 'Project name' }).fill('Stoppable scan');
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('button', { name: 'Add photos', exact: true }).click();
+  const buffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+  await page.getByTestId('local-file-input').setInputFiles([
+    { name: 'one.png', mimeType: 'image/png', buffer },
+    { name: 'two.png', mimeType: 'image/png', buffer },
+  ]);
+  const dialog = page.getByRole('dialog', { name: 'Auto-cull' });
+  await expect.poll(() => page.evaluate(() => typeof (window as Window & { releaseCullHash?: () => void }).releaseCullHash)).toBe('function');
+  await dialog.getByRole('button', { name: 'Stop scan', exact: true }).click();
+  await page.evaluate(() => (window as Window & { releaseCullHash?: () => void }).releaseCullHash?.());
+  await expect(dialog.getByRole('status')).toHaveText('Scan stopped. No results were applied. You can scan again.');
+  await expect(dialog.getByRole('button', { name: 'Scan photos', exact: true })).toBeEnabled();
+  const collections = page.getByRole('navigation', { name: 'Photo collections' });
+  await expect(collections.getByRole('button', { name: 'To review 2', exact: true })).toBeVisible();
+  await dialog.getByRole('checkbox', { name: 'Automatically move High confidence results' }).uncheck();
+  await dialog.getByRole('button', { name: 'Scan photos', exact: true }).click();
+  await expect(dialog.getByRole('region', { name: 'Auto-cull summary' })).toContainText('Scan finished');
+  await dialog.getByRole('button', { name: 'Close auto-cull' }).click();
+  await page.getByRole('button', { name: /Tasks/ }).click();
+  const panel = page.getByRole('region', { name: 'Tasks' });
+  await expect(panel).toContainText('Cancelled');
+  await expect(panel).toContainText('Finished');
+  await expect(panel).not.toContainText('Stopped by a problem');
+});

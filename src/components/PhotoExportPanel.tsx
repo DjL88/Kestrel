@@ -536,10 +536,11 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
             </button>
           </p>
         )}
-        {!resultsReady && frames.some((frame) => !frame.isDemo && isNikonEmbeddedPreviewFile(frame.filename)) && (
-          <p className="mb-2 text-center text-xs text-zinc-300">{frames.filter((frame) => !frame.isDemo && isNikonEmbeddedPreviewFile(frame.filename)).every((frame) => provider.isDeveloped(frame.stableKey))
-            ? 'RAW files export from the full-size picture developed from the RAW data.'
-            : 'RAW files that are not developed export from the preview stored in the file, including Full size.'}</p>
+        {!resultsReady && frames.some((frame) => !frame.isDemo && isNikonEmbeddedPreviewFile(frame.filename) && provider.isDeveloped(frame.stableKey)) && (
+          <p className="mb-2 text-center text-xs text-zinc-300">Developed RAW files export from an 8-bit JPEG rendered from the RAW data, not directly from the original RAW. Pixel dimensions can be full size.</p>
+        )}
+        {!resultsReady && frames.some((frame) => !frame.isDemo && isNikonEmbeddedPreviewFile(frame.filename) && !provider.isDeveloped(frame.stableKey)) && (
+          <p className="mb-2 text-center text-xs text-zinc-300">RAW files that are not developed export from the preview stored in the file, including Full size.</p>
         )}
         {resultsReady ? (
           <div className="space-y-3">

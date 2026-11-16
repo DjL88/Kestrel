@@ -57,18 +57,57 @@ test('export wizard: platform, size, position, then export', async ({ page }) =>
   await expect(page.getByRole('status').filter({ hasText: '1 file ready' })).toBeVisible({ timeout: 30000 });
 });
 
-async function openWizard(page: import('@playwright/test').Page) {
+async function openWizard(page: import('@playwright/test').Page, dimensions = { width: 900, height: 600 }) {
   await page.goto('/');
-  const png = await page.evaluate(() => {
+  const png = await page.evaluate(({ width, height }) => {
     const canvas = document.createElement('canvas');
-    canvas.width = 900; canvas.height = 600;
+    canvas.width = width; canvas.height = height;
     const c = canvas.getContext('2d')!;
-    c.fillStyle = '#334'; c.fillRect(0, 0, 900, 600);
+    c.fillStyle = '#334'; c.fillRect(0, 0, width, height);
     return canvas.toDataURL('image/png').split(',')[1];
-  });
+  }, dimensions);
   await page.getByTestId('quick-edit-input').setInputFiles({ name: 'w.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
   await openExportDialog(page);
 }
+
+test('full-size export never silently substitutes a smaller file on a constrained device', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, 'userAgent', { value: 'iPhone', configurable: true }));
+  await openWizard(page, { width: 5000, height: 4000 });
+  await page.getByRole('button', { name: 'Full size', exact: true }).click();
+  await page.getByRole('checkbox', { name: /Full size · PNG/ }).check();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('button', { name: 'Prepare 1 file', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('cannot safely export 5000 × 4000 px');
+  await expect(page.getByRole('alert')).toContainText('No smaller file was substituted');
+  await expect(page.getByRole('button', { name: 'Download', exact: true })).toHaveCount(0);
+  // The failure is recoverable: a deliberately chosen smaller preset still works.
+  await page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByRole('checkbox', { name: /Full size · PNG/ }).uncheck();
+  await page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByRole('button', { name: 'Instagram', exact: true }).click();
+  await page.getByRole('checkbox', { name: /Post · 4:5/ }).check();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('button', { name: 'Prepare 1 file', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: '1 file ready' })).toBeVisible({ timeout: 30000 });
+});
+
+test('a supported full-size PNG download retains the source dimensions', async ({ page }) => {
+  await openWizard(page);
+  await page.getByRole('button', { name: 'Full size', exact: true }).click();
+  await page.getByRole('checkbox', { name: /Full size · PNG/ }).check();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('button', { name: 'Prepare 1 file', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: '1 file ready' })).toBeVisible();
+  const downloaded = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download', exact: true }).click();
+  const stream = await (await downloaded).createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const png = Buffer.concat(chunks);
+  expect(png.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([900, 600]);
+});
 
 test('the wizard ignores earlier saved choices and shows the size that was picked', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('kestrel.lastExport.v2', JSON.stringify(['tt-story', 'th-34', 'master'])));

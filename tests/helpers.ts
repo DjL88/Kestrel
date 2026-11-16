@@ -1,23 +1,14 @@
 import type { Page } from '@playwright/test';
 
-function usesPhoneEditorLayout(page: Page) {
-  const { width = 1280, height = 800 } = page.viewportSize() ?? {};
-  return width <= 899 || height <= 549;
-}
+/** The editor uses tabs on narrow or short screens, and a toolbar on larger workspaces. */
+const usesSheet = (page: Page) => {
+  const viewport = page.viewportSize();
+  return viewport ? viewport.width < 900 || viewport.height < 550 : false;
+};
 
-export async function mockDesktopShell(page: Page) {
-  await page.addInitScript(() => {
-    (window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = {
-      transformCallback: () => 1,
-      metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main', windowLabel: 'main' } },
-      invoke: async () => 0,
-    };
-  });
-}
-
-/** Opens the export dialog from the editor. On a phone Export is a tab, on a wider screen it is a button in the header. */
+/** Opens the export dialog from the editor. */
 export async function openExportDialog(page: Page) {
-  if (usesPhoneEditorLayout(page)) {
+  if (usesSheet(page)) {
     await page.getByRole('tab', { name: 'Export' }).click();
     await page.getByRole('button', { name: 'Choose formats and export…' }).click();
   } else {
@@ -27,7 +18,7 @@ export async function openExportDialog(page: Page) {
 
 /** The control that opened the export dialog, which should get focus back when it closes. */
 export function exportOpener(page: Page) {
-  return usesPhoneEditorLayout(page)
+  return usesSheet(page)
     ? page.getByRole('button', { name: 'Choose formats and export…' })
     : page.getByRole('button', { name: 'Export', exact: true });
 }

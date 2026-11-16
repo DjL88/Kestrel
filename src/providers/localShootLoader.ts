@@ -33,14 +33,14 @@ export async function loadLocalFileListShoot(
   previewProvider: BrowserPreviewProvider,
   store: BrowserCatalogueStore,
   onProgress?: (progress: LocalLoadProgress) => void
-): Promise<{ shoot: ShootDescriptor; frames: PhotoFrame[]; storedAllBlobs: boolean }> {
+): Promise<{ shoot: ShootDescriptor; frames: PhotoFrame[]; storedAllBlobs: boolean; unstoredKeys: string[] }> {
   const validFiles = files
     .filter((f) => isSupportedPhotoFilename(f.name))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
   const shootId = `local-files-${Date.now()}`;
   const rawFrames: PhotoFrame[] = [];
-  let storedAllBlobs = true;
+  const unstoredKeys: string[] = [];
 
   const BATCH_SIZE = 12;
   for (let i = 0; i < validFiles.length; i += BATCH_SIZE) {
@@ -51,7 +51,7 @@ export async function loadLocalFileListShoot(
         const stableKey = getLocalFileKey(file);
         previewProvider.registerBlob(stableKey, file);
         const saved = await store.saveLocalFileBlob(stableKey, file);
-        if (!saved) storedAllBlobs = false;
+        if (!saved) unstoredKeys.push(stableKey);
 
         const exif = await parseImageExif(file, file.name);
         if (!exif.capturedAtMs && file.lastModified) {
@@ -96,12 +96,12 @@ export async function loadLocalFileListShoot(
         : `Local Import (${validFiles.length} files)`,
     sourceKind: 'local-files',
     totalFrames: grouped.length,
-    needsFileReselect: !storedAllBlobs,
+    needsFileReselect: unstoredKeys.length > 0,
     createdAt: now,
     lastUpdatedAt: now,
   };
 
-  return { shoot, frames: grouped, storedAllBlobs };
+  return { shoot, frames: grouped, storedAllBlobs: unstoredKeys.length === 0, unstoredKeys };
 }
 
 export async function readFilesFromDirectoryHandle(
@@ -134,11 +134,17 @@ export async function loadDirectoryHandleShoot(
   dirHandle: FileSystemDirectoryHandle,
   previewProvider: BrowserPreviewProvider,
   store: BrowserCatalogueStore,
-  onProgress?: (progress: LocalLoadProgress) => void
+  onProgress?: (progress: LocalLoadProgress) => void,
+  options?: {
+    /** Catalogue project that owns this folder permission. */
+    handleKey?: string;
+    /** Reuse an already enumerated folder so the picker path is only walked once. */
+    entries?: Awaited<ReturnType<typeof readFilesFromDirectoryHandle>>;
+  }
 ): Promise<{ shoot: ShootDescriptor; frames: PhotoFrame[] }> {
-  const entries = await readFilesFromDirectoryHandle(dirHandle);
+  const entries = options?.entries ?? await readFilesFromDirectoryHandle(dirHandle);
   const shootId = `local-folder-${dirHandle.name}`;
-  await store.saveDirectoryHandle(shootId, dirHandle);
+  await store.saveDirectoryHandle(options?.handleKey ?? shootId, dirHandle);
 
   const rawFrames: PhotoFrame[] = [];
   const BATCH_SIZE = 16;
