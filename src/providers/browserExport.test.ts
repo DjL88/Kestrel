@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createDemoShootState } from '../core/cullingEngine';
 import { EXPORT_PROFILES } from '../core/exportProfiles';
-import { loadExportSource, renderExport } from './browserExport';
+import { loadExportSource, renderExport, renderExportPreview } from './browserExport';
 
 test('cancelling an export skips unused canvas work and discards an encoded result', async (t) => {
   const controller = new AbortController();
@@ -56,4 +56,60 @@ test('Nikon export distinguishes missing originals from originals without usable
     attached = true;
     await assert.rejects(loadExportSource(frame, provider), /no usable embedded JPEG/);
   }
+});
+
+test('exports retain requested dimensions or fail explicitly; only previews may shrink', async (t) => {
+  const originals = new Map(['document', 'navigator'].map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  t.after(() => {
+    for (const [key, descriptor] of originals) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+  });
+  let allocated = 0;
+  const encodedSizes: number[][] = [];
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true, value: { userAgent: 'iPhone', platform: 'iPhone', maxTouchPoints: 5 },
+  });
+  const context = {
+    resetTransform() {}, clearRect() {}, scale() {}, translate() {}, rotate() {}, drawImage() {},
+  };
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true,
+    value: {
+      createElement() {
+        allocated += 1;
+        return {
+          width: 0, height: 0, getContext: () => context,
+          toBlob(callback: (value: Blob) => void) {
+            encodedSizes.push([this.width, this.height]);
+            callback(new Blob(['synthetic'], { type: 'image/png' }));
+          },
+        };
+      },
+    },
+  });
+  const frame = createDemoShootState(1).frames[0];
+  const master = EXPORT_PROFILES.find(({ id }) => id === 'master')!;
+  const source = { naturalWidth: 8256, naturalHeight: 5504 } as HTMLImageElement;
+  const now = new Date();
+  await assert.rejects(renderExport(source, frame, master, now), /8256 × 5504 px.*No smaller file was substituted/);
+  // Preview-only options cannot accidentally reduce a real export either.
+  await assert.rejects(renderExport(source, frame, master, now, undefined, 'fit', undefined, { previewEdge: 240 }), /cannot safely export/);
+  const oversizedBorder = { ...master, width: 6000, height: 6000 };
+  await assert.rejects(renderExport(source, frame, oversizedBorder, now, undefined, 'border'), /6000 × 6000 px/);
+  await assert.rejects(renderExport({ naturalWidth: 4096, naturalHeight: 4097 } as HTMLImageElement, frame, master, now), /cannot safely export/);
+  assert.equal(allocated, 0, 'reject before allocating a large canvas');
+  assert.equal(encodedSizes.length, 0);
+
+  const preview = await renderExportPreview(source, frame, master, 'fit');
+  assert.deepEqual([preview.width, preview.height], [240, 160]);
+  // A chosen smaller size succeeds without further hidden downscaling.
+  await renderExport(source, frame, { ...master, width: 2048, height: 2048 }, now);
+  const cropped = { ...frame, framing: { ratio: 1, x: 0.5, y: 0.5, turns: 0 as const, straighten: 0, size: 0.5 } };
+  await renderExport(source, cropped, master, now);
+  await renderExport({ naturalWidth: 4096, naturalHeight: 4096 } as HTMLImageElement, frame, master, now);
+  Object.defineProperty(navigator, 'userAgent', { value: 'desktop' });
+  await renderExport(source, frame, master, now);
+  assert.deepEqual(encodedSizes, [[2048, 1365], [2752, 2752], [4096, 4096], [8256, 5504]]);
 });

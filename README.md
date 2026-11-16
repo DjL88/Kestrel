@@ -1,6 +1,8 @@
 # Kestrel — Local-First Photo Culling Workspace
 
-Kestrel is a local-first culling and editing workspace designed for wildlife, bird, and pet photographers shooting Nikon Z8 and Z5II cameras. This repository contains **Slice 1 (The Culling View)** running in a browser-first prototype with explicit abstraction boundaries ready for a native **Tauri v2** desktop shell.
+Kestrel is a local-first culling and editing workspace for wildlife, bird, and pet photography. A shared React/TypeScript interface runs in the browser and a Tauri v2 shell. Desktop packaging and an Android scaffold exist; released native mobile apps and a Chrome extension are not yet established.
+
+**Current readiness and priorities:** [End-to-end product audit](docs/RELEASE-GAP-AUDIT-2026-11.md). It distinguishes implemented features from planned architecture below. Native RAW development exists but currently passes an 8-bit JPEG into the editor; this is not a lossless, high-bit-depth RAW workflow or verified Lightroom/DxO parity.
 
 ---
 
@@ -56,10 +58,10 @@ npm install
 npm run dev
 ```
 
-Run pure core unit tests (`node:test` via `tsx`):
+Run core, provider and local MCP unit tests (`node:test` via `tsx`):
 
 ```bash
-npx --yes tsx --test src/core/cullingEngine.test.ts src/core/keyboardCommands.test.ts src/core/exifParser.test.ts
+npm test
 ```
 
 Type-check and build:
@@ -84,6 +86,8 @@ Select a photo and choose **Edit**. Light, Warmth and Colour use reversible per-
 Preview and export use the same sRGB render operations. Full-size PNG retains the rendered pixel dimensions and social JPEGs are resized only when a selected preset calls for it. For Nikon NEFs the source is the embedded preview, where available. A native RAW decoder and Nikon Picture Controls are separate work. The demo editor uses the underlying demo JPEG without the simulated culling blur or framing.
 
 Subject names entered in **Edit** are stored in the catalogue and searchable from the culling workspace. Separate names with commas for group photos.
+
+Export never silently reduces the requested output to fit a device's configured canvas safety limit. If it is too large, Kestrel explains the dimensions and asks you to choose a smaller preset or use a desktop. Preview thumbnails remain small. "Full size" means the current decoded source after cropping, not lossless RAW data; use the original-file download to retain the source bytes and metadata.
 
 ### Assisted selection design
 
@@ -127,6 +131,8 @@ In a Library, choose **Workspace options → Back up project**. The versioned JS
 
 On the Projects screen choose **Restore backup**. Kestrel validates the file and opens the restored catalogue as a separate project. If source files are unavailable in this browser, reconnect them from the Library. The restore process does not authenticate with cloud storage or upload anything. A sync provider can use this catalogue boundary later.
 
+When Kestrel cannot store an imported or reconnected original in browser storage, it warns immediately. You can continue editing, but keep the original file: it may need to be reselected when the project is reopened. A project backup contains catalogue information, not original photos.
+
 ### Test a real photo workflow
 
 Run `npx playwright install chromium` once, then `npm run test:e2e`. The test starts the production build fresh, creates a project, imports ten test-only PNG files through the normal importer, flags and edits a photo, checks the downloaded PNG dimensions, and reopens the persisted edit offline. For a locally installed Chromium, set `KESTREL_CHROME_PATH`. Use actual Z8 and Z5II NEFs separately for decoder, compression-mode and colour acceptance.
@@ -152,6 +158,8 @@ Treat ONNX models as optional, versioned downloads with a pinned checksum, size,
 ### Auto-cull and edit history
 
 Open **Workspace options → Auto-cull** to scan unreviewed local originals. Image detail and clipping are measured on small previews. Byte-for-byte duplicates are detected within a scan when source files can be hashed. The score describes the rule’s confidence and is not a calibrated probability or a subject/eye score. High confidence decisions can move automatically. Trash is a reversible catalogue flag and never deletes a file. A pass respects the keeper target, picks at most one automatic keeper per burst and leaves existing flags, virtual copies and uncertain results alone.
+
+Choose **Stop scan** to cancel without applying partial results, then **Scan photos** to try again. Closing the scan dialog also cancels the running pass.
 
 **Edit history** is collapsed in the editing rail. Undo and Redo restore the selected photo’s tonal and framing recipes. Nearby changes to the same slider are grouped. History is retained in the local catalogue; portable backups retain the current recipe rather than the edit timeline.
 
