@@ -52,13 +52,23 @@ test('without a camera preview, validate and release the native bitmap', async (
 
 test('when rotation encoding fails, retain the validated native result and release both bitmaps', async (t) => {
   let closed = 0;
-  const pixels = new Uint8ClampedArray(32 * 32 * 4);
+  let encodes = 0;
+  const pixels = (left: number, top: number) => {
+    const rgba = new Uint8ClampedArray(32 * 32 * 4);
+    for (let y = top; y < top + 8; y += 1) {
+      for (let x = left; x < left + 8; x += 1) rgba[(y * 32 + x) * 4] = 255;
+    }
+    return rgba;
+  };
+  let drawn: ImageBitmap;
   const canvas = {
     width: 0, height: 0,
     getContext: () => ({
-      drawImage() {}, translate() {}, rotate() {}, getImageData: () => ({ data: pixels }),
+      drawImage(image: ImageBitmap) { drawn = image; },
+      translate() {}, rotate() {},
+      getImageData: () => ({ data: drawn.width === 600 ? pixels(0, 0) : pixels(0, 24) }),
     }),
-    toBlob(callback: (blob: Blob | null) => void) { callback(null); },
+    toBlob(callback: (blob: Blob | null) => void) { encodes++; callback(null); },
   };
   const property = Object.getOwnPropertyDescriptor(globalThis, 'document');
   Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: () => canvas } });
@@ -73,6 +83,7 @@ test('when rotation encoding fails, retain the validated native result and relea
   }) as ImageBitmap, async () => {
     assert.strictEqual(await matchPreviewOrientation(developed, preview), developed);
   });
+  assert.equal(encodes, 1, 'the optional rotation reached the encoder');
   assert.equal(closed, 2);
   assert.equal(canvas.width, 0);
   assert.equal(canvas.height, 0);
