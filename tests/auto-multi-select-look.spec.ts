@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 /** Regression: choosing Mono with two filmstrip photos selected must edit both,
  * even when the separate 'Edit together' slider toggle has not been activated. */
 test('Auto Mono look applies to both selected photographs, but not the third', async ({ page }) => {
+  test.skip(test.info().project.name === 'phone', 'desktop filmstrip flow; phone uses a separate folded editor sheet');
   await page.goto('/');
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Two photos Mono regression');

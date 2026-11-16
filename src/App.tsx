@@ -42,7 +42,7 @@ import { MoveToProjectDialog } from './components/MoveToProjectDialog';
 import { ProjectActionDialog } from './components/ProjectActionDialog';
 import { createVirtualCopy } from './core/virtualCopies';
 import { PhotoExportPanel } from './components/PhotoExportPanel';
-import { PhotoEditor } from './components/PhotoEditor';
+import { PhotoEditor, type EditorTab } from './components/PhotoEditor';
 import type { PhotoFraming } from './core/photoFraming';
 import { LEGACY_SETTINGS, type ProjectSettings } from './core/projectSettings';
 import { DEFAULT_EDIT, isEmptyEdit, type PhotoEdit } from './core/photoEdits';
@@ -130,6 +130,7 @@ export default function App() {
     createEmptyProject('uninitialised', '')
   );
   const [editing, setEditing] = useState(false);
+  const [editorTab, setEditorTab] = useState<EditorTab>('auto');
   const [autoCullOpen, setAutoCullOpen] = useState(false);
   const [batchLookOpen, setBatchLookOpen] = useState(false);
   const [autoAdjustOpen, setAutoAdjustOpen] = useState(false);
@@ -1449,6 +1450,8 @@ export default function App() {
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {editing && selectedFrame && (
             <PhotoEditor
+              initialTab={editorTab}
+              onTabChange={setEditorTab}
               key={selectedFrame.id}
               onExportRequested={recordDownloadedEdits}
               exportCount={multiSelect && selectedVisibleFrames.length > 1 ? selectedVisibleFrames.length : 1}
