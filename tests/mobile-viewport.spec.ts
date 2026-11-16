@@ -26,6 +26,8 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await checkViewport('Projects portrait');
   await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
   await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' })).toBeVisible();
+  // A phone must never advertise a physical Macro Pad configuration workflow.
+  await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' }).getByRole('button', { name: /Macro pad/i })).toHaveCount(0);
   await page.getByRole('dialog', { name: 'Appearance and layout settings' }).getByRole('button', { name: 'Done' }).click();
   await checkViewport('Projects appearance sheet closed');
   await page.getByRole('button', { name: 'New project' }).click();

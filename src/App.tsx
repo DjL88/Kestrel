@@ -189,6 +189,11 @@ export default function App() {
   const [openShootModal, setOpenShootModal] = useState(false);
   const [macroPadModal, setMacroPadModal] = useState(false);
   const [macroPadMode, setMacroPadMode] = useState<'cull' | 'edit'>('cull');
+  useEffect(() => {
+    const openFromDesktopMenu = () => { setMacroPadMode(editing ? 'edit' : 'cull'); setMacroPadModal(true); };
+    window.addEventListener('kestrel:open-macro-pad', openFromDesktopMenu);
+    return () => window.removeEventListener('kestrel:open-macro-pad', openFromDesktopMenu);
+  }, [editing]);
   const [folderError, setFolderError] = useState<string | null>(null);
   const [relinkStatus, setRelinkStatus] = useState<string>();
   const [previewRevision, setPreviewRevision] = useState(0);
@@ -1280,7 +1285,15 @@ export default function App() {
         onArchive={(project) => setProjectAction({ kind: 'archive', project })} onDelete={(project) => setProjectAction({ kind: 'delete', project })}
         onUnarchive={(id) => void unarchiveProject(id)} onQuickEdit={(files) => void quickEdit(files)}
         editPanelSide={prefs.editPanelSide}
-        onEditPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, editPanelSide: side }))} />
+        onEditPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, editPanelSide: side }))}
+        onOpenMacroPad={() => { setMacroPadMode('cull'); setMacroPadModal(true); }} />
+      <MacroPadModal open={macroPadModal} openTo={macroPadMode} onClose={() => setMacroPadModal(false)}
+        bindings={prefs.bindings}
+        onUpdateBinding={(commandId, chord) => setPrefs((prev) => ({
+          ...prev, bindings: { ...prev.bindings, [commandId]: chord },
+        }))}
+        onResetBindings={() => setPrefs((prev) => ({ ...prev, bindings: DEFAULT_KEY_BINDINGS }))}
+        knobMode={prefs.knobMode} onKnobModeChange={(mode) => setPrefs((prev) => ({ ...prev, knobMode: mode }))} />
       {projectAction && <ProjectActionDialog kind={projectAction.kind} project={projectAction.project}
         onBackup={() => backUpProject(projectAction.project.id)} onConfirm={() => void confirmProjectAction()} onCancel={() => setProjectAction(null)} />}
     </>;

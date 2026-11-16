@@ -10,6 +10,10 @@ export function useDesktopMenu() {
     let stop: (() => void) | undefined;
     let cancelled = false;
     void import('@tauri-apps/api/event').then(({ listen }) => listen<string>('menu', ({ payload }) => {
+      if (payload === 'macro-pad') {
+        window.dispatchEvent(new Event('kestrel:open-macro-pad'));
+        return;
+      }
       if (payload === 'appearance') {
         const gear = document.querySelector<HTMLButtonElement>('button[aria-label="Appearance and layout settings"]');
         if (gear) gear.click();

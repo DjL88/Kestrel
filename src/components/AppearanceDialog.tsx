@@ -1,13 +1,16 @@
 import { AppearanceSettings } from './AppearanceSettings';
+import { Keyboard } from 'lucide-react';
+import { isDesktopApp } from '../providers/desktopShell';
 
 interface Props {
   side: 'left' | 'right';
   onSideChange: (side: 'left' | 'right') => void;
   onClose: () => void;
+  onOpenMacroPad?: () => void;
 }
 
 /** One bounded, touch-friendly settings sheet from Home, Library or Editor. */
-export function AppearanceDialog({ side, onSideChange, onClose }: Props) {
+export function AppearanceDialog({ side, onSideChange, onClose, onOpenMacroPad }: Props) {
   return (
     <div role="presentation" className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] workspace:items-center"
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
@@ -19,6 +22,12 @@ export function AppearanceDialog({ side, onSideChange, onClose }: Props) {
           <button type="button" autoFocus className="min-h-11 rounded-md px-3 text-sm hover:bg-white/10" onClick={onClose}>Done</button>
         </div>
         <AppearanceSettings side={side} onSideChange={onSideChange} />
+        {onOpenMacroPad && isDesktopApp() && (
+          <button type="button" onClick={() => { onClose(); onOpenMacroPad(); }}
+            className="flex min-h-11 w-full items-center gap-2 rounded-md border border-white/15 px-3 text-sm text-zinc-200 hover:bg-white/10">
+            <Keyboard className="h-4 w-4" aria-hidden="true" />Macro pad & keyboard shortcuts…
+          </button>
+        )}
       </section>
     </div>
   );

@@ -2,7 +2,7 @@ import { newId } from '../core/ids';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
-import { ChevronDown, Columns2, Maximize, Minimize, Crop, Download, History, Keyboard, Lightbulb, Redo2, Settings2, SlidersHorizontal, SquircleDashed, Undo2 } from 'lucide-react';
+import { ChevronDown, Columns2, Maximize, Minimize, Crop, Download, History, Lightbulb, Redo2, Settings2, SlidersHorizontal, SquircleDashed, Undo2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
@@ -687,15 +687,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           </button>
         )}
         <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? `Export ${exportCount} selected photos` : "Export this photo for social media or full size"}
-          className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover! hidden workspace:inline-flex`}>
+          className={`${button} hidden items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover! workspace:inline-flex`}>
           <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? `Export ${exportCount}` : "Export"}
         </button>
-        {onOpenMacroPad && (
-          <button type="button" className={`${button} inline-flex items-center`} onClick={onOpenMacroPad}
-            aria-label="Macro pad and shortcuts" title="Macro pad and shortcuts: set up your pad and see how to use it">
-            <Keyboard className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Macro pad</span>
-          </button>
-        )}
+
         </div>
       </div>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden workspace:flex-row">
@@ -1122,7 +1117,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       {isPhone && tabList}
       </div>
       {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}
-      {appearanceOpen && <AppearanceDialog side={panelSide} onSideChange={onPanelSideChange} onClose={() => setAppearanceOpen(false)} />}
+      {appearanceOpen && <AppearanceDialog side={panelSide} onSideChange={onPanelSideChange} onClose={() => setAppearanceOpen(false)} onOpenMacroPad={onOpenMacroPad} />}
       {exportOpen && !onExport && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} onDownloadRequested={onExportRequested} />}
     </section>
   );
