@@ -89,3 +89,12 @@ Where things stand and what is left, in order. Older detail: `AUDIT-2.md`, `AUDI
 - **Rule to keep:** run the whole browser suite before merging; the refactor that broke species was merged with a note saying checks had not been run.
 - **New:** right-click menu on photos in the library and filmstrip (#198): Edit, Photo info, Keep/Trash/Review, ratings, copy/paste adjustments, Export, Remove. Touch long-press still means select.
 - **Mac RAW:** Nikon HE/HE* develops through macOS (#179). Click Develop from RAW in the real app to confirm.
+
+## 16 November: cloud, sharing, Windows, Claude
+- **Merged:** all of last night's and this morning's PRs (#198 to #210); `main` is green (405 unit, 184 browser tests).
+- **Open (merge in this order):** #212 desktop workflow release-build option; #211 own S3 storage + sync through it + Claude MCP server; #214 saved connections with health, per-project places, automatic backup (builds on #211).
+- **Windows test installer:** built by the Desktop app workflow with `release=true` (run 43806458357); unsigned. Downloaded to `~/Downloads/Kestrel-Windows-test/release/bundle/` (`nsis/Kestrel_0.1.0_x64-setup.exe`, `msi/...msi`). Windows warns on unsigned installers: More info, Run anyway. It predates #211 and #214.
+- **Still needed from the owner for Google Drive and Dropbox:** a Google Cloud OAuth client ID (Drive, `drive.file` scope) and a Dropbox app key, both PKCE (no server needed). The connection model, health checks (Sign in again, Offline, Not found) and per-project places are ready for them.
+- **Cross-device idea, in order:** shared location (done) -> "newer copy available" nudge -> per-photo change times so edits merge -> same-Wi-Fi pairing with a QR code. DxO's per-photo sidecars show the pitfalls (its .dop files are not compatible between Windows and macOS; iCloud offloading lost sidecars), so keep one JSON format and treat "not downloaded yet" as normal.
+- **Claude (MCP):** `docs/MCP.md`. Read-only by default; proposals are files in `kestrel/v1/proposals/` that Kestrel does not yet show: that review screen is next.
+- **Not yet tried by hand:** real S3 services, the desktop HTTP path, connecting Claude Desktop.
