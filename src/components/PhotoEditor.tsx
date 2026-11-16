@@ -45,7 +45,8 @@ import { PaidNotice } from './PaidNotice';
 import { useAccess } from '../providers/useAccess';
 const PANEL_KEY = 'kestrel-panel-width-v1';
 const SHEET_KEY = 'kestrel-sheet-v1';
-type Tab = 'auto' | 'crop' | 'edit' | 'masks' | 'history' | 'export';
+export type EditorTab = 'auto' | 'crop' | 'edit' | 'masks' | 'history' | 'export';
+type Tab = EditorTab;
 const TABS: { id: Tab; label: string; Icon: typeof Crop }[] = [
   { id: 'auto', label: 'Auto', Icon: Lightbulb },
   { id: 'crop', label: 'Crop', Icon: Crop },
@@ -68,6 +69,8 @@ interface Props {
   needsAccess: boolean;
   bindings: KeyBindingsMap;
   onEdit: (edit: PhotoEdit) => void;
+  initialTab?: EditorTab;
+  onTabChange?: (tab: EditorTab) => void;
   /** Route primary Export through the existing single/batch export workflow. */
   onExport?: () => void;
   exportCount?: number;
@@ -92,7 +95,7 @@ interface Props {
 }
 
 export function PhotoEditor({ autoEdit, onOpenMacroPad,
-  frame, provider, needsAccess, bindings, onEdit, onApplyLook, onExport, exportCount = 1, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
+  frame, provider, needsAccess, bindings, onEdit, initialTab, onTabChange, onApplyLook, onExport, exportCount = 1, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, showFilmstrip,
 }: Props) {
@@ -131,7 +134,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [allControls, setAllControls] = useState(false);
   const [quickChoices, setQuickChoices] = useState(false);
   const { can } = useAccess();
-  const [tab, setTab] = useState<Tab>(can('autoTab') ? 'auto' : 'edit');
+  // The editor is remounted for each photo; retain the chosen tab across the filmstrip.
+  const [tab, setCurrentTab] = useState<Tab>(() => initialTab === 'auto' && !can('autoTab')
+    ? 'edit' : initialTab ?? (can('autoTab') ? 'auto' : 'edit'));
+  const setTab = (next: Tab) => { setCurrentTab(next); onTabChange?.(next); };
   const [previewRecipe, setPreviewRecipe] = useState<{ edit?: PhotoEdit; framing?: PhotoFraming } | null>(null);
   const cropEntry = useRef<PhotoFraming | null>(null);
   const panelScroll = useRef<HTMLDivElement>(null);
