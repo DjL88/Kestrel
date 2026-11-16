@@ -482,7 +482,19 @@ export function applyDecisionWithHistory(
 export function applyAutoCullDecisions(
   state: CullingState, requested: { frameId: string; decision: 'keep' | 'reject' }[],
 ): CullingState {
-  const byId = new Map(requested.map((result) => [result.frameId, result.decision]));
+  // A repeated scan may deliver contradictory results for the same photo.
+  // Never let input ordering silently turn a Keep into a Reject (or vice versa).
+  // Conflicting IDs require an explicit human decision instead.
+  const byId = new Map<string, 'keep' | 'reject'>();
+  const conflicts = new Set<string>();
+  for (const result of requested) {
+    if (byId.has(result.frameId) && byId.get(result.frameId) !== result.decision) {
+      conflicts.add(result.frameId);
+    } else if (!conflicts.has(result.frameId)) {
+      byId.set(result.frameId, result.decision);
+    }
+  }
+  for (const id of conflicts) byId.delete(id);
   const batch: NonNullable<CullingState['undoStack'][number]['batch']> = [];
   const frames = state.frames.map((frame) => {
     const decision = byId.get(frame.id);
