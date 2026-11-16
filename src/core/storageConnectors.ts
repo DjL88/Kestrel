@@ -36,11 +36,17 @@ export function isInsideSyncRoot(path: string): boolean {
 /** The settings for an S3-compatible bucket. The keys belong in the system keychain, never in the project or in any sync file. */
 export interface S3Settings { endpoint: string; region: string; bucket: string; accessKeyId: string; secretAccessKey: string; pathStyle?: boolean }
 
+/** localhost, this computer, a .local name, or a private network address (10.x, 192.168.x, 172.16 to 31.x). */
+export function isLocalHost(host: string): boolean {
+  return host === 'localhost' || host === '[::1]' || /\.local$/i.test(host) || /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host);
+}
+
 export function checkS3Settings(settings: S3Settings): string[] {
   const problems: string[] = [];
   try {
     const url = new URL(settings.endpoint);
-    if (url.protocol !== 'https:') problems.push('The address must start with https://.');
+    // Plain http is only for storage on this computer or the home network (a NAS, MinIO); anything on the internet must use https.
+    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && isLocalHost(url.hostname))) problems.push('The address must start with https://.');
   } catch { problems.push('Enter the storage address, such as https://s3.eu-west-2.amazonaws.com.'); }
   if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(settings.bucket)) problems.push('The bucket name looks wrong. Use lower-case letters, numbers, dots and dashes.');
   if (!settings.region.trim()) problems.push('Enter the region, such as eu-west-2.');

@@ -26,7 +26,9 @@ pub fn run() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_opener::init());
+        .plugin(tauri_plugin_opener::init())
+        // Lets the app talk to the person's own storage (S3-compatible, WebDAV) without a website's cross-origin limits.
+        .plugin(tauri_plugin_http::init());
 
     // Menus, restart and the updater exist on desktop only.
     #[cfg(desktop)]

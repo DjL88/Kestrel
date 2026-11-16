@@ -30,6 +30,8 @@ test('S3 settings are checked with plain messages', () => {
   const good = { endpoint: 'https://s3.eu-west-2.amazonaws.com', region: 'eu-west-2', bucket: 'my-photos', accessKeyId: 'AK', secretAccessKey: 'SK' };
   assert.deepEqual(checkS3Settings(good), []);
   assert.equal(checkS3Settings({ ...good, endpoint: 'http://insecure.example' }).length, 1);
+  for (const local of ['http://127.0.0.1:9000', 'http://192.168.1.20:9000', 'http://nas.local:9000', 'http://10.0.0.5', 'http://localhost:9000']) assert.deepEqual(checkS3Settings({ ...good, endpoint: local }), [], local);
+  assert.equal(checkS3Settings({ ...good, endpoint: 'http://172.32.0.1' }).length, 1, 'not a private range');
   assert.equal(checkS3Settings({ ...good, endpoint: 'not a url' }).length, 1);
   assert.equal(checkS3Settings({ ...good, bucket: 'Bad Bucket!' }).length, 1);
   assert.equal(checkS3Settings({ ...good, secretAccessKey: ' ' }).length, 1);
