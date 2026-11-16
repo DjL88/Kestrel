@@ -4,6 +4,11 @@ on:
   pull_request:
     paths: ['src-tauri/**', 'src/**', 'package.json', '.github/workflows/desktop.yml']
   workflow_dispatch:
+    inputs:
+      release:
+        description: 'Optimised release build for testing on a real computer (slower to build, much faster to run) instead of a debug build'
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -31,11 +36,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - run: npm ci
-      - name: Build the desktop app (unsigned)
+      - name: Build the desktop app (unsigned, debug)
+        if: ${{ !inputs.release }}
         run: npx tauri build --debug --config '{"bundle":{"createUpdaterArtifacts":false}}'
+      - name: Build the desktop app (unsigned, optimised release)
+        if: ${{ inputs.release }}
+        run: npx tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'
       - uses: actions/upload-artifact@v4
         with:
           name: kestrel-desktop-${{ matrix.os }}
-          path: src-tauri/target/debug/bundle/**
+          path: |
+            src-tauri/target/debug/bundle/**
+            src-tauri/target/release/bundle/**
           if-no-files-found: warn
           retention-days: 7
