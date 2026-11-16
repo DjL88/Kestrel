@@ -5,29 +5,17 @@ type StorageState = 'checking' | 'standard' | 'requesting' | 'persistent' | 'dec
 
 const message: Record<StorageState, string> = {
   checking: 'Checking browser storage…',
-  standard: 'The browser may clear this catalogue when it needs storage space.',
+  standard: 'Browser storage can be cleared by your device. Keep a separate project backup.',
   requesting: 'Requesting persistent storage…',
-  persistent: 'Persistent storage is on for Kestrel in this browser.',
+  persistent: 'Kestrel's browser storage is protected from routine clean-up. Keep a separate backup.',
   declined: 'The browser did not grant persistent storage. Keep a current catalogue backup.',
-  unavailable: 'Persistent storage is unavailable in this browser session.',
+  unavailable: 'Browser storage protection isn't available here. Keep a separate project backup.',
 };
 
 export function CatalogueStorage() {
-  if (isDesktopApp()) return <DesktopStorage />;
+  // Native app data is expected and needs no browser-storage warning on Home.
+  if (isDesktopApp()) return null;
   return <BrowserStorage />;
-}
-
-/** The desktop app keeps its catalogue in its own data folder, which is not cleared like a browser tab's storage. */
-function DesktopStorage() {
-  return (
-    <details className="mt-4 rounded-xl border border-white/10 bg-kestrel-raised">
-      <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm text-zinc-200">Catalogue storage</summary>
-      <div className="space-y-2 px-3 pb-3 text-sm text-zinc-300">
-        <p role="status">The catalogue is kept in Kestrel’s own app data, not in a browser, so the system does not clear it to free space.</p>
-        <p className="text-xs text-zinc-400">It can still be lost if the app’s data is deleted. Choose <strong>Back up project</strong> in Workspace options and keep the backup and your original photos somewhere safe.</p>
-      </div>
-    </details>
-  );
 }
 
 function BrowserStorage() {
@@ -60,7 +48,7 @@ function BrowserStorage() {
 
   return (
     <details className="mt-4 rounded-xl border border-white/10 bg-kestrel-raised">
-      <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm text-zinc-200">Catalogue storage</summary>
+      <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm text-zinc-200">Browser storage & backups</summary>
       <div className="space-y-2 px-3 pb-3 text-sm text-zinc-300">
         <p role="status">{message[state]}</p>
         {state !== 'checking' && (
