@@ -67,7 +67,7 @@ test('ten benchmark safety gates prevent false confidence in bad labels or predi
     ['contradictory ground truth', { ...hero, unusable: true }],
   ];
   for (const [name, invalid] of invalidLabels) {
-    assert.throws(() => evaluateCullBenchmark([invalid], []), undefined, name);
+    assert.throws(() => evaluateCullBenchmark([invalid], []), { name: 'Error' }, name);
   }
   const badPredictions: Array<[string, CullSuggestion]> = [
     ['NaN score', { ...prediction(hero.id, 'reject'), score: NaN }],
