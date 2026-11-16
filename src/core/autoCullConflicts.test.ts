@@ -71,3 +71,24 @@ test('a repeated consistent decision is applied once and remains undoable and re
   const redone = redoDecision(restored);
   assert.deepEqual(redone.frames.map((frame) => frame.decision), ['reject', 'keep']);
 });
+
+test('malformed runtime decisions cannot alter photos or create history', () => {
+  const state = createDemoShootState(2);
+  state.frames = state.frames.map((frame) => ({ ...frame, isDemo: false }));
+  const id = state.frames[0].id;
+  const malformed = [
+    { frameId: id, decision: 'unreviewed' },
+    { frameId: id, decision: 'delete' },
+    { frameId: id, decision: null },
+    { frameId: id, decision: undefined },
+  ] as unknown as { frameId: string; decision: 'keep' | 'reject' }[];
+  assert.equal(applyAutoCullDecisions(state, malformed), state);
+  const valid = applyAutoCullDecisions(state, [
+    ...malformed,
+    { frameId: id, decision: 'keep' },
+  ]);
+  assert.equal(valid.frames[0].decision, 'keep');
+  assert.equal(valid.frames[1].decision, 'unreviewed');
+  assert.equal(valid.undoStack.length, 1);
+  assert.equal(undoDecision(valid).frames[0].decision, 'unreviewed');
+});
