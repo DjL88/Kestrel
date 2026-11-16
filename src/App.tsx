@@ -1914,6 +1914,12 @@ export default function App() {
           setZoomLevel(1);
           setPanOffset({ x: 0, y: 0 });
         }}
+        onShowCollection={(filter) => {
+          // One simple jump: close the dialog and look at the keepers (or what is left to decide) as a grid.
+          setAutoCullOpen(false);
+          setPrefs((previous) => ({ ...previous, viewMode: 'grid' }));
+          setCullingState((previous) => ({ ...previous, filter, searchQuery: '', selectedFrameId: previous.frames.find((frame) => !frame.removedAt && frame.decision === filter)?.id ?? previous.selectedFrameId }));
+        }}
         onClose={() => setAutoCullOpen(false)} />}
 
       {autoAdjustOpen && <ConfirmDialog title="Auto-adjust unedited keepers?" confirmLabel="Auto-adjust keepers" cancelLabel="Cancel"
