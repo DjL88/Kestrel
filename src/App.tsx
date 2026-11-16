@@ -1662,7 +1662,7 @@ export default function App() {
 
           {editing && selectedFrame && (
             <div role="toolbar" aria-label="Filmstrip controls"
-              className={`mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center gap-1 overflow-x-auto border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'md:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'md:pr-[var(--editor-panel-w,0px)]') : ''}`}>
+              className={`mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center gap-1 overflow-x-auto border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'workspace:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'workspace:pr-[var(--editor-panel-w,0px)]') : ''}`}>
               <button type="button" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10"
                 onClick={() => { setCopiedEdit(selectedFrame.edit ?? DEFAULT_EDIT); showToast('Adjustments copied'); }}>
                 <Copy className="h-4 w-4" aria-hidden="true" /> Copy
@@ -1704,7 +1704,7 @@ export default function App() {
           )}
           {/* Persistent Filmstrip in Loupe & Compare Modes */}
           {filmstripVisible && (editing || prefs.viewMode !== 'grid') && visibleFrames.length > 0 && (
-            <div className={editing ? (prefs.editPanelSide === 'left' ? 'md:pl-[var(--editor-panel-w,0px)]' : 'md:pr-[var(--editor-panel-w,0px)]') : undefined}>
+            <div className={editing ? (prefs.editPanelSide === 'left' ? 'workspace:pl-[var(--editor-panel-w,0px)]' : 'workspace:pr-[var(--editor-panel-w,0px)]') : undefined}>
             <Filmstrip
               onPhotoMenu={openPhotoMenu}
               frames={editing ? editorFrames : visibleFrames}
