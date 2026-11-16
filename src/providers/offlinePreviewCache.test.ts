@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { previewCacheKey, loadOfflinePreview, saveOfflinePreview } from './offlinePreviewCache';
+import { previewCacheKey, loadOfflinePreview, saveOfflinePreview, previewBelongsToOriginals } from './offlinePreviewCache';
 
 test('cache keys work for Nikon, Canon, Sony, Fujifilm, Panasonic and JPEG', () => {
   for (const filename of ['Z8.NEF', 'R5.CR3', 'A1.ARW', 'XH2.RAF', 'S5.RW2', 'IMG.JPG']) {
@@ -18,4 +18,14 @@ test('cache gracefully degrades without IndexedDB and never stores RAW data', as
   assert.equal(await loadOfflinePreview('missing'), null);
   assert.equal(await saveOfflinePreview('raw', new Blob(['raw'], { type: 'application/octet-stream' })), false);
   assert.equal(await saveOfflinePreview('empty', new Blob([], { type: 'image/jpeg' })), false);
+});
+
+test('project deletion only purges previews belonging to unreferenced originals', () => {
+  const orphaned = new Set(['shoot-A::Z8.NEF']);
+  const oldKey = previewCacheKey({ stableKey: 'shoot-A::Z8.NEF', filename: 'Z8.NEF' });
+  const sharedKey = previewCacheKey({ stableKey: 'shoot-B::R5.CR3', filename: 'R5.CR3' });
+  assert.equal(previewBelongsToOriginals(oldKey, orphaned), true);
+  assert.equal(previewBelongsToOriginals(sharedKey, orphaned), false);
+  assert.equal(previewBelongsToOriginals('not-json', orphaned), false);
+  assert.equal(previewBelongsToOriginals(JSON.stringify(['shoot-A::Z8.NEF-extra']), orphaned), false);
 });
