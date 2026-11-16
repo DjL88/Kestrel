@@ -1,4 +1,5 @@
 import { Sha256Stream } from '../core/sha256';
+import { isDesktopApp } from './desktopShell';
 import { getModel, hasModel, putModel, removeModel } from './modelStore';
 import { SPECIES_MODEL, centreSquare, preprocessSpecies } from '../core/speciesModel';
 import { decodeVector, normalise, type SpeciesLabel } from '../core/speciesMatch';
@@ -19,6 +20,9 @@ let labelsLoading: Promise<Labels> | null = null;
 /** Is the feature set up, and has the model been downloaded to this device? Never throws. */
 export async function speciesStatus(): Promise<SpeciesStatus> {
   if (!SPECIES_MODEL.url) return 'unavailable';
+  // Desktop builds include the checked ONNX file in their assets. No second
+  // download or user permission is necessary after installing the app.
+  if (isDesktopApp() && SPECIES_MODEL.bundled) return 'ready';
   return (await hasModel(SPECIES_MODEL.cache, SPECIES_MODEL.url)) ? 'ready' : 'not-downloaded';
 }
 
@@ -68,8 +72,22 @@ export async function removeSpeciesModel(): Promise<void> {
 function loadSession(): Promise<Loaded> {
   loading ??= (async () => {
     const stored = await getModel(SPECIES_MODEL.cache, SPECIES_MODEL.url);
-    if (!stored) throw new Error('The species model has not been downloaded.');
-    const bytes = new Uint8Array(await stored.arrayBuffer());
+    let bytes: Uint8Array;
+    if (stored) {
+      bytes = new Uint8Array(await stored.arrayBuffer());
+    } else if (isDesktopApp() && SPECIES_MODEL.bundled && SPECIES_MODEL.url) {
+      // Native installer ships this asset: resolve it through the app's own
+      // local asset protocol. Verify again before executing any model weights.
+      const response = await fetch(SPECIES_MODEL.url);
+      if (!response.ok) throw new Error('The packaged species model is missing. Reinstall Kestrel.');
+      bytes = new Uint8Array(await response.arrayBuffer());
+      const hash = new Sha256Stream();
+      hash.update(bytes);
+      if (bytes.byteLength !== SPECIES_MODEL.bytes || hash.digest() !== SPECIES_MODEL.sha256)
+        throw new Error('The packaged species model failed its integrity check. Reinstall Kestrel.');
+    } else {
+      throw new Error('The species model has not been downloaded.');
+    }
     const ort = await import('onnxruntime-web/wasm').catch(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 500));
       return import('onnxruntime-web/wasm');

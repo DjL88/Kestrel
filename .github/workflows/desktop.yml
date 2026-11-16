@@ -36,11 +36,26 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - run: npm ci
+      # Native installers must ship functional offline species recognition.
+      # The public release model is checked against its pinned SHA-256 + size
+      # by the fetch script; a missing/corrupt asset fails the build.
+      - uses: actions/cache@v4
+        with:
+          path: public/models/bioclip-image-int8.onnx
+          key: species-bioclip-int8-ea4095eb31a27964
+      - name: Verify and package offline species recognition
+        run: npm run model:species
       - name: Build the desktop app (unsigned, debug)
         if: ${{ !inputs.release }}
+        env:
+          VITE_SPECIES_MODEL_URL: /models/bioclip-image-int8.onnx
+          VITE_SPECIES_MODEL_BUNDLED: 'true'
         run: npx tauri build --debug --config '{"bundle":{"createUpdaterArtifacts":false}}'
       - name: Build the desktop app (unsigned, optimised release)
         if: ${{ inputs.release }}
+        env:
+          VITE_SPECIES_MODEL_URL: /models/bioclip-image-int8.onnx
+          VITE_SPECIES_MODEL_BUNDLED: 'true'
         run: npx tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'
       - uses: actions/upload-artifact@v4
         with:

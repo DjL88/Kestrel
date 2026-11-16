@@ -9,7 +9,7 @@
  * its SHA-256, and written to public/models/. The app is then built with VITE_SPECIES_MODEL_URL=/models/<file>.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,9 +21,14 @@ const SOURCE = process.env.SPECIES_MODEL_SOURCE ?? `https://github.com/DjL88/Kes
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const folder = join(root, 'public', 'models');
 const target = join(folder, FILE);
+const includeLicence = () => {
+  mkdirSync(folder, { recursive: true });
+  copyFileSync(join(root, 'docs', 'notices', 'bioclip.txt'), join(folder, 'bioclip.txt'));
+};
 const sum = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
 if (existsSync(target) && sum(readFileSync(target)) === SHA256) {
+  includeLicence();
   console.log(`${FILE} is already in place and matches its checksum.`);
   process.exit(0);
 }
@@ -35,7 +40,7 @@ if (bytes.length !== BYTES || sum(bytes) !== SHA256) {
   console.error('The downloaded file does not match its recorded size and SHA-256, so it was not kept.');
   process.exit(1);
 }
-mkdirSync(folder, { recursive: true });
+includeLicence();
 writeFileSync(`${target}.part`, bytes);
 renameSync(`${target}.part`, target);
 console.log(`Saved ${target}\nBuild with: VITE_SPECIES_MODEL_URL=/models/${FILE} npm run build`);

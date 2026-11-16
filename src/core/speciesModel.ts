@@ -7,6 +7,8 @@ export const SPECIES_MODEL = {
   size: 224,
   mean: [0.48145466, 0.4578275, 0.40821073] as const,
   std: [0.26862954, 0.26130258, 0.27577711] as const,
+  /** Build pipeline includes and verifies the model for native desktop installs. */
+  bundled: import.meta.env.VITE_SPECIES_MODEL_BUNDLED === 'true',
   cache: 'kestrel-species-v1',
 } as const;
 

@@ -27,6 +27,20 @@ The model ships inside the app. The 15 MB WebAssembly runtime is cached the firs
 ### Swapping the model
 Update `SUBJECT_MODEL` in `src/core/subjectModel.ts` (file, size, checksum, input size) and check the new model's licence and output format first. Larger models such as IS-Net or BiRefNet cut fine detail better but are tens to hundreds of megabytes.
 
+## Species suggestions model (bundled in desktop installers; optional in browsers)
+
+**Windows, macOS and Linux installers** now include the pinned 89 MB model,
+using `npm run desktop:build` or the Desktop app workflow. The build fetches
+the public release asset, checks its exact size and SHA-256, and fails closed
+if the verified file cannot be included. On desktop, Kestrel loads this
+precompiled ONNX model locally on first use: no build-time compilation at
+launch, no background model download and no photos uploaded.
+
+A new desktop build/installer is needed for model updates; existing installed
+EXEs cannot gain this embedded asset just by restarting. Web/mobile builds
+continue to use the optional explicit download, preserving data and cost
+controls. The original licensing notices remain shipped in `docs/notices`.
+
 ## Species suggestions model (optional, downloaded by the user)
 
 Suggests what a photo shows ("Red kite · Milvus milvus · likely") from the image half of BioCLIP (MIT licence). It is not bundled: it is an 89 MB download the user chooses to make, kept on the device for offline use. See `SPECIES-TAGGING-SPIKE.md` for how it was made and measured.
