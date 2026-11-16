@@ -89,3 +89,14 @@ test('RAW preview rejects JPEG SOF component tables with surplus declared bytes'
   const file = tiff([[0x0201, 4096], [0x0202, bytes.length]], 4096);
   assert.equal(await extractRawPreview(new Blob([file.slice(0, 4096), bytes])), null);
 });
+
+test('RAW preview rejects SOF component counts outside the JPEG range', async () => {
+  for (const components of [0, 5]) {
+    const length = 8 + 3 * components;
+    const bytes = new Uint8Array(5000);
+    bytes.set([0xff, 0xd8, 0xff, 0xc0, length >> 8, length & 0xff, 0x08, 0x03, 0x20, 0x04, 0xb0, components], 0);
+    bytes.set([0xff, 0xd9], bytes.length - 2);
+    const file = tiff([[0x0201, 4096], [0x0202, bytes.length]], 4096);
+    assert.equal(await extractRawPreview(new Blob([file.slice(0, 4096), bytes])), null, `components=${components}`);
+  }
+});
