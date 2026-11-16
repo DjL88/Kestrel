@@ -18,6 +18,10 @@ export interface CullBenchmarkResult {
   missedFavourites: number;
   recall: number | null;
   precision: number | null;
+  /** Precision of explicit auto-Keep decisions only, excluding reviewable unknowns. */
+  autoKeepPrecision: number | null;
+  autoKeeps: number;
+  correctAutoKeeps: number;
   unsafeRejections: number;
   missingPredictions: number;
   /** Predictions that do not belong to the labelled shoot. */
@@ -64,6 +68,7 @@ export function evaluateCullBenchmark(
   let invalidPredictions = 0;
   let favourites = 0, foundFavourites = 0, suggested = 0, correctSuggestions = 0;
   let unsafeRejections = 0, missingPredictions = 0;
+  let autoKeeps = 0, correctAutoKeeps = 0;
   const seen = new Set<string>();
   for (const label of labels) {
     if (typeof label.id !== 'string' || !label.id.trim()) throw new Error('Invalid benchmark label ID');
@@ -82,6 +87,10 @@ export function evaluateCullBenchmark(
     const prediction = valid ? rawPrediction : undefined;
     if (!prediction) missingPredictions += 1;
     // An unknown result remains in human review; a confident reject is excluded.
+    if (prediction?.decision === 'keep') {
+      autoKeeps += 1;
+      if (label.favourite) correctAutoKeeps += 1;
+    }
     const retained = !prediction || prediction.decision !== 'reject';
     if (retained) {
       suggested += 1;
@@ -97,6 +106,8 @@ export function evaluateCullBenchmark(
     missedFavourites: favourites - foundFavourites,
     recall: favourites ? foundFavourites / favourites : null,
     precision: suggested ? correctSuggestions / suggested : null,
+    autoKeepPrecision: autoKeeps ? correctAutoKeeps / autoKeeps : null,
+    autoKeeps, correctAutoKeeps,
     unsafeRejections, missingPredictions, unexpectedPredictions,
     duplicatePredictions, invalidPredictions, byCategory,
   };
