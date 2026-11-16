@@ -1,5 +1,6 @@
 import { pickedFromFile, pickedKey, linkedReader, type PickedPhoto } from './providers/linkedOriginals';
 import { isDesktopApp } from './providers/desktopShell';
+import { checkOriginalPaths } from './providers/originalPathStatus';
 import { splitDropped } from './core/dropSplit';
 import { useAccess } from './providers/useAccess';
 import { loadLicence } from './providers/licenceStore';
@@ -1349,7 +1350,10 @@ export default function App() {
       }
       const nextFrames = stateRef.current.frames.map((frame) =>
         replacements.has(frame.stableKey) ? { ...frame, sourcePath: replacements.get(frame.stableKey) } : frame);
-      const remaining = nextFrames.filter((frame) => frame.sourcePath && !replacements.has(frame.stableKey) && frame.sourceKind === 'file').length;
+      const paths = nextFrames.filter((frame) => frame.sourceKind === 'file' && frame.sourcePath).map((frame) => frame.sourcePath!);
+      const statuses = await checkOriginalPaths(paths, fs.stat);
+      const remaining = nextFrames.filter((frame) => frame.sourceKind === 'file' && frame.sourcePath && statuses.get(frame.sourcePath) !== 'available').length;
+      if (stateRef.current.shoot.id !== projectId) return;
       setCullingState((previous) => previous.shoot.id !== projectId ? previous : {
         ...previous, frames: nextFrames,
         shoot: { ...previous.shoot, needsFileReselect: remaining > 0 },
