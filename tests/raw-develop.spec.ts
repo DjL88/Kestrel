@@ -13,7 +13,7 @@ const raw = (() => {
 
 // The real decoder runs in the desktop app. Here the page believes it is in the desktop app and the native call is faked:
 // it answers with a 3000 x 2000 picture, so the test can see that the editor and export switch to the developed picture.
-async function asDesktop(page: import('@playwright/test').Page, behaviour: 'works' | 'fails' | 'sideways') {
+async function asDesktop(page: import('@playwright/test').Page, behaviour: 'works' | 'fails' | 'sideways' | 'corrupt') {
   await page.addInitScript(([mode, kiteBase64]) => {
     const w = window as unknown as { __TAURI_INTERNALS__: unknown; __developCalls: number };
     w.__developCalls = 0;
@@ -30,6 +30,7 @@ async function asDesktop(page: import('@playwright/test').Page, behaviour: 'work
         if (command !== 'develop_raw') return 0;
         w.__developCalls += 1;
         if (mode === 'fails') throw 'This RAW file could not be read: unsupported compression.';
+        if (mode === 'corrupt') return new Uint8Array([0xff, 0xd8, 0xff, 0xd9]).buffer;
         if (mode === 'sideways') {
           // The same picture as the embedded preview, but lying on its side, as raw sensor data comes out.
           const bytes = Uint8Array.from(atob(kiteBase64 as string), (ch) => ch.charCodeAt(0));
@@ -85,6 +86,16 @@ test('outside the desktop app there is no Develop button, only the honest previe
   await openEdit(page);
   await expect(page.getByText('Editing embedded JPEG preview')).toBeVisible({ timeout: 20000 });
   await expect(page.getByRole('button', { name: 'Develop from RAW' })).toHaveCount(0);
+});
+
+test('unreadable native output never replaces the working RAW preview', async ({ page }) => {
+  await asDesktop(page, 'corrupt');
+  await openEdit(page);
+  await page.getByRole('button', { name: 'Develop from RAW' }).click({ timeout: 20000 });
+  await expect(page.getByRole('status').filter({ hasText: 'developed RAW picture could not be opened' })).toContainText('keeps using the preview stored in the file');
+  await expect(page.getByText('Editing embedded JPEG preview')).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Develop from RAW' })).toBeEnabled();
 });
 
 test('a developed picture that comes out sideways is turned to match the camera preview', async ({ page }) => {

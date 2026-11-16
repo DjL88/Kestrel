@@ -59,15 +59,17 @@ export async function matchPreviewOrientation(developed: Blob, preview: Blob | n
     canvas.width = sideways ? picture.height : picture.width;
     canvas.height = sideways ? picture.width : picture.height;
     const context = canvas.getContext('2d');
-    if (!context) return developed;
+    if (!context) throw new Error('Could not create the orientation canvas.');
     context.translate(canvas.width / 2, canvas.height / 2);
     context.rotate((turn * Math.PI) / 180);
     context.drawImage(picture, -picture.width / 2, -picture.height / 2);
     const target = canvas;
     const rotated = await new Promise<Blob | null>((resolve) => target.toBlob(resolve, 'image/jpeg', 0.95));
-    return rotated?.type === 'image/jpeg' && rotated.size > 0 ? rotated : developed;
-  } catch {
+    if (!rotated || rotated.type !== 'image/jpeg' || rotated.size === 0) throw new Error('Could not encode the oriented picture.');
+    return rotated;
+  } catch (error) {
     // Orientation matching is optional once the full-size picture is readable.
+    console.warn('RAW orientation matching failed; keeping the decoded orientation.', error);
     return developed;
   } finally {
     guide?.close();
