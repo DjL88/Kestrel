@@ -127,6 +127,15 @@ export function extractEmbeddedJpegFromRawBuffer(
           i = end;
           break;
         }
+        // A second JPEG SOI before this EOI means the first candidate was
+        // truncated. Restart at the new SOI instead of swallowing a valid
+        // embedded preview inside the corrupt candidate.
+        if (view[j] === 0xff && view[j + 1] === 0xd8 &&
+          j + 3 < view.length && view[j + 2] === 0xff &&
+          ![0x00, 0xff, 0xd8, 0xd9].includes(view[j + 3])) {
+          i = j;
+          break;
+        }
         j += 1;
       }
       if (j >= view.length - 1) {
