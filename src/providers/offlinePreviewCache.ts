@@ -138,3 +138,38 @@ export async function clearOfflinePreviews(): Promise<boolean> {
   } catch { return false; }
   finally { db?.close(); }
 }
+
+/** Only exact stable-key matches can be removed; other cached projects remain intact. */
+export function previewBelongsToOriginals(cacheKey: string, originalKeys: ReadonlySet<string>): boolean {
+  try {
+    const identity: unknown = JSON.parse(cacheKey);
+    return Array.isArray(identity) && typeof identity[0] === 'string' && originalKeys.has(identity[0]);
+  } catch { return false; }
+}
+
+/**
+ * Purge previews belonging to originals that no remaining project references.
+ * The cache is derived data; this never opens or deletes the original files.
+ */
+export async function deleteOfflinePreviewsForOriginals(originalKeys: ReadonlySet<string>): Promise<boolean> {
+  if (originalKeys.size === 0 || typeof indexedDB === 'undefined') return true;
+  let db: IDBDatabase | undefined;
+  try {
+    db = await database();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db!.transaction(STORE, 'readwrite');
+      const cursor = tx.objectStore(STORE).openCursor();
+      cursor.onsuccess = () => {
+        const row = cursor.result;
+        if (!row) return;
+        if (previewBelongsToOriginals(String(row.key), originalKeys)) row.delete();
+        row.continue();
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+    return true;
+  } catch { return false; }
+  finally { db?.close(); }
+}
