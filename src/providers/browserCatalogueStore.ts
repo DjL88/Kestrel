@@ -1,3 +1,4 @@
+import { clearOfflinePreviews } from './offlinePreviewCache';
 import { computeCullCounts } from '../core/cullingEngine';
 import { projectSearchText } from '../core/projects';
 import {
@@ -353,6 +354,9 @@ export class BrowserCatalogueStore implements CatalogueStore {
     await idbDeleteStore(STORE_CATALOGUE);
     await idbDeleteStore(STORE_FILES);
     await idbDeleteStore(STORE_HANDLES);
+    // A full catalogue reset must not leave cached photographs behind.
+    const previewsCleared = await clearOfflinePreviews();
+    if (!previewsCleared) throw new Error('Could not clear offline photo previews. Retry the reset.');
     try {
       localStorage.removeItem('kestrel.activeStateFallback.v1');
     } catch {

@@ -533,6 +533,13 @@ export function applyAutoCullDecisions(
   };
 }
 
+/** Do not replay history against an ambiguous catalogue identity. */
+function historyTargetsAreUnique(state: CullingState, entry: CullingState['undoStack'][number]): boolean {
+  const counts = new Map<string, number>();
+  for (const frame of state.frames) counts.set(frame.id, (counts.get(frame.id) ?? 0) + 1);
+  return (entry.batch ?? [entry]).every((change) => counts.get(change.frameId) === 1);
+}
+
 function restoreFlags(state: CullingState, entry: CullingState['undoStack'][number], direction: 'prevDecision' | 'nextDecision') {
   const changes = new Map((entry.batch ?? [entry]).map((change) => [change.frameId, change[direction]]));
   return state.frames.map((frame) => {
@@ -547,9 +554,16 @@ function restoreFlags(state: CullingState, entry: CullingState['undoStack'][numb
   });
 }
 
+/** A persisted ID must identify exactly one photo before changing its Trash state. */
+function unambiguousRequestedIds(frames: readonly PhotoFrame[], requested: readonly string[]): Set<string> {
+  const counts = new Map<string, number>();
+  for (const frame of frames) counts.set(frame.id, (counts.get(frame.id) ?? 0) + 1);
+  return new Set(requested.filter((id) => counts.get(id) === 1));
+}
+
 /** Take photos that are already in Trash out of the library. Files on disk are never touched, and Restore reverses it. */
 export function removeFromLibrary(state: CullingState, frameIds: string[]): CullingState {
-  const ids = new Set(frameIds);
+  const ids = unambiguousRequestedIds(state.frames, frameIds);
   const targets = state.frames.filter((frame) => ids.has(frame.id) && frame.decision === 'reject' && !frame.removedAt);
   if (!targets.length) return state;
   const removing = new Set(targets.map((frame) => frame.id));
@@ -578,7 +592,7 @@ export function removedFrames(frames: readonly PhotoFrame[]): PhotoFrame[] {
 
 /** Bring removed photos back. They return to Trash so nothing reappears among Keepers by surprise. */
 export function restoreRemoved(state: CullingState, frameIds: string[]): CullingState {
-  const ids = new Set(frameIds);
+  const ids = unambiguousRequestedIds(state.frames, frameIds);
   if (!state.frames.some((frame) => ids.has(frame.id) && frame.removedAt)) return state;
   const frames = state.frames.map((frame) => {
     if (!ids.has(frame.id) || !frame.removedAt) return frame;
@@ -592,6 +606,8 @@ export function restoreRemoved(state: CullingState, frameIds: string[]): Culling
 export function undoDecision(state: CullingState): CullingState {
   if (state.undoStack.length === 0) return state;
   const entry = state.undoStack[state.undoStack.length - 1];
+  // Leave history intact so the user can repair the catalogue before retrying.
+  if (!historyTargetsAreUnique(state, entry)) return state;
   const updatedFrames = restoreFlags(state, entry, 'prevDecision');
 
   return {
@@ -610,6 +626,8 @@ export function undoDecision(state: CullingState): CullingState {
 export function redoDecision(state: CullingState): CullingState {
   if (state.redoStack.length === 0) return state;
   const entry = state.redoStack[state.redoStack.length - 1];
+  // Leave history intact so the user can repair the catalogue before retrying.
+  if (!historyTargetsAreUnique(state, entry)) return state;
   const updatedFrames = restoreFlags(state, entry, 'nextDecision');
 
   const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery, state.ratingFilter);

@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { MoveHorizontal } from 'lucide-react';
 
 import { FIT_VIEW, transformViewport, type ViewportPoint as Point } from '../core/viewportTransform';
@@ -46,6 +46,23 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
 
   function toggleZoom() {
     onTransform(zoom > 1 ? 1 : 2, FIT_VIEW.pan);
+  }
+
+  function panWithKeyboard(event: KeyboardEvent<HTMLButtonElement>) {
+    if (zoom <= 1 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const step = 32;
+    let x = 0;
+    let y = 0;
+    switch (event.key) {
+      case 'ArrowLeft': x = step; break;
+      case 'ArrowRight': x = -step; break;
+      case 'ArrowUp': y = step; break;
+      case 'ArrowDown': y = -step; break;
+      default: return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    transform(current.current.zoom, FIT_VIEW.pan, { x, y });
   }
 
   const zoomAction = zoom > 1 ? 'Fit photo' : 'Zoom in';
@@ -112,7 +129,9 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
           </>}
         </>
       )}
-      <button type="button" onClick={toggleZoom} title={zoomAction}
+      <button type="button" onClick={toggleZoom} onKeyDown={panWithKeyboard}
+        aria-description={zoom > 1 ? 'Use the arrow keys to move around the zoomed photo.' : undefined}
+        title={zoom > 1 ? 'Fit photo. Arrow keys pan while focused.' : zoomAction}
         className="absolute right-2 top-2 min-h-11 min-w-11 rounded-md bg-black/70 px-2 text-xs focus-visible:outline-2 focus-visible:outline-sky-300">
         {zoomAction}
       </button>

@@ -32,6 +32,13 @@ test('a developed picture that already matches is left alone', () => {
   assert.equal(bestTurn({ thumb: scene(), portrait: false }, { thumb: scene(), portrait: false }), 0);
 });
 
+test('different shapes alone cannot rotate a developed photo', () => {
+  const upright = scene();
+  assert.equal(bestTurn({ thumb: upright, portrait: true }, { thumb: upright, portrait: false }), 0);
+  const flat = new Float32Array(THUMB * THUMB).fill(100);
+  assert.equal(bestTurn({ thumb: flat, portrait: true }, { thumb: flat, portrait: false }), 0);
+});
+
 test('an upside-down developed picture of the same shape is turned half way, but only when the match is clear', () => {
   const upright = scene();
   assert.equal(bestTurn({ thumb: upright, portrait: false }, { thumb: turnThumb(upright, 180), portrait: false }), 180);

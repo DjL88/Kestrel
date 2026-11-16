@@ -1,3 +1,4 @@
+import { loadOfflinePreview, previewCacheKey, saveOfflinePreview } from './offlinePreviewCache';
 import { extractNefPreview } from '../core/nefPreview';
 import { isRawPreviewFile as isNikonEmbeddedPreviewFile } from '../core/rawFormats';
 import {
@@ -29,6 +30,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
   private fullUrlCache = new Map<string, string>();
   private fullFrameKeys = new Map<string, string>();
   private fullUrlOrder: string[] = [];
+  private offlineFullKeys = new Set<string>();
   private pendingThumbs = new Map<string, Promise<string>>();
 
   registerBlob(stableKey: string, blob: Blob): void {
@@ -38,6 +40,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       this.invalidateFullPreview(stableKey);
     }
     this.localBlobs.set(stableKey, blob);
+    if (this.offlineFullKeys.has(stableKey)) this.invalidateFullPreview(stableKey);
   }
 
   /** Photos that stay on the disk: how to read each one, and what it was like when added. Read only when needed. */
@@ -46,7 +49,21 @@ export class BrowserPreviewProvider implements PreviewProvider {
   private linkedOrder: string[] = [];
 
   registerLinked(stableKey: string, info: { read: () => Promise<Blob>; size: number; lastModified: number }): void {
+    const previous = this.linked.get(stableKey);
+    if (previous && (previous.size !== info.size || previous.lastModified !== info.lastModified)) {
+      this.localBlobs.delete(stableKey);
+      this.invalidateFullPreview(stableKey);
+    }
     this.linked.set(stableKey, info);
+    // A newly accessible original must replace a low-resolution offline fallback.
+    if (this.offlineFullKeys.has(stableKey)) this.invalidateFullPreview(stableKey);
+  }
+
+  /** Retry a reconnected disk without changing catalogue decisions or edits. */
+  retryLinkedOriginal(stableKey: string): void {
+    if (!this.linked.has(stableKey)) return;
+    this.localBlobs.delete(stableKey);
+    this.invalidateFullPreview(stableKey);
   }
 
   getOriginal(stableKey: string): Blob | undefined {
@@ -130,6 +147,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     const stale = this.fullUrlCache.get(key);
     if (stale) URL.revokeObjectURL(stale);
     this.fullUrlCache.delete(key);
+    this.offlineFullKeys.delete(key);
     this.fullUrlOrder = this.fullUrlOrder.filter((item) => item !== key);
   }
 
@@ -152,7 +170,27 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
     const blob = await this.ensureOriginal(key);
     if (!blob) {
-      return '';
+      // The original drive may be disconnected. Show a small local preview,
+      // never imply this is suitable for full-resolution export or RAW editing.
+      const info = this.originalInfo(key);
+      const offline = await loadOfflinePreview(previewCacheKey({
+        stableKey: key, filename: frame.filename,
+        fileSize: info?.size, lastModified: info?.lastModified,
+      }));
+      if (!offline) return '';
+      const fallbackUrl = URL.createObjectURL(offline);
+      this.fullUrlCache.set(key, fallbackUrl);
+      this.offlineFullKeys.add(key);
+      this.fullUrlOrder.push(key);
+      while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
+        const oldest = this.fullUrlOrder.shift();
+        if (!oldest) continue;
+        const stale = this.fullUrlCache.get(oldest);
+        if (stale) URL.revokeObjectURL(stale);
+        this.fullUrlCache.delete(oldest);
+        this.offlineFullKeys.delete(oldest);
+      }
+      return fallbackUrl;
     }
 
     const developed = this.developed.get(key);
@@ -171,6 +209,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
     const objectUrl = URL.createObjectURL(previewBlob);
     this.fullUrlCache.set(key, objectUrl);
+    this.offlineFullKeys.delete(key);
     this.fullUrlOrder.push(key);
 
     while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
@@ -179,6 +218,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
         const oldUrl = this.fullUrlCache.get(oldestKey);
         if (oldUrl) URL.revokeObjectURL(oldUrl);
         this.fullUrlCache.delete(oldestKey);
+        this.offlineFullKeys.delete(oldestKey);
       }
     }
 
@@ -209,6 +249,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.fullUrlCache.clear();
     this.fullFrameKeys.clear();
     this.fullUrlOrder = [];
+    this.offlineFullKeys.clear();
     this.localBlobs.clear();
     this.linked.clear();
     this.linkedLoading.clear();
@@ -218,6 +259,14 @@ export class BrowserPreviewProvider implements PreviewProvider {
   }
 
   private async buildLocalThumbnailUrl(frame: PhotoFrame): Promise<string> {
+    const info = this.originalInfo(frame.stableKey);
+    const cacheKey = previewCacheKey({ stableKey: frame.stableKey, filename: frame.filename, fileSize: info?.size, lastModified: info?.lastModified });
+    const offline = await loadOfflinePreview(cacheKey);
+    if (offline) {
+      const url = URL.createObjectURL(offline);
+      this.thumbUrlCache.set(frame.id, url);
+      return url;
+    }
     const blob = await this.ensureOriginal(frame.stableKey);
     if (!blob) return '';
 
@@ -251,6 +300,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       const thumbBlob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, 'image/jpeg', 0.82)
       );
+      if (thumbBlob) void saveOfflinePreview(cacheKey, thumbBlob);
       const url = URL.createObjectURL(thumbBlob ?? sourceBlob);
       this.thumbUrlCache.set(frame.id, url);
       return url;

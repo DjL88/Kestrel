@@ -36,38 +36,44 @@ async function thumbOf(bitmap: ImageBitmap): Promise<Float32Array> {
  * Returns the picture untouched when it already matches or there is no preview to compare with.
  */
 export async function matchPreviewOrientation(developed: Blob, preview: Blob | null): Promise<Blob> {
-  if (!preview) return developed;
-  // The RAW decoder has already succeeded. An unreadable camera JPEG preview
-  // must not prevent the person from editing the full developed photograph.
-  let a: ImageBitmap;
+  // Validate the decoder output before the editor replaces its current source.
+  let picture: ImageBitmap;
   try {
-    a = await createImageBitmap(preview);
+    picture = await createImageBitmap(developed);
   } catch {
-    return developed;
+    throw new Error('The developed RAW picture could not be opened.');
   }
-  let b: ImageBitmap;
+
+  let guide: ImageBitmap | undefined;
+  let canvas: HTMLCanvasElement | undefined;
   try {
-    b = await createImageBitmap(developed);
-  } catch (error) {
-    a.close();
-    throw error;
-  }
-  try {
+    if (!preview) return developed;
+    guide = await createImageBitmap(preview);
     const turn = bestTurn(
-      { thumb: await thumbOf(a), portrait: a.height > a.width },
-      { thumb: await thumbOf(b), portrait: b.height > b.width },
+      { thumb: await thumbOf(guide), portrait: guide.height > guide.width },
+      { thumb: await thumbOf(picture), portrait: picture.height > picture.width },
     );
     if (turn === 0) return developed;
-    const canvas = document.createElement('canvas');
+    canvas = document.createElement('canvas');
     const sideways = turn === 90 || turn === 270;
-    canvas.width = sideways ? b.height : b.width;
-    canvas.height = sideways ? b.width : b.height;
-    const context = canvas.getContext('2d')!;
+    canvas.width = sideways ? picture.height : picture.width;
+    canvas.height = sideways ? picture.width : picture.height;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Could not create the orientation canvas.');
     context.translate(canvas.width / 2, canvas.height / 2);
     context.rotate((turn * Math.PI) / 180);
-    context.drawImage(b, -b.width / 2, -b.height / 2);
-    return await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not turn the picture.'))), 'image/jpeg', 0.95));
+    context.drawImage(picture, -picture.width / 2, -picture.height / 2);
+    const target = canvas;
+    const rotated = await new Promise<Blob | null>((resolve) => target.toBlob(resolve, 'image/jpeg', 0.95));
+    if (!rotated || rotated.type !== 'image/jpeg' || rotated.size === 0) throw new Error('Could not encode the oriented picture.');
+    return rotated;
+  } catch (error) {
+    // Orientation matching is optional once the full-size picture is readable.
+    console.warn('RAW orientation matching failed; keeping the decoded orientation.', error);
+    return developed;
   } finally {
-    a.close(); b.close();
+    guide?.close();
+    picture.close();
+    if (canvas) { canvas.width = 0; canvas.height = 0; }
   }
 }

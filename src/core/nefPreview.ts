@@ -115,6 +115,9 @@ async function usefulPixelCount(preview: Blob): Promise<number> {
       // height used to pass because only the larger dimension was checked.
       // A truncated or fabricated SOF segment must not certify a RAW preview.
       if (length < 8 || offset + 2 + length > data.byteLength) return 0;
+      // A zero-bit sample precision is not a JPEG image. Do not trust its
+      // advertised dimensions when choosing a RAW embedded preview.
+      if (data.getUint8(offset + 4) === 0) return 0;
       const height = data.getUint16(offset + 5);
       const width = data.getUint16(offset + 7);
       const components = data.getUint8(offset + 9);
