@@ -81,6 +81,9 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
   await page.setViewportSize({ width: 320, height: 568 });
   await checkViewport('Editor small phone');
+  await page.setViewportSize({ width: 850, height: 700 });
+  await checkViewport('Foldable unfolded narrow workspace');
+  expect(await editLayout()).toBe('column');
   await page.setViewportSize({ width: 1024, height: 768 });
   await checkViewport('Tablet landscape');
   expect(await editLayout()).toBe('row');
