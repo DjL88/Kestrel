@@ -53,3 +53,22 @@ test('the status line reads naturally', () => {
   assert.equal(ago(0, 60 * min), '1 hour ago');
   assert.equal(ago(0, 5 * 24 * 60 * min), '5 days ago');
 });
+
+test('completion acknowledges only the saved revision and preserves newer edits and cooldown', () => {
+  const latest = afterChange(afterChange(fresh, 1000), 2000);
+  const saved = afterAttempt(latest, 3000, true, 1000);
+  assert.equal(saved.lastChangeAt, 2000);
+  assert.equal(saved.backedUpChangeAt, 1000);
+  assert.equal(dueForBackup(saved, 4000), 'wait');
+  assert.equal(dueForBackup(saved, 4000, true), 'now');
+  assert.equal(dueForBackup(saved, 3000 + MIN_GAP_MS), 'now');
+  assert.equal(dueForBackup(afterAttempt(saved, 5000, true, 2000), 6000), 'nothing');
+});
+
+test('failed writes never acknowledge a snapshot and retain changes made during the attempt', () => {
+  const first = afterAttempt(afterChange(fresh, 1000), 1500, true, 1000);
+  const failed = afterAttempt(afterChange(first, 2000), 3000, false, 2000);
+  assert.equal(failed.backedUpChangeAt, 1000);
+  assert.equal(failed.lastChangeAt, 2000);
+  assert.equal(dueForBackup(failed, 3000 + min, true), 'now');
+});
