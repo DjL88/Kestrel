@@ -59,6 +59,13 @@ export class BrowserPreviewProvider implements PreviewProvider {
     if (this.offlineFullKeys.has(stableKey)) this.invalidateFullPreview(stableKey);
   }
 
+  /** Retry a reconnected disk without changing catalogue decisions or edits. */
+  retryLinkedOriginal(stableKey: string): void {
+    if (!this.linked.has(stableKey)) return;
+    this.localBlobs.delete(stableKey);
+    this.invalidateFullPreview(stableKey);
+  }
+
   getOriginal(stableKey: string): Blob | undefined {
     return this.localBlobs.get(stableKey);
   }
