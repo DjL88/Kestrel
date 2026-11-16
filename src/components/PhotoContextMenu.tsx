@@ -1,5 +1,17 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { photoMenuItems, type PhotoAction, type PhotoMenuItem, type PhotoMenuState } from '../core/photoMenu';
+
+/** Open a photo's menu at its focused thumbnail on all keyboard platforms. */
+export function openPhotoMenuFromKeyboard(event: KeyboardEvent<HTMLButtonElement>, open: (x: number, y: number) => void) {
+  if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  if (!event.repeat) {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    open(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+  }
+  return true;
+}
 
 interface Props {
   x: number;

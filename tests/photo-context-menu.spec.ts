@@ -104,3 +104,22 @@ test('the filmstrip has the same menu, and moving a photo to the Trash from it a
   await menu.getByRole('menuitem', { name: 'Move to Trash' }).click();
   await expect(menu).toHaveCount(0);
 });
+
+
+test('open photo actions from the keyboard in the grid and editor filmstrip', async ({ page }) => {
+  await project(page);
+  const thumbnail = page.getByRole('button', { name: 'View m-2.png' });
+  const menu = page.getByRole('menu', { name: 'm-2.png' });
+  await thumbnail.press('Shift+F10');
+  await expect(menu.getByRole('menuitem', { name: 'Edit photo' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(thumbnail).toBeFocused();
+  await expect(menu).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  const stripPhoto = page.getByRole('button', { name: 'Jump to frame m-2.png' });
+  await stripPhoto.press('ContextMenu');
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(stripPhoto).toBeFocused();
+});
