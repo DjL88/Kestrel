@@ -92,3 +92,23 @@ test('malformed runtime decisions cannot alter photos or create history', () => 
   assert.equal(valid.undoStack.length, 1);
   assert.equal(undoDecision(valid).frames[0].decision, 'unreviewed');
 });
+
+test('malformed null worker entries and invalid frame IDs do not interrupt valid decisions', () => {
+  const state = createDemoShootState(2);
+  state.frames = state.frames.map((frame) => ({ ...frame, isDemo: false }));
+  const [first, second] = state.frames;
+  const untrusted = [
+    null,
+    undefined,
+    { decision: 'reject' },
+    { frameId: null, decision: 'reject' },
+    { frameId: {}, decision: 'reject' },
+    { frameId: '', decision: 'reject' },
+    { frameId: first.id, decision: 'keep' },
+    { frameId: second.id, decision: 'reject' },
+  ] as unknown as { frameId: string; decision: 'keep' | 'reject' }[];
+  const changed = applyAutoCullDecisions(state, untrusted);
+  assert.deepEqual(changed.frames.map((frame) => frame.decision), ['keep', 'reject']);
+  assert.equal(changed.undoStack.length, 1);
+  assert.deepEqual(undoDecision(changed).frames.map((frame) => frame.decision), ['unreviewed', 'unreviewed']);
+});
