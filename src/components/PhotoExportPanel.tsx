@@ -213,7 +213,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
         if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
         const stem = stemFor(naming, frame.filename, frameIndex, frames.length);
         const image = source && frames.length === 1 ? source : await loadExportSource(frame, provider);
-        const recorded = frame.exif.capturedAtMs ?? (provider.getOriginal(frame.stableKey) as File | undefined)?.lastModified;
+        const recorded = frame.exif.capturedAtMs ?? provider.originalInfo(frame.stableKey)?.lastModified;
         const date = pickedDate ?? (timestamp === 'capture' && Number.isFinite(recorded) ? new Date(recorded!) : started);
         if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
         for (const format of selected) {

@@ -105,3 +105,9 @@ Where things stand and what is left, in order. Older detail: `AUDIT-2.md`, `AUDI
 - **A phone turned sideways (844x390): gets the desktop layout** too; the photo becomes a thin strip. First fix done: the filmstrip no longer starts open on a short touch screen. Still needed: a photo-first landscape layout (controls as a slide-over, chrome hidden).
 - Cause: the layout switches on width only (`isPhone` is `max-width: 767px`); it should consider orientation, height and touch. Needs a test project for tablet (touch, 820x1180 and 1180x820) and landscape phone (844x390).
 - Zoom already exists: pinch, double-tap, wheel and drag (`PhotoViewport`). Missing: a 100% (1:1) button, and re-fit after rotating.
+
+## Linked originals (16 November, desktop app)
+- Photos chosen in the desktop app (native Choose files / Choose folder) **stay where they are**: Kestrel keeps the path (`PhotoFrame.sourcePath`), stores no copy in IndexedDB, and reads the file when it is needed (`BrowserPreviewProvider.ensureOriginal`, at most 3 reads at once, 6 kept in memory). After a restart they are linked again from the saved path.
+- Browsers and drag-and-drop still copy (up to 35 MB) as before; a browser cannot keep a path.
+- Not done: a moved or deleted original just shows blank (no "find missing photos" step yet); drag-and-drop in the desktop app does not link; thumbnails are not cached on disk, so a restart re-reads each file once (cap on parallel reads keeps memory flat).
+- Version is now `26.11.1` (year.month.build; MSI needs the first two numbers under 256).
