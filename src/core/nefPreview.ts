@@ -121,7 +121,7 @@ async function usefulPixelCount(preview: Blob): Promise<number> {
       // 12 for extended DCT, or up to 16 for lossless JPEG. Reject
       // fabricated values before trusting the claimed dimensions.
       const precision = data.getUint8(offset + 4);
-      if (precision < 2 || precision > 16) return 0;
+      if (precision < 2 || precision > 16 || (marker === 0xc0 && precision !== 8)) return 0;
       const height = data.getUint16(offset + 5);
       const width = data.getUint16(offset + 7);
       const components = data.getUint8(offset + 9);
