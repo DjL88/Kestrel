@@ -1,4 +1,4 @@
-import { clearOfflinePreviews } from './offlinePreviewCache';
+import { clearOfflinePreviews, deleteOfflinePreviewsForOriginals } from './offlinePreviewCache';
 import { computeCullCounts } from '../core/cullingEngine';
 import { projectSearchText } from '../core/projects';
 import {
@@ -229,6 +229,7 @@ export class BrowserCatalogueStore implements CatalogueStore {
    * Files on the user's disk are never touched.
    */
   async deleteProject(id: string): Promise<void> {
+    const orphaned = new Set<string>();
     const write = this.projectWrite.then(async () => {
       const db = await openDatabase();
       try {
@@ -262,7 +263,10 @@ export class BrowserCatalogueStore implements CatalogueStore {
               catalogue.put(true, LEGACY_MIGRATION_BLOCKED);
               catalogue.delete(ACTIVE_KEY);
               tx.objectStore(STORE_HANDLES).delete(id);
-              for (const key of keys) tx.objectStore(STORE_FILES).delete(key);
+              for (const key of keys) {
+                orphaned.add(key);
+                tx.objectStore(STORE_FILES).delete(key);
+              }
             };
           };
         });
@@ -272,6 +276,8 @@ export class BrowserCatalogueStore implements CatalogueStore {
     });
     this.projectWrite = write.catch(() => {});
     await write;
+    const previewsCleared = await deleteOfflinePreviewsForOriginals(orphaned);
+    if (!previewsCleared) throw new Error('Project deleted, but some cached previews could not be cleared. Clear the preview cache before sharing this device.');
     try {
       const legacy = localStorage.getItem('kestrel.activeStateFallback.v1');
       if (legacy) {
