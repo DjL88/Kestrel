@@ -615,8 +615,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
 
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
   return (
-    <section aria-label="Photo editor" className="flex min-h-0 flex-1 flex-col bg-kestrel-stage">
-      <div role="toolbar" aria-label="Editor actions" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-panel px-2 pt-0.5 sm:px-4">
+    <section aria-label="Photo editor" className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden bg-kestrel-stage">
+      <div role="toolbar" aria-label="Editor actions" className="mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center justify-between gap-2 overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 pt-0.5 sm:px-4">
         <div className="flex items-center gap-1">
           <button type="button" className={`${button} inline-flex items-center`} aria-label="Undo" title={`Undo (${MOD}+Z)`} disabled={!frame.editHistory?.cursor} onClick={() => onHistoryStep(-1)}>
             <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Undo</span>
@@ -668,8 +668,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
         </div>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-      <div ref={stage} className="relative flex min-h-0 flex-1 bg-black">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex-row">
+      <div ref={stage} className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
         <PhotoViewport zoom={transform.zoom} pan={transform.pan}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
           overlayMode={displayCompare ? 'wipe' : 'hidden'}
