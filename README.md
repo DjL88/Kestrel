@@ -131,6 +131,8 @@ In a Library, choose **Workspace options → Back up project**. The versioned JS
 
 On the Projects screen choose **Restore backup**. Kestrel validates the file and opens the restored catalogue as a separate project. If source files are unavailable in this browser, reconnect them from the Library. The restore process does not authenticate with cloud storage or upload anything. A sync provider can use this catalogue boundary later.
 
+When Kestrel cannot store an imported or reconnected original in browser storage, it warns immediately. You can continue editing, but keep the original file: it may need to be reselected when the project is reopened. A project backup contains catalogue information, not original photos.
+
 ### Test a real photo workflow
 
 Run `npx playwright install chromium` once, then `npm run test:e2e`. The test starts the production build fresh, creates a project, imports ten test-only PNG files through the normal importer, flags and edits a photo, checks the downloaded PNG dimensions, and reopens the persisted edit offline. For a locally installed Chromium, set `KESTREL_CHROME_PATH`. Use actual Z8 and Z5II NEFs separately for decoder, compression-mode and colour acceptance.

@@ -942,7 +942,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         </details>
         {isRaw && (
           <div className="space-y-1 pb-2">
-            <p className="text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey) ? 'Developed from the RAW file' : 'Editing embedded JPEG preview'}</p>
+            <p className="text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey)
+              ? 'Developed from the RAW file as an 8-bit JPEG. Edits use that JPEG; the original RAW is unchanged.'
+              : 'Editing embedded JPEG preview'}</p>
             {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
               <button type="button" className={`${button} w-full border border-white/10`} disabled={developing || sourceState !== 'ready'} onClick={() => void developFromRaw()}>
                 {developing ? 'Developing…' : 'Develop from RAW'}

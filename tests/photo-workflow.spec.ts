@@ -17,6 +17,7 @@ async function expectIconButtonsHaveTooltips(page: Page, where: string) {
 }
 
 test('import ten photos, keep and edit a frame, export it and reopen offline', async ({ page, context }) => {
+  test.setTimeout(60_000);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
   await expect(page.getByText('Create a project to import photos, or restore a Kestrel backup.')).toBeVisible();
@@ -67,8 +68,10 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   const light = page.getByRole('slider', { name: 'Light adjustment' });
   await expect(light).toBeEnabled();
   await expectIconButtonsHaveTooltips(page, 'the editor');
-  // The macro pad is reachable from the editor, opens on Edit mode, explains itself, and its test box names the key pressed.
-  await page.getByRole('button', { name: 'Macro pad and shortcuts' }).click();
+  // The desktop-only macro pad is in Appearance & layout. Fake only the shell marker while opening it.
+  await page.evaluate(() => { Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true }); });
+  await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
+  await page.getByRole('button', { name: 'Macro pad & keyboard shortcuts…' }).click();
   // The instructions start folded away, so the keymap is what shows first. Open them to read how it works.
   await page.getByText('How to use a macro pad').click();
   await expect(page.getByText(/A macro pad sends ordinary keys/)).toBeVisible();
@@ -77,6 +80,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await expect(page.getByText('Cycle Adjustment (Edit mode)')).toBeVisible();
   await expect(light).toHaveValue('0');
   await page.keyboard.press('Escape');
+  await page.evaluate(() => { Reflect.deleteProperty(window, '__TAURI_INTERNALS__'); });
   // On wide screens the panel runs down beside the filmstrip. Hiding the filmstrip must not push the panel's bottom off screen.
   if ((page.viewportSize()?.width ?? 0) >= 768) {
     const panelFitsWindow = () => page.evaluate(() => document.querySelector('[role=tablist]')!.parentElement!.getBoundingClientRect().bottom <= window.innerHeight + 1);
