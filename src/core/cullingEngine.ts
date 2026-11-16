@@ -554,9 +554,16 @@ function restoreFlags(state: CullingState, entry: CullingState['undoStack'][numb
   });
 }
 
+/** A persisted ID must identify exactly one photo before changing its Trash state. */
+function unambiguousRequestedIds(frames: readonly PhotoFrame[], requested: readonly string[]): Set<string> {
+  const counts = new Map<string, number>();
+  for (const frame of frames) counts.set(frame.id, (counts.get(frame.id) ?? 0) + 1);
+  return new Set(requested.filter((id) => counts.get(id) === 1));
+}
+
 /** Take photos that are already in Trash out of the library. Files on disk are never touched, and Restore reverses it. */
 export function removeFromLibrary(state: CullingState, frameIds: string[]): CullingState {
-  const ids = new Set(frameIds);
+  const ids = unambiguousRequestedIds(state.frames, frameIds);
   const targets = state.frames.filter((frame) => ids.has(frame.id) && frame.decision === 'reject' && !frame.removedAt);
   if (!targets.length) return state;
   const removing = new Set(targets.map((frame) => frame.id));
@@ -585,7 +592,7 @@ export function removedFrames(frames: readonly PhotoFrame[]): PhotoFrame[] {
 
 /** Bring removed photos back. They return to Trash so nothing reappears among Keepers by surprise. */
 export function restoreRemoved(state: CullingState, frameIds: string[]): CullingState {
-  const ids = new Set(frameIds);
+  const ids = unambiguousRequestedIds(state.frames, frameIds);
   if (!state.frames.some((frame) => ids.has(frame.id) && frame.removedAt)) return state;
   const frames = state.frames.map((frame) => {
     if (!ids.has(frame.id) || !frame.removedAt) return frame;
