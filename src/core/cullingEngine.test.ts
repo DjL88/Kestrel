@@ -10,8 +10,6 @@ import {
   generateDemoShootFrames,
   getDefaultComparePair,
   redoDecision,
-  removeFromLibrary,
-  restoreRemoved,
   stepSelection,
   undoDecision,
 } from './cullingEngine';
