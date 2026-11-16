@@ -1,12 +1,14 @@
 import { expect, test } from '@playwright/test';
+import { mockDesktopShell } from './helpers';
 
 test('macro pad mode and knob controls have accessible names and touch targets', async ({ page }) => {
+  await mockDesktopShell(page);
   await page.goto('/');
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Macro pad test');
   await page.getByRole('button', { name: 'Create project' }).click();
   await page.getByRole('button', { name: page.viewportSize()!.width < 768 ? 'More' : 'Workspace options', exact: true }).click();
-  await page.getByText('Macro pad', { exact: true }).click();
+  await page.locator('#workspace-options').getByRole('button', { name: /Macro pad/i }).click();
 
   const dialog = page.getByRole('dialog', { name: /Keymap/ });
   const editMode = dialog.getByRole('tab', { name: 'Edit mode' });
