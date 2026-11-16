@@ -91,6 +91,8 @@ test('NEF preview requires plausible width and height, not just one large dimens
     bytes[6] = 8; // precision
     view.setUint16(7, height);
     view.setUint16(9, width);
+    // Three well-formed JPEG SOF component descriptors after dimensions.
+    bytes.set([3, 1, 0x11, 0, 2, 0x11, 0, 3, 0x11, 0], 11);
     bytes.set([0xff, 0xd9], bytes.length - 2);
     return bytes;
   }
@@ -124,6 +126,7 @@ test('prefers more pixels over a larger compressed byte count', async () => {
     const view = new DataView(bytes.buffer);
     view.setUint16(7, height);
     view.setUint16(9, width);
+    bytes.set([3, 1, 0x11, 0, 2, 0x11, 0, 3, 0x11, 0], 11);
     bytes.set([0xff, 0xd9], length - 2);
     return bytes;
   }
