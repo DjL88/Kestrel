@@ -121,3 +121,14 @@ test('RAW preview accepts a plausible 45 MP SOF header within the pixel safety b
   const result = await extractRawPreview(new Blob([file.slice(0, 4096), bytes]));
   assert.equal(result?.size, bytes.length);
 });
+
+test('RAW preview rejects a JPEG SOF with zero sample precision', async () => {
+  // A plausible Z8-sized frame with zero bits per sample is malformed.
+  // This must not be selected as a decodable embedded preview.
+  const bytes = new Uint8Array(5000);
+  bytes.set([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x00, 0x15, 0x80, 0x20, 0x40, 0x03,
+    0x01, 0x11, 0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00], 0);
+  bytes.set([0xff, 0xd9], bytes.length - 2);
+  const file = tiff([[0x0201, 4096], [0x0202, bytes.length]], 4096);
+  assert.equal(await extractRawPreview(new Blob([file.slice(0, 4096), bytes])), null);
+});
