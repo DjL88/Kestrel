@@ -153,7 +153,18 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
     const blob = await this.ensureOriginal(key);
     if (!blob) {
-      return '';
+      // The original drive may be disconnected. Show a small local preview,
+      // never imply this is suitable for full-resolution export or RAW editing.
+      const info = this.originalInfo(key);
+      const offline = await loadOfflinePreview(previewCacheKey({
+        stableKey: key, filename: frame.filename,
+        fileSize: info?.size, lastModified: info?.lastModified,
+      }));
+      if (!offline) return '';
+      const fallbackUrl = URL.createObjectURL(offline);
+      this.fullUrlCache.set(key, fallbackUrl);
+      this.fullUrlOrder.push(key);
+      return fallbackUrl;
     }
 
     const developed = this.developed.get(key);
