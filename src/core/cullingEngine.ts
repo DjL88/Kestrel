@@ -490,7 +490,8 @@ export function applyAutoCullDecisions(
   for (const result of requested) {
     // Runtime callers (including persisted or worker results) can bypass TS types.
     // Invalid decisions must never enter a photo's review history.
-    if (result.decision !== 'keep' && result.decision !== 'reject') continue;
+    if (!result || typeof result.frameId !== 'string' || !result.frameId ||
+        (result.decision !== 'keep' && result.decision !== 'reject')) continue;
     if (byId.has(result.frameId) && byId.get(result.frameId) !== result.decision) {
       conflicts.add(result.frameId);
     } else if (!conflicts.has(result.frameId)) {
