@@ -266,14 +266,23 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
 
   /** Decode the RAW sensor data (desktop app only) and use the full-size result in place of the embedded preview. */
   async function developFromRaw() {
-    const original = await provider.ensureOriginal(frame.stableKey);
-    if (!original) { setDevelopNote('Reconnect the original file first.'); return; }
     setDeveloping(true); setDevelopNote(null);
     const task = tasks.start(`Developing ${frame.filename} from RAW`);
     try {
-      const developed = await developRaw(original, /\.([a-z0-9]+)$/i.exec(frame.filename)?.[1] ?? 'nef');
-      // Turn it the way the camera's own preview is turned; the RAW data is stored sideways and some rotation flags are wrong.
-      provider.setDeveloped(frame, await matchPreviewOrientation(developed, await extractRawPreview(original).catch(() => null)));
+      const result = await provider.developFromOriginal(frame.stableKey, async (original) => {
+        const developed = await developRaw(original, /\.([a-z0-9]+)$/i.exec(frame.filename)?.[1] ?? 'nef');
+        return matchPreviewOrientation(developed, await extractRawPreview(original).catch(() => null));
+      });
+      if (result === 'missing') {
+        const message = 'Reconnect the original file first.';
+        setDevelopNote(message);
+        task.fail(message);
+        return;
+      }
+      if (result === 'superseded') {
+        task.finish('The source changed or a newer development started.');
+        return;
+      }
       task.finish();
       setDevelopedRev((count) => count + 1);
     } catch (error) {
