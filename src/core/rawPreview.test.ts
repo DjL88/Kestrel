@@ -67,3 +67,15 @@ test('the supported RAW makers are recognised by file name only, with their labe
   assert.match(PHOTO_ACCEPT, /\.cr3/);
   assert.match(PHOTO_ACCEPT, /\.arw/);
 });
+
+test('RAW preview rejects a fabricated JPEG SOF with missing component descriptors', async () => {
+  // Build a self-contained synthetic JPEG marker stream. Its SOF advertises
+  // plausible 1200x800 pixels but has no component descriptors.
+  const bytes = new Uint8Array(5000);
+  bytes.set([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x08, 0x08, 0x03, 0x20, 0x04, 0xb0, 0x03], 0);
+  bytes.set([0xff, 0xd9], bytes.length - 2);
+  const file = tiff([[0x0201, 4096], [0x0202, bytes.length]], 4096);
+  // Replace the nominated preview with the malformed JPEG, without using a camera file.
+  const raw = new Blob([file.slice(0, 4096), bytes]);
+  assert.equal(await extractRawPreview(raw), null);
+});
