@@ -599,8 +599,14 @@ export function restoreRemoved(state: CullingState, frameIds: string[]): Culling
     const { removedAt: _removedAt, ...kept } = frame;
     return kept;
   });
-  // Explicit restoration is a new user action: an earlier redo must not silently remove it again.
-  return { ...state, frames, shoot: { ...state.shoot, lastUpdatedAt: Date.now() }, redoStack: [] };
+  // Restoring from Trash is an explicit action outside the decision history.
+  // A pending Undo for the original removal must not later create a Redo that
+  // silently removes the restored photo again. Keep unrelated review history.
+  const restoredIds = new Set(state.frames.filter((frame) => ids.has(frame.id) && frame.removedAt).map((frame) => frame.id));
+  const undoStack = state.undoStack.filter((entry) =>
+    !entry.removal || !(entry.batch ?? [entry]).some((change) => restoredIds.has(change.frameId))
+  );
+  return { ...state, frames, shoot: { ...state.shoot, lastUpdatedAt: Date.now() }, undoStack, redoStack: [] };
 }
 
 export function undoDecision(state: CullingState): CullingState {
