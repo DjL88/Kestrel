@@ -113,3 +113,28 @@ test('exports retain requested dimensions or fail explicitly; only previews may 
   await renderExport(source, frame, master, now);
   assert.deepEqual(encodedSizes, [[2048, 1365], [2752, 2752], [4096, 4096], [8256, 5504]]);
 });
+
+test('export refuses cached offline review even when it has a valid preview URL', async () => {
+  const frame = {
+    ...createDemoShootState(1).frames[0],
+    filename: 'Z8.NEF', stableKey: 'offline-Z8', isDemo: false, sourceKind: 'file' as const,
+  };
+  const provider = {
+    getFullPreviewUrl: async () => 'blob:offline-review',
+    hasBlob: () => true,
+    isOfflineFallback: () => true,
+  };
+  await assert.rejects(loadExportSource(frame, provider), /Reconnect Z8.NEF before exporting.*not the original photograph/);
+});
+test('a reconnected source is not mistaken for an offline review', async () => {
+  const frame = {
+    ...createDemoShootState(1).frames[0],
+    filename: 'Z8.NEF', stableKey: 'online-Z8', isDemo: false, sourceKind: 'file' as const,
+  };
+  const provider = {
+    getFullPreviewUrl: async () => '',
+    hasBlob: () => true,
+    isOfflineFallback: () => false,
+  };
+  await assert.rejects(loadExportSource(frame, provider), /no usable embedded JPEG/);
+});
