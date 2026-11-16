@@ -100,3 +100,24 @@ test('RAW preview rejects SOF component counts outside the JPEG range', async ()
     assert.equal(await extractRawPreview(new Blob([file.slice(0, 4096), bytes])), null, `components=${components}`);
   }
 });
+
+test('RAW preview rejects a JPEG claiming multi-gigapixel dimensions before bitmap decode', async () => {
+  // Valid SOF0 component table but impossible 65,535 x 65,535 allocation.
+  const bytes = new Uint8Array(5000);
+  bytes.set([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08, 0xff, 0xff, 0xff, 0xff, 0x03,
+    0x01, 0x11, 0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00], 0);
+  bytes.set([0xff, 0xd9], bytes.length - 2);
+  const file = tiff([[0x0201, 4096], [0x0202, bytes.length]], 4096);
+  assert.equal(await extractRawPreview(new Blob([file.slice(0, 4096), bytes])), null);
+});
+
+test('RAW preview accepts a plausible 45 MP SOF header within the pixel safety bound', async () => {
+  const bytes = new Uint8Array(5000);
+  // Synthetic dimensions similar to a Z8 image (8256 x 5504), not an official camera JPEG.
+  bytes.set([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x15, 0x80, 0x20, 0x40, 0x03,
+    0x01, 0x11, 0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00], 0);
+  bytes.set([0xff, 0xd9], bytes.length - 2);
+  const file = tiff([[0x0201, 4096], [0x0202, bytes.length]], 4096);
+  const result = await extractRawPreview(new Blob([file.slice(0, 4096), bytes]));
+  assert.equal(result?.size, bytes.length);
+});

@@ -2,6 +2,9 @@ import { extractEmbeddedJpegFromRawBuffer } from './exifParser';
 
 const FALLBACK_BYTES = 28 * 1024 * 1024;
 const MAX_PREVIEW_BYTES = 48 * 1024 * 1024;
+// A corrupt JPEG header must not ask the browser to allocate a multi-gigapixel bitmap.
+// Nikon Z8 full-resolution photographs are ~46 MP; allow generous headroom.
+const MAX_PREVIEW_PIXELS = 200_000_000;
 const MAX_DIRECTORIES = 24;
 const MAX_TAGS = 1024;
 const MAX_SUB_DIRECTORIES = 16;
@@ -118,7 +121,8 @@ async function usefulPixelCount(preview: Blob): Promise<number> {
       // SOF contains one three-byte descriptor per component. Reject truncated
       // or fabricated headers before trusting their advertised dimensions.
       if (components < 1 || components > 4 || length !== 8 + 3 * components) return 0;
-      return width >= 320 && height >= 320 && Math.max(width, height) >= 640 ? width * height : 0;
+      const pixels = width * height;
+      return width >= 320 && height >= 320 && Math.max(width, height) >= 640 && pixels <= MAX_PREVIEW_PIXELS ? pixels : 0;
     }
     offset += 2 + length;
   }
