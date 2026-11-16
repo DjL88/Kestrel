@@ -8,6 +8,11 @@ const STORE = 'previews';
 const MAX_PREVIEW_BYTES = 1024 * 1024;
 const MAX_CACHED_PREVIEWS = 1200;
 
+export interface OfflinePreviewPair {
+  thumbnail: Blob;
+  review: Blob;
+}
+
 export function previewCacheKey(frame: {
   stableKey: string; filename: string; fileSize?: number; lastModified?: number;
 }): string {
@@ -32,23 +37,56 @@ export async function loadOfflinePreview(key: string): Promise<Blob | null> {
     db = await database();
     return await new Promise((resolve, reject) => {
       const request = db!.transaction(STORE, 'readonly').objectStore(STORE).get(key);
-      request.onsuccess = () => resolve(request.result instanceof Blob ? request.result : null);
+      request.onsuccess = () => {
+        const value: unknown = request.result;
+        if (value instanceof Blob) resolve(value);
+        else if (isOfflinePreviewPair(value)) resolve(value.thumbnail);
+        else resolve(null);
+      };
       request.onerror = () => reject(request.error);
     });
   } catch { return null; }
   finally { db?.close(); }
 }
 
-export async function saveOfflinePreview(key: string, preview: Blob): Promise<boolean> {
-  if (typeof indexedDB === 'undefined' || !preview.type.startsWith('image/') ||
-      preview.size === 0 || preview.size > MAX_PREVIEW_BYTES) return false;
+export async function loadOfflinePreviewPair(key: string): Promise<OfflinePreviewPair | null> {
+  if (typeof indexedDB === 'undefined') return null;
+  let db: IDBDatabase | undefined;
+  try {
+    db = await database();
+    return await new Promise((resolve, reject) => {
+      const request = db!.transaction(STORE, 'readonly').objectStore(STORE).get(key);
+      request.onsuccess = () => {
+        const value: unknown = request.result;
+        if (isOfflinePreviewPair(value)) resolve(value);
+        else if (value instanceof Blob) resolve({ thumbnail: value, review: value });
+        else resolve(null);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  } catch { return null; }
+  finally { db?.close(); }
+}
+
+function isOfflinePreviewPair(value: unknown): value is OfflinePreviewPair {
+  if (!value || typeof value !== 'object') return false;
+  const pair = value as Partial<OfflinePreviewPair>;
+  return pair.thumbnail instanceof Blob && pair.review instanceof Blob;
+}
+
+function validPreview(preview: Blob): boolean {
+  return preview.type.startsWith('image/') && preview.size > 0 && preview.size <= MAX_PREVIEW_BYTES;
+}
+
+async function saveValue(key: string, value: Blob | OfflinePreviewPair): Promise<boolean> {
+  if (typeof indexedDB === 'undefined') return false;
   let db: IDBDatabase | undefined;
   try {
     db = await database();
     await new Promise<void>((resolve, reject) => {
       const tx = db!.transaction(STORE, 'readwrite');
       const store = tx.objectStore(STORE);
-      store.put(preview, key);
+      store.put(value, key);
       // Limit entries without touching originals. FIFO by cache key ordering is
       // intentionally avoided: a deterministic bound is better than unlimited growth.
       const count = store.count();
@@ -70,6 +108,17 @@ export async function saveOfflinePreview(key: string, preview: Blob): Promise<bo
     return true;
   } catch { return false; }
   finally { db?.close(); }
+}
+
+export async function saveOfflinePreview(key: string, preview: Blob): Promise<boolean> {
+  return validPreview(preview) ? saveValue(key, preview) : false;
+}
+
+export async function saveOfflinePreviewPair(key: string, previews: OfflinePreviewPair): Promise<boolean> {
+  return validPreview(previews.thumbnail) && validPreview(previews.review) &&
+    previews.thumbnail.size + previews.review.size <= MAX_PREVIEW_BYTES
+    ? saveValue(key, previews)
+    : false;
 }
 
 /** Clear only derived preview bytes; never removes originals or catalogue edits. */
