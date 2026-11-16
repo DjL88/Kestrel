@@ -266,7 +266,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
 
   /** Decode the RAW sensor data (desktop app only) and use the full-size result in place of the embedded preview. */
   async function developFromRaw() {
-    const original = provider.getOriginal(frame.stableKey);
+    const original = await provider.ensureOriginal(frame.stableKey);
     if (!original) { setDevelopNote('Reconnect the original file first.'); return; }
     setDeveloping(true); setDevelopNote(null);
     const task = tasks.start(`Developing ${frame.filename} from RAW`);
@@ -1035,9 +1035,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             </div>
           )}
 
-          {!frame.isDemo && <button type="button" className={button} disabled={!provider.getOriginal(frame.stableKey)}
-            onClick={() => {
-              const original = provider.getOriginal(frame.stableKey);
+          {!frame.isDemo && <button type="button" className={button} disabled={!provider.hasBlob(frame.stableKey)}
+            onClick={async () => {
+              const original = await provider.ensureOriginal(frame.stableKey);
               if (original) downloadExport(original, original instanceof File ? original.name : frame.filename);
             }}>Download original</button>}
           {outputSize && <p className="mt-2 text-xs text-zinc-400">Output {outputSize.width.toLocaleString()} × {outputSize.height.toLocaleString()} px</p>}

@@ -86,6 +86,8 @@ export interface PhotoFrame {
   isDemo: boolean;
   demoVariant?: DemoFrameVariant;
   sourceKind: 'demo' | 'file' | 'directory-handle';
+  /** Desktop app: where the original is on the disk. It is read from there, never copied into the app or changed. */
+  sourcePath?: string;
   /** Set when the photo was removed from the library. The original file is never touched, and Restore clears this. */
   removedAt?: number;
 }

@@ -4,6 +4,7 @@ import { parseImageExif } from '../core/exifParser';
 import type { PhotoFrame, ShootDescriptor } from '../core/types';
 import type { BrowserCatalogueStore } from './browserCatalogueStore';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
+import { linkedReader, pickedFromFile, pickedKey, type PickedPhoto } from './linkedOriginals';
 
 const SUPPORTED_EXTENSIONS = new Set(PHOTO_EXTENSIONS);
 
@@ -29,12 +30,13 @@ export interface LocalLoadProgress {
 }
 
 export async function loadLocalFileListShoot(
-  files: File[],
+  files: Array<File | PickedPhoto>,
   previewProvider: BrowserPreviewProvider,
   store: BrowserCatalogueStore,
   onProgress?: (progress: LocalLoadProgress) => void
 ): Promise<{ shoot: ShootDescriptor; frames: PhotoFrame[]; storedAllBlobs: boolean; unstoredKeys: string[] }> {
   const validFiles = files
+    .map((f) => (f instanceof File ? pickedFromFile(f) : f))
     .filter((f) => isSupportedPhotoFilename(f.name))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
@@ -42,18 +44,24 @@ export async function loadLocalFileListShoot(
   const rawFrames: PhotoFrame[] = [];
   const unstoredKeys: string[] = [];
 
-  const BATCH_SIZE = 12;
+  const BATCH_SIZE = validFiles.some((photo) => photo.path) ? 4 : 12;
   for (let i = 0; i < validFiles.length; i += BATCH_SIZE) {
     const chunk = validFiles.slice(i, i + BATCH_SIZE);
     const processed = await Promise.all(
       chunk.map(async (file, offset) => {
         const idx = i + offset + 1;
-        const stableKey = getLocalFileKey(file);
-        previewProvider.registerBlob(stableKey, file);
-        const saved = await store.saveLocalFileBlob(stableKey, file);
-        if (!saved) unstoredKeys.push(stableKey);
+        const stableKey = pickedKey(file);
+        const opened = await file.read();
+        if (file.path) {
+          // Stays where it is on the disk: nothing is copied into the app, and it is read again when needed.
+          previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified), size: file.size, lastModified: file.lastModified });
+        } else {
+          previewProvider.registerBlob(stableKey, opened);
+          const saved = await store.saveLocalFileBlob(stableKey, opened);
+          if (!saved) unstoredKeys.push(stableKey);
+        }
 
-        const exif = await parseImageExif(file, file.name);
+        const exif = await parseImageExif(opened, file.name);
         if (!exif.capturedAtMs && file.lastModified) {
           exif.capturedAtMs = file.lastModified;
         }
@@ -70,6 +78,7 @@ export async function loadLocalFileListShoot(
           exif,
           isDemo: false,
           sourceKind: 'file',
+          ...(file.path ? { sourcePath: file.path } : {}),
         };
         return frame;
       })
@@ -205,11 +214,25 @@ export async function loadDirectoryHandleShoot(
   return { shoot, frames: grouped };
 }
 
+/** The size and modified time a photo had when it was added are part of its key: local-file://name::size::time. */
+const keyParts = (key: string) => key.split('::');
+const sizeOf = (key: string) => Number(keyParts(key).at(-2)) || 0;
+const lastModifiedOf = (key: string) => Number(keyParts(key).at(-1)) || 0;
+
 export async function rehydrateLocalFramesFromStore(
   frames: PhotoFrame[],
   previewProvider: BrowserPreviewProvider,
   store: BrowserCatalogueStore
 ): Promise<boolean> {
+  // Photos that stayed on the disk are linked again from their saved path, so nothing has to be copied or re-picked.
+  for (const frame of frames) {
+    if (frame.sourcePath && !previewProvider.hasBlob(frame.stableKey)) {
+      previewProvider.registerLinked(frame.stableKey, {
+        read: linkedReader(frame.sourcePath, frame.filename, lastModifiedOf(frame.stableKey)),
+        size: sizeOf(frame.stableKey), lastModified: lastModifiedOf(frame.stableKey),
+      });
+    }
+  }
   const missing = [...new Set(frames.filter((frame) => !frame.isDemo).map((frame) => frame.stableKey))]
     .filter((key) => !previewProvider.hasBlob(key));
   let allFound = true;

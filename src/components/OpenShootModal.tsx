@@ -4,11 +4,12 @@ import { focusBeforeOpening, returnFocus } from './focusReturn';
 import { FolderOpen, ImagePlus, X } from 'lucide-react';
 import { isSupportedPhotoFilename, supportsDirectoryPicker } from '../providers/localShootLoader';
 import { isDesktopApp } from '../providers/desktopShell';
+import { pickFolderNatively, pickPhotosNatively, type PickedPhoto } from '../providers/linkedOriginals';
 
 interface OpenShootModalProps {
   open: boolean;
   onClose: () => void;
-  onSelectLocalFiles: (files: File[]) => void;
+  onSelectLocalFiles: (files: Array<File | PickedPhoto>) => void;
   onOpenLocalFolder: () => void;
   folderError: string | null;
 }
@@ -26,6 +27,16 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
     const photos = files.filter((file) => isSupportedPhotoFilename(file.name));
     setDropError(!photos.length);
     if (photos.length) onSelectLocalFiles(photos);
+  }
+
+  // In the desktop app, photos are chosen with the system's own dialog and stay where they are on the disk.
+  async function chooseNatively(pick: typeof pickPhotosNatively) {
+    try {
+      const chosen = await pick();
+      if (chosen === 'cancelled') return;
+      setDropError(!chosen.length);
+      if (chosen.length) onSelectLocalFiles(chosen);
+    } catch { setDropError(true); }
   }
 
   // The desktop app is not a web page, so it does not use the browser's folder picker, which asks permission for "this website".
@@ -73,7 +84,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
               Add photos
             </h2>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Add files to this project. Originals stay read-only.
+              Add files to this project. Originals stay read-only.{isDesktopApp() ? ' In this app they stay where they are; Kestrel does not copy them.' : ''}
             </p>
           </div>
           <button
@@ -112,7 +123,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
             />
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => (isDesktopApp() ? void chooseNatively(pickPhotosNatively) : fileInputRef.current?.click())}
               className="min-h-11 px-3.5 py-2 text-sm font-semibold bg-zinc-100 hover:bg-white text-zinc-950 rounded-lg whitespace-nowrap shrink-0 flex items-center gap-1.5"
             >
               <ImagePlus className="w-3.5 h-3.5" aria-hidden="true" />
@@ -130,17 +141,15 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
                 Choose a folder
               </div>
               <p className="text-xs text-zinc-400 mt-1">
-                {canPickFolder
+                {canPickFolder || isDesktopApp()
                   ? 'Add supported photos from a folder.'
-                  : isDesktopApp()
-                    ? 'In this app, use Choose files above, then press Ctrl+A (Cmd+A on a Mac) in the file window to take everything in a folder.'
-                    : 'Folder picker is unavailable in this browser/iframe context. Use Choose files above.'}
+                  : 'Folder picker is unavailable in this browser/iframe context. Use Choose files above.'}
               </p>
             </div>
             <button
               type="button"
-              disabled={!canPickFolder}
-              onClick={onOpenLocalFolder}
+              disabled={!canPickFolder && !isDesktopApp()}
+              onClick={() => (isDesktopApp() ? void chooseNatively(pickFolderNatively) : onOpenLocalFolder())}
               className="min-h-11 px-3.5 py-2 text-sm font-semibold bg-[#252932] hover:bg-[#2F3440] disabled:opacity-40 disabled:pointer-events-none text-zinc-100 border border-white/12 rounded-lg whitespace-nowrap shrink-0 flex items-center gap-1.5"
             >
               <FolderOpen className="w-3.5 h-3.5" aria-hidden="true" />
