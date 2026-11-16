@@ -17,6 +17,13 @@ export async function packageStoryCarousel(
     }
     const bytes = new Uint8Array(await slide.arrayBuffer());
     signal?.throwIfAborted();
+    // A Blob MIME label is caller-controlled. Reject disguised HTML/text or
+    // truncated image bytes before putting them in a shareable archive.
+    const pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+    if (bytes.length < 24 || pngSignature.some((value, offset) => bytes[offset] !== value) ||
+        String.fromCharCode(...bytes.slice(12, 16)) !== 'IHDR') {
+      throw new Error('Story slide is not a valid PNG header');
+    }
     // Do not put captions, source filenames, EXIF or local paths in ZIP entries.
     entries[`slide-${String(index + 1).padStart(2, '0')}.png`] = bytes;
   }
