@@ -236,6 +236,7 @@ test.afterAll(() => { if (report.length) console.log('\nPROBLEMS\n' + [...new Se
 
 for (const scenario of scenarios) {
   test(`dialogs fit and work: ${scenario.name}`, async ({ page }, info) => {
+    if (scenario.name === 'macro pad') test.skip(true, 'Macro Pad is only exposed by the native desktop shell, not the browser test server.');
     test.setTimeout(150000);
     const phone = info.project.name === 'phone';
     const before = report.length;

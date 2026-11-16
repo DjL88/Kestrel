@@ -24,16 +24,16 @@ test('catalogue storage only requests protection on demand and reflects the brow
 
   const request = page.getByRole('button', { name: 'Request persistent storage' });
   await expect(request).toBeHidden();
-  await page.getByText('Catalogue storage', { exact: true }).click();
-  await expect(page.getByText(/may clear this catalogue/)).toBeVisible();
+  await page.getByText('Browser storage & backups', { exact: true }).click();
+  await expect(page.getByText(/Browser storage can be cleared by your device/)).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('test-persistence-requested'))).toBeNull();
 
   await request.click();
-  await expect(page.getByText(/did not grant persistent storage/)).toBeVisible();
+  await expect(page.getByText(/The browser did not grant persistent storage/)).toBeVisible();
   await request.click();
-  await expect(page.getByText(/Persistent storage is on for Kestrel/)).toBeVisible();
+  await expect(page.getByText(/Kestrel's browser storage is protected from routine clean-up/)).toBeVisible();
 
   await page.reload();
-  await page.getByText('Catalogue storage', { exact: true }).click();
-  await expect(page.getByText(/Persistent storage is on for Kestrel/)).toBeVisible();
+  await page.getByText('Browser storage & backups', { exact: true }).click();
+  await expect(page.getByText(/Kestrel's browser storage is protected from routine clean-up/)).toBeVisible();
 });

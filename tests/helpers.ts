@@ -1,18 +1,27 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
-/** Opens the export dialog from the editor. On a phone Export is a tab, on a wider screen it is a button in the header. */
+const usesPhoneEditorLayout = (page: Page) => {
+  const viewport = page.viewportSize();
+  return (viewport?.width ?? 1280) < 900 || (viewport?.height ?? 800) < 550;
+};
+
+/** Opens the export dialog from the editor. */
 export async function openExportDialog(page: Page) {
-  if ((page.viewportSize()?.width ?? 1280) < 768) {
+  if (usesPhoneEditorLayout(page)) {
     await page.getByRole('tab', { name: 'Export' }).click();
-    await page.getByRole('button', { name: 'Choose formats and export…' }).click();
+    const exportButton = page.getByRole('button', { name: 'Choose formats and export…' });
+    await expect(exportButton).toBeEnabled({ timeout: 30000 });
+    await exportButton.click();
   } else {
-    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    const exportButton = page.getByRole('button', { name: 'Export', exact: true });
+    await expect(exportButton).toBeEnabled({ timeout: 30000 });
+    await exportButton.click();
   }
 }
 
 /** The control that opened the export dialog, which should get focus back when it closes. */
 export function exportOpener(page: Page) {
-  return (page.viewportSize()?.width ?? 1280) < 768
+  return usesPhoneEditorLayout(page)
     ? page.getByRole('button', { name: 'Choose formats and export…' })
     : page.getByRole('button', { name: 'Export', exact: true });
 }
