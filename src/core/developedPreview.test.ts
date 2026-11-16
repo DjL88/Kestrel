@@ -144,6 +144,52 @@ test('cached offline previews remain available after reopening when a linked ori
   assert.equal(await (await fetch(reviewUrl)).text(), 'cached review');
 });
 
+test('a late read from a disconnected location cannot replace the relinked original', async (t) => {
+  const provider = new BrowserPreviewProvider();
+  t.after(() => provider.clear());
+  const photo = { ...frame('original'), filename: 'photo.jpg' };
+  let finish!: (blob: Blob) => void;
+  const oldRead = new Promise<Blob>((resolve) => { finish = resolve; });
+  provider.registerLinked(photo.stableKey, { read: () => oldRead, size: 3, lastModified: 1 });
+  const pending = provider.getFullPreviewUrl(photo);
+  provider.registerLinked(photo.stableKey, {
+    read: async () => new Blob(['new']), size: 3, lastModified: 1,
+  });
+  const newUrl = await provider.getFullPreviewUrl(photo);
+  finish(new Blob(['old']));
+  assert.equal(await pending, newUrl);
+  assert.equal(await (await fetch(newUrl)).text(), 'new');
+  assert.equal(await provider.getOriginal(photo.stableKey)?.text(), 'new');
+});
+
+test('clearing a project while its linked original is loading cannot restore that original', async () => {
+  const provider = new BrowserPreviewProvider();
+  const photo = { ...frame('original'), filename: 'photo.jpg' };
+  let finish!: (blob: Blob) => void;
+  const oldRead = new Promise<Blob>((resolve) => { finish = resolve; });
+  provider.registerLinked(photo.stableKey, { read: () => oldRead, size: 3, lastModified: 1 });
+  const pending = provider.getFullPreviewUrl(photo);
+  provider.clear();
+  finish(new Blob(['old']));
+  assert.equal(await pending, '');
+  assert.equal(provider.getOriginal(photo.stableKey), undefined);
+});
+
+test('clearing a project while an offline preview loads cannot restore its URL', async () => {
+  let finish!: (previews: { thumbnail: Blob; review: Blob }) => void;
+  const waiting = new Promise<{ thumbnail: Blob; review: Blob }>((resolve) => { finish = resolve; });
+  const provider = new BrowserPreviewProvider({
+    async savePreviewPair() { return true; },
+    async loadPreviewPair() { return waiting; },
+  });
+  const photo = frame('original');
+  const pending = provider.getFullPreviewUrl(photo);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  provider.clear();
+  finish({ thumbnail: new Blob(['thumb']), review: new Blob(['review']) });
+  assert.equal(await pending, '');
+});
+
 test('linked originals generate a small thumbnail and bounded review preview without caching the source', async (t) => {
   const originals = new Map([
     ['createImageBitmap', Object.getOwnPropertyDescriptor(globalThis, 'createImageBitmap')],

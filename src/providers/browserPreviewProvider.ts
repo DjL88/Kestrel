@@ -83,13 +83,17 @@ export class BrowserPreviewProvider implements PreviewProvider {
       this.invalidateFullPreview(stableKey);
     }
     this.linked.set(stableKey, info);
+    this.linkedLoading.delete(stableKey);
     // A newly accessible original must replace a low-resolution offline fallback.
     if (this.offlineFullKeys.has(stableKey)) this.invalidateFullPreview(stableKey);
   }
 
   /** Retry a reconnected disk without changing catalogue decisions or edits. */
   retryLinkedOriginal(stableKey: string): void {
-    if (!this.linked.has(stableKey)) return;
+    const link = this.linked.get(stableKey);
+    if (!link) return;
+    this.linked.set(stableKey, { ...link });
+    this.linkedLoading.delete(stableKey);
     this.localBlobs.delete(stableKey);
     this.invalidateFullPreview(stableKey);
   }
@@ -106,7 +110,12 @@ export class BrowserPreviewProvider implements PreviewProvider {
     if (!link) return undefined;
     const pending = this.linkedLoading.get(stableKey);
     if (pending) return pending;
-    const task = this.limitReads(link.read).then((blob) => {
+    const epoch = this.offlinePreviewEpoch;
+    let task: Promise<Blob | undefined>;
+    task = this.limitReads(link.read).then((blob) => {
+      if (epoch !== this.offlinePreviewEpoch || this.linked.get(stableKey) !== link) return undefined;
+      const current = this.localBlobs.get(stableKey);
+      if (current) return current;
       this.localBlobs.set(stableKey, blob);
       this.linkedOrder = this.linkedOrder.filter((key) => key !== stableKey);
       this.linkedOrder.push(stableKey);
@@ -115,7 +124,9 @@ export class BrowserPreviewProvider implements PreviewProvider {
         if (oldest !== stableKey) this.localBlobs.delete(oldest);
       }
       return blob;
-    }).catch(() => undefined).finally(() => this.linkedLoading.delete(stableKey));
+    }).catch(() => undefined).finally(() => {
+      if (this.linkedLoading.get(stableKey) === task) this.linkedLoading.delete(stableKey);
+    });
     this.linkedLoading.set(stableKey, task);
     return task;
   }
@@ -236,13 +247,19 @@ export class BrowserPreviewProvider implements PreviewProvider {
       return cached;
     }
 
+    const epoch = this.offlinePreviewEpoch;
+    const link = this.linked.get(key);
     const blob = await this.ensureOriginal(key);
     const cacheKey = this.offlineCacheKey(frame);
     const cachedPreviews = await this.loadOfflinePreviews(cacheKey);
+    if (epoch !== this.offlinePreviewEpoch) return '';
+    if (link !== this.linked.get(key) || (!blob && this.localBlobs.has(key))) return this.getFullPreviewUrl(frame);
+    const ready = this.fullUrlCache.get(key);
+    if (ready) return ready;
     if (!blob) {
       // The original drive may be disconnected. Show a cached preview,
       // never imply this is suitable for full-resolution export or RAW editing.
-      const offline = this.developed.get(key) ?? cachedPreviews?.review ?? await loadOfflinePreview(cacheKey);
+      const offline = this.developed.get(key) ?? cachedPreviews?.review;
       if (!offline) return '';
       const fallbackUrl = URL.createObjectURL(offline);
       this.fullUrlCache.set(key, fallbackUrl);
@@ -271,8 +288,8 @@ export class BrowserPreviewProvider implements PreviewProvider {
     }
     if (!previewBlob) return '';
     // A concurrent request for a virtual copy may already have cached this source.
-    const ready = this.fullUrlCache.get(key);
-    if (ready) return ready;
+    const readyAfterExtraction = this.fullUrlCache.get(key);
+    if (readyAfterExtraction) return readyAfterExtraction;
 
     const objectUrl = URL.createObjectURL(previewBlob);
     this.fullUrlCache.set(key, objectUrl);
