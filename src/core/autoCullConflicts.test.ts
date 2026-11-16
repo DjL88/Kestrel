@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { applyAutoCullDecisions, createDemoShootState, undoDecision, redoDecision } from './cullingEngine';
-import { limitAutoKeepers } from './autoCull';
+import { limitAutoKeepers, scoreWithSubject } from './autoCull';
 
 test('conflicting auto-cull suggestions never change a photo, regardless of order', () => {
   for (const reversed of [false, true]) {
@@ -149,4 +149,20 @@ test('keeper suggestions never reserve a slot for ambiguous catalogue IDs', () =
     applyAutoCullDecisions(state, limited.filter((item) => item.confidence === 'high').map((item) => ({ frameId: item.frameId, decision: 'keep' as const }))).frames.map((frame) => frame.decision),
     ['unreviewed', 'unreviewed', 'keep'],
   );
+});
+
+
+test('invalid detector measurements cannot silently produce confident automatic keepers', () => {
+  const base = { frameId: 'sample', decision: 'keep' as const, confidence: 'high' as const, score: 95, reason: 'clearDetail' as const };
+  for (const finding of [
+    { label: 'bird', score: NaN, size: 300, sharpness: 20 },
+    { label: 'bird', score: Infinity, size: 300, sharpness: 20 },
+    { label: 'bird', score: 1.5, size: 300, sharpness: 20 },
+    { label: 'bird', score: 0.9, size: NaN, sharpness: 20 },
+    { label: 'bird', score: 0.9, size: 300, sharpness: Infinity },
+    { label: 'bird', score: 0.9, size: 300, sharpness: -1 },
+  ]) {
+    const result = scoreWithSubject(base, finding);
+    assert.deepEqual([result.decision, result.confidence, result.reason], [null, 'low', 'noSubject']);
+  }
 });
