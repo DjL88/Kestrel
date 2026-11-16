@@ -139,6 +139,14 @@ export async function clearOfflinePreviews(): Promise<boolean> {
   finally { db?.close(); }
 }
 
+/** Only exact stable-key matches can be removed; other cached projects remain intact. */
+export function previewBelongsToOriginals(cacheKey: string, originalKeys: ReadonlySet<string>): boolean {
+  try {
+    const identity: unknown = JSON.parse(cacheKey);
+    return Array.isArray(identity) && typeof identity[0] === 'string' && originalKeys.has(identity[0]);
+  } catch { return false; }
+}
+
 /**
  * Purge previews belonging to originals that no remaining project references.
  * The cache is derived data; this never opens or deletes the original files.
@@ -154,12 +162,7 @@ export async function deleteOfflinePreviewsForOriginals(originalKeys: ReadonlySe
       cursor.onsuccess = () => {
         const row = cursor.result;
         if (!row) return;
-        try {
-          const identity: unknown = JSON.parse(String(row.key));
-          if (Array.isArray(identity) && typeof identity[0] === 'string' && originalKeys.has(identity[0])) {
-            row.delete();
-          }
-        } catch { /* Unknown cache keys belong to a different format; leave them alone. */ }
+        if (previewBelongsToOriginals(String(row.key), originalKeys)) row.delete();
         row.continue();
       };
       tx.oncomplete = () => resolve();
