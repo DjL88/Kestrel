@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
+import { openExportDialog } from './helpers';
 
 const jpeg = readFileSync('src/assets/images/demo_red_kite_flight_1794721996053.jpg');
 const raw = (() => {
@@ -62,10 +63,13 @@ test('Develop from RAW swaps the embedded preview for the full developed picture
   await expect(page.getByText('Editing embedded JPEG preview')).toBeVisible({ timeout: 20000 });
   await page.getByRole('button', { name: 'Develop from RAW' }).click();
   await expect(page.getByText('Developed from the RAW file')).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText('Developed from the RAW file')).toContainText('8-bit JPEG');
   await expect(page.getByRole('button', { name: 'Develop from RAW' })).toHaveCount(0);
   expect(await page.evaluate(() => (window as unknown as { __developCalls: number }).__developCalls)).toBe(1);
   // The picture handed to the editor after developing is the developed one, not the embedded preview.
   await expect.poll(() => page.evaluate(() => { const w = window as unknown as { __shown: number[]; __developedSize: number }; return w.__shown.includes(w.__developedSize); }), { timeout: 15000 }).toBe(true);
+  await openExportDialog(page);
+  await expect(page.getByText('Developed RAW files export from an 8-bit JPEG', { exact: false })).toBeVisible();
 });
 
 test('when a RAW cannot be developed, the person is told and the preview keeps working', async ({ page }) => {

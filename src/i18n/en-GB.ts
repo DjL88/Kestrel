@@ -6,6 +6,8 @@ export const enGB = {
   autoCull: 'Auto-cull',
   closeAutoCull: 'Close auto-cull',
   scan: 'Scan photos',
+  stopScan: 'Stop scan',
+  scanStopped: 'Scan stopped. No results were applied. You can scan again.',
   autoMove: 'Automatically move High confidence results',
   description: 'Scan unreviewed originals on this device. High confidence picks can move to Keepers or Trash. Trash never deletes the source file.',
   noCandidates: 'There are no unreviewed originals to scan.',
