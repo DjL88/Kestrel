@@ -5,7 +5,7 @@
 const two = (n: number) => String(n).padStart(2, '0');
 
 /** "export/2026-11-16 14-30": the folder for exports saved at this time. */
-export const exportRunFolder = (now: Date) => `export/${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())} ${two(now.getHours())}-${two(now.getMinutes())}`;
+export const exportRunFolder = (now: Date, runId?: string) => `export/${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())} ${two(now.getHours())}-${two(now.getMinutes())}${runId ? `-${runId}` : ''}`;
 
 /** A file name that is safe inside that folder: no folders, no tricks, never empty. */
 export function safeExportName(name: string): string {
@@ -14,8 +14,8 @@ export function safeExportName(name: string): string {
 }
 
 /** Where each file goes. Two files with the same name in one save get a number, so neither replaces the other. */
-export function exportPaths(files: readonly { name: string }[], now: Date): string[] {
-  const folder = exportRunFolder(now);
+export function exportPaths(files: readonly { name: string }[], now: Date, runId?: string): string[] {
+  const folder = exportRunFolder(now, runId);
   const used = new Set<string>();
   return files.map((file) => {
     const name = safeExportName(file.name);
