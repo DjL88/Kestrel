@@ -66,12 +66,14 @@ export function scorePreview(frameId: string, pixels: Uint8ClampedArray, width: 
 export function limitAutoKeepers(
   suggestions: CullSuggestion[], frames: PhotoFrame[], remainingKeepers: number,
 ): CullSuggestion[] {
+  // A corrupt or non-finite keeper target must fail closed, never grant unlimited auto-keeps.
+  const safeRemaining = Number.isFinite(remainingKeepers) ? Math.max(0, Math.floor(remainingKeepers)) : 0;
   const byId = new Map(frames.map((frame) => [frame.id, frame]));
   const occupied = new Set(frames.filter((frame) => !frame.removedAt && frame.decision === 'keep' && frame.burstGroupId)
     .map((frame) => frame.burstGroupId!));
   const accepted = new Set<string>();
   for (const result of [...suggestions].sort((a, b) => b.score - a.score)) {
-    if (result.decision !== 'keep' || result.confidence !== 'high' || accepted.size >= remainingKeepers) continue;
+    if (result.decision !== 'keep' || result.confidence !== 'high' || accepted.size >= safeRemaining) continue;
     // A stale scan result cannot reserve keeper headroom for a photo that was
     // removed or manually reviewed while the scan was running.
     const frame = byId.get(result.frameId);
@@ -81,6 +83,15 @@ export function limitAutoKeepers(
     accepted.add(result.frameId);
     if (burst) occupied.add(burst);
   }
-  return suggestions.map((result) => result.decision === 'keep' && result.confidence === 'high' && !accepted.has(result.frameId)
-    ? { ...result, confidence: 'medium', score: 79 } : result);
+  // Stale scans may contain duplicate suggestions for the same frame. Never expose
+  // two high-confidence auto-keep actions for one photograph.
+  const emitted = new Set<string>();
+  return suggestions.map((result) => {
+    if (result.decision !== 'keep' || result.confidence !== 'high') return result;
+    if (accepted.has(result.frameId) && !emitted.has(result.frameId)) {
+      emitted.add(result.frameId);
+      return result;
+    }
+    return { ...result, confidence: 'medium', score: 79 };
+  });
 }
