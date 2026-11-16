@@ -19,23 +19,28 @@ export async function discoverPhotoPaths(
   const maxDepth = Math.max(0, limits.maxDepth ?? 12);
   const queue = [{ path: root, depth: 0 }];
   const paths: string[] = [];
+  const seenPaths = new Set<string>();
+  let queueIndex = 0;
   let visited = 0, skippedFolders = 0, truncated = false;
-  while (queue.length) {
-    const current = queue.shift()!;
+  while (queueIndex < queue.length) {
+    const current = queue[queueIndex++];
     let entries: FolderEntry[];
     try { entries = await readDir(current.path); }
     catch { skippedFolders++; continue; }
     for (const entry of entries) {
       if (visited >= maxEntries || paths.length >= maxPhotos) { truncated = true; break; }
       visited++;
-      if (entry.isSymlink) continue;
+      if (entry.isSymlink || !entry.name || entry.name === '.' || entry.name === '..' || entry.name.includes('/') || entry.name.includes('\\')) continue;
       const path = current.path.replace(/[\\/]+$/, '') + '/' + entry.name;
       if (entry.isDirectory) {
         if (current.depth < maxDepth) queue.push({ path, depth: current.depth + 1 });
         else skippedFolders++;
       } else if (entry.isFile) {
         const extension = entry.name.split('.').at(-1)?.toLowerCase() ?? '';
-        if (extensions.has(extension)) paths.push(path);
+        if (extensions.has(extension)) {
+          const identity = path.toLowerCase();
+          if (!seenPaths.has(identity)) { seenPaths.add(identity); paths.push(path); }
+        }
       }
     }
     if (truncated) break;

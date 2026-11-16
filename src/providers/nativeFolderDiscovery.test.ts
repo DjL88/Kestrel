@@ -33,3 +33,30 @@ test('unreadable subfolder is reported instead of silently skipped', async () =>
   }, new Set(['raf']));
   assert.equal(result.skippedFolders, 1);
 });
+
+test('does not import duplicate or unsafe paths from directory entries', async () => {
+  const entries = [
+    { name: 'Z8.NEF', isFile: true, isDirectory: false },
+    { name: 'Z8.NEF', isFile: true, isDirectory: false },
+    { name: '../outside.NEF', isFile: true, isDirectory: false },
+    { name: 'nested\\\\outside.NEF', isFile: true, isDirectory: false },
+    { name: '.', isFile: false, isDirectory: true },
+  ];
+  const result = await discoverPhotoPaths('/shoot', async () => entries, new Set(['nef']));
+  assert.deepEqual(result.paths, ['/shoot/Z8.NEF']);
+});
+
+test('limits photo count and reports partial scan explicitly', async () => {
+  const result = await discoverPhotoPaths('/shoot', async () => Array.from({ length: 20 }, (_, i) => ({
+    name: `image-${i}.NEF`, isFile: true, isDirectory: false,
+  })), new Set(['nef']), { maxPhotos: 3 });
+  assert.equal(result.paths.length, 3);
+  assert.equal(result.truncated, true);
+});
+
+test('reports depth-limited nested folders instead of pretending scan was complete', async () => {
+  const result = await discoverPhotoPaths('/shoot', async () => [
+    { name: 'nested', isFile: false, isDirectory: true },
+  ], new Set(['nef']), { maxDepth: 0 });
+  assert.equal(result.skippedFolders, 1);
+});
