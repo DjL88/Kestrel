@@ -35,6 +35,25 @@ class CompareNikonTiffsTests(unittest.TestCase):
             with self.subTest(candidate=candidate), self.assertRaisesRegex(ValueError, "same file"):
                 compare(reference, candidate)
 
+    def test_rejects_source_nef_aliasing_either_export(self):
+        pixels = np.zeros((4, 4, 3), dtype=np.uint16)
+        reference = self.write("reference.tif", pixels)
+        candidate = self.write("candidate.tif", pixels)
+        alias = self.root / "renamed-source.NEF"
+        alias.symlink_to(candidate)
+        for source in (reference, candidate, alias):
+            with self.subTest(source=source), self.assertRaisesRegex(ValueError, "separate from both TIFF"):
+                compare(reference, candidate, source_nef=source)
+
+        script = Path(__file__).with_name("compare_nikon_tiffs.py")
+        failure = subprocess.run(
+            [sys.executable, script, reference, candidate, "--source-nef", alias],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(failure.returncode, 2)
+        self.assertIn("separate from both TIFF", failure.stderr)
+        self.assertFalse(failure.stdout)
+
     def test_reports_channel_error_and_changed_pixels(self):
         reference = np.full((65, 12, 3), 18000, dtype=np.uint16)
         candidate = reference.copy()

@@ -43,6 +43,8 @@ def compare(reference_path, candidate_path, *, source_nef=None):
     # A self-comparison cannot establish agreement between independent renderers.
     if Path(reference_path).samefile(candidate_path):
         raise ValueError("Reference and candidate are the same file. Supply independent TIFF exports.")
+    if source_nef is not None and (Path(source_nef).samefile(reference_path) or Path(source_nef).samefile(candidate_path)):
+        raise ValueError("Source NEF must be separate from both TIFF exports.")
     reference, profile = read_rgb16(reference_path)
     candidate, candidate_profile = read_rgb16(candidate_path)
     if reference.shape != candidate.shape:
