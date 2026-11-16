@@ -7,7 +7,7 @@ const same = { web: '0.1.0', tauri: '0.1.0', cargo: '0.1.0' };
 
 test('desktop versions are in sync in the current repository', () => {
   const root = fileURLToPath(new URL('..', import.meta.url));
-  assert.match(checkRepositoryVersions(root), /^\\d+\\.\\d+\\.\\d+$/);
+  assert.match(checkRepositoryVersions(root), /^\d+\.\d+\.\d+$/);
 });
 
 test('exact matching GitHub tag succeeds', () => {
