@@ -488,6 +488,9 @@ export function applyAutoCullDecisions(
   const byId = new Map<string, 'keep' | 'reject'>();
   const conflicts = new Set<string>();
   for (const result of requested) {
+    // Runtime callers (including persisted or worker results) can bypass TS types.
+    // Invalid decisions must never enter a photo's review history.
+    if (result.decision !== 'keep' && result.decision !== 'reject') continue;
     if (byId.has(result.frameId) && byId.get(result.frameId) !== result.decision) {
       conflicts.add(result.frameId);
     } else if (!conflicts.has(result.frameId)) {
