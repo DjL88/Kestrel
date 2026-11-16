@@ -6,7 +6,6 @@ import {
   type RawDecoder,
 } from '../core/platformBoundaries';
 import type { PhotoFrame } from '../core/types';
-import { DEMO_ASSET_URLS } from './demoAssets';
 
 const MAX_FULL_PREVIEW_CACHE = 24;
 const THUMB_MAX_WIDTH = 400;
@@ -28,10 +27,16 @@ export class BrowserPreviewProvider implements PreviewProvider {
   private localBlobs = new Map<string, Blob>();
   private thumbUrlCache = new Map<string, string>();
   private fullUrlCache = new Map<string, string>();
+  private fullFrameKeys = new Map<string, string>();
   private fullUrlOrder: string[] = [];
   private pendingThumbs = new Map<string, Promise<string>>();
 
   registerBlob(stableKey: string, blob: Blob): void {
+    const previous = this.localBlobs.get(stableKey);
+    if (previous && previous !== blob) {
+      this.developed.delete(stableKey);
+      this.invalidateFullPreview(stableKey);
+    }
     this.localBlobs.set(stableKey, blob);
   }
 
@@ -45,6 +50,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
   async getThumbnailUrl(frame: PhotoFrame): Promise<string> {
     if (frame.isDemo && frame.demoVariant) {
+      const { DEMO_ASSET_URLS } = await import('./demoAssets');
       return DEMO_ASSET_URLS[frame.demoVariant.assetKey];
     }
 
@@ -69,47 +75,62 @@ export class BrowserPreviewProvider implements PreviewProvider {
   /** Use a developed picture from now on for this photo, in the editor and in exports. */
   setDeveloped(frame: PhotoFrame, picture: Blob): void {
     this.developed.set(frame.stableKey, picture);
-    const stale = this.fullUrlCache.get(frame.id);
+    this.invalidateFullPreview(frame.stableKey);
+  }
+
+  private invalidateFullPreview(key: string): void {
+    const stale = this.fullUrlCache.get(key);
     if (stale) URL.revokeObjectURL(stale);
-    this.fullUrlCache.delete(frame.id);
-    this.fullUrlOrder = this.fullUrlOrder.filter((id) => id !== frame.id);
+    this.fullUrlCache.delete(key);
+    this.fullUrlOrder = this.fullUrlOrder.filter((item) => item !== key);
   }
 
   async getFullPreviewUrl(frame: PhotoFrame): Promise<string> {
     if (frame.isDemo && frame.demoVariant) {
+      const { DEMO_ASSET_URLS } = await import('./demoAssets');
       return DEMO_ASSET_URLS[frame.demoVariant.assetKey];
     }
 
-    const cached = this.fullUrlCache.get(frame.id);
+    // Virtual copies have different edit recipes but share the same unedited source.
+    const key = frame.stableKey;
+    this.fullFrameKeys.set(frame.id, key);
+    const cached = this.fullUrlCache.get(key);
     if (cached) {
       // Refresh LRU position
-      this.fullUrlOrder = this.fullUrlOrder.filter((id) => id !== frame.id);
-      this.fullUrlOrder.push(frame.id);
+      this.fullUrlOrder = this.fullUrlOrder.filter((item) => item !== key);
+      this.fullUrlOrder.push(key);
       return cached;
     }
 
-    const blob = this.localBlobs.get(frame.stableKey);
+    const blob = this.localBlobs.get(key);
     if (!blob) {
       return '';
     }
 
-    let previewBlob: Blob = this.developed.get(frame.stableKey) ?? blob;
-    if (previewBlob === blob && isNikonEmbeddedPreviewFile(frame.filename)) {
-      const extracted = await extractNefPreview(blob);
-      if (!extracted) return '';
-      previewBlob = extracted;
+    const developed = this.developed.get(key);
+    let previewBlob: Blob | null = developed ?? blob;
+    if (!developed && isNikonEmbeddedPreviewFile(frame.filename)) {
+      previewBlob = await extractNefPreview(blob);
+      // Development, relinking or a project switch may finish while extraction is in flight.
+      if (this.localBlobs.get(key) !== blob || this.developed.get(key) !== developed) {
+        return this.localBlobs.has(key) ? this.getFullPreviewUrl(frame) : '';
+      }
     }
+    if (!previewBlob) return '';
+    // A concurrent request for a virtual copy may already have cached this source.
+    const ready = this.fullUrlCache.get(key);
+    if (ready) return ready;
 
     const objectUrl = URL.createObjectURL(previewBlob);
-    this.fullUrlCache.set(frame.id, objectUrl);
-    this.fullUrlOrder.push(frame.id);
+    this.fullUrlCache.set(key, objectUrl);
+    this.fullUrlOrder.push(key);
 
     while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
-      const oldestId = this.fullUrlOrder.shift();
-      if (oldestId) {
-        const oldUrl = this.fullUrlCache.get(oldestId);
+      const oldestKey = this.fullUrlOrder.shift();
+      if (oldestKey) {
+        const oldUrl = this.fullUrlCache.get(oldestKey);
         if (oldUrl) URL.revokeObjectURL(oldUrl);
-        this.fullUrlCache.delete(oldestId);
+        this.fullUrlCache.delete(oldestKey);
       }
     }
 
@@ -123,12 +144,10 @@ export class BrowserPreviewProvider implements PreviewProvider {
     }
     this.thumbUrlCache.delete(frameId);
 
-    const full = this.fullUrlCache.get(frameId);
-    if (full && full.startsWith('blob:')) {
-      URL.revokeObjectURL(full);
-    }
-    this.fullUrlCache.delete(frameId);
-    this.fullUrlOrder = this.fullUrlOrder.filter((id) => id !== frameId);
+    const key = this.fullFrameKeys.get(frameId);
+    this.fullFrameKeys.delete(frameId);
+    // A virtual copy may still be using this source URL.
+    if (key && ![...this.fullFrameKeys.values()].includes(key)) this.invalidateFullPreview(key);
   }
 
   clear(): void {
@@ -140,8 +159,10 @@ export class BrowserPreviewProvider implements PreviewProvider {
     }
     this.thumbUrlCache.clear();
     this.fullUrlCache.clear();
+    this.fullFrameKeys.clear();
     this.fullUrlOrder = [];
     this.localBlobs.clear();
+    this.developed.clear();
     this.pendingThumbs.clear();
   }
 
