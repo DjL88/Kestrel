@@ -1,6 +1,32 @@
 # What Kestrel will ask of its own backend
 
-A proposal, not built yet. Today the app works fully without any server. Everything here is optional and fails quietly, so the app never depends on it. It is written so the backend can be built to match.
+A proposal, not built or deployed yet. Core local import, editing and export do not require a Kestrel server. Optional online operations must report success, failure and retry clearly without blocking local work.
+
+## Recommended hosting boundary
+
+The download website and the secrets backend are different things:
+
+| Component | Host / responsibility | Must not contain |
+| --- | --- | --- |
+| Public website | Static hosting such as the existing Pages workflow: app information, platform availability, privacy/help, links to verified release installers | Provider keys, signing private keys, customer credentials |
+| Installers and model files | Versioned release/object storage with checksums, caching and signed application releases | Runtime secrets |
+| Optional API | Small HTTPS service or serverless API under a separate origin/path; authenticate users, validate requests, enforce quotas, broker analysis and OAuth | Arbitrary filesystem access, arbitrary user-selected upstream URLs or unrestricted AI tool execution |
+| Server secret store | Hosting provider's secret manager/environment injection; scoped AI credentials, OAuth client secrets and webhook verification keys | Anything exported into the frontend build |
+| Device credential store | OS-backed secure storage for native third-party refresh tokens; session-only browser credentials until a suitable flow exists | A claim that `localStorage` is encrypted or a system keychain |
+
+`VITE_*` values are public build configuration, **never secrets**. Bundled `.env` files, a desktop executable and a Chrome extension cannot protect a shared provider private key. Installer/update signing keys belong only in the release signing environment; the app holds verification public keys.
+
+Current code: the online helper's bring-your-own-key UI is hidden unless `VITE_SHOW_ONLINE_HELPER=true`; when enabled it can call Google directly. S3/WebDAV connectors are direct, user-configured connections, and remembered credentials use browser storage. Neither is a deployed Kestrel backend. Do not silently migrate those credentials or images to a new server. Local MCP is a separate stdio process, not an internet endpoint.
+
+### Smallest useful backend release
+
+1. Keep the download site static. No backend/account is required just to download an installer or edit local photos.
+2. Add an authenticated analysis broker behind the existing `HelperTransport` boundary. Use short-lived session credentials, not the shared provider key or a permanent licence string as a bearer token. Authenticate before expensive decoding or upstream calls; enforce per-user quotas, concurrency, timeouts and strict body/image-size limits.
+3. Accept only a deliberately shared, resized, metadata-stripped image. Explain the destination, processing provider, allowance and retention before enabling uploads. Default to no image retention, and do not log payloads, EXIF, provider keys or tokens. Verify provider-side retention rather than promising deletion the service cannot guarantee.
+4. Return a versioned, validated result: subject/species suggestions, plain-text opinion and optionally whitelisted numerical recipe proposals. AI has no source-write/delete tool, no cloud credentials and no arbitrary URL-fetch tool. The app validates bounds and applies proposals only under the user's enabled automation/review policy, with undo.
+5. Test unauthorised/expired requests, quota exhaustion, oversized or malformed images, provider failure, cancellation and offline operation before enabling the transport in public builds. Missing credentials must disable the online feature with a useful message, not use a bundled key.
+
+Managed storage and accounts should be a later service, not a prerequisite for this broker. Prefer provider OAuth with narrow scopes and revocable tokens where supported; NAS/local folders remain device-side. Choose hosting vendor, budget, data region, authentication and retention policy before deployment. See the [live audit](RELEASE-GAP-AUDIT-2026-11.md) for the release order.
 
 ## 1. Updates for models and the species library
 
@@ -31,14 +57,14 @@ Rules the app will follow:
 
 ## 2. The online helper, through the server
 
-Today the user pastes their own key and the app calls Google directly (`geminiTransport`). The app already talks to the helper through one interface (`HelperTransport` in `src/providers/onlineHelper.ts`), so a server version is a second implementation, not a rewrite.
+In an explicitly enabled bring-your-own-key build, the user supplies a key and the app calls Google directly (`geminiTransport`). This UI is hidden by default. The helper has one interface (`HelperTransport` in `src/providers/onlineHelper.ts`), so a server version can be a second implementation, not a rewrite. Consent must be updated before changing the destination.
 
-`POST /v1/describe` with `Authorization: Bearer <licence or session token>`
+Proposed: `POST /v1/describe` with `Authorization: Bearer <short-lived session token>`
 
 Request: `{ "image": "<base64 JPEG, about 640 px, no metadata>" }`
 Response, the same shape the app already checks: `{ "kind": "wildlife", "species": "Red kite", "scientific": "Milvus milvus", "confidence": "high", "tags": ["in flight"] }`
 
-The server holds the Google key, picks the model, applies the licence and any allowance, and may cache by image hash. The app still validates every answer exactly as it does now (`parseHelperAnswer`), so a faulty server cannot put markup or a link into a tag. Errors the app understands: 401 (not licensed), 429 (allowance used), anything else (try again later).
+The server holds the provider key, picks the model and checks entitlement and allowance. Image/result caching is off unless a retention policy and explicit consent cover it. The app still validates answers with `parseHelperAnswer`, which rejects links/markup in tag fields; this does not establish that a species identification is correct. The transport must map 401 (session expired/not authorised), 429 (allowance used) and provider/network failures into clear user-facing states.
 
 Privacy to carry over: the server should not keep the image longer than needed to answer, should say so in its terms, and the consent screen in the app must then name the new destination (consent is versioned, so a change asks again).
 
