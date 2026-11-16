@@ -1,5 +1,6 @@
 import { PHOTO_EXTENSIONS } from '../core/rawFormats';
 import { isDesktopApp } from './desktopShell';
+import { discoverPhotoPaths } from './nativeFolderDiscovery';
 
 /**
  * A photo Kestrel knows about without holding it: where it is, and how to read it when it is needed.
@@ -56,14 +57,27 @@ export async function pickPhotosNatively(): Promise<PickedPhoto[] | 'cancelled'>
   return Promise.all(paths.map(linkedPhoto));
 }
 
-/** Ask the desktop app to choose a folder, and link the photos directly inside it. */
+/** Choose a folder and link photographs throughout its nested shoot folders.
+ * Metadata reads are bounded; original bytes are still read only when needed.
+ */
 export async function pickFolderNatively(): Promise<PickedPhoto[] | 'cancelled'> {
   if (!isDesktopApp()) return 'cancelled';
   const { open } = await import('@tauri-apps/plugin-dialog');
   const fs = await import('@tauri-apps/plugin-fs');
   const chosen = await open({ directory: true, multiple: false, title: 'Choose a folder of photos' });
   if (typeof chosen !== 'string') return 'cancelled';
-  const root = chosen.replace(/[\\/]+$/, '');
-  const names = (await fs.readDir(root)).filter((entry) => entry.isFile && extensions.includes(entry.name.split('.').at(-1)?.toLowerCase() ?? ''));
-  return Promise.all(names.map((entry) => linkedPhoto(`${root}/${entry.name}`)));
+  const discovery = await discoverPhotoPaths(chosen, fs.readDir, new Set(extensions));
+  if (discovery.truncated || discovery.skippedFolders) {
+    // Never silently import only part of a shoot when the scan was incomplete.
+    throw new Error(discovery.truncated
+      ? 'This folder contains more photos than Kestrel can safely scan at once. Choose a smaller shoot folder.'
+      : 'Some folders could not be read. Check drive permissions and try again.');
+  }
+  // Limit concurrent filesystem metadata requests for large camera cards/NAS volumes.
+  const photos: PickedPhoto[] = [];
+  for (let index = 0; index < discovery.paths.length; index += 8) {
+    const batch = await Promise.all(discovery.paths.slice(index, index + 8).map(linkedPhoto));
+    photos.push(...batch);
+  }
+  return photos;
 }
