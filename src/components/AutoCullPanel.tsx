@@ -16,6 +16,8 @@ interface Props {
   onApply: (results: { frameId: string; decision: 'keep' | 'reject' }[]) => void;
   onUndo: () => void;
   onInspect: (frame: PhotoFrame) => void;
+  /** Close this and show a collection in the library: the keepers, or what still needs a decision. */
+  onShowCollection?: (filter: 'keep' | 'unreviewed') => void;
   onClose: () => void;
   /** Start the scan as soon as the panel opens, for projects that asked for auto-cull. */
   autoStart?: boolean;
@@ -23,7 +25,7 @@ interface Props {
 
 const button = 'min-h-11 rounded-md px-3 text-sm font-medium hover:bg-white/10 disabled:opacity-45';
 
-export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo, onInspect, onClose, autoStart }: Props) {
+export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo, onInspect, onShowCollection, onClose, autoStart }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const running = useRef<AbortController | null>(null);
   const [autoMove, setAutoMove] = useState(true);
@@ -108,28 +110,39 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo,
           <p role="status" className="text-sm">{m.moved(formatCount.format(high.length))}</p>
           <button type="button" className={button} onClick={() => { onUndo(); setApplied(false); }}>{m.undo}</button>
         </div> : <button type="button" className={button} onClick={() => apply(high)}>{m.applyHigh}</button>)}
-        {(['high', 'medium', 'low'] as const).map((level) => {
-          const items = results.filter((result) => result.confidence === level);
-          if (!items.length) return null;
-          return <details key={level} open={level === 'high'} className="rounded-md border border-white/10 px-2">
-            <summary className="min-h-11 cursor-pointer py-2 text-sm">{m.confidence[level]} · {formatCount.format(items.length)}</summary>
-            <ul className="divide-y divide-white/10">
-              {items.map((result) => {
-                const frame = frames.find((entry) => entry.id === result.frameId);
-                if (!frame) return null;
-                return <li key={result.frameId} className="flex items-center justify-between gap-2 py-1">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm">{frame.filename}</p>
-                    <p className="text-xs text-zinc-400">
-                      {formatCount.format(result.score)}/100 · {result.decision === 'keep' ? m.keep : result.decision === 'reject' ? m.trash : m.review} · {m.reason[result.reason]}
-                    </p>
-                  </div>
-                  <button type="button" className={`${button} shrink-0`} onClick={() => onInspect(frame)}>{m.reviewPhoto}</button>
-                </li>;
-              })}
-            </ul>
-          </details>;
-        })}
+        {onShowCollection && (
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Where to next">
+            <button type="button" autoFocus className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
+              onClick={() => onShowCollection('keep')}>Show my keepers ({formatCount.format(frames.filter((frame) => !frame.removedAt && frame.decision === 'keep').length)})</button>
+            {summary && summary.needReview > 0 && <button type="button" className={button} onClick={() => onShowCollection('unreviewed')}>Review the rest ({formatCount.format(frames.filter((frame) => !frame.removedAt && frame.decision === 'unreviewed').length)})</button>}
+          </div>
+        )}
+        {/* The reasons for each photo, for anyone who wants them. Closed, so the dialog stays short. */}
+        <details className="rounded-md border border-white/10 px-2">
+          <summary className="min-h-11 cursor-pointer py-2 text-sm text-zinc-300">Why each photo was chosen</summary>
+          {(['high', 'medium', 'low'] as const).map((level) => {
+            const items = results.filter((result) => result.confidence === level);
+            if (!items.length) return null;
+            return <details key={level} className="rounded-md border border-white/10 px-2">
+              <summary className="min-h-11 cursor-pointer py-2 text-sm">{m.confidence[level]} · {formatCount.format(items.length)}</summary>
+              <ul className="divide-y divide-white/10">
+                {items.map((result) => {
+                  const frame = frames.find((entry) => entry.id === result.frameId);
+                  if (!frame) return null;
+                  return <li key={result.frameId} className="flex items-center justify-between gap-2 py-1">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">{frame.filename}</p>
+                      <p className="text-xs text-zinc-400">
+                        {formatCount.format(result.score)}/100 · {result.decision === 'keep' ? m.keep : result.decision === 'reject' ? m.trash : m.review} · {m.reason[result.reason]}
+                      </p>
+                    </div>
+                    <button type="button" className={`${button} shrink-0`} onClick={() => onInspect(frame)}>{m.reviewPhoto}</button>
+                  </li>;
+                })}
+              </ul>
+            </details>;
+          })}
+        </details>
       </div>}
     </dialog>
   );

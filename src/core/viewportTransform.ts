@@ -13,8 +13,9 @@ export function transformViewport(
   nextZoom: number,
   previous: ViewportPoint,
   next: ViewportPoint = previous,
+  maxZoom = 6,
 ): ViewportTransform {
-  const zoom = Math.max(1, Math.min(6, nextZoom));
+  const zoom = Math.max(1, Math.min(maxZoom, nextZoom));
   if (zoom === 1) return FIT_VIEW;
   const ratio = zoom / current.zoom;
   const centerX = bounds.width / 2 + bounds.left;
