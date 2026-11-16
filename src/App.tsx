@@ -101,6 +101,7 @@ import {
 import { BrowserPreviewProvider } from './providers/browserPreviewProvider';
 import {
   getLocalFileKey,
+  loadDirectoryHandleShoot,
   loadLocalFileListShoot,
   readFilesFromDirectoryHandle,
   rehydrateLocalFramesFromStore,
@@ -1165,8 +1166,59 @@ export default function App() {
       if (!picker) return;
       const handle = await picker();
       const entries = await readFilesFromDirectoryHandle(handle);
-      if (entries.length) await handleSelectLocalFiles(entries.map(({ file }) => file));
-      else setFolderError('This folder has no supported photos.');
+      if (!entries.length) {
+        setFolderError('This folder has no supported photos.');
+        return;
+      }
+
+      const otherFolder = cullingState.frames.find((frame) =>
+        frame.sourceKind === 'directory-handle' &&
+        !frame.stableKey.startsWith(`folder://${handle.name}/`)
+      );
+      if (otherFolder) {
+        setFolderError('Keep each folder in its own project so Kestrel can reconnect it safely.');
+        return;
+      }
+
+      setOpenShootModal(false);
+      setFolderError(null);
+      setProjectError(undefined);
+      setLoadingProgress({ loaded: 0, total: entries.length });
+      const task = tasks.start(`Adding ${entries.length} photo${entries.length === 1 ? '' : 's'}`, { total: entries.length });
+      try {
+        const { frames } = await loadDirectoryHandleShoot(
+          handle,
+          previewProviderRef.current!,
+          storeRef.current!,
+          ({ loaded, total }) => { setLoadingProgress({ loaded, total }); task.progress(loaded, total); },
+          { handleKey: cullingState.shoot.id, entries },
+        );
+        task.finish();
+        const importId = newId().slice(0, 8);
+        setCullingState((previous) => {
+          const next = appendProjectPhotos(previous, frames, importId);
+          return {
+            ...next,
+            shoot: {
+              ...next.shoot,
+              folderName: handle.name,
+              needsFolderRegrant: false,
+              needsFileReselect: false,
+            },
+          };
+        });
+        if (cullingState.settings?.autoCull && can('smartCulling')) {
+          setAutoCullStart(true);
+          setAutoCullOpen(true);
+        }
+        setPrefs((previous) => ({ ...previous, viewMode: 'grid' }));
+      } catch {
+        task.fail('Could not add the photos.');
+        setProjectError('Could not add the folder. Try selecting it again.');
+      } finally {
+        task.fail('Stopped before it finished');
+        setLoadingProgress(null);
+      }
     } catch (error) {
       if ((error as Error).name !== 'AbortError') setFolderError('Could not read the folder. Try selecting files.');
     }
