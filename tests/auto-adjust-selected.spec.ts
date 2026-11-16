@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('two selected photos receive independent Auto adjustments, third remains unedited', async ({ page }) => {
+  test.skip(test.info().project.name === 'phone', 'desktop filmstrip flow; phone uses a separate folded editor sheet');
   await page.goto('/');
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Batch Auto Selection');
@@ -27,8 +28,8 @@ test('two selected photos receive independent Auto adjustments, third remains un
   await bar.getByRole('button', { name: 'Select photos' }).click();
   const film = page.locator('[aria-label="Shoot filmstrip"]');
   await film.getByRole('button', { name: 'Select photo-2.png' }).click();
-  await expect(page.getByRole('group', { name: 'Selected photo actions' }).getByRole('button', { name: 'Auto-adjust selected' })).toBeVisible();
-  await page.getByRole('group', { name: 'Selected photo actions' }).getByRole('button', { name: 'Auto-adjust selected' }).click();
+  await expect(bar.getByRole('button', { name: 'Auto-adjust', exact: true })).toBeVisible();
+  await bar.getByRole('button', { name: 'Auto-adjust', exact: true }).click();
   const confirmation = page.getByRole('alertdialog', { name: 'Auto-adjust selected photos?' });
   await expect(confirmation).toBeVisible();
   await confirmation.getByRole('button', { name: 'Analyse selected photos' }).click();
