@@ -141,7 +141,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [previewRecipe, setPreviewRecipe] = useState<{ edit?: PhotoEdit; framing?: PhotoFraming } | null>(null);
   const cropEntry = useRef<PhotoFraming | null>(null);
   const panelScroll = useRef<HTMLDivElement>(null);
-  const isPhone = useMediaQuery('(max-width: 767px)');
+  const isPhone = useMediaQuery('(max-width: 899px), (max-height: 549px)');
   // On a phone the tools open as a sheet above the bar. Tapping the open tab again folds it away for a full-height photo.
   const [sheetOpen, setSheetOpen] = useState(() => {
     try { return localStorage.getItem(SHEET_KEY) !== 'closed'; } catch { return true; }
@@ -588,7 +588,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     <div role="tablist" aria-label="Editing tools"
       className={isPhone
         ? 'grid shrink-0 grid-cols-6 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]'
-        : 'sticky top-0 z-10 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 md:-mx-4 md:px-3'}
+        : 'sticky top-0 z-10 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 workspace:-mx-4 workspace:px-3'}
       onKeyDown={(event) => {
         const order = visibleTabs.map((entry) => entry.id);
         const at = order.indexOf(tab);
@@ -657,7 +657,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           </button>
         )}
         <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? `Export ${exportCount} selected photos` : "Export this photo for social media or full size"}
-          className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover! max-md:hidden`}>
+          className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover! hidden workspace:inline-flex`}>
           <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? `Export ${exportCount}` : "Export"}
         </button>
         {onOpenMacroPad && (
@@ -668,7 +668,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
         </div>
       </div>
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex-row">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden workspace:flex-row">
       <div ref={stage} className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
         <PhotoViewport zoom={transform.zoom} pan={transform.pan}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
@@ -769,7 +769,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
       </div>
       <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
-      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 md:relative md:z-10 ${showFilmstrip ? 'md:-mb-[156px] md:pb-[172px] ' : ''}md:max-h-none md:w-[var(--panel-w)] md:border-t-0 md:p-4 md:pt-0 ${panelSide === 'left' ? 'md:order-[-9999] md:border-r' : 'md:border-l'}`}>
+      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 ${showFilmstrip ? 'workspace:-mb-[156px] workspace:pb-[172px] ' : ''}workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
         {!isPhone && tabList}
         {tab === 'auto' && !can('autoTab') && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto"><PaidNotice title="The Auto tab">Automatic colour and tone adjustments and local editing advice are here.</PaidNotice></div>
@@ -1115,7 +1115,7 @@ function PanelResizer({ width, side, onChange }: { width: number; side: 'left' |
   };
   return (
     <div role="separator" aria-orientation="vertical" aria-label="Resize adjustments panel" aria-valuenow={width} tabIndex={0}
-      className={`${side === 'left' ? 'md:order-[-1]' : ''} hidden w-2 shrink-0 cursor-col-resize bg-white/5 hover:bg-sky-300/30 focus-visible:outline-2 focus-visible:outline-sky-300 md:block`}
+      className={`${side === 'left' ? 'workspace:order-[-1]' : ''} hidden w-2 shrink-0 cursor-col-resize bg-white/5 hover:bg-sky-300/30 focus-visible:outline-2 focus-visible:outline-sky-300 workspace:block`}
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
