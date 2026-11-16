@@ -88,7 +88,15 @@ export function limitAutoKeepers(
 ): CullSuggestion[] {
   // A corrupt or non-finite keeper target must fail closed, never grant unlimited auto-keeps.
   const safeRemaining = Number.isFinite(remainingKeepers) ? Math.max(0, Math.floor(remainingKeepers)) : 0;
-  const byId = new Map(frames.map((frame) => [frame.id, frame]));
+  // Damaged catalogues can contain multiple distinct frames with one ID. Never
+  // auto-keep an ambiguous identity: the eventual decision could target the
+  // wrong original (or be refused by the history layer).
+  const ambiguousIds = new Set<string>();
+  const byId = new Map<string, PhotoFrame>();
+  for (const frame of frames) {
+    if (byId.has(frame.id)) ambiguousIds.add(frame.id);
+    else byId.set(frame.id, frame);
+  }
   const occupied = new Set(frames.filter((frame) => !frame.removedAt && frame.decision === 'keep' && frame.burstGroupId)
     .map((frame) => frame.burstGroupId!));
   const accepted = new Set<string>();
@@ -97,7 +105,7 @@ export function limitAutoKeepers(
     // A stale scan result cannot reserve keeper headroom for a photo that was
     // removed or manually reviewed while the scan was running.
     const frame = byId.get(result.frameId);
-    if (!frame || frame.removedAt || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) continue;
+    if (!frame || ambiguousIds.has(result.frameId) || frame.removedAt || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) continue;
     const burst = frame.burstGroupId;
     if (burst && occupied.has(burst)) continue;
     accepted.add(result.frameId);
