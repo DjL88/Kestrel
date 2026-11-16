@@ -39,3 +39,13 @@ test('one disconnected NAS photo does not prevent unrelated originals being chec
   });
   assert.deepEqual([...result.values()], ['available', 'unavailable', 'available']);
 });
+
+test('Windows network path errors are unavailable, not missing', () => {
+  for (const message of [
+    'The network path was not found. (os error 53)',
+    'The specified network name is no longer available (os error 64)',
+    'Network is unreachable (os error 1231)',
+    'The semaphore timeout period has expired (os error 121)',
+  ]) assert.equal(classifyOriginalPathError(new Error(message)), 'unavailable');
+  assert.equal(classifyOriginalPathError(new Error('The system cannot find the file specified (os error 2)')), 'missing');
+});
