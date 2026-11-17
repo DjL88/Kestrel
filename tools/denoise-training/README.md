@@ -84,3 +84,17 @@ python -m unittest discover -s tools/denoise-training -p "test_*.py"
 ```
 
 Only numpy is needed; the training tests also need torch and onnxruntime and are skipped without them.
+
+## Which script is which
+
+Several people (and machines) built pieces of this, so the folder has more than one of some things:
+
+| Script | Use it for |
+| --- | --- |
+| `train.py` | The main trainer: reads the crops from `build_dataset.py` and your cameras' noise profile, adds fresh noise every epoch. Used by `windows/Train-Denoiser.ps1`. |
+| `train_denoiser.py` | A CPU-only trainer that needs no GPU, for the Windows laptop. |
+| `train_baseline.py` | The first small baseline: trains on a handful of low-ISO RAW dumps from `raw_dump` and checks held-out files. Useful as a quick sanity check, not for real training. |
+| `prepare_crops.py`, `raw_to_pairs.py` | Two ways of turning a folder of RAWs into crops. `raw_to_pairs.py` needs no Rust; `prepare_crops.py` also writes a per-camera noise profile. |
+| `calibrate_noise.py`, `noise_estimate.py` | Both measure real sensor noise from photos. |
+
+They overlap and should be merged into one pipeline once real results show which pieces are worth keeping.
