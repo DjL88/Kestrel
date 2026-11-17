@@ -46,8 +46,10 @@ def compare_detail_structure(reference, candidate, *, edge_floor=1.0 / 1024):
         dot = rx[paired] * cx[paired] + ry[paired] * cy[paired]
         cosine = np.clip(dot / np.maximum(rmag[paired] * cmag[paired], 1e-12), -1, 1)
         agreement = float(cosine.mean())
+        reversed_fraction = float(np.mean(cosine < -0.5))
     else:
         agreement = None
+        reversed_fraction = None
     n = ce.size
     return {
         "reference_edge_fraction": float(re.sum() / n),
@@ -56,4 +58,5 @@ def compare_detail_structure(reference, candidate, *, edge_floor=1.0 / 1024):
         "candidate_only_edge_fraction": float((ce & ~re).sum() / n),
         "reference_only_edge_fraction": float((re & ~ce).sum() / n),
         "mean_shared_edge_direction_cosine": agreement,
+        "opposite_direction_shared_edge_fraction": reversed_fraction,
     }
