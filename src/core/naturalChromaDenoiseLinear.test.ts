@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { denoiseChromaLinearRGB } from './naturalChromaDenoiseLinear.ts';
 
-const luma = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+const luma = (p: ArrayLike<number>) => 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2];
 
 test('reduces scene-linear chroma speckle while preserving original luminance', () => {
   const size = 40;
@@ -20,7 +20,7 @@ test('reduces scene-linear chroma speckle while preserving original luminance', 
     const i = (y * size + x) * 3;
     errorBefore += Math.abs(data[i] - 0.18) + Math.abs(data[i + 2] - 0.18);
     errorAfter += Math.abs(result[i] - 0.18) + Math.abs(result[i + 2] - 0.18);
-    assert.ok(Math.abs(luma(...result.slice(i, i + 3)) - luma(...data.slice(i, i + 3))) < 1e-6);
+    assert.ok(Math.abs(luma(result.subarray(i, i + 3)) - luma(data.subarray(i, i + 3))) < 1e-6);
   }
   assert.ok(errorAfter < errorBefore * 0.85, 'not enough chroma suppression: ' + errorAfter + '/' + errorBefore);
   assert.deepEqual(data, before);
