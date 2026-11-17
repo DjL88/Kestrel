@@ -26,7 +26,7 @@ export interface ShootBenchmarkReport {
 export function benchmarkShoot(
   frames: readonly PhotoFrame[], labels: readonly PhotographerLabel[], suggestions: readonly CullSuggestion[],
 ): ShootBenchmarkReport {
-  const active = frames.filter((frame) => !frame.removedAt && !frame.virtualCopy && !frame.isDemo);
+  const active = frames.filter((frame) => frame.removedAt == null && !frame.virtualCopy && !frame.isDemo);
   const byKey = new Map<string, PhotographerLabel>();
   for (const label of labels) {
     if (!label.stableKey || byKey.has(label.stableKey)) throw new Error('Duplicate or missing photographer label key');
