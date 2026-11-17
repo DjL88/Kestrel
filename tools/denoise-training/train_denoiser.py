@@ -47,7 +47,7 @@ def block(cin: int, cout: int) -> nn.Sequential:
 
 
 class SmallUNet(nn.Module):
-    """Three-level U-Net, about 0.5 M parameters at width 24: small enough to train on a laptop CPU."""
+    """Three-level U-Net, about 0.26 M parameters at width 24: small enough to train on a laptop CPU."""
 
     def __init__(self, width: int = 24):
         super().__init__()
