@@ -70,15 +70,23 @@ test('the editor can go full screen and come back', async ({ page }) => {
 test('rating filter is one row of stars: tap sets, tap again clears, the symbol flips to exactly', async ({ page }) => {
   await makeProject(page, 'Stars');
   // On a phone the Filter button lives in the menu sheet; either way it opens a popover with the rating row in it.
-  if (page.viewportSize()!.width < 768) await page.getByRole('button', { name: 'More', exact: true }).click();
-  await page.getByRole('button', { name: 'Filter', exact: true }).click();
-  const three = page.getByRole('button', { name: '3 stars or more' });
+  if (page.viewportSize()!.width < 768) {
+    await page.getByRole('button', { name: 'More', exact: true }).click();
+    await expect(page.locator('#workspace-options')).toBeVisible();
+  }
+  // Locate by the stable aria-controls attribute, not accessible name: the name itself changes once a filter
+  // count badge appears, and plain "Filter" text can also appear inside "Clear filters".
+  const filterTrigger = page.locator('button[aria-controls="filter-popover"]');
+  await filterTrigger.click();
+  const ratingGroup = page.getByRole('group', { name: 'Filter by rating' });
+  await expect(ratingGroup).toBeVisible();
+  const three = ratingGroup.getByRole('button', { name: '3 stars or more' });
   await three.click();
   await expect(three).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: /Matching this rating or more/ }).click();
-  await expect(page.getByRole('button', { name: 'Exactly 3 stars' })).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'Exactly 3 stars' }).click();
-  await expect(page.getByRole('button', { name: 'Exactly 3 stars' })).toHaveAttribute('aria-pressed', 'false');
+  await ratingGroup.getByRole('button', { name: /Matching this rating or more/ }).click();
+  await expect(ratingGroup.getByRole('button', { name: 'Exactly 3 stars' })).toHaveAttribute('aria-pressed', 'true');
+  await ratingGroup.getByRole('button', { name: 'Exactly 3 stars' }).click();
+  await expect(ratingGroup.getByRole('button', { name: 'Exactly 3 stars' })).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('editor: Export is a header button on desktop and a tab on phones, and tabs stack icon over label', async ({ page }) => {
