@@ -59,6 +59,13 @@ export function QuickAdjust({ edit, disabled, onEdit, canStepBack, canStepForwar
         <span className="text-sm font-medium text-zinc-100">{control.label}{value !== 0 && <span className="ml-2 text-xs font-normal text-sky-200">(adjusted)</span>}</span>
         <output className="text-lg tabular-nums text-zinc-100" aria-live="off">{valueText(key, value)}</output>
       </div>
+      {(key === 'exposure' || key === 'brightness') && (
+        <p className="px-1 text-xs text-zinc-400">
+          {key === 'exposure'
+            ? 'Exposure changes the overall light, measured in EV.'
+            : 'Brightness adjusts the midtones without shifting pure black or white.'}
+        </p>
+      )}
       <div className="flex items-center gap-2">
         <button type="button" className={round} aria-label={`${control.label} down`} title={`Lower ${control.label} a little`} disabled={disabled || value <= control.min} onClick={() => set(nudge(control, value, -1))}><Minus className="h-5 w-5" aria-hidden="true" /></button>
         <input type="range" min={control.min} max={control.max} step={control.step} value={value} disabled={disabled} aria-label={`${control.label} adjustment`}
