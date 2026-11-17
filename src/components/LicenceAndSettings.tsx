@@ -101,6 +101,16 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
               <p className="pb-2">Dropbox, OneDrive, Google Drive or a USB stick work the same way. Windows and Android can load the same file.</p>
             </details>
           </section>
+          <section aria-labelledby="build-information-h" className="space-y-2 border-t border-white/10 pt-4">
+            <h3 id="build-information-h" className="font-medium text-zinc-100">Build information</h3>
+            <p className="text-xs text-zinc-400">Use these details to compare Windows and Mac installations. The app version alone does not identify a particular build.</p>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+              <dt>Source revision</dt>
+              <dd className="select-text break-all font-mono">{import.meta.env.VITE_KESTREL_BUILD_REVISION || 'Unavailable'}</dd>
+              <dt>Built at (UTC)</dt>
+              <dd className="select-text break-all font-mono">{import.meta.env.VITE_KESTREL_BUILD_TIMESTAMP || 'Unavailable'}</dd>
+            </dl>
+          </section>
         </div>
         <footer className="shrink-0 border-t border-white/10 px-5 py-3">
           <button type="button" onClick={onClose} className={`${action} w-full`}>Close</button>
