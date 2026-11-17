@@ -109,7 +109,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
             tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} kind={frame.subjectKind}
             onAccept={(name, kind) => onSubjects(frame, addTags(addTags(frame.subjectNames ?? [], frame.tags ?? []), [name]), frame.subjectKind ?? kind)}
             mates={mates.map((mate) => ({ id: mate.id, has: (name: string) => hasName(mate, name), load: async () => loadPicture(mate) }))}
-            canAutoTag={mayAutoTag(frame, '')} declined={frame.declinedTags ?? []} onAutoTag={(name, kind) => onAutoTag?.(frame, name, kind)}
+            canAutoTag={frame.subjectKind === 'wildlife' && mayAutoTag(frame, '')} declined={frame.declinedTags ?? []} onAutoTag={(name, kind) => onAutoTag?.(frame, name, kind)}
             onTagMates={onTagPhotos} />
         )}
       </div>
