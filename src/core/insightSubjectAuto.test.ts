@@ -42,14 +42,20 @@ test('darker wildlife subject receives a bounded reversible local exposure sugge
   assert.deepEqual(input.pixels, pixels, 'source preview never mutated');
 });
 
-test('landscape and unknown categories never receive guessed subject masks', () => {
-  for (const subjectKind of ['landscape', 'other'] as const) {
-    const input = fixture([65, 70, 80], [200, 202, 205]);
-    input.subjectKind = subjectKind;
-    const result = proposeSubjectAwareAuto(input);
-    assert.equal(result.usedMask, false);
-    assert.strictEqual(result.edit, input.edit);
-  }
+test('landscapes stay global; an unknown image needs much stronger evidence', () => {
+  const landscape = fixture([65, 70, 80], [200, 202, 205]);
+  landscape.subjectKind = 'landscape';
+  assert.strictEqual(proposeSubjectAwareAuto(landscape).edit, landscape.edit);
+  const medium = fixture([65, 70, 80], [200, 202, 205]);
+  medium.subjectKind = 'other';
+  medium.segmentation!.confidence = 'medium';
+  assert.equal(proposeSubjectAwareAuto(medium).usedMask, false);
+  const high = fixture([65, 70, 80], [200, 202, 205]);
+  high.subjectKind = 'other';
+  assert.equal(proposeSubjectAwareAuto(high).usedMask, true, 'isolated dark subject should still work without tags');
+  const similar = fixture([160, 161, 160], [200, 200, 200]);
+  similar.subjectKind = 'other';
+  assert.equal(proposeSubjectAwareAuto(similar).usedMask, false, 'uncertain separation is not a reason to mask');
 });
 
 test('low-confidence masks are ignored even if the foreground is very dark', () => {
