@@ -73,6 +73,14 @@ export interface SubjectFinding { label: string; score: number; /** Long side of
  */
 export function scoreWithSubject(base: CullSuggestion, found: SubjectFinding | null): CullSuggestion {
   if (base.reason === 'unavailable' || base.reason === 'flat' || base.reason === 'duplicate') return base;
+  // Detector adapters and persisted worker results are not guaranteed to
+  // respect TypeScript types. Non-finite or out-of-range metrics must never
+  // manufacture a high-confidence keeper (or propagate a NaN score).
+  if (found && (!Number.isFinite(found.score) || found.score < 0 || found.score > 1 ||
+      !Number.isFinite(found.size) || found.size <= 0 ||
+      !Number.isFinite(found.sharpness) || found.sharpness < 0)) {
+    return { ...base, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
+  }
   const real = found && ((found.score >= 0.45 && found.size >= 120) || found.score >= 0.7);
   if (!found || !real) return { ...base, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
   const weight = Math.min(1, found.score / 0.8);
