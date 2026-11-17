@@ -68,3 +68,11 @@ test('a file that is not a settings file is refused', async ({ page }) => {
   await dialog.getByTestId('settings-file-input').setInputFiles({ name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{"hello":1}') });
   await expect(dialog.getByRole('status').filter({ hasText: 'not a Kestrel settings file' })).toBeVisible();
 });
+
+test('keyboard focus stays inside the Licence and settings dialog: Tab from the last control wraps to the first', async ({ page }) => {
+  const dialog = await open(page);
+  const focusable = dialog.locator('button:not([disabled]), input:not([disabled]), a[href]');
+  await focusable.last().focus();
+  await page.keyboard.press('Tab');
+  await expect(focusable.first()).toBeFocused();
+});

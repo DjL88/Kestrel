@@ -77,6 +77,14 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
         event.preventDefault();
         selectFiles(Array.from(event.dataTransfer.files));
       }}
+      onKeyDown={(event) => {
+        if (event.key !== 'Tab') return;
+        const order = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), a[href]')];
+        if (!order.length) return;
+        const at = order.indexOf(document.activeElement as HTMLElement);
+        event.preventDefault();
+        order[(at + (event.shiftKey ? order.length - 1 : 1)) % order.length]?.focus();
+      }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4"
     >
       <div className="w-full max-w-xl bg-kestrel-panel border border-white/12 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">

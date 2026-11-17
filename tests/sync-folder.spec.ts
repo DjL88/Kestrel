@@ -74,3 +74,14 @@ test('sending never silently replaces another project’s saved copy with the sa
   });
   expect(kept).toContain('someone-else');
 });
+
+test('keyboard focus stays inside the Sync folder dialog: Tab from the last control wraps to the first', async ({ page }) => {
+  test.skip(test.info().project.name === 'phone', 'the menu layout differs on phone; covered on desktop');
+  await useFolder(page);
+  await page.goto('/');
+  const dialog = await openSync(page);
+  const focusable = dialog.locator('button:not([disabled]), input:not([disabled]), a[href]');
+  await focusable.last().focus();
+  await page.keyboard.press('Tab');
+  await expect(focusable.first()).toBeFocused();
+});

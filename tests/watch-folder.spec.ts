@@ -44,3 +44,18 @@ test('photos that arrive in a watched folder are added to the project, once each
   await page.locator('#workspace-options').getByRole('button', { name: /Stop watching/ }).click();
   await expect(status).toHaveCount(0);
 });
+
+test('keyboard focus stays inside the Watch folder dialog: Tab from the last control wraps to the first', async ({ page }) => {
+  test.skip(test.info().project.name === 'phone', 'the menu layout differs on phone; covered on desktop');
+  await useFolder(page);
+  await page.goto('/');
+  await page.getByTestId('quick-edit-input').setInputFiles(photo);
+  await page.getByRole('button', { name: 'Back', exact: true }).click({ timeout: 15000 });
+  await page.getByRole('button', { name: 'More', exact: true }).or(page.getByRole('button', { name: 'Workspace options' })).click();
+  await page.locator('#workspace-options').getByRole('button', { name: /Watch a folder for new photos/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Watch a folder for new photos' });
+  const focusable = dialog.locator('button:not([disabled]), input:not([disabled]), a[href]');
+  await focusable.last().focus();
+  await page.keyboard.press('Tab');
+  await expect(focusable.first()).toBeFocused();
+});

@@ -220,9 +220,30 @@ optimise blind. Before touching render/import code for "speed":
    explicit "never colour alone" doc comment already. The contact-sheet
    keep/reject styling also deliberately uses sky-blue/orange rather than
    green/red, which is itself a colour-blind-conscious choice (comment:
-   "Colorblind-safe Decision Control"). Still open: a real keyboard-only
-   pass (tab order, focus visibility, no mouse-only controls) and a
-   screen-reader run-through (VoiceOver/NVDA) on an actual desktop build.
+   "Colorblind-safe Decision Control").
+
+   Keyboard-only pass (static audit, this pass): every custom interactive
+   widget (resize handles, comparison wipe, tabs) already pairs `tabIndex`
+   with a matching `onKeyDown`, and `ConfirmDialog`/`PhotoExportPanel`/
+   `OnlineHelperDialog` already trap Tab correctly inside the dialog. But
+   six other dialogs only handled Escape, with no Tab-trap at all --
+   `WatchFolderDialog`, `SyncFolderDialog`, `LicenceAndSettings`,
+   `ProjectLocationsDialog`, `AppearanceDialog`, `OpenShootModal` -- so a
+   keyboard-only user could Tab straight through them into the (visually
+   hidden but still-present) page behind. Fixed using the exact pattern
+   already proven in `ConfirmDialog`. Added a regression test to three of
+   them (watch-folder, sync-folder, licence-settings specs) asserting Tab
+   from the dialog's last control wraps to its first. Deliberately left
+   `MacroPadModal` untouched: its whole purpose is capturing raw key
+   presses from a physical macro pad, so a generic Tab-trap risks
+   interfering with that capture logic -- it needs its own dedicated,
+   hands-on test rather than the same mechanical fix.
+
+   Still open, and needs a real device, not static analysis: a hands-on
+   keyboard-only run through the full guided flow (new project -> cull ->
+   review -> edit -> export) checking nothing requires a mouse and focus
+   is always visibly ringed, plus a real screen-reader run-through
+   (VoiceOver/NVDA) on an actual desktop build.
 7. Real-camera-file validation of the 16-bit path (needs your Mac + your NEFs
    — see the testing plan below).
 
