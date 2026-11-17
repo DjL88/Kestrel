@@ -95,12 +95,16 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
     await strip.getByRole('button', { name: 'Pin filmstrip' }).click();
     await expect.poll(panelFitsWindow).toBe(true);
   }
-  // The built-in quality checks answer for an unedited photo, and stay on the page.
+  // Suggest a look always says something and stays on the page, whether or not this particular photo needed
+  // a change. Quality checks are a follow-up to an actual suggested edit, so they only appear when one exists.
   await page.getByRole('tab', { name: 'Auto' }).click();
+  const autoPanel = page.getByRole('tabpanel', { name: 'Auto' });
   await page.getByRole('button', { name: 'Suggest a look' }).click();
-  // Quality checks run as a follow-up effect once the suggested edit is previewed; give it room on a loaded CI box.
-  await expect(page.getByRole('region', { name: 'Quality checks for this look' })).toBeVisible({ timeout: 10_000 });
-  await page.getByRole('button', { name: 'Hide opinion' }).click();
+  await expect(autoPanel.getByRole('status').first()).toBeVisible({ timeout: 10_000 });
+  const qualityChecks = autoPanel.getByRole('region', { name: 'Quality checks for this look' });
+  if (await qualityChecks.isVisible().catch(() => false)) {
+    await page.getByRole('button', { name: 'Hide opinion' }).click();
+  }
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');

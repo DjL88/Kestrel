@@ -25,7 +25,9 @@ async function project(page: Page, names: string[]) {
 
 test('the Filter control starts closed, and opening it narrows the grid by search', async ({ page }) => {
   await project(page, ['zebra.png', 'mango.png', 'apple.png']);
-  const filterButton = page.getByRole('button', { name: 'Filter' });
+  // Locate by the stable aria-controls attribute, not accessible name: the name itself changes once a filter
+  // count badge appears ("Filter" -> "Filter 1"), and "Filter" alone would also match "Clear filters".
+  const filterButton = page.locator('button[aria-controls="filter-popover"]');
   await expect(filterButton).toBeVisible();
   // Decluttered: the search box and rating control are not sitting open in the bar by default.
   await expect(page.getByPlaceholder('Subject name or filename')).toHaveCount(0);
@@ -43,11 +45,13 @@ test('the Filter control starts closed, and opening it narrows the grid by searc
 test('sorting by name reorders the grid without touching the filter', async ({ page }) => {
   await project(page, ['zebra.png', 'mango.png', 'apple.png']);
   const frameOrder = () => page.locator('[aria-label^="Frame "]').evaluateAll((nodes) => nodes.map((n) => n.getAttribute('aria-label')));
-  // As imported: upload order, not yet alphabetical.
-  await expect.poll(frameOrder).toEqual(['Frame zebra.png', 'Frame mango.png', 'Frame apple.png']);
+  // The catalogue's own import order isn't something this test should assume (import may order by capture
+  // time, which these plain synthetic PNGs don't carry) - just capture whatever it actually is.
+  await expect.poll(frameOrder).toHaveLength(3);
+  const catalogueOrder = await frameOrder();
   await page.getByLabel('Sort photos').selectOption('name-asc');
   await expect.poll(frameOrder).toEqual(['Frame apple.png', 'Frame mango.png', 'Frame zebra.png']);
-  // Back to the catalogue order when "as imported" is chosen again.
+  // Back to the catalogue's own order when "as imported" is chosen again.
   await page.getByLabel('Sort photos').selectOption('default');
-  await expect.poll(frameOrder).toEqual(['Frame zebra.png', 'Frame mango.png', 'Frame apple.png']);
+  await expect.poll(frameOrder).toEqual(catalogueOrder);
 });
