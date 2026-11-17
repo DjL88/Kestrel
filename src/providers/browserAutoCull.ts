@@ -1,4 +1,5 @@
 import { loadImage } from './loadImage';
+import { restoreNoSubjectFallback } from '../core/cullFallback';
 import { sha256Hex } from '../core/sha256';
 import { duplicateAnchorKeys } from '../core/duplicateAnchors';
 import { limitAutoKeepers, scorePreview, scoreWithSubject, type CullSuggestion, type SubjectFinding } from '../core/autoCull';
@@ -83,11 +84,8 @@ export async function scanForCulling(
   // When it finds a subject in very few photos, judge by overall detail as before instead of calling every photo subject-less.
   const withSubject = results.filter((result) => result.reason !== 'noSubject' && baseById.has(result.frameId)).length;
   const judged = results.filter((result) => baseById.has(result.frameId)).length;
-  if (judged > 0 && withSubject / judged < 0.15) {
-    for (let i = 0; i < results.length; i += 1) {
-      const base = baseById.get(results[i].frameId);
-      if (base && results[i].reason === 'noSubject') results[i] = base;
-    }
-  }
-  return limitAutoKeepers(results, all, Math.max(0, goal - all.filter((frame) => !frame.removedAt && frame.decision === 'keep').length));
+  const fallbackResults = judged > 0 && withSubject / judged < 0.15
+    ? restoreNoSubjectFallback(results, baseById)
+    : results;
+  return limitAutoKeepers(fallbackResults, all, Math.max(0, goal - all.filter((frame) => !frame.removedAt && frame.decision === 'keep').length));
 }
