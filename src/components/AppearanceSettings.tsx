@@ -3,14 +3,30 @@ import { ThemePicker } from './ThemePicker';
 interface Props {
   side: 'left' | 'right';
   onSideChange: (side: 'left' | 'right') => void;
+  hand?: 'left' | 'right';
+  onHandChange?: (hand: 'left' | 'right') => void;
 }
 
 /** One persistent handedness setting shared by Library and Editor on every device. */
-export function AppearanceSettings({ side, onSideChange }: Props) {
+export function AppearanceSettings({ side, onSideChange, hand, onHandChange }: Props) {
   return (
     <div className="space-y-3 px-1 pb-2">
+      {hand && onHandChange && (
+        <fieldset className="space-y-1">
+          <legend className="text-sm font-medium text-zinc-200">Preferred hand</legend>
+          <p className="text-xs text-zinc-400">Positions one-handed touch controls for comfort.</p>
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Preferred hand">
+            {(['left', 'right'] as const).map((choice) => (
+              <button key={choice} type="button" aria-pressed={hand === choice} onClick={() => onHandChange(choice)}
+                className="min-h-11 rounded-md border border-white/15 px-3 text-sm text-zinc-200 aria-pressed:border-sky-200 aria-pressed:bg-sky-200/15 focus-visible:outline-2 focus-visible:outline-sky-300">
+                {choice === 'left' ? 'Left-handed' : 'Right-handed'}{hand === choice ? ' ✓' : ''}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+      )}
       <fieldset className="space-y-1">
-        <legend className="text-sm font-medium text-zinc-200">Editing tools</legend>
+        <legend className="text-sm font-medium text-zinc-200">Editing panel position</legend>
         <p className="text-xs text-zinc-400">Choose which side is most comfortable on a wide screen. On a phone, tools stay below the photo.</p>
         <div className="grid grid-cols-2 gap-2" role="group" aria-label="Editing tools side">
           {(['left', 'right'] as const).map((value) => (
