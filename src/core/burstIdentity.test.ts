@@ -2,9 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { assignBurstGroups, generateDemoShootFrames } from './cullingEngine';
 import { sameCaptureCamera, safeBurstGapMs } from './burstIdentity';
-import type { PhotoFrame } from './types';
 
-const frames = (): PhotoFrame[] => generateDemoShootFrames(4).map((frame, index) => ({
+const frames = () => generateDemoShootFrames(4).map((frame, index) => ({
   ...frame,
   exif: { ...frame.exif, camera: 'NIKON Z 8', capturedAtMs: 1000 + index * 100 },
 }));
@@ -27,7 +26,7 @@ test('mixed Z8 and Z5II frames are not joined by nearby timestamps', () => {
 
 test('missing camera metadata cannot bridge two independent bursts', () => {
   const input = frames();
-  input[1].exif.camera = ''; // Empty camera metadata is equivalent to unavailable identity.
+  input[1].exif.camera = ''; // Missing camera identity must not bridge independent bursts.
   const grouped = assignBurstGroups(input);
   assert.equal(grouped[0].burstGroupId, null);
   assert.equal(grouped[1].burstGroupId, null);

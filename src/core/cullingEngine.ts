@@ -359,12 +359,18 @@ export function stepSelection(
   currentId: string | null,
   delta: number
 ): string | null {
-  if (visibleFrames.length === 0) return null;
-  if (!currentId) return visibleFrames[0].id;
-  const idx = visibleFrames.findIndex((f) => f.id === currentId);
-  if (idx === -1) return visibleFrames[0].id;
-  const nextIdx = Math.max(0, Math.min(visibleFrames.length - 1, idx + delta));
-  return visibleFrames[nextIdx].id;
+  // Stale views can include a removed photograph. Never navigate back to it.
+  const active = visibleFrames.filter((frame) => !frame.removedAt);
+  if (active.length === 0) return null;
+  if (!currentId) return active[0].id;
+  const idx = active.findIndex((frame) => frame.id === currentId);
+  if (idx === -1) return active[0].id;
+  // Invalid keyboard/trackpad deltas must never index the array with NaN,
+  // Infinity or a fractional value and return an undefined selection.
+  if (!Number.isFinite(delta)) return active[idx].id;
+  const offset = Math.trunc(delta);
+  const nextIdx = Math.max(0, Math.min(active.length - 1, idx + offset));
+  return active[nextIdx].id;
 }
 
 export function getDefaultComparePair(
