@@ -60,11 +60,11 @@ fn encode_rgb16_tiff(rgb: &Rgb16) -> Result<Vec<u8>, String> {
     for pixel in rgb.as_raw() {
         data.extend_from_slice(&pixel.to_ne_bytes());
     }
-    let mut output = Vec::new();
+    let mut output = std::io::Cursor::new(Vec::new());
     TiffEncoder::new(&mut output)
         .write_image(&data, width, height, image::ExtendedColorType::Rgb16)
         .map_err(|error| format!("Could not encode the high-bit-depth TIFF: {error}"))?;
-    Ok(output)
+    Ok(output.into_inner())
 }
 
 /// Native-only, offline research entrypoint. Never invoked by production UI.
