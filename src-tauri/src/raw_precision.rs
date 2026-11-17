@@ -246,6 +246,25 @@ mod tests {
     }
 
     #[test]
+    fn rgba16_conversion_drops_alpha_without_quantising_rgb() {
+        let rgba = ImageBuffer::from_fn(2, 1, |x, _| {
+            if x == 0 {
+                image::Rgba([1u16, 32769, 65535, 0])
+            } else {
+                image::Rgba([65535u16, 2, 32768, 65535])
+            }
+        });
+        let rgb = require_rgb16(DynamicImage::ImageRgba16(rgba))
+            .expect("16-bit RGBA should retain RGB sample codes");
+        assert_eq!(rgb.get_pixel(0, 0).0, [1, 32769, 65535]);
+        assert_eq!(rgb.get_pixel(1, 0).0, [65535, 2, 32768]);
+        let encoded = encode_rgb16_tiff(&rgb).expect("TIFF encode");
+        let decoded = image::load_from_memory_with_format(&encoded, image::ImageFormat::Tiff)
+            .expect("TIFF decode");
+        assert_eq!(decoded.as_rgb16().expect("RGB16"), &rgb);
+    }
+
+    #[test]
     fn invalid_orientation_defaults_to_unchanged_pixels() {
         let original = ImageBuffer::from_fn(2, 3, |x, y| {
             Rgb([(x + 2 * y) as u16, 32769, 65535])
