@@ -11,10 +11,10 @@ test('Free: editing opens on Edit, and the Auto and Masks tabs say they are part
   await page.getByTestId('quick-edit-input').setInputFiles(photo());
   await expect(page.getByRole('tab', { name: 'Edit' })).toHaveAttribute('aria-selected', 'true', { timeout: 15000 });
   await page.getByRole('tab', { name: 'Auto' }).click();
-  await expect(page.getByRole('heading', { name: 'The Auto tab is part of Kestrel Paid' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'The Auto tab is part of Kestrel Pro' })).toBeVisible();
   await expect(page.getByText('Identify birds and animals')).toHaveCount(0);
   await page.getByRole('tab', { name: 'Masks' }).click();
-  await expect(page.getByRole('heading', { name: 'Masks and subject detection is part of Kestrel Paid' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Masks and subject detection is part of Kestrel Pro' })).toBeVisible();
   await page.getByRole('tab', { name: 'Edit' }).click();
   await expect(page.getByRole('slider').first()).toBeVisible();
 });

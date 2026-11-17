@@ -47,7 +47,7 @@ test('"I\'ll look through them myself" switches to To review without opening any
   const banner = page.getByRole('region', { name: "What's next" });
   await banner.getByRole('button', { name: "I'll look through them myself" }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 4' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 4' })).toHaveAttribute('aria-current', 'page');
 });
 
 test('dismissing the banner hides it for this project', async ({ page }) => {
