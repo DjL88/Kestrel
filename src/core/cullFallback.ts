@@ -21,3 +21,20 @@ export function restoreNoSubjectFallback(
     };
   });
 }
+
+/**
+ * Preview-only cloud IDEs can lack the large local subject-detection model.
+ * Exact byte-identical duplicates remain safe to recognise, but image texture
+ * must not produce automatic keep/reject decisions without subject evidence.
+ * Keep usable preview scores as medium-confidence *suggestions* for review.
+ */
+export function missingDetectorReviewFallback(
+  results: readonly CullSuggestion[],
+  baseById: ReadonlyMap<string, CullSuggestion>,
+): CullSuggestion[] {
+  const uncertain = results.map((result): CullSuggestion =>
+    result.reason === 'duplicate' || result.reason === 'unavailable'
+      ? result
+      : { ...result, decision: null, confidence: 'low', reason: 'noSubject' });
+  return restoreNoSubjectFallback(uncertain, baseById);
+}
