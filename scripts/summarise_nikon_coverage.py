@@ -48,6 +48,9 @@ def main():
             or details.get("nx_studio_build") != args.nx_studio_build
             or details.get("candidate_build") != args.candidate_build
             or not all(isinstance(value, str) and SHA256.fullmatch(value) for value in fingerprints)
+            # A copied NX Studio TIFF is not independent decoder evidence.
+            or fingerprints[1] == fingerprints[2]
+            or report.get("byte_identical_exports") is True
         ):
             ignored += 1
             continue
