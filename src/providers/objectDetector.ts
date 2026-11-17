@@ -7,8 +7,10 @@ type Ort = typeof import('onnxruntime-web/wasm');
 interface Loaded { ort: Ort; session: import('onnxruntime-web/wasm').InferenceSession }
 let loading: Promise<Loaded> | null = null;
 
-function load(): Promise<Loaded> {
-  loading ??= (async () => {
+/** The checked model file, fetched once and shared with every worker. A failure is remembered for the rest of a scan. */
+let modelBytes: Promise<ArrayBuffer> | null = null;
+function verifiedModel(): Promise<ArrayBuffer> {
+  modelBytes ??= (async () => {
     const modelUrl = bundledModelUrl(DETECTOR_MODEL.file);
     if (!modelUrl) throw new Error('The optional subject detector is not installed in this preview. Original photos and manual editing remain available.');
     const response = await fetch(modelUrl);
@@ -17,6 +19,20 @@ function load(): Promise<Loaded> {
     if (bytes.byteLength !== DETECTOR_MODEL.bytes || (await sha256Hex(bytes)) !== DETECTOR_MODEL.sha256) {
       throw new Error('The subject detector file does not match its checksum, so it was not used.');
     }
+    return bytes;
+  })();
+  return modelBytes;
+}
+
+/** Call at the start of a scan: a model that failed earlier gets a fresh try, but never more than one per scan. */
+export function resetDetectorFailure(): void {
+  if (failed) { pool = null; modelBytes = null; loading = null; failed = false; }
+}
+let failed = false;
+
+function load(): Promise<Loaded> {
+  loading ??= (async () => {
+    const bytes = await verifiedModel();
     const ort = await import('onnxruntime-web/wasm').catch(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 500));
       return import('onnxruntime-web/wasm');
@@ -26,7 +42,7 @@ function load(): Promise<Loaded> {
     const session = await ort.InferenceSession.create(new Uint8Array(bytes), { executionProviders: ['wasm'] });
     return { ort, session };
   })().catch((error) => {
-    loading = null;
+    failed = true;
     console.warn('Subject detector failed to load', error);
     throw new Error(friendlyToolError(error));
   });
@@ -45,10 +61,15 @@ let nextId = 1;
 
 function startPool(): Promise<Slot[] | null> {
   pool ??= (async () => {
-    const bundled = bundledModelUrl(DETECTOR_MODEL.file);
-    if (typeof Worker === 'undefined' || !bundled) return null; // No model in this preview: the main path reports that plainly.
+    if (typeof Worker === 'undefined') return null;
+    let bytes: ArrayBuffer;
     try {
-      const url = new URL(bundled, globalThis.location?.href ?? 'http://localhost/').href;
+      bytes = await verifiedModel(); // one request, one checksum, whatever the number of workers
+    } catch (problem) {
+      failed = true;
+      throw new Error(friendlyToolError(problem));
+    }
+    try {
       const slots: Slot[] = [];
       await Promise.all(Array.from({ length: detectorWorkerCount(typeof navigator === 'undefined' ? 4 : navigator.hardwareConcurrency || 4) }, () => new Promise<void>((resolve, reject) => {
         const worker = new Worker(new URL('./detectorWorker.ts', import.meta.url), { type: 'module' });
@@ -66,12 +87,12 @@ function startPool(): Promise<Slot[] | null> {
           next?.(slot);
           if (message.type === 'result') job.resolve(message.data as Float32Array); else job.reject(new Error(message.message));
         };
-        worker.postMessage({ type: 'init', url, bytes: DETECTOR_MODEL.bytes, sha256: DETECTOR_MODEL.sha256 });
+        worker.postMessage({ type: 'init', model: bytes.slice(0) }); // each worker keeps its own copy
       })));
       return slots;
     } catch (problem) {
       console.warn('Detector workers could not start; running on the main thread', problem);
-      return null;
+      return null; // the main-thread path reuses the same checked bytes: no second request
     }
   })();
   return pool;

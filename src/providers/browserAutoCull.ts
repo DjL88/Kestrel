@@ -3,7 +3,7 @@ import { missingDetectorReviewFallback, restoreNoSubjectFallback } from '../core
 import { sha256Hex } from '../core/sha256';
 import { duplicateAnchorKeys } from '../core/duplicateAnchors';
 import { limitAutoKeepers, scorePreview, scoreWithSubject, type CullSuggestion, type SubjectFinding } from '../core/autoCull';
-import { detectorParallelism, findSubject } from './objectDetector';
+import { detectorParallelism, findSubject, resetDetectorFailure } from './objectDetector';
 import { bundledModelUrl } from './bundledModelAssets';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
@@ -24,6 +24,7 @@ export async function scanForCulling(
   // A bundled asset can still be corrupt, inaccessible at runtime, or unable
   // to initialise ONNX. Stop trying after the first failure in this scan.
   // Scores from a degraded scan must NEVER be automatically accepted.
+  resetDetectorFailure();
   let detectorHealthy = Boolean(bundledModelUrl('yolox_tiny.onnx'));
   const seenHashes = new Set<string>();
   const anchorSizes = new Set<number>();
