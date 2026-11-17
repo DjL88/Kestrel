@@ -5,7 +5,7 @@ import { messages as m } from '../i18n/messages';
 import { ChevronDown, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, Settings2, SlidersHorizontal, Square, SquircleDashed, Undo2, Wand2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
-import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
+import { DEFAULT_FRAMING, MIN_CROP_SIZE, cropFromDrag, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
 import { AppearanceDialog } from './AppearanceDialog';
 import { downloadExport } from '../providers/browserExport';
@@ -206,6 +206,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [gridLines, setGridLines] = useState(true);
   const [cropNotice, setCropNotice] = useState('');
   const cropDrag = useRef<{ x: number; y: number; anchorX: number; anchorY: number } | null>(null);
+  // Click-and-drag anywhere on the photo (outside the current box) to draw a brand new crop box from scratch.
+  const cropCreateDrag = useRef<{ anchor: { x: number; y: number }; bounds: DOMRect } | null>(null);
   const [markFocus, setMarkFocus] = useState(false);
   const [transform, setTransform] = useState({ zoom: 1, pan: { x: 0, y: 0 } });
   const [exportOpen, setExportOpen] = useState(false);
@@ -851,6 +853,25 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             )}
             {tab === 'masks' && selectingArea && !guide && position && size && !displayCompare && (
               <AreaSelector rect={position} onSelect={(region) => void findInArea(region)} onCancel={() => setSelectingArea(false)} />
+            )}
+            {guide && position && size && fit > 0 && (
+              <div aria-hidden="true" style={position} className="absolute cursor-crosshair touch-none"
+                onPointerDown={(event) => {
+                  if (event.button !== 0) return;
+                  const bounds = event.currentTarget.getBoundingClientRect();
+                  const anchor = { x: (event.clientX - bounds.left) / fit, y: (event.clientY - bounds.top) / fit };
+                  cropCreateDrag.current = { anchor, bounds };
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  onFramingChange(cropFromDrag(size.width, size.height, framing, anchor, anchor));
+                }}
+                onPointerMove={(event) => {
+                  const drag = cropCreateDrag.current;
+                  if (!drag || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+                  const pointer = { x: (event.clientX - drag.bounds.left) / fit, y: (event.clientY - drag.bounds.top) / fit };
+                  onFramingChange(cropFromDrag(size.width, size.height, framing, drag.anchor, pointer));
+                }}
+                onLostPointerCapture={() => { cropCreateDrag.current = null; }}
+              />
             )}
             {cropRect && <div style={cropRect}
               className={`crop-guide absolute border border-white/90 ${gridLines ? 'crop-thirds' : ''} ${framing.ratio ? 'cursor-move' : 'pointer-events-none'}`}

@@ -49,6 +49,28 @@ export function resizeCrop(
   return { ...framing, ratio, size: Math.min(1, w / largest), x: clamp((left + w / 2) / width), y: clamp((top + h / 2) / height) };
 }
 
+/**
+ * Draw a brand new crop box from scratch: `anchor` is where the drag started (pixels of the rotated image,
+ * stays fixed), `pointer` is where it currently is. Shares resizeCrop's own rule that with no ratio chosen yet,
+ * the photo's own ratio is locked in, so a freehand drag never distorts it.
+ */
+export function cropFromDrag(
+  width: number, height: number, framing: PhotoFraming, anchor: { x: number; y: number }, pointer: { x: number; y: number },
+): PhotoFraming {
+  const ratio = framing.ratio ?? width / height;
+  const right = pointer.x >= anchor.x;
+  const bottom = pointer.y >= anchor.y;
+  const room = { x: right ? width - anchor.x : anchor.x, y: bottom ? height - anchor.y : anchor.y };
+  const wanted = Math.max(Math.abs(pointer.x - anchor.x), Math.abs(pointer.y - anchor.y) * ratio);
+  const largest = Math.min(width, height * ratio);
+  const w = Math.max(largest * MIN_CROP_SIZE, Math.min(wanted, room.x, room.y * ratio));
+  const h = w / ratio;
+  const left = right ? anchor.x : anchor.x - w;
+  const top = bottom ? anchor.y : anchor.y - h;
+  const clamp = (value: number) => Math.max(0, Math.min(1, value));
+  return { ...framing, ratio, size: Math.min(1, w / largest), x: clamp((left + w / 2) / width), y: clamp((top + h / 2) / height) };
+}
+
 /** Estimate a crop anchor from local detail in a small preview. */
 export function detailAnchor(pixels: Uint8ClampedArray, width: number, height: number) {
   let total = 0;

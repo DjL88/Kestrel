@@ -101,6 +101,36 @@ test('with no ratio chosen, the first drag locks the photo’s own ratio', () =>
   assert.ok(framing.size! < 1);
 });
 
+import { cropFromDrag } from './photoFraming';
+
+test('drawing a new crop box from scratch puts it where the drag went', () => {
+  const framing = cropFromDrag(6000, 4000, { ...FRAMING, ratio: 1.5 }, { x: 1000, y: 1000 }, { x: 4000, y: 2800 });
+  const box = cropRectangle(6000, 4000, framing);
+  assert.ok(Math.abs(box.x - 1000) <= 2, 'left edge sits at the drag anchor');
+  assert.ok(Math.abs(box.y - 1000) <= 2, 'top edge sits at the drag anchor');
+  assert.ok(Math.abs(box.width / box.height - 1.5) < 0.01, 'keeps the chosen ratio');
+});
+
+test('a drag can start from any corner, not just top-left to bottom-right', () => {
+  const framing = cropFromDrag(6000, 4000, { ...FRAMING, ratio: 1 }, { x: 5000, y: 3500 }, { x: 3000, y: 1500 });
+  const box = cropRectangle(6000, 4000, framing);
+  assert.ok(Math.abs(box.x + box.width - 5000) <= 2, 'the anchor corner (bottom-right of the box) stays put');
+  assert.ok(Math.abs(box.y + box.height - 3500) <= 2);
+});
+
+test('with no ratio chosen yet, a fresh drag locks in the photo’s own ratio - same rule as resizing', () => {
+  const framing = cropFromDrag(6000, 4000, FRAMING, { x: 500, y: 500 }, { x: 3000, y: 2000 });
+  assert.equal(framing.ratio, 1.5);
+});
+
+test('a freehand drag cannot create a box smaller than the minimum, or outside the photo', () => {
+  const tiny = cropFromDrag(6000, 4000, { ...FRAMING, ratio: 1.5 }, { x: 10, y: 10 }, { x: 11, y: 11 });
+  assert.ok(tiny.size! >= 0.08);
+  const edge = cropFromDrag(6000, 4000, { ...FRAMING, ratio: 1.5 }, { x: 0, y: 0 }, { x: 99999, y: 99999 });
+  const box = cropRectangle(6000, 4000, edge);
+  assert.ok(box.x + box.width <= 6000 && box.y + box.height <= 4000);
+});
+
 import { displayFramingFor } from './photoFraming';
 
 test('the preview keeps the crop size once the crop tool is closed, and shows the whole photo while it is open', () => {
