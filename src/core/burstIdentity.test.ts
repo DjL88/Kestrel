@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { assignBurstGroups, generateDemoShootFrames } from './cullingEngine';
 import { sameCaptureCamera, safeBurstGapMs } from './burstIdentity';
+import type { PhotoFrame } from './types';
 
-const frames = () => generateDemoShootFrames(4).map((frame, index) => ({
+const frames = (): PhotoFrame[] => generateDemoShootFrames(4).map((frame, index) => ({
   ...frame,
   exif: { ...frame.exif, camera: 'NIKON Z 8', capturedAtMs: 1000 + index * 100 },
 }));
