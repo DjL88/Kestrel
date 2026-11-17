@@ -12,15 +12,12 @@ import './index.css';
 import { setGpuRenderer } from './core/canvasEdit.ts';
 import { renderEditOnGpu } from './providers/webglEdit.ts';
 import { applyDisplay, loadDisplay } from './providers/browserTheme.ts';
+import { isDesktopApp } from './providers/desktopShell.ts';
+import { manageOfflineWorker } from './providers/offlineWorker.ts';
 
 applyDisplay(loadDisplay());
 setGpuRenderer(renderEditOnGpu);
 
 createRoot(document.getElementById('root')!).render(<><App /><Splash /></>);
 
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  const worker = new URL(`${import.meta.env.BASE_URL}offline.js`, location.href);
-  void navigator.serviceWorker.register(worker).catch(() => {
-    // Some embedded previews forbid service workers; local editing still works after load.
-  });
-}
+void manageOfflineWorker(import.meta.env.PROD, isDesktopApp());
