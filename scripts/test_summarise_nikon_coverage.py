@@ -93,5 +93,44 @@ class SummariseNikonCoverageTests(unittest.TestCase):
             self.assertIn("broken.json", result.stderr)
 
 
+    def test_copied_reference_is_not_independent_decode_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base = {
+                "source_nef_sha256": "a" * 64,
+                "reference_tiff_sha256": "b" * 64,
+                "candidate_tiff_sha256": "c" * 64,
+                "icc_profile_sha256": "d" * 64,
+                "reported_benchmark_details": {
+                    "body": "Z8", "firmware": "C 3.10", "compression": "HE*",
+                    "nx_studio_build": "nx-test", "candidate_build": "local-test",
+                },
+            }
+            cases = [
+                {**base, "candidate_tiff_sha256": "b" * 64},
+                {**base, "byte_identical_exports": True},
+                base,
+            ]
+            paths = []
+            for index, report in enumerate(cases):
+                path = root / f"sample-{index}.json"
+                path.write_text(json.dumps(report), encoding="utf-8")
+                paths.append(path)
+            output = subprocess.check_output([
+                sys.executable, Path(__file__).with_name("summarise_nikon_coverage.py"),
+                *paths, "--z8-firmware", "C 3.10",
+                "--z5ii-firmware", "C 1.00",
+                "--nx-studio-build", "nx-test", "--candidate-build", "local-test",
+            ], text=True)
+            summary = json.loads(output)
+            self.assertEqual(summary["ignored_reports"], 2)
+            self.assertEqual(
+                [row for row in summary["coverage"] if row["compared_samples"]],
+                [{"body": "Z8", "firmware": "C 3.10",
+                  "compression": "HE*", "compared_samples": 1}],
+            )
+
+
+
 if __name__ == "__main__":
     unittest.main()
