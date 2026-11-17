@@ -33,6 +33,10 @@ jobs:
       - run: node scripts/check-release-version.mjs
       - run: npm run lint
       - run: npm test
+      # AI Studio/GitHub cloud imports can omit large checked-in ONNX binaries.
+      # Build once with the model directory hidden, then restore it in finally.
+      - name: Build preview with optional models absent
+        run: node scripts/check-preview-without-models.mjs
       - run: npx playwright install --with-deps chromium
       # Playwright builds and serves the production app before running the tests.
       - run: npm run test:e2e -- --workers=2
