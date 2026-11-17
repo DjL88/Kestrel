@@ -39,7 +39,11 @@ void main() {
   if (brightness != 0.0 && midtone > 0.0 && midtone < 1.0) {
     float perceived = toEncoded(vec3(midtone)).r;
     float adjusted = perceived + 4.0 * brightness * perceived * (1.0 - perceived);
-    c *= toLinear(vec3(adjusted)).r / midtone;
+    float requestedFactor = toLinear(vec3(adjusted)).r / midtone;
+    float peak = max(c.r, max(c.g, c.b));
+    float factor = requestedFactor > 1.0 && peak > 0.0
+      ? min(requestedFactor, max(1.0, 0.992 / peak)) : requestedFactor;
+    c *= factor;
   }
   float y = luma(c);
   bool monochrome = colour <= -1.0;
