@@ -31,6 +31,13 @@ test('EXIF formatting formats Nikon settings accurately', () => {
   assert.equal(formatCameraLabel('Nikon', 'Z 5II'), 'Nikon Z 5II');
 });
 
+test('corrupt EXIF shutter speeds cannot produce unsafe or infinite fractions', () => {
+  assert.equal(formatShutterSpeed(Number.MIN_VALUE), '');
+  assert.equal(formatShutterSpeed(1e-20), '');
+  assert.equal(formatShutterSpeed(1 / 2500), '1/2500s');
+  assert.equal(formatShutterSpeed(0.5), '0.5s');
+});
+
 test('extractEmbeddedJpegFromRawBuffer finds largest embedded JPEG preview stream', () => {
   const bytes = new Uint8Array(6000);
   // Fake NEF header bytes
