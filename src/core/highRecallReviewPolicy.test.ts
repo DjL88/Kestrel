@@ -87,3 +87,15 @@ test('blank explicit group IDs fail conservatively instead of borrowing photo id
   ];
   assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['review', 'keep']);
 });
+
+
+test('manual keeper with unavailable detector scores suppresses duplicate burst nominations', () => {
+  const items: ReviewCandidate[] = [
+    { id: 'manual', subject: 'bird', groupId: 'burst', manualDecision: 'keep' },
+    { id: 'auto', subject: 'bird', groupId: 'burst', quality: 0.99, confidence: 0.99 },
+    { id: 'other', subject: 'aircraft', groupId: 'burst', quality: 0.9, confidence: 0.9 },
+  ];
+  const snapshot = JSON.stringify(items);
+  assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['keep', 'review', 'keep']);
+  assert.equal(JSON.stringify(items), snapshot);
+});
