@@ -375,12 +375,16 @@ export function getDefaultComparePair(
   const left = frames[safeIdx];
 
   if (frames.length === 1) {
-    return { leftId: left.id, rightId: left.id };
+    // A one-photo shoot has nothing to compare. Showing the same image as
+    // both A and B suggests a second candidate exists when it does not.
+    return { leftId: left.id, rightId: null };
   }
 
   // Prefer the next frame in the same burst, else previous in same burst, else next frame overall.
-  const nextFrame = frames[safeIdx + 1];
-  const prevFrame = frames[safeIdx - 1];
+  // A stale or damaged catalogue can contain repeated IDs or removed photos.
+  // Compare must never present either as a distinct candidate.
+  const nextFrame = frames.slice(safeIdx + 1).find((f) => f.id !== left.id && !f.removedAt);
+  const prevFrame = frames.slice(0, safeIdx).reverse().find((f) => f.id !== left.id && !f.removedAt);
 
   if (
     nextFrame &&
@@ -400,7 +404,7 @@ export function getDefaultComparePair(
 
   return {
     leftId: left.id,
-    rightId: nextFrame ? nextFrame.id : prevFrame.id,
+    rightId: nextFrame?.id ?? prevFrame?.id ?? null,
   };
 }
 

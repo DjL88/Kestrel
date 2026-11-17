@@ -381,3 +381,17 @@ test('manual culling refuses duplicate photo IDs instead of corrupting undo hist
   assert.equal(undoDecision(kept).frames[2].decision, 'unreviewed');
   assert.equal(redoDecision(undoDecision(kept)).frames[2].decision, 'keep');
 });
+
+
+test('compare does not fabricate a second photo in a single-frame shoot', () => {
+  const [frame] = generateDemoShootFrames(1);
+  assert.deepEqual(getDefaultComparePair([frame], frame.id), { leftId: frame.id, rightId: null });
+});
+
+test('compare skips removed and repeated identities rather than showing a false alternative', () => {
+  const [a, b, c] = generateDemoShootFrames(3);
+  const removed = { ...b, removedAt: 1234 };
+  assert.deepEqual(getDefaultComparePair([a, removed, c], a.id), { leftId: a.id, rightId: c.id });
+  assert.deepEqual(getDefaultComparePair([a, { ...b, id: a.id }], a.id), { leftId: a.id, rightId: null });
+  assert.deepEqual(getDefaultComparePair([a, removed], a.id), { leftId: a.id, rightId: null });
+});
