@@ -111,3 +111,18 @@ test('malformed persisted manual decisions never become recommendations', () => 
   assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['review', 'keep']);
   assert.equal(JSON.stringify(items), snapshot);
 });
+
+test('equal quality scores nominate the same stable ID regardless of input order', () => {
+  const items: ReviewCandidate[] = [
+    { id: 'z-last', subject: 'bird', groupId: 'burst', quality: 0.9, confidence: 0.8 },
+    { id: 'a-first', subject: 'bird', groupId: 'burst', quality: 0.9, confidence: 0.8 },
+    { id: 'm-middle', subject: 'bird', groupId: 'burst', quality: 0.9, confidence: 0.8 },
+  ];
+  for (const ordered of [items, [...items].reverse(), [items[1], items[0], items[2]]]) {
+    const before = JSON.stringify(ordered);
+    const results = recommendForReview(ordered);
+    assert.deepEqual(results.filter(result => result.suggestion === 'keep').map(result => result.id), ['a-first']);
+    assert.equal(results.filter(result => result.suggestion === 'reject').length, 0);
+    assert.equal(JSON.stringify(ordered), before);
+  }
+});
