@@ -35,6 +35,7 @@ class StructureTests(unittest.TestCase):
         result = compare_detail_structure(reference, self.image(candidate))
         self.assertGreater(result["candidate_only_edge_fraction"], 0)
         self.assertIsNone(result["mean_shared_edge_direction_cosine"])
+        self.assertIsNone(result["opposite_direction_shared_edge_fraction"])
 
     def test_missing_detail_detected_when_candidate_flat(self):
         reference = np.full((12, 12), 10000, dtype=np.uint16)
@@ -42,6 +43,16 @@ class StructureTests(unittest.TestCase):
         result = compare_detail_structure(self.image(reference), self.image(np.full((12, 12), 20000)))
         self.assertGreater(result["reference_only_edge_fraction"], 0)
         self.assertEqual(result["candidate_only_edge_fraction"], 0)
+
+    def test_reversed_feather_edges_show_contrast_inversion(self):
+        stripes = np.tile([1000, 1000, 55000, 55000], (12, 3))
+        reference = self.image(stripes)
+        inverted = self.image(56000 - stripes)
+        normal = compare_detail_structure(reference, reference)
+        reversed_result = compare_detail_structure(reference, inverted)
+        self.assertEqual(normal["opposite_direction_shared_edge_fraction"], 0.0)
+        self.assertGreater(reversed_result["opposite_direction_shared_edge_fraction"], 0.5)
+        self.assertLess(reversed_result["mean_shared_edge_direction_cosine"], -0.5)
 
     def test_flat_both_has_no_direction_score(self):
         img = self.image(np.full((6, 6), 30000))
