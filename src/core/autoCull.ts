@@ -53,7 +53,7 @@ export function scorePreview(frameId: string, pixels: Uint8ClampedArray, width: 
   const detail = (regions[0] + regions[1] + regions[2]) / 3;
   const clipped = (dark + bright) / luma.length;
   if (Math.max(dark, bright) / luma.length > 0.97 && detail < 2) {
-    return { frameId, decision: 'reject', confidence: 'medium', score: 72, reason: 'flat' };
+    // A dark/bright flat preview could be sky, a backlit bird, or a failed\n    // thumbnail. Without independent subject evidence it is review-only.\n    return { frameId, decision: null, confidence: 'low', score: 35, reason: 'flat' };
   }
   if (detail >= 12 && clipped < 0.12) {
     return { frameId, decision: 'keep', confidence: 'high', score: Math.min(98, Math.round(90 + detail / 6)), reason: 'clearDetail' };
