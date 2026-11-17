@@ -199,8 +199,17 @@ optimise blind. Before touching render/import code for "speed":
    improving → ready → export), each with one obvious primary action and an
    honest "I'll do it myself" way out, wired to the existing Auto-cull/
    suggest-edit engines rather than any new logic. Dismissible per project.
-5. **Recipe-as-concept** pass across the suggestion and preset UI copy —
-   naming and presentation, not new engines.
+5. ~~**Recipe-as-concept**~~ — done this pass. "Looks"/"presets" are now
+   "recipes" everywhere a person sees them (the Recipes panel, batch/
+   selection apply-recipe dialogs, the workspace menu item), and the Auto
+   button's suggestion now explicitly says it can be saved as a recipe
+   ("Like this? Save it as a recipe in Recipes below"), closing the loop
+   between a one-off AI suggestion and something the person owns and
+   reuses. Copy-only: the internal `Preset` type and functions are
+   untouched, since renaming those would touch many call sites with no
+   local way to verify a clean compile. Left alone on purpose: export
+   format presets in Licence and settings, which are a different, unrelated
+   concept (export settings, not photo-edit recipes).
 6. **Accessibility verification pass**: contrast numbers — done this pass
    (see "Branding and first impression" above). Still open: a real
    keyboard-only pass (tab order, focus visibility, no mouse-only controls)

@@ -39,7 +39,7 @@ test('Auto Mono look applies to both selected photographs, but not the third', a
   await expect(actions.getByText('2 selected')).toBeVisible();
   await expect(actions.getByRole('button', { name: 'Edit together' })).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('tab', { name: 'Auto' }).click();
-  const looks = page.getByRole('group', { name: 'Photo looks gallery' });
+  const looks = page.getByRole('group', { name: 'Photo recipes gallery' });
   await looks.getByRole('button', { name: 'Mono natural' }).click();
 
   // Both selected images receive the real monochrome edit, not just a thumbnail effect.

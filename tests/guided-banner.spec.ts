@@ -68,5 +68,5 @@ test('once everything is decided and kept, the banner offers to export, not to c
   await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'Keepers 4' })).toBeVisible();
   const banner = page.getByRole('region', { name: "What's next" });
   await expect(banner).toContainText('keepers ready for a look');
-  await expect(banner.getByRole('button', { name: 'See suggested edits' })).toBeVisible();
+  await expect(banner.getByRole('button', { name: 'See suggested recipes' })).toBeVisible();
 });

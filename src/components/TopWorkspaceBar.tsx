@@ -228,7 +228,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
 
                 <MenuSection id="menu-project" title="Project">
                   <MenuItem icon={<ScanSearch className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onAutoCull, false)}>{m.autoCull}</MenuItem>
-                  <MenuItem icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!props.onBatchLook} onClick={() => choose(() => props.onBatchLook?.(), false)}>Apply look to keepers…</MenuItem>
+                  <MenuItem icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!props.onBatchLook} onClick={() => choose(() => props.onBatchLook?.(), false)}>Apply recipe to keepers…</MenuItem>
                   <MenuItem icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!props.onAutoAdjustKeepers} onClick={() => choose(() => props.onAutoAdjustKeepers?.(), false)}>Auto-adjust unedited keepers…</MenuItem>
                   <MenuItem icon={<FileDown className="h-4 w-4" aria-hidden="true" />} disabled={!props.onExportKeepers} onClick={() => choose(() => props.onExportKeepers?.())}>Export keepers</MenuItem>
                   <MenuItem icon={<Save className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onBackupProject)}>Back up project</MenuItem>

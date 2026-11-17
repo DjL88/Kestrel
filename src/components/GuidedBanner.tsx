@@ -42,9 +42,9 @@ export function GuidedBanner({ step, unreviewed, keepers, uneditedKeepers, onFin
         return {
           heading: keepers === 1 ? '1 keeper ready for a look' : `${formatCount.format(keepers)} keepers ready for a look`,
           body: uneditedKeepers === keepers
-            ? 'Kestrel can suggest colour and tone for each one. You keep, change or reset every suggestion individually.'
-            : `${formatCount.format(uneditedKeepers)} of those still have no edit. Kestrel can suggest colour and tone for them.`,
-          primaryLabel: 'See suggested edits',
+            ? 'Kestrel can suggest a recipe for each one. You keep, change or reset every suggestion individually.'
+            : `${formatCount.format(uneditedKeepers)} of those still have no edit. Kestrel can suggest a recipe for them.`,
+          primaryLabel: 'See suggested recipes',
           onPrimary: onSeeSuggestedEdits,
           secondaryLabel: "I'll edit them myself",
           onSecondary: onEditMyself,
