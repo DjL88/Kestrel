@@ -1113,16 +1113,19 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             {cropNotice && <p role="status" className="text-xs text-zinc-300">{cropNotice}</p>}
             <label className="flex min-h-11 items-center justify-between gap-2 text-sm">
               Aspect ratio
-              <select value={framing.ratio ?? ''} onChange={(event) => onFramingChange({ ...framing, ratio: Number(event.target.value) || null })}
-                className="min-h-10 rounded-md bg-[#252830] px-2">
-                <option value="">Original</option>
-                <option value={1}>Square</option>
-                <option value={4 / 5}>4:5</option>
-                <option value={5 / 4}>5:4</option>
-                <option value={3 / 2}>3:2</option>
-                <option value={9 / 16}>9:16</option>
-                <option value={2 / 3}>2:3</option>
-              </select>
+              <span className="relative inline-flex min-w-0 max-w-[60%] shrink-0 items-center">
+                <select aria-label="Crop aspect ratio" value={framing.ratio ?? ''} onChange={(event) => onFramingChange({ ...framing, ratio: Number(event.target.value) || null })}
+                  className="min-h-11 w-full min-w-0 appearance-none truncate rounded-md border border-white/10 bg-[#252830] py-2 pl-3 pr-10 text-sm text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
+                  <option value="">Original</option>
+                  <option value={1}>Square</option>
+                  <option value={4 / 5}>4:5</option>
+                  <option value={5 / 4}>5:4</option>
+                  <option value={3 / 2}>3:2</option>
+                  <option value={9 / 16}>9:16</option>
+                  <option value={2 / 3}>2:3</option>
+                </select>
+                <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 h-4 w-4 shrink-0 stroke-[1.75] text-zinc-300" />
+              </span>
             </label>
             <label className="block px-1 pb-1">
               <span className="flex items-center justify-between text-xs text-zinc-300"><span>Crop size</span>
