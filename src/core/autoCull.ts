@@ -86,7 +86,7 @@ export function scoreWithSubject(base: CullSuggestion, found: SubjectFinding | n
   if (!found || !real) return { ...base, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
   const weight = Math.min(1, found.score / 0.8);
   if (found.sharpness >= 14) {
-    return { ...base, decision: 'keep', confidence: found.score >= 0.5 ? 'high' : 'medium', score: Math.min(99, Math.round(70 + found.sharpness * 1.1 * weight)), reason: 'subjectSharp' };
+    return { ...base, decision: 'keep', confidence: found.size < 120 ? 'medium' : found.score >= 0.5 ? 'high' : 'medium', score: Math.min(99, Math.round(70 + found.sharpness * 1.1 * weight)), reason: 'subjectSharp' };
   }
   if (found.sharpness >= 8) return { ...base, decision: 'keep', confidence: 'medium', score: Math.round(55 + found.sharpness * 1.5 * weight), reason: 'subjectOk' };
   return { ...base, decision: null, confidence: 'low', score: Math.round(30 + found.sharpness * 2), reason: 'subjectSoft' };
