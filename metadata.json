@@ -1,6 +1,6 @@
 {
   "name": "Kestrel",
-  "description": "Local-first wildlife, bird, and pet photo culling workspace built around Nikon Z8 and Z5II workflows and programmable macro pad navigation.",
+  "description": "Local-first wildlife, bird, and pet photo culling workspace for any camera brand (Nikon, Canon, Sony, Fujifilm, Panasonic, OM System, Pentax and DNG), with programmable macro pad navigation.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

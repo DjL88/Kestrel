@@ -2,6 +2,8 @@
 
 Kestrel is a local-first culling and editing workspace for wildlife, bird, and pet photography. A shared React/TypeScript interface runs in the browser and a Tauri v2 shell. Desktop packaging and an Android scaffold exist; released native mobile apps and a Chrome extension are not yet established.
 
+**Any camera brand.** Kestrel reads RAW from Nikon, Canon, Sony, Fujifilm, Panasonic, OM System, Pentax and Adobe DNG, and nothing in the editing engines is tied to one maker. Where a maker needs special handling (for example Nikon High Efficiency, which needs the system decoder on a Mac) it is handled in the decoder and reported plainly, and support for a maker is only claimed after real files from that camera pass. A small multi-brand set of public RAW samples can be fetched for local decode tests with `node scripts/fetch-raw-samples.mjs` (see the script header for the licence note), then `KESTREL_RAW_SAMPLES=$PWD/raw-samples cargo test --release raw::` in `src-tauri`. Last run: all 12 samples, across 8 makers, develop to full size.
+
 **Current readiness and priorities:** [End-to-end product audit](docs/RELEASE-GAP-AUDIT-2026-11.md). It distinguishes implemented features from planned architecture below. Native RAW development exists but currently passes a developed raster into the editor; this is not yet a 16-bit, colour-managed RAW workflow or verified Lightroom/DxO parity. See [docs/RAW-QUALITY-PLAN.md](docs/RAW-QUALITY-PLAN.md) for the phased plan to close that gap.
 
 **Legal/trust:** [LICENSE](LICENSE), [NOTICE.md](NOTICE.md) (third-party licenses), [PRIVACY.md](PRIVACY.md). All three are drafts written to match current behaviour — get them reviewed before a public release, not just read.
@@ -31,7 +33,7 @@ Kestrel is a local-first culling and editing workspace for wildlife, bird, and p
 | :--- | :--- | :--- |
 | **Demo Shoot (500 frames)** | **Simulated RAW**: 500 deterministic Nikon Z8/Z5II frames across bursts with simulated framing/softness deltas for testing Compare zoom. Clearly labelled `Simulated RAW` in UI. | Scans real local/NAS directories via Rust `std::fs`. |
 | **Local JPEG/PNG Imports** | **Real**: Reads real local files via `<input type="file">` or `showDirectoryPicker()`, parses real EXIF via `exifr`, groups bursts by capture time. | Direct filesystem read without browser sandbox prompts. |
-| **Nikon `.NEF` Files** | **Embedded Preview Only**: Scans `.nef` containers for embedded JPEG streams (`0xFFD8..0xFFD9`) and labels them `Embedded NEF preview — full RAW decode requires desktop build`. `BrowserRawDecoder.decodeFullRaw()` throws `NativeRawUnsupportedError`. | Full 14-bit NEF demosaicing via `RawDecoder` (`libraw` + TicoRAW PoC). |
+| **RAW files (`.nef`, `.cr3`, `.arw`, `.raf`, `.rw2`, `.orf`, `.pef`, `.dng`, …)** | **Embedded Preview Only**: Scans `.nef` containers for embedded JPEG streams (`0xFFD8..0xFFD9`) and labels them `Embedded NEF preview — full RAW decode requires desktop build`. `BrowserRawDecoder.decodeFullRaw()` throws `NativeRawUnsupportedError`. | Full 14-bit NEF demosaicing via `RawDecoder` (`libraw` + TicoRAW PoC). |
 | **Catalogue Persistence** | IndexedDB (`kestrel-cull-v1`) stores decisions, selection, filter, keeper target, keymap, small local file blobs, and `FileSystemDirectoryHandle`. After browser restart, folder handles require one-click permission re-grant. | Local SQLite database with automatic NAS/folder relinking by `stableKey`. |
 
 ---

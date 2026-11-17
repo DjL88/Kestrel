@@ -1,7 +1,7 @@
 /**
  * Pure, offline folder-relink planning. No filesystem writes or implicit moves.
  * Match using the original relative path and file metadata; never trust a
- * filename alone, particularly when multiple Nikon bodies use similar names.
+ * filename alone, particularly when several cameras use similar names.
  */
 export interface SavedOriginal {
   id: string;

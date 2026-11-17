@@ -20,7 +20,7 @@ export const canDevelopRaw = () => isDesktopApp();
  * is not changed. Rejects with a plain message when the camera or compression mode cannot be read.
  */
 export async function developRaw(file: Blob, extension = 'nef'): Promise<Blob> {
-  // Do not silently reinterpret unknown formats (or path-like values) as Nikon NEF.
+  // Do not silently reinterpret unknown formats (or path-like values) as a Nikon NEF or any one maker's format.
   // The native decoder independently validates its extension as a second boundary.
   const normalizedExtension = validateRawExtension(extension);
   const { invoke } = await import('@tauri-apps/api/core');
