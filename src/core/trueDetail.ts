@@ -30,6 +30,6 @@ export function trueDetailAvailable(capability: TrueDetailCapability, paidLicenc
 }
 
 export function trueDetailCopy(capability: TrueDetailCapability): string {
-  const item = TRUEDETAIL.capabilities[capability];
+  const item: { readonly name: string; readonly status: TrueDetailStatus } = TRUEDETAIL.capabilities[capability];
   return item.status === 'released' ? item.name : item.name + ' — in development';
 }
