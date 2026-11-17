@@ -5,7 +5,40 @@ mod raw_precision;
 #[cfg(desktop)]
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 #[cfg(desktop)]
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
+#[cfg(desktop)]
+use tauri_plugin_fs::FsExt;
+
+/// Photos the system asked Kestrel to open (Open With, double-click, or a path on the command line) that the page has not
+/// taken yet. Kept here so a file that launches the app is not lost before the page is ready to listen.
+#[cfg(desktop)]
+#[derive(Default)]
+struct OpenedFiles(std::sync::Mutex<Vec<String>>);
+
+/// Only picture files Kestrel can read. Anything else handed to the app is ignored.
+#[cfg(desktop)]
+fn is_photo(path: &std::path::Path) -> bool {
+    const KNOWN: [&str; 16] = ["jpg", "jpeg", "png", "webp", "nef", "nrw", "arw", "srf", "sr2", "cr2", "cr3", "raf", "rw2", "orf", "pef", "dng"];
+    path.is_file() && path.extension().and_then(|e| e.to_str()).map(|e| KNOWN.contains(&e.to_ascii_lowercase().as_str())).unwrap_or(false)
+}
+
+/// Let the page read exactly these files, remember them, and tell the page. The window can read only what the person opened.
+#[cfg(desktop)]
+fn queue_opened_files(app: &tauri::AppHandle, paths: Vec<std::path::PathBuf>) {
+    let accepted: Vec<String> = paths.into_iter().filter(|path| is_photo(path))
+        .filter(|path| app.fs_scope().allow_file(path).is_ok())
+        .map(|path| path.to_string_lossy().into_owned()).collect();
+    if accepted.is_empty() { return; }
+    if let Ok(mut pending) = app.state::<OpenedFiles>().0.lock() { pending.extend(accepted); }
+    let _ = app.emit("open-files", ());
+}
+
+/// The photos waiting to be opened, handed over once.
+#[cfg(desktop)]
+#[tauri::command]
+fn take_opened_files(state: tauri::State<'_, OpenedFiles>) -> Vec<String> {
+    state.0.lock().map(|mut pending| std::mem::take(&mut *pending)).unwrap_or_default()
+}
 
 /// Develop a RAW file the page sends as raw bytes, and return the full-size picture as JPEG bytes.
 #[cfg(desktop)]
@@ -53,7 +86,8 @@ pub fn run() {
     let builder = builder
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_precision])
+        .manage(OpenedFiles::default())
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_precision, take_opened_files])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "Kestrel", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,
@@ -92,7 +126,37 @@ pub fn run() {
             let _ = app.emit("menu", event.id().0.clone());
         });
 
-    builder
-        .run(tauri::generate_context!())
-        .expect("error while running Kestrel");
+    let app = builder
+        .build(tauri::generate_context!())
+        .expect("error while building Kestrel");
+    // Windows and Linux pass the file to open as an argument when the app starts.
+    #[cfg(desktop)]
+    queue_opened_files(app.handle(), std::env::args_os().skip(1).map(std::path::PathBuf::from).collect());
+    app.run(|_handle, _event| {
+        // macOS delivers Open With and double-clicks as an event, both at launch and while the app is running.
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Opened { urls } = _event {
+            queue_opened_files(_handle, urls.into_iter().filter_map(|url| url.to_file_path().ok()).collect());
+        }
+    });
+}
+
+#[cfg(all(test, desktop))]
+mod open_with_tests {
+    use super::is_photo;
+
+    #[test]
+    fn only_existing_picture_files_are_accepted() {
+        let dir = std::env::temp_dir().join(format!("kestrel-open-with-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let nef = dir.join("DSC_0001.NEF");
+        let text = dir.join("notes.txt");
+        let script = dir.join("run.sh");
+        for path in [&nef, &text, &script] { std::fs::write(path, b"x").unwrap(); }
+        assert!(is_photo(&nef), "a RAW file, whatever its letter case");
+        assert!(!is_photo(&text) && !is_photo(&script), "other file types are ignored");
+        assert!(!is_photo(&dir.join("missing.jpg")), "a path that does not exist is ignored");
+        assert!(!is_photo(&dir), "a folder is ignored");
+        std::fs::remove_dir_all(&dir).ok();
+    }
 }

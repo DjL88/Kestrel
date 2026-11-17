@@ -36,7 +36,50 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "createUpdaterArtifacts": false
+    "createUpdaterArtifacts": false,
+    "fileAssociations": [
+      {
+        "ext": [
+          "jpg",
+          "jpeg",
+          "png",
+          "webp",
+          "nef",
+          "nrw",
+          "arw",
+          "srf",
+          "sr2",
+          "cr2",
+          "cr3",
+          "raf",
+          "rw2",
+          "orf",
+          "pef",
+          "dng"
+        ],
+        "name": "Photo",
+        "description": "Photo or camera RAW file",
+        "role": "Editor",
+        "contentTypes": [
+          "public.jpeg",
+          "public.png",
+          "org.webmproject.webp",
+          "public.camera-raw-image",
+          "com.adobe.raw-image",
+          "com.nikon.raw-image",
+          "com.nikon.nrw-raw-image",
+          "com.sony.arw-raw-image",
+          "com.sony.sr2-raw-image",
+          "com.sony.raw-image",
+          "com.canon.cr2-raw-image",
+          "com.canon.cr3-raw-image",
+          "com.fuji.raw-image",
+          "com.panasonic.rw2-raw-image",
+          "com.olympus.raw-image",
+          "com.pentax.raw-image"
+        ]
+      }
+    ]
   },
   "plugins": {
     "updater": {
