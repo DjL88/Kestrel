@@ -202,7 +202,13 @@ export function applyPhotoEdit(pixels: Uint8ClampedArray, edit: PhotoEdit): void
       const lifted = p + 4 * brightness * p * (1 - p);
       // With brightness in [-0.22, 0.22] the curve remains monotonic.
       // Preserve existing chromaticity and do not invent highlights.
-      const factor = toLinearLuma(lifted) / luminance;
+      const requestedFactor = toLinearLuma(lifted) / luminance;
+      // Avoid blowing out one saturated channel just to increase overall luma.
+      // Keep a little encoded highlight headroom where it still exists.
+      const peak = Math.max(red, green, blue);
+      const factor = requestedFactor > 1 && peak > 0
+        ? Math.min(requestedFactor, Math.max(1, 0.992 / peak))
+        : requestedFactor;
       red *= factor;
       green *= factor;
       blue *= factor;
