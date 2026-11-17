@@ -71,21 +71,39 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
+/**
+ * A missing key is not the same as an unavailable catalogue.
+ *
+ * Resolve only after the readonly transaction has completed: an individual
+ * request can succeed and its transaction can still abort. Never turn a
+ * failed read into a "missing project" response (or a new empty project).
+ */
 async function idbGet<T>(storeName: string, key: string): Promise<T | null> {
-  let db: IDBDatabase | undefined;
+  const db = await openDatabase();
   try {
-    db = await openDatabase();
-    const connection = db;
-    return await new Promise((resolve, reject) => {
-      const request = connection.transaction(storeName, 'readonly').objectStore(storeName).get(key);
-      request.onsuccess = () => resolve((request.result as T) ?? null);
-      request.onerror = () => reject(request.error);
+    return await new Promise<T | null>((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const request = tx.objectStore(storeName).get(key);
+      let value: T | null = null;
+      request.onsuccess = () => { value = (request.result as T) ?? null; };
+      request.onerror = () => reject(request.error ?? new Error('Reading Kestrel storage failed.'));
+      tx.oncomplete = () => resolve(value);
+      tx.onerror = () => reject(tx.error ?? new Error('Reading Kestrel storage failed.'));
+      tx.onabort = () => reject(tx.error ?? new Error('Reading Kestrel storage was interrupted.'));
     });
-  } catch {
-    return null;
   } finally {
-    db?.close();
+    db.close();
   }
+}
+
+/**
+ * Originals and directory permissions are optional when opening an existing
+ * project. Keep the catalogue accessible so the photographer can relink them,
+ * even if the separate file/handle store is temporarily unavailable.
+ */
+async function optionalIdbGet<T>(storeName: string, key: string): Promise<T | null> {
+  try { return await idbGet<T>(storeName, key); }
+  catch { return null; }
 }
 
 async function idbSet<T>(storeName: string, key: string, value: T): Promise<void> {
@@ -338,7 +356,7 @@ export class BrowserCatalogueStore implements CatalogueStore {
   }
 
   async loadLocalFileBlob(stableKey: string): Promise<Blob | null> {
-    return idbGet<Blob>(STORE_FILES, stableKey);
+    return optionalIdbGet<Blob>(STORE_FILES, stableKey);
   }
 
   async clearLocalFileBlobs(): Promise<void> {
@@ -355,7 +373,7 @@ export class BrowserCatalogueStore implements CatalogueStore {
   async loadDirectoryHandle(
     shootId: string
   ): Promise<FileSystemDirectoryHandle | null> {
-    return idbGet<FileSystemDirectoryHandle>(STORE_HANDLES, shootId);
+    return optionalIdbGet<FileSystemDirectoryHandle>(STORE_HANDLES, shootId);
   }
 
   async clearAll(): Promise<void> {
