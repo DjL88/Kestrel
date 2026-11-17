@@ -24,6 +24,7 @@ import { createSubjectMask, framingKey } from '../core/maskTypes';
 import { detectSubject } from '../providers/subjectDetector';
 import { PresetPanel } from './PresetPanel';
 import { autoEnhance, mergeAutoSuggestion } from '../core/autoEnhance';
+import { proposeSubjectAwareAuto, type InsightSubjectKind } from '../core/insightSubjectAuto';
 import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
 import { PhotoViewport } from './PhotoViewport';
 import { maxZoomFor, percentFor, stepZoom, zoomForPercent } from '../core/zoomControls';
@@ -124,7 +125,11 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const cornerDrag = useRef<{ corner: CropCorner; x: number; y: number; point: { x: number; y: number } } | null>(null);
   const [autoNotes, setAutoNotes] = useState<string[]>([]);
   // Auto is a reversible visual preview; never save a suggested edit before an explicit Apply.
-  const [pendingAuto, setPendingAuto] = useState<{ base: PhotoEdit; edit: PhotoEdit } | null>(null);
+  const [pendingAuto, setPendingAuto] = useState<{ base: PhotoEdit; edit: PhotoEdit; cropKey: string; source: HTMLImageElement } | null>(null);
+  const [autoAnalysing, setAutoAnalysing] = useState(false);
+  // Invalidates slow ONNX results when a proposal is replaced, a tab changes or this editor unmounts.
+  const autoRun = useRef(0);
+  useEffect(() => () => { autoRun.current += 1; }, []);
   // Once asked for, the opinion stays up to date as the edit changes, until it is hidden.
   const [opinions, setOpinions] = useState<Opinion[] | null>(null);
   const [selectedMaskId, setSelectedMaskId] = useState<string | null>(null);
@@ -478,6 +483,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   useEffect(() => {
     setPreviewCrop(false);
     setTransform(FIT_VIEW);
+    autoRun.current += 1;
+    setAutoAnalysing(false);
     setPreviewRecipe(null);
     setPendingAuto(null);
     setOpinions(null);
@@ -506,42 +513,103 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source]);
 
-  /** Evaluate the current photograph without committing edits. Preview uses the real rendering path. */
-  function previewAutoSuggestion() {
-    const sample = sampleOrientedSource(256);
-    if (!sample) {
-      setAutoNotes(['Could not analyse this photo. Your edits have not changed.']);
-      setPendingAuto(null);
-      setPreviewRecipe(null);
-      return;
-    }
+  /** A quick, conservative category hint. Segmentation still determines the mask, not the filename or tag. */
+  function autoSubjectKind(): InsightSubjectKind {
+    if (frame.subjectKind === 'landscape') return 'landscape';
+    if (frame.subjectKind === 'wildlife' || frame.subjectKind === 'people') return frame.subjectKind;
+    const labels = [...(frame.tags ?? []), ...(frame.subjectNames ?? [])].join(' ').toLowerCase();
+    if (/\b(bird|mammal|wildlife|animal|insect)\b/.test(labels)) return 'wildlife';
+    if (/\b(portrait|person|people|face)\b/.test(labels)) return 'people';
+    if (/\b(aircraft|airplane|aeroplane|plane|helicopter|jet)\b/.test(labels)) return 'aircraft';
+    return 'other';
+  }
+
+  /** Preview an offline global recipe; enrich it with a trustworthy subject mask when one exists. */
+  async function previewAutoSuggestion() {
+    const run = ++autoRun.current;
+    const startedFor = detectionContext.current;
+    const originalSource = source;
+    setAutoAnalysing(true);
+    setPendingAuto(null);
+    setPreviewRecipe(null);
+    setOpinions(null);
+    setAutoNotes(['Analysing your photograph on this device…']);
+    const stillCurrent = () => run === autoRun.current && detectionContext.current === startedFor &&
+      sourceImage.current === originalSource && Boolean(originalSource);
     try {
+      const sample = sampleOrientedSource(256);
+      if (!sample || !originalSource || !outputSize || !startedFor) {
+        if (run === autoRun.current) setAutoNotes(['Could not analyse this photo. Your edits have not changed.']);
+        return;
+      }
       const { edit: suggestion, notes } = autoEnhance(sample.data);
       if (notes.includes('Too small to analyse.')) {
-        setAutoNotes(['This preview is too small to analyse. Your edits have not changed.']);
-        setPendingAuto(null);
-        setPreviewRecipe(null);
+        if (stillCurrent()) setAutoNotes(['This preview is too small to analyse. Your edits have not changed.']);
         return;
       }
       const result = mergeAutoSuggestion(savedEdit, suggestion);
-      setAutoNotes([result.changed
-        ? 'Previewing a suggested look. Nothing has been saved.'
-        : 'No new adjustments suggested. Your existing edits are unchanged.', ...notes]);
-      setPendingAuto(result.changed ? { base: savedEdit, edit: result.edit } : null);
-      setPreviewRecipe(result.changed ? { edit: result.edit, framing: frame.framing } : null);
-      setOpinions(null);
+      let proposal = result.edit;
+      let subjectNote = '';
+      let usedMask = false;
+      const category = autoSubjectKind();
+
+      if (category !== 'landscape') {
+        try {
+          // Analyse exactly the unedited cropped image, not the adjusted or downscaled editor canvas.
+          const detectionCanvas = document.createElement('canvas');
+          drawFramedPhoto(originalSource, detectionCanvas, frame.framing ?? DEFAULT_FRAMING, {
+            scale: Math.min(1, 640 / Math.max(outputSize.width, outputSize.height)),
+          });
+          const context = detectionCanvas.getContext('2d', { willReadFrequently: true });
+          if (context && detectionCanvas.width >= 8 && detectionCanvas.height >= 8) {
+            const { grid, assessment } = await detectSubject(detectionCanvas);
+            if (!stillCurrent()) return;
+            if (assessment.usable) {
+              const pixels = context.getImageData(0, 0, detectionCanvas.width, detectionCanvas.height);
+              const local = proposeSubjectAwareAuto({
+                pixels: pixels.data, width: pixels.width, height: pixels.height, edit: proposal,
+                subjectKind: category, segmentation: { grid, confidence: assessment.confidence },
+                maskId: newId(), framingKey: cropKey,
+              });
+              proposal = local.edit;
+              usedMask = local.usedMask;
+              subjectNote = local.usedMask ? local.reason : 'No safe local adjustment was needed. ' + local.reason;
+            } else {
+              subjectNote = 'Subject edges were uncertain, so only global adjustments were considered.';
+            }
+          }
+        } catch {
+          if (!stillCurrent()) return;
+          subjectNote = 'Subject detection was unavailable. Global suggestions still work offline.';
+        }
+      } else {
+        subjectNote = 'The atmosphere is preserved without adding an automatic subject mask.';
+      }
+      if (!stillCurrent()) return;
+      const changed = result.changed || usedMask;
+      setPendingAuto(changed ? { base: savedEdit, edit: proposal, cropKey, source: originalSource } : null);
+      setPreviewRecipe(changed ? { edit: proposal, framing: frame.framing } : null);
+      setAutoNotes([
+        changed
+          ? usedMask
+            ? 'Previewing a global recipe with a gentle subject adjustment. Nothing is saved until you apply it.'
+            : 'Previewing a suggested global recipe. Nothing is saved until you apply it.'
+          : 'Your photo already looks balanced. No new edit was suggested.',
+        ...notes,
+        subjectNote,
+      ].filter(Boolean));
     } catch {
-      setPendingAuto(null);
-      setPreviewRecipe(null);
-      setAutoNotes(['Auto could not analyse this photo. Your edits have not changed.']);
+      if (stillCurrent()) setAutoNotes(['Could not complete the suggestion. Your existing edits are unchanged.']);
+    } finally {
+      if (run === autoRun.current) setAutoAnalysing(false);
     }
   }
 
-  // Opt-in automatic assistance now previews its proposal instead of silently changing the photo.
+  // Opt-in project assistance suggests a look on first open; it never silently commits edits.
   useEffect(() => {
     if (!autoEdit || !source || frame.edit || frame.editHistory?.steps.length) return;
-    previewAutoSuggestion();
-    // Editor is remounted per photo; source availability is the only automatic trigger.
+    void previewAutoSuggestion();
+    // One first-open run; re-run if the source switches from an embedded preview to developed RAW.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source]);
 
@@ -930,10 +998,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         {tab === 'auto' && can('autoTab') && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
         <div className="space-y-2 px-1">
-          <button type="button" title="Preview an offline suggested recipe and check its quality before applying" disabled={sourceState !== 'ready'}
+          <button type="button" title="Preview an offline suggested recipe and check its quality before applying" disabled={sourceState !== 'ready' || autoAnalysing}
             className={`${button} inline-flex w-full items-center justify-center gap-2 border border-white/10 font-semibold`}
-            onClick={previewAutoSuggestion}>
-            <Lightbulb className="h-4 w-4 stroke-[1.75]" aria-hidden="true" />Suggest a look
+            onClick={() => void previewAutoSuggestion()}>
+            <Lightbulb className="h-4 w-4 stroke-[1.75]" aria-hidden="true" />{autoAnalysing ? 'Analysing…' : 'Suggest a look'}
           </button>
           <p className="text-xs text-zinc-400">See Kestrel's suggestion and quality checks on your photo before deciding. Nothing changes until you apply it.</p>
           {pendingAuto && (
@@ -942,16 +1010,19 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               <div className="flex flex-wrap gap-2">
                 <button type="button" className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
                   onClick={() => {
-                    if (savedEdit !== pendingAuto.base) {
-                      setAutoNotes(['Your edit changed while previewing. Run Suggest a look again.']);
+                    if (savedEdit !== pendingAuto.base || cropKey !== pendingAuto.cropKey || sourceImage.current !== pendingAuto.source) {
+                      setAutoNotes(['The photo changed while previewing. Run Suggest a look again.']);
                     } else {
                       onEdit(pendingAuto.edit);
                       setAutoNotes(['Suggested look applied. You can undo it from Edit history.']);
                     }
+                    autoRun.current += 1;
                     setPendingAuto(null);
                     setPreviewRecipe(null);
                   }}>Apply suggested edit</button>
                 <button type="button" className={`${button} border border-white/15`} onClick={() => {
+                  autoRun.current += 1;
+                  setAutoAnalysing(false);
                   setPendingAuto(null);
                   setPreviewRecipe(null);
                   setOpinions(null);
