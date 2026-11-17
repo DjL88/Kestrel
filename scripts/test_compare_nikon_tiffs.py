@@ -65,6 +65,7 @@ class CompareNikonTiffsTests(unittest.TestCase):
         self.assertEqual(result["candidate_tiff_sha256"], hashlib.sha256(candidate_file.read_bytes()).hexdigest())
         self.assertEqual(result["icc_profile_sha256"], hashlib.sha256(b"test-profile").hexdigest())
         self.assertNotEqual(result["reference_tiff_sha256"], result["candidate_tiff_sha256"])
+        self.assertFalse(result["byte_identical_exports"])
         self.assertEqual(result["changed_pixels"], 1)
         self.assertEqual(result["maximum_channel_error_rgb"], [18000, 0, 47535])
         self.assertEqual(result["width"], 12)
@@ -110,6 +111,40 @@ class CompareNikonTiffsTests(unittest.TestCase):
         incomplete = subprocess.run([*command, "--body", "Z8"], capture_output=True, text=True)
         self.assertEqual(incomplete.returncode, 2)
         self.assertIn("all five detail flags", incomplete.stderr)
+
+    def test_reports_new_and_recovered_highlight_shadow_clipping_per_channel(self):
+        reference = np.full((65, 2, 3), 32000, dtype=np.uint16)
+        candidate = reference.copy()
+        # Exercise the final 64-row strip boundary as well as the first strip.
+        reference[0, 0, :] = [65535, 0, 65535]
+        candidate[0, 0, :] = [32000, 32000, 0]
+        reference[64, 1, :] = [32000, 32000, 0]
+        candidate[64, 1, :] = [65535, 0, 32000]
+        result = compare(
+            self.write("reference-clipping.tif", reference),
+            self.write("candidate-clipping.tif", candidate),
+        )
+        self.assertEqual(result["highlight_clipped_channels_added_rgb"], [1, 0, 0])
+        self.assertEqual(result["highlight_clipped_channels_lost_rgb"], [1, 0, 1])
+        self.assertEqual(result["shadow_clipped_channels_added_rgb"], [0, 1, 1])
+        self.assertEqual(result["shadow_clipped_channels_lost_rgb"], [0, 1, 1])
+        self.assertEqual(result["changed_pixels"], 2)
+
+    def test_no_clipping_differences_for_identical_pixel_values(self):
+        pixels = np.full((4, 4, 3), 65535, dtype=np.uint16)
+        pixels[0, 0] = 0
+        result = compare(
+            self.write("reference-identical.tif", pixels),
+            self.write("candidate-identical.tif", pixels),
+        )
+        self.assertTrue(result["byte_identical_exports"])
+        for key in (
+            "highlight_clipped_channels_added_rgb",
+            "highlight_clipped_channels_lost_rgb",
+            "shadow_clipped_channels_added_rgb",
+            "shadow_clipped_channels_lost_rgb",
+        ):
+            self.assertEqual(result[key], [0, 0, 0])
 
     def test_rejects_compressed_or_tiled_tiffs(self):
         pixels = np.zeros((32, 32, 3), dtype=np.uint16)
