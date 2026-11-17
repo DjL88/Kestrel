@@ -107,6 +107,17 @@ class Pairs(unittest.TestCase):
         self.assertTrue(has_content(textured))
         self.assertEqual(make_pairs(np.zeros((4, 200, 200), dtype=np.float32), 5, 64, rng), [])
 
+    def test_sensor_noise_on_a_flat_dark_field_is_not_mistaken_for_detail(self):
+        # Like a linear RAW of clear sky: dim, flat, with the source frame's own ISO 100 noise on it.
+        rng = np.random.default_rng(5)
+        a, b = noise_params(100)
+        sky = add_noise(np.full((4, 128, 128), 0.08, dtype=np.float32), a, b, rng)
+        self.assertFalse(has_content(sky))
+        # The same brightness with real structure (stripes of feather-like contrast) is kept.
+        stripes = np.where((np.arange(128) // 6) % 2 == 0, 0.05, 0.11).astype(np.float32)
+        feathers = add_noise(np.broadcast_to(stripes, (4, 128, 128)).copy(), a, b, rng)
+        self.assertTrue(has_content(feathers))
+
     def test_a_crop_larger_than_the_image_is_refused(self):
         with self.assertRaises(ValueError):
             make_pairs(np.zeros((4, 10, 10), dtype=np.float32), 1, 64, np.random.default_rng(1))
