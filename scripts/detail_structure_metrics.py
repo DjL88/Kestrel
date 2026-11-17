@@ -15,8 +15,11 @@ def _luminance(rgb):
 
 
 def _gradients(luma):
-    dx = (luma[1:-1, 2:] - luma[1:-1, :-2]) * 0.5
-    dy = (luma[2:, 1:-1] - luma[:-2, 1:-1]) * 0.5
+    # Forward differences retain alternating single-pixel structure. A centred
+    # difference cancels high-frequency ABAB patterns that can occur in feathers.
+    # Both components use the same upper-left pixel origin and shape.
+    dx = luma[:-1, 1:] - luma[:-1, :-1]
+    dy = luma[1:, :-1] - luma[:-1, :-1]
     return dx, dy
 
 
