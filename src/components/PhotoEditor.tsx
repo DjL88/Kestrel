@@ -485,6 +485,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
+  // Turning Before/After on shows the whole photo first, not whatever crop a previous zoom left
+  // behind — otherwise comparing can look like it "selected" a sliver of the image instead of showing it.
+  // Zooming in *during* the comparison (to check detail) is unaffected: this only fires on the off-to-on edge.
+  useEffect(() => {
+    if (compare) setTransform(FIT_VIEW);
+  }, [compare]);
+
   // Auto-edit: the first time a photo with no edit history is ready, suggest colour and tone and say why.
   useEffect(() => {
     if (!autoEdit || !source || frame.edit || frame.editHistory?.steps.length) return;
@@ -756,6 +763,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             <span aria-live="polite" aria-label="Zoom level" className="min-w-10 text-center tabular-nums">{percentFor(transform.zoom, fit, dpr)}%</span>
             <button type="button" aria-label="Zoom in" title="Zoom in (+)" className="h-7 w-7 rounded hover:bg-white/15"
               onClick={() => zoomTo(stepZoom(transform.zoom, 1, maxZoom))}>+</button>
+            <input type="range" min={1} max={maxZoom} step={(maxZoom - 1) / 200} value={transform.zoom}
+              aria-label="Zoom amount" onChange={(event) => zoomTo(event.target.valueAsNumber)}
+              className="min-h-11 w-20 accent-sky-300 desk:min-h-9" />
             <button type="button" title="Fit to screen " className="h-7 rounded px-1.5 hover:bg-white/15" onClick={() => zoomTo(1)}>Fit</button>
             <button type="button" title="Actual pixels " className="h-7 rounded px-1.5 hover:bg-white/15"
               onClick={() => zoomTo(zoomForPercent(100, fit, dpr))}>100%</button>
@@ -763,7 +773,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               onClick={() => zoomTo(zoomForPercent(200, fit, dpr))}>200%</button>
           </div>
         )}
-        <PhotoViewport zoom={transform.zoom} pan={transform.pan} maxZoom={maxZoom}
+        <PhotoViewport zoom={transform.zoom} pan={transform.pan} maxZoom={maxZoom} showZoomButton={false}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
           overlayMode={displayCompare ? 'wipe' : 'hidden'}
           labels={displayCompare ? [before.label, 'Now'] : undefined}
