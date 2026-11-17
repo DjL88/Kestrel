@@ -8,6 +8,12 @@ export function maxCanvasPixels(env: { userAgent: string; platform?: string; max
 
 /** How much to scale a picture of this size so it stays within the limit. 1 means it already fits. */
 export function fitScale(width: number, height: number, limit: number): number {
+  // Invalid or overflowing dimensions must not silently bypass the canvas cap.
   const pixels = width * height;
+  if (![width, height, limit, pixels].every(Number.isFinite) ||
+      width <= 0 || height <= 0 || limit <= 0 ||
+      !Number.isSafeInteger(pixels)) {
+    throw new RangeError('Invalid image dimensions or canvas pixel limit.');
+  }
   return pixels > limit ? Math.sqrt(limit / pixels) * 0.999 : 1;
 }
