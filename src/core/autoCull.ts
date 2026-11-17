@@ -104,7 +104,7 @@ export function limitAutoKeepers(
     if (byId.has(frame.id)) ambiguousIds.add(frame.id);
     else byId.set(frame.id, frame);
   }
-  const occupied = new Set(frames.filter((frame) => !frame.removedAt && frame.decision === 'keep' && frame.burstGroupId)
+  const occupied = new Set(frames.filter((frame) => frame.removedAt == null && frame.decision === 'keep' && frame.burstGroupId)
     .map((frame) => frame.burstGroupId!));
   const accepted = new Set<string>();
   for (const result of [...suggestions].sort((a, b) => b.score - a.score)) {
@@ -113,7 +113,7 @@ export function limitAutoKeepers(
     // A stale scan result cannot reserve keeper headroom for a photo that was
     // removed or manually reviewed while the scan was running.
     const frame = byId.get(result.frameId);
-    if (!frame || ambiguousIds.has(result.frameId) || frame.removedAt || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) continue;
+    if (!frame || ambiguousIds.has(result.frameId) || frame.removedAt != null || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) continue;
     const burst = frame.burstGroupId;
     if (burst && occupied.has(burst)) continue;
     accepted.add(result.frameId);
