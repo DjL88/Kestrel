@@ -489,6 +489,23 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
+  // Turning Before/After on shows the whole photo first, not whatever crop a previous zoom left
+  // behind — otherwise comparing can look like it "selected" a sliver of the image instead of showing it.
+  // Zooming in *during* the comparison (to check detail) is unaffected: this only fires on the off-to-on edge.
+  useEffect(() => {
+    if (compare) setTransform(FIT_VIEW);
+  }, [compare]);
+
+  // Auto-develop: get the best available quality without making anyone ask for it. The quick embedded preview shows
+  // immediately so there's nothing to wait on, then this silently swaps in the full sensor decode once it's ready —
+  // "Develop from RAW" in RAW options below is only there to retry or force it again, never required for normal use.
+  useEffect(() => {
+    if (!isRaw || !canDevelopRaw() || !source || developing || provider.isDeveloped(frame.stableKey)) return;
+    void developFromRaw();
+    // Once per photo: developing flips provider.isDeveloped, which this effect re-checks when `source` next changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source]);
+
   /** Evaluate the current photograph without committing edits. Preview uses the real rendering path. */
   function previewAutoSuggestion() {
     const sample = sampleOrientedSource(256);
@@ -796,6 +813,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             <span aria-live="polite" aria-label="Zoom level" className="min-w-10 text-center tabular-nums">{percentFor(transform.zoom, fit, dpr)}%</span>
             <button type="button" aria-label="Zoom in" title="Zoom in (+)" className="h-7 w-7 rounded hover:bg-white/15"
               onClick={() => zoomTo(stepZoom(transform.zoom, 1, maxZoom))}>+</button>
+            <input type="range" min={1} max={maxZoom} step={(maxZoom - 1) / 200} value={transform.zoom}
+              aria-label="Zoom amount" onChange={(event) => zoomTo(event.target.valueAsNumber)}
+              className="min-h-11 w-20 accent-sky-300 desk:min-h-9" />
             <button type="button" title="Fit to screen " className="h-7 rounded px-1.5 hover:bg-white/15" onClick={() => zoomTo(1)}>Fit</button>
             <button type="button" title="Actual pixels " className="h-7 rounded px-1.5 hover:bg-white/15"
               onClick={() => zoomTo(zoomForPercent(100, fit, dpr))}>100%</button>
@@ -803,7 +823,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               onClick={() => zoomTo(zoomForPercent(200, fit, dpr))}>200%</button>
           </div>
         )}
-        <PhotoViewport zoom={transform.zoom} pan={transform.pan} maxZoom={maxZoom}
+        <PhotoViewport zoom={transform.zoom} pan={transform.pan} maxZoom={maxZoom} showZoomButton={false}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
           overlayMode={displayCompare ? 'wipe' : 'hidden'}
           labels={displayCompare ? [before.label, 'Now'] : undefined}
@@ -1068,23 +1088,30 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             'Used when cropping exports. Re-mark after changing the crop.'}</p>
         </details>
         {isRaw && (
-          <div className="space-y-1 pb-2">
-            <p className="text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey)
+          <div className="border-t border-white/10 pt-2">
+            <p role={developing ? 'status' : undefined} className="px-1 text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey)
               ? 'Developed from the RAW file as an 8-bit JPEG. Edits use that JPEG; the original RAW is unchanged.'
-              : 'Editing embedded JPEG preview'}</p>
-            {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
-              <button type="button" className={`${button} w-full border border-white/10`} disabled={developing || sourceState !== 'ready'} onClick={() => void developFromRaw()}>
-                {developing ? 'Developing…' : 'Develop from RAW'}
-              </button>
-            )}
-            {developNote && <p role="status" className="text-xs text-amber-200">{developNote}</p>}
-            {canDevelopRaw() && (
-              <button type="button" className={`${button} w-full border border-white/10`} disabled={precisionBusy} onClick={() => void saveRawPrecisionTiff()}>
-                {precisionBusy ? 'Decoding…' : 'Save 16-bit TIFF (experimental)'}
-              </button>
-            )}
-            {canDevelopRaw() && <p className="px-1 text-xs text-zinc-400">Full sensor bit depth, no colour profile yet, no Nikon High Efficiency support. Doesn't change editing or Export.</p>}
-            {precisionNote && <p role="status" className="text-xs text-amber-200">{precisionNote}</p>}
+              : developing ? 'Getting the full quality from the RAW file…' : "You're editing the quick preview stored inside the RAW file."}</p>
+            <details>
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
+                RAW options <ChevronDown className="h-4 w-4" aria-hidden="true" />
+              </summary>
+              <div className="space-y-1 pb-2">
+                {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
+                  <button type="button" className={`${button} w-full border border-white/10`} disabled={developing || sourceState !== 'ready'} onClick={() => void developFromRaw()}>
+                    {developing ? 'Developing…' : 'Develop from RAW'}
+                  </button>
+                )}
+                {developNote && <p role="status" className="text-xs text-amber-200">{developNote}</p>}
+                {canDevelopRaw() && (
+                  <button type="button" className={`${button} w-full border border-white/10`} disabled={precisionBusy} onClick={() => void saveRawPrecisionTiff()}>
+                    {precisionBusy ? 'Decoding…' : 'Save 16-bit TIFF (experimental)'}
+                  </button>
+                )}
+                {canDevelopRaw() && <p className="px-1 text-xs text-zinc-400">A separate, highest-quality file straight from the sensor, for anyone who wants it. No colour profile yet, can't read Nikon's High Efficiency compression, and doesn't change what you're editing or exporting.</p>}
+                {precisionNote && <p role="status" className="text-xs text-amber-200">{precisionNote}</p>}
+              </div>
+            </details>
           </div>
         )}
         <details className="border-t border-white/10">

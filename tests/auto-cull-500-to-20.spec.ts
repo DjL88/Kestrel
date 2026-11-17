@@ -76,7 +76,7 @@ test('500 photos, target 20: initial Auto Cull, Auto Edit and keeper export hand
   const editedFilename = await page.getByRole('heading', { level: 1 }).innerText();
   await page.getByRole('tab', { name: 'Auto' }).click();
   // Editing stays focused on improving the image, not metadata entry.
-  await expect(page.getByRole('button', { name: 'Get an opinion' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Suggest a look' })).toBeVisible();
   const looks = page.getByRole('region', { name: 'Photo recipes' });
   await expect(looks).toBeVisible();
   await expect(looks.getByRole('button', { name: 'Mono natural' })).toBeVisible();

@@ -9,7 +9,7 @@ test('Before/After can compare a previous edit and a chosen history stage withou
     buffer: readFileSync('src/assets/images/demo_red_kite_flight_1794721996053.jpg'),
   });
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
-  const exposure = page.getByRole('slider', { name: 'Light adjustment' });
+  const exposure = page.getByRole('slider', { name: 'Exposure adjustment' });
   const warmth = page.getByRole('slider', { name: 'Warmth adjustment' });
   await exposure.press('ArrowRight');
   await warmth.press('ArrowRight');

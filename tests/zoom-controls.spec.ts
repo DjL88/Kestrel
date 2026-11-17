@@ -41,3 +41,29 @@ test('zoom controls step in and out, jump to actual pixels, and go back to fit',
   await zoom.getByRole('button', { name: 'Fit' }).click();
   await expect(level).toHaveText(fitText);
 });
+
+test('the zoom group has a slider and the photo itself has no second, floating zoom button', async ({ page }) => {
+  await project(page);
+  await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+  const zoom = page.getByRole('group', { name: 'Zoom' });
+  const level = zoom.getByLabel('Zoom level');
+  await expect(level).toBeVisible({ timeout: 30000 });
+  const slider = zoom.getByRole('slider', { name: 'Zoom amount' });
+  await expect(slider).toBeVisible();
+  await slider.fill(String(await slider.getAttribute('max')));
+  await expect.poll(async () => parseInt(await level.innerText())).toBeGreaterThan(100);
+  // Only one zoom control now — no duplicate floating button over the photo itself.
+  await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Fit photo' })).toHaveCount(0);
+});
+
+test('turning Before/After on always shows the whole photo, even if it was left zoomed in', async ({ page }) => {
+  await project(page);
+  await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+  const zoom = page.getByRole('group', { name: 'Zoom' });
+  await zoom.getByRole('button', { name: '200%' }).click();
+  await expect(zoom.getByLabel('Zoom level')).toHaveText('200%');
+  await page.getByRole('button', { name: 'Before / After' }).click();
+  // Comparing should start from the full photo, not wherever the previous zoom happened to be panned to.
+  await expect(zoom.getByLabel('Zoom level')).not.toHaveText('200%');
+});

@@ -95,10 +95,10 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
     await strip.getByRole('button', { name: 'Pin filmstrip' }).click();
     await expect.poll(panelFitsWindow).toBe(true);
   }
-  // The built-in opinion answers for an unedited photo, and stays on the page.
+  // The built-in quality checks answer for an unedited photo, and stay on the page.
   await page.getByRole('tab', { name: 'Auto' }).click();
-  await page.getByRole('button', { name: 'Get an opinion' }).click();
-  await expect(page.getByRole('region', { name: 'Opinion on this edit' })).toBeVisible();
+  await page.getByRole('button', { name: 'Suggest a look' }).click();
+  await expect(page.getByRole('region', { name: 'Quality checks for this look' })).toBeVisible();
   await page.getByRole('button', { name: 'Hide opinion' }).click();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await light.press('ArrowRight');

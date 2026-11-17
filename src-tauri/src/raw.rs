@@ -27,7 +27,8 @@ fn apply_orientation(image: RgbImage, exif_orientation: u16) -> RgbImage {
 }
 
 /// A plain-English reason for a decoder error, so the person sees what is going on rather than a library message.
-fn explain(error: &str) -> String {
+/// Shared with `raw_precision.rs` so the experimental 16-bit path gives the same plain wording, not the raw `rawler` text.
+pub(crate) fn explain(error: &str) -> String {
     if error.contains("HighEfficen") {
         "This is a Nikon High Efficiency (HE) RAW file, a compressed mode Kestrel cannot decode on this computer (a Mac can).".to_string()
     } else {

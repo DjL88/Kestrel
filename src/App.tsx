@@ -1771,7 +1771,7 @@ export default function App() {
           )}
           {loadingProgress && <ImportProgress loaded={loadingProgress.loaded} total={loadingProgress.total} />}
           {!editing && !loadingProgress && guidedDismissedFor !== cullingState.shoot.id && (
-            <GuidedBanner step={guided} unreviewed={counts.unreviewed} keepers={counts.keep} uneditedKeepers={uneditedKeepers}
+            <GuidedBanner step={guided} unreviewed={counts.unreviewed} keepers={counts.keep} decided={counts.all - counts.unreviewed} uneditedKeepers={uneditedKeepers}
               onFindBestPhotos={() => {
                 if (!can('smartCulling')) { setPaidDialog('Auto-cull'); return; }
                 setAutoCullStart(true);

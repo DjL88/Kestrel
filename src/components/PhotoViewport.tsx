@@ -13,9 +13,13 @@ interface Props {
   onTransform: (zoom: number, pan: Point) => void;
   /** How far past "fit" the photo may be zoomed. */
   maxZoom?: number;
+  /** Shows the built-in corner zoom toggle and makes it the keyboard-pan target. Off when the caller
+   * already has its own zoom control (PhotoEditor's toolbar) — the viewport itself becomes the pan
+   * target instead, so arrow-key panning while zoomed still works without a redundant button. */
+  showZoomButton?: boolean;
 }
 
-export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoom, pan, onTransform, maxZoom = 6 }: Props) {
+export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoom, pan, onTransform, maxZoom = 6, showZoomButton = true }: Props) {
   const [wipe, setWipe] = useState(50);
   const pointers = useRef(new Map<number, Point>());
   const view = useRef<HTMLDivElement>(null);
@@ -48,7 +52,7 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
     onTransform(zoom > 1 ? 1 : 2, FIT_VIEW.pan);
   }
 
-  function panWithKeyboard(event: KeyboardEvent<HTMLButtonElement>) {
+  function panWithKeyboard(event: KeyboardEvent<HTMLElement>) {
     if (zoom <= 1 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     const step = 32;
     let x = 0;
@@ -68,7 +72,10 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
   const zoomAction = zoom > 1 ? 'Fit photo' : 'Zoom in';
   const layer = { transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` };
   return (
-    <div ref={view} className="relative min-h-0 flex-1 touch-none overflow-hidden bg-black"
+    <div ref={view} tabIndex={showZoomButton ? undefined : 0} aria-label={showZoomButton ? undefined : 'Photo'}
+      aria-description={!showZoomButton && zoom > 1 ? 'Use the arrow keys to move around the zoomed photo.' : undefined}
+      className={`relative min-h-0 flex-1 touch-none overflow-hidden bg-black ${showZoomButton ? '' : 'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky-300'}`}
+      onKeyDown={showZoomButton ? undefined : panWithKeyboard}
       onPointerDown={(event) => {
         if (event.button !== 0 || pointers.current.size >= 2 ||
           (event.target instanceof Element && event.target.closest('button, input'))) return;
@@ -129,12 +136,14 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
           </>}
         </>
       )}
-      <button type="button" onClick={toggleZoom} onKeyDown={panWithKeyboard}
-        aria-description={zoom > 1 ? 'Use the arrow keys to move around the zoomed photo.' : undefined}
-        title={zoom > 1 ? 'Fit photo. Arrow keys pan while focused.' : zoomAction}
-        className="absolute right-2 top-2 min-h-11 min-w-11 rounded-md bg-black/70 px-2 text-xs focus-visible:outline-2 focus-visible:outline-sky-300">
-        {zoomAction}
-      </button>
+      {showZoomButton && (
+        <button type="button" onClick={toggleZoom} onKeyDown={panWithKeyboard}
+          aria-description={zoom > 1 ? 'Use the arrow keys to move around the zoomed photo.' : undefined}
+          title={zoom > 1 ? 'Fit photo. Arrow keys pan while focused.' : zoomAction}
+          className="absolute right-2 top-2 min-h-11 min-w-11 rounded-md bg-black/70 px-2 text-xs focus-visible:outline-2 focus-visible:outline-sky-300">
+          {zoomAction}
+        </button>
+      )}
     </div>
   );
 }
