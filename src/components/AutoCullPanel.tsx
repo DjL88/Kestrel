@@ -14,6 +14,9 @@ interface Props {
   keeperTarget: number;
   provider: BrowserPreviewProvider;
   onApply: (results: { frameId: string; decision: 'keep' | 'reject' }[]) => void;
+  /** Every photo the scan looked at, with its confidence and score - recorded even when nothing was applied,
+   * so a later "sort by culling confidence" has something to go on. */
+  onScanned?: (results: { frameId: string; confidence: 'high' | 'medium' | 'low'; score: number }[]) => void;
   onUndo: () => void;
   onInspect: (frame: PhotoFrame) => void;
   /** Close this and show a collection in the library: the keepers, or what still needs a decision. */
@@ -25,7 +28,7 @@ interface Props {
 
 const button = 'min-h-11 rounded-md px-3 text-sm font-medium hover:bg-white/10 disabled:opacity-45';
 
-export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo, onInspect, onShowCollection, onClose, autoStart }: Props) {
+export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScanned, onUndo, onInspect, onShowCollection, onClose, autoStart }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const running = useRef<AbortController | null>(null);
   const taskId = useRef<number | null>(null);
@@ -80,6 +83,7 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onUndo,
       if (controller.signal.aborted) return;
       task.finish();
       setResults(next);
+      onScanned?.(next.map((result) => ({ frameId: result.frameId, confidence: result.confidence, score: result.score })));
       if (autoMove) apply(next.flatMap((result) =>
         result.confidence === 'high' && result.decision ? [{ frameId: result.frameId, decision: result.decision }] : []));
     } catch {

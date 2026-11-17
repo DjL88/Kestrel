@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   applyDecisionWithHistory,
   applyAutoCullDecisions,
+  applyCullConfidence,
   assignBurstGroups,
   computeCullCounts,
   createDemoShootState,
@@ -10,6 +11,7 @@ import {
   generateDemoShootFrames,
   getDefaultComparePair,
   redoDecision,
+  sortFrames,
   stepSelection,
   undoDecision,
 } from './cullingEngine';
@@ -148,6 +150,64 @@ test('search finds confirmed subject names alongside the decision filter', () =>
   ];
   assert.deepEqual(filterFrames(frames, 'keep', ' MABEL '), [frames[0]]);
   assert.deepEqual(filterFrames(frames, 'reject', 'Mabel'), []);
+});
+
+test('filterFrames narrows by camera and lens, exact match only', () => {
+  const [first, second, third] = generateDemoShootFrames(3);
+  const frames = [
+    { ...first, exif: { ...first.exif, camera: 'Nikon Z8', lens: 'Z 100-400mm' } },
+    { ...second, exif: { ...second.exif, camera: 'Nikon Z8', lens: 'Z 24-120mm' } },
+    { ...third, exif: { ...third.exif, camera: 'Nikon Z5II', lens: 'Z 100-400mm' } },
+  ];
+  assert.deepEqual(filterFrames(frames, 'all', '', null, 'Nikon Z8'), [frames[0], frames[1]]);
+  assert.deepEqual(filterFrames(frames, 'all', '', null, null, 'Z 100-400mm'), [frames[0], frames[2]]);
+  assert.deepEqual(filterFrames(frames, 'all', '', null, 'Nikon Z8', 'Z 100-400mm'), [frames[0]]);
+  // No camera/lens filter given: everything (minus removed) passes through, same as before this option existed.
+  assert.equal(filterFrames(frames, 'all').length, 3);
+});
+
+test('sortFrames leaves catalogue order alone until a sort is chosen, then orders cleanly', () => {
+  const [first, second, third] = generateDemoShootFrames(3);
+  const frames = [
+    { ...first, filename: 'b.jpg', rating: 2, exif: { ...first.exif, capturedAtMs: 2000 } },
+    { ...second, filename: 'a.jpg', rating: 5, exif: { ...second.exif, capturedAtMs: 1000 } },
+    { ...third, filename: 'c.jpg', rating: undefined, exif: { ...third.exif, capturedAtMs: 3000 } },
+  ];
+  // No sort order: unchanged, same order and same objects (not even a defensive copy's worth of reordering).
+  assert.deepEqual(sortFrames(frames), frames);
+  assert.deepEqual(sortFrames(frames, 'captured-asc').map((f) => f.filename), ['a.jpg', 'b.jpg', 'c.jpg']);
+  assert.deepEqual(sortFrames(frames, 'captured-desc').map((f) => f.filename), ['c.jpg', 'b.jpg', 'a.jpg']);
+  assert.deepEqual(sortFrames(frames, 'rating-desc').map((f) => f.filename), ['a.jpg', 'b.jpg', 'c.jpg']);
+  assert.deepEqual(sortFrames(frames, 'name-asc').map((f) => f.filename), ['a.jpg', 'b.jpg', 'c.jpg']);
+});
+
+test('sortFrames by culling confidence ranks high over medium over low, unscored photos last', () => {
+  const [first, second, third, fourth] = generateDemoShootFrames(4);
+  const frames = [
+    { ...first, filename: 'medium.jpg', cullConfidence: 'medium' as const, cullScore: 60 },
+    { ...second, filename: 'unscored.jpg' },
+    { ...third, filename: 'high.jpg', cullConfidence: 'high' as const, cullScore: 90 },
+    { ...fourth, filename: 'alsohigh.jpg', cullConfidence: 'high' as const, cullScore: 95 },
+  ];
+  assert.deepEqual(sortFrames(frames, 'confidence-desc').map((f) => f.filename),
+    ['alsohigh.jpg', 'high.jpg', 'medium.jpg', 'unscored.jpg']);
+});
+
+test('applyCullConfidence records what a scan found without ever touching decision', () => {
+  const state = createDemoShootState(3);
+  const [a, b] = state.frames;
+  const next = applyCullConfidence(state, [
+    { frameId: a.id, confidence: 'high', score: 92 },
+    { frameId: b.id, confidence: 'low', score: 20 },
+  ]);
+  assert.equal(next.frames.find((f) => f.id === a.id)?.cullConfidence, 'high');
+  assert.equal(next.frames.find((f) => f.id === a.id)?.cullScore, 92);
+  assert.equal(next.frames.find((f) => f.id === b.id)?.cullConfidence, 'low');
+  assert.equal(next.frames.find((f) => f.id === a.id)?.decision, 'unreviewed');
+  // Unaffected frames are untouched, same object reference.
+  assert.equal(next.frames[2], state.frames[2]);
+  // Empty results: no-op, same state back.
+  assert.equal(applyCullConfidence(state, []), state);
 });
 
 test('flagged keepers leave the review queue and the queue stays near the current frame', () => {

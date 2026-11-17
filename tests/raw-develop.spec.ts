@@ -61,8 +61,10 @@ const openEdit = async (page: import('@playwright/test').Page) => {
 test('a RAW file develops to full quality automatically, no click required', async ({ page }) => {
   await asDesktop(page, 'works');
   await openEdit(page);
-  // Shows the quick preview immediately — nothing to wait on before the editor is usable.
-  await expect(page.getByText("You're editing the quick preview", { exact: false })).toBeVisible({ timeout: 20000 });
+  // The embedded preview makes the editor usable immediately - nothing to wait on. Not asserted as a visible
+  // state here: a mocked "works" decode can resolve in well under one assertion poll, so the transient text is
+  // not reliably observable and isn't what this test is checking anyway (see 'outside the desktop app' below).
+  await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible({ timeout: 20000 });
   // ...then silently swaps in the full decode, with no "Develop from RAW" click from the person.
   await expect(page.getByText('Developed from the RAW file')).toBeVisible({ timeout: 30000 });
   await expect(page.getByText('Developed from the RAW file')).toContainText('8-bit JPEG');
