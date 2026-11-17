@@ -50,7 +50,7 @@ export function recommendForReview(items: readonly ReviewCandidate[]): ReviewSug
     }
   }
   for (const item of items) {
-    if (item.manualDecision || !eligible(item) || manuallyKeptGroups.has(groupKey(item))) continue;
+    if (item.manualDecision != null || !eligible(item) || manuallyKeptGroups.has(groupKey(item))) continue;
     const key = groupKey(item);
     const previous = best.get(key);
     if (!previous || (item.quality as number) > previous.quality) {
@@ -58,7 +58,14 @@ export function recommendForReview(items: readonly ReviewCandidate[]): ReviewSug
     }
   }
   return items.map((item) => {
-    if (item.manualDecision) return { id: item.id, suggestion: item.manualDecision, reason: 'manual' };
+    if (item.manualDecision === 'keep' || item.manualDecision === 'reject') {
+      return { id: item.id, suggestion: item.manualDecision, reason: 'manual' };
+    }
+    // Persisted catalogue data can contain obsolete or malformed decisions.
+    // Never promote these into a Keep or silently treat them as unreviewed.
+    if (item.manualDecision != null) {
+      return { id: item.id, suggestion: 'review', reason: 'uncertain-detection' };
+    }
     const uncertain = !eligible(item);
     if (uncertain) return { id: item.id, suggestion: 'review', reason: 'uncertain-detection' };
     const key = groupKey(item);
