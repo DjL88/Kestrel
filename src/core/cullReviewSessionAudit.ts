@@ -37,7 +37,7 @@ export function auditReviewSession(state: CullingState): ReviewSessionAudit {
   for (const frame of state.frames) {
     counts.set(frame.id, (counts.get(frame.id) ?? 0) + 1);
     if (!frame.id || typeof frame.id !== 'string') issues.push({ code: 'duplicate-id', frameId: String(frame.id) });
-    if (frame.removedAt) continue;
+    if (frame.removedAt !== undefined && frame.removedAt !== null) continue;
     active++;
     if (frame.decision === 'keep') keep++;
     else if (frame.decision === 'reject') reject++;
@@ -60,7 +60,7 @@ export function auditReviewSession(state: CullingState): ReviewSessionAudit {
   ] as const) {
     if (id === null) continue;
     if (counts.get(id) !== 1) issues.push({ code: invalid, frameId: id });
-    else if (byId.get(id)?.removedAt) issues.push({ code: removed, frameId: id });
+    else if (byId.get(id)?.removedAt !== undefined && byId.get(id)?.removedAt !== null) issues.push({ code: removed, frameId: id });
   }
   for (const entry of [...state.undoStack, ...state.redoStack]) {
     for (const change of entry.batch ?? [entry]) {
@@ -68,7 +68,7 @@ export function auditReviewSession(state: CullingState): ReviewSessionAudit {
         issues.push({ code: 'history-missing', frameId: change.frameId });
       } else if (counts.get(change.frameId) !== 1) {
         issues.push({ code: 'history-ambiguous', frameId: change.frameId });
-      } else if (byId.get(change.frameId)?.removedAt && !entry.removal) {
+      } else if (byId.get(change.frameId)?.removedAt !== undefined && byId.get(change.frameId)?.removedAt !== null && !entry.removal) {
         issues.push({ code: 'history-removed', frameId: change.frameId });
       }
     }
