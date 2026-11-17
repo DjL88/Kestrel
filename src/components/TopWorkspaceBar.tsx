@@ -153,7 +153,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
         <div className="truncate text-sm font-semibold text-zinc-100" title={shoot.title}>{shoot.title}</div>
         <div className="truncate text-xs text-zinc-400">
           {loadingProgress ? `Opening ${loadingProgress.loaded}/${loadingProgress.total}` :
-            `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter === 'all' || filter === 'reject' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}${props.ratingFilter || props.cameraFilter || props.lensFilter ? ' · Filters active' : ''}`}
+            shoot.inbox ? `${counts.all} ${counts.all === 1 ? 'photo' : 'photos'}${searchQuery ? ' · Search active' : ''}${props.ratingFilter || props.cameraFilter || props.lensFilter ? ' · Filters active' : ''}` : `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter === 'all' || filter === 'reject' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}${props.ratingFilter || props.cameraFilter || props.lensFilter ? ' · Filters active' : ''}`}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
@@ -231,12 +231,12 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   </MenuSection>
                 )}
 
-                <MenuSection id="menu-project" title="Project">
-                  <MenuItem icon={<ScanSearch className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onAutoCull, false)}>{m.autoCull}</MenuItem>
+                <MenuSection id="menu-project" title={shoot.inbox ? 'Quick edits' : 'Project'}>
+                  {!shoot.inbox && <MenuItem icon={<ScanSearch className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onAutoCull, false)}>{m.autoCull}</MenuItem>}
                   <MenuItem icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!props.onBatchLook} onClick={() => choose(() => props.onBatchLook?.(), false)}>Apply recipe to keepers…</MenuItem>
                   <MenuItem icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!props.onAutoAdjustKeepers} onClick={() => choose(() => props.onAutoAdjustKeepers?.(), false)}>Auto-adjust unedited keepers…</MenuItem>
                   <MenuItem icon={<FileDown className="h-4 w-4" aria-hidden="true" />} disabled={!props.onExportKeepers} onClick={() => choose(() => props.onExportKeepers?.())}>Export keepers</MenuItem>
-                  <MenuItem icon={<Save className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onBackupProject)}>Back up project</MenuItem>
+                  {!shoot.inbox && <MenuItem icon={<Save className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onBackupProject)}>Back up project</MenuItem>}
                   {props.onWatchFolder && <MenuItem icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onWatchFolder!, props.watching ? true : false)}>{props.watching ? `Stop watching “${props.watching}”` : 'Watch a folder for new photos…'}</MenuItem>}
                   {props.onLocations && <MenuItem icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onLocations!, false)}>Where this project is kept…</MenuItem>}
                   {props.onSyncFolder && <MenuItem icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onSyncFolder!, false)}>Sync folder or cloud (experimental)…</MenuItem>}
@@ -269,7 +269,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                         onChange={(event) => props.onSettingsChange?.({ ...props.settings!, autoEdit: event.target.checked })} />Auto-edit when first opening a photo</label>
                     </>}
                     <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={showShortcutsOverlay} onChange={props.onToggleShortcutsOverlay} />Show shortcut guide</label>
-                    <label className="flex items-center justify-between gap-2">
+                    {!shoot.inbox && <label className="flex items-center justify-between gap-2">
                       Keeper target
                       <input type="number" min={1} max={9999} value={keeperTarget}
                         onChange={(event) => {
@@ -277,7 +277,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                           if (Number.isInteger(next) && next >= 1 && next <= 9999) props.onKeeperTargetChange(next);
                         }}
                         className="min-h-9 w-20 rounded-md border border-white/10 bg-black/20 px-2 text-right" />
-                    </label>
+                    </label>}
                   </div>
                 </details>
               </div>
@@ -304,15 +304,29 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
       </button>
     </div>
     <nav aria-label="Photo collections" className="flex shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
-      <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
-        {(['all', 'unreviewed', 'keep', 'reject'] as const).map((collection) => (
-          <button key={collection} type="button" aria-current={filter === collection ? 'page' : undefined}
-            disabled={props.actionsDisabled} onClick={() => props.onFilterChange(collection)}
-            className="flex min-h-11 shrink-0 items-center gap-1.5 border-b-2 border-transparent px-2 text-sm text-zinc-300 hover:text-white aria-[current=page]:border-sky-200 aria-[current=page]:text-white motion-safe:transition-colors">
-            {filterLabels[collection]} <span className="text-xs tabular-nums text-zinc-400">{counts[collection]}</span>
-          </button>
-        ))}
-      </div>
+      {shoot.inbox ? (
+        <label className="flex min-h-11 shrink-0 items-center gap-2 text-sm text-zinc-300">
+          Show
+          <select aria-label="Filter quick edits" value={filter} disabled={props.actionsDisabled}
+            onChange={(event) => props.onFilterChange(event.target.value as FilterState)}
+            className="min-h-10 rounded-md border border-white/15 bg-kestrel-panel px-2 text-sm text-zinc-100">
+            <option value="all">All photos ({counts.all})</option>
+            <option value="unreviewed">Unreviewed ({counts.unreviewed})</option>
+            <option value="keep">Kept ({counts.keep})</option>
+            <option value="reject">Rejected ({counts.reject})</option>
+          </select>
+        </label>
+      ) : (
+        <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
+          {(['all', 'unreviewed', 'keep', 'reject'] as const).map((collection) => (
+            <button key={collection} type="button" aria-current={filter === collection ? 'page' : undefined}
+              disabled={props.actionsDisabled} onClick={() => props.onFilterChange(collection)}
+              className="flex min-h-11 shrink-0 items-center gap-1.5 border-b-2 border-transparent px-2 text-sm text-zinc-300 hover:text-white aria-[current=page]:border-sky-200 aria-[current=page]:text-white motion-safe:transition-colors">
+              {filterLabels[collection]} <span className="text-xs tabular-nums text-zinc-400">{counts[collection]}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="hidden min-w-0 flex-1 items-center justify-end gap-2 md:flex">
         <FilterSortControl searchQuery={searchQuery} onSearchChange={props.onSearchChange}
           ratingFilter={props.ratingFilter} onRatingFilterChange={props.onRatingFilterChange}
