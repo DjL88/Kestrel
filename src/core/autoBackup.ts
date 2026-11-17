@@ -3,6 +3,9 @@
  * photographs) saved to the place the person chose. It runs after changes, not too often, at once when leaving the
  * project, and tries again later if the place is not reachable. Nothing local is ever lost because a backup failed.
  */
+import { sha256Plain } from './sha256';
+import { SYNC_ROOT } from './storageConnectors';
+
 export interface BackupClock {
   /** When the project last changed on this device. */
   lastChangeAt?: number;
@@ -44,13 +47,25 @@ export const afterChange = (clock: BackupClock, now: number): BackupClock => ({ 
 
 const stamp = (date: Date) => date.toISOString().replace(/[:.]/g, '-');
 
-/** Where in the chosen place a backup goes: one folder per project, one file per backup, oldest sorting first. */
-export const backupFolder = (slug: string) => `kestrel/v1/backups/${slug}`;
-export const backupName = (slug: string, now: Date) => `${backupFolder(slug)}/${stamp(now)}.kestrel.json`;
+/** Stable across renames and safe on case-insensitive disks. Legacy title folders are left for manual restore. */
+export function backupFolder(projectId: string): string {
+  if (!projectId) throw new Error('The project needs an identity before it can be backed up.');
+  const identity = sha256Plain(new TextEncoder().encode(JSON.stringify(projectId)));
+  return `${SYNC_ROOT}/project-backups/${identity}`;
+}
+
+/** Separate files even when two saves start in the same millisecond or on different devices. */
+export function backupName(projectId: string, now: Date): string {
+  const nonce = [...crypto.getRandomValues(new Uint8Array(16))].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${backupFolder(projectId)}/${stamp(now)}_${nonce}.kestrel.json`;
+}
+
+const BACKUP_FILE = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z_[a-f0-9]{32}\.kestrel\.json$/;
 
 /** Which old backups to delete so only the newest few are kept. Only files that look like Kestrel backups are ever named. */
-export function backupsToDelete(names: readonly string[], slug: string, keep = KEEP_BACKUPS): string[] {
-  const ours = names.filter((name) => name.startsWith(`${backupFolder(slug)}/`) && name.endsWith('.kestrel.json')).sort();
+export function backupsToDelete(names: readonly string[], projectId: string, keep = KEEP_BACKUPS): string[] {
+  const prefix = `${backupFolder(projectId)}/`;
+  const ours = [...new Set(names)].filter((name) => name.startsWith(prefix) && BACKUP_FILE.test(name.slice(prefix.length))).sort();
   return ours.slice(0, Math.max(0, ours.length - keep));
 }
 

@@ -62,9 +62,9 @@ test('a project backs up to the NAS, creating the folders it needs', async ({ pa
   await dialog.getByLabel('Back up to').selectOption({ label: 'Synology' });
   await dialog.getByRole('button', { name: 'Back up now' }).click();
   await expect(dialog.getByRole('status').filter({ hasText: 'Last backed up' })).toContainText('Synology', { timeout: 15000 });
-  const saved = [...dav.files.keys()].filter((path) => path.startsWith('/photos/kestrel/v1/backups/kite-day/'));
+  const saved = [...dav.files.keys()].filter((path) => path.startsWith('/photos/kestrel/v1/project-backups/'));
   expect(saved).toHaveLength(1);
-  expect(dav.folders.has('/photos/kestrel/v1/backups/kite-day')).toBe(true);
+  expect(dav.folders.has(saved[0].slice(0, saved[0].lastIndexOf('/')))).toBe(true);
   expect(dav.files.get(saved[0])!.toString()).toContain('Kite day');
   expect(dav.refused).toBe(0);
 });
