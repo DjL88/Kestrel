@@ -60,6 +60,17 @@ test('dismissing the banner hides it for this project', async ({ page }) => {
   await expect(page.getByRole('region', { name: "What's next" })).toHaveCount(0);
 });
 
+test('once some photos are already decided, the banner says so instead of suggesting the same pass again', async ({ page }) => {
+  await projectWithUnreviewedPhotos(page);
+  await page.getByRole('button', { name: /^Keep /i }).first().click();
+  const banner = page.getByRole('region', { name: "What's next" });
+  await expect(banner).toContainText('3 photos still need a decision');
+  await expect(banner).toContainText("wasn't confident enough to call these on its own");
+  await expect(banner.getByRole('button', { name: 'Let Kestrel try these too' })).toBeVisible();
+  // The old "first pass" framing would be misleading once a pass has already happened.
+  await expect(banner).not.toContainText('Kestrel can take a first pass');
+});
+
 test('once everything is decided and kept, the banner offers to export, not to cull or review again', async ({ page }) => {
   await projectWithUnreviewedPhotos(page);
   for (let i = 0; i < 4; i += 1) {

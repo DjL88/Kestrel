@@ -6,6 +6,8 @@ interface Props {
   step: GuidedStep;
   unreviewed: number;
   keepers: number;
+  /** Photos already decided (kept or trashed) in this project. Distinguishes a fresh batch from stragglers left over after a cull pass already ran. */
+  decided: number;
   uneditedKeepers: number;
   onFindBestPhotos: () => void;
   onReviewMyself: () => void;
@@ -24,13 +26,22 @@ const secondary = 'min-h-11 rounded-md border border-white/15 px-3 text-sm text-
  * nothing here is forced, and `onDismiss` always works. Hidden entirely for 'empty' and 'none' (see guidedProgress.ts):
  * there's nothing constructive to suggest in either case, so staying quiet is more honest than inventing a prompt.
  */
-export function GuidedBanner({ step, unreviewed, keepers, uneditedKeepers, onFindBestPhotos, onReviewMyself, onSeeSuggestedEdits, onEditMyself, onExportKeepers, onDismiss }: Props) {
+export function GuidedBanner({ step, unreviewed, keepers, decided, uneditedKeepers, onFindBestPhotos, onReviewMyself, onSeeSuggestedEdits, onEditMyself, onExportKeepers, onDismiss }: Props) {
   if (step === 'empty' || step === 'none') return null;
 
   const content = (() => {
     switch (step) {
       case 'reviewing':
-        return {
+        // A cull pass already ran and decided the rest: these are the ones it wasn't confident enough to call,
+        // left for a person on purpose. Saying so plainly avoids sounding like it's suggesting the same pass again.
+        return decided > 0 ? {
+          heading: unreviewed === 1 ? '1 photo still needs a decision' : `${formatCount.format(unreviewed)} photos still need a decision`,
+          body: "Kestrel wasn't confident enough to call these on its own, so it left them for you. You can let it take another look, or decide yourself.",
+          primaryLabel: 'Let Kestrel try these too',
+          onPrimary: onFindBestPhotos,
+          secondaryLabel: "I'll look through them myself",
+          onSecondary: onReviewMyself,
+        } : {
           heading: unreviewed === 1 ? '1 photo to look through' : `${formatCount.format(unreviewed)} photos to look through`,
           body: 'Kestrel can take a first pass and suggest your best shots, or you can look through them yourself. Either way, nothing is deleted and every decision can be changed.',
           primaryLabel: 'Find my best photos',
