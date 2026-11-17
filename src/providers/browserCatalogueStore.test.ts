@@ -197,5 +197,10 @@ test('a failed catalogue lookup is not mistaken for an empty Quick edits project
       return request;
     } },
   });
-  await assert.rejects(new BrowserCatalogueStore().loadProject('quick-edits'), /IndexedDB was unavailable/);
+  const store = new BrowserCatalogueStore();
+  await assert.rejects(store.loadProject('quick-edits'), /IndexedDB was unavailable/);
+  // Optional source bytes and folder permissions may fail independently of
+  // catalogue metadata; the editor must still allow relinking originals.
+  assert.equal(await store.loadLocalFileBlob('missing-photo'), null);
+  assert.equal(await store.loadDirectoryHandle('missing-folder'), null);
 });
