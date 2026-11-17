@@ -26,8 +26,8 @@ test('select two photos, apply monochrome recipe, keep third photo unchanged', a
   await page.getByRole('button', { name: 'Select style-1.png' }).click();
   await page.getByRole('button', { name: 'Select style-2.png' }).click();
   await page.getByRole('button', { name: 'Apply look', exact: true }).click();
-  await expect(page.getByRole('alertdialog', { name: 'Apply look to selected photos' })).toBeVisible();
-  await page.getByRole('combobox', { name: 'Look for selected photos' }).selectOption('mono-natural');
+  await expect(page.getByRole('alertdialog', { name: 'Apply recipe to selected photos' })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Recipe for selected photos' }).selectOption('mono-natural');
   await expect(page.getByText('2 of 2 selected photos will change.')).toBeVisible();
   await page.getByRole('button', { name: 'Apply to 2 photos' }).click();
   await page.getByRole('button', { name: 'Edit selected' }).click();

@@ -38,13 +38,13 @@ export function PresetPanel({ edit, disabled, onApply, previewSource }: Props) {
 
   function update(next: Preset[], message: string) {
     setCustom(next);
-    setNotice(savePresets(next) ? message : 'Could not save on this device. The preset works until you leave.');
+    setNotice(savePresets(next) ? message : 'Could not save on this device. The recipe works until you leave.');
   }
 
   return (
     <div className="space-y-2 px-1 pb-2">
-      <p className="text-xs text-zinc-400">Tap a look to update the sliders. Undo takes you back.</p>
-      <div className="grid grid-cols-3 gap-2" role="group" aria-label="Photo looks gallery">
+      <p className="text-xs text-zinc-400">Tap a recipe to update the sliders. Undo takes you back.</p>
+      <div className="grid grid-cols-3 gap-2" role="group" aria-label="Photo recipes gallery">
         {[...BUILT_IN_PRESETS, ...custom].map((preset) => {
           const selected = matchesPresetEdit(edit, preset.edit);
           return (
@@ -59,7 +59,7 @@ export function PresetPanel({ edit, disabled, onApply, previewSource }: Props) {
                 </span>
                 {selected && <span className="sr-only">Selected</span>}
               </button>
-              {!preset.builtIn && <button type="button" aria-label={`Delete preset ${preset.name}`} title={`Delete ${preset.name}`}
+              {!preset.builtIn && <button type="button" aria-label={`Delete recipe ${preset.name}`} title={`Delete ${preset.name}`}
                 className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-md bg-black/75 text-white hover:bg-black focus-visible:outline-2 focus-visible:outline-sky-300"
                 onClick={() => update(removePreset(custom, preset.id), `Deleted ${preset.name}`)}>
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -74,9 +74,9 @@ export function PresetPanel({ edit, disabled, onApply, previewSource }: Props) {
         update(addPreset(custom, name, edit, newId()), `Saved ${name.trim()}`);
         setName('');
       }}>
-        <input value={name} onChange={(event) => setName(event.target.value)} maxLength={40} placeholder="Name this look"
-          aria-label="Preset name" className="min-h-11 min-w-0 flex-1 rounded-md border border-white/15 bg-black/20 px-2 text-base desk:min-h-9 md:text-sm" />
-        <button type="submit" disabled={!name.trim() || isNeutralEdit(edit)} className={`${chip} shrink-0 font-semibold`}>Save look</button>
+        <input value={name} onChange={(event) => setName(event.target.value)} maxLength={40} placeholder="Name this recipe"
+          aria-label="Recipe name" className="min-h-11 min-w-0 flex-1 rounded-md border border-white/15 bg-black/20 px-2 text-base desk:min-h-9 md:text-sm" />
+        <button type="submit" disabled={!name.trim() || isNeutralEdit(edit)} className={`${chip} shrink-0 font-semibold`}>Save recipe</button>
       </form>
       <p role="status" className="min-h-4 text-xs text-zinc-300">{notice}</p>
     </div>

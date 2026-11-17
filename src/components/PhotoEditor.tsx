@@ -886,6 +886,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           {autoNotes.length > 0 && <ul role="status" className="list-disc space-y-0.5 pl-4 pt-1 text-xs text-zinc-300">
             {autoNotes.map((note) => <li key={note}>{note}</li>)}
           </ul>}
+          {autoNotes.length > 0 && <p className="px-1 text-xs text-zinc-400">Like this? Save it as a recipe in Recipes below, so you can reuse it on other photos.</p>}
           {opinions && (
             <section aria-label="Opinion on this edit" className="space-y-2 rounded-md border border-white/10 p-2">
               {opinions.length === 0 && <p role="status" className="text-sm text-zinc-300">Nothing stands out. This edit looks balanced: no halos, no clipping, no extra noise.</p>}
@@ -902,8 +903,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               <button type="button" className="min-h-9 text-xs text-zinc-400 underline hover:text-white" onClick={() => setOpinions(null)}>Hide opinion</button>
             </section>
           )}
-        <section aria-label="Photo looks" className="space-y-1 border-t border-white/10 pt-2">
-          <h3 className="text-sm font-medium text-zinc-100">Looks</h3>
+        <section aria-label="Photo recipes" className="space-y-1 border-t border-white/10 pt-2">
+          <h3 className="text-sm font-medium text-zinc-100">Recipes</h3>
           <PresetPanel edit={edit} disabled={sourceState !== 'ready'} previewSource={lookPreviewSource} onApply={(next) => (onApplyLook ?? onEdit)({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />
         </section>
         <Histogram data={histogram} teach />

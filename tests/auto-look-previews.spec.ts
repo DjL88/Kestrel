@@ -8,7 +8,7 @@ test('Auto looks show 3-column photo thumbnails and a visible active selection',
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles({ name: 'photo.jpg', mimeType: 'image/jpeg', buffer: photo });
   await page.getByRole('tab', { name: 'Auto' }).click();
-  const gallery = page.getByRole('group', { name: 'Photo looks gallery' });
+  const gallery = page.getByRole('group', { name: 'Photo recipes gallery' });
   await expect(gallery).toBeVisible();
   const natural = gallery.getByRole('button', { name: 'Natural', exact: true });
   const mono = gallery.getByRole('button', { name: 'Mono bold' });

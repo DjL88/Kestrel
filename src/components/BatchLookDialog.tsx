@@ -21,13 +21,13 @@ export function BatchLookDialog({ frames, onApply, onClose }: Props) {
   const look = looks.find((entry) => entry.id === selected);
   const summary = previewKeeperLook(frames, includeEdited);
   return (
-    <ConfirmDialog title="Apply a look to keepers" confirmLabel={`Apply to ${summary.eligible} ${summary.eligible === 1 ? 'photo' : 'photos'}`}
+    <ConfirmDialog title="Apply a recipe to keepers" confirmLabel={`Apply to ${summary.eligible} ${summary.eligible === 1 ? 'photo' : 'photos'}`}
       cancelLabel="Cancel" onCancel={onClose} confirmDisabled={!look || summary.eligible === 0}
       onConfirm={() => { if (!look) return; onApply(look.edit, includeEdited); onClose(); }}>
-      <p>Give your keepers a consistent starting look. This changes sliders, not original files. You can undo each photo's edits.</p>
+      <p>Give your keepers a consistent starting recipe. This changes sliders, not original files. You can undo each photo's edits.</p>
       <label className="block text-sm">
-        Look
-        <select aria-label="Look for keepers" value={selected} onChange={(event) => setSelected(event.target.value)}
+        Recipe
+        <select aria-label="Recipe for keepers" value={selected} onChange={(event) => setSelected(event.target.value)}
           className="mt-1 min-h-11 w-full rounded-md border border-white/20 bg-kestrel-panel px-3 text-zinc-100">
           {looks.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
         </select>
@@ -36,7 +36,7 @@ export function BatchLookDialog({ frames, onApply, onClose }: Props) {
         <input type="checkbox" checked={includeEdited} onChange={(event) => setIncludeEdited(event.target.checked)} />
         Include photos I've already edited
       </label>
-      <p role="status" className="text-sm">{summary.eligible} of {summary.total} keepers will receive this look.
+      <p role="status" className="text-sm">{summary.eligible} of {summary.total} keepers will receive this recipe.
         {summary.skipped > 0 && ` ${summary.skipped} already-edited photos will be left alone.`}</p>
       {includeEdited && <p className="text-xs">Existing global sliders will be replaced; local masks and crops stay unchanged. Each photo retains its edit history.</p>}
     </ConfirmDialog>
