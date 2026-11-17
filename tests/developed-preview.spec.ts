@@ -39,7 +39,7 @@ test.beforeAll(async () => {
   bundle = output.output.find((item) => item.type === 'chunk')!.code!;
 });
 
-test('a virtual copy exports the newly developed pixels at full source dimensions', async ({ page }) => {
+test('a virtual copy exports current developed pixels at full size after the original is reconnected', async ({ page }) => {
   // Real browser decoding and PNG export, using generated pixels only. This does not validate a Nikon decoder.
   await page.route('**/developed-preview-test', (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Developed preview test</title>' }));
   await page.goto('/developed-preview-test');
@@ -76,11 +76,22 @@ test('a virtual copy exports the newly developed pixels at full source dimension
     };
     const copy = { ...frame, id: 'copy', virtualCopy: { originalFrameId: frame.id, number: 1 } };
     try {
-      provider.registerBlob(frame.stableKey, original);
+      provider.registerLinked(frame.stableKey, { read: async () => original, size: original.size, lastModified: 1 });
       const before = await loadExportSource(copy, provider);
       canvas.width = 768; canvas.height = 512;
       context.fillStyle = '#3296c8'; context.fillRect(0, 0, canvas.width, canvas.height);
-      provider.setDeveloped(frame, await encode('image/png'));
+      const developed = await encode('image/png');
+      let start!: () => void;
+      let finish!: (result: Blob) => void;
+      const started = new Promise<void>((resolve) => { start = resolve; });
+      const delayed = new Promise<Blob>((resolve) => { finish = resolve; });
+      const pending = provider.developFromOriginal(frame.stableKey, () => { start(); return delayed; });
+      await started;
+      provider.retryLinkedOriginal(frame.stableKey);
+      finish(developed);
+      const stale = await pending;
+      const reconnected = await loadExportSource(copy, provider);
+      const fresh = await provider.developFromOriginal(frame.stableKey, async () => developed);
       const source = await loadExportSource(copy, provider);
       const file = await renderExport(source, copy, {
         id: 'master', label: 'Full size', prefix: '', width: 0, height: 0, quality: 1, format: 'png',
@@ -93,12 +104,16 @@ test('a virtual copy exports the newly developed pixels at full source dimension
       output.close();
       const retained = new Uint8Array(await provider.getOriginal(frame.stableKey)!.arrayBuffer());
       return {
-        before: [before.naturalWidth, before.naturalHeight], dimensions, pixel,
+        before: [before.naturalWidth, before.naturalHeight],
+        reconnected: [reconnected.naturalWidth, reconnected.naturalHeight], stale, fresh, dimensions, pixel,
         originalUnchanged: retained.length === originalBytes.length && retained.every((value, i) => value === originalBytes[i]),
       };
     } finally { provider.clear(); }
   });
   expect(result.before).toEqual([640, 480]);
+  expect(result.stale).toBe('superseded');
+  expect(result.reconnected).toEqual([640, 480]);
+  expect(result.fresh).toBe('ready');
   expect(result.dimensions).toEqual([768, 512]);
   expect(result.pixel).toEqual([50, 150, 200, 255]);
   expect(result.originalUnchanged).toBe(true);
