@@ -20,6 +20,9 @@ jobs:
       - run: python -m pip install -r scripts/requirements-nikon-qa.txt
       # These tests generate their own TIFFs/JSON. No SDK, camera photos or cloud account is needed.
       - run: python -m unittest discover -s scripts -p 'test_*.py'
+      # Denoiser training tools: catalogue reading, noise calibration and dataset building. The training tests need
+      # torch and skip themselves here; run them locally (see tools/denoise-training/README.md).
+      - run: python -m unittest discover -s tools/denoise-training -p 'test_*.py'
   check:
     runs-on: ubuntu-latest
     steps:

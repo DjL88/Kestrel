@@ -52,3 +52,51 @@ def add_noise(clean: np.ndarray, a: float, b: float, rng: np.random.Generator) -
 def sample_iso(rng: np.random.Generator, low: float = 400.0, high: float = 51200.0) -> float:
     """A log-uniform ISO, so every stop of sensitivity is equally represented in the training set."""
     return float(np.exp(rng.uniform(np.log(low), np.log(high))))
+
+
+class NoiseProfile:
+    """Measured noise per camera (from calibrate_noise.py), with the generic model above as the fallback.
+
+    The JSON holds, for each camera, the measured (ISO, a, b) points. Between and beyond them, log(a) and log(b) are
+    fitted as straight lines against log(ISO); with a single ISO measured, the generic slopes are used (a grows in step
+    with ISO, b a little slower)."""
+
+    def __init__(self, cameras: dict | None = None):
+        self.cameras = cameras or {}
+        self._fits: dict[str, tuple[tuple[float, float], tuple[float, float]]] = {}
+        for camera, entry in self.cameras.items():
+            points = [p for p in entry.get("points", []) if p["a"] > 0 and p["b"] > 0]
+            if points:
+                self._fits[camera] = (_fit_log(points, "a", 1.0), _fit_log(points, "b", 0.75))
+
+    @classmethod
+    def load(cls, path) -> "NoiseProfile":
+        import json
+        from pathlib import Path
+
+        if path is None or not Path(path).exists():
+            return cls()
+        return cls(json.loads(Path(path).read_text()).get("cameras", {}))
+
+    def measured(self, camera: str) -> bool:
+        return camera in self._fits
+
+    def params(self, camera: str, iso: float) -> tuple[float, float]:
+        if iso <= 0:
+            raise ValueError("ISO must be positive")
+        fit = self._fits.get(camera)
+        if fit is None:
+            return noise_params(iso)
+        (a0, a1), (b0, b1) = fit
+        x = float(np.log(iso))
+        return float(np.exp(a0 + a1 * x)), float(np.exp(b0 + b1 * x))
+
+
+def _fit_log(points: list[dict], key: str, default_slope: float) -> tuple[float, float]:
+    """Intercept and slope of log(value) against log(ISO); the default slope when only one ISO was measured."""
+    x = np.log([p["iso"] for p in points])
+    y = np.log([p[key] for p in points])
+    if np.ptp(x) < 0.3:  # less than about half a stop of spread: a slope would be noise
+        return float(np.mean(y) - default_slope * np.mean(x)), default_slope
+    slope, intercept = np.polyfit(x, y, 1)
+    return float(intercept), float(slope)

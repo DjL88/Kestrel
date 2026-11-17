@@ -1,0 +1,8 @@
+# Denoiser training tools. PyTorch is installed separately (the CUDA build for NVIDIA GPUs comes from PyTorch's own
+# index); windows/Train-Denoiser.ps1 does both. Tested with numpy 2.5, rawpy 0.28, onnxruntime 1.29, torch 2.15.
+numpy>=2.0
+pillow>=10.0
+rawpy>=0.24
+exifread>=3.0
+onnx>=1.16
+onnxruntime>=1.18
