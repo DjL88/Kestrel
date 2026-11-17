@@ -255,7 +255,7 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
         <input type="checkbox" checked={autoOn} onChange={(event) => { setAutoOn(event.target.checked); saveAutoTag(event.target.checked); }} />
         Automatically tag strong matches
       </label>
-      <p className="text-xs text-zinc-500">Check suggested and automatic tags. Confidence is relative to the names this model knows.</p>
+      <p className="text-xs text-zinc-400">Check suggested and automatic tags. Confidence is relative to the names this model knows.</p>
     </section>
   );
 }

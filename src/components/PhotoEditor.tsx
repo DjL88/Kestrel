@@ -1024,7 +1024,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                 {precisionBusy ? 'Decoding…' : 'Save 16-bit TIFF (experimental)'}
               </button>
             )}
-            {canDevelopRaw() && <p className="px-1 text-xs text-zinc-500">Full sensor bit depth, no colour profile yet, no Nikon High Efficiency support. Doesn't change editing or Export.</p>}
+            {canDevelopRaw() && <p className="px-1 text-xs text-zinc-400">Full sensor bit depth, no colour profile yet, no Nikon High Efficiency support. Doesn't change editing or Export.</p>}
             {precisionNote && <p role="status" className="text-xs text-amber-200">{precisionNote}</p>}
           </div>
         )}

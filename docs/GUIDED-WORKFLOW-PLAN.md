@@ -137,10 +137,36 @@ deliberate colour roles (copper for action, sky-blue for selection/focus, never
 overloading red/green as the only signal). Keep this as-is as the foundation.
 Two things worth checking, not rebuilding:
 
-1. **Contrast ratios.** Copper (`#F2AE79`) on Canvas (`#111317`) and Crimson
-   (`#B52539`) as a status colour both need a real WCAG contrast check (4.5:1
-   for text) — "looks fine to me" isn't a substitute for the number, especially
-   for this audience. Run it once, record the result, move on.
+1. **Contrast ratios — checked against the real runtime tokens in `src/index.css`**
+   (not `docs/brand/README.md`'s documented palette, which has drifted from
+   what actually ships), across all three themes (default/dark, `night`,
+   `contrast`):
+   - Primary text/background pairings in all three themes pass AA (the
+     `contrast` theme's 3px white focus outlines and pure black/white pairing
+     pass comfortably, as expected).
+   - Copper as button text-background (zinc-950 on Copper) passes at 7.02:1.
+   - `--color-kestrel-red` (#e03a3e) as text on Canvas narrowly **fails** AA
+     (4.45:1 vs. 4.5:1 required) — but it's currently unused anywhere in the
+     app (confirmed via grep), so this is not a live bug. Flagging it so it
+     isn't adopted later for error/destructive text without either a check or
+     a slightly darker/more saturated value.
+   - A sweep of every Tailwind text-color utility actually in use (by
+     frequency) found one genuine, live failure: `text-zinc-500` as caption/
+     help text on the dark surfaces (3.26–3.99:1, below the 4.5:1 normal-text
+     threshold). Fixed in this pass by bumping the seven sites that are real
+     explanatory copy a nervous user relies on (species-ID confidence note,
+     both mask-tool help lines, two "no frames match this filter" empty-state
+     messages, the RAW-preview-unavailable status line, and the new 16-bit
+     TIFF caption) to `text-zinc-400`, which measures 7.53:1 and is already
+     used in hundreds of other places, so this isn't a new colour — just the
+     existing lighter step applied where WCAG actually requires it.
+     Deliberately left as `zinc-500` (WCAG exempts inactive/disabled controls,
+     and these aren't primary guidance text): the two `disabled:text-zinc-500`
+     states in `TopWorkspaceBar`/`PhotoContextMenu`, the de-emphasised
+     "already completed" wizard-step label in `PhotoEditor`, the input
+     placeholder in `ProjectList`, and small numeric/metadata badges
+     (`Histogram` axis ticks, the contact-sheet frame-sequence number, the
+     macro-pad command hint).
 2. **The logo story is already honest and specific** ("a right-facing kestrel
    crosses a split K") — a kestrel hovers with perfect stillness while
    scanning for the one worthwhile target in a wide field, which is a genuinely
@@ -167,14 +193,19 @@ optimise blind. Before touching render/import code for "speed":
 2. ~~Honest Pro naming~~ — done this pass.
 3. ~~16-bit RAW path unlocked as an explicit, labelled option~~ — done this
    pass (`docs/RAW-QUALITY-PLAN.md` has the follow-on phases).
-4. **Guided first-run flow** chaining existing cull → review → suggest-or-edit
-   → export engines into one sequence with one visible next step at a time.
-   This is the highest-leverage remaining item: most primitives exist, the
-   value is almost entirely in sequencing and honest, plain-language framing.
+4. ~~**Guided first-run flow**~~ — done this pass. Added `guidedStep()`
+   (`src/core/guidedProgress.ts`) and a `GuidedBanner` component that shows
+   exactly one plain-language "what's next" card at a time (reviewing →
+   improving → ready → export), each with one obvious primary action and an
+   honest "I'll do it myself" way out, wired to the existing Auto-cull/
+   suggest-edit engines rather than any new logic. Dismissible per project.
 5. **Recipe-as-concept** pass across the suggestion and preset UI copy —
    naming and presentation, not new engines.
-6. **Accessibility verification pass**: contrast numbers, keyboard/screen-
-   reader run-through, and the "never colour alone" audit, on real builds.
+6. **Accessibility verification pass**: contrast numbers — done this pass
+   (see "Branding and first impression" above). Still open: a real
+   keyboard-only pass (tab order, focus visibility, no mouse-only controls)
+   and a screen-reader run-through (VoiceOver/NVDA) on an actual desktop
+   build, plus the "never colour alone" audit of decision/status indicators.
 7. Real-camera-file validation of the 16-bit path (needs your Mac + your NEFs
    — see the testing plan below).
 
