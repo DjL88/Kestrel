@@ -37,9 +37,12 @@ const luma = (r: number, g: number, b: number) => (0.2126 * r + 0.7152 * g + 0.0
  */
 export function proposeSubjectAwareAuto(input: SubjectAutoInput): SubjectAutoProposal {
   const { pixels, width, height, edit, segmentation, subjectKind, maskId, framingKey } = input;
-  if (!segmentation || segmentation.confidence === 'low' ||
-      (subjectKind !== 'wildlife' && subjectKind !== 'people' && subjectKind !== 'aircraft')) {
-    return fallback(edit, 'No reliable subject region: keep the global suggestion.');
+  if (!segmentation || segmentation.confidence === 'low' || subjectKind === 'landscape') {
+    return fallback(edit, 'No reliable isolated subject: keep the global suggestion.');
+  }
+  // For unclassified photographs, only a high-confidence, isolated subject is safe enough.
+  if (subjectKind === 'other' && segmentation.confidence !== 'high') {
+    return fallback(edit, 'Subject classification is uncertain; no automatic local adjustment.');
   }
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) ||
       width < 8 || height < 8 || width > 2048 || height > 2048 ||
@@ -82,14 +85,15 @@ export function proposeSubjectAwareAuto(input: SubjectAutoInput): SubjectAutoPro
   }
   const total = width * height;
   const coverage = subjectCount / total;
-  if (coverage < 0.05 || coverage > 0.7 ||
+  if (coverage < (subjectKind === 'other' ? 0.07 : 0.05) ||
+      coverage > (subjectKind === 'other' ? 0.45 : 0.7) ||
       subjectCount < 16 || backgroundCount < Math.max(16, total * 0.15)) {
     return fallback(edit, 'Subject boundaries were uncertain; no local adjustment was suggested.');
   }
   const subjectLuma = subjectTotal / subjectCount;
   const backgroundLuma = backgroundTotal / backgroundCount;
   const difference = backgroundLuma - subjectLuma;
-  if (difference < (segmentation.confidence === 'high' ? 0.12 : 0.18) ||
+  if (difference < (subjectKind === 'other' ? 0.23 : segmentation.confidence === 'high' ? 0.12 : 0.18) ||
       subjectLuma > 0.72 || clipped / subjectCount > 0.03) {
     return fallback(edit, 'Subject exposure does not need a separate lift.');
   }
