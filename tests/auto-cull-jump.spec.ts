@@ -28,6 +28,14 @@ test('after Auto Cull, one button jumps to the keepers, instead of a long list o
   const dialog = page.getByRole('dialog', { name: /Auto-cull/ });
   await dialog.getByRole('button', { name: /^Scan|Scan/ }).first().click();
   await expect(dialog.getByRole('region', { name: 'Auto-cull summary' })).toBeVisible({ timeout: 60000 });
+  const more = dialog.getByRole('region', { name: 'Find more keeper candidates' });
+  await expect(more).toBeVisible();
+  await more.getByRole('button', { name: 'Good · broader' }).click();
+  await expect(more.getByRole('button', { name: 'Good · broader' })).toHaveAttribute('aria-pressed', 'true');
+  // Changing suggestion quality never changes a catalogue decision by itself.
+  await expect(more.getByRole('button', { name: /Keep \d+ suggested/ })).toHaveCount(
+    await more.getByRole('button', { name: /Keep \d+ suggested/ }).count(),
+  );
   // The reasons exist, but are folded away, so the first thing seen is the way forward, not a list of every photo.
   await expect(dialog.getByRole('button', { name: /Review photo/ })).toHaveCount(0);
   const jump = dialog.getByRole('button', { name: /^Show my keepers/ });
