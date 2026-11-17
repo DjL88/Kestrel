@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+// Keep failed model requests observable, rather than letting the service worker
+// serve a previously precached ONNX file behind the Playwright network route.
+test.use({ serviceWorkers: 'block' });
+
 /** A corrupt/unavailable bundled ONNX file must never block a whole shoot. */
 test('subject model fails once, then culling continues conservatively without retry storms', async ({ page }) => {
   test.skip(test.info().project.name === 'phone', 'desktop workspace control scenario');
@@ -51,7 +55,7 @@ test('subject model fails once, then culling continues conservatively without re
   })).toBeVisible({ timeout: 30_000 });
   await expect(dialog.getByRole('region', { name: 'Auto-cull summary' })).toBeVisible({ timeout: 60_000 });
   expect(modelRequests).toBe(1); // no repeated model initialisation for each photo
-  await expect(dialog.getByRole('button', { name: /Apply.*high-confidence|Apply high-confidence/i })).toHaveCount(0);
+  await expect(dialog.getByRole('region', { name: 'Auto-cull summary' })).toContainText('0 suggested keepers');
   await dialog.getByRole('button', { name: 'Close auto-cull' }).click();
 
   // A failed detector cannot make a texture-only photo into a high-confidence keeper.
