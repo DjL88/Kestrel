@@ -4,7 +4,7 @@ export type ThemeName = (typeof THEMES)[number];
 export const THEME_STORAGE_KEY = 'kestrel-theme-v1';
 
 export function parseTheme(value: unknown): ThemeName {
-  return THEMES.includes(value as ThemeName) ? (value as ThemeName) : 'default';
+  return THEMES.includes(value as ThemeName) ? (value as ThemeName) : 'night';
 }
 
 export const TEXT_SIZES = ['100', '125', '150'] as const;
@@ -19,7 +19,7 @@ export interface DisplaySettings {
   calm: boolean;
 }
 
-export const DEFAULT_DISPLAY: DisplaySettings = { theme: 'default', textSize: '100', font: 'brand', calm: false };
+export const DEFAULT_DISPLAY: DisplaySettings = { theme: 'night', textSize: '100', font: 'brand', calm: false };
 
 export function parseDisplay(value: unknown): DisplaySettings {
   const raw = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>;

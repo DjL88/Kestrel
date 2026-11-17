@@ -92,6 +92,8 @@ interface Props {
   onRemoveVirtualCopy?: () => void;
   panelSide: 'left' | 'right';
   onPanelSideChange: (side: 'left' | 'right') => void;
+  hand?: 'left' | 'right';
+  onHandChange?: (hand: 'left' | 'right') => void;
   showFilmstrip: boolean;
   onApplyToKeepers: (edit: PhotoEdit) => void;
   onUndoKeeperEdits?: () => void;
@@ -100,7 +102,7 @@ interface Props {
 export function PhotoEditor({ autoEdit, onOpenMacroPad,
   frame, provider, needsAccess, bindings, onEdit, initialTab, onTabChange, onApplyLook, onExport, exportCount = 1, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
-  panelSide, onPanelSideChange, showFilmstrip,
+  panelSide, onPanelSideChange, hand, onHandChange, showFilmstrip,
 }: Props) {
   const originalCanvas = useRef<HTMLCanvasElement>(null);
   const editedCanvas = useRef<HTMLCanvasElement>(null);
@@ -1371,7 +1373,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       {isPhone && tabList}
       </div>
       {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}
-      {appearanceOpen && <AppearanceDialog side={panelSide} onSideChange={onPanelSideChange} onClose={() => setAppearanceOpen(false)} onOpenMacroPad={onOpenMacroPad} />}
+      {appearanceOpen && <AppearanceDialog side={panelSide} onSideChange={onPanelSideChange} hand={hand} onHandChange={onHandChange} onClose={() => setAppearanceOpen(false)} onOpenMacroPad={onOpenMacroPad} />}
       {exportOpen && !onExport && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} onDownloadRequested={onExportRequested} />}
     </section>
   );

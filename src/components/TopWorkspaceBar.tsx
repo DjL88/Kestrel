@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Hand, ArchiveRestore, ArrowLeft, Download, Ellipsis, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Trash2, Undo2 } from 'lucide-react';
+import { ArchiveRestore, ArrowLeft, Download, Ellipsis, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Trash2, Undo2 } from 'lucide-react';
 import type { ProjectSettings } from '../core/projectSettings';
 import { AppearanceSettings } from './AppearanceSettings';
 import { isDesktopApp } from '../providers/desktopShell';
@@ -224,12 +224,6 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   <MenuItem icon={<Info className="h-4 w-4" aria-hidden="true" />} pressed={showPhotoInfo} onClick={() => choose(props.onTogglePhotoInfo)}>{showPhotoInfo ? 'Hide photo info' : 'Photo info'}</MenuItem>
                 </MenuSection>
 
-                {props.onHandChange && (
-                  <MenuSection id="menu-settings" title="Settings">
-                    <MenuItem icon={<Hand className="h-4 w-4" aria-hidden="true" />} pressed={props.hand !== 'left'} onClick={() => props.onHandChange!('right')}>Right-handed</MenuItem>
-                    <MenuItem icon={<Hand className="h-4 w-4 -scale-x-100" aria-hidden="true" />} pressed={props.hand === 'left'} onClick={() => props.onHandChange!('left')}>Left-handed</MenuItem>
-                  </MenuSection>
-                )}
 
                 <MenuSection id="menu-project" title={shoot.inbox ? 'Quick edits' : 'Project'}>
                   {!shoot.inbox && <MenuItem icon={<ScanSearch className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onAutoCull, false)}>{m.autoCull}</MenuItem>}
@@ -243,7 +237,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                 </MenuSection>
 
                 <details className="border-t border-white/10 pt-1" open>
-                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-zinc-200">Appearance & layout</summary>
+                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-zinc-200">Settings: appearance, layout & shortcuts</summary>
                   <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
                     <input type="checkbox" checked={props.showFilmstrip} onChange={props.onToggleFilmstrip} />
                     Pin filmstrip
@@ -252,7 +246,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                     <input type="checkbox" checked={props.focusMode} onChange={props.onToggleFocusMode} />
                     Focus mode
                   </label>
-                  <AppearanceSettings side={props.editPanelSide} onSideChange={props.onEditPanelSideChange} />
+                  <AppearanceSettings side={props.editPanelSide} onSideChange={props.onEditPanelSideChange} hand={props.hand} onHandChange={props.onHandChange} />
                   {isDesktopApp() && <button type="button" onClick={() => choose(props.onOpenMacroPadModal, false)}
                     className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-zinc-200 hover:bg-white/10">
                     <Keyboard className="h-4 w-4" aria-hidden="true" />Macro pad & keyboard shortcuts…
