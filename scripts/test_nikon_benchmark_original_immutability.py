@@ -1,6 +1,7 @@
 """Synthetic regression: Nikon benchmark never rewrites source or reference files."""
 
 import hashlib
+import struct
 import tempfile
 import unittest
 from pathlib import Path
@@ -89,7 +90,7 @@ class NikonBenchmarkReadOnlyTests(unittest.TestCase):
             corrupt = root / "truncated.tif"
             corrupt.write_bytes(b"II*\\x00")
             before = {path: digest(path) for path in (source, reference, corrupt)}
-            with self.assertRaises((ValueError, tifffile.TiffFileError, OSError)):
+            with self.assertRaises((ValueError, tifffile.TiffFileError, OSError, struct.error)):
                 compare(reference, corrupt, source_nef=source)
             self.assertEqual({path: digest(path) for path in before}, before)
 
