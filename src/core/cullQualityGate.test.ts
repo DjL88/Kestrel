@@ -83,3 +83,35 @@ test('benchmark count corruption cannot create a passing result', () => {
   const result = evaluateCullBenchmark(labels, good());
   assert.throws(() => evaluateCullQualityGate({ ...result, suggested: 101 }), /Invalid benchmark result counts/);
 });
+
+
+test('five-category coverage prevents an easy bird-only shoot from certifying all subjects', () => {
+  const birdOnly = labels.map((label) => ({ ...label, category: 'birds' as const }));
+  const result = evaluateCullQualityGate(evaluateCullBenchmark(birdOnly, good()));
+  assert.equal(result.status, 'insufficient-evidence');
+  assert.ok(result.reasons.some((reason) => reason.includes('aircraft')));
+  assert.ok(result.reasons.some((reason) => reason.includes('landscapes')));
+});
+
+test('one lost mammal favourite cannot be hidden by excellent overall recall', () => {
+  const predictions = good();
+  predictions[3] = suggestion(3, 'reject');
+  const result = check(predictions);
+  assert.equal(result.status, 'fail');
+  assert.ok(result.reasons.some((reason) => reason.includes('mammals') || reason.includes('rejected')));
+});
+
+test('category count corruption is rejected rather than certified', () => {
+  const result = evaluateCullBenchmark(labels, good());
+  assert.throws(() => evaluateCullQualityGate({
+    ...result,
+    byCategory: { ...result.byCategory, birds: { ...result.byCategory.birds, found: 999 } },
+  }), /Invalid benchmark category counts/);
+});
+
+test('category sample requirements must be valid positive integers', () => {
+  const result = evaluateCullBenchmark(labels, good());
+  assert.throws(() => evaluateCullQualityGate(result, {
+    ...DEFAULT_CULL_QUALITY_TARGETS, minPhotosPerCategory: 0,
+  }), /Invalid culling quality targets/);
+});

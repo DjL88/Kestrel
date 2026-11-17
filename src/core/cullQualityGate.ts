@@ -13,6 +13,10 @@ export interface CullQualityTargets {
   minAutoKeepPrecision: number;
   /** Minimum proportion of photos with valid, unique predictions. */
   minPredictionCoverage: number;
+  /** Minimum independently labelled frames per supported subject category. */
+  minPhotosPerCategory: number;
+  /** Minimum photographer favourites per supported subject category. */
+  minFavouritesPerCategory: number;
 }
 
 export const DEFAULT_CULL_QUALITY_TARGETS: Readonly<CullQualityTargets> = Object.freeze({
@@ -22,6 +26,8 @@ export const DEFAULT_CULL_QUALITY_TARGETS: Readonly<CullQualityTargets> = Object
   minRecall: 0.95,
   minAutoKeepPrecision: 0.8,
   minPredictionCoverage: 0.95,
+  minPhotosPerCategory: 5,
+  minFavouritesPerCategory: 1,
 });
 
 export type CullQualityStatus = 'pass' | 'fail' | 'insufficient-evidence';
@@ -45,10 +51,13 @@ export function evaluateCullQualityGate(
   const values = [
     targets.minFavourites, targets.minPhotos, targets.maxReviewFraction,
     targets.minRecall, targets.minAutoKeepPrecision, targets.minPredictionCoverage,
+    targets.minPhotosPerCategory, targets.minFavouritesPerCategory,
   ];
   if (!values.every(Number.isFinite) || targets.minFavourites < 1 || targets.minPhotos < 1 ||
     !Number.isInteger(targets.minFavourites) || !Number.isInteger(targets.minPhotos) ||
-    values.slice(2).some((value) => value < 0 || value > 1)) {
+    !Number.isInteger(targets.minPhotosPerCategory) || targets.minPhotosPerCategory < 1 ||
+    !Number.isInteger(targets.minFavouritesPerCategory) || targets.minFavouritesPerCategory < 1 ||
+    values.slice(2, 6).some((value) => value < 0 || value > 1)) {
     throw new Error('Invalid culling quality targets');
   }
   if (!Number.isSafeInteger(result.total) || result.total < 0 ||
@@ -68,9 +77,28 @@ export function evaluateCullQualityGate(
   if (result.autoKeepPrecision === null || !Number.isFinite(result.autoKeepPrecision)) {
     evidence.push('Automatic Keep precision unavailable');
   }
+  const categories = ['birds', 'aircraft', 'people', 'mammals', 'landscapes'] as const;
+  for (const category of categories) {
+    const bucket = result.byCategory?.[category];
+    if (!bucket || !Number.isSafeInteger(bucket.total) || !Number.isSafeInteger(bucket.favourites) ||
+      !Number.isSafeInteger(bucket.found) || bucket.total < 0 || bucket.favourites < 0 ||
+      bucket.favourites > bucket.total || bucket.found < 0 || bucket.found > bucket.favourites) {
+      throw new Error('Invalid benchmark category counts: ' + category);
+    }
+    if (bucket.total < targets.minPhotosPerCategory || bucket.favourites < targets.minFavouritesPerCategory) {
+      evidence.push('Insufficient independent labels for ' + category);
+    }
+  }
   if (evidence.length) return { status: 'insufficient-evidence', reasons: evidence, reviewFraction, predictionCoverage };
   const failures: string[] = [];
   if (result.recall! < targets.minRecall) failures.push('Favourite recall below target');
+  for (const category of categories) {
+    const bucket = result.byCategory[category];
+    if (bucket.recall === null || !Number.isFinite(bucket.recall) ||
+      bucket.recall < targets.minRecall || bucket.found !== bucket.favourites) {
+      failures.push('Favourite recall below target or unsafe rejection in ' + category);
+    }
+  }
   if (result.autoKeepPrecision! < targets.minAutoKeepPrecision) failures.push('Automatic Keep precision below target');
   if (reviewFraction! > targets.maxReviewFraction) failures.push('Review workload above target');
   if (predictionCoverage! < targets.minPredictionCoverage) failures.push('Valid prediction coverage below target');
