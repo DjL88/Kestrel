@@ -9,6 +9,7 @@ from pathlib import Path
 
 import numpy as np
 from compare_nikon_tiffs import read_rgb16, sha256_file
+from detail_structure_metrics import compare_detail_structure
 
 
 def parse_region(spec):
@@ -64,6 +65,7 @@ def benchmark(reference_path, candidate_path, regions):
             "name": name, "bounds": [x, y, w, h],
             "reference": region_metrics(ref),
             "candidate": region_metrics(cand),
+            "detail_structure": compare_detail_structure(ref, cand),
             "mean_absolute_rgb_difference": float(delta.mean() / 65535.0),
         })
     return report
