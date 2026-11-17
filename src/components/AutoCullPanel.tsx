@@ -43,6 +43,7 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
   const [total, setTotal] = useState(0);
   const [failed, setFailed] = useState(false);
   const [stopped, setStopped] = useState(false);
+  const [detectorFailed, setDetectorFailed] = useState(false);
 
   useEffect(() => {
     const previous = focusBeforeOpening();
@@ -85,9 +86,11 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
     setProgress(0);
     setFailed(false);
     setStopped(false);
+    setDetectorFailed(false);
     try {
       const next = await scanForCulling(candidates, frames, provider, keeperTarget, controller.signal,
-        (count) => { if (!controller.signal.aborted) setProgress(count); task.progress(count); });
+        (count) => { if (!controller.signal.aborted) setProgress(count); task.progress(count); },
+        () => { if (!controller.signal.aborted) setDetectorFailed(true); });
       if (controller.signal.aborted) return;
       task.finish();
       setResults(next);
@@ -115,10 +118,12 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
         <button type="button" className={button} aria-label={m.closeAutoCull} title={m.closeAutoCull} onClick={onClose}><X className="h-5 w-5" aria-hidden="true" /></button>
       </header>
       <p className="text-sm text-zinc-300">{m.description}</p>
-      {!subjectDetectorAvailable && (
+      {(!subjectDetectorAvailable || detectorFailed) && (
         <p role="status" className="mt-2 rounded-md border border-white/12 p-2 text-xs text-zinc-300">
-          This preview has no subject-detection model. You can still review photos and find exact duplicates;
-          Kestrel will not automatically choose keepers from texture alone. Full desktop builds include the verified model.
+          {detectorFailed
+            ? 'Subject detection could not run on this device. Your scan continues without it; Kestrel will not automatically choose keepers from texture alone.'
+            : 'This preview has no subject-detection model. You can still review photos and find exact duplicates; Kestrel will not automatically choose keepers from texture alone.'}
+          {' '}You can still choose your own keepers. Your originals are unchanged.
         </p>
       )}
       {!results && <div className="mt-3 space-y-2">
