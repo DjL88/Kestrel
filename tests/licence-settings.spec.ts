@@ -13,7 +13,7 @@ const open = async (page: Page) => {
 test('a wrong licence key is refused with a plain message, and Escape closes the dialog', async ({ page }) => {
   const dialog = await open(page);
   await dialog.getByRole('textbox', { name: 'Licence key' }).fill('not a key');
-  await dialog.getByRole('button', { name: 'Unlock Kestrel Paid' }).click();
+  await dialog.getByRole('button', { name: 'Unlock Kestrel Pro' }).click();
   await expect(dialog.getByRole('alert')).toContainText('does not look like a Kestrel licence key');
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
@@ -26,12 +26,12 @@ test('a genuine licence key unlocks Paid, is remembered and can be removed', asy
   const key = execFileSync('node', ['tools/licence/issue.mjs'], { encoding: 'utf8' }).trim();
   let dialog = await open(page);
   await dialog.getByRole('textbox', { name: 'Licence key' }).fill(key);
-  await dialog.getByRole('button', { name: 'Unlock Kestrel Paid' }).click();
-  await expect(dialog.getByRole('status').first()).toContainText('Kestrel Paid is unlocked');
+  await dialog.getByRole('button', { name: 'Unlock Kestrel Pro' }).click();
+  await expect(dialog.getByRole('status').first()).toContainText('Kestrel Pro is unlocked');
   await page.reload();
   await page.getByRole('button', { name: 'Licence and settings' }).click();
   dialog = page.getByRole('dialog', { name: 'Licence and settings' });
-  await expect(dialog.getByRole('status').first()).toContainText('Kestrel Paid is unlocked');
+  await expect(dialog.getByRole('status').first()).toContainText('Kestrel Pro is unlocked');
   await dialog.getByRole('button', { name: 'Remove the key from this device' }).click();
   await expect(dialog.getByRole('textbox', { name: 'Licence key' })).toBeVisible();
 });
