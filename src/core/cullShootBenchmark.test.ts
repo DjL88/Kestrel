@@ -65,3 +65,36 @@ test('shoot labels reject contradictory favourite/unusable ground truth', () => 
     /Contradictory photographer labels/,
   );
 });
+
+
+test('epoch-zero removed photos are excluded from independent shoot recall and coverage', () => {
+  const active = frames[0];
+  const removed = { ...frames[1], removedAt: 0, decision: 'reject' as const };
+  const original = { ...frames[0] };
+  const report = benchmarkShoot(
+    [active, removed],
+    [{ stableKey: active.stableKey, category: 'birds', favourite: true }],
+    [suggestion(active.id, 'keep')],
+  );
+  assert.equal(report.result.total, 1, 'removed frame is not a benchmark denominator');
+  assert.equal(report.result.favourites, 1);
+  assert.equal(report.result.recall, 1);
+  assert.equal(report.predictionCoverage, 1);
+  assert.deepEqual(report.missedFavouriteKeys, []);
+  assert.deepEqual(frames[0], original, 'benchmark never mutates original catalogue entries');
+  assert.equal(removed.removedAt, 0);
+});
+
+test('an epoch-zero removed photo cannot require a label or introduce a false miss', () => {
+  const removed = { ...frames[0], removedAt: 0 };
+  const active = frames[1];
+  const report = benchmarkShoot(
+    [removed, active],
+    [{ stableKey: active.stableKey, category: 'aircraft', favourite: false }],
+    [suggestion(active.id, null)],
+  );
+  assert.equal(report.result.total, 1);
+  assert.equal(report.result.favourites, 0);
+  assert.equal(report.predictionCoverage, 1);
+  assert.deepEqual(report.missedFavouriteKeys, []);
+});
