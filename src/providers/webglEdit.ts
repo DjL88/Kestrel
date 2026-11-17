@@ -12,7 +12,7 @@ void main() {
 const FRAGMENT = `#version 300 es
 precision highp float;
 uniform sampler2D src;
-uniform float gain, warmth, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance;
+uniform float gain, brightness, warmth, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance;
 in vec2 uv;
 out vec4 outColour;
 
@@ -33,6 +33,13 @@ void main() {
     float perceived = toEncoded(vec3(luma(c))).r;
     float f = max(0.0, 1.0 + shadows * (1.0 - smoothstep(0.0, 0.6, perceived)) + highlights * smoothstep(0.4, 1.0, perceived));
     c *= f;
+  }
+  // Match the CPU midtone curve. Endpoints are fixed, so pure white/black are not lifted.
+  float midtone = luma(c);
+  if (brightness != 0.0 && midtone > 0.0 && midtone < 1.0) {
+    float perceived = toEncoded(vec3(midtone)).r;
+    float adjusted = perceived + 4.0 * brightness * perceived * (1.0 - perceived);
+    c *= toLinear(vec3(adjusted)).r / midtone;
   }
   float y = luma(c);
   bool monochrome = colour <= -1.0;
@@ -147,7 +154,7 @@ export function renderEditOnGpu(target: HTMLCanvasElement, edit: PhotoEdit, imag
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, target);
     const params = editParams(edit);
     for (const [name, value] of Object.entries({
-      gain: params.gain, warmth: params.warmth, colour: params.colour, contrast: params.contrast,
+      gain: params.gain, brightness: params.brightness, warmth: params.warmth, colour: params.colour, contrast: params.contrast,
       highlights: params.highlights, shadows: params.shadows, blackPoint: params.blackPoint,
       whitePoint: params.whitePoint, vibrance: params.vibrance,
     })) gl.uniform1f(gl.getUniformLocation(program, name), value);
