@@ -13,7 +13,20 @@ use rawler::rawsource::RawSource;
 
 type Rgb16 = ImageBuffer<Rgb<u16>, Vec<u16>>;
 
-const MAX_PIXELS: u64 = 200_000_000;
+// Conservative prototype ceiling: a Z8 frame fits, while oversized frames
+// cannot multiply into multi-gigabyte RGB16/orientation/encoder allocations.
+const MAX_PIXELS: u64 = 50_000_000;
+
+fn checked_rgb16_bytes(width: u32, height: u32) -> Result<usize, String> {
+    let pixels = u64::from(width) * u64::from(height);
+    if pixels == 0 || pixels > MAX_PIXELS {
+        return Err("Invalid or excessive RAW image dimensions.".into());
+    }
+    let bytes = pixels.checked_mul(6)
+        .ok_or_else(|| "RAW image dimensions overflow.".to_string())?;
+    usize::try_from(bytes).map_err(|_| "RAW image too large for this computer.".to_string())
+}
+
 
 /// Only accept an intermediate that really stores 16-bit channel values.
 /// This guard is essential: `to_rgb16()` also accepts 8-bit inputs, but
@@ -46,17 +59,10 @@ fn orient_rgb16(image: Rgb16, exif_orientation: u16) -> Rgb16 {
 /// the matched-profile Nikon reference QA comparison or commercial export.
 fn encode_rgb16_tiff(rgb: &Rgb16) -> Result<Vec<u8>, String> {
     let (width, height) = rgb.dimensions();
-    let pixels = u64::from(width) * u64::from(height);
-    if pixels == 0 || pixels > MAX_PIXELS {
-        return Err("Invalid or excessive RAW image dimensions.".into());
-    }
-    let sample_count = pixels.checked_mul(3)
-        .ok_or_else(|| "RAW image dimensions overflow.".to_string())?;
-    let expected_bytes = sample_count.checked_mul(2)
-        .ok_or_else(|| "RAW image dimensions overflow.".to_string())?;
-    let expected_bytes = usize::try_from(expected_bytes)
-        .map_err(|_| "RAW image too large for this computer.".to_string())?;
-    let mut data = Vec::with_capacity(expected_bytes);
+    let expected_bytes = checked_rgb16_bytes(width, height)?;
+    let mut data = Vec::new();
+    data.try_reserve_exact(expected_bytes)
+        .map_err(|_| "Insufficient memory for the high-bit-depth TIFF.".to_string())?;
     for pixel in rgb.as_raw() {
         data.extend_from_slice(&pixel.to_ne_bytes());
     }
@@ -114,6 +120,14 @@ mod tests {
         assert_eq!(portrait.get_pixel(0, 0)[0], 1003);
         assert_eq!(portrait.get_pixel(1, 2)[0], 1002);
         assert_eq!(portrait.get_pixel(0, 0)[1], 32769);
+    }
+
+    #[test]
+    fn z8_dimensions_fit_but_oversized_frames_fail_before_allocation() {
+        assert_eq!(checked_rgb16_bytes(8256, 5504).unwrap(), 272646144);
+        assert!(checked_rgb16_bytes(10_000, 10_000).is_err());
+        assert!(checked_rgb16_bytes(u32::MAX, u32::MAX).is_err());
+        assert!(checked_rgb16_bytes(0, 1).is_err());
     }
 
     #[test]
