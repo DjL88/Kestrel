@@ -16,6 +16,7 @@ export function restoreNoSubjectFallback(
     if (!base) return result;
     return {
       ...base,
+      decision: null,
       confidence: base.confidence === 'high' ? 'medium' : base.confidence,
       score: Math.min(79, base.score),
     };
