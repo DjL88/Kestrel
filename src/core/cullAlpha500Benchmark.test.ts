@@ -28,7 +28,7 @@ test('500-photo mixed-detector benchmark never hides coverage gaps or modifies o
   const suggestions = active.slice(0, 400).map((frame, index) =>
     prediction(frame.id, index === 0 ? 'reject' : null));
   suggestions.push(prediction(active[1].id, 'reject')); // duplicate must be treated as unknown
-  suggestions.push({ ...prediction(active[2].id, 'reject'), score: Number.NaN }); // invalid
+  suggestions[2] = { ...prediction(active[2].id, 'reject'), score: Number.NaN }; // invalid
   const report = benchmarkShoot(frames, labels, suggestions);
   assert.equal(report.result.total, 499);
   assert.equal(report.result.favourites, 50);
