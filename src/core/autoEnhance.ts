@@ -77,8 +77,15 @@ export function autoEnhance(pixels: Uint8ClampedArray): AutoResult {
   const median = at(0.5);
   const medianTone = toPerceptual(median);
   const p99 = at(0.99);
+  // Low-key: most of the frame is very dark but a clearly lit area stands out (a bird against a dark wood, a moon, a stage).
+  // The darkness is the mood, so brightening the whole scene would work against the photo. A merely underexposed photo has
+  // no lit area, so it is still lifted.
+  const accent = toPerceptual(at(0.99));
+  const lowKey = toPerceptual(at(0.7)) < 0.12 && accent > 0.25 && accent - medianTone > 0.2; // Measured on a kingfisher: 70% below 0.05, lit bird about 0.31.
   let gain = 1;
-  if (medianTone < 0.38) {
+  if (lowKey) {
+    notes.push('This looks intentionally dark: a lit subject against a dark scene. Exposure and shadows are left alone to keep the mood.');
+  } else if (medianTone < 0.38) {
     gain = clamp((0.42 ** 2.2) / Math.max(median, 0.002), 1, 2.2);
     if (p99 * gain > 1) gain = Math.max(1, 1 / Math.max(p99, 0.01));
   } else if (toPerceptual(p99) > 0.985 && medianTone > 0.6) {
@@ -93,7 +100,7 @@ export function autoEnhance(pixels: Uint8ClampedArray): AutoResult {
   const after = (y: number) => toPerceptual(Math.min(1, y * 2 ** (result.exposure * 0.4)));
   const lowTone = after(at(0.05));
   const highTone = after(at(0.98));
-  if (lowTone < 0.12) {
+  if (!lowKey && lowTone < 0.12) {
     result.shadows = clamp(round(((0.12 - lowTone) / 0.12) * 1.5), 0, 1.5);
     if (result.shadows >= 0.1) notes.push('Dark areas are heavy, so shadows are lifted.');
   }
@@ -105,7 +112,7 @@ export function autoEnhance(pixels: Uint8ClampedArray): AutoResult {
   const spread = after(at(0.95)) - lowTone;
   const flat = clamp(round(((0.4 - spread) / 0.4) * 0.6), 0, 0.6);
   // A featureless frame (a plain sky) has nothing for contrast to work on.
-  if (flat >= 0.15 && spread >= 0.08) {
+  if (!lowKey && flat >= 0.15 && spread >= 0.08) {
     result.contrast = flat;
     notes.push('Tones are bunched together, so contrast goes up a little.');
   }

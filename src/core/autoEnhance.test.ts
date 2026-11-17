@@ -74,3 +74,18 @@ test('malformed suggestion values never overwrite a valid edit', () => {
   const suggestion = { exposure: Number.NaN, warmth: Number.POSITIVE_INFINITY, shadows: 0, highlights: 0, contrast: 0, vibrance: 0 };
   assert.deepEqual(mergeAutoSuggestion(current, suggestion), { edit: current, changed: false });
 });
+
+test('an intentionally dark photo (a lit subject on a dark scene) keeps its mood', () => {
+  // About 90% near-black background with a small, clearly lit subject.
+  const lowKey = autoEnhance(image((x, y) => (x > 24 && y > 24 ? [200, 140, 90] : [6, 8, 7])));
+  assert.equal(lowKey.edit.exposure, 0);
+  assert.equal(lowKey.edit.shadows, 0);
+  assert.equal(lowKey.edit.contrast, 0);
+  assert.ok(lowKey.notes.some((note) => /intentionally dark/.test(note)));
+});
+
+test('a dark photo with no lit area is still treated as underexposed', () => {
+  const under = autoEnhance(image((x) => [8 + x / 2, 8 + x / 2, 8 + x / 2]));
+  assert.ok(under.edit.exposure > 0);
+  assert.ok(!under.notes.some((note) => /intentionally dark/.test(note)));
+});

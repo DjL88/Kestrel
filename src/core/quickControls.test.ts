@@ -25,8 +25,9 @@ test('nudging steps cleanly, stays in range and avoids floating point drift', ()
   let value = 0;
   for (let i = 0; i < 10; i += 1) value = nudge(light, value, 1);
   assert.equal(value, 1, 'ten steps of 0.1 is exactly 1');
-  assert.equal(nudge(light, 2, 1), 2);
-  assert.equal(nudge(light, -2, -1), -2);
+  assert.equal(nudge(light, 12.5, 1), 12.5, 'Exposure reaches +5 EV');
+  assert.equal(nudge(light, -12.5, -1), -12.5);
+  assert.equal(nudge(light, 2, 1), 2.1, 'and is no longer stopped at the old limit of 2');
   assert.equal(nudge(controlFor('sharpen'), 0, -1), 0);
   assert.equal(nudge(controlFor('contrast'), 0, -1), -0.05);
 });

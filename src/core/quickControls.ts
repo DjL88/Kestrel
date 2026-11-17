@@ -12,7 +12,7 @@ export interface QuickControl {
 
 /** Every adjustment, in the order a person usually reaches for them: light and colour first, then tone, then detail. */
 export const QUICK_CONTROLS: readonly QuickControl[] = [
-  ...EDIT_CHOICES.map(({ key, label }) => ({ key, label, min: -2, max: 2, step: 0.1 })),
+  ...EDIT_CHOICES.map(({ key, label }) => ({ key, label, min: key === 'exposure' ? -12.5 : -2, max: key === 'exposure' ? 12.5 : 2, step: 0.1 })),
   ...TONE_CONTROLS.map(({ key, label }) => ({ key, label, min: -2, max: 2, step: 0.05 })),
   ...DETAIL_CONTROLS.map(({ key, label }) => ({ key, label, min: key === 'sharpen' ? 0 : -2, max: 2, step: 0.05 })),
 ];

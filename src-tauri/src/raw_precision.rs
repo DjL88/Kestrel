@@ -165,4 +165,32 @@ mod tests {
         let message = crate::raw::explain("Failed to decode image, possibly corrupt image: NEF compression Some(HighEfficencyStar) is not supported");
         assert!(message.contains("High Efficiency") && !message.contains("Some("), "{message}");
     }
+
+    #[test]
+    fn all_exif_orientations_preserve_rgb16_samples_and_dimensions() {
+        // Asymmetric fixture catches swapped axes, mirrored coordinates and
+        // accidental 8-bit quantisation without relying on camera files.
+        let original = ImageBuffer::from_fn(3, 2, |x, y| {
+            Rgb([1001 + (y * 3 + x) as u16, 32769, 65535])
+        });
+        for orientation in 1..=8 {
+            let oriented = orient_rgb16(original.clone(), orientation);
+            let expected_dimensions = if (5..=8).contains(&orientation) {
+                (2, 3)
+            } else {
+                (3, 2)
+            };
+            assert_eq!(oriented.dimensions(), expected_dimensions, "orientation {orientation}");
+            let mut actual: Vec<_> = oriented.pixels().map(|p| p.0).collect();
+            let mut expected: Vec<_> = original.pixels().map(|p| p.0).collect();
+            actual.sort_unstable();
+            expected.sort_unstable();
+            assert_eq!(actual, expected, "orientation {orientation} altered sample values");
+            let encoded = encode_rgb16_tiff(&oriented).expect("TIFF encode");
+            let decoded = image::load_from_memory_with_format(&encoded, image::ImageFormat::Tiff)
+                .expect("TIFF decode");
+            assert_eq!(decoded.as_rgb16().expect("RGB16"), &oriented, "orientation {orientation}");
+        }
+    }
+
 }

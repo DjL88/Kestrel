@@ -2,7 +2,7 @@ import { newId } from '../core/ids';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
-import { ChevronDown, Columns2, Maximize, Minimize, Crop, Download, History, Lightbulb, Redo2, Settings2, SlidersHorizontal, SquircleDashed, Undo2 } from 'lucide-react';
+import { ChevronDown, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, Settings2, SlidersHorizontal, Square, SquircleDashed, Undo2, Wand2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
@@ -24,6 +24,7 @@ import { createSubjectMask, framingKey } from '../core/maskTypes';
 import { detectSubject } from '../providers/subjectDetector';
 import { PresetPanel } from './PresetPanel';
 import { autoEnhance, mergeAutoSuggestion } from '../core/autoEnhance';
+import { proposeSubjectAwareAuto, type InsightSubjectKind } from '../core/insightSubjectAuto';
 import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
 import { PhotoViewport } from './PhotoViewport';
 import { maxZoomFor, percentFor, stepZoom, zoomForPercent } from '../core/zoomControls';
@@ -41,7 +42,7 @@ const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
 import { isRawPreviewFile } from '../core/rawFormats';
 import { tasks } from '../core/taskStore';
-import { canDevelopRaw, developRaw, developRawPrecision, matchPreviewOrientation } from '../providers/rawDevelop';
+import { canDevelopRaw, developRaw, matchPreviewOrientation } from '../providers/rawDevelop';
 import { extractRawPreview } from '../core/nefPreview';
 import { PaidNotice } from './PaidNotice';
 import { useAccess } from '../providers/useAccess';
@@ -113,8 +114,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [developedRev, setDevelopedRev] = useState(0);
   const [developing, setDeveloping] = useState(false);
   const [developNote, setDevelopNote] = useState<string | null>(null);
-  const [precisionBusy, setPrecisionBusy] = useState(false);
-  const [precisionNote, setPrecisionNote] = useState<string | null>(null);
   const [compare, setCompare] = useState(false);
   const [beforeStage, setBeforeStage] = useState<ComparisonStage>('original');
   const [dial, setDial] = useState(0);
@@ -124,7 +123,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const cornerDrag = useRef<{ corner: CropCorner; x: number; y: number; point: { x: number; y: number } } | null>(null);
   const [autoNotes, setAutoNotes] = useState<string[]>([]);
   // Auto is a reversible visual preview; never save a suggested edit before an explicit Apply.
-  const [pendingAuto, setPendingAuto] = useState<{ base: PhotoEdit; edit: PhotoEdit } | null>(null);
+  const [pendingAuto, setPendingAuto] = useState<{ base: PhotoEdit; edit: PhotoEdit; cropKey: string; source: HTMLImageElement } | null>(null);
+  const [autoAnalysing, setAutoAnalysing] = useState(false);
+  // Invalidates slow ONNX results when a proposal is replaced, a tab changes or this editor unmounts.
+  const autoRun = useRef(0);
+  const subjectCache = useRef<{ source: HTMLImageElement; cropKey: string; result: Awaited<ReturnType<typeof detectSubject>> } | null>(null);
+  useEffect(() => () => { autoRun.current += 1; }, []);
   // Once asked for, the opinion stays up to date as the edit changes, until it is hidden.
   const [opinions, setOpinions] = useState<Opinion[] | null>(null);
   const [selectedMaskId, setSelectedMaskId] = useState<string | null>(null);
@@ -135,6 +139,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [selectingArea, setSelectingArea] = useState(false);
   const [paintOn, setPaintOn] = useState(false);
   const [showMaskOverlay, setShowMaskOverlay] = useState(true);
+  // The mask tint hides the real change, so it steps aside while a slider is being moved.
+  const [sliderBusy, setSliderBusy] = useState(false);
+  const sliderTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(sliderTimer.current), []);
   const [dialUsed, setDialUsed] = useState(false);
   // On a phone the Edit tab opens as one big slider within thumb reach. The full list is one tap away.
   const [allControls, setAllControls] = useState(false);
@@ -296,26 +304,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     } finally { setDeveloping(false); }
   }
 
-  /**
-   * Experimental, separate from the editor: decode the RAW file straight to a 16-bit TIFF and download it, without the
-   * 8-bit JPEG intermediate the editor itself still uses. No colour profile yet, and Nikon HE/HE* files are not covered.
-   * Does not change what the editor is showing or what Export produces.
-   */
-  async function saveRawPrecisionTiff() {
-    setPrecisionBusy(true); setPrecisionNote(null);
-    const task = tasks.start(`Decoding ${frame.filename} to 16-bit TIFF`);
-    try {
-      const original = await provider.ensureOriginal(frame.stableKey);
-      if (!original) { setPrecisionNote('Reconnect the original file first.'); task.fail('Original unavailable'); return; }
-      const tiff = await developRawPrecision(original);
-      downloadExport(tiff, frame.filename.replace(/\.[a-z0-9]+$/i, '') + '-16bit.tiff');
-      task.finish();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'A 16-bit TIFF could not be produced for this RAW file.';
-      setPrecisionNote(message);
-      task.fail(message);
-    } finally { setPrecisionBusy(false); }
-  }
 
   useEffect(() => {
     const node = stage.current;
@@ -478,6 +466,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   useEffect(() => {
     setPreviewCrop(false);
     setTransform(FIT_VIEW);
+    autoRun.current += 1;
+    setAutoAnalysing(false);
     setPreviewRecipe(null);
     setPendingAuto(null);
     setOpinions(null);
@@ -506,42 +496,118 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source]);
 
-  /** Evaluate the current photograph without committing edits. Preview uses the real rendering path. */
-  function previewAutoSuggestion() {
-    const sample = sampleOrientedSource(256);
-    if (!sample) {
-      setAutoNotes(['Could not analyse this photo. Your edits have not changed.']);
-      setPendingAuto(null);
-      setPreviewRecipe(null);
-      return;
-    }
+  /** A quick, conservative category hint. Segmentation still determines the mask, not the filename or tag. */
+  function autoSubjectKind(): InsightSubjectKind {
+    if (frame.subjectKind === 'landscape') return 'landscape';
+    if (frame.subjectKind === 'wildlife' || frame.subjectKind === 'people') return frame.subjectKind;
+    const labels = [...(frame.tags ?? []), ...(frame.subjectNames ?? [])].join(' ').toLowerCase();
+    if (/\b(bird|mammal|wildlife|animal|insect)\b/.test(labels)) return 'wildlife';
+    if (/\b(portrait|person|people|face)\b/.test(labels)) return 'people';
+    if (/\b(aircraft|airplane|aeroplane|plane|helicopter|jet)\b/.test(labels)) return 'aircraft';
+    return 'other';
+  }
+
+  /** Preview an offline global recipe; enrich it with a trustworthy subject mask when one exists. */
+  async function previewAutoSuggestion() {
+    const run = ++autoRun.current;
+    const startedFor = detectionContext.current;
+    const originalSource = source;
+    setAutoAnalysing(true);
+    setPendingAuto(null);
+    setPreviewRecipe(null);
+    setOpinions(null);
+    setAutoNotes(['Analysing your photograph on this device…']);
+    const stillCurrent = () => run === autoRun.current && detectionContext.current === startedFor &&
+      sourceImage.current === originalSource && Boolean(originalSource);
     try {
+      const sample = sampleOrientedSource(256);
+      if (!sample || !originalSource || !outputSize || !startedFor) {
+        if (run === autoRun.current) setAutoNotes(['Could not analyse this photo. Your edits have not changed.']);
+        return;
+      }
       const { edit: suggestion, notes } = autoEnhance(sample.data);
       if (notes.includes('Too small to analyse.')) {
-        setAutoNotes(['This preview is too small to analyse. Your edits have not changed.']);
-        setPendingAuto(null);
-        setPreviewRecipe(null);
+        if (stillCurrent()) setAutoNotes(['This preview is too small to analyse. Your edits have not changed.']);
         return;
       }
       const result = mergeAutoSuggestion(savedEdit, suggestion);
-      setAutoNotes([result.changed
-        ? 'Previewing a suggested look. Nothing has been saved.'
-        : 'No new adjustments suggested. Your existing edits are unchanged.', ...notes]);
-      setPendingAuto(result.changed ? { base: savedEdit, edit: result.edit } : null);
-      setPreviewRecipe(result.changed ? { edit: result.edit, framing: frame.framing } : null);
-      setOpinions(null);
+      let proposal = result.edit;
+      let subjectNote = '';
+      let usedMask = false;
+      const category = autoSubjectKind();
+
+      if (category !== 'landscape') {
+        try {
+          // Analyse exactly the unedited cropped image, not the adjusted or downscaled editor canvas.
+          const detectionCanvas = document.createElement('canvas');
+          drawFramedPhoto(originalSource, detectionCanvas, frame.framing ?? DEFAULT_FRAMING, {
+            scale: Math.min(1, 640 / Math.max(outputSize.width, outputSize.height)),
+          });
+          const context = detectionCanvas.getContext('2d', { willReadFrequently: true });
+          if (context && detectionCanvas.width >= 8 && detectionCanvas.height >= 8) {
+            let detection = subjectCache.current?.source === originalSource && subjectCache.current?.cropKey === cropKey
+              ? subjectCache.current.result : null;
+            if (!detection) {
+              // Slow/broken inference must not hold the editing workflow hostage.
+              let timeout: number | undefined;
+              try {
+                detection = await Promise.race([
+                  detectSubject(detectionCanvas),
+                  new Promise<never>((_, reject) => {
+                    timeout = window.setTimeout(() => reject(new Error('Subject analysis timed out')), 8000);
+                  }),
+                ]);
+              } finally { if (timeout !== undefined) window.clearTimeout(timeout); }
+              if (stillCurrent()) subjectCache.current = { source: originalSource, cropKey, result: detection };
+            }
+            if (!stillCurrent()) return;
+            const { grid, assessment } = detection;
+            if (assessment.usable) {
+              const pixels = context.getImageData(0, 0, detectionCanvas.width, detectionCanvas.height);
+              const local = proposeSubjectAwareAuto({
+                pixels: pixels.data, width: pixels.width, height: pixels.height, edit: proposal,
+                subjectKind: category, segmentation: { grid, confidence: assessment.confidence },
+                maskId: newId(), framingKey: cropKey,
+              });
+              proposal = local.edit;
+              usedMask = local.usedMask;
+              subjectNote = local.usedMask ? local.reason : 'No safe local adjustment was needed. ' + local.reason;
+            } else {
+              subjectNote = 'Subject edges were uncertain, so only global adjustments were considered.';
+            }
+          }
+        } catch {
+          if (!stillCurrent()) return;
+          subjectNote = 'Subject detection was unavailable. Global suggestions still work offline.';
+        }
+      } else {
+        subjectNote = 'The atmosphere is preserved without adding an automatic subject mask.';
+      }
+      if (!stillCurrent()) return;
+      const changed = result.changed || usedMask;
+      setPendingAuto(changed ? { base: savedEdit, edit: proposal, cropKey, source: originalSource } : null);
+      setPreviewRecipe(changed ? { edit: proposal, framing: frame.framing } : null);
+      setAutoNotes([
+        changed
+          ? usedMask
+            ? 'Previewing a global recipe with a gentle subject adjustment. Nothing is saved until you apply it.'
+            : 'Previewing a suggested global recipe. Nothing is saved until you apply it.'
+          : 'Your photo already looks balanced. No new edit was suggested.',
+        ...notes,
+        subjectNote,
+      ].filter(Boolean));
     } catch {
-      setPendingAuto(null);
-      setPreviewRecipe(null);
-      setAutoNotes(['Auto could not analyse this photo. Your edits have not changed.']);
+      if (stillCurrent()) setAutoNotes(['Could not complete the suggestion. Your existing edits are unchanged.']);
+    } finally {
+      if (run === autoRun.current) setAutoAnalysing(false);
     }
   }
 
-  // Opt-in automatic assistance now previews its proposal instead of silently changing the photo.
+  // Opt-in project assistance suggests a look on first open; it never silently commits edits.
   useEffect(() => {
     if (!autoEdit || !source || frame.edit || frame.editHistory?.steps.length) return;
-    previewAutoSuggestion();
-    // Editor is remounted per photo; source availability is the only automatic trigger.
+    void previewAutoSuggestion();
+    // One first-open run; re-run if the source switches from an embedded preview to developed RAW.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source]);
 
@@ -844,7 +910,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             {!guide && position && frame.focusPoint && <span aria-hidden="true"
               className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_#000]"
               style={{ left: position.left + position.width * frame.focusPoint.x, top: position.top + position.height * frame.focusPoint.y }} />}
-            {tab === 'masks' && !guide && position && size && !displayCompare && showMaskOverlay && edit.masks?.find((mask) => mask.id === selectedMaskId) && (
+            {tab === 'masks' && !guide && position && size && showMaskOverlay && !sliderBusy && edit.masks?.find((mask) => mask.id === selectedMaskId) && (
               <MaskOverlay mask={edit.masks.find((mask) => mask.id === selectedMaskId)!} masks={edit.masks} aspect={size.height / size.width} rect={position}
                 brushRadius={brushRadius} paintOn={paintOn} erase={erase}
                 onChange={(next) => onEdit({ ...edit, masks: edit.masks!.map((mask) => mask.id === next.id ? next : mask) })} />
@@ -922,7 +988,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
       </div>
       <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
-      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 ${showFilmstrip ? 'workspace:-mb-[156px] workspace:pb-[172px] ' : ''}workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
+      <div ref={panelScroll} onInput={(event) => {
+        if (tab !== 'masks' || !(event.target instanceof HTMLInputElement) || event.target.type !== 'range') return;
+        setSliderBusy(true);
+        window.clearTimeout(sliderTimer.current);
+        sliderTimer.current = window.setTimeout(() => setSliderBusy(false), 700);
+      }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 ${showFilmstrip ? 'workspace:-mb-[156px] workspace:pb-[172px] ' : ''}workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
         {!isPhone && tabList}
         {tab === 'auto' && !can('autoTab') && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto"><PaidNotice title="The Auto tab">Automatic colour and tone adjustments and local editing advice are here.</PaidNotice></div>
@@ -930,28 +1001,33 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         {tab === 'auto' && can('autoTab') && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
         <div className="space-y-2 px-1">
-          <button type="button" title="Preview an offline suggested recipe and check its quality before applying" disabled={sourceState !== 'ready'}
+          <button type="button" title="Preview an offline suggested recipe and check its quality before applying" disabled={sourceState !== 'ready' || autoAnalysing}
             className={`${button} inline-flex w-full items-center justify-center gap-2 border border-white/10 font-semibold`}
-            onClick={previewAutoSuggestion}>
-            <Lightbulb className="h-4 w-4 stroke-[1.75]" aria-hidden="true" />Suggest a look
+            onClick={() => void previewAutoSuggestion()}>
+            <Lightbulb className="h-4 w-4 stroke-[1.75]" aria-hidden="true" />{autoAnalysing ? 'Analysing…' : 'Suggest a look'}
           </button>
-          <p className="text-xs text-zinc-400">See Kestrel's suggestion and quality checks on your photo before deciding. Nothing changes until you apply it.</p>
+          <p className="text-xs text-zinc-400">Kestrel checks the whole picture and, where reliable, the subject separately. Preview before applying; your original stays untouched.</p>
           {pendingAuto && (
             <div role="group" aria-label="Suggested edit preview" className="space-y-2 rounded-lg border border-white/15 bg-white/5 p-3">
               <p role="status" className="text-sm text-zinc-100">Previewing your suggested edit</p>
               <div className="flex flex-wrap gap-2">
+                <button type="button" aria-pressed={displayCompare} className={`${button} border border-white/15 aria-pressed:bg-sky-300/15`}
+                  onClick={() => setCompare((current) => !current)}>{displayCompare ? 'Hide comparison' : 'Compare before / after'}</button>
                 <button type="button" className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
                   onClick={() => {
-                    if (savedEdit !== pendingAuto.base) {
-                      setAutoNotes(['Your edit changed while previewing. Run Suggest a look again.']);
+                    if (savedEdit !== pendingAuto.base || cropKey !== pendingAuto.cropKey || sourceImage.current !== pendingAuto.source) {
+                      setAutoNotes(['The photo changed while previewing. Run Suggest a look again.']);
                     } else {
                       onEdit(pendingAuto.edit);
                       setAutoNotes(['Suggested look applied. You can undo it from Edit history.']);
                     }
+                    autoRun.current += 1;
                     setPendingAuto(null);
                     setPreviewRecipe(null);
                   }}>Apply suggested edit</button>
                 <button type="button" className={`${button} border border-white/15`} onClick={() => {
+                  autoRun.current += 1;
+                  setAutoAnalysing(false);
                   setPendingAuto(null);
                   setPreviewRecipe(null);
                   setOpinions(null);
@@ -1018,7 +1094,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   <output className="tabular-nums text-zinc-400">{key === 'exposure' ? `${(edit[key] * 0.4).toFixed(2)} EV` :
                     key === 'colour' && edit.colour === -2 ? 'Monochrome' : `${Math.round(edit[key] * (key === 'warmth' ? 8 : 20))}%`}</output>
                 </span>
-                <input type="range" min={-2} max={2} step={0.1} value={edit[key]} aria-label={`${label} adjustment`}
+                <input type="range" min={key === 'exposure' ? -12.5 : -2} max={key === 'exposure' ? 12.5 : 2} step={0.1} value={edit[key]} aria-label={`${label} adjustment`}
                   onFocus={() => setDial(index)}
                   onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
                   onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
@@ -1095,25 +1171,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             {/* Always visible, not tucked behind the disclosure: when the automatic attempt fails the person needs
                 to see why without first hunting through RAW options. */}
             {developNote && <p role="status" className="px-1 text-xs text-amber-200">{developNote}</p>}
-            <details>
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
-                RAW options <ChevronDown className="h-4 w-4" aria-hidden="true" />
-              </summary>
-              <div className="space-y-1 pb-2">
-                {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
-                  <button type="button" className={`${button} w-full border border-white/10`} disabled={developing || sourceState !== 'ready'} onClick={() => void developFromRaw()}>
-                    {developing ? 'Developing…' : 'Develop from RAW'}
-                  </button>
-                )}
-                {canDevelopRaw() && (
-                  <button type="button" className={`${button} w-full border border-white/10`} disabled={precisionBusy} onClick={() => void saveRawPrecisionTiff()}>
-                    {precisionBusy ? 'Decoding…' : 'Save 16-bit TIFF (experimental)'}
-                  </button>
-                )}
-                {canDevelopRaw() && <p className="px-1 text-xs text-zinc-400">A separate, highest-quality file straight from the sensor, for anyone who wants it. No colour profile yet, can't read Nikon's High Efficiency compression, and doesn't change what you're editing or exporting.</p>}
-                {precisionNote && <p role="status" className="text-xs text-amber-200">{precisionNote}</p>}
-              </div>
-            </details>
+            {/* Only when the automatic attempt failed: one plain retry, nothing else to puzzle over. */}
+            {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && developNote && (
+              <button type="button" className={`${button} w-full border border-white/10`} disabled={developing || sourceState !== 'ready'} onClick={() => void developFromRaw()}>
+                {developing ? 'Developing…' : 'Develop from RAW'}
+              </button>
+            )}
           </div>
         )}
         <details className="border-t border-white/10">
@@ -1183,12 +1246,16 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             <p className="px-1 text-xs text-zinc-400">Drag the corners or the box on the photo. Changes are saved as you go. Apply returns to the editing view with the crop in place, and Cancel puts back the crop you started with.</p>
           <fieldset disabled={sourceState !== 'ready'} className="space-y-2">
             <div className="flex flex-wrap">
-              <button type="button" className={button} onClick={createCropCopy}>Auto crop copy</button>
-              <button type="button" className={button} onClick={() => onFramingChange({
+              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={createCropCopy}>
+                <Copy className="h-4 w-4" aria-hidden="true" />Auto crop copy</button>
+              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={() => onFramingChange({
                 ...framing, turns: (framing.turns + 1) % 4, x: 1 - framing.y, y: framing.x,
-              })}>Rotate 90°</button>
-              <button type="button" className={button} onClick={autoLevel}>Auto-level</button>
-              <button type="button" className={button} onClick={() => { onFramingChange(DEFAULT_FRAMING); setCropNotice(''); }}>Reset</button>
+              })}>
+                <RotateCw className="h-4 w-4" aria-hidden="true" />Rotate 90°</button>
+              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={autoLevel}>
+                <Wand2 className="h-4 w-4" aria-hidden="true" />Auto-level</button>
+              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={() => { onFramingChange(DEFAULT_FRAMING); setCropNotice(''); }}>
+                <RotateCcw className="h-4 w-4" aria-hidden="true" />Reset</button>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <button type="button" className={button} aria-pressed={previewCrop} onClick={() => {
@@ -1199,7 +1266,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             </div>
             {cropNotice && <p role="status" className="text-xs text-zinc-300">{cropNotice}</p>}
             <label className="flex min-h-11 items-center justify-between gap-2 text-sm">
-              Aspect ratio
+              <span className="inline-flex items-center gap-1.5">
+                {framing.ratio === null ? <Crop className="h-4 w-4 text-zinc-400" aria-hidden="true" />
+                  : framing.ratio === 1 ? <Square className="h-4 w-4 text-zinc-400" aria-hidden="true" />
+                  : framing.ratio > 1 ? <RectangleHorizontal className="h-4 w-4 text-zinc-400" aria-hidden="true" />
+                  : <RectangleVertical className="h-4 w-4 text-zinc-400" aria-hidden="true" />}
+                Aspect ratio
+              </span>
               <span className="relative inline-flex min-w-0 max-w-[60%] shrink-0 items-center">
                 <select aria-label="Crop aspect ratio" value={framing.ratio ?? ''} onChange={(event) => onFramingChange({ ...framing, ratio: Number(event.target.value) || null })}
                   className="min-h-11 w-full min-w-0 appearance-none truncate rounded-md border border-white/10 bg-[#252830] py-2 pl-3 pr-10 text-sm text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">

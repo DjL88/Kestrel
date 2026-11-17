@@ -39,7 +39,7 @@ const editKinds = new Set<EditKind>(['light', 'warmth', 'colour', 'adjustments',
 function recipeIsValid(value: unknown): boolean {
   if (!record(value)) return false;
   const edit = value.edit;
-  if (edit !== undefined && (!record(edit) || !number(edit.exposure, -2, 2) ||
+  if (edit !== undefined && (!record(edit) || !number(edit.exposure, -12.5, 12.5) ||
     !number(edit.warmth, -2, 2) || !number(edit.colour, -2, 2) ||
     ['contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen'].some((key) =>
       edit[key] !== undefined && !number(edit[key], -2, 2)) ||

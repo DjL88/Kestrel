@@ -95,12 +95,27 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
     await strip.getByRole('button', { name: 'Pin filmstrip' }).click();
     await expect.poll(panelFitsWindow).toBe(true);
   }
-  // The built-in quality checks answer for an unedited photo, and stay on the page.
+  // Suggest a look always says something and stays on the page, whether or not this particular photo needed
+  // a change. Quality checks are a follow-up to an actual suggested edit, so they only appear when one exists.
+  // Hold the local model fetch until another adjustment has been committed.
+  // Suggest a look also needs the model, so it must hold here too: it falls back to a global suggestion after its timeout.
+  await page.evaluate(() => {
+    const fetchModel = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      if (typeof input === 'string' && /u2netp.*\.onnx/.test(input)) {
+        await new Promise<void>((resolve) => window.addEventListener('test-resume-model', () => resolve(), { once: true }));
+      }
+      return fetchModel(input, init);
+    };
+  });
   await page.getByRole('tab', { name: 'Auto' }).click();
+  const autoPanel = page.getByRole('tabpanel', { name: 'Auto' });
   await page.getByRole('button', { name: 'Suggest a look' }).click();
-  // Quality checks run as a follow-up effect once the suggested edit is previewed; give it room on a loaded CI box.
-  await expect(page.getByRole('region', { name: 'Quality checks for this look' })).toBeVisible({ timeout: 10_000 });
-  await page.getByRole('button', { name: 'Hide opinion' }).click();
+  await expect(autoPanel.getByRole('status').first()).toBeVisible({ timeout: 25_000 });
+  const qualityChecks = autoPanel.getByRole('region', { name: 'Quality checks for this look' });
+  if (await qualityChecks.isVisible().catch(() => false)) {
+    await page.getByRole('button', { name: 'Hide opinion' }).click();
+  }
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');
@@ -111,16 +126,6 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await filmstrip.getByRole('button', { name: 'Paste', exact: true }).click();
   await expect(light).toHaveValue('0.1');
 
-  // Hold the local model fetch until another adjustment has been committed.
-  await page.evaluate(() => {
-    const fetchModel = window.fetch.bind(window);
-    window.fetch = async (input, init) => {
-      if (typeof input === 'string' && /u2netp.*\.onnx/.test(input)) {
-        await new Promise<void>((resolve) => window.addEventListener('test-resume-model', () => resolve(), { once: true }));
-      }
-      return fetchModel(input, init);
-    };
-  });
   await page.getByRole('tab', { name: 'Masks' }).click();
   // The tab bar must never cover the first line of a tab, however far the previous tab was scrolled.
   // On a phone the bar is at the bottom and the tools sit above it, otherwise the bar is at the top of the panel.

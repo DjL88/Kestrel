@@ -75,14 +75,11 @@ test('a RAW file develops to full quality automatically, no click required', asy
   await expect(page.getByText('Developed RAW files export from an 8-bit JPEG', { exact: false })).toBeVisible();
 });
 
-test('RAW options are tucked behind a disclosure, not sitting open in the panel by default', async ({ page }) => {
-  // 'fails' keeps the automatic attempt from quietly succeeding mid-test and removing the retry button.
+test('there is no RAW options menu or experimental TIFF button, and no retry until something has failed', async ({ page }) => {
   await asDesktop(page, 'fails');
   await openEdit(page);
-  await expect(page.getByRole('button', { name: 'Develop from RAW' })).toHaveCount(0);
+  await expect(page.getByText('RAW options', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Save 16-bit TIFF/ })).toHaveCount(0);
-  await page.getByText('RAW options', { exact: true }).click();
-  await expect(page.getByRole('button', { name: /Save 16-bit TIFF/ })).toBeVisible();
 });
 
 test('when a RAW cannot be developed automatically, the person is told and can retry by hand', async ({ page }) => {
@@ -91,7 +88,6 @@ test('when a RAW cannot be developed automatically, the person is told and can r
   await expect(page.getByRole('status').filter({ hasText: 'unsupported compression' })).toContainText('keeps using the preview stored in the file', { timeout: 20000 });
   await expect(page.getByText("You're editing the quick preview", { exact: false })).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { __developCalls: number }).__developCalls)).toBe(1);
-  await page.getByText('RAW options', { exact: true }).click();
   const retry = page.getByRole('button', { name: 'Develop from RAW' });
   await expect(retry).toBeEnabled();
   await retry.click();
@@ -101,7 +97,6 @@ test('when a RAW cannot be developed automatically, the person is told and can r
 test('outside the desktop app there is no Develop button, only the honest preview note', async ({ page }) => {
   await openEdit(page);
   await expect(page.getByText("You're editing the quick preview", { exact: false })).toBeVisible({ timeout: 20000 });
-  await page.getByText('RAW options', { exact: true }).click();
   await expect(page.getByRole('button', { name: 'Develop from RAW' })).toHaveCount(0);
 });
 

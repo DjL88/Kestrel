@@ -74,7 +74,7 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
   return (
     <div ref={view} tabIndex={showZoomButton ? undefined : 0} aria-label={showZoomButton ? undefined : 'Photo'}
       aria-description={!showZoomButton && zoom > 1 ? 'Use the arrow keys to move around the zoomed photo.' : undefined}
-      className={`relative min-h-0 flex-1 touch-none overflow-hidden bg-black ${showZoomButton ? '' : 'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky-300'}`}
+      className={`relative min-h-0 flex-1 touch-none select-none overflow-hidden bg-black ${showZoomButton ? '' : 'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky-300'}`}
       onKeyDown={showZoomButton ? undefined : panWithKeyboard}
       onPointerDown={(event) => {
         if (event.button !== 0 || pointers.current.size >= 2 ||
@@ -104,6 +104,7 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
           <div role="slider" tabIndex={0} aria-label="Comparison wipe" aria-valuemin={0} aria-valuemax={100}
             aria-valuenow={wipe} aria-valuetext={`${wipe}% ${labels?.[0] ?? 'left image'}`}
             onPointerDown={(event) => {
+              event.preventDefault(); // Stops the browser selecting (and blue-highlighting) the photo while the handle is dragged.
               event.stopPropagation();
               event.currentTarget.setPointerCapture(event.pointerId);
             }}
