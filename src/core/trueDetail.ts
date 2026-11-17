@@ -21,7 +21,7 @@ export type TrueDetailCapability = keyof typeof TRUEDETAIL.capabilities;
 export type TrueDetailStatus = 'planned' | 'research' | 'beta' | 'released';
 
 export function trueDetailReleased(capability: TrueDetailCapability): boolean {
-  return TRUEDETAIL.capabilities[capability].status === 'released';
+  return (TRUEDETAIL.capabilities[capability].status as TrueDetailStatus) === 'released';
 }
 
 /** A valid Paid licence is necessary but not sufficient to expose the action. */
