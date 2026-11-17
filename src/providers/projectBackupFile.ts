@@ -1,6 +1,7 @@
 import { encodeProjectBackup } from '../core/projectBackup';
 import type { CullingState } from '../core/types';
 import { downloadExport } from './browserExport';
+import { isDesktopApp, saveWithDialog } from './desktopShell';
 
 interface BackupFileHandle {
   createWritable(): Promise<{ write(data: Blob): Promise<void>; close(): Promise<void>; abort(): Promise<void> }>;
@@ -9,6 +10,10 @@ interface BackupFileHandle {
 export async function saveProjectBackupFile(state: CullingState): Promise<'saved' | 'downloaded' | 'cancelled'> {
   const filename = (state.shoot.title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim().slice(0, 100) || 'Kestrel') + '.kestrel.json';
   const data = new Blob([encodeProjectBackup(state)], { type: 'application/json' });
+  // A desktop backup is complete only when the chosen file has been written.
+  // Cancellation and write errors must reach the caller, especially before deleting a project.
+  if (isDesktopApp()) return await saveWithDialog(data, filename) ? 'saved' : 'cancelled';
+
   const picker = (window as Window & {
     showSaveFilePicker?: (options: { suggestedName: string; types: { description: string; accept: Record<string, string[]> }[] }) => Promise<BackupFileHandle>;
   }).showSaveFilePicker;
