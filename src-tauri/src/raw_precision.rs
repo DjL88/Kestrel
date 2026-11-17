@@ -167,6 +167,33 @@ mod tests {
     }
 
     #[test]
+    fn exif_orientations_match_independent_coordinate_reference() {
+        // The existing sample-multiset test cannot detect an incorrect rotation
+        // direction or a mirror applied on the wrong axis. These matrices are
+        // the expected EXIF 1..8 raster orders for an asymmetric 3x2 fixture.
+        let original = ImageBuffer::from_fn(3, 2, |x, y| {
+            Rgb([(1 + x + y * 3) as u16, 32769, 65535])
+        });
+        let cases: &[(u16, u32, u32, &[u16])] = &[
+            (1, 3, 2, &[1, 2, 3, 4, 5, 6]),
+            (2, 3, 2, &[3, 2, 1, 6, 5, 4]),
+            (3, 3, 2, &[6, 5, 4, 3, 2, 1]),
+            (4, 3, 2, &[4, 5, 6, 1, 2, 3]),
+            (5, 2, 3, &[1, 4, 2, 5, 3, 6]),
+            (6, 2, 3, &[4, 1, 5, 2, 6, 3]),
+            (7, 2, 3, &[6, 3, 5, 2, 4, 1]),
+            (8, 2, 3, &[3, 6, 2, 5, 1, 4]),
+        ];
+        for &(orientation, width, height, expected) in cases {
+            let result = orient_rgb16(original.clone(), orientation);
+            assert_eq!(result.dimensions(), (width, height), "EXIF {orientation}");
+            let actual: Vec<u16> = result.pixels().map(|pixel| pixel[0]).collect();
+            assert_eq!(actual, expected, "EXIF {orientation} coordinate mapping");
+            assert!(result.pixels().all(|pixel| pixel[1] == 32769 && pixel[2] == 65535));
+        }
+    }
+
+    #[test]
     fn all_exif_orientations_preserve_rgb16_samples_and_dimensions() {
         // Asymmetric fixture catches swapped axes, mirrored coordinates and
         // accidental 8-bit quantisation without relying on camera files.
