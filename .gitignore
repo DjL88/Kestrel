@@ -16,3 +16,4 @@ coverage/
 /src-tauri/target/
 /src-tauri/gen/schemas/
 raw-samples/
+tools/denoise-training/.venv/
