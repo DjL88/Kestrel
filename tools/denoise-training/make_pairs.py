@@ -63,11 +63,20 @@ def load_dump(meta_path: Path) -> tuple[np.ndarray, dict]:
     return pack_rggb(normalise(raw, black, white), meta["cfa"]), meta
 
 
-def has_content(crop: np.ndarray, minimum_mean: float = 0.03, minimum_detail: float = 0.004) -> bool:
-    """False for crops that are nearly black or featureless: they teach a network nothing about real detail."""
+def has_content(crop: np.ndarray, minimum_mean: float = 0.005, minimum_detail: float = 0.02, block: int = 4) -> bool:
+    """False for crops that are nearly black or featureless: they teach a network nothing about real detail.
+
+    Detail is measured on block-averaged luma, so the source frame's own pixel noise does not count as detail, and
+    relative to brightness, because linear sensor data is dark (a well-exposed bird is often 0.05-0.2). Measured on
+    real Nikon and Pixel frames: flat sky scores about 0.003, feathers and foliage 0.04 and up."""
     luma = crop.mean(axis=0)
-    detail = float(np.abs(np.diff(luma, axis=1)).mean())
-    return float(luma.mean()) >= minimum_mean and detail >= minimum_detail
+    mean = float(luma.mean())
+    if mean < minimum_mean:
+        return False
+    h, w = luma.shape[0] // block * block, luma.shape[1] // block * block
+    coarse = luma[:h, :w].reshape(h // block, block, w // block, block).mean(axis=(1, 3))
+    detail = (float(np.abs(np.diff(coarse, axis=0)).mean()) + float(np.abs(np.diff(coarse, axis=1)).mean())) / 2
+    return detail / mean >= minimum_detail
 
 
 def make_pairs(planes: np.ndarray, count: int, size: int, rng: np.random.Generator,

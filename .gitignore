@@ -17,3 +17,5 @@ coverage/
 /src-tauri/gen/schemas/
 raw-samples/
 tools/denoise-training/.venv/
+# Python virtual environment for tools/ (training, Lightroom reader)
+__pycache__/
