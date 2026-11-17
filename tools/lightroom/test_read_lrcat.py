@@ -78,6 +78,20 @@ class ReadCatalog(unittest.TestCase):
         self.assertNotIn("LocalExposure2012", got)  # inside a mask: not a whole-photo setting
         self.assertFalse(parse_settings("s = {\n}")["has_masks"])
 
+    def test_real_catalog_layout_with_no_indentation_is_read(self):
+        # As Lightroom Classic 14 writes it: no indentation, first key on the opening line, inline nested tables.
+        real = ('s = { AutoLateralCA = 1,\nBlacks2012 = -36,\nCameraProfile = "Adobe Standard",\nColorNoiseReduction = 25,\n'
+                'ConvertToGrayscale = true,\nExposure2012 = 3.33,\nLensBlur = {  },\nLuminanceSmoothing = 0,\n'
+                'MaskGroupBasedCorrections = {\n{\nLocalExposure2012 = 0.3,\nSharpness = 99,\n},\n},\n'
+                'Sharpness = 40,\nToneCurveName2012 = "Linear" }')
+        got = parse_settings(real)
+        self.assertEqual(got["Exposure2012"], 3.33)
+        self.assertEqual(got["Blacks2012"], -36.0)
+        self.assertEqual(got["ColorNoiseReduction"], 25.0)
+        self.assertEqual(got["Sharpness"], 40.0)  # not the 99 inside the mask
+        self.assertIs(got["ConvertToGrayscale"], True)
+        self.assertTrue(got["has_masks"])
+
     def test_photos_come_back_with_camera_iso_rating_and_path(self):
         connection = open_read_only(self.path)
         photos = list(read_photos(connection, hide_paths=False))

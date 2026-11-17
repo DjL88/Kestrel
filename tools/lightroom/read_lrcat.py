@@ -38,13 +38,34 @@ KEEP = {
     "CropTop", "CropLeft", "CropBottom", "CropRight", "CropAngle", "HasCrop",
     "Vignette", "PostCropVignetteAmount", "GrainAmount", "ConvertToGrayscale", "AutoLateralCA", "LensProfileEnable",
 }
-SCALAR = re.compile(r'^\s{1,4}([A-Za-z0-9_]+)\s*=\s*(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?|"[^"]*"|true|false)\s*,?\s*$', re.M)
+SCALAR = re.compile(r'([A-Za-z0-9_]+)\s*=\s*(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?|"[^"]*"|true|false)\s*(?:,|$)')
+
+
+def top_level_text(text: str) -> str:
+    """Only the characters directly inside the outer `s = { ... }`, so settings inside masks or curves never leak.
+    Real catalogs write keys with no indentation (and the first key on the `s = {` line), so depth is tracked by braces,
+    ignoring braces inside quoted strings."""
+    kept, depth, quoted = [], 0, False
+    for char in text:
+        if char == '"':
+            quoted = not quoted
+        elif not quoted and char == "{":
+            depth += 1
+            if depth > 1:
+                kept.append(" ")
+            continue
+        elif not quoted and char == "}":
+            depth -= 1
+            continue
+        if depth == 1:
+            kept.append(char)
+    return "".join(kept)
 
 
 def parse_settings(text: str) -> dict:
     """Pick the wanted top-level numbers, strings and flags out of Lightroom's develop-settings text."""
     found: dict = {}
-    for key, raw in SCALAR.findall(text or ""):
+    for key, raw in SCALAR.findall(top_level_text(text or "")):
         if key not in KEEP:
             continue
         found[key] = True if raw == "true" else False if raw == "false" else raw.strip('"') if raw.startswith('"') else float(raw)
