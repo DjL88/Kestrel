@@ -42,3 +42,30 @@ test('eye detection absence never forces reject, including aircraft and landscap
     assert.equal(recommendForReview([{ id: subject, subject, quality: 0.9, confidence: 0.8, eyeDetected: false }])[0].suggestion, 'keep');
   }
 });
+
+test('duplicate identities never receive automatic keeps, even across groups', () => {
+  const items: ReviewCandidate[] = [
+    { id: 'same', subject: 'bird', groupId: 'one', quality: 1, confidence: 1 },
+    { id: 'same', subject: 'bird', groupId: 'two', quality: 1, confidence: 1 },
+    { id: 'unique', subject: 'bird', groupId: 'one', quality: 0.8, confidence: 0.9 },
+  ];
+  assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['review', 'review', 'keep']);
+});
+
+test('unknown subject and malformed group identity fall back without throwing', () => {
+  const items: ReviewCandidate[] = [
+    { id: 'unknown', subject: 'unknown', quality: 1, confidence: 1 },
+    { id: 'bad-group', subject: 'bird', groupId: 12 as unknown as string, quality: 1, confidence: 1 },
+    { id: 'blank', subject: 'bird', quality: 1, confidence: 1 },
+  ];
+  items[2].id = ' ';
+  assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['review', 'review', 'review']);
+});
+
+test('subject and group keys cannot collide through colon separators', () => {
+  const items: ReviewCandidate[] = [
+    { id: 'one', subject: 'bird', groupId: 'a:b', quality: 0.8, confidence: 0.9 },
+    { id: 'two', subject: 'bird', groupId: 'a:b', quality: 0.9, confidence: 0.9 },
+  ];
+  assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['review', 'keep']);
+});
