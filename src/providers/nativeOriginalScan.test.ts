@@ -42,3 +42,25 @@ test('two unrelated catalogue keys cannot claim one scanned file', () => {
   assert.equal(result.matches.size, 0);
   assert.deepEqual(result.ambiguous, ['key-a', 'key-b']);
 });
+
+test('a copied or re-downloaded original with a new modified time still reconnects when name and size are unique', () => {
+  const expected = [{ stableKey: 'a', filename: 'DSC001.NEF', size: 100, lastModified: 10 }];
+  const result = matchScannedOriginals(expected, [{ path: 'D:/new/dsc001.nef', name: 'dsc001.nef', size: 100, lastModified: 99 }]);
+  assert.equal(result.matches.get('a'), 'D:/new/dsc001.nef');
+  assert.deepEqual(result.approximate, ['a']);
+});
+
+test('name and size alone never guess between two candidates, or two missing photos', () => {
+  const one = [{ stableKey: 'a', filename: 'IMG.NEF', size: 100, lastModified: 10 }];
+  const two = ['D:/x/IMG.NEF', 'D:/y/IMG.NEF'].map(path => ({ path, name: 'IMG.NEF', size: 100, lastModified: 99 }));
+  assert.equal(matchScannedOriginals(one, two).matches.size, 0);
+  const missing = ['a', 'b'].map(stableKey => ({ stableKey, filename: 'IMG.NEF', size: 100, lastModified: stableKey === 'a' ? 10 : 11 }));
+  assert.equal(matchScannedOriginals(missing, [two[0]]).matches.size, 0);
+});
+
+test('an exact match is preferred and not reported as approximate', () => {
+  const expected = [{ stableKey: 'a', filename: 'IMG.NEF', size: 100, lastModified: 10 }];
+  const result = matchScannedOriginals(expected, [{ path: 'D:/IMG.NEF', name: 'IMG.NEF', size: 100, lastModified: 10 }]);
+  assert.equal(result.matches.get('a'), 'D:/IMG.NEF');
+  assert.deepEqual(result.approximate, []);
+});

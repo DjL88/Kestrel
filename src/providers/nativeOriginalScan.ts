@@ -49,7 +49,8 @@ export async function scanOriginalFolder(
 export function matchScannedOriginals(
   expected: readonly { stableKey: string; filename: string; size: number; lastModified: number }[],
   candidates: readonly ScannedOriginal[],
-): { matches: Map<string, string>; ambiguous: string[] } {
+): { matches: Map<string, string>; ambiguous: string[]; approximate: string[] } {
+  const approximate: string[] = [];
   const matches = new Map<string, string>(), ambiguous: string[] = [];
   const byIdentity = new Map<string, ScannedOriginal[]>();
   for (const candidate of candidates) {
@@ -75,5 +76,25 @@ export function matchScannedOriginals(
       }
     } else if (possible.length > 1) ambiguous.push(frame.stableKey);
   }
-  return { matches, ambiguous };
+  // Second pass for what is still unmatched: a file copied, re-downloaded or exported again keeps its name and size but gets a
+  // new modified time. Accept it only when exactly one candidate and exactly one missing photo share that name and size,
+  // and say so, so it can never quietly pick the wrong file.
+  const nameSize = (name: string, size: number) => JSON.stringify([name.toLowerCase(), size]);
+  const candidatesByNameSize = new Map<string, ScannedOriginal[]>();
+  for (const candidate of candidates) {
+    const key = nameSize(candidate.name, candidate.size);
+    candidatesByNameSize.set(key, [...(candidatesByNameSize.get(key) ?? []), candidate]);
+  }
+  const waiting = expected.filter((frame) => !matches.has(frame.stableKey) && !ambiguous.includes(frame.stableKey));
+  const waitingCount = new Map<string, number>();
+  for (const frame of waiting) waitingCount.set(nameSize(frame.filename, frame.size), (waitingCount.get(nameSize(frame.filename, frame.size)) ?? 0) + 1);
+  for (const frame of waiting) {
+    const key = nameSize(frame.filename, frame.size);
+    const possible = candidatesByNameSize.get(key) ?? [];
+    if (possible.length !== 1 || waitingCount.get(key) !== 1 || claimedPaths.has(possible[0].path.toLowerCase())) continue;
+    matches.set(frame.stableKey, possible[0].path);
+    claimedPaths.set(possible[0].path.toLowerCase(), frame.stableKey);
+    approximate.push(frame.stableKey);
+  }
+  return { matches, ambiguous, approximate };
 }

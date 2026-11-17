@@ -80,10 +80,17 @@ export function MaskPanel(props: Props) {
       {masks.length > 0 && (
         <ul className="space-y-1" aria-label="Masks">
           {masks.map((mask) => (
-            <li key={mask.id}>
-              <button type="button" aria-pressed={mask.id === selectedId} className={`${chip} w-full text-left aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15`}
+            <li key={mask.id} className="flex gap-1">
+              <button type="button" aria-pressed={mask.id === selectedId} className={`${chip} min-w-0 flex-1 text-left aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15`}
                 onClick={() => props.onSelect(mask.id === selectedId ? null : mask.id)}>
                 {maskName(masks, mask)}{mask.id === selectedId ? ' (editing)' : ''}
+              </button>
+              <button type="button" disabled={disabled} className={`${chip} w-11 shrink-0 px-0`} aria-label={`Delete ${maskName(masks, mask)}`} title="Delete this mask"
+                onClick={() => {
+                  props.onChange(masks.filter((other) => other.id !== mask.id).map((other) => other.limit?.id === mask.id ? { ...other, limit: undefined } : other));
+                  if (mask.id === selectedId) props.onSelect(null);
+                }}>
+                <Trash2 className="mx-auto h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </li>
           ))}

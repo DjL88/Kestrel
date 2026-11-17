@@ -1380,7 +1380,7 @@ export default function App() {
       });
       const scan = await scanOriginalFolder(folder, fs.readDir, fs.stat,
         new Set(expectedRecords.map((frame) => frame.filename.toLowerCase())));
-      const { matches: replacements, ambiguous } = matchScannedOriginals(expectedRecords, scan.files);
+      const { matches: replacements, ambiguous, approximate } = matchScannedOriginals(expectedRecords, scan.files);
       const recovered = replacements.size;
       if (stateRef.current.shoot.id !== projectId) return;
       const preview = previewProviderRef.current!;
@@ -1404,7 +1404,7 @@ export default function App() {
         shoot: { ...previous.shoot, needsFileReselect: remaining > 0 },
       });
       setPreviewRevision((previous) => previous + 1);
-      const details = [ambiguous.length ? `${ambiguous.length} ambiguous matches skipped.` : '',
+      const details = [approximate.length ? `${approximate.length} matched by name and size because the file's modified time had changed.` : '', ambiguous.length ? `${ambiguous.length} ambiguous matches skipped.` : '',
         scan.truncated ? 'Folder scan reached its safety limit.' : '',
         scan.skippedDirectories ? `${scan.skippedDirectories} folders could not be scanned.` : ''].filter(Boolean).join(' ');
       setRelinkStatus((recovered
