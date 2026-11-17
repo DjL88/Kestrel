@@ -220,4 +220,39 @@ mod tests {
         }
     }
 
+
+    #[test]
+    fn rgb16_budget_boundary_is_inclusive_and_rejects_one_pixel_over() {
+        // Pure arithmetic: never allocate a 300 MB test image on CI or a laptop.
+        assert_eq!(checked_rgb16_bytes(10_000, 5_000).unwrap(), 300_000_000);
+        assert!(checked_rgb16_bytes(10_000, 5_001).is_err());
+        assert!(checked_rgb16_bytes(1, 0).is_err());
+    }
+
+    #[test]
+    fn sixteen_bit_grayscale_conversion_preserves_exact_sample_codes() {
+        let gray = ImageBuffer::from_fn(2, 2, |x, y| {
+            image::Luma([([0u16, 1, 32769, 65535][(y * 2 + x) as usize])])
+        });
+        let rgb = require_rgb16(DynamicImage::ImageLuma16(gray)).expect("16-bit grayscale");
+        let samples = [0u16, 1, 32769, 65535];
+        for (index, pixel) in rgb.pixels().enumerate() {
+            assert_eq!(pixel.0, [samples[index]; 3]);
+        }
+        let encoded = encode_rgb16_tiff(&rgb).expect("TIFF encode");
+        let decoded = image::load_from_memory_with_format(&encoded, image::ImageFormat::Tiff)
+            .expect("TIFF decode");
+        assert_eq!(decoded.as_rgb16().expect("RGB16"), &rgb);
+    }
+
+    #[test]
+    fn invalid_orientation_defaults_to_unchanged_pixels() {
+        let original = ImageBuffer::from_fn(2, 3, |x, y| {
+            Rgb([(x + 2 * y) as u16, 32769, 65535])
+        });
+        assert_eq!(orient_rgb16(original.clone(), 0), original);
+        assert_eq!(orient_rgb16(original.clone(), 9), original);
+        assert_eq!(orient_rgb16(original.clone(), u16::MAX), original);
+    }
+
 }
