@@ -141,6 +141,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [selectingArea, setSelectingArea] = useState(false);
   const [paintOn, setPaintOn] = useState(false);
   const [showMaskOverlay, setShowMaskOverlay] = useState(true);
+  // The mask tint hides the real change, so it steps aside while a slider is being moved.
+  const [sliderBusy, setSliderBusy] = useState(false);
+  const sliderTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(sliderTimer.current), []);
   const [dialUsed, setDialUsed] = useState(false);
   // On a phone the Edit tab opens as one big slider within thumb reach. The full list is one tap away.
   const [allControls, setAllControls] = useState(false);
@@ -928,7 +932,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             {!guide && position && frame.focusPoint && <span aria-hidden="true"
               className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_#000]"
               style={{ left: position.left + position.width * frame.focusPoint.x, top: position.top + position.height * frame.focusPoint.y }} />}
-            {tab === 'masks' && !guide && position && size && !displayCompare && showMaskOverlay && edit.masks?.find((mask) => mask.id === selectedMaskId) && (
+            {tab === 'masks' && !guide && position && size && showMaskOverlay && !sliderBusy && edit.masks?.find((mask) => mask.id === selectedMaskId) && (
               <MaskOverlay mask={edit.masks.find((mask) => mask.id === selectedMaskId)!} masks={edit.masks} aspect={size.height / size.width} rect={position}
                 brushRadius={brushRadius} paintOn={paintOn} erase={erase}
                 onChange={(next) => onEdit({ ...edit, masks: edit.masks!.map((mask) => mask.id === next.id ? next : mask) })} />
@@ -1006,7 +1010,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
       </div>
       <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
-      <div ref={panelScroll} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 ${showFilmstrip ? 'workspace:-mb-[156px] workspace:pb-[172px] ' : ''}workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
+      <div ref={panelScroll} onInput={(event) => {
+        if (tab !== 'masks' || !(event.target instanceof HTMLInputElement) || event.target.type !== 'range') return;
+        setSliderBusy(true);
+        window.clearTimeout(sliderTimer.current);
+        sliderTimer.current = window.setTimeout(() => setSliderBusy(false), 700);
+      }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 ${showFilmstrip ? 'workspace:-mb-[156px] workspace:pb-[172px] ' : ''}workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
         {!isPhone && tabList}
         {tab === 'auto' && !can('autoTab') && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto"><PaidNotice title="The Auto tab">Automatic colour and tone adjustments and local editing advice are here.</PaidNotice></div>
@@ -1107,7 +1116,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   <output className="tabular-nums text-zinc-400">{key === 'exposure' ? `${(edit[key] * 0.4).toFixed(2)} EV` :
                     key === 'colour' && edit.colour === -2 ? 'Monochrome' : `${Math.round(edit[key] * (key === 'warmth' ? 8 : 20))}%`}</output>
                 </span>
-                <input type="range" min={-2} max={2} step={0.1} value={edit[key]} aria-label={`${label} adjustment`}
+                <input type="range" min={key === 'exposure' ? -5 : -2} max={key === 'exposure' ? 5 : 2} step={0.1} value={edit[key]} aria-label={`${label} adjustment`}
                   onFocus={() => setDial(index)}
                   onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
                   onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
