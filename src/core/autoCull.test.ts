@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import { generateDemoShootFrames, createDemoShootState, applyAutoCullDecisions, undoDecision, redoDecision } from './cullingEngine';
 import { limitAutoKeepers, scorePreview, type CullSuggestion } from './autoCull';
 
-test('a flat dark preview is advisory and unavailable images receive no decision', () => {
+test('a flat dark preview stays review-only and unavailable images receive no decision', () => {
   const opaqueDark = new Uint8ClampedArray(96 * 96 * 4);
   for (let i = 3; i < opaqueDark.length; i += 4) opaqueDark[i] = 255;
   const result = scorePreview('dark', opaqueDark, 96, 96);
-  assert.equal(result.confidence, 'medium');
-  assert.equal(result.decision, 'reject');
+  assert.equal(result.confidence, 'low');
+  assert.equal(result.decision, null);
+  assert.equal(result.reason, 'flat');
   assert.equal(scorePreview('small', new Uint8ClampedArray(4), 1, 1).decision, null);
 });
 
@@ -240,4 +241,19 @@ test('subject fallback preserves original suggestion and does not mutate detecto
   assert.equal(result.decision, null);
   assert.deepEqual(base, baseResult);
   assert.deepEqual(found, original);
+});
+
+
+test('flat bright skies and dark frames are never automatically rejected', () => {
+  for (const intensity of [0, 255]) {
+    const pixels = new Uint8ClampedArray(96 * 96 * 4);
+    for (let i = 0; i < pixels.length; i += 4) {
+      pixels[i] = intensity;
+      pixels[i + 1] = intensity;
+      pixels[i + 2] = intensity;
+      pixels[i + 3] = 255;
+    }
+    const result = scorePreview('flat-' + intensity, pixels, 96, 96);
+    assert.deepEqual([result.reason, result.decision, result.confidence], ['flat', null, 'low']);
+  }
 });
