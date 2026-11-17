@@ -30,7 +30,7 @@ import { applyAutoTag, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTa
 import { burstMates, tagFrames } from './core/speciesBurst';
 import { loadImage } from './providers/loadImage';
 import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
-import { Copy, ClipboardPaste, Pin, PinOff } from 'lucide-react';
+import { ArrowLeft, Copy, ClipboardPaste, Pin, PinOff } from 'lucide-react';
 import { newId } from './core/ids';
 import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
@@ -157,7 +157,7 @@ export default function App() {
   /** The guided "what's next" banner, dismissed for one project at a time. Resets on reload or when a different project opens. */
   const [guidedDismissedFor, setGuidedDismissedFor] = useState<string | null>(null);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
-  const [showPhotoInfo, setShowPhotoInfo] = useState(false);
+  const [showPhotoInfo, setShowPhotoInfo] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
   const [copiedEdit, setCopiedEdit] = useState<PhotoEdit | null>(null);
   const [batchUndo, setBatchUndo] = useState<{
     applied: PhotoEdit;
@@ -266,7 +266,7 @@ export default function App() {
   useAutoBackup(cullingState, !projectsOpen);
 
   function enterProject(state: CullingState) {
-    const filter = state.filter === 'all' ? 'unreviewed' : state.filter;
+    const filter = state.shoot.inbox ? 'all' : state.filter === 'all' ? 'unreviewed' : state.filter;
     const visible = filterFrames(state.frames, filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
     setBackupNotice(undefined);
     setTemporaryOriginals(new Set());
@@ -278,7 +278,7 @@ export default function App() {
     });
     setEditing(false);
     setInfoFrameId(undefined);
-    setShowPhotoInfo(false);
+    setShowPhotoInfo(window.matchMedia('(min-width: 1024px)').matches);
     setMultiSelect(false);
     setSelectedIds(new Set());
     setBatchUndo(null);
@@ -301,10 +301,10 @@ export default function App() {
       if (!state) throw new Error('Project unavailable');
       preview.clear();
       const shoot = { ...state.shoot };
-      const localFrames = state.frames.filter((frame) => frame.sourceKind === 'file');
+      const localFrames = state.frames.filter((frame) => !frame.removedAt && frame.sourceKind === 'file');
       shoot.needsFileReselect = !await rehydrateLocalFramesFromStore(localFrames, preview, store);
 
-      const hasFolderFrames = state.frames.some((frame) => frame.sourceKind === 'directory-handle');
+      const hasFolderFrames = state.frames.some((frame) => !frame.removedAt && frame.sourceKind === 'directory-handle');
       if (hasFolderFrames) {
         const handle = await store.loadDirectoryHandle(shoot.id);
         try {
@@ -319,7 +319,7 @@ export default function App() {
           // Keep the project available for catalogue editing until the source is reconnected.
         }
         shoot.needsFolderRegrant = state.frames.some((frame) =>
-          frame.sourceKind === 'directory-handle' && !preview.hasBlob(frame.stableKey)
+          !frame.removedAt && frame.sourceKind === 'directory-handle' && !preview.hasBlob(frame.stableKey)
         );
       }
       enterProject({ ...state, shoot });
@@ -529,6 +529,8 @@ export default function App() {
   }, [visibleFrames, selectedFrame]);
 
   const handleSelectFrame = useCallback((frameId: string) => {
+    // Follow the selected photo rather than a previously opened thumbnail info popup.
+    setInfoFrameId(undefined);
     flushLinkedEdit();
     setZoomLevel(1);
     setPanOffset({ x: 0, y: 0 });
@@ -1384,7 +1386,7 @@ export default function App() {
         return;
       }
       const expected = new Map(cullingState.frames
-        .filter((frame) => frame.sourceKind === 'file' && frame.sourcePath)
+        .filter((frame) => !frame.removedAt && frame.sourceKind === 'file' && frame.sourcePath)
         .map((frame) => [frame.stableKey, frame]));
       const expectedRecords = [...expected.values()].map((frame) => {
         const parts = frame.stableKey.split('::');
@@ -1408,9 +1410,9 @@ export default function App() {
       }
       const nextFrames = stateRef.current.frames.map((frame) =>
         replacements.has(frame.stableKey) ? { ...frame, sourcePath: replacements.get(frame.stableKey) } : frame);
-      const paths = nextFrames.filter((frame) => frame.sourceKind === 'file' && frame.sourcePath).map((frame) => frame.sourcePath!);
+      const paths = nextFrames.filter((frame) => !frame.removedAt && frame.sourceKind === 'file' && frame.sourcePath).map((frame) => frame.sourcePath!);
       const statuses = await checkOriginalPaths(paths, fs.stat);
-      const remaining = nextFrames.filter((frame) => frame.sourceKind === 'file' && frame.sourcePath && statuses.get(frame.sourcePath) !== 'available').length;
+      const remaining = nextFrames.filter((frame) => !frame.removedAt && frame.sourceKind === 'file' && frame.sourcePath && statuses.get(frame.sourcePath) !== 'available').length;
       if (stateRef.current.shoot.id !== projectId) return;
       setCullingState((previous) => previous.shoot.id !== projectId ? previous : {
         ...previous, frames: nextFrames,
@@ -1540,7 +1542,7 @@ export default function App() {
       <DropOverlay dragging={drop.dragging} message={drop.message} onDismiss={drop.clearMessage} />
       {editing ? (
         <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-kestrel-panel px-3 py-1">
-          <button type="button" onClick={leaveEditor} className="min-h-11 shrink-0 rounded-md px-2 text-sm font-medium hover:bg-white/10">Back</button>
+          <button type="button" onClick={leaveEditor} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300" aria-label="Back to photos" title="Back to photo library"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</button>
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? 'Edit photo'}</h1>
           {multiSelect && selectedVisibleFrames.length > 0 && (
             <span className="shrink-0 text-xs tabular-nums text-zinc-300">{selectedVisibleFrames.length} selected</span>
@@ -1686,7 +1688,7 @@ export default function App() {
       />
       <FolderRegrantBanner
         status={relinkStatus}
-        visible={needsAccess && !bannerDismissed}
+        visible={!editing && needsAccess && !bannerDismissed}
         mode={cullingState.shoot.needsFolderRegrant ? 'folder' : 'files'}
         folderName={cullingState.shoot.folderName}
         onReconnect={handleReconnectFolderOrFiles}
@@ -1830,7 +1832,9 @@ export default function App() {
             </div>
           )}
           {loadingProgress && <ImportProgress loaded={loadingProgress.loaded} total={loadingProgress.total} />}
-          {!editing && !loadingProgress && guidedDismissedFor !== cullingState.shoot.id && (
+          {!editing && !cullingState.shoot.inbox && !loadingProgress && guidedDismissedFor !== cullingState.shoot.id &&
+            ((guided === 'reviewing' && cullingState.filter === 'unreviewed') ||
+             ((guided === 'improving' || guided === 'ready') && cullingState.filter === 'keep')) && (
             <GuidedBanner step={guided} unreviewed={counts.unreviewed} keepers={counts.keep} decided={counts.all - counts.unreviewed} uneditedKeepers={uneditedKeepers}
               onFindBestPhotos={() => {
                 if (!can('smartCulling')) { setPaidDialog('Auto-cull'); return; }
