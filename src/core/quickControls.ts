@@ -1,6 +1,6 @@
-import { DETAIL_CONTROLS, EDIT_CHOICES, TONE_CONTROLS, type PhotoEdit } from './photoEdits';
+import { DETAIL_CONTROLS, EDIT_CHOICES, NOISE_CONTROL, TONE_CONTROLS, type PhotoEdit } from './photoEdits';
 
-export type QuickKey = (typeof EDIT_CHOICES)[number]['key'] | (typeof TONE_CONTROLS)[number]['key'] | (typeof DETAIL_CONTROLS)[number]['key'];
+export type QuickKey = (typeof EDIT_CHOICES)[number]['key'] | (typeof TONE_CONTROLS)[number]['key'] | (typeof DETAIL_CONTROLS)[number]['key'] | typeof NOISE_CONTROL.key;
 
 export interface QuickControl {
   key: QuickKey;
@@ -15,6 +15,7 @@ export const QUICK_CONTROLS: readonly QuickControl[] = [
   ...EDIT_CHOICES.map(({ key, label }) => ({ key, label, min: key === 'exposure' ? -12.5 : -2, max: key === 'exposure' ? 12.5 : 2, step: 0.1 })),
   ...TONE_CONTROLS.map(({ key, label }) => ({ key, label, min: -2, max: 2, step: 0.05 })),
   ...DETAIL_CONTROLS.map(({ key, label }) => ({ key, label, min: key === 'sharpen' ? 0 : -2, max: 2, step: 0.05 })),
+  { key: NOISE_CONTROL.key, label: NOISE_CONTROL.label, min: 0, max: 2, step: 0.05 },
 ];
 
 export const controlFor = (key: QuickKey): QuickControl => QUICK_CONTROLS.find((entry) => entry.key === key) ?? QUICK_CONTROLS[0];

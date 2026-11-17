@@ -29,7 +29,7 @@ import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
 import { PhotoViewport } from './PhotoViewport';
 import { maxZoomFor, percentFor, stepZoom, zoomForPercent } from '../core/zoomControls';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, DETAIL_CONTROLS, isNeutralEdit, isEmptyEdit, type PhotoEdit } from '../core/photoEdits';
+import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, DETAIL_CONTROLS, NOISE_CONTROL, isNeutralEdit, isEmptyEdit, type PhotoEdit } from '../core/photoEdits';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 
@@ -1150,6 +1150,18 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   className="block min-h-9 w-full accent-sky-300 disabled:opacity-45 desk:min-h-7" />
               </label>
             ))}
+            <label className="block" title="Smooths the coloured speckle that shows in dark areas of high-ISO photos. Only colour is smoothed: edges, feathers and fine texture are left alone.">
+              <span className="flex items-center justify-between text-xs text-zinc-300">
+                <span>{NOISE_CONTROL.label}</span>
+                <output className="tabular-nums text-zinc-400">{Math.round((edit.denoise ?? 0) * 50)}</output>
+              </span>
+              <input type="range" min={0} max={2} step={0.05} value={edit.denoise ?? 0} aria-label={`${NOISE_CONTROL.label} adjustment`}
+                aria-describedby="denoise-help" disabled={sourceState !== 'ready'}
+                onChange={(event) => onEdit({ ...edit, denoise: event.target.valueAsNumber })}
+                onDoubleClick={() => onEdit({ ...edit, denoise: 0 })}
+                className="block min-h-9 w-full accent-sky-300 disabled:opacity-45 desk:min-h-7" />
+              <span id="denoise-help" className="block text-xs text-zinc-400">Smooths colour speckle only. Edges and fine texture stay as they are.</span>
+            </label>
           </div>
         </details>
         <details className="border-b border-white/10 pb-1">

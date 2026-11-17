@@ -1,6 +1,18 @@
 import { applyDetail, applyPhotoEdit, hasDetail, isNeutralEdit, isNeutralGlobal, isNeutralTone, type PhotoEdit } from './photoEdits';
 import { applyMasks, fullContext, type MaskContext } from './masks';
 import { hasActiveMasks, usesDetail } from './maskTypes';
+import { applyNoiseReduction, hasNoiseReduction } from './noiseReduction';
+
+/** Colour noise reduction runs first, on the original pixels, before tone, sharpening and masks. */
+function applyCanvasNoiseReduction(canvas: HTMLCanvasElement, edit: PhotoEdit): void {
+  if (!hasNoiseReduction(edit)) return;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Canvas unavailable');
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  const cleaned = applyNoiseReduction(pixels.data, canvas.width, canvas.height, edit);
+  if (cleaned === pixels.data) return;
+  context.putImageData(new ImageData(cleaned as Uint8ClampedArray<ArrayBuffer>, canvas.width, canvas.height), 0, 0);
+}
 
 function applyCanvasDetail(canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge: number): void {
   if (!hasDetail(edit)) return;
@@ -58,6 +70,7 @@ export function applyCanvasPhotoEdit(
   maskContext: MaskContext = fullContext(canvas.width, canvas.height),
 ): void {
   if (isNeutralEdit(edit)) return;
+  applyCanvasNoiseReduction(canvas, edit);
   if (!isNeutralGlobal(edit) && !gpuRenderer?.(canvas, edit, imageEdge)) {
     for (const _ of editCanvasStrips(canvas, edit)) {
       // The fit preview has a bounded raster, so render it in one pass.
@@ -78,6 +91,8 @@ export async function applyCanvasExportEdit(
 ): Promise<void> {
   if (isNeutralEdit(edit)) return;
   const edge = imageEdge;
+  applyCanvasNoiseReduction(canvas, edit);
+  signal?.throwIfAborted();
   if (!isNeutralGlobal(edit) && !gpuRenderer?.(canvas, edit, edge)) {
     let lastYield = performance.now();
     for (const _ of editCanvasStrips(canvas, edit)) {
