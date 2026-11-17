@@ -88,7 +88,7 @@ class NikonBenchmarkReadOnlyTests(unittest.TestCase):
             tifffile.imwrite(reference, pixels, photometric="rgb",
                              extratags=[(34675, "B", len(profile), profile, False)])
             corrupt = root / "truncated.tif"
-            corrupt.write_bytes(b"II*\\x00")
+            corrupt.write_bytes(b"II*\x00")
             before = {path: digest(path) for path in (source, reference, corrupt)}
             with self.assertRaises((ValueError, tifffile.TiffFileError, OSError, struct.error)):
                 compare(reference, corrupt, source_nef=source)
