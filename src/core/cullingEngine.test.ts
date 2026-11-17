@@ -303,14 +303,14 @@ test('bursts never combine interleaved Z8 and Z5II frames', () => {
   assert.equal(grouped[3].burstCount, 1);
 });
 
-test('bursts still group when camera metadata is unavailable', () => {
+test('a missing camera tag cannot bridge an adjacent known camera into a burst', () => {
   const frames = generateDemoShootFrames(2).map((frame, index) => ({
     ...frame,
     exif: { ...frame.exif, camera: index === 0 ? undefined : 'NIKON Z 8', capturedAtMs: 1000 + index * 100 },
   }));
   const grouped = assignBurstGroups(frames);
-  assert.equal(grouped[0].burstGroupId, 'burst-1');
-  assert.equal(grouped[1].burstGroupId, 'burst-1');
+  assert.equal(grouped[0].burstGroupId, null);
+  assert.equal(grouped[1].burstGroupId, null);
 });
 
 
@@ -324,12 +324,12 @@ test('unknown camera metadata cannot bridge distinct known cameras into one burs
     },
   }));
   const grouped = assignBurstGroups(frames);
-  assert.equal(grouped[0].burstGroupId, 'burst-1');
-  assert.equal(grouped[1].burstGroupId, 'burst-1');
+  assert.equal(grouped[0].burstGroupId, null);
+  assert.equal(grouped[1].burstGroupId, null);
   assert.equal(grouped[2].burstGroupId, null);
 });
 
-test('unknown camera frames can join a burst without changing its known identity', () => {
+test('an unknown camera frame splits a known-camera burst instead of joining it', () => {
   const frames = generateDemoShootFrames(3).map((frame, index) => ({
     ...frame,
     exif: {
@@ -339,8 +339,9 @@ test('unknown camera frames can join a burst without changing its known identity
     },
   }));
   const grouped = assignBurstGroups(frames);
-  assert.ok(grouped[0].burstGroupId);
-  assert.ok(grouped.every((frame) => frame.burstGroupId === grouped[0].burstGroupId));
+  assert.equal(grouped[0].burstGroupId, null);
+  assert.equal(grouped[1].burstGroupId, null);
+  assert.equal(grouped[2].burstGroupId, null);
 });
 
 
