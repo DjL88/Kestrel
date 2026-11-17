@@ -43,7 +43,11 @@ export function recommendForReview(items: readonly ReviewCandidate[]): ReviewSug
   // A manual keeper already satisfies the group's keeper requirement. Do not
   // silently nominate another image in the same burst after a rescan.
   for (const item of items) {
-    if (item.manualDecision === 'keep' && eligible(item)) manuallyKeptGroups.add(groupKey(item));
+    if (item.manualDecision === 'keep' && typeof item.id === 'string' && item.id.trim().length > 0 &&
+        identityCounts.get(item.id) === 1 && validSubjects.includes(item.subject) &&
+        (item.groupId == null || (typeof item.groupId === 'string' && item.groupId.trim().length > 0))) {
+      manuallyKeptGroups.add(groupKey(item));
+    }
   }
   for (const item of items) {
     if (item.manualDecision || !eligible(item) || manuallyKeptGroups.has(groupKey(item))) continue;
