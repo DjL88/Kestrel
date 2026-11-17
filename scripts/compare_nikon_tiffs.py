@@ -76,9 +76,14 @@ def compare(reference_path, candidate_path, *, source_nef=None):
         shadow_added += np.count_nonzero((candidate_strip == 0) & (ref_strip != 0), axis=(0, 1))
         shadow_lost += np.count_nonzero((ref_strip == 0) & (candidate_strip != 0), axis=(0, 1))
     pixel_count = height * width
+    reference_digest = sha256_file(reference_path)
+    candidate_digest = sha256_file(candidate_path)
     report = {
-        "reference_tiff_sha256": sha256_file(reference_path),
-        "candidate_tiff_sha256": sha256_file(candidate_path),
+        "reference_tiff_sha256": reference_digest,
+        "candidate_tiff_sha256": candidate_digest,
+        # Byte-identical exports do not prove independent RAW rendering.
+        # Keep the diagnostic report usable but make this limitation explicit.
+        "byte_identical_exports": reference_digest == candidate_digest,
         "icc_profile_sha256": hashlib.sha256(profile).hexdigest(),
         "width": width,
         "height": height,
