@@ -99,3 +99,37 @@ test('epoch-zero removed photos cannot masquerade as valid undo targets', () => 
   });
   assert.ok(auditReviewSession(state).issues.some((issue) => issue.code === 'history-removed'));
 });
+
+test('dangling virtual-copy source fails closed without changing the 500-photo review', () => {
+  const state = createDemoShootState(500);
+  state.frames[10] = { ...state.frames[10], virtualCopy: { originalFrameId: 'missing-original', number: 1 } };
+  const before = JSON.stringify(state);
+  const audit = auditReviewSession(state);
+  assert.equal(audit.active, 500);
+  assert.equal(audit.safeForAutomaticDecisions, false);
+  assert.ok(audit.issues.some((issue) => issue.code === 'virtual-copy-missing-source' && issue.frameId === state.frames[10].id));
+  assert.equal(JSON.stringify(state), before);
+});
+
+test('virtual copy cannot use itself as its source', () => {
+  const state = createDemoShootState(2);
+  state.frames[1] = { ...state.frames[1], virtualCopy: { originalFrameId: state.frames[1].id, number: 1 } };
+  const audit = auditReviewSession(state);
+  assert.ok(audit.issues.some((issue) => issue.code === 'virtual-copy-self-source'));
+  assert.equal(audit.safeForAutomaticDecisions, false);
+});
+
+test('ambiguous duplicate source identity is not accepted as a virtual-copy source', () => {
+  const state = createDemoShootState(3);
+  const originalId = state.frames[0].id;
+  state.frames[1] = { ...state.frames[1], id: originalId };
+  state.frames[2] = { ...state.frames[2], virtualCopy: { originalFrameId: originalId, number: 1 } };
+  const audit = auditReviewSession(state);
+  assert.ok(audit.issues.some((issue) => issue.code === 'virtual-copy-missing-source' && issue.frameId === state.frames[2].id));
+});
+
+test('valid virtual-copy source passes preflight', () => {
+  const state = createDemoShootState(3);
+  state.frames[2] = { ...state.frames[2], virtualCopy: { originalFrameId: state.frames[0].id, number: 1 } };
+  assert.equal(auditReviewSession(state).safeForAutomaticDecisions, true);
+});

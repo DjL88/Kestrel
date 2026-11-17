@@ -4,7 +4,7 @@ export type ReviewAuditIssueCode =
   | 'duplicate-id' | 'duplicate-original' | 'invalid-selection'
   | 'invalid-compare' | 'removed-selection' | 'removed-compare'
   | 'invalid-decision' | 'history-missing' | 'history-ambiguous'
-  | 'history-removed';
+  | 'history-removed' | 'virtual-copy-missing-source' | 'virtual-copy-self-source';
 
 export interface ReviewAuditIssue {
   code: ReviewAuditIssueCode;
@@ -54,6 +54,15 @@ export function auditReviewSession(state: CullingState): ReviewSessionAudit {
     if (count > 1) issues.push({ code: 'duplicate-id', frameId: id });
   }
   const byId = new Map(state.frames.map((frame) => [frame.id, frame]));
+  // A virtual copy must point to one distinct catalogue frame. A dangling or
+  // self-referential source cannot be trusted for automatic review decisions.
+  for (const frame of state.frames) {
+    if (frame.removedAt !== undefined && frame.removedAt !== null) continue;
+    const sourceId = frame.virtualCopy?.originalFrameId;
+    if (sourceId === undefined) continue;
+    if (sourceId === frame.id) issues.push({ code: 'virtual-copy-self-source', frameId: frame.id });
+    else if (counts.get(sourceId) !== 1) issues.push({ code: 'virtual-copy-missing-source', frameId: frame.id });
+  }
   for (const [id, invalid, removed] of [
     [state.selectedFrameId, 'invalid-selection', 'removed-selection'],
     [state.compareRightFrameId, 'invalid-compare', 'removed-compare'],
