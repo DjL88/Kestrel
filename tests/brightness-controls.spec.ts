@@ -19,7 +19,7 @@ test('Brightness is separate from Exposure, responds and can be undone', async (
   await brightness.focus();
   await brightness.press('ArrowRight');
   await expect(brightness).toHaveValue('0.05');
-  await expect(exposure).toHaveValue('0', 'Brightness must not modify photographic EV');
+  await expect(exposure, 'Brightness must not modify photographic EV').toHaveValue('0');
   await page.getByRole('toolbar', { name: 'Editor actions' }).getByRole('button', { name: 'Undo' }).click();
   await expect(brightness).toHaveValue('0');
   await expect(exposure).toHaveValue('0');
