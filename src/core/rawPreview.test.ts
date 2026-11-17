@@ -132,3 +132,34 @@ test('RAW preview rejects a JPEG SOF with zero sample precision', async () => {
   const file = tiff([[0x0201, 4096], [0x0202, bytes.length]], 4096);
   assert.equal(await extractRawPreview(new Blob([file.slice(0, 4096), bytes])), null);
 });
+
+test('RAW preview rejects impossible JPEG sample precision without rejecting Nikon-class frames', async () => {
+  for (const precision of [0, 1, 17, 255]) {
+    const bytes = new Uint8Array(5000);
+    bytes.set([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, precision, 0x15, 0x80, 0x20, 0x40, 0x03,
+      0x01, 0x11, 0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00], 0);
+    bytes.set([0xff, 0xd9], bytes.length - 2);
+    const file = tiff([[0x0201, 4096], [0x0202, bytes.length]], 4096);
+    assert.equal(await extractRawPreview(new Blob([file.slice(0, 4096), bytes])), null, `precision=${precision}`);
+  }
+  // 8-bit JPEG remains valid for Nikon Z8-sized embedded previews.
+  const bytes = new Uint8Array(5000);
+  bytes.set([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x15, 0x80, 0x20, 0x40, 0x03,
+    0x01, 0x11, 0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00], 0);
+  bytes.set([0xff, 0xd9], bytes.length - 2);
+  const file = tiff([[0x0201, 4096], [0x0202, bytes.length]], 4096);
+  assert.equal((await extractRawPreview(new Blob([file.slice(0, 4096), bytes])))?.size, bytes.length);
+});
+
+test('RAW preview rejects non-eight-bit baseline SOF0 even within the generic JPEG precision range', async () => {
+  // SOF0 is baseline DCT, whose precision is exactly 8 bits. Other JPEG
+  // frame types may legitimately use different precision.
+  for (const precision of [2, 12, 16]) {
+    const bytes = new Uint8Array(5000);
+    bytes.set([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, precision, 0x15, 0x80, 0x20, 0x40, 0x03,
+      0x01, 0x11, 0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00], 0);
+    bytes.set([0xff, 0xd9], bytes.length - 2);
+    const file = tiff([[0x0201, 4096], [0x0202, bytes.length]], 4096);
+    assert.equal(await extractRawPreview(new Blob([file.slice(0, 4096), bytes])), null, `precision=${precision}`);
+  }
+});

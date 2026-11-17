@@ -303,18 +303,16 @@ test('bursts never combine interleaved Z8 and Z5II frames', () => {
   assert.equal(grouped[3].burstCount, 1);
 });
 
-test('bursts still group when camera metadata is unavailable', () => {
+test('missing camera metadata never establishes a burst', () => {
   const frames = generateDemoShootFrames(2).map((frame, index) => ({
     ...frame,
     exif: { ...frame.exif, camera: index === 0 ? undefined : 'NIKON Z 8', capturedAtMs: 1000 + index * 100 },
   }));
   const grouped = assignBurstGroups(frames);
-  assert.equal(grouped[0].burstGroupId, 'burst-1');
-  assert.equal(grouped[1].burstGroupId, 'burst-1');
+  assert.ok(grouped.every((frame) => frame.burstGroupId === null));
 });
 
-
-test('unknown camera metadata cannot bridge distinct known cameras into one burst', () => {
+test('unknown camera metadata cannot bridge different Nikon bodies', () => {
   const frames = generateDemoShootFrames(3).map((frame, index) => ({
     ...frame,
     exif: {
@@ -324,12 +322,10 @@ test('unknown camera metadata cannot bridge distinct known cameras into one burs
     },
   }));
   const grouped = assignBurstGroups(frames);
-  assert.equal(grouped[0].burstGroupId, 'burst-1');
-  assert.equal(grouped[1].burstGroupId, 'burst-1');
-  assert.equal(grouped[2].burstGroupId, null);
+  assert.ok(grouped.every((frame) => frame.burstGroupId === null));
 });
 
-test('unknown camera frames can join a burst without changing its known identity', () => {
+test('unknown camera frames do not inherit a known-camera burst identity', () => {
   const frames = generateDemoShootFrames(3).map((frame, index) => ({
     ...frame,
     exif: {
@@ -339,10 +335,8 @@ test('unknown camera frames can join a burst without changing its known identity
     },
   }));
   const grouped = assignBurstGroups(frames);
-  assert.ok(grouped[0].burstGroupId);
-  assert.ok(grouped.every((frame) => frame.burstGroupId === grouped[0].burstGroupId));
+  assert.ok(grouped.every((frame) => frame.burstGroupId === null));
 });
-
 
 test('explicit restore invalidates stale redo of a library removal', () => {
   const removed = removeFromLibrary(projectWith(['reject', 'unreviewed']), ['f0']);
@@ -383,6 +377,18 @@ test('manual culling refuses duplicate photo IDs instead of corrupting undo hist
 });
 
 
+test('compare does not fabricate a second photo in a single-frame shoot', () => {
+  const [frame] = generateDemoShootFrames(1);
+  assert.deepEqual(getDefaultComparePair([frame], frame.id), { leftId: frame.id, rightId: null });
+});
+
+test('compare skips removed and repeated identities rather than showing a false alternative', () => {
+  const [a, b, c] = generateDemoShootFrames(3);
+  const removed = { ...b, removedAt: 1234 };
+  assert.deepEqual(getDefaultComparePair([a, removed, c], a.id), { leftId: a.id, rightId: c.id });
+  assert.deepEqual(getDefaultComparePair([a, { ...b, id: a.id }], a.id), { leftId: a.id, rightId: null });
+  assert.deepEqual(getDefaultComparePair([a, removed], a.id), { leftId: a.id, rightId: null });
+});
 
 test('explicit Restore invalidates batched removal Undo while preserving an unrelated Keep', () => {
   let state = createDemoShootState(3);

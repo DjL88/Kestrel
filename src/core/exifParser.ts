@@ -25,7 +25,9 @@ export function formatShutterSpeed(exposureTimeSec?: number): string {
   }
 
   const denominator = Math.round(1 / exposureTimeSec);
-  if (denominator <= 1) return `${Number(exposureTimeSec.toFixed(2))}s`;
+  // Corrupt subnormal EXIF exposures can overflow 1 / seconds to Infinity.
+  // Never display an impossible 1/Infinitys shutter speed.
+  if (!Number.isSafeInteger(denominator) || denominator <= 1) return '';
   return `1/${denominator}s`;
 }
 
@@ -50,7 +52,11 @@ export function validExifIso(value: unknown): number | undefined {
 }
 
 export function validExifDimension(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : undefined;
+  // Camera EXIF dimensions are untrusted. Reject impossible axis lengths
+  // before they enter catalogue layout or downstream pixel-size calculations.
+  // 65,535 is the maximum dimension of a standard JPEG frame, comfortably
+  // above Nikon Z8/Z5II sensor dimensions and normal stitched panoramas.
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 && value <= 65_535 ? value : undefined;
 }
 
 /** Prefer original capture time, falling back only when that tag is unusable. */

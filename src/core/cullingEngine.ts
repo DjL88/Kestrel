@@ -1,4 +1,5 @@
 import { searchWords } from './subjectTags';
+import { sameCaptureCamera, safeBurstGapMs } from './burstIdentity';
 import { matchesRating } from './ratingFilter';
 import type {
   CullCounts,
@@ -118,6 +119,7 @@ export function assignBurstGroups(
   maxGapMs: number = DEFAULT_BURST_GAP_MS
 ): PhotoFrame[] {
   if (frames.length === 0) return [];
+  const safeGapMs = safeBurstGapMs(maxGapMs);
 
   // Preserve relative order if timestamps are missing; otherwise sort chronologically first.
   const allHaveTimestamps = frames.every(
@@ -145,11 +147,11 @@ export function assignBurstGroups(
       typeof prevTs === 'number' &&
       typeof currTs === 'number' &&
       currTs - prevTs >= 0 &&
-      currTs - prevTs <= maxGapMs
+      currTs - prevTs <= safeGapMs
       // Two cameras can shoot within the same millisecond window; do not
       // mistake interleaved Z8/Z5II captures for a single burst.
       // Missing camera tags must not bridge two different known cameras.
-      && (!frame.exif.camera || !currentCluster.some((member) => member.exif.camera && member.exif.camera !== frame.exif.camera))
+      && sameCaptureCamera(frame.exif.camera, currentCluster.map((member) => member.exif.camera))
     ) {
       currentCluster.push(frame);
     } else {
@@ -357,12 +359,18 @@ export function stepSelection(
   currentId: string | null,
   delta: number
 ): string | null {
-  if (visibleFrames.length === 0) return null;
-  if (!currentId) return visibleFrames[0].id;
-  const idx = visibleFrames.findIndex((f) => f.id === currentId);
-  if (idx === -1) return visibleFrames[0].id;
-  const nextIdx = Math.max(0, Math.min(visibleFrames.length - 1, idx + delta));
-  return visibleFrames[nextIdx].id;
+  // Stale views can include a removed photograph. Never navigate back to it.
+  const active = visibleFrames.filter((frame) => !frame.removedAt);
+  if (active.length === 0) return null;
+  if (!currentId) return active[0].id;
+  const idx = active.findIndex((frame) => frame.id === currentId);
+  if (idx === -1) return active[0].id;
+  // Invalid keyboard/trackpad deltas must never index the array with NaN,
+  // Infinity or a fractional value and return an undefined selection.
+  if (!Number.isFinite(delta)) return active[idx].id;
+  const offset = Math.trunc(delta);
+  const nextIdx = Math.max(0, Math.min(active.length - 1, idx + offset));
+  return active[nextIdx].id;
 }
 
 export function getDefaultComparePair(
@@ -375,12 +383,16 @@ export function getDefaultComparePair(
   const left = frames[safeIdx];
 
   if (frames.length === 1) {
-    return { leftId: left.id, rightId: left.id };
+    // A one-photo shoot has nothing to compare. Showing the same image as
+    // both A and B suggests a second candidate exists when it does not.
+    return { leftId: left.id, rightId: null };
   }
 
   // Prefer the next frame in the same burst, else previous in same burst, else next frame overall.
-  const nextFrame = frames[safeIdx + 1];
-  const prevFrame = frames[safeIdx - 1];
+  // A stale or damaged catalogue can contain repeated IDs or removed photos.
+  // Compare must never present either as a distinct candidate.
+  const nextFrame = frames.slice(safeIdx + 1).find((f) => f.id !== left.id && !f.removedAt);
+  const prevFrame = frames.slice(0, safeIdx).reverse().find((f) => f.id !== left.id && !f.removedAt);
 
   if (
     nextFrame &&
@@ -400,7 +412,7 @@ export function getDefaultComparePair(
 
   return {
     leftId: left.id,
-    rightId: nextFrame ? nextFrame.id : prevFrame.id,
+    rightId: nextFrame?.id ?? prevFrame?.id ?? null,
   };
 }
 
@@ -599,9 +611,9 @@ export function restoreRemoved(state: CullingState, frameIds: string[]): Culling
     const { removedAt: _removedAt, ...kept } = frame;
     return kept;
   });
-  // Restoring from Trash is an explicit action outside the decision history.
-  // A pending Undo for the original removal must not later create a Redo that
-  // silently removes the restored photo again. Keep unrelated review history.
+  // Explicit restoration is a new user action: an earlier redo must not silently remove it again.
+  // Explicit Restore must not retain an undo that can recreate an unintended removal.
+  // Keep unrelated review and removal history.
   const restoredIds = new Set(state.frames.filter((frame) => ids.has(frame.id) && frame.removedAt).map((frame) => frame.id));
   const undoStack = state.undoStack.filter((entry) =>
     !entry.removal || !(entry.batch ?? [entry]).some((change) => restoredIds.has(change.frameId))

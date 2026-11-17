@@ -1,7 +1,6 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { afterAttempt, afterChange, backupFolder, backupName, backupsToDelete, dueForBackup, type BackupClock } from '../core/autoBackup';
 import type { Health } from '../core/connections';
-import { syncNameFor } from '../core/projectSnapshot';
 import { encodeProjectBackup } from '../core/projectBackup';
 import type { CullingState } from '../core/types';
 import { openConnection } from './connectionStore';
@@ -46,13 +45,13 @@ const setStatus = (projectId: string, status: BackupStatus) => { statuses.set(pr
 
 /** Save a backup of the project to a connection now, and tidy old ones. Never throws: the answer says what happened. */
 export async function backUpNow(state: CullingState, connectionId: string, now = new Date()): Promise<BackupStatus> {
-  const slug = syncNameFor(state.shoot.title);
+  const projectId = state.shoot.id;
   try {
     const opened = await openConnection(connectionId);
     if ('problem' in opened) return { state: 'failed', message: opened.message, health: opened.problem, at: now.getTime() };
-    await opened.connector.put(backupName(slug, now), new TextEncoder().encode(encodeProjectBackup(state)), '');
+    await opened.connector.put(backupName(projectId, now), new TextEncoder().encode(encodeProjectBackup(state)), '');
     // Keep the newest few. A tidy-up that fails is not a failed backup.
-    try { for (const name of backupsToDelete(await opened.connector.list(backupFolder(slug)), slug)) await opened.connector.remove(name); } catch { /* old copies stay */ }
+    try { for (const name of backupsToDelete(await opened.connector.list(backupFolder(projectId)), projectId)) await opened.connector.remove(name); } catch { /* old copies stay */ }
     return { state: 'ok', at: now.getTime() };
   } catch (error) {
     return { state: 'failed', message: error instanceof Error ? error.message : 'The backup could not be saved.', at: now.getTime() };

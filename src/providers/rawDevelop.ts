@@ -1,6 +1,17 @@
 import { THUMB, bestTurn } from '../core/orientMatch';
 import { isDesktopApp } from './desktopShell';
 
+/** Fail closed before allocating/copying a potentially huge RAW file for native decoding. */
+export function validateRawExtension(extension: string): string {
+  const value = extension.toLowerCase();
+  if (!/^[a-z0-9]{2,5}$/.test(value) || !new Set([
+    'nef', 'nrw', 'cr2', 'cr3', 'arw', 'raf', 'rw2', 'orf', 'pef', 'dng', 'srw', '3fr',
+  ]).has(value)) {
+    throw new Error('This RAW file type is not supported for development. The original is unchanged.');
+  }
+  return value;
+}
+
 /** Developing a RAW file's sensor data needs the desktop app's native decoder. */
 export const canDevelopRaw = () => isDesktopApp();
 
@@ -9,10 +20,13 @@ export const canDevelopRaw = () => isDesktopApp();
  * is not changed. Rejects with a plain message when the camera or compression mode cannot be read.
  */
 export async function developRaw(file: Blob, extension = 'nef'): Promise<Blob> {
+  // Do not silently reinterpret unknown formats (or path-like values) as Nikon NEF.
+  // The native decoder independently validates its extension as a second boundary.
+  const normalizedExtension = validateRawExtension(extension);
   const { invoke } = await import('@tauri-apps/api/core');
   const bytes = new Uint8Array(await file.arrayBuffer());
   try {
-    const result = await invoke<ArrayBuffer>('develop_raw', bytes, { headers: { 'x-file-extension': extension.replace(/[^a-z0-9]/gi, '').slice(0, 5) || 'nef' } });
+    const result = await invoke<ArrayBuffer>('develop_raw', bytes, { headers: { 'x-file-extension': normalizedExtension } });
     return new Blob([result], { type: 'image/jpeg' });
   } catch (error) {
     throw new Error(typeof error === 'string' ? error : 'This RAW file could not be developed.');

@@ -1,17 +1,17 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * End-to-end acceptance scenario: a genuine 300-file browser import, not an
+ * End-to-end acceptance scenario: a genuine 500-file browser import, not an
  * injected catalogue or fabricated Auto Cull result. 20 independently drawn
- * scenes have 15 frames each, with capture-like timestamps. The repeats
+ * scenes have 25 frames each, with capture-like timestamps. The repeats
  * exercise duplicate detection and one-keeper-per-burst selection.
  */
-test('300 photos, target 20: initial Auto Cull, Auto Edit and keeper export handoff', async ({ page }) => {
+test('500 photos, target 20: initial Auto Cull, Auto Edit and keeper export handoff', async ({ page, context }) => {
   test.skip(test.info().project.name === 'phone', 'written for the desktop layout; the phone flow (More menu, folded Auto sheet) still needs its own version of this test');
   test.setTimeout(240_000);
   await page.goto('/');
   await page.getByRole('button', { name: 'New project' }).click();
-  await page.getByRole('textbox', { name: 'Project name' }).fill('300 to 20 acceptance');
+  await page.getByRole('textbox', { name: 'Project name' }).fill('500 to 20 acceptance');
   await page.getByText('Project options', { exact: true }).click();
   await page.getByRole('button', { name: '20', exact: true }).click();
   await expect(page.getByRole('checkbox', { name: /Auto-cull/ })).toBeChecked();
@@ -38,7 +38,7 @@ test('300 photos, target 20: initial Auto Cull, Auto Edit and keeper export hand
       context.fillRect(20 + scene * 13, 25 + scene * 7, 100, 110);
       const blob = await new Promise<Blob>((resolve, reject) =>
         canvas.toBlob((value) => value ? resolve(value) : reject(new Error('Could not create test photo')), 'image/png'));
-      for (let frame = 0; frame < 15; frame++) {
+      for (let frame = 0; frame < 25; frame++) {
         files.items.add(new File([blob], `scene-${String(scene + 1).padStart(2, '0')}-frame-${String(frame + 1).padStart(2, '0')}.png`,
           { type: 'image/png', lastModified: first + scene * 4000 + frame * 75 }));
       }
@@ -55,13 +55,25 @@ test('300 photos, target 20: initial Auto Cull, Auto Edit and keeper export hand
   await dialog.getByRole('button', { name: 'Close auto-cull' }).click();
 
   const collections = page.getByRole('navigation', { name: 'Photo collections' });
-  await expect(collections.getByRole('button', { name: 'All photos 300' })).toBeVisible();
+  await expect(collections.getByRole('button', { name: 'All photos 500' })).toBeVisible();
+  // These geometric stand-ins contain no reliable detected subject. Exact
+  // duplicates can move to Trash, but texture alone must never approve a keeper.
+  await expect(collections.getByRole('button', { name: 'Keepers 0', exact: true })).toBeVisible();
+  await expect(collections.getByRole('button', { name: 'Trash 480', exact: true })).toBeVisible();
+  await collections.getByRole('button', { name: 'To review 20', exact: true }).click();
+  // Approve each retained representative through the normal photo action.
+  for (let remaining = 20; remaining > 0; remaining--) {
+    await page.getByRole('button', { name: /^Keep scene-/ }).first().click();
+    await expect(collections.getByRole('button', { name: `To review ${remaining - 1}`, exact: true })).toBeVisible();
+    await expect(collections.getByRole('button', { name: `Keepers ${21 - remaining}`, exact: true })).toBeVisible();
+  }
   await expect(collections.getByRole('button', { name: 'Keepers 20' })).toBeVisible();
   await collections.getByRole('button', { name: 'Keepers 20' }).click();
 
   // Auto Edit is intentionally applied when each keeper is first opened.
   await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
+  const editedFilename = await page.getByRole('heading', { level: 1 }).innerText();
   await page.getByRole('tab', { name: 'Auto' }).click();
   // Editing stays focused on improving the image, not metadata entry.
   await expect(page.getByRole('button', { name: 'Get an opinion' })).toBeVisible();
@@ -90,4 +102,21 @@ test('300 photos, target 20: initial Auto Cull, Auto Edit and keeper export hand
   await page.getByRole('button', { name: 'Workspace options', exact: true }).click();
   await page.getByRole('button', { name: 'Export keepers', exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('heading', { name: 'Export 20 photos' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Close export' }).click();
+  await page.getByRole('button', { name: 'Back to projects' }).click();
+  const project = page.getByRole('button', { name: /^500 to 20 acceptance 500 photos/ });
+  await expect(project).toBeVisible();
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+  await context.setOffline(true);
+  await page.reload();
+  await project.click();
+  await expect(collections.getByRole('button', { name: 'All photos 500', exact: true })).toBeVisible();
+  await expect(collections.getByRole('button', { name: 'Trash 480', exact: true })).toBeVisible();
+  await collections.getByRole('button', { name: 'Keepers 20', exact: true }).click();
+  await page.getByRole('button', { name: `View ${editedFilename}`, exact: true }).click();
+  await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+  await page.getByRole('tab', { name: 'Edit', exact: true }).click();
+  await expect(page.getByRole('slider', { name: 'Colour adjustment' })).toHaveValue('-2');
+  await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
 });

@@ -1,6 +1,8 @@
 #[cfg(desktop)]
 mod raw;
 #[cfg(desktop)]
+mod raw_precision;
+#[cfg(desktop)]
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 #[cfg(desktop)]
 use tauri::Emitter;

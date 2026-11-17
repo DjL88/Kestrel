@@ -106,3 +106,19 @@ test('code-less keyboard events retain punctuation shortcut bindings', () => {
     bindings: DEFAULT_KEY_BINDINGS, activeMode: 'edit', isSuppressed: false,
   })?.id, 'edit.beforeAfter');
 });
+
+
+test('IME composition and dead keys never keep or reject photos', () => {
+  for (const event of [
+    { key: 'k', code: 'KeyK', isComposing: true },
+    { key: 'x', code: 'KeyX', isComposing: true },
+    { key: 'Process', code: 'KeyK' },
+    { key: 'Dead', code: 'KeyX' },
+    { key: 'k', code: 'KeyK', keyCode: 229 },
+  ]) {
+    assert.equal(resolveKeyboardCommand({ event, bindings: DEFAULT_KEY_BINDINGS,
+      activeMode: 'cull', isSuppressed: false }), null);
+  }
+  assert.equal(resolveKeyboardCommand({ event: { key: 'k', code: 'KeyK', isComposing: false },
+    bindings: DEFAULT_KEY_BINDINGS, activeMode: 'cull', isSuppressed: false })?.id, 'cull.keep');
+});
