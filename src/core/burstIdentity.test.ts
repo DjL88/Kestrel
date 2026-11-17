@@ -26,7 +26,7 @@ test('mixed Z8 and Z5II frames are not joined by nearby timestamps', () => {
 
 test('missing camera metadata cannot bridge two independent bursts', () => {
   const input = frames();
-  input[1].exif.camera = undefined;
+  input[1].exif.camera = ''; // Missing camera identity must not bridge independent bursts.
   const grouped = assignBurstGroups(input);
   assert.equal(grouped[0].burstGroupId, null);
   assert.equal(grouped[1].burstGroupId, null);
