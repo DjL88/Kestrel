@@ -7,7 +7,7 @@ import {
   type OfflinePreviewPair,
 } from './offlinePreviewCache';
 import { extractNefPreview } from '../core/nefPreview';
-import { isRawPreviewFile as isNikonEmbeddedPreviewFile } from '../core/rawFormats';
+import { isRawPreviewFile } from '../core/rawFormats';
 import {
   NativeRawUnsupportedError,
   type PreviewProvider,
@@ -38,7 +38,7 @@ export class BrowserRawDecoder implements RawDecoder {
 
   supportsExtension(filename: string): boolean {
     const lower = filename.toLowerCase();
-    return isNikonEmbeddedPreviewFile(filename);
+    return isRawPreviewFile(filename);
   }
 
   async decodeFullRaw(_stableKey: string, filename: string): Promise<never> {
@@ -168,7 +168,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
   /** Save small, nondestructive source previews for linked originals; never persist the original itself. */
   async cacheOfflinePreviews(stableKey: string, filename: string, original: Blob): Promise<boolean> {
-    const source = isNikonEmbeddedPreviewFile(filename)
+    const source = isRawPreviewFile(filename)
       ? (await extractNefPreview(original)) ?? original
       : original;
     const bitmap = await createImageBitmap(source);
@@ -297,7 +297,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
     const developed = this.developed.get(key);
     let previewBlob: Blob | null = developed ?? blob;
-    if (blob && !developed && isNikonEmbeddedPreviewFile(frame.filename)) {
+    if (blob && !developed && isRawPreviewFile(frame.filename)) {
       previewBlob = await extractNefPreview(blob);
       // Development, relinking or a project switch may finish while extraction is in flight.
       if (this.localBlobs.get(key) !== blob || this.developed.get(key) !== developed) {
@@ -390,7 +390,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     }
 
     let sourceBlob: Blob = blob;
-    if (isNikonEmbeddedPreviewFile(frame.filename)) {
+    if (isRawPreviewFile(frame.filename)) {
       const extracted = await extractNefPreview(blob);
       if (!extracted) {
         const cached = await this.loadOfflinePreviews(cacheKey);
