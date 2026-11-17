@@ -30,7 +30,7 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     const result = await saveLicence(key);
-    if (result.ok) { setKey(''); setNote({ text: 'Thank you. Kestrel Paid is unlocked on this device.', good: true }); } else setNote({ text: result.message, good: false });
+    if (result.ok) { setKey(''); setNote({ text: 'Thank you. Kestrel Pro is unlocked on this device.', good: true }); } else setNote({ text: result.message, good: false });
   }
 
   function exportSettings() {
@@ -58,15 +58,15 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
           <section aria-labelledby="licence-h" className="space-y-3">
             <h3 id="licence-h" className="font-medium text-zinc-100">Licence key</h3>
             {licence.status === 'valid'
-              ? <p role="status">Kestrel Paid is unlocked on this device. It works offline and does not need an account.</p>
-              : <p>{BETA_ALL_FEATURES_OPEN ? 'During the beta every feature is open. ' : 'Free is active. '}Bought Kestrel Paid? Paste the key from your receipt email.</p>}
+              ? <p role="status">Kestrel Pro is unlocked on this device. It works offline and does not need an account.</p>
+              : <p>{BETA_ALL_FEATURES_OPEN ? 'During the beta every feature is open. ' : 'Free is active. '}Bought Kestrel Pro? Paste the key from your receipt email.</p>}
             {licence.status === 'invalid' && <p role="alert" className="text-amber-200">{licence.message}</p>}
             {licence.status !== 'valid' ? (
               <form onSubmit={(event) => void submit(event)} className="space-y-2">
                 <label className="block">Licence key
                   <input className={`${field} mt-1 font-mono`} value={key} onChange={(event) => setKey(event.target.value)} autoComplete="off" spellCheck={false} placeholder="KESTREL1.…" />
                 </label>
-                <button type="submit" className={action} disabled={!key.trim()}>Unlock Kestrel Paid</button>
+                <button type="submit" className={action} disabled={!key.trim()}>Unlock Kestrel Pro</button>
               </form>
             ) : (
               <button type="button" className={action} onClick={() => { removeLicence(); setNote(null); }}>Remove the key from this device</button>

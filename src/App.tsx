@@ -1475,7 +1475,7 @@ export default function App() {
       {watchOpen && <WatchFolderDialog onStart={(source, includeExisting) => void watch.start(source, includeExisting)} onClose={() => setWatchOpen(false)} />}
       {watch.status && <p role="status" className="fixed bottom-3 left-3 z-40 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/15 bg-kestrel-raised px-3 py-2 text-xs text-zinc-100 shadow-lg">{watch.status.error ?? `Watching “${watch.status.folder}” · ${watch.status.imported} new photo${watch.status.imported === 1 ? '' : 's'} added`}</p>}
       {paidDialog && (
-        <div role="dialog" aria-modal="true" aria-label={`${paidDialog} is part of Kestrel Paid`} className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+        <div role="dialog" aria-modal="true" aria-label={`${paidDialog} is part of Kestrel Pro`} className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
           onKeyDown={(event) => { if (event.key === 'Escape') setPaidDialog(null); }}>
           <div className="w-full max-w-sm space-y-3 rounded-xl border border-white/12 bg-kestrel-panel p-4">
             <PaidNotice title={paidDialog}>Assisted selection of your best frames.</PaidNotice>

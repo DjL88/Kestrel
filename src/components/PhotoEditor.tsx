@@ -41,7 +41,7 @@ const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
 import { isRawPreviewFile } from '../core/rawFormats';
 import { tasks } from '../core/taskStore';
-import { canDevelopRaw, developRaw, matchPreviewOrientation } from '../providers/rawDevelop';
+import { canDevelopRaw, developRaw, developRawPrecision, matchPreviewOrientation } from '../providers/rawDevelop';
 import { extractRawPreview } from '../core/nefPreview';
 import { PaidNotice } from './PaidNotice';
 import { useAccess } from '../providers/useAccess';
@@ -113,6 +113,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [developedRev, setDevelopedRev] = useState(0);
   const [developing, setDeveloping] = useState(false);
   const [developNote, setDevelopNote] = useState<string | null>(null);
+  const [precisionBusy, setPrecisionBusy] = useState(false);
+  const [precisionNote, setPrecisionNote] = useState<string | null>(null);
   const [compare, setCompare] = useState(false);
   const [beforeStage, setBeforeStage] = useState<ComparisonStage>('original');
   const [dial, setDial] = useState(0);
@@ -290,6 +292,27 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       setDevelopNote(`${message} Kestrel keeps using the preview stored in the file.`);
       task.fail(message);
     } finally { setDeveloping(false); }
+  }
+
+  /**
+   * Experimental, separate from the editor: decode the RAW file straight to a 16-bit TIFF and download it, without the
+   * 8-bit JPEG intermediate the editor itself still uses. No colour profile yet, and Nikon HE/HE* files are not covered.
+   * Does not change what the editor is showing or what Export produces.
+   */
+  async function saveRawPrecisionTiff() {
+    setPrecisionBusy(true); setPrecisionNote(null);
+    const task = tasks.start(`Decoding ${frame.filename} to 16-bit TIFF`);
+    try {
+      const original = await provider.ensureOriginal(frame.stableKey);
+      if (!original) { setPrecisionNote('Reconnect the original file first.'); task.fail('Original unavailable'); return; }
+      const tiff = await developRawPrecision(original);
+      downloadExport(tiff, frame.filename.replace(/\.[a-z0-9]+$/i, '') + '-16bit.tiff');
+      task.finish();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'A 16-bit TIFF could not be produced for this RAW file.';
+      setPrecisionNote(message);
+      task.fail(message);
+    } finally { setPrecisionBusy(false); }
   }
 
   useEffect(() => {
@@ -996,6 +1019,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               </button>
             )}
             {developNote && <p role="status" className="text-xs text-amber-200">{developNote}</p>}
+            {canDevelopRaw() && (
+              <button type="button" className={`${button} w-full border border-white/10`} disabled={precisionBusy} onClick={() => void saveRawPrecisionTiff()}>
+                {precisionBusy ? 'Decoding…' : 'Save 16-bit TIFF (experimental)'}
+              </button>
+            )}
+            {canDevelopRaw() && <p className="px-1 text-xs text-zinc-500">Full sensor bit depth, no colour profile yet, no Nikon High Efficiency support. Doesn't change editing or Export.</p>}
+            {precisionNote && <p role="status" className="text-xs text-amber-200">{precisionNote}</p>}
           </div>
         )}
         <details className="border-t border-white/10">

@@ -33,6 +33,22 @@ export async function developRaw(file: Blob, extension = 'nef'): Promise<Blob> {
   }
 }
 
+/**
+ * Experimental: decode a RAW file straight to a 16-bit TIFF, with none of the 8-bit JPEG intermediate `developRaw` uses.
+ * No colour profile is embedded yet and Nikon High Efficiency files are not covered (no system-decoder fallback here), so
+ * this is offered as an extra, clearly-labelled download next to the normal editor path, not a replacement for it.
+ */
+export async function developRawPrecision(file: Blob): Promise<Blob> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  try {
+    const result = await invoke<ArrayBuffer>('develop_raw_precision', bytes);
+    return new Blob([result], { type: 'image/tiff' });
+  } catch (error) {
+    throw new Error(typeof error === 'string' ? error : 'A 16-bit TIFF could not be produced for this RAW file.');
+  }
+}
+
 async function thumbOf(bitmap: ImageBitmap): Promise<Float32Array> {
   const canvas = document.createElement('canvas');
   canvas.width = THUMB; canvas.height = THUMB;
