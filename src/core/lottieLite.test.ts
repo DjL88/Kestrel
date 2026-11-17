@@ -15,7 +15,7 @@ test('the Kestrel splash file is read into six filled layers over 2.5 seconds', 
   // Centred on the layer's own origin, which the layer's position of 128, 128 then moves into place.
   assert.deepEqual(animation.layers[0].rect, { x: -128, y: -128, width: 256, height: 256, radius: 56 });
   assert.deepEqual(animation.layers[0].position, { still: [128, 128, 0] });
-  assert.equal(animation.layers[0].fill, '#202329');
+  assert.equal(animation.layers[0].fill, '#1c2027');
   assert.equal(animation.layers.at(-1)!.name, 'Crimson kestrel wing');
 });
 
@@ -23,7 +23,7 @@ test('shapes become SVG path data, closed, with the colour from the file', () =>
   const blue = parseLottie(real)!.layers.find((layer) => layer.name === 'Blue upper stroke')!;
   assert.match(blue.path, /^M143\.52 103\.08C/);
   assert.ok(blue.path.endsWith('Z'));
-  assert.equal(blue.fill, '#4ea8de');
+  assert.equal(blue.fill, '#4a88b2');
   assert.equal(blue.fillOpacity, 1);
 });
 

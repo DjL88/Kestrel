@@ -40,7 +40,7 @@ function Handle({ x, y, label, onMove }: { x: number; y: number; label: string; 
       onPointerDown={(event) => { event.stopPropagation(); event.currentTarget.setPointerCapture(event.pointerId); }}
       onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) onMove(point(event), true); }}
       onKeyDown={key}>
-      <span className="h-4 w-4 rounded-full border-2 border-white bg-[#4ea8de] shadow-[0_0_0_1.5px_#000] [button:focus-visible>&]:outline-2 [button:focus-visible>&]:outline-offset-2 [button:focus-visible>&]:outline-white" />
+      <span className="h-4 w-4 rounded-full border-2 border-white bg-[#4a88b2] shadow-[0_0_0_1.5px_#000] [button:focus-visible>&]:outline-2 [button:focus-visible>&]:outline-offset-2 [button:focus-visible>&]:outline-white" />
     </button>
   );
 }

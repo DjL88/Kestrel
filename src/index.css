@@ -6,16 +6,21 @@
 @custom-variant workspace (@media (min-width: 900px) and (min-height: 550px));
 
 @theme {
-  --color-kestrel-canvas: #0d0e12;
-  --color-kestrel-stage: #0c0e11;
-  --color-kestrel-panel: #161a22;
-  --color-kestrel-raised: #202329;
-  --color-kestrel-ink: #f5f3ef;
-  --color-kestrel-copper: #ff6b35;
-  --color-kestrel-copper-hover: #ff8559;
-  --color-kestrel-blue: #4ea8de;
-  --color-kestrel-red: #e03a3e;
-  --color-kestrel-mist: #94a3b8;
+  /* Brand refresh (Kestrel Brand Guidelines v1): pulled down from bright "app icon" tones to
+     something deeper and more editorial. kestrel-blue is the guidelines' "dusk-blue", kestrel-red
+     is "wine-crimson" — names kept to avoid touching every call site, values updated to match.
+     Every accent here clears ~4:1 against both kestrel-panel and kestrel-canvas (measured with the
+     real WCAG relative-luminance formula; see the design system's colour tokens for exact ratios). */
+  --color-kestrel-canvas: #14161b;
+  --color-kestrel-stage: #12141a;
+  --color-kestrel-panel: #1a1d23;
+  --color-kestrel-raised: #1c2027;
+  --color-kestrel-ink: #f4efe6;
+  --color-kestrel-copper: #c9652e;
+  --color-kestrel-copper-hover: #d97840;
+  --color-kestrel-blue: #4a88b2;
+  --color-kestrel-red: #c54f63;
+  --color-kestrel-mist: #8b93a3;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;

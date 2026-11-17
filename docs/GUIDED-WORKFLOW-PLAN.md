@@ -145,11 +145,12 @@ Two things worth checking, not rebuilding:
      `contrast` theme's 3px white focus outlines and pure black/white pairing
      pass comfortably, as expected).
    - Copper as button text-background (zinc-950 on Copper) passes at 7.02:1.
-   - `--color-kestrel-red` (#e03a3e) as text on Canvas narrowly **fails** AA
-     (4.45:1 vs. 4.5:1 required) — but it's currently unused anywhere in the
-     app (confirmed via grep), so this is not a live bug. Flagging it so it
-     isn't adopted later for error/destructive text without either a check or
-     a slightly darker/more saturated value.
+   - `--color-kestrel-red` (now `#c54f63`, wine-crimson, after the brand
+     refresh) as text on Canvas **fails** AA (4.03:1 vs. 4.5:1 required) — but
+     it's currently unused anywhere in the app (confirmed via grep), so this
+     is not a live bug. Flagging it so it isn't adopted later for error/
+     destructive text without either a check or a slightly darker/more
+     saturated value.
    - A sweep of every Tailwind text-color utility actually in use (by
      frequency) found one genuine, live failure: `text-zinc-500` as caption/
      help text on the dark surfaces (3.26–3.99:1, below the 4.5:1 normal-text
