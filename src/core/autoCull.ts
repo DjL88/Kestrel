@@ -76,7 +76,8 @@ export function scoreWithSubject(base: CullSuggestion, found: SubjectFinding | n
   // Detector adapters and persisted worker results are not guaranteed to
   // respect TypeScript types. Non-finite or out-of-range metrics must never
   // manufacture a high-confidence keeper (or propagate a NaN score).
-  if (found && (!Number.isFinite(found.score) || found.score < 0 || found.score > 1 ||
+  if (found && (typeof found.label !== 'string' || found.label.trim().length === 0 ||
+      !Number.isFinite(found.score) || found.score < 0 || found.score > 1 ||
       !Number.isFinite(found.size) || found.size <= 0 ||
       !Number.isFinite(found.sharpness) || found.sharpness < 0)) {
     return { ...base, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
