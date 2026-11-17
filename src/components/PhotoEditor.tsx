@@ -129,6 +129,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [autoAnalysing, setAutoAnalysing] = useState(false);
   // Invalidates slow ONNX results when a proposal is replaced, a tab changes or this editor unmounts.
   const autoRun = useRef(0);
+  const subjectCache = useRef<{ source: HTMLImageElement; cropKey: string; result: Awaited<ReturnType<typeof detectSubject>> } | null>(null);
   useEffect(() => () => { autoRun.current += 1; }, []);
   // Once asked for, the opinion stays up to date as the edit changes, until it is hidden.
   const [opinions, setOpinions] = useState<Opinion[] | null>(null);
@@ -562,8 +563,23 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           });
           const context = detectionCanvas.getContext('2d', { willReadFrequently: true });
           if (context && detectionCanvas.width >= 8 && detectionCanvas.height >= 8) {
-            const { grid, assessment } = await detectSubject(detectionCanvas);
+            let detection = subjectCache.current?.source === originalSource && subjectCache.current?.cropKey === cropKey
+              ? subjectCache.current.result : null;
+            if (!detection) {
+              // Slow/broken inference must not hold the editing workflow hostage.
+              let timeout: ReturnType<typeof setTimeout> | undefined;
+              try {
+                detection = await Promise.race([
+                  detectSubject(detectionCanvas),
+                  new Promise<never>((_, reject) => {
+                    timeout = window.setTimeout(() => reject(new Error('Subject analysis timed out')), 8000);
+                  }),
+                ]);
+              } finally { if (timeout !== undefined) window.clearTimeout(timeout); }
+              if (stillCurrent()) subjectCache.current = { source: originalSource, cropKey, result: detection };
+            }
             if (!stillCurrent()) return;
+            const { grid, assessment } = detection;
             if (assessment.usable) {
               const pixels = context.getImageData(0, 0, detectionCanvas.width, detectionCanvas.height);
               const local = proposeSubjectAwareAuto({
@@ -1003,11 +1019,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             onClick={() => void previewAutoSuggestion()}>
             <Lightbulb className="h-4 w-4 stroke-[1.75]" aria-hidden="true" />{autoAnalysing ? 'Analysing…' : 'Suggest a look'}
           </button>
-          <p className="text-xs text-zinc-400">See Kestrel's suggestion and quality checks on your photo before deciding. Nothing changes until you apply it.</p>
+          <p className="text-xs text-zinc-400">Kestrel checks the whole picture and, where reliable, the subject separately. Preview before applying; your original stays untouched.</p>
           {pendingAuto && (
             <div role="group" aria-label="Suggested edit preview" className="space-y-2 rounded-lg border border-white/15 bg-white/5 p-3">
               <p role="status" className="text-sm text-zinc-100">Previewing your suggested edit</p>
               <div className="flex flex-wrap gap-2">
+                <button type="button" aria-pressed={displayCompare} className={`${button} border border-white/15 aria-pressed:bg-sky-300/15`}
+                  onClick={() => setCompare((current) => !current)}>{displayCompare ? 'Hide comparison' : 'Compare before / after'}</button>
                 <button type="button" className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
                   onClick={() => {
                     if (savedEdit !== pendingAuto.base || cropKey !== pendingAuto.cropKey || sourceImage.current !== pendingAuto.source) {
