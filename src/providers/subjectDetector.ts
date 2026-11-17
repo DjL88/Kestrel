@@ -1,6 +1,6 @@
 import { sha256Hex } from '../core/sha256';
 import { friendlyToolError } from '../core/toolErrors';
-import modelUrl from '../assets/models/u2netp.onnx?url';
+import { bundledModelUrl } from './bundledModelAssets';
 import { SUBJECT_MODEL, assessSubject, gridSizeFor, readSubjectMap, preprocess, toGrid, type SubjectAssessment } from '../core/subjectModel';
 import type { SubjectGrid } from '../core/maskTypes';
 
@@ -13,6 +13,8 @@ let loading: Promise<Loaded> | null = null;
 /** Loads the runtime and the bundled model once. The model is checked against its recorded checksum first. */
 function load(): Promise<Loaded> {
   loading ??= (async () => {
+    const modelUrl = bundledModelUrl('u2netp.onnx');
+    if (!modelUrl) throw new Error('The optional subject mask model is not installed in this preview. Manual masks and editing remain available.');
     const response = await fetch(modelUrl);
     if (!response.ok) throw new Error('The subject model could not be loaded.');
     const bytes = await response.arrayBuffer();
