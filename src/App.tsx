@@ -1147,23 +1147,35 @@ export default function App() {
     // Imports appear in the task manager too (a watched folder has its own status, so it is left out).
     const task = options?.watched ? null : tasks.start(`Adding ${additions.length} photo${additions.length === 1 ? '' : 's'}`, { total: additions.length });
     try {
-      const { frames, unstoredKeys, uncachedPreviewKeys } = await loadLocalFileListShoot(
+      const { frames, unstoredKeys, uncachedPreviewKeys, failedNames } = await loadLocalFileListShoot(
         additions, previewProviderRef.current!, storeRef.current!,
-        ({ loaded, total }) => { setLoadingProgress({ loaded, total }); task?.progress(loaded, total); }
+        ({ loaded, total }) => { setLoadingProgress({ loaded, total }); task?.progress(loaded, total); },
+        { allowPartial: !options?.watched },
       );
       // Imports must never append photos to a different project if the user switches while they load.
       if (stateRef.current.shoot.id !== targetProjectId) {
         task?.finish('Project changed; photos were not added.');
         return;
       }
-      task?.finish();
+      if (!frames.length) {
+        task?.fail('None of the selected photos could be read.');
+        setProjectError('None of these photos could be read. Check file permissions or reconnect the drive, then try again. Your existing project is unchanged.');
+        return;
+      }
+      task?.finish(failedNames.length ? `Added ${frames.length} photos; ${failedNames.length} could not be read.` : undefined);
       if (unstoredKeys.length) {
         setTemporaryOriginals((previous) => new Set([...previous, ...unstoredKeys]));
         setTemporaryWarningDismissed(false);
       }
-      if (uncachedPreviewKeys.length) {
-        setProjectError(`Added the photos, but could not save offline previews for ${uncachedPreviewKeys.length} ${uncachedPreviewKeys.length === 1 ? 'photo' : 'photos'}. The originals were not copied; reselect them or reconnect their folder when the source is unavailable.`);
+      const warnings: string[] = [];
+      if (failedNames.length) {
+        const examples = failedNames.slice(0, 3).join(', ');
+        warnings.push(`Added ${frames.length} photos, but could not read ${failedNames.length}: ${examples}${failedNames.length > 3 ? ', and others' : ''}. Check their source or drive permissions, then select them again. Your other photos were kept.`);
       }
+      if (uncachedPreviewKeys.length) {
+        warnings.push(`Could not save offline previews for ${uncachedPreviewKeys.length} ${uncachedPreviewKeys.length === 1 ? 'photo' : 'photos'}. The originals were not copied; reselect them or reconnect their folder when the source is unavailable.`);
+      }
+      if (warnings.length) setProjectError(warnings.join(' '));
       const importId = newId().slice(0, 8);
       setCullingState((prev) => {
         if (prev.shoot.id !== targetProjectId) return prev;
