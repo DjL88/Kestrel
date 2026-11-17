@@ -1776,6 +1776,8 @@ export default function App() {
               onRemoveVirtualCopy={selectedFrame.virtualCopy ? removeVirtualCopy : undefined}
               panelSide={prefs.editPanelSide}
               onPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, editPanelSide: side }))}
+              hand={prefs.hand}
+              onHandChange={(hand) => setPrefs((prev) => ({ ...prev, hand, editPanelSide: hand }))}
               showFilmstrip={filmstripVisible}
               keeperCount={counts.keep}
               onApplyToKeepers={applyEditToKeepers}
