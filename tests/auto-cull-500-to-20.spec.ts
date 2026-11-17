@@ -89,9 +89,8 @@ test('500 photos, target 20: initial Auto Cull, Auto Edit and keeper export hand
   await expect(page.getByPlaceholder('Add a tag')).toHaveCount(0);
   await page.getByRole('button', { name: 'Back', exact: true }).click();
 
-  // Categorisation and EXIF live in the Library photo-info panel, not Auto.
-  await page.getByRole('button', { name: 'Workspace options', exact: true }).click();
-  await page.getByRole('button', { name: 'Photo info', exact: true }).click();
+  // Categorisation and EXIF live in the Library Photo info sidebar, which now opens by default on desktop.
+  // No extra menu click should be needed to see metadata when returning from Edit.
   await expect(page.getByRole('complementary', { name: 'Photo info' })).toBeVisible();
   await expect(page.getByRole('group', { name: 'Kind of photo' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'What is this a photo of?' })).toBeVisible();
