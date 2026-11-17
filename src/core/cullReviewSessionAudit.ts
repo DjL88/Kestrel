@@ -4,7 +4,7 @@ export type ReviewAuditIssueCode =
   | 'duplicate-id' | 'duplicate-original' | 'invalid-selection'
   | 'invalid-compare' | 'removed-selection' | 'removed-compare'
   | 'invalid-decision' | 'history-missing' | 'history-ambiguous'
-  | 'history-removed' | 'virtual-copy-missing-source' | 'virtual-copy-self-source';
+  | 'history-removed' | 'virtual-copy-missing-source' | 'virtual-copy-self-source' | 'virtual-copy-invalid-source';
 
 export interface ReviewAuditIssue {
   code: ReviewAuditIssueCode;
@@ -59,9 +59,20 @@ export function auditReviewSession(state: CullingState): ReviewSessionAudit {
   for (const frame of state.frames) {
     if (frame.removedAt !== undefined && frame.removedAt !== null) continue;
     const sourceId = frame.virtualCopy?.originalFrameId;
-    if (sourceId === undefined) continue;
-    if (sourceId === frame.id) issues.push({ code: 'virtual-copy-self-source', frameId: frame.id });
-    else if (counts.get(sourceId) !== 1) issues.push({ code: 'virtual-copy-missing-source', frameId: frame.id });
+    if (!frame.virtualCopy) continue;
+    if (typeof sourceId !== 'string' || !sourceId.trim()) {
+      issues.push({ code: 'virtual-copy-invalid-source', frameId: frame.id });
+    } else if (sourceId === frame.id) {
+      issues.push({ code: 'virtual-copy-self-source', frameId: frame.id });
+    } else if (counts.get(sourceId) !== 1) {
+      issues.push({ code: 'virtual-copy-missing-source', frameId: frame.id });
+    } else {
+      const source = byId.get(sourceId);
+      // A copy cannot safely inherit an unavailable original or another copy.
+      if (!source || source.removedAt != null || source.virtualCopy) {
+        issues.push({ code: 'virtual-copy-invalid-source', frameId: frame.id });
+      }
+    }
   }
   for (const [id, invalid, removed] of [
     [state.selectedFrameId, 'invalid-selection', 'removed-selection'],
