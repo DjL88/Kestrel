@@ -47,6 +47,52 @@ class NikonBenchmarkReadOnlyTests(unittest.TestCase):
                 compare(reference, candidate, source_nef=candidate)
             self.assertEqual({path: digest(path) for path in inputs}, before)
 
+    def test_hardlinked_exports_and_source_aliases_are_rejected_without_writes(self):
+        # Hard links have different names but refer to the same original bytes.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reference = root / "nx-reference.tif"
+            pixels = np.full((4, 5, 3), 1234, dtype=np.uint16)
+            profile = b"synthetic-icc"
+            tifffile.imwrite(reference, pixels, photometric="rgb",
+                             extratags=[(34675, "B", len(profile), profile, False)])
+            alias = root / "renamed-candidate.tif"
+            alias.hardlink_to(reference)
+            before = digest(reference)
+            with self.assertRaisesRegex(ValueError, "same file"):
+                compare(reference, alias)
+            self.assertEqual(digest(reference), before)
+            self.assertEqual(digest(alias), before)
+
+            candidate = root / "independent-candidate.tif"
+            tifffile.imwrite(candidate, pixels, photometric="rgb",
+                             extratags=[(34675, "B", len(profile), profile, False)])
+            nef_alias = root / "synthetic-original.NEF"
+            nef_alias.hardlink_to(reference)
+            before_candidate = digest(candidate)
+            with self.assertRaisesRegex(ValueError, "separate from both TIFF"):
+                compare(reference, candidate, source_nef=nef_alias)
+            self.assertEqual(digest(reference), before)
+            self.assertEqual(digest(nef_alias), before)
+            self.assertEqual(digest(candidate), before_candidate)
+
+    def test_invalid_tiff_does_not_modify_original_or_valid_export(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "synthetic-original.NEF"
+            source.write_bytes(b"synthetic only; not a Nikon file")
+            reference = root / "reference.tif"
+            pixels = np.zeros((4, 5, 3), dtype=np.uint16)
+            profile = b"synthetic-icc"
+            tifffile.imwrite(reference, pixels, photometric="rgb",
+                             extratags=[(34675, "B", len(profile), profile, False)])
+            corrupt = root / "truncated.tif"
+            corrupt.write_bytes(b"II*\\x00")
+            before = {path: digest(path) for path in (source, reference, corrupt)}
+            with self.assertRaises((ValueError, tifffile.TiffFileError, OSError)):
+                compare(reference, corrupt, source_nef=source)
+            self.assertEqual({path: digest(path) for path in before}, before)
+
     def test_mismatched_profile_rejection_preserves_source_and_exports(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
