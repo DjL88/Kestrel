@@ -23,7 +23,7 @@ import { MaskPanel } from './MaskPanel';
 import { createSubjectMask, framingKey } from '../core/maskTypes';
 import { detectSubject } from '../providers/subjectDetector';
 import { PresetPanel } from './PresetPanel';
-import { autoEnhance } from '../core/autoEnhance';
+import { autoEnhance, mergeAutoSuggestion } from '../core/autoEnhance';
 import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
 import { PhotoViewport } from './PhotoViewport';
 import { maxZoomFor, percentFor, stepZoom, zoomForPercent } from '../core/zoomControls';
@@ -873,10 +873,24 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           <button type="button" title="Auto colour and tone" disabled={sourceState !== 'ready'} className={`${button} w-full whitespace-normal border border-white/10 font-semibold`}
             onClick={() => {
               const sample = sampleOrientedSource(256);
-              if (!sample) return;
-              const { edit: suggestion, notes } = autoEnhance(sample.data);
-              onEdit({ ...edit, ...suggestion });
-              setAutoNotes(notes);
+              if (!sample) {
+                setAutoNotes(['Could not analyse this photo. Your edits have not changed.']);
+                return;
+              }
+              try {
+                const { edit: suggestion, notes } = autoEnhance(sample.data);
+                if (notes.includes('Too small to analyse.')) {
+                  setAutoNotes(['This preview is too small to analyse. Your edits have not changed.']);
+                  return;
+                }
+                const result = mergeAutoSuggestion(edit, suggestion);
+                if (result.changed) onEdit(result.edit);
+                setAutoNotes([result.changed
+                  ? 'Auto suggested adjustments. Undo or reset them whenever you like.'
+                  : 'No new adjustments suggested. Your existing edits are unchanged.', ...notes]);
+              } catch {
+                setAutoNotes(['Auto could not analyse this photo. Your edits have not changed.']);
+              }
             }}>Auto</button>
           <button type="button" disabled={sourceState !== 'ready'} title="Check this edit for halos, noise, clipping and tone. Runs on this device."
             className={`${button} inline-flex w-full items-center justify-center gap-1.5 border border-white/10 font-semibold`} onClick={updateOpinions}>
