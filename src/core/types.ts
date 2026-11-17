@@ -15,6 +15,9 @@ export interface RatingFilter {
 
 export type WorkspaceViewMode = 'loupe' | 'grid' | 'compare';
 
+/** How the visible photos are ordered. Confidence falls back to last for photos auto-cull has not scored. */
+export type SortOrder = 'captured-desc' | 'captured-asc' | 'rating-desc' | 'name-asc' | 'confidence-desc';
+
 export type DemoAssetKey =
   | 'red-kite'
   | 'kingfisher'
@@ -79,6 +82,11 @@ export interface PhotoFrame {
   declinedTags?: string[];
   /** Set once the species model has looked at this photo, so it is not looked at again. */
   speciesChecked?: boolean;
+  /** How confident the last auto-cull scan was in this photo, and its score (0-100). Set when a scan looks at the
+   * photo, whether or not its suggestion was applied; absent for a photo no scan has looked at yet. Purely
+   * informational (sort/review), never changes `decision` on its own. */
+  cullConfidence?: 'high' | 'medium' | 'low';
+  cullScore?: number;
   burstGroupId: string | null;
   burstIndex: number;
   burstCount: number;
@@ -129,6 +137,10 @@ export interface CullingState {
   filter: FilterState;
   searchQuery: string;
   ratingFilter?: RatingFilter | null;
+  /** Exact-match EXIF filters, from the same consolidated Filter control as search and rating. */
+  cameraFilter?: string | null;
+  lensFilter?: string | null;
+  sortOrder?: SortOrder;
   keeperTarget: number;
   autoAdvance: boolean;
   undoStack: DecisionHistoryEntry[];

@@ -82,6 +82,8 @@ import {
   stepSelection,
   undoDecision,
   applyAutoCullDecisions,
+  applyCullConfidence,
+  sortFrames,
 } from './core/cullingEngine';
 import {
   DEFAULT_KEY_BINDINGS,
@@ -264,7 +266,7 @@ export default function App() {
 
   function enterProject(state: CullingState) {
     const filter = state.filter === 'all' ? 'unreviewed' : state.filter;
-    const visible = filterFrames(state.frames, filter, state.searchQuery, state.ratingFilter);
+    const visible = filterFrames(state.frames, filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
     setBackupNotice(undefined);
     setTemporaryOriginals(new Set());
     setTemporaryWarningDismissed(false);
@@ -441,7 +443,7 @@ export default function App() {
   /** Move to a different filter while keeping the current selection if it's still visible, same rule the filter buttons use. */
   const changeFilter = useCallback((next: FilterState) => {
     setCullingState((prev) => {
-      const nextVisible = filterFrames(prev.frames, next, prev.searchQuery, prev.ratingFilter);
+      const nextVisible = filterFrames(prev.frames, next, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter);
       const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
       return { ...prev, filter: next, selectedFrameId: stillVisible ? prev.selectedFrameId : nextVisible[0]?.id ?? null };
     });
@@ -451,13 +453,36 @@ export default function App() {
 
   const visibleFrames = useMemo(
     () =>
-      filterFrames(
-        cullingState.frames,
-        cullingState.filter,
-        cullingState.searchQuery,
-        cullingState.ratingFilter
+      sortFrames(
+        filterFrames(
+          cullingState.frames,
+          cullingState.filter,
+          cullingState.searchQuery,
+          cullingState.ratingFilter,
+          cullingState.cameraFilter,
+          cullingState.lensFilter
+        ),
+        cullingState.sortOrder
       ),
-    [cullingState.frames, cullingState.filter, cullingState.searchQuery, cullingState.ratingFilter]
+    [
+      cullingState.frames,
+      cullingState.filter,
+      cullingState.searchQuery,
+      cullingState.ratingFilter,
+      cullingState.cameraFilter,
+      cullingState.lensFilter,
+      cullingState.sortOrder,
+    ]
+  );
+
+  /** Distinct cameras and lenses seen in this project, for the Filter control's pickers. Sorted for a stable list. */
+  const cameraOptions = useMemo(
+    () => [...new Set(cullingState.frames.flatMap((frame) => frame.exif.camera ? [frame.exif.camera] : []))].sort(),
+    [cullingState.frames]
+  );
+  const lensOptions = useMemo(
+    () => [...new Set(cullingState.frames.flatMap((frame) => frame.exif.lens ? [frame.exif.lens] : []))].sort(),
+    [cullingState.frames]
   );
 
   const editorFrames = useMemo(() =>
@@ -558,7 +583,7 @@ export default function App() {
       setZoomLevel(1);
       setPanOffset({ x: 0, y: 0 });
       setCullingState((prev) => {
-        const currentVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter);
+        const currentVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter);
         const available = editQueueIds?.length ? currentVisible.filter((frame) => editQueueIds.includes(frame.id)) : currentVisible;
         const nextId = stepSelection(available, prev.selectedFrameId, delta);
         if (!nextId || nextId === prev.selectedFrameId) return prev;
@@ -736,7 +761,7 @@ export default function App() {
       return { ...prev, viewMode: nextMode };
     });
     setCullingState((prev) => {
-      const pool = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter);
+      const pool = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter);
       const pair = getDefaultComparePair(
         pool.length > 0 ? pool : prev.frames.filter((frame) => !frame.removedAt),
         prev.selectedFrameId
@@ -906,7 +931,7 @@ export default function App() {
       const copy = createVirtualCopy(prev.frames[index], prev.frames, id);
       if (framing) { copy.framing = framing; copy.focusPoint = undefined; }
       const frames = [...prev.frames.slice(0, index + 1), copy, ...prev.frames.slice(index + 1)];
-      const visible = filterFrames([copy], prev.filter, prev.searchQuery, prev.ratingFilter).length > 0;
+      const visible = filterFrames([copy], prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter).length > 0;
       return {
         ...prev, frames, selectedFrameId: id,
         shoot: { ...prev.shoot, totalFrames: frames.length, lastUpdatedAt: Date.now() },
@@ -922,7 +947,7 @@ export default function App() {
     const originalId = selectedFrame.virtualCopy.originalFrameId;
     setCullingState((prev) => {
       const frames = prev.frames.filter((frame) => frame.id !== removedId);
-      const visible = filterFrames(frames, prev.filter, prev.searchQuery, prev.ratingFilter);
+      const visible = filterFrames(frames, prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter);
       const cleanHistory = (items: CullingState['undoStack']) => items
         .filter((item) => item.frameId !== removedId)
         .map((item) => ({
@@ -1522,7 +1547,7 @@ export default function App() {
         ratingFilter={cullingState.ratingFilter ?? null}
         onRatingFilterChange={(next) =>
           setCullingState((prev) => {
-            const nextVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, next);
+            const nextVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, next, prev.cameraFilter, prev.lensFilter);
             const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
             return { ...prev, ratingFilter: next, selectedFrameId: stillVisible ? prev.selectedFrameId : nextVisible[0]?.id ?? null };
           })
@@ -1530,7 +1555,7 @@ export default function App() {
         searchQuery={cullingState.searchQuery}
         onSearchChange={(q) =>
           setCullingState((prev) => {
-            const nextVisible = filterFrames(prev.frames, prev.filter, q, prev.ratingFilter);
+            const nextVisible = filterFrames(prev.frames, prev.filter, q, prev.ratingFilter, prev.cameraFilter, prev.lensFilter);
             const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
             return {
               ...prev,
@@ -1541,6 +1566,26 @@ export default function App() {
             };
           })
         }
+        cameraFilter={cullingState.cameraFilter ?? null}
+        onCameraFilterChange={(next) =>
+          setCullingState((prev) => {
+            const nextVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter, next, prev.lensFilter);
+            const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
+            return { ...prev, cameraFilter: next, selectedFrameId: stillVisible ? prev.selectedFrameId : nextVisible[0]?.id ?? null };
+          })
+        }
+        lensFilter={cullingState.lensFilter ?? null}
+        onLensFilterChange={(next) =>
+          setCullingState((prev) => {
+            const nextVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, next);
+            const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
+            return { ...prev, lensFilter: next, selectedFrameId: stillVisible ? prev.selectedFrameId : nextVisible[0]?.id ?? null };
+          })
+        }
+        cameraOptions={cameraOptions}
+        lensOptions={lensOptions}
+        sortOrder={cullingState.sortOrder}
+        onSortOrderChange={(next) => setCullingState((prev) => ({ ...prev, sortOrder: next }))}
         keeperTarget={cullingState.keeperTarget}
         onKeeperTargetChange={(target) =>
           setCullingState((prev) => ({ ...prev, keeperTarget: target }))
@@ -2004,6 +2049,7 @@ export default function App() {
       {autoCullOpen && <AutoCullPanel autoStart={autoCullStart} frames={cullingState.frames} keeperTarget={cullingState.keeperTarget}
         provider={previewProviderRef.current!}
         onApply={(results) => setCullingState((previous) => applyAutoCullDecisions(previous, results))}
+        onScanned={(results) => setCullingState((previous) => applyCullConfidence(previous, results))}
         onUndo={() => setCullingState((previous) => undoDecision(previous))}
         onInspect={(frame) => {
           setAutoCullOpen(false);

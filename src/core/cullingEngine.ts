@@ -10,6 +10,7 @@ import type {
   PhotoFrame,
   RatingFilter,
   ShootDescriptor,
+  SortOrder,
 } from './types';
 
 export const DEFAULT_KEEPER_TARGET = 50;
@@ -331,7 +332,9 @@ export function filterFrames(
   frames: readonly PhotoFrame[],
   filter: FilterState,
   searchQuery: string = '',
-  ratingFilter?: RatingFilter | null
+  ratingFilter?: RatingFilter | null,
+  cameraFilter?: string | null,
+  lensFilter?: string | null
 ): PhotoFrame[] {
   const query = searchQuery.trim().toLowerCase();
   return frames.filter((frame) => {
@@ -340,6 +343,8 @@ export function filterFrames(
       return false;
     }
     if (!matchesRating(frame, ratingFilter)) return false;
+    if (cameraFilter && frame.exif.camera !== cameraFilter) return false;
+    if (lensFilter && frame.exif.lens !== lensFilter) return false;
     if (!query) return true;
     const haystack = [
       frame.filename,
@@ -352,6 +357,56 @@ export function filterFrames(
       .toLowerCase();
     return haystack.includes(query);
   });
+}
+
+const CONFIDENCE_RANK: Record<'high' | 'medium' | 'low', number> = { high: 2, medium: 1, low: 0 };
+
+/** Order already-filtered frames for display. No `sortOrder` leaves the existing (import/catalogue) order alone -
+ * this only reorders once the person actively picks a sort. Stable: ties keep their existing relative order. */
+export function sortFrames(frames: readonly PhotoFrame[], sortOrder?: SortOrder): PhotoFrame[] {
+  if (!sortOrder) return [...frames];
+  const ordered = [...frames];
+  switch (sortOrder) {
+    case 'captured-asc':
+      ordered.sort((a, b) => (a.exif.capturedAtMs ?? 0) - (b.exif.capturedAtMs ?? 0));
+      break;
+    case 'rating-desc':
+      ordered.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+      break;
+    case 'name-asc':
+      ordered.sort((a, b) => a.filename.localeCompare(b.filename, undefined, { numeric: true }));
+      break;
+    case 'confidence-desc':
+      // Frames auto-cull has never scored sort after every scored one, regardless of confidence.
+      ordered.sort((a, b) => {
+        const rankA = a.cullConfidence ? CONFIDENCE_RANK[a.cullConfidence] : -1;
+        const rankB = b.cullConfidence ? CONFIDENCE_RANK[b.cullConfidence] : -1;
+        if (rankA !== rankB) return rankB - rankA;
+        return (b.cullScore ?? 0) - (a.cullScore ?? 0);
+      });
+      break;
+    case 'captured-desc':
+      ordered.sort((a, b) => (b.exif.capturedAtMs ?? 0) - (a.exif.capturedAtMs ?? 0));
+      break;
+  }
+  return ordered;
+}
+
+/** Record what the last auto-cull scan found for each photo it looked at, so it can be sorted on later. Never
+ * touches `decision`: applying a suggestion is still a separate, explicit step. */
+export function applyCullConfidence(
+  state: CullingState,
+  results: readonly { frameId: string; confidence: 'high' | 'medium' | 'low'; score: number }[]
+): CullingState {
+  if (!results.length) return state;
+  const byId = new Map(results.map((result) => [result.frameId, result]));
+  return {
+    ...state,
+    frames: state.frames.map((frame) => {
+      const found = byId.get(frame.id);
+      return found ? { ...frame, cullConfidence: found.confidence, cullScore: found.score } : frame;
+    }),
+  };
 }
 
 export function stepSelection(
@@ -433,7 +488,7 @@ export function applyDecisionWithHistory(
   // A stale filmstrip/compare callback must never reclassify a photo already removed
   // from the library. Restoration is a separate, explicit action.
   if (targetFrame.removedAt) return state;
-  const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery, state.ratingFilter);
+  const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
   const visibleIdx = visibleBefore.findIndex((f) => f.id === frameId);
 
   const shouldAdvance = options?.allowAdvance ?? state.autoAdvance;
@@ -467,7 +522,7 @@ export function applyDecisionWithHistory(
   );
 
   // Ensure selected frame stays valid if filtered out
-  const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery, state.ratingFilter);
+  const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
   if (nextSelectedId && !visibleAfter.some((f) => f.id === nextSelectedId)) {
     // Removing the current photo should leave the eye at the same place in the queue.
     const nextIndex = Math.max(0, Math.min(visibleAfter.length - 1, visibleIdx));
@@ -532,7 +587,7 @@ export function applyAutoCullDecisions(
     return { ...frame, decision };
   });
   if (!batch.length) return state;
-  const visible = filterFrames(frames, state.filter, state.searchQuery, state.ratingFilter);
+  const visible = filterFrames(frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
   const selectedFrameId = visible.some((frame) => frame.id === state.selectedFrameId)
     ? state.selectedFrameId : visible[0]?.id ?? null;
   return {
@@ -579,10 +634,10 @@ export function removeFromLibrary(state: CullingState, frameIds: string[]): Cull
   const targets = state.frames.filter((frame) => ids.has(frame.id) && frame.decision === 'reject' && !frame.removedAt);
   if (!targets.length) return state;
   const removing = new Set(targets.map((frame) => frame.id));
-  const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery, state.ratingFilter);
+  const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
   const firstIndex = visibleBefore.findIndex((frame) => removing.has(frame.id));
   const frames = state.frames.map((frame) => removing.has(frame.id) ? { ...frame, removedAt: Date.now() } : frame);
-  const visibleAfter = filterFrames(frames, state.filter, state.searchQuery, state.ratingFilter);
+  const visibleAfter = filterFrames(frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
   const selectedFrameId = state.selectedFrameId && visibleAfter.some((frame) => frame.id === state.selectedFrameId)
     ? state.selectedFrameId
     : visibleAfter[Math.max(0, Math.min(visibleAfter.length - 1, firstIndex))]?.id ?? null;
@@ -648,7 +703,7 @@ export function redoDecision(state: CullingState): CullingState {
   if (!historyTargetsAreUnique(state, entry)) return state;
   const updatedFrames = restoreFlags(state, entry, 'nextDecision');
 
-  const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery, state.ratingFilter);
+  const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
   const candidateSelection =
     entry.nextSelectedId && visibleAfter.some((f) => f.id === entry.nextSelectedId)
       ? entry.nextSelectedId

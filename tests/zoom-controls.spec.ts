@@ -52,8 +52,9 @@ test('the zoom group has a slider and the photo itself has no second, floating z
   await expect(slider).toBeVisible();
   await slider.fill(String(await slider.getAttribute('max')));
   await expect.poll(async () => parseInt(await level.innerText())).toBeGreaterThan(100);
-  // Only one zoom control now — no duplicate floating button over the photo itself.
-  await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
+  // Only one zoom control now: the toolbar's own "Zoom in" (exercised above), no second,
+  // duplicate floating button over the photo itself (that one was labelled "Fit photo" when zoomed in).
+  await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Fit photo' })).toHaveCount(0);
 });
 

@@ -1092,6 +1092,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             <p role={developing ? 'status' : undefined} className="px-1 text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey)
               ? 'Developed from the RAW file as an 8-bit JPEG. Edits use that JPEG; the original RAW is unchanged.'
               : developing ? 'Getting the full quality from the RAW file…' : "You're editing the quick preview stored inside the RAW file."}</p>
+            {/* Always visible, not tucked behind the disclosure: when the automatic attempt fails the person needs
+                to see why without first hunting through RAW options. */}
+            {developNote && <p role="status" className="px-1 text-xs text-amber-200">{developNote}</p>}
             <details>
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
                 RAW options <ChevronDown className="h-4 w-4" aria-hidden="true" />
@@ -1102,7 +1105,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                     {developing ? 'Developing…' : 'Develop from RAW'}
                   </button>
                 )}
-                {developNote && <p role="status" className="text-xs text-amber-200">{developNote}</p>}
                 {canDevelopRaw() && (
                   <button type="button" className={`${button} w-full border border-white/10`} disabled={precisionBusy} onClick={() => void saveRawPrecisionTiff()}>
                     {precisionBusy ? 'Decoding…' : 'Save 16-bit TIFF (experimental)'}

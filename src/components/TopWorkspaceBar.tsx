@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Hand, ArchiveRestore, ArrowLeft, Download, Ellipsis, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Search, Trash2, Undo2 } from 'lucide-react';
+import { Hand, ArchiveRestore, ArrowLeft, Download, Ellipsis, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Trash2, Undo2 } from 'lucide-react';
 import type { ProjectSettings } from '../core/projectSettings';
 import { AppearanceSettings } from './AppearanceSettings';
 import { isDesktopApp } from '../providers/desktopShell';
 import { messages as m } from '../i18n/messages';
-import type { CullCounts, FilterState, RatingFilter, ShootDescriptor, WorkspaceViewMode } from '../core/types';
-import { RatingFilterControl } from './RatingFilterControl';
+import type { CullCounts, FilterState, RatingFilter, ShootDescriptor, SortOrder, WorkspaceViewMode } from '../core/types';
+import { FilterSortControl } from './FilterSortControl';
 
 interface TopWorkspaceBarProps {
   shoot: ShootDescriptor;
@@ -16,6 +16,14 @@ interface TopWorkspaceBarProps {
   ratingFilter: RatingFilter | null;
   onRatingFilterChange: (filter: RatingFilter | null) => void;
   onSearchChange: (q: string) => void;
+  cameraFilter: string | null;
+  onCameraFilterChange: (camera: string | null) => void;
+  lensFilter: string | null;
+  onLensFilterChange: (lens: string | null) => void;
+  cameraOptions: string[];
+  lensOptions: string[];
+  sortOrder: SortOrder | undefined;
+  onSortOrderChange: (order: SortOrder | undefined) => void;
   keeperTarget: number;
   onKeeperTargetChange: (target: number) => void;
   viewMode: WorkspaceViewMode;
@@ -145,7 +153,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
         <div className="truncate text-sm font-semibold text-zinc-100" title={shoot.title}>{shoot.title}</div>
         <div className="truncate text-xs text-zinc-400">
           {loadingProgress ? `Opening ${loadingProgress.loaded}/${loadingProgress.total}` :
-            `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter === 'all' || filter === 'reject' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}${props.ratingFilter ? ' · Rating filter' : ''}`}
+            `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter === 'all' || filter === 'reject' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}${props.ratingFilter || props.cameraFilter || props.lensFilter ? ' · Filters active' : ''}`}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
@@ -171,17 +179,14 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           {menuOpen && (
             <div id="workspace-options" data-workspace-options className="workspace-popover fixed inset-x-2 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 max-h-[70dvh] md:absolute md:inset-x-auto md:bottom-auto md:right-2 md:top-full md:mt-1 md:max-h-[calc(100dvh-8rem)] md:w-[min(26rem,calc(100vw-1rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-3 shadow-2xl sm:right-4">
               <div className="space-y-3">
-                <section aria-label="Find photos" className="space-y-2 md:hidden">
-                  <label className="block text-xs font-medium text-zinc-400">
-                    Search photos
-                    <input type="search" value={searchQuery} onChange={(event) => props.onSearchChange(event.target.value)}
-                      placeholder="Subject name or filename"
-                      className="mt-1 min-h-10 w-full rounded-md border border-white/10 bg-black/20 px-2 text-base text-zinc-100 sm:text-sm" />
-                  </label>
-                  <label className="block text-xs font-medium text-zinc-400">
-                    Rating
-                    <RatingFilterControl value={props.ratingFilter} onChange={props.onRatingFilterChange} className="mt-1 w-full" />
-                  </label>
+                <section aria-label="Find photos" className="md:hidden">
+                  <FilterSortControl searchQuery={searchQuery} onSearchChange={props.onSearchChange}
+                    ratingFilter={props.ratingFilter} onRatingFilterChange={props.onRatingFilterChange}
+                    cameraFilter={props.cameraFilter} onCameraFilterChange={props.onCameraFilterChange}
+                    lensFilter={props.lensFilter} onLensFilterChange={props.onLensFilterChange}
+                    cameraOptions={props.cameraOptions} lensOptions={props.lensOptions}
+                    sortOrder={props.sortOrder} onSortOrderChange={props.onSortOrderChange}
+                    className="flex-wrap" />
                 </section>
 
                 <section aria-labelledby="menu-view" className="grid grid-cols-2 gap-2">
@@ -309,13 +314,12 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
         ))}
       </div>
       <div className="hidden min-w-0 flex-1 items-center justify-end gap-2 md:flex">
-        <label className="relative block w-full max-w-64">
-          <span className="sr-only">Search photos</span>
-          <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden="true" />
-          <input type="search" value={searchQuery} onChange={(event) => props.onSearchChange(event.target.value)} placeholder="Search name or subject"
-            className="min-h-10 w-full rounded-md border border-white/10 bg-black/20 pl-8 pr-2 text-sm text-zinc-100" />
-        </label>
-        <RatingFilterControl value={props.ratingFilter} onChange={props.onRatingFilterChange} />
+        <FilterSortControl searchQuery={searchQuery} onSearchChange={props.onSearchChange}
+          ratingFilter={props.ratingFilter} onRatingFilterChange={props.onRatingFilterChange}
+          cameraFilter={props.cameraFilter} onCameraFilterChange={props.onCameraFilterChange}
+          lensFilter={props.lensFilter} onLensFilterChange={props.onLensFilterChange}
+          cameraOptions={props.cameraOptions} lensOptions={props.lensOptions}
+          sortOrder={props.sortOrder} onSortOrderChange={props.onSortOrderChange} />
       </div>
     </nav>
     </>

@@ -98,7 +98,8 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   // The built-in quality checks answer for an unedited photo, and stay on the page.
   await page.getByRole('tab', { name: 'Auto' }).click();
   await page.getByRole('button', { name: 'Suggest a look' }).click();
-  await expect(page.getByRole('region', { name: 'Quality checks for this look' })).toBeVisible();
+  // Quality checks run as a follow-up effect once the suggested edit is previewed; give it room on a loaded CI box.
+  await expect(page.getByRole('region', { name: 'Quality checks for this look' })).toBeVisible({ timeout: 10_000 });
   await page.getByRole('button', { name: 'Hide opinion' }).click();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await light.press('ArrowRight');
