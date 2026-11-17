@@ -65,6 +65,7 @@ class CompareNikonTiffsTests(unittest.TestCase):
         self.assertEqual(result["candidate_tiff_sha256"], hashlib.sha256(candidate_file.read_bytes()).hexdigest())
         self.assertEqual(result["icc_profile_sha256"], hashlib.sha256(b"test-profile").hexdigest())
         self.assertNotEqual(result["reference_tiff_sha256"], result["candidate_tiff_sha256"])
+        self.assertFalse(result["byte_identical_exports"])
         self.assertEqual(result["changed_pixels"], 1)
         self.assertEqual(result["maximum_channel_error_rgb"], [18000, 0, 47535])
         self.assertEqual(result["width"], 12)
@@ -136,6 +137,7 @@ class CompareNikonTiffsTests(unittest.TestCase):
             self.write("reference-identical.tif", pixels),
             self.write("candidate-identical.tif", pixels),
         )
+        self.assertTrue(result["byte_identical_exports"])
         for key in (
             "highlight_clipped_channels_added_rgb",
             "highlight_clipped_channels_lost_rgb",
