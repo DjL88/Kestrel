@@ -136,7 +136,7 @@ test('phone editing: one big slider, chips to choose, nudge and reset, and the f
   const quick = page.getByRole('region', { name: 'Quick adjust' });
   await expect(quick).toBeVisible();
   // Light is first. The slider, its buttons and the chips are all big enough for a thumb.
-  const slider = quick.getByRole('slider', { name: 'Light adjustment' });
+  const slider = quick.getByRole('slider', { name: 'Exposure adjustment' });
   await expect(slider).toBeVisible();
   for (const name of ['Light down', 'Light up', 'Reset Light', 'Step back', 'Step forward']) {
     const box = (await quick.getByRole('button', { name, exact: true }).boundingBox())!;

@@ -56,30 +56,16 @@ const openEdit = async (page: import('@playwright/test').Page) => {
   await page.getByRole('tab', { name: 'Edit' }).click({ timeout: 20000 });
   const all = page.getByRole('button', { name: 'All controls' });
   if (await all.isVisible()) await all.click();
-  // RAW options are tucked behind a disclosure now, decluttering the panel for everyone who doesn't need them.
-  await page.getByText('RAW options', { exact: true }).click();
 };
 
-test('RAW options are tucked behind a disclosure, not sitting open in the panel by default', async ({ page }) => {
-  await asDesktop(page, 'works');
-  await page.goto('/');
-  await page.getByTestId('quick-edit-input').setInputFiles({ name: 'DSC00001.ARW', mimeType: 'application/octet-stream', buffer: raw });
-  await page.getByRole('tab', { name: 'Edit' }).click({ timeout: 20000 });
-  const all = page.getByRole('button', { name: 'All controls' });
-  if (await all.isVisible()) await all.click();
-  await expect(page.getByRole('button', { name: 'Develop from RAW' })).toHaveCount(0);
-  await page.getByText('RAW options', { exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Develop from RAW' })).toBeVisible();
-});
-
-test('Develop from RAW swaps the embedded preview for the full developed picture', async ({ page }) => {
+test('a RAW file develops to full quality automatically, no click required', async ({ page }) => {
   await asDesktop(page, 'works');
   await openEdit(page);
+  // Shows the quick preview immediately — nothing to wait on before the editor is usable.
   await expect(page.getByText("You're editing the quick preview", { exact: false })).toBeVisible({ timeout: 20000 });
-  await page.getByRole('button', { name: 'Develop from RAW' }).click();
+  // ...then silently swaps in the full decode, with no "Develop from RAW" click from the person.
   await expect(page.getByText('Developed from the RAW file')).toBeVisible({ timeout: 30000 });
   await expect(page.getByText('Developed from the RAW file')).toContainText('8-bit JPEG');
-  await expect(page.getByRole('button', { name: 'Develop from RAW' })).toHaveCount(0);
   expect(await page.evaluate(() => (window as unknown as { __developCalls: number }).__developCalls)).toBe(1);
   // The picture handed to the editor after developing is the developed one, not the embedded preview.
   await expect.poll(() => page.evaluate(() => { const w = window as unknown as { __shown: number[]; __developedSize: number }; return w.__shown.includes(w.__developedSize); }), { timeout: 15000 }).toBe(true);
@@ -87,35 +73,47 @@ test('Develop from RAW swaps the embedded preview for the full developed picture
   await expect(page.getByText('Developed RAW files export from an 8-bit JPEG', { exact: false })).toBeVisible();
 });
 
-test('when a RAW cannot be developed, the person is told and the preview keeps working', async ({ page }) => {
+test('RAW options are tucked behind a disclosure, not sitting open in the panel by default', async ({ page }) => {
+  // 'fails' keeps the automatic attempt from quietly succeeding mid-test and removing the retry button.
   await asDesktop(page, 'fails');
   await openEdit(page);
-  await page.getByRole('button', { name: 'Develop from RAW' }).click({ timeout: 20000 });
-  await expect(page.getByRole('status').filter({ hasText: 'unsupported compression' })).toContainText('keeps using the preview stored in the file');
+  await expect(page.getByRole('button', { name: 'Develop from RAW' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Save 16-bit TIFF/ })).toHaveCount(0);
+  await page.getByText('RAW options', { exact: true }).click();
+  await expect(page.getByRole('button', { name: /Save 16-bit TIFF/ })).toBeVisible();
+});
+
+test('when a RAW cannot be developed automatically, the person is told and can retry by hand', async ({ page }) => {
+  await asDesktop(page, 'fails');
+  await openEdit(page);
+  await expect(page.getByRole('status').filter({ hasText: 'unsupported compression' })).toContainText('keeps using the preview stored in the file', { timeout: 20000 });
   await expect(page.getByText("You're editing the quick preview", { exact: false })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Develop from RAW' })).toBeEnabled();
+  expect(await page.evaluate(() => (window as unknown as { __developCalls: number }).__developCalls)).toBe(1);
+  await page.getByText('RAW options', { exact: true }).click();
+  const retry = page.getByRole('button', { name: 'Develop from RAW' });
+  await expect(retry).toBeEnabled();
+  await retry.click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __developCalls: number }).__developCalls)).toBe(2);
 });
 
 test('outside the desktop app there is no Develop button, only the honest preview note', async ({ page }) => {
   await openEdit(page);
   await expect(page.getByText("You're editing the quick preview", { exact: false })).toBeVisible({ timeout: 20000 });
+  await page.getByText('RAW options', { exact: true }).click();
   await expect(page.getByRole('button', { name: 'Develop from RAW' })).toHaveCount(0);
 });
 
 test('unreadable native output never replaces the working RAW preview', async ({ page }) => {
   await asDesktop(page, 'corrupt');
   await openEdit(page);
-  await page.getByRole('button', { name: 'Develop from RAW' }).click({ timeout: 20000 });
-  await expect(page.getByRole('status').filter({ hasText: 'developed RAW picture could not be opened' })).toContainText('keeps using the preview stored in the file');
+  await expect(page.getByRole('status').filter({ hasText: 'developed RAW picture could not be opened' })).toContainText('keeps using the preview stored in the file', { timeout: 20000 });
   await expect(page.getByText("You're editing the quick preview", { exact: false })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Develop from RAW' })).toBeEnabled();
 });
 
 test('a developed picture that comes out sideways is turned to match the camera preview', async ({ page }) => {
   await asDesktop(page, 'sideways');
   await openEdit(page);
-  await page.getByRole('button', { name: 'Develop from RAW' }).click({ timeout: 20000 });
   await expect(page.getByText('Developed from the RAW file')).toBeVisible({ timeout: 30000 });
   const shape = await page.evaluate(async () => {
     const blobs = (window as unknown as { __blobs: Blob[] }).__blobs.filter((b) => b.type === 'image/jpeg');

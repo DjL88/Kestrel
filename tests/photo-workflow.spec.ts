@@ -65,7 +65,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await collections.getByRole('button', { name: 'Keepers 1' }).click();
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
-  const light = page.getByRole('slider', { name: 'Light adjustment' });
+  const light = page.getByRole('slider', { name: 'Exposure adjustment' });
   await expect(light).toBeEnabled();
   await expectIconButtonsHaveTooltips(page, 'the editor');
   await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
@@ -238,7 +238,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await collections.getByRole('button', { name: 'Keepers 1' }).click();
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
-  await expect(page.getByRole('slider', { name: 'Light adjustment' })).toHaveValue('0.1');
+  await expect(page.getByRole('slider', { name: 'Exposure adjustment' })).toHaveValue('0.1');
   // Mobile quick-adjust states use words and a checkmark as well as colour.
   if (page.viewportSize()!.width < 768) {
     await expect(page.getByRole('button', { name: 'Light, adjusted' })).toBeVisible();

@@ -34,6 +34,6 @@ test('library can auto-adjust an unedited keeper locally and retain editable sli
   await expect(page.getByRole('status').filter({ hasText: 'Auto-adjusted 1 keepers' })).toBeVisible({ timeout: 30000 });
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
-  const exposure = Number(await page.getByRole('slider', { name: 'Light adjustment' }).inputValue());
+  const exposure = Number(await page.getByRole('slider', { name: 'Exposure adjustment' }).inputValue());
   expect(exposure).toBeGreaterThan(0);
 });

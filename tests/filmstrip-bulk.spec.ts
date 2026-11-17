@@ -41,7 +41,7 @@ test('select multiple photos in Library, edit just that queue and export togethe
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await batch.getByRole('button', { name: 'Edit together' }).click();
   await expect(batch.getByRole('button', { name: /Editing together/ })).toHaveAttribute('aria-pressed', 'true');
-  const light = page.getByRole('slider', { name: 'Light adjustment' });
+  const light = page.getByRole('slider', { name: 'Exposure adjustment' });
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');
   // Navigation flushes a pending linked adjustment, even when it happens immediately.
@@ -82,7 +82,7 @@ test('filmstrip selection can bulk export and paste slider edits, keeping origin
   await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 3' })).toBeVisible();
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
-  const light = page.getByRole('slider', { name: 'Light adjustment' });
+  const light = page.getByRole('slider', { name: 'Exposure adjustment' });
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');
   const bar = page.getByRole('toolbar', { name: 'Filmstrip controls' });

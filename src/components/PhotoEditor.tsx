@@ -492,6 +492,16 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     if (compare) setTransform(FIT_VIEW);
   }, [compare]);
 
+  // Auto-develop: get the best available quality without making anyone ask for it. The quick embedded preview shows
+  // immediately so there's nothing to wait on, then this silently swaps in the full sensor decode once it's ready —
+  // "Develop from RAW" in RAW options below is only there to retry or force it again, never required for normal use.
+  useEffect(() => {
+    if (!isRaw || !canDevelopRaw() || !source || developing || provider.isDeveloped(frame.stableKey)) return;
+    void developFromRaw();
+    // Once per photo: developing flips provider.isDeveloped, which this effect re-checks when `source` next changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source]);
+
   // Auto-edit: the first time a photo with no edit history is ready, suggest colour and tone and say why.
   useEffect(() => {
     if (!autoEdit || !source || frame.edit || frame.editHistory?.steps.length) return;
@@ -886,7 +896,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               if (!sample) return;
               const { edit: suggestion, notes } = autoEnhance(sample.data);
               onEdit({ ...edit, ...suggestion });
-              setAutoNotes(notes);
+              // Always say something: a click that visibly does nothing reads as broken, even when "nothing to
+              // adjust" is the correct, honest answer (a photo that's already well exposed and balanced).
+              setAutoNotes(notes.length ? notes : ['This photo already looks balanced — nothing needed adjusting.']);
             }}>Auto</button>
           <button type="button" disabled={sourceState !== 'ready'} title="Check this edit for halos, noise, clipping and tone. Runs on this device."
             className={`${button} inline-flex w-full items-center justify-center gap-1.5 border border-white/10 font-semibold`} onClick={updateOpinions}>
@@ -1021,9 +1033,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         </details>
         {isRaw && (
           <div className="border-t border-white/10 pt-2">
-            <p className="px-1 text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey)
+            <p role={developing ? 'status' : undefined} className="px-1 text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey)
               ? 'Developed from the RAW file as an 8-bit JPEG. Edits use that JPEG; the original RAW is unchanged.'
-              : "You're editing the quick preview stored inside the RAW file."}</p>
+              : developing ? 'Getting the full quality from the RAW file…' : "You're editing the quick preview stored inside the RAW file."}</p>
             <details>
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
                 RAW options <ChevronDown className="h-4 w-4" aria-hidden="true" />

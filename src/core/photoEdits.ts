@@ -35,7 +35,7 @@ export interface PhotoEdit {
 export const DEFAULT_EDIT: PhotoEdit = { exposure: 0, warmth: 0, colour: 0 };
 
 export const EDIT_CHOICES = [
-  { key: 'exposure', label: 'Light', options: ['Darker', 'Neutral', 'Brighter'] },
+  { key: 'exposure', label: 'Exposure', options: ['Darker', 'Neutral', 'Brighter'] },
   { key: 'warmth', label: 'Warmth', options: ['Cooler', 'Neutral', 'Warmer'] },
   { key: 'colour', label: 'Colour', options: ['Softer', 'Neutral', 'Richer'] },
 ] as const;
