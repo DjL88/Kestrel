@@ -104,12 +104,17 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
       <div className="mt-3 border-t border-white/10 pt-3">
         <SubjectPanel kind={frame.subjectKind} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} autoTags={frame.autoTags}
           onChange={(tags, kind) => onSubjects(frame, tags, kind)} onKeep={(name) => onKeepTag(frame, name)} />
+        {frame.subjectKind !== 'wildlife' && (
+          <p className="mt-2 text-xs text-zinc-400">
+            Species matches are suggestions, not proof of an animal. Choose Wildlife above to allow automatic species tags; aircraft and other subjects will not be given bird names automatically.
+          </p>
+        )}
         {loadPicture && (
           <SpeciesSuggestions frameId={frame.id} ready={Boolean(picture)} getPicture={() => picture}
             tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} kind={frame.subjectKind}
             onAccept={(name, kind) => onSubjects(frame, addTags(addTags(frame.subjectNames ?? [], frame.tags ?? []), [name]), frame.subjectKind ?? kind)}
             mates={mates.map((mate) => ({ id: mate.id, has: (name: string) => hasName(mate, name), load: async () => loadPicture(mate) }))}
-            canAutoTag={mayAutoTag(frame, '')} declined={frame.declinedTags ?? []} onAutoTag={(name, kind) => onAutoTag?.(frame, name, kind)}
+            canAutoTag={frame.subjectKind === 'wildlife' && mayAutoTag(frame, '')} declined={frame.declinedTags ?? []} onAutoTag={(name, kind) => onAutoTag?.(frame, name, kind)}
             onTagMates={onTagPhotos} />
         )}
       </div>

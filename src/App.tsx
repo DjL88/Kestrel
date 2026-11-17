@@ -1999,7 +1999,11 @@ export default function App() {
             loadPicture={loadSpeciesPicture}
             mates={burstMates(cullingState.frames, infoFrameId ? cullingState.frames.find((frame) => frame.id === infoFrameId) ?? { id: '', burstGroupId: null } : selectedFrame ?? { id: '', burstGroupId: null })}
             onTagPhotos={(ids, name, kind) => setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() }, frames: tagFrames(prev.frames, ids, name, kind) }))}
-            onAutoTag={(frame, name, kind) => { if (mayAutoTag(frame, name)) updateFrame(frame.id, { ...applyAutoTag(frame, name), ...(frame.subjectKind || !kind ? {} : { subjectKind: kind }) }); }} onRate={(id, rating) => rateOrFlagPhotos(id, { rating })}
+            onAutoTag={(frame, name, kind) => {
+              // The species-only model must never manufacture wildlife classification.
+              if (frame.subjectKind === 'wildlife' && kind === 'wildlife' && mayAutoTag(frame, name))
+                updateFrame(frame.id, applyAutoTag(frame, name));
+            }} onRate={(id, rating) => rateOrFlagPhotos(id, { rating })}
             onFlag={(id, flag) => rateOrFlagPhotos(id, { flag })}
             batchCount={multiSelect && selectedIds.has(infoFrameId ?? selectedFrame?.id ?? '') ? selectedIds.size : 0}
             frame={infoFrameId ? cullingState.frames.find((frame) => frame.id === infoFrameId) ?? null : selectedFrame}
