@@ -34,6 +34,8 @@ fn checked_rgb16_bytes(width: u32, height: u32) -> Result<usize, String> {
 /// This guard is essential: `to_rgb16()` also accepts 8-bit inputs, but
 /// upsampling their codes cannot recover lost RAW information.
 fn require_rgb16(image: DynamicImage) -> Result<Rgb16, String> {
+    // Reject excessive frames before RGBA/greyscale conversion allocates an RGB16 copy.
+    checked_rgb16_bytes(image.width(), image.height())?;
     match image {
         DynamicImage::ImageRgb16(rgb) => Ok(rgb),
         DynamicImage::ImageRgba16(rgba) => Ok(DynamicImage::ImageRgba16(rgba).to_rgb16()),
@@ -87,6 +89,7 @@ pub fn develop_raw_rgb16_tiff(bytes: &[u8]) -> Result<Vec<u8>, String> {
         .to_dynamic_image()
         .ok_or_else(|| "RAW development produced no picture.".to_string())?;
     let rgb = require_rgb16(intermediate)?;
+    // A rotated frame retains its pixel count; the earlier check protects this copy too.
     let oriented = orient_rgb16(rgb, raw.orientation.to_u16());
     encode_rgb16_tiff(&oriented)
 }
@@ -130,6 +133,15 @@ mod tests {
         assert!(checked_rgb16_bytes(10_000, 10_000).is_err());
         assert!(checked_rgb16_bytes(u32::MAX, u32::MAX).is_err());
         assert!(checked_rgb16_bytes(0, 1).is_err());
+    }
+
+    #[test]
+    fn rejects_oversized_rgba16_before_rgb_conversion() {
+        // ImageBuffer construction would allocate hundreds of MB here, so verify
+        // the dimension guard directly; require_rgb16 calls it before conversion.
+        assert!(checked_rgb16_bytes(10_000, 10_000).is_err());
+        let rgba = DynamicImage::ImageRgba16(ImageBuffer::from_pixel(2, 2, image::Rgba([1, 2, 3, 4])));
+        assert_eq!(require_rgb16(rgba).unwrap().dimensions(), (2, 2));
     }
 
     #[test]
