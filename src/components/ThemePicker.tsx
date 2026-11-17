@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { applyDisplay, loadDisplay } from '../providers/browserTheme';
 import { FONTS, TEXT_SIZES, THEMES, type DisplaySettings } from '../core/theme';
 
-const THEME_LABELS = { default: 'Dark', night: 'Night (dimmer, softer)', contrast: 'High contrast' } as const;
+const THEME_LABELS = { default: 'Classic dark', night: 'Softer dark (default)', contrast: 'High contrast' } as const;
 const FONT_LABELS = { brand: 'Kestrel (Plus Jakarta Sans)', readable: 'Easy to read (Atkinson Hyperlegible)' } as const;
 
 export function ThemePicker() {
