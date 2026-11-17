@@ -19,12 +19,12 @@ function classify(before: Snapshot, after: Snapshot): EditKind {
     return 'crop';
   }
   if (JSON.stringify(before.edit?.masks ?? []) !== JSON.stringify(after.edit?.masks ?? [])) return 'mask';
-  const fields = (['exposure', 'warmth', 'colour', ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const).filter((field) =>
+  const fields = (['exposure', 'warmth', 'colour', ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key), 'denoise'] as const).filter((field) =>
     (before.edit?.[field] ?? 0) !== (after.edit?.[field] ?? 0));
   if (fields.length !== 1) return 'adjustments';
   if (fields[0] === 'exposure') return 'light';
   if (fields[0] === 'warmth' || fields[0] === 'colour') return fields[0];
-  return DETAIL_CONTROLS.some(({ key }) => key === fields[0]) ? 'detail' : 'tone';
+  return fields[0] === 'denoise' || DETAIL_CONTROLS.some(({ key }) => key === fields[0]) ? 'detail' : 'tone';
 }
 
 export function recordEdit(frame: PhotoFrame, patch: Snapshot, at: number): PhotoFrame {

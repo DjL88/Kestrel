@@ -7,7 +7,8 @@ test('every adjustment is offered once, light first and detail last', () => {
   const keys = QUICK_CONTROLS.map((entry) => entry.key);
   assert.equal(new Set(keys).size, keys.length);
   assert.deepEqual(keys.slice(0, 3), ['exposure', 'warmth', 'colour']);
-  assert.equal(keys.at(-1), 'sharpen');
+  assert.deepEqual(keys.slice(-2), ['sharpen', 'denoise'], 'detail last, with noise reduction after sharpening');
+  assert.equal(controlFor('denoise').min, 0, 'noise reduction only goes up');
   assert.equal(controlFor('sharpen').min, 0, 'sharpening only goes up');
 });
 

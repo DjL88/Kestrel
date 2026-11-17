@@ -4,7 +4,7 @@ import { BUILT_IN_PRESETS, addPreset, matchesPresetEdit, parsePresets, removePre
 
 test('sanitising drops unknown keys, clamps values and ignores masks', () => {
   const edit = sanitiseEdit({ exposure: 9, shadows: -9, warmth: 'hot', masks: [{}], evil: 1, contrast: NaN });
-  assert.deepEqual(edit, { exposure: 2, warmth: 0, colour: 0, shadows: -2 });
+  assert.deepEqual(edit, { exposure: 9, warmth: 0, colour: 0, shadows: -2 }, 'exposure runs to 12.5 now; other controls stop at 2');
 });
 
 test('built-in presets are valid and have unique ids', () => {

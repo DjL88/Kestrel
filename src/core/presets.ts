@@ -7,7 +7,9 @@ export interface Preset {
   builtIn?: boolean;
 }
 
-const KEYS = ['exposure', 'warmth', 'colour', ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
+const KEYS = ['exposure', 'warmth', 'colour', ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key), 'denoise'] as const;
+/** Exposure runs to +/-5 EV (12.5 on the slider); noise reduction only goes up, to 2. Everything else is -2 to 2. */
+const RANGE = (key: string): [number, number] => key === 'exposure' ? [-12.5, 12.5] : key === 'denoise' ? [0, 2] : [-2, 2];
 
 /** Keep only known numeric controls, clamped to the slider range. Masks are never stored in presets. */
 export function sanitiseEdit(value: unknown): PhotoEdit {
@@ -15,7 +17,7 @@ export function sanitiseEdit(value: unknown): PhotoEdit {
   const edit: Record<string, number> = { exposure: 0, warmth: 0, colour: 0 };
   for (const key of KEYS) {
     const number = raw[key];
-    if (typeof number === 'number' && Number.isFinite(number) && number !== 0) edit[key] = Math.max(-2, Math.min(2, number));
+    if (typeof number === 'number' && Number.isFinite(number) && number !== 0) { const [low, high] = RANGE(key); const kept = Math.max(low, Math.min(high, number)); if (kept !== 0) edit[key] = kept; }
   }
   return edit as unknown as PhotoEdit;
 }

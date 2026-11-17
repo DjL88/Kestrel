@@ -43,6 +43,7 @@ function recipeIsValid(value: unknown): boolean {
     !number(edit.warmth, -2, 2) || !number(edit.colour, -2, 2) ||
     ['brightness', 'contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen'].some((key) =>
       edit[key] !== undefined && !number(edit[key], -2, 2)) ||
+    (edit.denoise !== undefined && !number(edit.denoise, 0, 2)) ||
     (edit.masks !== undefined && !validMasks(edit.masks)))) return false;
   const framing = value.framing;
   if (framing !== undefined && (!record(framing) || (framing.ratio !== null && !number(framing.ratio, 0.01, 100)) ||
