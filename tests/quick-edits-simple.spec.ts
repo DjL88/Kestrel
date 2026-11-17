@@ -18,7 +18,7 @@ test('Quick edits opens without culling buckets and provides a simple filter, ph
   await expect(page.getByText('Quick edits', { exact: true })).toBeVisible({ timeout: 30_000 });
   const editor = page.getByRole('region', { name: 'Photo editor' });
   await expect(editor).toBeVisible();
-  await page.getByRole('button', { name: 'Back to photos' }).click();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
 
   const nav = page.getByRole('navigation', { name: 'Photo collections' });
   const show = nav.getByRole('combobox', { name: 'Filter quick edits' });

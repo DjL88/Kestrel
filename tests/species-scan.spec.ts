@@ -26,6 +26,14 @@ test('after import, species appears quietly and the info pop-up can change it', 
   await page.getByTestId('local-file-input').setInputFiles(pictures.map((data, index) => ({ name: `bird-${index + 1}.png`, mimeType: 'image/png', buffer: Buffer.from(data, 'base64') })));
   await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 3' })).toBeVisible({ timeout: 30000 });
 
+  // A closed-list bird model cannot establish that a photo contains wildlife.
+  // Classify these synthetic bird photos before permitting automatic species names.
+  for (const name of ['bird-1.png', 'bird-2.png', 'bird-3.png']) {
+    await page.getByRole('button', { name: `Photo info and rating for ${name}` }).click();
+    await page.getByRole('complementary', { name: 'Photo info' }).getByRole('button', { name: 'Wildlife' }).click();
+    await page.getByRole('button', { name: 'Close photo info' }).click();
+  }
+
   // On the project page, not in the editor: an offer to turn it on, then progress as the photos are looked at.
   const banner = page.getByRole('region', { name: 'Species recognition' });
   await expect(banner.getByRole('button', { name: /^Download/ })).toBeHidden();
