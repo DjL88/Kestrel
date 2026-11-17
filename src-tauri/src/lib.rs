@@ -62,6 +62,9 @@ pub fn run() {
                 &PredefinedMenuItem::quit(app, None)?,
             ])?;
             let file = Submenu::with_items(app, "File", true, &[
+                &MenuItem::with_id(app, "new-project", "New Project…", true, Some("CmdOrCtrl+N"))?,
+                &MenuItem::with_id(app, "add-photos", "Add Photos…", true, Some("CmdOrCtrl+Shift+O"))?,
+                &PredefinedMenuItem::separator(app)?,
                 &MenuItem::with_id(app, "export", "Export…", true, Some("CmdOrCtrl+E"))?,
                 &PredefinedMenuItem::separator(app)?,
                 &PredefinedMenuItem::close_window(app, None)?,

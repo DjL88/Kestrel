@@ -2,7 +2,12 @@ import { useEffect } from 'react';
 import { isDesktopApp } from './desktopShell';
 
 /** Button text each native menu item presses. A first version: it reuses the buttons already on screen. */
-const BUTTONS: Record<string, RegExp> = { export: /^export$/i, 'macro-pad': /^macro pad$/i, filmstrip: /^(show|hide) filmstrip$/i };
+const BUTTONS: Record<string, RegExp> = {
+  export: /^export$/i, 'macro-pad': /^macro pad$/i, filmstrip: /^(show|hide) filmstrip$/i,
+  // Only meaningful on their own screen (the projects list, or inside an open project); otherwise a no-op,
+  // same as any other menu item pressed somewhere it doesn't apply.
+  'new-project': /^new project$/i, 'add-photos': /^add$/i,
+};
 
 export function useDesktopMenu() {
   useEffect(() => {
