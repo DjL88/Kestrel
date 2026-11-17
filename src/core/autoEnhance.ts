@@ -1,3 +1,18 @@
+import type { PhotoEdit } from './photoEdits';
+
+/** Apply only meaningful, finite suggestions. A neutral recommendation must never erase manual adjustments. */
+export function mergeAutoSuggestion(current: PhotoEdit, suggestion: AutoResult['edit']): { edit: PhotoEdit; changed: boolean } {
+  const edit: PhotoEdit = { ...current };
+  let changed = false;
+  for (const key of Object.keys(suggestion) as (keyof AutoResult['edit'])[]) {
+    const value = suggestion[key];
+    if (!Number.isFinite(value) || value === 0 || (current[key] ?? 0) === value) continue;
+    edit[key] = value;
+    changed = true;
+  }
+  return { edit, changed };
+}
+
 export interface AutoResult {
   edit: Record<'exposure' | 'warmth' | 'shadows' | 'highlights' | 'contrast' | 'vibrance', number>;
   /** Plain-English reasons, shown to the user so the result is never a black box. */
