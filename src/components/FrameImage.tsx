@@ -148,7 +148,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
         <span className="text-xs font-medium text-zinc-400 truncate max-w-full">
           {frame.filename}
         </span>
-        <span className="text-[11px] text-zinc-500 mt-0.5">
+        <span className="text-[11px] text-zinc-400 mt-0.5">
           {needsAccess ? 'Original unavailable — reconnect its folder or drive' : 'Preview unavailable'}
         </span>
       </div>

@@ -75,7 +75,7 @@ export function MaskPanel(props: Props) {
           <SquareDashedMousePointer className="h-3.5 w-3.5" aria-hidden="true" />{props.selectingArea ? 'Cancel select area' : 'Select area'}
         </button>
         <p role="status" className="min-h-4 text-xs text-zinc-300">{props.detectNotice}</p>
-        <p className="text-xs text-zinc-500">Runs on this device with a small model that finds the most prominent subject. It is not trained on wildlife in particular, so always check the edges.</p>
+        <p className="text-xs text-zinc-400">Runs on this device with a small model that finds the most prominent subject. It is not trained on wildlife in particular, so always check the edges.</p>
       </div>
       {masks.length > 0 && (
         <ul className="space-y-1" aria-label="Masks">
@@ -130,7 +130,7 @@ export function MaskPanel(props: Props) {
                 </button>
                 <button type="button" className={chip} onClick={() => update({ strokes: [] })} disabled={!('strokes' in selected) || !selected.strokes.length}>{selected.kind === 'subject' ? 'Undo refining' : 'Clear'}</button>
               </div>
-              <p className="text-xs text-zinc-500">{paintOn ? 'Painting is on. Press it again to pan and zoom.' : 'Choose Paint or Erase to start. Until then you can pan and zoom.'} Painting needs a pointer or finger. Gradient and oval masks can be set with the keyboard.</p>
+              <p className="text-xs text-zinc-400">{paintOn ? 'Painting is on. Press it again to pan and zoom.' : 'Choose Paint or Erase to start. Until then you can pan and zoom.'} Painting needs a pointer or finger. Gradient and oval masks can be set with the keyboard.</p>
             </div>
           )}
           {masks.length > 1 && (

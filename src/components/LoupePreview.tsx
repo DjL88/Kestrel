@@ -58,7 +58,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-kestrel-stage text-zinc-400 p-8 text-center">
         <p className="text-sm font-medium text-zinc-300">No frames match this filter</p>
-        <p className="text-xs text-zinc-500 mt-1">
+        <p className="text-xs text-zinc-400 mt-1">
           Switch back to All or adjust your search query to continue reviewing.
         </p>
       </div>
