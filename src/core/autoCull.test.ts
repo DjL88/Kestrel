@@ -181,3 +181,42 @@ test('duplicates and unreadable previews are left as they were', () => {
   const dup = { ...baseResult, decision: 'reject' as const, reason: 'duplicate' as const };
   assert.equal(scoreWithSubject(dup, null), dup);
 });
+
+
+test('malformed subject detector output never creates an automatic Keep', () => {
+  const valid = { label: 'bird', score: 0.95, size: 450, sharpness: 22 };
+  const invalid = [
+    { ...valid, score: NaN },
+    { ...valid, score: Infinity },
+    { ...valid, score: -Infinity },
+    { ...valid, score: -0.1 },
+    { ...valid, score: 1.1 },
+    { ...valid, size: NaN },
+    { ...valid, size: Infinity },
+    { ...valid, size: -1 },
+    { ...valid, sharpness: NaN },
+    { ...valid, sharpness: Infinity },
+    { ...valid, sharpness: -1 },
+    { ...valid, label: '  ' },
+    { ...valid, label: null as unknown as string },
+  ];
+  for (const found of invalid) {
+    const result = scoreWithSubject(baseResult, found);
+    assert.deepEqual(
+      [result.decision, result.confidence, result.reason, Number.isFinite(result.score)],
+      [null, 'low', 'noSubject', true],
+      JSON.stringify(found),
+    );
+  }
+  assert.equal(scoreWithSubject(baseResult, valid).decision, 'keep');
+});
+
+test('subject fallback preserves original suggestion and does not mutate detector data', () => {
+  const base = { ...baseResult };
+  const found = { label: 'aircraft', score: Infinity, size: 500, sharpness: 18 };
+  const original = { ...found };
+  const result = scoreWithSubject(base, found);
+  assert.equal(result.decision, null);
+  assert.deepEqual(base, baseResult);
+  assert.deepEqual(found, original);
+});
