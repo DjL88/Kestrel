@@ -52,3 +52,21 @@ test('unrecognised and flat photos without a model stay low or medium confidence
   assert.deepEqual(actual.map(({ confidence }) => confidence), ['medium', 'low']);
   assert.ok(actual.every((item) => item.confidence !== 'high'));
 });
+
+
+test('a runtime detector failure invalidates even earlier high-confidence picks in the same scan', () => {
+  // The model might find a bird on photo 1, then fail to initialise a worker or
+  // read its weights on photo 2. A partially degraded run must not pass itself
+  // off as a fully model-assisted cull.
+  const earlier = suggestion('earlier-bird', 'subjectSharp', 'high', 97);
+  const later = suggestion('later-bird', 'clearDetail', 'high', 95);
+  const originals = [earlier, later];
+  const previewScores = new Map([
+    ['earlier-bird', suggestion('earlier-bird', 'clearDetail', 'high', 94)],
+    ['later-bird', later],
+  ]);
+  const safe = missingDetectorReviewFallback(originals, previewScores);
+  assert.ok(safe.every((result) => result.confidence !== 'high'), 'all uncertain keeper choices are downgraded');
+  assert.ok(safe.every((result) => result.score <= 79), 'no partial-model run keeps an inflated detail score');
+  assert.deepEqual(originals, [earlier, later], 'input findings stay immutable');
+});
