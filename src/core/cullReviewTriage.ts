@@ -23,11 +23,11 @@ export interface ReviewTriage {
  * treated as rejection evidence. Stable input ordering avoids UI jumping.
  */
 export function triageCullReview(frames: readonly ReviewCandidate[]): ReviewTriage[] {
-  const burstKeepers = new Set(frames.filter(f => !f.removedAt && f.decision === 'keep' && f.burstGroupId).map(f => f.burstGroupId));
+  const burstKeepers = new Set(frames.filter(f => f.removedAt == null && f.decision === 'keep' && f.burstGroupId).map(f => f.burstGroupId));
   const seen = new Set<string>();
   const result: ReviewTriage[] = [];
   for (const frame of frames) {
-    if (!frame.id || seen.has(frame.id) || frame.removedAt || frame.decision !== 'unreviewed' || frame.virtualCopy || frame.isDemo) continue;
+    if (!frame.id || seen.has(frame.id) || frame.removedAt != null || frame.decision !== 'unreviewed' || frame.virtualCopy || frame.isDemo) continue;
     seen.add(frame.id);
     const s = frame.suggestion;
     const valid = s && Number.isFinite(s.score) && s.score >= 0 && s.score <= 100;
