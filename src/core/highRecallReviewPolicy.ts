@@ -27,13 +27,21 @@ export interface ReviewSuggestion {
  */
 export function recommendForReview(items: readonly ReviewCandidate[]): ReviewSuggestion[] {
   const best = new Map<string, { id: string; quality: number }>();
+  const identityCounts = new Map<string, number>();
+  for (const item of items) identityCounts.set(item.id, (identityCounts.get(item.id) ?? 0) + 1);
+  const validSubjects: readonly ReviewSubject[] = ['bird', 'aircraft', 'person', 'mammal', 'landscape'];
+  const eligible = (item: ReviewCandidate): boolean =>
+    typeof item.id === 'string' && item.id.trim().length > 0 &&
+    identityCounts.get(item.id) === 1 && validSubjects.includes(item.subject) &&
+    (item.groupId == null || typeof item.groupId === 'string') &&
+    Number.isFinite(item.quality) && Number.isFinite(item.confidence) &&
+    (item.confidence as number) >= 0.6 && (item.confidence as number) <= 1 &&
+    (item.quality as number) >= 0 && (item.quality as number) <= 1;
+  const groupKey = (item: ReviewCandidate): string =>
+    JSON.stringify([item.subject, typeof item.groupId === 'string' ? (item.groupId.trim() || item.id) : item.id]);
   for (const item of items) {
-    if (item.manualDecision || !Number.isFinite(item.quality) ||
-        !Number.isFinite(item.confidence) || (item.confidence ?? 0) < 0.6 ||
-        (item.quality ?? -1) < 0 || (item.quality ?? 2) > 1 ||
-        (item.confidence ?? 2) > 1) continue;
-    const group = item.groupId?.trim() || item.id;
-    const key = item.subject + ':' + group;
+    if (item.manualDecision || !eligible(item)) continue;
+    const key = groupKey(item);
     const previous = best.get(key);
     if (!previous || (item.quality as number) > previous.quality) {
       best.set(key, { id: item.id, quality: item.quality as number });
@@ -41,11 +49,9 @@ export function recommendForReview(items: readonly ReviewCandidate[]): ReviewSug
   }
   return items.map((item) => {
     if (item.manualDecision) return { id: item.id, suggestion: item.manualDecision, reason: 'manual' };
-    const uncertain = !Number.isFinite(item.quality) || !Number.isFinite(item.confidence) ||
-      (item.confidence ?? 0) < 0.6 || (item.confidence ?? 2) > 1 ||
-      (item.quality ?? -1) < 0 || (item.quality ?? 2) > 1;
+    const uncertain = !eligible(item);
     if (uncertain) return { id: item.id, suggestion: 'review', reason: 'uncertain-detection' };
-    const key = item.subject + ':' + (item.groupId?.trim() || item.id);
+    const key = groupKey(item);
     if (best.get(key)?.id === item.id) return { id: item.id, suggestion: 'keep', reason: 'best-in-group' };
     return { id: item.id, suggestion: 'review', reason: 'candidate' };
   });
