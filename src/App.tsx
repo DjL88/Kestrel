@@ -35,6 +35,8 @@ import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
 import { markExportRequested } from './core/compareStages';
 import { AutoCullPanel } from './components/AutoCullPanel';
+import { GuidedBanner } from './components/GuidedBanner';
+import { guidedStep } from './core/guidedProgress';
 import { BatchLookDialog } from './components/BatchLookDialog';
 import { SelectionLookDialog } from './components/SelectionLookDialog';
 import { applySelectedLook, previewSelectedLook } from './core/selectedLooks';
@@ -149,6 +151,8 @@ export default function App() {
   const [autoAdjustSelectedOpen, setAutoAdjustSelectedOpen] = useState(false);
   const autoAdjustController = useRef<AbortController | null>(null);
   const [autoCullStart, setAutoCullStart] = useState(false);
+  /** The guided "what's next" banner, dismissed for one project at a time. Resets on reload or when a different project opens. */
+  const [guidedDismissedFor, setGuidedDismissedFor] = useState<string | null>(null);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
   const [showPhotoInfo, setShowPhotoInfo] = useState(false);
   const [copiedEdit, setCopiedEdit] = useState<PhotoEdit | null>(null);
@@ -434,6 +438,16 @@ export default function App() {
     () => computeCullCounts(cullingState.frames),
     [cullingState.frames]
   );
+  /** Move to a different filter while keeping the current selection if it's still visible, same rule the filter buttons use. */
+  const changeFilter = useCallback((next: FilterState) => {
+    setCullingState((prev) => {
+      const nextVisible = filterFrames(prev.frames, next, prev.searchQuery, prev.ratingFilter);
+      const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
+      return { ...prev, filter: next, selectedFrameId: stillVisible ? prev.selectedFrameId : nextVisible[0]?.id ?? null };
+    });
+  }, []);
+  const uneditedKeepers = previewKeeperLook(cullingState.frames).eligible;
+  const guided = guidedStep(counts, uneditedKeepers);
 
   const visibleFrames = useMemo(
     () =>
@@ -1504,19 +1518,7 @@ export default function App() {
         shoot={cullingState.shoot}
         counts={counts}
         filter={cullingState.filter}
-        onFilterChange={(next: FilterState) => {
-          setCullingState((prev) => {
-            const nextVisible = filterFrames(prev.frames, next, prev.searchQuery, prev.ratingFilter);
-            const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
-            return {
-              ...prev,
-              filter: next,
-              selectedFrameId: stillVisible
-                ? prev.selectedFrameId
-                : nextVisible[0]?.id ?? null,
-            };
-          });
-        }}
+        onFilterChange={changeFilter}
         ratingFilter={cullingState.ratingFilter ?? null}
         onRatingFilterChange={(next) =>
           setCullingState((prev) => {
@@ -1768,6 +1770,19 @@ export default function App() {
             </div>
           )}
           {loadingProgress && <ImportProgress loaded={loadingProgress.loaded} total={loadingProgress.total} />}
+          {!editing && !loadingProgress && guidedDismissedFor !== cullingState.shoot.id && (
+            <GuidedBanner step={guided} unreviewed={counts.unreviewed} keepers={counts.keep} uneditedKeepers={uneditedKeepers}
+              onFindBestPhotos={() => {
+                if (!can('smartCulling')) { setPaidDialog('Auto-cull'); return; }
+                setAutoCullStart(true);
+                setAutoCullOpen(true);
+              }}
+              onReviewMyself={() => changeFilter('unreviewed')}
+              onSeeSuggestedEdits={() => setAutoAdjustOpen(true)}
+              onEditMyself={() => changeFilter('keep')}
+              onExportKeepers={() => setExportFrames(cullingState.frames.filter((frame) => !frame.removedAt && frame.decision === 'keep'))}
+              onDismiss={() => setGuidedDismissedFor(cullingState.shoot.id)} />
+          )}
           {!editing && can('speciesId') && <SpeciesScanBanner scan={scan} />}
           {can('onlineAi') && <OnlineHelperDialog />}
           {!editing && visibleFrames.length > 0 && prefs.viewMode === 'grid' && (
