@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { proposeSubjectAwareAuto, type SubjectAutoInput } from './insightSubjectAuto';
 import { DEFAULT_EDIT } from './photoEdits';
 import { validMasks } from './maskTypes';
+import { applyMasks, fullContext } from './masks';
 
 function fixture(subjectRgb: [number, number, number], backgroundRgb: [number, number, number]): SubjectAutoInput {
   const width = 48, height = 48, w = 16, h = 16;
@@ -101,4 +102,19 @@ test('mask decisions are deterministic and never override existing masks or chan
   assert.strictEqual(first.edit.masks?.[0], existing, 'manual mask is not rewritten');
   assert.deepEqual(input.pixels, before);
   assert.equal(proposeSubjectAwareAuto({ ...input, maskId: 'manual' }).usedMask, false);
+});
+
+
+test('a proposed subject mask changes only the segmented subject in the actual local edit renderer', () => {
+  const input = fixture([70, 80, 70], [195, 200, 195]);
+  const proposal = proposeSubjectAwareAuto(input);
+  assert.equal(proposal.usedMask, true);
+  const output = input.pixels.slice();
+  applyMasks(output, input.width, input.height, proposal.edit.masks, fullContext(input.width, input.height));
+  const center = (24 * input.width + 24) * 4;
+  const corner = (2 * input.width + 2) * 4;
+  assert.ok(output[center] > input.pixels[center], 'dark subject must lighten in the real CPU rendering path');
+  assert.deepEqual(Array.from(output.slice(corner, corner + 4)),
+    Array.from(input.pixels.slice(corner, corner + 4)), 'background pixels must be preserved');
+  assert.equal(output[center + 3], 255, 'alpha must not change');
 });
