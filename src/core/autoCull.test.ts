@@ -183,6 +183,27 @@ test('duplicates and unreadable previews are left as they were', () => {
 });
 
 
+test('malformed detector metrics never create automatic keepers or NaN scores', () => {
+  const invalid = [
+    { label: 'bird', score: NaN, size: 900, sharpness: 20 },
+    { label: 'aircraft', score: Infinity, size: 900, sharpness: 20 },
+    { label: 'person', score: 1.2, size: 900, sharpness: 20 },
+    { label: 'mammal', score: -0.1, size: 900, sharpness: 20 },
+    { label: 'bird', score: 0.9, size: NaN, sharpness: 20 },
+    { label: 'aircraft', score: 0.9, size: Infinity, sharpness: 20 },
+    { label: 'person', score: 0.9, size: -100, sharpness: 20 },
+    { label: 'mammal', score: 0.9, size: 500, sharpness: NaN },
+    { label: 'bird', score: 0.9, size: 500, sharpness: Infinity },
+    { label: 'aircraft', score: 0.9, size: 500, sharpness: -1 },
+  ];
+  for (const finding of invalid) {
+    const result = scoreWithSubject(baseResult, finding);
+    assert.deepEqual([result.decision, result.confidence, result.reason], [null, 'low', 'noSubject']);
+    assert.ok(Number.isFinite(result.score), finding.label);
+  }
+  assert.equal(scoreWithSubject(baseResult, { label: 'bird', score: 0.9, size: 500, sharpness: 20 }).decision, 'keep');
+});
+
 test('malformed subject detector output never creates an automatic Keep', () => {
   const valid = { label: 'bird', score: 0.95, size: 450, sharpness: 22 };
   const invalid = [

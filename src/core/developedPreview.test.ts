@@ -25,7 +25,7 @@ test('developing a RAW switches every cached virtual copy to the same full-size 
   const [beforeA, beforeB] = await Promise.all([provider.getFullPreviewUrl(first), provider.getFullPreviewUrl(copy)]);
   assert.equal(beforeA, beforeB, 'virtual copies share a single unedited source URL');
   assert.deepEqual(new Uint8Array(await (await fetch(beforeA)).arrayBuffer()), jpeg);
-  provider.setDeveloped(first, new Blob(['full-size developed result'], { type: 'image/jpeg' }));
+  assert.equal(await provider.developFromOriginal(first.stableKey, async () => new Blob(['full-size developed result'], { type: 'image/jpeg' })), 'ready');
   const [afterA, afterB] = await Promise.all([provider.getFullPreviewUrl(first), provider.getFullPreviewUrl(copy)]);
   assert.notEqual(afterA, beforeA);
   assert.equal(afterA, afterB);
@@ -39,12 +39,12 @@ test('clearing a project releases developed sources and relinking cannot reuse a
   t.after(() => provider.clear());
   const photo = frame('original');
   provider.registerBlob(photo.stableKey, raw());
-  provider.setDeveloped(photo, new Blob(['old development']));
+  assert.equal(await provider.developFromOriginal(photo.stableKey, async () => new Blob(['old development'])), 'ready');
   await provider.getFullPreviewUrl(photo);
   provider.registerBlob(photo.stableKey, raw());
   assert.equal(provider.isDeveloped(photo.stableKey), false);
   assert.deepEqual(new Uint8Array(await (await fetch(await provider.getFullPreviewUrl(photo))).arrayBuffer()), jpeg);
-  provider.setDeveloped(photo, new Blob(['new development']));
+  assert.equal(await provider.developFromOriginal(photo.stableKey, async () => new Blob(['new development'])), 'ready');
   provider.clear();
   assert.equal(provider.isDeveloped(photo.stableKey), false);
   assert.equal(provider.getOriginal(photo.stableKey), undefined);
@@ -56,7 +56,7 @@ test('releasing one virtual copy keeps the source usable by another copy', async
   t.after(() => provider.clear());
   const photo = frame('original');
   provider.registerBlob(photo.stableKey, raw());
-  provider.setDeveloped(photo, new Blob(['shared development']));
+  assert.equal(await provider.developFromOriginal(photo.stableKey, async () => new Blob(['shared development'])), 'ready');
   const url = await provider.getFullPreviewUrl(photo);
   assert.equal(await provider.getFullPreviewUrl(frame('copy')), url);
   provider.releaseFrame(photo.id);
@@ -90,7 +90,7 @@ test('a late embedded-preview read cannot replace a successful RAW development',
   provider.registerBlob(photo.stableKey, slow.blob);
   const pending = provider.getFullPreviewUrl(photo);
   await slow.waiting;
-  provider.setDeveloped(photo, new Blob(['developed while reading']));
+  assert.equal(await provider.developFromOriginal(photo.stableKey, async () => new Blob(['developed while reading'])), 'ready');
   slow.resume();
   const url = await pending;
   assert.equal(await (await fetch(url)).text(), 'developed while reading');
@@ -196,7 +196,7 @@ test('relinking a changed original invalidates its previous RAW development', as
   t.after(() => provider.clear());
   const photo = frame('relinked');
   provider.registerLinked(photo.stableKey, { read: async () => raw(), size: 100, lastModified: 1 });
-  provider.setDeveloped(photo, new Blob(['old sensor development'], { type: 'image/jpeg' }));
+  assert.equal(await provider.developFromOriginal(photo.stableKey, async () => new Blob(['old sensor development'], { type: 'image/jpeg' })), 'ready');
   assert.equal(provider.isDeveloped(photo.stableKey), true);
   provider.registerLinked(photo.stableKey, { read: async () => raw(), size: 200, lastModified: 2 });
   assert.equal(provider.isDeveloped(photo.stableKey), false);
@@ -229,7 +229,47 @@ test('retrying a linked original invalidates a previously developed result', asy
   t.after(() => provider.clear());
   const photo = frame('retry');
   provider.registerLinked(photo.stableKey, { read: async () => raw(), size: 100, lastModified: 1 });
-  provider.setDeveloped(photo, new Blob(['old development']));
+  assert.equal(await provider.developFromOriginal(photo.stableKey, async () => new Blob(['old development'])), 'ready');
   provider.retryLinkedOriginal(photo.stableKey);
   assert.equal(provider.isDeveloped(photo.stableKey), false);
 });
+
+for (const change of ['relink', 'retry', 'replace', 'clear'] as const) {
+  test(`a pending Nikon RAW decode cannot replace the source after ${change}`, async (t) => {
+    const provider = new BrowserPreviewProvider();
+    t.after(() => provider.clear());
+    const photo = frame('z8');
+    const key = photo.stableKey;
+    const original = raw();
+    const replacement = raw();
+    const linked = change === 'retry' || change === 'relink';
+    if (linked) provider.registerLinked(key, { read: async () => original, size: original.size, lastModified: 1 });
+    else provider.registerBlob(key, original);
+
+    let start!: (source: Blob) => void;
+    let finish!: (picture: Blob) => void;
+    const started = new Promise<Blob>((resolve) => { start = resolve; });
+    const decoded = new Promise<Blob>((resolve) => { finish = resolve; });
+    const pending = provider.developFromOriginal(key, (source) => { start(source); return decoded; });
+    assert.equal(await started, original);
+
+    if (change === 'clear') provider.clear();
+    if (change === 'retry') provider.retryLinkedOriginal(key);
+    if (change === 'replace') provider.registerBlob(key, replacement);
+    if (change === 'relink') provider.registerLinked(key, { read: async () => replacement, size: replacement.size, lastModified: 2 });
+
+    finish(new Blob(['stale native rendering'], { type: 'image/jpeg' }));
+    assert.equal(await pending, 'superseded');
+    assert.equal(provider.isDeveloped(key), false);
+    if (change === 'clear') {
+      assert.equal(await provider.getFullPreviewUrl(photo), '');
+    } else {
+      const expected = change === 'retry' ? original : replacement;
+      assert.equal(await provider.ensureOriginal(key), expected);
+      const preview = await provider.getFullPreviewUrl(photo);
+      assert.deepEqual(new Uint8Array(await (await fetch(preview)).arrayBuffer()), jpeg);
+      assert.equal(await provider.developFromOriginal(key, async () => new Blob(['fresh native rendering'])), 'ready');
+      assert.equal(await (await fetch(await provider.getFullPreviewUrl(photo))).text(), 'fresh native rendering');
+    }
+  });
+}

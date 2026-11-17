@@ -25,19 +25,20 @@ import { NO_OVERLAY, overlayLines, type OverlayOptions } from '../core/exportOve
 import { exportFilename } from '../core/exportProfiles';
 import { SocialIcon } from './SocialIcon';
 import type { ExportPlace } from '../providers/exportToPlace';
+import { isDesktopApp, saveWithDialog } from '../providers/desktopShell';
 
 interface Props {
   frames: PhotoFrame[];
   provider: BrowserPreviewProvider;
   source?: HTMLImageElement | null;
   onClose: () => void;
-  /** Called when the user requests a file download; the browser may still ask where to save. */
+  /** Called after a desktop save succeeds or a browser download is requested. */
   onDownloadRequested?: (frames: readonly PhotoFrame[]) => void;
   /** A place the person chose for this project's exports (for example the drive the originals are on). */
   exportPlace?: ExportPlace | null;
 }
 
-const button = 'min-h-11 rounded-md px-3 text-sm font-medium hover:bg-white/10 disabled:opacity-45';
+const button = 'min-h-11 rounded-md px-3 text-sm font-medium hover:bg-white/10 disabled:opacity-45 aria-disabled:opacity-45';
 const field = 'min-h-10 w-full rounded-md border border-white/15 bg-[#15171C] px-2 text-base sm:text-sm';
 const STORAGE_KEY = 'kestrel.lastExport.v2';
 /** Photos drawn in the preview, and the most tiles shown at once, so a big selection stays quick. */
@@ -97,6 +98,11 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
   // The ZIP is packed as soon as the files are ready, so Download is an immediate tap. A download started after waiting
   // is ignored by iPhone Safari, which only allows it straight from a tap.
   const [zip, setZip] = useState<Blob | null>(null);
+  const packing = useRef<File[] | null>(null);
+  const desktop = isDesktopApp();
+  const [saving, setSaving] = useState(false);
+  const saveRunning = useRef(false);
+  const [savedName, setSavedName] = useState<string | null>(null);
   const [error, setError] = useState('');
   const cancelled = useRef(false);
   const activeExport = useRef<AbortController | null>(null);
@@ -118,6 +124,31 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
   const resultsReady = files.length > 0;
   const zoomFor = (frame: PhotoFrame, format: ExportFormat) => zooms[`${frame.id}|${format.id}`] ?? 1;
   const anchorFor = (frame: PhotoFrame, format: ExportFormat): FocusPoint => anchors[`${frame.id}|${format.id}`] ?? frame.focusPoint ?? { x: 0.5, y: 0.5 };
+
+  async function deliver(file: Blob, name: string, exported: readonly PhotoFrame[]) {
+    if (saveRunning.current) return;
+    setError('');
+    if (!desktop) {
+      downloadExport(file, name);
+      onDownloadRequested?.(exported);
+      return;
+    }
+
+    saveRunning.current = true;
+    setSaving(true);
+    setSavedName(null);
+    try {
+      if (await saveWithDialog(file, name)) {
+        setSavedName(name);
+        onDownloadRequested?.(exported);
+      }
+    } catch {
+      setError('Could not save the file. Check that the destination is writable or choose another folder.');
+    } finally {
+      saveRunning.current = false;
+      setSaving(false);
+    }
+  }
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -239,7 +270,12 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
       setFiles(output);
       setZip(null);
       if (output.length > 1) {
-        archiveExports(output).then((packed) => { if (!cancelled.current) setZip(packed); }, () => { if (!cancelled.current) setError('Could not create the ZIP. Try a smaller export selection.'); });
+        packing.current = output;
+        const isCurrent = () => !cancelled.current && packing.current === output;
+        archiveExports(output).then(
+          (packed) => { if (isCurrent()) setZip(packed); },
+          () => { if (isCurrent()) setError('Could not create the ZIP. Try a smaller export selection.'); },
+        );
       }
     } catch (reason) {
       if (!controller.signal.aborted && !task.cancelled && !cancelled.current) { const message = reason instanceof Error ? reason.message : 'Could not prepare the exports.'; setError(message); task.fail(message); }
@@ -544,12 +580,14 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
         )}
         {resultsReady ? (
           <div className="space-y-3">
-            <p role="status" className="text-sm text-zinc-300">{files.length} {files.length === 1 ? 'file ready' : 'files ready'}</p>
+            <p role="status" className="text-sm text-zinc-300">
+              {saving ? 'Saving…' : savedName ? `Saved ${savedName}` : `${files.length} ${files.length === 1 ? 'file ready' : 'files ready'}`}
+            </p>
             <div className="flex flex-wrap gap-2">
               {files.length === 1 && <button type="button" className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
-                onClick={() => { downloadExport(files[0], files[0].name); onDownloadRequested?.(frames.slice(0, 1)); }}>Download</button>}
-              {files.length > 1 && <button type="button" disabled={!zip} className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
-                onClick={() => { if (zip) { downloadExport(zip, 'kestrel-exports.zip'); onDownloadRequested?.(frames); } }}>{zip ? 'Download ZIP' : 'Packing ZIP…'}</button>}
+                aria-disabled={saving} onClick={() => void deliver(files[0], files[0].name, frames.slice(0, 1))}>{desktop ? 'Save' : 'Download'}</button>}
+              {files.length > 1 && <button type="button" disabled={!zip} aria-disabled={saving || !zip} className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
+                onClick={() => { if (zip) void deliver(zip, 'kestrel-exports.zip', frames); }}>{zip ? (desktop ? 'Save ZIP' : 'Download ZIP') : 'Packing ZIP…'}</button>}
               {exportPlace && <button type="button" className={button} disabled={placeBusy} onClick={async () => {
                 setPlaceBusy(true); setPlaceNote(null);
                 const result = await exportPlace.save(files);
@@ -561,13 +599,22 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
                   if ((reason as Error).name !== 'AbortError') setError('Could not share these files. Try downloading them.');
                 });
               }}>Share / save to device</button>}
-              <button type="button" className={button} onClick={() => { setFiles([]); setZip(null); }}>Change settings</button>
+              <button type="button" className={button} disabled={saving} onClick={() => {
+                packing.current = null;
+                setFiles([]);
+                setZip(null);
+                setError('');
+                setSavedName(null);
+              }}>Change settings</button>
             </div>
             {placeNote && <p role={placeNote.ok ? 'status' : 'alert'} className={`text-sm ${placeNote.ok ? 'text-emerald-200' : 'text-amber-200'}`}>{placeNote.text}</p>}
             {files.length > 1 && files.length <= 12 && <details>
-              <summary className="min-h-11 cursor-pointer py-2 text-sm">Download individual files</summary>
+              <summary className="min-h-11 cursor-pointer py-2 text-sm">{desktop ? 'Save individual files' : 'Download individual files'}</summary>
               {files.map((file, index) => <button type="button" className={`${button} block max-w-full truncate`}
-                key={index} onClick={() => { downloadExport(file, file.name); const frame = frames[Math.floor(index / selected.length)]; if (frame) onDownloadRequested?.([frame]); }}>{file.name}</button>)}
+                key={index} aria-disabled={saving} onClick={() => {
+                  const frame = frames[Math.floor(index / selected.length)];
+                  void deliver(file, file.name, frame ? [frame] : []);
+                }}>{file.name}</button>)}
             </details>}
           </div>
         ) : wizard ? (

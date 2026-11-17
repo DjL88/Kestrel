@@ -46,7 +46,41 @@ async function openLocations(page: Page) {
   return page.getByRole('dialog', { name: /Kite day/ });
 }
 
-const backups = () => [...s3.objects.keys()].filter((key) => key.startsWith('kestrel/v1/backups/kite-day/'));
+const backups = () => [...s3.objects.keys()].filter((key) => key.startsWith('kestrel/v1/project-backups/'));
+
+test('projects with the same title back up separately even at the same timestamp', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-11-16T09:00:00Z'));
+  await page.goto('/');
+  await addConnection(page, 'Home NAS');
+  await project(page);
+  await page.getByRole('button', { name: 'Keep k-1.png', exact: true }).click();
+  let dialog = await openLocations(page);
+  await dialog.getByLabel('Back up to').selectOption({ label: 'Home NAS' });
+  await dialog.getByRole('button', { name: 'Back up now' }).click();
+  await expect(dialog.getByRole('status').filter({ hasText: 'Last backed up' })).toContainText('Home NAS');
+  await expect.poll(backups).toHaveLength(1);
+  const firstPath = backups()[0];
+  const firstBytes = Buffer.from(s3.objects.get(firstPath)!);
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('button', { name: 'Back to projects' }).click();
+
+  await project(page);
+  await page.getByRole('button', { name: 'Keep k-2.png', exact: true }).click();
+  dialog = await openLocations(page);
+  await dialog.getByLabel('Back up to').selectOption({ label: 'Home NAS' });
+  await dialog.getByRole('button', { name: 'Back up now' }).click();
+  await expect.poll(backups).toHaveLength(2);
+  const secondPath = backups().find((path) => path !== firstPath)!;
+  expect(secondPath.slice(0, secondPath.lastIndexOf('/'))).not.toBe(firstPath.slice(0, firstPath.lastIndexOf('/')));
+  expect(s3.objects.get(firstPath)).toEqual(firstBytes);
+  const first = JSON.parse(firstBytes.toString()).project;
+  const second = JSON.parse(s3.objects.get(secondPath)!.toString()).project;
+  expect(first.shoot.title).toBe(second.shoot.title);
+  expect(first.shoot.id).not.toBe(second.shoot.id);
+  expect(first.frames.filter((frame: { decision: string }) => frame.decision === 'keep').map((frame: { filename: string }) => frame.filename)).toEqual(['k-1.png']);
+  expect(second.frames.filter((frame: { decision: string }) => frame.decision === 'keep').map((frame: { filename: string }) => frame.filename)).toEqual(['k-2.png']);
+  expect(s3.refused).toBe(0);
+});
 
 test('a project backs itself up to the place chosen for it, after a change, and says so', async ({ page }) => {
   await page.goto('/');
@@ -114,7 +148,7 @@ test('edits made while a backup is slow are included when leaving the project', 
   const hold = new Promise<void>((resolve) => { release = resolve; });
   const writing = new Promise<void>((resolve) => { started = resolve; });
   let held = false;
-  await page.route('**/photos/kestrel/v1/backups/**', async (route) => {
+  await page.route('**/photos/kestrel/v1/project-backups/**', async (route) => {
     if (route.request().method() === 'PUT' && !held) {
       held = true;
       started();

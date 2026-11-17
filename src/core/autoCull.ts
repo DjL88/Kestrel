@@ -73,15 +73,16 @@ export interface SubjectFinding { label: string; score: number; /** Long side of
  */
 export function scoreWithSubject(base: CullSuggestion, found: SubjectFinding | null): CullSuggestion {
   if (base.reason === 'unavailable' || base.reason === 'flat' || base.reason === 'duplicate') return base;
-  // Subject detector outputs are untrusted. NaN/Infinity, impossible confidence,
-  // empty labels and negative sizes/sharpness must never become auto-Keeps.
-  // Fall back silently to human review, preserving the original photograph.
-  const valid = found &&
-    typeof found.label === 'string' && found.label.trim().length > 0 &&
-    Number.isFinite(found.score) && found.score >= 0 && found.score <= 1 &&
-    Number.isFinite(found.size) && found.size >= 0 &&
-    Number.isFinite(found.sharpness) && found.sharpness >= 0;
-  const real = valid && ((found.score >= 0.45 && found.size >= 120) || found.score >= 0.7);
+  // Detector adapters and persisted worker results are not guaranteed to
+  // respect TypeScript types. Non-finite or out-of-range metrics must never
+  // manufacture a high-confidence keeper (or propagate a NaN score).
+  if (found && (typeof found.label !== 'string' || found.label.trim().length === 0 ||
+      !Number.isFinite(found.score) || found.score < 0 || found.score > 1 ||
+      !Number.isFinite(found.size) || found.size <= 0 ||
+      !Number.isFinite(found.sharpness) || found.sharpness < 0)) {
+    return { ...base, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
+  }
+  const real = found && ((found.score >= 0.45 && found.size >= 120) || found.score >= 0.7);
   if (!found || !real) return { ...base, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
   const weight = Math.min(1, found.score / 0.8);
   if (found.sharpness >= 14) {
@@ -96,16 +97,23 @@ export function limitAutoKeepers(
 ): CullSuggestion[] {
   // A corrupt or non-finite keeper target must fail closed, never grant unlimited auto-keeps.
   const safeRemaining = Number.isFinite(remainingKeepers) ? Math.max(0, Math.floor(remainingKeepers)) : 0;
-  const byId = new Map(frames.map((frame) => [frame.id, frame]));
+  // Distinct originals with duplicate catalogue IDs must not receive automatic keeps.
+  const ambiguousIds = new Set<string>();
+  const byId = new Map<string, PhotoFrame>();
+  for (const frame of frames) {
+    if (byId.has(frame.id)) ambiguousIds.add(frame.id);
+    else byId.set(frame.id, frame);
+  }
   const occupied = new Set(frames.filter((frame) => !frame.removedAt && frame.decision === 'keep' && frame.burstGroupId)
     .map((frame) => frame.burstGroupId!));
   const accepted = new Set<string>();
   for (const result of [...suggestions].sort((a, b) => b.score - a.score)) {
-    if (result.decision !== 'keep' || result.confidence !== 'high' || accepted.size >= safeRemaining) continue;
+    if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100 ||
+        result.decision !== 'keep' || result.confidence !== 'high' || accepted.size >= safeRemaining) continue;
     // A stale scan result cannot reserve keeper headroom for a photo that was
     // removed or manually reviewed while the scan was running.
     const frame = byId.get(result.frameId);
-    if (!frame || frame.removedAt || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) continue;
+    if (!frame || ambiguousIds.has(result.frameId) || frame.removedAt || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) continue;
     const burst = frame.burstGroupId;
     if (burst && occupied.has(burst)) continue;
     accepted.add(result.frameId);
@@ -116,6 +124,9 @@ export function limitAutoKeepers(
   const emitted = new Set<string>();
   return suggestions.map((result) => {
     if (result.decision !== 'keep' || result.confidence !== 'high') return result;
+    if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100) {
+      return { ...result, confidence: 'medium', score: 0 };
+    }
     if (accepted.has(result.frameId) && !emitted.has(result.frameId)) {
       emitted.add(result.frameId);
       return result;

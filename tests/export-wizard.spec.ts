@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import { unzipSync } from 'fflate';
 import { openExportDialog } from './helpers';
 
 test('export wizard: platform, size, position, then export', async ({ page }) => {
@@ -107,6 +109,110 @@ test('a supported full-size PNG download retains the source dimensions', async (
   const png = Buffer.concat(chunks);
   expect(png.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([900, 600]);
+});
+
+test('desktop export records the edit only after a successful save and can retry the same file', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'uses the desktop save dialog and editor toolbar');
+  await page.addInitScript(() => {
+    const trace = { picks: 0, writes: 0 };
+    Object.assign(window, {
+      __saveTrace: trace,
+      __TAURI_INTERNALS__: {
+        transformCallback: () => 1,
+        metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main', windowLabel: 'main' } },
+        invoke: async (command: string) => {
+          if (command === 'plugin:dialog|save') return ++trace.picks === 1 ? null : '/synthetic/export.png';
+          if (command === 'plugin:fs|write_file' && ++trace.writes === 1) throw new Error('Drive unavailable');
+          if (command === 'plugin:opener|reveal_item_in_dir') throw new Error('File manager unavailable');
+          return 0;
+        },
+      },
+    });
+  });
+  let downloads = 0;
+  page.on('download', () => { downloads += 1; });
+  await openWizard(page);
+  await page.getByRole('button', { name: 'Close export' }).click();
+  await page.getByRole('button', { name: /Before \/ After/ }).click();
+  const lastExport = page.getByLabel('Before comparison stage').locator('option[value="last-export"]');
+  await expect(lastExport).toBeDisabled();
+  await openExportDialog(page);
+  await page.getByRole('button', { name: 'Full size', exact: true }).click();
+  await page.getByRole('checkbox', { name: /Full size · PNG/ }).check();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('button', { name: 'Prepare 1 file', exact: true }).click();
+
+  const panel = page.getByRole('dialog', { name: 'Export photo' });
+  const save = panel.getByRole('button', { name: 'Save', exact: true });
+  const trace = () => page.evaluate(() => (window as unknown as { __saveTrace: { picks: number; writes: number } }).__saveTrace);
+  await save.click();
+  await expect.poll(trace).toEqual({ picks: 1, writes: 0 });
+  await expect(save).toBeEnabled();
+  await expect(panel.getByRole('status')).toHaveText('1 file ready');
+  await expect(lastExport).toBeDisabled();
+
+  await save.click();
+  await expect(panel.getByRole('alert')).toContainText('choose another folder');
+  await expect(lastExport).toBeDisabled();
+  await expect(save).toBeEnabled();
+
+  await save.click();
+  await expect(panel.getByRole('status')).toContainText('Saved');
+  await expect(panel.getByRole('alert')).toHaveCount(0);
+  await expect.poll(trace).toEqual({ picks: 3, writes: 2 });
+  await expect(lastExport).toBeEnabled();
+  expect(downloads).toBe(0);
+});
+
+test('only the current ZIP is offered when two export batches finish out of order', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('kestrel.exportView', 'list');
+    const gates: Record<string, () => Promise<void>> = {};
+    Object.assign(window, { __zipGates: gates });
+    const stream = File.prototype.stream;
+    File.prototype.stream = function () {
+      if (!/^ig_w_(4x5|1x1)\.jpg$/.test(this.name)) return stream.call(this);
+      const file = this;
+      return new ReadableStream<Uint8Array<ArrayBuffer>>({
+        start(controller) {
+          gates[file.name] = async () => {
+            controller.enqueue(new Uint8Array(await file.arrayBuffer()));
+            controller.close();
+          };
+        },
+      });
+    };
+  });
+  await openWizard(page);
+  const panel = page.getByRole('dialog', { name: 'Export photo' });
+  const instagram = panel.getByText('Instagram', { exact: true });
+  const post = panel.getByRole('checkbox', { name: /Post · 4:5/ });
+  const square = panel.getByRole('checkbox', { name: /Square · 1:1/ });
+  const ready = panel.getByRole('status').filter({ hasText: '2 files ready' });
+  const gateNames = () => page.evaluate(() => Object.keys((window as unknown as { __zipGates: object }).__zipGates));
+  const release = (name: string) => page.evaluate(async (key) => {
+    await (window as unknown as { __zipGates: Record<string, () => Promise<void>> }).__zipGates[key]();
+  }, name);
+
+  await instagram.click();
+  await post.check();
+  await panel.getByRole('button', { name: 'Prepare 2 files' }).click();
+  await expect(ready).toBeVisible();
+  await expect.poll(gateNames).toContain('ig_w_4x5.jpg');
+  await panel.getByRole('button', { name: 'Change settings' }).click();
+  await post.uncheck();
+  await square.check();
+  await panel.getByRole('button', { name: 'Prepare 2 files' }).click();
+  await expect(ready).toBeVisible();
+  await expect.poll(gateNames).toContain('ig_w_1x1.jpg');
+  await release('ig_w_4x5.jpg');
+  await expect(panel.getByRole('button', { name: 'Packing ZIP…' })).toBeDisabled();
+  await release('ig_w_1x1.jpg');
+
+  const download = page.waitForEvent('download');
+  await panel.getByRole('button', { name: 'Download ZIP' }).click();
+  const archive = unzipSync(await readFile((await (await download).path())!));
+  expect(Object.keys(archive).sort()).toEqual(['ig_w_1x1.jpg', 'w-kestrel.png']);
 });
 
 test('the wizard ignores earlier saved choices and shows the size that was picked', async ({ page }) => {

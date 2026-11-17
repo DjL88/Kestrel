@@ -63,8 +63,8 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
   registerBlob(stableKey: string, blob: Blob): void {
     const previous = this.localBlobs.get(stableKey);
-    if (previous && previous !== blob) {
-      this.developed.delete(stableKey);
+    if (previous !== blob) {
+      this.invalidateDevelopment(stableKey);
       this.invalidateFullPreview(stableKey);
     }
     this.localBlobs.set(stableKey, blob);
@@ -83,7 +83,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       this.linkedGeneration.set(stableKey, (this.linkedGeneration.get(stableKey) ?? 0) + 1);
       this.linkedLoading.delete(stableKey);
       this.localBlobs.delete(stableKey);
-      this.developed.delete(stableKey);
+      this.invalidateDevelopment(stableKey);
       this.invalidateFullPreview(stableKey);
     }
     this.linked.set(stableKey, info);
@@ -97,7 +97,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.linkedGeneration.set(stableKey, (this.linkedGeneration.get(stableKey) ?? 0) + 1);
     this.linkedLoading.delete(stableKey);
     this.localBlobs.delete(stableKey);
-    this.developed.delete(stableKey);
+    this.invalidateDevelopment(stableKey);
     this.invalidateFullPreview(stableKey);
   }
 
@@ -214,13 +214,37 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
   /** Pictures developed from the RAW sensor data, kept for this session. They stand in for the embedded preview. */
   private developed = new Map<string, Blob>();
+  private developing = new Map<string, symbol>();
 
   isDeveloped(stableKey: string): boolean { return this.developed.has(stableKey); }
 
-  /** Use a developed picture from now on for this photo, in the editor and in exports. */
-  setDeveloped(frame: PhotoFrame, picture: Blob): void {
-    this.developed.set(frame.stableKey, picture);
-    this.invalidateFullPreview(frame.stableKey);
+  private invalidateDevelopment(stableKey: string): void {
+    this.developed.delete(stableKey);
+    this.developing.delete(stableKey);
+  }
+
+  /** Install only a result that still belongs to the current original and decode request. */
+  async developFromOriginal(
+    stableKey: string,
+    develop: (original: Blob) => Promise<Blob>,
+  ): Promise<'ready' | 'missing' | 'superseded'> {
+    const request = Symbol();
+    this.developing.set(stableKey, request);
+    try {
+      const original = await this.ensureOriginal(stableKey);
+      if (this.developing.get(stableKey) !== request) return 'superseded';
+      if (!original) return 'missing';
+      const picture = await develop(original);
+      if (this.developing.get(stableKey) !== request) return 'superseded';
+      this.developed.set(stableKey, picture);
+      this.invalidateFullPreview(stableKey);
+      return 'ready';
+    } catch (error) {
+      if (this.developing.get(stableKey) !== request) return 'superseded';
+      throw error;
+    } finally {
+      if (this.developing.get(stableKey) === request) this.developing.delete(stableKey);
+    }
   }
 
   private invalidateFullPreview(key: string): void {
@@ -341,6 +365,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.linkedGeneration.clear();
     this.linkedOrder = [];
     this.developed.clear();
+    this.developing.clear();
     this.pendingThumbs.clear();
     this.offlinePreviews.clear();
     this.offlinePreviewOrder = [];

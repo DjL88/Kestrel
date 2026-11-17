@@ -57,6 +57,12 @@ def compare(reference_path, candidate_path, *, source_nef=None):
     absolute = np.zeros(3, dtype=np.float64)
     maxima = np.zeros(3, dtype=np.int32)
     changed = 0
+    # Count per-channel endpoint clipping independently of average RGB error.
+    # These are diagnostic counts, not perceptual colour or Nikon-fidelity scores.
+    highlight_added = np.zeros(3, dtype=np.int64)
+    highlight_lost = np.zeros(3, dtype=np.int64)
+    shadow_added = np.zeros(3, dtype=np.int64)
+    shadow_lost = np.zeros(3, dtype=np.int64)
     for row in range(0, height, 64):
         strip = slice(row, row + 64)
         delta = np.abs(reference[strip].astype(np.int32) - candidate[strip].astype(np.int32))
@@ -64,10 +70,20 @@ def compare(reference_path, candidate_path, *, source_nef=None):
         absolute += delta.sum(axis=(0, 1))
         maxima = np.maximum(maxima, delta.max(axis=(0, 1)))
         changed += int(np.count_nonzero(np.any(delta != 0, axis=2)))
+        ref_strip, candidate_strip = reference[strip], candidate[strip]
+        highlight_added += np.count_nonzero((candidate_strip == 65535) & (ref_strip != 65535), axis=(0, 1))
+        highlight_lost += np.count_nonzero((ref_strip == 65535) & (candidate_strip != 65535), axis=(0, 1))
+        shadow_added += np.count_nonzero((candidate_strip == 0) & (ref_strip != 0), axis=(0, 1))
+        shadow_lost += np.count_nonzero((ref_strip == 0) & (candidate_strip != 0), axis=(0, 1))
     pixel_count = height * width
+    reference_digest = sha256_file(reference_path)
+    candidate_digest = sha256_file(candidate_path)
     report = {
-        "reference_tiff_sha256": sha256_file(reference_path),
-        "candidate_tiff_sha256": sha256_file(candidate_path),
+        "reference_tiff_sha256": reference_digest,
+        "candidate_tiff_sha256": candidate_digest,
+        # Byte-identical exports do not prove independent RAW rendering.
+        # Keep the diagnostic report usable but make this limitation explicit.
+        "byte_identical_exports": reference_digest == candidate_digest,
         "icc_profile_sha256": hashlib.sha256(profile).hexdigest(),
         "width": width,
         "height": height,
@@ -77,6 +93,10 @@ def compare(reference_path, candidate_path, *, source_nef=None):
         "rmse_rgb": [math.sqrt(float(total) / pixel_count) for total in squared],
         "maximum_channel_error_rgb": maxima.tolist(),
         "sample_range": [0, 65535],
+        "highlight_clipped_channels_added_rgb": highlight_added.tolist(),
+        "highlight_clipped_channels_lost_rgb": highlight_lost.tolist(),
+        "shadow_clipped_channels_added_rgb": shadow_added.tolist(),
+        "shadow_clipped_channels_lost_rgb": shadow_lost.tolist(),
     }
 
     if source_nef is not None:
