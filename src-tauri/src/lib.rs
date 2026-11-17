@@ -23,6 +23,20 @@ async fn develop_raw(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Res
     Ok(tauri::ipc::Response::new(jpeg))
 }
 
+/// Experimental: develop a RAW file straight to a 16-bit TIFF (see `raw_precision.rs`). No Nikon HE/HE* support and no
+/// colour profile yet; refuses rather than silently falling back to 8-bit. Offered as an extra download, not the default
+/// editing path, until ICC handling and HE coverage are in place.
+#[cfg(desktop)]
+#[tauri::command]
+async fn develop_raw_precision(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Response, String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else { return Err("No file was sent.".into()) };
+    let bytes = bytes.to_vec();
+    let tiff = tauri::async_runtime::spawn_blocking(move || raw_precision::develop_raw_rgb16_tiff(&bytes))
+        .await
+        .map_err(|_| "This RAW file could not be read.".to_string())??;
+    Ok(tauri::ipc::Response::new(tiff))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -39,7 +53,7 @@ pub fn run() {
     let builder = builder
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![develop_raw])
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_precision])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "Kestrel", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,

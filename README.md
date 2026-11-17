@@ -2,7 +2,9 @@
 
 Kestrel is a local-first culling and editing workspace for wildlife, bird, and pet photography. A shared React/TypeScript interface runs in the browser and a Tauri v2 shell. Desktop packaging and an Android scaffold exist; released native mobile apps and a Chrome extension are not yet established.
 
-**Current readiness and priorities:** [End-to-end product audit](docs/RELEASE-GAP-AUDIT-2026-11.md). It distinguishes implemented features from planned architecture below. Native RAW development exists but currently passes an 8-bit JPEG into the editor; this is not a lossless, high-bit-depth RAW workflow or verified Lightroom/DxO parity.
+**Current readiness and priorities:** [End-to-end product audit](docs/RELEASE-GAP-AUDIT-2026-11.md). It distinguishes implemented features from planned architecture below. Native RAW development exists but currently passes a developed raster into the editor; this is not yet a 16-bit, colour-managed RAW workflow or verified Lightroom/DxO parity. See [docs/RAW-QUALITY-PLAN.md](docs/RAW-QUALITY-PLAN.md) for the phased plan to close that gap.
+
+**Legal/trust:** [LICENSE](LICENSE), [NOTICE.md](NOTICE.md) (third-party licenses), [PRIVACY.md](PRIVACY.md). All three are drafts written to match current behaviour — get them reviewed before a public release, not just read.
 
 ---
 

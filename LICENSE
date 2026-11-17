@@ -7,7 +7,9 @@ This repository and its original source code, documentation, artwork, and other 
 
 Use of a distributed Kestrel application, including beta versions, is governed by any separate terms supplied with that application. This notice is not itself an end-user licence.
 
-Third-party components retain their respective copyright notices and licence terms. This notice does not supersede any applicable third-party licences.
+While Kestrel is in public beta, features designated "Pro" may be unlocked for everyone regardless of purchase, as disclosed in-product. That is a temporary release decision, not a change to the terms above.
+
+Third-party components retain their respective copyright notices and licence terms and are not covered by this notice — see NOTICE.md for what's bundled and under what licenses, including one open question (rawler, LGPL-2.1) that needs a lawyer's answer before a signed, paid build ships.
 
 For permission requests, visit https://leitch.technology/.
 

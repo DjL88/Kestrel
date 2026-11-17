@@ -1,8 +1,8 @@
 # Using Kestrel across your devices
 
-## Unlock Kestrel Paid
+## Unlock Kestrel Pro
 1. Open Kestrel. On the home screen choose **Licence and settings** (bottom of the page).
-2. Paste the licence key from your receipt email and choose **Unlock Kestrel Paid**.
+2. Paste the licence key from your receipt email and choose **Unlock Kestrel Pro**.
 3. That is all. No account, no sign-in, and it keeps working offline. Lost the key? Re-send it from your receipt.
 
 ## Keep your photos where you like

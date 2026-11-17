@@ -35,6 +35,8 @@ import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
 import { markExportRequested } from './core/compareStages';
 import { AutoCullPanel } from './components/AutoCullPanel';
+import { GuidedBanner } from './components/GuidedBanner';
+import { guidedStep } from './core/guidedProgress';
 import { BatchLookDialog } from './components/BatchLookDialog';
 import { SelectionLookDialog } from './components/SelectionLookDialog';
 import { applySelectedLook, previewSelectedLook } from './core/selectedLooks';
@@ -149,6 +151,8 @@ export default function App() {
   const [autoAdjustSelectedOpen, setAutoAdjustSelectedOpen] = useState(false);
   const autoAdjustController = useRef<AbortController | null>(null);
   const [autoCullStart, setAutoCullStart] = useState(false);
+  /** The guided "what's next" banner, dismissed for one project at a time. Resets on reload or when a different project opens. */
+  const [guidedDismissedFor, setGuidedDismissedFor] = useState<string | null>(null);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
   const [showPhotoInfo, setShowPhotoInfo] = useState(false);
   const [copiedEdit, setCopiedEdit] = useState<PhotoEdit | null>(null);
@@ -434,6 +438,16 @@ export default function App() {
     () => computeCullCounts(cullingState.frames),
     [cullingState.frames]
   );
+  /** Move to a different filter while keeping the current selection if it's still visible, same rule the filter buttons use. */
+  const changeFilter = useCallback((next: FilterState) => {
+    setCullingState((prev) => {
+      const nextVisible = filterFrames(prev.frames, next, prev.searchQuery, prev.ratingFilter);
+      const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
+      return { ...prev, filter: next, selectedFrameId: stillVisible ? prev.selectedFrameId : nextVisible[0]?.id ?? null };
+    });
+  }, []);
+  const uneditedKeepers = previewKeeperLook(cullingState.frames).eligible;
+  const guided = guidedStep(counts, uneditedKeepers);
 
   const visibleFrames = useMemo(
     () =>
@@ -1475,7 +1489,7 @@ export default function App() {
       {watchOpen && <WatchFolderDialog onStart={(source, includeExisting) => void watch.start(source, includeExisting)} onClose={() => setWatchOpen(false)} />}
       {watch.status && <p role="status" className="fixed bottom-3 left-3 z-40 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/15 bg-kestrel-raised px-3 py-2 text-xs text-zinc-100 shadow-lg">{watch.status.error ?? `Watching “${watch.status.folder}” · ${watch.status.imported} new photo${watch.status.imported === 1 ? '' : 's'} added`}</p>}
       {paidDialog && (
-        <div role="dialog" aria-modal="true" aria-label={`${paidDialog} is part of Kestrel Paid`} className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+        <div role="dialog" aria-modal="true" aria-label={`${paidDialog} is part of Kestrel Pro`} className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
           onKeyDown={(event) => { if (event.key === 'Escape') setPaidDialog(null); }}>
           <div className="w-full max-w-sm space-y-3 rounded-xl border border-white/12 bg-kestrel-panel p-4">
             <PaidNotice title={paidDialog}>Assisted selection of your best frames.</PaidNotice>
@@ -1504,19 +1518,7 @@ export default function App() {
         shoot={cullingState.shoot}
         counts={counts}
         filter={cullingState.filter}
-        onFilterChange={(next: FilterState) => {
-          setCullingState((prev) => {
-            const nextVisible = filterFrames(prev.frames, next, prev.searchQuery, prev.ratingFilter);
-            const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
-            return {
-              ...prev,
-              filter: next,
-              selectedFrameId: stillVisible
-                ? prev.selectedFrameId
-                : nextVisible[0]?.id ?? null,
-            };
-          });
-        }}
+        onFilterChange={changeFilter}
         ratingFilter={cullingState.ratingFilter ?? null}
         onRatingFilterChange={(next) =>
           setCullingState((prev) => {
@@ -1768,6 +1770,19 @@ export default function App() {
             </div>
           )}
           {loadingProgress && <ImportProgress loaded={loadingProgress.loaded} total={loadingProgress.total} />}
+          {!editing && !loadingProgress && guidedDismissedFor !== cullingState.shoot.id && (
+            <GuidedBanner step={guided} unreviewed={counts.unreviewed} keepers={counts.keep} uneditedKeepers={uneditedKeepers}
+              onFindBestPhotos={() => {
+                if (!can('smartCulling')) { setPaidDialog('Auto-cull'); return; }
+                setAutoCullStart(true);
+                setAutoCullOpen(true);
+              }}
+              onReviewMyself={() => changeFilter('unreviewed')}
+              onSeeSuggestedEdits={() => setAutoAdjustOpen(true)}
+              onEditMyself={() => changeFilter('keep')}
+              onExportKeepers={() => setExportFrames(cullingState.frames.filter((frame) => !frame.removedAt && frame.decision === 'keep'))}
+              onDismiss={() => setGuidedDismissedFor(cullingState.shoot.id)} />
+          )}
           {!editing && can('speciesId') && <SpeciesScanBanner scan={scan} />}
           {can('onlineAi') && <OnlineHelperDialog />}
           {!editing && visibleFrames.length > 0 && prefs.viewMode === 'grid' && (

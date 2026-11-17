@@ -1,9 +1,11 @@
 //! Experimental TrueDetail RGB16 TIFF path.
 //!
-//! Deliberately NOT connected to the editor or the paid-feature UI. This
-//! prototype refuses 8-bit developments instead of expanding 8-bit values
-//! into misleading 16-bit output. It has no Nikon HE/HE* or ICC promises.
-//! The current JPEG-based editor path in raw.rs is unchanged.
+//! Wired to one explicit, clearly-labelled "16-bit TIFF (experimental)" download
+//! action in Edit options — not the editor's main image source, and not a Pro
+//! feature gate. It refuses 8-bit developments instead of expanding 8-bit values
+//! into misleading 16-bit output, and has no Nikon HE/HE* or ICC promises yet.
+//! The default JPEG-based editor path in raw.rs is unchanged and still what
+//! every edit, crop and export actually uses.
 
 use image::codecs::tiff::TiffEncoder;
 use image::{imageops, DynamicImage, ImageBuffer, ImageEncoder, Rgb};
@@ -73,9 +75,9 @@ fn encode_rgb16_tiff(rgb: &Rgb16) -> Result<Vec<u8>, String> {
     Ok(output.into_inner())
 }
 
-/// Native-only, offline research entrypoint. Never invoked by production UI.
+/// Native entrypoint for the experimental 16-bit TIFF download (wired to the `develop_raw_precision` Tauri command in
+/// `lib.rs`), offered alongside the normal 8-bit JPEG editing path, not in place of it.
 /// Decoder intermediates lacking genuine 16-bit channels fail closed.
-#[allow(dead_code)]
 pub fn develop_raw_rgb16_tiff(bytes: &[u8]) -> Result<Vec<u8>, String> {
     let source = RawSource::new_from_slice(bytes);
     let raw = rawler::decode(&source, &RawDecodeParams { image_index: 0 })
