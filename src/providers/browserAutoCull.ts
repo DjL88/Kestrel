@@ -1,9 +1,10 @@
 import { loadImage } from './loadImage';
-import { restoreNoSubjectFallback } from '../core/cullFallback';
+import { missingDetectorReviewFallback, restoreNoSubjectFallback } from '../core/cullFallback';
 import { sha256Hex } from '../core/sha256';
 import { duplicateAnchorKeys } from '../core/duplicateAnchors';
 import { limitAutoKeepers, scorePreview, scoreWithSubject, type CullSuggestion, type SubjectFinding } from '../core/autoCull';
 import { findSubject } from './objectDetector';
+import { bundledModelUrl } from './bundledModelAssets';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 
@@ -21,6 +22,9 @@ export async function scanForCulling(
     const info = provider.originalInfo(frame.stableKey);
     if (info) sizes.set(info.size, (sizes.get(info.size) ?? 0) + 1);
   }
+  // A cloud IDE may omit large ONNX files. Treat object detection as optional
+  // in that preview; preserve the existing conservative detail-only fallback.
+  const canFindSubject = Boolean(bundledModelUrl('yolox_tiny.onnx'));
   const seenHashes = new Set<string>();
   const anchorSizes = new Set<number>();
   // A second scan must not select a byte-identical copy of a keeper already
@@ -67,8 +71,10 @@ export async function scanForCulling(
         // Judge the photo by its subject: its presence and sharpness, not the texture of the whole frame.
         let finding: SubjectFinding | null | undefined;
         try {
-          const found = await findSubject(image, signal);
-          finding = found && { label: found.detection.label, score: found.detection.score, size: Math.max(found.detection.box.w, found.detection.box.h), sharpness: found.sharpness };
+          if (canFindSubject) {
+            const found = await findSubject(image, signal);
+            finding = found && { label: found.detection.label, score: found.detection.score, size: Math.max(found.detection.box.w, found.detection.box.h), sharpness: found.sharpness };
+          }
         } catch { signal.throwIfAborted(); finding = undefined; }
         baseById.set(frame.id, base);
         results.push(finding === undefined ? base : scoreWithSubject(base, finding));
@@ -84,8 +90,10 @@ export async function scanForCulling(
   // When it finds a subject in very few photos, judge by overall detail as before instead of calling every photo subject-less.
   const withSubject = results.filter((result) => result.reason !== 'noSubject' && baseById.has(result.frameId)).length;
   const judged = results.filter((result) => baseById.has(result.frameId)).length;
-  const fallbackResults = judged > 0 && withSubject / judged < 0.15
-    ? restoreNoSubjectFallback(results, baseById)
-    : results;
+  const fallbackResults = !canFindSubject
+    ? missingDetectorReviewFallback(results, baseById)
+    : judged > 0 && withSubject / judged < 0.15
+      ? restoreNoSubjectFallback(results, baseById)
+      : results;
   return limitAutoKeepers(fallbackResults, all, Math.max(0, goal - all.filter((frame) => !frame.removedAt && frame.decision === 'keep').length));
 }

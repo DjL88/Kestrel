@@ -1,6 +1,6 @@
 import { sha256Hex } from '../core/sha256';
 import { friendlyToolError } from '../core/toolErrors';
-import modelUrl from '../assets/models/yolox_tiny.onnx?url';
+import { bundledModelUrl } from './bundledModelAssets';
 import { DETECTOR_MODEL, boxSharpness, decodeTile, mergeDetections, tilePlan, tileScale, toInput, type Box, type Detection } from '../core/objectDetection';
 
 type Ort = typeof import('onnxruntime-web/wasm');
@@ -9,6 +9,8 @@ let loading: Promise<Loaded> | null = null;
 
 function load(): Promise<Loaded> {
   loading ??= (async () => {
+    const modelUrl = bundledModelUrl(DETECTOR_MODEL.file);
+    if (!modelUrl) throw new Error('The optional subject detector is not installed in this preview. Original photos and manual editing remain available.');
     const response = await fetch(modelUrl);
     if (!response.ok) throw new Error('The subject detector could not be loaded.');
     const bytes = await response.arrayBuffer();

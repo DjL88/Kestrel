@@ -8,6 +8,7 @@ import { summarizeCullSuggestions } from '../core/autoCullSummary';
 import type { PhotoFrame } from '../core/types';
 import { messages as m, formatCount } from '../i18n/messages';
 import { scanForCulling } from '../providers/browserAutoCull';
+import { bundledModelUrl } from '../providers/bundledModelAssets';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 
 interface Props {
@@ -59,6 +60,7 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const subjectDetectorAvailable = Boolean(bundledModelUrl('yolox_tiny.onnx'));
   const candidates = frames.filter((frame) => !frame.removedAt && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
   const summary = results ? summarizeCullSuggestions(results) : null;
   const high = (results ?? []).flatMap((result) =>
@@ -113,6 +115,12 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
         <button type="button" className={button} aria-label={m.closeAutoCull} title={m.closeAutoCull} onClick={onClose}><X className="h-5 w-5" aria-hidden="true" /></button>
       </header>
       <p className="text-sm text-zinc-300">{m.description}</p>
+      {!subjectDetectorAvailable && (
+        <p role="status" className="mt-2 rounded-md border border-white/12 p-2 text-xs text-zinc-300">
+          This preview has no subject-detection model. You can still review photos and find exact duplicates;
+          Kestrel will not automatically choose keepers from texture alone. Full desktop builds include the verified model.
+        </p>
+      )}
       {!results && <div className="mt-3 space-y-2">
         <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={autoMove}
           disabled={progress !== undefined} onChange={(event) => setAutoMove(event.target.checked)} />{m.autoMove}</label>
