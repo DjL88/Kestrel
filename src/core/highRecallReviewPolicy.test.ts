@@ -34,7 +34,7 @@ test('manual decisions override detector recommendations and remain immutable', 
     { id: 'b', subject: 'bird', groupId: 'g', quality: 0.8, confidence: 0.9, manualDecision: 'keep' },
     { id: 'c', subject: 'bird', groupId: 'g', quality: 0.7, confidence: 0.9 },
   ];
-  assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['reject', 'keep', 'keep']);
+  assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['reject', 'keep', 'review']);
 });
 
 test('eye detection absence never forces reject, including aircraft and landscape', () => {
@@ -66,6 +66,24 @@ test('subject and group keys cannot collide through colon separators', () => {
   const items: ReviewCandidate[] = [
     { id: 'one', subject: 'bird', groupId: 'a:b', quality: 0.8, confidence: 0.9 },
     { id: 'two', subject: 'bird', groupId: 'a:b', quality: 0.9, confidence: 0.9 },
+  ];
+  assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['review', 'keep']);
+});
+
+
+test('manual keeper prevents an extra automatic keeper within the same group', () => {
+  const items: ReviewCandidate[] = [
+    { id: 'manual', subject: 'bird', groupId: 'burst', quality: 0.2, confidence: 0.9, manualDecision: 'keep' },
+    { id: 'strong', subject: 'bird', groupId: 'burst', quality: 1, confidence: 1 },
+    { id: 'other', subject: 'aircraft', groupId: 'burst', quality: 0.8, confidence: 0.9 },
+  ];
+  assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['keep', 'review', 'keep']);
+});
+
+test('blank explicit group IDs fail conservatively instead of borrowing photo identity', () => {
+  const items: ReviewCandidate[] = [
+    { id: 'a', subject: 'bird', groupId: '   ', quality: 1, confidence: 1 },
+    { id: 'b', subject: 'bird', groupId: 'burst', quality: 0.8, confidence: 0.9 },
   ];
   assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['review', 'keep']);
 });
