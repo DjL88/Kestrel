@@ -20,7 +20,7 @@ test('desktop: photos stay where they are, nothing is copied into the app, and t
       invoke: async (command: string, args: { path?: string }) => {
         if (command === 'plugin:dialog|open') return Object.keys(files);
         if (command === 'plugin:fs|stat') {
-          return { isFile: true, isDirectory: false, isSymlink: false, size: 5000, mtime: 1700000000000 + (files[args.path!] ?? 0), atime: null, birthtime: null, readonly: false, fileAttributes: null, dev: 0, ino: null, mode: 0, nlink: null, uid: 0, gid: 0, rdev: 0, blksize: 0, blocks: 0 };
+          return { isFile: true, isDirectory: false, isSymlink: false, size: (await png(files[args.path!] ?? 0)).byteLength, mtime: 1700000000000 + (files[args.path!] ?? 0), atime: null, birthtime: null, readonly: false, fileAttributes: null, dev: 0, ino: null, mode: 0, nlink: null, uid: 0, gid: 0, rdev: 0, blksize: 0, blocks: 0 };
         }
         if (command === 'plugin:fs|read_file') { w.__reads.push(args.path!); return png(files[args.path!] ?? 0); }
         return 0;
