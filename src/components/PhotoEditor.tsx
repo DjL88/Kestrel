@@ -567,7 +567,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               ? subjectCache.current.result : null;
             if (!detection) {
               // Slow/broken inference must not hold the editing workflow hostage.
-              let timeout: ReturnType<typeof setTimeout> | undefined;
+              let timeout: number | undefined;
               try {
                 detection = await Promise.race([
                   detectSubject(detectionCanvas),
