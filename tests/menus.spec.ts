@@ -76,7 +76,10 @@ test('rating filter is one row of stars: tap sets, tap again clears, the symbol 
   }
   // Locate by the stable aria-controls attribute, not accessible name: the name itself changes once a filter
   // count badge appears, and plain "Filter" text can also appear inside "Clear filters".
-  const filterTrigger = page.locator('button[aria-controls="filter-popover"]');
+  // The bar and the phone menu sheet each render one; use the one in the sheet on a phone.
+  const phone = page.viewportSize()!.width < 768;
+  const filterTrigger = (phone ? page.locator('#workspace-options') : page)
+    .locator('button[aria-controls="filter-popover"]:visible').first();
   await filterTrigger.click();
   const ratingGroup = page.getByRole('group', { name: 'Filter by rating' });
   await expect(ratingGroup).toBeVisible();

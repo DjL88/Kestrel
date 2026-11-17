@@ -31,8 +31,10 @@ test('Insight explains a failed local detector and never changes an edit before 
   const undo = toolbar.getByRole('button', { name: 'Undo', exact: true });
   await expect(undo).toBeDisabled();
 
-  await page.getByRole('tab', { name: 'Auto' }).click();
   const panel = page.getByRole('tabpanel', { name: 'Auto' });
+  await page.getByRole('tab', { name: 'Auto' }).click();
+  // On a phone, tapping the tab that is already open folds the sheet away; open it again if so.
+  if (!(await panel.isVisible())) await page.getByRole('tab', { name: 'Auto' }).click();
   const suggest = panel.getByRole('button', { name: 'Suggest a look' });
   await expect(suggest).toBeEnabled();
   await suggest.click();

@@ -80,7 +80,7 @@ export function FilterSortControl(props: Props) {
         <span className="sr-only" role="status">{activeCount > 0 ? `${activeCount} filter${activeCount === 1 ? '' : 's'} active` : 'No filters active'}</span>
         {open && (
           <div ref={popoverRef} id="filter-popover" role="group" aria-label="Filter photos"
-            className="absolute right-0 top-full z-40 mt-1 w-[min(20rem,calc(100vw-1rem))] space-y-3 rounded-xl border border-white/12 bg-kestrel-raised p-3 shadow-2xl">
+            className="absolute right-0 max-md:left-0 max-md:right-auto top-full z-40 mt-1 w-[min(20rem,calc(100vw-2.5rem))] space-y-3 rounded-xl border border-white/12 bg-kestrel-raised p-3 shadow-2xl">
             <label className="block text-xs font-medium text-zinc-400">
               Search
               <span className="relative mt-1 block">
