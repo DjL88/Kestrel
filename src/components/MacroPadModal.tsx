@@ -363,7 +363,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-white/10 bg-[#111317] flex items-center justify-between gap-3">
+        <div className="px-5 py-3 border-t border-white/10 bg-[#14161b] flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onResetBindings}
