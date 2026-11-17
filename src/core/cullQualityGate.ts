@@ -68,6 +68,26 @@ export function evaluateCullQualityGate(
     result.missingPredictions > result.total) {
     throw new Error('Invalid benchmark result counts');
   }
+  // A release gate must not certify a fabricated or internally inconsistent report.
+  const counters = [result.foundFavourites, result.missedFavourites, result.unsafeRejections,
+    result.autoKeeps, result.correctAutoKeeps, result.duplicatePredictions,
+    result.invalidPredictions, result.unexpectedPredictions];
+  if (counters.some((count) => !Number.isSafeInteger(count) || count < 0) ||
+    result.foundFavourites + result.missedFavourites !== result.favourites ||
+    result.unsafeRejections !== result.missedFavourites ||
+    result.foundFavourites > result.suggested ||
+    result.autoKeeps > result.total - result.missingPredictions ||
+    result.correctAutoKeeps > result.autoKeeps ||
+    result.correctAutoKeeps > result.foundFavourites) {
+    throw new Error('Inconsistent benchmark result counts');
+  }
+  const expectedRecall = result.favourites ? result.foundFavourites / result.favourites : null;
+  const expectedPrecision = result.suggested ? result.foundFavourites / result.suggested : null;
+  const expectedAutoKeepPrecision = result.autoKeeps ? result.correctAutoKeeps / result.autoKeeps : null;
+  if (result.recall !== expectedRecall || result.precision !== expectedPrecision ||
+    result.autoKeepPrecision !== expectedAutoKeepPrecision) {
+    throw new Error('Inconsistent benchmark result ratios');
+  }
   const reviewFraction = result.total ? result.suggested / result.total : null;
   const predictionCoverage = result.total ? (result.total - result.missingPredictions) / result.total : null;
   const evidence: string[] = [];
@@ -78,6 +98,7 @@ export function evaluateCullQualityGate(
     evidence.push('Automatic Keep precision unavailable');
   }
   const categories = ['birds', 'aircraft', 'people', 'mammals', 'landscapes'] as const;
+  let categoryPhotos = 0, categoryFavourites = 0, categoryFound = 0;
   for (const category of categories) {
     const bucket = result.byCategory?.[category];
     if (!bucket || !Number.isSafeInteger(bucket.total) || !Number.isSafeInteger(bucket.favourites) ||
@@ -85,9 +106,19 @@ export function evaluateCullQualityGate(
       bucket.favourites > bucket.total || bucket.found < 0 || bucket.found > bucket.favourites) {
       throw new Error('Invalid benchmark category counts: ' + category);
     }
+    if (bucket.recall !== (bucket.favourites ? bucket.found / bucket.favourites : null)) {
+      throw new Error('Inconsistent benchmark category recall: ' + category);
+    }
+    categoryPhotos += bucket.total;
+    categoryFavourites += bucket.favourites;
+    categoryFound += bucket.found;
     if (bucket.total < targets.minPhotosPerCategory || bucket.favourites < targets.minFavouritesPerCategory) {
       evidence.push('Insufficient independent labels for ' + category);
     }
+  }
+  if (categoryPhotos !== result.total || categoryFavourites !== result.favourites ||
+    categoryFound !== result.foundFavourites) {
+    throw new Error('Inconsistent benchmark category totals');
   }
   if (evidence.length) return { status: 'insufficient-evidence', reasons: evidence, reviewFraction, predictionCoverage };
   const failures: string[] = [];

@@ -115,3 +115,33 @@ test('category sample requirements must be valid positive integers', () => {
     ...DEFAULT_CULL_QUALITY_TARGETS, minPhotosPerCategory: 0,
   }), /Invalid culling quality targets/);
 });
+
+test('forged overall recall or precision cannot certify a shoot', () => {
+  const result = evaluateCullBenchmark(labels, good());
+  assert.throws(() => evaluateCullQualityGate({ ...result, recall: 1.01 }), /Inconsistent benchmark result ratios/);
+  assert.throws(() => evaluateCullQualityGate({ ...result, precision: 0.9 }), /Inconsistent benchmark result ratios/);
+  assert.throws(() => evaluateCullQualityGate({ ...result, autoKeepPrecision: 0.5 }), /Inconsistent benchmark result ratios/);
+});
+
+test('forged aggregate totals and false-rejection counts fail closed', () => {
+  const result = evaluateCullBenchmark(labels, good());
+  assert.throws(() => evaluateCullQualityGate({ ...result, foundFavourites: 19 }), /Inconsistent benchmark result counts/);
+  assert.throws(() => evaluateCullQualityGate({ ...result, unsafeRejections: 1 }), /Inconsistent benchmark result counts/);
+  assert.throws(() => evaluateCullQualityGate({ ...result, autoKeeps: 101 }), /Inconsistent benchmark result counts/);
+});
+
+test('category sums and category recall must agree with the actual labels', () => {
+  const result = evaluateCullBenchmark(labels, good());
+  const birds = result.byCategory.birds;
+  assert.throws(() => evaluateCullQualityGate({
+    ...result, byCategory: { ...result.byCategory, birds: { ...birds, total: birds.total + 1 } },
+  }), /Inconsistent benchmark category totals/);
+  assert.throws(() => evaluateCullQualityGate({
+    ...result, byCategory: { ...result.byCategory, birds: { ...birds, recall: 0.9 } },
+  }), /Inconsistent benchmark category recall/);
+});
+
+test('legitimate incomplete detection still returns fail or insufficient evidence, never throws', () => {
+  const result = evaluateCullBenchmark(labels, good().slice(0, 5));
+  assert.equal(evaluateCullQualityGate(result).status, 'fail');
+});
