@@ -249,6 +249,10 @@ export interface KeyEventLike {
   shiftKey?: boolean;
   metaKey?: boolean;
   repeat?: boolean;
+  /** IME composition must never trigger photo decisions. */
+  isComposing?: boolean;
+  /** Legacy browser IME process key. */
+  keyCode?: number;
 }
 
 const MODIFIER_CODES = new Set([
@@ -389,7 +393,9 @@ export function resolveKeyboardCommand({
   activeMode,
   isSuppressed,
 }: ResolveCommandInput): CommandDefinition | null {
-  if (isSuppressed) return null;
+  // Input method editors may emit KeyK/KeyX while composing text. Never
+  // interpret those transient keystrokes as Keep or Reject decisions.
+  if (isSuppressed || event.isComposing || event.key === 'Process' || event.key === 'Dead' || event.keyCode === 229) return null;
 
   const chord = normalizeKeyChord(event);
   if (!chord) return null;
