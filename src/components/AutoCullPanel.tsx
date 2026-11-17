@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
 import { X } from 'lucide-react';
 import type { CullSuggestion } from '../core/autoCull';
+import { planKeeperTier, type KeeperTier } from '../core/keeperTiers';
 import { summarizeCullSuggestions } from '../core/autoCullSummary';
 import type { PhotoFrame } from '../core/types';
 import { messages as m, formatCount } from '../i18n/messages';
@@ -33,6 +34,8 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
   const running = useRef<AbortController | null>(null);
   const taskId = useRef<number | null>(null);
   const [autoMove, setAutoMove] = useState(true);
+  const [keeperTier, setKeeperTier] = useState<KeeperTier>('better');
+  const [lastAppliedCount, setLastAppliedCount] = useState(0);
   const [results, setResults] = useState<CullSuggestion[]>();
   const [applied, setApplied] = useState(false);
   const [progress, setProgress] = useState<number>();
@@ -60,10 +63,13 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
   const summary = results ? summarizeCullSuggestions(results) : null;
   const high = (results ?? []).flatMap((result) =>
     result.confidence === 'high' && result.decision ? [{ frameId: result.frameId, decision: result.decision }] : []);
+  const remaining = Math.max(0, keeperTarget - frames.filter((frame) => !frame.removedAt && frame.decision === 'keep').length);
+  const tierPlan = results ? planKeeperTier(results, frames, keeperTarget, keeperTier) : [];
 
   function apply(moves: typeof high) {
     if (!moves.length) return;
     onApply(moves);
+    setLastAppliedCount(moves.length);
     setApplied(true);
   }
 
@@ -127,10 +133,45 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
           <p>{formatCount.format(summary.needReview)} still need your review.</p>
           {summary.needReview > 0 && <p className="text-xs text-zinc-400">A target of {formatCount.format(keeperTarget)} keepers does not mean the other photos are automatically rejected. Uncertain photos stay in To review.</p>}
         </section>}
-        {high.length > 0 && (applied ? <div className="flex flex-wrap items-center gap-2">
-          <p role="status" className="text-sm">{m.moved(formatCount.format(high.length))}</p>
-          <button type="button" className={button} onClick={() => { onUndo(); setApplied(false); }}>{m.undo}</button>
-        </div> : <button type="button" className={button} onClick={() => apply(high)}>{m.applyHigh}</button>)}
+        {applied ? <div className="flex flex-wrap items-center gap-2">
+          <p role="status" className="text-sm">{m.moved(formatCount.format(lastAppliedCount))}</p>
+          <button type="button" className={button} onClick={() => { onUndo(); setApplied(false); }}>{m.undo} last group</button>
+        </div> : high.length > 0 ? <button type="button" className={button} onClick={() => apply(high)}>{m.applyHigh}</button> : null}
+        {remaining > 0 && (
+          <section className="space-y-2 rounded-lg border border-white/12 p-3" aria-label="Find more keeper candidates">
+            <h3 className="text-sm font-semibold">Find more keepers</h3>
+            <p className="text-xs text-zinc-300">{formatCount.format(frames.filter((frame) => !frame.removedAt && frame.decision === 'keep').length)} of {formatCount.format(keeperTarget)} target keepers. Wider suggestions help you choose, but Kestrel will not add weak shots to meet the number.</p>
+            <div role="group" aria-label="Keeper suggestion quality" className="grid grid-cols-3 gap-1">
+              {(['best', 'better', 'good'] as const).map((level) => (
+                <button key={level} type="button" aria-pressed={keeperTier === level} onClick={() => setKeeperTier(level)}
+                  className="min-h-11 rounded-md border border-white/15 px-2 text-sm capitalize aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">
+                  {level === 'best' ? 'Best · strict' : level === 'better' ? 'Better' : 'Good · broader'}
+                </button>
+              ))}
+            </div>
+            <p role="status" className="text-xs text-zinc-300">
+              {tierPlan.length ? `${tierPlan.length} additional ${tierPlan.length === 1 ? 'candidate' : 'candidates'} qualify for this level. Review them before accepting.` : 'No additional candidates qualify. You can review the other photos yourself.'}
+            </p>
+            {tierPlan.length > 0 && (
+              <>
+                <details className="rounded-md border border-white/10 px-2">
+                  <summary className="min-h-11 cursor-pointer py-2 text-xs text-zinc-300">Review {tierPlan.length} proposed keepers</summary>
+                  <ul className="space-y-1 pb-2">
+                    {tierPlan.map(({ frameId }) => {
+                      const frame = frames.find((entry) => entry.id === frameId);
+                      return frame ? <li key={frameId} className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 truncate text-xs">{frame.filename}</span>
+                        <button type="button" className={button} onClick={() => onInspect(frame)}>Inspect</button>
+                      </li> : null;
+                    })}
+                  </ul>
+                </details>
+                <button type="button" className={`${button} border border-white/15 font-medium`}
+                  onClick={() => apply(tierPlan)}>Keep {tierPlan.length} suggested {tierPlan.length === 1 ? 'photo' : 'photos'}</button>
+              </>
+            )}
+          </section>
+        )}
         {onShowCollection && (
           <div className="flex flex-wrap gap-2" role="group" aria-label="Where to next">
             <button type="button" autoFocus className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
