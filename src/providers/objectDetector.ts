@@ -1,7 +1,7 @@
 import { sha256Hex } from '../core/sha256';
 import { friendlyToolError } from '../core/toolErrors';
 import { bundledModelUrl } from './bundledModelAssets';
-import { DETECTOR_MODEL, boxSharpness, decodeTile, mergeDetections, tilePlan, tileScale, toInput, type Box, type Detection } from '../core/objectDetection';
+import { DETECTOR_MODEL, boxSharpness, detectorWorkerCount, decodeTile, mergeDetections, tilePlan, tileScale, toInput, type Box, type Detection } from '../core/objectDetection';
 
 type Ort = typeof import('onnxruntime-web/wasm');
 interface Loaded { ort: Ort; session: import('onnxruntime-web/wasm').InferenceSession }
@@ -33,10 +33,69 @@ function load(): Promise<Loaded> {
   return loading;
 }
 
+/**
+ * Background workers that each hold one copy of the model. Several photos can be looked at at once, and the interface
+ * thread is never blocked by inference. If workers cannot be started the model runs here instead, as before.
+ */
+interface Slot { worker: Worker; busy: boolean }
+let pool: Promise<Slot[] | null> | null = null;
+const waiting: Array<(slot: Slot) => void> = [];
+const pending = new Map<number, { resolve: (data: Float32Array) => void; reject: (error: Error) => void }>();
+let nextId = 1;
+
+function startPool(): Promise<Slot[] | null> {
+  pool ??= (async () => {
+    const bundled = bundledModelUrl(DETECTOR_MODEL.file);
+    if (typeof Worker === 'undefined' || !bundled) return null; // No model in this preview: the main path reports that plainly.
+    try {
+      const url = new URL(bundled, globalThis.location?.href ?? 'http://localhost/').href;
+      const slots: Slot[] = [];
+      await Promise.all(Array.from({ length: detectorWorkerCount(typeof navigator === 'undefined' ? 4 : navigator.hardwareConcurrency || 4) }, () => new Promise<void>((resolve, reject) => {
+        const worker = new Worker(new URL('./detectorWorker.ts', import.meta.url), { type: 'module' });
+        const slot: Slot = { worker, busy: false };
+        worker.onerror = () => reject(new Error('worker failed'));
+        worker.onmessage = (event: MessageEvent) => {
+          const message = event.data;
+          if (message.type === 'ready') { slots.push(slot); resolve(); return; }
+          if (message.type === 'error' && message.id === undefined) { reject(new Error(message.message)); return; }
+          const job = pending.get(message.id);
+          if (!job) return;
+          pending.delete(message.id);
+          const next = waiting.shift();
+          slot.busy = Boolean(next); // handed straight to the next waiting job, so two jobs never share a worker by accident
+          next?.(slot);
+          if (message.type === 'result') job.resolve(message.data as Float32Array); else job.reject(new Error(message.message));
+        };
+        worker.postMessage({ type: 'init', url, bytes: DETECTOR_MODEL.bytes, sha256: DETECTOR_MODEL.sha256 });
+      })));
+      return slots;
+    } catch (problem) {
+      console.warn('Detector workers could not start; running on the main thread', problem);
+      return null;
+    }
+  })();
+  return pool;
+}
+
+/** Number of photos that can be looked at in parallel right now (1 when running on the main thread). */
+export async function detectorParallelism(): Promise<number> {
+  return (await startPool())?.length ?? 1;
+}
+
+async function inferInWorker(slots: Slot[], input: Float32Array): Promise<Float32Array> {
+  const slot = slots.find((candidate) => !candidate.busy) ?? await new Promise<Slot>((resolve) => waiting.push(resolve));
+  slot.busy = true;
+  const id = nextId++;
+  return new Promise<Float32Array>((resolve, reject) => {
+    pending.set(id, { resolve, reject });
+    slot.worker.postMessage({ type: 'run', id, input, size: DETECTOR_MODEL.inputSize }, [input.buffer]);
+  });
+}
+
 type Source = HTMLImageElement | HTMLCanvasElement | ImageBitmap;
 const dims = (source: Source) => source instanceof HTMLImageElement ? { w: source.naturalWidth, h: source.naturalHeight } : { w: source.width, h: source.height };
 
-async function lookIn(source: Source, tile: Box, loaded: Loaded): Promise<Detection[]> {
+async function lookIn(source: Source, tile: Box): Promise<Detection[]> {
   const scale = tileScale(tile);
   const w = Math.max(1, Math.round(tile.w * scale));
   const h = Math.max(1, Math.round(tile.h * scale));
@@ -48,7 +107,10 @@ async function lookIn(source: Source, tile: Box, loaded: Loaded): Promise<Detect
   context.imageSmoothingQuality = 'high';
   context.drawImage(source, tile.x, tile.y, tile.w, tile.h, 0, 0, w, h);
   const input = toInput(context.getImageData(0, 0, w, h).data, w, h);
+  const slots = await startPool();
+  if (slots) return decodeTile(await inferInWorker(slots, input), tile);
   const size = DETECTOR_MODEL.inputSize;
+  const loaded = await load();
   const results = await loaded.session.run({ [loaded.session.inputNames[0]]: new loaded.ort.Tensor('float32', input, [1, 3, size, size]) });
   const data = results[loaded.session.outputNames[0]]?.data;
   if (!(data instanceof Float32Array)) throw new Error('The subject detector returned an unexpected result.');
@@ -62,14 +124,13 @@ export interface FoundSubject { detection: Detection; sharpness: number; /** Sha
  * is a big photo searched in tiles, so ordinary photos stay fast. Returns null when no subject is found.
  */
 export async function findSubject(source: Source, signal?: AbortSignal): Promise<FoundSubject | null> {
-  const loaded = await load();
   const { w, h } = dims(source);
   const plan = tilePlan(w, h);
-  let detections = await lookIn(source, plan[0], loaded);
+  let detections = await lookIn(source, plan[0]);
   if (!detections.some((d) => d.score >= 0.5)) {
     for (const tile of plan.slice(1)) {
       signal?.throwIfAborted();
-      detections = detections.concat(await lookIn(source, tile, loaded));
+      detections = detections.concat(await lookIn(source, tile));
     }
   }
   const best = mergeDetections(detections).sort((a, b) => b.score * Math.sqrt(b.box.w * b.box.h) - a.score * Math.sqrt(a.box.w * a.box.h))[0];

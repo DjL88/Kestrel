@@ -126,3 +126,8 @@ export function boxSharpness(rgba: Uint8ClampedArray, width: number, height: num
   }
   return sum / ((width - 2) * (height - 2));
 }
+
+/** How many background workers to run the detector in: about half the cores, between one and four, so the rest of the app keeps its share. */
+export function detectorWorkerCount(cores: number): number {
+  return Math.max(1, Math.min(4, Math.floor((Number.isFinite(cores) ? cores : 2) / 2)));
+}
