@@ -35,8 +35,9 @@ export async function loadLocalFileListShoot(
   files: Array<File | PickedPhoto>,
   previewProvider: BrowserPreviewProvider,
   store: BrowserCatalogueStore,
-  onProgress?: (progress: LocalLoadProgress) => void
-): Promise<{ shoot: ShootDescriptor; frames: PhotoFrame[]; storedAllBlobs: boolean; unstoredKeys: string[]; uncachedPreviewKeys: string[] }> {
+  onProgress?: (progress: LocalLoadProgress) => void,
+  options: { allowPartial?: boolean } = {},
+): Promise<{ shoot: ShootDescriptor; frames: PhotoFrame[]; storedAllBlobs: boolean; unstoredKeys: string[]; uncachedPreviewKeys: string[]; failedNames: string[] }> {
   const validFiles = files
     .map((f) => (f instanceof File ? pickedFromFile(f) : f))
     .filter((f) => isSupportedPhotoFilename(f.name))
@@ -46,15 +47,30 @@ export async function loadLocalFileListShoot(
   const rawFrames: PhotoFrame[] = [];
   const unstoredKeys: string[] = [];
   const uncachedPreviewKeys: string[] = [];
+  const failedNames: string[] = [];
 
+  // Manual imports preserve the rest of a shoot if an original is inaccessible.
+  // Watched imports remain atomic: the watcher retries the whole selection when
+  // a transfer temporarily fails, and successful files are deduplicated later.
+  const allowPartial = options.allowPartial !== false;
   const BATCH_SIZE = validFiles.some((photo) => photo.path) ? 4 : 12;
   for (let i = 0; i < validFiles.length; i += BATCH_SIZE) {
     const chunk = validFiles.slice(i, i + BATCH_SIZE);
     const processed = await Promise.all(
-      chunk.map(async (file, offset) => {
+      chunk.map(async (file, offset): Promise<PhotoFrame | null> => {
         const idx = i + offset + 1;
         const stableKey = pickedKey(file);
-        const opened = await file.read();
+        let opened: File;
+        try {
+          opened = await file.read();
+          // A file that changed while being opened is not the chosen original.
+          // Never show a stale/corrupt half-transfer as a successfully imported photo.
+          if (opened.size !== file.size || opened.lastModified !== file.lastModified) {
+            throw new Error('Photo changed while being imported.');
+          }
+        } catch {
+          return null;
+        }
         if (file.path) {
           // Stays where it is on the disk: nothing is copied into the app, and it is read again when needed.
           previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified), size: file.size, lastModified: file.lastModified });
@@ -99,7 +115,10 @@ export async function loadLocalFileListShoot(
       })
     );
 
-    rawFrames.push(...processed);
+    for (let index = 0; index < processed.length; index += 1) {
+      if (processed[index] === null) failedNames.push(chunk[index].name);
+      else rawFrames.push(processed[index]!);
+    }
     onProgress?.({
       frames: assignBurstGroups(rawFrames),
       loaded: rawFrames.length,
@@ -110,6 +129,9 @@ export async function loadLocalFileListShoot(
     await new Promise((r) => setTimeout(r, 0));
   }
 
+  if (failedNames.length && !allowPartial) {
+    throw new Error('Some watched photos could not be read. The watcher will retry.');
+  }
   const grouped = assignBurstGroups(rawFrames);
   const now = Date.now();
   const shoot: ShootDescriptor = {
@@ -125,7 +147,7 @@ export async function loadLocalFileListShoot(
     lastUpdatedAt: now,
   };
 
-  return { shoot, frames: grouped, storedAllBlobs: unstoredKeys.length === 0, unstoredKeys, uncachedPreviewKeys };
+  return { shoot, frames: grouped, storedAllBlobs: unstoredKeys.length === 0, unstoredKeys, uncachedPreviewKeys, failedNames };
 }
 
 export async function readFilesFromDirectoryHandle(
