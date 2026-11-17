@@ -95,3 +95,23 @@ test('portable backups preserve the edit cursor and can undo back to an untouche
     assert.throws(() => restoreProjectBackup(JSON.stringify(broken), 'x'), /invalid catalogue data/);
   }
 });
+
+
+test('Brightness adjustments survive portable backups and old backups remain compatible', () => {
+  const project = createDemoShootState(1);
+  const edit = { ...DEFAULT_EDIT, exposure: 2.5, brightness: 1.4,
+    masks: [{ ...createSubjectMask('subject', { w: 8, h: 8, data: Buffer.alloc(64, 255).toString('base64') },
+      'o|0|0.00|0.5000|0.5000|1.000', 'high'), edit: { brightness: 0.7 } }] };
+  project.frames[0].edit = edit;
+  const restored = restoreProjectBackup(encodeProjectBackup(project), 'restored');
+  assert.deepEqual(restored.frames[0].edit, edit);
+
+  const invalid = JSON.parse(encodeProjectBackup(project));
+  invalid.project.frames[0].edit.brightness = 5;
+  assert.throws(() => restoreProjectBackup(JSON.stringify(invalid), 'invalid'), /invalid catalogue data/);
+  const older = JSON.parse(encodeProjectBackup(project));
+  delete older.project.frames[0].edit.brightness;
+  delete older.project.frames[0].edit.masks;
+  const legacy = restoreProjectBackup(JSON.stringify(older), 'old');
+  assert.equal(legacy.frames[0].edit?.brightness, undefined, 'older projects remain neutral by default');
+});

@@ -1,6 +1,7 @@
 import { hasActiveMasks, type Mask } from './maskTypes';
 /** Optional tonal controls. Each runs from -2 to 2 and an absent value means 0. */
 export const TONE_CONTROLS = [
+  { key: 'brightness', label: 'Brightness' },
   { key: 'contrast', label: 'Contrast' },
   { key: 'highlights', label: 'Highlights' },
   { key: 'shadows', label: 'Shadows' },
@@ -19,6 +20,8 @@ export interface PhotoEdit {
   exposure: number;
   warmth: number;
   colour: number;
+  /** Perceptual midtone adjustment, distinct from exposure EV. Absent in older projects = neutral. */
+  brightness?: number;
   contrast?: number;
   highlights?: number;
   shadows?: number;
@@ -68,6 +71,20 @@ const encoded = Uint8ClampedArray.from({ length: 4096 }, (_, index) => {
 });
 const encodedUnit = Float32Array.from(encoded, (value) => value / 255);
 const toUnit = (value: number) => encodedUnit[Math.min(4095, Math.max(0, Math.round(value * 4095)))];
+
+// Perceptual brightness uses finer tonal tables than the 8-bit image itself,
+// avoiding unnecessary extra steps in smooth skies and backgrounds.
+const MIDTONE_TABLE_SIZE = 16384;
+const encodeLuma = Float32Array.from({ length: MIDTONE_TABLE_SIZE + 1 }, (_, i) => {
+  const value = i / MIDTONE_TABLE_SIZE;
+  return value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055;
+});
+const decodeLuma = Float32Array.from({ length: MIDTONE_TABLE_SIZE + 1 }, (_, i) => {
+  const value = i / MIDTONE_TABLE_SIZE;
+  return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+});
+const fromLinearLuma = (value: number) => encodeLuma[Math.min(MIDTONE_TABLE_SIZE, Math.max(0, Math.round(value * MIDTONE_TABLE_SIZE)))];
+const toLinearLuma = (value: number) => decodeLuma[Math.min(MIDTONE_TABLE_SIZE, Math.max(0, Math.round(value * MIDTONE_TABLE_SIZE)))];
 const smoothstep = (low: number, high: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - low) / (high - low)));
   return t * t * (3 - 2 * t);
@@ -78,6 +95,9 @@ const toByte = (value: number) => encoded[Math.min(4095, Math.max(0, Math.round(
 export function editParams(edit: PhotoEdit) {
   return {
     gain: 2 ** (edit.exposure * 0.4),
+    // A bounded monotonic midtone curve: pure black and white stay in place,
+    // unlike exposure which multiplies scene-linear light in EV stops.
+    brightness: (edit.brightness ?? 0) * 0.11,
     warmth: edit.warmth * 0.08,
     // Colour -2 is fully monochrome. Other slider positions keep their existing scale.
     colour: edit.colour === -2 ? -1 : edit.colour * 0.2,
@@ -156,7 +176,7 @@ export function applyDetail(pixels: Uint8ClampedArray, width: number, height: nu
 /** Apply adjustments to a browser-decoded sRGB image. Shared maths for preview, export and tests. */
 export function applyPhotoEdit(pixels: Uint8ClampedArray, edit: PhotoEdit): void {
   if (isNeutralTone(edit)) return;
-  const { gain, warmth, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance } = editParams(edit);
+  const { gain, brightness, warmth, colour, contrast, highlights, shadows, blackPoint, whitePoint, vibrance } = editParams(edit);
   const tonal = highlights !== 0 || shadows !== 0 || blackPoint !== 0 || whitePoint !== 1;
   const curved = contrast !== 1;
 
@@ -176,7 +196,24 @@ export function applyPhotoEdit(pixels: Uint8ClampedArray, edit: PhotoEdit): void
       green *= factor;
       blue *= factor;
     }
-    const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+    let luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+    if (brightness !== 0 && luminance > 0 && luminance < 1) {
+      const p = fromLinearLuma(luminance);
+      const lifted = p + 4 * brightness * p * (1 - p);
+      // With brightness in [-0.22, 0.22] the curve remains monotonic.
+      // Preserve existing chromaticity and do not invent highlights.
+      const requestedFactor = toLinearLuma(lifted) / luminance;
+      // Avoid blowing out one saturated channel just to increase overall luma.
+      // Keep a little encoded highlight headroom where it still exists.
+      const peak = Math.max(red, green, blue);
+      const factor = requestedFactor > 1 && peak > 0
+        ? Math.min(requestedFactor, Math.max(1, 0.992 / peak))
+        : requestedFactor;
+      red *= factor;
+      green *= factor;
+      blue *= factor;
+      luminance *= factor;
+    }
     const monochrome = colour === -1;
     let saturation = monochrome ? 0 : 1 + colour;
     if (!monochrome && vibrance !== 0) {

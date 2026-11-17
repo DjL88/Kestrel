@@ -165,3 +165,16 @@ test('Add and Remove refine the visible background mask in the chosen direction'
   assert.ok(at(alpha([add, remove]), 50, 40) < 0.05);
   assert.equal(createBrushStroke(point, 0.12, false, false).erase, false);
 });
+
+
+test('local Brightness raises subject midtones without brightening outside a soft mask', () => {
+  const pixels = new Uint8ClampedArray(W * H * 4).fill(110);
+  for (let i = 3; i < pixels.length; i += 4) pixels[i] = 255;
+  const mask: Mask = { ...createMask('radial', 'bright-subject'), kind: 'radial',
+    cx: 0.5, cy: 0.5, rx: 0.15, ry: 0.15, feather: 0.3, edit: { brightness: 1.3 } };
+  assert.equal(validMasks([mask]), true);
+  applyMasks(pixels, W, H, [mask], ctx);
+  assert.ok(pixels[(40 * W + 50) * 4] > 110);
+  assert.equal(pixels[(2 * W + 2) * 4], 110);
+  assert.equal(pixels[(40 * W + 50) * 4 + 3], 255);
+});

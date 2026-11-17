@@ -1124,6 +1124,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   <output className="tabular-nums text-zinc-400">{Math.round((edit[key] ?? 0) * 50)}</output>
                 </span>
                 <input type="range" min={-2} max={2} step={0.05} value={edit[key] ?? 0} aria-label={`${label} adjustment`}
+                  title={key === 'brightness' ? 'Adjust midtone brightness while preserving pure black and white; use Exposure for overall light' : undefined}
                   disabled={sourceState !== 'ready'}
                   onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
                   onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}

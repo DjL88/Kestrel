@@ -120,3 +120,49 @@ test('Colour -2 produces grayscale pixels while retaining alpha and allowing ton
   applyPhotoEdit(colour, { ...DEFAULT_EDIT, colour: -1.9 });
   assert.notEqual(colour[0], colour[1], 'positions above -2 retain colour');
 });
+
+
+test('Brightness adjusts midtones separately from Exposure and holds pure black/white endpoints', () => {
+  assert.ok(pixel(128, { brightness: 1 }) > 128);
+  assert.ok(pixel(128, { brightness: -1 }) < 128);
+  assert.equal(pixel(0, { brightness: 2 }), 0, 'pure black stays black');
+  assert.equal(pixel(255, { brightness: 2 }), 255, 'pure white stays white');
+  assert.equal(pixel(255, { brightness: -2 }), 255, 'pure white is protected on darkening too');
+  assert.notEqual(pixel(96, { exposure: 1 }), pixel(96, { brightness: 1 }),
+    'Exposure EV and perceptual Brightness must have different response curves');
+});
+
+test('Brightness is monotonic at maximum positive and negative amounts, so gradients do not invert', () => {
+  for (const brightness of [-2, 2]) {
+    const original = new Uint8ClampedArray(256 * 4);
+    for (let i = 0; i < 256; i += 1) original.set([i, i, i, 255], i * 4);
+    const result = original.slice();
+    applyPhotoEdit(result, { ...DEFAULT_EDIT, brightness });
+    assert.equal(result[0], 0);
+    assert.equal(result[255 * 4], 255);
+    for (let i = 1; i < 256; i += 1) {
+      assert.ok(result[i * 4] >= result[(i - 1) * 4], 'no inverted grey gradients at ' + i);
+      assert.equal(result[i * 4], result[i * 4 + 1]);
+      assert.equal(result[i * 4], result[i * 4 + 2]);
+      assert.equal(result[i * 4 + 3], 255);
+    }
+  }
+});
+
+test('neutral Brightness does not change prior edits or their alpha', () => {
+  const input = new Uint8ClampedArray([10, 100, 200, 77, 170, 90, 40, 255]);
+  const baseline = input.slice(), zeroBrightness = input.slice();
+  applyPhotoEdit(baseline, { ...DEFAULT_EDIT, exposure: 1.5, warmth: 0.4, contrast: 0.2 });
+  applyPhotoEdit(zeroBrightness, { ...DEFAULT_EDIT, exposure: 1.5, warmth: 0.4, contrast: 0.2, brightness: 0 });
+  assert.deepEqual(zeroBrightness, baseline, 'old projects with no Brightness maintain identical rendering');
+});
+
+
+test('raising Brightness does not clip an already-bright saturated feather colour', () => {
+  const before = new Uint8ClampedArray([250, 45, 30, 255]);
+  const after = before.slice();
+  applyPhotoEdit(after, { ...DEFAULT_EDIT, brightness: 2 });
+  assert.ok(after[0] >= before[0], 'Brightness must not darken the coloured highlight');
+  assert.ok(after[0] < 255, 'retain at least a little peak-channel headroom');
+  assert.equal(after[3], 255);
+});
