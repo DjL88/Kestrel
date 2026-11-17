@@ -133,3 +133,30 @@ test('valid virtual-copy source passes preflight', () => {
   state.frames[2] = { ...state.frames[2], virtualCopy: { originalFrameId: state.frames[0].id, number: 1 } };
   assert.equal(auditReviewSession(state).safeForAutomaticDecisions, true);
 });
+
+test('removed virtual-copy source cannot be trusted for automatic review', () => {
+  const state = createDemoShootState(3);
+  const sourceId = state.frames[1].id;
+  state.frames[1] = { ...state.frames[1], removedAt: 0 };
+  state.frames[2] = { ...state.frames[2], virtualCopy: { originalFrameId: sourceId, number: 1 } };
+  const audit = auditReviewSession(state);
+  assert.ok(audit.issues.some((issue) => issue.code === 'virtual-copy-invalid-source' && issue.frameId === state.frames[2].id));
+  assert.equal(audit.safeForAutomaticDecisions, false);
+});
+
+test('chained virtual copies fail conservatively without modifying frames', () => {
+  const state = createDemoShootState(3);
+  state.frames[1] = { ...state.frames[1], virtualCopy: { originalFrameId: state.frames[0].id, number: 1 } };
+  state.frames[2] = { ...state.frames[2], virtualCopy: { originalFrameId: state.frames[1].id, number: 2 } };
+  const before = JSON.stringify(state);
+  assert.ok(auditReviewSession(state).issues.some((issue) => issue.code === 'virtual-copy-invalid-source' && issue.frameId === state.frames[2].id));
+  assert.equal(JSON.stringify(state), before);
+});
+
+test('missing or blank virtual-copy source is not silently skipped', () => {
+  for (const originalFrameId of [undefined, '', '  ']) {
+    const state = createDemoShootState(2);
+    state.frames[1] = { ...state.frames[1], virtualCopy: { originalFrameId, number: 1 } as typeof state.frames[1]['virtualCopy'] };
+    assert.ok(auditReviewSession(state).issues.some((issue) => issue.code === 'virtual-copy-invalid-source'));
+  }
+});
