@@ -64,6 +64,6 @@ test('manual review progress counts only active keep/reject decisions', () => {
 
 test('virtual copies do not falsely collide with their source original', () => {
   const state = createDemoShootState(2);
-  state.frames[1] = { ...state.frames[1], stableKey: state.frames[0].stableKey, virtualCopy: true };
+  state.frames[1] = { ...state.frames[1], stableKey: state.frames[0].stableKey, virtualCopy: { originalFrameId: state.frames[0].id, number: 1 } };
   assert.equal(auditReviewSession(state).issues.some((issue) => issue.code === 'duplicate-original'), false);
 });
