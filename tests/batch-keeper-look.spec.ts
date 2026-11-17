@@ -21,7 +21,7 @@ test('Library applies a saved look to keepers and Edit shows matching sliders', 
   await page.getByRole('button', { name: 'Apply recipe to keepers…' }).click();
   await expect(page.getByRole('alertdialog', { name: 'Apply a recipe to keepers' })).toBeVisible();
   await page.getByRole('combobox', { name: 'Recipe for keepers' }).selectOption('mono-natural');
-  await expect(page.getByText('1 of 1 keepers will receive this look.')).toBeVisible();
+  await expect(page.getByText('1 of 1 keepers will receive this recipe.')).toBeVisible();
   await page.getByRole('button', { name: 'Apply to 1 photo' }).click();
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
