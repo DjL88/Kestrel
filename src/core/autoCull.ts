@@ -73,7 +73,15 @@ export interface SubjectFinding { label: string; score: number; /** Long side of
  */
 export function scoreWithSubject(base: CullSuggestion, found: SubjectFinding | null): CullSuggestion {
   if (base.reason === 'unavailable' || base.reason === 'flat' || base.reason === 'duplicate') return base;
-  const real = found && ((found.score >= 0.45 && found.size >= 120) || found.score >= 0.7);
+  // Subject detector outputs are untrusted. NaN/Infinity, impossible confidence,
+  // empty labels and negative sizes/sharpness must never become auto-Keeps.
+  // Fall back silently to human review, preserving the original photograph.
+  const valid = found &&
+    typeof found.label === 'string' && found.label.trim().length > 0 &&
+    Number.isFinite(found.score) && found.score >= 0 && found.score <= 1 &&
+    Number.isFinite(found.size) && found.size >= 0 &&
+    Number.isFinite(found.sharpness) && found.sharpness >= 0;
+  const real = valid && ((found.score >= 0.45 && found.size >= 120) || found.score >= 0.7);
   if (!found || !real) return { ...base, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
   const weight = Math.min(1, found.score / 0.8);
   if (found.sharpness >= 14) {
