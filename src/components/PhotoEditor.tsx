@@ -2,7 +2,7 @@ import { newId } from '../core/ids';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
-import { ChevronDown, Columns2, Maximize, Minimize, Crop, Download, History, Lightbulb, Redo2, Settings2, SlidersHorizontal, SquircleDashed, Undo2 } from 'lucide-react';
+import { ChevronDown, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, Settings2, SlidersHorizontal, Square, SquircleDashed, Undo2, Wand2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
@@ -1183,12 +1183,16 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             <p className="px-1 text-xs text-zinc-400">Drag the corners or the box on the photo. Changes are saved as you go. Apply returns to the editing view with the crop in place, and Cancel puts back the crop you started with.</p>
           <fieldset disabled={sourceState !== 'ready'} className="space-y-2">
             <div className="flex flex-wrap">
-              <button type="button" className={button} onClick={createCropCopy}>Auto crop copy</button>
-              <button type="button" className={button} onClick={() => onFramingChange({
+              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={createCropCopy}>
+                <Copy className="h-4 w-4" aria-hidden="true" />Auto crop copy</button>
+              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={() => onFramingChange({
                 ...framing, turns: (framing.turns + 1) % 4, x: 1 - framing.y, y: framing.x,
-              })}>Rotate 90°</button>
-              <button type="button" className={button} onClick={autoLevel}>Auto-level</button>
-              <button type="button" className={button} onClick={() => { onFramingChange(DEFAULT_FRAMING); setCropNotice(''); }}>Reset</button>
+              })}>
+                <RotateCw className="h-4 w-4" aria-hidden="true" />Rotate 90°</button>
+              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={autoLevel}>
+                <Wand2 className="h-4 w-4" aria-hidden="true" />Auto-level</button>
+              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={() => { onFramingChange(DEFAULT_FRAMING); setCropNotice(''); }}>
+                <RotateCcw className="h-4 w-4" aria-hidden="true" />Reset</button>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <button type="button" className={button} aria-pressed={previewCrop} onClick={() => {
@@ -1199,7 +1203,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             </div>
             {cropNotice && <p role="status" className="text-xs text-zinc-300">{cropNotice}</p>}
             <label className="flex min-h-11 items-center justify-between gap-2 text-sm">
-              Aspect ratio
+              <span className="inline-flex items-center gap-1.5">
+                {framing.ratio === null ? <Crop className="h-4 w-4 text-zinc-400" aria-hidden="true" />
+                  : framing.ratio === 1 ? <Square className="h-4 w-4 text-zinc-400" aria-hidden="true" />
+                  : framing.ratio > 1 ? <RectangleHorizontal className="h-4 w-4 text-zinc-400" aria-hidden="true" />
+                  : <RectangleVertical className="h-4 w-4 text-zinc-400" aria-hidden="true" />}
+                Aspect ratio
+              </span>
               <span className="relative inline-flex min-w-0 max-w-[60%] shrink-0 items-center">
                 <select aria-label="Crop aspect ratio" value={framing.ratio ?? ''} onChange={(event) => onFramingChange({ ...framing, ratio: Number(event.target.value) || null })}
                   className="min-h-11 w-full min-w-0 appearance-none truncate rounded-md border border-white/10 bg-[#252830] py-2 pl-3 pr-10 text-sm text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
