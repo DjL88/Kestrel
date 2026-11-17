@@ -99,3 +99,15 @@ test('manual keeper with unavailable detector scores suppresses duplicate burst 
   assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['keep', 'review', 'keep']);
   assert.equal(JSON.stringify(items), snapshot);
 });
+
+
+test('malformed persisted manual decisions never become recommendations', () => {
+  const items: ReviewCandidate[] = [
+    { id: 'invalid', subject: 'bird', groupId: 'burst', quality: 1, confidence: 1,
+      manualDecision: 'archive' as unknown as 'keep' },
+    { id: 'valid', subject: 'bird', groupId: 'burst', quality: 0.8, confidence: 0.9 },
+  ];
+  const snapshot = JSON.stringify(items);
+  assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['review', 'keep']);
+  assert.equal(JSON.stringify(items), snapshot);
+});
