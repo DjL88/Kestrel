@@ -71,20 +71,28 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
+/**
+ * A missing key is not the same as an unavailable catalogue.
+ *
+ * Resolve only after the readonly transaction has completed: an individual
+ * request can succeed and its transaction can still abort. Never turn a
+ * failed read into a "missing project" response (or a new empty project).
+ */
 async function idbGet<T>(storeName: string, key: string): Promise<T | null> {
-  let db: IDBDatabase | undefined;
+  const db = await openDatabase();
   try {
-    db = await openDatabase();
-    const connection = db;
-    return await new Promise((resolve, reject) => {
-      const request = connection.transaction(storeName, 'readonly').objectStore(storeName).get(key);
-      request.onsuccess = () => resolve((request.result as T) ?? null);
-      request.onerror = () => reject(request.error);
+    return await new Promise<T | null>((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const request = tx.objectStore(storeName).get(key);
+      let value: T | null = null;
+      request.onsuccess = () => { value = (request.result as T) ?? null; };
+      request.onerror = () => reject(request.error ?? new Error('Reading Kestrel storage failed.'));
+      tx.oncomplete = () => resolve(value);
+      tx.onerror = () => reject(tx.error ?? new Error('Reading Kestrel storage failed.'));
+      tx.onabort = () => reject(tx.error ?? new Error('Reading Kestrel storage was interrupted.'));
     });
-  } catch {
-    return null;
   } finally {
-    db?.close();
+    db.close();
   }
 }
 
