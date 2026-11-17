@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { OUTPUT_ROWS, boxSharpness, decodeTile, mergeDetections, tilePlan, tileScale } from './objectDetection.ts';
+import { OUTPUT_ROWS, boxSharpness, decodeTile, mergeDetections, tilePlan, tileScale, detectorWorkerCount } from './objectDetection.ts';
 
 test('a normal photo is looked at whole, and a big one is searched in overlapping tiles that cover all of it', () => {
   assert.equal(tilePlan(2000, 1300).length, 1);
@@ -53,4 +53,13 @@ test('a crisp picture reads as sharper than a blurred one, and a flat one reads 
   const soft = boxSharpness(make((x) => 130 + 90 * Math.sin(x / 5)), size, size);
   assert.ok(crisp > soft * 3, `${crisp} vs ${soft}`);
   assert.equal(boxSharpness(make(() => 100), size, size), 0);
+});
+
+test('the detector uses about half the cores, between one and four workers', () => {
+  assert.equal(detectorWorkerCount(1), 1);
+  assert.equal(detectorWorkerCount(2), 1);
+  assert.equal(detectorWorkerCount(4), 2);
+  assert.equal(detectorWorkerCount(8), 4);
+  assert.equal(detectorWorkerCount(64), 4);
+  assert.equal(detectorWorkerCount(NaN), 1);
 });
