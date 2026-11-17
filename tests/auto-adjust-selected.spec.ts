@@ -35,7 +35,7 @@ test('two selected photos receive independent Auto adjustments, third remains un
   await confirmation.getByRole('button', { name: 'Analyse selected photos' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Auto-adjusted selected photos' })).toBeVisible({ timeout: 30000 });
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
-  const light = page.getByRole('slider', { name: 'Light adjustment' });
+  const light = page.getByRole('slider', { name: 'Exposure adjustment' });
   expect(Number(await light.inputValue())).toBeGreaterThan(0);
   await film.getByRole('button', { name: 'Select photo-2.png' }).click();
   expect(Number(await light.inputValue())).toBeGreaterThan(0);

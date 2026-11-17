@@ -19,7 +19,7 @@ export const QUICK_CONTROLS: readonly QuickControl[] = [
 
 export const controlFor = (key: QuickKey): QuickControl => QUICK_CONTROLS.find((entry) => entry.key === key) ?? QUICK_CONTROLS[0];
 
-/** The value as the sliders show it: Light in stops, Warmth and Colour in percent, the rest on a -100 to 100 scale. */
+/** The value as the sliders show it: Exposure in stops, Warmth and Colour in percent, the rest on a -100 to 100 scale. */
 export function valueText(key: QuickKey, value: number): string {
   if (key === 'exposure') return `${(value * 0.4).toFixed(2)} EV`;
   if (key === 'warmth') return `${Math.round(value * 8)}%`;

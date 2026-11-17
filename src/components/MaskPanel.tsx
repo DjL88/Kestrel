@@ -4,7 +4,7 @@ import { ScanSearch, SquareDashedMousePointer } from 'lucide-react';
 import { LOCAL_DETAIL_KEYS, LOCAL_KEYS, MAX_MASKS, createMask, type LocalKey, type Mask } from '../core/maskTypes';
 
 const LABELS: Record<LocalKey, string> = {
-  exposure: 'Light', warmth: 'Warmth', colour: 'Colour', contrast: 'Contrast', highlights: 'Highlights',
+  exposure: 'Exposure', warmth: 'Warmth', colour: 'Colour', contrast: 'Contrast', highlights: 'Highlights',
   shadows: 'Shadows', whites: 'Whites', blacks: 'Blacks', vibrance: 'Vibrance',
   texture: 'Texture', clarity: 'Clarity', sharpen: 'Sharpening',
 };
