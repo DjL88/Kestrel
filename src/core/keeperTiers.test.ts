@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createDemoShootState } from './cullingEngine';
 import type { CullSuggestion } from './autoCull';
+import type { PhotoFrame } from './types';
 import { planKeeperTier } from './keeperTiers';
 
 function fixture() {
-  const frames = createDemoShootState(8).frames.map((frame, i) => ({
+  const frames: PhotoFrame[] = createDemoShootState(8).frames.map((frame, i) => ({
     ...frame, isDemo: false, burstGroupId: i < 3 ? 'burst-a' : null,
     decision: i === 0 ? 'keep' as const : 'unreviewed' as const,
   }));
