@@ -96,6 +96,16 @@ async function idbGet<T>(storeName: string, key: string): Promise<T | null> {
   }
 }
 
+/**
+ * Originals and directory permissions are optional when opening an existing
+ * project. Keep the catalogue accessible so the photographer can relink them,
+ * even if the separate file/handle store is temporarily unavailable.
+ */
+async function optionalIdbGet<T>(storeName: string, key: string): Promise<T | null> {
+  try { return await idbGet<T>(storeName, key); }
+  catch { return null; }
+}
+
 async function idbSet<T>(storeName: string, key: string, value: T): Promise<void> {
   const db = await openDatabase();
   try {
@@ -346,7 +356,7 @@ export class BrowserCatalogueStore implements CatalogueStore {
   }
 
   async loadLocalFileBlob(stableKey: string): Promise<Blob | null> {
-    return idbGet<Blob>(STORE_FILES, stableKey);
+    return optionalIdbGet<Blob>(STORE_FILES, stableKey);
   }
 
   async clearLocalFileBlobs(): Promise<void> {
@@ -363,7 +373,7 @@ export class BrowserCatalogueStore implements CatalogueStore {
   async loadDirectoryHandle(
     shootId: string
   ): Promise<FileSystemDirectoryHandle | null> {
-    return idbGet<FileSystemDirectoryHandle>(STORE_HANDLES, shootId);
+    return optionalIdbGet<FileSystemDirectoryHandle>(STORE_HANDLES, shootId);
   }
 
   async clearAll(): Promise<void> {
