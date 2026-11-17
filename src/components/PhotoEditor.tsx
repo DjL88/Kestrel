@@ -23,7 +23,7 @@ import { MaskPanel } from './MaskPanel';
 import { createSubjectMask, framingKey } from '../core/maskTypes';
 import { detectSubject } from '../providers/subjectDetector';
 import { PresetPanel } from './PresetPanel';
-import { autoEnhance } from '../core/autoEnhance';
+import { autoEnhance, mergeAutoSuggestion } from '../core/autoEnhance';
 import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
 import { PhotoViewport } from './PhotoViewport';
 import { maxZoomFor, percentFor, stepZoom, zoomForPercent } from '../core/zoomControls';
@@ -123,6 +123,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   });
   const cornerDrag = useRef<{ corner: CropCorner; x: number; y: number; point: { x: number; y: number } } | null>(null);
   const [autoNotes, setAutoNotes] = useState<string[]>([]);
+  // Auto is a reversible visual preview; never save a suggested edit before an explicit Apply.
+  const [pendingAuto, setPendingAuto] = useState<{ base: PhotoEdit; edit: PhotoEdit } | null>(null);
   // Once asked for, the opinion stays up to date as the edit changes, until it is hidden.
   const [opinions, setOpinions] = useState<Opinion[] | null>(null);
   const [selectedMaskId, setSelectedMaskId] = useState<string | null>(null);
@@ -477,6 +479,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     setPreviewCrop(false);
     setTransform(FIT_VIEW);
     setPreviewRecipe(null);
+    setPendingAuto(null);
+    setOpinions(null);
     // Each tab opens at its top. Otherwise the new tab inherits the old scroll position and starts under the tab bar.
     panelScroll.current?.scrollTo({ top: 0 });
     if (tab === 'crop') cropEntry.current = frame.framing ?? DEFAULT_FRAMING;
@@ -502,15 +506,42 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source]);
 
-  // Auto-edit: the first time a photo with no edit history is ready, suggest colour and tone and say why.
+  /** Evaluate the current photograph without committing edits. Preview uses the real rendering path. */
+  function previewAutoSuggestion() {
+    const sample = sampleOrientedSource(256);
+    if (!sample) {
+      setAutoNotes(['Could not analyse this photo. Your edits have not changed.']);
+      setPendingAuto(null);
+      setPreviewRecipe(null);
+      return;
+    }
+    try {
+      const { edit: suggestion, notes } = autoEnhance(sample.data);
+      if (notes.includes('Too small to analyse.')) {
+        setAutoNotes(['This preview is too small to analyse. Your edits have not changed.']);
+        setPendingAuto(null);
+        setPreviewRecipe(null);
+        return;
+      }
+      const result = mergeAutoSuggestion(savedEdit, suggestion);
+      setAutoNotes([result.changed
+        ? 'Previewing a suggested look. Nothing has been saved.'
+        : 'No new adjustments suggested. Your existing edits are unchanged.', ...notes]);
+      setPendingAuto(result.changed ? { base: savedEdit, edit: result.edit } : null);
+      setPreviewRecipe(result.changed ? { edit: result.edit, framing: frame.framing } : null);
+      setOpinions(null);
+    } catch {
+      setPendingAuto(null);
+      setPreviewRecipe(null);
+      setAutoNotes(['Auto could not analyse this photo. Your edits have not changed.']);
+    }
+  }
+
+  // Opt-in automatic assistance now previews its proposal instead of silently changing the photo.
   useEffect(() => {
     if (!autoEdit || !source || frame.edit || frame.editHistory?.steps.length) return;
-    const sample = sampleOrientedSource(256);
-    if (!sample) return;
-    const { edit: suggestion, notes } = autoEnhance(sample.data);
-    setAutoNotes(notes);
-    if (Object.values(suggestion).some((value) => value !== 0)) onEdit({ ...DEFAULT_EDIT, ...suggestion });
-    // Once per photo: the editor is re-created for each photo, and later edits leave a history behind.
+    previewAutoSuggestion();
+    // Editor is remounted per photo; source availability is the only automatic trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source]);
 
@@ -558,6 +589,15 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       subject: subject ? { mask: subject, context: fullContext(original.width, original.height) } : undefined,
     }));
   }
+
+  // When Auto previews a recipe, run the existing offline image-quality checks on the preview.
+  useEffect(() => {
+    if (!pendingAuto || !source || !outputSize) return;
+    try { updateOpinions(); }
+    catch { setAutoNotes((notes) => [...notes, 'Quality checks are unavailable for this preview.']); }
+    // Recompute when the proposed recipe or image is replaced.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAuto, source]);
 
   useEffect(() => {
     if (!opinions) return;
@@ -889,34 +929,50 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
         {tab === 'auto' && can('autoTab') && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
-        <div className="grid grid-cols-2 gap-2 px-1">
-          <button type="button" title="Auto colour and tone" disabled={sourceState !== 'ready'} className={`${button} w-full whitespace-normal border border-white/10 font-semibold`}
-            onClick={() => {
-              const sample = sampleOrientedSource(256);
-              if (!sample) return;
-              const { edit: suggestion, notes } = autoEnhance(sample.data);
-              onEdit({ ...edit, ...suggestion });
-              // Always say something: a click that visibly does nothing reads as broken, even when "nothing to
-              // adjust" is the correct, honest answer (a photo that's already well exposed and balanced).
-              setAutoNotes(notes.length ? notes : ['This photo already looks balanced — nothing needed adjusting.']);
-            }}>Auto</button>
-          <button type="button" disabled={sourceState !== 'ready'} title="Check this edit for halos, noise, clipping and tone. Runs on this device."
-            className={`${button} inline-flex w-full items-center justify-center gap-1.5 border border-white/10 font-semibold`} onClick={updateOpinions}>
-            <Lightbulb className="h-4 w-4" aria-hidden="true" />Get an opinion
+        <div className="space-y-2 px-1">
+          <button type="button" title="Preview an offline suggested recipe and check its quality before applying" disabled={sourceState !== 'ready'}
+            className={`${button} inline-flex w-full items-center justify-center gap-2 border border-white/10 font-semibold`}
+            onClick={previewAutoSuggestion}>
+            <Lightbulb className="h-4 w-4 stroke-[1.75]" aria-hidden="true" />Suggest a look
           </button>
+          <p className="text-xs text-zinc-400">See Kestrel's suggestion and quality checks on your photo before deciding. Nothing changes until you apply it.</p>
+          {pendingAuto && (
+            <div role="group" aria-label="Suggested edit preview" className="space-y-2 rounded-lg border border-white/15 bg-white/5 p-3">
+              <p role="status" className="text-sm text-zinc-100">Previewing your suggested edit</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
+                  onClick={() => {
+                    if (savedEdit !== pendingAuto.base) {
+                      setAutoNotes(['Your edit changed while previewing. Run Suggest a look again.']);
+                    } else {
+                      onEdit(pendingAuto.edit);
+                      setAutoNotes(['Suggested look applied. You can undo it from Edit history.']);
+                    }
+                    setPendingAuto(null);
+                    setPreviewRecipe(null);
+                  }}>Apply suggested edit</button>
+                <button type="button" className={`${button} border border-white/15`} onClick={() => {
+                  setPendingAuto(null);
+                  setPreviewRecipe(null);
+                  setOpinions(null);
+                  setAutoNotes(['Suggestion dismissed. Your edit is unchanged.']);
+                }}>Keep current edit</button>
+              </div>
+            </div>
+          )}
         </div>
           {autoNotes.length > 0 && <ul role="status" className="list-disc space-y-0.5 pl-4 pt-1 text-xs text-zinc-300">
             {autoNotes.map((note) => <li key={note}>{note}</li>)}
           </ul>}
-          {autoNotes.length > 0 && <p className="px-1 text-xs text-zinc-400">Like this? Save it as a recipe in Recipes below, so you can reuse it on other photos.</p>}
+          {autoNotes.length > 0 && !pendingAuto && <p className="px-1 text-xs text-zinc-400">You can save an edit you like as a reusable recipe in Recipes below.</p>}
           {opinions && (
-            <section aria-label="Opinion on this edit" className="space-y-2 rounded-md border border-white/10 p-2">
-              {opinions.length === 0 && <p role="status" className="text-sm text-zinc-300">Nothing stands out. This edit looks balanced: no halos, no clipping, no extra noise.</p>}
+            <section aria-label="Quality checks for this look" className="space-y-2 rounded-md border border-white/10 p-2">
+              {opinions.length === 0 && <p role="status" className="text-sm text-zinc-300">No obvious warning from this small preview. Check fine detail at 100% before exporting.</p>}
               {opinions.map((opinion) => (
                 <div key={opinion.id} className="space-y-1 text-sm">
                   <p className="font-semibold text-zinc-100">{opinion.severity === 'warning' ? 'Watch out: ' : 'Tip: '}{opinion.title}</p>
                   <p className="text-xs text-zinc-300">{opinion.detail}</p>
-                  {opinion.fix && (
+                  {opinion.fix && !pendingAuto && (
                     <button type="button" className={`${button} border border-white/15 text-xs`}
                       onClick={() => onEdit(applyFix(edit, opinion.fix!))}>{opinion.fixLabel ?? 'Apply'}</button>
                   )}
@@ -1142,16 +1198,19 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             {cropNotice && <p role="status" className="text-xs text-zinc-300">{cropNotice}</p>}
             <label className="flex min-h-11 items-center justify-between gap-2 text-sm">
               Aspect ratio
-              <select value={framing.ratio ?? ''} onChange={(event) => onFramingChange({ ...framing, ratio: Number(event.target.value) || null })}
-                className="min-h-10 rounded-md bg-[#252830] px-2">
-                <option value="">Original</option>
-                <option value={1}>Square</option>
-                <option value={4 / 5}>4:5</option>
-                <option value={5 / 4}>5:4</option>
-                <option value={3 / 2}>3:2</option>
-                <option value={9 / 16}>9:16</option>
-                <option value={2 / 3}>2:3</option>
-              </select>
+              <span className="relative inline-flex min-w-0 max-w-[60%] shrink-0 items-center">
+                <select aria-label="Crop aspect ratio" value={framing.ratio ?? ''} onChange={(event) => onFramingChange({ ...framing, ratio: Number(event.target.value) || null })}
+                  className="min-h-11 w-full min-w-0 appearance-none truncate rounded-md border border-white/10 bg-[#252830] py-2 pl-3 pr-10 text-sm text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
+                  <option value="">Original</option>
+                  <option value={1}>Square</option>
+                  <option value={4 / 5}>4:5</option>
+                  <option value={5 / 4}>5:4</option>
+                  <option value={3 / 2}>3:2</option>
+                  <option value={9 / 16}>9:16</option>
+                  <option value={2 / 3}>2:3</option>
+                </select>
+                <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 h-4 w-4 shrink-0 stroke-[1.75] text-zinc-300" />
+              </span>
             </label>
             <label className="block px-1 pb-1">
               <span className="flex items-center justify-between text-xs text-zinc-300"><span>Crop size</span>

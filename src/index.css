@@ -6,13 +6,8 @@
 @custom-variant workspace (@media (min-width: 900px) and (min-height: 550px));
 
 @theme {
-  /* Brand refresh (Kestrel Brand Guidelines v1): pulled down from bright "app icon" tones to
-     something deeper and more editorial. kestrel-blue is the guidelines' "dusk-blue", kestrel-red
-     is "wine-crimson" — names kept to avoid touching every call site, values updated to match.
-     Every accent here clears ~4:1 against both kestrel-panel and kestrel-canvas (measured with the
-     real WCAG relative-luminance formula; see the design system's colour tokens for exact ratios). */
   --color-kestrel-canvas: #14161b;
-  --color-kestrel-stage: #12141a;
+  --color-kestrel-stage: #121419;
   --color-kestrel-panel: #1a1d23;
   --color-kestrel-raised: #1c2027;
   --color-kestrel-ink: #f4efe6;

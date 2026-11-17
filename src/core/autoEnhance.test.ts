@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { autoEnhance } from './autoEnhance';
+import { autoEnhance, mergeAutoSuggestion } from './autoEnhance';
+import { DEFAULT_EDIT } from './photoEdits';
 
 function image(fill: (x: number, y: number) => [number, number, number], size = 32) {
   const data = new Uint8ClampedArray(size * size * 4);
@@ -46,4 +47,30 @@ test('a well exposed neutral photo is left almost alone', () => {
 
 test('tiny images are refused politely', () => {
   assert.deepEqual(autoEnhance(new Uint8ClampedArray(16)).notes, ['Too small to analyse.']);
+});
+
+
+test('neutral Auto suggestion preserves user adjustments without a phantom change', () => {
+  const current = { ...DEFAULT_EDIT, exposure: 0.6, warmth: -0.25, contrast: 0.4 };
+  const before = JSON.stringify(current);
+  const suggestion = { exposure: 0, warmth: 0, shadows: 0, highlights: 0, contrast: 0, vibrance: 0 };
+  const result = mergeAutoSuggestion(current, suggestion);
+  assert.equal(result.changed, false);
+  assert.deepEqual(result.edit, current);
+  assert.equal(JSON.stringify(current), before);
+});
+
+test('Auto only updates suggested axes; never clears other hand-tuned adjustments', () => {
+  const current = { ...DEFAULT_EDIT, exposure: -0.4, warmth: 0.3, shadows: 0.5, contrast: 0.25 };
+  const suggestion = { exposure: 0.8, warmth: 0, shadows: 0, highlights: -0.2, contrast: 0, vibrance: 0 };
+  const result = mergeAutoSuggestion(current, suggestion);
+  assert.equal(result.changed, true);
+  assert.deepEqual(result.edit, { ...current, exposure: 0.8, highlights: -0.2 });
+  assert.deepEqual(current, { ...DEFAULT_EDIT, exposure: -0.4, warmth: 0.3, shadows: 0.5, contrast: 0.25 });
+});
+
+test('malformed suggestion values never overwrite a valid edit', () => {
+  const current = { ...DEFAULT_EDIT, exposure: 0.25 };
+  const suggestion = { exposure: Number.NaN, warmth: Number.POSITIVE_INFINITY, shadows: 0, highlights: 0, contrast: 0, vibrance: 0 };
+  assert.deepEqual(mergeAutoSuggestion(current, suggestion), { edit: current, changed: false });
 });

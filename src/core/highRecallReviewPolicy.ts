@@ -53,7 +53,8 @@ export function recommendForReview(items: readonly ReviewCandidate[]): ReviewSug
     if (item.manualDecision != null || !eligible(item) || manuallyKeptGroups.has(groupKey(item))) continue;
     const key = groupKey(item);
     const previous = best.get(key);
-    if (!previous || (item.quality as number) > previous.quality) {
+    if (!previous || (item.quality as number) > previous.quality ||
+        ((item.quality as number) === previous.quality && item.id < previous.id)) {
       best.set(key, { id: item.id, quality: item.quality as number });
     }
   }

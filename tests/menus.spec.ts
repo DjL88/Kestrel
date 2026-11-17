@@ -135,25 +135,25 @@ test('phone editing: one big slider, chips to choose, nudge and reset, and the f
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   const quick = page.getByRole('region', { name: 'Quick adjust' });
   await expect(quick).toBeVisible();
-  // Light is first. The slider, its buttons and the chips are all big enough for a thumb.
+  // Exposure is first. The slider, its buttons and the chips are all big enough for a thumb.
   const slider = quick.getByRole('slider', { name: 'Exposure adjustment' });
   await expect(slider).toBeVisible();
-  for (const name of ['Light down', 'Light up', 'Reset Light', 'Step back', 'Step forward']) {
+  for (const name of ['Exposure down', 'Exposure up', 'Reset Exposure', 'Step back', 'Step forward']) {
     const box = (await quick.getByRole('button', { name, exact: true }).boundingBox())!;
     expect(box.height, `${name} is thumb sized`).toBeGreaterThanOrEqual(44);
   }
-  await quick.getByRole('button', { name: 'Light up' }).click();
+  await quick.getByRole('button', { name: 'Exposure up' }).click();
   await expect(slider).toHaveValue('0.1');
   await expect(quick.getByText('0.04 EV')).toBeVisible();
   // Choose another adjustment from the chips, nudge it, and the first one shows it has been changed.
   await quick.getByRole('button', { name: 'Contrast, unchanged', exact: true }).click();
   await quick.getByRole('button', { name: 'Contrast up' }).click();
   await expect(quick.getByRole('slider', { name: 'Contrast adjustment' })).toHaveValue('0.05');
-  await expect(quick.getByRole('button', { name: 'Light, adjusted' }).getByLabel('Adjusted')).toBeVisible();
+  await expect(quick.getByRole('button', { name: 'Exposure, adjusted' }).getByLabel('Adjusted')).toBeVisible();
   await expect(quick.getByRole('button', { name: 'Contrast, adjusted' })).toBeVisible();
   await quick.getByRole('button', { name: 'Reset Contrast' }).click();
   await expect(quick.getByRole('slider', { name: 'Contrast adjustment' })).toHaveValue('0');
-  // Stepping back undoes the Light change.
+  // Stepping back undoes the Exposure change.
   await quick.getByRole('button', { name: 'Step back' }).click();
   // The full list is still there.
   await quick.getByRole('button', { name: 'All controls' }).click();

@@ -95,10 +95,10 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
     await strip.getByRole('button', { name: 'Pin filmstrip' }).click();
     await expect.poll(panelFitsWindow).toBe(true);
   }
-  // The built-in opinion answers for an unedited photo, and stays on the page.
+  // The built-in quality checks answer for an unedited photo, and stay on the page.
   await page.getByRole('tab', { name: 'Auto' }).click();
-  await page.getByRole('button', { name: 'Get an opinion' }).click();
-  await expect(page.getByRole('region', { name: 'Opinion on this edit' })).toBeVisible();
+  await page.getByRole('button', { name: 'Suggest a look' }).click();
+  await expect(page.getByRole('region', { name: 'Quality checks for this look' })).toBeVisible();
   await page.getByRole('button', { name: 'Hide opinion' }).click();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await light.press('ArrowRight');
@@ -241,7 +241,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await expect(page.getByRole('slider', { name: 'Exposure adjustment' })).toHaveValue('0.1');
   // Mobile quick-adjust states use words and a checkmark as well as colour.
   if (page.viewportSize()!.width < 768) {
-    await expect(page.getByRole('button', { name: 'Light, adjusted' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Exposure, adjusted' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Warmth, unchanged' })).toBeVisible();
     await expect(page.getByText('(adjusted)', { exact: true })).toBeVisible();
   }
