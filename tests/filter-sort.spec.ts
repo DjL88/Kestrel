@@ -25,7 +25,9 @@ async function project(page: Page, names: string[]) {
 
 test('the Filter control starts closed, and opening it narrows the grid by search', async ({ page }) => {
   await project(page, ['zebra.png', 'mango.png', 'apple.png']);
-  const filterButton = page.getByRole('button', { name: 'Filter' });
+  // Locate by the stable aria-controls attribute, not accessible name: the name itself changes once a filter
+  // count badge appears ("Filter" -> "Filter 1"), and "Filter" alone would also match "Clear filters".
+  const filterButton = page.locator('button[aria-controls="filter-popover"]');
   await expect(filterButton).toBeVisible();
   // Decluttered: the search box and rating control are not sitting open in the bar by default.
   await expect(page.getByPlaceholder('Subject name or filename')).toHaveCount(0);
