@@ -27,7 +27,7 @@ bench notes. Use at least one textured and one smooth region per photograph.
 The JSON report records SHA-256 hashes, image dimensions, crop rectangles,
 luminance statistics, mean and 95th-percentile adjacent-pixel differences,
 clipping fractions, mean absolute RGB difference, and reference-aligned\nedge structure (shared, candidate-only and reference-only edge fractions plus\ndirectional agreement where both images contain an edge). These metrics are
-**descriptive, not quality rankings**. Candidate-only edges may flag apparent added detail, but are not proof of\nhallucination. Central-gradient diagnostics can miss single-pixel alternating\npatterns and are sensitive to registration, tone and exposure differences.\nHigh gradients can indicate **noise,
+**descriptive, not quality rankings**. Candidate-only edges may flag apparent added detail, but are not proof of\nhallucination. Forward-difference diagnostics retain alternating single-pixel patterns,\nbut remain sensitive to registration, tone and exposure differences.\nHigh gradients can indicate **noise,
 haloes or false detail** rather than genuine feather structure; low gradients
 can indicate oversmoothing or simply a natural smooth area. Crops should be
 inspected blind at 100% and 200% against the same RAW and NX Studio reference.
