@@ -1,6 +1,6 @@
 import type { PhotoFrame } from './types';
 import type { CullSuggestion } from './autoCull';
-import { evaluateCullBenchmark, type CullBenchmarkCase, type CullBenchmarkResult } from './cullBenchmark';
+import { evaluateCullBenchmark, isValidCullBenchmarkPrediction, type CullBenchmarkCase, type CullBenchmarkResult } from './cullBenchmark';
 
 /** Photographer-supplied labels; never inferred from the model's own decisions. */
 export interface PhotographerLabel {
@@ -31,6 +31,8 @@ export function benchmarkShoot(
   for (const label of labels) {
     if (!label.stableKey || byKey.has(label.stableKey)) throw new Error('Duplicate or missing photographer label key');
     if (typeof label.favourite !== 'boolean') throw new Error('Invalid photographer favourite label');
+    if (label.unusable !== undefined && typeof label.unusable !== 'boolean') throw new Error('Invalid photographer unusable label');
+    if (label.favourite && label.unusable) throw new Error('Contradictory photographer labels');
     byKey.set(label.stableKey, label);
   }
   const keys = new Set<string>();
@@ -51,7 +53,8 @@ export function benchmarkShoot(
   for (const item of suggestions) counts.set(item.frameId, (counts.get(item.frameId) ?? 0) + 1);
   const byId = new Map(suggestions.map((item) => [item.frameId, item]));
   const missedFavouriteKeys = active.filter((frame) => byKey.get(frame.stableKey)?.favourite &&
-    counts.get(frame.id) === 1 && byId.get(frame.id)?.decision === 'reject').map((frame) => frame.stableKey);
+    counts.get(frame.id) === 1 && byId.get(frame.id) !== undefined &&
+    isValidCullBenchmarkPrediction(byId.get(frame.id)!) && byId.get(frame.id)?.decision === 'reject').map((frame) => frame.stableKey);
   const result = evaluateCullBenchmark(cases, suggestions);
   return {
     result,
