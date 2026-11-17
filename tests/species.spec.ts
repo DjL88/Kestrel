@@ -89,6 +89,7 @@ async function openBurst(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await page.getByRole('region', { name: 'What is in this photo' }).getByRole('button', { name: 'Wildlife' }).click();
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
   // The photo is tagged by itself (the stand-in is always sure), then the rest of the burst is offered.
@@ -135,6 +136,7 @@ test('when the model is sure the photo is tagged automatically, marked Auto, and
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await page.getByRole('region', { name: 'What is in this photo' }).getByRole('button', { name: 'Wildlife' }).click();
   await page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: /^Download/ }).click();
   const subject = page.getByRole('region', { name: 'What is in this photo' });
   const tag = subject.getByRole('list', { name: 'Tags' }).getByRole('listitem');
@@ -153,6 +155,7 @@ test('an automatic tag that is removed is never put back on that photo', async (
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await page.getByRole('region', { name: 'What is in this photo' }).getByRole('button', { name: 'Wildlife' }).click();
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
   const subject = page.getByRole('region', { name: 'What is in this photo' });
@@ -175,6 +178,7 @@ test('automatic tagging can be switched off, and then a new photo is only offere
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await page.getByRole('region', { name: 'What is in this photo' }).getByRole('button', { name: 'Wildlife' }).click();
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
   await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('list', { name: 'Tags' })).toContainText('Red kite', { timeout: 30000 });
