@@ -27,20 +27,26 @@ export interface ReviewSuggestion {
  */
 export function recommendForReview(items: readonly ReviewCandidate[]): ReviewSuggestion[] {
   const best = new Map<string, { id: string; quality: number }>();
+  const manuallyKeptGroups = new Set<string>();
   const identityCounts = new Map<string, number>();
   for (const item of items) identityCounts.set(item.id, (identityCounts.get(item.id) ?? 0) + 1);
   const validSubjects: readonly ReviewSubject[] = ['bird', 'aircraft', 'person', 'mammal', 'landscape'];
   const eligible = (item: ReviewCandidate): boolean =>
     typeof item.id === 'string' && item.id.trim().length > 0 &&
     identityCounts.get(item.id) === 1 && validSubjects.includes(item.subject) &&
-    (item.groupId == null || typeof item.groupId === 'string') &&
+    (item.groupId == null || (typeof item.groupId === 'string' && item.groupId.trim().length > 0)) &&
     Number.isFinite(item.quality) && Number.isFinite(item.confidence) &&
     (item.confidence as number) >= 0.6 && (item.confidence as number) <= 1 &&
     (item.quality as number) >= 0 && (item.quality as number) <= 1;
   const groupKey = (item: ReviewCandidate): string =>
     JSON.stringify([item.subject, typeof item.groupId === 'string' ? (item.groupId.trim() || item.id) : item.id]);
+  // A manual keeper already satisfies the group's keeper requirement. Do not
+  // silently nominate another image in the same burst after a rescan.
   for (const item of items) {
-    if (item.manualDecision || !eligible(item)) continue;
+    if (item.manualDecision === 'keep' && eligible(item)) manuallyKeptGroups.add(groupKey(item));
+  }
+  for (const item of items) {
+    if (item.manualDecision || !eligible(item) || manuallyKeptGroups.has(groupKey(item))) continue;
     const key = groupKey(item);
     const previous = best.get(key);
     if (!previous || (item.quality as number) > previous.quality) {
