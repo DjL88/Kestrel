@@ -74,9 +74,9 @@ test('rating filter is one row of stars: tap sets, tap again clears, the symbol 
     await page.getByRole('button', { name: 'More', exact: true }).click();
     await expect(page.locator('#workspace-options')).toBeVisible();
   }
-  // Locate by the stable aria-controls attribute, not accessible name: the name itself changes once a filter
-  // count badge appears, and plain "Filter" text can also appear inside "Clear filters".
-  const filterTrigger = page.locator('button[aria-controls="filter-popover"]');
+  // The desktop FilterSortControl instance stays mounted (display:none) even while the phone menu is open,
+  // so a raw attribute selector would match both; getByRole only sees the one that's actually visible.
+  const filterTrigger = page.getByRole('button', { name: 'Filter', exact: true });
   await filterTrigger.click();
   const ratingGroup = page.getByRole('group', { name: 'Filter by rating' });
   await expect(ratingGroup).toBeVisible();
