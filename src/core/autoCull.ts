@@ -73,16 +73,15 @@ export interface SubjectFinding { label: string; score: number; /** Long side of
  */
 export function scoreWithSubject(base: CullSuggestion, found: SubjectFinding | null): CullSuggestion {
   if (base.reason === 'unavailable' || base.reason === 'flat' || base.reason === 'duplicate') return base;
-  // Detector outputs are external observations, not trusted measurements. An
-  // invalid confidence or sharpness must never become an automatic keeper.
+  // Detector adapters and persisted worker results are not guaranteed to
+  // respect TypeScript types. Non-finite or out-of-range metrics must never
+  // manufacture a high-confidence keeper (or propagate a NaN score).
   if (found && (!Number.isFinite(found.score) || found.score < 0 || found.score > 1 ||
-      !Number.isFinite(found.size) || found.size < 0 ||
+      !Number.isFinite(found.size) || found.size <= 0 ||
       !Number.isFinite(found.sharpness) || found.sharpness < 0)) {
     return { ...base, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
   }
-  // Even a very confident detection must occupy real image pixels. A zero-area
-  // bounding box is a detector failure, not a sharp bird or aircraft.
-  const real = found && found.size > 0 && ((found.score >= 0.45 && found.size >= 120) || found.score >= 0.7);
+  const real = found && ((found.score >= 0.45 && found.size >= 120) || found.score >= 0.7);
   if (!found || !real) return { ...base, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
   const weight = Math.min(1, found.score / 0.8);
   if (found.sharpness >= 14) {
@@ -97,9 +96,7 @@ export function limitAutoKeepers(
 ): CullSuggestion[] {
   // A corrupt or non-finite keeper target must fail closed, never grant unlimited auto-keeps.
   const safeRemaining = Number.isFinite(remainingKeepers) ? Math.max(0, Math.floor(remainingKeepers)) : 0;
-  // Damaged catalogues can contain multiple distinct frames with one ID. Never
-  // auto-keep an ambiguous identity: the eventual decision could target the
-  // wrong original (or be refused by the history layer).
+  // Distinct originals with duplicate catalogue IDs must not receive automatic keeps.
   const ambiguousIds = new Set<string>();
   const byId = new Map<string, PhotoFrame>();
   for (const frame of frames) {
@@ -110,8 +107,6 @@ export function limitAutoKeepers(
     .map((frame) => frame.burstGroupId!));
   const accepted = new Set<string>();
   for (const result of [...suggestions].sort((a, b) => b.score - a.score)) {
-    // Corrupt detector scores must not win keeper priority or produce a
-    // confident automatic action. Accept only bounded, finite percentages.
     if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100 ||
         result.decision !== 'keep' || result.confidence !== 'high' || accepted.size >= safeRemaining) continue;
     // A stale scan result cannot reserve keeper headroom for a photo that was
