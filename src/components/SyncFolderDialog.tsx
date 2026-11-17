@@ -97,7 +97,15 @@ export function SyncFolderDialog({ title, projectId, updatedAt, frames, onApply,
   });
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="sync-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+    <div role="dialog" aria-modal="true" aria-labelledby="sync-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+      onKeyDown={(event) => {
+        if (event.key !== 'Tab') return;
+        const order = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), a[href]')];
+        if (!order.length) return;
+        const at = order.indexOf(document.activeElement as HTMLElement);
+        event.preventDefault();
+        order[(at + (event.shiftKey ? order.length - 1 : 1)) % order.length]?.focus();
+      }}>
       <div className="flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-white/12 bg-kestrel-panel shadow-2xl">
         <header className="shrink-0 border-b border-white/10 px-5 py-4">
           <h2 id="sync-title" ref={heading} tabIndex={-1} className="text-base font-semibold text-zinc-100 focus:outline-none">Sync folder or cloud</h2>
