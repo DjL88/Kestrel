@@ -67,3 +67,35 @@ test('virtual copies do not falsely collide with their source original', () => {
   state.frames[1] = { ...state.frames[1], stableKey: state.frames[0].stableKey, virtualCopy: { originalFrameId: state.frames[0].id, number: 1 } };
   assert.equal(auditReviewSession(state).issues.some((issue) => issue.code === 'duplicate-original'), false);
 });
+
+test('epoch-zero removal timestamp is not mistaken for an active photo', () => {
+  const state = createDemoShootState(500);
+  const removedId = state.frames[0].id;
+  state.frames[0] = { ...state.frames[0], removedAt: 0, decision: 'keep' };
+  const before = JSON.stringify(state);
+  const audit = auditReviewSession(state);
+  assert.equal(audit.active, 499);
+  assert.equal(audit.keep, 0);
+  assert.equal(audit.unreviewed, 499);
+  assert.ok(audit.issues.some((issue) => issue.code === 'removed-selection' && issue.frameId === removedId));
+  assert.equal(audit.safeForAutomaticDecisions, false);
+  assert.equal(JSON.stringify(state), before);
+});
+
+test('epoch-zero removed comparison is flagged instead of silently accepted', () => {
+  const state = createDemoShootState(3);
+  state.frames[1] = { ...state.frames[1], removedAt: 0 };
+  state.compareRightFrameId = state.frames[1].id;
+  const audit = auditReviewSession(state);
+  assert.ok(audit.issues.some((issue) => issue.code === 'removed-compare'));
+});
+
+test('epoch-zero removed photos cannot masquerade as valid undo targets', () => {
+  const state = createDemoShootState(3);
+  state.frames[1] = { ...state.frames[1], removedAt: 0 };
+  state.undoStack.push({
+    frameId: state.frames[1].id, prevDecision: 'unreviewed', nextDecision: 'keep',
+    prevSelectedId: state.selectedFrameId, nextSelectedId: state.selectedFrameId,
+  });
+  assert.ok(auditReviewSession(state).issues.some((issue) => issue.code === 'history-removed'));
+});
