@@ -1,4 +1,5 @@
 import { isDesktopApp } from './providers/desktopShell';
+import { useOpenedFiles } from './providers/useOpenedFiles';
 import { pickFolderNatively, pickedFromFile, pickedKey, linkedReader, type PickedPhoto } from './providers/linkedOriginals';
 import { checkOriginalPaths } from './providers/originalPathStatus';
 import { scanOriginalFolder, matchScannedOriginals } from './providers/nativeOriginalScan';
@@ -1107,7 +1108,7 @@ export default function App() {
 
   const droppedInProjectRef = useRef<(files: File[]) => Promise<void>>(async () => {});
   const watchImportRef = useRef<(files: File[]) => Promise<number>>(async () => 0);
-  const quickEditRef = useRef<(files: File[]) => Promise<void>>(async () => {});
+  const quickEditRef = useRef<(files: Array<File | PickedPhoto>) => Promise<void>>(async () => {});
   const handleSelectLocalFilesRef = useRef<(files: File[]) => Promise<void>>(async () => {});
   const onDroppedPhotos = useCallback((files: File[]) => { if (projectsOpen) void quickEditRef.current(files); else void droppedInProjectRef.current(files); }, [projectsOpen]);
   const drop = useDropPhotos(onDroppedPhotos);
@@ -1202,8 +1203,8 @@ export default function App() {
   };
 
   // Quick edit: open the Quick edits bucket, then import the chosen photos and go straight to the editor.
-  const quickFiles = useRef<File[] | null>(null);
-  async function quickEdit(files: File[]) {
+  const quickFiles = useRef<Array<File | PickedPhoto> | null>(null);
+  async function quickEdit(files: Array<File | PickedPhoto>) {
     if (!files.length) return;
     setProjectBusy(true);
     setProjectError(undefined);
@@ -1480,6 +1481,8 @@ export default function App() {
   );
 
   quickEditRef.current = quickEdit;
+  // Photos opened from Finder or Explorer with Open With, or a double-click, go straight into Quick edit.
+  useOpenedFiles((photos) => void quickEditRef.current(photos));
   handleSelectLocalFilesRef.current = (files) => handleSelectLocalFiles(files);
   droppedInProjectRef.current = async (files) => { await handleDroppedInProject(files); };
   watchImportRef.current = (files) => handleDroppedInProject(files, true);
