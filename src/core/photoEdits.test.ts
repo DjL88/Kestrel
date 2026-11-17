@@ -156,3 +156,13 @@ test('neutral Brightness does not change prior edits or their alpha', () => {
   applyPhotoEdit(zeroBrightness, { ...DEFAULT_EDIT, exposure: 1.5, warmth: 0.4, contrast: 0.2, brightness: 0 });
   assert.deepEqual(zeroBrightness, baseline, 'old projects with no Brightness maintain identical rendering');
 });
+
+
+test('raising Brightness does not clip an already-bright saturated feather colour', () => {
+  const before = new Uint8ClampedArray([250, 45, 30, 255]);
+  const after = before.slice();
+  applyPhotoEdit(after, { ...DEFAULT_EDIT, brightness: 2 });
+  assert.ok(after[0] >= before[0], 'Brightness must not darken the coloured highlight');
+  assert.ok(after[0] < 255, 'retain at least a little peak-channel headroom');
+  assert.equal(after[3], 255);
+});
