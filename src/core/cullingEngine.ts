@@ -1,4 +1,5 @@
 import { searchWords } from './subjectTags';
+import { sameCaptureCamera, safeBurstGapMs } from './burstIdentity';
 import { matchesRating } from './ratingFilter';
 import type {
   CullCounts,
@@ -118,6 +119,7 @@ export function assignBurstGroups(
   maxGapMs: number = DEFAULT_BURST_GAP_MS
 ): PhotoFrame[] {
   if (frames.length === 0) return [];
+  const safeGapMs = safeBurstGapMs(maxGapMs);
 
   // Preserve relative order if timestamps are missing; otherwise sort chronologically first.
   const allHaveTimestamps = frames.every(
@@ -145,11 +147,11 @@ export function assignBurstGroups(
       typeof prevTs === 'number' &&
       typeof currTs === 'number' &&
       currTs - prevTs >= 0 &&
-      currTs - prevTs <= maxGapMs
+      currTs - prevTs <= safeGapMs
       // Two cameras can shoot within the same millisecond window; do not
       // mistake interleaved Z8/Z5II captures for a single burst.
       // Missing camera tags must not bridge two different known cameras.
-      && (!frame.exif.camera || !currentCluster.some((member) => member.exif.camera && member.exif.camera !== frame.exif.camera))
+      && sameCaptureCamera(frame.exif.camera, currentCluster.map((member) => member.exif.camera))
     ) {
       currentCluster.push(frame);
     } else {
