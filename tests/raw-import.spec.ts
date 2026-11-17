@@ -23,7 +23,7 @@ for (const [name, buffer] of Object.entries(files)) {
     await page.getByRole('tab', { name: 'Edit' }).click({ timeout: 20000 });
     const all = page.getByRole('button', { name: 'All controls' });
     if (await all.isVisible()) await all.click(); // on a phone the full panel sits behind this button
-    await expect(page.getByText('Editing embedded JPEG preview').first()).toBeVisible({ timeout: 20000 });
+    await expect(page.getByText("You're editing the quick preview", { exact: false }).first()).toBeVisible({ timeout: 20000 });
     await expect(page.getByText(/no usable embedded JPEG/i)).toHaveCount(0);
   });
 }

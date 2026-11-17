@@ -81,7 +81,7 @@ fn encode_rgb16_tiff(rgb: &Rgb16) -> Result<Vec<u8>, String> {
 pub fn develop_raw_rgb16_tiff(bytes: &[u8]) -> Result<Vec<u8>, String> {
     let source = RawSource::new_from_slice(bytes);
     let raw = rawler::decode(&source, &RawDecodeParams { image_index: 0 })
-        .map_err(|error| format!("RAW decode failed: {error}"))?;
+        .map_err(|error| crate::raw::explain(&error.to_string()))?;
     let intermediate = RawDevelop::default().develop_intermediate(&raw)
         .map_err(|error| format!("RAW development failed: {error}"))?
         .to_dynamic_image()
@@ -142,5 +142,15 @@ mod tests {
     fn bad_raw_input_fails_instead_of_fabricating_output() {
         assert!(develop_raw_rgb16_tiff(&[]).is_err());
         assert!(develop_raw_rgb16_tiff(&[0u8; 256]).is_err());
+    }
+
+    /// Guards against the raw `rawler` message ("RAW decode failed: Failed to decode image, possibly
+    /// corrupt image: NEF compression Some(HighEfficencyStar) is not supported") leaking to the person
+    /// again — this path used to build its own `format!("RAW decode failed: {error}")` instead of
+    /// going through `raw::explain`, so a Nikon HE*/HE file hit the library's own wording verbatim.
+    #[test]
+    fn nikon_high_efficiency_is_explained_in_plain_words_here_too() {
+        let message = crate::raw::explain("Failed to decode image, possibly corrupt image: NEF compression Some(HighEfficencyStar) is not supported");
+        assert!(message.contains("High Efficiency") && !message.contains("Some("), "{message}");
     }
 }

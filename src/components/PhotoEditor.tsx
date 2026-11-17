@@ -1020,23 +1020,30 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             'Used when cropping exports. Re-mark after changing the crop.'}</p>
         </details>
         {isRaw && (
-          <div className="space-y-1 pb-2">
-            <p className="text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey)
+          <div className="border-t border-white/10 pt-2">
+            <p className="px-1 text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey)
               ? 'Developed from the RAW file as an 8-bit JPEG. Edits use that JPEG; the original RAW is unchanged.'
-              : 'Editing embedded JPEG preview'}</p>
-            {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
-              <button type="button" className={`${button} w-full border border-white/10`} disabled={developing || sourceState !== 'ready'} onClick={() => void developFromRaw()}>
-                {developing ? 'Developing…' : 'Develop from RAW'}
-              </button>
-            )}
-            {developNote && <p role="status" className="text-xs text-amber-200">{developNote}</p>}
-            {canDevelopRaw() && (
-              <button type="button" className={`${button} w-full border border-white/10`} disabled={precisionBusy} onClick={() => void saveRawPrecisionTiff()}>
-                {precisionBusy ? 'Decoding…' : 'Save 16-bit TIFF (experimental)'}
-              </button>
-            )}
-            {canDevelopRaw() && <p className="px-1 text-xs text-zinc-400">Full sensor bit depth, no colour profile yet, no Nikon High Efficiency support. Doesn't change editing or Export.</p>}
-            {precisionNote && <p role="status" className="text-xs text-amber-200">{precisionNote}</p>}
+              : "You're editing the quick preview stored inside the RAW file."}</p>
+            <details>
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
+                RAW options <ChevronDown className="h-4 w-4" aria-hidden="true" />
+              </summary>
+              <div className="space-y-1 pb-2">
+                {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
+                  <button type="button" className={`${button} w-full border border-white/10`} disabled={developing || sourceState !== 'ready'} onClick={() => void developFromRaw()}>
+                    {developing ? 'Developing…' : 'Develop from RAW'}
+                  </button>
+                )}
+                {developNote && <p role="status" className="text-xs text-amber-200">{developNote}</p>}
+                {canDevelopRaw() && (
+                  <button type="button" className={`${button} w-full border border-white/10`} disabled={precisionBusy} onClick={() => void saveRawPrecisionTiff()}>
+                    {precisionBusy ? 'Decoding…' : 'Save 16-bit TIFF (experimental)'}
+                  </button>
+                )}
+                {canDevelopRaw() && <p className="px-1 text-xs text-zinc-400">A separate, highest-quality file straight from the sensor, for anyone who wants it. No colour profile yet, can't read Nikon's High Efficiency compression, and doesn't change what you're editing or exporting.</p>}
+                {precisionNote && <p role="status" className="text-xs text-amber-200">{precisionNote}</p>}
+              </div>
+            </details>
           </div>
         )}
         <details className="border-t border-white/10">
