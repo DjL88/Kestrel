@@ -211,10 +211,18 @@ optimise blind. Before touching render/import code for "speed":
    format presets in Licence and settings, which are a different, unrelated
    concept (export settings, not photo-edit recipes).
 6. **Accessibility verification pass**: contrast numbers — done this pass
-   (see "Branding and first impression" above). Still open: a real
-   keyboard-only pass (tab order, focus visibility, no mouse-only controls)
-   and a screen-reader run-through (VoiceOver/NVDA) on an actual desktop
-   build, plus the "never colour alone" audit of decision/status indicators.
+   (see "Branding and first impression" above). "Never colour alone" audit —
+   done this pass, nothing to fix: checked every status/decision surface
+   (contact-sheet keep/reject cards, `DecisionButtons.tsx`, the histogram's
+   clipping warnings, species-ID confidence, star ratings, connection/task
+   error states) and every one already pairs colour with an icon, shape
+   change, or plain-language text — several components even carry an
+   explicit "never colour alone" doc comment already. The contact-sheet
+   keep/reject styling also deliberately uses sky-blue/orange rather than
+   green/red, which is itself a colour-blind-conscious choice (comment:
+   "Colorblind-safe Decision Control"). Still open: a real keyboard-only
+   pass (tab order, focus visibility, no mouse-only controls) and a
+   screen-reader run-through (VoiceOver/NVDA) on an actual desktop build.
 7. Real-camera-file validation of the 16-bit path (needs your Mac + your NEFs
    — see the testing plan below).
 
