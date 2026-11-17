@@ -76,8 +76,24 @@ test('once everything is decided and kept, the banner offers to export, not to c
   for (let i = 0; i < 4; i += 1) {
     await page.getByRole('button', { name: /^Keep /i }).first().click();
   }
-  await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'Keepers 4' })).toBeVisible();
+  const keepersTab = page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'Keepers 4' });
+  await expect(keepersTab).toBeVisible();
+  await keepersTab.click();
   const banner = page.getByRole('region', { name: "What's next" });
   await expect(banner).toContainText('keepers ready for a look');
   await expect(banner.getByRole('button', { name: 'See suggested recipes' })).toBeVisible();
+});
+
+
+test('review guidance appears only on To review, never over Keepers or All photos', async ({ page }) => {
+  await projectWithUnreviewedPhotos(page);
+  const tabs = page.getByRole('navigation', { name: 'Photo collections' });
+  const guide = page.getByRole('region', { name: "What's next" });
+  await expect(guide).toBeVisible();
+  await tabs.getByRole('button', { name: 'All photos 4' }).click();
+  await expect(guide).toHaveCount(0);
+  await tabs.getByRole('button', { name: 'Keepers 0' }).click();
+  await expect(guide).toHaveCount(0);
+  await tabs.getByRole('button', { name: 'To review 4' }).click();
+  await expect(guide).toBeVisible();
 });
