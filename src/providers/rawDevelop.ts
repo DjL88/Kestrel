@@ -1,5 +1,5 @@
 import { THUMB, bestTurn } from '../core/orientMatch';
-import type { NativeRawMasterRecipe } from '../core/nativeRawMaster';
+import type { NativeRawMasterRecipe, NativeRawMasterFraming } from '../core/nativeRawMaster';
 import { isDesktopApp } from './desktopShell';
 
 /** Fail closed before allocating/copying a potentially huge RAW file for native decoding. */
@@ -55,12 +55,12 @@ export async function developRawPrecision(file: Blob): Promise<Blob> {
  * the 8-bit JPEG preview. Preflight unsupported adjustments before invoking.
  * No validated ICC profile or HE/HE* guarantee yet; do not call it production.
  */
-export async function developRawPrecisionEdited(file: Blob, recipe: NativeRawMasterRecipe): Promise<Blob> {
+export async function developRawPrecisionEdited(file: Blob, recipe: NativeRawMasterRecipe, framing: NativeRawMasterFraming): Promise<Blob> {
   const { invoke } = await import('@tauri-apps/api/core');
   const bytes = new Uint8Array(await file.arrayBuffer());
   try {
     const result = await invoke<ArrayBuffer>('develop_raw_precision_edited', bytes, {
-      headers: { 'x-kestrel-master-edit': JSON.stringify(recipe) },
+      headers: { 'x-kestrel-master-edit': JSON.stringify(recipe), 'x-kestrel-master-framing': JSON.stringify(framing) },
     });
     return new Blob([result], { type: 'image/tiff' });
   } catch (error) {
