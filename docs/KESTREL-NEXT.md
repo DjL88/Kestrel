@@ -1,7 +1,7 @@
 # Kestrel Next: rebuild decision, architecture and acceptance
 
 **Branch:** `rebuild/kestrel-next`, cut from `main` at `1e23ee7` (18 Nov 2026). `main` is untouched; the tag `baseline/pre-rebuild-20261118` (local) marks the baseline.
-**Status:** first vertical slice (Natural Auto) implemented, wired and tested locally. Not merged. Not yet seen on a real RAW.
+**Status:** Slice 1 (Natural Auto) merged to `main` as #405. Slice 2 (the journey on real files, nothing on top of photos) in review. Not yet seen on a real RAW decode.
 
 This is the one record of the rebuild. Item status still lives in [ROADMAP.md](ROADMAP.md); the contract is [PRODUCT-SPEC.md](PRODUCT-SPEC.md).
 
