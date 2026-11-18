@@ -108,6 +108,18 @@ export function limitAutoKeepers(
   }
   const occupied = new Set(frames.filter((frame) => frame.removedAt == null && frame.decision === 'keep' && frame.burstGroupId)
     .map((frame) => frame.burstGroupId!));
+  // Overlapping workers can disagree about the same photo. An earlier high
+  // score must not override a later review-only or reject result. Duplicate
+  // high-confidence keep suggestions alone remain harmless.
+  const uncertainIds = new Set<string>();
+  const highKeepIds = new Set(suggestions.filter((result) => result.decision === 'keep' && result.confidence === 'high')
+    .map((result) => result.frameId));
+  for (const result of suggestions) {
+    if (result.decision !== 'keep' || result.confidence !== 'high' ||
+        !Number.isFinite(result.score) || result.score < 0 || result.score > 100) {
+      uncertainIds.add(result.frameId);
+    }
+  }
   const accepted = new Set<string>();
   for (const result of [...suggestions].sort((a, b) => b.score - a.score)) {
     if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100 ||
@@ -115,7 +127,7 @@ export function limitAutoKeepers(
     // A stale scan result cannot reserve keeper headroom for a photo that was
     // removed or manually reviewed while the scan was running.
     const frame = byId.get(result.frameId);
-    if (!frame || ambiguousIds.has(result.frameId) || frame.removedAt != null || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) continue;
+    if (!frame || uncertainIds.has(result.frameId) || ambiguousIds.has(result.frameId) || frame.removedAt != null || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) continue;
     const burst = frame.burstGroupId;
     if (burst && occupied.has(burst)) continue;
     accepted.add(result.frameId);
@@ -125,6 +137,9 @@ export function limitAutoKeepers(
   // two high-confidence auto-keep actions for one photograph.
   const emitted = new Set<string>();
   return suggestions.map((result) => {
+    if (highKeepIds.has(result.frameId) && uncertainIds.has(result.frameId)) {
+      return { ...result, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
+    }
     if (result.decision !== 'keep' || result.confidence !== 'high') return result;
     if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100) {
       return { ...result, confidence: 'medium', score: 0 };
