@@ -7,6 +7,7 @@ import {
   type OfflinePreviewPair,
 } from './offlinePreviewCache';
 import { extractNefPreview } from '../core/nefPreview';
+import { PriorityReadQueue, type ReadPriority } from '../core/priorityReadQueue';
 import { isRawPreviewFile } from '../core/rawFormats';
 import {
   NativeRawUnsupportedError,
@@ -76,6 +77,12 @@ export class BrowserPreviewProvider implements PreviewProvider {
   private linkedLoading = new Map<string, Promise<Blob | undefined>>();
   private linkedGeneration = new Map<string, number>();
   private linkedOrder: string[] = [];
+  private readonly reads = new PriorityReadQueue(3);
+
+  /** A selected photo must not wait behind thumbnails from a previous scroll location. */
+  prioritizeOriginalRead(stableKey: string, priority: ReadPriority = 'selected'): void {
+    this.reads.promote(stableKey, priority);
+  }
 
   registerLinked(stableKey: string, info: { read: () => Promise<Blob>; size: number; lastModified: number }): void {
     const previous = this.linked.get(stableKey);
@@ -106,15 +113,18 @@ export class BrowserPreviewProvider implements PreviewProvider {
   }
 
   /** The original, reading it from the disk first if it is a linked one. Only a few linked photos are held at once. */
-  async ensureOriginal(stableKey: string): Promise<Blob | undefined> {
+  async ensureOriginal(stableKey: string, priority: ReadPriority = 'background'): Promise<Blob | undefined> {
     const held = this.localBlobs.get(stableKey);
     if (held) return held;
     const link = this.linked.get(stableKey);
     if (!link) return undefined;
     const pending = this.linkedLoading.get(stableKey);
-    if (pending) return pending;
+    if (pending) {
+      this.prioritizeOriginalRead(stableKey, priority);
+      return pending;
+    }
     const generation = this.linkedGeneration.get(stableKey) ?? 0;
-    const task = this.limitReads(link.read).then((blob) => {
+    const task = this.reads.run(link.read, priority, stableKey).then((blob) => {
       // A previous drive read must not resurrect an old original after relinking.
       if ((this.linkedGeneration.get(stableKey) ?? 0) !== generation || this.linked.get(stableKey) !== link) return undefined;
       this.localBlobs.set(stableKey, blob);
@@ -130,16 +140,6 @@ export class BrowserPreviewProvider implements PreviewProvider {
     });
     this.linkedLoading.set(stableKey, task);
     return task;
-  }
-
-  private reading = 0;
-  private readQueue: Array<() => void> = [];
-  /** At most three files are read from the disk at once, so a grid of big RAWs does not fill the memory. */
-  private async limitReads(read: () => Promise<Blob>): Promise<Blob> {
-    if (this.reading >= 3) await new Promise<void>((resolve) => this.readQueue.push(resolve));
-    this.reading += 1;
-    try { return await read(); }
-    finally { this.reading -= 1; this.readQueue.shift()?.(); }
   }
 
   /** Size and time of the original without reading it. */
@@ -193,7 +193,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     }
   }
 
-  async getThumbnailUrl(frame: PhotoFrame): Promise<string> {
+  async getThumbnailUrl(frame: PhotoFrame, priority: ReadPriority = 'visible'): Promise<string> {
     if (frame.isDemo && frame.demoVariant) {
       const { DEMO_ASSET_URLS } = await import('./demoAssets');
       return DEMO_ASSET_URLS[frame.demoVariant.assetKey];
@@ -203,9 +203,12 @@ export class BrowserPreviewProvider implements PreviewProvider {
     if (cached) return cached;
 
     const existingPromise = this.pendingThumbs.get(frame.id);
-    if (existingPromise) return existingPromise;
+    if (existingPromise) {
+      this.prioritizeOriginalRead(frame.stableKey, priority);
+      return existingPromise;
+    }
 
-    const task = this.buildLocalThumbnailUrl(frame).finally(() => {
+    const task = this.buildLocalThumbnailUrl(frame, priority).finally(() => {
       this.pendingThumbs.delete(frame.id);
     });
     this.pendingThumbs.set(frame.id, task);
@@ -231,7 +234,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     const request = Symbol();
     this.developing.set(stableKey, request);
     try {
-      const original = await this.ensureOriginal(stableKey);
+      const original = await this.ensureOriginal(stableKey, 'selected');
       if (this.developing.get(stableKey) !== request) return 'superseded';
       if (!original) return 'missing';
       const picture = await develop(original);
@@ -272,7 +275,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       return cached;
     }
 
-    const blob = await this.ensureOriginal(key);
+    const blob = await this.ensureOriginal(key, 'selected');
     const cacheKey = this.offlineCacheKey(frame);
     const cachedPreviews = await this.loadOfflinePreviews(cacheKey);
     if (!blob) {
@@ -372,7 +375,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.pendingOfflinePreviews.clear();
   }
 
-  private async buildLocalThumbnailUrl(frame: PhotoFrame): Promise<string> {
+  private async buildLocalThumbnailUrl(frame: PhotoFrame, priority: ReadPriority): Promise<string> {
     const cacheKey = this.offlineCacheKey(frame);
     const offline = await loadOfflinePreview(cacheKey);
     if (offline) {
@@ -380,7 +383,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       this.thumbUrlCache.set(frame.id, url);
       return url;
     }
-    const blob = await this.ensureOriginal(frame.stableKey);
+    const blob = await this.ensureOriginal(frame.stableKey, priority);
     if (!blob) {
       const cached = await this.loadOfflinePreviews(cacheKey);
       if (!cached) return '';
