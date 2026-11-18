@@ -79,6 +79,35 @@ The owner reset delivery to one coherent rebuild in wired vertical slices. Decis
 - **Slice 2, the journey on real files: PARTIAL.** `tests/journey-import-to-reopen.spec.ts` proves import → cull → Auto → manual edit → full-size export (true dimensions, pixels equal to the shared edit maths) → reopen. `npm run journey:local` ran it in the web app on 116 of the owner's Z 8 / Z5 II NEF and JPEG files: every step PASS, originals byte-identical, nothing left 127.0.0.1. Fixed on the way: a review banner that claimed Kestrel had tried to cull when it had not; slider-step mismatch in Auto; and every control that sat on a photo moved into header or footer bars (enforced by `tests/layout-photo-clear.spec.ts`). Not yet: the 500-photo run in the optimised Windows desktop build, external drive and relink.
 - The AI Studio archive of 18 Nov 20:54 is not a usable source (19 zero-byte source files); `import/ai-studio-pro` (`7f9c79a`) is the Studio reference.
 
+### Owner test feedback (18 Nov, desktop release build `0642203`)
+
+What worked: real Z 8 / Z5 II photos import, cull and edit; feather detail after a manual edit looks good. Everything else below is still to do, grouped by the slice that will take it.
+
+**A. Flow: photos usable as soon as each is processed**
+- One per-photo pipeline (import → preview → cull score → subject and species → Auto) instead of whole-batch queues. Each photo is editable as soon as its preview exists. Burst picks land when their burst completes.
+- Cancelling keeps what has finished, rather than starting over.
+- Build on the unpushed local commit `34b7d49` (progressive import, background cull, instant project open) and its uncommitted edits. They exist only on the Windows PC.
+- **Species ID does not start until the photo is marked Wildlife.** Feed the on-device detector's bird or animal finding into the photo's kind through `permitsUnclassifiedBirdSpecies` (P0.4 below). Never do this for aircraft or unknown subjects.
+
+**B. One consistent interface**
+- Progress in one place, in one style. Culling and importing use different pop-ups today.
+- Show each photo's progress in its tile footer as a red / amber / green bar. Animate it, respecting reduced motion.
+- The Tasks ("Busy") button is fully rounded, unlike every other button. Make it match.
+- The Filter popover has white text on a white background. Make it follow the theme.
+- Settings has two left/right choices ("Preferred hand" and "Editing panel position") that look like the same thing. Make them one clear choice.
+- The same zoom in the culling viewer and the editor. Keep the zoom and position when switching Before/After, changing photos or opening settings.
+
+**C. Editing tools**
+- Crop: draw the box with the mouse, and pull in from any edge, not only the corners.
+- Hide the mask highlight while a slider moves and for about 3 seconds after, so it does not cover the edit.
+- Show a 3×3 thirds grid when hovering over the photo.
+- Texture and Clarity make out-of-focus backgrounds noisier (seen on `_DJL5983`: Texture 13, Clarity 45). Detail controls should spare smooth, noise-level areas, or be offered on the subject only.
+
+**D. Library and projects**
+- Sort by date imported, date captured and date last edited.
+- Projects as tags rather than folders: one library of every photo, filtered by one or more projects.
+- Rename, edit and delete a project, with an optional comment shown as its subtitle.
+
 ### P0: Trust the existing workflow on Windows (the current milestone)
 
 The goal is the [release scenario](PRODUCT-SPEC.md#7-release-acceptance-the-scenario-to-optimise) on Windows: one coherent app, not more separate features.
@@ -157,6 +186,7 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
 
 | Date | Merged | Closed | Local evidence |
 | --- | --- | --- | --- |
+| 18 Nov 2026 (Kestrel Next Slice 2, #406) | #406: journey proven on real files; nothing sits on a photo; honest review banner; Auto on slider steps | none | Windows 11: `tsc` PASS; `npm test` 883/883 PASS; `vite build` PASS; Playwright (desktop + phone) 264 PASS, 1 FAIL (phone `task-manager` stop/restart, also fails on untouched `1e23ee7`), 73 skipped; `npm run journey:local` on 116 real Z 8 / Z5 II files: every step PASS; optimised `npm run desktop:build` PASS and installed by the owner. Rust: NOT RUN (no Rust changes). |
 | 18 Nov 2026 (Kestrel Next Slice 1) | #403, #404, then #405 (Natural Auto), merged by the owner | none | Windows 11, fresh `npm ci` on `1e23ee7`: baseline `tsc` PASS, 861/861 PASS. Branch: `tsc` PASS; `npm test` 880/880 PASS; `vite build` PASS; Playwright (desktop + phone) 257 PASS, 4 FAIL, 71 skipped. The 4 failures (phone: `species-scan`, `task-manager` stop/restart, two `species` burst tests) fail the same way on untouched `1e23ee7`, run separately. Rust: NOT RUN (no Rust changes). |
 | 18 Nov 2026 | #353, #354, #355, #356, #357, #358, #359, #360, #361, #364 (with a fix so reconnected photos with a changed modified time still open) | #362 (mask prototype nothing used; design moved to P1), #363 (plan doc; gates moved to P1) | Windows 11, combined branch: `tsc` PASS; 752/752 unit tests PASS; Python harnesses 11/11 PASS; `vite build` PASS; Playwright 226 PASS, 0 FAIL. The resulting `main` (ced3c32) has code identical to the tested combination. Rust `cargo test`: NOT RUN (no Rust toolchain on the Windows machine), so #353 and #359 are test and message changes only. |
 | 18 Nov 2026 (macOS check) | none | none | macOS arm64, Python 3.9, on a scratch merge of all twelve PRs and then on `main` (7206899): `tsc` PASS; `npm test` 752/752 PASS; `vite build` PASS; **Rust `cargo test` 24/24 PASS** with real files from eight makers (Canon CR3, Fujifilm RAF, Nikon NEF, OM ORF, Panasonic RW2, Pentax PEF, Sony ARW, DNG), which closes the "Rust NOT RUN" gap in the row above; Python tools PASS; Playwright 229 PASS / 31 FAIL, the same 22 distinct tests that failed on `main` before the twelve PRs. See P0.0. |
