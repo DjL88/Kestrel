@@ -19,10 +19,20 @@ test('duplicate candidates remain unresolved for user confirmation', () => {
   assert.deepEqual(result.ambiguous, ['z8']);
   assert.equal(result.matches.length, 0);
 });
-test('one candidate is never assigned to two catalogue records', () => {
+test('duplicate saved identities never assign a candidate based on record order', () => {
   const candidate = { path: 'E:/_DSC0001.NEF', size: 10000, lastModified: 1234 };
-  const result = planOriginalRelink([original, { ...original, id: 'z5ii' }], [candidate]);
-  assert.equal(result.matches.length, 1);
+  for (const records of [[original, { ...original, id: 'z5ii' }], [{ ...original, id: 'z5ii' }, original]]) {
+    const result = planOriginalRelink(records, [candidate]);
+    assert.deepEqual(result.matches, []);
+    assert.deepEqual(result.ambiguous.sort(), ['z5ii', 'z8']);
+    assert.deepEqual(result.unresolved, []);
+  }
+});
+test('distinct originals do not share one candidate', () => {
+  const result = planOriginalRelink([
+    original, { ...original, id: 'z5ii', path: 'D:/Other/_DSC0002.NEF' },
+  ], [{ path: 'E:/_DSC0001.NEF', size: 10000, lastModified: 1234 }]);
+  assert.deepEqual(result.matches, [{ id: 'z8', path: 'E:/_DSC0001.NEF' }]);
   assert.deepEqual(result.unresolved, ['z5ii']);
 });
 test('folder suggestion supports Windows, UNC NAS and POSIX paths', () => {
