@@ -1,5 +1,6 @@
 """Synthetic fixtures: tests safety/bookkeeping, not true Nikon image quality."""
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -43,7 +44,7 @@ class ShootManifestTests(unittest.TestCase):
 
     def test_rejects_alias_and_hardlink_of_original(self):
         alias = self.folder / 'same.tif'
-        alias.hardlink_to(self.folder / 'photo.NEF')
+        os.link(self.folder / 'photo.NEF', alias)  # works on every Python; Path.hardlink_to needs 3.10
         with self.assertRaisesRegex(ValueError,'separate files'):
             load_manifest(self.manifest([dict(self.record, variants={'bad':'same.tif'})]))
 
