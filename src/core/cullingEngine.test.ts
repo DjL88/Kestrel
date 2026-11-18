@@ -544,3 +544,21 @@ test('confidence sorting treats corrupt persisted scores as unscored and keeps s
   assert.equal(frames[0].cullScore, Number.NaN);
   assert.equal(frames[3].decision, 'unreviewed');
 });
+
+test('ambiguous rescan clears stale confidence but preserves manual decisions and undo', () => {
+  const initial = createDemoShootState(3);
+  const id = initial.frames[0].id;
+  const scored = applyCullConfidence(initial, [{ frameId: id, confidence: 'high', score: 98 }]);
+  const decided = applyDecisionWithHistory(scored, id, 'keep', { allowAdvance: false });
+  const history = decided.undoStack;
+  const rescanned = applyCullConfidence(decided, [
+    { frameId: id, confidence: 'high', score: 99 },
+    { frameId: id, confidence: 'low', score: 12 },
+  ]);
+  assert.equal(rescanned.frames[0].cullScore, undefined);
+  assert.equal(rescanned.frames[0].cullConfidence, undefined);
+  assert.equal(rescanned.frames[0].decision, 'keep');
+  assert.equal(rescanned.undoStack, history);
+  assert.equal(decided.frames[0].cullScore, 98, 'previous state must remain immutable');
+  assert.equal(undoDecision(rescanned).frames[0].decision, 'unreviewed');
+});
