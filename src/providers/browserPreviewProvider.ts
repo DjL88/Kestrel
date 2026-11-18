@@ -258,7 +258,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.fullUrlOrder = this.fullUrlOrder.filter((item) => item !== key);
   }
 
-  async getFullPreviewUrl(frame: PhotoFrame): Promise<string> {
+  async getFullPreviewUrl(frame: PhotoFrame, priority: ReadPriority = 'visible'): Promise<string> {
     if (frame.isDemo && frame.demoVariant) {
       const { DEMO_ASSET_URLS } = await import('./demoAssets');
       return DEMO_ASSET_URLS[frame.demoVariant.assetKey];
@@ -275,7 +275,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       return cached;
     }
 
-    const blob = await this.ensureOriginal(key, 'selected');
+    const blob = await this.ensureOriginal(key, priority);
     const cacheKey = this.offlineCacheKey(frame);
     const cachedPreviews = await this.loadOfflinePreviews(cacheKey);
     if (!blob) {
