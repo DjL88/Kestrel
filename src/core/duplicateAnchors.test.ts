@@ -27,3 +27,19 @@ test('never hashes a missing or oversized source or a previously rejected only c
   const sizes = new Map([['huge', 34 * 1024 * 1024], ['rejected', 100]]);
   assert.deepEqual(duplicateAnchorKeys(frames, new Set([100, 34 * 1024 * 1024]), (key) => sizes.get(key)), []);
 });
+
+test('epoch-zero removed keepers cannot anchor a later duplicate rejection', () => {
+  const removed = photo('removed-at-zero', 'keep', { removedAt: 0 });
+  const live = photo('live-keeper', 'keep');
+  const frames = [removed, live, photo('removed-later', 'keep', { removedAt: 10 })];
+  const before = JSON.stringify(frames);
+  const sized = new Map(frames.map((frame) => [frame.stableKey, 500]));
+  const hashed: string[] = [];
+  const keys = duplicateAnchorKeys(frames, new Set([500]), (key) => {
+    hashed.push(key);
+    return sized.get(key);
+  });
+  assert.deepEqual(keys, ['live-keeper']);
+  assert.deepEqual(hashed, ['live-keeper']);
+  assert.equal(JSON.stringify(frames), before);
+});
