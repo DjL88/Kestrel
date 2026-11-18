@@ -1,0 +1,23 @@
+{
+  "name": "@kestrel/control-plane",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Kestrel control plane: licences, offline grants, managed AI gateway, model and release registry. Optional; the app works fully without it.",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts",
+    "test": "tsx --test test/*.test.ts",
+    "lint": "tsc --noEmit -p .",
+    "openapi": "tsx src/server.ts --print-openapi"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "tsx": "^4.21.0",
+    "typescript": "^7.0.2"
+  }
+}

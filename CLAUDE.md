@@ -35,7 +35,7 @@ Run on a real checkout before asking for a merge, and report each one as **PASS 
 ```bash
 npm ci
 npm run lint                  # TypeScript
-npm test                      # unit tests (src/core, src/providers, tools/mcp)
+npm test                      # unit tests (src/core, src/providers, tools/mcp, services/control-plane)
 npm run build
 npx playwright test           # browser tests, desktop and phone projects
 cd src-tauri && cargo test    # when Rust or src-tauri changed
