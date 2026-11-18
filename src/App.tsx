@@ -1403,7 +1403,7 @@ export default function App() {
         const frame = expected.get(key)!;
         const parts = key.split('::');
         preview.registerLinked(key, {
-          read: linkedReader(path, frame.filename, Number(parts.at(-1)) || 0),
+          read: linkedReader(path, frame.filename, Number(parts.at(-1)) || 0, Number(parts.at(-2)) || undefined),
           size: Number(parts.at(-2)) || 0, lastModified: Number(parts.at(-1)) || 0,
         });
         preview.retryLinkedOriginal(key);
