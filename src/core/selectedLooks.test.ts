@@ -34,3 +34,26 @@ test('already edited photos remain unchanged unless explicitly included; masks a
   assert.strictEqual(changed.framing, framing);
   assert.equal(stepEdit(changed, -1).edit?.exposure, 0.7);
 });
+
+test('epoch-zero removed selections never receive looks or new undo history, even with includeEdited', () => {
+  const removed = {
+    ...frame('removed-zero'),
+    removedAt: 0,
+    edit: { ...DEFAULT_EDIT, exposure: 0.6 },
+  };
+  const live = frame('live');
+  const frames = [removed, live];
+  const ids = new Set(['removed-zero', 'live']);
+  const before = JSON.stringify(frames);
+
+  assert.deepEqual(previewSelectedLook(frames, ids), { total: 1, eligible: 1, skipped: 0 });
+  assert.deepEqual(previewSelectedLook(frames, ids, true), { total: 1, eligible: 1, skipped: 0 });
+  for (const includeEdited of [false, true]) {
+    const next = applySelectedLook(frames, ids, { ...DEFAULT_EDIT, warmth: 0.3 }, includeEdited, 700);
+    assert.strictEqual(next[0], removed);
+    assert.equal(next[0].editHistory, undefined);
+    assert.equal(next[0].edit?.exposure, 0.6);
+    assert.equal(next[1].edit?.warmth, 0.3);
+  }
+  assert.equal(JSON.stringify(frames), before);
+});
