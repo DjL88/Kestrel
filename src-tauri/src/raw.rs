@@ -238,7 +238,7 @@ mod tests {
         // Preserve the SOI/EOI and the dimension-bearing header, but truncate
         // the entropy-coded scan. A header-only validator would accept this.
         let scan = valid.windows(2).position(|w| w == [0xff, 0xda]).unwrap();
-        let scan_header_len = valid[scan + 4] as usize + 2;
+        let scan_header_len = u16::from_be_bytes([valid[scan + 2], valid[scan + 3]]) as usize;
         let mut truncated = valid[..scan + 2 + scan_header_len].to_vec();
         truncated.extend_from_slice(&[0xff, 0xd9]);
         assert!(super::validate_system_jpeg(&truncated).is_err());
