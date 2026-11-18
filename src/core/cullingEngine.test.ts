@@ -519,3 +519,28 @@ test('duplicate catalogue identities and removed photos do not receive confidenc
     index === 1 ? { ...frame, id: duplicatedId } :
     index === 2 ? { ...frame, removedAt: 1 } : frame));
 });
+
+
+test('confidence sorting treats corrupt persisted scores as unscored and keeps stable order', () => {
+  const state = createDemoShootState(6);
+  const frames = state.frames.map((frame) => ({ ...frame }));
+  frames[0].cullConfidence = 'high';
+  frames[0].cullScore = Number.NaN;
+  frames[1].cullConfidence = 'high';
+  frames[1].cullScore = Infinity;
+  frames[2].cullConfidence = 'bogus' as 'high';
+  frames[2].cullScore = 99;
+  frames[3].cullConfidence = 'high';
+  frames[3].cullScore = 94;
+  frames[4].cullConfidence = 'medium';
+  frames[4].cullScore = 65;
+  frames[5].cullConfidence = 'low';
+  frames[5].cullScore = -1;
+  const sorted = sortFrames(frames, 'confidence-desc');
+  assert.deepEqual(sorted.map((frame) => frame.id), [
+    frames[3].id, frames[4].id, frames[0].id,
+    frames[1].id, frames[2].id, frames[5].id,
+  ]);
+  assert.equal(frames[0].cullScore, Number.NaN);
+  assert.equal(frames[3].decision, 'unreviewed');
+});
