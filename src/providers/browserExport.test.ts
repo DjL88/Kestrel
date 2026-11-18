@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createDemoShootState } from '../core/cullingEngine';
 import { EXPORT_PROFILES } from '../core/exportProfiles';
-import { loadExportSource, renderExport, renderExportPreview } from './browserExport';
+import { drawCropQuickly, loadExportSource, renderExport, renderExportPreview } from './browserExport';
 
 test('cancelling an export skips unused canvas work and discards an encoded result', async (t) => {
   const controller = new AbortController();
@@ -161,4 +161,21 @@ test('export and preview fail closed for corrupt decoded source dimensions witho
     await assert.rejects(renderExportPreview(source, frame, master, 'fit'), /invalid pixel dimensions/);
   }
   assert.equal(allocations, 0);
+});
+
+test('drag-time crop preview rejects invalid RAW decoder dimensions before touching target canvas', () => {
+  const frame = { ...createDemoShootState(1).frames[0], filename: 'Z8-HE.NEF', isDemo: false };
+  const master = EXPORT_PROFILES.find(({ id }) => id === 'master')!;
+  const target = {
+    set width(_value: number) { throw new Error('target modified'); },
+    set height(_value: number) { throw new Error('target modified'); },
+    getContext() { throw new Error('canvas context requested'); },
+  } as unknown as HTMLCanvasElement;
+  for (const [width, height] of [
+    [0, 5504], [-1, 5504], [8256.5, 5504],
+    [8256, NaN], [Infinity, 5504], [8256, 0],
+  ]) {
+    const source = { naturalWidth: width, naturalHeight: height } as HTMLImageElement;
+    assert.throws(() => drawCropQuickly(source, frame, master, {}, target), /invalid pixel dimensions/);
+  }
 });
