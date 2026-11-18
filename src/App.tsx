@@ -602,6 +602,28 @@ export default function App() {
     [editQueueIds]
   );
 
+  // A native desktop Select All means *photo records in the current filtered view*,
+  // including offscreen/virtualized records, never text in the webview.
+  useEffect(() => {
+    const selectAllPhotos = () => {
+      if (projectsOpen) return;
+      const ids = visibleFrames.map((frame) => frame.id);
+      setSelectedIds(new Set(ids));
+      setMultiSelect(ids.length > 0);
+    };
+    const deselectPhotos = () => {
+      if (projectsOpen) return;
+      setSelectedIds(new Set());
+      setMultiSelect(false);
+    };
+    window.addEventListener('kestrel:photos-select-all', selectAllPhotos);
+    window.addEventListener('kestrel:photos-deselect-all', deselectPhotos);
+    return () => {
+      window.removeEventListener('kestrel:photos-select-all', selectAllPhotos);
+      window.removeEventListener('kestrel:photos-deselect-all', deselectPhotos);
+    };
+  }, [projectsOpen, visibleFrames]);
+
   const selectedVisibleFrames = visibleFrames.filter((frame) => selectedIds.has(frame.id));
   const startSelectedEditing = () => {
     const ids = selectedVisibleFrames.map((frame) => frame.id);
