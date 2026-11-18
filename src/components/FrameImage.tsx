@@ -106,7 +106,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
 
     const render = async () => {
       // A small thumbnail is plenty for a filmstrip card, and avoids decoding the full-size picture on every slider move.
-      const source = variant === 'thumb' ? await loadThumbSource(frame, previewProvider, priority) : await loadExportSource(frame, previewProvider);
+      const source = variant === 'thumb' ? await loadThumbSource(frame, previewProvider, priority) : await loadExportSource(frame, previewProvider, 'selected');
       if (cancelled) return;
       const canvas = document.createElement('canvas');
       const framing = frame.framing ?? DEFAULT_FRAMING;
@@ -132,7 +132,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       replaceRendered(undefined);
       const url =
         variant === 'full'
-          ? await previewProvider.getFullPreviewUrl(frame)
+          ? await previewProvider.getFullPreviewUrl(frame, 'selected')
           : await previewProvider.getThumbnailUrl(frame, priority ? 'selected' : 'visible');
       if (!cancelled) {
         setSrc(url);
