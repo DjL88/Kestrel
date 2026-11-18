@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
+import { loadExportSource } from '../providers/browserExport';
 import { previewCacheKey } from '../providers/offlinePreviewCache';
 import type { PhotoFrame } from './types';
 
@@ -296,6 +297,11 @@ test('Nikon NEF with readable original but unusable embedded JPEG never exports 
     'the original being linked does not make a cached JPEG an exportable RAW render');
   assert.equal(await provider.getFullPreviewUrl(frame('virtual-copy', photo.stableKey)), url);
   assert.equal(provider.isOfflineFallback(photo.stableKey), true);
+  await assert.rejects(loadExportSource(photo, provider), /offline review image is not the original photograph/,
+    'the real export entry point must reject the cached review image even with a linked NEF');
+  await assert.rejects(loadExportSource(frame('virtual-copy', photo.stableKey), provider),
+    /offline review image is not the original photograph/,
+    'virtual copies must not bypass the export provenance guard');
 });
 
 test('an offline developed bitmap remains review-only after the original is disconnected', async (t) => {
