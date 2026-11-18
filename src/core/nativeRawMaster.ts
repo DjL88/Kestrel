@@ -1,10 +1,11 @@
 import type { PhotoEdit } from './photoEdits';
+import type { PhotoFraming } from './photoFraming';
 import type { PhotoFrame } from './types';
 
 /**
  * Strict MVP boundary for a genuine edited 16-bit RAW master.
- * The native prototype currently supports global colour/tone only; it must
- * never silently discard crop, masks, denoise, sharpening or other edits.
+ * The native prototype supports global colour/tone, full-resolution crop and
+ * 90° turns; it must never silently drop straightening, masks or detail edits.
  */
 export interface NativeRawMasterRecipe {
   exposure: number;
@@ -28,13 +29,6 @@ const UNSUPPORTED_CONTROLS = ['texture', 'clarity', 'sharpen', 'denoise'] as con
 
 export function nativeRawMasterRecipe(frame: Pick<PhotoFrame, 'edit' | 'framing'>): NativeRawMasterRecipe {
   const edit: PhotoEdit = frame.edit ?? { exposure: 0, warmth: 0, colour: 0 };
-  const framing = frame.framing;
-  if (framing && (
-    framing.turns !== 0 || framing.straighten !== 0 || framing.ratio != null ||
-    (framing.size !== undefined && framing.size !== 1)
-  )) {
-    throw new Error('16-bit RAW master POC does not yet support crop, straighten or manual rotation. Your normal export preserves them.');
-  }
   if (edit.masks?.length) {
     throw new Error('16-bit RAW master POC does not yet support masks. Your normal export preserves them.');
   }
@@ -52,4 +46,39 @@ export function nativeRawMasterRecipe(frame: Pick<PhotoFrame, 'edit' | 'framing'
     recipe[key] = value;
   }
   return recipe;
+}
+
+
+/**
+ * Geometry is expressed in the *EXIF-oriented image's* coordinates. The native
+ * renderer applies EXIF orientation first, then these turns and this crop.
+ * Deliberate straightening requires interpolated rotation and remains blocked.
+ */
+export interface NativeRawMasterFraming {
+  ratio: number | null;
+  turns: number;
+  straighten: number;
+  x: number;
+  y: number;
+  size: number;
+}
+
+export function nativeRawMasterFraming(framing: PhotoFraming | undefined): NativeRawMasterFraming {
+  const current = framing ?? { ratio: null, turns: 0, straighten: 0, x: 0.5, y: 0.5, size: 1 };
+  if (current.straighten !== 0) {
+    throw new Error('16-bit RAW master POC cannot yet export straighten adjustments. Your normal export preserves them.');
+  }
+  if (!Number.isInteger(current.turns) || current.turns < 0 || current.turns > 3) {
+    throw new Error('Invalid RAW master quarter-turn rotation.');
+  }
+  if (current.ratio != null && (!Number.isFinite(current.ratio) || current.ratio < 0.01 || current.ratio > 100)) {
+    throw new Error('Invalid RAW master crop aspect ratio.');
+  }
+  const size = current.size ?? 1;
+  if (![current.x, current.y, size].every(Number.isFinite) ||
+    current.x < 0 || current.x > 1 || current.y < 0 || current.y > 1 ||
+    size < 0.08 || size > 1) {
+    throw new Error('Invalid RAW master crop position or size.');
+  }
+  return { ratio: current.ratio, turns: current.turns, straighten: 0, x: current.x, y: current.y, size };
 }
