@@ -405,17 +405,33 @@ export function applyCullConfidence(
   const byId = new Map<string, (typeof results)[number]>();
   const ambiguous = new Set<string>();
   for (const result of results) {
-    if (!result || typeof result.frameId !== 'string' || !result.frameId ||
-        !Number.isFinite(result.score) || result.score < 0 || result.score > 100 ||
-        !['high', 'medium', 'low'].includes(result.confidence)) continue;
-    if (byId.has(result.frameId)) ambiguous.add(result.frameId);
-    else byId.set(result.frameId, result);
+    // Even a malformed second entry makes the ID ambiguous. Do not let a
+    // valid/invalid pair become an order-dependent confidence update.
+    if (!result || typeof result.frameId !== 'string' || !result.frameId) continue;
+    if (byId.has(result.frameId) || ambiguous.has(result.frameId)) {
+      ambiguous.add(result.frameId);
+      byId.delete(result.frameId);
+      continue;
+    }
+    if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100 ||
+        !['high', 'medium', 'low'].includes(result.confidence)) {
+      ambiguous.add(result.frameId);
+      continue;
+    }
+    byId.set(result.frameId, result);
+  }
+  // A damaged catalogue can contain two photos with the same identity. Never
+  // attach one worker result to both, or resurrect a removed photo's score.
+  const seen = new Set<string>();
+  for (const frame of state.frames) {
+    if (seen.has(frame.id)) ambiguous.add(frame.id);
+    seen.add(frame.id);
   }
   for (const id of ambiguous) byId.delete(id);
   return {
     ...state,
     frames: state.frames.map((frame) => {
-      const found = byId.get(frame.id);
+      const found = frame.removedAt == null ? byId.get(frame.id) : undefined;
       return found ? { ...frame, cullConfidence: found.confidence, cullScore: found.score } : frame;
     }),
   };
