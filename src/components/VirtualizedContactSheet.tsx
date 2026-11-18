@@ -6,6 +6,7 @@ import { DecisionButtons } from './DecisionButtons';
 import { isEdited } from '../core/editedState';
 import { speciesShown } from '../core/autoTags';
 import { FrameImage } from './FrameImage';
+import { jumpTarget, type JumpRequest } from '../core/jumpNavigation';
 import { openPhotoMenuFromKeyboard } from './PhotoContextMenu';
 
 interface VirtualizedContactSheetProps {
@@ -47,6 +48,10 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: 1120, height: 640 });
   const [scrollTop, setScrollTop] = useState(0);
+  const [jumpOpen, setJumpOpen] = useState(false);
+  const [jumpFrame, setJumpFrame] = useState('');
+  const [jumpCaptured, setJumpCaptured] = useState('');
+  const [jumpError, setJumpError] = useState('');
   const press = useRef<{ x: number; y: number; timer: number } | null>(null);
   const longPressed = useRef(false);
   const touchFrame = useRef<string | null>(null);
@@ -101,6 +106,24 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
     Math.ceil((scrollTop + viewport.height - PADDING_PX) / rowStride) + 2
   );
 
+  /** A direct metadata jump avoids mounting and loading any intermediate rows. */
+  function jumpTo(request: JumpRequest) {
+    const target = jumpTarget(frames, request);
+    if (!target) {
+      setJumpError(request.kind === 'last-edited'
+        ? 'No recorded edits in this view.'
+        : request.kind === 'captured-at' ? 'No usable capture dates in this view.' : 'Frame not in this view.');
+      return;
+    }
+    const index = frames.findIndex((frame) => frame.id === target.id);
+    if (index < 0) return;
+    const rowTop = PADDING_PX + Math.floor(index / columns) * rowStride;
+    if (containerRef.current) containerRef.current.scrollTop = Math.max(0, rowTop - Math.round(viewport.height / 4));
+    onSelectFrame(target.id, { shift: false, toggle: false });
+    setJumpError('');
+    setJumpOpen(false);
+  }
+
   // Scroll selected card into view when navigating via keyboard inside grid
   useEffect(() => {
     if (!selectedFrameId || !containerRef.current) return;
@@ -140,6 +163,56 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
       data-testid="virtualized-contact-sheet"
       className="flex-1 overflow-y-auto bg-kestrel-stage relative min-w-0 min-h-0"
     >
+      <div className="sticky top-2 z-30 h-0 pointer-events-none">
+        <div className="absolute right-3 top-0 pointer-events-auto">
+          <button type="button" onClick={() => { setJumpOpen((value) => !value); setJumpError(''); }}
+            aria-label="Jump to a photo" aria-controls="kestrel-grid-jump" aria-expanded={jumpOpen}
+            className="min-h-10 rounded-lg border border-white/20 bg-kestrel-panel/95 px-3 py-2 text-xs font-medium text-zinc-100 shadow-lg hover:bg-kestrel-raised focus-visible:outline-2 focus-visible:outline-sky-300">
+            Jump…
+          </button>
+          {jumpOpen && (
+            <div id="kestrel-grid-jump" role="group" aria-label="Jump within this view"
+              className="absolute right-0 top-11 w-[min(19rem,calc(100vw-2.5rem))] space-y-3 rounded-xl border border-white/20 bg-kestrel-raised p-3 shadow-2xl">
+              <div className="flex gap-2">
+                <button type="button" onClick={() => jumpTo({ kind: 'first' })}
+                  className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">First</button>
+                <button type="button" onClick={() => jumpTo({ kind: 'last' })}
+                  className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">Last</button>
+                <button type="button" onClick={() => jumpTo({ kind: 'last-edited' })}
+                  className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">Last edited</button>
+              </div>
+              <form onSubmit={(event) => {
+                event.preventDefault();
+                jumpTo({ kind: 'frame', number: Number(jumpFrame) });
+              }}>
+                <label htmlFor="kestrel-jump-frame" className="block text-xs text-zinc-300">Frame number</label>
+                <div className="mt-1 flex gap-2">
+                  <input id="kestrel-jump-frame" type="number" min="1" step="1" value={jumpFrame}
+                    onChange={(event) => setJumpFrame(event.target.value)} placeholder="e.g. 1695"
+                    className="min-w-0 flex-1 rounded-md border border-white/15 bg-kestrel-panel px-2 py-2 text-sm text-zinc-100" />
+                  <button type="submit" disabled={!jumpFrame.trim()}
+                    className="min-h-10 rounded-md border border-white/15 px-3 text-xs text-zinc-100 disabled:opacity-50">Go</button>
+                </div>
+              </form>
+              <form onSubmit={(event) => {
+                event.preventDefault();
+                jumpTo({ kind: 'captured-at', timestamp: jumpCaptured ? new Date(jumpCaptured).getTime() : NaN });
+              }}>
+                <label htmlFor="kestrel-jump-captured" className="block text-xs text-zinc-300">Nearest capture date and time</label>
+                <div className="mt-1 flex gap-2">
+                  <input id="kestrel-jump-captured" type="datetime-local" value={jumpCaptured}
+                    onChange={(event) => setJumpCaptured(event.target.value)}
+                    className="min-w-0 flex-1 rounded-md border border-white/15 bg-kestrel-panel px-2 py-2 text-xs text-zinc-100" />
+                  <button type="submit" disabled={!jumpCaptured}
+                    className="min-h-10 rounded-md border border-white/15 px-3 text-xs text-zinc-100 disabled:opacity-50">Go</button>
+                </div>
+              </form>
+              {jumpError && <p role="status" className="text-xs text-orange-200">{jumpError}</p>}
+              <p className="text-[11px] text-zinc-400">Only photos matching your current filter are included. No intervening thumbnails are loaded.</p>
+            </div>
+          )}
+        </div>
+      </div>
       <div style={{ height: totalHeight, position: 'relative' }}>
         {visibleRows.map((rowIndex) => {
           const rowStartIdx = rowIndex * columns;
@@ -242,6 +315,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         frame={frame}
                         previewProvider={previewProvider}
                         variant="thumb"
+                        priority={isSelected}
                         needsAccess={needsAccess}
                         className="w-full h-full"
                         imgClassName="object-cover"

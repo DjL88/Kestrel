@@ -16,6 +16,8 @@ interface FrameImageProps {
   imgClassName?: string;
   alt?: string;
   needsAccess?: boolean;
+  /** Selected photos outrank queued thumbnails even when their source is not cached. */
+  priority?: boolean;
   /** Optional interactive transform for zoom/pan viewports */
   zoomScale?: number;
   panOffset?: { x: number; y: number };
@@ -23,12 +25,13 @@ interface FrameImageProps {
 
 // Decoded thumbnail pictures, kept so redrawing an edited filmstrip card does not decode the file again.
 const thumbSources = new Map<string, Promise<HTMLImageElement>>();
-function loadThumbSource(frame: PhotoFrame, provider: BrowserPreviewProvider): Promise<HTMLImageElement> {
+function loadThumbSource(frame: PhotoFrame, provider: BrowserPreviewProvider, priority: boolean): Promise<HTMLImageElement> {
   const key = frame.stableKey;
   let cached = thumbSources.get(key);
+  if (cached && priority) provider.prioritizeOriginalRead(key);
   if (!cached) {
     cached = (async () => {
-      const url = await provider.getThumbnailUrl(frame);
+      const url = await provider.getThumbnailUrl(frame, priority ? 'selected' : 'visible');
       if (!url) throw new Error(`No thumbnail for ${frame.filename}`);
       return loadImage(url);
     })();
@@ -48,12 +51,36 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   imgClassName = '',
   alt,
   needsAccess = false,
+  priority = false,
   zoomScale = 1,
   panOffset = { x: 0, y: 0 },
 }) => {
   const [src, setSrc] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [errored, setErrored] = useState<boolean>(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  // A virtualised grid still mounts buffer rows. Do not start their disk reads
+  // until their cards approach the viewport; selected photos always load now.
+  const [nearViewport, setNearViewport] = useState(variant === 'full' || priority);
+  useEffect(() => {
+    if (variant === 'full' || priority) {
+      setNearViewport(true);
+      return;
+    }
+    const element = containerRef.current;
+    if (!element || typeof IntersectionObserver === 'undefined') {
+      setNearViewport(true);
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setNearViewport(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: '160px 0px' });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [frame.id, variant, priority]);
 
   const edited = Boolean((frame.edit && !isNeutralEdit(frame.edit)) || (frame.framing &&
     (frame.framing.ratio || frame.framing.turns || frame.framing.straighten)));
@@ -70,6 +97,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   useEffect(() => () => replaceRendered(undefined), []);
 
   useEffect(() => {
+    if (variant === 'thumb' && !nearViewport && !priority) return;
     let cancelled = false;
     let timer: number | undefined;
     // Keep showing the current picture while an edited one is being redrawn.
@@ -78,7 +106,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
 
     const render = async () => {
       // A small thumbnail is plenty for a filmstrip card, and avoids decoding the full-size picture on every slider move.
-      const source = variant === 'thumb' ? await loadThumbSource(frame, previewProvider) : await loadExportSource(frame, previewProvider);
+      const source = variant === 'thumb' ? await loadThumbSource(frame, previewProvider, priority) : await loadExportSource(frame, previewProvider, 'selected');
       if (cancelled) return;
       const canvas = document.createElement('canvas');
       const framing = frame.framing ?? DEFAULT_FRAMING;
@@ -104,8 +132,8 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       replaceRendered(undefined);
       const url =
         variant === 'full'
-          ? await previewProvider.getFullPreviewUrl(frame)
-          : await previewProvider.getThumbnailUrl(frame);
+          ? await previewProvider.getFullPreviewUrl(frame, 'selected')
+          : await previewProvider.getThumbnailUrl(frame, priority ? 'selected' : 'visible');
       if (!cancelled) {
         setSrc(url);
         setLoading(false);
@@ -122,7 +150,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [frame.id, frame.edit, frame.framing, edited, previewProvider, variant, needsAccess]);
+  }, [frame.id, frame.edit, frame.framing, edited, previewProvider, variant, needsAccess, priority, nearViewport]);
 
   const demoStyle: React.CSSProperties = {};
   if (!edited && frame.isDemo && frame.demoVariant) {
@@ -167,7 +195,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   }
 
   return (
-    <div className={`relative overflow-hidden bg-kestrel-stage ${className}`}>
+    <div ref={containerRef} className={`relative overflow-hidden bg-kestrel-stage ${className}`}>
       {loading && (
         <div
           className="absolute inset-0 bg-[#181A1E] motion-safe:animate-pulse"

@@ -15,8 +15,8 @@ import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 import { isDesktopApp, saveWithDialog } from './desktopShell';
 
-export async function loadExportSource(frame: PhotoFrame, provider: Pick<BrowserPreviewProvider, 'getFullPreviewUrl' | 'hasBlob'> & Partial<Pick<BrowserPreviewProvider, 'isOfflineFallback'>>) {
-  const url = await provider.getFullPreviewUrl(frame);
+export async function loadExportSource(frame: PhotoFrame, provider: Pick<BrowserPreviewProvider, 'getFullPreviewUrl' | 'hasBlob'> & Partial<Pick<BrowserPreviewProvider, 'isOfflineFallback'>>, priority: 'background' | 'visible' | 'selected' = 'selected') {
+  const url = await provider.getFullPreviewUrl(frame, priority);
   if (!frame.isDemo && provider.isOfflineFallback?.(frame.stableKey)) {
     throw new Error(`Reconnect ${frame.filename} before exporting. The offline review image is not the original photograph.`);
   }

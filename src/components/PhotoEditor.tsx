@@ -261,7 +261,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     sourceImage.current = null;
 
     async function load() {
-      const url = await provider.getFullPreviewUrl(frame);
+      const url = await provider.getFullPreviewUrl(frame, 'selected');
       if (!active) return;
       if (!url) throw new Error('Preview unavailable');
       await loadImage(url, image);
