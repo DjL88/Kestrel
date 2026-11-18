@@ -1,3 +1,4 @@
+import { openLinkedRange, type RangeBlob } from './rangeBlob';
 import { PHOTO_EXTENSIONS } from '../core/rawFormats';
 import { isDesktopApp } from './desktopShell';
 import { discoverPhotoPaths } from './nativeFolderDiscovery';
@@ -68,6 +69,36 @@ export function linkedReader(path: string, name: string, lastModified: number, e
       throw new Error('Linked original changed during reading. Retry or reconnect the original.');
     }
     return new File([bytes], name, { lastModified });
+  };
+}
+
+export interface LinkedRange {
+  blob: RangeBlob;
+  /** True when the file still has the size and modified time it had when opened (it did not change while being read). */
+  verify(): Promise<boolean>;
+  close(): Promise<void>;
+}
+
+/**
+ * Ranged reader for a linked original: only the bytes asked for are read (a RAW's embedded preview is a few MB of a
+ * 30-60 MB file, which matters on external drives and network shares). Same identity rule as linkedReader.
+ */
+export function linkedRangeOpener(path: string, expectedSize?: number): () => Promise<LinkedRange> {
+  return async () => {
+    const fs = await import('@tauri-apps/plugin-fs');
+    const before = await fs.stat(path);
+    if (!linkedSourceMatches(expectedSize, before.size)) {
+      throw new Error('Linked original differs from the imported photo. Reconnect the original before editing.');
+    }
+    const range = await openLinkedRange(path, before.size);
+    return {
+      blob: range.blob,
+      close: range.close,
+      verify: async () => {
+        const after = await fs.stat(path);
+        return after.size === before.size && !(before.mtime && after.mtime && before.mtime.getTime() !== after.mtime.getTime());
+      },
+    };
   };
 }
 

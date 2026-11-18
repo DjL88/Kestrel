@@ -1,6 +1,6 @@
 import { isDesktopApp } from './providers/desktopShell';
 import { useOpenedFiles } from './providers/useOpenedFiles';
-import { pickFolderNatively, pickedFromFile, pickedKey, linkedReader, type PickedPhoto } from './providers/linkedOriginals';
+import { pickFolderNatively, pickedFromFile, pickedKey, linkedReader, linkedRangeOpener, type PickedPhoto } from './providers/linkedOriginals';
 import { checkOriginalPaths } from './providers/originalPathStatus';
 import { scanOriginalFolder, matchScannedOriginals } from './providers/nativeOriginalScan';
 import { splitDropped } from './core/dropSplit';
@@ -1632,6 +1632,7 @@ export default function App() {
         const parts = key.split('::');
         preview.registerLinked(key, {
           read: linkedReader(path, frame.filename, Number(parts.at(-1)) || 0, Number(parts.at(-2)) || undefined),
+          openRange: linkedRangeOpener(path, Number(parts.at(-2)) || undefined),
           size: Number(parts.at(-2)) || 0, lastModified: Number(parts.at(-1)) || 0,
         });
         preview.retryLinkedOriginal(key);

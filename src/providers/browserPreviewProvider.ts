@@ -16,6 +16,10 @@ import {
 } from '../core/platformBoundaries';
 import type { PhotoFrame } from '../core/types';
 import { materialize, type RangeBlob } from './rangeBlob';
+import type { LinkedRange } from './linkedOriginals';
+
+/** A photo that stays on disk. openRange, when given, reads only part of it (a RAW's embedded preview). */
+export interface LinkedInfo { read: () => Promise<Blob>; size: number; lastModified: number; openRange?: () => Promise<LinkedRange> }
 
 const MAX_FULL_PREVIEW_CACHE = 24;
 const MAX_OFFLINE_PREVIEW_MEMORY = 24;
@@ -74,7 +78,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
   }
 
   /** Photos that stay on the disk: how to read each one, and what it was like when added. Read only when needed. */
-  private linked = new Map<string, { read: () => Promise<Blob>; size: number; lastModified: number }>();
+  private linked = new Map<string, LinkedInfo>();
   private linkedLoading = new Map<string, Promise<Blob | undefined>>();
   private linkedGeneration = new Map<string, number>();
   private linkedOrder: string[] = [];
@@ -85,7 +89,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.reads.promote(stableKey, priority);
   }
 
-  registerLinked(stableKey: string, info: { read: () => Promise<Blob>; size: number; lastModified: number }): void {
+  registerLinked(stableKey: string, info: LinkedInfo): void {
     const previous = this.linked.get(stableKey);
     if (previous && (previous.size !== info.size || previous.lastModified !== info.lastModified)) {
       this.linkedGeneration.set(stableKey, (this.linkedGeneration.get(stableKey) ?? 0) + 1);
@@ -261,6 +265,44 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.fullUrlOrder = this.fullUrlOrder.filter((item) => item !== key);
   }
 
+  /**
+   * A linked RAW shows its embedded preview, so read just that part of the file instead of all of it. Any doubt (no
+   * ranged access, no preview, the file changed or was relinked meanwhile) falls back to the full read below.
+   */
+  private async rangedRawPreview(frame: PhotoFrame, key: string): Promise<string | null> {
+    const linked = this.linked.get(key);
+    if (!linked?.openRange || !isRawPreviewFile(frame.filename) || this.localBlobs.has(key) || this.developed.has(key)) return null;
+    const generation = this.linkedGeneration.get(key) ?? 0;
+    let range: LinkedRange | null = null;
+    try {
+      range = await linked.openRange();
+      const preview = await extractNefPreview(range.blob as unknown as Blob);
+      if (!preview) return null;
+      const bytes = await materialize(preview, 'image/jpeg');
+      if (!await range.verify()) return null;
+      if ((this.linkedGeneration.get(key) ?? 0) !== generation || this.developed.has(key) || this.linked.get(key) !== linked) return null;
+      const ready = this.fullUrlCache.get(key);
+      if (ready) return ready;
+      const url = URL.createObjectURL(bytes);
+      this.fullUrlCache.set(key, url);
+      this.offlineFullKeys.delete(key);
+      this.fullUrlOrder.push(key);
+      while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
+        const oldest = this.fullUrlOrder.shift();
+        if (!oldest) continue;
+        const stale = this.fullUrlCache.get(oldest);
+        if (stale) URL.revokeObjectURL(stale);
+        this.fullUrlCache.delete(oldest);
+        this.offlineFullKeys.delete(oldest);
+      }
+      return url;
+    } catch {
+      return null;
+    } finally {
+      await range?.close().catch(() => undefined);
+    }
+  }
+
   async getFullPreviewUrl(frame: PhotoFrame, priority: ReadPriority = 'visible'): Promise<string> {
     if (frame.isDemo && frame.demoVariant) {
       const { DEMO_ASSET_URLS } = await import('./demoAssets');
@@ -277,6 +319,9 @@ export class BrowserPreviewProvider implements PreviewProvider {
       this.fullUrlOrder.push(key);
       return cached;
     }
+
+    const ranged = await this.rangedRawPreview(frame, key);
+    if (ranged) return ranged;
 
     const blob = await this.ensureOriginal(key, priority);
     const cacheKey = this.offlineCacheKey(frame);
