@@ -43,8 +43,9 @@ python -m pytest scripts tools/denoise-training tools/lightroom   # when Python 
 ```
 
 ## Merging
-- Merge when every check relevant to the change has PASSED on a real checkout and the results are written in the PR.
-- **While GitHub Actions is billing-blocked (until about 24 Nov 2026), the owner has authorised merging on local results.** Workflow runs that fail with zero steps are INFRASTRUCTURE BLOCKED, not failures. Don't re-run them, and don't pay to get around the block.
+- Merge only when every required check and every relevant local check has PASSED on a real checkout, results are documented in the PR, and the owner's authorised Chrome AI Studio session is ready for immediate pull and verification.
+- **While GitHub Actions is billing-blocked (until about 24 Nov 2026), do not merge PRs.** A workflow with no runner and zero executed steps is INFRASTRUCTURE BLOCKED, neither a code failure nor a pass. Do not rerun hosted jobs or incur paid/cloud spend. Local results are useful evidence but do not replace blocked required checks.
+- Merging additionally requires the owner's authorised Chrome AI Studio session to be ready to pull and immediately verify the result. If either condition is unmet, leave the PR reviewable.
 - Squash-merge, delete the branch, and add a line to the ROADMAP integration log.
 - A change to Rust that couldn't be compiled stays unmerged unless it only touches tests or message text, and the PR says so.
 
