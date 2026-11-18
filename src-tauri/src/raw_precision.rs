@@ -15,6 +15,105 @@ use rawler::rawsource::RawSource;
 
 type Rgb16 = ImageBuffer<Rgb<u16>, Vec<u16>>;
 
+
+/// The first high-bit-depth edited-master proof of concept. All fields are native
+/// parametric values; no image generation, file writes, masks or fake 16-bit
+/// conversion. The current screen preview may differ because it uses 8-bit JPEG.
+#[derive(Debug, Clone, Copy, Default, serde::Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct NativeMasterEdit {
+    pub exposure: f64,
+    pub warmth: f64,
+    pub colour: f64,
+    pub brightness: f64,
+    pub contrast: f64,
+    pub highlights: f64,
+    pub shadows: f64,
+    pub whites: f64,
+    pub blacks: f64,
+    pub vibrance: f64,
+}
+
+impl NativeMasterEdit {
+    fn validate(self) -> Result<Self, String> {
+        for (name, value, lower, upper) in [
+            ("exposure", self.exposure, -12.5, 12.5),
+            ("warmth", self.warmth, -2.0, 2.0),
+            ("colour", self.colour, -2.0, 2.0),
+            ("brightness", self.brightness, -2.0, 2.0),
+            ("contrast", self.contrast, -2.0, 2.0),
+            ("highlights", self.highlights, -2.0, 2.0),
+            ("shadows", self.shadows, -2.0, 2.0),
+            ("whites", self.whites, -2.0, 2.0),
+            ("blacks", self.blacks, -2.0, 2.0),
+            ("vibrance", self.vibrance, -2.0, 2.0),
+        ] {
+            if !value.is_finite() || value < lower || value > upper {
+                return Err(format!("Invalid high-bit-depth master {name} adjustment."));
+            }
+        }
+        Ok(self)
+    }
+
+    fn is_neutral(self) -> bool {
+        [
+            self.exposure, self.warmth, self.colour, self.brightness,
+            self.contrast, self.highlights, self.shadows, self.whites,
+            self.blacks, self.vibrance,
+        ].iter().all(|value| *value == 0.0)
+    }
+}
+
+/// Post-EXIF manual crop and 90-degree turns. Matches the saved editor's
+/// cropRectangle rounding (maximal centred rectangle, then normalized crop
+/// anchor). Continuous straighten requires a resampling path and is blocked.
+#[derive(Debug, Clone, Copy, serde::Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct NativeMasterFraming {
+    pub ratio: Option<f64>,
+    pub turns: u8,
+    pub straighten: f64,
+    pub x: f64,
+    pub y: f64,
+    pub size: f64,
+}
+
+impl Default for NativeMasterFraming {
+    fn default() -> Self {
+        Self { ratio: None, turns: 0, straighten: 0.0, x: 0.5, y: 0.5, size: 1.0 }
+    }
+}
+
+impl NativeMasterFraming {
+    fn validate(self) -> Result<Self, String> {
+        if self.turns > 3 || !self.straighten.is_finite() || self.straighten != 0.0 {
+            return Err("Only quarter-turn rotation is supported by this RAW master prototype.".into());
+        }
+        if self.ratio.is_some_and(|ratio| !ratio.is_finite() || !(0.01..=100.0).contains(&ratio)) {
+            return Err("Invalid native RAW master crop ratio.".into());
+        }
+        if !self.x.is_finite() || !(0.0..=1.0).contains(&self.x) ||
+            !self.y.is_finite() || !(0.0..=1.0).contains(&self.y) ||
+            !self.size.is_finite() || !(0.08..=1.0).contains(&self.size) {
+            return Err("Invalid native RAW master crop position or size.".into());
+        }
+        Ok(self)
+    }
+}
+
+pub fn parse_master_framing(json: &str) -> Result<NativeMasterFraming, String> {
+    serde_json::from_str::<NativeMasterFraming>(json)
+        .map_err(|_| "This crop/rotation recipe is not supported by the 16-bit RAW prototype.".to_string())?
+        .validate()
+}
+
+/// Do not accept arbitrary native parameters, NaN, or unknown recipe keys.
+pub fn parse_master_edit(json: &str) -> Result<NativeMasterEdit, String> {
+    serde_json::from_str::<NativeMasterEdit>(json)
+        .map_err(|_| "This edit recipe is not supported by the 16-bit RAW prototype.".to_string())?
+        .validate()
+}
+
 // Conservative prototype ceiling: a Z8 frame fits, while oversized frames
 // cannot multiply into multi-gigabyte RGB16/orientation/encoder allocations.
 const MAX_PIXELS: u64 = 50_000_000;
@@ -58,6 +157,128 @@ fn orient_rgb16(image: Rgb16, exif_orientation: u16) -> Rgb16 {
     }
 }
 
+
+/// This prototype performs tonal arithmetic at 16-bit precision. It does not
+/// establish camera-profile or scene-linear colour accuracy: rawler determines
+/// the colour transform upstream. Preserve neutral samples byte-for-byte.
+fn srgb_to_linear(code: f64) -> f64 {
+    let v = code.clamp(0.0, 1.0);
+    if v <= 0.04045 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+}
+
+fn linear_to_srgb(linear: f64) -> f64 {
+    let v = linear.clamp(0.0, 1.0);
+    if v <= 0.0031308 { v * 12.92 } else { 1.055 * v.powf(1.0 / 2.4) - 0.055 }
+}
+
+fn smoothstep(low: f64, high: f64, value: f64) -> f64 {
+    let t = ((value - low) / (high - low)).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
+fn edit_rgb16(image: &mut Rgb16, edit: NativeMasterEdit) {
+    if edit.is_neutral() { return; }
+    // The coefficients mirror the existing parametric editor, with every
+    // intermediate evaluated at f64 rather than quantised through JPEG.
+    let gain = 2.0f64.powf(edit.exposure * 0.4);
+    let warmth = edit.warmth * 0.08;
+    let colour = if edit.colour == -2.0 { -1.0 } else { edit.colour * 0.2 };
+    let contrast = 1.0 + edit.contrast * 0.35;
+    let highlights = edit.highlights * 0.3;
+    let shadows = edit.shadows * 0.3;
+    let black_point = -edit.blacks * 0.02;
+    let white_point = 1.0 - edit.whites * 0.08;
+    let brightness = edit.brightness * 0.11;
+    let vibrance = edit.vibrance * 0.3;
+    let tonal = highlights != 0.0 || shadows != 0.0 || black_point != 0.0 || white_point != 1.0;
+
+    for pixel in image.pixels_mut() {
+        let mut red = srgb_to_linear(f64::from(pixel[0]) / 65535.0) * gain * (1.0 + warmth);
+        let mut green = srgb_to_linear(f64::from(pixel[1]) / 65535.0) * gain;
+        let mut blue = srgb_to_linear(f64::from(pixel[2]) / 65535.0) * gain * (1.0 - warmth);
+        if tonal {
+            let range = white_point - black_point;
+            red = (red - black_point) / range;
+            green = (green - black_point) / range;
+            blue = (blue - black_point) / range;
+            let perceived = (0.2126 * red + 0.7152 * green + 0.0722 * blue).clamp(0.0, 1.0);
+            let factor = (1.0 + shadows * (1.0 - smoothstep(0.0, 0.6, perceived))
+                + highlights * smoothstep(0.4, 1.0, perceived)).max(0.0);
+            red *= factor;
+            green *= factor;
+            blue *= factor;
+        }
+        let mut luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+        if brightness != 0.0 && luminance > 0.0 && luminance < 1.0 {
+            let display = linear_to_srgb(luminance);
+            let lifted = display + 4.0 * brightness * display * (1.0 - display);
+            let requested = srgb_to_linear(lifted) / luminance;
+            let peak = red.max(green).max(blue);
+            let factor = if requested > 1.0 && peak > 0.0 {
+                requested.min((0.992 / peak).max(1.0))
+            } else { requested };
+            red *= factor;
+            green *= factor;
+            blue *= factor;
+            luminance *= factor;
+        }
+        let monochrome = colour == -1.0;
+        let mut saturation = if monochrome { 0.0 } else { 1.0 + colour };
+        if !monochrome && vibrance != 0.0 {
+            let high = red.max(green).max(blue);
+            let chroma = if high > 0.0 { (high - red.min(green).min(blue)) / high } else { 0.0 };
+            saturation += vibrance * (1.0 - chroma.min(1.0));
+        }
+        let mut channels = [
+            luminance + (red - luminance) * saturation,
+            luminance + (green - luminance) * saturation,
+            luminance + (blue - luminance) * saturation,
+        ];
+        for (channel, output) in channels.iter_mut().zip(pixel.0.iter_mut()) {
+            // Work in a display-referred space for contrast, then encode
+            // once. The previous branch incorrectly treated linear light as
+            // encoded sRGB whenever contrast was non-neutral, shifting tones
+            // substantially even for an otherwise small contrast adjustment.
+            let encoded = linear_to_srgb(*channel);
+            let adjusted = if contrast != 1.0 {
+                0.5 + (encoded - 0.5) * contrast
+            } else { encoded };
+            *output = (adjusted.clamp(0.0, 1.0) * 65535.0).round() as u16;
+        }
+    }
+}
+
+/// Preserve full 16-bit samples during 90° transforms and rectangular crop.
+/// The raster is already EXIF-oriented; the editor's manual turns happen next.
+fn frame_rgb16(mut image: Rgb16, framing: NativeMasterFraming) -> Result<Rgb16, String> {
+    let framing = framing.validate()?;
+    image = match framing.turns {
+        1 => imageops::rotate90(&image),
+        2 => imageops::rotate180(&image),
+        3 => imageops::rotate270(&image),
+        _ => image,
+    };
+    let (width, height) = image.dimensions();
+    checked_rgb16_bytes(width, height)?;
+    let ratio = framing.ratio.unwrap_or(f64::from(width) / f64::from(height));
+    let crop_width = ((f64::from(width)).min(f64::from(height) * ratio) * framing.size)
+        .round().max(1.0) as u32;
+    let crop_height = ((f64::from(height)).min(f64::from(width) / ratio) * framing.size)
+        .round().max(1.0) as u32;
+    let crop_width = crop_width.min(width);
+    let crop_height = crop_height.min(height);
+    let max_x = width - crop_width;
+    let max_y = height - crop_height;
+    let left = (framing.x * f64::from(width) - f64::from(crop_width) / 2.0)
+        .round().clamp(0.0, f64::from(max_x)) as u32;
+    let top = (framing.y * f64::from(height) - f64::from(crop_height) / 2.0)
+        .round().clamp(0.0, f64::from(max_y)) as u32;
+    if left == 0 && top == 0 && crop_width == width && crop_height == height {
+        return Ok(image);
+    }
+    Ok(imageops::crop_imm(&image, left, top, crop_width, crop_height).to_image())
+}
+
 /// Encode 16-bit RGB without converting through an 8-bit RGB/JPEG canvas.
 /// ICC profile metadata is not yet embedded: this output is NOT eligible for
 /// the matched-profile Nikon reference QA comparison or commercial export.
@@ -81,6 +302,22 @@ fn encode_rgb16_tiff(rgb: &Rgb16) -> Result<Vec<u8>, String> {
 /// `lib.rs`), offered alongside the normal 8-bit JPEG editing path, not in place of it.
 /// Decoder intermediates lacking genuine 16-bit channels fail closed.
 pub fn develop_raw_rgb16_tiff(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    develop_raw_rgb16_tiff_with_edit(bytes, NativeMasterEdit::default())
+}
+
+/// Decode sensor RAW once and produce a complete 16-bit edited TIFF with no JPEG
+/// intermediary. Refuse unsupported camera compression instead of exporting an
+/// 8-bit embedded preview. The caller must preflight crop/masks/detail controls.
+pub fn develop_raw_rgb16_tiff_with_edit(bytes: &[u8], edit: NativeMasterEdit) -> Result<Vec<u8>, String> {
+    develop_raw_rgb16_tiff_with_edit_and_framing(bytes, edit, NativeMasterFraming::default())
+}
+
+/// Produce the saved master geometry from the decoded, high-precision pixels.
+pub fn develop_raw_rgb16_tiff_with_edit_and_framing(
+    bytes: &[u8], edit: NativeMasterEdit, framing: NativeMasterFraming,
+) -> Result<Vec<u8>, String> {
+    let edit = edit.validate()?;
+    let framing = framing.validate()?;
     let source = RawSource::new_from_slice(bytes);
     let raw = rawler::decode(&source, &RawDecodeParams { image_index: 0 })
         .map_err(|error| crate::raw::explain(&error.to_string()))?;
@@ -88,15 +325,103 @@ pub fn develop_raw_rgb16_tiff(bytes: &[u8]) -> Result<Vec<u8>, String> {
         .map_err(|error| format!("RAW development failed: {error}"))?
         .to_dynamic_image()
         .ok_or_else(|| "RAW development produced no picture.".to_string())?;
-    let rgb = require_rgb16(intermediate)?;
-    // A rotated frame retains its pixel count; the earlier check protects this copy too.
+    let mut rgb = require_rgb16(intermediate)?;
+    edit_rgb16(&mut rgb, edit);
     let oriented = orient_rgb16(rgb, raw.orientation.to_u16());
-    encode_rgb16_tiff(&oriented)
+    let framed = frame_rgb16(oriented, framing)?;
+    encode_rgb16_tiff(&framed)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn contrast_adjustment_preserves_midtones_without_linear_to_gamma_jump() {
+        let mut midgrey = ImageBuffer::from_pixel(1, 1, Rgb([32768u16, 32768, 32768]));
+        let unchanged = midgrey.get_pixel(0, 0)[0];
+        let mut edit = NativeMasterEdit::default();
+        edit.contrast = 0.1;
+        edit_rgb16(&mut midgrey, edit);
+        let adjusted = midgrey.get_pixel(0, 0)[0];
+        // sRGB code ~0.5 is midgrey. Tiny contrast edits cannot turn it
+        // into ~0.21 or another unencoded linear-light value.
+        assert!((i32::from(adjusted) - i32::from(unchanged)).abs() < 2500, "unexpected tone jump: {adjusted}");
+    }
+
+    #[test]
+    fn rgb16_crop_and_quarter_turn_match_expected_raster_coordinates() {
+        let original = ImageBuffer::from_fn(4, 3, |x, y| Rgb([(1 + x + y * 4) as u16, 32769, 65535]));
+        // 4x3 -> 3x4 clockwise -> width 2, height 2 crop anchored at upper left.
+        let frame = NativeMasterFraming {
+            ratio: Some(1.0), turns: 1, straighten: 0.0,
+            x: 0.0, y: 0.0, size: 0.5,
+        };
+        let cropped = frame_rgb16(original.clone(), frame).unwrap();
+        assert_eq!(cropped.dimensions(), (2, 2));
+        let expected = imageops::rotate90(&original);
+        assert_eq!(cropped.get_pixel(0, 0), expected.get_pixel(0, 0));
+        assert_eq!(cropped.get_pixel(1, 1), expected.get_pixel(1, 1));
+        assert_eq!(cropped.get_pixel(1, 1)[1], 32769);
+        let restored = image::load_from_memory_with_format(
+            &encode_rgb16_tiff(&cropped).unwrap(), image::ImageFormat::Tiff,
+        ).unwrap();
+        assert_eq!(restored.as_rgb16().unwrap(), &cropped);
+    }
+
+    #[test]
+    fn default_geometry_is_pixel_identical_and_invalid_geometry_is_rejected() {
+        let original = ImageBuffer::from_fn(5, 3, |x, y| Rgb([(1001 + x + 5 * y) as u16, 32769, 65535]));
+        let framed = frame_rgb16(original.clone(), NativeMasterFraming::default()).unwrap();
+        assert_eq!(framed, original);
+        for json in [
+            r#"{"turns":4}"#, r#"{"straighten":1}"#, r#"{"size":0}"#,
+            r#"{"ratio":0}"#, r#"{"x":-0.1}"#, r#"{"y":1.1}"#, r#"{"size":1.1}"#,
+            r#"{"unknown":2}"#,
+        ] {
+            assert!(parse_master_framing(json).is_err(), "invalid framing: {json}");
+        }
+    }
+
+    #[test]
+    fn neutral_master_edit_preserves_all_sixteen_bit_codes() {
+        let mut image = ImageBuffer::from_fn(2, 1, |x, _| {
+            if x == 0 { Rgb([32768u16, 32769, 65535]) } else { Rgb([1u16, 2, 3]) }
+        });
+        let original = image.clone();
+        edit_rgb16(&mut image, NativeMasterEdit::default());
+        assert_eq!(image, original, "no neutral round-trip quantisation");
+        let roundtrip = image::load_from_memory_with_format(
+            &encode_rgb16_tiff(&image).unwrap(), image::ImageFormat::Tiff,
+        ).unwrap();
+        assert_eq!(roundtrip.as_rgb16().unwrap(), &original);
+    }
+
+    #[test]
+    fn edited_master_produces_true_sixteen_bit_values_without_touching_source() {
+        let image = ImageBuffer::from_fn(4, 1, |x, _| Rgb([10001 + x as u16, 32769, 49011]));
+        let source = image.clone();
+        let mut output = image;
+        let edit = parse_master_edit(r#"{"exposure":0.6,"shadows":0.5,"warmth":0.25}"#).unwrap();
+        edit_rgb16(&mut output, edit);
+        assert_eq!(source.get_pixel(0, 0)[0], 10001);
+        assert_ne!(output, source);
+        assert!(output.pixels().any(|pixel| pixel[0] % 257 != 0), "16-bit output must not be 8-bit codes shifted up");
+        let decoded = image::load_from_memory_with_format(
+            &encode_rgb16_tiff(&output).unwrap(), image::ImageFormat::Tiff,
+        ).unwrap();
+        assert_eq!(decoded.as_rgb16().unwrap(), &output);
+    }
+
+    #[test]
+    fn edited_master_rejects_invalid_or_unknown_parameters() {
+        for recipe in [
+            r#"{"exposure":13}"#, r#"{"warmth":-3}"#, r#"{"shadows":"bright"}"#,
+            r#"{"mask":{}}"#, r#"{"exposure":1e100}"#, "not-json",
+        ] {
+            assert!(parse_master_edit(recipe).is_err(), "invalid recipe {recipe}");
+        }
+    }
 
     #[test]
     fn rejects_8_bit_rgb_instead_of_fake_sixteen_bit() {

@@ -70,6 +70,31 @@ async fn develop_raw_precision(request: tauri::ipc::Request<'_>) -> Result<tauri
     Ok(tauri::ipc::Response::new(tiff))
 }
 
+/// POC: apply supported parametric tone edits in the native 16-bit path.
+/// Unsupported edits must be rejected in the UI; native validation independently
+/// rejects malformed or out-of-range recipes. Original RAW bytes are read-only.
+#[cfg(desktop)]
+#[tauri::command]
+async fn develop_raw_precision_edited(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Response, String> {
+    let recipe = request.headers().get("x-kestrel-master-edit")
+        .and_then(|value| value.to_str().ok())
+        .ok_or_else(|| "A validated 16-bit RAW edit recipe is required.".to_string())?;
+    let edit = raw_precision::parse_master_edit(recipe)?;
+    let framing_json = request.headers().get("x-kestrel-master-framing")
+        .and_then(|value| value.to_str().ok())
+        .ok_or_else(|| "A validated RAW master crop is required.".to_string())?;
+    let framing = raw_precision::parse_master_framing(framing_json)?;
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("No original RAW file was sent.".into());
+    };
+    let bytes = bytes.to_vec();
+    let tiff = tauri::async_runtime::spawn_blocking(move ||
+        raw_precision::develop_raw_rgb16_tiff_with_edit_and_framing(&bytes, edit, framing))
+        .await
+        .map_err(|_| "The 16-bit RAW renderer could not finish.".to_string())??;
+    Ok(tauri::ipc::Response::new(tiff))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -87,7 +112,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(OpenedFiles::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_precision, take_opened_files])
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_precision, develop_raw_precision_edited, take_opened_files])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "Kestrel", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,
