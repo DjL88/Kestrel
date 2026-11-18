@@ -64,6 +64,49 @@ impl NativeMasterEdit {
     }
 }
 
+/// Post-EXIF manual crop and 90-degree turns. Matches the saved editor's
+/// cropRectangle rounding (maximal centred rectangle, then normalized crop
+/// anchor). Continuous straighten requires a resampling path and is blocked.
+#[derive(Debug, Clone, Copy, serde::Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct NativeMasterFraming {
+    pub ratio: Option<f64>,
+    pub turns: u8,
+    pub straighten: f64,
+    pub x: f64,
+    pub y: f64,
+    pub size: f64,
+}
+
+impl Default for NativeMasterFraming {
+    fn default() -> Self {
+        Self { ratio: None, turns: 0, straighten: 0.0, x: 0.5, y: 0.5, size: 1.0 }
+    }
+}
+
+impl NativeMasterFraming {
+    fn validate(self) -> Result<Self, String> {
+        if self.turns > 3 || !self.straighten.is_finite() || self.straighten != 0.0 {
+            return Err("Only quarter-turn rotation is supported by this RAW master prototype.".into());
+        }
+        if self.ratio.is_some_and(|ratio| !ratio.is_finite() || !(0.01..=100.0).contains(&ratio)) {
+            return Err("Invalid native RAW master crop ratio.".into());
+        }
+        if !self.x.is_finite() || !(0.0..=1.0).contains(&self.x) ||
+            !self.y.is_finite() || !(0.0..=1.0).contains(&self.y) ||
+            !self.size.is_finite() || !(0.08..=1.0).contains(&self.size) {
+            return Err("Invalid native RAW master crop position or size.".into());
+        }
+        Ok(self)
+    }
+}
+
+pub fn parse_master_framing(json: &str) -> Result<NativeMasterFraming, String> {
+    serde_json::from_str::<NativeMasterFraming>(json)
+        .map_err(|_| "This crop/rotation recipe is not supported by the 16-bit RAW prototype.".to_string())?
+        .validate()
+}
+
 /// Do not accept arbitrary native parameters, NaN, or unknown recipe keys.
 pub fn parse_master_edit(json: &str) -> Result<NativeMasterEdit, String> {
     serde_json::from_str::<NativeMasterEdit>(json)
@@ -205,6 +248,37 @@ fn edit_rgb16(image: &mut Rgb16, edit: NativeMasterEdit) {
     }
 }
 
+/// Preserve full 16-bit samples during 90° transforms and rectangular crop.
+/// The raster is already EXIF-oriented; the editor's manual turns happen next.
+fn frame_rgb16(mut image: Rgb16, framing: NativeMasterFraming) -> Result<Rgb16, String> {
+    let framing = framing.validate()?;
+    image = match framing.turns {
+        1 => imageops::rotate90(&image),
+        2 => imageops::rotate180(&image),
+        3 => imageops::rotate270(&image),
+        _ => image,
+    };
+    let (width, height) = image.dimensions();
+    checked_rgb16_bytes(width, height)?;
+    let ratio = framing.ratio.unwrap_or(f64::from(width) / f64::from(height));
+    let crop_width = ((f64::from(width)).min(f64::from(height) * ratio) * framing.size)
+        .round().max(1.0) as u32;
+    let crop_height = ((f64::from(height)).min(f64::from(width) / ratio) * framing.size)
+        .round().max(1.0) as u32;
+    let crop_width = crop_width.min(width);
+    let crop_height = crop_height.min(height);
+    let max_x = width - crop_width;
+    let max_y = height - crop_height;
+    let left = (framing.x * f64::from(width) - f64::from(crop_width) / 2.0)
+        .round().clamp(0.0, f64::from(max_x)) as u32;
+    let top = (framing.y * f64::from(height) - f64::from(crop_height) / 2.0)
+        .round().clamp(0.0, f64::from(max_y)) as u32;
+    if left == 0 && top == 0 && crop_width == width && crop_height == height {
+        return Ok(image);
+    }
+    Ok(imageops::crop_imm(&image, left, top, crop_width, crop_height).to_image())
+}
+
 /// Encode 16-bit RGB without converting through an 8-bit RGB/JPEG canvas.
 /// ICC profile metadata is not yet embedded: this output is NOT eligible for
 /// the matched-profile Nikon reference QA comparison or commercial export.
@@ -235,7 +309,15 @@ pub fn develop_raw_rgb16_tiff(bytes: &[u8]) -> Result<Vec<u8>, String> {
 /// intermediary. Refuse unsupported camera compression instead of exporting an
 /// 8-bit embedded preview. The caller must preflight crop/masks/detail controls.
 pub fn develop_raw_rgb16_tiff_with_edit(bytes: &[u8], edit: NativeMasterEdit) -> Result<Vec<u8>, String> {
+    develop_raw_rgb16_tiff_with_edit_and_framing(bytes, edit, NativeMasterFraming::default())
+}
+
+/// Produce the saved master geometry from the decoded, high-precision pixels.
+pub fn develop_raw_rgb16_tiff_with_edit_and_framing(
+    bytes: &[u8], edit: NativeMasterEdit, framing: NativeMasterFraming,
+) -> Result<Vec<u8>, String> {
     let edit = edit.validate()?;
+    let framing = framing.validate()?;
     let source = RawSource::new_from_slice(bytes);
     let raw = rawler::decode(&source, &RawDecodeParams { image_index: 0 })
         .map_err(|error| crate::raw::explain(&error.to_string()))?;
@@ -246,7 +328,8 @@ pub fn develop_raw_rgb16_tiff_with_edit(bytes: &[u8], edit: NativeMasterEdit) ->
     let mut rgb = require_rgb16(intermediate)?;
     edit_rgb16(&mut rgb, edit);
     let oriented = orient_rgb16(rgb, raw.orientation.to_u16());
-    encode_rgb16_tiff(&oriented)
+    let framed = frame_rgb16(oriented, framing)?;
+    encode_rgb16_tiff(&framed)
 }
 
 #[cfg(test)]
@@ -264,6 +347,40 @@ mod tests {
         // sRGB code ~0.5 is midgrey. Tiny contrast edits cannot turn it
         // into ~0.21 or another unencoded linear-light value.
         assert!((i32::from(adjusted) - i32::from(unchanged)).abs() < 2500, "unexpected tone jump: {adjusted}");
+    }
+
+    #[test]
+    fn rgb16_crop_and_quarter_turn_match_expected_raster_coordinates() {
+        let original = ImageBuffer::from_fn(4, 3, |x, y| Rgb([(1 + x + y * 4) as u16, 32769, 65535]));
+        // 4x3 -> 3x4 clockwise -> width 2, height 2 crop anchored at upper left.
+        let frame = NativeMasterFraming {
+            ratio: Some(1.0), turns: 1, straighten: 0.0,
+            x: 0.0, y: 0.0, size: 0.5,
+        };
+        let cropped = frame_rgb16(original.clone(), frame).unwrap();
+        assert_eq!(cropped.dimensions(), (2, 2));
+        let expected = imageops::rotate90(&original);
+        assert_eq!(cropped.get_pixel(0, 0), expected.get_pixel(0, 0));
+        assert_eq!(cropped.get_pixel(1, 1), expected.get_pixel(1, 1));
+        assert_eq!(cropped.get_pixel(1, 1)[1], 32769);
+        let restored = image::load_from_memory_with_format(
+            &encode_rgb16_tiff(&cropped).unwrap(), image::ImageFormat::Tiff,
+        ).unwrap();
+        assert_eq!(restored.as_rgb16().unwrap(), &cropped);
+    }
+
+    #[test]
+    fn default_geometry_is_pixel_identical_and_invalid_geometry_is_rejected() {
+        let original = ImageBuffer::from_fn(5, 3, |x, y| Rgb([(1001 + x + 5 * y) as u16, 32769, 65535]));
+        let framed = frame_rgb16(original.clone(), NativeMasterFraming::default()).unwrap();
+        assert_eq!(framed, original);
+        for json in [
+            r#"{"turns":4}"#, r#"{"straighten":1}"#, r#"{"size":0}"#,
+            r#"{"ratio":0}"#, r#"{"x":-0.1}"#, r#"{"y":1.1}"#, r#"{"size":1.1}"#,
+            r#"{"unknown":2}"#,
+        ] {
+            assert!(parse_master_framing(json).is_err(), "invalid framing: {json}");
+        }
     }
 
     #[test]
