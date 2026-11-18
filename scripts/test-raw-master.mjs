@@ -47,7 +47,7 @@ if (cargoVersion.error || cargoVersion.status !== 0) {
 console.log('Rust:', cargoVersion.stdout.trim());
 const run = (program, command) => {
   console.log('\n$', program, ...command);
-  const outcome = spawnSync(program, command, { cwd: root, stdio: 'inherit' });
+  const outcome = spawnSync(program, command, { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' && program.toLowerCase().endsWith('.cmd') });
   if (outcome.error) fail(outcome.error.message);
   if (outcome.status !== 0) fail('Native Rust command failed. Fix the error before accepting this export.', outcome.status || 1);
 };
