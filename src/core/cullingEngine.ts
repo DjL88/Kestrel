@@ -313,7 +313,7 @@ export function computeCullCounts(frames: readonly PhotoFrame[]): CullCounts {
 
   let all = 0;
   for (const frame of frames) {
-    if (frame.removedAt) continue;
+    if (frame.removedAt != null) continue;
     all += 1;
     if (frame.decision === 'keep') keep += 1;
     else if (frame.decision === 'reject') reject += 1;
@@ -338,7 +338,7 @@ export function filterFrames(
 ): PhotoFrame[] {
   const query = searchQuery.trim().toLowerCase();
   return frames.filter((frame) => {
-    if (frame.removedAt) return false;
+    if (frame.removedAt != null) return false;
     if (filter !== 'all' && frame.decision !== filter) {
       return false;
     }
@@ -465,7 +465,7 @@ export function stepSelection(
   delta: number
 ): string | null {
   // Stale views can include a removed photograph. Never navigate back to it.
-  const active = visibleFrames.filter((frame) => !frame.removedAt);
+  const active = visibleFrames.filter((frame) => frame.removedAt == null);
   if (active.length === 0) return null;
   if (!currentId) return active[0].id;
   const idx = active.findIndex((frame) => frame.id === currentId);
@@ -496,8 +496,8 @@ export function getDefaultComparePair(
   // Prefer the next frame in the same burst, else previous in same burst, else next frame overall.
   // A stale or damaged catalogue can contain repeated IDs or removed photos.
   // Compare must never present either as a distinct candidate.
-  const nextFrame = frames.slice(safeIdx + 1).find((f) => f.id !== left.id && !f.removedAt);
-  const prevFrame = frames.slice(0, safeIdx).reverse().find((f) => f.id !== left.id && !f.removedAt);
+  const nextFrame = frames.slice(safeIdx + 1).find((f) => f.id !== left.id && f.removedAt == null);
+  const prevFrame = frames.slice(0, safeIdx).reverse().find((f) => f.id !== left.id && f.removedAt == null);
 
   if (
     nextFrame &&
@@ -537,7 +537,7 @@ export function applyDecisionWithHistory(
   const targetFrame = state.frames[targetIdx];
   // A stale filmstrip/compare callback must never reclassify a photo already removed
   // from the library. Restoration is a separate, explicit action.
-  if (targetFrame.removedAt) return state;
+  if (targetFrame.removedAt != null) return state;
   const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
   const visibleIdx = visibleBefore.findIndex((f) => f.id === frameId);
 
@@ -632,7 +632,7 @@ export function applyAutoCullDecisions(
   const batch: NonNullable<CullingState['undoStack'][number]['batch']> = [];
   const frames = state.frames.map((frame) => {
     const decision = byId.get(frame.id);
-    if (!decision || frame.removedAt || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) return frame;
+    if (!decision || frame.removedAt != null || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) return frame;
     batch.push({ frameId: frame.id, prevDecision: frame.decision, nextDecision: decision });
     return { ...frame, decision };
   });
@@ -681,7 +681,7 @@ function unambiguousRequestedIds(frames: readonly PhotoFrame[], requested: reado
 /** Take photos that are already in Trash out of the library. Files on disk are never touched, and Restore reverses it. */
 export function removeFromLibrary(state: CullingState, frameIds: string[]): CullingState {
   const ids = unambiguousRequestedIds(state.frames, frameIds);
-  const targets = state.frames.filter((frame) => ids.has(frame.id) && frame.decision === 'reject' && !frame.removedAt);
+  const targets = state.frames.filter((frame) => ids.has(frame.id) && frame.decision === 'reject' && frame.removedAt == null);
   if (!targets.length) return state;
   const removing = new Set(targets.map((frame) => frame.id));
   const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
@@ -704,15 +704,15 @@ export function removeFromLibrary(state: CullingState, frameIds: string[]): Cull
 }
 
 export function removedFrames(frames: readonly PhotoFrame[]): PhotoFrame[] {
-  return frames.filter((frame) => frame.removedAt).sort((a, b) => (b.removedAt ?? 0) - (a.removedAt ?? 0));
+  return frames.filter((frame) => frame.removedAt != null).sort((a, b) => (b.removedAt ?? 0) - (a.removedAt ?? 0));
 }
 
 /** Bring removed photos back. They return to Trash so nothing reappears among Keepers by surprise. */
 export function restoreRemoved(state: CullingState, frameIds: string[]): CullingState {
   const ids = unambiguousRequestedIds(state.frames, frameIds);
-  if (!state.frames.some((frame) => ids.has(frame.id) && frame.removedAt)) return state;
+  if (!state.frames.some((frame) => ids.has(frame.id) && frame.removedAt != null)) return state;
   const frames = state.frames.map((frame) => {
-    if (!ids.has(frame.id) || !frame.removedAt) return frame;
+    if (!ids.has(frame.id) || frame.removedAt == null) return frame;
     const { removedAt: _removedAt, ...kept } = frame;
     return kept;
   });
