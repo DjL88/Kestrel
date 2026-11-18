@@ -5,6 +5,17 @@ The desktop app is the web app inside a Tauri 2 shell (`src-tauri/`). Same code,
 ## Run it
 Needs Rust (`rustup`, stable) and, on macOS, the Xcode command line tools.
 
+### Windows: build it the same way as the Mac
+Use `scripts/windows/Build-Kestrel.ps1` (needs Git, Node 22, Rust with the MSVC toolchain and the Visual Studio 2022
+C++ build tools; it checks each and says what is missing). It updates to the latest main, builds the optimised release
+installer and opens its folder. After installing, **Settings → Build information** must show the same source revision
+as the Mac. Builds from the cloud workflow are debug builds and pause whenever GitHub Actions does, which is why a
+Windows PC drifted behind the Mac; see `ROADMAP.md`, section 3.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\windows\Build-Kestrel.ps1
+```
+
 ```bash
 npm install
 npm run desktop:dev      # window with live reload
@@ -23,7 +34,7 @@ npm run desktop:build    # release bundle in src-tauri/target/release/bundle
 5. Update check against the backend described in `BACKEND.md`.
 
 ## Not verified
-Only the macOS build on this machine has been run. Windows and Linux builds run in CI (`desktop.yml`) and have not been opened by a person.
+The macOS build is run by the owner. Windows builds are now made locally with the script above; a clean-machine Windows install/uninstall and the 500-photo scenario in `ROADMAP.md` are still to be observed. Linux builds only in CI.
 
 ## Updates
 **Currently switched off** (`UPDATER_ENABLED` in `src/components/DesktopUpdate.tsx`) until signing, update and rollback are tested on real Mac and Windows machines. Update files are made only by `release.yml`, never by ordinary CI.

@@ -1,128 +1,178 @@
-# Kestrel: audit, roadmap and build prompts
+# Kestrel: product contract and roadmap
 
-Reviewed: `djl88/Kestrel` (TypeScript, about 7.5k lines, 90 files) and `djl88/Z-Studio` (Kotlin, Android).
-Not verified: I could not build or run Kestrel. This machine has no Node or Bun. Everything below comes from reading the code and README, not from running tests.
+**This is the single source of truth for what Kestrel is, where it stands and what comes next.** It replaces the
+earlier handovers, audits and plans (moved to `docs/archive/`). Topic documents linked below hold detail; if one
+disagrees with this page, this page wins and the other is corrected. Last consolidated 18 November 2026, after
+merging PRs #353–#364 (except #362, closed) into main.
 
-## 1. Verdict
+Every statement below is in one of four states, and must stay that way:
 
-Kestrel is a solid **culling** app with an editor that is not yet an editor. The architecture is sensible (pure `core/`, swappable `providers/`, offline service worker, British English message table, reduced-motion respected, 136 ARIA attributes, unit tests plus a Playwright flow). It cannot yet replace Lightroom or DXO.
+- **Built**: in main and covered by automated tests.
+- **Unverified**: in main, but not yet proven on real devices, real camera files or real users.
+- **Planned**: agreed direction, not built.
+- **Open decision**: needs the owner.
 
-| Your need | State today |
-| --- | --- |
-| Import hundreds, sort, cull to a target | Good. Burst grouping, keeper target, compare view, Keep/Reject, ratings, auto-cull. |
-| Auto-cull quality | Weak. It scores a 4x4 grid of Laplacian sharpness plus clipping. It cannot tell whether the **subject** is sharp, and it cannot see closed eyes. The README admits this. |
-| Crop, straighten | Present, with auto-level and auto-crop. Good base. |
-| Basic enhancement (shadows, highlights, detail) | **Missing.** The recipe has three 3-step choices: exposure, warmth, colour (`src/core/photoEdits.ts`). No shadows, highlights, whites, blacks, contrast, clarity, sharpening or curves. |
-| Subject, background and gradient masks | **Missing.** Only a manual focus point. No mask data model or rendering. |
-| Denoise | **Missing.** |
-| Remove twigs and bird poo | **Missing.** |
-| RAW | Embedded JPEG preview only. Real NEF decode is unvalidated. Z8 HE and HE* are not supported by LibRaw. |
-| Speed and battery | Risky. Pixel work is a per-pixel JavaScript loop on the main thread over `getImageData`. There is no Worker, OffscreenCanvas or WebGL. This is the opposite of low power. |
-| Mobile, web, desktop | Web and PWA work. Tauri is only planned, and no `src-tauri` exists. |
+## 1. What Kestrel is
 
-## 2. Findings
+Kestrel makes professional-quality photo editing approachable, intelligent and enjoyable, without sacrificing image
+quality, creative control, privacy or reliability. It should feel simple to someone editing their first photograph and
+have the depth a professional wildlife photographer expects. **The complexity belongs inside the software, not on the
+screen.** Kestrel is not Lightroom with a different interface: it is an intelligent workflow that makes excellent
+results easier, while keeping precise control for experienced photographers.
 
-### Critical
-1. **Rendering engine is the wrong foundation.** `applyPhotoEdit` runs a CPU loop with gamma lookup per pixel on the main thread. Adding masks, tone curves, sharpening and denoise on top of it will freeze the UI and drain the battery. Fix it before adding any feature.
-2. **Edit recipe is too small to grow.** `PhotoEdit` is three integers. Make it a versioned, serialisable recipe: global ops, an ordered mask list (each with its own ops), a heal list and crop. Add a migration function.
-3. **No RAW pipeline.** Without a real decode, "replace Lightroom" is not possible. The native route (LibRaw, with a Nikon SDK caveat) needs Tauri, which does not exist yet.
+Primary users: wildlife and bird photographers processing many RAWs; enthusiasts who want a reliable Auto; professionals
+who need confidence in colour, detail and exports. First quality focus: birds and wildlife on Nikon Z8/Z5II, without
+becoming Nikon-only or wildlife-only (any brand rawler/LibRaw reads is supported once real files pass).
 
-### High
-4. **`App.tsx` is 1,116 lines** and `PhotoEditor.tsx` is 511. Split state into hooks or a small store before the editor grows. This is also part of what makes the UI feel busy.
-5. **Auto-cull is not trustworthy for wildlife.** Whole-frame sharpness favours busy backgrounds. It needs a subject mask (see section 4) so that sharpness is measured on the bird's eye or body.
-6. **Browser storage ceiling.** IndexedDB holds small blobs, and large imports need folder-handle re-grants. Hundreds of 45MP files will hit this. A local database (SQLite in Tauri or OPFS in the browser) is the fix.
-7. **Fragile tooling.** `package.json` is still named `react-example`. It ships `@google/genai`, `express` and a `GEMINI_API_KEY` in `.env.example` that nothing in `src` uses. That conflicts with offline-first and no generative AI, so remove them. There is no CI, `.github` folder or lint beyond `tsc`. The build and the e2e test were not run by me.
-8. **`vite.config.ts` has AI Studio HMR flags (`DISABLE_HMR`).** Keep them: you want to pull the project back into AI Studio, and it relies on them. Also keep `metadata.json` and port 3000.
+Three product pillars (directions, not parity claims): **Kestrel Select** (culling and comparison), **Kestrel
+TrueDetail** (RAW, detail and noise), **Kestrel Insight** (understandable guidance and checks).
 
-### Medium (your users: colourblind, autistic and ADHD, night use)
-9. **Colour cues are mostly fine already** (blue and orange with check and X icons in both grid and filmstrip). The gaps were small touch targets and no night or high-contrast theme, both now addressed.
-   Original concern: I found no systematic review. Keep, Reject and Unreviewed must differ by icon and label, not hue. Add a high-contrast mode. Provide a colourblind-safe palette (blue and orange, not red and green) for flags, histogram clipping warnings and mask overlays. Copper `#f2ae79` on dark is a good start.
-10. **Night mode is only partly delivered.** The theme is dark, which is good. Add a "night" variant: dimmer neutral surround, no pure white, a warm-only option, and an editing preview that stays accurate. Colour adjustments judged on a tinted screen can mislead, so keep the image area neutral.
-11. **Clutter risk.** `MacroPadModal`, `TopWorkspaceBar` and the "Workspace options" popover hold many controls. Adopt progressive disclosure: one primary action per screen, advanced controls collapsed, and a persistent "what next?" strip (Import, Cull, Edit, Export).
-12. **Satisfaction and low overwhelm.** Add a visible progress ring toward the keeper target ("42 of 50"), calm completion states, and no auto-moving content. Undo must be everywhere.
-13. **Large-touch and keyboard parity.** There is a good keyboard registry. Check 44px minimum touch targets on mobile.
+### Non-negotiable principles
 
-### Low
-14. Z-Studio is a tether and publishing app. Do not port its UI. Its useful ideas are small: the straighten-dial interaction (`RotationDial.kt`) and the NEF decode notes. Its denoise is a cloud call to a NAFNet model, which conflicts with offline-first. Drop it.
-15. Z-Studio's colour-matrix presets (Cyberpunk, Sepia) are not what a Lightroom user needs. Skip them.
+1. **Offline means fully working.** Import, cull, edit, export, backup and personal learning never need a server,
+   account or paid AI.
+2. **Originals are immutable and stay where they are.** Kestrel stores links, previews, metadata and reversible
+   recipes. It always says when a source is missing or only an embedded preview was used.
+3. **Never** silently downsample a requested full-size export, replace an original, attach a recipe to the wrong photo,
+   discard decisions, or overstate species, eye-focus, colour or RAW-decoding confidence.
+4. **One obvious action, depth on demand.** Auto gives an excellent starting point with one strength control; advanced
+   tools unfold when asked. No destructive edits, no unrequested generated pixels, reliable undo.
+5. **Uncertain means review.** Automation never rejects a photo on low-confidence evidence; unknown stays unknown.
+6. **Calm and accessible.** Restrained colour, text plus icon for every state, predictable navigation, keyboard access,
+   reduced motion, scalable text. Default appearance is the softer dark theme.
+7. **Same behaviour everywhere** (section 3), with native adapters only where a platform differs, and no parity claim
+   until tested on the physical device.
+8. **Privacy by default.** No image upload, telemetry, tracking or account for core use. Each cloud feature (backup,
+   collective statistics, diagnostics, AI preview) is a separate opt-in.
 
-## 3. What to keep
-`core/` and `providers/` separation, `platformBoundaries.ts`, keyboard command registry, virtual copies, edit history, ZIP export, portable backups, British English table, the Nikon validation harness, service-worker offline build.
+## 2. The photographer's journey (the release scenario)
 
-## 4. Technical direction
+Everything is judged against this, end to end, not feature by feature:
 
-**Render engine.** WebGL2 (WebGPU later) with a linear-light, float pipeline in a Worker through OffscreenCanvas. Edits are uniforms in a single shader pass, so slider drags cost almost nothing and battery use stays low. The same code renders the preview and the export. Keep the CPU path only as a test reference.
+> A photographer installs Kestrel on **Windows**, imports 500 Nikon Z8/Z5II mixed NEF/JPEG photos from an external
+> drive, reviews bursts and keeps the best, uses Auto and subject-aware masks, refines feather detail, exports full-size
+> and social versions, closes the app, reopens it offline, and finds every decision and recipe intact. If the drive is
+> missing, Kestrel offers safe relinking. No data loss, wrong-file association, silent downsampling, fake certainty or
+> required connectivity occurs at any point.
 
-**Recipe v2 (JSON, versioned).**
-- Global: exposure, contrast, highlights, shadows, whites, blacks, temperature, tint, vibrance, saturation, texture, clarity, sharpening, noise reduction amount.
-- Masks: list of `{ kind: subject | background | linearGradient | radialGradient | brush, geometry, feather, invert, ops }`.
-- Heal: list of `{ source, target, radius, feather }`.
-- Crop and rotation (already present).
+Acceptance is observed on real hardware with real files. 300 synthetic JPEGs passing in Chromium does not establish
+2,000-photo Nikon RAW reliability.
 
-**Local AI (ONNX Runtime Web, WebGPU with WASM fallback, optional downloaded models with checksums, as the README already specifies).**
-- Subject segmentation: a small salient-object or SAM-class model, with a click-to-refine option. Show the mask, a confidence value and a manual correction route.
-- Quality signals: eye detection for birds and animals, then sharpness measured inside the subject mask.
-- Denoise: **Do not use a heavy neural denoiser as the default.** Your complaints are slowness and over-processing. Default to a fast, tunable, edge-aware, luminance-first denoise (shader-based non-local-means or wavelet), with chroma noise handled harder than luminance and a strength capped by ISO. Add an optional small learned denoiser on desktop, with a **split before and after loupe at 100%** and a "protect detail" mask that spares the subject. Process the visible tile for preview and the full image only on export.
-- Object removal: **non-generative** patch-based healing (PatchMatch-style), driven by a brush or click. Suited to twigs, poo and sensor dust. An "auto-suggest blemishes" detector (small bright or thin dark structures) is a later add-on.
-
-**Platform.** Tauri v2 for desktop and mobile, sharing the web UI. Rust for decode, LibRaw, SQLite and thumbnails. Keep the web build working as the offline PWA.
-
-**Power.** Cache thumbnails and proxies, decode embedded previews first, avoid re-rendering on idle, use GPU compositing, throttle background analysis when on battery, and add an "Eco" setting.
-
-## 5. Roadmap
-
-| Phase | Outcome | Done when |
+| Stage | Expected behaviour | State |
 | --- | --- | --- |
-| 0. Hygiene (1 to 2 days) | Rename package. Remove unused Gemini and Express dependencies and AI Studio comments. Add GitHub Actions for lint, unit tests and e2e. Split `App.tsx`. | CI green. Package name and README correct. |
-| 1. Accessibility and calm UI (about 1 week) | Colourblind-safe tokens, non-colour cues, high-contrast and night themes, 44px targets, progress ring, decluttered top bar. | Checked with a CVD simulator and keyboard-only. |
-| 2. Render engine and recipe v2 (2 to 3 weeks) | WebGL2 Worker pipeline. Full tonal sliders, histogram, tone curve. Preview equals export. | A 45MP preview slider drag stays smooth, and a CPU reference test matches within tolerance. |
-| 3. Masks (2 to 3 weeks) | Gradient, radial and brush masks. Overlay and invert. Subject and background masks via local ONNX model. | Mask edit is reversible and exports identically. |
-| 4. Smart cull (2 weeks) | Subject-aware sharpness, eye detection, "get me to N" suggestions with reasons. | Matches your own picks on a test shoot of at least 300 frames. |
-| 5. Denoise and heal (2 to 3 weeks) | Tunable fast denoise and patch-based removal. | Visible-tile preview under 300ms, and no halos at 100%. |
-| 6. Native shell and RAW (3 to 4 weeks) | Tauri, SQLite catalogue, LibRaw decode, Nikon sample validation. | Real Z8 and Z5II NEFs decode. HE variants are documented. |
-| 7. Mobile (2 to 3 weeks) | Phone culling, tablet editing. | Offline round trip with desktop catalogue. |
+| Launch and projects | Opens into Projects with an obvious Import; first run explains originals stay put, edits are reversible, backups hold decisions not RAWs | Built (Projects, wizard, backups); onboarding wording to check against this |
+| Import | RAW/JPEG/TIFF/HEIF, incremental thumbnails, linked originals, RAW+JPEG paired not duplicated, progress and cancel | Built in browser and desktop; **Unverified** at 500/2,000 real files; RAW+JPEG pairing to confirm |
+| Select | Keep/reject/undo, stars, filters, bursts, compare, keyboard and macro pad; subject-aware sharpness; uncertain kept for review | Built; guardrails strengthened (#354, #358, #360); subject/eye accuracy **Unverified** on real shoots |
+| Edit | Large photo, back arrow, info panel; simple Quick edits and Auto; masks, crop, history, before/after | Built; confidence-weighted mask blending **Planned** |
+| TrueDetail | Labelled RAW provenance; high-bit-depth colour-managed pipeline; denoise that keeps feathers | RAW development built but 8-bit JPEG into the editor; 16-bit TIFF path experimental; denoiser training pipeline built, model **not wired into the app** |
+| Export | One Export: full-size master plus web/social in one go; dimensions, format, profile shown; never silently smaller | Built (PNG, social JPEG, refusal instead of shrinking); TIFF/ICC matrix and native tiled export **Planned** |
+| Reopen and recover | Everything intact offline; missing originals offer relink, never a wrong image | Built (IndexedDB, relink, changed-original guard #364); **Unverified** across crash, NAS disconnect, moved folders on Windows |
+| Move devices | Metadata-only backup/restore; opt-in sync later | Portable JSON backup built; sync **Planned** (see `OFFLINE-LEARNING-LIBRARY-RECOVERY.md`) |
 
-Recommended order: 0, 1, 2, then 6 in parallel with 3, then 4, 5, 7. Phase 2 unlocks all of the editing features.
+## 3. One product on every platform
 
-## 6. Prompts for ChatGPT, Gemini or any coding agent
+All platforms run **the same React/TypeScript app** (`src/`). Core behaviour (catalogue rules, culling, recipes,
+rendering, export rules) lives in `src/core/` and is shared. Platform differences are allowed only in adapters
+(`src/providers/`, `src-tauri/`), and every difference is listed here. If a difference is not in this table, it is a bug.
 
-Give each prompt the repo link plus this file. Run one at a time, and ask for tests and a short summary of changes.
+| Platform | Shell | Where it stands |
+| --- | --- | --- |
+| Windows | Tauri 2, WebView2 | **Milestone platform.** Builds locally with `scripts/windows/Build-Kestrel.ps1`; never opened on a clean machine |
+| macOS | Tauri 2, WKWebView | Built and used locally by the owner; signing/notarisation outstanding |
+| Web/PWA | Browser, offline worker | Built; browser RAW = embedded preview only, and the app says so |
+| Android | Tauri 2 Gradle shell | Debug shell only; outside the Windows milestone |
+| iOS | — | Not started beyond responsive UI; outside the Windows milestone |
 
-**Common preamble (paste first):**
-> You are working in the TypeScript repo djl88/Kestrel, an offline-first photo culling and editing app. Rules: no generative AI, no network calls at runtime, British English in all user-facing text, keep `src/core` pure and testable, do not break existing tests, add tests for new logic. The user is partially colourblind and autistic/ADHD, so never use colour as the only cue and keep screens uncluttered. Work in small commits. After each change, run `npm run lint`, the core unit tests and `npm run build`, and report results honestly.
+### Known, deliberate platform differences
 
-**P0 Hygiene.**
-> Rename the package to `kestrel`. Remove `@google/genai`, `express`, `dotenv` if nothing in `src` uses them (verify with grep). Leave `.env.example` and the `DISABLE_HMR` flag alone, because AI Studio uses them. Add `.github/workflows/ci.yml` running install, `tsc --noEmit`, the unit tests under `src/core` and a production build. Then split `src/App.tsx` into focused hooks and components without changing behaviour.
+| Difference | Why | User-facing rule |
+| --- | --- | --- |
+| Nikon HE/HE* NEF: macOS may develop them through the system RAW engine; **Windows cannot** (rawler and LibRaw lack the codec) | Licensing of the HE codec | Say so plainly (#359) and use the embedded preview, labelled. **Open decision** for the Windows milestone: accept, or support Adobe DNG Converter output as the documented route |
+| Browser RAW uses the embedded JPEG | No native decoder in a browser | Labelled "Embedded preview" everywhere |
+| Desktop has no offline service worker; web does | Desktop bundles its files | Desktop builds ship a self-removing worker (see below) |
 
-**P1 Accessibility.**
-> Audit every use of colour to convey state (Keep, Reject, unreviewed, clipping, selection). Add distinct icons and text labels, and define a colourblind-safe token palette (blue and orange family) in `src/index.css`. Add three themes: Default dark, Night (dimmer, no pure white, neutral image surround) and High contrast, with a settings toggle that persists. Ensure all touch targets are at least 44px and focus rings are visible. Add a progress ring showing keepers against the target.
+### Why Windows looked different from the Mac, and the fix
 
-**P2 Render engine.**
-> Replace `src/core/photoEdits.ts` pixel loops with a WebGL2 pipeline running in a Worker with OffscreenCanvas, working in linear light with float textures. Define `EditRecipeV2` (global tone and colour ops, ordered masks, heal list, crop) with a `migrateRecipe` function from the current three-choice `PhotoEdit`. Add sliders for exposure, contrast, highlights, shadows, whites, blacks, temperature, tint, vibrance, saturation, texture, clarity and sharpening, plus a histogram. Keep the old CPU code as a reference implementation and add a test that compares both on fixture images. Preview and export must share the same shader code.
+Three separate causes, now addressed:
 
-**P3 Masks.**
-> Add masks to `EditRecipeV2`: linear gradient, radial gradient and brush. Each mask carries feather, invert and its own tone and colour ops. Render them in the shader from mask textures. Add an overlay toggle that uses a colourblind-safe tint, and make all mask edits undoable via the existing edit history. Then add a subject/background mask using an ONNX Runtime Web model loaded as an optional, checksum-pinned download, with WebGPU and WASM fallback. Show the confidence and offer click-to-refine. Do not bundle a model with an unchecked licence.
+1. **Different source.** Windows installers came only from GitHub's cloud builds, which are paused by the billing hold
+   (and were *debug* builds: slower). The Mac was built locally from current code. **Fix:** build Windows locally from
+   main with `scripts/windows/Build-Kestrel.ps1`, exactly as the Mac does.
+2. **Stale cached app.** Older installers registered the web offline worker inside WebView2 (`http://tauri.localhost`),
+   which survives reinstalls and kept serving the previous version. The Mac's `tauri://` scheme never allowed it.
+   **Fix:** #356 stops registering it on desktop, and desktop builds now ship a replacement `offline.js` that deletes
+   only Kestrel's app-shell cache, unregisters itself and reloads, so the first launch of a new installer shows the new
+   app (`offline-build.ts`, tested in `src/providers/offlineBuild.test.ts`).
+3. **No way to tell builds apart.** **Fix:** #355 shows the source revision and build time in Settings → Build
+   information. Both computers must show the same revision.
 
-**P4 Smart cull.**
-> Extend `autoCull.ts` so sharpness is measured inside the subject mask, and add eye detection for birds and animals where a model is available. Produce ranked suggestions toward the keeper target, with one short human-readable reason each, preferring variety across bursts. Never overwrite explicit user decisions. Add a calibration test set of fixtures and report agreement with manual labels.
+Rule from now on: **a platform build is compared by its revision, not its version number,** and a difference between
+platforms with the same revision is a bug to report with both revisions.
 
-**P5 Denoise and heal.**
-> Implement a fast, non-generative denoise in a shader or Worker: luminance and chroma controls, ISO-aware default strength, a detail-protection slider and an optional subject-protect mask. Add a 100% split before/after loupe. Process only the visible tile for preview and the full image on export. Then implement patch-based healing (PatchMatch-style) with a brush or click: the user paints a blemish, the algorithm samples nearby texture, and the result is stored as a heal entry in the recipe so it is reversible. No generative models.
+## 4. Roadmap
 
-**P6 Native shell.**
-> Add a Tauri v2 shell (`src-tauri`) with Rust commands implementing the `MetadataExtractor` and `RawDecoder` interfaces in `platformBoundaries.ts` using kamadak-exif and LibRaw, a SQLite catalogue with stableKey relinking, and a thumbnail cache. Keep the web build working. Add the decoder acceptance harness described in `docs/nikon-raw-validation.md` and document which NEF compression modes decode.
+Ordered by what the release scenario needs. Each item has its gate; nothing is "done" without the gate observed.
 
-**P7 Mobile.**
-> Using Tauri mobile or the PWA, build a phone layout for swipe culling and a tablet layout for editing. Use the share sheet for export and test offline use after first load. Sync only the decision log and recipes, never originals.
+### P0: a complete, trustworthy Windows experience
 
-## 7. Open questions for you
-1. Which desktop do you use (macOS Apple silicon?). That decides the first native target.
-2. Do you shoot RAW only, or RAW plus JPEG? Embedded previews may cover much of your culling.
-3. Which genres matter most: birds in flight, dogs, landscapes?
+| # | Work | Done when |
+| --- | --- | --- |
+| P0.1 | **Same build on Windows and Mac** | Owner builds both from the same main revision; Settings shows identical revisions; first launch after install shows the new app; clean-machine install/uninstall on Windows works |
+| P0.2 | **500 then 2,000 real photos** | Mixed Z8/Z5II NEF+JPEG from an external drive: import, restart, crash, moved folder, missing drive, NAS disconnect, backup/restore, with no lost decision/recipe and no wrong-file association |
+| P0.3 | **Honest RAW** | Provenance label on every photo (RAW developed / system decoder / embedded preview); HE/HE* decision taken and implemented; 16-bit path either promoted with ICC tests or kept clearly experimental |
+| P0.4 | **Culling guardrails** | Uncertain photos always kept for review; deterministic score validation; batch summaries reviewable and undoable (largely built: #348, #349, #354, #358, #360; confirm on a real shoot) |
+| P0.5 | **Export integrity** | Full-size dimensions, crop/mask parity between preview and export, colour metadata, interrupted export, originals byte-identical, multi-destination export in one action |
 
-## 8. Design rules added after your feedback
-- **Universal by design.** One shared core (recipe, catalogue, decision log as versioned JSON) plus a thin adapter per platform: web/PWA, Tauri desktop (macOS, Windows, Linux), Tauri mobile (iOS, Android) and a Chrome extension that only sends a chosen image to Kestrel.
-- **Touch first.** Pinch to zoom and pull gestures are the primary interaction on phones and tablets. On desktop, the macro keypad and scroll dial map to the same commands (`keyboardCommands.ts` already supports this).
-- **Optional cloud later.** Sync only the append-only decision log and edit recipes, never originals. Local use never needs an account.
-- **RAW plus JPEG pairs.** Treat a RAW and its JPEG as one frame in the catalogue, and cull on the JPEG or embedded preview. Keep the decoder interface camera-neutral, with Nikon as one adapter among others.
-- **AI Studio round trip.** Edit on GitHub, then re-import to AI Studio. Keep `package.json` scripts, `vite.config.ts` flags and `metadata.json` intact.
+### P1: effortless and reliable
+
+| # | Work | Done when |
+| --- | --- | --- |
+| P1.1 | One Settings home; simple Quick edits; info panel by default; macro-pad flow | Intended-user sessions complete import-to-share without coaching; keyboard-only and screen-reader passes |
+| P1.2 | Confidence-weighted masks in the real renderer | Edge-aware, tile-safe blending in preview **and** export with seam tests; separate subject confidence, mask coverage and strength (design notes from closed #362) |
+| P1.3 | RAW denoiser in the app | Model trained on the owner's photos (`tools/denoise-training`), run before demosaic in the native RAW path, measured on real high-ISO shots against the current colour-noise slider |
+| P1.4 | Local personal style learning | Learns from accepted/reverted Auto proposals (Lightroom recipe export `tools/lightroom/read_lrcat.py` as a seed); reset and undo; never a cloud dependency |
+| P1.5 | Metadata-only serializer and sync outbox | Allowlisted fields only; conflict-preserving two-device synthetic tests (`OFFLINE-LEARNING-LIBRARY-RECOVERY.md`) |
+
+### P2: differentiation
+
+TrueDetail measured against rights-cleared real shoots (`TRUEDETAIL-REAL-SHOOT-ALPHA.md` harness, #357); optional
+provider-neutral AI Guardian with bounded proposals and spend controls; account-bound metadata backup; tutorial /
+before-after export from a user-approved edit history.
+
+### P3: collective intelligence and commercial maturity
+
+Opt-in, privacy-filtered collective statistics; central model training with signed offline updates only after holdout
+improvements; signed installers and real-device acceptance per platform; licensing, support and accessibility audit.
+Android and iOS releases are scheduled here unless the owner pulls them forward.
+
+## 5. How work is done
+
+For every contributor, human or agent (`CLAUDE.md` points here):
+
+1. **Read this page and check main first.** Look at open PRs and their files before starting; do not duplicate
+   another PR's area. Extend the canonical code path rather than adding a parallel one: there is one denoiser
+   pipeline, one Lightroom reader, one offline worker.
+2. **Pick the highest-value item above**, in a small branch, with tests. Synthetic or lawfully licensed fixtures only;
+   never upload user photos, provision cloud resources, accept SDK licences or spend money.
+3. **Report results exactly:** PASS / FAIL / NOT RUN / INFRASTRUCTURE BLOCKED, with the command.
+4. **Merging.** Normal rule: required checks pass on CI. **While GitHub Actions is paused for billing (until about
+   24 November 2026), the owner has authorised merging after the same checks pass locally:** `npm run lint`,
+   `npm test`, `npm run build`, `cargo test --release` in `src-tauri`, and the Python suites in `scripts/`,
+   `tools/denoise-training/` and `tools/lightroom/`. Record what was run in the PR.
+5. **Update this page** when something moves state (Planned → Built, Unverified → verified). Do not start a new plan
+   document; add a section here or to the relevant topic document.
+
+## 6. Document map
+
+| Topic | Document |
+| --- | --- |
+| Desktop builds, signing, updates | `DESKTOP.md`, `scripts/windows/Build-Kestrel.ps1` |
+| Latest evidence-based audit | `RELEASE-GAP-AUDIT-2026-11.md` (its priority list is folded into section 4) |
+| Calm, guided UX | `GUIDED-WORKFLOW-PLAN.md`, `accessibility.md`, `mobile-layout-policy.md` |
+| RAW quality | `RAW-QUALITY-PLAN.md`, `nikon-raw-validation.md`, `truedetail-*.md`, `TRUEDETAIL-REAL-SHOOT-ALPHA.md` |
+| Denoiser | `../tools/denoise-training/README.md` |
+| Culling | `CULL-BENCHMARK.md`, `CULL-RELEASE-GATE.md`, `CULL-UNCERTAINTY.md` |
+| Models | `models.md`, `SPECIES-TAGGING-SPIKE.md` |
+| Offline learning, recovery, sync, cloud | `OFFLINE-LEARNING-LIBRARY-RECOVERY.md` (current), `CLOUD-PLAN.md`, `cloud-sync-proposal.md`, `BACKEND.md` |
+| Commercial and publishing | `COMMERCIAL-RELEASE.md`, `PUBLISHING.md` |
+| History | `archive/` (superseded handovers, audits and plans, kept for context only) |
