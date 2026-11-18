@@ -104,13 +104,14 @@ export function helperReady(settings: HelperSettings, state: { online: boolean }
 export const HELPER_SESSION_CAP = 100;
 export const HELPER_GAP_MS = 1500;
 
-export type HelperFailure = 'offline' | 'auth' | 'rate' | 'blocked' | 'other';
+export type HelperFailure = 'offline' | 'auth' | 'rate' | 'timeout' | 'blocked' | 'other';
 
 /** Words for the user. Only some failures stop everything: a bad key or a rate limit will repeat for every photo. */
 export function failureMessage(failure: HelperFailure): { text: string; stops: boolean } {
   switch (failure) {
     case 'auth': return { text: 'The online helper did not accept your key. Check it in the helper settings.', stops: true };
     case 'rate': return { text: 'The online helper is busy or the daily limit was reached. It will try again later.', stops: true };
+    case 'timeout': return { text: 'The online helper did not respond within 12 seconds. Check its connection or model and try again.', stops: true };
     case 'offline': return { text: '', stops: true };
     case 'blocked': return { text: '', stops: false };
     default: return { text: '', stops: false };
