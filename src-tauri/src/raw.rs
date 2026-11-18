@@ -29,8 +29,8 @@ fn apply_orientation(image: RgbImage, exif_orientation: u16) -> RgbImage {
 /// A plain-English reason for a decoder error, so the person sees what is going on rather than a library message.
 /// Shared with `raw_precision.rs` so the experimental 16-bit path gives the same plain wording, not the raw `rawler` text.
 pub(crate) fn explain(error: &str) -> String {
-    if error.contains("HighEfficen") {
-        "This is a Nikon High Efficiency (HE) RAW file, a compressed mode Kestrel cannot decode on this computer (a Mac can).".to_string()
+    if error.contains("HighEfficen") || error.contains("HighEfficien") {
+        "This Nikon High Efficiency (HE/HE*) RAW cannot be decoded by Kestrel’s built-in decoder. System RAW support varies by computer and operating-system version.".to_string()
     } else {
         format!("This RAW file could not be read: {error}")
     }
@@ -107,9 +107,10 @@ fn validate_system_jpeg(jpeg: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
-/// macOS can read RAW formats the built-in decoder cannot, including Nikon High Efficiency (HE and HE*) files, because the
-/// system's own RAW engine includes licensed decoders. `sips` is part of macOS and uses that engine. The result is Apple's
-/// neutral rendering at the file's full size, already turned the right way up. Used only when the built-in decoder fails.
+/// On some macOS versions the system RAW engine may read formats the built-in decoder cannot.
+/// `sips` is part of macOS; successful HE/HE* decoding and colour fidelity depend on the installed
+/// system and camera support and require lawful real-file verification. The output is a system-rendered
+/// JPEG, not an official Nikon colour match. Used only when the built-in decoder fails.
 #[cfg(target_os = "macos")]
 fn develop_with_system(bytes: &[u8], extension: &str) -> Result<Vec<u8>, String> {
     use std::process::Command;
@@ -213,18 +214,28 @@ mod tests {
         assert_eq!(layout(&super::apply_orientation(picture(), 0)), layout(&picture()), "unknown leaves it alone");
     }
 
-    /// Only a Mac can do this, and the file is the owner's own Z8 HE* picture, not kept in the repository.
+    /// Optional, owner-provided HE/HE* fixture. macOS support is not universal,
+    /// and a future built-in decoder may gain support before the system decoder.
+    /// A missing or unsupported fixture is not evidence of a passing decode.
     #[cfg(target_os = "macos")]
     #[test]
-    fn a_mac_develops_nikon_high_efficiency_files_through_the_system() {
-        let Some(dir) = samples() else { eprintln!("skipped: KESTREL_RAW_SAMPLES not set"); return };
+    fn macos_nikon_he_fixture_reports_support_without_promising_it() {
+        let Some(dir) = samples() else { eprintln!("NOT RUN: KESTREL_RAW_SAMPLES not set"); return };
         let path = dir.join("z8-he.nef");
-        if !path.exists() { eprintln!("skipped: z8-he.nef not found"); return; }
-        let bytes = std::fs::read(&path).unwrap();
-        assert!(super::develop(&bytes).is_err(), "the built-in decoder should not read HE* (if it can now, this fallback is no longer needed for it)");
-        let jpeg = super::develop_any(&bytes, "nef").expect("the system decoder reads HE*");
-        let image = image::load_from_memory_with_format(&jpeg, image::ImageFormat::Jpeg).unwrap().to_rgb8();
-        assert_eq!((image.width(), image.height()), (8256, 5504));
+        if !path.exists() { eprintln!("NOT RUN: z8-he.nef not found"); return; }
+        let bytes = std::fs::read(&path).expect("read owner-provided fixture");
+        match super::develop_any(&bytes, "nef") {
+            Ok(jpeg) => {
+                let image = image::load_from_memory_with_format(&jpeg, image::ImageFormat::Jpeg)
+                    .expect("successful decode must produce valid JPEG");
+                assert_eq!((image.width(), image.height()), (8256, 5504));
+                eprintln!("SUPPORTED ON THIS SYSTEM: Z8 HE fixture decoded; colour fidelity NOT VERIFIED");
+            }
+            Err(error) => {
+                assert!(!error.contains("a Mac can"), "{error}");
+                eprintln!("UNSUPPORTED ON THIS SYSTEM: Z8 HE fixture did not decode; {error}");
+            }
+        }
     }
 
     #[cfg(target_os = "macos")]
@@ -293,6 +304,13 @@ mod tests {
     fn nikon_high_efficiency_is_explained_in_plain_words() {
         let message = super::explain("Failed to decode image, possibly corrupt image: NEF compression Some(HighEfficencyStar) is not supported");
         assert!(message.contains("High Efficiency") && !message.contains("Some("), "{message}");
+        assert!(message.contains("varies by computer"), "{message}");
+        assert!(!message.contains("a Mac can"), "{message}");
+        // Decoder versions may use the corrected English spelling instead of rawler’s historical typo.
+        for variant in ["HighEfficiency", "HighEfficiencyStar", "HighEfficency", "HighEfficencyStar"] {
+            let explained = super::explain(&format!("NEF compression Some({variant}) is not supported"));
+            assert!(explained.contains("High Efficiency") && !explained.contains("Some("), "{variant}: {explained}");
+        }
         assert!(super::explain("something else").contains("could not be read"));
     }
 
