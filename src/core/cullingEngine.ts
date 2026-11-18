@@ -439,7 +439,15 @@ export function applyCullConfidence(
   return {
     ...state,
     frames: state.frames.map((frame) => {
-      const found = frame.removedAt == null ? byId.get(frame.id) : undefined;
+      // A removed photo must not retain a stale ranking signal when a delayed
+      // worker batch arrives. This only clears advisory scan metadata; never
+      // changes the removal marker, manual decision or undo history.
+      if (frame.removedAt != null) {
+        return frame.cullConfidence !== undefined || frame.cullScore !== undefined
+          ? { ...frame, cullConfidence: undefined, cullScore: undefined }
+          : frame;
+      }
+      const found = byId.get(frame.id);
       if (found) return { ...frame, cullConfidence: found.confidence, cullScore: found.score };
       // A later malformed/duplicate result must not leave an earlier high
       // confidence looking current. Preserve decisions and undo/redo history.
