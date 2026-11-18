@@ -214,18 +214,28 @@ mod tests {
         assert_eq!(layout(&super::apply_orientation(picture(), 0)), layout(&picture()), "unknown leaves it alone");
     }
 
-    /// Only a Mac can do this, and the file is the owner's own Z8 HE* picture, not kept in the repository.
+    /// Optional, owner-provided HE/HE* fixture. macOS support is not universal,
+    /// and a future built-in decoder may gain support before the system decoder.
+    /// A missing or unsupported fixture is not evidence of a passing decode.
     #[cfg(target_os = "macos")]
     #[test]
-    fn a_mac_develops_nikon_high_efficiency_files_through_the_system() {
-        let Some(dir) = samples() else { eprintln!("skipped: KESTREL_RAW_SAMPLES not set"); return };
+    fn macos_nikon_he_fixture_reports_support_without_promising_it() {
+        let Some(dir) = samples() else { eprintln!("NOT RUN: KESTREL_RAW_SAMPLES not set"); return };
         let path = dir.join("z8-he.nef");
-        if !path.exists() { eprintln!("skipped: z8-he.nef not found"); return; }
-        let bytes = std::fs::read(&path).unwrap();
-        assert!(super::develop(&bytes).is_err(), "the built-in decoder should not read HE* (if it can now, this fallback is no longer needed for it)");
-        let jpeg = super::develop_any(&bytes, "nef").expect("the system decoder reads HE*");
-        let image = image::load_from_memory_with_format(&jpeg, image::ImageFormat::Jpeg).unwrap().to_rgb8();
-        assert_eq!((image.width(), image.height()), (8256, 5504));
+        if !path.exists() { eprintln!("NOT RUN: z8-he.nef not found"); return; }
+        let bytes = std::fs::read(&path).expect("read owner-provided fixture");
+        match super::develop_any(&bytes, "nef") {
+            Ok(jpeg) => {
+                let image = image::load_from_memory_with_format(&jpeg, image::ImageFormat::Jpeg)
+                    .expect("successful decode must produce valid JPEG");
+                assert_eq!((image.width(), image.height()), (8256, 5504));
+                eprintln!("SUPPORTED ON THIS SYSTEM: Z8 HE fixture decoded; colour fidelity NOT VERIFIED");
+            }
+            Err(error) => {
+                assert!(!error.contains("a Mac can"), "{error}");
+                eprintln!("UNSUPPORTED ON THIS SYSTEM: Z8 HE fixture did not decode; {error}");
+            }
+        }
     }
 
     #[cfg(target_os = "macos")]
