@@ -69,16 +69,24 @@ export function flatNoise(pixels: Pixels): number {
 
 const clipFractions = (pixels: Pixels) => {
   let dark = 0;
-  let bright = 0;
+  let white = 0;
+  let channel = 0;
   const count = pixels.width * pixels.height;
   for (let i = 0; i < count; i += 1) {
     const r = pixels.data[i * 4];
     const g = pixels.data[i * 4 + 1];
     const b = pixels.data[i * 4 + 2];
     if (r === 0 || g === 0 || b === 0) dark += 1;
-    if (r === 255 || g === 255 || b === 255) bright += 1;
+    // Pure white requires ALL channels. A saturated orange feather with R=255
+    // has channel clipping, but it is not pure white and must not be described as such.
+    if (r === 255 && g === 255 && b === 255) white += 1;
+    if (r === 255 || g === 255 || b === 255) channel += 1;
   }
-  return { shadows: dark / Math.max(1, count), highlights: bright / Math.max(1, count) };
+  return {
+    shadows: dark / Math.max(1, count),
+    highlights: white / Math.max(1, count),
+    channels: channel / Math.max(1, count),
+  };
 };
 
 const percent = (value: number) => `${(value * 100).toFixed(value < 0.1 ? 1 : 0)}%`;
@@ -115,9 +123,15 @@ export function critique({ source, toneOnly, after, edit, subject }: CritiqueInp
   const before = clipFractions(source);
   if (clip.highlights > 0.015 && clip.highlights > before.highlights + 0.005) {
     found.push({
-      id: 'highlights', severity: 'warning', title: 'Highlights are clipping',
-      detail: `${percent(clip.highlights)} of the picture is pure white, so detail there is lost. It was ${percent(before.highlights)} before your edit.`,
-      fix: { kind: 'global', delta: { highlights: -0.5, whites: -0.3 } }, fixLabel: 'Pull highlights back',
+      id: 'highlights', severity: 'warning', title: 'Pure white areas have increased',
+      detail: `${percent(clip.highlights)} of the preview has all three colour channels at maximum, compared with ${percent(before.highlights)} before editing. Check important highlights at 100%. Darkening the result cannot recover detail that was already clipped.`,
+      // Do not offer an unvalidated global fix. On brightly coloured feathers,
+      // pulling Highlights and Whites can make the subject dull without restoring data.
+    });
+  } else if (clip.channels > 0.015 && clip.channels > before.channels + 0.005) {
+    found.push({
+      id: 'colour-channels', severity: 'warning', title: 'Bright colours may be clipping',
+      detail: `${percent(clip.channels)} of the preview has at least one colour channel at maximum, compared with ${percent(before.channels)} before editing. This does not mean those pixels are pure white. Check saturated feathers, lights and other important colours at 100% before changing global highlights.`,
     });
   }
   if (clip.shadows > 0.02 && clip.shadows > before.shadows + 0.005) {
