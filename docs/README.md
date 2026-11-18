@@ -7,6 +7,7 @@ Start here. Read only the **Current** documents to decide what to build. The **R
 | --- | --- |
 | [PRODUCT-SPEC.md](PRODUCT-SPEC.md) | What Kestrel must be: vision, principles, the photographer's journey, platforms, AI boundaries, release scenario. |
 | [ROADMAP.md](ROADMAP.md) | Verified status per area and platform, the P0–P3 order of work, and the integration log. |
+| [KESTREL-NEXT.md](KESTREL-NEXT.md) | The rebuild: what is retained, rebuilt and discarded, the shared image architecture, acceptance status and slice order. |
 | [../CLAUDE.md](../CLAUDE.md) | How every contributor and agent works: checks, merging, ownership, reporting. |
 
 ## Reference: how a part works

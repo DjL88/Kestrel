@@ -21,3 +21,6 @@ tools/denoise-training/.venv/
 __pycache__/
 tools/subject-router/.venv/
 tools/subject-router/models/
+
+# Local Auto comparisons of the owner's own photos (npm run compare:auto). Never commit.
+kestrel-auto-compare/

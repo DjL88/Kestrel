@@ -20,10 +20,11 @@ import { applyFix, critique, toneOnlyEdit, type Opinion } from '../core/critique
 import { fullContext } from '../core/masks';
 import { MaskOverlay } from './MaskOverlay';
 import { MaskPanel } from './MaskPanel';
-import { createSubjectMask, framingKey } from '../core/maskTypes';
+import { createSubjectMask, framingKey, type SubjectGrid } from '../core/maskTypes';
 import { detectSubject } from '../providers/subjectDetector';
 import { PresetPanel } from './PresetPanel';
-import { autoEnhance, mergeAutoSuggestion } from '../core/autoEnhance';
+import { mergeAutoSuggestion } from '../core/autoEnhance';
+import { describeOutcome, naturalAuto, stageNaturalRecipe } from '../core/naturalAuto';
 import { proposeSubjectAwareAuto, type InsightSubjectKind } from '../core/insightSubjectAuto';
 import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
 import { PhotoViewport } from './PhotoViewport';
@@ -551,7 +552,11 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     return 'other';
   }
 
-  /** Preview an offline global recipe; enrich it with a trustworthy subject mask when one exists. */
+  /**
+   * Natural Auto: analyse the framed, unedited photo on this device, measure the subject when a trustworthy mask
+   * exists, choose ordinary reversible slider values, then render and check them before offering a preview.
+   * Nothing is saved until the photographer applies it.
+   */
   async function previewAutoSuggestion() {
     const run = ++autoRun.current;
     const startedFor = detectionContext.current;
@@ -564,81 +569,87 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     const stillCurrent = () => run === autoRun.current && detectionContext.current === startedFor &&
       sourceImage.current === originalSource && Boolean(originalSource);
     try {
-      const sample = sampleOrientedSource(256);
-      if (!sample || !originalSource || !outputSize || !startedFor) {
+      if (!originalSource || !outputSize || !startedFor) {
         if (run === autoRun.current) setAutoNotes(['Could not analyse this photo. Your edits have not changed.']);
         return;
       }
-      const { edit: suggestion, notes } = autoEnhance(sample.data);
-      if (notes.includes('Too small to analyse.')) {
+      // Analyse exactly the unedited, framed image (crop and rotation applied), not the adjusted editor canvas.
+      const analysisCanvas = document.createElement('canvas');
+      drawFramedPhoto(originalSource, analysisCanvas, frame.framing ?? DEFAULT_FRAMING, {
+        scale: Math.min(1, 640 / Math.max(outputSize.width, outputSize.height)),
+      });
+      const analysisContext = analysisCanvas.getContext('2d', { willReadFrequently: true });
+      if (!analysisContext || analysisCanvas.width < 16 || analysisCanvas.height < 16) {
         if (stillCurrent()) setAutoNotes(['This preview is too small to analyse. Your edits have not changed.']);
         return;
       }
-      const result = mergeAutoSuggestion(savedEdit, suggestion);
-      let proposal = result.edit;
-      let subjectNote = '';
-      let usedMask = false;
+      const analysis = analysisContext.getImageData(0, 0, analysisCanvas.width, analysisCanvas.height);
       const category = autoSubjectKind();
-
+      let segmentation: { grid: SubjectGrid; confidence: 'high' | 'medium' | 'low' } | null = null;
+      let subjectNote = '';
       if (category !== 'landscape') {
         try {
-          // Analyse exactly the unedited cropped image, not the adjusted or downscaled editor canvas.
-          const detectionCanvas = document.createElement('canvas');
-          drawFramedPhoto(originalSource, detectionCanvas, frame.framing ?? DEFAULT_FRAMING, {
-            scale: Math.min(1, 640 / Math.max(outputSize.width, outputSize.height)),
-          });
-          const context = detectionCanvas.getContext('2d', { willReadFrequently: true });
-          if (context && detectionCanvas.width >= 8 && detectionCanvas.height >= 8) {
-            let detection = subjectCache.current?.source === originalSource && subjectCache.current?.cropKey === cropKey
-              ? subjectCache.current.result : null;
-            if (!detection) {
-              // Slow/broken inference must not hold the editing workflow hostage.
-              let timeout: number | undefined;
-              try {
-                detection = await Promise.race([
-                  detectSubject(detectionCanvas),
-                  new Promise<never>((_, reject) => {
-                    timeout = window.setTimeout(() => reject(new Error('Subject analysis timed out')), 8000);
-                  }),
-                ]);
-              } finally { if (timeout !== undefined) window.clearTimeout(timeout); }
-              if (stillCurrent()) subjectCache.current = { source: originalSource, cropKey, result: detection };
-            }
-            if (!stillCurrent()) return;
-            const { grid, assessment } = detection;
-            if (assessment.usable) {
-              const pixels = context.getImageData(0, 0, detectionCanvas.width, detectionCanvas.height);
-              const local = proposeSubjectAwareAuto({
-                pixels: pixels.data, width: pixels.width, height: pixels.height, edit: proposal,
-                subjectKind: category, segmentation: { grid, confidence: assessment.confidence },
-                maskId: newId(), framingKey: cropKey,
-              });
-              proposal = local.edit;
-              usedMask = local.usedMask;
-              subjectNote = local.usedMask ? local.reason : 'No safe local adjustment was needed. ' + local.reason;
-            } else {
-              subjectNote = 'Subject edges were uncertain, so only global adjustments were considered.';
-            }
+          let detection = subjectCache.current?.source === originalSource && subjectCache.current?.cropKey === cropKey
+            ? subjectCache.current.result : null;
+          if (!detection) {
+            // Slow or broken inference must not hold the editing workflow hostage.
+            let timeout: number | undefined;
+            try {
+              detection = await Promise.race([
+                detectSubject(analysisCanvas),
+                new Promise<never>((_, reject) => {
+                  timeout = window.setTimeout(() => reject(new Error('Subject analysis timed out')), 8000);
+                }),
+              ]);
+            } finally { if (timeout !== undefined) window.clearTimeout(timeout); }
+            if (stillCurrent()) subjectCache.current = { source: originalSource, cropKey, result: detection };
           }
+          if (!stillCurrent()) return;
+          if (detection.assessment.usable) segmentation = { grid: detection.grid, confidence: detection.assessment.confidence };
+          else subjectNote = 'Subject edges were uncertain, so only whole-photo adjustments were considered.';
         } catch {
           if (!stillCurrent()) return;
-          subjectNote = 'Subject detection was unavailable. Global suggestions still work offline.';
+          subjectNote = 'Subject detection was unavailable. Whole-photo suggestions still work offline.';
         }
       } else {
-        subjectNote = 'The atmosphere is preserved without adding an automatic subject mask.';
+        subjectNote = 'The atmosphere is preserved without an automatic subject mask.';
       }
+      const natural = naturalAuto({
+        pixels: analysis.data, width: analysis.width, height: analysis.height, segmentation, iso: frame.exif?.iso,
+      });
+      if (natural.notes.includes('This preview is too small or too large to analyse.')) {
+        if (stillCurrent()) setAutoNotes(['This preview could not be analysed. Your edits have not changed.']);
+        return;
+      }
+      let proposal = mergeAutoSuggestion(savedEdit, natural.edit).edit;
+      let usedMask = false;
+      if (segmentation) {
+        const local = proposeSubjectAwareAuto({
+          pixels: analysis.data, width: analysis.width, height: analysis.height, edit: proposal,
+          subjectKind: category, segmentation, maskId: newId(), framingKey: cropKey, extra: natural.subjectEdit,
+        });
+        proposal = local.edit;
+        usedMask = local.usedMask;
+        subjectNote = local.usedMask ? local.reason : 'No local subject adjustment was needed. ' + local.reason;
+      }
+      // Render and check before offering: full strength, then gentler, then nothing.
+      const staged = stageNaturalRecipe(analysis.data, analysis.width, analysis.height, savedEdit, proposal, segmentation);
       if (!stillCurrent()) return;
-      const changed = result.changed || usedMask;
-      setPendingAuto(changed ? { base: savedEdit, edit: proposal, cropKey, source: originalSource } : null);
-      setPreviewRecipe(changed ? { edit: proposal, framing: frame.framing } : null);
+      const changed = staged.outcome === 'full' || staged.outcome === 'gentler';
+      const keptMask = changed && (staged.edit.masks?.length ?? 0) > (savedEdit.masks?.length ?? 0);
+      setPendingAuto(changed ? { base: savedEdit, edit: staged.edit, cropKey, source: originalSource } : null);
+      setPreviewRecipe(changed ? { edit: staged.edit, framing: frame.framing } : null);
       setAutoNotes([
         changed
-          ? usedMask
-            ? 'Previewing a global recipe with a gentle subject adjustment. Nothing is saved until you apply it.'
-            : 'Previewing a suggested global recipe. Nothing is saved until you apply it.'
-          : 'Your photo already looks balanced. No new edit was suggested.',
-        ...notes,
-        subjectNote,
+          ? keptMask
+            ? 'Previewing a natural look with a gentle subject-only adjustment. Nothing is saved until you apply it.'
+            : 'Previewing a natural look. Nothing is saved until you apply it.'
+          : staged.outcome === 'declined'
+            ? 'No change suggested. Your photo is exactly as it was.'
+            : 'Your photo already works. No new edit was suggested.',
+        describeOutcome(staged.outcome, staged.reason),
+        ...natural.notes.filter((note) => !note.includes('already works')),
+        usedMask || subjectNote ? subjectNote : '',
       ].filter(Boolean));
     } catch {
       if (stillCurrent()) setAutoNotes(['Could not complete the suggestion. Your existing edits are unchanged.']);

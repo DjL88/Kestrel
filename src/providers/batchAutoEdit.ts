@@ -1,13 +1,16 @@
-import { autoEnhance } from '../core/autoEnhance';
-import { assessAutoQuality } from '../core/autoQualityGate';
-import { applyPhotoEdit } from '../core/photoEdits';
+import { naturalAuto, stageNaturalRecipe } from '../core/naturalAuto';
 import { DEFAULT_EDIT, isEmptyEdit, type PhotoEdit } from '../core/photoEdits';
 import { recordEdit } from '../core/editHistory';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 import { loadImage } from './loadImage';
 
-/** Preview-sized local analysis for each keeper, never uploaded or written to the original. */
+/**
+ * Preview-sized local analysis for each keeper, never uploaded or written to the original.
+ * Uses the same Natural Auto engine and staged checks as the editor. Batch does not run subject segmentation, so the
+ * engine measures the in-focus detail instead, and adds no local mask. A recipe that fails its checks at full and at
+ * half strength is not applied; the photo stays exactly as it was.
+ */
 export async function suggestKeeperAutoEdits(
   frames: PhotoFrame[], provider: BrowserPreviewProvider, signal: AbortSignal, onProgress: (done: number) => void,
   targetIds?: ReadonlySet<string>,
@@ -28,20 +31,18 @@ export async function suggestKeeperAutoEdits(
       if (url) {
         const image = await loadImage(url);
         signal.throwIfAborted();
-        const scale = Math.min(1, 256 / Math.max(image.naturalWidth, image.naturalHeight));
+        const scale = Math.min(1, 384 / Math.max(image.naturalWidth, image.naturalHeight));
         canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
         canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
         ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
         const source = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-        const { edit } = autoEnhance(source);
+        const { edit } = naturalAuto({ pixels: source, width: canvas.width, height: canvas.height, iso: frame.exif?.iso });
         const suggestion = { ...DEFAULT_EDIT, ...edit };
         if (!isEmptyEdit(suggestion)) {
-          // A suggestion is not proof of improvement. Render it locally and refuse
-          // automatic application if it blows highlights or radically shifts colour.
-          // It remains available as a manual preview in Auto > Suggest a look.
-          const proposed = new Uint8ClampedArray(source);
-          applyPhotoEdit(proposed, suggestion);
-          if (assessAutoQuality(source, proposed).safe) edits.set(frame.id, suggestion);
+          // A suggestion is not proof of improvement: render it and check for clipping, colour shift, crunchy
+          // bokeh and grey shadows. It remains available as a manual preview in the editor's Auto.
+          const staged = stageNaturalRecipe(source, canvas.width, canvas.height, DEFAULT_EDIT, suggestion);
+          if (staged.outcome === 'full' || staged.outcome === 'gentler') edits.set(frame.id, staged.edit);
         }
       }
     } catch {
