@@ -44,7 +44,7 @@ import { isRawPreviewFile } from '../core/rawFormats';
 import { tasks } from '../core/taskStore';
 import { canDevelopRaw, developRaw, developRawPrecisionEdited, matchPreviewOrientation } from '../providers/rawDevelop';
 import { extractRawPreview } from '../core/nefPreview';
-import { nativeRawMasterRecipe } from '../core/nativeRawMaster';
+import { nativeRawMasterRecipe, nativeRawMasterFraming } from '../core/nativeRawMaster';
 import { saveWithDialog } from '../providers/desktopShell';
 import { PaidNotice } from './PaidNotice';
 import { useAccess } from '../providers/useAccess';
@@ -326,9 +326,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         throw new Error('Apply or discard the previewed edit before exporting the saved RAW recipe.');
       }
       const recipe = nativeRawMasterRecipe(frame);
+      const framing = nativeRawMasterFraming(frame.framing);
       const original = await provider.ensureOriginal(frame.stableKey);
       if (!original) throw new Error('Reconnect the original RAW file before exporting.');
-      const output = await developRawPrecisionEdited(original, recipe);
+      const output = await developRawPrecisionEdited(original, recipe, framing);
       const name = frame.filename.replace(/\.[^.]+$/, '') + '_raw16-poc.tiff';
       const saved = await saveWithDialog(output, name);
       if (saved) {
@@ -1239,7 +1240,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   disabled={masterBusy || sourceState !== 'ready'} onClick={() => void exportHighPrecisionMaster()}>
                   {masterBusy ? 'Developing RGB16 master…' : 'Export edited 16-bit TIFF (POC)'}
                 </button>
-                <p className="text-xs text-zinc-400">Uses original RAW, not its JPEG. Global tone/colour only; crop, masks and detail are blocked until the native renderer supports them. Colour accuracy is not yet certified.</p>
+                <p className="text-xs text-zinc-400">Uses original RAW, not its JPEG. Global tone/colour, crop and quarter-turn rotation. Straightening, masks and detail are blocked until the native renderer supports them. Colour accuracy is not yet certified.</p>
                 {masterNote && <p role="status" className="text-xs text-zinc-300">{masterNote}</p>}
               </div>
             )}
