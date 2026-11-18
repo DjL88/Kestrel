@@ -325,6 +325,8 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
         </div>
       )}
       <div className="hidden min-w-0 flex-1 items-center justify-end gap-2 md:flex">
+        {/* The grid's Jump control is placed here (see VirtualizedContactSheet), in the bar rather than over a photo. */}
+        <div id="kestrel-grid-tools" className="relative flex items-center" />
         <FilterSortControl searchQuery={searchQuery} onSearchChange={props.onSearchChange}
           ratingFilter={props.ratingFilter} onRatingFilterChange={props.onRatingFilterChange}
           cameraFilter={props.cameraFilter} onCameraFilterChange={props.onCameraFilterChange}
