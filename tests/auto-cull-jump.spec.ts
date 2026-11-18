@@ -28,6 +28,9 @@ test('after Auto Cull, one button jumps to the keepers, instead of a long list o
   const dialog = page.getByRole('dialog', { name: /Auto-cull/ });
   await dialog.getByRole('button', { name: /^Scan|Scan/ }).first().click();
   await expect(dialog.getByRole('region', { name: 'Auto-cull summary' })).toBeVisible({ timeout: 60000 });
+  // When the summary appears, the way forward has keyboard focus (choosing a tier below then moves focus, as any click does).
+  const jump = dialog.getByRole('button', { name: /^Show my keepers/ });
+  await expect(jump).toBeFocused();
   const more = dialog.getByRole('region', { name: 'Find more keeper candidates' });
   await expect(more).toBeVisible();
   await more.getByRole('button', { name: 'Good · broader' }).click();
@@ -36,8 +39,6 @@ test('after Auto Cull, one button jumps to the keepers, instead of a long list o
   await expect(more.getByRole('status')).toContainText(/additional|No additional/i);
   // The reasons exist, but are folded away, so the first thing seen is the way forward, not a list of every photo.
   await expect(dialog.getByRole('button', { name: /Review photo/ })).toHaveCount(0);
-  const jump = dialog.getByRole('button', { name: /^Show my keepers/ });
-  await expect(jump).toBeFocused();
   await jump.click();
   await expect(dialog).toBeHidden();
   // The library is showing the keepers.

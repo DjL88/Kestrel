@@ -126,14 +126,17 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
     }
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key !== 'Escape') return;
+      // One Escape closes one layer: mark it handled so the app does not also close Photo info or leave the editor.
+      event.preventDefault();
       setMenuOpen(false);
       restoreMenuFocus();
     }
     document.addEventListener('pointerdown', closeOutside);
-    document.addEventListener('keydown', closeOnEscape);
+    // Capture phase, so the menu sees Escape before the app-wide shortcut listener.
+    document.addEventListener('keydown', closeOnEscape, true);
     return () => {
       document.removeEventListener('pointerdown', closeOutside);
-      document.removeEventListener('keydown', closeOnEscape);
+      document.removeEventListener('keydown', closeOnEscape, true);
     };
   }, [menuOpen]);
 

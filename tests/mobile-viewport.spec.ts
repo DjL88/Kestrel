@@ -68,7 +68,8 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await expect(appearance.getByRole('button', { name: 'Left side' })).toHaveAttribute('aria-pressed', 'true');
   await appearance.getByRole('button', { name: 'Right side' }).click();
   await expect(appearance.getByRole('button', { name: 'Right side' })).toHaveAttribute('aria-pressed', 'true');
-  await appearance.getByRole('radio', { name: 'Night (dimmer, softer)' }).check();
+  // The softer dark theme is the default now (#336), so switch to the other dark theme to prove a change applies.
+  await appearance.getByRole('radio', { name: 'Classic dark' }).check();
   await appearance.getByRole('button', { name: 'Done' }).click();
   await checkViewport('Editor with changed appearance settings');
 

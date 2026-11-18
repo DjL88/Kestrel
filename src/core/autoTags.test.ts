@@ -54,6 +54,14 @@ test('only photos nobody has looked at, and with no tags of their own, are scann
   assert.deepEqual(scanCandidates(frames).map((frame) => frame.id), ['a', 'f']);
 });
 
+test('the closed-list local model sees only wildlife; the opted-in helper may also classify unlabelled photos', async () => {
+  const { scanCandidates } = await import('./autoTags');
+  const frames = [{ id: 'bird', subjectKind: 'wildlife' }, { id: 'unlabelled' }, { id: 'aircraft', subjectKind: 'other' },
+    { id: 'portrait', subjectKind: 'people' }, { id: 'hills', subjectKind: 'landscape' }];
+  assert.deepEqual(scanCandidates(frames).map((frame) => frame.id), ['bird']);
+  assert.deepEqual(scanCandidates(frames, { includeUnclassified: true }).map((frame) => frame.id), ['bird', 'unlabelled']);
+});
+
 test('after a look the photo is always marked checked, and tagged only when the model was sure', async () => {
   const { scanPatch } = await import('./autoTags');
   assert.deepEqual(scanPatch({ subjectKind: 'wildlife' }, { name: 'Red kite', probability: 0.95, kind: 'wildlife' }), { speciesChecked: true, tags: ['Red kite'], autoTags: ['Red kite'] });

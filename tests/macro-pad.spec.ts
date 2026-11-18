@@ -35,5 +35,6 @@ test('browser and phone menus stay focused and do not advertise desktop macro-pa
   await page.getByRole('button', { name: page.viewportSize()!.width < 768 ? 'More' : 'Workspace options', exact: true }).click();
   const menu = page.locator('#workspace-options');
   await expect(menu.getByRole('button', { name: /Macro pad/i })).toHaveCount(0);
-  await expect(menu.getByText('Appearance & layout', { exact: true })).toBeVisible();
+  // One settings home (#336): appearance, layout and shortcuts share one section.
+  await expect(menu.getByText('Settings: appearance, layout & shortcuts', { exact: true })).toBeVisible();
 });
