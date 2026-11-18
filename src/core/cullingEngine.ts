@@ -328,15 +328,44 @@ export function computeCullCounts(frames: readonly PhotoFrame[]): CullCounts {
   };
 }
 
+export interface TagFilterOption {
+  tag: string;
+  count: number;
+}
+
+/** Collects all unique tags and species labels across live frames with counts, sorted by frequency then name. */
+export function collectTagOptions(frames: readonly PhotoFrame[]): TagFilterOption[] {
+  const counts = new Map<string, { display: string; count: number }>();
+  for (const frame of frames) {
+    if (frame.removedAt != null) continue;
+    const seen = new Set<string>();
+    for (const raw of [...(frame.tags ?? []), ...(frame.subjectNames ?? [])]) {
+      const trimmed = raw.trim();
+      if (!trimmed) continue;
+      const key = trimmed.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const existing = counts.get(key);
+      if (existing) existing.count += 1;
+      else counts.set(key, { display: trimmed, count: 1 });
+    }
+  }
+  return [...counts.values()]
+    .map(({ display, count }) => ({ tag: display, count }))
+    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+}
+
 export function filterFrames(
   frames: readonly PhotoFrame[],
   filter: FilterState,
   searchQuery: string = '',
   ratingFilter?: RatingFilter | null,
   cameraFilter?: string | null,
-  lensFilter?: string | null
+  lensFilter?: string | null,
+  tagFilter?: readonly string[] | null,
 ): PhotoFrame[] {
   const query = searchQuery.trim().toLowerCase();
+  const wantedTags = tagFilter?.length ? new Set(tagFilter.map((t) => t.trim().toLowerCase()).filter(Boolean)) : null;
   return frames.filter((frame) => {
     if (frame.removedAt != null) return false;
     if (filter !== 'all' && frame.decision !== filter) {
@@ -345,6 +374,10 @@ export function filterFrames(
     if (!matchesRating(frame, ratingFilter)) return false;
     if (cameraFilter && frame.exif.camera !== cameraFilter) return false;
     if (lensFilter && frame.exif.lens !== lensFilter) return false;
+    if (wantedTags && wantedTags.size > 0) {
+      const frameTags = [...(frame.tags ?? []), ...(frame.subjectNames ?? [])];
+      if (!frameTags.some((t) => wantedTags.has(t.trim().toLowerCase()))) return false;
+    }
     if (!query) return true;
     const haystack = [
       frame.filename,
@@ -541,7 +574,7 @@ export function applyDecisionWithHistory(
   // A stale filmstrip/compare callback must never reclassify a photo already removed
   // from the library. Restoration is a separate, explicit action.
   if (targetFrame.removedAt != null) return state;
-  const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
+  const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter, state.tagFilter);
   const visibleIdx = visibleBefore.findIndex((f) => f.id === frameId);
 
   const shouldAdvance = options?.allowAdvance ?? state.autoAdvance;
@@ -575,7 +608,7 @@ export function applyDecisionWithHistory(
   );
 
   // Ensure selected frame stays valid if filtered out
-  const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
+  const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter, state.tagFilter);
   if (nextSelectedId && !visibleAfter.some((f) => f.id === nextSelectedId)) {
     // Removing the current photo should leave the eye at the same place in the queue.
     const nextIndex = Math.max(0, Math.min(visibleAfter.length - 1, visibleIdx));
@@ -640,7 +673,7 @@ export function applyAutoCullDecisions(
     return { ...frame, decision };
   });
   if (!batch.length) return state;
-  const visible = filterFrames(frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
+  const visible = filterFrames(frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter, state.tagFilter);
   const selectedFrameId = visible.some((frame) => frame.id === state.selectedFrameId)
     ? state.selectedFrameId : visible[0]?.id ?? null;
   return {
@@ -687,10 +720,10 @@ export function removeFromLibrary(state: CullingState, frameIds: string[]): Cull
   const targets = state.frames.filter((frame) => ids.has(frame.id) && frame.decision === 'reject' && frame.removedAt == null);
   if (!targets.length) return state;
   const removing = new Set(targets.map((frame) => frame.id));
-  const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
+  const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter, state.tagFilter);
   const firstIndex = visibleBefore.findIndex((frame) => removing.has(frame.id));
   const frames = state.frames.map((frame) => removing.has(frame.id) ? { ...frame, removedAt: Date.now() } : frame);
-  const visibleAfter = filterFrames(frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
+  const visibleAfter = filterFrames(frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter, state.tagFilter);
   const selectedFrameId = state.selectedFrameId && visibleAfter.some((frame) => frame.id === state.selectedFrameId)
     ? state.selectedFrameId
     : visibleAfter[Math.max(0, Math.min(visibleAfter.length - 1, firstIndex))]?.id ?? null;
@@ -756,7 +789,7 @@ export function redoDecision(state: CullingState): CullingState {
   if (!historyTargetsAreUnique(state, entry)) return state;
   const updatedFrames = restoreFlags(state, entry, 'nextDecision');
 
-  const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
+  const visibleAfter = filterFrames(updatedFrames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter, state.tagFilter);
   const candidateSelection =
     entry.nextSelectedId && visibleAfter.some((f) => f.id === entry.nextSelectedId)
       ? entry.nextSelectedId

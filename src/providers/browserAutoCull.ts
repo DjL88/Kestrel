@@ -2,9 +2,10 @@ import { loadImage } from './loadImage';
 import { missingDetectorReviewFallback, restoreNoSubjectFallback } from '../core/cullFallback';
 import { sha256Hex } from '../core/sha256';
 import { duplicateAnchorKeys } from '../core/duplicateAnchors';
+import { dedupeNearSimilarKeepers } from '../core/burstDedupe';
+import { perceptualSignature } from '../core/kestrelVision';
 import { limitAutoKeepers, scorePreview, scoreWithSubject, type CullSuggestion, type SubjectFinding } from '../core/autoCull';
 import { detectorParallelism, findSubject, resetDetectorFailure } from './objectDetector';
-import { bundledModelUrl } from './bundledModelAssets';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 
@@ -14,18 +15,17 @@ export async function scanForCulling(
   onDetectorUnavailable?: () => void,
 ) {
   const baseById = new Map<string, CullSuggestion>();
+  const signatures = new Map<string, Float32Array>();
   const sizes = new Map<number, number>();
   for (const frame of candidates) {
     const info = provider.originalInfo(frame.stableKey);
     if (info) sizes.set(info.size, (sizes.get(info.size) ?? 0) + 1);
   }
-  // A cloud IDE may omit large ONNX files. Treat object detection as optional
-  // in that preview; preserve the existing conservative detail-only fallback.
-  // A bundled asset can still be corrupt, inaccessible at runtime, or unable
-  // to initialise ONNX. Stop trying after the first failure in this scan.
-  // Scores from a degraded scan must NEVER be automatically accepted.
+  // findSubject() seamlessly uses bundled ONNX when installed and automatically falls
+  // back to Kestrel's pure-TypeScript Experimental Vision Engine offline.
+  // Only treat the scan as degraded if findSubject() throws an unexpected runtime error.
   resetDetectorFailure();
-  let detectorHealthy = Boolean(bundledModelUrl('yolox_tiny.onnx'));
+  let detectorHealthy = true;
   const seenHashes = new Set<string>();
   const anchorSizes = new Set<number>();
   // A second scan must not select a byte-identical copy of a keeper already
@@ -61,7 +61,7 @@ export async function scanForCulling(
     }
   }
 
-  // Pass 2: look at the photos, several at once. Each lane has its own canvas; the detector runs in background workers.
+  // Pass 2: look at the photos, several at once. Each lane has its own canvas; the detector runs in background workers or Kestrel Vision.
   const outcome = new Map<string, CullSuggestion>();
   let finished = 0;
   const analyse = async (frame: PhotoFrame, canvas: HTMLCanvasElement, context: CanvasRenderingContext2D): Promise<CullSuggestion> => {
@@ -76,13 +76,24 @@ export async function scanForCulling(
       canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
       canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      const base = scorePreview(frame.id, context.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+      const pixelData = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      const base = scorePreview(frame.id, pixelData, canvas.width, canvas.height);
+      if (canvas.width >= 8 && canvas.height >= 8) {
+        signatures.set(frame.id, perceptualSignature(pixelData, canvas.width, canvas.height));
+      }
       // Judge the photo by its subject: its presence and sharpness, not the texture of the whole frame.
       let finding: SubjectFinding | null | undefined;
       try {
         if (detectorHealthy) {
           const found = await findSubject(image, signal);
-          finding = found && { label: found.detection.label, score: found.detection.score, size: Math.max(found.detection.box.w, found.detection.box.h), sharpness: found.sharpness };
+          if (found) {
+            const imgLong = Math.max(image.naturalWidth, image.naturalHeight);
+            const sizeScale = imgLong > 0 && imgLong < 1024 ? 1024 / imgLong : 1;
+            const normalizedSize = Math.round(Math.max(found.detection.box.w, found.detection.box.h) * sizeScale);
+            finding = { label: found.detection.label, score: found.detection.score, size: normalizedSize, sharpness: found.sharpness };
+          } else {
+            finding = null;
+          }
         }
       } catch {
         signal.throwIfAborted();
@@ -125,5 +136,6 @@ export async function scanForCulling(
     : judged > 0 && withSubject / judged < 0.15
       ? restoreNoSubjectFallback(results, baseById)
       : results;
-  return limitAutoKeepers(fallbackResults, all, Math.max(0, goal - all.filter((frame) => !frame.removedAt && frame.decision === 'keep').length));
+  const deduped = dedupeNearSimilarKeepers(fallbackResults, all, signatures);
+  return limitAutoKeepers(deduped, all, Math.max(0, goal - all.filter((frame) => !frame.removedAt && frame.decision === 'keep').length));
 }

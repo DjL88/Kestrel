@@ -140,6 +140,7 @@ export interface CullingState {
   /** Exact-match EXIF filters, from the same consolidated Filter control as search and rating. */
   cameraFilter?: string | null;
   lensFilter?: string | null;
+  tagFilter?: string[];
   sortOrder?: SortOrder;
   keeperTarget: number;
   autoAdvance: boolean;

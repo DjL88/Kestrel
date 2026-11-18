@@ -1,4 +1,4 @@
-import type { PhotoEdit } from './photoEdits';
+import { isIdentityToneCurve, type PhotoEdit } from './photoEdits';
 import type { PhotoFraming } from './photoFraming';
 import type { PhotoFrame } from './types';
 
@@ -10,6 +10,7 @@ import type { PhotoFrame } from './types';
 export interface NativeRawMasterRecipe {
   exposure: number;
   warmth: number;
+  tint?: number;
   colour: number;
   brightness: number;
   contrast: number;
@@ -32,6 +33,9 @@ export function nativeRawMasterRecipe(frame: Pick<PhotoFrame, 'edit' | 'framing'
   if (edit.masks?.length) {
     throw new Error('16-bit RAW master POC does not yet support masks. Your normal export preserves them.');
   }
+  if (!isIdentityToneCurve(edit.toneCurve)) {
+    throw new Error('16-bit RAW master POC does not yet support toneCurve. Your normal export preserves that adjustment.');
+  }
   const unsupported = UNSUPPORTED_CONTROLS.find((key) => (edit[key] ?? 0) !== 0);
   if (unsupported) {
     throw new Error('16-bit RAW master POC does not yet support ' + unsupported + '. Your normal export preserves that adjustment.');
@@ -44,6 +48,13 @@ export function nativeRawMasterRecipe(frame: Pick<PhotoFrame, 'edit' | 'framing'
       throw new Error('Invalid ' + key + ' adjustment; no master was exported.');
     }
     recipe[key] = value;
+  }
+  if ((edit.tint ?? 0) !== 0) {
+    const tint = edit.tint!;
+    if (!Number.isFinite(tint) || Math.abs(tint) > 2) {
+      throw new Error('Invalid tint adjustment; no master was exported.');
+    }
+    recipe.tint = tint;
   }
   return recipe;
 }

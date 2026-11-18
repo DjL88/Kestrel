@@ -2,7 +2,7 @@ import { newId } from '../core/ids';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
-import { ChevronDown, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, Settings2, SlidersHorizontal, Square, SquircleDashed, Undo2, Wand2 } from 'lucide-react';
+import { ChevronDown, Columns2, Copy, FileCode2, FileImage, Maximize, Minimize, Crop, Download, History, Lightbulb, Pipette, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, Settings2, SlidersHorizontal, Square, SquircleDashed, TriangleAlert, Undo2, Wand2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
@@ -15,7 +15,7 @@ import { AreaSelector } from './AreaSelector';
 import { placeInRegion, sampledRegion, type Region } from '../core/subjectRegion';
 import { Histogram } from './Histogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
-import { applyCanvasPhotoEdit } from '../core/canvasEdit';
+import { applyCanvasExportEdit, applyCanvasPhotoEdit, exportCanvasRgb16, exportLinearRgbToRgb16 } from '../core/canvasEdit';
 import { applyFix, critique, toneOnlyEdit, type Opinion } from '../core/critique';
 import { fullContext } from '../core/masks';
 import { MaskOverlay } from './MaskOverlay';
@@ -23,13 +23,20 @@ import { MaskPanel } from './MaskPanel';
 import { createSubjectMask, framingKey } from '../core/maskTypes';
 import { detectSubject } from '../providers/subjectDetector';
 import { PresetPanel } from './PresetPanel';
-import { autoEnhance, mergeAutoSuggestion } from '../core/autoEnhance';
+import { mergeStudioSuggestion, studioAutoEnhance } from '../core/autoEnhance';
+import { assessAutoQuality } from '../core/autoQualityGate';
 import { proposeSubjectAwareAuto, type InsightSubjectKind } from '../core/insightSubjectAuto';
+import { computeEditDeltas } from '../core/autoDiff';
+import { computeClippingOverlay, type ClippingSummary } from '../core/clippingOverlay';
+import { buildXmpSidecar } from '../core/xmpSidecar';
+import { decodeTiffOrRawBuffer, encodeRgb16TiffWithIcc } from '../core/kestrelRawDecoder';
+import { readVisionEngineMode, writeVisionEngineMode, type VisionEngineMode } from '../core/enginePreference';
+import { ToneCurveEditor } from './ToneCurveEditor';
 import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
 import { PhotoViewport } from './PhotoViewport';
 import { maxZoomFor, percentFor, stepZoom, zoomForPercent } from '../core/zoomControls';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, DETAIL_CONTROLS, NOISE_CONTROL, isNeutralEdit, isEmptyEdit, type PhotoEdit } from '../core/photoEdits';
+import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, DETAIL_CONTROLS, NOISE_CONTROL, computeWbFromNeutralSample, isNeutralEdit, isEmptyEdit, type PhotoEdit } from '../core/photoEdits';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 
@@ -108,12 +115,19 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
 }: Props) {
   const originalCanvas = useRef<HTMLCanvasElement>(null);
   const editedCanvas = useRef<HTMLCanvasElement>(null);
+  const clippingCanvas = useRef<HTMLCanvasElement>(null);
   const sourceImage = useRef<HTMLImageElement | null>(null);
   const stage = useRef<HTMLDivElement>(null);
   const originalDetail = useRef<HTMLCanvasElement>(null);
   const editedDetail = useRef<HTMLCanvasElement>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [showDetail, setShowDetail] = useState(false);
+  const [showClipping, setShowClipping] = useState(false);
+  const [clipSummary, setClipSummary] = useState<ClippingSummary | null>(null);
+  const [pickWb, setPickWb] = useState(false);
+  const [appliedAutoUndoable, setAppliedAutoUndoable] = useState(false);
+  const [engineMode, setEngineMode] = useState<VisionEngineMode>(() => readVisionEngineMode());
+  const [tiffBusy, setTiffBusy] = useState(false);
   const [sourceState, setSourceState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [developedRev, setDevelopedRev] = useState(0);
   const [developing, setDeveloping] = useState(false);
@@ -128,10 +142,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   });
   const cornerDrag = useRef<{ corner: CropCorner; x: number; y: number; point: { x: number; y: number } } | null>(null);
   const [autoNotes, setAutoNotes] = useState<string[]>([]);
-  // Auto is a reversible visual preview; never save a suggested edit before an explicit Apply.
+  // Auto is a reversible visual preview; when autoEdit project mode opens an untouched photo,
+  // it applies a quality-checked starting edit automatically as an undoable history step.
   const [pendingAuto, setPendingAuto] = useState<{ base: PhotoEdit; edit: PhotoEdit; cropKey: string; source: HTMLImageElement } | null>(null);
   const [autoAnalysing, setAutoAnalysing] = useState(false);
-  // Invalidates slow ONNX results when a proposal is replaced, a tab changes or this editor unmounts.
+  const autoAppliedForSource = useRef<HTMLImageElement | null>(null);
+  // Invalidates slow results when a proposal is replaced, a tab changes or this editor unmounts.
   const autoRun = useRef(0);
   const subjectCache = useRef<{ source: HTMLImageElement; cropKey: string; result: Awaited<ReturnType<typeof detectSubject>> } | null>(null);
   useEffect(() => () => { autoRun.current += 1; }, []);
@@ -417,6 +433,22 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     const scale = Math.min(1, FIT_PREVIEW_EDGE / Math.max(size.width, size.height));
     drawFramedPhoto(source, canvas, displayFraming, { scale });
     applyCanvasPhotoEdit(canvas, edit);
+    if (showClipping && clippingCanvas.current) {
+      const clipCanvas = clippingCanvas.current;
+      clipCanvas.width = canvas.width;
+      clipCanvas.height = canvas.height;
+      const srcCtx = canvas.getContext('2d', { willReadFrequently: true });
+      const dstCtx = clipCanvas.getContext('2d');
+      if (srcCtx && dstCtx) {
+        const px = srcCtx.getImageData(0, 0, canvas.width, canvas.height);
+        const overlay = dstCtx.createImageData(canvas.width, canvas.height);
+        const summary = computeClippingOverlay(px.data, overlay.data);
+        dstCtx.putImageData(overlay, 0, 0);
+        setClipSummary(summary);
+      }
+    } else {
+      setClipSummary(null);
+    }
     // A small copy keeps the histogram cheap, and it reads the edited result.
     const small = document.createElement('canvas');
     const shrink = Math.min(1, 256 / Math.max(canvas.width, canvas.height));
@@ -427,7 +459,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       smallContext.drawImage(canvas, 0, 0, small.width, small.height);
       setHistogram(computeHistogram(smallContext.getImageData(0, 0, small.width, small.height).data));
     }
-  }, [source, displayFraming, edit, size?.width, size?.height]);
+  }, [source, displayFraming, edit, showClipping, size?.width, size?.height]);
 
   useEffect(() => {
     if (!displayCompare || !source || !size || !originalCanvas.current) return;
@@ -471,6 +503,11 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         onHistoryStep(event.shiftKey ? 1 : -1);
         return;
       }
+      if (!event.metaKey && !event.ctrlKey && !event.altKey && (event.key === 'j' || event.key === 'J')) {
+        event.preventDefault();
+        setShowClipping((v) => !v);
+        return;
+      }
       const command = resolveKeyboardCommand({ event, bindings, activeMode: 'edit', isSuppressed: false });
       if (!command) return;
       event.preventDefault();
@@ -480,7 +517,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         case 'edit.paste': if (copiedEdit) onEdit(copiedEdit); break;
         case 'edit.reset': onEdit(DEFAULT_EDIT); break;
         case 'edit.beforeAfter': if (!guide) setCompare((value) => !value); break;
-        case 'edit.wbNeutral': onEdit({ ...edit, warmth: 0 }); break;
+        case 'edit.wbNeutral': onEdit({ ...edit, warmth: 0, tint: 0 }); break;
         case 'edit.prevControl':
           setDialUsed(true);
           setDial((index) => (index + 1) % DIAL_KEYS.length);
@@ -509,6 +546,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   // Opening the crop tab shows the whole photo with the crop box. Remember the crop so Cancel can put it back.
   useEffect(() => {
     setPreviewCrop(false);
+    setPickWb(false);
+    setAppliedAutoUndoable(false);
     setTransform(FIT_VIEW);
     autoRun.current += 1;
     setAutoAnalysing(false);
@@ -551,8 +590,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     return 'other';
   }
 
-  /** Preview an offline global recipe; enrich it with a trustworthy subject mask when one exists. */
-  async function previewAutoSuggestion() {
+  /** Compute an offline studio + subject-aware recipe; optionally commit directly on first-open autoEdit. */
+  async function previewAutoSuggestion(commitImmediately = false) {
     const run = ++autoRun.current;
     const startedFor = detectionContext.current;
     const originalSource = source;
@@ -560,7 +599,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     setPendingAuto(null);
     setPreviewRecipe(null);
     setOpinions(null);
-    setAutoNotes(['Analysing your photograph on this device…']);
+    setAutoNotes([commitImmediately ? 'Auto-enhancing your photograph on this device…' : 'Analysing your photograph on this device…']);
     const stillCurrent = () => run === autoRun.current && detectionContext.current === startedFor &&
       sourceImage.current === originalSource && Boolean(originalSource);
     try {
@@ -569,12 +608,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         if (run === autoRun.current) setAutoNotes(['Could not analyse this photo. Your edits have not changed.']);
         return;
       }
-      const { edit: suggestion, notes } = autoEnhance(sample.data);
+      const { edit: suggestion, notes } = studioAutoEnhance(sample.data, sample.width, sample.height);
       if (notes.includes('Too small to analyse.')) {
         if (stillCurrent()) setAutoNotes(['This preview is too small to analyse. Your edits have not changed.']);
         return;
       }
-      const result = mergeAutoSuggestion(savedEdit, suggestion);
+      const result = mergeStudioSuggestion(savedEdit, suggestion);
       let proposal = result.edit;
       let subjectNote = '';
       let usedMask = false;
@@ -629,6 +668,34 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       }
       if (!stillCurrent()) return;
       const changed = result.changed || usedMask;
+
+      if (commitImmediately && changed) {
+        // Verify quality before auto-committing onto an untouched photo
+        const checkCanvas = document.createElement('canvas');
+        checkCanvas.width = sample.width;
+        checkCanvas.height = sample.height;
+        const checkCtx = checkCanvas.getContext('2d', { willReadFrequently: true });
+        let safeToApply = true;
+        if (checkCtx) {
+          checkCtx.putImageData(sample, 0, 0);
+          applyCanvasPhotoEdit(checkCanvas, proposal);
+          const afterBytes = checkCtx.getImageData(0, 0, sample.width, sample.height).data;
+          safeToApply = assessAutoQuality(sample.data, afterBytes).safe;
+        }
+        if (safeToApply) {
+          onEdit(proposal);
+          setAppliedAutoUndoable(true);
+          setAutoNotes([
+            usedMask
+              ? 'Auto-enhanced with global tone polish and gentle subject lift. Undo anytime.'
+              : 'Auto-enhanced with balanced studio light and detail adjustments. Undo anytime.',
+            ...notes,
+            subjectNote,
+          ].filter(Boolean));
+          return;
+        }
+      }
+
       setPendingAuto(changed ? { base: savedEdit, edit: proposal, cropKey, source: originalSource } : null);
       setPreviewRecipe(changed ? { edit: proposal, framing: frame.framing } : null);
       setAutoNotes([
@@ -647,10 +714,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     }
   }
 
-  // Opt-in project assistance suggests a look on first open; it never silently commits edits.
+  // Opt-in project assistance automatically develops an untouched photo on first open as an undoable history step.
   useEffect(() => {
     if (!autoEdit || !source || frame.edit || frame.editHistory?.steps.length) return;
-    void previewAutoSuggestion();
+    if (autoAppliedForSource.current === source) return;
+    autoAppliedForSource.current = source;
+    void previewAutoSuggestion(true);
     // One first-open run; re-run if the source switches from an embedded preview to developed RAW.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source]);
@@ -870,6 +939,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             <span>Before / After</span>
             <span className="rounded bg-black/40 px-1.5 text-xs">{displayCompare ? 'On' : 'Off'}</span>
           </button>
+          <button type="button" aria-pressed={showClipping} disabled={sourceState !== 'ready' || guide || displayCompare}
+            onClick={() => setShowClipping((v) => !v)}
+            title="Toggle highlight and shadow clipping warnings (J)"
+            className={`${button} inline-flex items-center gap-1.5 border border-white/15 aria-pressed:border-red-400/70 aria-pressed:bg-red-500/20 aria-pressed:text-red-100`}>
+            <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Clipping</span>
+          </button>
           {displayCompare && (
             <label className="min-w-0">
               <span className="sr-only">Before comparison stage</span>
@@ -917,19 +993,20 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden workspace:flex-row">
       <div ref={stage} className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
         {fit > 0 && (
-          <div role="group" aria-label="Zoom" className="absolute bottom-2 right-2 z-30 flex items-center gap-1 rounded-md bg-black/70 p-1 text-xs text-zinc-100">
-            <button type="button" aria-label="Zoom out" title="Zoom out (-)" className="h-7 w-7 rounded hover:bg-white/15"
+          <div role="group" aria-label="Zoom" className="absolute bottom-2 right-2 z-30 flex items-center gap-1.5 rounded-md border border-white/10 bg-black/75 px-2 py-1 text-xs text-zinc-100 backdrop-blur-sm">
+            <button type="button" aria-label="Zoom out" title="Zoom out (-)" className="h-7 w-7 shrink-0 rounded hover:bg-white/15"
               onClick={() => zoomTo(stepZoom(transform.zoom, -1, maxZoom))}>−</button>
-            <span aria-live="polite" aria-label="Zoom level" className="min-w-10 text-center tabular-nums">{percentFor(transform.zoom, fit, dpr)}%</span>
-            <button type="button" aria-label="Zoom in" title="Zoom in (+)" className="h-7 w-7 rounded hover:bg-white/15"
+            <span aria-live="polite" aria-label="Zoom level" className="min-w-10 shrink-0 text-center tabular-nums">{percentFor(transform.zoom, fit, dpr)}%</span>
+            <button type="button" aria-label="Zoom in" title="Zoom in (+)" className="h-7 w-7 shrink-0 rounded hover:bg-white/15"
               onClick={() => zoomTo(stepZoom(transform.zoom, 1, maxZoom))}>+</button>
             <input type="range" min={1} max={maxZoom} step={(maxZoom - 1) / 200} value={transform.zoom}
               aria-label="Zoom amount" onChange={(event) => zoomTo(event.target.valueAsNumber)}
-              className="min-h-11 w-20 accent-sky-300 desk:min-h-9" />
-            <button type="button" title="Fit to screen " className="h-7 rounded px-1.5 hover:bg-white/15" onClick={() => zoomTo(1)}>Fit</button>
-            <button type="button" title="Actual pixels " className="h-7 rounded px-1.5 hover:bg-white/15"
+              style={{ width: '5rem', minWidth: 0 }}
+              className="mx-0.5 min-h-9 shrink-0 accent-sky-300" />
+            <button type="button" title="Fit to screen " className="h-7 shrink-0 rounded px-1.5 hover:bg-white/15" onClick={() => zoomTo(1)}>Fit</button>
+            <button type="button" title="Actual pixels " className="h-7 shrink-0 rounded px-1.5 hover:bg-white/15"
               onClick={() => zoomTo(zoomForPercent(100, fit, dpr))}>100%</button>
-            <button type="button" title="Twice actual pixels " className="h-7 rounded px-1.5 hover:bg-white/15"
+            <button type="button" title="Twice actual pixels " className="h-7 shrink-0 rounded px-1.5 hover:bg-white/15"
               onClick={() => zoomTo(zoomForPercent(200, fit, dpr))}>200%</button>
           </div>
         )}
@@ -942,6 +1019,50 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               hidden={sourceState !== 'ready'} className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />
             {detail && <canvas ref={editedDetail} aria-hidden="true" hidden={!showDetail}
               className="absolute" style={detail.style} />}
+            <canvas ref={clippingCanvas} aria-hidden="true"
+              hidden={!showClipping || sourceState !== 'ready' || displayCompare}
+              className="pointer-events-none absolute" style={position} />
+            {!guide && position && pickWb && source && (
+              <button
+                type="button"
+                aria-label="Click neutral white or grey point for white balance"
+                title="Click a neutral grey/white surface to balance Warmth and Tint"
+                className="absolute z-20 cursor-crosshair focus-visible:outline-2 focus-visible:outline-sky-300"
+                style={position}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  const bounds = event.currentTarget.getBoundingClientRect();
+                  const nx = Math.min(1, Math.max(0, (event.clientX - bounds.left) / Math.max(1, bounds.width)));
+                  const ny = Math.min(1, Math.max(0, (event.clientY - bounds.top) / Math.max(1, bounds.height)));
+                  const probe = document.createElement('canvas');
+                  const probeScale = Math.min(1, 1024 / Math.max(size!.width, size!.height));
+                  drawFramedPhoto(source, probe, displayFraming, { scale: probeScale });
+                  const ctx = probe.getContext('2d', { willReadFrequently: true });
+                  if (ctx) {
+                    const cx = Math.min(probe.width - 1, Math.max(0, Math.round(nx * (probe.width - 1))));
+                    const cy = Math.min(probe.height - 1, Math.max(0, Math.round(ny * (probe.height - 1))));
+                    const x0 = Math.max(0, cx - 2);
+                    const y0 = Math.max(0, cy - 2);
+                    const w0 = Math.min(probe.width - x0, 5);
+                    const h0 = Math.min(probe.height - y0, 5);
+                    const px = ctx.getImageData(x0, y0, w0, h0).data;
+                    let rSum = 0, gSum = 0, bSum = 0;
+                    const n = px.length / 4;
+                    for (let i = 0; i < px.length; i += 4) {
+                      rSum += px[i];
+                      gSum += px[i + 1];
+                      bSum += px[i + 2];
+                    }
+                    if (n > 0) {
+                      const wb = computeWbFromNeutralSample(rSum / n, gSum / n, bSum / n);
+                      onEdit({ ...edit, warmth: wb.warmth, tint: wb.tint });
+                      setEditNotice('White balance set from neutral sample');
+                    }
+                  }
+                  setPickWb(false);
+                }}
+              />
+            )}
             {!guide && position && markFocus && <button type="button" aria-label="Place export focus point" title="Place export focus point"
               className="absolute z-10 cursor-crosshair focus-visible:outline-2 focus-visible:outline-sky-200" style={position}
               onClick={(event) => {
@@ -1025,6 +1146,38 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               className="absolute" style={detail.style} />}
           </>}
         />
+        {showClipping && clipSummary && clipSummary.totalPixels > 0 && !displayCompare && (
+          <div role="status" className="pointer-events-none absolute top-2 left-2 z-30 flex items-center gap-2 rounded-md border border-white/15 bg-black/80 px-2.5 py-1 text-[11px] tabular-nums text-zinc-200">
+            <span className="text-red-300">Hi {((clipSummary.highlightPixels / clipSummary.totalPixels) * 100).toFixed(1)}%</span>
+            <span className="text-zinc-500">·</span>
+            <span className="text-blue-300">Lo {((clipSummary.shadowPixels / clipSummary.totalPixels) * 100).toFixed(1)}%</span>
+            {clipSummary.channelPixels > 0 && (
+              <>
+                <span className="text-zinc-500">·</span>
+                <span className="text-amber-300">Ch {((clipSummary.channelPixels / clipSummary.totalPixels) * 100).toFixed(1)}%</span>
+              </>
+            )}
+          </div>
+        )}
+        {appliedAutoUndoable && !pendingAuto && Boolean(frame.editHistory?.cursor) && sourceState === 'ready' && (
+          <div role="status" className="absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-sky-300/35 bg-kestrel-raised/95 px-3 py-1 text-xs text-zinc-100 shadow-xl backdrop-blur">
+            <span className="font-medium text-sky-200">Auto-enhanced</span>
+            <span className="text-zinc-500">·</span>
+            <button type="button" className="rounded px-1.5 py-0.5 text-zinc-200 hover:bg-white/10" onClick={() => setCompare((c) => !c)}>
+              {displayCompare ? 'Hide compare' : 'Compare'}
+            </button>
+            <button type="button" className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-zinc-200 hover:bg-white/10"
+              onClick={() => {
+                onHistoryStep(-1);
+                setAppliedAutoUndoable(false);
+                setAutoNotes(['Auto-enhanced edit undone.']);
+              }}>
+              <Undo2 className="h-3 w-3" aria-hidden="true" />Undo
+            </button>
+            <button type="button" aria-label="Dismiss auto-enhanced notice" className="ml-0.5 rounded px-1 text-zinc-400 hover:text-white"
+              onClick={() => setAppliedAutoUndoable(false)}>×</button>
+          </div>
+        )}
         {sourceState !== 'ready' && (
           <p role="status" className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-zinc-300">
             {sourceState === 'loading' ? 'Opening photo…' : needsAccess ? 'Reconnect the original file to edit it.' : 'This photo has no browser-readable preview.'}
@@ -1051,39 +1204,65 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             <Lightbulb className="h-4 w-4 stroke-[1.75]" aria-hidden="true" />{autoAnalysing ? 'Analysing…' : 'Suggest a look'}
           </button>
           <p className="text-xs text-zinc-400">Kestrel checks the whole picture and, where reliable, the subject separately. Preview before applying; your original stays untouched.</p>
-          {pendingAuto && (
-            <div role="group" aria-label="Suggested edit preview" className="space-y-2 rounded-lg border border-white/15 bg-white/5 p-3">
-              <p role="status" className="text-sm text-zinc-100">Previewing your suggested edit</p>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" aria-pressed={displayCompare} className={`${button} border border-white/15 aria-pressed:bg-sky-300/15`}
-                  onClick={() => setCompare((current) => !current)}>{displayCompare ? 'Hide comparison' : 'Compare before / after'}</button>
-                <button type="button" className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
-                  onClick={() => {
-                    if (savedEdit !== pendingAuto.base || cropKey !== pendingAuto.cropKey || sourceImage.current !== pendingAuto.source) {
-                      setAutoNotes(['The photo changed while previewing. Run Suggest a look again.']);
-                    } else {
-                      onEdit(pendingAuto.edit);
-                      setAutoNotes(['Suggested look applied. You can undo it from Edit history.']);
-                    }
+          {pendingAuto && (() => {
+            const deltas = computeEditDeltas(pendingAuto.base, pendingAuto.edit);
+            return (
+              <div role="group" aria-label="Suggested edit preview" className="space-y-2 rounded-lg border border-white/15 bg-white/5 p-3">
+                <p role="status" className="text-sm font-medium text-zinc-100">Previewing your suggested edit</p>
+                {deltas.length > 0 && (
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-md bg-black/25 px-2.5 py-2 text-xs">
+                    {deltas.map((d) => (
+                      <div key={d.key} className="flex items-center justify-between gap-1">
+                        <dt className="text-zinc-400">{d.label}</dt>
+                        <dd className="tabular-nums font-medium text-zinc-100">{d.afterText}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" aria-pressed={displayCompare} className={`${button} border border-white/15 aria-pressed:bg-sky-300/15`}
+                    onClick={() => setCompare((current) => !current)}>{displayCompare ? 'Hide comparison' : 'Compare before / after'}</button>
+                  <button type="button" className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
+                    onClick={() => {
+                      if (savedEdit !== pendingAuto.base || cropKey !== pendingAuto.cropKey || sourceImage.current !== pendingAuto.source) {
+                        setAutoNotes(['The photo changed while previewing. Run Suggest a look again.']);
+                        setAppliedAutoUndoable(false);
+                      } else {
+                        onEdit(pendingAuto.edit);
+                        setAppliedAutoUndoable(true);
+                        setAutoNotes(['Suggested look applied. You can undo it immediately or from History.']);
+                      }
+                      autoRun.current += 1;
+                      setPendingAuto(null);
+                      setPreviewRecipe(null);
+                    }}>Apply suggested edit</button>
+                  <button type="button" className={`${button} border border-white/15`} onClick={() => {
                     autoRun.current += 1;
+                    setAutoAnalysing(false);
                     setPendingAuto(null);
                     setPreviewRecipe(null);
-                  }}>Apply suggested edit</button>
-                <button type="button" className={`${button} border border-white/15`} onClick={() => {
-                  autoRun.current += 1;
-                  setAutoAnalysing(false);
-                  setPendingAuto(null);
-                  setPreviewRecipe(null);
-                  setOpinions(null);
-                  setAutoNotes(['Suggestion dismissed. Your edit is unchanged.']);
-                }}>Keep current edit</button>
+                    setOpinions(null);
+                    setAppliedAutoUndoable(false);
+                    setAutoNotes(['Suggestion dismissed. Your edit is unchanged.']);
+                  }}>Keep current edit</button>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
           {autoNotes.length > 0 && <ul role="status" className="list-disc space-y-0.5 pl-4 pt-1 text-xs text-zinc-300">
             {autoNotes.map((note) => <li key={note}>{note}</li>)}
           </ul>}
+          {appliedAutoUndoable && !pendingAuto && Boolean(frame.editHistory?.cursor) && (
+            <button type="button" className={`${button} inline-flex items-center gap-1.5 border border-white/15 text-xs`}
+              onClick={() => {
+                onHistoryStep(-1);
+                setAppliedAutoUndoable(false);
+                setAutoNotes(['Suggested edit undone.']);
+              }}>
+              <Undo2 className="h-3.5 w-3.5" aria-hidden="true" />Undo applied edit
+            </button>
+          )}
           {autoNotes.length > 0 && !pendingAuto && <p className="px-1 text-xs text-zinc-400">You can save an edit you like as a reusable recipe in Recipes below.</p>}
           {opinions && (
             <section aria-label="Quality checks for this look" className="space-y-2 rounded-md border border-white/10 p-2">
@@ -1105,6 +1284,25 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           <h3 className="text-sm font-medium text-zinc-100">Recipes</h3>
           <PresetPanel edit={edit} disabled={sourceState !== 'ready'} previewSource={lookPreviewSource} onApply={(next) => (onApplyLook ?? onEdit)({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />
         </section>
+        <section aria-label="Analysis engine" className="space-y-1 border-t border-white/10 pt-2">
+          <label className="block text-xs text-zinc-300">
+            <span className="font-medium text-zinc-200">On-device analysis engine</span>
+            <select
+              aria-label="On-device analysis engine"
+              value={engineMode}
+              onChange={(event) => {
+                const next = event.target.value as VisionEngineMode;
+                setEngineMode(next);
+                writeVisionEngineMode(next);
+                subjectCache.current = null;
+              }}
+              className="mt-1 min-h-9 w-full rounded-md border border-white/10 bg-[#252830] px-2 text-xs text-zinc-100"
+            >
+              <option value="auto">Auto (ONNX when installed + Kestrel fallback)</option>
+              <option value="kestrel-only">Kestrel Experimental Only (zero external weights)</option>
+            </select>
+          </label>
+        </section>
         <Histogram data={histogram} teach />
 
           </div>
@@ -1120,7 +1318,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         {tab === 'edit' && (
           <div role="tabpanel" id="panel-edit" aria-labelledby="tab-edit" className="space-y-2">
         {isPhone && (allControls ? (
-          <button type="button" className="mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-white/12 px-3 text-xs text-zinc-200 hover:bg-white/10" onClick={() => setAllControls(false)}>
+          <button type="button" className="mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-md border border-white/12 px-3 text-xs text-zinc-200 hover:bg-white/10" onClick={() => setAllControls(false)}>
             <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />Back to quick adjust
           </button>
         ) : (
@@ -1131,7 +1329,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         <div className={isPhone && !allControls ? 'hidden' : 'space-y-2'}>
         <div className="space-y-2 px-1 py-2">
           {EDIT_CHOICES.map(({ key, label, options }, index) => (
-            <fieldset key={key} disabled={sourceState !== 'ready'} className="min-w-0 disabled:opacity-45">
+            <fieldset key={key} disabled={sourceState !== 'ready'} className="min-w-0 space-y-1.5 disabled:opacity-45">
               <label className="block">
                 <span className="flex items-center justify-between text-xs text-zinc-300">
                   <span>{label}{dialUsed && dial === index && <span className="ml-2 text-sky-200">Dial</span>}</span>
@@ -1144,6 +1342,36 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
                   className="block min-h-9 w-full accent-sky-300 desk:min-h-7" />
               </label>
+              {key === 'warmth' && (
+                <div className="space-y-1 pt-0.5">
+                  <label className="block">
+                    <span className="flex items-center justify-between text-xs text-zinc-300">
+                      <span>Tint</span>
+                      <output className="tabular-nums text-zinc-400">{Math.round((edit.tint ?? 0) * 8)}%</output>
+                    </span>
+                    <input type="range" min={-2} max={2} step={0.05} value={edit.tint ?? 0} aria-label="Tint adjustment"
+                      onChange={(event) => onEdit({ ...edit, tint: event.target.valueAsNumber })}
+                      onDoubleClick={() => onEdit({ ...edit, tint: 0 })}
+                      className="block min-h-9 w-full accent-sky-300 desk:min-h-7" />
+                  </label>
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      aria-pressed={pickWb}
+                      disabled={sourceState !== 'ready' || guide}
+                      onClick={() => { setPickWb((v) => !v); setMarkFocus(false); }}
+                      className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-white/10 px-2 text-xs text-zinc-200 hover:bg-white/8 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15"
+                    >
+                      <Pipette className="h-3.5 w-3.5" aria-hidden="true" />
+                      {pickWb ? 'Click grey/white point…' : 'WB eyedropper'}
+                    </button>
+                    {((edit.warmth !== 0) || Boolean(edit.tint)) && (
+                      <button type="button" onClick={() => onEdit({ ...edit, warmth: 0, tint: 0 })}
+                        className="min-h-8 rounded px-1.5 text-xs text-zinc-400 hover:text-zinc-100">Reset WB</button>
+                    )}
+                  </div>
+                </div>
+              )}
               {quickChoices && <div className="flex gap-1">
                 {options.map((name, index) => (
                   <button type="button" key={name} aria-pressed={edit[key] === index - 1}
@@ -1175,6 +1403,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   className="block min-h-9 w-full accent-sky-300 disabled:opacity-45 desk:min-h-7" />
               </label>
             ))}
+            <div className="border-t border-white/10 pt-2">
+              <ToneCurveEditor
+                curve={edit.toneCurve}
+                disabled={sourceState !== 'ready'}
+                onChange={(toneCurve) => onEdit({ ...edit, toneCurve })}
+              />
+            </div>
           </div>
         </details>
         <details open className="border-t border-white/10">
@@ -1292,6 +1527,55 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             </div>
           )}
 
+          <div className="flex flex-wrap gap-1 border-t border-white/10 pt-1">
+            <button type="button" className={`${button} inline-flex items-center gap-1.5`}
+              onClick={() => {
+                const stem = frame.filename.replace(/\.[^.]+$/, '');
+                const xml = buildXmpSidecar(frame);
+                downloadExport(new Blob([xml], { type: 'application/rdf+xml' }), `${stem}.xmp`);
+                setEditNotice(`Saved ${stem}.xmp sidecar`);
+              }}>
+              <FileCode2 className="h-4 w-4" aria-hidden="true" />Export XMP sidecar
+            </button>
+            <button type="button" className={`${button} inline-flex items-center gap-1.5`}
+              disabled={!source || tiffBusy}
+              onClick={() => void (async () => {
+                if (!source || tiffBusy) return;
+                setTiffBusy(true);
+                try {
+                  const stem = frame.filename.replace(/\.[^.]+$/, '');
+                  const uncropped = framing.ratio === null && framing.straighten === 0 && framing.size === 1 && framing.turns === 0;
+                  const supportsNativeLinear = /\.(tiff?|dng|ppm|pgm)$/i.test(frame.filename);
+                  if (!frame.isDemo && uncropped && supportsNativeLinear && provider.hasBlob(frame.stableKey)) {
+                    const original = await provider.ensureOriginal(frame.stableKey);
+                    if (original) {
+                      try {
+                        const decoded = decodeTiffOrRawBuffer(await original.arrayBuffer());
+                        const rgb16 = exportLinearRgbToRgb16(decoded.linearRgb, decoded.width, decoded.height, edit);
+                        const tiffBytes = encodeRgb16TiffWithIcc(rgb16, decoded.width, decoded.height);
+                        downloadExport(new Blob([tiffBytes as BlobPart], { type: 'image/tiff' }), `${stem}-studio-icc.tiff`);
+                        setEditNotice(`Saved ${stem}-studio-icc.tiff (scene-linear ${decoded.decoder} + sRGB ICC)`);
+                        return;
+                      } catch {
+                        // Fall through cleanly to continuous Float32 canvas export for compressed formats
+                      }
+                    }
+                  }
+                  const full = document.createElement('canvas');
+                  drawFramedPhoto(source, full, framing, { scale: 1 });
+                  const rgb16 = exportCanvasRgb16(full, edit);
+                  const tiffBytes = encodeRgb16TiffWithIcc(rgb16, full.width, full.height);
+                  downloadExport(new Blob([tiffBytes as BlobPart], { type: 'image/tiff' }), `${stem}-studio-icc.tiff`);
+                  setEditNotice(`Saved ${stem}-studio-icc.tiff (Float32 16-bit RGB + sRGB ICC)`);
+                } catch (err) {
+                  setEditNotice(err instanceof Error ? err.message : '16-bit TIFF export failed.');
+                } finally {
+                  setTiffBusy(false);
+                }
+              })()}>
+              <FileImage className="h-4 w-4" aria-hidden="true" />{tiffBusy ? 'Encoding TIFF…' : 'Export 16-bit TIFF (Studio ICC)'}
+            </button>
+          </div>
           {!frame.isDemo && <button type="button" className={button} disabled={!provider.hasBlob(frame.stableKey)}
             onClick={async () => {
               const original = await provider.ensureOriginal(frame.stableKey);

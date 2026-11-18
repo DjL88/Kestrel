@@ -166,3 +166,111 @@ test('raising Brightness does not clip an already-bright saturated feather colou
   assert.ok(after[0] < 255, 'retain at least a little peak-channel headroom');
   assert.equal(after[3], 255);
 });
+
+import {
+  applyDetailFloat,
+  applyPhotoEditLinearInPlace,
+  computeWbFromNeutralSample,
+  displayFloatToRgbaBytes,
+  evaluateToneCurveLut,
+  isIdentityToneCurve,
+  rgbaBytesToLinearFloat,
+  rollOffHighlights,
+  validToneCurve,
+  wbMultipliers,
+} from './photoEdits';
+
+test('tint axis shifts green vs magenta without distorting warmth', () => {
+  const greenPixels = new Uint8ClampedArray([120, 120, 120, 255]);
+  applyPhotoEdit(greenPixels, { ...DEFAULT_EDIT, tint: -1.5 });
+  assert.ok(greenPixels[1] > greenPixels[0], 'negative tint increases green channel relative to R/B');
+  assert.ok(greenPixels[1] > greenPixels[2]);
+
+  const magentaPixels = new Uint8ClampedArray([120, 120, 120, 255]);
+  applyPhotoEdit(magentaPixels, { ...DEFAULT_EDIT, tint: 1.5 });
+  assert.ok(magentaPixels[0] > magentaPixels[1] && magentaPixels[2] > magentaPixels[1],
+    'positive tint shifts green downward relative to R/B (magenta)');
+  const [rm, gm, bm] = wbMultipliers(0, 1);
+  const lum = 0.2126 * rm + 0.7152 * gm + 0.0722 * bm;
+  assert.ok(Math.abs(lum - 1) < 0.02, 'tint multipliers keep luminance near neutral');
+});
+
+test('computeWbFromNeutralSample balances cool, warm, and tinted swatches', () => {
+  const coolCast = computeWbFromNeutralSample(140, 160, 195);
+  assert.ok(coolCast.warmth > 0, 'blue cast should suggest warmer temperature');
+  const warmCast = computeWbFromNeutralSample(195, 160, 130);
+  assert.ok(warmCast.warmth < 0, 'orange cast should suggest cooler temperature');
+  const greenCast = computeWbFromNeutralSample(130, 175, 130);
+  assert.ok(greenCast.tint > 0, 'green cast should suggest magenta tint correction');
+  const neutral = computeWbFromNeutralSample(128, 128, 128);
+  assert.deepEqual(neutral, { warmth: 0, tint: 0 });
+});
+
+test('rollOffHighlights protects saturated hue ratios while passing sub-1.0 pixels untouched', () => {
+  assert.deepEqual(rollOffHighlights(0.8, 0.4, 0.1), [0.8, 0.4, 0.1]);
+  const [r, g, b] = rollOffHighlights(2.5, 1.2, 0.3);
+  assert.ok(r <= 1.0 && g <= 1.0 && b <= 1.0, 'rolled-off channels remain display-bounded');
+  assert.ok(r > g && g > b, 'dominant warm red-orange hue order stays intact without hard channel clipping');
+
+  // High exposure push on saturated colour retains hue ranking
+  const bright = new Uint8ClampedArray([250, 120, 30, 255]);
+  applyPhotoEdit(bright, { ...DEFAULT_EDIT, exposure: 2 });
+  assert.ok(bright[0] >= bright[1] && bright[1] > bright[2]);
+});
+
+test('contrast sCurve remains strictly monotonic across the tonal ramp at all slider extremes', () => {
+  for (const contrast of [-2, -1, 0, 1, 2]) {
+    const ramp = new Uint8ClampedArray(256 * 4);
+    for (let i = 0; i < 256; i += 1) ramp.set([i, i, i, 255], i * 4);
+    applyPhotoEdit(ramp, { ...DEFAULT_EDIT, contrast });
+    for (let i = 1; i < 256; i += 1) {
+      assert.ok(ramp[i * 4] >= ramp[(i - 1) * 4], `monotonic contrast=${contrast} at ${i}`);
+    }
+  }
+});
+
+test('evaluateToneCurveLut uses Fritsch-Carlson monotonic Hermite interpolation without overshoot', () => {
+  const steep: [number, number][] = [[0, 0], [0.25, 0.05], [0.5, 0.5], [0.75, 0.95], [1, 1]];
+  assert.equal(validToneCurve(steep), true);
+  assert.equal(isIdentityToneCurve(steep), false);
+  const lut = evaluateToneCurveLut(steep, 256);
+  assert.equal(lut[0], 0);
+  assert.equal(lut[255], 1);
+  for (let i = 1; i < lut.length; i += 1) {
+    assert.ok(lut[i] >= lut[i - 1] - 1e-6, `curve LUT monotonic at ${i}`);
+    assert.ok(lut[i] >= 0 && lut[i] <= 1, 'LUT never overshoots [0, 1]');
+  }
+  assert.equal(validToneCurve([[0, 0], [0.6, 0.6], [0.4, 0.4], [1, 1]]), false);
+});
+
+test('applyDetailFloat and applyDetail preserve hue ratio on saturated edges', () => {
+  const size = 48;
+  const bytes = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const k = x < size / 2 ? 0.5 : 1.0;
+      bytes.set([Math.round(200 * k), Math.round(100 * k), Math.round(40 * k), 255], (y * size + x) * 4);
+    }
+  }
+  const f32 = new Float32Array(bytes.length);
+  for (let i = 0; i < bytes.length; i += 1) f32[i] = bytes[i] / 255;
+
+  applyDetail(bytes, size, size, { ...DEFAULT_EDIT, clarity: 1.5, sharpen: 1 }, 1600);
+  applyDetailFloat(f32, size, size, { ...DEFAULT_EDIT, clarity: 1.5, sharpen: 1 }, 1600);
+
+  const edgeIdx = (24 * size + 24) * 4;
+  assert.ok(bytes[edgeIdx] > bytes[edgeIdx + 1] && bytes[edgeIdx + 1] > bytes[edgeIdx + 2], 'CPU byte detail keeps hue');
+  assert.ok(f32[edgeIdx] > f32[edgeIdx + 1] && f32[edgeIdx + 1] > f32[edgeIdx + 2], 'Float32 detail keeps hue');
+});
+
+test('continuous Float32 pipeline converts cleanly without alpha drift or midtone clipping', () => {
+  const src = new Uint8ClampedArray([12, 85, 190, 200, 220, 150, 90, 255]);
+  const f32 = rgbaBytesToLinearFloat(src);
+  applyPhotoEditLinearInPlace(f32, { ...DEFAULT_EDIT, exposure: 0.5, contrast: 0.4, tint: 0.3 });
+  const out = new Uint8ClampedArray(src.length);
+  displayFloatToRgbaBytes(f32, out);
+  assert.equal(out[3], 200);
+  assert.equal(out[7], 255);
+  assert.ok(out[4] > 220 && out[4] <= 255);
+});
+

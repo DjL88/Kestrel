@@ -15,6 +15,7 @@ interface Props {
   frames: PhotoFrame[];
   keeperTarget: number;
   provider: BrowserPreviewProvider;
+  autoEditEnabled?: boolean;
   onApply: (results: { frameId: string; decision: 'keep' | 'reject' }[]) => void;
   /** Every photo the scan looked at, with its confidence and score - recorded even when nothing was applied,
    * so a later "sort by culling confidence" has something to go on. */
@@ -30,7 +31,7 @@ interface Props {
 
 const button = 'min-h-11 rounded-md px-3 text-sm font-medium hover:bg-white/10 disabled:opacity-45';
 
-export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScanned, onUndo, onInspect, onShowCollection, onClose, autoStart }: Props) {
+export function AutoCullPanel({ frames, keeperTarget, provider, autoEditEnabled, onApply, onScanned, onUndo, onInspect, onShowCollection, onClose, autoStart }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const running = useRef<AbortController | null>(null);
   const taskId = useRef<number | null>(null);
@@ -61,7 +62,7 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const subjectDetectorAvailable = Boolean(bundledModelUrl('yolox_tiny.onnx'));
+  const onnxAvailable = Boolean(bundledModelUrl('yolox_tiny.onnx'));
   const candidates = frames.filter((frame) => !frame.removedAt && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
   const summary = results ? summarizeCullSuggestions(results) : null;
   const high = (results ?? []).flatMap((result) =>
@@ -118,12 +119,16 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
         <button type="button" className={button} aria-label={m.closeAutoCull} title={m.closeAutoCull} onClick={onClose}><X className="h-5 w-5" aria-hidden="true" /></button>
       </header>
       <p className="text-sm text-zinc-300">{m.description}</p>
-      {(!subjectDetectorAvailable || detectorFailed) && (
-        <p role="status" className="mt-2 rounded-md border border-white/12 p-2 text-xs text-zinc-300">
-          {detectorFailed
-            ? 'Subject detection could not run on this device. Your scan continues without it; Kestrel will not automatically choose keepers from texture alone.'
-            : 'This preview has no subject-detection model. You can still review photos and find exact duplicates; Kestrel will not automatically choose keepers from texture alone.'}
-          {' '}You can still choose your own keepers. Your originals are unchanged.
+      {detectorFailed ? (
+        <p role="status" className="mt-2 rounded-md border border-amber-400/25 bg-amber-500/10 p-2 text-xs text-amber-100">
+          Subject detection encountered an error on this device. Your scan continued without automatic keepers. Originals are unchanged.
+        </p>
+      ) : (
+        <p role="status" className="mt-2 rounded-md border border-white/12 bg-black/20 p-2 text-xs text-zinc-300">
+          {onnxAvailable
+            ? 'On-device ONNX + Kestrel Vision engine ready: ranks subject sharpness, burst likeness, and exact duplicates.'
+            : 'Kestrel Offline Vision engine active: detects isolated subjects, measures edge sharpness, deduplicates bursts, and catches exact copies with zero external models.'}
+          {autoEditEnabled ? ' Chosen keepers will also receive an automatic starting edit.' : ''}
         </p>
       )}
       {!results && <div className="mt-3 space-y-2">

@@ -19,11 +19,13 @@ function classify(before: Snapshot, after: Snapshot): EditKind {
     return 'crop';
   }
   if (JSON.stringify(before.edit?.masks ?? []) !== JSON.stringify(after.edit?.masks ?? [])) return 'mask';
-  const fields = (['exposure', 'warmth', 'colour', ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key), 'denoise'] as const).filter((field) =>
+  const curveChanged = JSON.stringify(before.edit?.toneCurve ?? []) !== JSON.stringify(after.edit?.toneCurve ?? []);
+  const fields = (['exposure', 'warmth', 'tint', 'colour', ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key), 'denoise'] as const).filter((field) =>
     (before.edit?.[field] ?? 0) !== (after.edit?.[field] ?? 0));
-  if (fields.length !== 1) return 'adjustments';
+  if (curveChanged && fields.length === 0) return 'tone';
+  if (curveChanged || fields.length !== 1) return 'adjustments';
   if (fields[0] === 'exposure') return 'light';
-  if (fields[0] === 'warmth' || fields[0] === 'colour') return fields[0];
+  if (fields[0] === 'warmth' || fields[0] === 'tint' || fields[0] === 'colour') return fields[0] === 'tint' ? 'warmth' : fields[0];
   return fields[0] === 'denoise' || DETAIL_CONTROLS.some(({ key }) => key === fields[0]) ? 'detail' : 'tone';
 }
 

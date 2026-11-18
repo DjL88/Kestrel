@@ -330,8 +330,8 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         ) : null;
                       })()}
                       {isEdited(frame) && (
-                        <span role="img" aria-label="Edited" title="Edited"
-                          className={`absolute left-1.5 ${speciesShown(frame) ? 'bottom-8' : 'bottom-1.5'} grid h-6 w-6 place-items-center rounded-full border border-white/20 bg-kestrel-canvas/85 text-sky-200`}>
+                        <span role="img" aria-label="Edited" title="Edited (Auto or manual)"
+                          className={`absolute left-1.5 ${speciesShown(frame) ? 'bottom-8' : 'bottom-1.5'} grid h-6 w-6 place-items-center rounded-full border border-sky-300/35 bg-kestrel-canvas/85 text-sky-200`}>
                           <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
                         </span>
                       )}
@@ -342,6 +342,22 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                           Burst {frame.burstIndex}/
                           {frame.burstCount}
                         </div>
+                      )}
+                      {typeof frame.cullScore === 'number' && Number.isFinite(frame.cullScore) && (
+                        <span
+                          data-testid="cull-score-badge"
+                          title={`Cull score ${Math.round(frame.cullScore)}/100${frame.cullConfidence ? ` (${frame.cullConfidence} confidence)` : ''}`}
+                          aria-label={`Cull score ${Math.round(frame.cullScore)} out of 100${frame.cullConfidence ? `, ${frame.cullConfidence} confidence` : ''}`}
+                          className={`absolute top-1.5 right-10 rounded px-1.5 py-0.5 text-[10px] font-mono font-semibold tabular-nums border ${
+                            frame.cullConfidence === 'high'
+                              ? 'border-emerald-400/45 bg-emerald-950/80 text-emerald-200'
+                              : frame.cullConfidence === 'medium'
+                              ? 'border-amber-300/35 bg-kestrel-canvas/85 text-amber-100'
+                              : 'border-white/15 bg-kestrel-canvas/80 text-zinc-300'
+                          }`}
+                        >
+                          {Math.round(frame.cullScore)}
+                        </span>
                       )}
                     </button>
 

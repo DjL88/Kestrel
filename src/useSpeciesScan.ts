@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { qualifiesForAutoTag, scanCandidates, scanPatch } from './core/autoTags';
 import { SPECIES_MODEL } from './core/speciesModel';
 import { kindFor, personalBonus, pickSuggestions, rankSpecies } from './core/speciesMatch';
+import { permitsUnclassifiedBirdSpecies } from './core/speciesMacroGate';
 import type { PhotoFrame } from './core/types';
 import type { BrowserPreviewProvider } from './providers/browserPreviewProvider';
+import { findSubject } from './providers/objectDetector';
 import { pictureForAnalysis } from './providers/pictureForAnalysis';
 import { analysePicture, downloadSpeciesModel, loadSpeciesLabels, speciesStatus, type SpeciesStatus } from './providers/speciesModel';
 import { readAutoTag, readSpeciesCounts } from './providers/speciesLearning';
@@ -31,7 +33,7 @@ interface Options {
   provider: BrowserPreviewProvider | null;
   /** True while the project page is showing. Looking pauses while a photo is being edited. */
   active: boolean;
-  onResult: (frameId: string, patch: ReturnType<typeof scanPatch>) => void;
+  onResult: (frameId: string, patch: ReturnType<typeof scanPatch> & { subjectKind?: PhotoFrame['subjectKind'] }) => void;
 }
 
 /** Identifies untagged photos quietly, using the on-device model first. */
@@ -68,22 +70,37 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
           !helperHalted.current && helperSent < HELPER_SESSION_CAP;
         if (!available.localReady && !canAsk()) break;
         const frameKey = (id: string) => `${currentId}|${id}`;
-        const frame = scanCandidates(current, { includeUnclassified: canAsk() }).find((candidate) => !skipped.current.has(frameKey(candidate.id)));
+        const frame = scanCandidates(current, { includeUnclassified: canAsk() || available.localReady }).find((candidate) => !skipped.current.has(frameKey(candidate.id)));
         if (!frame) break;
 
         const picture = await pictureForAnalysis(store, frame).catch(() => null);
         if (!stillCurrent()) continue;
         if (!picture) { skipped.current.add(frameKey(frame.id)); continue; }
 
-        let patch: ReturnType<typeof scanPatch> | undefined;
+        let patch: (ReturnType<typeof scanPatch> & { subjectKind?: PhotoFrame['subjectKind'] }) | undefined;
         if (available.localReady && localLabels) {
           try {
-            // analysePicture locates the subject on-device before comparing it with the saved species vectors.
-            const { labels, vectors } = localLabels;
-            const { embedding } = await analysePicture(picture);
-            const top = pickSuggestions(rankSpecies(embedding, labels, vectors, personalBonus(labels, readSpeciesCounts())))[0];
-            const best = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
-            patch = scanPatch(frame, best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) } : undefined);
+            let candidateFrame: PhotoFrame = frame;
+            if (!candidateFrame.subjectKind) {
+              const found = await findSubject(picture).catch(() => null);
+              if (!stillCurrent()) continue;
+              if (permitsUnclassifiedBirdSpecies(found)) {
+                candidateFrame = { ...candidateFrame, subjectKind: 'wildlife' };
+              }
+            }
+            if (candidateFrame.subjectKind === 'wildlife') {
+              // analysePicture locates the subject on-device before comparing it with the saved species vectors.
+              const { labels, vectors } = localLabels;
+              const { embedding } = await analysePicture(picture);
+              const top = pickSuggestions(rankSpecies(embedding, labels, vectors, personalBonus(labels, readSpeciesCounts())))[0];
+              const best = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
+              const basePatch = scanPatch(candidateFrame, best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) } : undefined);
+              patch = candidateFrame.subjectKind !== frame.subjectKind && basePatch.tags?.length
+                ? { ...basePatch, subjectKind: 'wildlife' }
+                : basePatch;
+            } else {
+              patch = { speciesChecked: true };
+            }
           } catch { /* A failed local analysis can still use the opted-in fallback. */ }
         }
         if (!stillCurrent() || !readAutoTag()) continue;

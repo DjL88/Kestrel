@@ -1,5 +1,7 @@
 import { sha256Hex } from '../core/sha256';
 import { friendlyToolError } from '../core/toolErrors';
+import { prefersExperimentalOnly } from '../core/enginePreference';
+import { analyzeSubjectKestrel } from '../core/kestrelVision';
 import { bundledModelUrl } from './bundledModelAssets';
 import { DETECTOR_MODEL, boxSharpness, detectorWorkerCount, decodeTile, mergeDetections, tilePlan, tileScale, toInput, type Box, type Detection } from '../core/objectDetection';
 
@@ -100,7 +102,8 @@ function startPool(): Promise<Slot[] | null> {
 
 /** Number of photos that can be looked at in parallel right now (1 when running on the main thread). */
 export async function detectorParallelism(): Promise<number> {
-  return (await startPool())?.length ?? 1;
+  if (prefersExperimentalOnly() || !bundledModelUrl(DETECTOR_MODEL.file)) return 1;
+  return (await startPool().catch(() => null))?.length ?? 1;
 }
 
 async function inferInWorker(slots: Slot[], input: Float32Array): Promise<Float32Array> {
@@ -138,25 +141,71 @@ async function lookIn(source: Source, tile: Box): Promise<Detection[]> {
   return decodeTile(data, tile);
 }
 
-export interface FoundSubject { detection: Detection; sharpness: number; /** Share of the photo the subject covers. */ coverage: number }
+export interface FoundSubject { detection: Detection; sharpness: number; /** Share of the photo the subject covers. */ coverage: number; engine?: 'onnx-yolox' | 'kestrel-experimental-v1' }
+
+function findSubjectExperimental(source: Source): FoundSubject | null {
+  const { w, h } = dims(source);
+  if (w < 8 || h < 8) return null;
+  const scale = Math.min(1, 240 / Math.max(w, h));
+  const cw = Math.max(8, Math.round(w * scale));
+  const ch = Math.max(8, Math.round(h * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = cw;
+  canvas.height = ch;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) return null;
+  context.drawImage(source, 0, 0, cw, ch);
+  const pixels = context.getImageData(0, 0, cw, ch).data;
+  const analysis = analyzeSubjectKestrel(pixels, cw, ch);
+  if (!analysis.box || !analysis.assessment.usable) return null;
+  const sx = w / cw;
+  const sy = h / ch;
+  const x = Math.max(0, Math.min(w - 1, Math.round(analysis.box.x * sx)));
+  const y = Math.max(0, Math.min(h - 1, Math.round(analysis.box.y * sy)));
+  const box: Box = {
+    x,
+    y,
+    w: Math.max(1, Math.min(w - x, Math.round(analysis.box.w * sx))),
+    h: Math.max(1, Math.min(h - y, Math.round(analysis.box.h * sy))),
+  };
+  return {
+    detection: {
+      label: analysis.label,
+      classId: -1,
+      score: analysis.categoryConfidence,
+      box,
+    },
+    sharpness: sharpnessOf(source, box),
+    coverage: analysis.coverage,
+    engine: 'kestrel-experimental-v1',
+  };
+}
 
 /**
- * The most likely subject of a photo, and how sharp it is. The whole photo is looked at first; only when nothing clear is found
- * is a big photo searched in tiles, so ordinary photos stay fast. Returns null when no subject is found.
+ * The most likely subject of a photo, and how sharp it is. Uses bundled ONNX detector when present and enabled,
+ * automatically falling back to Kestrel's zero-dependency experimental vision engine when offline/unbundled or configured.
  */
 export async function findSubject(source: Source, signal?: AbortSignal): Promise<FoundSubject | null> {
-  const { w, h } = dims(source);
-  const plan = tilePlan(w, h);
-  let detections = await lookIn(source, plan[0]);
-  if (!detections.some((d) => d.score >= 0.5)) {
-    for (const tile of plan.slice(1)) {
-      signal?.throwIfAborted();
-      detections = detections.concat(await lookIn(source, tile));
-    }
+  signal?.throwIfAborted();
+  if (prefersExperimentalOnly() || !bundledModelUrl(DETECTOR_MODEL.file)) {
+    return findSubjectExperimental(source);
   }
-  const best = mergeDetections(detections).sort((a, b) => b.score * Math.sqrt(b.box.w * b.box.h) - a.score * Math.sqrt(a.box.w * a.box.h))[0];
-  if (!best) return null;
-  return { detection: best, sharpness: sharpnessOf(source, best.box), coverage: (best.box.w * best.box.h) / (w * h) };
+  try {
+    const { w, h } = dims(source);
+    const plan = tilePlan(w, h);
+    let detections = await lookIn(source, plan[0]);
+    if (!detections.some((d) => d.score >= 0.5)) {
+      for (const tile of plan.slice(1)) {
+        signal?.throwIfAborted();
+        detections = detections.concat(await lookIn(source, tile));
+      }
+    }
+    const best = mergeDetections(detections).sort((a, b) => b.score * Math.sqrt(b.box.w * b.box.h) - a.score * Math.sqrt(a.box.w * a.box.h))[0];
+    if (!best) return null;
+    return { detection: best, sharpness: sharpnessOf(source, best.box), coverage: (best.box.w * best.box.h) / (w * h), engine: 'onnx-yolox' };
+  } catch {
+    return findSubjectExperimental(source);
+  }
 }
 
 /** Sharpness inside the box, measured at a fixed size so a big subject and a small one compare fairly. */

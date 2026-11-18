@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { autoEnhance, mergeAutoSuggestion } from './autoEnhance';
+import { autoEnhance, mergeAutoSuggestion, mergeStudioSuggestion, studioAutoEnhance } from './autoEnhance';
 import { DEFAULT_EDIT } from './photoEdits';
 
 function image(fill: (x: number, y: number) => [number, number, number], size = 32) {
@@ -88,4 +88,21 @@ test('a dark photo with no lit area is still treated as underexposed', () => {
   const under = autoEnhance(image((x) => [8 + x / 2, 8 + x / 2, 8 + x / 2]));
   assert.ok(under.edit.exposure > 0);
   assert.ok(!under.notes.some((note) => /intentionally dark/.test(note)));
+});
+
+test('studioAutoEnhance provides balanced tonal and clarity polish on textured scenes while preserving low-key mood', () => {
+  const textured = image((x, y) => {
+    const base = 55 + ((x + y) % 8) * 18;
+    return [base, Math.min(255, base + 12), Math.max(0, base - 10)];
+  });
+  const studio = studioAutoEnhance(textured, 32, 32);
+  assert.ok((studio.edit.clarity ?? 0) > 0, 'clarity applied for micro-contrast');
+  assert.ok((studio.edit.contrast ?? 0) > 0 || (studio.edit.vibrance ?? 0) > 0, 'studio polish applied');
+  const merged = mergeStudioSuggestion(DEFAULT_EDIT, studio.edit);
+  assert.equal(merged.changed, true);
+
+  const lowKey = image((x, y) => (x > 24 && y > 24 ? [200, 140, 90] : [6, 8, 7]));
+  const lowKeyStudio = studioAutoEnhance(lowKey, 32, 32);
+  assert.equal(lowKeyStudio.edit.exposure, 0);
+  assert.equal(lowKeyStudio.edit.shadows, 0);
 });

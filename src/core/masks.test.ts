@@ -178,3 +178,43 @@ test('local Brightness raises subject midtones without brightening outside a sof
   assert.equal(pixels[(2 * W + 2) * 4], 110);
   assert.equal(pixels[(40 * W + 50) * 4 + 3], 255);
 });
+
+import { guidedFilterAlpha } from './masks';
+
+test('guidedFilterAlpha snaps a coarse alpha boundary cleanly to the sharp luminance guide edge', () => {
+  const width = 40;
+  const height = 24;
+  const guide = new Float32Array(width * height);
+  const roughAlpha = new Float32Array(width * height);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      guide[y * width + x] = x >= 20 ? 0.9 : 0.1;
+      // Deliberately blurry alpha ramp across x = 15..25
+      roughAlpha[y * width + x] = Math.min(1, Math.max(0, (x - 15) / 10));
+    }
+  }
+  const snapped = guidedFilterAlpha(roughAlpha, guide, width, height, 4, 0.0005);
+  // Just outside the step (x=18) should snap toward 0; just inside (x=21) should snap toward 1
+  const row = 12 * width;
+  assert.ok(snapped[row + 18] < roughAlpha[row + 18], 'background side snaps closer to 0');
+  assert.ok(snapped[row + 21] > roughAlpha[row + 21], 'foreground side snaps closer to 1');
+  assert.ok(snapped[row + 21] - snapped[row + 18] > roughAlpha[row + 21] - roughAlpha[row + 18],
+    'edge contrast across the boundary sharpens significantly along the guide');
+});
+
+test('subject mask uses maskAlpha with optional guide context cleanly', () => {
+  const bytes = new Uint8Array(16 * 16);
+  for (let y = 0; y < 16; y += 1) {
+    for (let x = 0; x < 16; x += 1) bytes[y * 16 + x] = x >= 8 ? 255 : 0;
+  }
+  const grid = { w: 16, h: 16, data: Buffer.from(bytes).toString('base64') };
+  const mask = createSubjectMask('subject', grid, 'framing', 'high');
+  const guide = new Float32Array(W * H);
+  for (let y = 0; y < H; y += 1) {
+    for (let x = 0; x < W; x += 1) guide[y * W + x] = x >= W / 2 ? 0.9 : 0.1;
+  }
+  const alpha = maskAlpha(mask, W, H, { ...ctx, guide });
+  assert.ok(at(alpha, 80, 40) > 0.9);
+  assert.ok(at(alpha, 20, 40) < 0.1);
+});
+

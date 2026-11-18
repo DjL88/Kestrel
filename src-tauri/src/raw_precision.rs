@@ -24,6 +24,7 @@ type Rgb16 = ImageBuffer<Rgb<u16>, Vec<u16>>;
 pub struct NativeMasterEdit {
     pub exposure: f64,
     pub warmth: f64,
+    pub tint: f64,
     pub colour: f64,
     pub brightness: f64,
     pub contrast: f64,
@@ -39,6 +40,7 @@ impl NativeMasterEdit {
         for (name, value, lower, upper) in [
             ("exposure", self.exposure, -12.5, 12.5),
             ("warmth", self.warmth, -2.0, 2.0),
+            ("tint", self.tint, -2.0, 2.0),
             ("colour", self.colour, -2.0, 2.0),
             ("brightness", self.brightness, -2.0, 2.0),
             ("contrast", self.contrast, -2.0, 2.0),
@@ -57,7 +59,7 @@ impl NativeMasterEdit {
 
     fn is_neutral(self) -> bool {
         [
-            self.exposure, self.warmth, self.colour, self.brightness,
+            self.exposure, self.warmth, self.tint, self.colour, self.brightness,
             self.contrast, self.highlights, self.shadows, self.whites,
             self.blacks, self.vibrance,
         ].iter().all(|value| *value == 0.0)
@@ -176,14 +178,49 @@ fn smoothstep(low: f64, high: f64, value: f64) -> f64 {
     t * t * (3.0 - 2.0 * t)
 }
 
+fn wb_multipliers(warmth: f64, tint: f64) -> [f64; 3] {
+    let w = warmth * 0.08;
+    let t = tint * 0.08;
+    let raw_g = 1.0 - t * 0.7;
+    let raw_r = 1.0 + w + t * 0.35;
+    let raw_b = 1.0 - w + t * 0.35;
+    let norm = 0.2126 * raw_r + 0.7152 * raw_g + 0.0722 * raw_b;
+    let scale = if tint == 0.0 { 1.0 } else if norm > 0.0 { 1.0 / norm } else { 1.0 };
+    [raw_r * scale, raw_g * scale, raw_b * scale]
+}
+
+fn roll_off_highlights(r: f64, g: f64, b: f64) -> [f64; 3] {
+    let peak = r.max(g).max(b);
+    if peak <= 1.0 {
+        return [r.max(0.0), g.max(0.0), b.max(0.0)];
+    }
+    let scale = 1.0 / peak;
+    let head = peak - 1.0;
+    let shoulder = (1.0 - 0.14 * (head / (head + 1.0))).max(0.0);
+    let r_n = (r * scale).max(0.0) * shoulder;
+    let g_n = (g * scale).max(0.0) * shoulder;
+    let b_n = (b * scale).max(0.0) * shoulder;
+    let desat = (head / (head + 2.5)).min(0.65);
+    let luma = 0.2126 * r_n + 0.7152 * g_n + 0.0722 * b_n;
+    let blend_target = luma.max(0.86);
+    [
+        r_n + (blend_target - r_n) * desat,
+        g_n + (blend_target - g_n) * desat,
+        b_n + (blend_target - b_n) * desat,
+    ]
+}
+
+fn s_curve(x: f64, amount: f64) -> f64 {
+    let c = x.clamp(0.0, 1.0);
+    (c + amount * c * (1.0 - c) * (c - 0.5)).clamp(0.0, 1.0)
+}
+
 fn edit_rgb16(image: &mut Rgb16, edit: NativeMasterEdit) {
     if edit.is_neutral() { return; }
-    // The coefficients mirror the existing parametric editor, with every
-    // intermediate evaluated at f64 rather than quantised through JPEG.
     let gain = 2.0f64.powf(edit.exposure * 0.4);
-    let warmth = edit.warmth * 0.08;
+    let [r_mul, g_mul, b_mul] = wb_multipliers(edit.warmth, edit.tint);
     let colour = if edit.colour == -2.0 { -1.0 } else { edit.colour * 0.2 };
-    let contrast = 1.0 + edit.contrast * 0.35;
+    let contrast_amount = edit.contrast * 0.9;
     let highlights = edit.highlights * 0.3;
     let shadows = edit.shadows * 0.3;
     let black_point = -edit.blacks * 0.02;
@@ -193,17 +230,22 @@ fn edit_rgb16(image: &mut Rgb16, edit: NativeMasterEdit) {
     let tonal = highlights != 0.0 || shadows != 0.0 || black_point != 0.0 || white_point != 1.0;
 
     for pixel in image.pixels_mut() {
-        let mut red = srgb_to_linear(f64::from(pixel[0]) / 65535.0) * gain * (1.0 + warmth);
-        let mut green = srgb_to_linear(f64::from(pixel[1]) / 65535.0) * gain;
-        let mut blue = srgb_to_linear(f64::from(pixel[2]) / 65535.0) * gain * (1.0 - warmth);
+        let mut red = srgb_to_linear(f64::from(pixel[0]) / 65535.0) * gain * r_mul;
+        let mut green = srgb_to_linear(f64::from(pixel[1]) / 65535.0) * gain * g_mul;
+        let mut blue = srgb_to_linear(f64::from(pixel[2]) / 65535.0) * gain * b_mul;
         if tonal {
             let range = white_point - black_point;
             red = (red - black_point) / range;
             green = (green - black_point) / range;
             blue = (blue - black_point) / range;
-            let perceived = (0.2126 * red + 0.7152 * green + 0.0722 * blue).clamp(0.0, 1.0);
+            let raw_luma = (0.2126 * red + 0.7152 * green + 0.0722 * blue).max(0.0);
+            let perceived = if raw_luma <= 1.0 {
+                linear_to_srgb(raw_luma)
+            } else {
+                1.0 + 0.25 * raw_luma.log2()
+            };
             let factor = (1.0 + shadows * (1.0 - smoothstep(0.0, 0.6, perceived))
-                + highlights * smoothstep(0.4, 1.0, perceived)).max(0.0);
+                + highlights * smoothstep(0.35, 1.1, perceived)).max(0.0);
             red *= factor;
             green *= factor;
             blue *= factor;
@@ -229,19 +271,15 @@ fn edit_rgb16(image: &mut Rgb16, edit: NativeMasterEdit) {
             let chroma = if high > 0.0 { (high - red.min(green).min(blue)) / high } else { 0.0 };
             saturation += vibrance * (1.0 - chroma.min(1.0));
         }
-        let mut channels = [
-            luminance + (red - luminance) * saturation,
-            luminance + (green - luminance) * saturation,
-            luminance + (blue - luminance) * saturation,
-        ];
+        let mut channels = roll_off_highlights(
+            (luminance + (red - luminance) * saturation).max(0.0),
+            (luminance + (green - luminance) * saturation).max(0.0),
+            (luminance + (blue - luminance) * saturation).max(0.0),
+        );
         for (channel, output) in channels.iter_mut().zip(pixel.0.iter_mut()) {
-            // Work in a display-referred space for contrast, then encode
-            // once. The previous branch incorrectly treated linear light as
-            // encoded sRGB whenever contrast was non-neutral, shifting tones
-            // substantially even for an otherwise small contrast adjustment.
             let encoded = linear_to_srgb(*channel);
-            let adjusted = if contrast != 1.0 {
-                0.5 + (encoded - 0.5) * contrast
+            let adjusted = if contrast_amount != 0.0 {
+                s_curve(encoded, contrast_amount)
             } else { encoded };
             *output = (adjusted.clamp(0.0, 1.0) * 65535.0).round() as u16;
         }

@@ -4,6 +4,7 @@ import type { ProjectSettings } from '../core/projectSettings';
 import { AppearanceSettings } from './AppearanceSettings';
 import { isDesktopApp } from '../providers/desktopShell';
 import { messages as m } from '../i18n/messages';
+import type { TagFilterOption } from '../core/cullingEngine';
 import type { CullCounts, FilterState, RatingFilter, ShootDescriptor, SortOrder, WorkspaceViewMode } from '../core/types';
 import { FilterSortControl } from './FilterSortControl';
 
@@ -20,6 +21,9 @@ interface TopWorkspaceBarProps {
   onCameraFilterChange: (camera: string | null) => void;
   lensFilter: string | null;
   onLensFilterChange: (lens: string | null) => void;
+  tagFilter?: string[];
+  onTagFilterChange?: (tags: string[]) => void;
+  tagOptions?: TagFilterOption[];
   cameraOptions: string[];
   lensOptions: string[];
   sortOrder: SortOrder | undefined;
@@ -156,7 +160,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
         <div className="truncate text-sm font-semibold text-zinc-100" title={shoot.title}>{shoot.title}</div>
         <div className="truncate text-xs text-zinc-400">
           {loadingProgress ? `Opening ${loadingProgress.loaded}/${loadingProgress.total}` :
-            shoot.inbox ? `${counts.all} ${counts.all === 1 ? 'photo' : 'photos'}${searchQuery ? ' · Search active' : ''}${props.ratingFilter || props.cameraFilter || props.lensFilter ? ' · Filters active' : ''}` : `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter === 'all' || filter === 'reject' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}${props.ratingFilter || props.cameraFilter || props.lensFilter ? ' · Filters active' : ''}`}
+            shoot.inbox ? `${counts.all} ${counts.all === 1 ? 'photo' : 'photos'}${searchQuery ? ' · Search active' : ''}${props.ratingFilter || props.cameraFilter || props.lensFilter || props.tagFilter?.length ? ' · Filters active' : ''}` : `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter === 'all' || filter === 'reject' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}${props.ratingFilter || props.cameraFilter || props.lensFilter || props.tagFilter?.length ? ' · Filters active' : ''}`}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
@@ -187,6 +191,8 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                     ratingFilter={props.ratingFilter} onRatingFilterChange={props.onRatingFilterChange}
                     cameraFilter={props.cameraFilter} onCameraFilterChange={props.onCameraFilterChange}
                     lensFilter={props.lensFilter} onLensFilterChange={props.onLensFilterChange}
+                    tagFilter={props.tagFilter} onTagFilterChange={props.onTagFilterChange}
+                    tagOptions={props.tagOptions}
                     cameraOptions={props.cameraOptions} lensOptions={props.lensOptions}
                     sortOrder={props.sortOrder} onSortOrderChange={props.onSortOrderChange}
                     className="flex-wrap" />
@@ -329,6 +335,8 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           ratingFilter={props.ratingFilter} onRatingFilterChange={props.onRatingFilterChange}
           cameraFilter={props.cameraFilter} onCameraFilterChange={props.onCameraFilterChange}
           lensFilter={props.lensFilter} onLensFilterChange={props.onLensFilterChange}
+          tagFilter={props.tagFilter} onTagFilterChange={props.onTagFilterChange}
+          tagOptions={props.tagOptions}
           cameraOptions={props.cameraOptions} lensOptions={props.lensOptions}
           sortOrder={props.sortOrder} onSortOrderChange={props.onSortOrderChange} />
       </div>

@@ -587,3 +587,25 @@ test('late scan clears previously scored removed photo without altering decision
   assert.equal(scanned.frames[1].cullScore, 60);
   assert.equal(removed.frames[0].cullScore, 96, 'input state must remain immutable');
 });
+
+import { collectTagOptions } from './cullingEngine';
+
+test('collectTagOptions deduplicates across tags and subjectNames sorted by frequency, ignoring removed frames', () => {
+  const [a, b, c, d] = generateDemoShootFrames(4);
+  const frames = [
+    { ...a, tags: ['Kestrel', 'In flight'], subjectNames: ['Kestrel'] },
+    { ...b, tags: ['Perch'], subjectNames: ['Kestrel'] },
+    { ...c, tags: ['Owl'] },
+    { ...d, tags: ['RemovedOnly'], removedAt: 100 },
+  ];
+  const options = collectTagOptions(frames);
+  assert.deepEqual(options, [
+    { tag: 'Kestrel', count: 2 },
+    { tag: 'In flight', count: 1 },
+    { tag: 'Owl', count: 1 },
+    { tag: 'Perch', count: 1 },
+  ]);
+  const kestrelOrOwl = filterFrames(frames, 'all', '', null, null, null, ['kestrel', 'OWL']);
+  assert.deepEqual(kestrelOrOwl.map((f) => f.id), [a.id, b.id, c.id]);
+});
+

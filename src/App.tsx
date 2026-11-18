@@ -75,6 +75,7 @@ import { VirtualizedContactSheet } from './components/VirtualizedContactSheet';
 import {
   DEFAULT_KEEPER_TARGET,
   applyDecisionWithHistory,
+  collectTagOptions,
   removeFromLibrary,
   removedFrames,
   restoreRemoved,
@@ -270,7 +271,7 @@ export default function App() {
 
   function enterProject(state: CullingState) {
     const filter = state.shoot.inbox ? 'all' : state.filter === 'all' ? 'unreviewed' : state.filter;
-    const visible = filterFrames(state.frames, filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
+    const visible = filterFrames(state.frames, filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter, state.tagFilter);
     setBackupNotice(undefined);
     setTemporaryOriginals(new Set());
     setTemporaryWarningDismissed(false);
@@ -447,7 +448,7 @@ export default function App() {
   /** Move to a different filter while keeping the current selection if it's still visible, same rule the filter buttons use. */
   const changeFilter = useCallback((next: FilterState) => {
     setCullingState((prev) => {
-      const nextVisible = filterFrames(prev.frames, next, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter);
+      const nextVisible = filterFrames(prev.frames, next, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter, prev.tagFilter);
       const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
       return { ...prev, filter: next, selectedFrameId: stillVisible ? prev.selectedFrameId : nextVisible[0]?.id ?? null };
     });
@@ -464,7 +465,8 @@ export default function App() {
           cullingState.searchQuery,
           cullingState.ratingFilter,
           cullingState.cameraFilter,
-          cullingState.lensFilter
+          cullingState.lensFilter,
+          cullingState.tagFilter
         ),
         cullingState.sortOrder
       ),
@@ -475,17 +477,22 @@ export default function App() {
       cullingState.ratingFilter,
       cullingState.cameraFilter,
       cullingState.lensFilter,
+      cullingState.tagFilter,
       cullingState.sortOrder,
     ]
   );
 
-  /** Distinct cameras and lenses seen in this project, for the Filter control's pickers. Sorted for a stable list. */
+  /** Distinct cameras, lenses, and tags/species seen in this project, for the Filter control's pickers. */
   const cameraOptions = useMemo(
     () => [...new Set(cullingState.frames.flatMap((frame) => frame.exif.camera ? [frame.exif.camera] : []))].sort(),
     [cullingState.frames]
   );
   const lensOptions = useMemo(
     () => [...new Set(cullingState.frames.flatMap((frame) => frame.exif.lens ? [frame.exif.lens] : []))].sort(),
+    [cullingState.frames]
+  );
+  const tagOptions = useMemo(
+    () => collectTagOptions(cullingState.frames),
     [cullingState.frames]
   );
 
@@ -589,7 +596,7 @@ export default function App() {
       setZoomLevel(1);
       setPanOffset({ x: 0, y: 0 });
       setCullingState((prev) => {
-        const currentVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter);
+        const currentVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter, prev.tagFilter);
         const available = editQueueIds?.length ? currentVisible.filter((frame) => editQueueIds.includes(frame.id)) : currentVisible;
         const nextId = stepSelection(available, prev.selectedFrameId, delta);
         if (!nextId || nextId === prev.selectedFrameId) return prev;
@@ -778,6 +785,8 @@ export default function App() {
       const provider = previewProviderRef.current!;
       let snapshot = stateRef.current;
       if (!alive()) return;
+      let autoKeptCount = 0;
+      let autoDupCount = 0;
       if (snapshot.settings?.autoCull && can('smartCulling')) {
         const candidates = backgroundCullCandidates(snapshot.frames, imported);
         if (candidates.length) {
@@ -799,6 +808,8 @@ export default function App() {
               ? backgroundCullMoves(latest.frames, limited, imported).filter((item) =>
                   !(editingRef.current && item.frameId === latest.selectedFrameId))
               : [];
+            autoKeptCount = moves.filter((m) => m.decision === 'keep').length;
+            autoDupCount = moves.filter((m) => m.decision === 'reject').length;
             snapshot = applyAutoCullDecisions(latest, moves);
             setCullingState((prev) => {
               if (prev.shoot.id !== projectId || controller.signal.aborted || !prev.settings?.autoCull) return prev;
@@ -819,12 +830,22 @@ export default function App() {
           }
         }
       }
-      if (!alive() || !snapshot.settings?.autoEdit || !can('autoTab')) return;
+      if (!alive() || !snapshot.settings?.autoEdit || !can('autoTab')) {
+        if (alive() && (autoKeptCount > 0 || autoDupCount > 0)) {
+          showToast(`Auto-cull: ${autoKeptCount} keeper${autoKeptCount === 1 ? '' : 's'}${autoDupCount ? `, ${autoDupCount} exact duplicate${autoDupCount === 1 ? '' : 's'} trashed` : ''}.`);
+        }
+        return;
+      }
       // A manual edit or crop keeps the photo unchanged. Its optional advice
       // stays behind Auto > Suggest a look in the editor, never applied by this job.
       const targets = backgroundDevelopTargets(snapshot.frames, imported);
       if (editingRef.current && snapshot.selectedFrameId) targets.delete(snapshot.selectedFrameId);
-      if (!targets.size) return;
+      if (!targets.size) {
+        if (autoKeptCount > 0 || autoDupCount > 0) {
+          showToast(`Auto-cull: ${autoKeptCount} keeper${autoKeptCount === 1 ? '' : 's'}${autoDupCount ? `, ${autoDupCount} duplicate${autoDupCount === 1 ? '' : 's'} trashed` : ''}.`);
+        }
+        return;
+      }
       const task = tasks.start('Developing untouched keepers', {
         total: targets.size, cancel: () => controller.abort(),
       });
@@ -842,6 +863,11 @@ export default function App() {
             ? { ...prev, frames, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } } : prev;
         });
         task.finish(`${edits.size} starting looks prepared; existing manual edits preserved`);
+        if (edits.size > 0 || autoKeptCount > 0) {
+          showToast(
+            `${autoKeptCount > 0 ? `Auto-cull kept ${autoKeptCount} · ` : ''}Auto-edited ${edits.size} keeper${edits.size === 1 ? '' : 's'} (Undo in History).`
+          );
+        }
       } catch (error) {
         if (!controller.signal.aborted) task.fail(error instanceof Error ? error.message : 'Auto Develop could not finish');
       }
@@ -913,7 +939,7 @@ export default function App() {
       return { ...prev, viewMode: nextMode };
     });
     setCullingState((prev) => {
-      const pool = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter);
+      const pool = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter, prev.tagFilter);
       const pair = getDefaultComparePair(
         pool.length > 0 ? pool : prev.frames.filter((frame) => !frame.removedAt),
         prev.selectedFrameId
@@ -1083,7 +1109,7 @@ export default function App() {
       const copy = createVirtualCopy(prev.frames[index], prev.frames, id);
       if (framing) { copy.framing = framing; copy.focusPoint = undefined; }
       const frames = [...prev.frames.slice(0, index + 1), copy, ...prev.frames.slice(index + 1)];
-      const visible = filterFrames([copy], prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter).length > 0;
+      const visible = filterFrames([copy], prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter, prev.tagFilter).length > 0;
       return {
         ...prev, frames, selectedFrameId: id,
         shoot: { ...prev.shoot, totalFrames: frames.length, lastUpdatedAt: Date.now() },
@@ -1099,7 +1125,7 @@ export default function App() {
     const originalId = selectedFrame.virtualCopy.originalFrameId;
     setCullingState((prev) => {
       const frames = prev.frames.filter((frame) => frame.id !== removedId);
-      const visible = filterFrames(frames, prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter);
+      const visible = filterFrames(frames, prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter, prev.tagFilter);
       const cleanHistory = (items: CullingState['undoStack']) => items
         .filter((item) => item.frameId !== removedId)
         .map((item) => ({
@@ -1714,7 +1740,7 @@ export default function App() {
         ratingFilter={cullingState.ratingFilter ?? null}
         onRatingFilterChange={(next) =>
           setCullingState((prev) => {
-            const nextVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, next, prev.cameraFilter, prev.lensFilter);
+            const nextVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, next, prev.cameraFilter, prev.lensFilter, prev.tagFilter);
             const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
             return { ...prev, ratingFilter: next, selectedFrameId: stillVisible ? prev.selectedFrameId : nextVisible[0]?.id ?? null };
           })
@@ -1722,7 +1748,7 @@ export default function App() {
         searchQuery={cullingState.searchQuery}
         onSearchChange={(q) =>
           setCullingState((prev) => {
-            const nextVisible = filterFrames(prev.frames, prev.filter, q, prev.ratingFilter, prev.cameraFilter, prev.lensFilter);
+            const nextVisible = filterFrames(prev.frames, prev.filter, q, prev.ratingFilter, prev.cameraFilter, prev.lensFilter, prev.tagFilter);
             const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
             return {
               ...prev,
@@ -1736,7 +1762,7 @@ export default function App() {
         cameraFilter={cullingState.cameraFilter ?? null}
         onCameraFilterChange={(next) =>
           setCullingState((prev) => {
-            const nextVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter, next, prev.lensFilter);
+            const nextVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter, next, prev.lensFilter, prev.tagFilter);
             const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
             return { ...prev, cameraFilter: next, selectedFrameId: stillVisible ? prev.selectedFrameId : nextVisible[0]?.id ?? null };
           })
@@ -1744,11 +1770,20 @@ export default function App() {
         lensFilter={cullingState.lensFilter ?? null}
         onLensFilterChange={(next) =>
           setCullingState((prev) => {
-            const nextVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, next);
+            const nextVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, next, prev.tagFilter);
             const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
             return { ...prev, lensFilter: next, selectedFrameId: stillVisible ? prev.selectedFrameId : nextVisible[0]?.id ?? null };
           })
         }
+        tagFilter={cullingState.tagFilter ?? []}
+        onTagFilterChange={(next) =>
+          setCullingState((prev) => {
+            const nextVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter, next);
+            const stillVisible = nextVisible.some((f) => f.id === prev.selectedFrameId);
+            return { ...prev, tagFilter: next, selectedFrameId: stillVisible ? prev.selectedFrameId : nextVisible[0]?.id ?? null };
+          })
+        }
+        tagOptions={tagOptions}
         cameraOptions={cameraOptions}
         lensOptions={lensOptions}
         sortOrder={cullingState.sortOrder}
@@ -2224,7 +2259,41 @@ export default function App() {
       {toast && <p role="status" className="fixed bottom-4 left-1/2 z-50 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-lg border border-white/15 bg-kestrel-raised px-4 py-2 text-sm shadow-2xl">{toast}</p>}
       {autoCullOpen && <AutoCullPanel autoStart={autoCullStart} frames={cullingState.frames} keeperTarget={cullingState.keeperTarget}
         provider={previewProviderRef.current!}
-        onApply={(results) => setCullingState((previous) => applyAutoCullDecisions(previous, results))}
+        autoEditEnabled={Boolean(cullingState.settings?.autoEdit && can('autoTab'))}
+        onApply={(results) => {
+          const nextState = applyAutoCullDecisions(stateRef.current, results);
+          setCullingState((previous) => applyAutoCullDecisions(previous, results));
+          const keptIds = new Set(results.filter((r) => r.decision === 'keep').map((r) => r.frameId));
+          if (keptIds.size && stateRef.current.settings?.autoEdit && can('autoTab')) {
+            const targets = backgroundDevelopTargets(nextState.frames, keptIds);
+            if (targets.size && !autoAdjustController.current) {
+              const projectId = nextState.shoot.id;
+              const controller = new AbortController();
+              autoAdjustController.current = controller;
+              const task = tasks.start('Developing chosen keepers', { total: targets.size, cancel: () => controller.abort() });
+              void suggestKeeperAutoEdits(nextState.frames, previewProviderRef.current!, controller.signal,
+                (count) => task.progress(count), targets)
+                .then((edits) => {
+                  if (controller.signal.aborted || stateRef.current.shoot.id !== projectId) return;
+                  const at = Date.now();
+                  setCullingState((prev) => {
+                    if (prev.shoot.id !== projectId) return prev;
+                    const stillUntouched = backgroundDevelopTargets(prev.frames, targets);
+                    const frames = applyKeeperAutoEdits(prev.frames, edits, at, stillUntouched);
+                    return frames.some((f, idx) => f !== prev.frames[idx])
+                      ? { ...prev, shoot: { ...prev.shoot, lastUpdatedAt: at }, frames }
+                      : prev;
+                  });
+                  task.finish(`${edits.size} keepers auto-edited`);
+                  if (edits.size > 0) {
+                    showToast(`Kept ${keptIds.size} photo${keptIds.size === 1 ? '' : 's'} · Auto-edited ${edits.size} keeper${edits.size === 1 ? '' : 's'}.`);
+                  }
+                })
+                .catch(() => { if (!controller.signal.aborted) task.fail('Auto-edit could not finish'); })
+                .finally(() => { if (autoAdjustController.current === controller) autoAdjustController.current = null; });
+            }
+          }
+        }}
         onScanned={(results) => setCullingState((previous) => applyCullConfidence(previous, results))}
         onUndo={() => setCullingState((previous) => undoDecision(previous))}
         onInspect={(frame) => {

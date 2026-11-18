@@ -4,7 +4,7 @@ import { ScanSearch, SquareDashedMousePointer } from 'lucide-react';
 import { LOCAL_DETAIL_KEYS, LOCAL_KEYS, MAX_MASKS, createMask, type LocalKey, type Mask } from '../core/maskTypes';
 
 const LABELS: Record<LocalKey, string> = {
-  exposure: 'Exposure', brightness: 'Brightness', warmth: 'Warmth', colour: 'Colour', contrast: 'Contrast', highlights: 'Highlights',
+  exposure: 'Exposure', brightness: 'Brightness', warmth: 'Warmth', tint: 'Tint', colour: 'Colour', contrast: 'Contrast', highlights: 'Highlights',
   shadows: 'Shadows', whites: 'Whites', blacks: 'Blacks', vibrance: 'Vibrance',
   texture: 'Texture', clarity: 'Clarity', sharpen: 'Sharpening',
 };
@@ -75,15 +75,15 @@ export function MaskPanel(props: Props) {
           <SquareDashedMousePointer className="h-3.5 w-3.5" aria-hidden="true" />{props.selectingArea ? 'Cancel select area' : 'Select area'}
         </button>
         <p role="status" className="min-h-4 text-xs text-zinc-300">{props.detectNotice}</p>
-        <p className="text-xs text-zinc-400">Runs on this device with a small model that finds the most prominent subject. It is not trained on wildlife in particular, so always check the edges.</p>
+        <p className="text-xs text-zinc-400">Runs completely offline on this device with Guided Filter edge refinement. Always check fine hair or feather edges.</p>
       </div>
       {masks.length > 0 && (
         <ul className="space-y-1" aria-label="Masks">
           {masks.map((mask) => (
             <li key={mask.id} className="flex gap-1">
-              <button type="button" aria-pressed={mask.id === selectedId} className={`${chip} min-w-0 flex-1 text-left aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15`}
+              <button type="button" aria-pressed={mask.id === selectedId} className={`${chip} min-w-0 flex-1 truncate px-2.5 text-left aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15`}
                 onClick={() => props.onSelect(mask.id === selectedId ? null : mask.id)}>
-                {maskName(masks, mask)}{mask.id === selectedId ? ' (editing)' : ''}
+                {maskName(masks, mask)}{mask.id === selectedId ? ' · editing' : ''}
               </button>
               <button type="button" disabled={disabled} className={`${chip} w-11 shrink-0 px-0`} aria-label={`Delete ${maskName(masks, mask)}`} title="Delete this mask"
                 onClick={() => {

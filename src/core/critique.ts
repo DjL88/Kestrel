@@ -225,7 +225,7 @@ export function critique({ source, toneOnly, after, edit, subject }: CritiqueInp
 export function applyFix(edit: PhotoEdit, fix: Fix): PhotoEdit {
   const limit = (key: string, value: number) => Math.max(key === 'sharpen' ? 0 : -2, Math.min(2, Math.round(value * 100) / 100));
   if (fix.kind === 'global') {
-    const next: Record<string, number | Mask[] | undefined> = { ...edit };
+    const next: Record<string, unknown> = { ...edit };
     for (const [key, change] of Object.entries(fix.delta)) {
       const current = typeof next[key] === 'number' ? (next[key] as number) : 0;
       next[key] = limit(key, current + (change ?? 0));

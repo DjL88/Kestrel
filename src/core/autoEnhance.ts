@@ -123,3 +123,111 @@ export function autoEnhance(pixels: Uint8ClampedArray): AutoResult {
   }
   return { edit: result, notes };
 }
+
+export interface StudioAutoResult {
+  edit: Partial<PhotoEdit>;
+  notes: string[];
+}
+
+/**
+ * Calibrated studio-grade finish built on top of `autoEnhance`.
+ * Adds micro-contrast clarity, balanced highlight protection, and a gentle filmic
+ * tone lift when a well-exposed shot would otherwise come back as neutral zeros.
+ * Respects intentionally low-key scenes and featureless skies cleanly.
+ */
+export function studioAutoEnhance(pixels: Uint8ClampedArray, width?: number, height?: number): StudioAutoResult {
+  const base = autoEnhance(pixels);
+  const edit: Partial<PhotoEdit> = { ...base.edit };
+  const notes = base.notes.filter((n) => n !== 'This photo already looks balanced, so it is left as it is.');
+  const count = pixels.length / 4;
+  if (count < 64) return { edit, notes: base.notes };
+
+  const lumas: number[] = [];
+  let chromaSum = 0;
+  for (let i = 0; i < pixels.length; i += 4) {
+    const lr = toLinear(pixels[i]);
+    const lg = toLinear(pixels[i + 1]);
+    const lb = toLinear(pixels[i + 2]);
+    const y = 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+    lumas.push(y);
+    const high = Math.max(lr, lg, lb);
+    chromaSum += high > 0 ? (high - Math.min(lr, lg, lb)) / high : 0;
+  }
+  lumas.sort((x, y) => x - y);
+  const at = (q: number) => lumas[Math.min(lumas.length - 1, Math.floor(q * lumas.length))];
+
+  const after = (y: number) => toPerceptual(Math.min(1, y * 2 ** ((edit.exposure ?? 0) * 0.4)));
+  const p05 = after(at(0.05));
+  const p15 = after(at(0.15));
+  const p50 = after(at(0.5));
+  const p95 = after(at(0.95));
+  const p98 = after(at(0.98));
+  const spread = p95 - p05;
+  const accent = toPerceptual(at(0.99));
+  const lowKey = toPerceptual(at(0.7)) < 0.12 && accent > 0.25 && accent - toPerceptual(at(0.5)) > 0.2;
+
+  // Measure texture density if dimensions are available (or estimate square grid)
+  let detail = 0;
+  const w = width && height && width * height === count ? width : Math.floor(Math.sqrt(count));
+  const h = width && height && width * height === count ? height : Math.floor(count / Math.max(1, w));
+  if (w >= 16 && h >= 16) {
+    let sum = 0;
+    let samples = 0;
+    for (let y = 1; y < h - 1; y += 2) {
+      for (let x = 1; x < w - 1; x += 2) {
+        const i = (y * w + x) * 4;
+        const c = 0.213 * pixels[i] + 0.715 * pixels[i + 1] + 0.072 * pixels[i + 2];
+        const r = 0.213 * pixels[i + 4] + 0.715 * pixels[i + 5] + 0.072 * pixels[i + 6];
+        const d = 0.213 * pixels[i + w * 4] + 0.715 * pixels[i + w * 4 + 1] + 0.072 * pixels[i + w * 4 + 2];
+        sum += Math.abs(c - r) + Math.abs(c - d);
+        samples += 1;
+      }
+    }
+    detail = sum / Math.max(1, samples);
+  }
+
+  // Gentle studio polish only on textured non-featureless photographs
+  const hasSubjectTexture = spread >= 0.10 && detail >= 3.5;
+
+  if (!lowKey && hasSubjectTexture) {
+    if ((edit.highlights ?? 0) === 0 && p98 > 0.88) {
+      edit.highlights = -0.35;
+      notes.push('Bright highlight detail is preserved with gentle recovery.');
+    }
+    if ((edit.shadows ?? 0) === 0 && p15 < 0.22 && p50 > 0.24) {
+      edit.shadows = 0.25;
+      notes.push('Deep shadows are gently opened for tonal separation.');
+    }
+    if ((edit.contrast ?? 0) === 0 && spread < 0.72) {
+      edit.contrast = 0.2;
+      notes.push('Subtle contrast shapes midtone depth.');
+    }
+    if (chromaSum / count < 0.34 && (edit.vibrance ?? 0) === 0) {
+      edit.vibrance = 0.2;
+      notes.push('Gentle vibrance enriches muted tones without pushing skin or feathers too far.');
+    }
+    if (detail >= 5) {
+      edit.clarity = 0.2;
+      notes.push('Micro-contrast clarity sharpens subject texture naturally.');
+    }
+  }
+
+  if (!Object.values(edit).some((v) => typeof v === 'number' && Math.abs(v) >= 0.005)) {
+    notes.push('This photo already looks balanced, so it is left as it is.');
+  }
+  return { edit, notes };
+}
+
+/** Merge studio suggestions cleanly into a PhotoEdit without clearing existing manual tweaks. */
+export function mergeStudioSuggestion(current: PhotoEdit, suggestion: Partial<PhotoEdit>): { edit: PhotoEdit; changed: boolean } {
+  const edit: PhotoEdit = { ...current };
+  let changed = false;
+  const numericKeys = ['exposure', 'warmth', 'tint', 'shadows', 'highlights', 'contrast', 'vibrance', 'clarity', 'sharpen'] as const;
+  for (const key of numericKeys) {
+    const value = suggestion[key];
+    if (typeof value !== 'number' || !Number.isFinite(value) || value === 0 || (current[key] ?? 0) === value) continue;
+    edit[key] = value;
+    changed = true;
+  }
+  return { edit, changed };
+}

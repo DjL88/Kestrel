@@ -1,5 +1,7 @@
 import { sha256Hex } from '../core/sha256';
 import { friendlyToolError } from '../core/toolErrors';
+import { prefersExperimentalOnly } from '../core/enginePreference';
+import { analyzeSubjectKestrel } from '../core/kestrelVision';
 import { bundledModelUrl } from './bundledModelAssets';
 import { SUBJECT_MODEL, assessSubject, gridSizeFor, readSubjectMap, preprocess, toGrid, type SubjectAssessment } from '../core/subjectModel';
 import type { SubjectGrid } from '../core/maskTypes';
@@ -38,22 +40,56 @@ function load(): Promise<Loaded> {
   return loading;
 }
 
-export interface DetectedSubject { grid: SubjectGrid; assessment: SubjectAssessment }
+export interface DetectedSubject {
+  grid: SubjectGrid;
+  assessment: SubjectAssessment;
+  engine?: 'onnx-u2netp' | 'kestrel-experimental-v1';
+}
 
-/** Find the most prominent subject in an unedited preview. Runs entirely on this device. */
-export async function detectSubject(preview: HTMLCanvasElement, options: { maxCoverage?: number } = {}): Promise<DetectedSubject> {
-  const { ort, session } = await load();
-  const size = SUBJECT_MODEL.inputSize;
+function detectSubjectExperimental(preview: HTMLCanvasElement, options: { maxCoverage?: number } = {}): DetectedSubject {
+  const scale = Math.min(1, 240 / Math.max(preview.width, preview.height));
+  const cw = Math.max(8, Math.round(preview.width * scale));
+  const ch = Math.max(8, Math.round(preview.height * scale));
   const small = document.createElement('canvas');
-  small.width = size;
-  small.height = size;
+  small.width = cw;
+  small.height = ch;
   const context = small.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Canvas unavailable');
   context.imageSmoothingQuality = 'high';
-  context.drawImage(preview, 0, 0, size, size);
-  const input = preprocess(context.getImageData(0, 0, size, size).data, size);
-  const results = await session.run({ [session.inputNames[0]]: new ort.Tensor('float32', input, [1, 3, size, size]) });
-  const map = readSubjectMap(results[session.outputNames[0]]?.data, size);
-  const { w, h } = gridSizeFor(preview.height / preview.width);
-  return { grid: toGrid(map, size, w, h), assessment: assessSubject(map, options.maxCoverage) };
+  context.drawImage(preview, 0, 0, cw, ch);
+  const pixels = context.getImageData(0, 0, cw, ch).data;
+  const analysis = analyzeSubjectKestrel(pixels, cw, ch);
+  const assessment = options.maxCoverage !== undefined && analysis.coverage > options.maxCoverage
+    ? { ...analysis.assessment, usable: false, reason: 'No clear isolated subject stood out inside that selection.' }
+    : analysis.assessment;
+  return {
+    grid: analysis.grid,
+    assessment,
+    engine: 'kestrel-experimental-v1',
+  };
+}
+
+/** Find the most prominent subject in an unedited preview. Runs entirely on this device using ONNX if installed or Kestrel's own experimental zero-weight engine. */
+export async function detectSubject(preview: HTMLCanvasElement, options: { maxCoverage?: number } = {}): Promise<DetectedSubject> {
+  if (prefersExperimentalOnly() || !bundledModelUrl('u2netp.onnx')) {
+    return detectSubjectExperimental(preview, options);
+  }
+  try {
+    const { ort, session } = await load();
+    const size = SUBJECT_MODEL.inputSize;
+    const small = document.createElement('canvas');
+    small.width = size;
+    small.height = size;
+    const context = small.getContext('2d', { willReadFrequently: true });
+    if (!context) throw new Error('Canvas unavailable');
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(preview, 0, 0, size, size);
+    const input = preprocess(context.getImageData(0, 0, size, size).data, size);
+    const results = await session.run({ [session.inputNames[0]]: new ort.Tensor('float32', input, [1, 3, size, size]) });
+    const map = readSubjectMap(results[session.outputNames[0]]?.data, size);
+    const { w, h } = gridSizeFor(preview.height / preview.width);
+    return { grid: toGrid(map, size, w, h), assessment: assessSubject(map, options.maxCoverage), engine: 'onnx-u2netp' };
+  } catch {
+    return detectSubjectExperimental(preview, options);
+  }
 }
