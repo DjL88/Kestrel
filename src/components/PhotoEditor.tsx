@@ -42,8 +42,10 @@ const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
 import { isRawPreviewFile } from '../core/rawFormats';
 import { tasks } from '../core/taskStore';
-import { canDevelopRaw, developRaw, matchPreviewOrientation } from '../providers/rawDevelop';
+import { canDevelopRaw, developRaw, developRawPrecisionEdited, matchPreviewOrientation } from '../providers/rawDevelop';
 import { extractRawPreview } from '../core/nefPreview';
+import { nativeRawMasterRecipe } from '../core/nativeRawMaster';
+import { saveWithDialog } from '../providers/desktopShell';
 import { PaidNotice } from './PaidNotice';
 import { useAccess } from '../providers/useAccess';
 const PANEL_KEY = 'kestrel-panel-width-v1';
@@ -116,6 +118,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [developedRev, setDevelopedRev] = useState(0);
   const [developing, setDeveloping] = useState(false);
   const [developNote, setDevelopNote] = useState<string | null>(null);
+  const [masterBusy, setMasterBusy] = useState(false);
+  const [masterNote, setMasterNote] = useState<string | null>(null);
   const [compare, setCompare] = useState(false);
   const [beforeStage, setBeforeStage] = useState<ComparisonStage>('original');
   const [dial, setDial] = useState(0);
@@ -304,6 +308,43 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       setDevelopNote(`${message} Kestrel keeps using the preview stored in the file.`);
       task.fail(message);
     } finally { setDeveloping(false); }
+  }
+
+
+  /**
+   * MVP proof: export edited RGB16 TIFF directly from the original RAW. No
+   * JPEG/HTML canvas intermediary, and never discard an unsupported adjustment.
+   * This is intentionally an explicit test export, not the default master.
+   */
+  async function exportHighPrecisionMaster() {
+    if (masterBusy) return;
+    setMasterBusy(true);
+    setMasterNote(null);
+    const task = tasks.start('Developing edited 16-bit RAW master');
+    try {
+      if (previewRecipe || pendingAuto) {
+        throw new Error('Apply or discard the previewed edit before exporting the saved RAW recipe.');
+      }
+      const recipe = nativeRawMasterRecipe(frame);
+      const original = await provider.ensureOriginal(frame.stableKey);
+      if (!original) throw new Error('Reconnect the original RAW file before exporting.');
+      const output = await developRawPrecisionEdited(original, recipe);
+      const name = frame.filename.replace(/\.[^.]+$/, '') + '_raw16-poc.tiff';
+      const saved = await saveWithDialog(output, name);
+      if (saved) {
+        setMasterNote('Saved edited RGB16 TIFF from the original RAW. Colour profile and image-quality parity are not yet certified.');
+        task.finish('RGB16 master saved');
+      } else {
+        setMasterNote('Export cancelled; no file was written.');
+        task.finish('Cancelled');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to produce the high-bit-depth TIFF.';
+      setMasterNote(message);
+      task.fail(message);
+    } finally {
+      setMasterBusy(false);
+    }
   }
 
 
@@ -1191,6 +1232,16 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               <button type="button" className={`${button} w-full border border-white/10`} disabled={developing || sourceState !== 'ready'} onClick={() => void developFromRaw()}>
                 {developing ? 'Developing…' : 'Develop from RAW'}
               </button>
+            )}
+            {canDevelopRaw() && (
+              <div className="space-y-1 border-t border-white/10 pt-2">
+                <button type="button" className={button + ' w-full border border-white/15'}
+                  disabled={masterBusy || sourceState !== 'ready'} onClick={() => void exportHighPrecisionMaster()}>
+                  {masterBusy ? 'Developing RGB16 master…' : 'Export edited 16-bit TIFF (POC)'}
+                </button>
+                <p className="text-xs text-zinc-400">Uses original RAW, not its JPEG. Global tone/colour only; crop, masks and detail are blocked until the native renderer supports them. Colour accuracy is not yet certified.</p>
+                {masterNote && <p role="status" className="text-xs text-zinc-300">{masterNote}</p>}
+              </div>
             )}
           </div>
         )}
