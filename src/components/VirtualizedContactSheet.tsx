@@ -163,7 +163,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
       data-testid="virtualized-contact-sheet"
       className="flex-1 overflow-y-auto bg-kestrel-stage relative min-w-0 min-h-0"
     >
-      <div className="sticky top-2 z-30 h-0 pointer-events-none">
+      <div className="sticky top-2 z-10 h-0 pointer-events-none">
         <div className="absolute right-3 top-0 pointer-events-auto">
           <button type="button" onClick={() => { setJumpOpen((value) => !value); setJumpError(''); }}
             aria-label="Jump to a photo" aria-controls="kestrel-grid-jump" aria-expanded={jumpOpen}
