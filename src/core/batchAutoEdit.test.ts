@@ -52,3 +52,17 @@ test('selected auto edit respects stale decisions, manual changes, removed photo
   assert.equal(result[0].edit?.exposure, 1.1);
   for (let i = 1; i < frames.length; i++) assert.strictEqual(result[i], frames[i]);
 });
+
+
+test('removed-at-zero frames cannot receive automatic edits or new history', () => {
+  const removed = { ...make('removed-zero'), removedAt: 0 };
+  const eligible = make('eligible');
+  const frames = [removed, eligible];
+  const edits = new Map(frames.map((frame) => [frame.id, { ...DEFAULT_EDIT, exposure: 0.7 }]));
+  const result = applyKeeperAutoEdits(frames, edits, 900);
+  assert.strictEqual(result[0], removed);
+  assert.equal(result[0].editHistory, undefined);
+  assert.equal(result[1].edit?.exposure, 0.7);
+  assert.equal(result[1].editHistory?.steps.length, 1);
+  assert.equal(removed.removedAt, 0);
+});
