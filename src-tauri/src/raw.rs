@@ -152,12 +152,18 @@ pub fn develop(bytes: &[u8]) -> Result<Vec<u8>, String> {
     let source = RawSource::new_from_slice(bytes);
     let raw = rawler::decode(&source, &RawDecodeParams { image_index: 0 })
         .map_err(|error| explain(&error.to_string()))?;
-    let developed = RawDevelop::default()
-        .develop_intermediate(&raw)
-        .map_err(|error| format!("This RAW file could not be developed: {error}"))?
-        .to_dynamic_image()
-        .ok_or_else(|| "This RAW file produced no picture.".to_string())?;
-    let rgb = apply_orientation(developed.to_rgb8(), raw.orientation.to_u16());
+    // Kestrel's own develop (highlight reconstruction, no clipping, filmic shoulder), shared with the 16-bit master.
+    // Sensors it doesn't handle yet (monochrome, four-colour) keep rawler's default develop.
+    let rgb8 = match crate::scene_develop::develop_display_rgb16(&raw, &crate::scene_develop::Look::default())? {
+        Some(display) => crate::scene_develop::to_rgb8_dithered(&display),
+        None => RawDevelop::default()
+            .develop_intermediate(&raw)
+            .map_err(|error| format!("This RAW file could not be developed: {error}"))?
+            .to_dynamic_image()
+            .ok_or_else(|| "This RAW file produced no picture.".to_string())?
+            .to_rgb8(),
+    };
+    let rgb = apply_orientation(rgb8, raw.orientation.to_u16());
     let mut out = Vec::with_capacity((rgb.width() * rgb.height()) as usize / 4);
     JpegEncoder::new_with_quality(&mut out, 95)
         .encode_image(&rgb)

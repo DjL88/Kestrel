@@ -321,10 +321,14 @@ pub fn develop_raw_rgb16_tiff_with_edit_and_framing(
     let source = RawSource::new_from_slice(bytes);
     let raw = rawler::decode(&source, &RawDecodeParams { image_index: 0 })
         .map_err(|error| crate::raw::explain(&error.to_string()))?;
-    let intermediate = RawDevelop::default().develop_intermediate(&raw)
-        .map_err(|error| format!("RAW development failed: {error}"))?
-        .to_dynamic_image()
-        .ok_or_else(|| "RAW development produced no picture.".to_string())?;
+    // The same develop the editor's picture uses, so the 16-bit master starts from the pixels the person saw.
+    let intermediate = match crate::scene_develop::develop_display(&raw)? {
+        Some(display) => display,
+        None => RawDevelop::default().develop_intermediate(&raw)
+            .map_err(|error| format!("RAW development failed: {error}"))?
+            .to_dynamic_image()
+            .ok_or_else(|| "RAW development produced no picture.".to_string())?,
+    };
     let mut rgb = require_rgb16(intermediate)?;
     edit_rgb16(&mut rgb, edit);
     let oriented = orient_rgb16(rgb, raw.orientation.to_u16());

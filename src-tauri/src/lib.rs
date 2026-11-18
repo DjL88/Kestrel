@@ -1,5 +1,6 @@
 #[cfg(desktop)]
 mod raw;
+pub mod scene_develop;
 #[cfg(desktop)]
 pub mod raw_precision;
 #[cfg(desktop)]
