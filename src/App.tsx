@@ -51,7 +51,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { restoreProjectBackup } from './core/projectBackup';
 import { saveProjectBackupFile } from './providers/projectBackupFile';
 import { ProjectList } from './components/ProjectList';
-import { INBOX_ID, appendProjectPhotos, createEmptyProject, createInboxProject, moveFrames, setArchived } from './core/projects';
+import { INBOX_ID, appendProjectPhotos, applyImportBursts, createEmptyProject, createInboxProject, moveFrames, setArchived } from './core/projects';
 import { MoveToProjectDialog } from './components/MoveToProjectDialog';
 import { ProjectActionDialog } from './components/ProjectActionDialog';
 import { createVirtualCopy } from './core/virtualCopies';
@@ -117,6 +117,7 @@ import {
   loadLocalFileListShoot,
   readFilesFromDirectoryHandle,
   rehydrateLocalFramesFromStore,
+  linkedOriginalsAvailable,
 } from './providers/localShootLoader';
 
 function isEditableElement(target: EventTarget | null): boolean {
@@ -157,6 +158,10 @@ export default function App() {
   const [autoAdjustSelectedOpen, setAutoAdjustSelectedOpen] = useState(false);
   const autoAdjustController = useRef<AbortController | null>(null);
   const [autoCullStart, setAutoCullStart] = useState(false);
+  /** Culling keeps running with its panel out of the way, so the rest of the app can be used. */
+  const [autoCullHidden, setAutoCullHidden] = useState(false);
+  // Suggestions belong to one project: opening another one closes any cull of the previous project.
+  useEffect(() => { setAutoCullOpen(false); setAutoCullHidden(false); }, [cullingState.shoot.id]);
   /** The guided "what's next" banner, dismissed for one project at a time. Resets on reload or when a different project opens. */
   const [guidedDismissedFor, setGuidedDismissedFor] = useState<string | null>(null);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
@@ -218,7 +223,15 @@ export default function App() {
   const [loadingProgress, setLoadingProgress] = useState<{
     loaded: number;
     total: number;
+    /** Still looking through the chosen folder, so the number of photos is not known yet. */
+    finding?: boolean;
   } | null>(null);
+  /** The one import that may run at a time, and how to stop it. A second import would duplicate photos still in flight. */
+  const importRef = useRef<{ projectId: string; controller: AbortController } | null>(null);
+  const stopImport = useCallback(() => { importRef.current?.controller.abort(); }, []);
+  const projectsOpenRef = useRef(projectsOpen);
+  projectsOpenRef.current = projectsOpen;
+  const claimedBy = (claim: { controller: AbortController } | null, controller: AbortController) => claim?.controller === controller;
 
   // Persist user preferences whenever they change
   useEffect(() => {
@@ -305,7 +318,8 @@ export default function App() {
       preview.clear();
       const shoot = { ...state.shoot };
       const localFrames = state.frames.filter((frame) => !frame.removedAt && frame.sourceKind === 'file');
-      shoot.needsFileReselect = !await rehydrateLocalFramesFromStore(localFrames, preview, store);
+      // Open at once; whether linked originals are still on disk is checked just after, in the background.
+      shoot.needsFileReselect = !await rehydrateLocalFramesFromStore(localFrames, preview, store, { checkPaths: false });
 
       const hasFolderFrames = state.frames.some((frame) => !frame.removedAt && frame.sourceKind === 'directory-handle');
       if (hasFolderFrames) {
@@ -326,6 +340,14 @@ export default function App() {
         );
       }
       enterProject({ ...state, shoot });
+      if (!shoot.needsFileReselect && localFrames.some((frame) => frame.sourcePath)) {
+        void linkedOriginalsAvailable(localFrames).then((available) => {
+          if (available) return;
+          // Only flag the project that was checked, if it is still open; nothing in the catalogue is changed.
+          setCullingState((previous) => (previous.shoot.id !== shoot.id || previous.shoot.needsFileReselect ? previous
+            : { ...previous, shoot: { ...previous.shoot, needsFileReselect: true } }));
+        }, () => { /* a failed check is not proof of a missing original; Reconnect stays available */ });
+      }
     } catch {
       setProjectError('Could not open this project. Try again.');
     } finally {
@@ -1226,7 +1248,7 @@ export default function App() {
   // Global keyboard listener wired through unified resolveKeyboardCommand
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (projectsOpen || loadingProgress || exportFrames.length || autoCullOpen || pendingAction || removedOpen) return;
+      if (projectsOpen || exportFrames.length || (autoCullOpen && !autoCullHidden) || pendingAction || removedOpen) return;
       // Already handled by an open menu or dialog (for example Escape closing Workspace options).
       if (e.defaultPrevented) return;
       if (e.key === 'Escape' && showPhotoInfo) {
@@ -1257,7 +1279,7 @@ export default function App() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [projectsOpen, loadingProgress, exportFrames.length, autoCullOpen, pendingAction, removedOpen, showPhotoInfo, editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
+  }, [projectsOpen, loadingProgress, exportFrames.length, autoCullOpen, autoCullHidden, pendingAction, removedOpen, showPhotoInfo, editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
 
   const droppedInProjectRef = useRef<(files: File[]) => Promise<void>>(async () => {});
   const watchImportRef = useRef<(files: File[]) => Promise<number>>(async () => 0);
@@ -1268,10 +1290,17 @@ export default function App() {
   const watch = useFolderWatch(useCallback((files: File[]) => watchImportRef.current(files), []));
   // Watching belongs to the current project. Never silently import into another
   // project after switching workspaces or returning to the home screen.
-  useEffect(() => { if (projectsOpen) watch.stop(); }, [projectsOpen, cullingState.shoot.id, watch.stop]);
+  // Leaving the project for the home screen stops its import too: the project is not saved while the home screen is
+  // open, so photos added after leaving could be lost. Photos added before leaving stay in the project.
+  useEffect(() => { if (projectsOpen) { watch.stop(); stopImport(); } }, [projectsOpen, cullingState.shoot.id, watch.stop, stopImport]);
 
-  const handleSelectLocalFiles = async (picks: Array<File | PickedPhoto>, options?: { openEditor?: boolean; watched?: boolean; onImported?: (count: number) => void }) => {
+  const handleSelectLocalFiles = async (picks: Array<File | PickedPhoto>, options?: { openEditor?: boolean; watched?: boolean; onImported?: (count: number) => void; claimed?: AbortController }) => {
     const targetProjectId = cullingState.shoot.id;
+    if (importRef.current && importRef.current.controller !== options?.claimed) {
+      if (options?.watched) throw new Error('Another import is running; the watched photos will be retried.');
+      setFolderError('Photos are still being added. Wait for that to finish, or stop it, before adding more.');
+      return;
+    }
     const files = picks.map((pick) => (pick instanceof File ? pickedFromFile(pick) : pick));
     // A photo that was removed from the library does not count as already added, so adding it again brings it back.
     const existing = new Set(cullingState.frames.filter((frame) => !frame.removedAt).map((frame) => frame.stableKey));
@@ -1298,25 +1327,57 @@ export default function App() {
     setFolderError(null);
     setProjectError(undefined);
     setLoadingProgress({ loaded: 0, total: additions.length });
-    // Imports appear in the task manager too (a watched folder has its own status, so it is left out).
-    const task = options?.watched ? null : tasks.start(`Adding ${additions.length} photo${additions.length === 1 ? '' : 's'}`, { total: additions.length });
+    const controller = options?.claimed ?? new AbortController();
+    importRef.current = { projectId: targetProjectId, controller };
+    // Imports appear in the task manager too, with Stop (a watched folder has its own status, so it is left out).
+    const task = options?.watched ? null : tasks.start(`Adding ${additions.length} photo${additions.length === 1 ? '' : 's'}`, { total: additions.length, cancel: () => controller.abort() });
+    // Photos appear as they are read, so they can be looked at, culled and edited straight away. Watched imports stay
+    // all-or-nothing (the watcher retries a whole batch), so they are still added at the end.
+    const progressive = !options?.watched;
+    const importId = newId().slice(0, 8);
+    const shown = new Set<string>(); // queued to be shown
+    const appended = new Set<string>(); // actually added to the project
+    let waiting: PhotoFrame[] = [];
+    let lastShown = 0;
+    const show = () => {
+      if (!waiting.length) return;
+      const batch = waiting;
+      for (const frame of batch) appended.add(frame.stableKey);
+      waiting = [];
+      lastShown = Date.now();
+      setCullingState((prev) => (prev.shoot.id !== targetProjectId ? prev : appendProjectPhotos(prev, batch, importId)));
+    };
     try {
-      const { frames, unstoredKeys, uncachedPreviewKeys, failedNames } = await loadLocalFileListShoot(
+      const { frames, unstoredKeys, uncachedPreviewKeys, failedNames, stopped } = await loadLocalFileListShoot(
         additions, previewProviderRef.current!, storeRef.current!,
-        ({ loaded, total }) => { setLoadingProgress({ loaded, total }); task?.progress(loaded, total); },
-        { allowPartial: !options?.watched },
+        ({ frames: soFar, loaded, total }) => {
+          setLoadingProgress({ loaded, total });
+          task?.progress(loaded, total);
+          // Leaving the project stops its import: photos must never be appended to a different project.
+          if (stateRef.current.shoot.id !== targetProjectId) { controller.abort(); return; }
+          if (!progressive) return;
+          for (const frame of soFar) if (!shown.has(frame.stableKey)) { shown.add(frame.stableKey); waiting.push(frame); }
+          // A few photos at a time, not one save of the whole project per photo.
+          if (waiting.length >= 24 || Date.now() - lastShown > 1200 || shown.size <= 8) show();
+        },
+        { allowPartial: !options?.watched, signal: controller.signal },
       );
-      // Imports must never append photos to a different project if the user switches while they load.
+      if (projectsOpenRef.current && progressive) {
+        // The project was closed: what was added before closing is saved; nothing more is added to a closed project.
+        task?.finish(`Stopped when the project was closed; ${appended.size} photos were added.`);
+        return;
+      }
       if (stateRef.current.shoot.id !== targetProjectId) {
-        task?.finish('Project changed; photos were not added.');
+        task?.finish(appended.size ? `Stopped when another project was opened; ${appended.size} photos were added.` : 'Project changed; photos were not added.');
         return;
       }
       if (!frames.length) {
+        if (stopped) { task?.finish('Stopped before any photos were added.'); return; }
         task?.fail('None of the selected photos could be read.');
         setProjectError('None of these photos could be read. Check file permissions or reconnect the drive, then try again. Your existing project is unchanged.');
         return;
       }
-      task?.finish(failedNames.length ? `Added ${frames.length} photos; ${failedNames.length} could not be read.` : undefined);
+      task?.finish(stopped ? `Stopped; ${frames.length} photos were added.` : failedNames.length ? `Added ${frames.length} photos; ${failedNames.length} could not be read.` : undefined);
       if (unstoredKeys.length) {
         setTemporaryOriginals((previous) => new Set([...previous, ...unstoredKeys]));
         setTemporaryWarningDismissed(false);
@@ -1330,10 +1391,12 @@ export default function App() {
         warnings.push(`Could not save offline previews for ${uncachedPreviewKeys.length} ${uncachedPreviewKeys.length === 1 ? 'photo' : 'photos'}. The originals were not copied; reselect them or reconnect their folder when the source is unavailable.`);
       }
       if (warnings.length) setProjectError(warnings.join(' '));
-      const importId = newId().slice(0, 8);
+      if (progressive) waiting = [];
       setCullingState((prev) => {
         if (prev.shoot.id !== targetProjectId) return prev;
-        const next = appendProjectPhotos(prev, frames, importId);
+        // The remaining photos, then the final burst groups (a burst can straddle two batches).
+        // Only photos not added yet: one already added and then removed during the import must stay removed.
+        const next = applyImportBursts(appendProjectPhotos(prev, frames.filter((frame) => !appended.has(frame.stableKey)), importId), frames, importId);
         const first = options?.openEditor ? next.frames.find((frame) => frame.id.startsWith(`${importId}-`)) : undefined;
         return first ? { ...next, filter: 'all', selectedFrameId: first.id } : next;
       });
@@ -1347,6 +1410,7 @@ export default function App() {
       if (options?.watched) throw new Error('Kestrel could not import the watched photos. They will be retried.');
     } finally {
       task?.fail('Stopped before it finished'); // does nothing if it finished
+      if (importRef.current?.controller === controller) importRef.current = null;
       setLoadingProgress(null);
     }
   };
@@ -1381,12 +1445,26 @@ export default function App() {
     const targetProjectId = cullingState.shoot.id;
     // The desktop app never uses the browser's folder picker (it asks permission for "this website"): photos are linked from the disk.
     if (isDesktopApp()) {
+      if (importRef.current) { setFolderError('Photos are still being added. Wait for that to finish, or stop it, before adding more.'); return; }
+      // Looking through a big folder takes a while: claim the import and show progress from the moment it is chosen.
+      const controller = new AbortController();
       try {
-        const chosen = await pickFolderNatively();
+        const chosen = await pickFolderNatively({
+          signal: controller.signal,
+          onChosen: () => {
+            importRef.current = { projectId: cullingState.shoot.id, controller };
+            setOpenShootModal(false);
+            setLoadingProgress({ loaded: 0, total: 0, finding: true });
+          },
+          onProgress: (done, total) => setLoadingProgress({ loaded: done, total, finding: true }),
+        });
         if (chosen === 'cancelled') return;
         if (!chosen.length) { setFolderError('This folder has no supported photos.'); return; }
-        await handleSelectLocalFiles(chosen);
-      } catch { setFolderError('Could not read that folder.'); }
+        await handleSelectLocalFiles(chosen, { claimed: controller });
+      } catch { setFolderError('Could not read that folder.'); } finally {
+        // Read through a function: TypeScript cannot see that onChosen set the claim.
+        if (claimedBy(importRef.current, controller)) { importRef.current = null; setLoadingProgress(null); }
+      }
       return;
     }
     try {
@@ -1783,10 +1861,11 @@ export default function App() {
         onLocations={() => setLocationsOpen(true)}
         hand={prefs.hand}
         onHandChange={(hand) => setPrefs((prev) => ({ ...prev, hand, editPanelSide: hand }))}
-        onAutoCull={() => { if (!can('smartCulling')) { setPaidDialog('Auto-cull'); return; } setAutoCullStart(false); setAutoCullOpen(true); }}
+        onAutoCull={() => { if (!can('smartCulling')) { setPaidDialog('Auto-cull'); return; } if (autoCullOpen) { setAutoCullHidden(false); return; } setAutoCullStart(false); setAutoCullHidden(false); setAutoCullOpen(true); }}
         settings={cullingState.settings ?? LEGACY_SETTINGS}
         onSettingsChange={(settings) => setCullingState((prev) => ({ ...prev, settings, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } }))}
-        actionsDisabled={Boolean(loadingProgress) || projectBusy}
+        actionsDisabled={projectBusy}
+        addDisabled={Boolean(loadingProgress)}
         onOpenMacroPadModal={() => { setMacroPadMode('cull'); setMacroPadModal(true); }}
         loadingProgress={loadingProgress}
         onToggleMultiSelect={() => {
@@ -1826,7 +1905,7 @@ export default function App() {
         removedCount={removedFrames(cullingState.frames).length}
         onOpenRemoved={removedFrames(cullingState.frames).length ? () => setRemovedOpen(true) : undefined}
         onRedo={cullingState.redoStack.length ? () => executeCommand('cull.redo') : undefined}
-        onEditPhoto={selectedFrame && !loadingProgress ? () => { setEditQueueIds(null); setEditing(true); } : undefined}
+        onEditPhoto={selectedFrame ? () => { setEditQueueIds(null); setEditing(true); } : undefined}
       />}
 
       <input ref={relinkInput} type="file" hidden multiple accept={PHOTO_ACCEPT} data-testid="relink-file-input"
@@ -1983,14 +2062,16 @@ export default function App() {
               </div>
             </div>
           )}
-          {loadingProgress && <ImportProgress loaded={loadingProgress.loaded} total={loadingProgress.total} />}
+          {loadingProgress && <ImportProgress loaded={loadingProgress.loaded} total={loadingProgress.total} finding={loadingProgress.finding} onStop={stopImport} />}
           {!editing && !cullingState.shoot.inbox && !loadingProgress && guidedDismissedFor !== cullingState.shoot.id &&
             ((guided === 'reviewing' && cullingState.filter === 'unreviewed') ||
              ((guided === 'improving' || guided === 'ready') && cullingState.filter === 'keep')) && (
             <GuidedBanner step={guided} unreviewed={counts.unreviewed} keepers={counts.keep} decided={counts.all - counts.unreviewed} uneditedKeepers={uneditedKeepers}
               onFindBestPhotos={() => {
                 if (!can('smartCulling')) { setPaidDialog('Auto-cull'); return; }
+                if (autoCullOpen) { setAutoCullHidden(false); return; }
                 setAutoCullStart(true);
+                setAutoCullHidden(false);
                 setAutoCullOpen(true);
               }}
               onReviewMyself={() => changeFilter('unreviewed')}
@@ -2242,7 +2323,9 @@ export default function App() {
           setPrefs((previous) => ({ ...previous, viewMode: 'grid' }));
           setCullingState((previous) => ({ ...previous, filter, searchQuery: '', selectedFrameId: previous.frames.find((frame) => !frame.removedAt && frame.decision === filter)?.id ?? previous.selectedFrameId }));
         }}
-        onClose={() => setAutoCullOpen(false)} />}
+        hidden={autoCullHidden}
+        onHide={() => setAutoCullHidden(true)}
+        onClose={() => { setAutoCullOpen(false); setAutoCullHidden(false); }} />}
 
       {autoAdjustOpen && <ConfirmDialog title="Auto-adjust unedited keepers?" confirmLabel="Auto-adjust keepers" cancelLabel="Cancel"
         onConfirm={() => void autoAdjustKeepers()} onCancel={() => setAutoAdjustOpen(false)}>
