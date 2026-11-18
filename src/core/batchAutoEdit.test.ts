@@ -66,3 +66,18 @@ test('removed-at-zero frames cannot receive automatic edits or new history', () 
   assert.equal(result[1].editHistory?.steps.length, 1);
   assert.equal(removed.removedAt, 0);
 });
+
+
+test('selected Auto Edit cannot resurrect an epoch-zero removed photograph', () => {
+  const removed = { ...make('removed-selected', 'unreviewed'), removedAt: 0 };
+  const selected = make('selected-live', 'unreviewed');
+  const frames = [removed, selected];
+  const targetIds = new Set(frames.map((frame) => frame.id));
+  const edits = new Map(frames.map((frame) => [frame.id, { ...DEFAULT_EDIT, exposure: 0.25 }]));
+  const next = applyKeeperAutoEdits(frames, edits, 901, targetIds);
+  assert.strictEqual(next[0], removed);
+  assert.equal(next[0].editHistory, undefined);
+  assert.equal(next[1].edit?.exposure, 0.25);
+  assert.equal(next[1].editHistory?.steps.length, 1);
+  assert.strictEqual(frames[0], removed);
+});
