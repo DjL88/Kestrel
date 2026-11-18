@@ -562,3 +562,28 @@ test('ambiguous rescan clears stale confidence but preserves manual decisions an
   assert.equal(decided.frames[0].cullScore, 98, 'previous state must remain immutable');
   assert.equal(undoDecision(rescanned).frames[0].decision, 'unreviewed');
 });
+
+
+test('late scan clears previously scored removed photo without altering decisions or undo', () => {
+  const initial = createDemoShootState(3);
+  const id = initial.frames[0].id;
+  const scored = applyCullConfidence(initial, [{ frameId: id, confidence: 'high', score: 96 }]);
+  const decided = applyDecisionWithHistory(scored, id, 'keep', { allowAdvance: false });
+  const removed = {
+    ...decided,
+    frames: decided.frames.map((frame, index) =>
+      index === 0 ? { ...frame, removedAt: 123 } : frame),
+  };
+  const undoStack = removed.undoStack;
+  const scanned = applyCullConfidence(removed, [
+    { frameId: id, confidence: 'high', score: 99 },
+    { frameId: removed.frames[1].id, confidence: 'medium', score: 60 },
+  ]);
+  assert.equal(scanned.frames[0].cullScore, undefined);
+  assert.equal(scanned.frames[0].cullConfidence, undefined);
+  assert.equal(scanned.frames[0].removedAt, 123);
+  assert.equal(scanned.frames[0].decision, 'keep');
+  assert.equal(scanned.undoStack, undoStack);
+  assert.equal(scanned.frames[1].cullScore, 60);
+  assert.equal(removed.frames[0].cullScore, 96, 'input state must remain immutable');
+});
