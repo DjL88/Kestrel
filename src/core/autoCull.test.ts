@@ -264,3 +264,26 @@ test('flat preview stays review-only even when a detector reports a sharp subjec
   const actual = scoreWithSubject(flat, finding);
   assert.equal(actual, flat, 'do not promote an untrustworthy flat preview into a keeper');
 });
+
+
+test('contradictory overlapping scans cannot auto-keep a disputed photograph', () => {
+  const photos = generateDemoShootFrames(2).map((frame) => ({
+    ...frame, isDemo: false, burstGroupId: null, decision: 'unreviewed' as const,
+  }));
+  const confident: CullSuggestion = {
+    frameId: photos[0].id, decision: 'keep', confidence: 'high', reason: 'subjectSharp', score: 98,
+  };
+  const uncertain: CullSuggestion = {
+    ...confident, decision: null, confidence: 'low', reason: 'noSubject', score: 35,
+  };
+  const other: CullSuggestion = { ...confident, frameId: photos[1].id, score: 90 };
+  for (const disputed of [uncertain, { ...confident, decision: 'reject' as const }]) {
+    for (const suggestions of [[confident, disputed, other], [disputed, confident, other]]) {
+      const before = suggestions.map((suggestion) => ({ ...suggestion }));
+      const result = limitAutoKeepers(suggestions, photos, 1);
+      assert.equal(result.filter((item) => item.frameId === photos[0].id && item.confidence === 'high').length, 0);
+      assert.deepEqual(result.filter((item) => item.confidence === 'high').map((item) => item.frameId), [photos[1].id]);
+      assert.deepEqual(suggestions, before, 'original worker results must remain unchanged');
+    }
+  }
+});
