@@ -312,11 +312,15 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
 
   const refMedian = scene.referenceMedian, refP98 = scene.referenceP98;
   const brightBackground = scene.brightSmooth >= 0.06;
-  const lowKey = frame.at(0.7) < 0.18 && ref.at(0.95) > 0.3;
-  const subdued = !lowKey && scene.frameMedian < 0.32 && refMedian >= 0.16 &&
-    scene.shadowArea > 0.25 && scene.shadowStructured < 0.35;
+  // Low-key: most of the frame near black with a clearly lit subject (thresholds from the legacy engine's kingfisher
+  // calibration: 70% of the frame below 0.12, the lit part at least 0.2 above the median).
+  const lowKey = frame.at(0.7) < 0.12 && ref.at(0.95) > 0.25 && ref.at(0.95) - scene.frameMedian > 0.2;
   const highIso = (input.iso ?? 0) >= 1600;
   const shadowsAreNoise = scene.shadowNoisy >= 0.3 || highIso;
+  // Subdued: a dark, noisy scene (woodland at high ISO). Lifting it would turn noise into grey mush. Clean dark
+  // shadows are not "subdued": they can be lifted without that harm.
+  const subdued = !lowKey && shadowsAreNoise && scene.frameMedian < 0.32 && refMedian >= 0.16 &&
+    scene.shadowArea > 0.25 && scene.shadowStructured < 0.35;
 
   // Exposure follows the subject (or the in-focus detail), never a bright sky or bokeh.
   let gain = 1;

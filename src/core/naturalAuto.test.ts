@@ -198,3 +198,24 @@ test('scaling a recipe never touches manual values or existing masks', () => {
   assert.deepEqual(half.masks![0], base.masks![0]);
   assert.equal(half.masks![1].edit.exposure, 0.25);
 });
+
+/** The flat dark fixtures the browser tests use: a dim grey block on a near-black, noise-free background. */
+function flatDark(bg: [number, number, number], block: [number, number, number]) {
+  const width = 300, height = 200, pixels = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
+    pixels.set([...(x >= 80 && x < 180 && y >= 55 && y < 145 ? block : bg), 255], (y * width + x) * 4);
+  }
+  return { pixels, width, height };
+}
+
+test('a clean, underexposed frame is lifted (browser fixtures for batch Auto and Suggest a look)', () => {
+  for (const [bg, block] of [[[0x1b, 0x1c, 0x20], [0x41, 0x45, 0x53]], [[0x28, 0x2a, 0x34], [0x55, 0x58, 0x70]], [[0x23, 0x25, 0x2c], [0x65, 0x69, 0x71]]] as const) {
+    const frame = flatDark([...bg], [...block]);
+    const result = naturalAuto(frame);
+    assert.ok(result.edit.exposure > 0, `exposure ${result.edit.exposure} for ${result.scene.kind}`);
+    const staged = stageNaturalRecipe(frame.pixels, frame.width, frame.height, DEFAULT_EDIT, { ...DEFAULT_EDIT, ...result.edit });
+    assert.ok(staged.outcome === 'full' || staged.outcome === 'gentler', staged.reason);
+  }
+  // A bright frame in the same set stays as it is.
+  assert.ok(naturalAuto(flatDark([0xa0, 0xb0, 0xba], [0xc0, 0xce, 0xd2])).edit.exposure <= 0);
+});

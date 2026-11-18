@@ -98,6 +98,19 @@ Kestrel is rebuilt **in place, one wired vertical slice at a time**, on one bran
 | 8 | macOS and Windows from one commit | NOT RUN | Actions billing-blocked; Windows only here. |
 | 9 | Auto never overrides manual edits; undo intact | **PASS** | Batch runs only on untouched keepers (+ #404 epoch-zero fix); editor Auto previews and needs Apply; staged scaling never touches manual values or existing masks (tested). |
 
+### Local evidence (Windows 11, 18 Nov 2026)
+
+| Check | Result |
+| --- | --- |
+| `npm ci` (fresh worktree) | PASS |
+| `npm run lint` | PASS (baseline `main` also PASS) |
+| `npm test` | PASS, 880/880 (baseline `main` 861/861) |
+| `npm run build` | PASS |
+| `npx playwright test` (desktop + phone) | 257 PASS, 4 FAIL, 71 skipped. The 4 (phone `species-scan`, `task-manager` stop/restart, two `species` burst tests) fail identically on untouched `1e23ee7`. Two Auto tests that failed on the first run (`auto-adjust-selected`, `insight-preview-apply`) exposed real rule faults (noise-free dark frames were treated as mood); fixed and now pass. |
+| `cargo test` | NOT RUN: no Rust changes on this branch |
+| GitHub Actions | INFRASTRUCTURE BLOCKED (billing); not retried |
+| Owner previews via `npm run compare:auto --stress` (local only, not committed) | Natural Auto leaves all four finished previews unchanged; legacy suggests highlights −1 on `_DJL1296` (greys the sky), shadows +0.55 on `_DJL3296`, and a check-failing recipe on the black `_DJL3307`. Stress: corrects a 1 EV under-exposure on `_DJL1296` and `_DJL3296`, and a 0.5 EV over-exposure on `_DJL1296` and `_DSC0009`. Known passive cases: `_DSC0009` at −1 EV without a mask is left as plausible mood; `_DJL3296` at +0.5 EV gets warmth 0.2 (measurement artefact). |
+
 ## 5. Next slices, in order
 
 1. **Slice 2: prove the existing journey end to end on real files.** Import 30–500 mixed JPEG/NEF from a local disk and an external drive → cull → Natural Auto on keepers → export at true dimensions → quit → reopen, on the Windows release build. Fix what breaks; no new features.
