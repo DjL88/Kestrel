@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { isDesktopApp } from './desktopShell';
 
 /** Button text each native menu item presses. A first version: it reuses the buttons already on screen. */
-const BUTTONS: Record<string, RegExp> = { export: /^export$/i, 'macro-pad': /^macro pad$/i, filmstrip: /^(show|hide) filmstrip$/i };
+const BUTTONS: Record<string, RegExp> = { filmstrip: /^(show|hide) filmstrip$/i };
 
 export function useDesktopMenu() {
   useEffect(() => {
@@ -10,6 +10,12 @@ export function useDesktopMenu() {
     let stop: (() => void) | undefined;
     let cancelled = false;
     void import('@tauri-apps/api/event').then(({ listen }) => listen<string>('menu', ({ payload }) => {
+      if (payload === 'export') {
+        // Uses the same selected-photo export as the toolbar, even when the
+        // toolbar says "Export 20" and even with a virtualized grid.
+        window.dispatchEvent(new Event('kestrel:desktop-export'));
+        return;
+      }
       if (payload === 'photos-select-all' || payload === 'photos-deselect-all') {
         // Dispatch a real photo command. Never select arbitrary page text/DOM elements.
         // In a focused text field, Cmd/Ctrl+A must still select that field's text.
