@@ -60,11 +60,16 @@ test('dismissing the banner hides it for this project', async ({ page }) => {
   await expect(page.getByRole('region', { name: "What's next" })).toHaveCount(0);
 });
 
-test('once some photos are already decided, the banner says so instead of suggesting the same pass again', async ({ page }) => {
+test('after an Auto-cull scan has looked at the rest, the banner says so instead of suggesting the same pass again', async ({ page }) => {
   await projectWithUnreviewedPhotos(page);
-  await page.getByRole('button', { name: /^Keep /i }).first().click();
   const banner = page.getByRole('region', { name: "What's next" });
-  await expect(banner).toContainText('3 photos still need a decision');
+  await banner.getByRole('button', { name: 'Find my best photos' }).click();
+  const dialog = page.getByRole('dialog', { name: /Auto-cull/ });
+  await expect(dialog.getByRole('region', { name: 'Auto-cull summary' })).toBeVisible({ timeout: 60_000 });
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  // Only photos the scan actually looked at may be described as ones Kestrel was not confident about.
+  await expect(banner).toContainText(/still needs? a decision/);
   await expect(banner).toContainText("wasn't confident enough to call these on its own");
   await expect(banner.getByRole('button', { name: 'Let Kestrel try these too' })).toBeVisible();
   // The old "first pass" framing would be misleading once a pass has already happened.
@@ -96,4 +101,13 @@ test('review guidance appears only on To review, never over Keepers or All photo
   await expect(guide).toHaveCount(0);
   await tabs.getByRole('button', { name: 'To review 4' }).click();
   await expect(guide).toBeVisible();
+});
+
+test('after deciding photos by hand, the banner never claims Kestrel tried and gave up', async ({ page }) => {
+  // Auto-cull never ran here, so "Kestrel wasn't confident" would be untrue (found on a real 116-photo import).
+  await projectWithUnreviewedPhotos(page);
+  await page.getByRole('button', { name: 'Keep g-1.png', exact: true }).click();
+  const banner = page.getByRole('region', { name: "What's next" });
+  await expect(banner).toContainText('3 photos to look through');
+  await expect(banner).not.toContainText("wasn't confident");
 });

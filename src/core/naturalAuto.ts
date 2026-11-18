@@ -69,6 +69,8 @@ export interface NaturalAutoResult {
 const EMPTY: GlobalAutoEdit = { exposure: 0, warmth: 0, shadows: 0, highlights: 0, contrast: 0, vibrance: 0 };
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const round = (v: number) => Math.round(v * 20) / 20;
+/** Exposure and warmth sliders step in 0.1, so their suggestions do too: the slider then shows exactly what is stored. */
+const roundTenth = (v: number) => Math.round(v * 10) / 10;
 const toLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 const toPerceptual = (l: number) => (l <= 0.0031308 ? l * 12.92 : 1.055 * l ** (1 / 2.4) - 0.055);
 const LINEAR_8 = Float32Array.from({ length: 256 }, (_, i) => toLinear(i / 255));
@@ -344,7 +346,7 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
     // Only darken when the subject or the in-focus detail itself is blown, not the sky behind it.
     gain = clamp(toLinear(0.94) / Math.max(toLinear(refP98), 1e-4), 2 ** (-0.75 * EV_PER_UNIT), 1);
   }
-  edit.exposure = clamp(round(Math.log2(gain) / EV_PER_UNIT), -0.75, 1.25);
+  edit.exposure = clamp(roundTenth(Math.log2(gain) / EV_PER_UNIT), -0.7, 1.2);
   if (Math.abs(edit.exposure) < 0.1) edit.exposure = 0;
   const appliedGain = 2 ** (edit.exposure * EV_PER_UNIT);
   if (edit.exposure > 0) notes.push(reference === 'subject' ? 'The subject is on the dark side, so exposure goes up a little.' :
@@ -395,7 +397,7 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
   // Colour balance from near-neutral midtones outside the subject.
   if (neutral / n >= 0.08 && neutralR + neutralB > 0) {
     const cast = (neutralB - neutralR) / (neutralB + neutralR);
-    const warmth = clamp(round((cast / 0.08) * 0.6), -1, 1);
+    const warmth = clamp(roundTenth((cast / 0.08) * 0.6), -1, 1);
     // Below 0.2 the shift is invisible and within measurement error, so it is not worth a change.
     if (Math.abs(warmth) >= 0.2) {
       edit.warmth = warmth;

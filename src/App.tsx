@@ -40,7 +40,7 @@ import { scanForCulling } from './providers/browserAutoCull';
 import { limitAutoKeepers } from './core/autoCull';
 import { backgroundCullCandidates, backgroundCullMoves, backgroundDevelopTargets } from './core/backgroundAutoPolicy';
 import { GuidedBanner } from './components/GuidedBanner';
-import { guidedStep } from './core/guidedProgress';
+import { guidedStep, remainingWereScanned } from './core/guidedProgress';
 import { BatchLookDialog } from './components/BatchLookDialog';
 import { SelectionLookDialog } from './components/SelectionLookDialog';
 import { applySelectedLook, previewSelectedLook } from './core/selectedLooks';
@@ -1987,7 +1987,7 @@ export default function App() {
           {!editing && !cullingState.shoot.inbox && !loadingProgress && guidedDismissedFor !== cullingState.shoot.id &&
             ((guided === 'reviewing' && cullingState.filter === 'unreviewed') ||
              ((guided === 'improving' || guided === 'ready') && cullingState.filter === 'keep')) && (
-            <GuidedBanner step={guided} unreviewed={counts.unreviewed} keepers={counts.keep} decided={counts.all - counts.unreviewed} uneditedKeepers={uneditedKeepers}
+            <GuidedBanner step={guided} unreviewed={counts.unreviewed} keepers={counts.keep} scanned={remainingWereScanned(cullingState.frames)} uneditedKeepers={uneditedKeepers}
               onFindBestPhotos={() => {
                 if (!can('smartCulling')) { setPaidDialog('Auto-cull'); return; }
                 setAutoCullStart(true);

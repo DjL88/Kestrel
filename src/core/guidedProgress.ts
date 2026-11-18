@@ -1,4 +1,4 @@
-import type { CullCounts } from './types';
+import type { CullCounts, PhotoFrame } from './types';
 
 /**
  * Where a nervous, first-time editor is in the guided journey, worked out from the same counts the rest of the Library
@@ -17,4 +17,14 @@ export function guidedStep(counts: Pick<CullCounts, 'all' | 'unreviewed' | 'keep
   if (counts.unreviewed > 0) return 'reviewing';
   if (counts.keep === 0) return 'none';
   return uneditedKeepers > 0 ? 'improving' : 'ready';
+}
+
+/**
+ * True only when every photo still waiting for a decision was actually looked at by an automatic cull scan, so the
+ * banner may say Kestrel "wasn't confident enough". Photos decided by hand say nothing about Kestrel's confidence:
+ * with Auto-cull off, or for photos added after a scan, claiming Kestrel tried and left them would be untrue.
+ */
+export function remainingWereScanned(frames: readonly PhotoFrame[]): boolean {
+  const waiting = frames.filter((frame) => frame.removedAt == null && !frame.virtualCopy && frame.decision === 'unreviewed');
+  return waiting.length > 0 && waiting.every((frame) => frame.cullConfidence !== undefined);
 }

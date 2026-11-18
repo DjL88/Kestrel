@@ -88,13 +88,13 @@ Kestrel is rebuilt **in place, one wired vertical slice at a time**, on one bran
 
 | # | Scenario (brief) | Status | Evidence / gap |
 | --- | --- | --- | --- |
-| 1 | 500 mixed photos, counts, quit/reopen | NOT RUN here | Existing `auto-cull-500-to-20.spec.ts` runs in the suite. Real 500-photo NEF run is P0.2. |
+| 1 | 500 mixed photos, counts, quit/reopen | **PASS at 116 real photos (web app)**; 500 NOT RUN | `npm run journey:local` on 116 of the owner's Z 8 / Z5 II NEF and JPEG files (2.04 GB): all imported, every decision and a manual edit survived a full browser quit and relaunch, originals byte-identical. 500 needs the desktop app (it links instead of copying; the web app would copy ~13 GB into browser storage). |
 | 2 | Bird on bright bokeh stays natural | **PASS (synthetic + 1 real preview)** | Unit tests: no darkening, highlights 0, vibrance 0; sky bit-identical with a mask. `_DJL1296` preview: abstains (legacy: highlights −1). |
 | 3 | Woodland mood, no grey mush, foreground stays soft | **PASS (synthetic + 1 real preview)** | No global shadow lift; no global detail; gate blocks a forced lift. `_DSC0009`: abstains. |
 | 4 | Close robin: real feathers, no halo, no neon green | **PARTIAL** | No global detail; background pixels far from the bird bit-identical; vibrance and contrast held. **Halo at 100% on a native-resolution export is NOT RUN.** |
 | 5 | Helicopter is not an osprey | Unchanged by this slice | Existing species gates. |
 | 6 | Source provenance | **Improved** | #403 cherry-picked: a cached review JPEG is never an export source. |
-| 7 | Export dimensions, ICC, true 16-bit | NOT RUN | Slice 3. |
+| 7 | Export dimensions, ICC, true 16-bit | **Dimensions PASS**; ICC and 16-bit NOT RUN (Slice 3) | Real Z 8 JPEG exported at 5504×8256 with orientation applied; Z 8 NEF at the full 8256×5504 from its embedded preview, with the export panel saying so. `journey-import-to-reopen.spec.ts` checks the export equals the shared edit maths on the original pixels. |
 | 8 | macOS and Windows from one commit | NOT RUN | Actions billing-blocked; Windows only here. |
 | 9 | Auto never overrides manual edits; undo intact | **PASS** | Batch runs only on untouched keepers (+ #404 epoch-zero fix); editor Auto previews and needs Apply; staged scaling never touches manual values or existing masks (tested). |
 
@@ -111,9 +111,25 @@ Kestrel is rebuilt **in place, one wired vertical slice at a time**, on one bran
 | GitHub Actions | INFRASTRUCTURE BLOCKED (billing); not retried |
 | Owner previews via `npm run compare:auto --stress` (local only, not committed) | Natural Auto leaves all four finished previews unchanged; legacy suggests highlights −1 on `_DJL1296` (greys the sky), shadows +0.55 on `_DJL3296`, and a check-failing recipe on the black `_DJL3307`. Stress: corrects a 1 EV under-exposure on `_DJL1296` and `_DJL3296`, and a 0.5 EV over-exposure on `_DJL1296` and `_DSC0009`. Known passive cases: `_DSC0009` at −1 EV without a mask is left as plausible mood; `_DJL3296` at +0.5 EV gets warmth 0.2 (measurement artefact). |
 
+## 4b. Slice 2: the journey, proven on real files
+
+- **`tests/journey-import-to-reopen.spec.ts`** (desktop project): import mixed files → keep / Trash → Auto on unedited keepers → a manual adjustment → full-size PNG export → leave, reload, reopen. The export is checked at its true dimensions **and against the shared edit maths**: the editor's exact recipe, replayed with `applyPhotoEdit` on the original's pixels, matches the exported pixels (mean difference under 1 code value, at most 3).
+- **`npm run journey:local -- <folder> [--count 60] [--keep 10]`** runs the same journey on the owner's own photos in the built web app. It culls with the keyboard (K, X) and finds photos by filename search, as a person would. It times each step, hashes the originals before and after, quits and relaunches the browser, and allows no request beyond 127.0.0.1. The report and exports go to a git-ignored folder; the temporary browser profile is deleted.
+- **Fixed on the way:**
+  - The review banner said *"Kestrel wasn't confident enough to call these"* after photos were decided by hand with Auto-cull off. That was untrue. It now says so only when an automatic scan actually looked at every remaining photo (`remainingWereScanned`, unit- and browser-tested).
+  - Natural Auto suggested exposure and warmth on a 0.05 step while those sliders step 0.1, so a slider could show a value other than the one stored. Suggestions now land on the slider steps.
+- **Nothing sits on a photo** (owner request, 18 Nov). Controls moved into header and footer bars:
+  - the grid's **Jump…** into the top bar (a header strip on phones);
+  - each thumbnail's **photo info** button, and its burst, edited and species labels, into the tile's footer;
+  - the editor's **zoom** controls into the editor toolbar (a bar under the photo was tried first and took the photo's height away in phone landscape).
+
+  `tests/layout-photo-clear.spec.ts` enforces this on the library, viewer, editor and export, on desktop and phone. A control may overlap a photo only inside a fixed or sticky bar or a modal dialog.
+
+- **Found, not yet fixed (Slice 4):** in phone landscape (667×375) the editor's stacked header rows and panel leave the photo only a sliver. This predates the rebuild. Landscape on a small phone should open the photo full screen, as the brief allows.
+
 ## 5. Next slices, in order
 
-1. **Slice 2: prove the existing journey end to end on real files.** Import 30–500 mixed JPEG/NEF from a local disk and an external drive → cull → Natural Auto on keepers → export at true dimensions → quit → reopen, on the Windows release build. Fix what breaks; no new features.
+1. **Slice 2 (in progress): the journey on real files.** Web app proven at 116 real photos (above). Still to do: the same run in the optimised Windows desktop build at 500 photos, from a local disk and an external drive, including relinking after the drive letter changes.
 2. **Slice 3: one 16-bit float pipeline** (ROADMAP P1.1): `scene_develop.rs` output reaches the editor without the 8-bit JPEG hop; one renderer for screen and export; ICC embedded; benchmark `Look::default()` against NX Studio on Z8 and Z5 II files (lossless, HE, HE\*: HE stays an explicit blocker until a real file decodes).
 3. **Slice 4: the calm interface.** One Review space, editor with a back arrow and default-open photo info, one Settings home, phone layout without overlaps, all on the journey proven in Slice 2.
 4. **Slice 5: Natural Auto on real data.** Blinded owner ratings on matched RAWs (neutral develop vs legacy vs Studio vs Natural vs NX Studio), then tune thresholds from those numbers, not from synthetic scenes.
