@@ -5,6 +5,14 @@ import { readFileSync } from 'node:fs';
 // The stand-in model always "sees" a red kite, so the whole path can be tested without the real 89 MB model.
 const standIn = readFileSync('tests/fixtures/stand-in-species.onnx');
 
+/** The local model knows animals only, so an unclassified photo is never given a name (#377). */
+async function expectNoNameUntilWildlife(page: import('@playwright/test').Page) {
+  const panel = page.getByRole('region', { name: 'Species suggestions' });
+  await expect(panel.getByText(/Choose Wildlife in Photo info/)).toBeVisible({ timeout: 30000 });
+  await expect(panel.getByRole('list', { name: 'Suggested names' })).toHaveCount(0);
+  await page.getByRole('region', { name: 'What is in this photo' }).getByRole('button', { name: 'Wildlife' }).click();
+}
+
 test('species suggestions: with automatic tagging off, accept a name and it becomes a tag', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('kestrel.autoTag.v1', 'off'));
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
@@ -16,14 +24,15 @@ test('species suggestions: with automatic tagging off, accept a name and it beco
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await expect(panel.getByText(/never leave this device/)).toBeVisible();
   await panel.getByRole('button', { name: /^Download/ }).click();
+  await expectNoNameUntilWildlife(page);
 
-  // After the download the photo is looked at, and a name is offered with how sure the model is.
+  // Once the photo is marked Wildlife it is looked at, and a name is offered with how sure the model is.
   const suggestion = panel.getByRole('list', { name: 'Suggested names' }).getByRole('listitem').first();
   await expect(suggestion).toContainText('Red kite', { timeout: 30000 });
   await expect(suggestion).toContainText('Milvus milvus');
   await expect(suggestion).toContainText('likely');
 
-  // Nothing is added until it is accepted. Accepting adds the tag and, with no kind chosen yet, sets Wildlife.
+  // Nothing is added until it is accepted. Accepting adds the tag and Wildlife stays chosen.
   const subject = page.getByRole('region', { name: 'What is in this photo' });
   await expect(subject.getByRole('list', { name: 'Tags' })).toHaveCount(0);
   await suggestion.getByRole('button', { name: 'Use Red kite' }).click();
@@ -52,6 +61,7 @@ test('species suggestions: with automatic tagging off, accept a name and it beco
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
   await expect(panel.getByRole('button', { name: /^Download/ })).toHaveCount(0);
+  await expectNoNameUntilWildlife(page);
   await expect(panel.getByRole('list', { name: 'Suggested names' })).toContainText('Red kite', { timeout: 30000 });
 });
 
@@ -64,6 +74,7 @@ test('a suggestion can be dismissed, and the choice is not kept as a tag', async
   await openPhotoInfo(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
+  await expectNoNameUntilWildlife(page);
   await expect(panel.getByRole('button', { name: 'Not Red kite' })).toBeVisible({ timeout: 30000 });
   await panel.getByRole('button', { name: 'Not Red kite' }).click();
   await expect(panel.getByText('Nothing else to suggest.')).toBeVisible();
@@ -192,6 +203,7 @@ test('automatic tagging can be switched off, and then a new photo is only offere
   });
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await expectNoNameUntilWildlife(page);
   await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: 'Use Red kite' })).toBeVisible({ timeout: 30000 });
   await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('list', { name: 'Tags' })).toHaveCount(0);
 });
@@ -211,6 +223,7 @@ test('the model downloads and is kept on a phone over plain http, where Cache St
   await openPhotoInfo(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
+  await expectNoNameUntilWildlife(page);
   await expect(panel.getByRole('list', { name: 'Suggested names' })).toContainText('Red kite', { timeout: 30000 });
   await expect(panel.getByRole('alert')).toHaveCount(0);
   // It is kept: after a reload there is no second download.
@@ -219,6 +232,7 @@ test('the model downloads and is kept on a phone over plain http, where Cache St
     buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64') });
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await expectNoNameUntilWildlife(page);
   await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('list', { name: 'Suggested names' })).toContainText('Red kite', { timeout: 30000 });
   await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: /^Download/ })).toHaveCount(0);
 });
