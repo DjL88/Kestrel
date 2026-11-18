@@ -10,6 +10,25 @@ export function useDesktopMenu() {
     let stop: (() => void) | undefined;
     let cancelled = false;
     void import('@tauri-apps/api/event').then(({ listen }) => listen<string>('menu', ({ payload }) => {
+      if (payload === 'photos-select-all' || payload === 'photos-deselect-all') {
+        // Dispatch a real photo command. Never select arbitrary page text/DOM elements.
+        // In a focused text field, Cmd/Ctrl+A must still select that field's text.
+        const focus = document.activeElement;
+        if (payload === 'photos-select-all' && (focus instanceof HTMLInputElement || focus instanceof HTMLTextAreaElement)) {
+          focus.select();
+          return;
+        }
+        if (payload === 'photos-select-all' && focus instanceof HTMLElement && focus.isContentEditable) {
+          const selection = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(focus);
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+          return;
+        }
+        window.dispatchEvent(new Event('kestrel:' + payload));
+        return;
+      }
       if (payload === 'macro-pad') {
         window.dispatchEvent(new Event('kestrel:open-macro-pad'));
         return;
