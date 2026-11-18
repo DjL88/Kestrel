@@ -36,3 +36,31 @@ test('native OS errors are classified without treating offline drives as deleted
   assert.equal(classifyOriginalPathError(new Error('network path was not found, os error 53')), 'unavailable');
   assert.equal(classifyOriginalPathError(new Error('drive disconnected')), 'unavailable');
 });
+
+test('incomplete original identity never silently relinks a blank path', () => {
+  const empty = { id: 'missing-path', path: '', size: 0, lastModified: 0 };
+  const candidate = { path: '', size: 0, lastModified: 0 };
+  assert.deepEqual(planOriginalRelink([empty], [candidate]), {
+    matches: [], unresolved: ['missing-path'], ambiguous: [],
+  });
+});
+
+test('non-finite or negative RAW metadata cannot match a replacement file', () => {
+  for (const value of [NaN, Infinity, -1]) {
+    const broken = { ...original, size: value };
+    const result = planOriginalRelink([broken], [{ path: 'E:/_DSC0001.NEF', size: value, lastModified: 1234 }]);
+    assert.deepEqual(result.matches, []);
+    assert.deepEqual(result.unresolved, ['z8']);
+  }
+  const badTimestamp = { ...original, lastModified: Infinity };
+  assert.deepEqual(planOriginalRelink([badTimestamp], [{ path: 'E:/_DSC0001.NEF', size: 10000, lastModified: Infinity }]).unresolved, ['z8']);
+});
+
+test('invalid candidates do not block a distinct valid Nikon original match', () => {
+  const candidates = [
+    { path: '', size: 10000, lastModified: 1234 },
+    { path: 'E:/_DSC0001.NEF', size: NaN, lastModified: 1234 },
+    { path: 'F:/_DSC0001.NEF', size: 10000, lastModified: 1234 },
+  ];
+  assert.deepEqual(planOriginalRelink([original], candidates).matches, [{ id: 'z8', path: 'F:/_DSC0001.NEF' }]);
+});
