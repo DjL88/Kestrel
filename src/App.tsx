@@ -708,6 +708,8 @@ export default function App() {
   }
   const stateRef = useRef(cullingState);
   stateRef.current = cullingState;
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
 
   // New imports trigger the local background pipeline rather than opening a blocking dialog.
   // Queued batches are scoped to a project and can be cancelled; nothing touches RAW originals.
@@ -750,6 +752,7 @@ export default function App() {
           const task = tasks.start('Reviewing imported photographs', {
             total: candidates.length, cancel: () => controller.abort(),
           });
+          controller.signal.addEventListener('abort', () => { tasks.cancel(task.id); }, { once: true });
           try {
             const results = await scanForCulling(candidates, snapshot.frames, provider, snapshot.keeperTarget,
               controller.signal, (count) => task.progress(count));
@@ -760,14 +763,18 @@ export default function App() {
             const remaining = Math.max(0, latest.keeperTarget -
               latest.frames.filter((frame) => !frame.removedAt && frame.decision === 'keep').length);
             const limited = limitAutoKeepers(results, latest.frames, remaining);
-            const moves = backgroundCullMoves(latest.frames, limited, imported);
+            const moves = latest.settings?.autoCull
+              ? backgroundCullMoves(latest.frames, limited, imported).filter((item) =>
+                  !(editingRef.current && item.frameId === latest.selectedFrameId))
+              : [];
             snapshot = applyAutoCullDecisions(latest, moves);
             setCullingState((prev) => {
-              if (prev.shoot.id !== projectId || controller.signal.aborted) return prev;
+              if (prev.shoot.id !== projectId || controller.signal.aborted || !prev.settings?.autoCull) return prev;
               const spare = Math.max(0, prev.keeperTarget -
                 prev.frames.filter((frame) => !frame.removedAt && frame.decision === 'keep').length);
               const currentResults = limitAutoKeepers(results, prev.frames, spare);
-              const decisions = backgroundCullMoves(prev.frames, currentResults, imported);
+              const decisions = backgroundCullMoves(prev.frames, currentResults, imported).filter((item) =>
+                !(editingRef.current && item.frameId === prev.selectedFrameId));
               const scored = applyCullConfidence(prev, results.map((item) => ({
                 frameId: item.frameId, confidence: item.confidence, score: item.score,
               })));
@@ -784,17 +791,20 @@ export default function App() {
       // A manual edit or crop keeps the photo unchanged. Its optional advice
       // stays behind Auto > Suggest a look in the editor, never applied by this job.
       const targets = backgroundDevelopTargets(snapshot.frames, imported);
+      if (editingRef.current && snapshot.selectedFrameId) targets.delete(snapshot.selectedFrameId);
       if (!targets.size) return;
       const task = tasks.start('Developing untouched keepers', {
         total: targets.size, cancel: () => controller.abort(),
       });
+      controller.signal.addEventListener('abort', () => { tasks.cancel(task.id); }, { once: true });
       try {
         const edits = await suggestKeeperAutoEdits(snapshot.frames, provider, controller.signal,
           (count) => task.progress(count), targets);
         if (!alive()) return;
         setCullingState((prev) => {
-          if (prev.shoot.id !== projectId || controller.signal.aborted) return prev;
+          if (prev.shoot.id !== projectId || controller.signal.aborted || !prev.settings?.autoEdit) return prev;
           const stillUntouched = backgroundDevelopTargets(prev.frames, targets);
+          if (editingRef.current && prev.selectedFrameId) stillUntouched.delete(prev.selectedFrameId);
           const frames = applyKeeperAutoEdits(prev.frames, edits, Date.now(), stillUntouched);
           return frames.some((frame, index) => frame !== prev.frames[index])
             ? { ...prev, frames, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } } : prev;
@@ -1336,6 +1346,7 @@ export default function App() {
   }, [projectsOpen, cullingState.shoot.id]);
 
   const handleOpenLocalFolder = async () => {
+    const targetProjectId = cullingState.shoot.id;
     // The desktop app never uses the browser's folder picker (it asks permission for "this website"): photos are linked from the disk.
     if (isDesktopApp()) {
       try {
@@ -1378,11 +1389,16 @@ export default function App() {
           previewProviderRef.current!,
           storeRef.current!,
           ({ loaded, total }) => { setLoadingProgress({ loaded, total }); task.progress(loaded, total); },
-          { handleKey: cullingState.shoot.id, entries },
+          { handleKey: targetProjectId, entries },
         );
+        if (stateRef.current.shoot.id !== targetProjectId) {
+          task.finish('Project changed; photos were not added.');
+          return;
+        }
         task.finish();
         const importId = newId().slice(0, 8);
         setCullingState((previous) => {
+          if (previous.shoot.id !== targetProjectId) return previous;
           const next = appendProjectPhotos(previous, frames, importId);
           return {
             ...next,
@@ -1394,7 +1410,7 @@ export default function App() {
             },
           };
         });
-        enqueueBackgroundAuto(cullingState.shoot.id, frames.map((frame) => `${importId}-${frame.id}`));
+        enqueueBackgroundAuto(targetProjectId, frames.map((frame) => `${importId}-${frame.id}`));
         setPrefs((previous) => ({ ...previous, viewMode: 'grid' }));
       } catch {
         task.fail('Could not add the photos.');
