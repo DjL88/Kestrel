@@ -35,9 +35,19 @@ export function planOriginalRelink(
   const matches: RelinkMatch[] = [], unresolved: string[] = [], ambiguous: string[] = [];
   const claimed = new Set<string>();
   for (const original of originals) {
+    // Never turn an incomplete catalogue record into a guessed original link.
+    // A blank path has no filename, and missing metadata (NaN/Infinity or
+    // negative byte counts) cannot establish identity safely.
+    if (!filename(original.path) || !Number.isFinite(original.size) || original.size < 0 ||
+        !Number.isFinite(original.lastModified) || original.lastModified < 0) {
+      unresolved.push(original.id);
+      continue;
+    }
     // A directory selection may contain duplicate filenames. Size and timestamp
     // must both agree, and only one candidate may match.
     const possible = candidates.filter((candidate) =>
+      Boolean(filename(candidate.path)) && Number.isFinite(candidate.size) && candidate.size >= 0 &&
+      Number.isFinite(candidate.lastModified) && candidate.lastModified >= 0 &&
       filename(candidate.path) === filename(original.path)
       && candidate.size === original.size
       && candidate.lastModified === original.lastModified
