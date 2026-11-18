@@ -17,15 +17,32 @@ export class HelperError extends Error {
 
 type Fetcher = typeof fetch;
 
+/** Prevent a stalled browser/API request from leaving species recognition spinning forever. */
+export const HELPER_REQUEST_TIMEOUT_MS = 12_000;
+
 async function call(fetcher: Fetcher, url: string, key: string, init: RequestInit): Promise<{ status: number; body: unknown }> {
-  let response: Response;
+  const controller = new AbortController();
+  const signal = init.signal;
+  let timedOut = false;
+  const abort = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener('abort', abort, { once: true });
+  const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, HELPER_REQUEST_TIMEOUT_MS);
   try {
-    response = await fetcher(url, { ...init, headers: { 'content-type': 'application/json', 'x-goog-api-key': key }, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer' });
+    const response = await fetcher(url, {
+      ...init, signal: controller.signal,
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
+      cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer',
+    });
+    return { status: response.status, body: await response.json().catch(() => null) };
   } catch (error) {
-    if ((error as Error).name === 'AbortError') throw error;
+    if (timedOut) throw new HelperError('timeout');
+    if (signal?.aborted || (error as Error).name === 'AbortError') throw error;
     throw new HelperError(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'other');
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener('abort', abort);
   }
-  return { status: response.status, body: await response.json().catch(() => null) };
 }
 
 /** The models a key can use. Also the simplest way to test a key. */
