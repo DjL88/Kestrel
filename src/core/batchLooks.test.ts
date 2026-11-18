@@ -39,3 +39,17 @@ test('history steps protect manually reviewed neutral edits', () => {
   assert.equal(previewKeeperLook([reset]).eligible, 0);
   assert.strictEqual(applyKeeperLook([reset], { ...DEFAULT_EDIT, warmth: 0.3 })[0], reset);
 });
+
+test('epoch-zero removed keeper is excluded from preview and batch application', () => {
+  const live = frame('live', 'keep');
+  const removedAtEpoch = { ...frame('removed-zero', 'keep'), removedAt: 0 };
+  const removedLater = { ...frame('removed-later', 'keep'), removedAt: 123 };
+  const inputs = [live, removedAtEpoch, removedLater];
+  assert.deepEqual(previewKeeperLook(inputs), { total: 1, eligible: 1, skipped: 0 });
+  const result = applyKeeperLook(inputs, { ...DEFAULT_EDIT, contrast: 0.4 }, true, 1234);
+  assert.equal(result[0].edit?.contrast, 0.4);
+  assert.strictEqual(result[1], removedAtEpoch);
+  assert.strictEqual(result[2], removedLater);
+  assert.equal(removedAtEpoch.editHistory, undefined);
+  assert.equal(removedLater.editHistory, undefined);
+});
