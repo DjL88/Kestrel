@@ -53,3 +53,18 @@ test('epoch-zero removed keeper is excluded from preview and batch application',
   assert.equal(removedAtEpoch.editHistory, undefined);
   assert.equal(removedLater.editHistory, undefined);
 });
+
+test('removed keeper remains untouched with default batch settings and existing history', () => {
+  const edited = applyKeeperLook([frame('history', 'keep')], { ...DEFAULT_EDIT, exposure: 0.2 }, true, 10)[0];
+  const removed = { ...edited, removedAt: 0 };
+  const history = removed.editHistory;
+  const edit = removed.edit;
+  const inputs = [removed, frame('active', 'keep')];
+  assert.deepEqual(previewKeeperLook(inputs), { total: 1, eligible: 1, skipped: 0 });
+  const result = applyKeeperLook(inputs, { ...DEFAULT_EDIT, contrast: 0.8 }, false, 20);
+  assert.strictEqual(result[0], removed);
+  assert.strictEqual(result[0].editHistory, history);
+  assert.strictEqual(result[0].edit, edit);
+  assert.equal(result[1].edit?.contrast, 0.8);
+  assert.strictEqual(inputs[0], removed);
+});
