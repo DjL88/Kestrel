@@ -484,3 +484,38 @@ test('restoring one photo preserves unrelated removal history', () => {
   assert.equal(undone.frames[0].removedAt, undefined);
   assert.equal(undone.frames[1].removedAt, undefined);
 });
+
+
+test('valid and malformed duplicate scans both require review regardless of arrival order', () => {
+  const state = createDemoShootState(2);
+  const frameId = state.frames[0].id;
+  const valid = { frameId, confidence: 'high' as const, score: 94 };
+  const corrupt = { frameId, confidence: 'high' as const, score: Number.NaN };
+  for (const batch of [[valid, corrupt], [corrupt, valid]]) {
+    const result = applyCullConfidence(state, batch);
+    assert.equal(result.frames[0].cullConfidence, undefined);
+    assert.equal(result.frames[0].cullScore, undefined);
+    assert.equal(result.frames[0].decision, 'unreviewed');
+  }
+});
+
+test('duplicate catalogue identities and removed photos do not receive confidence', () => {
+  const state = createDemoShootState(3);
+  const duplicatedId = state.frames[0].id;
+  const removedId = state.frames[2].id;
+  const damaged = {
+    ...state,
+    frames: state.frames.map((frame, index) =>
+      index === 1 ? { ...frame, id: duplicatedId } :
+      index === 2 ? { ...frame, removedAt: 1 } : frame),
+  };
+  const next = applyCullConfidence(damaged, [
+    { frameId: duplicatedId, confidence: 'high', score: 97 },
+    { frameId: removedId, confidence: 'high', score: 96 },
+  ]);
+  assert.ok(next.frames.every((frame) => frame.cullScore === undefined));
+  assert.ok(next.frames.every((frame) => frame.decision === 'unreviewed'));
+  assert.deepEqual(damaged.frames, state.frames.map((frame, index) =>
+    index === 1 ? { ...frame, id: duplicatedId } :
+    index === 2 ? { ...frame, removedAt: 1 } : frame));
+});
