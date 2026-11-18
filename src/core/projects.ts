@@ -167,3 +167,23 @@ export function sortProjects<T extends { title: string; createdAt: number; lastU
   }[sort];
   return [...projects].sort(by);
 }
+
+/**
+ * A progressive import appends photos in batches so they can be seen and edited at once. Burst groups are only final
+ * once every photo of the import is known (a burst can straddle two batches), so the final grouping is applied to the
+ * photos of that import at the end. Decisions, ratings, edits and IDs are untouched.
+ */
+export function applyImportBursts(project: CullingState, finalFrames: readonly PhotoFrame[], importId: string): CullingState {
+  const byKey = new Map(finalFrames.map((frame) => [frame.stableKey, frame]));
+  let changed = false;
+  const frames = project.frames.map((frame) => {
+    if (!frame.id.startsWith(`${importId}-`)) return frame;
+    const final = byKey.get(frame.stableKey);
+    if (!final) return frame;
+    const burstGroupId = final.burstGroupId ? `${final.burstGroupId}-${importId}` : null;
+    if (frame.burstGroupId === burstGroupId && frame.burstIndex === final.burstIndex && frame.burstCount === final.burstCount) return frame;
+    changed = true;
+    return { ...frame, burstGroupId, burstIndex: final.burstIndex, burstCount: final.burstCount };
+  });
+  return changed ? { ...project, frames } : project;
+}

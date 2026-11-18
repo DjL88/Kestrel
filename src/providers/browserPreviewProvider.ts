@@ -14,6 +14,7 @@ import {
   type RawDecoder,
 } from '../core/platformBoundaries';
 import type { PhotoFrame } from '../core/types';
+import { materialize, type RangeBlob } from './rangeBlob';
 
 const MAX_FULL_PREVIEW_CACHE = 24;
 const MAX_OFFLINE_PREVIEW_MEMORY = 24;
@@ -167,11 +168,13 @@ export class BrowserPreviewProvider implements PreviewProvider {
   }
 
   /** Save small, nondestructive source previews for linked originals; never persist the original itself. */
-  async cacheOfflinePreviews(stableKey: string, filename: string, original: Blob): Promise<boolean> {
-    const source = isRawPreviewFile(filename)
-      ? (await extractNefPreview(original)) ?? original
-      : original;
-    const bitmap = await createImageBitmap(source);
+  async cacheOfflinePreviews(stableKey: string, filename: string, original: Blob | RangeBlob): Promise<boolean> {
+    // A RAW is never decoded by the browser: without an embedded preview there is nothing to cache (the photo stays
+    // usable from its original). Reading the whole RAW just to fail in createImageBitmap was the slowest import path.
+    const source = isRawPreviewFile(filename) ? await extractNefPreview(original as Blob) : original;
+    if (!source) return false;
+    // Ranged originals hand back only the preview's bytes; turn just those into a real Blob for decoding.
+    const bitmap = await createImageBitmap(await materialize(source, 'image/jpeg'));
     try {
       const thumbnail = await encodePreview(bitmap, THUMB_MAX_WIDTH);
       const previews = {

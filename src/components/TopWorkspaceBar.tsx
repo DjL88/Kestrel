@@ -41,6 +41,8 @@ interface TopWorkspaceBarProps {
   onHandChange?: (hand: 'left' | 'right') => void;
   onBackToProjects: () => void;
   actionsDisabled: boolean;
+  /** Only adding more photos waits while an import runs; everything else stays usable. */
+  addDisabled?: boolean;
   onOpenShootModal: () => void;
   onOpenMacroPadModal: () => void;
   onEditPhoto?: () => void;
@@ -155,12 +157,12 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-semibold text-zinc-100" title={shoot.title}>{shoot.title}</div>
         <div className="truncate text-xs text-zinc-400">
-          {loadingProgress ? `Opening ${loadingProgress.loaded}/${loadingProgress.total}` :
+          {loadingProgress ? `Adding photos ${loadingProgress.loaded}/${loadingProgress.total}` :
             shoot.inbox ? `${counts.all} ${counts.all === 1 ? 'photo' : 'photos'}${searchQuery ? ' · Search active' : ''}${props.ratingFilter || props.cameraFilter || props.lensFilter ? ' · Filters active' : ''}` : `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter === 'all' || filter === 'reject' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}${props.ratingFilter || props.cameraFilter || props.lensFilter ? ' · Filters active' : ''}`}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <button type="button" onClick={props.onOpenShootModal} disabled={props.actionsDisabled} className={`${actionClass} border border-white/12 max-md:hidden`} aria-label="Add photos to project" title="Add photos">
+        <button type="button" onClick={props.onOpenShootModal} disabled={props.actionsDisabled || props.addDisabled} className={`${actionClass} border border-white/12 max-md:hidden`} aria-label="Add photos to project" title="Add photos">
           <Plus className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">Add</span>
         </button>
@@ -285,7 +287,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
     </header>
     <div role="toolbar" aria-label="Photo actions" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)] md:hidden">
       {([
-        { key: 'add', label: 'Add', title: 'Add photos', Icon: Plus, onClick: props.onOpenShootModal, disabled: props.actionsDisabled },
+        { key: 'add', label: 'Add', title: 'Add photos', Icon: Plus, onClick: props.onOpenShootModal, disabled: props.actionsDisabled || props.addDisabled },
         { key: 'edit', label: 'Edit', title: 'Open the selected photo in the editor', Icon: Pencil, onClick: onEditPhoto, disabled: !onEditPhoto || props.actionsDisabled },
         { key: 'export', label: props.exportLabel ?? 'Export', title: 'Export the selected photos', Icon: Download, onClick: props.onExport, disabled: !props.onExport || props.actionsDisabled },
       ] as const).map(({ key, label, title, Icon, onClick, disabled }) => (

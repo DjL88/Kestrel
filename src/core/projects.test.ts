@@ -133,3 +133,33 @@ test('projects sort by last edited, created or name', () => {
   assert.deepEqual(sortProjects(items, 'created').map((p) => p.title), ['Trip 10', 'Alps', 'trip 2']);
   assert.deepEqual(sortProjects(items, 'name').map((p) => p.title), ['Alps', 'trip 2', 'Trip 10']);
 });
+
+import { applyImportBursts } from './projects';
+import { assignBurstGroups } from './cullingEngine';
+
+test('a progressive import in batches ends with the same photos and bursts as adding them all at once', () => {
+  // Six shots: a burst of four (one second apart) that straddles the batch boundary, then two lone shots.
+  const times = [0, 1000, 2000, 3000, 600_000, 1_200_000];
+  const shots = times.map((ms, i) => ({
+    ...generateDemoShootFrames(1)[0], id: `file-${i + 1}-p${i}.nef`, stableKey: `local-file://p${i}.nef::1::${i}`,
+    filename: `p${i}.nef`, sequenceIndex: i + 1, decision: 'unreviewed' as const,
+    exif: { ...generateDemoShootFrames(1)[0].exif, capturedAtMs: 1_700_000_000_000 + ms },
+  }));
+  const empty = createEmptyProject('shoot', 'Dippers');
+  const allAtOnce = appendProjectPhotos(empty, assignBurstGroups(shots), 'imp');
+
+  // Batches as the loader reports them: each is grouped only with what has been read so far.
+  let progressive = appendProjectPhotos(empty, assignBurstGroups(shots.slice(0, 2)), 'imp');
+  progressive = appendProjectPhotos(progressive, assignBurstGroups(shots.slice(0, 4)).slice(2), 'imp');
+  progressive = appendProjectPhotos(progressive, assignBurstGroups(shots).slice(4), 'imp');
+  // A decision made during the import must survive the final regrouping.
+  progressive = { ...progressive, frames: progressive.frames.map((f, i) => (i === 0 ? { ...f, decision: 'keep' as const } : f)) };
+  const finished = applyImportBursts(progressive, assignBurstGroups(shots), 'imp');
+
+  const view = (s: typeof finished) => s.frames.map((f) => [f.id, f.sequenceIndex, f.burstGroupId, f.burstIndex, f.burstCount]);
+  assert.deepEqual(view(finished), view(allAtOnce));
+  assert.equal(finished.frames[0].decision, 'keep');
+  assert.equal(finished.frames.filter((f) => f.burstCount === 4).length, 4, 'the burst across batches is whole again');
+  assert.equal(applyImportBursts(finished, assignBurstGroups(shots), 'imp'), finished, 'nothing to change returns the same state');
+  assert.equal(applyImportBursts(finished, assignBurstGroups(shots), 'other'), finished, 'other imports are untouched');
+});
