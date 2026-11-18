@@ -17,7 +17,8 @@
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
     "desktop:build": "node scripts/build-desktop.mjs",
-    "mcp": "tsx tools/mcp/kestrel-mcp.ts"
+    "mcp": "tsx tools/mcp/kestrel-mcp.ts",
+    "compare:auto": "tsx scripts/natural-auto-compare.ts"
   },
   "dependencies": {
     "@fontsource/atkinson-hyperlegible": "^5.3.0",

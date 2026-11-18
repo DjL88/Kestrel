@@ -1,5 +1,5 @@
 import type { PhotoEdit } from './photoEdits';
-import type { Mask, SubjectGrid } from './maskTypes';
+import type { LocalEdit, Mask, SubjectGrid } from './maskTypes';
 
 /**
  * Kestrel Insight research: a conservative, offline subject-aware Auto proposal.
@@ -20,6 +20,11 @@ export interface SubjectAutoInput {
   framingKey: string;
   /** Distinct ID for the prospective mask, supplied by the caller. */
   maskId: string;
+  /**
+   * Extra local adjustments measured by Natural Auto (dark feather recovery, a light subject-only sharpen).
+   * Used only once every mask check below has passed, so an untrustworthy mask never carries them.
+   */
+  extra?: LocalEdit | null;
 }
 export interface SubjectAutoProposal {
   edit: PhotoEdit;
@@ -37,6 +42,8 @@ const luma = (r: number, g: number, b: number) => (0.2126 * r + 0.7152 * g + 0.0
  */
 export function proposeSubjectAwareAuto(input: SubjectAutoInput): SubjectAutoProposal {
   const { pixels, width, height, edit, segmentation, subjectKind, maskId, framingKey } = input;
+  const extra = Object.fromEntries(Object.entries(input.extra ?? {}).filter(([, v]) => Number.isFinite(v) && v !== 0)) as LocalEdit;
+  const hasExtra = Object.keys(extra).length > 0;
   if (!segmentation || segmentation.confidence === 'low' || subjectKind === 'landscape') {
     return fallback(edit, 'No reliable isolated subject: keep the global suggestion.');
   }
@@ -93,24 +100,25 @@ export function proposeSubjectAwareAuto(input: SubjectAutoInput): SubjectAutoPro
   const subjectLuma = subjectTotal / subjectCount;
   const backgroundLuma = backgroundTotal / backgroundCount;
   const difference = backgroundLuma - subjectLuma;
+  const subjectMask = (local: LocalEdit): Mask => ({
+    id: maskId, kind: 'subject', grid: segmentation.grid, framingKey, confidence: segmentation.confidence,
+    strokes: [], invert: false, feather: 0.55, edit: local,
+  });
   if (difference < (subjectKind === 'other' ? 0.23 : segmentation.confidence === 'high' ? 0.12 : 0.18) ||
       subjectLuma > 0.72 || clipped / subjectCount > 0.03) {
+    if (hasExtra) {
+      return {
+        edit: { ...edit, masks: [...(edit.masks ?? []), subjectMask(extra)] },
+        usedMask: true,
+        reason: 'A gentle local adjustment on the subject only. The background is not changed.',
+      };
+    }
     return fallback(edit, 'Subject exposure does not need a separate lift.');
   }
   // Old recipe scale: 1 unit is 0.4 EV. Keep this first-step suggestion gentle;
   // no extra sharpening or hallucinated subject texture is introduced.
   const localExposure = Math.min(0.6, Math.max(0.15, Math.round(difference * 1.2 * 20) / 20));
-  const mask: Mask = {
-    id: maskId,
-    kind: 'subject',
-    grid: segmentation.grid,
-    framingKey,
-    confidence: segmentation.confidence,
-    strokes: [],
-    invert: false,
-    feather: 0.55,
-    edit: { exposure: localExposure },
-  };
+  const mask = subjectMask({ ...extra, exposure: localExposure });
   return {
     edit: { ...edit, masks: [...(edit.masks ?? []), mask] },
     usedMask: true,
