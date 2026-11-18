@@ -1,0 +1,862 @@
+{
+ "version": 1,
+ "note": "Subject categories for the category gate. Each category has several natural-language prompts; their text embeddings are averaged into one vector by tools/subject-router/make_category_vectors.py. `detector` lists the COCO classes of the YOLOX detector that support the category. `identify` names the specialist step that may follow.",
+ "groups": [
+  "animal",
+  "person",
+  "plant",
+  "vehicle",
+  "structure",
+  "scene",
+  "sky",
+  "object",
+  "event"
+ ],
+ "categories": [
+  {
+   "id": "bird",
+   "label": "Bird",
+   "group": "animal",
+   "kind": "wildlife",
+   "prompts": [
+    "a photo of a bird",
+    "a bird perched on a branch",
+    "a bird in flight with its wings spread",
+    "a close-up photograph of a bird"
+   ],
+   "detector": [
+    "bird"
+   ],
+   "identify": "species"
+  },
+  {
+   "id": "bird-of-prey",
+   "label": "Bird of prey",
+   "group": "animal",
+   "kind": "wildlife",
+   "prompts": [
+    "a photo of a bird of prey",
+    "an eagle, hawk, falcon or owl",
+    "a raptor in flight"
+   ],
+   "detector": [
+    "bird"
+   ],
+   "identify": "species"
+  },
+  {
+   "id": "waterbird",
+   "label": "Waterbird",
+   "group": "animal",
+   "kind": "wildlife",
+   "prompts": [
+    "a photo of a duck, goose or swan on water",
+    "a heron or egret standing in shallow water",
+    "a seabird flying over the sea"
+   ],
+   "detector": [
+    "bird"
+   ],
+   "identify": "species"
+  },
+  {
+   "id": "mammal",
+   "label": "Wild mammal",
+   "group": "animal",
+   "kind": "wildlife",
+   "prompts": [
+    "a photo of a wild mammal",
+    "a deer, fox or hare in the wild",
+    "a wild animal in its natural habitat"
+   ],
+   "detector": [
+    "bear",
+    "elephant",
+    "zebra",
+    "giraffe"
+   ],
+   "identify": "species"
+  },
+  {
+   "id": "marine-mammal",
+   "label": "Marine mammal",
+   "group": "animal",
+   "kind": "wildlife",
+   "prompts": [
+    "a photo of a seal, whale or dolphin",
+    "a marine mammal in the sea"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "fish-marine",
+   "label": "Fish and marine life",
+   "group": "animal",
+   "kind": "wildlife",
+   "prompts": [
+    "an underwater photo of fish",
+    "a coral reef with fish",
+    "a jellyfish or other sea creature"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "reptile",
+   "label": "Reptile or amphibian",
+   "group": "animal",
+   "kind": "wildlife",
+   "prompts": [
+    "a photo of a lizard, snake or turtle",
+    "a frog or toad",
+    "a crocodile or other reptile"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "insect",
+   "label": "Insect",
+   "group": "animal",
+   "kind": "wildlife",
+   "prompts": [
+    "a macro photo of an insect",
+    "a butterfly on a flower",
+    "a dragonfly, bee or beetle"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "invertebrate",
+   "label": "Spider and other invertebrates",
+   "group": "animal",
+   "kind": "wildlife",
+   "prompts": [
+    "a photo of a spider",
+    "a snail, worm or crab",
+    "a close-up of a small invertebrate"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "dog",
+   "label": "Dog",
+   "group": "animal",
+   "kind": "other",
+   "prompts": [
+    "a photo of a dog",
+    "a pet dog playing outdoors"
+   ],
+   "detector": [
+    "dog"
+   ],
+   "identify": null
+  },
+  {
+   "id": "cat",
+   "label": "Cat",
+   "group": "animal",
+   "kind": "other",
+   "prompts": [
+    "a photo of a cat",
+    "a pet cat indoors"
+   ],
+   "detector": [
+    "cat"
+   ],
+   "identify": null
+  },
+  {
+   "id": "horse",
+   "label": "Horse",
+   "group": "animal",
+   "kind": "other",
+   "prompts": [
+    "a photo of a horse",
+    "a horse in a field"
+   ],
+   "detector": [
+    "horse"
+   ],
+   "identify": null
+  },
+  {
+   "id": "farm-animal",
+   "label": "Farm animal",
+   "group": "animal",
+   "kind": "other",
+   "prompts": [
+    "a photo of a cow, sheep or goat on a farm",
+    "a pig, chicken or other farm animal"
+   ],
+   "detector": [
+    "sheep",
+    "cow"
+   ],
+   "identify": null
+  },
+  {
+   "id": "portrait",
+   "label": "Portrait",
+   "group": "person",
+   "kind": "people",
+   "prompts": [
+    "a portrait photograph of a person",
+    "a close-up of a person's face"
+   ],
+   "detector": [
+    "person"
+   ],
+   "identify": null
+  },
+  {
+   "id": "people-group",
+   "label": "Group or crowd",
+   "group": "person",
+   "kind": "people",
+   "prompts": [
+    "a photo of a group of people",
+    "a crowd of people at an event"
+   ],
+   "detector": [
+    "person"
+   ],
+   "identify": null
+  },
+  {
+   "id": "sport",
+   "label": "Sport and action",
+   "group": "person",
+   "kind": "people",
+   "prompts": [
+    "a photo of an athlete playing sport",
+    "a sports match with players in action",
+    "a runner, cyclist or swimmer in motion"
+   ],
+   "detector": [
+    "person",
+    "bicycle"
+   ],
+   "identify": null
+  },
+  {
+   "id": "performance",
+   "label": "Concert or stage",
+   "group": "person",
+   "kind": "people",
+   "prompts": [
+    "a photo of a musician performing on stage",
+    "a concert with stage lighting",
+    "a dancer or actor performing"
+   ],
+   "detector": [
+    "person"
+   ],
+   "identify": null
+  },
+  {
+   "id": "wedding",
+   "label": "Wedding or celebration",
+   "group": "person",
+   "kind": "people",
+   "prompts": [
+    "a wedding photograph",
+    "a party or family celebration"
+   ],
+   "detector": [
+    "person"
+   ],
+   "identify": null
+  },
+  {
+   "id": "flower",
+   "label": "Flower",
+   "group": "plant",
+   "kind": "other",
+   "prompts": [
+    "a close-up photo of a flower",
+    "a flower garden in bloom",
+    "a macro photograph of a petal"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "tree-forest",
+   "label": "Tree or forest",
+   "group": "plant",
+   "kind": "landscape",
+   "prompts": [
+    "a photo of a tree",
+    "a forest with tall trees",
+    "woodland in autumn colours"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "fungi",
+   "label": "Fungi",
+   "group": "plant",
+   "kind": "other",
+   "prompts": [
+    "a photo of a mushroom",
+    "fungi growing on a log"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "crop-garden",
+   "label": "Garden or crop",
+   "group": "plant",
+   "kind": "other",
+   "prompts": [
+    "a vegetable garden",
+    "a field of crops",
+    "a plant growing in a pot"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "airliner",
+   "label": "Airliner",
+   "group": "vehicle",
+   "kind": "other",
+   "prompts": [
+    "a photo of a commercial passenger airliner",
+    "a large jet airliner taking off or landing",
+    "an airplane at an airport gate"
+   ],
+   "detector": [
+    "aeroplane"
+   ],
+   "identify": "aircraft"
+  },
+  {
+   "id": "light-aircraft",
+   "label": "Light aircraft",
+   "group": "vehicle",
+   "kind": "other",
+   "prompts": [
+    "a photo of a small propeller aircraft",
+    "a light private plane on a runway",
+    "a vintage biplane or warbird"
+   ],
+   "detector": [
+    "aeroplane"
+   ],
+   "identify": "aircraft"
+  },
+  {
+   "id": "military-jet",
+   "label": "Military aircraft",
+   "group": "vehicle",
+   "kind": "other",
+   "prompts": [
+    "a photo of a military fighter jet",
+    "a combat aircraft in flight",
+    "an air show display aircraft"
+   ],
+   "detector": [
+    "aeroplane"
+   ],
+   "identify": "aircraft"
+  },
+  {
+   "id": "helicopter",
+   "label": "Helicopter",
+   "group": "vehicle",
+   "kind": "other",
+   "prompts": [
+    "a photo of a helicopter",
+    "a helicopter in flight with its rotor blades",
+    "a helicopter landing on a helipad"
+   ],
+   "detector": [],
+   "identify": "aircraft"
+  },
+  {
+   "id": "drone",
+   "label": "Drone",
+   "group": "vehicle",
+   "kind": "other",
+   "prompts": [
+    "a photo of a quadcopter drone in the air",
+    "a small unmanned aircraft"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "balloon-glider",
+   "label": "Balloon or glider",
+   "group": "vehicle",
+   "kind": "other",
+   "prompts": [
+    "a hot air balloon in the sky",
+    "a glider or paraglider in flight",
+    "a hang glider"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "spacecraft",
+   "label": "Rocket or spacecraft",
+   "group": "vehicle",
+   "kind": "other",
+   "prompts": [
+    "a rocket launching into the sky",
+    "a space shuttle or spacecraft"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "car",
+   "label": "Car",
+   "group": "vehicle",
+   "kind": "other",
+   "prompts": [
+    "a photo of a car",
+    "a car parked on a street",
+    "a sports car on a road",
+    "a classic vintage car"
+   ],
+   "detector": [
+    "car"
+   ],
+   "identify": "car"
+  },
+  {
+   "id": "truck-van",
+   "label": "Truck, van or bus",
+   "group": "vehicle",
+   "kind": "other",
+   "prompts": [
+    "a photo of a truck or lorry",
+    "a delivery van",
+    "a city bus"
+   ],
+   "detector": [
+    "truck",
+    "bus"
+   ],
+   "identify": null
+  },
+  {
+   "id": "emergency-vehicle",
+   "label": "Emergency vehicle",
+   "group": "vehicle",
+   "kind": "other",
+   "prompts": [
+    "a police car, ambulance or fire engine",
+    "an emergency vehicle with flashing lights"
+   ],
+   "detector": [
+    "car",
+    "truck"
+   ],
+   "identify": null
+  },
+  {
+   "id": "motorbike",
+   "label": "Motorbike",
+   "group": "vehicle",
+   "kind": "other",
+   "prompts": [
+    "a photo of a motorcycle",
+    "a motorbike racing on a track"
+   ],
+   "detector": [
+    "motorcycle"
+   ],
+   "identify": null
+  },
+  {
+   "id": "bicycle",
+   "label": "Bicycle",
+   "group": "vehicle",
+   "kind": "other",
+   "prompts": [
+    "a photo of a bicycle",
+    "a cyclist riding a bike"
+   ],
+   "detector": [
+    "bicycle"
+   ],
+   "identify": null
+  },
+  {
+   "id": "train",
+   "label": "Train or tram",
+   "group": "vehicle",
+   "kind": "other",
+   "prompts": [
+    "a photo of a train at a station",
+    "a steam locomotive",
+    "a tram in a city street"
+   ],
+   "detector": [
+    "train"
+   ],
+   "identify": null
+  },
+  {
+   "id": "ship-boat",
+   "label": "Ship or boat",
+   "group": "vehicle",
+   "kind": "other",
+   "prompts": [
+    "a photo of a boat on the water",
+    "a large ship or ferry at sea",
+    "a sailing yacht",
+    "a small rowing boat or canoe"
+   ],
+   "detector": [
+    "boat"
+   ],
+   "identify": "boat"
+  },
+  {
+   "id": "machinery",
+   "label": "Tractor or machinery",
+   "group": "vehicle",
+   "kind": "other",
+   "prompts": [
+    "a tractor in a field",
+    "a construction digger or crane",
+    "heavy farm machinery"
+   ],
+   "detector": [
+    "truck"
+   ],
+   "identify": null
+  },
+  {
+   "id": "architecture",
+   "label": "Building",
+   "group": "structure",
+   "kind": "other",
+   "prompts": [
+    "a photo of a building",
+    "modern architecture with glass and steel",
+    "a house or apartment block"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "monument",
+   "label": "Church, castle or monument",
+   "group": "structure",
+   "kind": "other",
+   "prompts": [
+    "a photo of a church or cathedral",
+    "a castle or ruined abbey",
+    "a statue or monument"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "bridge",
+   "label": "Bridge",
+   "group": "structure",
+   "kind": "other",
+   "prompts": [
+    "a photo of a bridge",
+    "a suspension bridge over water"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "cityscape",
+   "label": "City or street",
+   "group": "structure",
+   "kind": "other",
+   "prompts": [
+    "a city skyline",
+    "a busy street scene",
+    "an urban street at night"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "interior",
+   "label": "Interior",
+   "group": "structure",
+   "kind": "other",
+   "prompts": [
+    "a photo of the inside of a room",
+    "a church or hall interior",
+    "a kitchen or living room"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "industrial",
+   "label": "Industrial or energy",
+   "group": "structure",
+   "kind": "other",
+   "prompts": [
+    "a wind turbine",
+    "a factory or power station",
+    "an industrial site with chimneys"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "lighthouse",
+   "label": "Lighthouse or tower",
+   "group": "structure",
+   "kind": "other",
+   "prompts": [
+    "a lighthouse by the sea",
+    "a tall tower"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "mountain",
+   "label": "Mountains",
+   "group": "scene",
+   "kind": "landscape",
+   "prompts": [
+    "a landscape of mountains",
+    "a snow-capped mountain peak",
+    "rolling hills and valleys"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "coast",
+   "label": "Coast or sea",
+   "group": "scene",
+   "kind": "landscape",
+   "prompts": [
+    "a seascape with waves on a beach",
+    "a rocky coastline",
+    "a calm sea at the shore"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "water-landscape",
+   "label": "Lake, river or waterfall",
+   "group": "scene",
+   "kind": "landscape",
+   "prompts": [
+    "a lake with reflections",
+    "a river through a valley",
+    "a waterfall in a forest"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "countryside",
+   "label": "Countryside or farmland",
+   "group": "scene",
+   "kind": "landscape",
+   "prompts": [
+    "green fields and countryside",
+    "a farm landscape with hedgerows",
+    "a meadow with wildflowers"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "desert-snow",
+   "label": "Desert or snow",
+   "group": "scene",
+   "kind": "landscape",
+   "prompts": [
+    "a desert with sand dunes",
+    "a snowy winter landscape",
+    "an ice and glacier scene"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "abstract",
+   "label": "Abstract or pattern",
+   "group": "scene",
+   "kind": "other",
+   "prompts": [
+    "an abstract pattern or texture",
+    "a minimalist abstract photograph",
+    "a close-up of patterns in nature"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "sunset",
+   "label": "Sunrise or sunset",
+   "group": "sky",
+   "kind": "landscape",
+   "prompts": [
+    "a colourful sunset sky",
+    "a sunrise over the horizon",
+    "golden hour light"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "clouds-sky",
+   "label": "Sky and clouds",
+   "group": "sky",
+   "kind": "landscape",
+   "prompts": [
+    "a dramatic cloudy sky",
+    "a blue sky with white clouds",
+    "a plain sky"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "night-sky",
+   "label": "Night sky and stars",
+   "group": "sky",
+   "kind": "other",
+   "prompts": [
+    "a photo of the milky way",
+    "a night sky full of stars",
+    "astrophotography"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "moon",
+   "label": "Moon",
+   "group": "sky",
+   "kind": "other",
+   "prompts": [
+    "a photo of the moon",
+    "a full moon in the night sky"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "weather",
+   "label": "Weather",
+   "group": "sky",
+   "kind": "landscape",
+   "prompts": [
+    "lightning in a storm",
+    "a rainbow",
+    "a rainstorm or fog"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "fireworks",
+   "label": "Fireworks",
+   "group": "sky",
+   "kind": "other",
+   "prompts": [
+    "fireworks exploding in the night sky",
+    "a firework display over a city at night"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "food",
+   "label": "Food and drink",
+   "group": "object",
+   "kind": "other",
+   "prompts": [
+    "a photo of a plate of food",
+    "a drink in a glass",
+    "a close-up of a meal"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "still-life",
+   "label": "Still life or product",
+   "group": "object",
+   "kind": "other",
+   "prompts": [
+    "a product photo on a plain background",
+    "a still life arrangement of objects",
+    "an object on a table"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "text-document",
+   "label": "Text, sign or document",
+   "group": "object",
+   "kind": "other",
+   "prompts": [
+    "a photo of a sign with text",
+    "a printed document or page of writing",
+    "a road sign"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "artwork",
+   "label": "Artwork",
+   "group": "object",
+   "kind": "other",
+   "prompts": [
+    "a photo of a painting",
+    "a sculpture in a gallery",
+    "a drawing or illustration"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "toy-model",
+   "label": "Toy or model",
+   "group": "object",
+   "kind": "other",
+   "prompts": [
+    "a photo of a toy",
+    "a scale model of a vehicle or building"
+   ],
+   "detector": [],
+   "identify": null
+  },
+  {
+   "id": "screenshot",
+   "label": "Screenshot or graphic",
+   "group": "object",
+   "kind": "other",
+   "prompts": [
+    "a screenshot of a computer screen",
+    "a digital graphic or diagram",
+    "a photo of a computer monitor"
+   ],
+   "detector": [],
+   "identify": null
+  }
+ ]
+}
