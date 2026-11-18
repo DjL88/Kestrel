@@ -36,3 +36,22 @@ test('invalid detector scores remain urgent and existing burst keeper is not cha
   ]);
   assert.equal(frames[0].decision, 'keep');
 });
+
+test('demo and virtual keepers do not downgrade real burst review priority', () => {
+  const frames = [
+    { id: 'demo-keeper', decision: 'keep' as const, isDemo: true, burstGroupId: 'demo-burst' },
+    { id: 'virtual-keeper', decision: 'keep' as const, virtualCopy: true, burstGroupId: 'virtual-burst' },
+    { id: 'real-keeper', decision: 'keep' as const, burstGroupId: 'real-burst' },
+    ...['demo-burst', 'virtual-burst', 'real-burst'].map((burstGroupId) => ({
+      id: burstGroupId, decision: 'unreviewed' as const, burstGroupId,
+      suggestion: { decision: 'keep' as const, confidence: 'high' as const, score: 85 },
+    })),
+  ];
+  const original = JSON.stringify(frames);
+  assert.deepEqual(triageCullReview(frames), [
+    { id: 'real-burst', priority: 'review', reason: 'burstAlternative' },
+    { id: 'demo-burst', priority: 'routine', reason: 'suggestedKeep' },
+    { id: 'virtual-burst', priority: 'routine', reason: 'suggestedKeep' },
+  ]);
+  assert.equal(JSON.stringify(frames), original);
+});
