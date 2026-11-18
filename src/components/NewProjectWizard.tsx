@@ -51,12 +51,12 @@ export function NewProjectWizard({ loading, onCancel, onCreate }: Props) {
           <label className={choice}>
             <input type="checkbox" className="mt-1 h-5 w-5" checked={settings.autoCull} onChange={(event) => setSettings({ ...settings, autoCull: event.target.checked })} />
             <span><strong className="block">Auto-cull</strong>
-              After you add photos, Kestrel scans them and suggests keepers and rejects. Clear-cut results move for you. Trash is reversible and never touches your files.</span>
+              After import, a cancellable local task reviews your photos while you browse. High-confidence keepers and exact duplicates are sorted automatically; uncertain photos stay for review. Originals are untouched.</span>
           </label>
           <label className={choice}>
             <input type="checkbox" className="mt-1 h-5 w-5" checked={settings.autoEdit} onChange={(event) => setSettings({ ...settings, autoEdit: event.target.checked })} />
             <span><strong className="block">Auto-edit</strong>
-              The first time you open a photo to edit, Kestrel suggests colour and tone and says why. You can undo it or reset the photo.</span>
+              After culling, untouched keepers receive a conservative starting edit automatically when the preview passes quality checks. Your own edits and crops are never overwritten; more suggestions stay behind Auto → Suggest a look.</span>
           </label>
         </div>
       </details>

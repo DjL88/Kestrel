@@ -1,7 +1,7 @@
 export interface ProjectSettings {
   /** After photos are added, scan them on this device and suggest keepers and rejects. */
   autoCull: boolean;
-  /** The first time a photo is opened to edit, suggest colour and tone. */
+  /** Develop untouched keepers in background after import; edited photos keep suggestions behind Auto. */
   autoEdit: boolean;
 }
 

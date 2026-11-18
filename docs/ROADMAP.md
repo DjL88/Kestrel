@@ -55,6 +55,16 @@ Platform-specific code lives only in adapters (`src-tauri/`, `src/providers/*`).
 
 Work runs P0, then P1, then P2, then P3. Inside P0, take the first item that isn't blocked.
 
+### Draft implementation under review: background Import → Cull → Develop (18 Nov)
+
+A separate **unmerged, unverified** branch proposes an initial non-modal pipeline after import:
+- Queue only imported frames and let the user browse while culling and development work is shown in Task Manager.
+- Automatically move high-confidence Keep decisions and byte-verified exact duplicates; uncertain results require review. Protect decisions, active editor, manual recipes and crops made while jobs run.
+- Auto-develop only untouched keeper photographs. Assess the proposed 256px RGB result for extra white/channel clipping, crushed blacks and substantial saturated hue drift; refuse questionable unattended edits. Existing manual edits remain available to review via **Auto → Suggest a look**, never overwritten.
+- Abort on project change, honour task cancellation, and leave originals unchanged. Already available explicit Auto-Cull remains usable.
+- Not yet done: import becomes usable **before** its whole batch completes, calibrated subject-aware edits, safe automatic crops, prompt-free photo sorting, real-image aesthetic evaluation, real RAW/ICC proof, and cross-platform performance validation.
+- Gate: synthetic 500-photo Playwright interaction test, manual-edit-during-job, duplicate retry, offline restart and actual Windows/macOS test before marking this behaviour MERGED or VERIFIED.
+
 ### P0: Trust the existing workflow on Windows (the current milestone)
 
 The goal is the [release scenario](PRODUCT-SPEC.md#7-release-acceptance-the-scenario-to-optimise) on Windows: one coherent app, not more separate features.

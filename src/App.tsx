@@ -36,6 +36,9 @@ import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
 import { markExportRequested } from './core/compareStages';
 import { AutoCullPanel } from './components/AutoCullPanel';
+import { scanForCulling } from './providers/browserAutoCull';
+import { limitAutoKeepers } from './core/autoCull';
+import { backgroundCullCandidates, backgroundCullMoves, backgroundDevelopTargets } from './core/backgroundAutoPolicy';
 import { GuidedBanner } from './components/GuidedBanner';
 import { guidedStep } from './core/guidedProgress';
 import { BatchLookDialog } from './components/BatchLookDialog';
@@ -705,6 +708,118 @@ export default function App() {
   }
   const stateRef = useRef(cullingState);
   stateRef.current = cullingState;
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
+
+  // New imports trigger the local background pipeline rather than opening a blocking dialog.
+  // Queued batches are scoped to a project and can be cancelled; nothing touches RAW originals.
+  const autoPendingProject = useRef<string | null>(null);
+  const autoPendingIds = useRef(new Set<string>());
+  const autoWorker = useRef<{ projectId: string; controller: AbortController } | null>(null);
+  const [autoQueueTick, setAutoQueueTick] = useState(0);
+  function enqueueBackgroundAuto(projectId: string, ids: readonly string[]) {
+    if (!ids.length) return;
+    if (autoPendingProject.current !== projectId) {
+      autoWorker.current?.controller.abort();
+      autoPendingProject.current = projectId;
+      autoPendingIds.current.clear();
+    }
+    ids.forEach((id) => autoPendingIds.current.add(id));
+    setAutoQueueTick((tick) => tick + 1);
+  }
+
+  useEffect(() => {
+    if (autoWorker.current?.projectId !== cullingState.shoot.id) autoWorker.current?.controller.abort();
+    if (autoPendingProject.current !== cullingState.shoot.id) autoPendingIds.current.clear();
+  }, [cullingState.shoot.id]);
+  useEffect(() => () => { autoWorker.current?.controller.abort(); }, []);
+
+  useEffect(() => {
+    const projectId = cullingState.shoot.id;
+    if (autoWorker.current || autoPendingProject.current !== projectId || !autoPendingIds.current.size) return;
+    const imported = new Set(autoPendingIds.current);
+    autoPendingIds.current.clear();
+    const controller = new AbortController();
+    autoWorker.current = { projectId, controller };
+    const alive = () => !controller.signal.aborted && stateRef.current.shoot.id === projectId;
+    const run = async () => {
+      const provider = previewProviderRef.current!;
+      let snapshot = stateRef.current;
+      if (!alive()) return;
+      if (snapshot.settings?.autoCull && can('smartCulling')) {
+        const candidates = backgroundCullCandidates(snapshot.frames, imported);
+        if (candidates.length) {
+          const task = tasks.start('Reviewing imported photographs', {
+            total: candidates.length, cancel: () => controller.abort(),
+          });
+          controller.signal.addEventListener('abort', () => { tasks.cancel(task.id); }, { once: true });
+          try {
+            const results = await scanForCulling(candidates, snapshot.frames, provider, snapshot.keeperTarget,
+              controller.signal, (count) => task.progress(count));
+            if (!alive()) return;
+            // Recheck the LIVE catalogue: user decisions, crops and history made while
+            // the detector ran always win over delayed automated results.
+            const latest = stateRef.current;
+            const remaining = Math.max(0, latest.keeperTarget -
+              latest.frames.filter((frame) => !frame.removedAt && frame.decision === 'keep').length);
+            const limited = limitAutoKeepers(results, latest.frames, remaining);
+            const moves = latest.settings?.autoCull
+              ? backgroundCullMoves(latest.frames, limited, imported).filter((item) =>
+                  !(editingRef.current && item.frameId === latest.selectedFrameId))
+              : [];
+            snapshot = applyAutoCullDecisions(latest, moves);
+            setCullingState((prev) => {
+              if (prev.shoot.id !== projectId || controller.signal.aborted || !prev.settings?.autoCull) return prev;
+              const spare = Math.max(0, prev.keeperTarget -
+                prev.frames.filter((frame) => !frame.removedAt && frame.decision === 'keep').length);
+              const currentResults = limitAutoKeepers(results, prev.frames, spare);
+              const decisions = backgroundCullMoves(prev.frames, currentResults, imported).filter((item) =>
+                !(editingRef.current && item.frameId === prev.selectedFrameId));
+              const scored = applyCullConfidence(prev, results.map((item) => ({
+                frameId: item.frameId, confidence: item.confidence, score: item.score,
+              })));
+              return applyAutoCullDecisions(scored, decisions);
+            });
+            task.finish('Review the remaining uncertain photographs whenever you like');
+          } catch (error) {
+            if (!controller.signal.aborted) task.fail(error instanceof Error ? error.message : 'Review could not finish');
+            return;
+          }
+        }
+      }
+      if (!alive() || !snapshot.settings?.autoEdit || !can('autoTab')) return;
+      // A manual edit or crop keeps the photo unchanged. Its optional advice
+      // stays behind Auto > Suggest a look in the editor, never applied by this job.
+      const targets = backgroundDevelopTargets(snapshot.frames, imported);
+      if (editingRef.current && snapshot.selectedFrameId) targets.delete(snapshot.selectedFrameId);
+      if (!targets.size) return;
+      const task = tasks.start('Developing untouched keepers', {
+        total: targets.size, cancel: () => controller.abort(),
+      });
+      controller.signal.addEventListener('abort', () => { tasks.cancel(task.id); }, { once: true });
+      try {
+        const edits = await suggestKeeperAutoEdits(snapshot.frames, provider, controller.signal,
+          (count) => task.progress(count), targets);
+        if (!alive()) return;
+        setCullingState((prev) => {
+          if (prev.shoot.id !== projectId || controller.signal.aborted || !prev.settings?.autoEdit) return prev;
+          const stillUntouched = backgroundDevelopTargets(prev.frames, targets);
+          if (editingRef.current && prev.selectedFrameId) stillUntouched.delete(prev.selectedFrameId);
+          const frames = applyKeeperAutoEdits(prev.frames, edits, Date.now(), stillUntouched);
+          return frames.some((frame, index) => frame !== prev.frames[index])
+            ? { ...prev, frames, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } } : prev;
+        });
+        task.finish(`${edits.size} starting looks prepared; existing manual edits preserved`);
+      } catch (error) {
+        if (!controller.signal.aborted) task.fail(error instanceof Error ? error.message : 'Auto Develop could not finish');
+      }
+    };
+    void run().finally(() => {
+      if (autoWorker.current?.controller !== controller) return;
+      autoWorker.current = null;
+      if (autoPendingIds.current.size) setAutoQueueTick((tick) => tick + 1);
+    });
+  }, [autoQueueTick, cullingState.shoot.id, can]);
   const [pendingAction, setPendingAction] = useState<{ kind: 'trash' | 'remove' | 'reset'; frameIds: string[]; allowAdvance?: boolean } | null>(null);
   const [removedOpen, setRemovedOpen] = useState(false);
 
@@ -1190,12 +1305,8 @@ export default function App() {
         const first = options?.openEditor ? next.frames.find((frame) => frame.id.startsWith(`${importId}-`)) : undefined;
         return first ? { ...next, filter: 'all', selectedFrameId: first.id } : next;
       });
-      if (options?.openEditor) {
-        setEditing(true);
-      } else if (cullingState.settings?.autoCull && can('smartCulling')) {
-        setAutoCullStart(true);
-        setAutoCullOpen(true);
-      }
+      if (options?.openEditor) setEditing(true);
+      enqueueBackgroundAuto(targetProjectId, frames.map((frame) => `${importId}-${frame.id}`));
       setPrefs((prev) => ({ ...prev, viewMode: 'grid' }));
       options?.onImported?.(frames.length);
     } catch {
@@ -1235,6 +1346,7 @@ export default function App() {
   }, [projectsOpen, cullingState.shoot.id]);
 
   const handleOpenLocalFolder = async () => {
+    const targetProjectId = cullingState.shoot.id;
     // The desktop app never uses the browser's folder picker (it asks permission for "this website"): photos are linked from the disk.
     if (isDesktopApp()) {
       try {
@@ -1277,11 +1389,16 @@ export default function App() {
           previewProviderRef.current!,
           storeRef.current!,
           ({ loaded, total }) => { setLoadingProgress({ loaded, total }); task.progress(loaded, total); },
-          { handleKey: cullingState.shoot.id, entries },
+          { handleKey: targetProjectId, entries },
         );
+        if (stateRef.current.shoot.id !== targetProjectId) {
+          task.finish('Project changed; photos were not added.');
+          return;
+        }
         task.finish();
         const importId = newId().slice(0, 8);
         setCullingState((previous) => {
+          if (previous.shoot.id !== targetProjectId) return previous;
           const next = appendProjectPhotos(previous, frames, importId);
           return {
             ...next,
@@ -1293,10 +1410,7 @@ export default function App() {
             },
           };
         });
-        if (cullingState.settings?.autoCull && can('smartCulling')) {
-          setAutoCullStart(true);
-          setAutoCullOpen(true);
-        }
+        enqueueBackgroundAuto(targetProjectId, frames.map((frame) => `${importId}-${frame.id}`));
         setPrefs((previous) => ({ ...previous, viewMode: 'grid' }));
       } catch {
         task.fail('Could not add the photos.');
