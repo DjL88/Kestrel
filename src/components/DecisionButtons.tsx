@@ -42,8 +42,8 @@ export function DecisionButtons({ decision, filename, edited, labels = false, st
         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />{labels && <span className="hidden min-[360px]:inline">{decision === 'reject' ? 'Remove' : 'Trash'}</span>}
       </button>
       {(!labels || edited) && <button type="button" onClick={stop(onReset)} disabled={!edited} aria-label={`Reset ${filename} to original settings`} title="Reset to original"
-        className={`${base} disabled:opacity-35`}>
-        <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />{labels && <span className="hidden sm:inline">Reset</span>}
+        className={`${base} disabled:opacity-35 ${labels ? 'max-[359px]:hidden' : ''}`}>
+        <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />{labels && <span className="hidden min-[360px]:inline">Reset edit</span>}
       </button>}
     </div>
   );
