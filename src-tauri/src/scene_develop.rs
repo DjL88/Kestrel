@@ -35,11 +35,15 @@ pub struct Look {
     pub contrast: f32,
     /// Colourfulness around luminance in scene-linear light (1 = unchanged). Camera renderings add some.
     pub saturation: f32,
+    /// Colour noise reduction strength (0 = off). Luminance is never blurred.
+    pub chroma_denoise: f32,
+    /// Capture sharpening amount on luminance (0 = off), gated so noise is not sharpened.
+    pub sharpen: f32,
 }
 
 impl Default for Look {
     fn default() -> Self {
-        Self { baseline_ev: 1.3, shoulder_start: 0.62, path_to_white: 0.3, contrast: 0.25, saturation: 1.15 }
+        Self { baseline_ev: 1.3, shoulder_start: 0.62, path_to_white: 0.3, contrast: 0.25, saturation: 1.15, chroma_denoise: 1.0, sharpen: 0.6 }
     }
 }
 
@@ -167,7 +171,139 @@ pub fn develop_display_rgb16(raw: &RawImage, look: &Look) -> Result<Option<Image
             }
         }
     });
+    refine(&mut out, dim.w, dim.h, look);
     Ok(ImageBuffer::from_raw(width, height, out))
+}
+
+// ---- Chroma noise reduction and capture sharpening ------------------------------------------------------------
+//
+// Colour noise (red/green/blue speckle in shadows and skies) is removed with a *fast guided filter*: chroma is
+// smoothed at half resolution, but only where the luminance is flat, so colour edges that follow real detail
+// (an orange breast against grey feathers) stay put. Luminance is never blurred. Then a small, thresholded unsharp
+// mask on luminance restores the crispness a camera adds in its own JPEG, without sharpening noise.
+
+const R709: f32 = 0.2126;
+const G709: f32 = 0.7152;
+const B709: f32 = 0.0722;
+
+/// Mean over a (2r+1)^2 window, edges clamped. Separable running sums, rows in parallel then columns.
+fn box_mean(src: &[f32], w: usize, h: usize, r: usize) -> Vec<f32> {
+    let mut tmp = vec![0f32; src.len()];
+    tmp.par_chunks_mut(w).zip(src.par_chunks(w)).for_each(|(dst, row)| {
+        for x in 0..w {
+            let (a, b) = (x.saturating_sub(r), (x + r).min(w - 1));
+            // Small radius: a direct sum is simple and fast enough at half resolution.
+            dst[x] = row[a..=b].iter().sum::<f32>() / (b - a + 1) as f32;
+        }
+    });
+    let mut out = vec![0f32; src.len()];
+    out.par_chunks_mut(w).enumerate().for_each(|(y, dst)| {
+        let (a, b) = (y.saturating_sub(r), (y + r).min(h - 1));
+        let n = (b - a + 1) as f32;
+        for x in 0..w {
+            let mut s = 0f32;
+            for yy in a..=b { s += tmp[yy * w + x]; }
+            dst[x] = s / n;
+        }
+    });
+    out
+}
+
+/// Guided filter coefficients (a, b) so that `a * guide + b` is `p` smoothed wherever `guide` is flat.
+fn guided_coefficients(guide: &[f32], p: &[f32], w: usize, h: usize, r: usize, eps: f32) -> (Vec<f32>, Vec<f32>) {
+    let mean_i = box_mean(guide, w, h, r);
+    let mean_p = box_mean(p, w, h, r);
+    let ii: Vec<f32> = guide.par_iter().map(|v| v * v).collect();
+    let ip: Vec<f32> = guide.par_iter().zip(p.par_iter()).map(|(a, b)| a * b).collect();
+    let corr_ii = box_mean(&ii, w, h, r);
+    let corr_ip = box_mean(&ip, w, h, r);
+    let (mut a, mut b) = (vec![0f32; p.len()], vec![0f32; p.len()]);
+    a.par_iter_mut().zip(b.par_iter_mut()).enumerate().for_each(|(i, (ai, bi))| {
+        let var = corr_ii[i] - mean_i[i] * mean_i[i];
+        let cov = corr_ip[i] - mean_i[i] * mean_p[i];
+        *ai = cov / (var + eps);
+        *bi = mean_p[i] - *ai * mean_i[i];
+    });
+    (box_mean(&a, w, h, r), box_mean(&b, w, h, r))
+}
+
+/// Denoise chroma and sharpen luminance in place on 16-bit display RGB.
+fn refine(rgb: &mut [u16], w: usize, h: usize, look: &Look) {
+    if w < 8 || h < 8 || (look.chroma_denoise <= 0.0 && look.sharpen <= 0.0) {
+        return;
+    }
+    let px = |i: usize| [rgb[i * 3] as f32 / 65535.0, rgb[i * 3 + 1] as f32 / 65535.0, rgb[i * 3 + 2] as f32 / 65535.0];
+    let luma: Vec<f32> = (0..w * h).into_par_iter().map(|i| { let p = px(i); R709 * p[0] + G709 * p[1] + B709 * p[2] }).collect();
+
+    // Half-resolution planes for the guided filter.
+    let (hw, hh) = (w / 2, h / 2);
+    let mut yh = vec![0f32; hw * hh];
+    let mut cbh = vec![0f32; hw * hh];
+    let mut crh = vec![0f32; hw * hh];
+    yh.par_chunks_mut(hw).zip(cbh.par_chunks_mut(hw)).zip(crh.par_chunks_mut(hw)).enumerate().for_each(|(y, ((yr, cbr), crr))| {
+        for x in 0..hw {
+            let (mut sy, mut sb, mut sr) = (0f32, 0f32, 0f32);
+            for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+                let i = (2 * y + dy) * w + 2 * x + dx;
+                let p = px(i);
+                let l = luma[i];
+                sy += l; sb += p[2] - l; sr += p[0] - l;
+            }
+            yr[x] = sy / 4.0; cbr[x] = sb / 4.0; crr[x] = sr / 4.0;
+        }
+    });
+    let denoise = look.chroma_denoise > 0.0;
+    let eps = (0.02 * look.chroma_denoise).powi(2);
+    let coeffs = denoise.then(|| (guided_coefficients(&yh, &cbh, hw, hh, 4, eps), guided_coefficients(&yh, &crh, hw, hh, 4, eps)));
+
+    let at = |plane: &[f32], x: usize, y: usize| plane[(y / 2).min(hh - 1) * hw + (x / 2).min(hw - 1)];
+    // Sharpen only what stands clearly above this photo's own luminance noise (robust MAD estimate on a sample).
+    let threshold = {
+        let mut d: Vec<f32> = (1..h - 1).step_by(7).flat_map(|y| (1..w - 1).step_by(7).map(move |x| (x, y)))
+            .map(|(x, y)| {
+                let c = luma[y * w + x];
+                let n = (luma[y * w + x - 1] + luma[y * w + x + 1] + luma[(y - 1) * w + x] + luma[(y + 1) * w + x]) / 4.0;
+                (c - n).abs()
+            }).collect();
+        d.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let sigma = d.get(d.len() / 2).copied().unwrap_or(0.0) / 0.6745;
+        (3.0 * sigma).max(0.003)
+    };
+    rgb.par_chunks_mut(w * 3).enumerate().for_each(|(y, row)| {
+        for x in 0..w {
+            let i = y * w + x;
+            let l = luma[i];
+            let o = x * 3;
+            let mut p = [row[o] as f32 / 65535.0, row[o + 1] as f32 / 65535.0, row[o + 2] as f32 / 65535.0];
+            if let Some(((ab, bb), (ar, br))) = &coeffs {
+                let cb = at(ab, x, y) * l + at(bb, x, y);
+                let cr = at(ar, x, y) * l + at(br, x, y);
+                let r = l + cr;
+                let b = l + cb;
+                let g = (l - R709 * r - B709 * b) / G709;
+                p = [r, g, b];
+            }
+            if look.sharpen > 0.0 {
+                // 3x3 binomial blur of luminance, clamped at the edges.
+                let mut blur = 0f32;
+                for (dy, wy) in [(-1i32, 1f32), (0, 2.0), (1, 1.0)] {
+                    for (dx, wx) in [(-1i32, 1f32), (0, 2.0), (1, 1.0)] {
+                        let yy = (y as i32 + dy).clamp(0, h as i32 - 1) as usize;
+                        let xx = (x as i32 + dx).clamp(0, w as i32 - 1) as usize;
+                        blur += luma[yy * w + xx] * wx * wy;
+                    }
+                }
+                let detail = l - blur / 16.0;
+                // Below the threshold (noise) nothing is added; above it, the full amount.
+                let gate = ((detail.abs() - threshold) / threshold).clamp(0.0, 1.0);
+                let delta = detail * look.sharpen * gate;
+                p = p.map(|v| v + delta);
+            }
+            for c in 0..3 {
+                row[o + c] = (p[c].clamp(0.0, 1.0) * 65535.0 + 0.5) as u16;
+            }
+        }
+    });
 }
 
 /// Quantise 16-bit display pixels to 8 bits with a small, fixed (deterministic) dither, so smooth skies don't band.
@@ -231,6 +367,49 @@ mod tests {
         assert!((rebuilt[0] - rebuilt[1]).abs() < 1e-5 && (rebuilt[1] - rebuilt[2]).abs() < 1e-5, "neutral, not magenta");
         let safe = [0.5, 0.4, 0.3];
         assert_eq!(reconstruct_highlights(safe, clip), safe, "unclipped pixels are untouched");
+    }
+
+    fn noisy_patch(w: usize, h: usize, edge: bool) -> Vec<u16> {
+        // Deterministic speckle in chroma only, around a mid grey (optionally with a sharp vertical luminance edge).
+        let mut v = vec![0u16; w * h * 3];
+        for y in 0..h { for x in 0..w {
+            let base = if edge && x >= w / 2 { 0.75 } else { 0.35 };
+            let n = (((x * 7919 + y * 104729) % 97) as f32 / 97.0 - 0.5) * 0.08;
+            let p = [base + n, base - n * 0.5, base - n];
+            for c in 0..3 { v[(y * w + x) * 3 + c] = (p[c].clamp(0.0, 1.0) * 65535.0) as u16; }
+        }}
+        v
+    }
+
+    fn chroma_spread(v: &[u16]) -> f32 {
+        let mut s = 0f32;
+        for p in v.chunks_exact(3) { s += ((p[0] as f32 - p[2] as f32) / 65535.0).abs(); }
+        s / (v.len() / 3) as f32
+    }
+
+    #[test]
+    fn colour_speckle_is_reduced_and_a_luminance_edge_survives() {
+        let (w, h) = (64, 48);
+        let look = Look { sharpen: 0.0, ..Look::default() };
+        let mut v = noisy_patch(w, h, true);
+        let before = chroma_spread(&v);
+        refine(&mut v, w, h, &look);
+        assert!(chroma_spread(&v) < before * 0.5, "colour noise at least halved");
+        let left = v[(20 * w + 10) * 3 + 1] as f32 / 65535.0;
+        let right = v[(20 * w + 54) * 3 + 1] as f32 / 65535.0;
+        assert!(right - left > 0.35, "the edge between dark and light stays sharp: {left} vs {right}");
+    }
+
+    #[test]
+    fn sharpening_never_amplifies_noise_on_a_flat_patch() {
+        let (w, h) = (64, 48);
+        let look = Look { chroma_denoise: 0.0, ..Look::default() };
+        let mut v = noisy_patch(w, h, false);
+        let before: Vec<u16> = v.clone();
+        refine(&mut v, w, h, &look);
+        let luma = |p: &[u16]| 0.2126 * p[0] as f32 + 0.7152 * p[1] as f32 + 0.0722 * p[2] as f32;
+        let spread = |x: &[u16]| { let l: Vec<f32> = x.chunks_exact(3).map(luma).collect(); let m = l.iter().sum::<f32>() / l.len() as f32; l.iter().map(|v| (v - m).abs()).sum::<f32>() / l.len() as f32 };
+        assert!(spread(&v) <= spread(&before) * 1.05, "noise is not sharpened");
     }
 
     #[test]
@@ -302,7 +481,7 @@ mod compare {
         let mut look = Look::default();
         if let Ok(v) = std::env::var("KESTREL_LOOK") {
             let p: Vec<f32> = v.split(',').filter_map(|s| s.trim().parse().ok()).collect();
-            if p.len() == 5 { look = Look { baseline_ev: p[0], shoulder_start: p[1], path_to_white: p[2], contrast: p[3], saturation: p[4] }; }
+            if p.len() == 7 { look = Look { baseline_ev: p[0], shoulder_start: p[1], path_to_white: p[2], contrast: p[3], saturation: p[4], chroma_denoise: p[5], sharpen: p[6] }; }
         }
         look
     }
@@ -330,12 +509,17 @@ mod compare {
             let camera = format!("{} {}", raw.camera.make, raw.camera.model);
             let old = RawDevelop::default().develop_intermediate(&raw).unwrap().to_dynamic_image().unwrap();
             let new = DynamicImage::ImageRgb8(to_rgb8_dithered(&develop_display_rgb16(&raw, &look_from_env()).unwrap().unwrap()));
+            let new_full = new.clone();
             let reference = embedded_jpeg(&bytes);
             let (o, n) = (small(old.clone()), small(new));
             let (so, sn) = (stats(&o), stats(&n));
             let refs = reference.map(|r| { let r = small(r); let s = stats(&r); r.save(format!("{out}/{name}-camera.jpg")).ok(); s });
             o.save(format!("{out}/{name}-old.jpg")).unwrap();
             n.save(format!("{out}/{name}-new.jpg")).unwrap();
+            let crop = |img: &DynamicImage| { let (w, h) = (img.width(), img.height()); img.crop_imm(w / 2 - 400, h / 2 - 300, 800, 600).to_rgb8() };
+            let tag = std::env::var("KESTREL_TAG").unwrap_or_default();
+            crop(&old).save(format!("{out}/{name}-old-100.jpg")).ok();
+            crop(&new_full).save(format!("{out}/{name}-new{tag}-100.jpg")).ok();
             let f = |s: &Stats| format!("{:.3}/{:.2}/{:.3}", s.median, s.clipped, s.mean_sat_bright);
             println!("{name} | {camera} | {} | {} | {}", f(&so), f(&sn), refs.as_ref().map(f).unwrap_or("none".into()));
         }
