@@ -107,7 +107,9 @@ pub fn run() {
                 &PredefinedMenuItem::cut(app, None)?,
                 &PredefinedMenuItem::copy(app, None)?,
                 &PredefinedMenuItem::paste(app, None)?,
-                &PredefinedMenuItem::select_all(app, None)?,
+                // A photo library must select photo records, not the webview page text.
+                &MenuItem::with_id(app, "photos-select-all", "Select All Photos", true, Some("CmdOrCtrl+A"))?,
+                &MenuItem::with_id(app, "photos-deselect-all", "Deselect Photos", true, Some("CmdOrCtrl+Shift+A"))?,
             ])?;
             let view = Submenu::with_items(app, "View", true, &[
                 &MenuItem::with_id(app, "filmstrip", "Show or hide filmstrip", true, None::<&str>)?,
