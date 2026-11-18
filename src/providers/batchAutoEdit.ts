@@ -1,4 +1,6 @@
 import { autoEnhance } from '../core/autoEnhance';
+import { assessAutoQuality } from '../core/autoQualityGate';
+import { applyPhotoEdit } from '../core/photoEdits';
 import { DEFAULT_EDIT, isEmptyEdit, type PhotoEdit } from '../core/photoEdits';
 import { recordEdit } from '../core/editHistory';
 import type { PhotoFrame } from '../core/types';
@@ -30,9 +32,17 @@ export async function suggestKeeperAutoEdits(
         canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
         canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
         ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-        const { edit } = autoEnhance(ctx.getImageData(0, 0, canvas.width, canvas.height).data);
+        const source = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        const { edit } = autoEnhance(source);
         const suggestion = { ...DEFAULT_EDIT, ...edit };
-        if (!isEmptyEdit(suggestion)) edits.set(frame.id, suggestion);
+        if (!isEmptyEdit(suggestion)) {
+          // A suggestion is not proof of improvement. Render it locally and refuse
+          // automatic application if it blows highlights or radically shifts colour.
+          // It remains available as a manual preview in Auto > Suggest a look.
+          const proposed = new Uint8ClampedArray(source);
+          applyPhotoEdit(proposed, suggestion);
+          if (assessAutoQuality(source, proposed).safe) edits.set(frame.id, suggestion);
+        }
       }
     } catch {
       signal.throwIfAborted();
