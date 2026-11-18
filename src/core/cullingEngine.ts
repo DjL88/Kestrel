@@ -440,7 +440,13 @@ export function applyCullConfidence(
     ...state,
     frames: state.frames.map((frame) => {
       const found = frame.removedAt == null ? byId.get(frame.id) : undefined;
-      return found ? { ...frame, cullConfidence: found.confidence, cullScore: found.score } : frame;
+      if (found) return { ...frame, cullConfidence: found.confidence, cullScore: found.score };
+      // A later malformed/duplicate result must not leave an earlier high
+      // confidence looking current. Preserve decisions and undo/redo history.
+      if (ambiguous.has(frame.id) && (frame.cullConfidence !== undefined || frame.cullScore !== undefined)) {
+        return { ...frame, cullConfidence: undefined, cullScore: undefined };
+      }
+      return frame;
     }),
   };
 }
