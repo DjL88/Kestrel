@@ -78,7 +78,10 @@ export function scanPatch(
 
 /** The species to show on a photo's card: an automatic tag the user has not kept yet, or the first tag of a wildlife photo. */
 export function speciesShown(frame: { autoTags?: readonly string[]; tags?: readonly string[]; subjectKind?: string }): { name: string; auto: boolean } | null {
+  // Older catalogues may contain mistaken automatic bird names on an aircraft.
+  // Never display those names as a species once a photo is known to be non-wildlife.
+  if (frame.subjectKind !== 'wildlife') return null;
   if (frame.autoTags?.length) return { name: frame.autoTags[0], auto: true };
-  if (frame.subjectKind === 'wildlife' && frame.tags?.length) return { name: frame.tags[0], auto: false };
+  if (frame.tags?.length) return { name: frame.tags[0], auto: false };
   return null;
 }
