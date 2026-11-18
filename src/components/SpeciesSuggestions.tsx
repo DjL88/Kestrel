@@ -93,10 +93,13 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
     setResults(null);
     setDismissed([]);
     setOffer(null);
-    if (status === 'ready' && ready) void analyse();
+    setOnlineAnswer(null);
+    // The local model knows animal species only. An aircraft would otherwise
+    // be forced to its nearest bird, irrespective of the apparent confidence.
+    if (status === 'ready' && ready && kind === 'wildlife') void analyse();
     return () => { run.current += 1; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [frameId, status, ready]);
+  }, [frameId, status, ready, kind]);
 
   /** After a name is accepted, see which other shots of the burst look like the same animal, and offer them the same name. */
   async function findSimilar(name: string, chosenKind: SubjectKind | undefined) {
@@ -165,7 +168,8 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
       )}
       {helperOn && <button type="button" onClick={() => openHelperDialog()} className="block min-h-10 text-xs text-zinc-400 underline underline-offset-4 hover:text-white">Online helper settings</button>}
       {onlineNote && <p role="status" className="text-xs text-zinc-400">{onlineNote}</p>}
-      {onlineAnswer?.species && !tags.some((tag) => tag.toLowerCase() === onlineAnswer.species!.toLowerCase()) && (
+      {onlineAnswer?.species && onlineAnswer.kind === 'wildlife' && (kind === 'wildlife' || !kind) &&
+        !tags.some((tag) => tag.toLowerCase() === onlineAnswer.species!.toLowerCase()) && (
         <ul aria-label="Online suggestion" className="space-y-1">
           <li className="flex items-center gap-1 rounded-lg bg-white/5 pl-3 text-sm">
             <span className="min-w-0 flex-1 py-2">
@@ -207,6 +211,19 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
     );
   }
 
+  if (kind !== 'wildlife') {
+    return (
+      <section aria-label="Species suggestions" className="space-y-2 px-1 pb-2">
+        <h3 className="text-sm font-medium text-zinc-100">Species suggestions</h3>
+        <p className="text-xs text-zinc-400">
+          The local model knows birds and mammals, not aircraft or other objects.
+          Choose Wildlife in Photo info before requesting an animal name.
+          An unclassified picture stays unnamed rather than becoming an invented bird.
+        </p>
+        {onlineBlock}
+      </section>
+    );
+  }
   const shown = (results ?? []).filter((entry) => !dismissed.includes(entry.label.common) && !tags.some((tag) => tag.toLowerCase() === entry.label.common.toLowerCase()));
   return (
     <section aria-label="Species suggestions" className="space-y-1.5 px-1 pb-2">
