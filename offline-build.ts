@@ -1,21 +1,18 @@
 import { createHash } from 'node:crypto';
 import type { Plugin } from 'vite';
 
-export function offlineBuild(): Plugin {
-  return {
-    name: 'kestrel-offline',
-    apply: 'build',
-    enforce: 'post',
-    generateBundle(_, bundle) {
-      const all = Object.keys(bundle).filter((name) => name.startsWith('assets/')).sort();
-      // The WebAssembly runtime is large and only needed for subject detection, so it is cached when first used.
-      const lazy = all.filter((name) => /ort-wasm.*\.wasm$/.test(name));
-      const files = all.filter((name) => !lazy.includes(name));
-      const version = createHash('sha256').update(files.join('\n')).digest('hex').slice(0, 12);
-      this.emitFile({
-        type: 'asset',
-        fileName: 'offline.js',
-        source: `
+/**
+ * Is this build for the desktop app? The Tauri CLI sets TAURI_ENV_PLATFORM while it runs `npm run build`
+ * (beforeBuildCommand), for local builds and CI alike; KESTREL_DESKTOP_BUILD is an explicit override.
+ */
+export function isDesktopBuild(env: Record<string, string | undefined> = process.env): boolean {
+  return Boolean(env.TAURI_ENV_PLATFORM) || env.KESTREL_DESKTOP_BUILD === '1';
+}
+
+/** The web/PWA offline worker: caches the app shell so the site opens without a network after the first visit. */
+export function offlineWorkerSource(files: string[], lazy: string[]): string {
+  const version = createHash('sha256').update(files.join('\n')).digest('hex').slice(0, 12);
+  return `
 const prefix = 'kestrel:' + self.registration.scope + ':';
 const cacheName = prefix + ${JSON.stringify(version)};
 const root = new URL('./', self.registration.scope).href;
@@ -47,8 +44,51 @@ self.addEventListener('fetch', event => {
     .then(cache => cache.match(navigation ? root : request.url, { ignoreVary: true }))
     .then(cached => cached || fetch(request)));
 });
-`,
-      });
+`;
+}
+
+/**
+ * The desktop app bundles its own files, so it must never be served from an offline cache. Older Windows installers
+ * registered the web worker above inside WebView2 (http://tauri.localhost), and WebView2 keeps it between installs, so
+ * a new installer kept opening the OLD app from that cache. That is why Windows looked behind the Mac, where the
+ * tauri:// scheme never allowed a worker.
+ *
+ * The browser re-checks offline.js on every launch. A desktop build ships this replacement: it takes over at once,
+ * deletes only Kestrel's app-shell caches (never IndexedDB, catalogues, settings or the species model, which use other
+ * stores and names), unregisters itself and reloads the window, so the first launch of a new installer shows the new app.
+ */
+export function retiringWorkerSource(): string {
+  return `
+const prefix = 'kestrel:' + self.registration.scope + ':';
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    await self.clients.claim();
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key.startsWith(prefix)).map(key => caches.delete(key)));
+    await self.registration.unregister();
+    const windows = await self.clients.matchAll({ type: 'window' });
+    await Promise.all(windows.map(client => client.navigate(client.url).catch(() => undefined)));
+  })());
+});
+`;
+}
+
+export function offlineBuild(desktop = isDesktopBuild()): Plugin {
+  return {
+    name: 'kestrel-offline',
+    apply: 'build',
+    enforce: 'post',
+    generateBundle(_, bundle) {
+      if (desktop) {
+        this.emitFile({ type: 'asset', fileName: 'offline.js', source: retiringWorkerSource() });
+        return;
+      }
+      const all = Object.keys(bundle).filter((name) => name.startsWith('assets/')).sort();
+      // The WebAssembly runtime is large and only needed for subject detection, so it is cached when first used.
+      const lazy = all.filter((name) => /ort-wasm.*\.wasm$/.test(name));
+      const files = all.filter((name) => !lazy.includes(name));
+      this.emitFile({ type: 'asset', fileName: 'offline.js', source: offlineWorkerSource(files, lazy) });
     },
   };
 }

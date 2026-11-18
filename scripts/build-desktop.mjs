@@ -20,6 +20,9 @@ const result = spawnSync(npx, ['tauri', 'build', ...process.argv.slice(2)], {
   env: { ...process.env,
     VITE_SPECIES_MODEL_URL: '/models/bioclip-image-int8.onnx',
     VITE_SPECIES_MODEL_BUNDLED: 'true',
+    // Belt and braces with the Tauri CLI's own TAURI_ENV_PLATFORM: a desktop build must never ship the caching web
+    // worker (see offline-build.ts).
+    KESTREL_DESKTOP_BUILD: '1',
   },
 });
 process.exit(result.status || (result.error ? 1 : 0));

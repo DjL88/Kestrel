@@ -51,6 +51,7 @@ python -m pytest scripts tools/denoise-training tools/lightroom   # when Python 
 ## Builds the owner installs
 - Only optimised (`release=true`) builds of `main` go to the owner, built from the same commit for Windows and macOS. Debug and PR builds show a console window, run slowly, and quit when the console closes.
 - Before reporting that "Windows and Mac differ", compare **Settings → Build information** (commit and build time) on both machines.
+- While cloud builds are blocked, build Windows locally from `main` with `scripts/windows/Build-Kestrel.ps1` (optimised installer, same as `npm run desktop:build` on the Mac).
 
 ## Reporting back
 End every working session with:

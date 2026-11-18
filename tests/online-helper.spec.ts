@@ -120,6 +120,8 @@ test('a strong local result stays on-device and an unresolved photo uses the opt
   for (const frame of project.frames) {
     frame.tags = [];
     frame.subjectNames = [];
+    // Classified as wildlife: the closed-list local model only names photos already known to be animals (#335).
+    frame.subjectKind = 'wildlife';
   }
   project.frames[1].declinedTags = ['Red kite'];
   await page.locator('input[type="file"][accept=".json,application/json"]').setInputFiles({

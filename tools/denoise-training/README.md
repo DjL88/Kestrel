@@ -72,10 +72,25 @@ Each script explains its options with `--help`.
 * The model is not yet used by the app: Kestrel's editor currently receives a developed image, and the denoiser
   needs the mosaic. Wiring it in belongs to the native RAW pipeline work in `docs/RAW-QUALITY-PLAN.md`.
 
-## Older pair tools
+## One pipeline
 
-`make_pairs.py` and `preview_pairs.py` write fixed noisy/clean pairs from `raw_dump` output. They are kept for
-inspecting the noise model; `train.py` reads the same crops and adds fresh noise itself.
+The supported route is the one above: `index_photos` → `calibrate_noise` → `build_dataset` → `train` → `try_model`,
+driven on Windows by `windows/Train-Denoiser.ps1`. It reuses `tools/lightroom/read_lrcat.py`'s parser for develop
+settings (the one checked against a real 25,000-photo catalogue) and `make_pairs.py`'s Bayer packing and content filter.
+
+Earlier, parallel attempts are still here so that work already run with them is not stranded, but they are
+**superseded** and new work should not build on them:
+
+| Superseded | Use instead |
+| --- | --- |
+| `train_denoiser.py`, `train_baseline.py` | `train.py` (per-camera measured noise, resumable, ONNX export with model card) |
+| `noise_estimate.py` | `calibrate_noise.py` (same green-pair method, per camera and ISO, from the catalogue) |
+| `raw_to_pairs.py`, `prepare_crops.py` | `build_dataset.py` (clean crops from catalogue-selected low-ISO keepers; noise added in training) |
+| `make_pairs.py` + `raw_dump` dumps | `build_dataset.py`; `make_pairs.py` stays as the shared packing/filter library |
+
+They will be removed once the canonical pipeline has completed a real run on the Windows PC.
+`tools/lightroom/read_lrcat.py` is not superseded: it exports develop recipes for style learning (roadmap P1), a
+different job from choosing training photos.
 
 ## Tests
 

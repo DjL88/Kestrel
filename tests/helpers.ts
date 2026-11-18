@@ -33,7 +33,8 @@ export async function openPhotoInfo(page: Page) {
   const small = (page.viewportSize()?.width ?? 1280) < 768;
   await page.getByRole('button', { name: small ? 'More' : 'Workspace options', exact: true }).click();
   const menu = page.locator('#workspace-options');
-  const info = menu.getByRole('button', { name: /Photo info/ });
+  // Photo info is open by default (#339), when the item reads "Hide photo info"; closed, it reads "Photo info".
+  const info = menu.getByRole('button', { name: /photo info/i });
   if ((await info.getAttribute('aria-pressed')) === 'true') await page.keyboard.press('Escape');
   else await info.click();
 }

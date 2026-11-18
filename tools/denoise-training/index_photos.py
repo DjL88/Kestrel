@@ -23,7 +23,6 @@ import argparse
 import csv
 import json
 import math
-import re
 import shutil
 import sqlite3
 import statistics
@@ -63,12 +62,16 @@ def find_catalogue(location: Path) -> Path:
     return found[0]
 
 
+# One parser for Lightroom's develop-settings text, shared with tools/lightroom/read_lrcat.py, which has been checked
+# against a real 25,000-photo catalogue (keys unindented, first key on the `s = {` line; mask and curve contents ignored).
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lightroom"))
+from read_lrcat import parse_settings  # noqa: E402
+
+
 def develop_value(text: str | None, name: str) -> int | None:
-    """Read one number such as `LuminanceSmoothing = 25` from Lightroom's develop-settings text."""
-    if not text:
-        return None
-    match = re.search(rf"\b{name}\s*=\s*(-?\d+(?:\.\d+)?)", text)
-    return round(float(match.group(1))) if match else None
+    """One top-level number, such as LuminanceSmoothing, from Lightroom's develop-settings text."""
+    value = parse_settings(text or "").get(name)
+    return round(value) if isinstance(value, float) else None
 
 
 def read_catalogue(catalogue: Path) -> list[dict]:

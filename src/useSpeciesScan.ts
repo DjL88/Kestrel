@@ -8,7 +8,7 @@ import { pictureForAnalysis } from './providers/pictureForAnalysis';
 import { analysePicture, downloadSpeciesModel, loadSpeciesLabels, speciesStatus, type SpeciesStatus } from './providers/speciesModel';
 import { readAutoTag, readSpeciesCounts } from './providers/speciesLearning';
 import { HELPER_GAP_MS, HELPER_SESSION_CAP, failureMessage, helperPatch, helperReady } from './core/onlineHelper';
-import { useHelperSettings } from './providers/helperSettings';
+import { ONLINE_HELPER_VISIBLE, useHelperSettings } from './providers/helperSettings';
 import { HelperError, geminiTransport, imageForHelper } from './providers/onlineHelper';
 
 /** Photos sent to the online helper in this session, across projects. Counted so the cap holds however often it restarts. */
@@ -68,7 +68,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
           !helperHalted.current && helperSent < HELPER_SESSION_CAP;
         if (!available.localReady && !canAsk()) break;
         const frameKey = (id: string) => `${currentId}|${id}`;
-        const frame = scanCandidates(current).find((candidate) => !skipped.current.has(frameKey(candidate.id)));
+        const frame = scanCandidates(current, { includeUnclassified: canAsk() }).find((candidate) => !skipped.current.has(frameKey(candidate.id)));
         if (!frame) break;
 
         const picture = await pictureForAnalysis(store, frame).catch(() => null);
@@ -120,7 +120,8 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
     return () => { cancelled.current = true; };
   }, [ready, localReady, helperOn, helper.key, run]);
 
-  const waiting = scanCandidates(frames).length;
+  // Photos the scan would look at now; with the helper off, unclassified photos still count, so the banner can offer it.
+  const waiting = scanCandidates(frames, { includeUnclassified: helperOn || ONLINE_HELPER_VISIBLE }).length;
   useEffect(() => {
     if (ready && waiting > 0 && !running.current) { cancelled.current = false; void run(); }
   }, [ready, waiting, run]);
