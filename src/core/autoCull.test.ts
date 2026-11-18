@@ -282,6 +282,7 @@ test('contradictory overlapping scans cannot auto-keep a disputed photograph', (
       const before = suggestions.map((suggestion) => ({ ...suggestion }));
       const result = limitAutoKeepers(suggestions, photos, 1);
       assert.equal(result.filter((item) => item.frameId === photos[0].id && item.confidence === 'high').length, 0);
+      assert.equal(result.filter((item) => item.frameId === photos[0].id).every((item) => item.decision === null && item.confidence === 'low'), true);
       assert.deepEqual(result.filter((item) => item.confidence === 'high').map((item) => item.frameId), [photos[1].id]);
       assert.deepEqual(suggestions, before, 'original worker results must remain unchanged');
     }
