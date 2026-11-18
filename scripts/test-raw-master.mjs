@@ -6,7 +6,7 @@
  *   node scripts/test-raw-master.mjs "/path/to/original.NEF" edit.json [framing.json]
  *
  * Requires Node 22, Rust/Cargo and host Tauri compiler prerequisites.
- * Runs unit tests, renders the actual RAW to TIFF with the native code, verifies
+ * Runs frontend checks and Rust unit tests, renders the actual RAW to TIFF with the native code, verifies
  * TIFF metadata, and ensures the source's SHA-256 was not changed.
  *
  * By default outputs under ~/Kestrel-MVP-Tests, avoiding an iCloud/OneDrive
@@ -17,7 +17,7 @@ import {
 } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { basename, dirname, join, resolve, sep } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
@@ -126,6 +126,18 @@ if (existsSync(output)) fail('Output filename already exists. No files were over
 console.log('Source:', source);
 console.log('Output:', output);
 console.log('No cloud upload. Original read-only.');
+
+// Build the web assets used by tauri::generate_context! even though this
+// command launches only the Rust exporter. This prevents a fresh clone from
+// failing simply because ../dist does not exist.
+const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+if (!existsSync(join(root, 'node_modules'))) {
+  console.log('\nInstalling project dependencies (first checkout only)...');
+  run(npm, ['ci', '--no-audit', '--no-fund']);
+}
+run(npm, ['run', 'lint']);
+run(npm, ['test']);
+run(npm, ['run', 'build']);
 
 const before = await hashFile(source);
 run(cargo, ['test', '--release', '--manifest-path', 'src-tauri/Cargo.toml', '--lib', 'raw_precision::']);
