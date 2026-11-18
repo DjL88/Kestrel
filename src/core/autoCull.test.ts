@@ -154,7 +154,6 @@ test('repeated scan suggestions never create duplicate high-confidence keeper ac
   assert.equal(suggestions[1].confidence, 'high', 'input suggestions remain unchanged');
 });
 
-import { scoreWithSubject } from './autoCull.ts';
 const baseResult = { frameId: 'a', decision: 'keep' as const, confidence: 'high' as const, score: 95, reason: 'clearDetail' as const };
 
 test('a frame with no subject is never kept on the texture of its background', () => {
