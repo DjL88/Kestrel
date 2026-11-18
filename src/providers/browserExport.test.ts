@@ -138,3 +138,27 @@ test('a reconnected source is not mistaken for an offline review', async () => {
   };
   await assert.rejects(loadExportSource(frame, provider), /no usable embedded JPEG/);
 });
+
+
+test('export and preview fail closed for corrupt decoded source dimensions without allocating a canvas', async (t) => {
+  const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  t.after(() => {
+    if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument);
+    else Reflect.deleteProperty(globalThis, 'document');
+  });
+  let allocations = 0;
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true, value: { createElement() { allocations++; throw new Error('Unexpected canvas allocation'); } },
+  });
+  const frame = { ...createDemoShootState(1).frames[0], filename: 'NIKON-Z8.NEF', isDemo: false };
+  const master = EXPORT_PROFILES.find(({ id }) => id === 'master')!;
+  for (const [width, height] of [
+    [0, 4000], [4000, 0], [-1, 4000], [NaN, 4000],
+    [Infinity, 4000], [4000, Infinity], [4000.5, 4000],
+  ]) {
+    const source = { naturalWidth: width, naturalHeight: height } as HTMLImageElement;
+    await assert.rejects(renderExport(source, frame, master, new Date()), /invalid pixel dimensions/);
+    await assert.rejects(renderExportPreview(source, frame, master, 'fit'), /invalid pixel dimensions/);
+  }
+  assert.equal(allocations, 0);
+});
