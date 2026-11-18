@@ -285,7 +285,8 @@ export class BrowserPreviewProvider implements PreviewProvider {
       if (!offline) return '';
       const fallbackUrl = URL.createObjectURL(offline);
       this.fullUrlCache.set(key, fallbackUrl);
-      if (offline !== this.developed.get(key)) this.offlineFullKeys.add(key);
+      // Without the linked original, even a previously developed bitmap is only a review fallback.
+      this.offlineFullKeys.add(key);
       this.fullUrlOrder.push(key);
       while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
         const oldest = this.fullUrlOrder.shift();
@@ -300,13 +301,17 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
     const developed = this.developed.get(key);
     let previewBlob: Blob | null = developed ?? blob;
+    let reviewFallback = false;
     if (blob && !developed && isRawPreviewFile(frame.filename)) {
       previewBlob = await extractNefPreview(blob);
       // Development, relinking or a project switch may finish while extraction is in flight.
       if (this.localBlobs.get(key) !== blob || this.developed.get(key) !== developed) {
         return this.hasBlob(key) ? this.getFullPreviewUrl(frame) : '';
       }
-      if (!previewBlob) previewBlob = cachedPreviews?.review ?? null;
+      if (!previewBlob) {
+        previewBlob = cachedPreviews?.review ?? null;
+        reviewFallback = Boolean(previewBlob);
+      }
     }
     if (!previewBlob) return '';
     // A concurrent request for a virtual copy may already have cached this source.
@@ -315,7 +320,8 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
     const objectUrl = URL.createObjectURL(previewBlob);
     this.fullUrlCache.set(key, objectUrl);
-    this.offlineFullKeys.delete(key);
+    if (reviewFallback) this.offlineFullKeys.add(key);
+    else this.offlineFullKeys.delete(key);
     this.fullUrlOrder.push(key);
 
     while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
