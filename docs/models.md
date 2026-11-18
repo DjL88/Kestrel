@@ -67,7 +67,7 @@ Suggests what a photo shows ("Red kite · Milvus milvus · likely") from the ima
 
 **Hosting: the same site as the app.** A web page can only download the file from its own site or from a host that sends CORS headers. GitHub release files send none (checked 15 Nov 2026), so the model is stored as a release asset (`species-model-1`) and copied next to the app at build time. The app then downloads it from its own address.
 
-1. Fetch it into `public/models/` (kept out of git; checked against the SHA-256 above, wrong files are refused):
+1. It is already in git at `public/models/` (see models/README.md). The script below only re-fetches it if the file is missing or damaged, and checks it against the SHA-256 above:
 
    ```
    npm run model:species
