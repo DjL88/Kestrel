@@ -242,6 +242,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         frame={frame}
                         previewProvider={previewProvider}
                         variant="thumb"
+                        priority={isSelected}
                         needsAccess={needsAccess}
                         className="w-full h-full"
                         imgClassName="object-cover"
