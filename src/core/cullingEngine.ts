@@ -385,9 +385,9 @@ export function sortFrames(frames: readonly PhotoFrame[], sortOrder?: SortOrder)
           a.cullScore >= 0 && a.cullScore <= 100 ? a.cullScore : null;
         const scoreB = typeof b.cullScore === 'number' && Number.isFinite(b.cullScore) &&
           b.cullScore >= 0 && b.cullScore <= 100 ? b.cullScore : null;
-        const rankA = scoreA !== null && Object.hasOwn(CONFIDENCE_RANK, a.cullConfidence ?? '')
+        const rankA = scoreA !== null && (a.cullConfidence === 'high' || a.cullConfidence === 'medium' || a.cullConfidence === 'low')
           ? CONFIDENCE_RANK[a.cullConfidence!] : -1;
-        const rankB = scoreB !== null && Object.hasOwn(CONFIDENCE_RANK, b.cullConfidence ?? '')
+        const rankB = scoreB !== null && (b.cullConfidence === 'high' || b.cullConfidence === 'medium' || b.cullConfidence === 'low')
           ? CONFIDENCE_RANK[b.cullConfidence!] : -1;
         if (rankA !== rankB) return rankB - rankA;
         return rankA === -1 ? 0 : scoreB! - scoreA!;
