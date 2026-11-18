@@ -3,7 +3,7 @@ import type { PhotoFrame } from './types';
 
 /** The other photos in the same burst as this one: shots taken a moment apart, usually of the same animal. */
 export function burstMates(frames: readonly PhotoFrame[], current: Pick<PhotoFrame, 'id' | 'burstGroupId'>): PhotoFrame[] {
-  if (!current.burstGroupId) return [];
+  if (!current.burstGroupId || frames.some((frame) => frame.id === current.id && frame.removedAt != null)) return [];
   return frames.filter((frame) => frame.id !== current.id && frame.burstGroupId === current.burstGroupId && frame.removedAt == null);
 }
 
