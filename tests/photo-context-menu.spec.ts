@@ -24,6 +24,9 @@ const collections = (page: Page) => page.getByRole('navigation', { name: 'Photo 
 
 test('right-click on a photo in the library opens a menu of actions that work', async ({ page }) => {
   await project(page);
+  // Photo info is open by default on wide screens (#339); close it so the check below proves the menu does not open it.
+  const info = page.getByRole('button', { name: 'Close photo info' });
+  if (await info.isVisible()) await info.click();
   const card = page.getByRole('button', { name: 'View m-1.png' });
   await card.click({ button: 'right' });
   const menu = page.getByRole('menu', { name: 'm-1.png' });

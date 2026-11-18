@@ -41,6 +41,8 @@ test('only a sure answer tags a photo, only a photo with no tags, and only a con
   assert.deepEqual(helperPatch({ declinedTags: ['Red kite'] }, sure), { speciesChecked: true, subjectKind: 'wildlife' }, 'a removed name is not put back');
   assert.deepEqual(helperPatch({ subjectKind: 'other' }, sure).subjectKind, undefined, 'a kind you chose is kept');
   assert.deepEqual(helperPatch({}, { kind: 'landscape', species: null, scientific: null, confidence: 'high', tags: [] }), { speciesChecked: true, subjectKind: 'landscape' });
+  assert.deepEqual(helperPatch({}, { ...sure, kind: 'other', species: 'Osprey' }), { speciesChecked: true, subjectKind: 'other' },
+    'an answer that is not wildlife never becomes a species name, even if one is offered');
 });
 
 test('the model is chosen from what the key can use: newest flash, stable before preview, never lite or special-purpose', () => {

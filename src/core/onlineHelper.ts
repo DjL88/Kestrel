@@ -70,7 +70,8 @@ export function helperPatch(
   const patch: { speciesChecked: true; tags?: string[]; autoTags?: string[]; subjectKind?: SubjectKind } = { speciesChecked: true };
   // The kind is only set where none was chosen, and not from a guess.
   if (!frame.subjectKind && answer.confidence !== 'low') patch.subjectKind = answer.kind;
-  if (answer.species && answer.confidence === 'high' && mayAutoTag(frame, answer.species)) {
+  // A species name only for something the helper itself calls wildlife (an aircraft never becomes a bird name).
+  if (answer.species && answer.kind === 'wildlife' && answer.confidence === 'high' && mayAutoTag(frame, answer.species)) {
     patch.tags = addTags(frame.tags ?? [], [answer.species]);
     patch.autoTags = addTags(frame.autoTags ?? [], [answer.species]);
   }

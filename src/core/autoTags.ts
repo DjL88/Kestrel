@@ -49,13 +49,18 @@ export function qualifiesForAutoTag(
 }
 
 /** Photos the species model has not looked at yet: still in the library, never checked, and with nothing of the user's own on them. */
-export function scanCandidates<T extends { id: string; removedAt?: number; speciesChecked?: boolean; tags?: readonly string[]; subjectNames?: readonly string[]; subjectKind?: string }>(frames: readonly T[]): T[] {
-  // Species models have a *closed* list of animal labels. Their softmax may be
-  // extremely sure a helicopter is an osprey because "helicopter" is not an
-  // option. Only scan photographs positively classified as wildlife, never
-  // infer "wildlife" from the species model's own guess.
+export function scanCandidates<T extends { id: string; removedAt?: number; speciesChecked?: boolean; tags?: readonly string[]; subjectNames?: readonly string[]; subjectKind?: string }>(
+  frames: readonly T[],
+  { includeUnclassified = false }: { includeUnclassified?: boolean } = {},
+): T[] {
+  // The local species model has a *closed* list of animal labels: its softmax can be extremely sure a helicopter is an
+  // osprey because "helicopter" is not an option. So it only ever looks at photos positively classified as wildlife, and
+  // never infers "wildlife" from its own guess. The opted-in online helper is open-world (it answers "not an animal"
+  // and sets the kind itself), so it may also look at photos nobody has classified yet. Photos classified as people,
+  // landscape or other are never scanned.
   return frames.filter((frame) => !frame.removedAt && !frame.speciesChecked &&
-    frame.subjectKind === 'wildlife' && !(frame.tags?.length) && !(frame.subjectNames?.length));
+    (frame.subjectKind === 'wildlife' || (includeUnclassified && !frame.subjectKind)) &&
+    !(frame.tags?.length) && !(frame.subjectNames?.length));
 }
 
 /**

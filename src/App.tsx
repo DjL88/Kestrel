@@ -1078,6 +1078,8 @@ export default function App() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (projectsOpen || loadingProgress || exportFrames.length || autoCullOpen || pendingAction || removedOpen) return;
+      // Already handled by an open menu or dialog (for example Escape closing Workspace options).
+      if (e.defaultPrevented) return;
       if (e.key === 'Escape' && showPhotoInfo) {
         setShowPhotoInfo(false);
         setInfoFrameId(undefined);
