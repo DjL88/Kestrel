@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generateDemoShootFrames, createDemoShootState, applyAutoCullDecisions, undoDecision, redoDecision } from './cullingEngine';
-import { limitAutoKeepers, scorePreview, type CullSuggestion } from './autoCull';
+import { limitAutoKeepers, scorePreview, scoreWithSubject, type CullSuggestion } from './autoCull';
 
 test('a flat dark preview stays review-only and unavailable images receive no decision', () => {
   const opaqueDark = new Uint8ClampedArray(96 * 96 * 4);
