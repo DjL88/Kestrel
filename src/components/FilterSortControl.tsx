@@ -20,9 +20,10 @@ interface Props {
 }
 
 const sortLabels: Record<'default' | SortOrder, string> = {
-  default: 'Date (as imported)',
-  'captured-desc': 'Date, newest first',
-  'captured-asc': 'Date, oldest first',
+  default: 'Import order',
+  'captured-desc': 'Date captured, newest',
+  'captured-asc': 'Date captured, oldest',
+  'edited-desc': 'Last edited, newest first',
   'rating-desc': 'Rating, high to low',
   'name-asc': 'Name, A to Z',
   'confidence-desc': 'Culling confidence, high to low',

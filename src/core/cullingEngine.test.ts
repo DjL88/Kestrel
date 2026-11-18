@@ -181,6 +181,29 @@ test('sortFrames leaves catalogue order alone until a sort is chosen, then order
   assert.deepEqual(sortFrames(frames, 'name-asc').map((f) => f.filename), ['a.jpg', 'b.jpg', 'c.jpg']);
 });
 
+
+test('sortFrames by last edited uses current, finite edit-history timestamps and retains import order for ties', () => {
+  const [a, b, c, d, e, f] = generateDemoShootFrames(6);
+  const edit = (frame: typeof a, at: number, cursor = 1) => ({
+    ...frame,
+    editHistory: {
+      cursor,
+      steps: [{ kind: 'light' as const, before: {}, after: { edit: { exposure: 0.5, warmth: 0, colour: 0 } }, at }],
+    },
+  });
+  const items = [
+    edit(a, 100),             // Oldest current edit
+    edit(b, 300),             // Newest current edit
+    c,                        // Never edited
+    edit(d, 500, 0),          // Undone: not currently edited
+    edit(e, Number.NaN),      // Corrupt saved timestamp
+    edit(f, 300),             // Tied newest edit, keeps relative import order
+  ];
+  const sorted = sortFrames(items, 'edited-desc');
+  assert.deepEqual(sorted.map((frame) => frame.id), [b.id, f.id, a.id, c.id, d.id, e.id]);
+  assert.deepEqual(items.map((frame) => frame.id), [a.id, b.id, c.id, d.id, e.id, f.id], 'sorting never mutates the catalogue');
+});
+
 test('sortFrames by culling confidence ranks high over medium over low, unscored photos last', () => {
   const [first, second, third, fourth] = generateDemoShootFrames(4);
   const frames = [

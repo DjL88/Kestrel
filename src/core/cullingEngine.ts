@@ -367,6 +367,18 @@ export function sortFrames(frames: readonly PhotoFrame[], sortOrder?: SortOrder)
   if (!sortOrder) return [...frames];
   const ordered = [...frames];
   switch (sortOrder) {
+    case 'edited-desc': {
+      // Only active history steps describe the current image. Undone edits must not
+      // appear as recent changes, and old imports without timestamps belong last.
+      const currentEditAt = (frame: PhotoFrame): number | null => {
+        const history = frame.editHistory;
+        if (!history || !Number.isInteger(history.cursor) || history.cursor < 1 || history.cursor > history.steps.length) return null;
+        const at = history.steps[history.cursor - 1]?.at;
+        return typeof at === 'number' && Number.isFinite(at) && at >= 0 ? at : null;
+      };
+      ordered.sort((a, b) => (currentEditAt(b) ?? -1) - (currentEditAt(a) ?? -1));
+      break;
+    }
     case 'captured-asc':
       ordered.sort((a, b) => (a.exif.capturedAtMs ?? 0) - (b.exif.capturedAtMs ?? 0));
       break;
