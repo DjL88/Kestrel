@@ -51,6 +51,12 @@ async function composeExport(
   mode: ExportFraming, longEdge: number | undefined, extras: ExportExtras,
 ) {
   signal?.throwIfAborted();
+  // A failed RAW/embedded-preview decoder may resolve with zero or invalid dimensions.
+  // Fail before crop maths or allocating a canvas; never substitute a smaller image.
+  if (!Number.isSafeInteger(source.naturalWidth) || !Number.isSafeInteger(source.naturalHeight)
+      || source.naturalWidth <= 0 || source.naturalHeight <= 0) {
+    throw new Error(`Cannot export ${frame.filename}: the decoded source has invalid pixel dimensions. Reconnect or redevelop the original.`);
+  }
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const { width, height } = framedSize(source.naturalWidth, source.naturalHeight, framing);
   const plan = planExportFraming(width, height, profile, mode, extras.focus ?? frame.focusPoint, longEdge, extras.zoom);
