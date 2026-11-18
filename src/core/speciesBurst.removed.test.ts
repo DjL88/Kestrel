@@ -13,7 +13,7 @@ test('epoch-zero removed photos never appear as burst mates or receive batch spe
   ];
   const original = structuredClone(frames);
   assert.deepEqual(burstMates(frames, frames[0]).map((frame) => frame.id), [frames[2].id]);
-  assert.deepEqual(burstMates(frames, frames[1]).map((frame) => frame.id), [frames[0].id, frames[2].id]);
+  assert.deepEqual(burstMates(frames, frames[1]), [], 'removed current photo cannot drive burst actions');
   const tagged = tagFrames(frames, frames.map((frame) => frame.id), 'Red kite', 'wildlife');
   assert.equal(tagged[1], frames[1], 'removed frame retains original object and metadata');
   assert.equal(tagged[0].tags?.includes('Red kite'), true);
