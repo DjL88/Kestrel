@@ -75,7 +75,11 @@ test('after a look the photo is always marked checked, and tagged only when the 
 
 test('a card shows an automatic species, or the first tag of a wildlife photo, and nothing for others', async () => {
   const { speciesShown } = await import('./autoTags');
-  assert.deepEqual(speciesShown({ autoTags: ['Red kite'], tags: ['Red kite'] }), { name: 'Red kite', auto: true });
+  assert.deepEqual(speciesShown({ subjectKind: 'wildlife', autoTags: ['Red kite'], tags: ['Red kite'] }), { name: 'Red kite', auto: true });
+  assert.equal(speciesShown({ subjectKind: 'other', autoTags: ['Osprey'], tags: ['Osprey'] }), null,
+    'a legacy helicopter wrong-tag must not be shown as a bird');
+  assert.equal(speciesShown({ autoTags: ['Osprey'] }), null,
+    'unclassified images must not inherit closed-world bird certainty');
   assert.deepEqual(speciesShown({ subjectKind: 'wildlife', tags: ['Barn owl', 'Perched'] }), { name: 'Barn owl', auto: false });
   assert.equal(speciesShown({ subjectKind: 'people', tags: ['Sam'] }), null);
   assert.equal(speciesShown({}), null);
