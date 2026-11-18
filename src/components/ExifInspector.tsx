@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ClipboardCopy, Star, X } from 'lucide-react';
-import { photoInfoText } from '../core/photoInfoText';
+import { formatCaptureDateTime, photoInfoText } from '../core/photoInfoText';
 import { SubjectPanel } from './SubjectPanel';
 import { SpeciesSuggestions } from './SpeciesSuggestions';
 import { mayAutoTag } from '../core/autoTags';
@@ -25,19 +25,6 @@ interface ExifInspectorProps {
   onTagPhotos?: (ids: string[], name: string, kind: SubjectKind | undefined) => void;
   /** The app tags a photo by itself when the model is sure. */
   onAutoTag?: (frame: PhotoFrame, name: string, kind: SubjectKind | undefined) => void;
-}
-
-function formatCaptureTime(ms?: number): string {
-  if (typeof ms !== 'number' || !Number.isFinite(ms)) return '';
-  try {
-    return new Date(ms).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-  } catch {
-    return '';
-  }
 }
 
 export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount, onClose, onRate, onFlag, onSubjects, onKeepTag, loadPicture, mates = [], onTagPhotos, onAutoTag }) => {
@@ -72,7 +59,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
     { label: 'Aperture', value: formatAperture(exif.apertureF) },
     { label: 'Shutter', value: exif.shutterSpeed ?? '' },
     { label: 'ISO', value: typeof exif.iso === 'number' ? String(exif.iso) : '' },
-    { label: 'Captured', value: formatCaptureTime(exif.capturedAtMs) },
+    { label: 'Captured', value: formatCaptureDateTime(exif.capturedAtMs) },
     {
       label: 'Dimensions',
       value:
@@ -101,6 +88,18 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
       {copyStatus && <p role="status" className="mt-1 text-xs text-zinc-300">{copyStatus}</p>}
       {exif.formatLabel && <p className="mt-1 text-xs text-zinc-400">{exif.formatLabel}</p>}
       {frame.burstGroupId && <p className="mt-1 text-xs text-zinc-400">Burst frame {frame.burstIndex} of {frame.burstCount}</p>}
+      {exif.isEmbeddedPreviewOnly && <p className="mt-1 text-xs text-zinc-300">Embedded RAW preview (not full RAW decoding)</p>}
+      <section aria-label="Camera and capture details" className="mt-3 border-t border-white/10 pt-3">
+        <h3 className="mb-2 text-xs font-semibold text-zinc-200">Camera & capture</h3>
+        <dl className="space-y-2 text-xs">
+          {rows.filter(({ value }) => value).map(({ label, value }) => (
+            <div key={label} className="grid grid-cols-[auto_1fr] items-baseline gap-2">
+              <dt className="text-zinc-400">{label}</dt>
+              <dd className="min-w-0 break-words text-right text-zinc-200">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
       <div className="mt-3 border-t border-white/10 pt-3">
         <SubjectPanel kind={frame.subjectKind} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} autoTags={frame.autoTags}
           onChange={(tags, kind) => onSubjects(frame, tags, kind)} onKeep={(name) => onKeepTag(frame, name)} />
@@ -118,7 +117,6 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
             onTagMates={onTagPhotos} />
         )}
       </div>
-      {exif.isEmbeddedPreviewOnly && <p className="mt-1 text-xs text-zinc-300">Embedded RAW preview (not full RAW decoding)</p>}
       {batchCount > 1 && <p className="mt-3 text-xs text-sky-200">Apply ratings and flags to {batchCount} selected photos</p>}
       <div className="mt-3 border-y border-white/10 py-2">
         <div role="group" aria-label={`Star rating, ${rating} of 5`} className="flex flex-wrap">
@@ -139,14 +137,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
           ))}
         </div>
       </div>
-      <dl className="mt-4 space-y-2 text-xs">
-        {rows.filter(({ value }) => value).map(({ label, value }) => (
-          <div key={label} className="grid grid-cols-[auto_1fr] items-baseline gap-2">
-            <dt className="text-zinc-400">{label}</dt>
-            <dd className="min-w-0 break-words text-right text-zinc-200">{value}</dd>
-          </div>
-        ))}
-      </dl>
+
     </aside>
   );
 };
