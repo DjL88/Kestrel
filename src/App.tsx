@@ -700,6 +700,16 @@ export default function App() {
     () => multiSelect && selectedIds.size ? visibleFrames.filter((frame) => selectedIds.has(frame.id)) : selectedFrame ? [selectedFrame] : [],
     [multiSelect, selectedIds, visibleFrames, selectedFrame]
   );
+  // Native menu actions use the exact current photo selection, not a button's
+  // changing label or whatever happens to be visible in the WebView.
+  useEffect(() => {
+    const exportFromDesktopMenu = () => {
+      if (!projectsOpen && exportSelection.length) setExportFrames(exportSelection);
+    };
+    window.addEventListener('kestrel:desktop-export', exportFromDesktopMenu);
+    return () => window.removeEventListener('kestrel:desktop-export', exportFromDesktopMenu);
+  }, [projectsOpen, exportSelection]);
+
   const [moveOpen, setMoveOpen] = useState(false);
   const [toast, setToast] = useState('');
   const moveIds = multiSelect && selectedIds.size ? [...selectedIds] : selectedFrame ? [selectedFrame.id] : [];
