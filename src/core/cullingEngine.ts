@@ -379,10 +379,18 @@ export function sortFrames(frames: readonly PhotoFrame[], sortOrder?: SortOrder)
     case 'confidence-desc':
       // Frames auto-cull has never scored sort after every scored one, regardless of confidence.
       ordered.sort((a, b) => {
-        const rankA = a.cullConfidence ? CONFIDENCE_RANK[a.cullConfidence] : -1;
-        const rankB = b.cullConfidence ? CONFIDENCE_RANK[b.cullConfidence] : -1;
+        // Persisted catalogues may predate scan validation or contain corrupt
+        // values. Treat those as unscored, rather than returning NaN from sort.
+        const scoreA = typeof a.cullScore === 'number' && Number.isFinite(a.cullScore) &&
+          a.cullScore >= 0 && a.cullScore <= 100 ? a.cullScore : null;
+        const scoreB = typeof b.cullScore === 'number' && Number.isFinite(b.cullScore) &&
+          b.cullScore >= 0 && b.cullScore <= 100 ? b.cullScore : null;
+        const rankA = scoreA !== null && Object.hasOwn(CONFIDENCE_RANK, a.cullConfidence ?? '')
+          ? CONFIDENCE_RANK[a.cullConfidence!] : -1;
+        const rankB = scoreB !== null && Object.hasOwn(CONFIDENCE_RANK, b.cullConfidence ?? '')
+          ? CONFIDENCE_RANK[b.cullConfidence!] : -1;
         if (rankA !== rankB) return rankB - rankA;
-        return (b.cullScore ?? 0) - (a.cullScore ?? 0);
+        return rankA === -1 ? 0 : scoreB! - scoreA!;
       });
       break;
     case 'captured-desc':
