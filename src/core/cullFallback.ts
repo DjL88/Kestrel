@@ -13,7 +13,9 @@ export function restoreNoSubjectFallback(
   return results.map((result) => {
     if (result.reason !== 'noSubject') return result;
     const base = baseById.get(result.frameId);
-    if (!base) return result;
+    // A corrupt or stale preview must not introduce NaN/Infinity into sorting.
+    if (!base || !Number.isFinite(base.score) || base.score < 0 || base.score > 100 ||
+        !['low', 'medium', 'high'].includes(base.confidence)) return result;
     return {
       ...base,
       decision: null,
