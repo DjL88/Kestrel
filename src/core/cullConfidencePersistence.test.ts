@@ -81,3 +81,20 @@ test('epoch-zero removal marker blocks review, compare and auto-decisions until 
   const restored = restoreRemoved(state, [removedId]);
   assert.equal(restored.frames[0].removedAt, undefined);
 });
+
+test('compare never exposes removed active or fallback photos, including epoch-zero removal', () => {
+  const state = createDemoShootState(4);
+  const frames = state.frames.map((frame, index) => ({
+    ...frame,
+    removedAt: index === 0 ? 0 : index === 2 ? 123 : undefined,
+  }));
+  const firstRemoved = getDefaultComparePair(frames, frames[0].id);
+  assert.deepEqual(firstRemoved, { leftId: frames[1].id, rightId: frames[3].id });
+  const laterRemoved = getDefaultComparePair(frames, frames[2].id);
+  assert.deepEqual(laterRemoved, { leftId: frames[1].id, rightId: frames[3].id });
+  const allRemoved = frames.map((frame) => ({ ...frame, removedAt: 0 }));
+  assert.deepEqual(getDefaultComparePair(allRemoved, frames[0].id), { leftId: null, rightId: null });
+  const oneAvailable = frames.map((frame, index) => ({ ...frame, removedAt: index === 3 ? undefined : 0 }));
+  assert.deepEqual(getDefaultComparePair(oneAvailable, frames[0].id), { leftId: frames[3].id, rightId: null });
+  assert.equal(frames[0].removedAt, 0, 'comparison must not mutate the catalogue');
+});
