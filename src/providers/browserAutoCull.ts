@@ -68,7 +68,7 @@ export async function scanForCulling(
     const missing: CullSuggestion = { frameId: frame.id, decision: null, confidence: 'low', score: 0, reason: 'unavailable' };
     if (duplicates.has(frame.id)) return { frameId: frame.id, decision: 'reject', confidence: 'high', score: 100, reason: 'duplicate' };
     try {
-      const url = await provider.getFullPreviewUrl(frame);
+      const url = await provider.getFullPreviewUrl(frame, 'background');
       if (!url) return missing;
       const image = await loadImage(url);
       signal.throwIfAborted();
