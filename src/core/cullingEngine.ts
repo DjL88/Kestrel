@@ -719,7 +719,7 @@ export function restoreRemoved(state: CullingState, frameIds: string[]): Culling
   // Explicit restoration is a new user action: an earlier redo must not silently remove it again.
   // Explicit Restore must not retain an undo that can recreate an unintended removal.
   // Keep unrelated review and removal history.
-  const restoredIds = new Set(state.frames.filter((frame) => ids.has(frame.id) && frame.removedAt).map((frame) => frame.id));
+  const restoredIds = new Set(state.frames.filter((frame) => ids.has(frame.id) && frame.removedAt != null).map((frame) => frame.id));
   const undoStack = state.undoStack.filter((entry) =>
     !entry.removal || !(entry.batch ?? [entry]).some((change) => restoredIds.has(change.frameId))
   );
