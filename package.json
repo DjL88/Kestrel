@@ -11,6 +11,7 @@
     "model:species": "node scripts/fetch-species-model.mjs",
     "lint": "tsc --noEmit",
     "test:e2e": "playwright test",
+    "test:raw-master": "node scripts/test-raw-master.mjs",
     "test": "tsx --test src/core/*.test.ts src/providers/*.test.ts tools/mcp/*.test.ts",
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
