@@ -112,6 +112,8 @@ export function limitAutoKeepers(
   // score must not override a later review-only or reject result. Duplicate
   // high-confidence keep suggestions alone remain harmless.
   const uncertainIds = new Set<string>();
+  const highKeepIds = new Set(suggestions.filter((result) => result.decision === 'keep' && result.confidence === 'high')
+    .map((result) => result.frameId));
   for (const result of suggestions) {
     if (result.decision !== 'keep' || result.confidence !== 'high' ||
         !Number.isFinite(result.score) || result.score < 0 || result.score > 100) {
@@ -135,6 +137,9 @@ export function limitAutoKeepers(
   // two high-confidence auto-keep actions for one photograph.
   const emitted = new Set<string>();
   return suggestions.map((result) => {
+    if (highKeepIds.has(result.frameId) && uncertainIds.has(result.frameId)) {
+      return { ...result, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
+    }
     if (result.decision !== 'keep' || result.confidence !== 'high') return result;
     if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100) {
       return { ...result, confidence: 'medium', score: 0 };
