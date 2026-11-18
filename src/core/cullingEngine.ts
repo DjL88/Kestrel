@@ -482,12 +482,15 @@ export function getDefaultComparePair(
   frames: readonly PhotoFrame[],
   activeId: string | null
 ): { leftId: string | null; rightId: string | null } {
-  if (frames.length === 0) return { leftId: null, rightId: null };
-  const idx = activeId ? frames.findIndex((f) => f.id === activeId) : 0;
+  // A stale compare selection can point to a removed photograph. Neither
+  // side of the comparison may display removed catalogue entries.
+  const available = frames.filter((frame) => frame.removedAt == null);
+  if (available.length === 0) return { leftId: null, rightId: null };
+  const idx = activeId ? available.findIndex((f) => f.id === activeId) : 0;
   const safeIdx = idx === -1 ? 0 : idx;
-  const left = frames[safeIdx];
+  const left = available[safeIdx];
 
-  if (frames.length === 1) {
+  if (available.length === 1) {
     // A one-photo shoot has nothing to compare. Showing the same image as
     // both A and B suggests a second candidate exists when it does not.
     return { leftId: left.id, rightId: null };
@@ -496,8 +499,8 @@ export function getDefaultComparePair(
   // Prefer the next frame in the same burst, else previous in same burst, else next frame overall.
   // A stale or damaged catalogue can contain repeated IDs or removed photos.
   // Compare must never present either as a distinct candidate.
-  const nextFrame = frames.slice(safeIdx + 1).find((f) => f.id !== left.id && f.removedAt == null);
-  const prevFrame = frames.slice(0, safeIdx).reverse().find((f) => f.id !== left.id && f.removedAt == null);
+  const nextFrame = available.slice(safeIdx + 1).find((f) => f.id !== left.id);
+  const prevFrame = available.slice(0, safeIdx).reverse().find((f) => f.id !== left.id);
 
   if (
     nextFrame &&
