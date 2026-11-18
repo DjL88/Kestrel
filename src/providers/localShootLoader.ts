@@ -73,7 +73,7 @@ export async function loadLocalFileListShoot(
         }
         if (file.path) {
           // Stays where it is on the disk: nothing is copied into the app, and it is read again when needed.
-          previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified), size: file.size, lastModified: file.lastModified });
+          previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size), size: file.size, lastModified: file.lastModified });
           try {
             if (!await previewProvider.cacheOfflinePreviews(stableKey, file.name, opened)) uncachedPreviewKeys.push(stableKey);
           } catch {
@@ -265,7 +265,7 @@ export async function rehydrateLocalFramesFromStore(
   for (const frame of frames) {
     if (frame.sourcePath && !previewProvider.hasBlob(frame.stableKey)) {
       previewProvider.registerLinked(frame.stableKey, {
-        read: linkedReader(frame.sourcePath, frame.filename, lastModifiedOf(frame.stableKey)),
+        read: linkedReader(frame.sourcePath, frame.filename, lastModifiedOf(frame.stableKey), sizeOf(frame.stableKey) || undefined),
         size: sizeOf(frame.stableKey), lastModified: lastModifiedOf(frame.stableKey),
       });
     }

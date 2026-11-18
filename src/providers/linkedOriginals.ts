@@ -39,11 +39,35 @@ export async function linkedPhoto(path: string): Promise<PickedPhoto> {
   };
 }
 
+/**
+ * Is the file now at a linked path still the photo that was imported? Size must match when it is known.
+ * The modified time is deliberately NOT compared with the import time: Reconnect accepts a file whose name and size
+ * match but whose modified time changed (copied, re-downloaded, restored from backup), and FAT/exFAT cards and NAS
+ * shares round times by up to two seconds. Rejecting those would make reconnected photos refuse to open.
+ */
+export function linkedSourceMatches(expectedSize: number | undefined, actualSize: number): boolean {
+  if (!Number.isSafeInteger(actualSize) || actualSize < 0) return false;
+  if (expectedSize === undefined) return true;
+  return Number.isSafeInteger(expectedSize) && expectedSize > 0 && expectedSize === actualSize;
+}
+
 /** Reader for a photo already in a project, given its saved path and the name, size and time it had when added. */
-export function linkedReader(path: string, name: string, lastModified: number): () => Promise<File> {
+export function linkedReader(path: string, name: string, lastModified: number, expectedSize?: number): () => Promise<File> {
   return async () => {
     const fs = await import('@tauri-apps/plugin-fs');
-    return new File([await fs.readFile(path)], name, { lastModified });
+    // A path can be reused by a different photo after a card is reimported.
+    const before = await fs.stat(path);
+    if (!linkedSourceMatches(expectedSize, before.size)) {
+      throw new Error('Linked original differs from the imported photo. Reconnect the original before editing.');
+    }
+    const bytes = await fs.readFile(path);
+    // A file can change while it is being read. Do not silently return changed bytes.
+    const after = await fs.stat(path);
+    if (before.size !== after.size || bytes.byteLength !== after.size ||
+        (before.mtime && after.mtime && before.mtime.getTime() !== after.mtime.getTime())) {
+      throw new Error('Linked original changed during reading. Retry or reconnect the original.');
+    }
+    return new File([bytes], name, { lastModified });
   };
 }
 
