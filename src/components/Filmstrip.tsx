@@ -164,6 +164,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
                   frame={frame}
                   previewProvider={previewProvider}
                   variant="thumb"
+                  priority={isLeftActive || isRightActive}
                   needsAccess={needsAccess}
                   className="w-full h-full"
                   imgClassName="object-cover"
