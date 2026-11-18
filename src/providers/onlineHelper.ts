@@ -1,6 +1,9 @@
 import { geminiRequest, readGeminiResponse, readModelList, GEMINI_BASE } from '../core/gemini';
-import { failureMessage, pickModel, type HelperAnswer, type HelperFailure } from '../core/onlineHelper';
+import { HelperError, pickModel, type HelperAnswer } from '../core/onlineHelper';
 import { readHelper, saveHelper } from './helperSettings';
+
+// Defined in core so code outside the browser (the control plane, tests) can use it. Existing callers import it from here.
+export { HelperError };
 
 /**
  * Whatever answers questions about a photo. Today that is Google's Gemini, called directly with the user's own key.
@@ -11,9 +14,6 @@ export interface HelperTransport {
   ask(jpegBase64: string, signal?: AbortSignal): Promise<HelperAnswer>;
 }
 
-export class HelperError extends Error {
-  constructor(readonly failure: HelperFailure, message = failureMessage(failure).text) { super(message); }
-}
 
 type Fetcher = typeof fetch;
 

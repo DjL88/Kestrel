@@ -1,6 +1,6 @@
 # What Kestrel will ask of its own backend
 
-A proposal, not built or deployed yet. Core local import, editing and export do not require a Kestrel server. Optional online operations must report success, failure and retry clearly without blocking local work.
+**Built locally, not deployed.** The service is [`services/control-plane`](../services/control-plane/README.md), and its README is the current contract (endpoints, security tests, shared `src/core` modules). Where this proposal and the README differ, the README wins: for example, the manifest is served at `/v1/models/manifest` as a signed envelope, and identification at `/v1/ai/identify`. Core local import, editing and export do not require a Kestrel server. Optional online operations must report success, failure and retry clearly without blocking local work.
 
 ## Recommended hosting boundary
 

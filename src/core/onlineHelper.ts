@@ -106,6 +106,11 @@ export const HELPER_GAP_MS = 1500;
 
 export type HelperFailure = 'offline' | 'auth' | 'rate' | 'timeout' | 'blocked' | 'other';
 
+/** A failure from any online helper transport (user's own key or the control plane), with words for the user. */
+export class HelperError extends Error {
+  constructor(readonly failure: HelperFailure, message = failureMessage(failure).text) { super(message); }
+}
+
 /** Words for the user. Only some failures stop everything: a bad key or a rate limit will repeat for every photo. */
 export function failureMessage(failure: HelperFailure): { text: string; stops: boolean } {
   switch (failure) {
