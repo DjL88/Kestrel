@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
+import { loadExportSource } from '../providers/browserExport';
 import { previewCacheKey } from '../providers/offlinePreviewCache';
 import type { PhotoFrame } from './types';
 
@@ -273,3 +274,54 @@ for (const change of ['relink', 'retry', 'replace', 'clear'] as const) {
     }
   });
 }
+
+
+test('Nikon NEF with readable original but unusable embedded JPEG never exports cached review pixels', async (t) => {
+  const photo = frame('corrupt-nef', 'corrupt-nef::128::1');
+  const cacheKey = previewCacheKey({ stableKey: photo.stableKey, filename: photo.filename, fileSize: 128, lastModified: 1 });
+  const provider = new BrowserPreviewProvider({
+    async savePreviewPair() { return true; },
+    async loadPreviewPair(key) {
+      return key === cacheKey ? { thumbnail: new Blob(['thumb']), review: new Blob(['review only']) } : null;
+    },
+  });
+  t.after(() => provider.clear());
+  provider.registerLinked(photo.stableKey, {
+    read: async () => new Blob([new Uint8Array(128)]),
+    size: 128, lastModified: 1,
+  });
+  const url = await provider.getFullPreviewUrl(photo);
+  assert.equal(await (await fetch(url)).text(), 'review only');
+  assert.equal(provider.hasBlob(photo.stableKey), true);
+  assert.equal(provider.isOfflineFallback(photo.stableKey), true,
+    'the original being linked does not make a cached JPEG an exportable RAW render');
+  assert.equal(await provider.getFullPreviewUrl(frame('virtual-copy', photo.stableKey)), url);
+  assert.equal(provider.isOfflineFallback(photo.stableKey), true);
+  await assert.rejects(loadExportSource(photo, provider), /offline review image is not the original photograph/,
+    'the real export entry point must reject the cached review image even with a linked NEF');
+  await assert.rejects(loadExportSource(frame('virtual-copy', photo.stableKey), provider),
+    /offline review image is not the original photograph/,
+    'virtual copies must not bypass the export provenance guard');
+});
+
+test('an offline developed bitmap remains review-only after the original is disconnected', async (t) => {
+  const photo = frame('offline-developed', 'offline-developed::100::1');
+  let connected = true;
+  const provider = new BrowserPreviewProvider({
+    async savePreviewPair() { return true; },
+    async loadPreviewPair() { return null; },
+  });
+  t.after(() => provider.clear());
+  provider.registerLinked(photo.stableKey, {
+    read: async () => {
+      if (!connected) throw new Error('drive missing');
+      return raw();
+    }, size: 100, lastModified: 1,
+  });
+  assert.equal(await provider.developFromOriginal(photo.stableKey, async () => new Blob(['developed pixels'])), 'ready');
+  connected = false;
+  provider.retryLinkedOriginal(photo.stableKey);
+  // Retrying deliberately invalidates the old development, so it cannot be exported.
+  assert.equal(provider.isDeveloped(photo.stableKey), false);
+  assert.equal(await provider.getFullPreviewUrl(photo), '');
+});
