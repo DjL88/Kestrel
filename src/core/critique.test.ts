@@ -110,3 +110,25 @@ test('the tone-only version drops detail everywhere but keeps tone and colour', 
   assert.equal(tone.clarity, 0);
   assert.deepEqual(tone.masks![0].edit, { exposure: 0.5, warmth: 0.2 });
 });
+
+test('Opinion does not call an orange feather pure white or offer an unsafe global highlight fix', () => {
+  const source = make(64, 64, () => [235, 100, 45]);
+  const vivid = make(64, 64, () => [255, 110, 50]);
+  const opinions = critique({ source, toneOnly: vivid, after: vivid, edit: DEFAULT_EDIT });
+  const channel = opinions.find((opinion) => opinion.id === 'colour-channels');
+  assert.ok(channel, 'one clipped RGB channel should be reported');
+  assert.match(channel!.detail, /not mean those pixels are pure white/);
+  assert.equal(channel!.fix, undefined, 'a heuristic cannot unconditionally dull brightly coloured feathers');
+  assert.ok(!opinions.some((opinion) => opinion.id === 'highlights'),
+    'one saturated channel must never be counted as a pure-white pixel');
+});
+
+test('true RGB white clipping remains visible, without promising recovered detail', () => {
+  const source = make(64, 64, () => [230, 230, 230]);
+  const white = make(64, 64, () => [255, 255, 255]);
+  const opinion = critique({ source, toneOnly: white, after: white, edit: DEFAULT_EDIT })
+    .find((entry) => entry.id === 'highlights');
+  assert.ok(opinion);
+  assert.equal(opinion!.fix, undefined);
+  assert.match(opinion!.detail, /cannot recover detail/);
+});
