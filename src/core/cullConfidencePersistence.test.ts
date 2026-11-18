@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyCullConfidence, applyDecisionWithHistory, createDemoShootState, sortFrames, undoDecision, redoDecision } from './cullingEngine';
+import { applyCullConfidence, applyDecisionWithHistory, createDemoShootState, sortFrames, undoDecision, redoDecision, filterFrames, stepSelection, getDefaultComparePair, applyAutoCullDecisions, removedFrames, restoreRemoved } from './cullingEngine';
 
 test('malformed scan scores cannot poison persisted confidence or sorting', () => {
   const state = createDemoShootState(5);
@@ -64,4 +64,20 @@ test('late scan confidence cannot overwrite manual Keep, Reject or Undo history'
   assert.deepEqual(redone.frames.map((frame) => frame.decision), before);
   assert.deepEqual(rejected.frames.map((frame) => frame.cullScore),
     [undefined, undefined, undefined], 'input catalogue remains unchanged');
+});
+
+
+test('epoch-zero removal marker blocks review, compare and auto-decisions until restored', () => {
+  const initial = createDemoShootState(3);
+  const frames = initial.frames.map((frame) => ({ ...frame, isDemo: false }));
+  const removedId = frames[0].id;
+  const state = { ...initial, frames: [{ ...frames[0], removedAt: 0 }, ...frames.slice(1)] };
+  assert.equal(filterFrames(state.frames, 'all').some((frame) => frame.id === removedId), false);
+  assert.equal(stepSelection(state.frames, frames[1].id, -1), frames[1].id);
+  assert.notEqual(getDefaultComparePair(state.frames, frames[1].id).rightId, removedId);
+  assert.equal(applyDecisionWithHistory(state, removedId, 'keep'), state);
+  assert.equal(applyAutoCullDecisions(state, [{ frameId: removedId, decision: 'keep' }]), state);
+  assert.equal(removedFrames(state.frames).some((frame) => frame.id === removedId), true);
+  const restored = restoreRemoved(state, [removedId]);
+  assert.equal(restored.frames[0].removedAt, undefined);
 });
