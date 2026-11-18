@@ -192,14 +192,15 @@ fn edit_rgb16(image: &mut Rgb16, edit: NativeMasterEdit) {
             luminance + (blue - luminance) * saturation,
         ];
         for (channel, output) in channels.iter_mut().zip(pixel.0.iter_mut()) {
-            // Match the legacy contrast curve in its own branch; a colour-managed
-            // linear preview/export parity test is required before promotion.
-            let encoded = if contrast != 1.0 {
-                0.5 + (channel.clamp(0.0, 1.0) - 0.5) * contrast
-            } else {
-                linear_to_srgb(*channel)
-            };
-            *output = (encoded.clamp(0.0, 1.0) * 65535.0).round() as u16;
+            // Work in a display-referred space for contrast, then encode
+            // once. The previous branch incorrectly treated linear light as
+            // encoded sRGB whenever contrast was non-neutral, shifting tones
+            // substantially even for an otherwise small contrast adjustment.
+            let encoded = linear_to_srgb(*channel);
+            let adjusted = if contrast != 1.0 {
+                0.5 + (encoded - 0.5) * contrast
+            } else { encoded };
+            *output = (adjusted.clamp(0.0, 1.0) * 65535.0).round() as u16;
         }
     }
 }
@@ -251,6 +252,19 @@ pub fn develop_raw_rgb16_tiff_with_edit(bytes: &[u8], edit: NativeMasterEdit) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn contrast_adjustment_preserves_midtones_without_linear_to_gamma_jump() {
+        let mut midgrey = ImageBuffer::from_pixel(1, 1, Rgb([32768u16, 32768, 32768]));
+        let unchanged = midgrey.get_pixel(0, 0)[0];
+        let mut edit = NativeMasterEdit::default();
+        edit.contrast = 0.1;
+        edit_rgb16(&mut midgrey, edit);
+        let adjusted = midgrey.get_pixel(0, 0)[0];
+        // sRGB code ~0.5 is midgrey. Tiny contrast edits cannot turn it
+        // into ~0.21 or another unencoded linear-light value.
+        assert!((i32::from(adjusted) - i32::from(unchanged)).abs() < 2500, "unexpected tone jump: {adjusted}");
+    }
 
     #[test]
     fn neutral_master_edit_preserves_all_sixteen_bit_codes() {
