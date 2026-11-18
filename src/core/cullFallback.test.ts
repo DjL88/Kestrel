@@ -72,3 +72,15 @@ test('a runtime detector failure invalidates even earlier high-confidence picks 
   assert.ok(safe.every((result) => result.decision === null), 'runtime failure cannot retain automatic decisions');
   assert.deepEqual(originals, [earlier, later], 'input findings stay immutable');
 });
+
+
+test('corrupt preview scores never contaminate detector fallback or create decisions', () => {
+  const uncertain: CullSuggestion = { frameId: 'bird', decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
+  for (const score of [Number.NaN, Infinity, -1, 101]) {
+    const bad: CullSuggestion = { ...uncertain, score, decision: 'keep', confidence: 'high', reason: 'clearDetail' };
+    const [actual] = restoreNoSubjectFallback([uncertain], new Map([['bird', bad]]));
+    assert.deepEqual(actual, uncertain, 'invalid preview score must not overwrite safe review');
+  }
+  const [missingModel] = missingDetectorReviewFallback([uncertain], new Map([['bird', { ...uncertain, score: NaN }]]));
+  assert.deepEqual(missingModel, uncertain);
+});
