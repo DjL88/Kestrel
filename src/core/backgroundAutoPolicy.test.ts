@@ -56,3 +56,21 @@ test('ambiguous duplicate catalogue IDs cannot receive background work', () => {
   assert.deepEqual(backgroundCullMoves(frames, [suggestion('duplicated', 'keep')], new Set(['duplicated'])), []);
   assert.deepEqual([...backgroundDevelopTargets(frames.map((frame) => ({ ...frame, decision: 'keep' })), new Set(['duplicated']))], []);
 });
+
+test('epoch-zero removed photos never receive unattended culling or development', () => {
+  const removed = { ...make('removed'), removedAt: 0 };
+  const removedKeeper = { ...make('removed-keeper', 'keep'), removedAt: 0 };
+  const active = make('active');
+  const activeKeeper = make('active-keeper', 'keep');
+  const frames = [removed, removedKeeper, active, activeKeeper];
+  const imported = new Set(frames.map((frame) => frame.id));
+
+  assert.deepEqual(backgroundCullCandidates(frames, imported).map((frame) => frame.id), ['active']);
+  assert.deepEqual(backgroundCullMoves(frames, [
+    suggestion('removed', 'keep'),
+    suggestion('active', 'keep'),
+  ], imported), [{ frameId: 'active', decision: 'keep' }]);
+  assert.deepEqual([...backgroundDevelopTargets(frames, imported)], ['active-keeper']);
+  assert.equal(removed.removedAt, 0);
+  assert.equal(removedKeeper.removedAt, 0);
+});
