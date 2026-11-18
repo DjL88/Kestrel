@@ -14,12 +14,13 @@ export function createEmptyProject(
   };
 }
 
+/** Removal timestamps are optional, not booleans: 0 is a valid removed marker. */
 export function appendProjectPhotos(
   project: CullingState, incoming: PhotoFrame[], importId: string,
 ): CullingState {
-  const seen = new Set(project.frames.filter((frame) => !frame.removedAt).map((frame) => frame.stableKey));
+  const seen = new Set(project.frames.filter((frame) => frame.removedAt == null).map((frame) => frame.stableKey));
   // Adding a removed photo again brings it back as a fresh, unreviewed photo instead of silently doing nothing.
-  const removedByKey = new Map(project.frames.filter((frame) => frame.removedAt).map((frame) => [frame.stableKey, frame.id]));
+  const removedByKey = new Map(project.frames.filter((frame) => frame.removedAt != null).map((frame) => [frame.stableKey, frame.id]));
   const revived = new Set<string>();
   const added: PhotoFrame[] = [];
   const sequenceStart = project.frames.reduce((max, frame) => Math.max(max, frame.sequenceIndex), 0);
@@ -99,9 +100,9 @@ export function moveFrames(source: CullingState, target: CullingState, frameIds:
   const groups = new Set<string>();
   for (const id of frameIds) {
     const frame = byId.get(id);
-    if (frame && !frame.removedAt) groups.add(frame.virtualCopy?.originalFrameId ?? frame.id);
+    if (frame && frame.removedAt == null) groups.add(frame.virtualCopy?.originalFrameId ?? frame.id);
   }
-  const present = new Set(target.frames.filter((frame) => !frame.removedAt).map((frame) => frame.stableKey));
+  const present = new Set(target.frames.filter((frame) => frame.removedAt == null).map((frame) => frame.stableKey));
   const moving: PhotoFrame[] = [];
   let skipped = 0;
   for (const originalId of groups) {
@@ -125,7 +126,7 @@ export function moveFrames(source: CullingState, target: CullingState, frameIds:
   const sourceFrames = source.frames.filter((frame) => !moved.has(frame.id));
   const now = Date.now();
   const stillThere = (id: string | null) => (id && !moved.has(id) ? id : null);
-  const firstLeft = sourceFrames.find((frame) => !frame.removedAt)?.id ?? null;
+  const firstLeft = sourceFrames.find((frame) => frame.removedAt == null)?.id ?? null;
   return {
     moved: renamed.length, skipped,
     target: { ...target, frames: targetFrames, selectedFrameId: target.selectedFrameId ?? renamed[0].id,
@@ -141,7 +142,7 @@ export type ProjectSort = 'edited' | 'created' | 'name';
 
 /** Lower-case text a project can be found by: its photos' file names, subject names and tags. */
 export function projectSearchText(frames: readonly { filename: string; subjectNames?: string[]; tags?: string[]; subjectKind?: SubjectKind; removedAt?: number }[]): string {
-  return frames.filter((frame) => !frame.removedAt)
+  return frames.filter((frame) => frame.removedAt == null)
     .map((frame) => [frame.filename, ...searchWords(frame)].join(' ')).join('\n').toLowerCase();
 }
 
