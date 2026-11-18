@@ -4,7 +4,7 @@ import type { PhotoFrame } from './types';
 
 /** Background automation must not take over a photo the photographer has started editing. */
 export function untouchedForBackgroundAuto(frame: PhotoFrame): boolean {
-  return !frame.removedAt && !frame.virtualCopy && !frame.isDemo &&
+  return frame.removedAt == null && !frame.virtualCopy && !frame.isDemo &&
     !frame.framing && !frame.editHistory?.steps.length &&
     (!frame.edit || isEmptyEdit(frame.edit));
 }
