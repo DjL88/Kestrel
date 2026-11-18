@@ -104,6 +104,13 @@ fn validate_system_jpeg(jpeg: &[u8]) -> Result<(), String> {
     if width == 0 || height == 0 || (width as u64) * (height as u64) > 200_000_000 {
         return Err(invalid());
     }
+    // JPEG headers and end markers do not prove that the compressed scan data is
+    // decodable. Fail closed before returning a system-rendered export source.
+    let decoded = ImageReader::with_format(Cursor::new(jpeg), image::ImageFormat::Jpeg)
+        .decode().map_err(|_| invalid())?;
+    if decoded.width() != width || decoded.height() != height {
+        return Err(invalid());
+    }
     Ok(())
 }
 
@@ -218,6 +225,23 @@ mod tests {
             assert_eq!(layout(&super::apply_orientation(picture(), orientation)), wanted, "orientation {orientation}");
         }
         assert_eq!(layout(&super::apply_orientation(picture(), 0)), layout(&picture()), "unknown leaves it alone");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn system_jpeg_requires_decodable_scan_not_just_valid_markers() {
+        use image::{codecs::jpeg::JpegEncoder, Rgb, RgbImage};
+        let image = RgbImage::from_pixel(8, 8, Rgb([42, 80, 123]));
+        let mut valid = Vec::new();
+        JpegEncoder::new_with_quality(&mut valid, 90).encode_image(&image).unwrap();
+        assert!(super::validate_system_jpeg(&valid).is_ok());
+        // Preserve the SOI/EOI and the dimension-bearing header, but truncate
+        // the entropy-coded scan. A header-only validator would accept this.
+        let scan = valid.windows(2).position(|w| w == [0xff, 0xda]).unwrap();
+        let scan_header_len = valid[scan + 4] as usize + 2;
+        let mut truncated = valid[..scan + 2 + scan_header_len].to_vec();
+        truncated.extend_from_slice(&[0xff, 0xd9]);
+        assert!(super::validate_system_jpeg(&truncated).is_err());
     }
 
     /// Optional, owner-provided HE/HE* fixture. macOS support is not universal,
