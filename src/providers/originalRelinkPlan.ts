@@ -34,6 +34,16 @@ export function planOriginalRelink(
 ): RelinkPlan {
   const matches: RelinkMatch[] = [], unresolved: string[] = [], ambiguous: string[] = [];
   const claimed = new Set<string>();
+  // If two catalogue records share the same available identity, assigning a
+  // single replacement to whichever appears first is unsafe. Preserve both
+  // original associations and require explicit confirmation.
+  const identity = (item: SavedOriginal) =>
+    `${filename(item.path)}\u0000${item.size}\u0000${item.lastModified}`;
+  const identityCounts = new Map<string, number>();
+  for (const item of originals) {
+    const key = identity(item);
+    identityCounts.set(key, (identityCounts.get(key) ?? 0) + 1);
+  }
   for (const original of originals) {
     // Never turn an incomplete catalogue record into a guessed original link.
     // A blank path has no filename, and missing metadata (NaN/Infinity or
@@ -41,6 +51,10 @@ export function planOriginalRelink(
     if (!filename(original.path) || !Number.isFinite(original.size) || original.size < 0 ||
         !Number.isFinite(original.lastModified) || original.lastModified < 0) {
       unresolved.push(original.id);
+      continue;
+    }
+    if ((identityCounts.get(identity(original)) ?? 0) > 1) {
+      ambiguous.push(original.id);
       continue;
     }
     // A directory selection may contain duplicate filenames. Size and timestamp
