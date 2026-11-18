@@ -7,7 +7,7 @@ import type { CullDecision } from './types';
 export type PhotoAction =
   | 'edit' | 'info' | 'keep' | 'trash' | 'unreview'
   | 'rate1' | 'rate2' | 'rate3' | 'rate4' | 'rate5' | 'rate0'
-  | 'copy' | 'paste' | 'export' | 'remove';
+  | 'copy' | 'paste' | 'reset' | 'duplicate' | 'export' | 'remove';
 
 export interface PhotoMenuItem {
   action: PhotoAction;
@@ -27,6 +27,8 @@ export interface PhotoMenuState {
   canPaste: boolean;
   /** Whether this photo has any adjustments to copy. */
   hasEdit: boolean;
+  /** Whether the photo has been changed from its original (what Reset undoes). Optional so older callers stay valid. */
+  edited?: boolean;
 }
 
 const plural = (count: number) => (count > 1 ? ` (${count} photos)` : '');
@@ -43,6 +45,9 @@ export function photoMenuItems(state: PhotoMenuState): PhotoMenuItem[] {
     { action: 'rate0', label: `Clear rating${plural(state.count)}`, group: 2 },
     { action: 'copy', label: 'Copy adjustments', group: 3, disabled: many || !state.hasEdit },
     { action: 'paste', label: `Paste adjustments${plural(state.count)}`, group: 3, disabled: !state.canPaste },
+    { action: 'reset', label: `Reset edit${plural(state.count)}…`, group: 3, disabled: !state.edited },
+    // A virtual copy has its own edits and decision and points at the same original file. It never copies the file.
+    { action: 'duplicate', label: 'Duplicate (virtual copy)', group: 3, disabled: many },
     { action: 'export', label: `Export${plural(state.count)}…`, group: 4 },
   ];
   // Removing from the library only applies to photos already in the Trash.

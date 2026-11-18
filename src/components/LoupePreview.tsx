@@ -2,6 +2,7 @@ import type React from 'react';
 import {
   ChevronLeft,
   ChevronRight,
+  MoreHorizontal,
   Undo2,
 } from 'lucide-react';
 import {
@@ -34,6 +35,8 @@ interface LoupePreviewProps {
   onExecuteCommand: (commandId: CommandId) => void;
   onStepFrame: (delta: number) => void;
   onResetFrame: () => void;
+  /** Open the same photo menu as a right-click, anchored at this point. */
+  onOpenMenu?: (x: number, y: number) => void;
 }
 
 export const LoupePreview: React.FC<LoupePreviewProps> = ({
@@ -53,6 +56,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
   onExecuteCommand,
   onStepFrame,
   onResetFrame,
+  onOpenMenu,
 }) => {
   if (!frame) {
     return (
@@ -91,9 +95,16 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
             onTrash={() => onExecuteCommand('cull.reject')}
             onReset={onResetFrame} />
           <button type="button" disabled={!canUndo} onClick={() => onExecuteCommand('cull.undo')} aria-label="Undo last decision" title="Undo last decision"
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:invisible">
-            <Undo2 className="h-4 w-4" aria-hidden="true" />
+            className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-md px-1.5 text-sm text-zinc-200 hover:bg-white/8 disabled:invisible sm:gap-1.5 sm:px-2.5">
+            <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="hidden min-[360px]:inline">Undo</span>
           </button>
+          {onOpenMenu && (
+            <button type="button" aria-haspopup="menu" aria-label={`More actions for ${frame.filename}`} title="More: reset edit, duplicate, copy adjustments, rate, export"
+              onClick={(event) => { const box = event.currentTarget.getBoundingClientRect(); onOpenMenu(box.left, box.top); }}
+              className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-md px-1.5 text-sm text-zinc-200 hover:bg-white/8 sm:gap-1.5 sm:px-2.5">
+              <MoreHorizontal className="h-4 w-4" aria-hidden="true" /><span className="hidden min-[360px]:inline">More</span>
+            </button>
+          )}
         </div>
         <button type="button" disabled={!hasNext} onClick={() => onStepFrame(1)} aria-label="Next frame" title="Next frame"
           className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:opacity-30">

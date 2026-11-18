@@ -662,6 +662,8 @@ export default function App() {
         showToast(`Pasted adjustments to ${chosen.length} photo${chosen.length === 1 ? '' : 's'}.`);
         break;
       }
+      case 'reset': requestReset(ids); break;
+      case 'duplicate': addVirtualCopy(undefined, menu.frameId); showToast('Made a virtual copy. It shares the original file and has its own edits.'); break;
       case 'export': setExportFrames(chosen); break;
       case 'remove': setPendingAction({ kind: 'remove', frameIds: ids }); break;
     }
@@ -924,10 +926,10 @@ export default function App() {
     }));
   };
 
-  const addVirtualCopy = (framing?: PhotoFraming) => {
-    if (!selectedFrame) return;
+  const addVirtualCopy = (framing?: PhotoFraming, fromFrameId?: string) => {
+    const sourceId = fromFrameId ?? selectedFrame?.id;
+    if (!sourceId) return;
     const id = `copy-${newId()}`;
-    const sourceId = selectedFrame.id;
     setCullingState((prev) => {
       const index = prev.frames.findIndex((frame) => frame.id === sourceId);
       if (index < 0) return prev;
@@ -1522,7 +1524,7 @@ export default function App() {
         if (!frame) return null;
         const ids = targetsFor(photoMenu.frameId, selectedIds, multiSelect);
         return <PhotoContextMenu x={photoMenu.x} y={photoMenu.y} label={ids.length > 1 ? `${ids.length} photos` : frame.filename}
-          state={{ decision: frame.decision, count: ids.length, canPaste: Boolean(copiedEdit), hasEdit: Boolean(frame.edit) }}
+          state={{ decision: frame.decision, count: ids.length, canPaste: Boolean(copiedEdit), hasEdit: Boolean(frame.edit), edited: ids.some((id) => { const target = cullingState.frames.find((candidate) => candidate.id === id); return Boolean(target && isEdited(target)); }) }}
           onChoose={choosePhotoAction} onClose={() => setPhotoMenu(null)} />;
       })()}
       <DesktopUpdate />
@@ -1900,6 +1902,7 @@ export default function App() {
               onExecuteCommand={executeCommand}
               onStepFrame={handleStepFrame}
               onResetFrame={() => selectedFrame && requestReset([selectedFrame.id])}
+              onOpenMenu={(x, y) => selectedFrame && openPhotoMenu(selectedFrame.id, x, y)}
             />
           )}
 
