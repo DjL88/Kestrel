@@ -24,3 +24,5 @@ tools/subject-router/models/
 
 # Local Auto comparisons of the owner's own photos (npm run compare:auto). Never commit.
 kestrel-auto-compare/
+# Local journey runs on the owner's own photos (npm run journey:local). Never commit.
+kestrel-journey-out/

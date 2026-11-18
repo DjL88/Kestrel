@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Info, SlidersHorizontal, Star } from 'lucide-react';
 import type { CullDecision, PhotoFrame } from '../core/types';
@@ -29,7 +30,7 @@ const GAP_PX = 12;
 const PADDING_PX = 16;
 const FOOTER_HEIGHT = 44;
 // Narrow cards stack the filename above the buttons, so the three touch-sized buttons fit.
-const STACKED_FOOTER_HEIGHT = 76;
+const STACKED_FOOTER_HEIGHT = 84;
 
 export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = ({
   frames,
@@ -93,6 +94,14 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   }, [viewport.width, columns]);
 
   // 3:2 thumbnail + footer height
+  const [toolsSlot, setToolsSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 768px)');
+    const find = () => setToolsSlot(desktop.matches ? document.getElementById('kestrel-grid-tools') : null);
+    find();
+    desktop.addEventListener('change', find);
+    return () => desktop.removeEventListener('change', find);
+  }, []);
   const stacked = columns <= 2;
   const footerHeight = stacked ? STACKED_FOOTER_HEIGHT : FOOTER_HEIGHT;
   const cardHeight = Math.round((cardWidth * 2) / 3) + footerHeight;
@@ -156,6 +165,58 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
     visibleRows.push(r);
   }
 
+  // Jump lives in a header, never floating over the photos: the desktop top bar when it is showing, else a strip above the grid.
+  const jumpControl = (
+        <div className="relative">
+            <button type="button" onClick={() => { setJumpOpen((value) => !value); setJumpError(''); }}
+              aria-label="Jump to a photo" aria-controls="kestrel-grid-jump" aria-expanded={jumpOpen}
+              className="min-h-10 rounded-lg border border-white/20 bg-kestrel-panel/95 px-3 py-2 text-xs font-medium text-zinc-100 shadow-lg hover:bg-kestrel-raised focus-visible:outline-2 focus-visible:outline-sky-300">
+              Jump…
+            </button>
+            {jumpOpen && (
+              <div id="kestrel-grid-jump" role="group" aria-label="Jump within this view"
+                className="absolute right-0 top-11 w-[min(19rem,calc(100vw-2.5rem))] space-y-3 rounded-xl border border-white/20 bg-kestrel-raised p-3 shadow-2xl">
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => jumpTo({ kind: 'first' })}
+                    className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">First</button>
+                  <button type="button" onClick={() => jumpTo({ kind: 'last' })}
+                    className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">Last</button>
+                  <button type="button" onClick={() => jumpTo({ kind: 'last-edited' })}
+                    className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">Last edited</button>
+                </div>
+                <form onSubmit={(event) => {
+                  event.preventDefault();
+                  jumpTo({ kind: 'frame', number: Number(jumpFrame) });
+                }}>
+                  <label htmlFor="kestrel-jump-frame" className="block text-xs text-zinc-300">Frame number</label>
+                  <div className="mt-1 flex gap-2">
+                    <input id="kestrel-jump-frame" type="number" min="1" step="1" value={jumpFrame}
+                      onChange={(event) => setJumpFrame(event.target.value)} placeholder="e.g. 1695"
+                      className="min-w-0 flex-1 rounded-md border border-white/15 bg-kestrel-panel px-2 py-2 text-sm text-zinc-100" />
+                    <button type="submit" disabled={!jumpFrame.trim()}
+                      className="min-h-10 rounded-md border border-white/15 px-3 text-xs text-zinc-100 disabled:opacity-50">Go</button>
+                  </div>
+                </form>
+                <form onSubmit={(event) => {
+                  event.preventDefault();
+                  jumpTo({ kind: 'captured-at', timestamp: jumpCaptured ? new Date(jumpCaptured).getTime() : NaN });
+                }}>
+                  <label htmlFor="kestrel-jump-captured" className="block text-xs text-zinc-300">Nearest capture date and time</label>
+                  <div className="mt-1 flex gap-2">
+                    <input id="kestrel-jump-captured" type="datetime-local" value={jumpCaptured}
+                      onChange={(event) => setJumpCaptured(event.target.value)}
+                      className="min-w-0 flex-1 rounded-md border border-white/15 bg-kestrel-panel px-2 py-2 text-xs text-zinc-100" />
+                    <button type="submit" disabled={!jumpCaptured}
+                      className="min-h-10 rounded-md border border-white/15 px-3 text-xs text-zinc-100 disabled:opacity-50">Go</button>
+                  </div>
+                </form>
+                {jumpError && <p role="status" className="text-xs text-orange-200">{jumpError}</p>}
+                <p className="text-[11px] text-zinc-400">Only photos matching your current filter are included. No intervening thumbnails are loaded.</p>
+              </div>
+            )}
+        </div>
+  );
+
   return (
     <div
       ref={containerRef}
@@ -163,56 +224,8 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
       data-testid="virtualized-contact-sheet"
       className="flex-1 overflow-y-auto bg-kestrel-stage relative min-w-0 min-h-0"
     >
-      <div className="sticky top-2 z-10 h-0 pointer-events-none">
-        <div className="absolute right-3 top-0 pointer-events-auto">
-          <button type="button" onClick={() => { setJumpOpen((value) => !value); setJumpError(''); }}
-            aria-label="Jump to a photo" aria-controls="kestrel-grid-jump" aria-expanded={jumpOpen}
-            className="min-h-10 rounded-lg border border-white/20 bg-kestrel-panel/95 px-3 py-2 text-xs font-medium text-zinc-100 shadow-lg hover:bg-kestrel-raised focus-visible:outline-2 focus-visible:outline-sky-300">
-            Jump…
-          </button>
-          {jumpOpen && (
-            <div id="kestrel-grid-jump" role="group" aria-label="Jump within this view"
-              className="absolute right-0 top-11 w-[min(19rem,calc(100vw-2.5rem))] space-y-3 rounded-xl border border-white/20 bg-kestrel-raised p-3 shadow-2xl">
-              <div className="flex gap-2">
-                <button type="button" onClick={() => jumpTo({ kind: 'first' })}
-                  className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">First</button>
-                <button type="button" onClick={() => jumpTo({ kind: 'last' })}
-                  className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">Last</button>
-                <button type="button" onClick={() => jumpTo({ kind: 'last-edited' })}
-                  className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">Last edited</button>
-              </div>
-              <form onSubmit={(event) => {
-                event.preventDefault();
-                jumpTo({ kind: 'frame', number: Number(jumpFrame) });
-              }}>
-                <label htmlFor="kestrel-jump-frame" className="block text-xs text-zinc-300">Frame number</label>
-                <div className="mt-1 flex gap-2">
-                  <input id="kestrel-jump-frame" type="number" min="1" step="1" value={jumpFrame}
-                    onChange={(event) => setJumpFrame(event.target.value)} placeholder="e.g. 1695"
-                    className="min-w-0 flex-1 rounded-md border border-white/15 bg-kestrel-panel px-2 py-2 text-sm text-zinc-100" />
-                  <button type="submit" disabled={!jumpFrame.trim()}
-                    className="min-h-10 rounded-md border border-white/15 px-3 text-xs text-zinc-100 disabled:opacity-50">Go</button>
-                </div>
-              </form>
-              <form onSubmit={(event) => {
-                event.preventDefault();
-                jumpTo({ kind: 'captured-at', timestamp: jumpCaptured ? new Date(jumpCaptured).getTime() : NaN });
-              }}>
-                <label htmlFor="kestrel-jump-captured" className="block text-xs text-zinc-300">Nearest capture date and time</label>
-                <div className="mt-1 flex gap-2">
-                  <input id="kestrel-jump-captured" type="datetime-local" value={jumpCaptured}
-                    onChange={(event) => setJumpCaptured(event.target.value)}
-                    className="min-w-0 flex-1 rounded-md border border-white/15 bg-kestrel-panel px-2 py-2 text-xs text-zinc-100" />
-                  <button type="submit" disabled={!jumpCaptured}
-                    className="min-h-10 rounded-md border border-white/15 px-3 text-xs text-zinc-100 disabled:opacity-50">Go</button>
-                </div>
-              </form>
-              {jumpError && <p role="status" className="text-xs text-orange-200">{jumpError}</p>}
-              <p className="text-[11px] text-zinc-400">Only photos matching your current filter are included. No intervening thumbnails are loaded.</p>
-            </div>
-          )}
-        </div>
-      </div>
+      {!toolsSlot && <div className="sticky top-0 z-10 flex justify-end border-b border-white/6 bg-kestrel-stage/95 px-3 py-1.5">{jumpControl}</div>}
+      {toolsSlot && createPortal(jumpControl, toolsSlot)}
       <div style={{ height: totalHeight, position: 'relative' }}>
         {visibleRows.map((rowIndex) => {
           const rowStartIdx = rowIndex * columns;
@@ -320,49 +333,39 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         className="w-full h-full"
                         imgClassName="object-cover"
                       />
-                      {(() => {
-                        const species = speciesShown(frame);
-                        return species ? (
-                          <span data-testid="species-label" className="absolute inset-x-0 bottom-0 flex items-center gap-1 truncate bg-black/65 px-2 py-1 text-xs text-zinc-100">
-                            <span className="truncate">Species: {species.name}</span>
-                            {species.auto && <span className="shrink-0 rounded bg-sky-300/25 px-1 text-[10px] font-medium uppercase tracking-wide text-sky-100" title="Named automatically. Open the photo info to keep or change it.">Auto</span>}
-                          </span>
-                        ) : null;
-                      })()}
-                      {isEdited(frame) && (
-                        <span role="img" aria-label="Edited" title="Edited"
-                          className={`absolute left-1.5 ${speciesShown(frame) ? 'bottom-8' : 'bottom-1.5'} grid h-6 w-6 place-items-center rounded-full border border-white/20 bg-kestrel-canvas/85 text-sky-200`}>
-                          <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
-                        </span>
-                      )}
-
-                      {/* Burst Group Indicator Strip */}
-                      {frame.burstGroupId && (
-                        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-kestrel-canvas/80 text-[10px] font-mono tabular-nums text-zinc-200 border border-white/10">
-                          Burst {frame.burstIndex}/
-                          {frame.burstCount}
-                        </div>
-                      )}
-                    </button>
-
-                    <button type="button" data-info-button onClick={(event) => onInfo(frame.id, event.currentTarget)}
-                      aria-label={`Photo info and rating for ${frame.filename}`} title={`Photo info and rating for ${frame.filename}`}
-                      className="absolute top-0 right-0 grid h-11 w-11 place-items-center rounded-md focus-visible:outline-2 focus-visible:outline-sky-300">
-                      <span className="grid h-6 w-6 place-items-center rounded-full bg-black/75"><Info className="h-4 w-4" aria-hidden="true" /></span>
                     </button>
 
                     {/* Card Footer: Number, Filename & Colorblind-safe Decision Control */}
                     <div style={{ height: footerHeight }} className={`shrink-0 border-t border-white/6 ${stacked ? 'flex flex-col justify-center gap-1 px-1.5' : 'flex items-center justify-between gap-2 px-2.5'}`}>
-                      <div className="min-w-0">
-                        <div className="text-[11px] font-medium text-zinc-200 truncate">
-                          {frame.filename}
-                          <span className="sr-only">, {frame.decision === 'keep' ? 'Keeper' : frame.decision === 'reject' ? 'In Trash' : 'To review'}</span>
+                      {/* Everything about the photo lives here, under it: nothing sits on the picture itself. */}
+                      <div className="flex min-w-0 flex-1 items-center gap-1">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[11px] font-medium text-zinc-200 truncate">
+                            {frame.filename}
+                            <span className="sr-only">, {frame.decision === 'keep' ? 'Keeper' : frame.decision === 'reject' ? 'In Trash' : 'To review'}</span>
+                          </div>
+                          <div className="flex min-w-0 items-center gap-1.5 text-[10px] text-zinc-500">
+                            <span className="shrink-0 font-mono tabular-nums">#{String(frame.sequenceIndex).padStart(4, '0')}</span>
+                            {Boolean(frame.rating ?? frame.exif.rating) && <span className="inline-flex shrink-0 items-center gap-0.5 text-zinc-300">
+                              <Star className="h-2.5 w-2.5" aria-hidden="true" />{frame.rating ?? frame.exif.rating}</span>}
+                            {frame.burstGroupId && <span className="shrink-0 font-mono tabular-nums text-zinc-300">Burst {frame.burstIndex}/{frame.burstCount}</span>}
+                            {isEdited(frame) && <span role="img" aria-label="Edited" title="Edited" className="shrink-0 text-sky-200"><SlidersHorizontal className="h-3 w-3" aria-hidden="true" /></span>}
+                            {(() => {
+                              const species = speciesShown(frame);
+                              return species ? (
+                                <span data-testid="species-label" className="flex min-w-0 items-center gap-1 text-zinc-200">
+                                  <span className="truncate">Species: {species.name}</span>
+                                  {species.auto && <span className="shrink-0 rounded bg-sky-300/25 px-1 text-[9px] font-medium uppercase tracking-wide text-sky-100" title="Named automatically. Open the photo info to keep or change it.">Auto</span>}
+                                </span>
+                              ) : null;
+                            })()}
+                          </div>
                         </div>
-                        <div className="text-[10px] font-mono tabular-nums text-zinc-500">
-                          #{String(frame.sequenceIndex).padStart(4, '0')}
-                          {Boolean(frame.rating ?? frame.exif.rating) && <span className="ml-1 inline-flex items-center gap-0.5 text-zinc-300">
-                            <Star className="h-2.5 w-2.5" aria-hidden="true" />{frame.rating ?? frame.exif.rating}</span>}
-                        </div>
+                        <button type="button" data-info-button onClick={(event) => onInfo(frame.id, event.currentTarget)}
+                          aria-label={`Photo info and rating for ${frame.filename}`} title={`Photo info and rating for ${frame.filename}`}
+                          className={`grid shrink-0 place-items-center rounded-md text-zinc-300 hover:bg-white/8 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-sky-300 ${stacked ? 'h-9 w-9' : 'h-7 w-7'}`}>
+                          <Info className="h-4 w-4" aria-hidden="true" />
+                        </button>
                       </div>
 
                       <DecisionButtons stretch={stacked} decision={frame.decision} filename={frame.filename} edited={isEdited(frame)}

@@ -219,3 +219,10 @@ test('a clean, underexposed frame is lifted (browser fixtures for batch Auto and
   // A bright frame in the same set stays as it is.
   assert.ok(naturalAuto(flatDark([0xa0, 0xb0, 0xba], [0xc0, 0xce, 0xd2])).edit.exposure <= 0);
 });
+
+test('exposure and warmth suggestions land on the 0.1 slider steps', () => {
+  for (const make of [robinBrightBokeh, woodlandDarkBird, closeRobinGreen, underexposedFlat]) {
+    const { edit } = run(make(), true);
+    for (const value of [edit.exposure, edit.warmth]) assert.equal(Math.round(value * 10) / 10, value);
+  }
+});

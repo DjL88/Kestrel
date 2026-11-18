@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { guidedStep } from './guidedProgress';
+import { guidedStep, remainingWereScanned } from './guidedProgress';
 
 test('an empty project has nothing to guide towards', () => {
   assert.equal(guidedStep({ all: 0, unreviewed: 0, keep: 0 }, 0), 'empty');
@@ -23,4 +23,20 @@ test('decided, with keepers, and some unedited: improving', () => {
 
 test('decided, with keepers, all already edited: ready', () => {
   assert.equal(guidedStep({ all: 10, unreviewed: 0, keep: 5 }, 0), 'ready');
+});
+
+test('the not-confident wording is used only for photos an automatic scan actually looked at', () => {
+  const frame = (id: string, decision: 'keep' | 'reject' | 'unreviewed', extra = {}) => ({
+    id, stableKey: id, filename: id, sequenceIndex: 1, decision, burstGroupId: null, burstIndex: 1, burstCount: 1,
+    exif: {}, isDemo: false, sourceKind: 'file' as const, ...extra,
+  });
+  // Decided by hand, Auto-cull never ran: Kestrel made no judgement.
+  assert.equal(remainingWereScanned([frame('a', 'keep'), frame('b', 'unreviewed')]), false);
+  // A scan looked at the photo and left it: honest to say it wasn't confident.
+  assert.equal(remainingWereScanned([frame('a', 'keep'), frame('b', 'unreviewed', { cullConfidence: 'low' })]), true);
+  // A photo added after the scan has not been looked at.
+  assert.equal(remainingWereScanned([frame('b', 'unreviewed', { cullConfidence: 'low' }), frame('c', 'unreviewed')]), false);
+  // Removed photos (even at epoch zero) do not count.
+  assert.equal(remainingWereScanned([frame('b', 'unreviewed', { cullConfidence: 'low' }), frame('c', 'unreviewed', { removedAt: 0 })]), true);
+  assert.equal(remainingWereScanned([frame('a', 'keep')]), false);
 });
