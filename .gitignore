@@ -20,3 +20,5 @@ raw-samples/
 tools/denoise-training/.venv/
 # Python virtual environment for tools/ (training, Lightroom reader)
 __pycache__/
+tools/subject-router/.venv/
+tools/subject-router/models/
