@@ -183,6 +183,12 @@ function drawOverlay(target: HTMLCanvasElement, lines: string[], options: Overla
  * The finished preview, with the edit applied, replaces it a moment after the drag stops.
  */
 export function drawCropQuickly(source: HTMLImageElement, frame: PhotoFrame, profile: ExportProfile, extras: ExportExtras, target: HTMLCanvasElement) {
+  // The drag-time preview bypasses composeExport. Apply the same decoder guard
+  // before calculating a crop or resizing the caller's canvas.
+  if (!Number.isSafeInteger(source.naturalWidth) || !Number.isSafeInteger(source.naturalHeight)
+      || source.naturalWidth <= 0 || source.naturalHeight <= 0) {
+    throw new Error(`Cannot preview ${frame.filename}: the decoded source has invalid pixel dimensions.`);
+  }
   const framing = frame.framing ?? DEFAULT_FRAMING;
   const { width, height } = framedSize(source.naturalWidth, source.naturalHeight, framing);
   const plan = planExportFraming(width, height, profile, 'focus', extras.focus ?? frame.focusPoint, undefined, extras.zoom);
