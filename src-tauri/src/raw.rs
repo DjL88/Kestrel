@@ -30,7 +30,7 @@ fn apply_orientation(image: RgbImage, exif_orientation: u16) -> RgbImage {
 /// Shared with `raw_precision.rs` so the experimental 16-bit path gives the same plain wording, not the raw `rawler` text.
 pub(crate) fn explain(error: &str) -> String {
     if error.contains("HighEfficen") {
-        "This is a Nikon High Efficiency (HE) RAW file, a compressed mode Kestrel cannot decode on this computer (a Mac can).".to_string()
+        "This Nikon High Efficiency (HE/HE*) RAW cannot be decoded by Kestrel’s built-in decoder. System RAW support varies by computer and operating-system version.".to_string()
     } else {
         format!("This RAW file could not be read: {error}")
     }
@@ -107,9 +107,10 @@ fn validate_system_jpeg(jpeg: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
-/// macOS can read RAW formats the built-in decoder cannot, including Nikon High Efficiency (HE and HE*) files, because the
-/// system's own RAW engine includes licensed decoders. `sips` is part of macOS and uses that engine. The result is Apple's
-/// neutral rendering at the file's full size, already turned the right way up. Used only when the built-in decoder fails.
+/// On some macOS versions the system RAW engine may read formats the built-in decoder cannot.
+/// `sips` is part of macOS; successful HE/HE* decoding and colour fidelity depend on the installed
+/// system and camera support and require lawful real-file verification. The output is a system-rendered
+/// JPEG, not an official Nikon colour match. Used only when the built-in decoder fails.
 #[cfg(target_os = "macos")]
 fn develop_with_system(bytes: &[u8], extension: &str) -> Result<Vec<u8>, String> {
     use std::process::Command;
@@ -293,6 +294,8 @@ mod tests {
     fn nikon_high_efficiency_is_explained_in_plain_words() {
         let message = super::explain("Failed to decode image, possibly corrupt image: NEF compression Some(HighEfficencyStar) is not supported");
         assert!(message.contains("High Efficiency") && !message.contains("Some("), "{message}");
+        assert!(message.contains("varies by computer"), "{message}");
+        assert!(!message.contains("a Mac can"), "{message}");
         assert!(super::explain("something else").contains("could not be read"));
     }
 
