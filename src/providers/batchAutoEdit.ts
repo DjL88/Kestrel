@@ -13,7 +13,7 @@ export async function suggestKeeperAutoEdits(
   targetIds?: ReadonlySet<string>,
 ): Promise<Map<string, PhotoEdit>> {
   const candidates = frames.filter((frame) =>
-    (targetIds ? targetIds.has(frame.id) : frame.decision === 'keep') && !frame.removedAt && !frame.virtualCopy &&
+    (targetIds ? targetIds.has(frame.id) : frame.decision === 'keep') && frame.removedAt == null && !frame.virtualCopy &&
     !frame.editHistory?.steps.length && (!frame.edit || isEmptyEdit(frame.edit)));
   const edits = new Map<string, PhotoEdit>();
   const canvas = document.createElement('canvas');
@@ -61,7 +61,7 @@ export function applyKeeperAutoEdits(
 ): PhotoFrame[] {
   return frames.map((frame) => {
     const suggested = edits.get(frame.id);
-    if (!suggested || !(targetIds ? targetIds.has(frame.id) : frame.decision === 'keep') || frame.removedAt || frame.virtualCopy ||
+    if (!suggested || !(targetIds ? targetIds.has(frame.id) : frame.decision === 'keep') || frame.removedAt != null || frame.virtualCopy ||
         frame.editHistory?.steps.length || (frame.edit && !isEmptyEdit(frame.edit))) return frame;
     return recordEdit(frame, { edit: suggested }, at);
   });
