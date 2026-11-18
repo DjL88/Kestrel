@@ -1,14 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generateDemoShootFrames, createDemoShootState, applyAutoCullDecisions, undoDecision, redoDecision } from './cullingEngine';
-import { limitAutoKeepers, scorePreview, type CullSuggestion } from './autoCull';
+import { limitAutoKeepers, scorePreview, scoreWithSubject, type CullSuggestion } from './autoCull';
 
-test('a flat dark preview is advisory and unavailable images receive no decision', () => {
+test('a flat dark preview stays review-only and unavailable images receive no decision', () => {
   const opaqueDark = new Uint8ClampedArray(96 * 96 * 4);
   for (let i = 3; i < opaqueDark.length; i += 4) opaqueDark[i] = 255;
   const result = scorePreview('dark', opaqueDark, 96, 96);
-  assert.equal(result.confidence, 'medium');
-  assert.equal(result.decision, 'reject');
+  assert.equal(result.confidence, 'low');
+  assert.equal(result.decision, null);
+  assert.equal(result.reason, 'flat');
   assert.equal(scorePreview('small', new Uint8ClampedArray(4), 1, 1).decision, null);
 });
 
@@ -153,7 +154,6 @@ test('repeated scan suggestions never create duplicate high-confidence keeper ac
   assert.equal(suggestions[1].confidence, 'high', 'input suggestions remain unchanged');
 });
 
-import { scoreWithSubject } from './autoCull.ts';
 const baseResult = { frameId: 'a', decision: 'keep' as const, confidence: 'high' as const, score: 95, reason: 'clearDetail' as const };
 
 test('a frame with no subject is never kept on the texture of its background', () => {
@@ -240,4 +240,27 @@ test('subject fallback preserves original suggestion and does not mutate detecto
   assert.equal(result.decision, null);
   assert.deepEqual(base, baseResult);
   assert.deepEqual(found, original);
+});
+
+
+test('flat bright skies and dark frames are never automatically rejected', () => {
+  for (const intensity of [0, 255]) {
+    const pixels = new Uint8ClampedArray(96 * 96 * 4);
+    for (let i = 0; i < pixels.length; i += 4) {
+      pixels[i] = intensity;
+      pixels[i + 1] = intensity;
+      pixels[i + 2] = intensity;
+      pixels[i + 3] = 255;
+    }
+    const result = scorePreview('flat-' + intensity, pixels, 96, 96);
+    assert.deepEqual([result.reason, result.decision, result.confidence], ['flat', null, 'low']);
+  }
+});
+
+
+test('flat preview stays review-only even when a detector reports a sharp subject', () => {
+  const flat: CullSuggestion = { frameId: 'backlit-bird', decision: null, confidence: 'low', score: 35, reason: 'flat' };
+  const finding = { label: 'bird', score: 0.99, size: 800, sharpness: 25 };
+  const actual = scoreWithSubject(flat, finding);
+  assert.equal(actual, flat, 'do not promote an untrustworthy flat preview into a keeper');
 });
