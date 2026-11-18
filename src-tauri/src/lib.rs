@@ -80,11 +80,16 @@ async fn develop_raw_precision_edited(request: tauri::ipc::Request<'_>) -> Resul
         .and_then(|value| value.to_str().ok())
         .ok_or_else(|| "A validated 16-bit RAW edit recipe is required.".to_string())?;
     let edit = raw_precision::parse_master_edit(recipe)?;
+    let framing_json = request.headers().get("x-kestrel-master-framing")
+        .and_then(|value| value.to_str().ok())
+        .ok_or_else(|| "A validated RAW master crop is required.".to_string())?;
+    let framing = raw_precision::parse_master_framing(framing_json)?;
     let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
         return Err("No original RAW file was sent.".into());
     };
     let bytes = bytes.to_vec();
-    let tiff = tauri::async_runtime::spawn_blocking(move || raw_precision::develop_raw_rgb16_tiff_with_edit(&bytes, edit))
+    let tiff = tauri::async_runtime::spawn_blocking(move ||
+        raw_precision::develop_raw_rgb16_tiff_with_edit_and_framing(&bytes, edit, framing))
         .await
         .map_err(|_| "The 16-bit RAW renderer could not finish.".to_string())??;
     Ok(tauri::ipc::Response::new(tiff))
