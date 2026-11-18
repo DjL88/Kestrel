@@ -399,7 +399,19 @@ export function applyCullConfidence(
   results: readonly { frameId: string; confidence: 'high' | 'medium' | 'low'; score: number }[]
 ): CullingState {
   if (!results.length) return state;
-  const byId = new Map(results.map((result) => [result.frameId, result]));
+  // Worker messages and persisted results can be malformed despite their TS types.
+  // Never store NaN/out-of-range scores: confidence sorting must stay stable.
+  // Duplicate or contradictory scan entries are ambiguous, not a last-writer win.
+  const byId = new Map<string, (typeof results)[number]>();
+  const ambiguous = new Set<string>();
+  for (const result of results) {
+    if (!result || typeof result.frameId !== 'string' || !result.frameId ||
+        !Number.isFinite(result.score) || result.score < 0 || result.score > 100 ||
+        !['high', 'medium', 'low'].includes(result.confidence)) continue;
+    if (byId.has(result.frameId)) ambiguous.add(result.frameId);
+    else byId.set(result.frameId, result);
+  }
+  for (const id of ambiguous) byId.delete(id);
   return {
     ...state,
     frames: state.frames.map((frame) => {
