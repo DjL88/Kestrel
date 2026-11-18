@@ -34,7 +34,7 @@ Every status uses exactly one of these labels:
 | Desktop: macOS | PARTIAL | Same Tauri shell. Builds aren't signed. Which commit the Mac is running hasn't been recorded; #355 now shows it in the app. |
 | Mobile | PARTIAL | A responsive interface and an Android shell exist. iOS isn't release-ready. Not tested on physical devices. |
 | Cloud and sync | PARTIAL | User-owned connectors (folder, S3, WebDAV) and proposals. No managed storage backend, by design for now. |
-| Control plane (optional backend) | PARTIAL | [`services/control-plane`](../services/control-plane/README.md): one Node service for licence activation with Ed25519 offline grants, a managed AI gateway (server-held key, consent, 512 KB/1024 px, no EXIF, 12 s deadline, quotas), a signed model manifest with rollback, desktop release notices, signed idempotent billing webhooks, and audited admin routes. SQLite locally; schema portable to PostgreSQL. Its 12 negative security tests run in `npm test`. The client verifiers live in `src/core/` (`signedEnvelope`, `entitlementGrant`, `modelDelivery`, `jpegInspect`, `recipeProposal`), and so does `controlPlaneTransport` (a `HelperTransport`). **Not yet:** deployed anywhere; app sign-in screen; transport chosen in Settings; grant stored and read by `useAccess`; manifest fetch on a schedule; PostgreSQL adapter. |
+| Control plane (optional backend) | PARTIAL | [`services/control-plane`](../services/control-plane/README.md): one Node service for licence activation with Ed25519 offline grants, a managed AI gateway (server-held key, consent, 512 KB/1024 px, no EXIF, 12 s deadline, quotas), a signed model manifest with rollback, desktop release notices, signed idempotent billing webhooks, and audited admin routes. SQLite locally; schema portable to PostgreSQL. Its 12 negative security tests run in `npm test`. The client verifiers live in `src/core/` (`signedEnvelope`, `entitlementGrant`, `modelDelivery`, `jpegInspect`, `recipeProposal`), and so does `controlPlaneTransport` (a `HelperTransport`). **Frozen (P3):** not deployed; no app sign-in screen; transport chosen in Settings; grant stored and read by `useAccess`; manifest fetch on a schedule; PostgreSQL adapter. |
 | AI | PARTIAL | Local detection and an optional Gemini helper. Not built yet: provider abstraction, style learning and consented aggregation. |
 | Denoiser (TrueDetail) | PARTIAL | Training tools in `tools/denoise-training/`. A first CPU-trained model gained +9.1 dB PSNR on held-out *synthetic* noise (18 Nov). Not integrated into the app, and not judged on real high-ISO frames. HE NEFs need DNG conversion before training can use them. |
 
@@ -54,7 +54,9 @@ Platform-specific code lives only in adapters (`src-tauri/`, `src/providers/*`).
 
 ## 3. The order of work
 
-Work runs P0, then P1, then P2, then P3. Inside P0, take the first item that isn't blocked.
+Work runs P0, then P1, then P2, then P3, then P4. Inside each, take the items in order; inside P0, take the first item that isn't blocked.
+
+**Image first (owner decision, 18 Nov 2026).** Kestrel wins on picture quality and calm speed, not on breadth. Until P1.1 lands (one 16-bit float pipeline that the screen and export share), these areas are **frozen**: no new features in `services/control-plane`, licensing, S3/WebDAV connectors, sync, MCP or new planning documents. Fix bugs and security issues there; build nothing new. The control plane stays merged and tested, but nothing deploys it.
 
 ### Draft implementation under review: background Import → Cull → Develop (18 Nov)
 
@@ -85,16 +87,37 @@ The goal is the [release scenario](PRODUCT-SPEC.md#7-release-acceptance-the-scen
 3. **Honest RAW provenance.** Every image shows which decoder produced it. HE and HE\* on Windows say plainly that an embedded preview was used. Pick a Windows route to real HE decoding (for example a user-run DNG conversion flow) and record it here.
    - *Accepted when:* no screen implies a full RAW decode that didn't happen.
 4. **Species list matches real shooting.** Add the White-throated dipper. Check the list against the owner's catalogue subjects, and regenerate `src/assets/species/uk.json` with `tools/species/make_labels.py`.
-   - **Found 18 Nov:** nothing classifies a fresh import as wildlife automatically. The local model (rightly) names only photos marked Wildlife, but only choosing the kind in Photo info or opening the editor sets it, so a 500-photo bird import gets no names. Feed the on-device subject detector's animal/bird finding into the photo's kind (never aircraft or unknown).
+   - **Found 18 Nov:** nothing classifies a fresh import as wildlife automatically. The local model (rightly) names only photos marked Wildlife, but only choosing the kind in Photo info or opening the editor sets it, so a 500-photo bird import gets no names. Feed the on-device subject detector's animal/bird finding into the photo's kind (never aircraft or unknown). The gate already exists: call `permitsUnclassifiedBirdSpecies` (`src/core/speciesMacroGate.ts`, #388) with the YOLOX detection in `src/useSpeciesScan.ts`. No new detector is needed.
    - *Accepted when:* the owner's Dippers get a Dipper suggestion, or "unknown", and never a confident wrong bird; and a fresh bird import gets suggestions without hand-labelling.
 5. **Culling on a real shoot.** Measure keep recall and wrong rejects on one of the owner's labelled shoots. The Lightroom ratings in the owner's catalogue can serve as labels (`tools/lightroom/read_lrcat.py`).
    - *Accepted when:* no uncertain photo is auto-rejected, and recall is reported with numbers.
 6. **Full-resolution export integrity.** Check dimensions, crop and mask parity, colour metadata, an interrupted export, and that originals are unchanged.
    - *Accepted when:* an exported Z8 frame matches the expected pixel size and the original's checksum hasn't changed.
 
-### P1: Effortless and reliable
+### P1: A better picture than the default import elsewhere, done the easy way
+
+Take these in order. Each item is accepted on real, rights-cleared RAW files (Nikon Z8 lossless, Canon R5, Sony A1), not only on synthetic tests.
+
+1. **One 16-bit float pipeline for the screen and export.** Today desktop RAW reaches the editor as an 8-bit JPEG (q95, `src-tauri/src/raw.rs`), the WebGL2 renderer uses 8-bit textures (`src/providers/webglEdit.ts`), and the 16-bit TIFF path (`raw_precision.rs`) is a separate trial that refuses masks, straightening, sharpening and denoise. Instead:
+   - The decoder hands the editor scene-linear 16-bit data, with highlights kept above 1.0 until the display transform.
+   - The editor runs on float textures (WebGL2 `RGBA16F`, WebGPU later), and export uses the same shader at full resolution.
+   - Export embeds an ICC profile (sRGB, Display P3, Adobe RGB).
+
+   This keeps one engine for web, desktop and mobile; a Rust-only engine would break the one-behaviour rule. Delete the 8-bit path and the separate trial button only after the new path passes. Reference-image tests (highlight roll-off on white plumage, banding in sky lifts, haloes from Clarity) run with every change.
+   - *Accepted when:* every slider, mask, crop and straighten exports at 16-bit, matches the screen within a stated tolerance, and no screen mentions bit depth or decoders.
+2. **Tone and colour where photographers feel it.** A hue-preserving highlight roll-off (filmic or sigmoid) instead of hard clipping. True white balance in Kelvin plus green/magenta tint on linear RAW data (check what today's `colour` control does first). A tone curve. Click-on-photo colour adjustment (hue, richness, brightness) instead of a 24-slider panel.
+3. **See what you're doing.** Clipping warnings on the photo, toggled with a key, and an RGB readout under the pointer. An "Essential" / "Pro" switch in the editor panel, with Pro revealing the tone curve, point colour, clipping warnings and optical corrections.
+4. **Masks that follow feathers.** Refine the low-resolution subject mask against the full-resolution image with a guided filter, then the confidence-mask steps below. Add luminance-range and colour-range masks.
+5. **XMP sidecars.** Read and write `xmp:Rating`, picks/rejects and hierarchical `dc:subject` species keywords beside the originals (sidecars only; never the RAW), so a shoot culled in Kestrel opens with its ratings in Lightroom and back again.
+6. **Models on the GPU.** Run detection, species and mask models with WebGPU (or DirectML/CoreML natively), falling back to WASM. Measure, then report the speed-up with numbers.
+7. **Nikon HE/HE\* on Windows: research spike.** Check what LibRaw, Nikon's SDK (licence and redistribution terms) and DNG conversion can actually decode, and record the result in P0.3. No claims before a real HE\* file decodes.
+8. **Eye-lock culling.** Detect the animal's eye in bursts; one key jumps to 100% at the eye, and it stays there across frames. Needs an eye model with a licence that allows shipping it.
+9. **Denoise for real.** A tiled ONNX model on linear RGB (or Bayer) data, judged on real high-ISO frames by eye and with metrics, calibrated per camera. It replaces the 8-bit chroma-only filter.
+
+### P2: Effortless and reliable
 - One Settings home. Simpler Quick Edit. Photo info shown by default. Responsive navigation. Macro-pad workflow.
-- Confidence-mask integration, built in this order:
+- Spot healing (clone/patch for sensor dust and twigs; never generative). Lens corrections (distortion, vignetting, chromatic aberration) from an open lens database. Dehaze and post-crop vignette.
+- Confidence-mask integration (continues P1.4), built in this order:
   1. Keep semantic confidence, pixel coverage and effect strength separate.
   2. Edge-aware refinement at full resolution.
   3. Linear-light blending that preserves alpha.
@@ -103,16 +126,16 @@ The goal is the [release scenario](PRODUCT-SPEC.md#7-release-acceptance-the-scen
 
   Test synthetic ramps, fine strands, high ISO, 16-bit precision and tile seams. (Design carried over from the closed #362.)
 - A local personal style learner that needs no cloud service.
-- A metadata-only serialiser and local sync outbox, with synthetic tests of conflict-safe sync between two devices. (Gates carried over from the closed #363: originals and previews never upload; a licence isn't an account or a key; local writing works with the network off.)
-- Integrate the denoiser: ONNX on the device, judged on real high-ISO frames by eye and with metrics, and calibrated per camera.
-
-### P2: Differentiation
-- TrueDetail detail and denoise improvements, measured against rights-cleared real shoots (`scripts/truedetail_shoot_benchmark.py`, #357). No claims of parity without evidence.
-- Optional AI Guardian with bring-your-own providers: bounded proposals, preview transfer under the user's control, and spend controls.
-- Account-bound metadata backup and restore, without image uploads or a need to be online.
+- TrueDetail detail improvements, measured against rights-cleared real shoots (`scripts/truedetail_shoot_benchmark.py`, #357). No claims of parity without evidence.
 - Tutorial and before/after export for social sharing.
 
-### P3: Collective intelligence and commercial maturity
+### P3: Frozen until P1.1 lands (see "Image first" above)
+- A metadata-only serialiser and local sync outbox, with synthetic tests of conflict-safe sync between two devices. (Gates carried over from the closed #363: originals and previews never upload; a licence isn't an account or a key; local writing works with the network off.)
+- Control plane: deployment, app sign-in, choosing the managed transport, storing grants for `useAccess`, a PostgreSQL adapter.
+- Optional AI Guardian with bring-your-own providers: bounded proposals, preview transfer under the user's control, and spend controls.
+- Account-bound metadata backup and restore, without image uploads or a need to be online.
+
+### P4: Collective intelligence and commercial maturity
 - Opt-in, privacy-filtered collective statistics with cohort protections, deletion and consent.
 - Central model training, and signed offline updates only after demonstrated held-out improvement.
 - Signed installers, real-device acceptance on each platform, licensing, support, and an accessibility audit.
