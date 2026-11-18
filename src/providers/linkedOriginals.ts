@@ -40,18 +40,20 @@ export async function linkedPhoto(path: string): Promise<PickedPhoto> {
 }
 
 /** Reader for a photo already in a project, given its saved path and the name, size and time it had when added. */
+export function linkedSourceMatches(expectedSize: number | undefined, expectedModified: number, actualSize: number, actualModified?: number): boolean {
+  if (!Number.isSafeInteger(actualSize) || actualSize < 0) return false;
+  if (expectedSize !== undefined && (!Number.isSafeInteger(expectedSize) || expectedSize < 0 || expectedSize !== actualSize)) return false;
+  return !(expectedModified > 0 && actualModified !== undefined && Math.abs(actualModified - expectedModified) > 1000);
+}
+
 export function linkedReader(path: string, name: string, lastModified: number, expectedSize?: number): () => Promise<File> {
   return async () => {
     const fs = await import('@tauri-apps/plugin-fs');
     // A path can be reused by a different photo after a card is reimported.
     // Optional expectedSize protects new callers; legacy callers remain compatible.
     const before = await fs.stat(path);
-    if (expectedSize !== undefined && (!Number.isSafeInteger(expectedSize) || expectedSize < 0 ||
-        before.size !== expectedSize)) {
+    if (!linkedSourceMatches(expectedSize, lastModified, before.size, before.mtime?.getTime())) {
       throw new Error('Linked original differs from the imported photo. Reconnect the original before editing.');
-    }
-    if (lastModified > 0 && before.mtime && Math.abs(before.mtime.getTime() - lastModified) > 1000) {
-      throw new Error('Linked original has changed since import. Reconnect the original before editing.');
     }
     const bytes = await fs.readFile(path);
     // A file can change while it is being read. Do not silently return changed bytes.
