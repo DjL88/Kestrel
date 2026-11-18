@@ -178,8 +178,11 @@ test('invalid culling scores never consume keeper slots or remain high-confidenc
     { frameId: c.id, decision: 'keep' as const, confidence: 'high' as const, score: 91, reason: 'clearDetail' as const },
   ];
   const limited = limitAutoKeepers(suggestions, state.frames, 1);
-  assert.deepEqual(limited.map((item) => item.confidence), ['medium', 'medium', 'high']);
-  assert.deepEqual(limited.slice(0, 2).map((item) => item.score), [0, 0]);
+  // Since #375 an invalid score is handled like a conflicting scan result: review-only,
+  // never a keep suggestion, and never a non-finite score that could poison sorting.
+  assert.deepEqual(limited.map((item) => item.confidence), ['low', 'low', 'high']);
+  assert.deepEqual(limited.map((item) => item.decision), [null, null, 'keep']);
+  assert.equal(limited.slice(0, 2).every((item) => Number.isFinite(item.score) && item.score < 80), true);
   assert.equal(suggestions[0].score, Infinity, 'input is not mutated');
   assert.equal(Number.isNaN(suggestions[1].score), true);
 });

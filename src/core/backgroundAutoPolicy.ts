@@ -27,7 +27,7 @@ export function backgroundCullMoves(
   for (const frame of frames) counts.set(frame.id, (counts.get(frame.id) ?? 0) + 1);
   const byId = new Map(frames.map((frame) => [frame.id, frame]));
   const seen = new Set<string>();
-  return results.flatMap((result) => {
+  return results.flatMap((result): { frameId: string; decision: 'keep' | 'reject' }[] => {
     if (seen.has(result.frameId)) return [];
     seen.add(result.frameId);
     const frame = byId.get(result.frameId);
