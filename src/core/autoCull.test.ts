@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generateDemoShootFrames, createDemoShootState, applyAutoCullDecisions, undoDecision, redoDecision } from './cullingEngine';
-import { limitAutoKeepers, scorePreview, type CullSuggestion } from './autoCull';
+import { limitAutoKeepers, scorePreview, scoreWithSubject, type CullSuggestion } from './autoCull';
 
 test('a flat dark preview stays review-only and unavailable images receive no decision', () => {
   const opaqueDark = new Uint8ClampedArray(96 * 96 * 4);
@@ -256,4 +256,12 @@ test('flat bright skies and dark frames are never automatically rejected', () =>
     const result = scorePreview('flat-' + intensity, pixels, 96, 96);
     assert.deepEqual([result.reason, result.decision, result.confidence], ['flat', null, 'low']);
   }
+});
+
+
+test('flat preview stays review-only even when a detector reports a sharp subject', () => {
+  const flat: CullSuggestion = { frameId: 'backlit-bird', decision: null, confidence: 'low', score: 35, reason: 'flat' };
+  const finding = { label: 'bird', score: 0.99, size: 800, sharpness: 25 };
+  const actual = scoreWithSubject(flat, finding);
+  assert.equal(actual, flat, 'do not promote an untrustworthy flat preview into a keeper');
 });
