@@ -29,7 +29,7 @@ fn apply_orientation(image: RgbImage, exif_orientation: u16) -> RgbImage {
 /// A plain-English reason for a decoder error, so the person sees what is going on rather than a library message.
 /// Shared with `raw_precision.rs` so the experimental 16-bit path gives the same plain wording, not the raw `rawler` text.
 pub(crate) fn explain(error: &str) -> String {
-    if error.contains("HighEfficen") {
+    if error.contains("HighEfficen") || error.contains("HighEfficien") {
         "This Nikon High Efficiency (HE/HE*) RAW cannot be decoded by Kestrel’s built-in decoder. System RAW support varies by computer and operating-system version.".to_string()
     } else {
         format!("This RAW file could not be read: {error}")
@@ -296,6 +296,11 @@ mod tests {
         assert!(message.contains("High Efficiency") && !message.contains("Some("), "{message}");
         assert!(message.contains("varies by computer"), "{message}");
         assert!(!message.contains("a Mac can"), "{message}");
+        // Decoder versions may use the corrected English spelling instead of rawler’s historical typo.
+        for variant in ["HighEfficiency", "HighEfficiencyStar", "HighEfficency", "HighEfficencyStar"] {
+            let explained = super::explain(&format!("NEF compression Some({variant}) is not supported"));
+            assert!(explained.contains("High Efficiency") && !explained.contains("Some("), "{variant}: {explained}");
+        }
         assert!(super::explain("something else").contains("could not be read"));
     }
 
