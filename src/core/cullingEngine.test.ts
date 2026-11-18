@@ -484,3 +484,106 @@ test('restoring one photo preserves unrelated removal history', () => {
   assert.equal(undone.frames[0].removedAt, undefined);
   assert.equal(undone.frames[1].removedAt, undefined);
 });
+
+
+test('valid and malformed duplicate scans both require review regardless of arrival order', () => {
+  const state = createDemoShootState(2);
+  const frameId = state.frames[0].id;
+  const valid = { frameId, confidence: 'high' as const, score: 94 };
+  const corrupt = { frameId, confidence: 'high' as const, score: Number.NaN };
+  for (const batch of [[valid, corrupt], [corrupt, valid]]) {
+    const result = applyCullConfidence(state, batch);
+    assert.equal(result.frames[0].cullConfidence, undefined);
+    assert.equal(result.frames[0].cullScore, undefined);
+    assert.equal(result.frames[0].decision, 'unreviewed');
+  }
+});
+
+test('duplicate catalogue identities and removed photos do not receive confidence', () => {
+  const state = createDemoShootState(3);
+  const duplicatedId = state.frames[0].id;
+  const removedId = state.frames[2].id;
+  const damaged = {
+    ...state,
+    frames: state.frames.map((frame, index) =>
+      index === 1 ? { ...frame, id: duplicatedId } :
+      index === 2 ? { ...frame, removedAt: 1 } : frame),
+  };
+  const next = applyCullConfidence(damaged, [
+    { frameId: duplicatedId, confidence: 'high', score: 97 },
+    { frameId: removedId, confidence: 'high', score: 96 },
+  ]);
+  assert.ok(next.frames.every((frame) => frame.cullScore === undefined));
+  assert.ok(next.frames.every((frame) => frame.decision === 'unreviewed'));
+  assert.deepEqual(damaged.frames, state.frames.map((frame, index) =>
+    index === 1 ? { ...frame, id: duplicatedId } :
+    index === 2 ? { ...frame, removedAt: 1 } : frame));
+});
+
+
+test('confidence sorting treats corrupt persisted scores as unscored and keeps stable order', () => {
+  const state = createDemoShootState(6);
+  const frames = state.frames.map((frame) => ({ ...frame }));
+  frames[0].cullConfidence = 'high';
+  frames[0].cullScore = Number.NaN;
+  frames[1].cullConfidence = 'high';
+  frames[1].cullScore = Infinity;
+  frames[2].cullConfidence = 'bogus' as 'high';
+  frames[2].cullScore = 99;
+  frames[3].cullConfidence = 'high';
+  frames[3].cullScore = 94;
+  frames[4].cullConfidence = 'medium';
+  frames[4].cullScore = 65;
+  frames[5].cullConfidence = 'low';
+  frames[5].cullScore = -1;
+  const sorted = sortFrames(frames, 'confidence-desc');
+  assert.deepEqual(sorted.map((frame) => frame.id), [
+    frames[3].id, frames[4].id, frames[0].id,
+    frames[1].id, frames[2].id, frames[5].id,
+  ]);
+  assert.equal(frames[0].cullScore, Number.NaN);
+  assert.equal(frames[3].decision, 'unreviewed');
+});
+
+test('ambiguous rescan clears stale confidence but preserves manual decisions and undo', () => {
+  const initial = createDemoShootState(3);
+  const id = initial.frames[0].id;
+  const scored = applyCullConfidence(initial, [{ frameId: id, confidence: 'high', score: 98 }]);
+  const decided = applyDecisionWithHistory(scored, id, 'keep', { allowAdvance: false });
+  const history = decided.undoStack;
+  const rescanned = applyCullConfidence(decided, [
+    { frameId: id, confidence: 'high', score: 99 },
+    { frameId: id, confidence: 'low', score: 12 },
+  ]);
+  assert.equal(rescanned.frames[0].cullScore, undefined);
+  assert.equal(rescanned.frames[0].cullConfidence, undefined);
+  assert.equal(rescanned.frames[0].decision, 'keep');
+  assert.equal(rescanned.undoStack, history);
+  assert.equal(decided.frames[0].cullScore, 98, 'previous state must remain immutable');
+  assert.equal(undoDecision(rescanned).frames[0].decision, 'unreviewed');
+});
+
+
+test('late scan clears previously scored removed photo without altering decisions or undo', () => {
+  const initial = createDemoShootState(3);
+  const id = initial.frames[0].id;
+  const scored = applyCullConfidence(initial, [{ frameId: id, confidence: 'high', score: 96 }]);
+  const decided = applyDecisionWithHistory(scored, id, 'keep', { allowAdvance: false });
+  const removed = {
+    ...decided,
+    frames: decided.frames.map((frame, index) =>
+      index === 0 ? { ...frame, removedAt: 123 } : frame),
+  };
+  const undoStack = removed.undoStack;
+  const scanned = applyCullConfidence(removed, [
+    { frameId: id, confidence: 'high', score: 99 },
+    { frameId: removed.frames[1].id, confidence: 'medium', score: 60 },
+  ]);
+  assert.equal(scanned.frames[0].cullScore, undefined);
+  assert.equal(scanned.frames[0].cullConfidence, undefined);
+  assert.equal(scanned.frames[0].removedAt, 123);
+  assert.equal(scanned.frames[0].decision, 'keep');
+  assert.equal(scanned.undoStack, undoStack);
+  assert.equal(scanned.frames[1].cullScore, 60);
+  assert.equal(removed.frames[0].cullScore, 96, 'input state must remain immutable');
+});

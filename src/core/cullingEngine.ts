@@ -313,7 +313,7 @@ export function computeCullCounts(frames: readonly PhotoFrame[]): CullCounts {
 
   let all = 0;
   for (const frame of frames) {
-    if (frame.removedAt) continue;
+    if (frame.removedAt != null) continue;
     all += 1;
     if (frame.decision === 'keep') keep += 1;
     else if (frame.decision === 'reject') reject += 1;
@@ -338,7 +338,7 @@ export function filterFrames(
 ): PhotoFrame[] {
   const query = searchQuery.trim().toLowerCase();
   return frames.filter((frame) => {
-    if (frame.removedAt) return false;
+    if (frame.removedAt != null) return false;
     if (filter !== 'all' && frame.decision !== filter) {
       return false;
     }
@@ -379,10 +379,18 @@ export function sortFrames(frames: readonly PhotoFrame[], sortOrder?: SortOrder)
     case 'confidence-desc':
       // Frames auto-cull has never scored sort after every scored one, regardless of confidence.
       ordered.sort((a, b) => {
-        const rankA = a.cullConfidence ? CONFIDENCE_RANK[a.cullConfidence] : -1;
-        const rankB = b.cullConfidence ? CONFIDENCE_RANK[b.cullConfidence] : -1;
+        // Persisted catalogues may predate scan validation or contain corrupt
+        // values. Treat those as unscored, rather than returning NaN from sort.
+        const scoreA = typeof a.cullScore === 'number' && Number.isFinite(a.cullScore) &&
+          a.cullScore >= 0 && a.cullScore <= 100 ? a.cullScore : null;
+        const scoreB = typeof b.cullScore === 'number' && Number.isFinite(b.cullScore) &&
+          b.cullScore >= 0 && b.cullScore <= 100 ? b.cullScore : null;
+        const rankA = scoreA !== null && (a.cullConfidence === 'high' || a.cullConfidence === 'medium' || a.cullConfidence === 'low')
+          ? CONFIDENCE_RANK[a.cullConfidence!] : -1;
+        const rankB = scoreB !== null && (b.cullConfidence === 'high' || b.cullConfidence === 'medium' || b.cullConfidence === 'low')
+          ? CONFIDENCE_RANK[b.cullConfidence!] : -1;
         if (rankA !== rankB) return rankB - rankA;
-        return (b.cullScore ?? 0) - (a.cullScore ?? 0);
+        return rankA === -1 ? 0 : scoreB! - scoreA!;
       });
       break;
     case 'captured-desc':
@@ -399,12 +407,54 @@ export function applyCullConfidence(
   results: readonly { frameId: string; confidence: 'high' | 'medium' | 'low'; score: number }[]
 ): CullingState {
   if (!results.length) return state;
-  const byId = new Map(results.map((result) => [result.frameId, result]));
+  // Worker messages and persisted results can be malformed despite their TS types.
+  // Never store NaN/out-of-range scores: confidence sorting must stay stable.
+  // Duplicate or contradictory scan entries are ambiguous, not a last-writer win.
+  const byId = new Map<string, (typeof results)[number]>();
+  const ambiguous = new Set<string>();
+  for (const result of results) {
+    // Even a malformed second entry makes the ID ambiguous. Do not let a
+    // valid/invalid pair become an order-dependent confidence update.
+    if (!result || typeof result.frameId !== 'string' || !result.frameId) continue;
+    if (byId.has(result.frameId) || ambiguous.has(result.frameId)) {
+      ambiguous.add(result.frameId);
+      byId.delete(result.frameId);
+      continue;
+    }
+    if (!Number.isFinite(result.score) || result.score < 0 || result.score > 100 ||
+        !['high', 'medium', 'low'].includes(result.confidence)) {
+      ambiguous.add(result.frameId);
+      continue;
+    }
+    byId.set(result.frameId, result);
+  }
+  // A damaged catalogue can contain two photos with the same identity. Never
+  // attach one worker result to both, or resurrect a removed photo's score.
+  const seen = new Set<string>();
+  for (const frame of state.frames) {
+    if (seen.has(frame.id)) ambiguous.add(frame.id);
+    seen.add(frame.id);
+  }
+  for (const id of ambiguous) byId.delete(id);
   return {
     ...state,
     frames: state.frames.map((frame) => {
+      // A removed photo must not retain a stale ranking signal when a delayed
+      // worker batch arrives. This only clears advisory scan metadata; never
+      // changes the removal marker, manual decision or undo history.
+      if (frame.removedAt != null) {
+        return frame.cullConfidence !== undefined || frame.cullScore !== undefined
+          ? { ...frame, cullConfidence: undefined, cullScore: undefined }
+          : frame;
+      }
       const found = byId.get(frame.id);
-      return found ? { ...frame, cullConfidence: found.confidence, cullScore: found.score } : frame;
+      if (found) return { ...frame, cullConfidence: found.confidence, cullScore: found.score };
+      // A later malformed/duplicate result must not leave an earlier high
+      // confidence looking current. Preserve decisions and undo/redo history.
+      if (ambiguous.has(frame.id) && (frame.cullConfidence !== undefined || frame.cullScore !== undefined)) {
+        return { ...frame, cullConfidence: undefined, cullScore: undefined };
+      }
+      return frame;
     }),
   };
 }
@@ -415,7 +465,7 @@ export function stepSelection(
   delta: number
 ): string | null {
   // Stale views can include a removed photograph. Never navigate back to it.
-  const active = visibleFrames.filter((frame) => !frame.removedAt);
+  const active = visibleFrames.filter((frame) => frame.removedAt == null);
   if (active.length === 0) return null;
   if (!currentId) return active[0].id;
   const idx = active.findIndex((frame) => frame.id === currentId);
@@ -432,12 +482,15 @@ export function getDefaultComparePair(
   frames: readonly PhotoFrame[],
   activeId: string | null
 ): { leftId: string | null; rightId: string | null } {
-  if (frames.length === 0) return { leftId: null, rightId: null };
-  const idx = activeId ? frames.findIndex((f) => f.id === activeId) : 0;
+  // A stale compare selection can point to a removed photograph. Neither
+  // side of the comparison may display removed catalogue entries.
+  const available = frames.filter((frame) => frame.removedAt == null);
+  if (available.length === 0) return { leftId: null, rightId: null };
+  const idx = activeId ? available.findIndex((f) => f.id === activeId) : 0;
   const safeIdx = idx === -1 ? 0 : idx;
-  const left = frames[safeIdx];
+  const left = available[safeIdx];
 
-  if (frames.length === 1) {
+  if (available.length === 1) {
     // A one-photo shoot has nothing to compare. Showing the same image as
     // both A and B suggests a second candidate exists when it does not.
     return { leftId: left.id, rightId: null };
@@ -446,8 +499,8 @@ export function getDefaultComparePair(
   // Prefer the next frame in the same burst, else previous in same burst, else next frame overall.
   // A stale or damaged catalogue can contain repeated IDs or removed photos.
   // Compare must never present either as a distinct candidate.
-  const nextFrame = frames.slice(safeIdx + 1).find((f) => f.id !== left.id && !f.removedAt);
-  const prevFrame = frames.slice(0, safeIdx).reverse().find((f) => f.id !== left.id && !f.removedAt);
+  const nextFrame = available.slice(safeIdx + 1).find((f) => f.id !== left.id);
+  const prevFrame = available.slice(0, safeIdx).reverse().find((f) => f.id !== left.id);
 
   if (
     nextFrame &&
@@ -487,7 +540,7 @@ export function applyDecisionWithHistory(
   const targetFrame = state.frames[targetIdx];
   // A stale filmstrip/compare callback must never reclassify a photo already removed
   // from the library. Restoration is a separate, explicit action.
-  if (targetFrame.removedAt) return state;
+  if (targetFrame.removedAt != null) return state;
   const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
   const visibleIdx = visibleBefore.findIndex((f) => f.id === frameId);
 
@@ -582,7 +635,7 @@ export function applyAutoCullDecisions(
   const batch: NonNullable<CullingState['undoStack'][number]['batch']> = [];
   const frames = state.frames.map((frame) => {
     const decision = byId.get(frame.id);
-    if (!decision || frame.removedAt || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) return frame;
+    if (!decision || frame.removedAt != null || frame.decision !== 'unreviewed' || frame.isDemo || frame.virtualCopy) return frame;
     batch.push({ frameId: frame.id, prevDecision: frame.decision, nextDecision: decision });
     return { ...frame, decision };
   });
@@ -631,7 +684,7 @@ function unambiguousRequestedIds(frames: readonly PhotoFrame[], requested: reado
 /** Take photos that are already in Trash out of the library. Files on disk are never touched, and Restore reverses it. */
 export function removeFromLibrary(state: CullingState, frameIds: string[]): CullingState {
   const ids = unambiguousRequestedIds(state.frames, frameIds);
-  const targets = state.frames.filter((frame) => ids.has(frame.id) && frame.decision === 'reject' && !frame.removedAt);
+  const targets = state.frames.filter((frame) => ids.has(frame.id) && frame.decision === 'reject' && frame.removedAt == null);
   if (!targets.length) return state;
   const removing = new Set(targets.map((frame) => frame.id));
   const visibleBefore = filterFrames(state.frames, state.filter, state.searchQuery, state.ratingFilter, state.cameraFilter, state.lensFilter);
@@ -654,22 +707,22 @@ export function removeFromLibrary(state: CullingState, frameIds: string[]): Cull
 }
 
 export function removedFrames(frames: readonly PhotoFrame[]): PhotoFrame[] {
-  return frames.filter((frame) => frame.removedAt).sort((a, b) => (b.removedAt ?? 0) - (a.removedAt ?? 0));
+  return frames.filter((frame) => frame.removedAt != null).sort((a, b) => (b.removedAt ?? 0) - (a.removedAt ?? 0));
 }
 
 /** Bring removed photos back. They return to Trash so nothing reappears among Keepers by surprise. */
 export function restoreRemoved(state: CullingState, frameIds: string[]): CullingState {
   const ids = unambiguousRequestedIds(state.frames, frameIds);
-  if (!state.frames.some((frame) => ids.has(frame.id) && frame.removedAt)) return state;
+  if (!state.frames.some((frame) => ids.has(frame.id) && frame.removedAt != null)) return state;
   const frames = state.frames.map((frame) => {
-    if (!ids.has(frame.id) || !frame.removedAt) return frame;
+    if (!ids.has(frame.id) || frame.removedAt == null) return frame;
     const { removedAt: _removedAt, ...kept } = frame;
     return kept;
   });
   // Explicit restoration is a new user action: an earlier redo must not silently remove it again.
   // Explicit Restore must not retain an undo that can recreate an unintended removal.
   // Keep unrelated review and removal history.
-  const restoredIds = new Set(state.frames.filter((frame) => ids.has(frame.id) && frame.removedAt).map((frame) => frame.id));
+  const restoredIds = new Set(state.frames.filter((frame) => ids.has(frame.id) && frame.removedAt != null).map((frame) => frame.id));
   const undoStack = state.undoStack.filter((entry) =>
     !entry.removal || !(entry.batch ?? [entry]).some((change) => restoredIds.has(change.frameId))
   );
