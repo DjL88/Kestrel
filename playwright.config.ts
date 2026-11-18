@@ -2,6 +2,9 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
+  // Many steps wait up to 60s for on-device model work (subject finder, species, auto-cull). Playwright's 30s default
+  // cut those waits short whenever several browsers ran at once, so tests failed on load rather than on behaviour.
+  timeout: 90_000,
   use: {
     baseURL: 'http://127.0.0.1:4173',
     browserName: 'chromium',
@@ -22,5 +25,7 @@ export default defineConfig({
       VITE_SPECIES_MODEL_BYTES: '2278',
     },
     url: 'http://127.0.0.1:4173',
+    // The command builds the app first. That alone takes 40-60s on the Windows laptop, so 60s (the default) is not enough.
+    timeout: 180_000,
   },
 });

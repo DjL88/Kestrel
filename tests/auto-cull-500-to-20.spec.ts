@@ -49,10 +49,13 @@ test('500 photos, target 20: initial Auto Cull, Auto Edit and keeper export hand
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
 
-  const dialog = page.getByRole('dialog', { name: 'Auto-cull' });
-  await expect(dialog).toBeVisible({ timeout: 90_000 });
-  await expect(dialog.getByRole('status').filter({ hasText: /results moved/ })).toBeVisible({ timeout: 150_000 });
-  await dialog.getByRole('button', { name: 'Close auto-cull' }).click();
+  // Since #376 the import is reviewed by a background task in the task manager, not a blocking dialog.
+  await page.getByRole('button', { name: /Tasks|Working|Busy|Stuck|Problem/ }).click({ timeout: 90_000 });
+  const tasks = page.getByRole('region', { name: 'Tasks' });
+  const review = tasks.getByRole('listitem').filter({ hasText: 'Reviewing imported photographs' });
+  await expect(review).toContainText('Finished', { timeout: 150_000 });
+  await expect(tasks).not.toContainText('Stopped by a problem');
+  await page.getByRole('button', { name: /Tasks|Working|Busy|Stuck|Problem/ }).click();
 
   const collections = page.getByRole('navigation', { name: 'Photo collections' });
   await expect(collections.getByRole('button', { name: 'All photos 500' })).toBeVisible();
@@ -76,7 +79,8 @@ test('500 photos, target 20: initial Auto Cull, Auto Edit and keeper export hand
   const editedFilename = await page.getByRole('heading', { level: 1 }).innerText();
   await page.getByRole('tab', { name: 'Auto' }).click();
   // Editing stays focused on improving the image, not metadata entry.
-  await expect(page.getByRole('button', { name: 'Suggest a look' })).toBeVisible();
+  // The on-device analysis shows "Analysing…" in place of this button until it finishes, which is slower under load.
+  await expect(page.getByRole('button', { name: 'Suggest a look' })).toBeVisible({ timeout: 60_000 });
   const looks = page.getByRole('region', { name: 'Photo recipes' });
   await expect(looks).toBeVisible();
   await expect(looks.getByRole('button', { name: 'Mono natural' })).toBeVisible();

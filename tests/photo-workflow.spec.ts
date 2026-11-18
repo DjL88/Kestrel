@@ -17,7 +17,7 @@ async function expectIconButtonsHaveTooltips(page: Page, where: string) {
 }
 
 test('import ten photos, keep and edit a frame, export it and reopen offline', async ({ page, context }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000); // on-device subject detection is slow when many browsers run at once
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
   await expect(page.getByText('Create a project to import photos, or restore a Kestrel backup.')).toBeVisible();
@@ -141,7 +141,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await expect(light).toHaveValue('0.2');
   await page.evaluate(() => window.dispatchEvent(new Event('test-resume-model')));
   await page.getByRole('tab', { name: 'Masks' }).click();
-  await expect(page.getByText('Photo edits changed. Find the subject or background again.')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText('Photo edits changed. Find the subject or background again.')).toBeVisible({ timeout: 45_000 });
   await page.getByRole('tab', { name: 'Edit' }).click();
   await expect(light).toHaveValue('0.2');
   await light.press('ArrowLeft');
