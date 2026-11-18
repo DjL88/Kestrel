@@ -39,20 +39,25 @@ export async function linkedPhoto(path: string): Promise<PickedPhoto> {
   };
 }
 
-/** Reader for a photo already in a project, given its saved path and the name, size and time it had when added. */
-export function linkedSourceMatches(expectedSize: number | undefined, expectedModified: number, actualSize: number, actualModified?: number): boolean {
+/**
+ * Is the file now at a linked path still the photo that was imported? Size must match when it is known.
+ * The modified time is deliberately NOT compared with the import time: Reconnect accepts a file whose name and size
+ * match but whose modified time changed (copied, re-downloaded, restored from backup), and FAT/exFAT cards and NAS
+ * shares round times by up to two seconds. Rejecting those would make reconnected photos refuse to open.
+ */
+export function linkedSourceMatches(expectedSize: number | undefined, actualSize: number): boolean {
   if (!Number.isSafeInteger(actualSize) || actualSize < 0) return false;
-  if (expectedSize !== undefined && (!Number.isSafeInteger(expectedSize) || expectedSize < 0 || expectedSize !== actualSize)) return false;
-  return !(expectedModified > 0 && actualModified !== undefined && Math.abs(actualModified - expectedModified) > 1000);
+  if (expectedSize === undefined) return true;
+  return Number.isSafeInteger(expectedSize) && expectedSize > 0 && expectedSize === actualSize;
 }
 
+/** Reader for a photo already in a project, given its saved path and the name, size and time it had when added. */
 export function linkedReader(path: string, name: string, lastModified: number, expectedSize?: number): () => Promise<File> {
   return async () => {
     const fs = await import('@tauri-apps/plugin-fs');
     // A path can be reused by a different photo after a card is reimported.
-    // Optional expectedSize protects new callers; legacy callers remain compatible.
     const before = await fs.stat(path);
-    if (!linkedSourceMatches(expectedSize, lastModified, before.size, before.mtime?.getTime())) {
+    if (!linkedSourceMatches(expectedSize, before.size)) {
       throw new Error('Linked original differs from the imported photo. Reconnect the original before editing.');
     }
     const bytes = await fs.readFile(path);

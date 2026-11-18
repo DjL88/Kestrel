@@ -265,7 +265,7 @@ export async function rehydrateLocalFramesFromStore(
   for (const frame of frames) {
     if (frame.sourcePath && !previewProvider.hasBlob(frame.stableKey)) {
       previewProvider.registerLinked(frame.stableKey, {
-        read: linkedReader(frame.sourcePath, frame.filename, lastModifiedOf(frame.stableKey)),
+        read: linkedReader(frame.sourcePath, frame.filename, lastModifiedOf(frame.stableKey), sizeOf(frame.stableKey) || undefined),
         size: sizeOf(frame.stableKey), lastModified: lastModifiedOf(frame.stableKey),
       });
     }
