@@ -219,7 +219,7 @@ export async function renderExport(
       signal?.throwIfAborted();
       const encoded = await new Promise<Blob | null>((resolve) => output.toBlob(resolve, mime, quality));
       signal?.throwIfAborted();
-      if (!encoded || encoded.type !== mime) throw new Error(`Could not encode ${name} at ${output.width} × ${output.height} px.`);
+      if (!encoded || encoded.type !== mime || encoded.size === 0) throw new Error(`Could not encode ${name} at ${output.width} × ${output.height} px.`);
       const file = datedExport(encoded, name, date);
       if (!profile.maxBytes || file.size <= profile.maxBytes) return file;
     }

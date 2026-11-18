@@ -179,3 +179,44 @@ test('drag-time crop preview rejects invalid RAW decoder dimensions before touch
     assert.throws(() => drawCropQuickly(source, frame, master, {}, target), /invalid pixel dimensions/);
   }
 });
+
+
+test('export rejects an empty encoded file rather than saving a corrupt master', async (t) => {
+  const saved = new Map(['document', 'navigator'].map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  t.after(() => {
+    for (const [key, descriptor] of saved) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+  });
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true, value: { userAgent: 'desktop', platform: 'Win32', maxTouchPoints: 0 },
+  });
+  const context = { resetTransform() {}, clearRect() {}, scale() {}, translate() {}, rotate() {}, drawImage() {} };
+  let attempts = 0;
+  let canvas: { width: number; height: number } | undefined;
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true, value: {
+      createElement() {
+        canvas = {
+          width: 0, height: 0,
+          getContext: () => context,
+          toBlob(callback: (value: Blob) => void) {
+            attempts++;
+            callback(new Blob([], { type: 'image/png' }));
+          },
+        } as typeof canvas;
+        return canvas;
+      },
+    },
+  });
+  const frame = createDemoShootState(1).frames[0];
+  const master = EXPORT_PROFILES.find(({ id }) => id === 'master')!;
+  await assert.rejects(
+    renderExport({ naturalWidth: 640, naturalHeight: 480 } as HTMLImageElement, frame, master, new Date()),
+    /Could not encode/,
+  );
+  assert.equal(attempts, 1, 'do not retry a zero-byte encoder result as if it were valid');
+  assert.equal(canvas?.width, 0, 'release allocated canvas on failure');
+  assert.equal(canvas?.height, 0);
+});
