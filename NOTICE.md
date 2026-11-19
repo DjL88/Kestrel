@@ -22,11 +22,24 @@ which is the usual practical answer, but **get this specifically reviewed by a
 lawyer before shipping a signed, paid build** — don't treat this notice as that
 review.
 
+## Needs a patent decision before public release: `ticoraw` (Nikon HE/HE* decoding)
+
+`src-tauri/src/nikon_he.rs` links the `ticoraw` crate (0.2.0, pinned) to decode
+Nikon High Efficiency (HE/HE*) NEFs from their sensor data. Its **copyright**
+licence is MIT OR Apache-2.0, which is compatible with a proprietary app. But the
+TicoRAW / JPEG XS codec it implements is **covered by patents** (intoPIX), and the
+crate author states the copyright licence is not a patent licence. It is built
+only with the `nikon-he` Cargo feature (on by default for the owner's own test
+installs). **Before any public or paid build:** get a patent/licensing opinion, or
+build with `--no-default-features`, in which case HE files fall back to the
+embedded preview as before. Writing our own decoder would not avoid the patents.
+
 ## Rust crates (desktop shell, `src-tauri/Cargo.toml`)
 
 | Crate | License | Role |
 | --- | --- | --- |
 | `rawler` | LGPL-2.1 | Native RAW decoding — see above |
+| `ticoraw` | MIT OR Apache-2.0 (codec patented; see above) | Nikon HE/HE* sensor decoding, feature `nikon-he` |
 | `image` | MIT OR Apache-2.0 | JPEG/PNG encode/decode for developed RAW output |
 | `tauri`, `tauri-plugin-*` | MIT OR Apache-2.0 | Desktop shell, filesystem, dialog, updater, HTTP, process plugins |
 | `serde`, `serde_json` | MIT OR Apache-2.0 | Data (de)serialisation |
@@ -64,7 +77,8 @@ build tooling or a plugin SDK separately.
 ## What to do next
 
 1. Run the automated scans above and diff them against this file.
-2. Get the `rawler` LGPL-2.1 static-linking question answered by a lawyer.
+2. Get the `rawler` LGPL-2.1 static-linking question answered by a lawyer, and
+   the TicoRAW patent question for `ticoraw` (or ship without `nikon-he`).
 3. Write the missing per-model notice for `u2netp.onnx` / `yolox_tiny.onnx`.
 4. Ship this file (or its generated successor) alongside every installer, the
    way `docs/notices/bioclip.txt` already is — not just in the git repo.

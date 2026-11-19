@@ -1,4 +1,6 @@
 #[cfg(desktop)]
+mod nikon_he;
+#[cfg(desktop)]
 mod raw;
 pub mod scene_develop;
 #[cfg(desktop)]
@@ -57,9 +59,9 @@ async fn develop_raw(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Res
     Ok(tauri::ipc::Response::new(jpeg))
 }
 
-/// Experimental: develop a RAW file straight to a 16-bit TIFF (see `raw_precision.rs`). No Nikon HE/HE* support and no
-/// colour profile yet; refuses rather than silently falling back to 8-bit. Offered as an extra download, not the default
-/// editing path, until ICC handling and HE coverage are in place.
+/// Experimental: develop a RAW file straight to a 16-bit TIFF (see `raw_precision.rs`). Nikon HE/HE* goes through the
+/// same sensor decode as the editor (`nikon_he.rs`). No colour profile yet; refuses rather than silently falling back to
+/// 8-bit. Offered as an extra download, not the default editing path, until ICC handling is in place.
 #[cfg(desktop)]
 #[tauri::command]
 async fn develop_raw_precision(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Response, String> {
@@ -96,6 +98,19 @@ async fn develop_raw_precision_edited(request: tauri::ipc::Request<'_>) -> Resul
     Ok(tauri::ipc::Response::new(tiff))
 }
 
+/// A lossless DNG copy of a Nikon High Efficiency RAW's sensor data, for editors and tools that cannot read HE/HE*.
+/// Returned to the page, which asks where to save it; the original is only read.
+#[cfg(desktop)]
+#[tauri::command]
+async fn raw_dng_copy(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Response, String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else { return Err("No file was sent.".into()) };
+    let bytes = bytes.to_vec();
+    let dng = tauri::async_runtime::spawn_blocking(move || nikon_he::dng_copy(&bytes))
+        .await
+        .map_err(|_| "This RAW file could not be read.".to_string())??;
+    Ok(tauri::ipc::Response::new(dng))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -113,7 +128,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(OpenedFiles::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_precision, develop_raw_precision_edited, take_opened_files])
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, take_opened_files])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "Kestrel", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,
