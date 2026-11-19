@@ -55,8 +55,30 @@ export interface RouteResult {
   animalProbability: number;
 }
 
-const dot = (a: ArrayLike<number>, b: ArrayLike<number>) => { let sum = 0; for (let i = 0; i < a.length; i += 1) sum += a[i] * b[i]; return sum; };
-const norm = (v: ArrayLike<number>) => Math.sqrt(dot(v, v)) || 1;
+/**
+ * Cosine similarity without squaring unscaled model outputs. Even entirely finite
+ * embeddings can overflow ordinary dot products/norms (e.g. 1e200 * 1e200),
+ * leaving NaN probabilities that must never become a subject claim.
+ */
+function cosine(a: ArrayLike<number>, b: ArrayLike<number>): number {
+  let aMax = 0;
+  let bMax = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    aMax = Math.max(aMax, Math.abs(a[i]));
+    bMax = Math.max(bMax, Math.abs(b[i]));
+  }
+  let dot = 0;
+  let aSquared = 0;
+  let bSquared = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    const av = a[i] / aMax;
+    const bv = b[i] / bMax;
+    dot += av * bv;
+    aSquared += av * av;
+    bSquared += bv * bv;
+  }
+  return dot / Math.sqrt(aSquared * bSquared);
+}
 
 /**
  * Rank the categories for one picture. `embedding` and each of `vectors` come from the same image-and-text model.
@@ -72,9 +94,8 @@ export function routeSubject(
   if (!vectors.every((vector) => Array.from(vector).every(Number.isFinite) && Array.from(vector).some((value) => value !== 0))) {
     throw new RangeError('Category vectors must be finite and nonzero.');
   }
-  const scale = norm(embedding);
   const logits = vectors.map((vector, index) => {
-    let value = LOGIT_SCALE * dot(embedding, vector) / (scale * norm(vector));
+    let value = LOGIT_SCALE * cosine(embedding, vector);
     // The strongest supporting detection for this category counts, scaled by how sure the detector was.
     const support = detections
       .filter((detection) => Number.isFinite(detection.score) && detection.score >= thresholds.detectorMinimumScore && detection.score <= 1 && categories[index].detector.includes(detection.label))
