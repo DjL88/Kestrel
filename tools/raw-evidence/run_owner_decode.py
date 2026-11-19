@@ -73,6 +73,9 @@ def collect(folder, tauri, runner=subprocess.run):
     decoded_names = {row[0].casefold() for row in rows}
     if not decoded_names.issubset(inventory_names):
         raise ValueError('native report contains NEF absent from inventory')
+    exact_names = {p.name for p in inventory}
+    if any(row[0] not in exact_names for row in rows):
+        raise ValueError('native report filename differs in case from on-disk NEF; provenance ambiguous')
     skipped = [p.name for p in inventory if p.name.casefold() not in decoded_names]
     evidence = []
     for name, decoder, width, height, elapsed in rows:
