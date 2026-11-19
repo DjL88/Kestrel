@@ -122,7 +122,7 @@ test('quick edit warns when an original exceeds the storage size limit', async (
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
 });
 
-test('a slow import prevents leaving the project until it completes', async ({ page }) => {
+test('leaving during a slow import stops it, and its photos never land in another project', async ({ page }) => {
   await page.addInitScript(() => {
     const put = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (value, key) {
@@ -155,13 +155,16 @@ test('a slow import prevents leaving the project until it completes', async ({ p
     buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
   });
   await expect.poll(() => page.evaluate(() => (window as Window & { photoWriteWaiting?: boolean }).photoWriteWaiting)).toBe(true);
+  // The app is not locked while photos are added: Back works, and leaving stops this project's import.
   const back = page.getByRole('button', { name: 'Back to projects' });
-  await expect(back).toBeDisabled();
-  await page.evaluate(() => { (window as Window & { releasePhotoWrite?: boolean }).releasePhotoWrite = true; });
   await expect(back).toBeEnabled();
-  await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 1' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add photos to project' })).toBeDisabled();
   await back.click();
+  await page.evaluate(() => { (window as Window & { releasePhotoWrite?: boolean }).releasePhotoWrite = true; });
+  // The photo still being read when the project was left is never added to another project.
   await page.getByRole('button', { name: 'Destination project 0 photos' }).click();
   await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'All photos 0' })).toBeVisible();
   await expect(page.getByRole('alert').filter({ hasText: 'could not store' })).toHaveCount(0);
+  // Adding photos works again once the stopped import has ended.
+  await expect(page.getByRole('button', { name: 'Add photos to project' })).toBeEnabled();
 });

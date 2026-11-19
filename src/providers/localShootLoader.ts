@@ -59,35 +59,39 @@ async function importLinkedWithoutFullRead(
   file: PickedPhoto & { path: string }, stableKey: string,
   previewProvider: BrowserPreviewProvider, uncachedPreviewKeys: string[],
 ): Promise<ExifMetadata | null> {
+  // Reading the first 1 MiB doubles as a check that ranged reading works on this drive. If opening or reading fails
+  // (an unusual share, an older app permission), the whole file is read instead: a photo is never dropped for it.
   let range: Awaited<ReturnType<typeof openLinkedRange>> | null = null;
-  try {
-    range = await openLinkedRange(file.path, file.size);
-  } catch {
-    range = null;
-  }
-  let source: Blob | RangeBlob;
-  if (range) {
-    source = range.blob;
-  } else {
-    try {
-      const whole = await file.read();
-      if (whole.size !== file.size || whole.lastModified !== file.lastModified) return null;
-      source = whole;
-    } catch {
-      return null;
-    }
-  }
-  previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size), size: file.size, lastModified: file.lastModified });
+  let source: Blob | RangeBlob | null = null;
+  let head: Blob | null = null;
   let exif: ExifMetadata;
   try {
+    range = await openLinkedRange(file.path, file.size);
+    head = await headBlob(range.blob);
+    source = range.blob;
+  } catch {
+    await range?.close().catch(() => undefined);
+    range = null;
+  }
+  try {
+    if (!source || !head) {
+      let whole: File;
+      try {
+        whole = await file.read();
+      } catch {
+        return null;
+      }
+      if (whole.size !== file.size || whole.lastModified !== file.lastModified) return null;
+      source = whole;
+      head = await headBlob(whole);
+    }
+    previewProvider.registerLinked(stableKey, { read: linkedReader(file.path, file.name, file.lastModified, file.size), size: file.size, lastModified: file.lastModified });
     try {
       if (!await previewProvider.cacheOfflinePreviews(stableKey, file.name, source)) uncachedPreviewKeys.push(stableKey);
     } catch {
       uncachedPreviewKeys.push(stableKey);
     }
-    exif = await parseImageExif(await headBlob(source), file.name);
-  } catch {
-    return null;
+    exif = await parseImageExif(head, file.name);
   } finally {
     await range?.close().catch(() => undefined);
   }
