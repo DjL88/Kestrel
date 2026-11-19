@@ -65,12 +65,17 @@ def collect(folder, tauri, runner=subprocess.run):
     rows = parse_output(result.stdout + '\n' + result.stderr)
     cfa_hashes = parse_cfa_hashes(result.stdout + '\n' + result.stderr, rows)
     inventory = sorted((p for p in folder.iterdir() if p.name.lower().endswith('.nef')), key=lambda p: p.name.casefold())
+    if len({p.name.casefold() for p in inventory}) != len(inventory):
+        raise ValueError('NEF inventory contains ambiguous case-insensitive duplicate filenames')
     if any(p.is_symlink() or not p.is_file() for p in inventory):
         raise ValueError('NEF inventory contains symlink or non-file entry')
     inventory_names = {p.name.casefold() for p in inventory}
     decoded_names = {row[0].casefold() for row in rows}
     if not decoded_names.issubset(inventory_names):
         raise ValueError('native report contains NEF absent from inventory')
+    exact_names = {p.name for p in inventory}
+    if any(row[0] not in exact_names for row in rows):
+        raise ValueError('native report filename differs in case from on-disk NEF; provenance ambiguous')
     skipped = [p.name for p in inventory if p.name.casefold() not in decoded_names]
     evidence = []
     for name, decoder, width, height, elapsed in rows:

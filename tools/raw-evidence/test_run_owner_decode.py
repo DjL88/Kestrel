@@ -56,6 +56,16 @@ class OwnerDecodeTests(unittest.TestCase):
         self.assertEqual(evidence['inventory']['top_level_nef_count'], 2)
         self.assertEqual(evidence['inventory']['unreported_files'], ['b.NEF'])
         self.assertEqual(evidence['inventory']['coverage'], 'NOT VERIFIED')
+    def test_case_insensitive_inventory_collision_fails_closed(self):
+        (self.samples / 'A.NEF').write_bytes(b'synthetic ambiguous alias')
+        output = 'a.nef | nikon-he | 8x8 | 1ms\ncfa-sha256 | a.nef | ' + 'a'*64 + '\nHigh Efficiency files decoded from sensor data: 1'
+        with self.assertRaisesRegex(ValueError, 'ambiguous case-insensitive'):
+            mod.collect(self.samples, self.tauri, self.runner(output))
+    def test_report_filename_case_mismatch_fails_closed(self):
+        (self.samples / 'a.nef').rename(self.samples / 'A.NEF')
+        output = 'a.nef | nikon-he | 8x8 | 1ms\ncfa-sha256 | a.nef | ' + 'a'*64 + '\nHigh Efficiency files decoded from sensor data: 1'
+        with self.assertRaisesRegex(ValueError, 'differs in case'):
+            mod.collect(self.samples, self.tauri, self.runner(output))
     def test_unreported_symlink_fails_closed(self):
         (self.samples / 'b.nef').symlink_to(self.samples / 'a.nef')
         output = 'a.nef | nikon-he | 8x8 | 1ms\ncfa-sha256 | a.nef | ' + 'a'*64 + '\nHigh Efficiency files decoded from sensor data: 1'
