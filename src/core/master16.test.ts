@@ -174,6 +174,42 @@ test('the decoder layout is read back exactly, and a short buffer is refused', (
   assert.throws(() => parseRgb16(new ArrayBuffer(4)), /empty/);
 });
 
+test('fresh-decoder zero-copy is opt-in; default parser keeps ownership isolation', () => {
+  const buffer = new ArrayBuffer(8 + 4 * 3 * 2);
+  const view = new DataView(buffer);
+  view.setUint32(0, 2, true);
+  view.setUint32(4, 2, true);
+  for (let i = 0; i < 12; i++) view.setUint16(8 + i * 2, 1400 + i * 11, true);
+  const detached = parseRgb16(buffer);
+  const shared = parseRgb16(buffer, true);
+  assert.deepEqual(shared.data, detached.data, 'both start with the exact decoder samples');
+  const nativeLittle = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
+  if (nativeLittle) {
+    assert.equal(shared.data.buffer, buffer, 'explicit export-only view aliases freshly decoded working bytes');
+    shared.data[0] = 34_567;
+    assert.equal(view.getUint16(8, true), 34_567, 'mutating working pixels uses no second full buffer');
+    assert.equal(detached.data[0], 1400, 'existing caller defaults never alias the mutable working buffer');
+  } else {
+    assert.notEqual(shared.data.buffer, buffer, 'big-endian hosts safely preserve byte order through copying');
+  }
+});
+
+test('frame reuse is opt-in and only for provably unchanged framing', () => {
+  const source = numbered();
+  assert.notEqual(frameRgb16(source, DEFAULT_FRAMING), source,
+    'default pure framing retains existing copy semantics');
+  assert.equal(frameRgb16(source, DEFAULT_FRAMING, 0, true), source,
+    'fresh export buffer avoids an unnecessary full-frame clone');
+  assert.notEqual(frameRgb16(source, { ...DEFAULT_FRAMING, turns: 1 }, 0, true), source);
+  assert.notEqual(frameRgb16(source, { ...DEFAULT_FRAMING, straighten: 1 }, 0, true), source);
+  assert.notEqual(frameRgb16(source, { ...DEFAULT_FRAMING, ratio: 1 }, 0, true), source);
+  assert.notEqual(frameRgb16(source, DEFAULT_FRAMING, 1, true), source);
+  const reused = frameRgb16(source, DEFAULT_FRAMING, 0, true);
+  reused.data[0] = 61_111;
+  assert.equal(source.data[0], 61_111,
+    'explicit aliasing is safe only for the newly developed, throwaway RGB buffer');
+});
+
 test('the thumbnail compares like the editor\'s own (bright side stays on the same side)', () => {
   const image: Rgb16Image = { width: 64, height: 32, data: new Uint16Array(64 * 32 * 3) };
   for (let y = 0; y < 32; y += 1) for (let x = 32; x < 64; x += 1) image.data.fill(65535, (y * 64 + x) * 3, (y * 64 + x) * 3 + 3);
