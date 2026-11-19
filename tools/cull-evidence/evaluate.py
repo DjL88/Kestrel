@@ -57,6 +57,10 @@ def evaluate(records):
                 if record["keeper"] and decision == "reject":
                     counts["small_bird_false_auto_reject"] += 1
         counts[record["provenance"]] += 1
+        if record["provenance"] == "real-labelled":
+            counts[f"real_truth_{truth}"] += 1
+            if truth == "bird" and size in {"tiny", "distant"}:
+                counts["real_small_birds"] += 1
         counts[f"truth_{truth}"] += 1
         matrix[(truth, predicted)] += 1
         if predicted == "unknown":
@@ -83,6 +87,15 @@ def evaluate(records):
         "synthetic_count": counts["synthetic"],
         "real_500_photo_benchmark": real >= 500 and counts["synthetic"] == 0,
         "truth_counts": {key: counts[f"truth_{key}"] for key in sorted(TRUTH)},
+        "real_truth_counts": {key: counts[f"real_truth_{key}"] for key in sorted(TRUTH)},
+        "real_small_bird_count": counts["real_small_birds"],
+        "coverage_gaps": [label for label, present in (
+            ("500 independently labelled real photos", real >= 500 and counts["synthetic"] == 0),
+            ("real aircraft", counts["real_truth_aircraft"] > 0),
+            ("real ordinary birds", counts["real_truth_bird"] > counts["real_small_birds"]),
+            ("real tiny/distant birds", counts["real_small_birds"] > 0),
+            ("real non-bird/non-aircraft negatives", sum(counts[f"real_truth_{key}"] for key in ("person", "other-animal", "other")) > 0),
+        ) if not present],
         "confusion": {truth: {pred: matrix[(truth, pred)] for pred in sorted(PREDICTED)} for truth in sorted(TRUTH)},
         "abstained_subject": counts["abstained_subject"],
         "review_only": counts["review_only"],
