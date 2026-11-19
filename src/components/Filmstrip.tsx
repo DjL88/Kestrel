@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, SlidersHorizontal, X } from 'lucide-react';
 import { isEdited } from '../core/editedState';
+import { filmstripTileGeometry } from '../core/filmstripGeometry';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { FrameImage } from './FrameImage';
@@ -23,9 +24,6 @@ interface FilmstripProps {
   onPhotoMenu?: (frameId: string, x: number, y: number) => void;
 }
 
-const ITEM_WIDTH = 108;
-const ITEM_GAP = 8;
-const STRIDE = ITEM_WIDTH + ITEM_GAP;
 const PADDING_X = 16;
 
 export const Filmstrip: React.FC<FilmstripProps> = ({
@@ -45,11 +43,15 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [viewportWidth, setViewportWidth] = useState(1100);
+  const [viewportHeight, setViewportHeight] = useState(112);
+  const tile = filmstripTileGeometry(viewportHeight);
+  const ITEM_WIDTH = tile.width;
+  const STRIDE = tile.stride;
 
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
-    const update = () => setViewportWidth(el.clientWidth || 1100);
+    const update = () => { setViewportWidth(el.clientWidth || 1100); setViewportHeight(el.clientHeight || 112); };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
@@ -70,7 +72,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
     } else if (itemRight > el.scrollLeft + viewportWidth - 48) {
       el.scrollLeft = itemRight - viewportWidth * 0.75;
     }
-  }, [selectedFrameId, frames, viewportWidth]);
+  }, [selectedFrameId, frames, viewportWidth, STRIDE, ITEM_WIDTH]);
 
   const totalWidth = Math.max(0, frames.length * STRIDE + PADDING_X * 2);
   const startIdx = Math.max(0, Math.floor((scrollLeft - PADDING_X) / STRIDE) - 4);
@@ -89,7 +91,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
       ref={scrollerRef}
       onScroll={(e) => setScrollLeft(e.currentTarget.scrollLeft)}
       aria-label="Shoot filmstrip"
-      className="h-[80px] sm:h-[112px] shrink-0 bg-[#121418] border-t border-white/10 overflow-x-auto overflow-y-hidden relative select-none"
+      className="h-full min-h-0 shrink-0 bg-[#121418] overflow-x-auto overflow-y-hidden relative select-none"
     >
       <div style={{ width: totalWidth, height: '100%', position: 'relative' }}>
         {visibleIndices.map((idx) => {
@@ -114,8 +116,9 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
                 left,
                 top: 8,
                 width: ITEM_WIDTH,
+                height: tile.height,
               }}
-              className="flex h-[60px] flex-col sm:h-[92px]"
+              className="flex flex-col"
             >
               {/* Burst Group Connector Line */}
               <div className="h-2.5 flex items-center relative mb-1">

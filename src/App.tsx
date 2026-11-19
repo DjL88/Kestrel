@@ -30,7 +30,7 @@ import { applyAutoTag, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTa
 import { burstMates, tagFrames } from './core/speciesBurst';
 import { loadImage } from './providers/loadImage';
 import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
-import { ArrowLeft, ChevronLeft, ChevronRight, Copy, ClipboardPaste, Pin, PinOff, Info, PanelLeftClose, PanelLeftOpen, Maximize2 } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Copy, ClipboardPaste, Info, PanelLeftClose, PanelLeftOpen, Maximize2 } from 'lucide-react';
 import { WorkspacePaneRail } from './components/WorkspacePaneRail';
 import { PhotoJump } from './components/PhotoJump';
 import { photoInfoDockSide, readWorkspacePaneState, toggleWorkspacePanes, writeWorkspacePaneState } from './core/workspacePaneState';
@@ -72,6 +72,7 @@ import { DEFAULT_EDIT, isEmptyEdit, type PhotoEdit } from './core/photoEdits';
 import { CompareView } from './components/CompareView';
 import { ExifInspector } from './components/ExifInspector';
 import { Filmstrip } from './components/Filmstrip';
+import { FilmstripDock } from './components/FilmstripDock';
 import { isEdited } from './core/editedState';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { RemovedPhotosPanel } from './components/RemovedPhotosPanel';
@@ -2346,8 +2347,8 @@ export default function App() {
           )}
 
           {editing && selectedFrame && (
-            <div role="toolbar" aria-label="Filmstrip controls"
-              className={`${prefs.focusMode ? 'hidden ' : ''}mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center gap-1 overflow-x-auto border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'workspace:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'workspace:pr-[var(--editor-panel-w,0px)]') : ''}`}>
+            <div role="toolbar" aria-label="Photo navigation and editing actions"
+              className={`${prefs.focusMode ? 'hidden ' : ''}mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center gap-1 overflow-x-auto border-t border-white/10 bg-kestrel-panel px-2`}>
               {/* Section F: one footer order across Review and Edit — navigation, actions, then zoom. */}
               <button type="button" aria-label="Previous photo" title="Previous photo (←)" disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) <= 0} onClick={() => handleStepFrame(-1)}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
@@ -2391,34 +2392,9 @@ export default function App() {
                   onClick={() => setPendingAction({ kind: 'trash', frameIds: selectedVisibleFrames.map((frame) => frame.id) })}>Trash</button>
               </>}
               <div id="viewer-zoom-slot" className="ml-auto flex shrink-0 items-center" />
-              <button type="button" aria-pressed={filmstripVisible} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10"
-                onClick={() => setPrefs((prev) => ({ ...prev, showFilmstrip: !filmstripVisible, focusMode: false }))}>
-                {filmstripVisible ? <PinOff className="h-4 w-4" aria-hidden="true" /> : <Pin className="h-4 w-4" aria-hidden="true" />}
-                {filmstripVisible ? 'Hide filmstrip' : 'Pin filmstrip'}
-              </button>
             </div>
           )}
-          {/* Persistent Filmstrip in Loupe & Compare Modes */}
-          {!prefs.focusMode && filmstripVisible && (editing || prefs.viewMode !== 'grid') && visibleFrames.length > 0 && (
-            <div className={editing ? (prefs.editPanelSide === 'left' ? 'workspace:pl-[var(--editor-panel-w,0px)]' : 'workspace:pr-[var(--editor-panel-w,0px)]') : undefined}>
-            <Filmstrip
-              onPhotoMenu={openPhotoMenu}
-              frames={editing ? editorFrames : visibleFrames}
-              selectedFrameId={selectedFrame?.id ?? null}
-              compareRightFrameId={compareRightFrame?.id ?? null}
-              isCompareMode={!editing && visibleFrames.length > 0 && prefs.viewMode === 'compare'}
-              previewProvider={previewProviderRef.current!}
-              needsAccess={needsAccess}
-              onSelectFrame={handleSelectFrame}
-              markedIds={selectedIds}
-              multiSelect={multiSelect}
-              onSelectMarked={selectGridPhoto}
-              onSelectCompareRight={(id) =>
-                setCullingState((prev) => ({ ...prev, compareRightFrameId: id }))
-              }
-            />
-            </div>
-          )}
+
         </div>
 
         {!prefs.focusMode && !panesCollapsed && showPhotoInfo && (
@@ -2446,6 +2422,27 @@ export default function App() {
             onExpand={() => { setWorkspacePanes({ folded: false }); setShowPhotoInfo(true); }} />
         )}
       </main>
+      {/* Independent full-width dock: side panels never constrain filmstrip width. */}
+      {!prefs.focusMode && visibleFrames.length > 0 && (
+        <FilmstripDock expanded={prefs.showFilmstrip} onToggle={toggleFilmstrip}>
+            <Filmstrip
+              onPhotoMenu={openPhotoMenu}
+              frames={editing ? editorFrames : visibleFrames}
+              selectedFrameId={selectedFrame?.id ?? null}
+              compareRightFrameId={compareRightFrame?.id ?? null}
+              isCompareMode={!editing && visibleFrames.length > 0 && prefs.viewMode === 'compare'}
+              previewProvider={previewProviderRef.current!}
+              needsAccess={needsAccess}
+              onSelectFrame={handleSelectFrame}
+              markedIds={selectedIds}
+              multiSelect={multiSelect}
+              onSelectMarked={selectGridPhoto}
+              onSelectCompareRight={(id) =>
+                setCullingState((prev) => ({ ...prev, compareRightFrameId: id }))
+              }
+            />
+        </FilmstripDock>
+      )}
       {prefs.focusMode && (
         <div className="flex shrink-0 justify-end border-t border-white/10 bg-kestrel-panel px-3 py-1">
           <button type="button" onClick={() => setPrefs((prev) => ({ ...prev, focusMode: false }))}
