@@ -103,7 +103,6 @@ interface Props {
   onPanelSideChange: (side: 'left' | 'right') => void;
   hand?: 'left' | 'right';
   onHandChange?: (hand: 'left' | 'right') => void;
-  showFilmstrip: boolean;
   /** Shared Section F desktop layout: tools fold into a docked rail. */
   toolsCollapsed?: boolean;
   /** Photo-only mode hides editing chrome without altering edits or zoom. */
@@ -117,7 +116,7 @@ interface Props {
 export function PhotoEditor({ autoEdit, onOpenMacroPad,
   frame, provider, needsAccess, bindings, onEdit, initialTab, onTabChange, onApplyLook, onExport, exportCount = 1, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
-  panelSide, onPanelSideChange, hand, onHandChange, showFilmstrip,
+  panelSide, onPanelSideChange, hand, onHandChange,
   toolsCollapsed = false, focusPhoto = false, onExpandTools,
 }: Props) {
   const originalCanvas = useRef<HTMLCanvasElement>(null);
@@ -614,13 +613,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [bindings, copiedEdit, dial, edit, exportOpen, guide, onCopyEdit, onEdit, onHistoryStep, source]);
-
-  // Tell the filmstrip below how much room the panel takes, because the panel runs down beside it on wide screens.
-  useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty('--editor-panel-w', `${panelWidth + 8}px`);
-    return () => { root.style.removeProperty('--editor-panel-w'); };
-  }, [panelWidth]);
 
   // Opening the crop tab shows the whole photo with the crop box. Remember the crop so Cancel can put it back.
   useEffect(() => {
@@ -1230,7 +1222,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         setSliderBusy(true);
         window.clearTimeout(sliderTimer.current);
         sliderTimer.current = window.setTimeout(() => setSliderBusy(false), 700);
-      }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 ${showFilmstrip ? 'workspace:-mb-[156px] workspace:pb-[172px] ' : ''}workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
+      }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
         {!isPhone && tabList}
         {tab === 'auto' && !can('autoTab') && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto"><PaidNotice title="The Auto tab">Automatic colour and tone adjustments and local editing advice are here.</PaidNotice></div>
