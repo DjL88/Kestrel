@@ -138,3 +138,20 @@ export function validMasks(value: unknown): value is Mask[] {
     return false;
   });
 }
+
+/**
+ * True when the only change between two mask lists is to adjustment strengths (a mask's sliders) or edge softness:
+ * the same masks, shapes, strokes and order. The editor then hides the mask highlight briefly, so it doesn't cover the
+ * change being judged. Moving, painting, adding or deleting a mask is not an adjustment and keeps the highlight.
+ */
+export function onlyAdjustmentsChanged(before: readonly Mask[], after: readonly Mask[]): boolean {
+  if (before.length !== after.length || before.length === 0) return false;
+  const shape = (mask: Mask) => JSON.stringify({ ...mask, edit: undefined, feather: undefined });
+  let changed = false;
+  for (let i = 0; i < before.length; i += 1) {
+    if (before[i] === after[i]) continue;
+    if (shape(before[i]) !== shape(after[i])) return false;
+    changed = true;
+  }
+  return changed;
+}

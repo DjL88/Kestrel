@@ -221,3 +221,17 @@ test('damaged subject detail is refused', () => {
   assert.equal(validMasks([{ ...good, detail: { ...good.detail!, grid: { w: 16, h: 16, data: 'short' } } }]), false);
   assert.equal(validMasks([{ ...good, detail: null }]), false);
 });
+
+test('only slider changes count as adjustments; moving, painting, adding or deleting a mask does not', async () => {
+  const { onlyAdjustmentsChanged } = await import('./maskTypes');
+  const radial: Mask = { ...createMask('radial', 'r'), kind: 'radial', cx: 0.5, cy: 0.5, rx: 0.2, ry: 0.2 };
+  const brush = createMask('brush', 'b');
+  const masks = [radial, brush];
+  assert.equal(onlyAdjustmentsChanged(masks, [{ ...radial, edit: { exposure: 0.3 } }, brush]), true, 'a slider');
+  assert.equal(onlyAdjustmentsChanged(masks, [{ ...radial, feather: 0.9 }, brush]), true, 'edge softness');
+  assert.equal(onlyAdjustmentsChanged(masks, [{ ...radial, cx: 0.6 }, brush]), false, 'moved');
+  assert.equal(onlyAdjustmentsChanged(masks, [radial, { ...brush, strokes: [createBrushStroke([0.1, 0.1], 0.05, false, false)] } as Mask]), false, 'painted');
+  assert.equal(onlyAdjustmentsChanged(masks, [radial]), false, 'deleted');
+  assert.equal(onlyAdjustmentsChanged(masks, masks), false, 'nothing changed');
+  assert.equal(onlyAdjustmentsChanged([], []), false);
+});
