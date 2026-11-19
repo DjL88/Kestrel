@@ -182,6 +182,20 @@ test('the thumbnail compares like the editor\'s own (bright side stays on the sa
   assert.ok(thumb[0] < 1 && thumb[THUMB - 1] > 254);
 });
 
+test('16-bit master applies chroma noise reduction before tone and masks', () => {
+  const width = 40, height = 40;
+  const raw = new Uint16Array(width * height * 3);
+  for (let i = 0; i < width * height; i++) {
+    const chroma = (i % 3 - 1) * 2300;
+    raw.set([23500 + chroma, 27000 - chroma / 4, 30000 - chroma / 2], i * 3);
+  }
+  const original = raw.slice();
+  const image: Rgb16Image = { width, height, data: raw };
+  editRgb16(image, { ...DEFAULT_EDIT, denoise: 1 });
+  assert.notDeepEqual(image.data, original, 'denoise runs in the TIFF master, not only the preview');
+  assert.ok(image.data.some((value) => value % 257 !== 0), 'no 8-bit conversion');
+});
+
 test('tonal feather/subject masks are exported at 16-bit and agree with the visible 8-bit preview', () => {
   const width = 64, height = 64, initial = 23_000;
   const mask: Mask = {
@@ -258,7 +272,7 @@ test('tonal mask bands join exactly at high-resolution row boundaries', () => {
 
 test('edits the 16-bit TIFF cannot carry yet are named, never silently dropped', () => {
   assert.equal(master16Blocker(EDIT, DEFAULT_FRAMING), null);
-  assert.match(master16Blocker({ ...EDIT, denoise: 1 }, DEFAULT_FRAMING)!, /Noise reduction/);
+  assert.equal(master16Blocker({ ...EDIT, denoise: 1 }, DEFAULT_FRAMING), null, '16-bit master now supports full-size chroma denoise');
   const localDetail: Mask = { ...createMask('radial', 'feathers'), edit: { texture: 1 } };
   assert.match(master16Blocker({ ...EDIT, masks: [localDetail] }, DEFAULT_FRAMING)!, /local mask Texture/);
   const frame: Rgb16Image = { width: 16, height: 16, data: new Uint16Array(16 * 16 * 3) };
