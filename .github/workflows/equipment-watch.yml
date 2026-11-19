@@ -36,29 +36,41 @@ jobs:
             const commit = await github.rest.repos.getCommit({ ...source, ref: branch });
             const sha = commit.data.sha;
             if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error('Invalid upstream revision.');
-            const title = `Review ${source.owner}/${source.repo} upstream revision ${sha.slice(0, 12)}`;
-            // Find an issue with the exact upstream commit (not the commit subject).
-            const search = await github.rest.search.issuesAndPullRequests({
-              q: `repo:${context.repo.owner}/${context.repo.repo} is:issue in:title "${title}"`,
-              per_page: 10
-            });
-            const alreadyFiled = search.data.items.some(item => item.title === title);
-            core.info(`${source.owner}/${source.repo} ${branch} at ${sha}; review issue present: ${alreadyFiled}`);
-            if (alreadyFiled) return;
+            const board = 418; // One open research queue shared with Kestrel's other coding agents.
             const url = `https://github.com/${source.owner}/${source.repo}/commit/${sha}`;
-            await github.rest.issues.create({
+
+            // Search only the canonical board's comments, not the archived one-issue-per-SHA notices.
+            // This keeps re-runs and weekly unchanged upstreams from growing a comment backlog.
+            const search = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open in:comments "${sha}"`,
+              per_page: 100
+            });
+            if (search.data.items.some(item => item.number === board)) {
+              core.info(`${source.owner}/${source.repo}: ${sha} already recorded on #${board}; skipping.`);
+              return;
+            }
+
+            // Fail closed if the board has been retired: never fall back to producing
+            // unreviewed standalone issues or activating a model/decoder release.
+            const issue = await github.rest.issues.get({ ...context.repo, issue_number: board });
+            if (issue.data.state !== 'open' || issue.data.pull_request) {
+              throw new Error('The Kestrel research board #418 is not an open issue.');
+            }
+            await github.rest.issues.createComment({
               ...context.repo,
-              title,
+              issue_number: board,
               body: [
-                'Automated **candidate discovery** only — not an approved Kestrel update.',
+                `### Equipment update candidate — ${source.owner}/${source.repo} @ ${sha.slice(0, 12)}`,
                 '',
+                '**Automated discovery only; NOT an approved or tested Kestrel update.**',
                 `Upstream: [${source.owner}/${source.repo}](https://github.com/${source.owner}/${source.repo}) on branch \`${branch}\``,
                 `Commit: [${sha}](${url})`,
                 '',
-                'Review upstream licence and attribution, camera/RAW changes or optical calibration, compatibility and fixture tests.',
-                'If worthwhile, prepare a separate reviewed Kestrel PR and signed data release.',
-                '**Do not** auto-merge, auto-publish or claim RAW decoder support from this notice.',
+                'Review upstream licence and attribution, sensor/RAW support, optical calibration or model I/O, and relevant real-photo fixture tests.',
+                'Prepare a separate reviewed PR or signed data release if useful; never auto-merge, auto-install or infer decoder/species support.',
+                'Track under K-05/K-10 (LibRaw), K-08/K-10 (Lensfun), or K-03/K-09 (BioCLIP) as appropriate.',
                 '',
-                'Guide: [docs/EQUIPMENT-UPDATES.md](https://github.com/DjL88/Kestrel/blob/main/docs/EQUIPMENT-UPDATES.md)'
+                'Guide: [docs/EQUIPMENT-UPDATES.md](../blob/main/docs/EQUIPMENT-UPDATES.md)'
               ].join('\n')
             });
+            core.info(`Recorded ${source.owner}/${source.repo} ${sha} on board #${board}.`);
