@@ -79,6 +79,8 @@ export const it: Translation = {
     draft: 'Traduzione provvisoria, non ancora verificata da un madrelingua. Alcune schermate sono ancora in inglese.',
   },
   appearance: {
+    dialogLabel: "Impostazioni di visualizzazione e disposizione",
+    shortcuts: "Scorciatoie da tastiera e controller",
     "position": "Da che lato vuoi gli strumenti?",
     "positionHint": "Scegli il lato degli strumenti su uno schermo grande. Sul telefono sono sotto la foto.",
     "toolsSide": "Lato degli strumenti",
