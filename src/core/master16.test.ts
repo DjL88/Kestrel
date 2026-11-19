@@ -270,12 +270,68 @@ test('tonal mask bands join exactly at high-resolution row boundaries', () => {
   }
 });
 
+test('16-bit local Texture/Clarity/Sharpening agree with a full-frame reference across stripe boundaries', () => {
+  const width = 96, height = 161;
+  const original = texture(width, height);
+  const local = { ...DEFAULT_EDIT, exposure: 0.4, warmth: 0.25, texture: 0.8, clarity: 0.65, sharpen: 0.9 };
+  const mask: Mask = { ...createMask('radial', 'plumage'), kind: 'radial',
+    cx: 0.5, cy: 0.5, rx: 0.38, ry: 0.38, feather: 0.75,
+    edit: { exposure: local.exposure, warmth: local.warmth, texture: local.texture,
+      clarity: local.clarity, sharpen: local.sharpen },
+  };
+  const full: Rgb16Image = { width, height, data: original.slice() };
+  editRgb16(full, local);
+  const striped: Rgb16Image = { width, height, data: original.slice() };
+  // Force at least 16 stripes and a 6px+ original halo (normal 45MP
+  // production defaults to much larger bands).
+  applyToneMasksRgb16(striped, [mask], width * 10);
+  const alpha = maskAlpha(mask, width, height, fullContext(width, height));
+  for (let p = 0; p < width * height; p++) for (let c = 0; c < 3; c++) {
+    const i = p * 3;
+    const expected = Math.round(original[i + c] * (1 - alpha[p]) + full.data[i + c] * alpha[p]);
+    assert.ok(Math.abs(striped.data[i + c] - expected) <= 1,
+      `full-frame detail/mask/stripe match at pixel ${p} channel ${c}`);
+  }
+  assert.ok(striped.data.some((v, i) => v !== original[i]), 'local detail actually changes the mask');
+});
+
+test('multiple local detail masks are applied in saved order, with no unmasked bleed', () => {
+  const width = 90, height = 130;
+  const original = texture(width, height);
+  const one: Mask = { ...createMask('radial', 'bird'), kind: 'radial',
+    cx: 0.5, cy: 0.5, rx: 0.24, ry: 0.24, feather: 0.5,
+    edit: { texture: 1, sharpen: 1 } };
+  const two: Mask = { ...createMask('linear', 'light'), kind: 'linear',
+    x1: 0.5, x2: 0.5, y1: 0.1, y2: 0.9, feather: 0.6,
+    limit: { id: one.id, mode: 'intersect' }, edit: { clarity: -0.6, exposure: 0.3 } };
+  const photo: Rgb16Image = { width, height, data: original.slice() };
+  applyToneMasksRgb16(photo, [one, two], width * 12);
+  // Use the complete, independently edited full-frame as the reference for
+  // each mask; the second reads the output of the first, not untouched input.
+  let expected = original.slice();
+  for (const mask of [one, two]) {
+    const before = expected.slice();
+    const reference: Rgb16Image = { width, height, data: before.slice() };
+    editRgb16(reference, { exposure: 0, warmth: 0, colour: 0, ...mask.edit });
+    const alpha = maskAlpha(mask, width, height, fullContext(width, height));
+    // The second mask's intersection must match the production alpha limiter.
+    const limiter = mask.limit ? maskAlpha(one, width, height, fullContext(width, height)) : null;
+    expected = before.map((value, i) => {
+      const pixel = Math.floor(i / 3);
+      const a = alpha[pixel] * (limiter ? limiter[pixel] : 1);
+      return Math.round(value * (1 - a) + reference.data[i] * a);
+    });
+  }
+  for (let i = 0; i < expected.length; i++) {
+    assert.ok(Math.abs(photo.data[i] - expected[i]) <= 1, `masked layers order at sample ${i}`);
+  }
+});
+
 test('edits the 16-bit TIFF cannot carry yet are named, never silently dropped', () => {
   assert.equal(master16Blocker(EDIT, DEFAULT_FRAMING), null);
   assert.equal(master16Blocker({ ...EDIT, denoise: 1 }, DEFAULT_FRAMING), null, '16-bit master now supports full-size chroma denoise');
   const localDetail: Mask = { ...createMask('radial', 'feathers'), edit: { texture: 1 } };
-  assert.match(master16Blocker({ ...EDIT, masks: [localDetail] }, DEFAULT_FRAMING)!, /local mask Texture/);
-  const frame: Rgb16Image = { width: 16, height: 16, data: new Uint16Array(16 * 16 * 3) };
-  assert.throws(() => applyToneMasksRgb16(frame, [localDetail]), /local mask Texture/);
+  assert.equal(master16Blocker({ ...EDIT, masks: [localDetail] }, DEFAULT_FRAMING), null,
+    '16-bit master now includes local detail masks as well as tone');
   assert.equal(master16Blocker(EDIT, { ...DEFAULT_FRAMING, straighten: 2 }), null, '16-bit TIFF now includes straightening');
 });
