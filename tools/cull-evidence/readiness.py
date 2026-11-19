@@ -84,6 +84,21 @@ def assess(report: dict, minimums: dict = DEFAULT_MINIMUMS):
             bounds[key] = {"events": count, "denominator": total, "wilson_95_upper": wilson_upper(count, total)}
     except (KeyError, TypeError) as exc:
         raise ValueError("missing or invalid cull-evidence aggregate field") from exc
+    abstention = report.get("real_subject_abstention")
+    if abstention is not None:
+        if not isinstance(abstention, dict) or type(abstention.get("total")) is not int or type(abstention.get("denominator")) is not int:
+            raise ValueError("invalid real-only abstention summary")
+        if abstention["denominator"] != labelled or not (0 <= abstention["total"] <= labelled):
+            raise ValueError("abstention denominator inconsistent with real-labelled evidence")
+        by_truth = abstention.get("by_truth")
+        if not isinstance(by_truth, dict) or set(by_truth) != set(truth):
+            raise ValueError("abstention class coverage incomplete")
+        if sum(item.get("unknown", -1) for item in by_truth.values() if isinstance(item, dict)) != abstention["total"]:
+            raise ValueError("abstention class totals inconsistent")
+        for key, count in truth.items():
+            item = by_truth[key]
+            if not isinstance(item, dict) or item.get("denominator") != count or any(type(item.get(k)) is not int or not 0 <= item[k] <= count for k in ("unknown", "review")):
+                raise ValueError("invalid per-class abstention/review count")
     missing = [{"stratum": key, "observed": measured[key], "minimum": required}
                for key, required in minimums.items() if measured[key] < required]
     unsafe = {key: row["events"] for key, row in bounds.items() if row["events"]}
@@ -95,6 +110,9 @@ def assess(report: dict, minimums: dict = DEFAULT_MINIMUMS):
         "observed_safety_events": unsafe,
         "real_event_uncertainty": bounds,
         "synthetic_excluded_from_readiness": synthetic,
+        "real_subject_abstention": abstention,
+        "decision_origin_known": False,
+        "keeper_reject_origin_warning": "Human-keeper rejection is observed; auto-vs-manual decision origin was not captured. Do not claim measured false AUTO reject rates.",
         "release_approval": False,
         "note": "Coverage and uncertainty only. Does not validate labels, sampling, model/build provenance, statistical power or real-world safety. Human review and independent photos required.",
     }
