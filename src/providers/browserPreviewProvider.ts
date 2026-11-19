@@ -65,6 +65,8 @@ export class BrowserPreviewProvider implements PreviewProvider {
   private fullUrlOrder: string[] = [];
   private offlineFullKeys = new Set<string>();
   private pendingThumbs = new Map<string, Promise<string>>();
+  /** In-flight thumbnail results are valid only for their source revision. */
+  private sourceRevisions = new Map<string, number>();
   private offlinePreviews = new Map<string, OfflinePreviewPair>();
   private offlinePreviewOrder: string[] = [];
   private pendingOfflinePreviews = new Map<string, Promise<OfflinePreviewPair | null>>();
@@ -72,10 +74,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
   registerBlob(stableKey: string, blob: Blob): void {
     const previous = this.localBlobs.get(stableKey);
-    if (previous !== blob) {
-      this.invalidateDevelopment(stableKey);
-      this.invalidateFullPreview(stableKey);
-    }
+    if (previous !== blob) this.invalidateSourcePreviews(stableKey);
     this.localBlobs.set(stableKey, blob);
     if (this.offlineFullKeys.has(stableKey)) this.invalidateFullPreview(stableKey);
   }
@@ -98,8 +97,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       this.linkedGeneration.set(stableKey, (this.linkedGeneration.get(stableKey) ?? 0) + 1);
       this.linkedLoading.delete(stableKey);
       this.localBlobs.delete(stableKey);
-      this.invalidateDevelopment(stableKey);
-      this.invalidateFullPreview(stableKey);
+      this.invalidateSourcePreviews(stableKey);
     }
     this.linked.set(stableKey, info);
     // A newly accessible original must replace a low-resolution offline fallback.
@@ -112,8 +110,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.linkedGeneration.set(stableKey, (this.linkedGeneration.get(stableKey) ?? 0) + 1);
     this.linkedLoading.delete(stableKey);
     this.localBlobs.delete(stableKey);
-    this.invalidateDevelopment(stableKey);
-    this.invalidateFullPreview(stableKey);
+    this.invalidateSourcePreviews(stableKey);
   }
 
   getOriginal(stableKey: string): Blob | undefined {
@@ -210,7 +207,12 @@ export class BrowserPreviewProvider implements PreviewProvider {
     }
 
     const cached = this.thumbUrlCache.get(frame.id);
-    if (cached) return cached;
+    if (cached && this.thumbFrameKeys.get(frame.id) === frame.stableKey) return cached;
+    if (cached) {
+      if (cached.startsWith('blob:')) URL.revokeObjectURL(cached);
+      this.thumbUrlCache.delete(frame.id);
+      this.pendingThumbs.delete(frame.id);
+    }
 
     const existingPromise = this.pendingThumbs.get(frame.id);
     if (existingPromise) {
@@ -218,8 +220,9 @@ export class BrowserPreviewProvider implements PreviewProvider {
       return existingPromise;
     }
 
-    const task = this.buildLocalThumbnailUrl(frame, priority).finally(() => {
-      this.pendingThumbs.delete(frame.id);
+    const revision = this.sourceRevisions.get(frame.stableKey) ?? 0;
+    const task = this.buildLocalThumbnailUrl(frame, priority, revision).finally(() => {
+      if (this.pendingThumbs.get(frame.id) === task) this.pendingThumbs.delete(frame.id);
     });
     this.pendingThumbs.set(frame.id, task);
     return task;
@@ -273,6 +276,21 @@ export class BrowserPreviewProvider implements PreviewProvider {
       this.thumbUrlCache.delete(frameId);
     }
     this.events.dispatchEvent(new CustomEvent('developed', { detail: frame.stableKey }));
+  }
+
+  /** A changed/reconnected original invalidates all caches, including in-flight thumbnail work. */
+  private invalidateSourcePreviews(stableKey: string): void {
+    this.sourceRevisions.set(stableKey, (this.sourceRevisions.get(stableKey) ?? 0) + 1);
+    this.invalidateDevelopment(stableKey);
+    this.invalidateFullPreview(stableKey);
+    for (const [frameId, key] of this.thumbFrameKeys) {
+      if (key !== stableKey) continue;
+      const url = this.thumbUrlCache.get(frameId);
+      if (url?.startsWith('blob:')) URL.revokeObjectURL(url);
+      this.thumbUrlCache.delete(frameId);
+      this.pendingThumbs.delete(frameId);
+    }
+    this.events.dispatchEvent(new CustomEvent('preview-invalidated', { detail: stableKey }));
   }
 
   private invalidateDevelopment(stableKey: string): void {
@@ -473,35 +491,42 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.developedReviews.clear();
     this.thumbFrameKeys.clear();
     this.pendingThumbs.clear();
+    this.sourceRevisions.clear();
     this.offlinePreviews.clear();
     this.offlinePreviewOrder = [];
     this.pendingOfflinePreviews.clear();
   }
 
-  private async buildLocalThumbnailUrl(frame: PhotoFrame, priority: ReadPriority): Promise<string> {
+  private rememberThumbnailUrl(frame: PhotoFrame, url: string, revision: number): string {
+    if (revision !== (this.sourceRevisions.get(frame.stableKey) ?? 0) ||
+        this.thumbFrameKeys.get(frame.id) !== frame.stableKey) {
+      if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      return '';
+    }
+    return this.rememberThumbnailUrl(frame, url, revision);
+  }
+
+  private async buildLocalThumbnailUrl(frame: PhotoFrame, priority: ReadPriority, revision: number): Promise<string> {
     this.thumbFrameKeys.set(frame.id, frame.stableKey);
     if (isRawPreviewFile(frame.filename)) {
       const developed = await this.developedReview(frame);
       if (developed) {
         const url = URL.createObjectURL(developed.thumbnail);
-        this.thumbUrlCache.set(frame.id, url);
-        return url;
+        return this.rememberThumbnailUrl(frame, url, revision);
       }
     }
     const cacheKey = this.offlineCacheKey(frame);
     const offline = await loadOfflinePreview(cacheKey);
     if (offline) {
       const url = URL.createObjectURL(offline);
-      this.thumbUrlCache.set(frame.id, url);
-      return url;
+      return this.rememberThumbnailUrl(frame, url, revision);
     }
     const blob = await this.ensureOriginal(frame.stableKey, priority);
     if (!blob) {
       const cached = await this.loadOfflinePreviews(cacheKey);
       if (!cached) return '';
       const url = URL.createObjectURL(cached.thumbnail);
-      this.thumbUrlCache.set(frame.id, url);
-      return url;
+      return this.rememberThumbnailUrl(frame, url, revision);
     }
 
     let sourceBlob: Blob = blob;
@@ -511,8 +536,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
         const cached = await this.loadOfflinePreviews(cacheKey);
         if (!cached) return '';
         const url = URL.createObjectURL(cached.thumbnail);
-        this.thumbUrlCache.set(frame.id, url);
-        return url;
+        return this.rememberThumbnailUrl(frame, url, revision);
       }
       sourceBlob = extracted;
     }
@@ -530,8 +554,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       if (!ctx) {
         bitmap.close();
         const fallbackUrl = URL.createObjectURL(sourceBlob);
-        this.thumbUrlCache.set(frame.id, fallbackUrl);
-        return fallbackUrl;
+        return this.rememberThumbnailUrl(frame, fallbackUrl, revision);
       }
 
       ctx.drawImage(bitmap, 0, 0, targetW, targetH);
@@ -542,12 +565,10 @@ export class BrowserPreviewProvider implements PreviewProvider {
       );
       if (thumbBlob) void saveOfflinePreview(cacheKey, thumbBlob);
       const url = URL.createObjectURL(thumbBlob ?? sourceBlob);
-      this.thumbUrlCache.set(frame.id, url);
-      return url;
+      return this.rememberThumbnailUrl(frame, url, revision);
     } catch {
       const url = URL.createObjectURL(sourceBlob);
-      this.thumbUrlCache.set(frame.id, url);
-      return url;
+      return this.rememberThumbnailUrl(frame, url, revision);
     }
   }
 
