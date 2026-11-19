@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   DEFAULT_WORKSPACE_PANES, WORKSPACE_PANES_KEY, parseWorkspacePaneState,
-  readWorkspacePaneState, toggleWorkspacePanes, writeWorkspacePaneState,
+  readWorkspacePaneState, toggleWorkspacePanes, writeWorkspacePaneState, photoInfoDockSide,
 } from './workspacePaneState';
 
 test('Section F pane layout defaults to both panels visible', () => {
@@ -25,6 +25,11 @@ test('folding and reopening panes is reversible and per-device only', () => {
   writeWorkspacePaneState(folded, storage);
   assert.deepEqual(readWorkspacePaneState(storage), folded);
 });
+test('Photo Info always docks opposite the preferred hand on every device', () => {
+  assert.equal(photoInfoDockSide('left'), 'right');
+  assert.equal(photoInfoDockSide('right'), 'left');
+});
+
 test('private/incognito storage failures do not interrupt the workspace', () => {
   const failing = {
     getItem(): string { throw new Error('Storage disabled'); },
