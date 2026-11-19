@@ -78,10 +78,10 @@ export function CompareView({
                 </button>
               ))}
               <button type="button" className={control} disabled={frame.decision === 'unreviewed'}
-                aria-label={`Clear decision for photo ${side} (return to review)`}
-                title={`Return photo ${side} to review`}
+                aria-label={`Clear decision for photo ${side}`}
+                title={`Clear decision for photo ${side}`}
                 onClick={() => onDecideFrame(frame.id, 'unreviewed')}>
-                Review {side}
+                Clear {side}
               </button>
             </div>
           )
