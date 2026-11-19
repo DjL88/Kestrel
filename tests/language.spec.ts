@@ -76,3 +76,33 @@ test('choose Welsh, restart in it, and keep every decision', async ({ page }) =>
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB');
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible({ timeout: 30_000 });
 });
+
+test('first run asks for a language even on an English (UK) system; the choice stays saved', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Welcome to Kestrel' })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB');
+  await page.getByRole('button', { name: 'Continue in English (UK)' }).click();
+  await expect(page.getByRole('heading', { name: 'Welcome to Kestrel' })).toBeHidden();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Welcome to Kestrel' })).toBeHidden();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB');
+});
+
+test.describe('Canadian French system locale', () => {
+  test.use({ locale: 'fr-CA' });
+
+  test('offers the detected regional language once, then honours the chosen language', async ({ page }) => {
+    await page.goto('/');
+    const welcome = page.getByRole('heading', { name: 'Welcome to Kestrel' });
+    await expect(welcome).toBeVisible();
+    const chooser = page.getByLabel('Which language would you like?');
+    await expect(chooser).toHaveValue('fr-CA');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB', 'device preference is offered, not applied automatically');
+    await page.getByRole('button', { name: 'Continue in Français (Canada)' }).click();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fr-CA');
+    await expect(page.getByRole('heading', { name: 'Projets' })).toBeVisible();
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fr-CA');
+    await expect(welcome).toBeHidden();
+  });
+});
