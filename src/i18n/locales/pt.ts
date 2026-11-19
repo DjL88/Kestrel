@@ -104,6 +104,7 @@ export const pt: Translation = {
     "denoise": "Redução de ruído"
   },
   quick: {
+    changed: "(alterado)",
     "title": "Edição rápida",
     "allControls": "Todos os controlos",
     "choose": "Escolher ajuste"
