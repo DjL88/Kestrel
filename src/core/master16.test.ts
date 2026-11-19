@@ -1,3 +1,14 @@
+test('16-bit export refuses invalid saved numeric edits instead of silently corrupting the master', () => {
+  for (const key of ['exposure', 'warmth', 'colour', 'brightness', 'contrast', 'highlights',
+    'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen', 'denoise']) {
+    for (const bad of [NaN, Infinity, -Infinity, '1']) {
+      const edit = { ...DEFAULT_EDIT, [key]: bad } as unknown as PhotoEdit;
+      assert.match(master16Blocker(edit, DEFAULT_FRAMING) ?? '', /invalid/, `${key}: ${String(bad)}`);
+    }
+  }
+  assert.equal(master16Blocker({ ...DEFAULT_EDIT, exposure: 0.5, denoise: 1 }, DEFAULT_FRAMING), null);
+});
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { applyDetail, applyDetailRgb16, applyPhotoEdit, applyPhotoEditLinear, DEFAULT_EDIT, decodeEncoded, type PhotoEdit } from './photoEdits';
