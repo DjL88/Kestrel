@@ -27,11 +27,15 @@ interface Props {
   onClose: () => void;
   /** Start the scan as soon as the panel opens, for projects that asked for auto-cull. */
   autoStart?: boolean;
+  /** Out of sight while the scan carries on, so the rest of the app can be used. Progress and Stop stay in Tasks. */
+  hidden?: boolean;
+  /** Put the panel away and keep culling in the background. */
+  onHide?: () => void;
 }
 
 const button = 'min-h-11 rounded-md px-3 text-sm font-medium hover:bg-white/10 disabled:opacity-45';
 
-export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScanned, onUndo, onInspect, onShowCollection, onClose, autoStart }: Props) {
+export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScanned, onUndo, onInspect, onShowCollection, onClose, autoStart, hidden = false, onHide }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const running = useRef<AbortController | null>(null);
   const taskId = useRef<number | null>(null);
@@ -48,13 +52,23 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
 
   useEffect(() => {
     const previous = focusBeforeOpening();
-    dialog.current?.showModal();
     return () => {
       if (taskId.current !== null) tasks.cancel(taskId.current);
       running.current = null;
       returnFocus(previous);
     };
   }, []);
+
+  // Shown as a dialog only when wanted: hidden, the panel (and its scan) stays alive without blocking anything.
+  useEffect(() => {
+    const element = dialog.current;
+    if (!element) return;
+    if (hidden) { if (element.open) element.close(); }
+    else if (!element.open) element.showModal();
+  }, [hidden]);
+
+  /** Closing while a scan runs puts it in the background rather than throwing the work away. */
+  const closeOrHide = () => { if (running.current && onHide) onHide(); else onClose(); };
 
   useEffect(() => {
     if (autoStart) void scan();
@@ -112,11 +126,11 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
   }
 
   return (
-    <dialog ref={dialog} onCancel={(event) => { event.preventDefault(); onClose(); }} aria-labelledby="auto-cull-title"
+    <dialog ref={dialog} onCancel={(event) => { event.preventDefault(); closeOrHide(); }} aria-labelledby="auto-cull-title"
       className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-xl border border-white/15 bg-kestrel-raised p-4 text-zinc-100 backdrop:bg-black/75">
       <header className="flex items-center justify-between">
         <h2 id="auto-cull-title" className="font-semibold">{m.autoCull}</h2>
-        <button type="button" className={button} aria-label={m.closeAutoCull} title={m.closeAutoCull} onClick={onClose}><X className="h-5 w-5" aria-hidden="true" /></button>
+        <button type="button" className={button} aria-label={m.closeAutoCull} title={m.closeAutoCull} onClick={closeOrHide}><X className="h-5 w-5" aria-hidden="true" /></button>
       </header>
       <p className="text-sm text-zinc-300">{m.description}</p>
       {(!subjectDetectorAvailable || detectorFailed) && (
@@ -134,6 +148,9 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
           disabled={!candidates.length || progress !== undefined} onClick={() => void scan()}>
           {progress === undefined ? m.scan : m.scanning(formatCount.format(progress), formatCount.format(total))}
         </button>
+        {progress !== undefined && onHide && <button type="button" autoFocus className={`${button} border border-white/15 font-medium`}
+          onClick={onHide}>Cull in the background</button>}
+        {progress !== undefined && onHide && <p className="text-xs text-zinc-400">Keep looking, choosing and editing while this runs. Your own choices always win. Progress and Stop are in Tasks.</p>}
         {progress !== undefined && (
           <div className="rounded-lg border border-white/12 bg-kestrel-panel px-3 py-2">
             <div className="mb-2 flex items-center justify-between gap-3 text-xs text-zinc-300">

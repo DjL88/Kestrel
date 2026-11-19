@@ -1,3 +1,4 @@
+import { openLinkedRange, type RangeBlob } from './rangeBlob';
 import { PHOTO_EXTENSIONS } from '../core/rawFormats';
 import { isDesktopApp } from './desktopShell';
 import { discoverPhotoPaths } from './nativeFolderDiscovery';
@@ -71,6 +72,36 @@ export function linkedReader(path: string, name: string, lastModified: number, e
   };
 }
 
+export interface LinkedRange {
+  blob: RangeBlob;
+  /** True when the file still has the size and modified time it had when opened (it did not change while being read). */
+  verify(): Promise<boolean>;
+  close(): Promise<void>;
+}
+
+/**
+ * Ranged reader for a linked original: only the bytes asked for are read (a RAW's embedded preview is a few MB of a
+ * 30-60 MB file, which matters on external drives and network shares). Same identity rule as linkedReader.
+ */
+export function linkedRangeOpener(path: string, expectedSize?: number): () => Promise<LinkedRange> {
+  return async () => {
+    const fs = await import('@tauri-apps/plugin-fs');
+    const before = await fs.stat(path);
+    if (!linkedSourceMatches(expectedSize, before.size)) {
+      throw new Error('Linked original differs from the imported photo. Reconnect the original before editing.');
+    }
+    const range = await openLinkedRange(path, before.size);
+    return {
+      blob: range.blob,
+      close: range.close,
+      verify: async () => {
+        const after = await fs.stat(path);
+        return after.size === before.size && !(before.mtime && after.mtime && before.mtime.getTime() !== after.mtime.getTime());
+      },
+    };
+  };
+}
+
 /** Ask the desktop app to choose photos. They are linked, not copied. */
 export async function pickPhotosNatively(): Promise<PickedPhoto[] | 'cancelled'> {
   if (!isDesktopApp()) return 'cancelled';
@@ -84,13 +115,21 @@ export async function pickPhotosNatively(): Promise<PickedPhoto[] | 'cancelled'>
 /** Choose a folder and link photographs throughout its nested shoot folders.
  * Metadata reads are bounded; original bytes are still read only when needed.
  */
-export async function pickFolderNatively(): Promise<PickedPhoto[] | 'cancelled'> {
+export async function pickFolderNatively(options: {
+  /** Called once a folder is chosen, before the (possibly long) look through it, so progress can show at once. */
+  onChosen?: () => void;
+  /** Photos found so far and how many have been looked at; total is known once the folder has been listed. */
+  onProgress?: (done: number, total: number) => void;
+  signal?: AbortSignal;
+} = {}): Promise<PickedPhoto[] | 'cancelled'> {
   if (!isDesktopApp()) return 'cancelled';
   const { open } = await import('@tauri-apps/plugin-dialog');
   const fs = await import('@tauri-apps/plugin-fs');
   const chosen = await open({ directory: true, multiple: false, recursive: true, title: 'Choose a folder of photos' });
   if (typeof chosen !== 'string') return 'cancelled';
+  options.onChosen?.();
   const discovery = await discoverPhotoPaths(chosen, fs.readDir, new Set(extensions));
+  if (options.signal?.aborted) return 'cancelled';
   if (discovery.truncated || discovery.skippedFolders) {
     // Never silently import only part of a shoot when the scan was incomplete.
     throw new Error(discovery.truncated
@@ -100,8 +139,10 @@ export async function pickFolderNatively(): Promise<PickedPhoto[] | 'cancelled'>
   // Limit concurrent filesystem metadata requests for large camera cards/NAS volumes.
   const photos: PickedPhoto[] = [];
   for (let index = 0; index < discovery.paths.length; index += 8) {
+    if (options.signal?.aborted) return 'cancelled';
     const batch = await Promise.all(discovery.paths.slice(index, index + 8).map(linkedPhoto));
     photos.push(...batch);
+    options.onProgress?.(photos.length, discovery.paths.length);
   }
   return photos;
 }
