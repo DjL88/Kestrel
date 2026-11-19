@@ -68,8 +68,34 @@ export async function developRawPrecisionEdited(file: Blob, recipe: NativeRawMas
   }
 }
 
-/** Nikon High Efficiency (HE/HE*) needs Kestrel's own decoder; a DNG copy lets other editors and tools read it too. */
-export const canSaveDngCopy = (filename: string) => isDesktopApp() && /\.nef$/i.test(filename);
+/** How a RAW's sensor data is stored, as far as decoding is concerned. */
+export type RawSensorMode = 'nikon-he' | 'nikon-he-star' | 'other';
+
+/** Enough of the file's start for its headers; the rest of a 60 MB RAW is never read for this. */
+const SENSOR_MODE_PREFIX = 4 * 1024 * 1024;
+
+/**
+ * Whether a NEF is Nikon High Efficiency (HE or HE*), read by the desktop app from the file's headers only. Anything
+ * that isn't a desktop NEF, or can't be read, is 'other': the answer only ever adds a label or a DNG option.
+ */
+export async function rawSensorMode(file: Blob, filename: string): Promise<RawSensorMode> {
+  if (!isDesktopApp() || !/\.nef$/i.test(filename)) return 'other';
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const prefix = new Uint8Array(await file.slice(0, SENSOR_MODE_PREFIX).arrayBuffer());
+    const mode = await invoke<string>('raw_sensor_mode', prefix, { headers: { 'x-file-length': String(file.size) } });
+    return mode === 'nikon-he' || mode === 'nikon-he-star' ? mode : 'other';
+  } catch {
+    return 'other';
+  }
+}
+
+/** Plain words for how a developed picture was made from the sensor data. */
+export function sensorModeLabel(mode: RawSensorMode): string | null {
+  if (mode === 'nikon-he') return 'Nikon High Efficiency';
+  if (mode === 'nikon-he-star') return 'Nikon High Efficiency*';
+  return null;
+}
 
 /**
  * A lossless DNG of a Nikon High Efficiency NEF's sensor data, made by the desktop app's own decoder. The original is

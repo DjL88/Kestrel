@@ -21,7 +21,10 @@ import { fullContext } from '../core/masks';
 import { MaskOverlay } from './MaskOverlay';
 import { MaskPanel } from './MaskPanel';
 import { createSubjectMask, framingKey, type SubjectGrid } from '../core/maskTypes';
-import { detectSubject } from '../providers/subjectDetector';
+import { detectSubject, detectSubjectGuided } from '../providers/subjectDetector';
+import { GUIDED_RENDER_EDGE } from '../core/subjectGuide';
+import { findEye, lumaOf, panToCentre } from '../core/eyeFinder';
+import { subjectWeights } from '../core/naturalAuto';
 import { PresetPanel } from './PresetPanel';
 import { mergeAutoSuggestion } from '../core/autoEnhance';
 import { describeOutcome, naturalAuto, stageNaturalRecipe } from '../core/naturalAuto';
@@ -43,7 +46,7 @@ const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
 import { isRawPreviewFile } from '../core/rawFormats';
 import { tasks } from '../core/taskStore';
-import { canDevelopRaw, canSaveDngCopy, developRaw, developRawPrecisionEdited, matchPreviewOrientation, rawDngCopy } from '../providers/rawDevelop';
+import { canDevelopRaw, developRaw, developRawPrecisionEdited, matchPreviewOrientation, rawDngCopy, rawSensorMode, sensorModeLabel, type RawSensorMode } from '../providers/rawDevelop';
 import { extractRawPreview } from '../core/nefPreview';
 import { nativeRawMasterRecipe, nativeRawMasterFraming } from '../core/nativeRawMaster';
 import { saveWithDialog } from '../providers/desktopShell';
@@ -122,6 +125,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [masterBusy, setMasterBusy] = useState(false);
   const [masterNote, setMasterNote] = useState<string | null>(null);
   const [dngBusy, setDngBusy] = useState(false);
+  /** How each developed RAW's sensor data was stored, by photo, so the label and the DNG option tell the truth. */
+  const [sensorModes, setSensorModes] = useState<Record<string, RawSensorMode>>({});
+  const sensorMode = sensorModes[frame.stableKey] ?? 'other';
   const [dngNote, setDngNote] = useState<string | null>(null);
   const [compare, setCompare] = useState(false);
   const [beforeStage, setBeforeStage] = useState<ComparisonStage>('original');
@@ -225,6 +231,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const cropDrag = useRef<{ x: number; y: number; anchorX: number; anchorY: number } | null>(null);
   const [markFocus, setMarkFocus] = useState(false);
   const [transform, setTransform] = useState({ zoom: 1, pan: { x: 0, y: 0 } });
+  const [eyeNote, setEyeNote] = useState<string | null>(null);
+  const [findingEye, setFindingEye] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const openExport = () => { if (onExport) onExport(); else setExportOpen(true); };
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -290,7 +298,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     setDeveloping(true); setDevelopNote(null);
     const task = tasks.start(`Developing ${frame.filename} from RAW`);
     try {
-      const result = await provider.developFromOriginal(frame.stableKey, async (original) => {
+      const key = frame.stableKey;
+      const result = await provider.developFromOriginal(key, async (original) => {
+        const mode = await rawSensorMode(original, frame.filename);
+        setSensorModes((modes) => modes[key] === mode ? modes : { ...modes, [key]: mode });
         const developed = await developRaw(original, /\.([a-z0-9]+)$/i.exec(frame.filename)?.[1] ?? 'nef');
         return matchPreviewOrientation(developed, await extractRawPreview(original).catch(() => null));
       });
@@ -419,6 +430,51 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     const next = Math.max(1, Math.min(maxZoom, zoom));
     return { zoom: next, pan: next === 1 ? { x: 0, y: 0 } : current.pan };
   });
+  /**
+   * Zoom to the subject's eye: the subject is found as for masks, then the eye is looked for inside it. Only the view
+   * moves; nothing is decided about focus, and when no eye stands out the view stays where it is.
+   */
+  async function zoomToEye() {
+    if (findingEye || !source || !outputSize || !position || !fit) return;
+    setFindingEye(true);
+    setEyeNote(null);
+    const startedFor = source;
+    try {
+      const framed = document.createElement('canvas');
+      drawFramedPhoto(source, framed, framing, { scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(outputSize.width, outputSize.height)) });
+      const cropKey = framingKey(framing);
+      const cached = subjectCache.current?.source === source && subjectCache.current?.cropKey === cropKey ? subjectCache.current.result : null;
+      const detection = cached ?? await detectSubjectGuided(framed);
+      if (!cached) subjectCache.current = { source, cropKey, result: detection };
+      if (sourceImage.current !== startedFor) return;
+      // Look at about 1,600 pixels across: enough for a distant bird's eye to be a few pixels wide.
+      const scale = Math.min(1, 1600 / Math.max(framed.width, framed.height));
+      const sample = document.createElement('canvas');
+      sample.width = Math.max(16, Math.round(framed.width * scale));
+      sample.height = Math.max(16, Math.round(framed.height * scale));
+      const context = sample.getContext('2d', { willReadFrequently: true });
+      if (!context) throw new Error('Canvas unavailable');
+      context.drawImage(framed, 0, 0, sample.width, sample.height);
+      const pixels = context.getImageData(0, 0, sample.width, sample.height).data;
+      const subject = detection.assessment.usable ? subjectWeights(detection.grid, sample.width, sample.height) : null;
+      if (!subject) { setEyeNote('No clear subject, so the view stayed put.'); return; }
+      const eye = findEye({ luma: lumaOf(pixels, sample.width, sample.height), subject, width: sample.width, height: sample.height });
+      if (!eye) { setEyeNote('No eye stood out clearly, so the view stayed put.'); return; }
+      const zoom = Math.max(1, Math.min(maxZoom, zoomForPercent(200, fit, dpr)));
+      setTransform({ zoom, pan: panToCentre(eye, { width: position.width, height: position.height }, zoom) });
+      setEyeNote(eye.confidence === 'likely' ? 'Zoomed to the eye.' : 'Zoomed to what looks most like the eye. Check it.');
+    } catch (error) {
+      setEyeNote(error instanceof Error ? error.message : 'Could not look for the eye.');
+    } finally {
+      setFindingEye(false);
+    }
+  }
+  useEffect(() => {
+    if (!eyeNote) return;
+    const timer = window.setTimeout(() => setEyeNote(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [eyeNote]);
+
   useEffect(() => {
     const onZoomKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -619,10 +675,15 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             // Slow or broken inference must not hold the editing workflow hostage.
             let timeout: number | undefined;
             try {
+              // The detector steers the outline to small, distant subjects; it falls back to the whole photo by itself.
+              const guideCanvas = document.createElement('canvas');
+              drawFramedPhoto(originalSource, guideCanvas, frame.framing ?? DEFAULT_FRAMING, {
+                scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(outputSize.width, outputSize.height)),
+              });
               detection = await Promise.race([
-                detectSubject(analysisCanvas),
+                detectSubjectGuided(guideCanvas),
                 new Promise<never>((_, reject) => {
-                  timeout = window.setTimeout(() => reject(new Error('Subject analysis timed out')), 8000);
+                  timeout = window.setTimeout(() => reject(new Error('Subject analysis timed out')), 12000);
                 }),
               ]);
             } finally { if (timeout !== undefined) window.clearTimeout(timeout); }
@@ -759,9 +820,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     setDetecting(true);
     setDetectNotice('');
     try {
-      const preview = document.createElement('canvas');
-      drawFramedPhoto(source, preview, framing, { scale: Math.min(1, 640 / Math.max(outputSize.width, outputSize.height)) });
-      const { grid, assessment } = await detectSubject(preview);
+      const framed = document.createElement('canvas');
+      drawFramedPhoto(source, framed, framing, { scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(outputSize.width, outputSize.height)) });
+      const { grid, assessment, guide } = await detectSubjectGuided(framed);
       if (detectionContext.current !== startedFor) {
         if (detectionContext.current) setDetectNotice('Photo edits changed. Find the subject or background again.');
         return;
@@ -781,7 +842,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         setSelectedMaskId(mask.id);
         setShowMaskOverlay(true);
       }
-      setDetectNotice(assessment.reason);
+      setDetectNotice(guide ? `Traced the subject the detector found, at full detail. ${assessment.reason}` : assessment.reason);
     } catch (error) {
       if (detectionContext.current === startedFor) {
         setDetectNotice(error instanceof Error ? error.message : 'Subject detection failed.');
@@ -940,6 +1001,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               onClick={() => zoomTo(zoomForPercent(100, fit, dpr))}>100%</button>
             <button type="button" title="Twice actual pixels " className="h-7 rounded px-1.5 hover:bg-white/15"
               onClick={() => zoomTo(zoomForPercent(200, fit, dpr))}>200%</button>
+            <button type="button" title="Zoom to the subject's eye (only moves the view)" className="h-7 rounded px-1.5 hover:bg-white/15"
+              disabled={findingEye || sourceState !== 'ready'} onClick={() => void zoomToEye()}>{findingEye ? 'Eye…' : 'Eye'}</button>
+            {eyeNote && <span role="status" className="px-1 text-xs text-zinc-300">{eyeNote}</span>}
 
 
           </div>
@@ -1261,7 +1325,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         {isRaw && (
           <div className="border-t border-white/10 pt-2">
             <p role={developing ? 'status' : undefined} className="px-1 text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey)
-              ? 'Developed from the RAW file as an 8-bit JPEG. Edits use that JPEG; the original RAW is unchanged.'
+              ? sensorModeLabel(sensorMode)
+                ? `Developed from the RAW sensor data (${sensorModeLabel(sensorMode)}) as an 8-bit JPEG. Edits use that JPEG; the original RAW is unchanged.`
+                : 'Developed from the RAW file as an 8-bit JPEG. Edits use that JPEG; the original RAW is unchanged.'
               : developing ? 'Getting the full quality from the RAW file…' : "You're editing the quick preview stored inside the RAW file."}</p>
             {/* Always visible, not tucked behind the disclosure: when the automatic attempt fails the person needs
                 to see why without first hunting through RAW options. */}
@@ -1280,7 +1346,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                 </button>
                 <p className="text-xs text-zinc-400">Uses original RAW, not its JPEG. Global tone/colour, crop and quarter-turn rotation. Straightening, masks and detail are blocked until the native renderer supports them. Colour accuracy is not yet certified.</p>
                 {masterNote && <p role="status" className="text-xs text-zinc-300">{masterNote}</p>}
-                {canSaveDngCopy(frame.filename) && (
+                {sensorMode !== 'other' && (
                   <>
                     <button type="button" className={button + ' w-full border border-white/15'}
                       disabled={dngBusy} onClick={() => void saveDngCopy()}>

@@ -48,9 +48,22 @@ const INSPECT_PREFIX: usize = 4 * 1024 * 1024;
 #[cfg(feature = "nikon-he")]
 pub fn high_efficiency_mode(bytes: &[u8]) -> Option<SensorDecoder> {
     let prefix = &bytes[..bytes.len().min(INSPECT_PREFIX)];
-    let info = ticoraw::inspect_nef_prefix(prefix, bytes.len())
-        .or_else(|_| ticoraw::inspect_nef(bytes))
-        .ok()?;
+    high_efficiency_mode_of_prefix(prefix, bytes.len()).or_else(|| mode_of(ticoraw::inspect_nef(bytes).ok()?))
+}
+
+/// The same answer from only the start of a file (the page sends the first few megabytes, not a 60 MB RAW).
+#[cfg(feature = "nikon-he")]
+pub fn high_efficiency_mode_of_prefix(prefix: &[u8], file_len: usize) -> Option<SensorDecoder> {
+    mode_of(ticoraw::inspect_nef_prefix(prefix, file_len).ok()?)
+}
+
+#[cfg(not(feature = "nikon-he"))]
+pub fn high_efficiency_mode_of_prefix(_prefix: &[u8], _file_len: usize) -> Option<SensorDecoder> {
+    None
+}
+
+#[cfg(feature = "nikon-he")]
+fn mode_of(info: ticoraw::NefInspection) -> Option<SensorDecoder> {
     if info.codec != ticoraw::RawCodec::TicoRaw {
         return None;
     }
@@ -172,6 +185,13 @@ mod tests {
         assert!(!error.contains("Some(") && !error.is_empty(), "{error}");
         let error = high_efficiency_to_dng(b"II*\0junk").unwrap_err();
         assert!(error.contains("original is unchanged"), "{error}");
+    }
+
+    #[test]
+    fn a_prefix_of_an_ordinary_file_is_not_high_efficiency() {
+        let dng = ticoraw::dng::encode_uncompressed_dng(&synthetic_z8(32, 32)).unwrap();
+        assert_eq!(high_efficiency_mode_of_prefix(&dng[..64.min(dng.len())], dng.len()), None);
+        assert_eq!(high_efficiency_mode_of_prefix(b"", 0), None);
     }
 
     #[test]

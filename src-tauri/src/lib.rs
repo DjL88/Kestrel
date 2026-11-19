@@ -111,6 +111,19 @@ async fn raw_dng_copy(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Re
     Ok(tauri::ipc::Response::new(dng))
 }
 
+/// Which sensor decoder a RAW needs, from the first few megabytes the page sends: "nikon-he", "nikon-he-star", or
+/// "other". Lets the page say plainly how a picture was made, and offer a DNG copy only where one helps.
+#[cfg(desktop)]
+#[tauri::command]
+fn raw_sensor_mode(request: tauri::ipc::Request<'_>) -> Result<String, String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else { return Err("No file was sent.".into()) };
+    let file_len = request.headers().get("x-file-length").and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<usize>().ok()).filter(|&len| len >= bytes.len()).unwrap_or(bytes.len());
+    // ticoraw bounds-checks every structure and never panics on hostile input; the guard is belt and braces.
+    let mode = std::panic::catch_unwind(|| nikon_he::high_efficiency_mode_of_prefix(bytes, file_len)).ok().flatten();
+    Ok(mode.map_or("other", |mode| mode.label()).to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -128,7 +141,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(OpenedFiles::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, take_opened_files])
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "Kestrel", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,
