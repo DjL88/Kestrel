@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 async function settings(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
-  return page.getByRole('dialog', { name: 'Appearance and layout settings' });
+  return page.getByRole('dialog', { name: 'Display and layout settings' });
 }
 
 test('British English by default, with British dates, whatever the browser says', async ({ page }) => {
