@@ -6,11 +6,17 @@ import type { BrowserPreviewProvider } from './providers/browserPreviewProvider'
 import { extractRawPreview } from './core/nefPreview';
 import { canDevelopRaw, developRaw, matchPreviewOrientation } from './providers/rawDevelop';
 
+/** How long after the last photo was added before developing begins. */
+const SETTLE_MS = 4000;
+
 interface Options {
   projectId: string;
   frames: PhotoFrame[];
   provider: BrowserPreviewProvider | null;
-  /** True while the library or culling is showing. Developing pauses while a photo is edited, so the editor goes first. */
+  /**
+   * True while the library or culling is showing and no photos are being added. Developing pauses while a photo is
+   * edited, so the editor goes first, and while an import runs, so the import goes first.
+   */
   active: boolean;
   /** The photo the person is looking at goes first. */
   onScreen?: string | null;
@@ -67,8 +73,14 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
     }
   }, []);
 
-  // New photos give a stopped run another go; leaving the project or opening the editor pauses it.
+  // New photos give a stopped run another go; leaving the project or opening the editor pauses it. Adding photos goes
+  // first: developing starts a few seconds after the last photo arrives, so it never slows an import (each RAW is read
+  // in full here, where the import reads only its preview).
   const count = frames.length;
   useEffect(() => { stoppedFor.current = null; }, [projectId, count]);
-  useEffect(() => { if (active) void run(); }, [active, projectId, count, run]);
+  useEffect(() => {
+    if (!active) return;
+    const timer = window.setTimeout(() => void run(), SETTLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [active, projectId, count, run]);
 }

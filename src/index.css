@@ -4,6 +4,7 @@
 @custom-variant desk (@media (min-width: 768px) and (pointer: fine));
 /* Workspace layout depends on usable dimensions, not iPhone/iPad/Android labels. */
 @custom-variant workspace (@media (min-width: 900px) and (min-height: 550px));
+@custom-variant hand-left (:root[data-hand="left"] &);
 
 @theme {
   --color-kestrel-canvas: #14161b;

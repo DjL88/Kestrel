@@ -26,15 +26,16 @@ export function SubjectPanel({ kind, tags, autoTags = [], disabled, onKeep, onCh
   };
   const quick = kind ? STARTER_TAGS[kind].filter((word) => !tags.some((tag) => tag.toLowerCase() === word.toLowerCase())) : [];
   return (
-    <section aria-label="What is in this photo" className="space-y-2 px-1 pb-2">
+    <section aria-label="What is in this photo" className="@container space-y-2 px-1 pb-2">
       <h3 className="text-sm font-medium text-zinc-100">What is this a photo of?</h3>
-      <div role="group" aria-label="Kind of photo" className="grid grid-cols-4 gap-1">
+      {/* Four across when the panel has room for the words, two by two when it is narrow: labels are never cut off. */}
+      <div role="group" aria-label="Kind of photo" className="grid grid-cols-2 gap-1 @[19rem]:grid-cols-4">
         {SUBJECT_KINDS.map((entry) => {
           const Icon = ICONS[entry.id];
           return (
             <button key={entry.id} type="button" disabled={disabled} aria-pressed={kind === entry.id} title={entry.hint}
               onClick={() => onChange(tags, kind === entry.id ? undefined : entry.id)}
-              className="flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md border border-white/10 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-45 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15">
+              className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-md border border-white/10 px-1 text-center text-xs leading-tight text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-45 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15">
               <Icon className="h-5 w-5" aria-hidden="true" />{entry.label}
             </button>
           );
