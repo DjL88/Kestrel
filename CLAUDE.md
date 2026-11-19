@@ -2,6 +2,8 @@
 
 Kestrel is an offline-first, nondestructive photo workflow: import, cull, develop, export, reopen. It runs on Windows, macOS, web, and later iOS and Android, from one codebase. Several Claude sessions (on the Mac, on the Windows laptop, and scheduled workers) change this repository in parallel. These rules keep them building **one** product.
 
+**Shared cross-agent coordination:** [GitHub issue #418 — Kestrel build board](https://github.com/DjL88/Kestrel/issues/418) is the live 10-track claim, status and handover board. All tools (including Claude and Codex) must check its newest comments and existing file claims before beginning. Only the coordinator updates the shared checklist; individual agents leave evidence-bearing comments. [AGENTS.md](AGENTS.md) provides a tool-neutral entry point. The product contract and roadmap below remain authoritative for intent and verified status.
+
 ## Read first, every session
 1. [docs/PRODUCT-SPEC.md](docs/PRODUCT-SPEC.md) says what Kestrel must be. Treat it as the contract.
 2. [docs/ROADMAP.md](docs/ROADMAP.md) gives verified status and the next P0 item. Pick work from here, not from older docs ([docs/README.md](docs/README.md) lists what's history).
