@@ -1,3 +1,4 @@
+import { subjectTab } from './helpers';
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
@@ -32,6 +33,7 @@ test('after import, species appears quietly and the info pop-up can change it', 
   // Classify these synthetic bird photos before permitting automatic species names.
   for (const name of ['bird-1.png', 'bird-2.png', 'bird-3.png']) {
     await page.getByRole('button', { name: `Photo info and rating for ${name}` }).click();
+    await subjectTab(page);
     await page.getByRole('complementary', { name: 'Photo info' }).getByRole('button', { name: 'Wildlife' }).click();
     await page.getByRole('button', { name: 'Close photo info' }).click();
   }
@@ -55,7 +57,9 @@ test('after import, species appears quietly and the info pop-up can change it', 
   // The info pop-up shows what was found and lets it be changed: remove the automatic name and give another.
   await page.getByRole('button', { name: 'Photo info and rating for bird-1.png' }).click();
   const info = page.getByRole('complementary', { name: 'Photo info' });
+  await subjectTab(page);
   await expect(info.getByRole('list', { name: 'Tags' })).toContainText('Red kite');
+  await subjectTab(page);
   await expect(info.getByRole('button', { name: 'Wildlife' })).toHaveAttribute('aria-pressed', 'true');
   await info.getByRole('button', { name: 'Remove tag Red kite' }).click();
   await info.getByLabel('Add a tag').fill('Common buzzard');
@@ -102,5 +106,6 @@ test('with the subject checker, unclassified bird photos become Wildlife and get
   await expect(labels).toHaveCount(2, { timeout: 60000 });
   for (const label of await labels.all()) await expect(label).toContainText('Species: Red kite');
   await page.getByRole('button', { name: 'Photo info and rating for unmarked-1.png' }).click();
+  await subjectTab(page);
   await expect(page.getByRole('complementary', { name: 'Photo info' }).getByRole('button', { name: 'Wildlife' })).toHaveAttribute('aria-pressed', 'true');
 });
