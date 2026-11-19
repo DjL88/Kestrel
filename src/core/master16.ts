@@ -115,25 +115,37 @@ export function editRgb16(image: Rgb16Image, edit: PhotoEdit): void {
   applyDetailRgb16(data, image.width, image.height, edit, Math.max(image.width, image.height));
 }
 
-/** A baseline, uncompressed, 16-bit RGB TIFF (little-endian), readable by every editor. No colour profile yet: sRGB values. */
+/**
+ * Standard sRGB ICC profile generated with LittleCMS. The decoder currently hands
+ * this exporter display-encoded sRGB; this is a truthful *output* tag, not a claim
+ * of a scene-linear working space or Nikon colour parity. Preserve the original
+ * ICC bytes and only advertise other profiles after a measured colour transform.
+ *
+ * Embedded profile: 588 bytes, RGB monitor colour space, 'acsp' ICC signature.
+ */
+const SRGB_ICC_BASE64 = 'AAACTGxjbXMEQAAAbW50clJHQiBYWVogB+oACwATAA4ADAAeYWNzcEFQUEwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPbWAAEAAAAA0y1sY21zAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALZGVzYwAAAQgAAAA2Y3BydAAAAUAAAABMd3RwdAAAAYwAAAAUY2hhZAAAAaAAAAAsclhZWgAAAcwAAAAUYlhZWgAAAeAAAAAUZ1hZWgAAAfQAAAAUclRSQwAAAggAAAAgZ1RSQwAAAggAAAAgYlRSQwAAAggAAAAgY2hybQAAAigAAAAkbWx1YwAAAAAAAAABAAAADGVuVVMAAAAaAAAAHABzAFIARwBCACAAYgB1AGkAbAB0AC0AaQBuAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAADAAAAAcAE4AbwAgAGMAbwBwAHkAcgBpAGcAaAB0ACwAIAB1AHMAZQAgAGYAcgBlAGUAbAB5WFlaIAAAAAAAAPbWAAEAAAAA0y1zZjMyAAAAAAABDEIAAAXe///zJQAAB5MAAP2Q///7of///aIAAAPcAADAblhZWiAAAAAAAABvoAAAOPUAAAOQWFlaIAAAAAAAACSfAAAPhAAAtsNYWVogAAAAAAAAYpcAALeHAAAY2XBhcmEAAAAAAAMAAAACZmYAAPKnAAANWQAAE9AAAApbY2hybQAAAAAAAwAAAACj1wAAVHsAAEzNAACZmgAAJmYAAA9c';
+const SRGB_ICC_PROFILE = Uint8Array.from(atob(SRGB_ICC_BASE64), (char) => char.charCodeAt(0));
+
+/** A baseline uncompressed 16-bit RGB TIFF, tagged with the actual output sRGB ICC profile. */
 export function encodeTiff16(image: Rgb16Image): Blob {
   const { width, height } = image;
   const entries: Array<[tag: number, type: number, count: number, value: number]> = [];
-  const SHORT = 3, LONG = 4, RATIONAL = 5, ASCII = 2;
+  const SHORT = 3, LONG = 4, RATIONAL = 5, ASCII = 2, UNDEFINED = 7;
   const software = 'Kestrel\0';
-  const entryCount = 14;
+  const entryCount = 15;
   const ifdOffset = 8;
   const extra = ifdOffset + 2 + entryCount * 12 + 4;
   const bitsOffset = extra;
   const resolutionOffset = bitsOffset + 6;
   const softwareOffset = resolutionOffset + 16;
-  const dataOffset = softwareOffset + software.length + (software.length % 2);
+  const profileOffset = softwareOffset + software.length + (software.length % 2);
+  const dataOffset = profileOffset + SRGB_ICC_PROFILE.length + (SRGB_ICC_PROFILE.length % 2);
   const byteCount = width * height * 6;
   entries.push(
     [256, LONG, 1, width], [257, LONG, 1, height], [258, SHORT, 3, bitsOffset], [259, SHORT, 1, 1], [262, SHORT, 1, 2],
     [273, LONG, 1, dataOffset], [277, SHORT, 1, 3], [278, LONG, 1, height], [279, LONG, 1, byteCount],
     [282, RATIONAL, 1, resolutionOffset], [283, RATIONAL, 1, resolutionOffset + 8], [284, SHORT, 1, 1], [296, SHORT, 1, 2],
-    [305, ASCII, software.length, softwareOffset],
+    [305, ASCII, software.length, softwareOffset], [34675, UNDEFINED, SRGB_ICC_PROFILE.length, profileOffset],
   );
   const header = new ArrayBuffer(dataOffset);
   const view = new DataView(header);
@@ -153,6 +165,7 @@ export function encodeTiff16(image: Rgb16Image): Blob {
   for (let c = 0; c < 3; c += 1) view.setUint16(bitsOffset + c * 2, 16, true);
   for (const at of [resolutionOffset, resolutionOffset + 8]) { view.setUint32(at, 300, true); view.setUint32(at + 4, 1, true); }
   for (let i = 0; i < software.length; i += 1) view.setUint8(softwareOffset + i, software.charCodeAt(i));
+  new Uint8Array(header, profileOffset, SRGB_ICC_PROFILE.length).set(SRGB_ICC_PROFILE);
   let samples = image.data;
   if (new Uint8Array(new Uint16Array([1]).buffer)[0] !== 1) {
     samples = new Uint16Array(image.data.length);
