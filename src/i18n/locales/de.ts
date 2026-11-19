@@ -79,6 +79,8 @@ export const de: Translation = {
     draft: 'Vorläufige Übersetzung, noch nicht von Muttersprachlern geprüft. Einige Bildschirme sind noch auf Englisch.',
   },
   appearance: {
+    dialogLabel: "Anzeige- und Layout-Einstellungen",
+    shortcuts: "Tastatur- und Controller-Kürzel",
     "position": "Wo sollen die Werkzeuge stehen?",
     "positionHint": "Wähle die Seite für die Bearbeitungswerkzeuge. Auf dem Handy stehen sie unter dem Foto.",
     "toolsSide": "Werkzeugseite",
