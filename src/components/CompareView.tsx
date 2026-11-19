@@ -1,4 +1,4 @@
-import { ArrowLeftRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeftRight, ChevronLeft, ChevronRight, Maximize2, ZoomIn } from 'lucide-react';
 import type { CullDecision, PhotoFrame } from '../core/types';
 import { toggleCompareDecision } from '../core/compareDecision';
 import { stepSelection } from '../core/cullingEngine';
@@ -30,6 +30,7 @@ export function CompareView({
   const alternatives = candidates.filter((frame) => frame.id !== leftFrame?.id);
   const previous = stepSelection(alternatives, rightFrame?.id ?? null, -1);
   const next = stepSelection(alternatives, rightFrame?.id ?? null, 1);
+  const uniqueRight = rightFrame?.id !== leftFrame?.id;
   const canGoBack = previous !== null && previous !== rightFrame?.id;
   const canGoForward = next !== null && next !== rightFrame?.id;
 
@@ -43,7 +44,18 @@ export function CompareView({
     <section aria-label="Compare photos" className="flex min-h-0 flex-1 flex-col">
       <PhotoViewport base={photo(rightFrame)} overlay={photo(leftFrame)} labels={['A', 'B']}
         zoom={zoomLevel} pan={panOffset} onTransform={onTransform} />
-      <div className="flex flex-wrap items-center justify-between gap-x-2 border-t border-white/10 bg-kestrel-panel px-1 sm:px-3">
+      <div role="toolbar" aria-label="Compare photo controls" className="flex flex-wrap items-center justify-between gap-x-2 border-t border-white/10 bg-kestrel-panel px-1 sm:px-3">
+        <div role="group" aria-label="Compare zoom" className="flex items-center">
+          <button type="button" className={control} onClick={() => onTransform(1, { x: 0, y: 0 })}
+            aria-label="Fit both photos" title="Fit both photos" aria-pressed={zoomLevel === 1}>
+            <Maximize2 aria-hidden="true" className="h-4 w-4" /><span className="ml-1 text-xs">Fit</span>
+          </button>
+          <button type="button" className={control} onClick={() => onTransform(2, { x: 0, y: 0 })}
+            aria-label="Zoom both photos to twice fitted size" title="Zoom both photos to twice fitted size"
+            aria-pressed={zoomLevel === 2}>
+            <ZoomIn aria-hidden="true" className="h-4 w-4" /><span className="ml-1 text-xs">2×</span>
+          </button>
+        </div>
         <div className="flex w-full min-w-0 items-center sm:w-auto sm:flex-1">
           <span data-testid="compare-photo-a" className="min-w-0 flex-1 truncate px-2 text-xs text-zinc-300" title={leftFrame?.filename}>
             A · {leftFrame?.filename ?? 'Select photo'}
@@ -54,9 +66,9 @@ export function CompareView({
         </div>
         <button type="button" className={control} onClick={onSwapPanes} aria-label="Swap photos A and B" title="Swap photos A and B"><ArrowLeftRight className="h-4 w-4" /></button>
         {([['A', leftFrame], ['B', rightFrame]] as const).map(([side, frame]) => (
-          frame && (side === 'A' || frame.id !== leftFrame?.id) && (
+          frame && (side === 'A' || uniqueRight) && (
             <div key={side} role="group" aria-label={`Decisions for photo ${side}`} className="flex items-center">
-              {(['keep', 'reject'] as const).map((decision) => (
+              {(['keep', 'review', 'reject'] as const).map((decision) => (
                 <button type="button" key={decision}
                   className={`${control} capitalize aria-pressed:bg-white/15`}
                   aria-label={`${decision} photo ${side}`} title={`${decision} photo ${side}`}
@@ -68,7 +80,7 @@ export function CompareView({
             </div>
           )
         ))}
-        <button type="button" className={control} onClick={onExitCompare}>Done</button>
+        <button type="button" className={control} onClick={onExitCompare} aria-label="Finish comparing photos">Done</button>
       </div>
     </section>
   );
