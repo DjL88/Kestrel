@@ -79,6 +79,8 @@ export const fr: Translation = {
     draft: 'Traduction provisoire, pas encore relue par un locuteur natif. Certains écrans sont encore en anglais.',
   },
   appearance: {
+    dialogLabel: "Paramètres d’affichage et de disposition",
+    shortcuts: "Raccourcis clavier et commandes",
     "position": "De quel côté placer les outils ?",
     "positionHint": "Choisissez le côté des outils sur un grand écran. Sur téléphone, ils sont sous la photo.",
     "toolsSide": "Côté des outils",
