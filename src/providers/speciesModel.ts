@@ -7,6 +7,11 @@ import { friendlyToolError } from '../core/toolErrors';
 import { subjectCrop, type SquareCrop } from '../core/subjectCrop';
 import type { SubjectGrid } from '../core/maskTypes';
 import { detectSubject } from './subjectDetector';
+import { downloadGateModel, gateAvailable, removeGateModel } from './categoryGate';
+import { GATE_MODEL } from '../core/categoryGate';
+
+/** What the opt-in download fetches: the subject checker (category gate) and the species model. */
+export const SPECIES_DOWNLOAD_BYTES = SPECIES_MODEL.bytes + GATE_MODEL.bytes;
 
 export type SpeciesStatus = 'unavailable' | 'not-downloaded' | 'ready';
 
@@ -23,13 +28,21 @@ export async function speciesStatus(): Promise<SpeciesStatus> {
   // Desktop builds include the checked ONNX file in their assets. No second
   // download or user permission is necessary after installing the app.
   if (isDesktopApp() && SPECIES_MODEL.bundled) return 'ready';
-  return (await hasModel(SPECIES_MODEL.cache, SPECIES_MODEL.url)) ? 'ready' : 'not-downloaded';
+  // In a browser, names are offered only with the subject checker on the device too: an earlier download without it
+  // is offered again, and then only the checker is fetched.
+  const [species, gate] = await Promise.all([hasModel(SPECIES_MODEL.cache, SPECIES_MODEL.url), gateAvailable()]);
+  return species && gate ? 'ready' : 'not-downloaded';
 }
 
 /** Download the model once, check it, and keep it on this device for offline use. */
 export async function downloadSpeciesModel(onProgress: (fraction: number) => void, signal?: AbortSignal): Promise<void> {
   if (!SPECIES_MODEL.url) throw new Error('Species suggestions are not set up in this copy of Kestrel.');
   try {
+    // The subject checker first: a browser never has species names without the check that keeps aircraft from them.
+    const gateShare = GATE_MODEL.bytes / SPECIES_DOWNLOAD_BYTES;
+    await downloadGateModel((fraction) => onProgress(fraction * gateShare), signal);
+    const speciesProgress = (fraction: number) => onProgress(gateShare + fraction * (1 - gateShare));
+    if (await hasModel(SPECIES_MODEL.cache, SPECIES_MODEL.url)) { onProgress(1); return; }
     const response = await fetch(SPECIES_MODEL.url, { signal });
     if (!response.ok || !response.body) throw new Error('The model could not be downloaded.');
     const total = Number(response.headers.get('content-length')) || SPECIES_MODEL.bytes;
@@ -44,7 +57,7 @@ export async function downloadSpeciesModel(onProgress: (fraction: number) => voi
       hash.update(value);
       pieces.push(value);
       received += value.length;
-      onProgress(Math.min(0.98, received / total));
+      speciesProgress(Math.min(0.98, received / total));
     }
     if (received !== SPECIES_MODEL.bytes || hash.digest() !== SPECIES_MODEL.sha256) {
       throw new Error('The downloaded model does not match its checksum, so it was not kept. Try again.');
@@ -67,6 +80,7 @@ export async function downloadSpeciesModel(onProgress: (fraction: number) => voi
 export async function removeSpeciesModel(): Promise<void> {
   loading = null;
   await removeModel(SPECIES_MODEL.cache, SPECIES_MODEL.url);
+  await removeGateModel();
 }
 
 function loadSession(): Promise<Loaded> {

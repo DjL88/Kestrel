@@ -3,9 +3,11 @@ import { readFileSync } from 'node:fs';
 
 // The stand-in model always "sees" a red kite. The subject finder is the real bundled one.
 const standIn = readFileSync('tests/fixtures/stand-in-species.onnx');
+const standInGate = readFileSync('tests/fixtures/stand-in-gate.onnx');
 
 test('after import, species appears quietly and the info pop-up can change it', async ({ page }) => {
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
+  await page.route('**/stand-in-gate.onnx', (route) => route.fulfill({ body: standInGate, contentType: 'application/octet-stream' }));
   await page.goto('/');
   // Photos with one clear subject, so the subject finder has something to find.
   const pictures = await page.evaluate(() => Array.from({ length: 3 }, (_, index) => {
@@ -67,4 +69,38 @@ test('after import, species appears quietly and the info pop-up can change it', 
   await page.getByRole('button', { name: 'Scan 3 photos' }).click();
   await expect(page.getByRole('article', { name: 'Frame bird-1.png' }).getByTestId('species-label')).toContainText('Species: Common buzzard', { timeout: 30000 });
   await expect(page.getByRole('region', { name: 'Species recognition' })).toHaveCount(0);
+});
+
+test('with the subject checker, unclassified bird photos become Wildlife and get names without hand-marking', async ({ page }) => {
+  // ROADMAP P0.4. The gate's stand-in always "sees" a bird; the species stand-in always "sees" a red kite.
+  await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
+  await page.route('**/stand-in-gate.onnx', (route) => route.fulfill({ body: standInGate, contentType: 'application/octet-stream' }));
+  await page.goto('/');
+  const pictures = await page.evaluate(() => Array.from({ length: 2 }, (_, index) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 800; canvas.height = 500;
+    const c = canvas.getContext('2d')!;
+    c.fillStyle = '#3b556b'; c.fillRect(0, 0, 800, 500);
+    c.fillStyle = '#c0392b'; c.beginPath(); c.ellipse(560 - index * 40, 250, 130, 160, 0, 0, 7); c.fill();
+    return canvas.toDataURL('image/png').split(',')[1];
+  }));
+  await page.getByRole('button', { name: 'New project' }).click();
+  await page.getByRole('textbox', { name: 'Project name' }).fill('Unmarked birds');
+  await page.getByText('Project options', { exact: true }).click();
+  await page.getByRole('checkbox', { name: /Auto-cull/ }).uncheck();
+  await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('button', { name: 'Add photos', exact: true }).click();
+  await page.getByTestId('local-file-input').setInputFiles(pictures.map((data, index) => ({ name: `unmarked-${index + 1}.png`, mimeType: 'image/png', buffer: Buffer.from(data, 'base64') })));
+  await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 2' })).toBeVisible({ timeout: 30000 });
+
+  // The download fetches the subject checker as well as the species model; nobody marks a photo Wildlife.
+  const banner = page.getByRole('region', { name: 'Species recognition' });
+  await banner.getByText('Identify birds and animals', { exact: true }).click();
+  await banner.getByRole('button', { name: /^Download/ }).click();
+  const labels = page.getByTestId('species-label');
+  await expect(labels).toHaveCount(2, { timeout: 60000 });
+  for (const label of await labels.all()) await expect(label).toContainText('Species: Red kite');
+  await page.getByRole('button', { name: 'Photo info and rating for unmarked-1.png' }).click();
+  await expect(page.getByRole('complementary', { name: 'Photo info' }).getByRole('button', { name: 'Wildlife' })).toHaveAttribute('aria-pressed', 'true');
 });

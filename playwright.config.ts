@@ -21,6 +21,10 @@ export default defineConfig({
       ...process.env,
       VITE_SHOW_ONLINE_HELPER: 'true',
       VITE_SPECIES_MODEL_URL: '/stand-in-species.onnx',
+      // The category gate's stand-in always "sees" a bird (tools/subject-router/make_stand_in_gate.py).
+      VITE_GATE_MODEL_URL: '/stand-in-gate.onnx',
+      VITE_GATE_MODEL_SHA256: '82f2f91400444fcc7889edcbd359d5d39aed0eb0698b643a679c2b74a9e5ae73',
+      VITE_GATE_MODEL_BYTES: '2303',
       VITE_SPECIES_MODEL_SHA256: '8e4dc3df3e5bfffc2f137f720775b6416b24325902f54929cd2e85f41c87f121',
       VITE_SPECIES_MODEL_BYTES: '2278',
     },

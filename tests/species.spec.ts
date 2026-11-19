@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 // The stand-in model always "sees" a red kite, so the whole path can be tested without the real 89 MB model.
 const standIn = readFileSync('tests/fixtures/stand-in-species.onnx');
+const standInGate = readFileSync('tests/fixtures/stand-in-gate.onnx');
 
 /** The local model knows animals only, so an unclassified photo is never given a name (#377). */
 async function expectNoNameUntilWildlife(page: import('@playwright/test').Page) {
@@ -16,6 +17,7 @@ async function expectNoNameUntilWildlife(page: import('@playwright/test').Page) 
 test('species suggestions: with automatic tagging off, accept a name and it becomes a tag', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('kestrel.autoTag.v1', 'off'));
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
+  await page.route('**/stand-in-gate.onnx', (route) => route.fulfill({ body: standInGate, contentType: 'application/octet-stream' }));
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
@@ -68,6 +70,7 @@ test('species suggestions: with automatic tagging off, accept a name and it beco
 test('a suggestion can be dismissed, and the choice is not kept as a tag', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('kestrel.autoTag.v1', 'off'));
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
+  await page.route('**/stand-in-gate.onnx', (route) => route.fulfill({ body: standInGate, contentType: 'application/octet-stream' }));
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
@@ -85,6 +88,7 @@ async function openBurst(page: import('@playwright/test').Page) {
   // These tests move between photos with the filmstrip, which a phone now starts without.
   await page.addInitScript(() => localStorage.setItem('kestrel.preferences.v1', JSON.stringify({ showFilmstrip: true })));
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
+  await page.route('**/stand-in-gate.onnx', (route) => route.fulfill({ body: standInGate, contentType: 'application/octet-stream' }));
   await page.goto('/');
   // Three shots with the same capture time are one burst. Make a project and add them.
   await page.getByRole('button', { name: 'New project' }).click();
@@ -143,6 +147,7 @@ test('agreeing tags the whole burst, setting Wildlife where no kind was chosen',
 
 test('when the model is sure the photo is tagged automatically, marked Auto, and can be kept', async ({ page }) => {
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
+  await page.route('**/stand-in-gate.onnx', (route) => route.fulfill({ body: standInGate, contentType: 'application/octet-stream' }));
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
@@ -162,6 +167,7 @@ test('when the model is sure the photo is tagged automatically, marked Auto, and
 
 test('an automatic tag that is removed is never put back on that photo', async ({ page }) => {
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
+  await page.route('**/stand-in-gate.onnx', (route) => route.fulfill({ body: standInGate, contentType: 'application/octet-stream' }));
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
@@ -185,6 +191,7 @@ test('an automatic tag that is removed is never put back on that photo', async (
 
 test('automatic tagging can be switched off, and then a new photo is only offered a name', async ({ page }) => {
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
+  await page.route('**/stand-in-gate.onnx', (route) => route.fulfill({ body: standInGate, contentType: 'application/octet-stream' }));
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
@@ -216,6 +223,7 @@ test('the model downloads and is kept on a phone over plain http, where Cache St
     Object.defineProperty(crypto, 'subtle', { value: undefined, configurable: true });
   });
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
+  await page.route('**/stand-in-gate.onnx', (route) => route.fulfill({ body: standInGate, contentType: 'application/octet-stream' }));
   await page.goto('/');
   expect(await page.evaluate(() => typeof caches)).toBe('undefined');
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
