@@ -19,11 +19,14 @@ test('duplicate candidates remain unresolved for user confirmation', () => {
   assert.deepEqual(result.ambiguous, ['z8']);
   assert.equal(result.matches.length, 0);
 });
-test('one candidate is never assigned to two catalogue records', () => {
+test('one candidate is never assigned to two catalogue records, regardless of input order', () => {
   const candidate = { path: 'E:/_DSC0001.NEF', size: 10000, lastModified: 1234 };
   const result = planOriginalRelink([original, { ...original, id: 'z5ii' }], [candidate]);
-  assert.equal(result.matches.length, 1);
-  assert.deepEqual(result.unresolved, ['z5ii']);
+  assert.deepEqual(result.matches, []);
+  assert.deepEqual(result.ambiguous, ['z8', 'z5ii']);
+  const reversed = planOriginalRelink([{ ...original, id: 'z5ii' }, original], [candidate]);
+  assert.deepEqual(reversed.matches, []);
+  assert.deepEqual(reversed.ambiguous, ['z5ii', 'z8']);
 });
 test('folder suggestion supports Windows, UNC NAS and POSIX paths', () => {
   assert.equal(parentFolder('D:\\Birds\\_DSC0001.NEF'), 'D:/Birds');
@@ -63,4 +66,46 @@ test('invalid candidates do not block a distinct valid Nikon original match', ()
     { path: 'F:/_DSC0001.NEF', size: 10000, lastModified: 1234 },
   ];
   assert.deepEqual(planOriginalRelink([original], candidates).matches, [{ id: 'z8', path: 'F:/_DSC0001.NEF' }]);
+});
+
+test('duplicate catalogue IDs cannot silently overwrite a relink', () => {
+  const result = planOriginalRelink([original, { ...original, path: 'D:/Other.NEF' }], [
+    { path: 'E:/_DSC0001.NEF', size: 10000, lastModified: 1234 },
+    { path: 'E:/Other.NEF', size: 10000, lastModified: 1234 },
+  ]);
+  assert.deepEqual(result.matches, []);
+  assert.deepEqual(result.ambiguous, ['z8', 'z8']);
+});
+
+test('duplicate NAS candidate entries cannot masquerade as a unique file', () => {
+  const candidate = { path: '//NAS/Photos/_DSC0001.NEF', size: 10000, lastModified: 1234 };
+  const result = planOriginalRelink([original], [candidate, { ...candidate, path: '//nas/photos/_dsc0001.nef' }]);
+  assert.deepEqual(result.matches, []);
+  assert.deepEqual(result.ambiguous, ['z8']);
+});
+
+test('500 distinct originals relink without loss or cross-photo links, independent of ordering', () => {
+  const saved = Array.from({ length: 500 }, (_, i) => ({
+    id: `photo-${i}`, path: `D:/Z8/DSC_${String(i).padStart(5, '0')}.NEF`,
+    size: 100000 + i, lastModified: 1700000000000 + i,
+  }));
+  const candidates = saved.map(photo => ({
+    path: photo.path.replace('D:/Z8/', '//NAS/archive/'),
+    size: photo.size, lastModified: photo.lastModified,
+  })).reverse();
+  const result = planOriginalRelink(saved, candidates);
+  assert.equal(result.matches.length, 500);
+  assert.deepEqual(result.unresolved, []);
+  assert.deepEqual(result.ambiguous, []);
+  for (let i = 0; i < 500; i++) {
+    assert.equal(result.matches[i].id, saved[i].id);
+    assert.equal(result.matches[i].path, saved[i].path.replace('D:/Z8/', '//NAS/archive/'));
+  }
+});
+
+test('same filename and metadata from two cameras requires manual confirmation', () => {
+  const twins = [original, { ...original, id: 'second-camera', path: 'D:/Z5II/_DSC0001.NEF' }];
+  const result = planOriginalRelink(twins, [{ path: 'E:/_DSC0001.NEF', size: 10000, lastModified: 1234 }]);
+  assert.deepEqual(result.matches, []);
+  assert.deepEqual(result.ambiguous, ['z8', 'second-camera']);
 });
