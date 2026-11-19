@@ -316,9 +316,9 @@ pub fn develop_raw_rgb16_tiff_with_edit_and_framing(
 ) -> Result<Vec<u8>, String> {
     let edit = edit.validate()?;
     let framing = framing.validate()?;
-    let (raw, _decoder) = crate::nikon_he::decode_sensor(bytes)?;
+    let (raw, _decoder) = kestrel_raw::nikon_he::decode_sensor(bytes)?;
     // The same develop the editor's picture uses, so the 16-bit master starts from the pixels the person saw.
-    let intermediate = match crate::scene_develop::develop_display(&raw)? {
+    let intermediate = match kestrel_raw::scene_develop::develop_display(&raw)? {
         Some(display) => display,
         None => RawDevelop::default().develop_intermediate(&raw)
             .map_err(|error| format!("RAW development failed: {error}"))?
@@ -487,7 +487,7 @@ mod tests {
     /// going through `raw::explain`, so a Nikon HE*/HE file hit the library's own wording verbatim.
     #[test]
     fn nikon_high_efficiency_is_explained_in_plain_words_here_too() {
-        let message = crate::raw::explain("Failed to decode image, possibly corrupt image: NEF compression Some(HighEfficencyStar) is not supported");
+        let message = kestrel_raw::explain("Failed to decode image, possibly corrupt image: NEF compression Some(HighEfficencyStar) is not supported");
         assert!(message.contains("High Efficiency") && !message.contains("Some("), "{message}");
     }
 

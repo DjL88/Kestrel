@@ -24,7 +24,7 @@ review.
 
 ## Needs a patent decision before public release: `ticoraw` (Nikon HE/HE* decoding)
 
-`src-tauri/src/nikon_he.rs` links the `ticoraw` crate (0.2.0, pinned) to decode
+`crates/kestrel-raw/src/nikon_he.rs` (shared by the desktop app and the web build) links the `ticoraw` crate (0.2.0, pinned) to decode
 Nikon High Efficiency (HE/HE*) NEFs from their sensor data. Its **copyright**
 licence is MIT OR Apache-2.0, which is compatible with a proprietary app. But the
 TicoRAW / JPEG XS codec it implements is **covered by patents** (intoPIX), and the

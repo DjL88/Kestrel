@@ -17,7 +17,7 @@ For lawful NX Studio comparison, locally render an independently owned/licensed 
 From the repository root, with a **local, lawfully owned** folder of Nikon HE/HE* NEFs:
 
 ```sh
-python3 tools/raw-evidence/run_owner_decode.py /path/to/private/NEFs --tauri src-tauri > /path/to/private/he-decode-evidence.json
+python3 tools/raw-evidence/run_owner_decode.py /path/to/private/NEFs --crate crates/kestrel-raw > /path/to/private/he-decode-evidence.json
 python3 -m unittest discover -s tools/raw-evidence -p 'test_*.py'
 ```
 

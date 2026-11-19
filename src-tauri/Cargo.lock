@@ -2478,11 +2478,11 @@ name = "kestrel"
 version = "26.11.2"
 dependencies = [
  "image",
+ "kestrel-raw",
  "rawler",
  "rayon",
  "serde",
  "serde_json",
- "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
@@ -2492,6 +2492,15 @@ dependencies = [
  "tauri-plugin-persisted-scope",
  "tauri-plugin-process",
  "tauri-plugin-updater",
+]
+
+[[package]]
+name = "kestrel-raw"
+version = "26.11.2"
+dependencies = [
+ "image",
+ "rawler",
+ "rayon",
  "ticoraw",
 ]
 
