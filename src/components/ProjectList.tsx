@@ -13,6 +13,7 @@ import { CatalogueStorage } from './CatalogueStorage';
 import type { ProjectSettings } from '../core/projectSettings';
 import { filterProjects, inboxFirst, sortProjects, splitProjects, type ProjectSort } from '../core/projects';
 import { formatProjectDate } from '../core/formatDate';
+import { messages as m } from '../i18n/messages';
 
 interface Props {
   projects: ShootDescriptor[];
@@ -103,7 +104,7 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
           <div className="ml-auto"><SettingsButton open={appearanceOpen} onOpen={() => setAppearanceOpen(true)} /></div>
         </div>
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{m.home.projects}</h1>
           <div className="grid w-full grid-cols-2 items-center gap-2 sm:flex sm:w-auto">
           <input ref={backupInput} type="file" accept=".json,application/json" hidden onChange={(event) => {
             const file = event.target.files?.[0];
@@ -112,7 +113,7 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
           }} />
           <button type="button" onClick={() => backupInput.current?.click()} disabled={loading}
             className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm text-zinc-300 hover:bg-white/8 max-sm:hidden">
-            <FolderUp className="h-4 w-4" aria-hidden="true" /> Restore backup
+            <FolderUp className="h-4 w-4" aria-hidden="true" /> {m.home.restoreBackup}
           </button>
           <input ref={quickInput} type="file" accept={PHOTO_ACCEPT} multiple hidden data-testid="quick-edit-input" onChange={(event) => {
             const files = [...(event.target.files ?? [])];
@@ -121,44 +122,44 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
           }} />
           <button type="button" onClick={() => quickInput.current?.click()} disabled={loading} title="Open a photo straight into the editor, without making a project"
             className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-sky-300/50 px-3 text-sm text-sky-100 hover:bg-sky-300/15 disabled:opacity-50">
-            <SquareChevronsRight className="h-4 w-4" aria-hidden="true" /> Quick edit
+            <SquareChevronsRight className="h-4 w-4" aria-hidden="true" /> {m.home.quickEdit}
           </button>
           <button type="button" onClick={() => setCreating(!creating)} disabled={loading}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-kestrel-copper hover:bg-kestrel-copper-hover! px-3 text-sm font-semibold text-zinc-950 disabled:opacity-50">
-            <Plus className="h-4 w-4" aria-hidden="true" /> New project
+            <Plus className="h-4 w-4" aria-hidden="true" /> {m.home.newProject}
           </button>
           </div>
         </header>
         <p className="-mt-3 mb-5 text-center sm:hidden">
           <button type="button" onClick={() => backupInput.current?.click()} disabled={loading} className="min-h-11 px-3 text-sm text-zinc-300 underline underline-offset-4 hover:text-white">
-            Restore backup
+            {m.home.restoreBackup}
           </button>
         </p>
         {projects.length > 1 && (
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <label className="relative min-w-0 flex-1 basis-56">
-              <span className="sr-only">Search projects and photos</span>
+              <span className="sr-only">{m.home.searchPlaceholder}</span>
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden="true" />
-              <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects and photos"
+              <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={m.home.searchPlaceholder}
                 className="min-h-11 w-full rounded-md border border-white/15 bg-kestrel-raised pl-9 pr-3 text-sm placeholder:text-zinc-500 focus-visible:outline-2 focus-visible:outline-sky-300" />
             </label>
             <label className="flex items-center gap-2 text-sm text-zinc-300">
-              <span>Sort</span>
+              <span>{m.home.sort}</span>
               <select value={sort} onChange={(event) => setSort(event.target.value as ProjectSort)}
                 className="min-h-11 rounded-md border border-white/15 bg-kestrel-raised px-2 text-sm text-zinc-100 focus-visible:outline-2 focus-visible:outline-sky-300">
-                <option value="edited">Last edited</option>
-                <option value="created">Newest created</option>
-                <option value="name">Name</option>
+                <option value="edited">{m.home.sortEdited}</option>
+                <option value="created">{m.home.sortCreated}</option>
+                <option value="name">{m.home.sortName}</option>
               </select>
             </label>
           </div>
         )}
         {creating && <NewProjectWizard loading={loading} onCancel={() => setCreating(false)} onCreate={onCreate} />}
         {error && <p role="alert" className="mb-3 text-sm text-orange-200">{error}</p>}
-        {loading && <p role="status" className="mb-3 text-sm text-zinc-400">Opening catalogue…</p>}
+        {loading && <p role="status" className="mb-3 text-sm text-zinc-400">{m.home.opening}</p>}
         {!loading && !error && !splitProjects(projects).active.length && !splitProjects(projects).archived.length && !creating && (
           <p className="rounded-xl border border-white/10 bg-kestrel-raised p-4 text-sm text-zinc-300">
-            Create a project to import photos, or restore a Kestrel backup.
+            {m.home.empty}
           </p>
         )}
         {(() => {
@@ -213,12 +214,12 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
         <footer aria-label="About Kestrel" className="mt-14 border-t border-white/10 pt-5 pb-4 text-xs leading-relaxed text-zinc-400">
           <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
             <div className="min-w-0">
-              <p className="font-medium text-zinc-300">About Kestrel</p>
-              <p className="mt-1 max-w-lg">Thoughtful photo culling and editing, built around a simpler workflow and respect for your originals.</p>
+              <p className="font-medium text-zinc-300">{m.home.aboutTitle}</p>
+              <p className="mt-1 max-w-lg">{m.home.about}</p>
             </div>
             <div className="flex shrink-0 items-center gap-3">
-              <button type="button" onClick={() => setLicenceOpen(true)} className="min-h-11 rounded-md px-2 text-zinc-300 underline hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">Licence and settings</button>
-              <p className="font-mono" aria-label={`Kestrel version ${appVersion}`}>Version {appVersion}</p>
+              <button type="button" onClick={() => setLicenceOpen(true)} className="min-h-11 rounded-md px-2 text-zinc-300 underline hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">{m.home.licence}</button>
+              <p className="font-mono" aria-label={`Kestrel version ${appVersion}`}>{m.home.version(appVersion)}</p>
             </div>
           </div>
         </footer>

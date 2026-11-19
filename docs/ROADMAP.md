@@ -171,7 +171,42 @@ A full pass through every page, as a user and a graphic designer: consistent, ti
 8. **Every slider has an ⓘ beside it.** Clicking it opens a small lightbox that says in plain words what the slider does.
 9. **Phone:** the same pass. *Part MERGED 19 Nov:* no repeated Undo/Redo/Before-After while Quick adjust shows them; Copy and Paste in the long-press menu so the bottom bar fits; Settings top right.  Every page consistent, tidy and accessible, with the photo clear to see.
 10. **Plain British English** in every explanation.
-11. **Later, a translation layer**, once the layout settles. Western Europe first: Welsh, Dutch, US English, Spanish, French, then German, Italian and Portuguese. All wording would come from one place.
+11. **A translation layer.** *Foundation MERGED 19 Nov (owner asked for it now):* Settings → Language lists English (UK, US, Canada), Cymraeg, Gàidhlig, Français, Deutsch, Español, Nederlands, Italiano and Português, each by its own name. Nothing changes until **Restart in …** is pressed; the label keeps the English word "Language" so nobody is stranded. British English is the source (`src/i18n/en-GB.ts`); each language file (`src/i18n/locales/`) is laid over it, so anything untranslated shows in British English, never blank. `<html lang>` follows the choice for screen readers, and dates follow it too. Fixed on the way: Photo info showed the capture time in the *browser's* language ("Nov 19, 2026, 08:46:46 PM"); it is now British by default ("19 Nov 2026, 20:46:46"). Kestrel never switches language on its own. Translated so far: the home page, Settings, the collection names, Auto-cull and edit history (about 75 sentences). **Every non-English language is a draft written without a native speaker, and the app says so in that language.** Still to do, in order: move the remaining ~1,100 hard-coded sentences into `en-GB.ts` screen by screen (editor first), get native-speaker checks (Welsh and Gaelic first), add Irish, Scots and Canadian French if wanted, and offer the language in the P2 first-run welcome.
+
+**J. Screen-by-screen audit, 19 Nov evening (main at `b36413c`; desktop 1280×800 and phone 390×844)**
+
+Seen by running the web build with 12 synthetic photos and reading the source. It is written from five points of view: user, photographer, designer, developer and brand. Items already in E–I are not repeated. Take them in this order.
+
+*Trust and colour-blind safety (first: these break the spec's "colour is never the only cue")*
+1. **Keep and Reject on grid tiles differ only by border colour (blue or orange) and dimming.** The word is for screen readers only, and both show the same "×/Back to review" button (`VirtualizedContactSheet.tsx`, `DecisionButtons.tsx`). Add a visible ✓ Kept or ✕ Rejected badge, like the filmstrip's.
+2. **Selected tiles in multi-select show only a ring.** Add a tick, as the filmstrip does.
+3. **Toggles and pressed states use a blue tint only:** Photo info Keep/Reject, Compare's decisions, mask and Auto-cull toggles. Add a ✓ or bold text with `aria-pressed`, as Preferred hand already does.
+4. **Success and failure messages are green or amber text with no icon:** connections, licence, online helper and export. Use one shared notice with an icon and a first word ("Done:", "Couldn't:").
+
+*One word for one thing (low confidence, autism: predictable language)*
+5. One photo can be "Reject", "Trash", "Remove" and "Unflagged" on different screens. Choose **Keep / Reject / Undecided**, and call the place "Bin", the British word. That means updating the tests that look for "Trash".
+6. "Recipe" and "look" are used for the same thing. Use **look** everywhere.
+7. **Two settings homes:** the ⚙ dialog, and "Licence and settings" on the home page footer. On top of that, Workspace options holds a third copy of appearance, hand and culling settings. Make it one Settings with sections (Appearance, Language, Hand, Shortcuts, Culling, Privacy, Licence, Build information).
+8. **The Settings button uses a "sliders" icon, the same as the editor's Edit tab.** Use a gear icon and the word "Settings" on wide screens.
+
+*Too much at once (ADHD: fewer choices on screen)*
+9. **The library shows four strips before the first photo:** two header rows, the "12 photos to look through" banner and "Identify birds and animals". After the first choice, fold the banner into one line, and move species into Photo info → Subject.
+10. **Workspace options has about 30 items, and many labels are cut off** ("Watch a folder for ne…", "Where this project is …"). It also repeats the Show/View choices that are already tabs and buttons. Keep photo actions and project actions only, at full width with complete words, and move settings to Settings.
+11. **The editor's Edit tab shows 14 sliders and 14 reset buttons at once on desktop** (Tone and Detail open). Show Light, Warmth and Colour first, with Tone and Detail folded. This is the "Essential / Pro" switch in P1.3.
+12. **Export has two interfaces** (the wizard, and "Show all formats at once"), and its list of fit labels is copied in two files. Keep the wizard and put the list behind "More formats".
+13. **Recipe cards cut off their names** ("Deep and mo…", "Golden warm…"). Let names wrap to two lines.
+
+*Plain British English (owner request; full list in the audit notes in the PR)*
+14. Replace the jargon users see most. Examples: Auto-cull → **Sort for me**; Culling → **Choosing**; catalogue → **your projects**; High/Medium/Low confidence → **Sure / Fairly sure / Unsure**; Byte-for-byte duplicate → **Exact copy**; EV → stops, with an ⓘ; Whites/Blacks → **Brightest/Darkest parts**; Texture/Clarity: keep the names, but add I.8's ⓘ text; Masks → **Areas**; Histogram → **Brightness chart**; Embedded RAW preview → **Camera's quick preview, not full quality**; Width (px) → **Width (pixels)**. Do it as part of moving each screen's words into `en-GB.ts` (I.11), so each sentence is touched once.
+15. Fix American forms: "toward" → "towards"; Title Case labels ("Focal Length", "Cull Mode Keys").
+
+*First run (low confidence: no technical words on the home page)*
+16. **"Where my work is kept", with "Add a connection", is the second thing a new user sees.** It is storage language, which the spec keeps off the home screen. Show it only once a project exists, folded, under Settings → Storage.
+17. **The new-project form opens with a "Keeper target" number and two paragraphs about local tasks.** Ask only for a name. The defaults (target 50, sort for me on, gentle auto-edit on) can be changed later.
+18. Native checkboxes and radio buttons still use the system's bright blue. Style them in copper or ivory with a visible tick, so they match the brand and don't read as "selected" only by colour.
+
+*Picture-quality claims (photographer and brand)*
+19. Kestrel can say "as good as DxO or Lightroom" only with evidence. That needs P1.1 (16-bit screen), P1.10 (real denoise), lens corrections (P2) and blind comparisons on the owner's real RAWs. Until then the brand promise is **"calm, honest and private"**, not "best quality".
 
 **D. Library and projects**
 - Sort by date imported, date captured and date last edited.
