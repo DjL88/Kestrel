@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { denoiseChromaRgb16 } from './chromaDenoise16';
+import { denoiseChromaRGBA } from './naturalChromaDenoise';
 
 const make = (width: number, height: number, sample: (x: number, y: number) => [number, number, number]) => {
   const pixels = new Uint16Array(width * height * 3);
@@ -54,6 +55,26 @@ test('bright boundaries, isolated saturated feathers and arbitrary source buffer
       const i = (y * width + x) * 3;
       assert.ok(Math.abs(luma(input, i) - luma(source, i)) < 2.1);
       assert.ok(Math.abs(input[i] - source[i]) < 40, `brightness border leaked at ${x}/${y}`);
+    }
+  }
+});
+
+test('16-bit denoise matches the visible 8-bit screen recipe within one byte at equal starting precision', () => {
+  const width = 48, height = 38;
+  const eight = new Uint8ClampedArray(width * height * 4);
+  const sixteen = new Uint16Array(width * height * 3);
+  for (let p = 0; p < width * height; p++) {
+    const value = [(p * 11 + 90) % 256, (p * 7 + 42) % 256, (p * 17 + 65) % 256];
+    eight.set([...value, 255], p * 4);
+    sixteen.set(value.map((channel) => channel * 257), p * 3);
+  }
+  for (const radius of [1, 2] as const) {
+    const screen = denoiseChromaRGBA(eight, width, height, { strength: 0.62, radius });
+    const master = sixteen.slice();
+    denoiseChromaRgb16(master, width, height, 0.62, radius);
+    for (let p = 0; p < width * height; p++) for (let c = 0; c < 3; c++) {
+      const deviation = Math.abs(screen[p * 4 + c] - master[p * 3 + c] / 257);
+      assert.ok(deviation <= 1, `preview/master denoise parity at ${p} channel ${c}: ${deviation}`);
     }
   }
 });
