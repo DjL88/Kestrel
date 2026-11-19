@@ -6,8 +6,9 @@
 export function frameImageIdentity(
   frame: { id: string; stableKey: string },
   variant: 'thumb' | 'full',
+  sourceRevision = 0,
 ): string {
-  return JSON.stringify([frame.id, frame.stableKey, variant]);
+  return JSON.stringify([frame.id, frame.stableKey, variant, sourceRevision]);
 }
 
 /** Editing the same frame may retain the last successfully rendered preview;
