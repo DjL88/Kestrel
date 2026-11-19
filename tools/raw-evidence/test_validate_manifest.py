@@ -25,6 +25,12 @@ class ManifestTests(unittest.TestCase):
         self.assertTrue(any("duplicate" in e for e in module.validate({"samples": [self.sample, self.sample]}, self.root)))
     def test_windows_separator_is_not_portable(self):
         self.assertTrue(any("unsafe" in e for e in self.check(file=r"folder\\synthetic.nef")))
+    def test_symlink_fixture_rejected(self):
+        (self.root / "alias.nef").symlink_to(self.root / "synthetic.nef")
+        self.assertTrue(any("symlink" in e for e in self.check(file="alias.nef")))
+    def test_case_insensitive_duplicate_rejected(self):
+        other = dict(self.sample, file="SYNTHETIC.NEF")
+        self.assertTrue(any("duplicate" in e for e in module.validate({"samples": [self.sample, other]}, self.root)))
     def test_structural_fixture(self):
         self.assertEqual(self.check(), [])
     def test_corruption(self):
