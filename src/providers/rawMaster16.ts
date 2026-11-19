@@ -25,7 +25,10 @@ async function developRaw16(file: Blob): Promise<ArrayBuffer> {
 export async function exportRaw16Tiff(original: Blob, shown: HTMLImageElement, edit: PhotoEdit, framing: PhotoFraming | undefined): Promise<Blob> {
   const blocker = master16Blocker(edit, framing);
   if (blocker) throw new Error(blocker);
-  const picture = parseRgb16(await developRaw16(original));
+  // This is a freshly developed RGB working ArrayBuffer, not the original
+  // RAW file's bytes. It can safely be edited in place on little-endian hosts
+  // to avoid a second 270 MB RGB16 allocation for a 45MP image.
+  const picture = parseRgb16(await developRaw16(original), true);
   const bitmap = await createImageBitmap(shown);
   let turn: number;
   try {
@@ -39,7 +42,9 @@ export async function exportRaw16Tiff(original: Blob, shown: HTMLImageElement, e
   } finally {
     bitmap.close();
   }
-  const framed = frameRgb16(picture, framing ?? DEFAULT_FRAMING, turn / 90);
+  // If both framing and orientation are identity, reuse the working picture.
+  // A real crop, quarter-turn or straighten still allocates its own result.
+  const framed = frameRgb16(picture, framing ?? DEFAULT_FRAMING, turn / 90, true);
   editRgb16(framed, edit);
   return encodeTiff16(framed);
 }
