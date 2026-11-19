@@ -158,6 +158,7 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
 10. **Denoise for real.** A tiled ONNX model on linear RGB (or Bayer) data, judged on real high-ISO frames by eye and with metrics, calibrated per camera. It replaces the 8-bit chroma-only filter.
 
 ### P2: Effortless and reliable
+- **First-run welcome, in the app, not the installer** (owner idea, 19 Nov): the same short setup on Windows, macOS, web and phones: preferred hand, theme, where photos live, and later (P3, while licensing is frozen) entering or buying a Pro key. Installers stay standard and minimal (Windows NSIS, macOS drag-to-Applications); they only carry Kestrel's branding (`src-tauri/icons/installer`, made by `scripts/brand/make-installer-art.mjs`).
 - One Settings home. Simpler Quick Edit. Photo info shown by default. Responsive navigation. Macro-pad workflow.
 - Spot healing (clone/patch for sensor dust and twigs; never generative). Lens corrections (distortion, vignetting, chromatic aberration) from an open lens database. Dehaze and post-crop vignette.
 - Confidence-mask integration (continues P1.4), built in this order:
