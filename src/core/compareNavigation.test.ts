@@ -98,3 +98,9 @@ test('Compare: 500-photo live progress is stable across duplicates and filtering
     position: 0, total: 249, recoveryId: '2', state: 'missing-comparison',
   });
 });
+
+test('Compare: an initially unselected B is a prompt, not a missing photograph', () => {
+  assert.deepEqual(compareQueueState([frame('A'), frame('B'), frame('C')], 'A', null), {
+    position: 0, total: 2, recoveryId: 'B', state: 'unselected',
+  });
+});
