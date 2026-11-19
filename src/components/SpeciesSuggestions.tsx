@@ -116,6 +116,7 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
     setGateNote('');
     setDismissed([]);
     setOffer(null);
+    embedding.current = null;
     setOnlineAnswer(null);
     // The local model knows animal species only. An aircraft would otherwise
     // be forced to its nearest bird, irrespective of the apparent confidence.
@@ -136,11 +137,21 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
       for (const mate of mates.filter((entry) => !entry.has(name)).slice(0, MAX_MATES)) {
         const picture = await mate.load().catch(() => null);
         if (!picture) continue;
+        // Similarity between animal-only embeddings cannot establish that a mate
+        // is an animal: a helicopter could otherwise inherit an Osprey tag.
+        if (!gateAvailable()) continue;
+        let allowed = false;
+        try {
+          const route = await routePicture(picture, subjectCrop(picture.width, picture.height, null));
+          allowed = gateOutcome(route, undefined).species === 'allow';
+        } catch { /* No independent category evidence: leave this mate untagged. */ }
+        if (at !== run.current || latest.current.frameId !== frameId || latest.current.kind !== 'wildlife') return;
+        if (!allowed) continue;
         found.push({ id: mate.id, embedding: await embedPicture(picture) });
-        if (at !== run.current) return;
+        if (at !== run.current || latest.current.frameId !== frameId || latest.current.kind !== 'wildlife') return;
       }
       const ids = similarPhotos(mine, found);
-      if (ids.length) setOffer({ name, kind: chosenKind, ids });
+      if (ids.length && at === run.current && latest.current.frameId === frameId && latest.current.kind === 'wildlife') setOffer({ name, kind: chosenKind, ids });
     } catch { /* The offer is a convenience. Without it the photo is simply tagged on its own. */ } finally {
       setChecking(false);
     }
