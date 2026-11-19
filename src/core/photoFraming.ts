@@ -240,6 +240,20 @@ export function drawFramedPhoto(
   if (!context) throw new Error('Canvas unavailable');
   context.resetTransform();
   context.clearRect(0, 0, outputWidth, outputHeight);
+  // A neutral full-frame 1:1 view must never pass through a fractional
+  // transform or a resampling filter. This is especially important when
+  // inspecting JPEG fine detail in Original/Now comparison on mobile.
+  if (framing.turns === 0 && framing.straighten === 0 &&
+      crop.x === 0 && crop.y === 0 &&
+      crop.width === source.naturalWidth && crop.height === source.naturalHeight &&
+      region.x === 0 && region.y === 0 &&
+      region.width === source.naturalWidth && region.height === source.naturalHeight &&
+      outputWidth === source.naturalWidth && outputHeight === source.naturalHeight) {
+    context.imageSmoothingEnabled = false;
+    context.drawImage(source, 0, 0);
+    return;
+  }
+  context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
   const angle = framing.straighten * Math.PI / 180;
   const coverage = rotationCoverage(width, height, angle);
