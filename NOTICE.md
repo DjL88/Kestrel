@@ -22,25 +22,30 @@ which is the usual practical answer, but **get this specifically reviewed by a
 lawyer before shipping a signed, paid build** — don't treat this notice as that
 review.
 
-## Needs a patent decision before public release: `ticoraw` (Nikon HE/HE* decoding)
+## Nikon HE/HE* decoding: `ticoraw` (owner decision recorded 19 Nov 2026)
 
 `crates/kestrel-raw/src/nikon_he.rs` (shared by the desktop app and the web build) links the `ticoraw` crate (0.2.0, pinned) to decode
 Nikon High Efficiency (HE/HE*) NEFs from their sensor data. Its **copyright**
 licence is MIT OR Apache-2.0, which is compatible with a proprietary app. But the
 TicoRAW / JPEG XS codec it implements is **covered by patents** (intoPIX), and the
-crate author states the copyright licence is not a patent licence. It is built
-only with the `nikon-he` Cargo feature (on by default for the owner's own test
-installs). **Before any public or paid build:** get a patent/licensing opinion, or
-build with `--no-default-features`, in which case HE files fall back to the
-embedded preview as before. Writing our own decoder would not avoid the patents.
+crate author states the copyright licence is not a patent licence. Writing our own
+decoder would not avoid the patents.
+
+**Owner decision (19 Nov 2026):** Kestrel ships its own HE/HE* decoder in every
+build (desktop, web and mobile), as one decoder for all platforms. The operating
+system's decoder is used only where Kestrel's cannot read a file. The patent
+exposure is accepted by the owner; this note records it and is not legal advice.
+The code stays behind the `nikon-he` Cargo feature (on by default), so a build
+without it is one flag away (`--no-default-features`, or
+`npm run raw:wasm -- --without-nikon-he`) if that decision changes.
 
 ## The web app's RAW decoder (`src/assets/wasm/kestrel_raw.wasm`)
 
 The web app ships Kestrel's RAW pipeline (`crates/kestrel-raw`, via `crates/kestrel-raw-wasm`) compiled to
 WebAssembly. Serving the web app distributes that binary, so the `rawler` LGPL-2.1 question above applies to it too.
-The source of every part is in this repository and the binary is rebuilt with `npm run raw:wasm`. The committed
-binary is built **without** the `nikon-he` codec (`ticoraw`) because of the patent question above; a private, local
-build can add it with `npm run raw:wasm -- --with-nikon-he`.
+The source of every part is in this repository and the binary is rebuilt with `npm run raw:wasm`. It includes the
+`nikon-he` codec (`ticoraw`), per the owner decision above, so the web app and the mobile shells decode HE/HE* with the
+same code as the desktop app.
 
 ## Rust crates (desktop shell, `src-tauri/Cargo.toml`)
 
@@ -87,8 +92,8 @@ build tooling or a plugin SDK separately.
 ## What to do next
 
 1. Run the automated scans above and diff them against this file.
-2. Get the `rawler` LGPL-2.1 static-linking question answered by a lawyer, and
-   the TicoRAW patent question for `ticoraw` (or ship without `nikon-he`).
+2. Get the `rawler` LGPL-2.1 static-linking question answered by a lawyer. (The
+   TicoRAW patent question for `ticoraw` is an owner-accepted risk; see above.)
 3. Write the missing per-model notice for `u2netp.onnx` / `yolox_tiny.onnx`.
 4. Ship this file (or its generated successor) alongside every installer, the
    way `docs/notices/bioclip.txt` already is — not just in the git repo.

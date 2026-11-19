@@ -8,8 +8,11 @@
 //! camera uses. The original file is only read.
 //!
 //! Patent note: the TicoRAW/JPEG XS codec is covered by patents, and the crate's copyright licence is not a patent
-//! licence. Everything here sits behind the `nikon-he` Cargo feature so a public or commercial build can leave it out
-//! until the owner has a licensing decision (docs/COMMERCIAL-RELEASE.md).
+//! licence. The owner decided (19 Nov 2026) to ship it in every build; it stays behind the default-on `nikon-he`
+//! Cargo feature so a build without it remains one flag away (NOTICE.md).
+//!
+//! Verified 19 Nov 2026 on the 12 CC0 conformance samples reachable from ticoraw's manifest (Z 9, Z 8, Z f, Z6III, Z5II and
+//! Z50II, HE and HE*): every decoded mosaic's SHA-256 equals the Adobe-verified `cfa_sha256`.
 
 // Without the feature only rawler runs, so the HE-only items are unused there.
 #![cfg_attr(not(feature = "nikon-he"), allow(dead_code))]
@@ -52,14 +55,35 @@ pub fn high_efficiency_mode(bytes: &[u8]) -> Option<SensorDecoder> {
 }
 
 /// The same answer from only the start of a file (the page sends the first few megabytes, not a 60 MB RAW).
-#[cfg(feature = "nikon-he")]
 pub fn high_efficiency_mode_of_prefix(prefix: &[u8], file_len: usize) -> Option<SensorDecoder> {
-    mode_of(ticoraw::inspect_nef_prefix(prefix, file_len).ok()?)
+    match prefix_verdict(prefix, file_len) {
+        PrefixVerdict::HighEfficiency(mode) => Some(mode),
+        PrefixVerdict::NotHighEfficiency | PrefixVerdict::NeedMore => None,
+    }
+}
+
+/// What the start of a file shows, including "read more": how far the headers reach depends on the body (about 4 MiB
+/// on a Z5II, 8 MiB on a Z 8, because of the embedded previews before the sensor data).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrefixVerdict {
+    HighEfficiency(SensorDecoder),
+    NotHighEfficiency,
+    /// The headers run past the bytes given; ask again with more of the file.
+    NeedMore,
+}
+
+#[cfg(feature = "nikon-he")]
+pub fn prefix_verdict(prefix: &[u8], file_len: usize) -> PrefixVerdict {
+    match ticoraw::inspect_nef_prefix(prefix, file_len) {
+        Ok(info) => mode_of(info).map_or(PrefixVerdict::NotHighEfficiency, PrefixVerdict::HighEfficiency),
+        Err(ticoraw::TicoError::Truncated { .. }) if prefix.len() < file_len => PrefixVerdict::NeedMore,
+        Err(_) => PrefixVerdict::NotHighEfficiency,
+    }
 }
 
 #[cfg(not(feature = "nikon-he"))]
-pub fn high_efficiency_mode_of_prefix(_prefix: &[u8], _file_len: usize) -> Option<SensorDecoder> {
-    None
+pub fn prefix_verdict(_prefix: &[u8], _file_len: usize) -> PrefixVerdict {
+    PrefixVerdict::NotHighEfficiency
 }
 
 #[cfg(feature = "nikon-he")]
@@ -235,6 +259,15 @@ mod tests {
             let started = std::time::Instant::now();
             let (raw, decoder) = decode_sensor(&bytes).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
             assert_eq!(decoder, mode);
+            // The page's header-only check, reading more only when told to, reaches the same answer.
+            let mut prefix = 4 << 20;
+            let verdict = loop {
+                match prefix_verdict(&bytes[..prefix.min(bytes.len())], bytes.len()) {
+                    PrefixVerdict::NeedMore if prefix < bytes.len() => prefix *= 2,
+                    other => break other,
+                }
+            };
+            assert_eq!(verdict, PrefixVerdict::HighEfficiency(mode), "{}: header check", path.display());
             // File name only (never the private folder path), and time in plain milliseconds, so
             // tools/raw-evidence/run_owner_decode.py can read each line.
             let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();

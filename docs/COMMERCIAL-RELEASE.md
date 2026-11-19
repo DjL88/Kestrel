@@ -89,7 +89,7 @@ At 50 GB, object capacity is only one cost. Model storage + bandwidth + Class A/
 - Payment provider and tax handling, desktop Apple Developer/Windows signing arrangements.
 - Which regions to support and their verified storage, metadata and log residency.
 - The release signing keys and CI secret ownership, never shared through a prompt or committed to GitHub.
-- **Nikon HE/HE\* decoding in public builds.** The `nikon-he` Cargo feature (ticoraw) decodes a patented codec (TicoRAW / JPEG XS). Owner test installs include it; a public or paid build needs a patent/licensing opinion first, or is built with `cargo build --no-default-features` so HE files fall back to the embedded preview. See NOTICE.md.
+- ~~Nikon HE/HE\* decoding in public builds.~~ **Decided 19 Nov 2026:** Kestrel's own HE/HE\* decoder (`nikon-he`, via ticoraw; the codec is patented) ships in every build, desktop, web and mobile; the owner accepts the patent exposure. The OS decoder is only a fallback. See NOTICE.md.
 
 Primary upstream references:
 - https://v2.tauri.app/plugin/updater/

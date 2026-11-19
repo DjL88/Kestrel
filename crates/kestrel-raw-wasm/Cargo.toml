@@ -10,9 +10,9 @@ publish = false
 crate-type = ["cdylib"]
 
 [features]
-# Off by default: the web app is distributed when it is served, and the Nikon High Efficiency codec is patented
-# (NOTICE.md). `npm run raw:wasm -- --with-nikon-he` builds it in for a private, local build only.
-default = []
+# Nikon High Efficiency decoding is in every Kestrel build, web and mobile included (owner decision, 19 Nov 2026; see
+# NOTICE.md). `npm run raw:wasm -- --without-nikon-he` builds a binary without it.
+default = ["nikon-he"]
 nikon-he = ["kestrel-raw/nikon-he"]
 
 [dependencies]

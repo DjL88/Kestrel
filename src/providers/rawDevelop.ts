@@ -1,6 +1,6 @@
 import { THUMB, bestTurn } from '../core/orientMatch';
 import type { NativeRawMasterRecipe, NativeRawMasterFraming } from '../core/nativeRawMaster';
-import { isDesktopApp } from './desktopShell';
+import { hasNativeRaw } from './desktopShell';
 import { developRawInBrowser, sensorModeInBrowser, webRawAvailable } from './rawWasm';
 
 /** Fail closed before allocating/copying a potentially huge RAW file for native decoding. */
@@ -15,13 +15,14 @@ export function validateRawExtension(extension: string): string {
 }
 
 /**
- * Developing a RAW file's sensor data: natively in the desktop app, and with the same Rust pipeline compiled to
- * WebAssembly in the browser when this build carries it.
+ * Developing a RAW file's sensor data. One decoder everywhere (crates/kestrel-raw, Nikon HE/HE* included): linked
+ * natively into the desktop app, and the same Rust code compiled to WebAssembly in the browser and on phones and
+ * tablets. The operating system's own decoder is only a last resort on a Mac, after Kestrel's has failed.
  */
-export const canDevelopRaw = () => isDesktopApp() || webRawAvailable();
+export const canDevelopRaw = () => hasNativeRaw() || webRawAvailable();
 
 /** The 16-bit TIFF master and DNG copies are written by the desktop app only, for now. */
-export const canExportRawMaster = () => isDesktopApp();
+export const canExportRawMaster = () => hasNativeRaw();
 
 /**
  * Send a RAW file to the desktop app's decoder and get back the full-size developed picture as a JPEG. The original file
@@ -31,7 +32,7 @@ export async function developRaw(file: Blob, extension = 'nef'): Promise<Blob> {
   // Do not silently reinterpret unknown formats (or path-like values) as a Nikon NEF or any one maker's format.
   // The native decoder independently validates its extension as a second boundary.
   const normalizedExtension = validateRawExtension(extension);
-  if (!isDesktopApp()) return developRawInBrowser(file);
+  if (!hasNativeRaw()) return developRawInBrowser(file);
   const { invoke } = await import('@tauri-apps/api/core');
   const bytes = new Uint8Array(await file.arrayBuffer());
   try {
@@ -81,6 +82,17 @@ export type RawSensorMode = 'nikon-he' | 'nikon-he-star' | 'other';
 
 /** Enough of the file's start for its headers; the rest of a 60 MB RAW is never read for this. */
 const SENSOR_MODE_PREFIX = 4 * 1024 * 1024;
+/** Never read more than this for the check; the headers of every body tested sit within 8 MiB. */
+const SENSOR_MODE_LIMIT = 64 * 1024 * 1024;
+
+/** Ask with 4 MiB, then twice as much each time the headers run further, up to the limit or the whole file. */
+async function stepwise(file: Blob, ask: (prefixBytes: number) => Promise<string>): Promise<RawSensorMode> {
+  for (let bytes = SENSOR_MODE_PREFIX; ; bytes *= 2) {
+    const mode = await ask(Math.min(bytes, file.size));
+    if (mode === 'nikon-he' || mode === 'nikon-he-star') return mode;
+    if (mode !== 'need-more' || bytes >= file.size || bytes >= SENSOR_MODE_LIMIT) return 'other';
+  }
+}
 
 /**
  * Whether a NEF is Nikon High Efficiency (HE or HE*), read from the file's headers only (natively on desktop, by the
@@ -88,12 +100,11 @@ const SENSOR_MODE_PREFIX = 4 * 1024 * 1024;
  */
 export async function rawSensorMode(file: Blob, filename: string): Promise<RawSensorMode> {
   if (!/\.nef$/i.test(filename)) return 'other';
-  if (!isDesktopApp()) return webRawAvailable() ? sensorModeInBrowser(file, SENSOR_MODE_PREFIX) : 'other';
+  if (!hasNativeRaw()) return webRawAvailable() ? stepwise(file, (bytes) => sensorModeInBrowser(file, bytes)) : 'other';
   try {
     const { invoke } = await import('@tauri-apps/api/core');
-    const prefix = new Uint8Array(await file.slice(0, SENSOR_MODE_PREFIX).arrayBuffer());
-    const mode = await invoke<string>('raw_sensor_mode', prefix, { headers: { 'x-file-length': String(file.size) } });
-    return mode === 'nikon-he' || mode === 'nikon-he-star' ? mode : 'other';
+    return await stepwise(file, async (bytes) => invoke<string>('raw_sensor_mode', new Uint8Array(await file.slice(0, bytes).arrayBuffer()),
+      { headers: { 'x-file-length': String(file.size) } }));
   } catch {
     return 'other';
   }
