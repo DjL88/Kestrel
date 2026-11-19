@@ -250,3 +250,47 @@ test('rotated oval changes orientation without changing its centre or invalidati
   assert.ok(at(unrotated, 50, 62) < 0.1);
   assert.ok(at(turned, 50, 40) > 0.95, 'centre stays selected');
 });
+
+test('local noise reduction changes chroma only inside its mask and respects neutral recipes', () => {
+  const width = 64, height = 48;
+  const base = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const noise = ((x * 7 + y * 11) % 5) - 2;
+    const index = (y * width + x) * 4;
+    base.set([112 + noise * 5, 120, 128 - noise * 4, 255], index);
+  }
+  const local = { ...createMask('radial', 'local-denoise'), kind: 'radial' as const,
+    cx: 0.3, cy: 0.5, rx: 0.22, ry: 0.18, feather: 0.1, edit: { denoise: 2 } };
+  assert.equal(validMasks([local]), true, 'local denoise recipe is persisted');
+  assert.equal(validMasks([{ ...local, edit: { denoise: -1 } }]), false, 'invalid negative denoise is rejected');
+  const unchanged = new Uint8ClampedArray(base);
+  applyMasks(unchanged, width, height, [{ ...local, edit: { denoise: 0 } }], fullContext(width, height));
+  assert.deepEqual(unchanged, base, 'neutral mask does not alter pixels');
+
+  const result = new Uint8ClampedArray(base);
+  applyMasks(result, width, height, [local], fullContext(width, height));
+  const inside = (24 * width + 20) * 4;
+  const outside = (24 * width + 61) * 4;
+  assert.notDeepEqual(Array.from(result.slice(inside, inside + 3)), Array.from(base.slice(inside, inside + 3)),
+    'chromatic noise changes within the mask');
+  assert.deepEqual(result.slice(outside, outside + 4), base.slice(outside, outside + 4),
+    'pixels beyond the oval are untouched');
+});
+
+test('intersected local denoise only acts where both masks overlap', () => {
+  const width = 64, height = 48;
+  const base = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const noise = ((x + y * 3) % 5) - 2;
+    base.set([110 + noise * 5, 120, 130 - noise * 4, 255], (y * width + x) * 4);
+  }
+  const left: Mask = { ...createMask('radial', 'left'), kind: 'radial', cx: 0.25, cy: 0.5, rx: 0.24, ry: 0.22, feather: 0.15 };
+  const right: Mask = { ...createMask('radial', 'right'), kind: 'radial', cx: 0.55, cy: 0.5, rx: 0.27, ry: 0.22, feather: 0.15 };
+  const constrained: Mask = { ...left, edit: { denoise: 2 }, limit: { id: right.id, mode: 'intersect' } };
+  const result = new Uint8ClampedArray(base);
+  applyMasks(result, width, height, [constrained, right], fullContext(width, height));
+  const index = (24 * width + 15) * 4;
+  assert.deepEqual(result.slice(index, index + 4), base.slice(index, index + 4),
+    'inside the first oval but outside intersection is unchanged');
+  assert.ok(result.some((value, i) => value !== base[i]), 'the intersecting region is denoised');
+});

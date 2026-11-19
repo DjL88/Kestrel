@@ -403,3 +403,24 @@ test('archival TIFF refuses truncated, oversized and invalid 16-bit frames', () 
     { ...valid, data: new Uint16Array(11) },
   ]) assert.throws(() => encodeTiff16(bad), /invalid dimensions or pixel data/);
 });
+
+test('local chroma denoise survives 16-bit export path without touching unmasked feathers', () => {
+  const width = 64, height = 48;
+  const original = new Uint16Array(width * height * 3);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const n = ((x * 7 + y * 11) % 5) - 2;
+    original.set([(112 + n * 5) * 257, 120 * 257, (128 - n * 4) * 257], (y * width + x) * 3);
+  }
+  const image: Rgb16Image = { width, height, data: new Uint16Array(original) };
+  const local: Mask = { ...createMask('radial', 'chroma-16'), kind: 'radial', cx: 0.3, cy: 0.5,
+    rx: 0.22, ry: 0.18, feather: 0.1, edit: { denoise: 2 } };
+  assert.equal(master16Blocker({ ...DEFAULT_EDIT, masks: [local] }, DEFAULT_FRAMING), null,
+    '16-bit master must accept local noise reduction');
+  editRgb16(image, { ...DEFAULT_EDIT, masks: [local] });
+  const inside = (24 * width + 20) * 3;
+  const outside = (24 * width + 61) * 3;
+  assert.notDeepEqual(Array.from(image.data.slice(inside, inside + 3)), Array.from(original.slice(inside, inside + 3)));
+  assert.deepEqual(image.data.slice(outside, outside + 3), original.slice(outside, outside + 3),
+    'outside mask preserves full 16-bit original samples');
+  assert.ok(encodeTiff16(image).size > width * height * 6, 'archival TIFF contains the output');
+});

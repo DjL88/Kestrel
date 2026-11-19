@@ -7,7 +7,7 @@ import { LOCAL_DETAIL_KEYS, LOCAL_KEYS, MAX_MASKS, createMask, type LocalKey, ty
 const LABELS: Record<LocalKey, string> = {
   exposure: 'Exposure', brightness: 'Brightness', warmth: 'Warmth', colour: 'Colour', contrast: 'Contrast', highlights: 'Highlights',
   shadows: 'Shadows', whites: 'Whites', blacks: 'Blacks', vibrance: 'Vibrance',
-  texture: 'Texture', clarity: 'Clarity', sharpen: 'Sharpening',
+  texture: 'Texture', clarity: 'Clarity', sharpen: 'Sharpening', denoise: 'Noise reduction',
 };
 const KIND_NAMES = { linear: 'Gradient', radial: 'Oval', brush: 'Brush', subject: 'Subject' } as const;
 
@@ -168,7 +168,7 @@ export function MaskPanel(props: Props) {
             {LOCAL_KEYS.map((key) => (
               <div key={key} className={key === LOCAL_DETAIL_KEYS[0] ? 'mt-2 border-t border-white/10 pt-2' : ''}>
                 <AdjustmentSlider label={LABELS[key]} ariaLabel={`${LABELS[key]} for this mask`}
-                  value={selected.edit[key] ?? 0} min={-2} max={2} step={0.05} disabled={disabled}
+                  value={selected.edit[key] ?? 0} min={key === 'denoise' ? 0 : -2} max={2} step={0.05} disabled={disabled}
                   onChange={(value) => update({ edit: { ...selected.edit, [key]: value } })} />
               </div>
             ))}
