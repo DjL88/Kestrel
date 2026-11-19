@@ -87,4 +87,36 @@ export const gd: Translation = {
     "left": "Clì",
     "right": "Deas"
   },
+  adjustment: {
+    "exposure": "Nochdadh",
+    "warmth": "Blàths",
+    "colour": "Dath",
+    "brightness": "Soilleireachd",
+    "contrast": "Coimeas",
+    "highlights": "Na pàirtean as soilleire",
+    "shadows": "Faileasan",
+    "whites": "Pàirtean geala",
+    "blacks": "Pàirtean dorcha",
+    "vibrance": "Beòthachd dhathan",
+    "texture": "Inneach",
+    "clarity": "Soilleireachd mion-fhiosrachaidh",
+    "sharpen": "Geuraich",
+    "denoise": "Lùghdachadh fuaim"
+  },
+  quick: {
+    "title": "Deasachadh luath",
+    "allControls": "A h-uile smachd",
+    "choose": "Tagh atharrachadh"
+  },
+  photoInfo: {
+    "title": "Fiosrachadh dealbh",
+    "tabInfo": "Fiosrachadh",
+    "tabSubject": "Cuspair",
+    "copy": "Dèan lethbhreac de mhion-fhiosrachadh",
+    "camera": "Camara",
+    "lens": "Lionsa",
+    "captured": "Air a thogail",
+    "undecided": "Gun cho-dhùnadh",
+    "reject": "Diùlt"
+  },
 };
