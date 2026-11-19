@@ -107,6 +107,19 @@ test('the TIFF holds the exact 16-bit samples, with the headers every reader nee
   assert.equal(tags.get(259), 1, 'uncompressed');
   assert.equal(tiff.getUint16(tags.get(258)!, true), 16);
   assert.equal(tags.get(279), 5 * 3 * 6);
+  // TIFF ICC tag 34675 must point at a real standard RGB display profile.
+  // A bare 'sRGB' text label is not sufficient for colour-managed editors.
+  const profileOffset = tags.get(34675)!;
+  assert.ok(profileOffset > 0, '16-bit TIFF embeds an ICC profile');
+  const iccEntry = ifd + 2 + 14 * 12;
+  assert.equal(tiff.getUint16(iccEntry, true), 34675);
+  assert.equal(tiff.getUint16(iccEntry + 2, true), 7, 'ICC profile is TIFF UNDEFINED bytes');
+  assert.equal(tiff.getUint32(iccEntry + 4, true), 588);
+  assert.equal(tiff.getUint32(profileOffset, false), 588, 'ICC declares its own exact byte size');
+  const signature = (at: number) => String.fromCharCode(...new Uint8Array(tiff.buffer, at, 4));
+  assert.equal(signature(profileOffset + 36), 'acsp');
+  assert.equal(signature(profileOffset + 16), 'RGB ');
+  assert.equal(signature(profileOffset + 20), 'XYZ ');
   const start = tags.get(273)!;
   for (let i = 0; i < 45; i += 1) assert.equal(tiff.getUint16(start + i * 2, true), image.data[i]);
   assert.equal(tiff.byteLength, start + 90);
