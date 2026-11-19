@@ -110,6 +110,20 @@ What worked: real Z 8 / Z5 II photos import, cull and edit; feather detail after
 - "What is this a photo of?" buttons: the labels (Landscape) are too big for the buttons.
 - The File/Edit menu bar is white (system colours). Make it dark, or follow the app's theme.
 
+**F. One ergonomic workspace (owner request 19 Nov; coordinator's design)**
+
+The library, culling and editing share one frame. Build in this order:
+1. **Shared shell.**
+   - The photo in the centre. Tools on the Preferred-hand side, Photo info on the other.
+   - One bottom bar in fixed places, in culling and editing alike: filmstrip, ‹ › (also ← →), zoom (Fit / 100% / 200% / Eye) and Jump.
+   - Editing becomes the same page with different tools, not a separate layout.
+2. **Panes fold to a thin icon rail.** Tab hides both panes, F shows the photo alone, and the state is remembered per device.
+3. **Sections, not fixed tabs.** Light, Colour, Detail, Masks, Crop, Info and Species are sections with headers that can be folded, reordered, pinned as favourites, or dragged to the other side (docking, keyboard-movable too). A "One panel" setting merges Info into the tools side.
+4. **Wide screens get more columns.** Past about 2,500 px, a side can hold two columns, so up to four tool columns plus the photo.
+5. **Phones:** the same sections in one bottom sheet.
+
+No free-floating windows: they cover the photo, drift off small screens, and are hard for keyboard and screen-reader users. Docking gives the same flexibility.
+
 **D. Library and projects**
 - Sort by date imported, date captured and date last edited.
 - Projects as tags rather than folders: one library of every photo, filtered by one or more projects.

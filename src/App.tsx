@@ -2020,7 +2020,8 @@ export default function App() {
 
       {projectError && <p role="alert" className="bg-orange-950 px-3 py-2 text-sm text-orange-100">{projectError}</p>}
 
-      <main key={previewRevision} className="relative flex-1 flex min-h-0 min-w-0">
+      {/* Photo info sits on the Preferred-hand side, where the editing tools are, so the panel never swaps sides. */}
+      <main key={previewRevision} className={`relative flex-1 flex min-h-0 min-w-0 ${prefs.hand === 'left' ? 'flex-row-reverse' : ''}`}>
         <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           {editing && selectedFrame && (
             <PhotoEditor
