@@ -180,6 +180,25 @@ test('a brush stroke and an inverted subject-style mask change only the selected
   assert.equal(at(119, 79), initial);
 });
 
+test('16-bit mask intersection preserves background and respects the saved mask stack', () => {
+  const width = 80, height = 80, initial = 27_000;
+  const qualifier: Mask = {
+    ...createMask('radial', 'subject-area'), kind: 'radial',
+    cx: 0.5, cy: 0.5, rx: 0.20, ry: 0.20, feather: 0.1, edit: {},
+  };
+  const local: Mask = {
+    ...createMask('linear', 'light-on-subject'), kind: 'linear',
+    x1: 0.5, y1: 0, x2: 0.5, y2: 1, feather: 1,
+    edit: { exposure: 0.7 }, limit: { id: qualifier.id, mode: 'intersect' },
+  };
+  const frame: Rgb16Image = { width, height, data: new Uint16Array(width * height * 3).fill(initial) };
+  editRgb16(frame, { ...DEFAULT_EDIT, masks: [qualifier, local] });
+  const at = (x: number, y: number) => frame.data[(y * width + x) * 3];
+  assert.ok(at(40, 39) > initial, 'masked centre receives the edit');
+  assert.equal(at(40, 2), initial, 'the linear adjustment does not bleed beyond its subject limiter');
+  assert.equal(at(2, 39), initial, 'background next to subject remains unchanged');
+});
+
 test('tonal mask bands join exactly at high-resolution row boundaries', () => {
   const width = 1024, height = 520, initial = 18_000;
   const mask: Mask = {
