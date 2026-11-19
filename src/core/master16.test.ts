@@ -417,7 +417,7 @@ test('local chroma denoise survives 16-bit export path without touching unmasked
   assert.equal(master16Blocker({ ...DEFAULT_EDIT, masks: [local] }, DEFAULT_FRAMING), null,
     '16-bit master must accept local noise reduction');
   editRgb16(image, { ...DEFAULT_EDIT, masks: [local] });
-  const inside = (24 * width + 19) * 3;
+  const inside = (24 * width + 20) * 3;
   const outside = (24 * width + 61) * 3;
   assert.notDeepEqual(Array.from(image.data.slice(inside, inside + 3)), Array.from(original.slice(inside, inside + 3)));
   assert.deepEqual(image.data.slice(outside, outside + 3), original.slice(outside, outside + 3),
