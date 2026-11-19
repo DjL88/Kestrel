@@ -104,6 +104,7 @@ export const gd: Translation = {
     "denoise": "Lùghdachadh fuaim"
   },
   quick: {
+    changed: "(air atharrachadh)",
     "title": "Deasachadh luath",
     "allControls": "A h-uile smachd",
     "choose": "Tagh atharrachadh"
