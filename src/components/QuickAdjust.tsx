@@ -69,7 +69,7 @@ export function QuickAdjust({ edit, disabled, onEdit, canStepBack, canStepForwar
         <button type="button" className={round} aria-label={m.quick.down(m.adjustment[key])} title={m.quick.downHint(m.adjustment[key])} disabled={disabled || value <= control.min} onClick={() => set(nudge(control, value, -1))}><Minus className="h-5 w-5" aria-hidden="true" /></button>
         <div className="min-w-0 flex-1">
           {/* "(adjusted)" says in words, not only in copper, that this control has been moved. */}
-          <AdjustmentSlider layout="stacked" label={m.adjustment[key]} value={value} hint={value !== 0 ? '(adjusted)' : undefined}
+          <AdjustmentSlider layout="stacked" label={m.adjustment[key]} value={value} hint={value !== 0 ? m.quick.changed : undefined}
             min={control.min} max={control.max} step={control.step} disabled={disabled}
             displayValue={key === 'exposure' ? `${signedAdjustment(value * 0.4)} EV`
               : key === 'colour' && value === -2 ? m.quick.monochrome
