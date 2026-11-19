@@ -19,3 +19,10 @@ export function visibleFrameUrl(
 ): string {
   return rendered.identity === currentIdentity ? rendered.url : '';
 }
+
+/** Editing a selected full-size photo must not add another lossy JPEG pass.
+ * This is only the screen preview (bounded to 2200px), not an archival export.
+ */
+export function framePreviewEncoding(variant: 'thumb' | 'full'): { mime: string; quality?: number } {
+  return variant === 'full' ? { mime: 'image/png' } : { mime: 'image/jpeg', quality: 0.92 };
+}
