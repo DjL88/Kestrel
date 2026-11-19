@@ -183,7 +183,8 @@ test('out-of-order photo arrivals retain stable original capture indices and fin
   for (const index of [2, 4, 0, 3, 1]) {
     inProgress = appendProjectPhotos(inProgress, [originals[index]], 'fast', options);
   }
-  assert.deepEqual(inProgress.frames.slice(1).map((frame) => frame.sequenceIndex), [13, 15, 11, 14, 12]);
+  // Numbered by when they were shot, and listed in that order too, whatever order they finished reading in.
+  assert.deepEqual(inProgress.frames.slice(1).map((frame) => frame.sequenceIndex), [11, 12, 13, 14, 15]);
   // The final regroup must correct burst membership without changing the
   // capture position or overwriting a decision made while importing.
   inProgress = { ...inProgress, frames: inProgress.frames.map((frame) =>

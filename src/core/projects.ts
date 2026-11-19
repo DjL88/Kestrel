@@ -48,11 +48,19 @@ export function appendProjectPhotos(
     });
   }
   if (!added.length && !revived.size) return project;
-  const frames = [...project.frames.map((frame) => {
+  let frames = [...project.frames.map((frame) => {
     if (!revived.has(frame.id)) return frame;
     const { removedAt: _removedAt, ...kept } = frame;
     return { ...kept, decision: 'unreviewed' as const };
   }), ...added];
+  if (options.sequenceBase !== undefined) {
+    // Photos of one import arrive in the order they finish reading, but the library's own order is the order they
+    // were shot: keep this import's photos sorted among themselves, in the places they already hold.
+    const own = (frame: PhotoFrame) => frame.id.startsWith(`${importId}-`);
+    const ordered = frames.filter(own).sort((a, b) => a.sequenceIndex - b.sequenceIndex);
+    let next = 0;
+    frames = frames.map((frame) => own(frame) ? ordered[next++] : frame);
+  }
   return {
     ...project, frames,
     selectedFrameId: project.selectedFrameId ?? added[0]?.id ?? [...revived][0] ?? null,
