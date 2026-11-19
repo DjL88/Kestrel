@@ -1,5 +1,6 @@
 import { PHOTO_EXTENSIONS } from '../core/rawFormats';
 import { assignBurstGroups } from '../core/cullingEngine';
+import { spreadPhotoOrder } from '../core/photoProcessingOrder';
 import { parseImageExif } from '../core/exifParser';
 import type { ExifMetadata, PhotoFrame, ShootDescriptor } from '../core/types';
 import type { BrowserCatalogueStore } from './browserCatalogueStore';
@@ -115,10 +116,15 @@ export async function loadLocalFileListShoot(
   /** signal: Stop. Photos already read are returned (nothing is lost); the rest are not started. */
   options: { allowPartial?: boolean; signal?: AbortSignal } = {},
 ): Promise<{ shoot: ShootDescriptor; frames: PhotoFrame[]; storedAllBlobs: boolean; unstoredKeys: string[]; uncachedPreviewKeys: string[]; failedNames: string[]; stopped: boolean }> {
-  const validFiles = files
+  const sortedFiles = files
     .map((f) => (f instanceof File ? pickedFromFile(f) : f))
     .filter((f) => isSupportedPhotoFilename(f.name))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  // Manual imports release a diverse spread of photos (1,21,41,61,81...)
+  // without losing original indices, camera metadata, or burst chronology.
+  // Watched imports stay in source order, so retries remain deterministic.
+  const captureOrder = new Map(sortedFiles.map((file, index) => [file, index + 1]));
+  const validFiles = options.allowPartial === false ? sortedFiles : spreadPhotoOrder(sortedFiles);
 
   const shootId = `local-files-${Date.now()}`;
   const rawFrames: PhotoFrame[] = [];
@@ -137,7 +143,7 @@ export async function loadLocalFileListShoot(
     const chunk = validFiles.slice(i, i + BATCH_SIZE);
     const processed = await Promise.all(
       chunk.map(async (file, offset): Promise<PhotoFrame | null> => {
-        const idx = i + offset + 1;
+        const idx = captureOrder.get(file) ?? i + offset + 1;
         const stableKey = pickedKey(file);
         if (file.path && isDesktopApp()) {
           // Stays where it is on the disk: nothing is copied into the app, and it is read again when needed.
@@ -188,7 +194,7 @@ export async function loadLocalFileListShoot(
       else rawFrames.push(processed[index]!);
     }
     onProgress?.({
-      frames: assignBurstGroups(rawFrames),
+      frames: assignBurstGroups([...rawFrames].sort((a, b) => a.sequenceIndex - b.sequenceIndex)),
       loaded: rawFrames.length,
       total: validFiles.length,
     });
@@ -200,7 +206,7 @@ export async function loadLocalFileListShoot(
   if (failedNames.length && !allowPartial) {
     throw new Error('Some watched photos could not be read. The watcher will retry.');
   }
-  const grouped = assignBurstGroups(rawFrames);
+  const grouped = assignBurstGroups([...rawFrames].sort((a, b) => a.sequenceIndex - b.sequenceIndex));
   const now = Date.now();
   const shoot: ShootDescriptor = {
     id: shootId,

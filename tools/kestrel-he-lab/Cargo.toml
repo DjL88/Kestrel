@@ -1,0 +1,12 @@
+[package]
+name = "kestrel-he-lab"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Kestrel-owned Nikon HE container inspection and eventual RAW decoding laboratory"
+
+[lib]
+path = "src/lib.rs"
+
+# Intentionally dependency-free. This crate is not linked into desktop/mobile
+# releases. Codec distribution requires a separate legal/patent review.
