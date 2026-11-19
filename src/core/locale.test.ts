@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { LANGUAGES, activeLanguage, matchDeviceLanguage, mergeMessages, missingKeys, plural, resolveLanguage, setActiveLanguage, unknownKeys } from './locale';
+import { LANGUAGES, activeLanguage, matchDeviceLanguage, needsLanguageSetup, mergeMessages, missingKeys, plural, resolveLanguage, setActiveLanguage, unknownKeys } from './locale';
 import { formatProjectDate } from './formatDate';
 import { formatCaptureDateTime } from './photoInfoText';
 import { enGB } from '../i18n/en-GB';
@@ -60,7 +60,13 @@ test('dates follow the chosen language: British by default, never the browser’
 
 test('the device language is matched to one Kestrel has, to offer at first run', () => {
   assert.equal(matchDeviceLanguage(['en-US']), 'en-US');
-  assert.equal(matchDeviceLanguage(['en-AU', 'fr']), 'en-GB', 'other English goes to British English');
+  assert.equal(matchDeviceLanguage(['en-AU', 'fr']), 'en-AU', 'Australian English is a regional option');
+  assert.equal(matchDeviceLanguage(['en-NZ']), 'en-NZ');
+  assert.equal(matchDeviceLanguage(['en-CA']), 'en-CA');
+  assert.equal(matchDeviceLanguage(['en-GB']), 'en-GB');
+  assert.equal(matchDeviceLanguage(['en-IE']), 'en-GB', 'unsupported English region uses UK words');
+  assert.equal(matchDeviceLanguage(['fr-CA']), 'fr-CA');
+  assert.equal(matchDeviceLanguage(['fr-Latn-CA']), 'fr-CA', 'supports BCP47 script and region');
   assert.equal(matchDeviceLanguage(['fr-BE']), 'fr');
   assert.equal(matchDeviceLanguage(['pt-BR']), 'pt');
   assert.equal(matchDeviceLanguage(['nb-NO']), 'nb');
@@ -72,6 +78,17 @@ test('the device language is matched to one Kestrel has, to offer at first run',
   assert.equal(matchDeviceLanguage(['ja-JP', 'zh']), undefined);
   assert.equal(matchDeviceLanguage([]), undefined);
   assert.equal(matchDeviceLanguage(undefined), undefined);
+});
+
+test('first launch asks for an explicit choice regardless of OS language; a saved choice wins', () => {
+  for (const value of [undefined, null, '', 'unrecognised']) {
+    assert.equal(needsLanguageSetup(value), true);
+  }
+  for (const value of ['en-GB', 'en-AU', 'en-NZ', 'fr-CA', 'cy']) {
+    assert.equal(needsLanguageSetup(value), false, value);
+  }
+  assert.equal(resolveLanguage('fr-CA'), 'fr-CA');
+  assert.equal(resolveLanguage('en-NZ'), 'en-NZ');
 });
 
 test('plural words follow the active language’s rules', () => {
