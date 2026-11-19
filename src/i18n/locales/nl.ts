@@ -79,6 +79,8 @@ export const nl: Translation = {
     draft: 'Voorlopige vertaling, nog niet nagekeken door een moedertaalspreker. Sommige schermen zijn nog in het Engels.',
   },
   appearance: {
+    dialogLabel: "Instellingen voor weergave en indeling",
+    shortcuts: "Sneltoetsen en bedieningsknoppen",
     "position": "Aan welke kant wil je de gereedschappen?",
     "positionHint": "Kies de kant voor de bewerkingsgereedschappen. Op een telefoon staan ze onder de foto.",
     "toolsSide": "Kant van de gereedschappen",
