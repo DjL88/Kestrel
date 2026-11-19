@@ -73,6 +73,16 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
     for (const key of Object.keys(edit)) {
       if (!EXPORT_EDIT_KEYS.has(key)) return `The 16-bit TIFF cannot include the "${key}" adjustment yet.`;
     }
+    // Saved projects can contain values from older versions or corrupted JSON.
+    // A NaN/Infinity or non-number must never silently become black/white
+    // archival pixels in a purportedly faithful 16-bit master.
+    for (const key of EXPORT_EDIT_KEYS) {
+      if (key === 'masks') continue;
+      const value = edit[key as keyof PhotoEdit];
+      if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value))) {
+        return `The saved "${key}" adjustment is invalid, so no 16-bit TIFF was made.`;
+      }
+    }
     if (edit.masks !== undefined && !validMasks(edit.masks)) {
       return 'One or more saved masks could not be safely included in the 16-bit TIFF.';
     }
