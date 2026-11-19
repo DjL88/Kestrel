@@ -22,11 +22,23 @@ class OwnerDecodeTests(unittest.TestCase):
         (self.samples / 'a.nef').write_bytes(b'synthetic only')
     def runner(self, stdout, returncode=0):
         return lambda *a, **kw: SimpleNamespace(stdout=stdout, stderr='', returncode=returncode)
+    def test_missing_cfa_hash_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, 'CFA hash'):
+            mod.collect(self.samples, self.tauri, self.runner('a.nef | nikon-he | 8x8 | 1ms\\ncfa-sha256 | a.nef | ' + 'a'*64 + '\\nHigh Efficiency files decoded from sensor data: 1'))
+    def test_duplicate_cfa_hash_fails_closed(self):
+        digest = 'a' * 64
+        output = f'a.nef | nikon-he | 8x8 | 1ms\\ncfa-sha256 | a.nef | {digest}\\ncfa-sha256 | a.nef | {digest}\\nHigh Efficiency files decoded from sensor data: 1'
+        with self.assertRaisesRegex(ValueError, 'duplicate'):
+            mod.collect(self.samples, self.tauri, self.runner(output))
+    def test_mismatched_cfa_name_fails_closed(self):
+        output = f'a.nef | nikon-he | 8x8 | 1ms\\ncfa-sha256 | b.nef | {"a" * 64}\\nHigh Efficiency files decoded from sensor data: 1'
+        with self.assertRaisesRegex(ValueError, 'CFA hash'):
+            mod.collect(self.samples, self.tauri, self.runner(output))
     def test_native_success_is_only_limited_evidence(self):
         evidence = mod.collect(self.samples, self.tauri, self.runner('a.nef | nikon-he | 8x8 | 1ms\nHigh Efficiency files decoded from sensor data: 1'))
         row = evidence['samples'][0]
         self.assertEqual(row['sha256'], hashlib.sha256(b'synthetic only').hexdigest())
-        self.assertIsNone(row['cfa_hash'])
+        self.assertEqual(row['cfa_hash'], 'a'*64)
         self.assertEqual(row['nx_studio_parity'], 'NOT RUN')
     def test_zero_files_not_pass(self):
         with self.assertRaises(ValueError): mod.parse_output('High Efficiency files decoded from sensor data: 0')
