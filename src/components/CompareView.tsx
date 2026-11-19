@@ -68,7 +68,7 @@ export function CompareView({
         {([['A', leftFrame], ['B', rightFrame]] as const).map(([side, frame]) => (
           frame && (side === 'A' || uniqueRight) && (
             <div key={side} role="group" aria-label={`Decisions for photo ${side}`} className="flex items-center">
-              {(['keep', 'review', 'reject'] as const).map((decision) => (
+              {(['keep', 'reject'] as const).map((decision) => (
                 <button type="button" key={decision}
                   className={`${control} capitalize aria-pressed:bg-white/15`}
                   aria-label={`${decision} photo ${side}`} title={`${decision} photo ${side}`}
@@ -77,6 +77,12 @@ export function CompareView({
                   {decision} {side}
                 </button>
               ))}
+              <button type="button" className={control} disabled={frame.decision === 'unreviewed'}
+                aria-label={`Clear decision for photo ${side} (return to review)`}
+                title={`Return photo ${side} to review`}
+                onClick={() => onDecideFrame(frame.id, 'unreviewed')}>
+                Review {side}
+              </button>
             </div>
           )
         ))}
