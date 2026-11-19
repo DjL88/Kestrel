@@ -2302,6 +2302,7 @@ export default function App() {
               bindings={prefs.bindings}
               knobMode={prefs.knobMode}
               showShortcutsOverlay={prefs.showShortcutsOverlay && !prefs.focusMode}
+              focusPhoto={prefs.focusMode}
               onExecuteCommand={executeCommand}
               onStepFrame={handleStepFrame}
               onResetFrame={() => selectedFrame && requestReset([selectedFrame.id])}
@@ -2339,7 +2340,7 @@ export default function App() {
             />
           )}
 
-          {editing && selectedFrame && (
+          {editing && selectedFrame && !prefs.focusMode && (
             <div role="toolbar" aria-label="Filmstrip controls"
               className={`mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center gap-1 overflow-x-auto border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'workspace:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'workspace:pr-[var(--editor-panel-w,0px)]') : ''}`}>
               <button type="button" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10"
