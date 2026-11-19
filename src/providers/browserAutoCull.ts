@@ -1,5 +1,6 @@
 import { loadImage } from './loadImage';
 import { missingDetectorReviewFallback, restoreNoSubjectFallback } from '../core/cullFallback';
+import type { CullScanStage } from '../core/cullScanProgress';
 import { sha256Hex } from '../core/sha256';
 import { duplicateAnchorKeys } from '../core/duplicateAnchors';
 import { limitAutoKeepers, scorePreview, scoreWithSubject, type CullSuggestion, type SubjectFinding } from '../core/autoCull';
@@ -12,6 +13,7 @@ export async function scanForCulling(
   candidates: PhotoFrame[], all: PhotoFrame[], provider: BrowserPreviewProvider, goal: number,
   signal: AbortSignal, onProgress: (count: number) => void,
   onDetectorUnavailable?: () => void,
+  onFrameStage?: (frameId: string, stage: CullScanStage) => void,
 ) {
   const baseById = new Map<string, CullSuggestion>();
   const sizes = new Map<number, number>();
@@ -109,7 +111,13 @@ export async function scanForCulling(
     while (cursor < candidates.length) {
       signal.throwIfAborted();
       const frame = candidates[cursor++];
-      outcome.set(frame.id, await analyse(frame, laneCanvas, laneContext));
+      onFrameStage?.(frame.id, 'analysing');
+      const result = await analyse(frame, laneCanvas, laneContext);
+      signal.throwIfAborted();
+      outcome.set(frame.id, result);
+      // This records work on the individual photo, NOT a final keeper decision.
+      // The scan-wide detector fallback and keeper limit still run after all lanes.
+      onFrameStage?.(frame.id, result.reason === 'unavailable' ? 'unavailable' : 'analysed');
       onProgress(++finished);
       await new Promise<void>((resolve) => setTimeout(resolve, 0)); // let the interface breathe between photos
     }

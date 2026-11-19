@@ -6,6 +6,7 @@ import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider
 import { DecisionButtons } from './DecisionButtons';
 import { isEdited } from '../core/editedState';
 import { photoTileMilestones, type PhotoPreviewReadiness } from '../core/photoTileReadiness';
+import type { CullScanStage } from '../core/cullScanProgress';
 import { speciesShown } from '../core/autoTags';
 import { FrameImage } from './FrameImage';
 import { jumpTarget, type JumpRequest } from '../core/jumpNavigation';
@@ -13,6 +14,8 @@ import { openPhotoMenuFromKeyboard } from './PhotoContextMenu';
 
 interface VirtualizedContactSheetProps {
   frames: PhotoFrame[];
+  /** Live local analysis stages, never mistaken for persisted cull decisions. */
+  analysisStages?: Readonly<Record<string, CullScanStage>>;
   selectedFrameId: string | null;
   previewProvider: BrowserPreviewProvider;
   needsAccess: boolean;
@@ -35,6 +38,7 @@ const STACKED_FOOTER_HEIGHT = 84;
 
 export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = ({
   frames,
+  analysisStages,
   selectedFrameId,
   previewProvider,
   needsAccess,
@@ -257,7 +261,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                 const isSelected = multiSelect ? isMarked : frame.id === selectedFrameId;
                 const isKeep = frame.decision === 'keep';
                 const isReject = frame.decision === 'reject';
-                const milestones = photoTileMilestones(frame, previewReadiness[frame.id] ?? 'loading');
+                const milestones = photoTileMilestones(frame, previewReadiness[frame.id] ?? 'loading', analysisStages?.[frame.id]);
 
                 return (
                   <div
@@ -351,7 +355,13 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                       <div data-testid="photo-tile-readiness" title={milestones.summary}
                         className="pointer-events-none absolute inset-x-0 top-0 grid h-1 grid-cols-3 items-start gap-px" aria-hidden="true">
                         <span data-state={milestones.preview} className={milestones.preview === 'ready' ? 'h-1 bg-emerald-400' : milestones.preview === 'unavailable' ? 'tile-hatched h-1 bg-rose-400' : 'tile-dotted h-1 bg-amber-400 motion-safe:animate-pulse'} />
-                        <span data-state={milestones.cullScanned ? 'done' : 'not-yet'} className={milestones.cullScanned ? 'h-1 bg-emerald-400' : 'h-px bg-zinc-500'} />
+                        <span data-state={milestones.analysis} className={
+                          milestones.analysis === 'recorded' ? 'h-1 bg-emerald-400'
+                            : milestones.analysis === 'analysing' ? 'tile-dotted h-1 bg-amber-400 motion-safe:animate-pulse'
+                            : milestones.analysis === 'analysed' ? 'h-1 bg-sky-400'
+                            : milestones.analysis === 'unavailable' ? 'tile-hatched h-1 bg-rose-400'
+                            : 'h-px bg-zinc-500'
+                        } />
                         <span data-state={milestones.edited ? 'done' : 'not-yet'} className={milestones.edited ? 'h-1 bg-emerald-400' : 'h-px bg-zinc-500'} />
                       </div>
                       <span className="sr-only">{milestones.summary}</span>
