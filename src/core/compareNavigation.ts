@@ -9,7 +9,8 @@ export function compareNavigation(
   candidates: readonly PhotoFrame[],
   leftId: string | null,
   rightId: string | null,
-): { previous: string | null; next: string | null; currentValid: boolean; available: number } {
+): { previous: string | null; next: string | null; currentValid: boolean; referenceValid: boolean; available: number } {
+  const referenceValid = leftId !== null && candidates.some((frame) => frame.id === leftId && frame.removedAt == null);
   const ids: string[] = [];
   const seen = new Set<string>();
   for (const frame of candidates) {
@@ -20,11 +21,13 @@ export function compareNavigation(
   const index = rightId === null ? -1 : ids.indexOf(rightId);
   // An absent B can be recovered by moving forward to the first visible
   // alternative; do not silently change the reference or select a removed B.
-  if (index === -1) return { previous: null, next: ids[0] ?? null, currentValid: false, available: ids.length };
+  if (!referenceValid) return { previous: null, next: null, currentValid: false, referenceValid: false, available: ids.length };
+  if (index === -1) return { previous: null, next: ids[0] ?? null, currentValid: false, referenceValid: true, available: ids.length };
   return {
     previous: index > 0 ? ids[index - 1] : null,
     next: index + 1 < ids.length ? ids[index + 1] : null,
     currentValid: true,
+    referenceValid: true,
     available: ids.length,
   };
 }
