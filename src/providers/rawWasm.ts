@@ -18,7 +18,7 @@ const wasmUrl = assets['../assets/wasm/kestrel_raw.wasm'] ?? null;
 /** Whether this build of the web app carries the RAW decoder. */
 export const webRawAvailable = () => wasmUrl !== null && typeof Worker !== 'undefined' && typeof WebAssembly !== 'undefined';
 
-type Reply = { type: 'developed'; id: number; jpeg: ArrayBuffer } | { type: 'mode'; id: number; mode: WasmSensorMode } | { type: 'error'; id: number; message: string };
+type Reply = { type: 'developed'; id: number; jpeg: ArrayBuffer } | { type: 'developed16'; id: number; picture: ArrayBuffer } | { type: 'mode'; id: number; mode: WasmSensorMode } | { type: 'error'; id: number; message: string };
 
 let worker: Worker | null = null;
 let nextId = 0;
@@ -66,6 +66,14 @@ export async function developRawInBrowser(file: Blob): Promise<Blob> {
   const reply = await ask({ type: 'develop', bytes }, [bytes]);
   if (reply.type !== 'developed') throw new Error('This RAW file could not be developed.');
   return new Blob([reply.jpeg], { type: 'image/jpeg' });
+}
+
+/** Develop a RAW file to its full-size 16-bit picture in the browser (see `parseRgb16`). Rejects with a plain message. */
+export async function developRaw16InBrowser(file: Blob): Promise<ArrayBuffer> {
+  const bytes = await file.arrayBuffer();
+  const reply = await ask({ type: 'develop16', bytes }, [bytes]);
+  if (reply.type !== 'developed16') throw new Error('This RAW file could not be developed.');
+  return reply.picture;
 }
 
 /** Nikon High Efficiency or not, from the file's first bytes. Anything that goes wrong answers 'other'. */

@@ -4,12 +4,12 @@
 //! WebAssembly build run exactly the same code. The original is only read.
 
 use image::codecs::jpeg::JpegEncoder;
-use image::{imageops, RgbImage};
+use image::{imageops, ImageBuffer, Pixel, Rgb};
 use rawler::imgop::develop::RawDevelop;
 
 /// Turn the picture the way the camera was held, from the file's EXIF orientation (1 to 8). The sensor data is always stored
 /// sideways-on, so without this a portrait photograph comes out lying on its side.
-pub fn apply_orientation(image: RgbImage, exif_orientation: u16) -> RgbImage {
+pub fn apply_orientation<P: Pixel + 'static>(image: ImageBuffer<P, Vec<P::Subpixel>>, exif_orientation: u16) -> ImageBuffer<P, Vec<P::Subpixel>> {
     match exif_orientation {
         2 => imageops::flip_horizontal(&image),
         3 => imageops::rotate180(&image),
@@ -30,6 +30,37 @@ pub fn explain(error: &str) -> String {
     } else {
         format!("This RAW file could not be read: {error}")
     }
+}
+
+/// The developed picture at 16 bits per channel (display-encoded sRGB), turned the way the camera was held: exactly what
+/// `develop_jpeg` encodes, before it is reduced to 8 bits. The editor's 16-bit export starts from this.
+pub fn develop_rgb16(bytes: &[u8]) -> Result<ImageBuffer<Rgb<u16>, Vec<u16>>, String> {
+    let (raw, _decoder) = crate::nikon_he::decode_sensor(bytes)?;
+    let rgb16 = match crate::scene_develop::develop_display_rgb16(&raw, &crate::scene_develop::Look::default())? {
+        Some(display) => display,
+        None => RawDevelop::default()
+            .develop_intermediate(&raw)
+            .map_err(|error| format!("This RAW file could not be developed: {error}"))?
+            .to_dynamic_image()
+            .ok_or_else(|| "This RAW file produced no picture.".to_string())?
+            .to_rgb16(),
+    };
+    let orientation = raw.orientation.to_u16();
+    drop(raw);
+    Ok(apply_orientation(rgb16, orientation))
+}
+
+/// A 16-bit picture as bytes for the page: width and height (u32, little-endian), then R, G, B samples (u16,
+/// little-endian), row by row.
+pub fn rgb16_bytes(image: &ImageBuffer<Rgb<u16>, Vec<u16>>) -> Vec<u8> {
+    let samples = image.as_raw();
+    let mut out = Vec::with_capacity(8 + samples.len() * 2);
+    out.extend_from_slice(&image.width().to_le_bytes());
+    out.extend_from_slice(&image.height().to_le_bytes());
+    for sample in samples {
+        out.extend_from_slice(&sample.to_le_bytes());
+    }
+    out
 }
 
 pub fn develop_jpeg(bytes: &[u8]) -> Result<Vec<u8>, String> {
@@ -80,6 +111,25 @@ mod tests {
             let spread = image.pixels().step_by(997).map(|p| p[1] as i32).max().unwrap() - image.pixels().step_by(997).map(|p| p[1] as i32).min().unwrap();
             assert!(spread > 60, "{name}: picture has no contrast (spread {spread})");
         }
+    }
+
+    #[test]
+    fn the_16_bit_develop_is_the_jpeg_before_it_lost_precision() {
+        // Synthetic 96 x 64 Bayer DNG, orientation 6: no camera data.
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/synthetic-z8.dng");
+        let bytes = std::fs::read(path).unwrap();
+        let rgb16 = super::develop_rgb16(&bytes).unwrap();
+        assert_eq!((rgb16.width(), rgb16.height()), (64, 96), "turned the way the camera was held");
+        let jpeg = image::load_from_memory_with_format(&develop(&bytes).unwrap(), image::ImageFormat::Jpeg).unwrap().to_rgb8();
+        assert_eq!((jpeg.width(), jpeg.height()), (64, 96));
+        let mean_gap = rgb16.pixels().zip(jpeg.pixels())
+            .map(|(a, b)| (0..3).map(|c| (a[c] as f64 / 257.0 - b[c] as f64).abs()).sum::<f64>() / 3.0)
+            .sum::<f64>() / (64.0 * 96.0);
+        assert!(mean_gap < 3.0, "same picture, only finer: mean gap {mean_gap} levels");
+        let bytes16 = super::rgb16_bytes(&rgb16);
+        assert_eq!(bytes16.len(), 8 + 64 * 96 * 6);
+        assert_eq!(&bytes16[..8], &[64, 0, 0, 0, 96, 0, 0, 0]);
+        assert_eq!(u16::from_le_bytes([bytes16[8], bytes16[9]]), rgb16.as_raw()[0]);
     }
 
     #[test]

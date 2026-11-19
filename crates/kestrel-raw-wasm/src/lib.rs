@@ -51,6 +51,21 @@ pub unsafe extern "C" fn kr_develop(pointer: *const u8, len: usize) -> u32 {
     }
 }
 
+/// Develop the RAW file to its full-size 16-bit picture (`kestrel_raw::rgb16_bytes` layout) for the 16-bit export.
+/// Returns 0 with the picture as the result, or 1 with a plain-English message as the result.
+///
+/// # Safety
+/// `pointer` must point to `len` initialised bytes from `kr_alloc`.
+#[no_mangle]
+pub unsafe extern "C" fn kr_develop16(pointer: *const u8, len: usize) -> u32 {
+    let bytes = std::slice::from_raw_parts(pointer, len);
+    keep(Vec::new()); // let the last result go before the big one is made
+    match kestrel_raw::develop_rgb16(bytes) {
+        Ok(picture) => { let out = kestrel_raw::rgb16_bytes(&picture); drop(picture); keep(out); 0 }
+        Err(message) => { keep(message.into_bytes()); 1 }
+    }
+}
+
 /// 0 for an ordinary RAW, 1 for Nikon High Efficiency, 2 for High Efficiency*, 3 for "send more of the file", from a
 /// file's first bytes and full length.
 ///

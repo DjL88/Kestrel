@@ -132,7 +132,7 @@ export async function rawDngCopy(file: Blob): Promise<Blob> {
   }
 }
 
-async function thumbOf(bitmap: ImageBitmap): Promise<Float32Array> {
+export async function thumbOf(bitmap: ImageBitmap): Promise<Float32Array> {
   const canvas = document.createElement('canvas');
   canvas.width = THUMB; canvas.height = THUMB;
   const context = canvas.getContext('2d', { willReadFrequently: true })!;

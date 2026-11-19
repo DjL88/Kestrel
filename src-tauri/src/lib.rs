@@ -60,6 +60,19 @@ async fn develop_raw(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Res
     Ok(tauri::ipc::Response::new(jpeg))
 }
 
+/// Develop a RAW file to its full-size 16-bit picture (width, height, then RGB16 samples; `kestrel_raw::rgb16_bytes`).
+/// The page runs Kestrel's shared edit maths on it for the 16-bit export, exactly as the web build does.
+#[cfg(desktop)]
+#[tauri::command]
+async fn develop_raw_rgb16(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Response, String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else { return Err("No file was sent.".into()) };
+    let bytes = bytes.to_vec();
+    let picture = tauri::async_runtime::spawn_blocking(move || kestrel_raw::develop_rgb16(&bytes).map(|image| kestrel_raw::rgb16_bytes(&image)))
+        .await
+        .map_err(|_| "This RAW file could not be read.".to_string())??;
+    Ok(tauri::ipc::Response::new(picture))
+}
+
 /// Experimental: develop a RAW file straight to a 16-bit TIFF (see `raw_precision.rs`). Nikon HE/HE* goes through the
 /// same sensor decode as the editor (`nikon_he.rs`). No colour profile yet; refuses rather than silently falling back to
 /// 8-bit. Offered as an extra download, not the default editing path, until ICC handling is in place.
@@ -147,7 +160,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(OpenedFiles::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files])
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "Kestrel", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,

@@ -45,10 +45,10 @@ const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
 import { isRawPreviewFile } from '../core/rawFormats';
 import { tasks } from '../core/taskStore';
-import { canDevelopRaw, canExportRawMaster, developRaw, developRawPrecisionEdited, matchPreviewOrientation, rawDngCopy, rawSensorMode, sensorModeLabel, type RawSensorMode } from '../providers/rawDevelop';
+import { canDevelopRaw, canExportRawMaster, developRaw, matchPreviewOrientation, rawDngCopy, rawSensorMode, sensorModeLabel, type RawSensorMode } from '../providers/rawDevelop';
 import { extractRawPreview } from '../core/nefPreview';
-import { nativeRawMasterRecipe, nativeRawMasterFraming } from '../core/nativeRawMaster';
-import { saveWithDialog } from '../providers/desktopShell';
+import { exportRaw16Tiff } from '../providers/rawMaster16';
+import { isDesktopApp, saveWithDialog } from '../providers/desktopShell';
 import { PaidNotice } from './PaidNotice';
 import { useAccess } from '../providers/useAccess';
 const PANEL_KEY = 'kestrel-panel-width-v1';
@@ -344,21 +344,21 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     if (masterBusy) return;
     setMasterBusy(true);
     setMasterNote(null);
-    const task = tasks.start('Developing edited 16-bit RAW master');
+    const task = tasks.start('Making a 16-bit TIFF from the RAW');
     try {
       if (previewRecipe || pendingAuto) {
         throw new Error('Apply or discard the previewed edit before exporting the saved RAW recipe.');
       }
-      const recipe = nativeRawMasterRecipe(frame);
-      const framing = nativeRawMasterFraming(frame.framing);
+      if (!source) throw new Error('Wait for the photo to open before exporting.');
       const original = await provider.ensureOriginal(frame.stableKey);
       if (!original) throw new Error('Reconnect the original RAW file before exporting.');
-      const output = await developRawPrecisionEdited(original, recipe, framing);
-      const name = frame.filename.replace(/\.[^.]+$/, '') + '_raw16-poc.tiff';
-      const saved = await saveWithDialog(output, name);
+      const output = await exportRaw16Tiff(original, source, frame.edit ?? DEFAULT_EDIT, frame.framing);
+      const name = frame.filename.replace(/\.[^.]+$/, '') + '_16bit.tif';
+      // The browser hands the file to its own downloads; the desktop app asks where to save it.
+      const saved = isDesktopApp() ? await saveWithDialog(output, name) : (downloadExport(output, name), true);
       if (saved) {
-        setMasterNote('Saved edited RGB16 TIFF from the original RAW. Colour profile and image-quality parity are not yet certified.');
-        task.finish('RGB16 master saved');
+        setMasterNote('Saved a 16-bit TIFF made from the RAW sensor data, with the same edit as the screen. No colour profile is embedded yet; the colours are sRGB.');
+        task.finish('16-bit TIFF saved');
       } else {
         setMasterNote('Export cancelled; no file was written.');
         task.finish('Cancelled');
@@ -1408,15 +1408,16 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                 {developing ? 'Developing…' : 'Develop from RAW'}
               </button>
             )}
-            {canExportRawMaster() && (
+            {/* Offered once the RAW has developed: a file the decoder cannot read has no sensor data to export. */}
+            {canDevelopRaw() && (provider.isDeveloped(frame.stableKey) || canExportRawMaster()) && (
               <div className="space-y-1 border-t border-white/10 pt-2">
-                <button type="button" className={button + ' w-full border border-white/15'}
+                {provider.isDeveloped(frame.stableKey) && <button type="button" className={button + ' w-full border border-white/15'}
                   disabled={masterBusy || sourceState !== 'ready'} onClick={() => void exportHighPrecisionMaster()}>
-                  {masterBusy ? 'Developing RGB16 master…' : 'Export edited 16-bit TIFF (POC)'}
-                </button>
-                <p className="text-xs text-zinc-400">Uses original RAW, not its JPEG. Global tone/colour, crop and quarter-turn rotation. Straightening, masks and detail are blocked until the native renderer supports them. Colour accuracy is not yet certified.</p>
+                  {masterBusy ? 'Making 16-bit TIFF…' : 'Export 16-bit TIFF'}
+                </button>}
+                {provider.isDeveloped(frame.stableKey) && <p className="text-xs text-zinc-400">Made from the RAW sensor data, not the screen's JPEG, with the same edit, crop and turns. Masks, straightening and Noise reduction aren't included yet; you're told before anything is saved.</p>}
                 {masterNote && <p role="status" className="text-xs text-zinc-300">{masterNote}</p>}
-                {sensorMode !== 'other' && (
+                {canExportRawMaster() && sensorMode !== 'other' && (
                   <>
                     <button type="button" className={button + ' w-full border border-white/15'}
                       disabled={dngBusy} onClick={() => void saveDngCopy()}>

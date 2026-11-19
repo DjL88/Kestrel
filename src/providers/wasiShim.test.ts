@@ -75,3 +75,12 @@ test('the decoder reports its memory, so the worker can give it back after a big
   raw.develop(new Uint8Array(readFileSync(DNG)));
   assert.ok(before > 0 && raw.memoryBytes() >= before, 'memory only grows within one instance');
 });
+
+test('the web build also gives the full 16-bit picture the JPEG was made from', { skip }, async () => {
+  const raw = await instantiateRawWasm(new WebAssembly.Module(readFileSync(WASM)));
+  const picture = raw.develop16(new Uint8Array(readFileSync(DNG)));
+  const view = new DataView(picture.buffer, picture.byteOffset, picture.byteLength);
+  assert.deepEqual([view.getUint32(0, true), view.getUint32(4, true)], [64, 96], 'full size, turned as the camera was held');
+  assert.equal(picture.byteLength, 8 + 64 * 96 * 6);
+  assert.throws(() => raw.develop16(new Uint8Array(4096)), /RAW file/);
+});

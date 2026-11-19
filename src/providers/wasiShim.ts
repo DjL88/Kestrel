@@ -80,6 +80,7 @@ interface RawExports {
   kr_alloc(length: number): number;
   kr_free(pointer: number, length: number): void;
   kr_develop(pointer: number, length: number): number;
+  kr_develop16(pointer: number, length: number): number;
   kr_sensor_mode(pointer: number, length: number, fileLength: number): number;
   kr_result_pointer(): number;
   kr_result_len(): number;
@@ -90,6 +91,8 @@ export type WasmSensorMode = 'nikon-he' | 'nikon-he-star' | 'other' | 'need-more
 /** One instance of Kestrel's RAW WebAssembly. After any failure that stopped the module, make a new one. */
 export interface RawWasm {
   develop(file: Uint8Array): Uint8Array;
+  /** The full-size 16-bit picture: width and height (u32), then RGB samples (u16), all little-endian. */
+  develop16(file: Uint8Array): Uint8Array;
   sensorMode(prefix: Uint8Array, fileLength: number): WasmSensorMode;
   /** The module's memory now. WebAssembly memory only ever grows, so this is the high-water mark so far. */
   memoryBytes(): number;
@@ -111,24 +114,26 @@ export async function instantiateRawWasm(module: WebAssembly.Module): Promise<Ra
     }
   };
   const result = () => new Uint8Array(raw.memory.buffer, raw.kr_result_pointer(), raw.kr_result_len()).slice();
-  return {
-    develop(file) {
-      let status: number;
-      try {
-        status = withInput(file, (pointer) => raw.kr_develop(pointer, file.length));
-      } catch (error) {
-        // A trap ("unreachable") after a panic or a failed allocation: say which, in plain words.
-        const stderr = shim.stderr();
-        if (/memory allocation of \d+ bytes failed/.test(stderr) || error instanceof RangeError) {
-          throw new Error('This device ran out of room to develop this RAW file. Kestrel keeps using the preview stored in the file.', { cause: error });
-        }
-        const said = stderr.split('\n').find((line) => line.includes('panicked'))?.replace(/^.*panicked at [^:]*:\d+:\d+:\s*/, '');
-        throw new Error(said ? `This RAW file could not be read: ${said}` : 'This RAW file could not be read.', { cause: error });
+  const run = (file: Uint8Array, call: (pointer: number, length: number) => number) => {
+    let status: number;
+    try {
+      status = withInput(file, (pointer) => call(pointer, file.length));
+    } catch (error) {
+      // A trap ("unreachable") after a panic or a failed allocation: say which, in plain words.
+      const stderr = shim.stderr();
+      if (/memory allocation of \d+ bytes failed/.test(stderr) || error instanceof RangeError) {
+        throw new Error('This device ran out of room to develop this RAW file. Kestrel keeps using the preview stored in the file.', { cause: error });
       }
-      const output = result();
-      if (status !== 0) throw new Error(new TextDecoder().decode(output) || 'This RAW file could not be read.');
-      return output;
-    },
+      const said = stderr.split('\n').find((line) => line.includes('panicked'))?.replace(/^.*panicked at [^:]*:\d+:\d+:\s*/, '');
+      throw new Error(said ? `This RAW file could not be read: ${said}` : 'This RAW file could not be read.', { cause: error });
+    }
+    const output = result();
+    if (status !== 0) throw new Error(new TextDecoder().decode(output) || 'This RAW file could not be read.');
+    return output;
+  };
+  return {
+    develop: (file) => run(file, (pointer, length) => raw.kr_develop(pointer, length)),
+    develop16: (file) => run(file, (pointer, length) => raw.kr_develop16(pointer, length)),
     memoryBytes: () => raw.memory.buffer.byteLength,
     sensorMode(prefix, fileLength) {
       const code = withInput(prefix, (pointer) => raw.kr_sensor_mode(pointer, prefix.length, Math.max(fileLength, prefix.length)));

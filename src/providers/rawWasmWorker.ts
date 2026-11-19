@@ -2,6 +2,7 @@
  * Develops RAW files with Kestrel's own pipeline (crates/kestrel-raw, compiled to WebAssembly) off the interface thread,
  * so the web app develops sensor data like the desktop app does. One file at a time. Messages:
  *   in  { type: 'develop', id, url, bytes }           out { type: 'developed', id, jpeg } or { type: 'error', id, message }
+ *   in  { type: 'develop16', id, url, bytes }         out { type: 'developed16', id, picture } or { type: 'error', id, message }
  *   in  { type: 'mode', id, url, prefix, fileLength } out { type: 'mode', id, mode }      or { type: 'error', id, message }
  * After a failure that stopped the module, the next request starts a fresh instance.
  */
@@ -36,6 +37,10 @@ scope.onmessage = async (event: MessageEvent) => {
       // WebAssembly memory never shrinks: after a big frame, let this instance go so the memory is given back.
       if (raw.memoryBytes() > RECYCLE_ABOVE_BYTES) instance = null;
       scope.postMessage({ type: 'developed', id: message.id, jpeg: jpeg.buffer }, [jpeg.buffer]);
+    } else if (message.type === 'develop16') {
+      const picture = raw.develop16(new Uint8Array(message.bytes as ArrayBuffer));
+      if (raw.memoryBytes() > RECYCLE_ABOVE_BYTES) instance = null;
+      scope.postMessage({ type: 'developed16', id: message.id, picture: picture.buffer }, [picture.buffer]);
     } else if (message.type === 'mode') {
       scope.postMessage({ type: 'mode', id: message.id, mode: raw.sensorMode(new Uint8Array(message.prefix as ArrayBuffer), message.fileLength) });
     }
