@@ -348,13 +348,9 @@ mod tests {
             u32le(&mut bytes, 454, 8);
             u16le(&mut bytes, 458, 1);
             tag(&mut bytes, 460, 0x0051, 7, 12, 40);
+            // The tag payload begins at note offset 50 (absolute 490).
+            // Its Nikon compression code sits 10 bytes later (absolute 500).
             u16le(&mut bytes, 500, match mode {
-                HeMode::He => 13,
-                HeMode::HeStar => 14,
-            });
-            // The compression value is at byte 10 of the tag payload (note + 50).
-            u16le(&mut bytes, 500, 0);
-            u16le(&mut bytes, 500 + 10, match mode {
                 HeMode::He => 13,
                 HeMode::HeStar => 14,
             });
