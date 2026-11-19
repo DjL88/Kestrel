@@ -1,4 +1,4 @@
-import { openPhotoInfo } from './helpers';
+import { openPhotoInfo, subjectTab } from './helpers';
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
@@ -8,9 +8,11 @@ const standInGate = readFileSync('tests/fixtures/stand-in-gate.onnx');
 
 /** The local model knows animals only, so an unclassified photo is never given a name (#377). */
 async function expectNoNameUntilWildlife(page: import('@playwright/test').Page) {
+  await subjectTab(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await expect(panel.getByText(/Choose Wildlife in Photo info/)).toBeVisible({ timeout: 30000 });
   await expect(panel.getByRole('list', { name: 'Suggested names' })).toHaveCount(0);
+  await subjectTab(page);
   await page.getByRole('region', { name: 'What is in this photo' }).getByRole('button', { name: 'Wildlife' }).click();
 }
 
@@ -23,6 +25,7 @@ test('species suggestions: with automatic tagging off, accept a name and it beco
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
 
+  await subjectTab(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await expect(panel.getByText(/never leave this device/)).toBeVisible();
   await panel.getByRole('button', { name: /^Download/ }).click();
@@ -35,6 +38,7 @@ test('species suggestions: with automatic tagging off, accept a name and it beco
   await expect(suggestion).toContainText('likely');
 
   // Nothing is added until it is accepted. Accepting adds the tag and Wildlife stays chosen.
+  await subjectTab(page);
   const subject = page.getByRole('region', { name: 'What is in this photo' });
   await expect(subject.getByRole('list', { name: 'Tags' })).toHaveCount(0);
   await suggestion.getByRole('button', { name: 'Use Red kite' }).click();
@@ -50,6 +54,7 @@ test('species suggestions: with automatic tagging off, accept a name and it beco
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await subjectTab(page);
   await expect(panel.getByRole('button', { name: /^Download/ })).toHaveCount(0);
   await expect(panel.getByText('Nothing else to suggest.')).toBeVisible({ timeout: 15000 });
   await expect(subject.getByRole('list', { name: 'Tags' }).getByRole('listitem')).toHaveText(['Red kite']);
@@ -62,6 +67,7 @@ test('species suggestions: with automatic tagging off, accept a name and it beco
   });
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await subjectTab(page);
   await expect(panel.getByRole('button', { name: /^Download/ })).toHaveCount(0);
   await expectNoNameUntilWildlife(page);
   await expect(panel.getByRole('list', { name: 'Suggested names' })).toContainText('Red kite', { timeout: 30000 });
@@ -75,6 +81,7 @@ test('a suggestion can be dismissed, and the choice is not kept as a tag', async
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await subjectTab(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
   await expectNoNameUntilWildlife(page);
@@ -104,7 +111,9 @@ async function openBurst(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await subjectTab(page);
   await page.getByRole('region', { name: 'What is in this photo' }).getByRole('button', { name: 'Wildlife' }).click();
+  await subjectTab(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
   // The photo is tagged by itself (the stand-in is always sure), then the rest of the burst is offered.
@@ -116,6 +125,7 @@ async function tagsOf(page: import('@playwright/test').Page, filename: string) {
   const close = page.getByRole('button', { name: 'Close photo info' });
   if (await close.isVisible()) await close.click();
   await page.getByRole('button', { name: `Photo info and rating for ${filename}` }).click();
+  await subjectTab(page);
   const subject = page.getByRole('region', { name: 'What is in this photo' });
   await expect(subject).toBeVisible();
   return subject;
@@ -152,8 +162,11 @@ test('when the model is sure the photo is tagged automatically, marked Auto, and
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await subjectTab(page);
   await page.getByRole('region', { name: 'What is in this photo' }).getByRole('button', { name: 'Wildlife' }).click();
+  await subjectTab(page);
   await page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: /^Download/ }).click();
+  await subjectTab(page);
   const subject = page.getByRole('region', { name: 'What is in this photo' });
   const tag = subject.getByRole('list', { name: 'Tags' }).getByRole('listitem');
   await expect(tag).toContainText('Red kite', { timeout: 30000 });
@@ -172,9 +185,12 @@ test('an automatic tag that is removed is never put back on that photo', async (
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await subjectTab(page);
   await page.getByRole('region', { name: 'What is in this photo' }).getByRole('button', { name: 'Wildlife' }).click();
+  await subjectTab(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
+  await subjectTab(page);
   const subject = page.getByRole('region', { name: 'What is in this photo' });
   await expect(subject.getByRole('list', { name: 'Tags' })).toContainText('Red kite', { timeout: 30000 });
   await subject.getByRole('button', { name: 'Remove tag Red kite' }).click();
@@ -196,9 +212,12 @@ test('automatic tagging can be switched off, and then a new photo is only offere
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await subjectTab(page);
   await page.getByRole('region', { name: 'What is in this photo' }).getByRole('button', { name: 'Wildlife' }).click();
+  await subjectTab(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
+  await subjectTab(page);
   await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('list', { name: 'Tags' })).toContainText('Red kite', { timeout: 30000 });
   await panel.getByLabel('Automatically tag strong matches').uncheck();
   // A different photo: the model is just as sure, but nothing is added until it is accepted.
@@ -211,6 +230,7 @@ test('automatic tagging can be switched off, and then a new photo is only offere
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
   await expectNoNameUntilWildlife(page);
+  await subjectTab(page);
   await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: 'Use Red kite' })).toBeVisible({ timeout: 30000 });
   await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('list', { name: 'Tags' })).toHaveCount(0);
 });
@@ -229,6 +249,7 @@ test('the model downloads and is kept on a phone over plain http, where Cache St
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await subjectTab(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
   await expectNoNameUntilWildlife(page);
@@ -241,6 +262,7 @@ test('the model downloads and is kept on a phone over plain http, where Cache St
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
   await expectNoNameUntilWildlife(page);
+  await subjectTab(page);
   await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('list', { name: 'Suggested names' })).toContainText('Red kite', { timeout: 30000 });
   await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: /^Download/ })).toHaveCount(0);
 });
@@ -251,6 +273,7 @@ test('a download that does not match its fingerprint is refused, and nothing is 
   await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await subjectTab(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: /^Download/ }).click();
   await expect(panel.getByRole('alert')).toContainText('does not match its checksum');

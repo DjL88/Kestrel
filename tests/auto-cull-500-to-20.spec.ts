@@ -1,3 +1,4 @@
+import { subjectTab } from './helpers';
 import { expect, test } from '@playwright/test';
 
 /**
@@ -97,7 +98,9 @@ test('500 photos, target 20: initial Auto Cull, Auto Edit and keeper export hand
   // Categorisation and EXIF live in the Library Photo info sidebar, which now opens by default on desktop.
   // No extra menu click should be needed to see metadata when returning from Edit.
   await expect(page.getByRole('complementary', { name: 'Photo info' })).toBeVisible();
+  await subjectTab(page);
   await expect(page.getByRole('group', { name: 'Kind of photo' })).toBeVisible();
+  await subjectTab(page);
   await expect(page.getByRole('heading', { name: 'What is this a photo of?' })).toBeVisible();
   await page.getByRole('button', { name: 'Close photo info' }).click();
 

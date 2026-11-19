@@ -1,4 +1,4 @@
-import { openPhotoInfo } from './helpers';
+import { openPhotoInfo, subjectTab } from './helpers';
 import { expect, test } from '@playwright/test';
 
 async function makeProject(page: import('@playwright/test').Page, name: string) {
@@ -118,11 +118,13 @@ test('subject panel: pick a kind, add tags by typing and with quick words, remov
   // The subject and tag controls are in Photo info, in the library. Wait for the editor to open, then go there.
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await subjectTab(page);
   const panel = page.getByRole('region', { name: 'What is in this photo' });
   await expect(panel.getByRole('button', { name: 'Bird' })).toHaveCount(0); // quick tags wait for a kind
   await panel.getByRole('button', { name: 'Wildlife' }).click();
   await expect(panel.getByRole('button', { name: 'Wildlife' })).toHaveAttribute('aria-pressed', 'true');
   await panel.getByRole('button', { name: /Bird of prey/ }).click();
+  await subjectTab(page);
   await panel.getByLabel('Add a tag').fill('Red Kite, red kite, Moorland');
   await page.keyboard.press('Enter');
   const tags = panel.getByRole('list', { name: 'Tags' }).getByRole('listitem');
@@ -133,6 +135,7 @@ test('subject panel: pick a kind, add tags by typing and with quick words, remov
   // The kind and tags survive closing and reopening Photo info.
   await page.getByRole('button', { name: 'Close photo info' }).click();
   await openPhotoInfo(page);
+  await subjectTab(page);
   await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('button', { name: 'Wildlife' })).toHaveAttribute('aria-pressed', 'true');
   await expect(tags).toHaveText(['Bird of prey', 'Moorland']);
 });

@@ -38,3 +38,9 @@ export async function openPhotoInfo(page: Page) {
   if ((await info.getAttribute('aria-pressed')) === 'true') await page.keyboard.press('Escape');
   else await info.click();
 }
+
+/** Photo info has Info and Subject tabs: open Subject (kind, tags, species) if it is not already showing. */
+export async function subjectTab(page: Page) {
+  const tab = page.getByRole('tab', { name: 'Subject', exact: true });
+  if (await tab.count() && await tab.first().isVisible() && await tab.first().getAttribute('aria-selected') !== 'true') await tab.first().click();
+}

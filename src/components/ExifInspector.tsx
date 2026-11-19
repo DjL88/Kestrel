@@ -92,7 +92,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
           <button key={tab} type="button" role="tab" id={`photo-tab-${tab}`}
             aria-selected={activeTab === tab} aria-controls={`photo-panel-${tab}`}
             onClick={() => setActiveTab(tab)}
-            className={`min-h-10 rounded-md px-2 text-sm focus-visible:outline-2 focus-visible:outline-sky-300 ${activeTab === tab ? 'bg-white/15 text-white' : 'text-zinc-400 hover:bg-white/5'}`}>
+            className={`min-h-11 rounded-md px-2 text-sm focus-visible:outline-2 focus-visible:outline-sky-300 ${activeTab === tab ? 'bg-white/15 text-white' : 'text-zinc-400 hover:bg-white/5'}`}>
             {tab === 'info' ? 'Info' : 'Subject'}
           </button>
         ))}
