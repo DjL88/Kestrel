@@ -50,7 +50,7 @@ test('personal preferences cannot turn a close species match into an automatic t
 
 test('only photos nobody has looked at, and with no tags of their own, are scanned', async () => {
   const { scanCandidates } = await import('./autoTags');
-  const frames = [{ id: 'a', subjectKind: 'wildlife' }, { id: 'b', subjectKind: 'wildlife', speciesChecked: true }, { id: 'c', subjectKind: 'wildlife', tags: ['Moorland'] }, { id: 'd', subjectKind: 'wildlife', removedAt: 1 }, { id: 'e', subjectKind: 'wildlife', subjectNames: ['Coco'] }, { id: 'f', subjectKind: 'wildlife' }, { id: 'helicopter', subjectKind: 'other' }, { id: 'unclassified' }];
+  const frames = [{ id: 'a', subjectKind: 'wildlife' }, { id: 'b', subjectKind: 'wildlife', speciesChecked: true }, { id: 'c', subjectKind: 'wildlife', tags: ['Moorland'] }, { id: 'd', subjectKind: 'wildlife', removedAt: 1 }, { id: 'removed-at-zero', subjectKind: 'wildlife', removedAt: 0 }, { id: 'e', subjectKind: 'wildlife', subjectNames: ['Coco'] }, { id: 'f', subjectKind: 'wildlife' }, { id: 'helicopter', subjectKind: 'other' }, { id: 'unclassified' }];
   assert.deepEqual(scanCandidates(frames).map((frame) => frame.id), ['a', 'f']);
 });
 
@@ -69,6 +69,10 @@ test('after a look the photo is always marked checked, and tagged only when the 
   assert.deepEqual(scanPatch({}, undefined), { speciesChecked: true }, 'nothing stood out');
   assert.deepEqual(scanPatch({ declinedTags: ['Red kite'] }, { name: 'Red kite', probability: 0.99 }), { speciesChecked: true }, 'removed before');
   assert.deepEqual(scanPatch({ subjectKind: 'other' }, { name: 'Osprey', probability: 0.99, kind: 'wildlife' }), { speciesChecked: true }, 'a helicopter must not become an osprey');
+  assert.deepEqual(scanPatch({ subjectKind: 'wildlife', removedAt: 0 }, { name: 'Osprey', probability: 0.999, kind: 'wildlife' }), { speciesChecked: true }, 'epoch-zero removed photos must not get a late species tag');
+  assert.deepEqual(scanPatch({ subjectKind: 'wildlife', removedAt: 123 }, { name: 'Osprey', probability: 0.999, kind: 'wildlife' }), { speciesChecked: true }, 'other removed photos must not get a late species tag');
+  assert.deepEqual(scanPatch({ subjectKind: 'wildlife', tags: ['My bird'] }, { name: 'Osprey', probability: 0.999, kind: 'wildlife' }), { speciesChecked: true }, 'manual tags always win');
+
   assert.deepEqual(scanPatch({}, { name: 'Osprey', probability: 0.999, kind: 'wildlife' }), { speciesChecked: true }, 'an unknown subject cannot be classified by a species-only model');
   assert.deepEqual(scanPatch({ subjectKind: 'wildlife' }, { name: 'Human', probability: 0.99, kind: 'people' }), { speciesChecked: true }, 'a conflicting species cannot overwrite the user category');
 });
