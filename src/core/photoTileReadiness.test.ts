@@ -39,3 +39,43 @@ test('edited marker reflects actual saved nondestructive adjustments, not an uns
   assert.equal(edited.edited, true);
   assert.match(edited.summary, /Saved edits/);
 });
+
+test('live analysis stages are honest and never count as a saved cull score', () => {
+  const queued = photoTileMilestones({}, 'ready', 'queued');
+  assert.equal(queued.analysis, 'queued');
+  assert.equal(queued.cullScanned, false);
+  assert.match(queued.summary, /Waiting for local analysis/);
+  const checking = photoTileMilestones({}, 'ready', 'analysing');
+  assert.equal(checking.analysis, 'analysing');
+  assert.match(checking.summary, /Analysing this photo/);
+  const tentative = photoTileMilestones({}, 'ready', 'analysed');
+  assert.equal(tentative.cullScanned, false);
+  assert.match(tentative.summary, /finishing shoot comparison/);
+  const unavailable = photoTileMilestones({}, 'ready', 'unavailable');
+  assert.equal(unavailable.cullScanned, false);
+  assert.match(unavailable.summary, /manual review available/);
+  const final = photoTileMilestones({ cullScore: 75 }, 'ready', 'analysing');
+  assert.equal(final.analysis, 'recorded');
+  assert.equal(final.cullScanned, true);
+  assert.match(final.summary, /Cull scan recorded/);
+});
+
+test('every marker state a segment can show differs by shape, not only by colour', async () => {
+  const { segmentShape } = await import('./photoTileReadiness');
+  // States one segment can show side by side over time must look different without colour.
+  const groups = [
+    ['loading', 'ready', 'unavailable'],
+    ['idle', 'queued', 'analysing', 'analysed', 'unavailable', 'recorded'],
+    ['not-yet', 'done'],
+  ] as const;
+  for (const states of groups) {
+    const meaning = (state: (typeof states)[number]) => ({ loading: 'busy', analysing: 'busy', ready: 'done', recorded: 'done', done: 'done', unavailable: 'failed', analysed: 'provisional', idle: 'not-yet', queued: 'not-yet', 'not-yet': 'not-yet' } as const)[state];
+    const seen = new Map<string, string>();
+    for (const state of states) {
+      const shape = JSON.stringify(segmentShape(state));
+      const earlier = seen.get(shape);
+      assert.ok(earlier === undefined || earlier === meaning(state), `${state} looks like ${earlier} without colour`);
+      seen.set(shape, meaning(state));
+    }
+  }
+});

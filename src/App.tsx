@@ -39,6 +39,7 @@ import { AutoCullPanel } from './components/AutoCullPanel';
 import { scanForCulling } from './providers/browserAutoCull';
 import { limitAutoKeepers } from './core/autoCull';
 import { backgroundCullCandidates, backgroundCullMoves, backgroundDevelopTargets } from './core/backgroundAutoPolicy';
+import { beginCullScan, advanceCullScan, endCullScan, type CullScanProgress } from './core/cullScanProgress';
 import { commitCompletedAutoResult } from './core/progressiveAutoCommit';
 import { prioritizePhotoProcessing } from './core/photoProcessingOrder';
 import { GuidedBanner } from './components/GuidedBanner';
@@ -792,6 +793,8 @@ export default function App() {
   const autoPendingIds = useRef(new Set<string>());
   const autoWorker = useRef<{ projectId: string; controller: AbortController } | null>(null);
   const [autoQueueTick, setAutoQueueTick] = useState(0);
+  const scanRunSequence = useRef(0);
+  const [liveCullScan, setLiveCullScan] = useState<CullScanProgress | null>(null);
   function enqueueBackgroundAuto(projectId: string, ids: readonly string[]) {
     if (!ids.length) return;
     if (autoPendingProject.current !== projectId) {
@@ -827,10 +830,19 @@ export default function App() {
           const task = tasks.start('Reviewing imported photographs', {
             total: candidates.length, cancel: () => controller.abort(),
           });
-          controller.signal.addEventListener('abort', () => { tasks.cancel(task.id); }, { once: true });
+          const scanRunId = ++scanRunSequence.current;
+          setLiveCullScan(beginCullScan(projectId, scanRunId, candidates.map((frame) => frame.id)));
+          controller.signal.addEventListener('abort', () => {
+            tasks.cancel(task.id);
+            setLiveCullScan((prev) => endCullScan(prev, projectId, scanRunId));
+          }, { once: true });
           try {
             const results = await scanForCulling(candidates, snapshot.frames, provider, snapshot.keeperTarget,
-              controller.signal, (count) => task.progress(count));
+              controller.signal, (count) => task.progress(count), undefined,
+              (frameId, stage) => {
+                if (!alive() || leavingRef.current) return;
+                setLiveCullScan((prev) => advanceCullScan(prev, projectId, scanRunId, frameId, stage));
+              });
             if (!alive()) return;
             // Recheck the LIVE catalogue: user decisions, crops and history made while
             // the detector ran always win over delayed automated results.
@@ -859,6 +871,10 @@ export default function App() {
           } catch (error) {
             if (!controller.signal.aborted) task.fail(error instanceof Error ? error.message : 'Review could not finish');
             return;
+          } finally {
+            // Neither Stop nor a stale result may leave an old scan on a
+            // reopened project or clear the status of a newer analysis run.
+            setLiveCullScan((prev) => endCullScan(prev, projectId, scanRunId));
           }
         }
       }
@@ -2119,6 +2135,7 @@ export default function App() {
           {can('onlineAi') && <OnlineHelperDialog />}
           {!editing && visibleFrames.length > 0 && prefs.viewMode === 'grid' && (
             <VirtualizedContactSheet
+              analysisStages={liveCullScan?.projectId === cullingState.shoot.id ? liveCullScan.stages : undefined}
               onResetFrame={(id) => requestReset(multiSelect && selectedIds.has(id) ? [...selectedIds] : [id])}
               frames={visibleFrames}
               selectedFrameId={selectedFrame?.id ?? null}
