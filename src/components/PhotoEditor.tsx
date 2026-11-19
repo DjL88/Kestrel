@@ -44,7 +44,7 @@ const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
 import { isRawPreviewFile } from '../core/rawFormats';
 import { tasks } from '../core/taskStore';
-import { canDevelopRaw, canSaveDngCopy, developRaw, developRawPrecisionEdited, matchPreviewOrientation, rawDngCopy } from '../providers/rawDevelop';
+import { canDevelopRaw, developRaw, developRawPrecisionEdited, matchPreviewOrientation, rawDngCopy, rawSensorMode, sensorModeLabel, type RawSensorMode } from '../providers/rawDevelop';
 import { extractRawPreview } from '../core/nefPreview';
 import { nativeRawMasterRecipe, nativeRawMasterFraming } from '../core/nativeRawMaster';
 import { saveWithDialog } from '../providers/desktopShell';
@@ -123,6 +123,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [masterBusy, setMasterBusy] = useState(false);
   const [masterNote, setMasterNote] = useState<string | null>(null);
   const [dngBusy, setDngBusy] = useState(false);
+  /** How each developed RAW's sensor data was stored, by photo, so the label and the DNG option tell the truth. */
+  const [sensorModes, setSensorModes] = useState<Record<string, RawSensorMode>>({});
+  const sensorMode = sensorModes[frame.stableKey] ?? 'other';
   const [dngNote, setDngNote] = useState<string | null>(null);
   const [compare, setCompare] = useState(false);
   const [beforeStage, setBeforeStage] = useState<ComparisonStage>('original');
@@ -291,7 +294,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     setDeveloping(true); setDevelopNote(null);
     const task = tasks.start(`Developing ${frame.filename} from RAW`);
     try {
-      const result = await provider.developFromOriginal(frame.stableKey, async (original) => {
+      const key = frame.stableKey;
+      const result = await provider.developFromOriginal(key, async (original) => {
+        const mode = await rawSensorMode(original, frame.filename);
+        setSensorModes((modes) => modes[key] === mode ? modes : { ...modes, [key]: mode });
         const developed = await developRaw(original, /\.([a-z0-9]+)$/i.exec(frame.filename)?.[1] ?? 'nef');
         return matchPreviewOrientation(developed, await extractRawPreview(original).catch(() => null));
       });
@@ -1267,7 +1273,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         {isRaw && (
           <div className="border-t border-white/10 pt-2">
             <p role={developing ? 'status' : undefined} className="px-1 text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey)
-              ? 'Developed from the RAW file as an 8-bit JPEG. Edits use that JPEG; the original RAW is unchanged.'
+              ? sensorModeLabel(sensorMode)
+                ? `Developed from the RAW sensor data (${sensorModeLabel(sensorMode)}) as an 8-bit JPEG. Edits use that JPEG; the original RAW is unchanged.`
+                : 'Developed from the RAW file as an 8-bit JPEG. Edits use that JPEG; the original RAW is unchanged.'
               : developing ? 'Getting the full quality from the RAW file…' : "You're editing the quick preview stored inside the RAW file."}</p>
             {/* Always visible, not tucked behind the disclosure: when the automatic attempt fails the person needs
                 to see why without first hunting through RAW options. */}
@@ -1286,7 +1294,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                 </button>
                 <p className="text-xs text-zinc-400">Uses original RAW, not its JPEG. Global tone/colour, crop and quarter-turn rotation. Straightening, masks and detail are blocked until the native renderer supports them. Colour accuracy is not yet certified.</p>
                 {masterNote && <p role="status" className="text-xs text-zinc-300">{masterNote}</p>}
-                {canSaveDngCopy(frame.filename) && (
+                {sensorMode !== 'other' && (
                   <>
                     <button type="button" className={button + ' w-full border border-white/15'}
                       disabled={dngBusy} onClick={() => void saveDngCopy()}>
