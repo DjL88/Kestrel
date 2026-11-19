@@ -78,4 +78,11 @@ export const gd: Translation = {
     restartIn: (name) => `Tòisich às ùr ann an ${name}`,
     draft: 'Eadar-theangachadh dreachd, gun sgrùdadh le fileantach fhathast. Tha cuid de sgrìnichean sa Bheurla fhathast.',
   },
+  appearance: {
+    "position": "Dè an taobh airson nan innealan?",
+    "positionHint": "Tagh taobh na sgrìn airson innealan deasachaidh. Air fòn, tha iad fon dealbh.",
+    "toolsSide": "Taobh nan innealan",
+    "left": "Clì",
+    "right": "Deas"
+  },
 };
