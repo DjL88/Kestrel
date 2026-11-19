@@ -1,7 +1,7 @@
-import { applyDetailRgb16, applyPhotoEditLinear, isNeutralTone, type PhotoEdit } from './photoEdits';
+import { applyDetailRgb16, applyPhotoEditLinear, detailParams, hasDetail, isNeutralTone, type PhotoEdit } from './photoEdits';
 import { cropRectangle, rotationCoverage, type PhotoFraming } from './photoFraming';
 import { THUMB, type Thumb } from './orientMatch';
-import { LOCAL_KEYS, usesDetail, type Mask } from './maskTypes';
+import { LOCAL_KEYS, type Mask } from './maskTypes';
 import { effectiveAlpha } from './masks';
 import { noiseStrength } from './noiseReduction';
 import { denoiseChromaRgb16 } from './chromaDenoise16';
@@ -51,10 +51,8 @@ export function thumbRgb16(image: Rgb16Image): Thumb {
 
 /** Why this edit cannot go through the 16-bit export yet, in plain words, or null when it can. */
 export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFraming | undefined): string | null {
-  // Purely tonal local adjustments have a full-precision export implementation.
-  // Local Texture/Clarity/Sharpening still require a matching neighbour-aware,
-  // bounded-memory 16-bit implementation; never silently omit them.
-  if (edit && usesDetail(edit.masks)) return 'The 16-bit TIFF does not include local mask Texture, Clarity or Sharpening yet. The normal export keeps these adjustments.';
+  // Local tone, texture, clarity and sharpening have a bounded, high-precision
+  // path. Keep this hook so unsupported options can still fail closed later.
   // The bounded 16-bit chroma reducer now runs before tone/detail, like the screen.
   // This does not assert parity with TrueDetail AI or DxO-class luminance denoise.
   // Straightening is applied with the same centre, angle and coverage geometry as the preview.
@@ -130,6 +128,77 @@ const TO_LINEAR = Float32Array.from({ length: 65536 }, (_, i) => {
   return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
 });
 
+/** Apply global or local tone to display-encoded 16-bit samples without
+ * collapsing them to 8 bits. Deliberately does not apply detail or masks. */
+function applyToneRgb16(data: Uint16Array, edit: PhotoEdit): void {
+  if (isNeutralTone(edit)) return;
+  const CHUNK = 16384;
+  const floats = new Float32Array(CHUNK * 4);
+  for (let start = 0; start < data.length / 3; start += CHUNK) {
+    const count = Math.min(CHUNK, data.length / 3 - start);
+    for (let p = 0; p < count; p += 1) {
+      const i = (start + p) * 3;
+      floats[p * 4] = TO_LINEAR[data[i]];
+      floats[p * 4 + 1] = TO_LINEAR[data[i + 1]];
+      floats[p * 4 + 2] = TO_LINEAR[data[i + 2]];
+    }
+    applyPhotoEditLinear(floats.subarray(0, count * 4), edit);
+    for (let p = 0; p < count; p += 1) {
+      const i = (start + p) * 3;
+      data[i] = Math.round(floats[p * 4] * 65535);
+      data[i + 1] = Math.round(floats[p * 4 + 1] * 65535);
+      data[i + 2] = Math.round(floats[p * 4 + 2] * 65535);
+    }
+  }
+}
+
+/**
+ * Apply local Texture, Clarity and Sharpening at the *same image-wide radius*
+ * as the preview's adjusted full photo. Each stripe takes an immutable halo
+ * of input pixels, applies the mask's tone and detail to that small scratch
+ * region, then blends only its interior using Kestrel's existing mask alpha.
+ * This preserves the distinction between original feather texture and
+ * background without a 45 MP second image. Earlier masks are committed in
+ * recipe order; subsequent masks always see their result, like the screen.
+ */
+function applyDetailMaskRgb16(image: Rgb16Image, mask: Mask, masks: readonly Mask[], local: PhotoEdit): void {
+  const { width, height, data } = image;
+  const edge = Math.max(width, height);
+  const d = detailParams(local, edge);
+  const margin = Math.max(d.sharpenRadius, d.textureRadius, d.clarityRadius);
+  // A band's top halo is retained before writing its interior. Ensuring at
+  // least one margin's worth of interior keeps the previous original halo
+  // sufficient, even for Clarity on a full-resolution Nikon image.
+  const rows = Math.max(margin, Math.floor(220000 / width), 1);
+  const stride = width * 3;
+  let kept: Uint16Array | null = null;
+  for (let from = 0; from < height; from += rows) {
+    const to = Math.min(height, from + rows);
+    const first = Math.max(0, from - margin);
+    const last = Math.min(height, to + margin);
+    const source = data.slice(first * stride, last * stride);
+    if (kept && first < from) source.set(kept, 0);
+    // Capture the original (not locally adjusted) lower halo for next stripe.
+    kept = to < height ? source.slice((Math.max(first, to - margin) - first) * stride, (to - first) * stride) : null;
+    applyToneRgb16(source, local);
+    applyDetailRgb16(source, width, last - first, local, edge);
+    const bandHeight = to - from;
+    const alpha = effectiveAlpha(mask, masks, width, bandHeight, {
+      aspect: height / width,
+      view: { x: 0, y: from / height, w: 1, h: bandHeight / height },
+    });
+    for (let p = 0; p < alpha.length; p += 1) {
+      const a = alpha[p];
+      if (a <= 0) continue;
+      const original = (from * width + p) * 3;
+      const adjusted = ((from - first) * width + p) * 3;
+      for (let c = 0; c < 3; c++) {
+        data[original + c] = Math.round(data[original + c] * (1 - a) + source[adjusted + c] * a);
+      }
+    }
+  }
+}
+
 /**
  * Apply the *same mask alpha and mask ordering* as the live editor to 16-bit RGB,
  * without converting the master through an 8-bit canvas. The current master is
@@ -147,11 +216,11 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
   const rows = Math.max(1, Math.floor(262144 / width));
   for (const mask of masks) {
     if (!LOCAL_KEYS.some((key) => !!mask.edit[key])) continue;
-    // Failing here also protects direct callers that bypass master16Blocker.
-    if (['texture', 'clarity', 'sharpen'].some((key) => !!mask.edit[key as 'texture' | 'clarity' | 'sharpen'])) {
-      throw new Error('This 16-bit TIFF cannot yet include local mask Texture, Clarity or Sharpening.');
-    }
     const local: PhotoEdit = { exposure: 0, warmth: 0, colour: 0, ...mask.edit };
+    if (hasDetail(local)) {
+      applyDetailMaskRgb16(image, mask, masks, local);
+      continue;
+    }
     if (isNeutralTone(local)) continue;
     for (let from = 0; from < height; from += rows) {
       const bandHeight = Math.min(rows, height - from);
@@ -192,26 +261,7 @@ export function editRgb16(image: Rgb16Image, edit: PhotoEdit): void {
   const { data } = image;
   const chroma = noiseStrength(edit.denoise);
   if (chroma > 0) denoiseChromaRgb16(data, image.width, image.height, chroma, (edit.denoise ?? 0) > 1 ? 2 : 1);
-  if (!isNeutralTone(edit)) {
-    const CHUNK = 16384;
-    const floats = new Float32Array(CHUNK * 4);
-    for (let start = 0; start < data.length / 3; start += CHUNK) {
-      const count = Math.min(CHUNK, data.length / 3 - start);
-      for (let p = 0; p < count; p += 1) {
-        const i = (start + p) * 3;
-        floats[p * 4] = TO_LINEAR[data[i]];
-        floats[p * 4 + 1] = TO_LINEAR[data[i + 1]];
-        floats[p * 4 + 2] = TO_LINEAR[data[i + 2]];
-      }
-      applyPhotoEditLinear(floats.subarray(0, count * 4), edit);
-      for (let p = 0; p < count; p += 1) {
-        const i = (start + p) * 3;
-        data[i] = Math.round(floats[p * 4] * 65535);
-        data[i + 1] = Math.round(floats[p * 4 + 1] * 65535);
-        data[i + 2] = Math.round(floats[p * 4 + 2] * 65535);
-      }
-    }
-  }
+  applyToneRgb16(data, edit);
   applyDetailRgb16(data, image.width, image.height, edit, Math.max(image.width, image.height));
   applyToneMasksRgb16(image, edit.masks);
 }
