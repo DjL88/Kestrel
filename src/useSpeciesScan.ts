@@ -78,6 +78,13 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
         const frame = scanCandidates(current, { includeUnclassified: canAsk() || gateOn }).find((candidate) => !skipped.current.has(frameKey(candidate.id)));
         if (!frame) break;
 
+        // Track human-owned fields rather than object identity: harmless catalogue
+        // rehydration may replace a frame object without changing its decisions.
+        const manualState = (item: PhotoFrame) => JSON.stringify([
+          item.removedAt, item.decision, item.rating, item.subjectKind,
+          item.tags, item.subjectNames, item.declinedTags, item.autoTags,
+        ]);
+        const before = manualState(frame);
         const picture = await pictureForAnalysis(store, frame).catch(() => null);
         if (!stillCurrent()) continue;
         if (!picture) { skipped.current.add(frameKey(frame.id)); continue; }
@@ -128,7 +135,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
         // write a species result over their newer decision. Revisit the new frame
         // on a later pass instead of treating the stale result as checked.
         const liveFrame = latest.current.frames.find((item) => item.id === frame.id);
-        if (!liveFrame || liveFrame !== frame || liveFrame.removedAt != null) continue;
+        if (!liveFrame || liveFrame.removedAt != null || manualState(liveFrame) !== before) continue;
         skipped.current.add(frameKey(frame.id));
         if (patch) report(frame.id, patch);
         await new Promise((resolve) => window.setTimeout(resolve, asked ? HELPER_GAP_MS : 30));
