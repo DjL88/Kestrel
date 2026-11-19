@@ -78,4 +78,11 @@ export const pt: Translation = {
     restartIn: (name) => `Reiniciar em ${name}`,
     draft: 'Tradução provisória, ainda não revista por um falante nativo. Alguns ecrãs ainda estão em inglês.',
   },
+  appearance: {
+    "position": "De que lado quer as ferramentas?",
+    "positionHint": "Escolha o lado das ferramentas num ecrã grande. No telemóvel, ficam por baixo da fotografia.",
+    "toolsSide": "Lado das ferramentas",
+    "left": "Esquerda",
+    "right": "Direita"
+  },
 };
