@@ -15,6 +15,7 @@ PREDICTED = TRUTH | {"unknown"}
 DECISIONS = {"keep", "review", "reject"}
 PROVENANCE = {"real-labelled", "synthetic"}
 SUBJECT_SIZE = {"normal", "tiny", "distant", "unknown"}
+DECISION_ORIGIN = {"auto", "manual", "unknown"}
 
 
 def evaluate(records):
@@ -26,7 +27,7 @@ def evaluate(records):
         if not isinstance(record, dict):
             raise ValueError(f"record {line}: expected object")
         required = {"id", "truth", "predicted", "decision", "keeper", "auto_species", "provenance"}
-        if not (set(record) == required or set(record) == required | {"subject_size"}):
+        if not required.issubset(record) or set(record) - required - {"subject_size", "decision_origin"}:
             raise ValueError(f"record {line}: fields missing or unexpected: {sorted(required ^ set(record))}")
         ident = record["id"]
         if not isinstance(ident, str) or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}", ident) is None:
@@ -45,6 +46,9 @@ def evaluate(records):
         size = record.get("subject_size", "unknown")
         if not isinstance(size, str) or size not in SUBJECT_SIZE:
             raise ValueError(f"record {line}: invalid subject_size")
+        origin = record.get("decision_origin", "unknown")
+        if not isinstance(origin, str) or origin not in DECISION_ORIGIN:
+            raise ValueError(f"record {line}: invalid decision_origin")
         counts["total"] += 1
         if truth == "bird":
             counts[f"bird_size_{size}"] += 1
@@ -59,8 +63,34 @@ def evaluate(records):
         counts[record["provenance"]] += 1
         if record["provenance"] == "real-labelled":
             counts[f"real_truth_{truth}"] += 1
+            if predicted == "unknown":
+                counts["real_abstained_subject"] += 1
+                counts[f"real_abstained_{truth}"] += 1
+            if decision == "review":
+                counts["real_review_only"] += 1
+                counts[f"real_review_{truth}"] += 1
+            if record["keeper"]:
+                counts["real_keeper_total"] += 1
+                if origin == "auto":
+                    counts["real_auto_keeper_total"] += 1
+                if origin == "unknown":
+                    counts["real_unknown_origin_keeper_total"] += 1
+                if decision == "reject":
+                    counts["real_keeper_false_auto_reject"] += 1
+                    if origin == "auto":
+                        counts["real_auto_keeper_reject"] += 1
+                    elif origin == "manual":
+                        counts["real_manual_keeper_reject"] += 1
+                    else:
+                        counts["real_unknown_origin_keeper_reject"] += 1
             if truth == "bird" and size in {"tiny", "distant"}:
                 counts["real_small_birds"] += 1
+                if record["keeper"]:
+                    counts["real_small_bird_keeper_total"] += 1
+                    if decision == "reject":
+                        counts["real_small_bird_keeper_false_auto_reject"] += 1
+                        if origin == "auto":
+                            counts["real_auto_small_bird_keeper_reject"] += 1
         counts[f"truth_{truth}"] += 1
         matrix[(truth, predicted)] += 1
         if predicted == "unknown":
@@ -74,10 +104,16 @@ def evaluate(records):
             if truth != "bird" and truth != "other-animal":
                 counts["unsafe_nonanimal_species"] += 1
                 species_errors.append(ident)
+                if record["provenance"] == "real-labelled":
+                    counts["real_unsafe_nonanimal_species"] += 1
                 if truth == "aircraft":
                     counts["aircraft_species"] += 1
+                    if record["provenance"] == "real-labelled":
+                        counts["real_aircraft_species"] += 1
                     if species.casefold() == "osprey":
                         counts["aircraft_osprey"] += 1
+                        if record["provenance"] == "real-labelled":
+                            counts["real_aircraft_osprey"] += 1
     if not counts["total"]:
         raise ValueError("empty evidence is not a benchmark")
     real = counts["real-labelled"]
@@ -89,6 +125,42 @@ def evaluate(records):
         "truth_counts": {key: counts[f"truth_{key}"] for key in sorted(TRUTH)},
         "real_truth_counts": {key: counts[f"real_truth_{key}"] for key in sorted(TRUTH)},
         "real_small_bird_count": counts["real_small_birds"],
+        # Raw counts and explicit at-risk denominators. Never mix synthetic
+        # fixtures into reported real-world unsafe-event frequencies.
+        "real_risk_denominators": {
+            "aircraft": counts["real_truth_aircraft"],
+            "nonanimal": sum(counts[f"real_truth_{key}"] for key in ("aircraft", "person", "other")),
+            "human_keepers": counts["real_keeper_total"],
+            "tiny_distant_bird_keepers": counts["real_small_bird_keeper_total"],
+        },
+        "real_decision_origin": {
+            "known": counts["real_unknown_origin_keeper_total"] == 0 and counts["real_keeper_total"] > 0,
+            "auto_keeper_denominator": counts["real_auto_keeper_total"],
+            "unknown_origin_keeper_denominator": counts["real_unknown_origin_keeper_total"],
+            "auto_keeper_reject_events": counts["real_auto_keeper_reject"],
+            "manual_keeper_reject_events": counts["real_manual_keeper_reject"],
+            "unknown_origin_keeper_reject_events": counts["real_unknown_origin_keeper_reject"],
+            "auto_tiny_distant_keeper_reject_events": counts["real_auto_small_bird_keeper_reject"],
+        },
+        "real_risk_events": {
+            "aircraft_osprey": counts["real_aircraft_osprey"],
+            "aircraft_any_species": counts["real_aircraft_species"],
+            "nonanimal_any_species": counts["real_unsafe_nonanimal_species"],
+            "human_keeper_false_auto_reject": counts["real_keeper_false_auto_reject"],
+            "tiny_distant_bird_keeper_false_auto_reject": counts["real_small_bird_keeper_false_auto_reject"],
+        },
+        "real_subject_abstention": {
+            "total": counts["real_abstained_subject"],
+            "denominator": real,
+            "by_truth": {key: {
+                "unknown": counts[f"real_abstained_{key}"],
+                "review": counts[f"real_review_{key}"],
+                "denominator": counts[f"real_truth_{key}"],
+            } for key in sorted(TRUTH)},
+        },
+        "real_review_only": counts["real_review_only"],
+        "decision_origin_known": counts["real_unknown_origin_keeper_total"] == 0 and counts["real_keeper_total"] > 0,
+        "keeper_rejection_note": "Legacy keeper reject totals mix auto, manual and unknown origin. Only explicit auto provenance may be called automatic; record original proposal before human override.",
         "coverage_gaps": [label for label, present in (
             ("500 independently labelled real photos", real >= 500 and counts["synthetic"] == 0),
             ("real aircraft", counts["real_truth_aircraft"] > 0),
