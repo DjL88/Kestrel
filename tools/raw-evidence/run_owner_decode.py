@@ -17,6 +17,10 @@ def parse_output(output):
     for line in output.splitlines():
         line = line.strip()
         match = ROW.fullmatch(line)
+        if line.lower().startswith('cfa-sha256 |'):
+            continue
+        if (' | nikon-he' in line.lower() or line.lower().startswith('high efficiency files decoded from sensor data:')) and not (match or COUNT.fullmatch(line)):
+            raise ValueError('malformed native HE decode report')
         if match:
             path, decoder, width, height, elapsed = match.groups()
             rows.append((Path(path).name, decoder.lower(), int(width), int(height), elapsed))
