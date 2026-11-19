@@ -19,6 +19,12 @@ class ManifestTests(unittest.TestCase):
             sha256=hashlib.sha256((self.root / "synthetic.nef").read_bytes()).hexdigest())
     def check(self, **changes):
         return module.validate({"samples": [dict(self.sample, **changes)]}, self.root)
+    def test_empty_manifest_is_not_evidence(self):
+        self.assertTrue(any("at least one" in e for e in module.validate({"samples": []}, self.root)))
+    def test_duplicate_sample_is_not_independent_evidence(self):
+        self.assertTrue(any("duplicate" in e for e in module.validate({"samples": [self.sample, self.sample]}, self.root)))
+    def test_windows_separator_is_not_portable(self):
+        self.assertTrue(any("unsafe" in e for e in self.check(file=r"folder\\synthetic.nef")))
     def test_structural_fixture(self):
         self.assertEqual(self.check(), [])
     def test_corruption(self):
