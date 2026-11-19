@@ -131,3 +131,36 @@ test('corrupt detector scores never bias bird versus aircraft routing', () => {
     assert.equal(speciesGate(actual), 'strict');
   }
 });
+
+test('high top probability with insufficient margin never reads as a likely subject', () => {
+  // A top probability of at least 0.8 always leaves a margin of at least 0.6, and here it is about 1, so a required
+  // margin above 1 can never be met: the route must stay unconfident however strong the top score is.
+  const ambiguous = routeSubject(picture({ bird: 1 }), vectors, categories, [], {
+    ...ROUTER_THRESHOLDS, minimumMargin: 1.01,
+  });
+  assert.ok(ambiguous.probability >= 0.8, 'top category is numerically strong');
+  assert.equal(ambiguous.confident, false, 'the required separation is not met');
+  assert.equal(ambiguous.category, null);
+  assert.match(routeWording(ambiguous), /^Possibly /);
+  assert.doesNotMatch(routeWording(ambiguous), /^Likely /);
+
+  const confidentAircraft = routeSubject(picture({ helicopter: 1 }), vectors, categories);
+  assert.equal(confidentAircraft.confident, true);
+  assert.match(routeWording(confidentAircraft), /^Likely helicopter$/);
+  assert.equal(speciesGate(confidentAircraft), 'block');
+});
+
+test('finite extreme-magnitude embeddings keep finite probabilities and conservative species gating', () => {
+  // All inputs are finite. The former unscaled dot/norm implementation overflowed
+  // to Infinity, producing NaN probabilities and an invalid confident result.
+  const largePicture = Float64Array.from(picture({ helicopter: 1 }), (value) => value * 1e200);
+  const largeVectors = vectors.map((vector) => Float64Array.from(vector, (value) => value * 1e200));
+  const result = routeSubject(largePicture, largeVectors, categories);
+  assert.equal(result.best.id, 'helicopter');
+  assert.equal(result.category?.id, 'helicopter');
+  assert.equal(speciesGate(result), 'block');
+  assert.ok(Number.isFinite(result.probability));
+  assert.ok(Number.isFinite(result.margin));
+  assert.ok(result.top.every((entry) => Number.isFinite(entry.probability)));
+  assert.equal(result.confident, true);
+});
