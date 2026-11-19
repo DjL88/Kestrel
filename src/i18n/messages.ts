@@ -6,9 +6,12 @@ import { enGB } from './en-GB';
 import { cy } from './locales/cy';
 import { de } from './locales/de';
 import { enCA } from './locales/en-CA';
+import { enAU } from './locales/en-AU';
+import { enNZ } from './locales/en-NZ';
 import { enUS } from './locales/en-US';
 import { es } from './locales/es';
 import { fr } from './locales/fr';
+import { frCA } from './locales/fr-CA';
 import { gd } from './locales/gd';
 import { it } from './locales/it';
 import { nl } from './locales/nl';
@@ -26,7 +29,8 @@ export type Messages = Widen<typeof enGB>;
 export type Translation = DeepPartial<Messages>;
 
 export const TRANSLATIONS: Record<LanguageCode, Translation> = {
-  'en-GB': {}, 'en-US': enUS, 'en-CA': enCA, cy, gd, fr, de, es, nl, it, pt, ga, da, sv, nb, fi, is,
+  'en-GB': {}, 'en-US': enUS, 'en-CA': enCA, 'en-AU': enAU, 'en-NZ': enNZ,
+  cy, gd, fr, 'fr-CA': frCA, de, es, nl, it, pt, ga, da, sv, nb, fi, is,
 };
 
 export const LANGUAGE_STORAGE_KEY = 'kestrel-language';
