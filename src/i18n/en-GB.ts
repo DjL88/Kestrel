@@ -91,6 +91,7 @@ export const enGB = {
     vibrance: 'Vibrance', texture: 'Texture', clarity: 'Clarity', sharpen: 'Sharpening', denoise: 'Noise reduction',
   },
   quick: {
+    changed: "(changed)",
     title: 'Quick adjust',
     stepBack: 'Step back',
     stepBackHint: 'Step back one change',
