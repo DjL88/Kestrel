@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { photoTileMilestones } from './photoTileReadiness';
+
+test('a photo is not called ready merely because its catalogue row exists', () => {
+  const pending = photoTileMilestones({}, 'loading');
+  assert.equal(pending.preview, 'loading');
+  assert.equal(pending.cullScanned, false);
+  assert.equal(pending.edited, false);
+  assert.match(pending.summary, /Preview loading/);
+
+  const visible = photoTileMilestones({}, 'ready');
+  assert.equal(visible.preview, 'ready');
+  assert.match(visible.summary, /ready to open/);
+  assert.match(visible.summary, /No cull scan recorded/);
+});
+
+test('unavailable preview is distinct from unscanned and never implies a rejected photo', () => {
+  const status = photoTileMilestones({ cullScore: undefined }, 'unavailable');
+  assert.equal(status.preview, 'unavailable');
+  assert.equal(status.cullScanned, false);
+  assert.match(status.summary, /reconnecting/);
+  assert.doesNotMatch(status.summary, /reject/i);
+});
+
+test('only a finite score in the persisted 0–100 range proves a cull scan was recorded', () => {
+  for (const value of [0, 25, 100]) {
+    assert.equal(photoTileMilestones({ cullScore: value }, 'ready').cullScanned, true);
+  }
+  for (const value of [-1, 101, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+    assert.equal(photoTileMilestones({ cullScore: value }, 'ready').cullScanned, false);
+  }
+});
+
+test('edited marker reflects actual saved nondestructive adjustments, not an unscanned frame', () => {
+  const untouched = photoTileMilestones({ edit: { exposure: 0, warmth: 0, colour: 0 } }, 'ready');
+  assert.equal(untouched.edited, false);
+  const edited = photoTileMilestones({ edit: { exposure: 0.4, warmth: 0, colour: 0 } }, 'ready');
+  assert.equal(edited.edited, true);
+  assert.match(edited.summary, /Saved edits/);
+});

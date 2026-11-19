@@ -6,6 +6,7 @@ import { loadExportSource } from '../providers/browserExport';
 import React, { useEffect, useRef, useState } from 'react';
 import { ImageOff } from 'lucide-react';
 import type { PhotoFrame } from '../core/types';
+import type { PhotoPreviewReadiness } from '../core/photoTileReadiness';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 
 interface FrameImageProps {
@@ -18,6 +19,8 @@ interface FrameImageProps {
   needsAccess?: boolean;
   /** Selected photos outrank queued thumbnails even when their source is not cached. */
   priority?: boolean;
+  /** Reports actual image readiness; never inferred from the catalogue row existing. */
+  onPreviewStatus?: (frameId: string, status: PhotoPreviewReadiness) => void;
   /** Optional interactive transform for zoom/pan viewports */
   zoomScale?: number;
   panOffset?: { x: number; y: number };
@@ -52,6 +55,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   alt,
   needsAccess = false,
   priority = false,
+  onPreviewStatus,
   zoomScale = 1,
   panOffset = { x: 0, y: 0 },
 }) => {
@@ -143,14 +147,17 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     void load().catch(() => {
       if (cancelled) return;
       // A failed redraw keeps the last good picture. Only a photo that never had one shows the fallback.
-      if (!hasImage.current) setSrc('');
+      if (!hasImage.current) {
+        setSrc('');
+        onPreviewStatus?.(frame.id, 'unavailable');
+      }
       setLoading(false);
     });
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [frame.id, frame.edit, frame.framing, edited, previewProvider, variant, needsAccess, priority, nearViewport]);
+  }, [frame.id, frame.edit, frame.framing, edited, previewProvider, variant, needsAccess, priority, nearViewport, onPreviewStatus]);
 
   const demoStyle: React.CSSProperties = {};
   if (!edited && frame.isDemo && frame.demoVariant) {
@@ -209,10 +216,14 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           referrerPolicy="no-referrer"
           draggable={false}
           loading={variant === 'thumb' ? 'lazy' : 'eager'}
-          onLoad={() => setLoading(false)}
+          onLoad={() => {
+            setLoading(false);
+            onPreviewStatus?.(frame.id, 'ready');
+          }}
           onError={() => {
             setErrored(true);
             setLoading(false);
+            onPreviewStatus?.(frame.id, 'unavailable');
           }}
           style={demoStyle}
           className={`w-full h-full select-none motion-safe:transition-opacity motion-safe:duration-150 ${

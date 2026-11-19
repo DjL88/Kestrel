@@ -1,10 +1,11 @@
 import { createPortal } from 'react-dom';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Info, SlidersHorizontal, Star } from 'lucide-react';
 import type { CullDecision, PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { DecisionButtons } from './DecisionButtons';
 import { isEdited } from '../core/editedState';
+import { photoTileMilestones, type PhotoPreviewReadiness } from '../core/photoTileReadiness';
 import { speciesShown } from '../core/autoTags';
 import { FrameImage } from './FrameImage';
 import { jumpTarget, type JumpRequest } from '../core/jumpNavigation';
@@ -53,6 +54,11 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   const [jumpFrame, setJumpFrame] = useState('');
   const [jumpCaptured, setJumpCaptured] = useState('');
   const [jumpError, setJumpError] = useState('');
+  // Status comes from each thumbnail's actual load/error event, never from a guessed queue position.
+  const [previewReadiness, setPreviewReadiness] = useState<Record<string, PhotoPreviewReadiness>>({});
+  const recordPreviewStatus = useCallback((frameId: string, status: PhotoPreviewReadiness) => {
+    setPreviewReadiness((previous) => previous[frameId] === status ? previous : { ...previous, [frameId]: status });
+  }, []);
   const press = useRef<{ x: number; y: number; timer: number } | null>(null);
   const longPressed = useRef(false);
   const touchFrame = useRef<string | null>(null);
@@ -251,6 +257,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                 const isSelected = multiSelect ? isMarked : frame.id === selectedFrameId;
                 const isKeep = frame.decision === 'keep';
                 const isReject = frame.decision === 'reject';
+                const milestones = photoTileMilestones(frame, previewReadiness[frame.id] ?? 'loading');
 
                 return (
                   <div
@@ -330,13 +337,24 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         variant="thumb"
                         priority={isSelected}
                         needsAccess={needsAccess}
+                        onPreviewStatus={recordPreviewStatus}
                         className="w-full h-full"
                         imgClassName="object-cover"
                       />
                     </button>
 
                     {/* Card Footer: Number, Filename & Colorblind-safe Decision Control */}
-                    <div style={{ height: footerHeight }} className={`shrink-0 border-t border-white/6 ${stacked ? 'flex flex-col justify-center gap-1 px-1.5' : 'flex items-center justify-between gap-2 px-2.5'}`}>
+                    <div style={{ height: footerHeight }} className={`relative shrink-0 border-t border-white/6 ${stacked ? 'flex flex-col justify-center gap-1 px-1.5' : 'flex items-center justify-between gap-2 px-2.5'}`}>
+                      {/* Independent facts, NOT a misleading percent-complete AI pipeline. Each state is also in text below. */}
+                      {/* Colour is never the only cue: done is a solid bar, loading is dotted, unavailable is hatched, and steps
+                          not done yet are a thin line. */}
+                      <div data-testid="photo-tile-readiness" title={milestones.summary}
+                        className="pointer-events-none absolute inset-x-0 top-0 grid h-1 grid-cols-3 items-start gap-px" aria-hidden="true">
+                        <span data-state={milestones.preview} className={milestones.preview === 'ready' ? 'h-1 bg-emerald-400' : milestones.preview === 'unavailable' ? 'tile-hatched h-1 bg-rose-400' : 'tile-dotted h-1 bg-amber-400 motion-safe:animate-pulse'} />
+                        <span data-state={milestones.cullScanned ? 'done' : 'not-yet'} className={milestones.cullScanned ? 'h-1 bg-emerald-400' : 'h-px bg-zinc-500'} />
+                        <span data-state={milestones.edited ? 'done' : 'not-yet'} className={milestones.edited ? 'h-1 bg-emerald-400' : 'h-px bg-zinc-500'} />
+                      </div>
+                      <span className="sr-only">{milestones.summary}</span>
                       {/* Everything about the photo lives here, under it: nothing sits on the picture itself. */}
                       <div className="flex min-w-0 flex-1 items-center gap-1">
                         <div className="min-w-0 flex-1">
