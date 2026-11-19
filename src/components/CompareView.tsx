@@ -1,8 +1,9 @@
-import type { KeyboardEvent } from 'react';
+import { useRef, type KeyboardEvent, type PointerEvent } from 'react';
 import { ArrowLeftRight, ChevronLeft, ChevronRight, Maximize2, ZoomIn } from 'lucide-react';
 import type { CullDecision, PhotoFrame } from '../core/types';
 import { toggleCompareDecision } from '../core/compareDecision';
-import { stepSelection } from '../core/cullingEngine';
+import { resolveCompareKey } from '../core/compareKeyboard';
+import { compareNavigation } from '../core/compareNavigation';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { FrameImage } from './FrameImage';
 import { PhotoViewport } from './PhotoViewport';
@@ -28,26 +29,31 @@ export function CompareView({
   leftFrame, rightFrame, previewProvider, needsAccess, zoomLevel, panOffset,
   onTransform, onSwapPanes, candidates, onSelectRight, onDecideFrame, onExitCompare,
 }: Props) {
-  const alternatives = candidates.filter((frame) => frame.id !== leftFrame?.id);
-  const previous = stepSelection(alternatives, rightFrame?.id ?? null, -1);
-  const next = stepSelection(alternatives, rightFrame?.id ?? null, 1);
-  const uniqueRight = rightFrame?.id !== leftFrame?.id;
-  const canGoBack = previous !== null && previous !== rightFrame?.id;
-  const canGoForward = next !== null && next !== rightFrame?.id;
+  const surfaceRef = useRef<HTMLElement>(null);
+  const { previous, next, currentValid, referenceValid } = compareNavigation(candidates, leftFrame?.id ?? null, rightFrame?.id ?? null);
+  const uniqueRight = !!rightFrame && !!leftFrame && referenceValid && rightFrame.id !== leftFrame.id && currentValid;
+  const canGoBack = previous !== null;
+  const canGoForward = next !== null;
 
-  // Shortcuts are deliberately scoped to the focused comparison surface.
-  // Inputs, dialogs, toolbar buttons and the app-wide F/Tab handlers retain control.
+  // Clicking a photograph makes the comparison keyboard-ready without requiring
+  // the photographer to find a tiny focus target. Never steal focus from a
+  // toolbar, zoom control, wipe handle, link or input.
+  function focusPhotoSurface(event: PointerEvent<HTMLElement>) {
+    if (event.target instanceof Element && event.target.closest('button, input, textarea, select, a, [role="slider"], [contenteditable="true"]')) return;
+    surfaceRef.current?.focus({ preventScroll: true });
+  }
+
   function handleCompareKey(event: KeyboardEvent<HTMLElement>) {
-    if (event.target !== event.currentTarget || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat || event.nativeEvent.isComposing) return;
-    const key = event.key.toLowerCase();
-    if (key === 'arrowleft' && canGoBack && previous) onSelectRight(previous);
-    else if (key === 'arrowright' && canGoForward && next) onSelectRight(next);
-    else if (key === 'k' && rightFrame) onDecideFrame(rightFrame.id, toggleCompareDecision(rightFrame.decision, 'keep'));
-    else if (key === 'x' && rightFrame) onDecideFrame(rightFrame.id, toggleCompareDecision(rightFrame.decision, 'reject'));
-    else if (key === 'u' && rightFrame) onDecideFrame(rightFrame.id, 'unreviewed');
-    else return;
+    // The section is the only valid shortcut target. Descendant toolbar
+    // controls retain native keyboard behaviour and app-level commands.
+    if (event.target !== event.currentTarget) return;
+    const action = resolveCompareKey(event.nativeEvent, uniqueRight ? rightFrame?.decision ?? null : null, canGoBack, canGoForward);
+    if (!action) return;
     event.preventDefault();
     event.stopPropagation();
+    if (action.kind === 'previous' && previous) onSelectRight(previous);
+    else if (action.kind === 'next' && next) onSelectRight(next);
+    else if (action.kind === 'decision' && rightFrame && uniqueRight) onDecideFrame(rightFrame.id, action.decision);
   }
 
   function photo(frame: PhotoFrame | null) {
@@ -57,8 +63,9 @@ export function CompareView({
   }
 
   return (
-    <section aria-label="Compare photos" aria-description="When this comparison is focused: Left and Right select photo B; K keeps B, X rejects B, U clears B. Tab moves through controls." tabIndex={0} onKeyDown={handleCompareKey} className="flex min-h-0 flex-1 flex-col focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky-300">
-      <PhotoViewport base={photo(rightFrame)} overlay={photo(leftFrame)} labels={['A', 'B']}
+    <section ref={surfaceRef} onPointerDownCapture={focusPhotoSurface} aria-label="Compare photos" aria-description="Click a photo to focus this comparison. Left and Right select photo B. K keeps B, X rejects B, U clears B. Tab moves through controls." tabIndex={0} onKeyDown={handleCompareKey} className="flex min-h-0 flex-1 flex-col focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky-300">
+      {!referenceValid && <p role="status" className="px-3 py-2 text-sm text-amber-200">Reference photo A is no longer in this review. Return to Review and select a new reference before comparing or making decisions.</p>}
+      <PhotoViewport base={photo(uniqueRight ? rightFrame : null)} overlay={photo(referenceValid ? leftFrame : null)} labels={['A', 'B']}
         zoom={zoomLevel} pan={panOffset} onTransform={onTransform} />
       <div role="toolbar" aria-label="Compare photo controls" className="flex flex-wrap items-center justify-between gap-x-2 border-t border-white/10 bg-kestrel-panel px-1 sm:px-3">
         <div role="group" aria-label="Compare zoom" className="flex items-center">
@@ -73,16 +80,16 @@ export function CompareView({
           </button>
         </div>
         <div className="flex w-full min-w-0 items-center sm:w-auto sm:flex-1">
-          <span data-testid="compare-photo-a" className="min-w-0 flex-1 truncate px-2 text-xs text-zinc-300" title={leftFrame?.filename}>
-            A · {leftFrame?.filename ?? 'Select photo'}
+          <span data-testid="compare-photo-a" className="min-w-0 flex-1 truncate px-2 text-xs text-zinc-300" title={referenceValid ? leftFrame?.filename : 'Reference unavailable'}>
+            A · {referenceValid ? leftFrame?.filename : 'Reference unavailable'}
           </span>
           <button type="button" className={`${control} disabled:opacity-35`} disabled={!canGoBack} onClick={() => previous && onSelectRight(previous)} aria-label="Previous photo B" title="Previous photo B"><ChevronLeft className="h-4 w-4" /></button>
-          <span data-testid="compare-photo-b" className="min-w-0 flex-1 truncate text-xs text-zinc-300" title={rightFrame?.filename}>B · {rightFrame?.filename ?? 'Select photo'}</span>
+          <span data-testid="compare-photo-b" className="min-w-0 flex-1 truncate text-xs text-zinc-300" title={uniqueRight ? rightFrame?.filename : undefined}>B · {uniqueRight ? rightFrame?.filename : 'Select photo'}</span>
           <button type="button" className={`${control} disabled:opacity-35`} disabled={!canGoForward} onClick={() => next && onSelectRight(next)} aria-label="Next photo B" title="Next photo B"><ChevronRight className="h-4 w-4" /></button>
         </div>
-        <button type="button" className={control} onClick={onSwapPanes} aria-label="Swap photos A and B" title="Swap photos A and B"><ArrowLeftRight className="h-4 w-4" /></button>
+        <button type="button" className={control} disabled={!uniqueRight} onClick={onSwapPanes} aria-label="Swap photos A and B" title="Swap photos A and B"><ArrowLeftRight className="h-4 w-4" /></button>
         {([['A', leftFrame], ['B', rightFrame]] as const).map(([side, frame]) => (
-          frame && (side === 'A' || uniqueRight) && (
+          frame && (side === 'A' ? referenceValid : uniqueRight) && (
             <div key={side} role="group" aria-label={`Decisions for photo ${side}`} className="flex items-center">
               {(['keep', 'reject'] as const).map((decision) => (
                 <button type="button" key={decision}
