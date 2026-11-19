@@ -325,6 +325,16 @@ const SRGB_ICC_PROFILE = Uint8Array.from(atob(SRGB_ICC_BASE64), (char) => char.c
 /** A baseline uncompressed 16-bit RGB TIFF, tagged with the actual output sRGB ICC profile. */
 export function encodeTiff16(image: Rgb16Image): Blob {
   const { width, height } = image;
+  // TIFF strip offsets/counts below use 32-bit fields. Refuse corrupt or
+  // impossible buffers rather than writing a plausible-looking damaged master.
+  const pixels = width * height;
+  const bytes = pixels * 6;
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) ||
+      width <= 0 || height <= 0 || !Number.isSafeInteger(pixels) ||
+      bytes > 0xffffffff - 65536 ||
+      !(image.data instanceof Uint16Array) || image.data.length !== pixels * 3) {
+    throw new Error('The 16-bit picture has invalid dimensions or pixel data.');
+  }
   const entries: Array<[tag: number, type: number, count: number, value: number]> = [];
   const SHORT = 3, LONG = 4, RATIONAL = 5, ASCII = 2, UNDEFINED = 7;
   const software = 'Kestrel\0';
