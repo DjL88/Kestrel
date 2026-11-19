@@ -390,3 +390,16 @@ test('16-bit export refuses invalid saved numeric edits instead of silently corr
   assert.equal(master16Blocker({ ...DEFAULT_EDIT, exposure: 0.5, denoise: 1 }, DEFAULT_FRAMING), null);
 });
 
+
+test('archival TIFF refuses truncated, oversized and invalid 16-bit frames', () => {
+  const valid: Rgb16Image = { width: 2, height: 2, data: new Uint16Array(12).fill(32769) };
+  assert.ok(encodeTiff16(valid).size > 24, 'valid high-bit-depth master still exports');
+  for (const bad of [
+    { ...valid, width: 3 },
+    { ...valid, height: 0 },
+    { ...valid, width: NaN },
+    { ...valid, width: 1.5 },
+    { ...valid, width: 100000, height: 100000 },
+    { ...valid, data: new Uint16Array(11) },
+  ]) assert.throws(() => encodeTiff16(bad), /invalid dimensions or pixel data/);
+});
