@@ -22,8 +22,8 @@ import { MaskPanel } from './MaskPanel';
 import { createSubjectMask, framingKey, type SubjectDetail, type SubjectGrid } from '../core/maskTypes';
 import { detectSubjectGuided, detectSubjectInArea, type GuidedSubject } from '../providers/subjectDetector';
 import { GUIDED_RENDER_EDGE } from '../core/subjectGuide';
-import { findEye, lumaOf, panToCentre } from '../core/eyeFinder';
-import { subjectWeights } from '../core/naturalAuto';
+import { panToCentre } from '../core/eyeFinder';
+import { locateEye } from '../providers/eyeLocator';
 import { PresetPanel } from './PresetPanel';
 import { mergeAutoSuggestion } from '../core/autoEnhance';
 import { describeOutcome, naturalAuto, stageNaturalRecipe } from '../core/naturalAuto';
@@ -443,25 +443,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       drawFramedPhoto(source, framed, framing, { scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(outputSize.width, outputSize.height)) });
       const cropKey = framingKey(framing);
       const cached = subjectCache.current?.source === source && subjectCache.current?.cropKey === cropKey ? subjectCache.current.result : null;
-      const detection = cached ?? await detectSubjectGuided(framed);
-      if (!cached) subjectCache.current = { source, cropKey, result: detection };
+      const { eye, note, subject } = await locateEye(framed, cached);
+      if (!cached && subject) subjectCache.current = { source, cropKey, result: subject };
       if (sourceImage.current !== startedFor) return;
-      // Look at about 1,600 pixels across: enough for a distant bird's eye to be a few pixels wide.
-      const scale = Math.min(1, 1600 / Math.max(framed.width, framed.height));
-      const sample = document.createElement('canvas');
-      sample.width = Math.max(16, Math.round(framed.width * scale));
-      sample.height = Math.max(16, Math.round(framed.height * scale));
-      const context = sample.getContext('2d', { willReadFrequently: true });
-      if (!context) throw new Error('Canvas unavailable');
-      context.drawImage(framed, 0, 0, sample.width, sample.height);
-      const pixels = context.getImageData(0, 0, sample.width, sample.height).data;
-      const subject = detection.assessment.usable ? subjectWeights(detection.grid, sample.width, sample.height) : null;
-      if (!subject) { setEyeNote('No clear subject, so the view stayed put.'); return; }
-      const eye = findEye({ luma: lumaOf(pixels, sample.width, sample.height), subject, width: sample.width, height: sample.height });
-      if (!eye) { setEyeNote('No eye stood out clearly, so the view stayed put.'); return; }
+      setEyeNote(note);
+      if (!eye) return;
       const zoom = Math.max(1, Math.min(maxZoom, zoomForPercent(200, fit, dpr)));
       setTransform({ zoom, pan: panToCentre(eye, { width: position.width, height: position.height }, zoom) });
-      setEyeNote(eye.confidence === 'likely' ? 'Zoomed to the eye.' : 'Zoomed to what looks most like the eye. Check it.');
     } catch (error) {
       setEyeNote(error instanceof Error ? error.message : 'Could not look for the eye.');
     } finally {

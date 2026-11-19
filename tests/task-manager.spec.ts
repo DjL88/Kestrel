@@ -49,7 +49,7 @@ test('adding photos shows in the task manager, and finishes there', async ({ pag
   await expect(panel).toContainText('Finished');
 });
 
-test('auto-cull can be stopped in its dialog and restarted without partial decisions', async ({ page }) => {
+test('auto-cull can be stopped in its dialog and restarted without partial decisions', async ({ page, isMobile }) => {
   // Each scan hashes the two identical files to prove they are exact duplicates. Holding a hash keeps a scan
   // part-way through, so it can be stopped at a known point. holdNextCullHash() arms the next hold.
   await page.addInitScript(() => {
@@ -93,7 +93,8 @@ test('auto-cull can be stopped in its dialog and restarted without partial decis
 
   // The explicit Auto-cull dialog can be stopped too, and leaves no partial decisions behind.
   await page.evaluate(() => (window as Window & { holdNextCullHash?: () => void }).holdNextCullHash?.());
-  await page.getByRole('button', { name: 'Workspace options', exact: true }).click();
+  // On a phone the same menu opens from the footer's More button.
+  await page.getByRole('button', { name: isMobile ? 'More' : 'Workspace options', exact: true }).click();
   await page.locator('#workspace-options').getByRole('button', { name: /Auto-cull/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Auto-cull' });
   await dialog.getByRole('button', { name: 'Scan photos', exact: true }).click();
