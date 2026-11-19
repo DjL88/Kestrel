@@ -131,3 +131,19 @@ test('corrupt detector scores never bias bird versus aircraft routing', () => {
     assert.equal(speciesGate(actual), 'strict');
   }
 });
+
+test('high top probability with insufficient margin never reads as a likely subject', () => {
+  const ambiguous = routeSubject(picture({ bird: 1 }), vectors, categories, [], {
+    ...ROUTER_THRESHOLDS, minimumMargin: 1,
+  });
+  assert.ok(ambiguous.probability >= 0.8, 'top category is numerically strong');
+  assert.equal(ambiguous.confident, false, 'the required separation is not met');
+  assert.equal(ambiguous.category, null);
+  assert.match(routeWording(ambiguous), /^Possibly /);
+  assert.doesNotMatch(routeWording(ambiguous), /^Likely /);
+
+  const confidentAircraft = routeSubject(picture({ helicopter: 1 }), vectors, categories);
+  assert.equal(confidentAircraft.confident, true);
+  assert.match(routeWording(confidentAircraft), /^Likely helicopter$/);
+  assert.equal(speciesGate(confidentAircraft), 'block');
+});
