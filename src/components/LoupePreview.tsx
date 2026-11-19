@@ -210,8 +210,8 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
             </button>
           )}
         </div>
-        {/* Phones pinch to zoom; the buttons join from tablet width. */}
-        <ZoomControls compact className="max-sm:hidden" zoom={zoomLevel} fit={measure.fit} dpr={dpr} maxZoom={maxZoomFor(measure.fit || 1, dpr)} note={eyeNote}
+        {/* Same full zoom controls as Edit on desktop/tablet. On small phones, the compact Eye button remains accessible and pinch zoom remains available. */}
+        <ZoomControls className="max-sm:hidden" zoom={zoomLevel} fit={measure.fit} dpr={dpr} maxZoom={maxZoomFor(measure.fit || 1, dpr)} note={eyeNote}
           onZoom={(zoom) => { onZoomChange(zoom); if (zoom === 1) onPanChange({ x: 0, y: 0 }); }}
           eye={{ onClick: toggleEyeMode, busy: eyeBusy, pressed: eyeMode,
             title: eyeMode ? 'Eye on: every photo opens zoomed to the eye. Press to go back to the whole photo.' : 'Zoom to the eye, and keep doing so on every photo' }} />
