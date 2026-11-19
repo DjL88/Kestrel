@@ -44,4 +44,16 @@ class OwnerDecodeTests(unittest.TestCase):
         (self.samples / 'a.nef').symlink_to(self.samples / 'actual')
         with self.assertRaises(ValueError): mod.collect(self.samples, self.tauri, self.runner('a.nef | nikon-he | 8x8 | 1ms\nHigh Efficiency files decoded from sensor data: 1'))
 
+    def test_path_spoofing_not_counted(self):
+        for name in ('../a.nef', '/private/a.nef', r'C:\\private\\a.nef'):
+            with self.subTest(name=name):
+                with self.assertRaises(ValueError):
+                    mod.parse_output(f'{name} | nikon-he | 8x8 | 1ms\\nHigh Efficiency files decoded from sensor data: 1')
+    def test_arbitrary_duration_not_counted(self):
+        with self.assertRaises(ValueError):
+            mod.parse_output('a.nef | nikon-he | 8x8 | unmeasured\\nHigh Efficiency files decoded from sensor data: 1')
+    def test_numeric_duration_is_recorded(self):
+        rows = mod.parse_output('a.nef | nikon-he-star | 8x8 | 2.5ms\\nHigh Efficiency files decoded from sensor data: 1')
+        self.assertEqual(rows[0][-1], '2.5ms')
+
 if __name__ == '__main__': unittest.main()
