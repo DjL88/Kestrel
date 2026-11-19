@@ -1129,7 +1129,7 @@ export default function App() {
   // camera's JPEG. Paused while a photo is edited (the editor develops its own photo at full size first).
   useBackgroundDevelop({
     projectId: cullingState.shoot.id, frames: cullingState.frames, provider: previewProviderRef.current,
-    active: !projectsOpen && !editing, onScreen: cullingState.selectedFrameId,
+    active: !projectsOpen && !editing && !loadingProgress, onScreen: cullingState.selectedFrameId,
   });
 
   const jumpPhotoHistory = (frameId: string, cursor: number) => {
