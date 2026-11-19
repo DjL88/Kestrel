@@ -1,0 +1,47 @@
+import hashlib
+import tempfile
+import unittest
+from pathlib import Path
+from types import SimpleNamespace
+from importlib.util import spec_from_file_location, module_from_spec
+
+spec = spec_from_file_location('run_owner_decode', Path(__file__).with_name('run_owner_decode.py'))
+mod = module_from_spec(spec)
+spec.loader.exec_module(mod)
+
+class OwnerDecodeTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.tauri = self.root / 'src-tauri'
+        self.tauri.mkdir()
+        (self.tauri / 'Cargo.toml').write_text('[package]\nname="fixture"\n')
+        self.samples = self.root / 'samples'
+        self.samples.mkdir()
+        (self.samples / 'a.nef').write_bytes(b'synthetic only')
+    def runner(self, stdout, returncode=0):
+        return lambda *a, **kw: SimpleNamespace(stdout=stdout, stderr='', returncode=returncode)
+    def test_native_success_is_only_limited_evidence(self):
+        evidence = mod.collect(self.samples, self.tauri, self.runner('a.nef | nikon-he | 8x8 | 1ms\nHigh Efficiency files decoded from sensor data: 1'))
+        row = evidence['samples'][0]
+        self.assertEqual(row['sha256'], hashlib.sha256(b'synthetic only').hexdigest())
+        self.assertIsNone(row['cfa_hash'])
+        self.assertEqual(row['nx_studio_parity'], 'NOT RUN')
+    def test_zero_files_not_pass(self):
+        with self.assertRaises(ValueError): mod.parse_output('High Efficiency files decoded from sensor data: 0')
+    def test_missing_count_not_pass(self):
+        with self.assertRaises(ValueError): mod.parse_output('a.nef | nikon-he | 8x8 | 1ms')
+    def test_count_mismatch_not_pass(self):
+        with self.assertRaises(ValueError): mod.parse_output('a.nef | nikon-he | 8x8 | 1ms\nHigh Efficiency files decoded from sensor data: 2')
+    def test_nonzero_cargo_not_pass(self):
+        with self.assertRaises(ValueError): mod.collect(self.samples, self.tauri, self.runner('High Efficiency files decoded from sensor data: 1', 101))
+    def test_duplicate_name_not_pass(self):
+        with self.assertRaises(ValueError): mod.parse_output('a.nef | nikon-he | 8x8 | 1ms\na.nef | nikon-he-star | 8x8 | 1ms\nHigh Efficiency files decoded from sensor data: 2')
+    def test_symlink_not_pass(self):
+        (self.samples / 'a.nef').unlink()
+        (self.samples / 'actual').write_bytes(b'synthetic')
+        (self.samples / 'a.nef').symlink_to(self.samples / 'actual')
+        with self.assertRaises(ValueError): mod.collect(self.samples, self.tauri, self.runner('a.nef | nikon-he | 8x8 | 1ms\nHigh Efficiency files decoded from sensor data: 1'))
+
+if __name__ == '__main__': unittest.main()
