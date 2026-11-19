@@ -110,6 +110,8 @@ What worked: real Z 8 / Z5 II photos import, cull and edit; feather detail after
 - ~~"What is this a photo of?" buttons: the labels (Landscape) are too big for the buttons.~~ MERGED 19 Nov: four across only when the panel has room for the words, otherwise two by two (a container query); labels are never cut off.
 - ~~The File/Edit menu bar is white (system colours). Make it dark, or follow the app's theme.~~ MERGED 19 Nov: the window asks for the dark theme (every Kestrel theme is dark), and Tauri passes it to the Windows menu bar and title bar. Not yet seen on the laptop.
 
+- ~~Don't show the 3×3 grid while Before/After is used; offer a toggle, or Shift and hover.~~ MERGED 19 Nov: no hover grid during Before/After; holding Shift shows it at any time (Before/After included); the Gridlines switch in Crop still turns the hover grid off.
+
 **F. One ergonomic workspace (owner request 19 Nov; coordinator's design)**
 
 The library, culling and editing share one frame. Build in this order:
@@ -216,6 +218,7 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
 
 | Date | Merged | Closed | Local evidence |
 | --- | --- | --- | --- |
+| 19 Nov 2026 (coordinator, grid) | #469 (header and layout: lint, 973 unit, build, Playwright 285 PASS / 0 FAIL, src-tauri 21 PASS), this PR (no grid in Before/After; Shift shows it) | | See PR. |
 | 19 Nov 2026 (coordinator, header and layout) | this PR (two-row header with Tasks as a compact bar; no import banner; Add and options bordered; Photo info on the hand side; subject labels fit; dark window and menu bar; background develop waits for imports; ROADMAP E and F) | | See PR. |
 | 19 Nov 2026 (coordinator, Windows build) | #465 (background RAW develop: 973 unit PASS, Playwright 284 PASS / 0 FAIL), this PR (`Build-Kestrel.ps1` runs as many compile jobs as memory allows, then retries once with one job: the owner's laptop build ran out of memory) | | PowerShell: NOT RUN (no PowerShell here); first real run is the owner's laptop build. No app code changed. |
 | 19 Nov 2026 (coordinator, background develop) | #464 (16-bit TIFF on every platform), this PR (every RAW developed in the background; tiles show Kestrel's develop) | | See PR. |
