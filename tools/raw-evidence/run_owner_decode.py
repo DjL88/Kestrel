@@ -65,6 +65,8 @@ def collect(folder, tauri, runner=subprocess.run):
     rows = parse_output(result.stdout + '\n' + result.stderr)
     cfa_hashes = parse_cfa_hashes(result.stdout + '\n' + result.stderr, rows)
     inventory = sorted((p for p in folder.iterdir() if p.name.lower().endswith('.nef')), key=lambda p: p.name.casefold())
+    if len({p.name.casefold() for p in inventory}) != len(inventory):
+        raise ValueError('NEF inventory contains ambiguous case-insensitive duplicate filenames')
     if any(p.is_symlink() or not p.is_file() for p in inventory):
         raise ValueError('NEF inventory contains symlink or non-file entry')
     inventory_names = {p.name.casefold() for p in inventory}
