@@ -14,6 +14,8 @@ import { loadImage } from './loadImage';
 export async function suggestKeeperAutoEdits(
   frames: PhotoFrame[], provider: BrowserPreviewProvider, signal: AbortSignal, onProgress: (done: number) => void,
   targetIds?: ReadonlySet<string>,
+  /** Called immediately when one photo has passed the quality gate; later photos need not be ready. */
+  onPrepared?: (frameId: string, edit: PhotoEdit) => void,
 ): Promise<Map<string, PhotoEdit>> {
   const candidates = frames.filter((frame) =>
     (targetIds ? targetIds.has(frame.id) : frame.decision === 'keep') && frame.removedAt == null && !frame.virtualCopy &&
@@ -25,6 +27,7 @@ export async function suggestKeeperAutoEdits(
   for (let i = 0; i < candidates.length; i += 1) {
     signal.throwIfAborted();
     const frame = candidates[i];
+    let prepared: PhotoEdit | undefined;
     try {
       const url = await provider.getFullPreviewUrl(frame);
       signal.throwIfAborted();
@@ -42,12 +45,19 @@ export async function suggestKeeperAutoEdits(
           // A suggestion is not proof of improvement: render it and check for clipping, colour shift, crunchy
           // bokeh and grey shadows. It remains available as a manual preview in the editor's Auto.
           const staged = stageNaturalRecipe(source, canvas.width, canvas.height, DEFAULT_EDIT, suggestion);
-          if (staged.outcome === 'full' || staged.outcome === 'gentler') edits.set(frame.id, staged.edit);
+          if (staged.outcome === 'full' || staged.outcome === 'gentler') prepared = staged.edit;
         }
       }
     } catch {
       signal.throwIfAborted();
       // One damaged or unavailable preview must not block the other keepers.
+    }
+    // Never commit a result that arrived after Stop. The caller must also
+    // recheck current project, decision and manual edit before accepting it.
+    signal.throwIfAborted();
+    if (prepared) {
+      edits.set(frame.id, prepared);
+      onPrepared?.(frame.id, prepared);
     }
     onProgress(i + 1);
     // Let the interface repaint and the user cancel between photographs.
