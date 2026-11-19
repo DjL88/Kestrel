@@ -93,11 +93,11 @@ export function CompareView({
             <div key={side} role="group" aria-label={`Decisions for photo ${side}`} className="flex items-center">
               {(['keep', 'reject'] as const).map((decision) => (
                 <button type="button" key={decision}
-                  className={`${control} capitalize aria-pressed:bg-white/15`}
+                  className={`${control} capitalize aria-pressed:bg-white/15 aria-pressed:font-semibold`}
                   aria-label={`${decision} photo ${side}`} title={`${decision} photo ${side}`}
                   aria-pressed={frame.decision === decision}
                   onClick={() => onDecideFrame(frame.id, toggleCompareDecision(frame.decision, decision))}>
-                  {decision} {side}
+                  {frame.decision === decision && <span aria-hidden="true">✓ </span>}{decision} {side}
                 </button>
               ))}
               <button type="button" className={control} disabled={frame.decision === 'unreviewed'}

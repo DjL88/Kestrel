@@ -153,8 +153,9 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
         <div role="group" aria-label="Photo flag" className="flex flex-wrap gap-1">
           {(['unreviewed', 'keep', 'reject'] as const).map((flag) => (
             <button key={flag} type="button" aria-pressed={frame.decision === flag} onClick={() => onFlag(frame.id, flag)}
-              className="min-h-11 rounded-md px-2 text-xs capitalize text-zinc-300 hover:bg-white/8 aria-pressed:bg-white/15 aria-pressed:text-white">
-              {flag === 'unreviewed' ? 'Unflagged' : flag}
+              className="min-h-11 rounded-md px-2 text-xs capitalize text-zinc-300 hover:bg-white/8 aria-pressed:bg-white/15 aria-pressed:font-semibold aria-pressed:text-white">
+              {/* The chosen flag shows a tick and bold words, not only a lighter background. */}
+              {frame.decision === flag && <span aria-hidden="true">✓ </span>}{flag === 'unreviewed' ? 'Unflagged' : flag}
             </button>
           ))}
         </div>
