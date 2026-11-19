@@ -1,10 +1,12 @@
-import { loadImage } from './loadImage';
+import { observeCullImage } from './cullPreviewObservation';
+import { DETECTOR_MODEL } from '../core/objectDetection';
+import type { ImportCullCache } from '../core/importCullCache';
 import { collectCullEvidence, finaliseCullEvidence } from '../core/cullEvidenceFinal';
 import type { CullScanStage } from '../core/cullScanProgress';
 import { sha256Hex } from '../core/sha256';
 import { duplicateAnchorKeys } from '../core/duplicateAnchors';
-import { limitAutoKeepers, scorePreview, scoreWithSubject, type CullSuggestion, type SubjectFinding } from '../core/autoCull';
-import { detectorParallelism, findSubject, resetDetectorFailure } from './objectDetector';
+import { limitAutoKeepers, type CullSuggestion } from '../core/autoCull';
+import { detectorParallelism, resetDetectorFailure } from './objectDetector';
 import { bundledModelUrl } from './bundledModelAssets';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
@@ -14,6 +16,7 @@ export async function scanForCulling(
   signal: AbortSignal, onProgress: (count: number) => void,
   onDetectorUnavailable?: () => void,
   onFrameStage?: (frameId: string, stage: CullScanStage) => void,
+  preflight?: { cache: ImportCullCache; projectId: string },
 ) {
   const baseById = new Map<string, CullSuggestion>();
   const sizes = new Map<number, number>();
@@ -73,39 +76,21 @@ export async function scanForCulling(
   const outcome = new Map<string, CullSuggestion>();
   let finished = 0;
   const analyse = async (frame: PhotoFrame, canvas: HTMLCanvasElement, context: CanvasRenderingContext2D): Promise<CullSuggestion> => {
-    const missing: CullSuggestion = { frameId: frame.id, decision: null, confidence: 'low', score: 0, reason: 'unavailable' };
-    try {
-      const url = await provider.getFullPreviewUrl(frame, 'background');
-      if (!url) return missing;
-      const image = await loadImage(url);
-      signal.throwIfAborted();
-      const scale = Math.min(1, 256 / Math.max(image.naturalWidth, image.naturalHeight));
-      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      const base = scorePreview(frame.id, context.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
-      // Judge the photo by its subject: its presence and sharpness, not the texture of the whole frame.
-      let finding: SubjectFinding | null | undefined;
-      try {
-        if (detectorHealthy) {
-          const found = await findSubject(image, signal);
-          finding = found && { label: found.detection.label, score: found.detection.score, size: Math.max(found.detection.box.w, found.detection.box.h), sharpness: found.sharpness };
-        }
-      } catch {
-        signal.throwIfAborted();
-        // Several photos can fail together: notify the user once, not once per photo, without exposing a stack trace.
-        if (detectorHealthy) {
-          detectorHealthy = false;
-          onDetectorUnavailable?.();
-        }
-        finding = undefined;
-      }
-      baseById.set(frame.id, base);
-      return finding === undefined ? base : scoreWithSubject(base, finding);
-    } catch {
-      signal.throwIfAborted();
-      return missing;
+    // Reuse only proven, source-version-matched observations from this exact
+    // import and detector build. Decisions still wait for all shoot evidence.
+    const cached = detectorHealthy && preflight?.cache.get(preflight.projectId, frame,
+      provider.originalInfo(frame.stableKey), DETECTOR_MODEL.sha256);
+    if (cached) {
+      if (cached.base) baseById.set(frame.id, cached.base);
+      return cached.result;
     }
+    const observation = await observeCullImage(frame, provider, signal, canvas, context, detectorHealthy);
+    if (observation.base) baseById.set(frame.id, observation.base);
+    if (observation.detectorFailed && detectorHealthy) {
+      detectorHealthy = false;
+      onDetectorUnavailable?.();
+    }
+    return observation.result;
   };
   const lanes = detectorHealthy ? Math.max(1, await detectorParallelism().catch(() => 1)) : 1;
   let cursor = 0;

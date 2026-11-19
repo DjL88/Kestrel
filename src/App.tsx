@@ -37,6 +37,8 @@ import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
 import { markExportRequested } from './core/compareStages';
 import { AutoCullPanel } from './components/AutoCullPanel';
 import { scanForCulling } from './providers/browserAutoCull';
+import { createImportCullPreflight } from './providers/importCullPreflight';
+import type { ImportCullCache } from './core/importCullCache';
 import { limitAutoKeepers } from './core/autoCull';
 import { backgroundCullCandidates, backgroundCullMoves, backgroundDevelopTargets } from './core/backgroundAutoPolicy';
 import { beginCullScan, advanceCullScan, endCullScan, type CullScanProgress } from './core/cullScanProgress';
@@ -791,24 +793,32 @@ export default function App() {
   // Queued batches are scoped to a project and can be cancelled; nothing touches RAW originals.
   const autoPendingProject = useRef<string | null>(null);
   const autoPendingIds = useRef(new Set<string>());
+  const autoPendingCullCache = useRef<ImportCullCache | null>(null);
   const autoWorker = useRef<{ projectId: string; controller: AbortController } | null>(null);
   const [autoQueueTick, setAutoQueueTick] = useState(0);
   const scanRunSequence = useRef(0);
   const [liveCullScan, setLiveCullScan] = useState<CullScanProgress | null>(null);
-  function enqueueBackgroundAuto(projectId: string, ids: readonly string[]) {
+  function enqueueBackgroundAuto(projectId: string, ids: readonly string[], cache?: ImportCullCache) {
     if (!ids.length) return;
     if (autoPendingProject.current !== projectId) {
       autoWorker.current?.controller.abort();
       autoPendingProject.current = projectId;
       autoPendingIds.current.clear();
+      autoPendingCullCache.current?.clear();
+      autoPendingCullCache.current = null;
     }
     ids.forEach((id) => autoPendingIds.current.add(id));
+    if (cache?.projectId === projectId) autoPendingCullCache.current = cache;
     setAutoQueueTick((tick) => tick + 1);
   }
 
   useEffect(() => {
     if (autoWorker.current?.projectId !== cullingState.shoot.id) autoWorker.current?.controller.abort();
-    if (autoPendingProject.current !== cullingState.shoot.id) autoPendingIds.current.clear();
+    if (autoPendingProject.current !== cullingState.shoot.id) {
+      autoPendingIds.current.clear();
+      autoPendingCullCache.current?.clear();
+      autoPendingCullCache.current = null;
+    }
   }, [cullingState.shoot.id]);
   useEffect(() => () => { autoWorker.current?.controller.abort(); }, []);
 
@@ -817,6 +827,8 @@ export default function App() {
     if (autoWorker.current || autoPendingProject.current !== projectId || !autoPendingIds.current.size) return;
     const imported = new Set(autoPendingIds.current);
     autoPendingIds.current.clear();
+    const preflightCache = autoPendingCullCache.current;
+    autoPendingCullCache.current = null;
     const controller = new AbortController();
     autoWorker.current = { projectId, controller };
     const alive = () => !controller.signal.aborted && stateRef.current.shoot.id === projectId;
@@ -842,7 +854,7 @@ export default function App() {
               (frameId, stage) => {
                 if (!alive() || leavingRef.current) return;
                 setLiveCullScan((prev) => advanceCullScan(prev, projectId, scanRunId, frameId, stage));
-              });
+              }, preflightCache ? { cache: preflightCache, projectId } : undefined);
             if (!alive()) return;
             // Recheck the LIVE catalogue: user decisions, crops and history made while
             // the detector ran always win over delayed automated results.
@@ -912,6 +924,7 @@ export default function App() {
       }
     };
     void run().finally(() => {
+      preflightCache?.clear();
       if (autoWorker.current?.controller !== controller) return;
       autoWorker.current = null;
       if (autoPendingIds.current.size) setAutoQueueTick((tick) => tick + 1);
@@ -1380,6 +1393,11 @@ export default function App() {
     const progressive = !options?.watched;
     const importId = newId().slice(0, 8);
     const importSequenceBase = cullingState.frames.reduce((max, frame) => Math.max(max, frame.sequenceIndex), 0);
+    // Observe a bounded number of imported originals without deciding their cull status.
+    const preflight = progressive && !autoWorker.current && !autoPendingIds.current.size &&
+      stateRef.current.settings?.autoCull && can('smartCulling')
+      ? createImportCullPreflight(targetProjectId, importId, previewProviderRef.current!, controller.signal)
+      : undefined;
     const shown = new Set<string>(); // queued to be shown
     const appended = new Set<string>(); // actually added to the project
     let waiting: PhotoFrame[] = [];
@@ -1418,6 +1436,7 @@ export default function App() {
             }
             if (shown.has(frame.stableKey)) return;
             shown.add(frame.stableKey);
+            preflight?.offer({ ...frame, id: `${importId}-${frame.id}` });
             waiting.push(frame);
             // The first eight appear independently, then larger groups limit
             // catalogue writes and React renders in a 500-photo shoot.
@@ -1425,6 +1444,8 @@ export default function App() {
           } : undefined,
         },
       );
+      // Finish model work before the final cull can reset detector health.
+      const preflightCache = await preflight?.finish();
       if ((projectsOpenRef.current || leavingRef.current || retiredImportsRef.current.has(controller)) && progressive) {
         // The project was closed: what was added before closing is saved; nothing more is added to a closed project.
         task?.finish(`Stopped when the project was closed; ${appended.size} photos were added.`);
@@ -1464,7 +1485,7 @@ export default function App() {
         return first ? { ...next, filter: 'all', selectedFrameId: first.id } : next;
       });
       if (options?.openEditor) setEditing(true);
-      enqueueBackgroundAuto(targetProjectId, frames.map((frame) => `${importId}-${frame.id}`));
+      enqueueBackgroundAuto(targetProjectId, frames.map((frame) => `${importId}-${frame.id}`), preflightCache);
       setPrefs((prev) => ({ ...prev, viewMode: 'grid' }));
       options?.onImported?.(frames.length);
     } catch {
@@ -1472,6 +1493,7 @@ export default function App() {
       setProjectError('Could not add the photos. Try selecting the files again.');
       if (options?.watched) throw new Error('Kestrel could not import the watched photos. They will be retried.');
     } finally {
+      preflight?.abort();
       task?.fail('Stopped before it finished'); // does nothing if it finished
       if (importRef.current?.controller === controller) importRef.current = null;
       setLoadingProgress(null);
