@@ -23,6 +23,8 @@ import { MaskPanel } from './MaskPanel';
 import { createSubjectMask, framingKey, type SubjectGrid } from '../core/maskTypes';
 import { detectSubject, detectSubjectGuided } from '../providers/subjectDetector';
 import { GUIDED_RENDER_EDGE } from '../core/subjectGuide';
+import { findEye, lumaOf, panToCentre } from '../core/eyeFinder';
+import { subjectWeights } from '../core/naturalAuto';
 import { PresetPanel } from './PresetPanel';
 import { mergeAutoSuggestion } from '../core/autoEnhance';
 import { describeOutcome, naturalAuto, stageNaturalRecipe } from '../core/naturalAuto';
@@ -229,6 +231,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const cropDrag = useRef<{ x: number; y: number; anchorX: number; anchorY: number } | null>(null);
   const [markFocus, setMarkFocus] = useState(false);
   const [transform, setTransform] = useState({ zoom: 1, pan: { x: 0, y: 0 } });
+  const [eyeNote, setEyeNote] = useState<string | null>(null);
+  const [findingEye, setFindingEye] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const openExport = () => { if (onExport) onExport(); else setExportOpen(true); };
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -426,6 +430,51 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     const next = Math.max(1, Math.min(maxZoom, zoom));
     return { zoom: next, pan: next === 1 ? { x: 0, y: 0 } : current.pan };
   });
+  /**
+   * Zoom to the subject's eye: the subject is found as for masks, then the eye is looked for inside it. Only the view
+   * moves; nothing is decided about focus, and when no eye stands out the view stays where it is.
+   */
+  async function zoomToEye() {
+    if (findingEye || !source || !outputSize || !position || !fit) return;
+    setFindingEye(true);
+    setEyeNote(null);
+    const startedFor = source;
+    try {
+      const framed = document.createElement('canvas');
+      drawFramedPhoto(source, framed, framing, { scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(outputSize.width, outputSize.height)) });
+      const cropKey = framingKey(framing);
+      const cached = subjectCache.current?.source === source && subjectCache.current?.cropKey === cropKey ? subjectCache.current.result : null;
+      const detection = cached ?? await detectSubjectGuided(framed);
+      if (!cached) subjectCache.current = { source, cropKey, result: detection };
+      if (sourceImage.current !== startedFor) return;
+      // Look at about 1,600 pixels across: enough for a distant bird's eye to be a few pixels wide.
+      const scale = Math.min(1, 1600 / Math.max(framed.width, framed.height));
+      const sample = document.createElement('canvas');
+      sample.width = Math.max(16, Math.round(framed.width * scale));
+      sample.height = Math.max(16, Math.round(framed.height * scale));
+      const context = sample.getContext('2d', { willReadFrequently: true });
+      if (!context) throw new Error('Canvas unavailable');
+      context.drawImage(framed, 0, 0, sample.width, sample.height);
+      const pixels = context.getImageData(0, 0, sample.width, sample.height).data;
+      const subject = detection.assessment.usable ? subjectWeights(detection.grid, sample.width, sample.height) : null;
+      if (!subject) { setEyeNote('No clear subject, so the view stayed put.'); return; }
+      const eye = findEye({ luma: lumaOf(pixels, sample.width, sample.height), subject, width: sample.width, height: sample.height });
+      if (!eye) { setEyeNote('No eye stood out clearly, so the view stayed put.'); return; }
+      const zoom = Math.max(1, Math.min(maxZoom, zoomForPercent(200, fit, dpr)));
+      setTransform({ zoom, pan: panToCentre(eye, { width: position.width, height: position.height }, zoom) });
+      setEyeNote(eye.confidence === 'likely' ? 'Zoomed to the eye.' : 'Zoomed to what looks most like the eye. Check it.');
+    } catch (error) {
+      setEyeNote(error instanceof Error ? error.message : 'Could not look for the eye.');
+    } finally {
+      setFindingEye(false);
+    }
+  }
+  useEffect(() => {
+    if (!eyeNote) return;
+    const timer = window.setTimeout(() => setEyeNote(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [eyeNote]);
+
   useEffect(() => {
     const onZoomKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -952,6 +1001,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               onClick={() => zoomTo(zoomForPercent(100, fit, dpr))}>100%</button>
             <button type="button" title="Twice actual pixels " className="h-7 rounded px-1.5 hover:bg-white/15"
               onClick={() => zoomTo(zoomForPercent(200, fit, dpr))}>200%</button>
+            <button type="button" title="Zoom to the subject's eye (only moves the view)" className="h-7 rounded px-1.5 hover:bg-white/15"
+              disabled={findingEye || sourceState !== 'ready'} onClick={() => void zoomToEye()}>{findingEye ? 'Eye…' : 'Eye'}</button>
+            {eyeNote && <span role="status" className="px-1 text-xs text-zinc-300">{eyeNote}</span>}
 
 
           </div>
