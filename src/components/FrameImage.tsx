@@ -1,4 +1,5 @@
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
+import { frameImageIdentity, visibleFrameUrl } from '../core/frameImageIdentity';
 import { DEFAULT_EDIT, isNeutralEdit } from '../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFraming';
 import { loadImage } from '../providers/loadImage';
@@ -59,7 +60,10 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   zoomScale = 1,
   panOffset = { x: 0, y: 0 },
 }) => {
-  const [src, setSrc] = useState<string>('');
+  // Keep a finished render for same-frame slider updates, never for a different photo.
+  const identity = frameImageIdentity(frame, variant);
+  const [preview, setPreview] = useState<{ identity: string; url: string }>({ identity: '', url: '' });
+  const src = visibleFrameUrl(preview, identity);
   const [loading, setLoading] = useState<boolean>(true);
   const [errored, setErrored] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -119,7 +123,10 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     let cancelled = false;
     let timer: number | undefined;
     // Keep showing the current picture while an edited one is being redrawn.
-    if (!hasImage.current) setLoading(true);
+    if (!hasImage.current) {
+      setPreview({ identity, url: '' });
+      setLoading(true);
+    }
     setErrored(false);
 
     const render = async () => {
@@ -136,7 +143,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       if (!blob) throw new Error('Preview unavailable');
       const url = URL.createObjectURL(blob);
       replaceRendered(url);
-      setSrc(url);
+      setPreview({ identity, url });
     };
 
     const load = async () => {
@@ -153,7 +160,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           ? await previewProvider.getFullPreviewUrl(frame, 'selected')
           : await previewProvider.getThumbnailUrl(frame, priority ? 'selected' : 'visible');
       if (!cancelled) {
-        setSrc(url);
+        setPreview({ identity, url });
         setLoading(false);
       }
     };
@@ -162,7 +169,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       if (cancelled) return;
       // A failed redraw keeps the last good picture. Only a photo that never had one shows the fallback.
       if (!hasImage.current) {
-        setSrc('');
+        setPreview({ identity, url: '' });
         onPreviewStatus?.(frame.id, 'unavailable');
       }
       setLoading(false);
@@ -171,7 +178,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [frame.id, frame.edit, frame.framing, edited, previewProvider, variant, needsAccess, priority, nearViewport, onPreviewStatus, developedRev]);
+  }, [frame.id, frame.stableKey, identity, frame.edit, frame.framing, edited, previewProvider, variant, needsAccess, priority, nearViewport, onPreviewStatus, developedRev]);
 
   const demoStyle: React.CSSProperties = {};
   if (!edited && frame.isDemo && frame.demoVariant) {
@@ -188,7 +195,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     demoStyle.transform = `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomScale})`;
   }
 
-  if (!src && !loading) {
+  if (!src && !loading && preview.identity === identity) {
     return (
       <div
         className={`flex flex-col items-center justify-center bg-[#17191D] text-zinc-500 p-3 text-center select-none ${className}`}
@@ -204,7 +211,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     );
   }
 
-  if (errored) {
+  if (errored && preview.identity === identity) {
     return (
       <div
         className={`flex flex-col items-center justify-center bg-[#17191D] text-zinc-500 p-3 text-center select-none ${className}`}
@@ -217,7 +224,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
 
   return (
     <div ref={containerRef} className={`relative overflow-hidden bg-kestrel-stage ${className}`}>
-      {loading && (
+      {(loading || preview.identity !== identity) && (
         <div
           className="absolute inset-0 bg-[#181A1E] motion-safe:animate-pulse"
           aria-hidden="true"
@@ -225,6 +232,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       )}
       {src && (
         <img
+          key={`${identity}:${src}`}
           src={src}
           alt={alt ?? frame.demoVariant?.demoSceneLabel ?? frame.filename}
           referrerPolicy="no-referrer"
