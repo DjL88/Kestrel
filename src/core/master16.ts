@@ -161,7 +161,7 @@ function applyToneRgb16(data: Uint16Array, edit: PhotoEdit): void {
  * background without a 45 MP second image. Earlier masks are committed in
  * recipe order; subsequent masks always see their result, like the screen.
  */
-function applyDetailMaskRgb16(image: Rgb16Image, mask: Mask, masks: readonly Mask[], local: PhotoEdit): void {
+function applyDetailMaskRgb16(image: Rgb16Image, mask: Mask, masks: readonly Mask[], local: PhotoEdit, bandPixels: number): void {
   const { width, height, data } = image;
   const edge = Math.max(width, height);
   const d = detailParams(local, edge);
@@ -169,7 +169,7 @@ function applyDetailMaskRgb16(image: Rgb16Image, mask: Mask, masks: readonly Mas
   // A band's top halo is retained before writing its interior. Ensuring at
   // least one margin's worth of interior keeps the previous original halo
   // sufficient, even for Clarity on a full-resolution Nikon image.
-  const rows = Math.max(margin, Math.floor(220000 / width), 1);
+  const rows = Math.max(margin, Math.floor(bandPixels / width), 1);
   const stride = width * 3;
   let kept: Uint16Array | null = null;
   for (let from = 0; from < height; from += rows) {
@@ -209,7 +209,7 @@ function applyDetailMaskRgb16(image: Rgb16Image, mask: Mask, masks: readonly Mas
  * a second full-size RGBA float image or an entire full-size alpha plane.
  * Other masks may limit this mask, exactly as in the preview renderer.
  */
-export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | undefined): void {
+export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | undefined, detailBandPixels = 220000): void {
   if (!masks?.length) return;
   const { width, height, data } = image;
   // 256k pixels = about 4 MiB temporary RGBA floats + 1 MiB alpha.
@@ -218,7 +218,7 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
     if (!LOCAL_KEYS.some((key) => !!mask.edit[key])) continue;
     const local: PhotoEdit = { exposure: 0, warmth: 0, colour: 0, ...mask.edit };
     if (hasDetail(local)) {
-      applyDetailMaskRgb16(image, mask, masks, local);
+      applyDetailMaskRgb16(image, mask, masks, local, detailBandPixels);
       continue;
     }
     if (isNeutralTone(local)) continue;
