@@ -1,7 +1,7 @@
 /** Controls a mask can adjust locally, tone and colour first, then detail. */
-export const LOCAL_KEYS = ['exposure', 'brightness', 'warmth', 'colour', 'contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen'] as const;
+export const LOCAL_KEYS = ['exposure', 'brightness', 'warmth', 'colour', 'contrast', 'highlights', 'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen', 'denoise'] as const;
 /** The local controls that need neighbouring pixels, so a mask using them cannot be processed in separate bands. */
-export const LOCAL_DETAIL_KEYS = ['texture', 'clarity', 'sharpen'] as const;
+export const LOCAL_DETAIL_KEYS = ['texture', 'clarity', 'sharpen', 'denoise'] as const;
 export type LocalKey = (typeof LOCAL_KEYS)[number];
 export type LocalEdit = Partial<Record<LocalKey, number>>;
 
