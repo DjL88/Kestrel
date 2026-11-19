@@ -39,6 +39,7 @@ import { AutoCullPanel } from './components/AutoCullPanel';
 import { scanForCulling } from './providers/browserAutoCull';
 import { limitAutoKeepers } from './core/autoCull';
 import { backgroundCullCandidates, backgroundCullMoves, backgroundDevelopTargets } from './core/backgroundAutoPolicy';
+import { prioritizePhotoProcessing } from './core/photoProcessingOrder';
 import { GuidedBanner } from './components/GuidedBanner';
 import { guidedStep, remainingWereScanned } from './core/guidedProgress';
 import { BatchLookDialog } from './components/BatchLookDialog';
@@ -816,7 +817,7 @@ export default function App() {
       let snapshot = stateRef.current;
       if (!alive()) return;
       if (snapshot.settings?.autoCull && can('smartCulling')) {
-        const candidates = backgroundCullCandidates(snapshot.frames, imported);
+        const candidates = prioritizePhotoProcessing(backgroundCullCandidates(snapshot.frames, imported));
         if (candidates.length) {
           const task = tasks.start('Reviewing imported photographs', {
             total: candidates.length, cancel: () => controller.abort(),
@@ -867,7 +868,7 @@ export default function App() {
       });
       controller.signal.addEventListener('abort', () => { tasks.cancel(task.id); }, { once: true });
       try {
-        const edits = await suggestKeeperAutoEdits(snapshot.frames, provider, controller.signal,
+        const edits = await suggestKeeperAutoEdits(prioritizePhotoProcessing(snapshot.frames), provider, controller.signal,
           (count) => task.progress(count), targets);
         if (!alive()) return;
         setCullingState((prev) => {
