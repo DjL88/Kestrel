@@ -1355,11 +1355,17 @@ export default function App() {
         }
         // Tab is *only* a pane shortcut while the photograph itself owns
         // focus. Elsewhere it remains normal keyboard/screen-reader navigation.
-        if (e.key === 'Tab' && !e.shiftKey && editing && !prefs.focusMode &&
+        if (e.key === 'Tab' && !e.shiftKey && !prefs.focusMode &&
+            window.matchMedia('(min-width: 1024px)').matches &&
             e.target instanceof Element && e.target.matches('[data-photo-stage]')) {
           e.preventDefault();
           setWorkspacePanes(toggleWorkspacePanes);
-          requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[data-workspace-pane-toggle]')?.focus());
+          // Move focus to a visible keyboard control instead of trapping Tab
+          // on the photo canvas. Other Tab presses navigate normally.
+          requestAnimationFrame(() => {
+            const selector = editing ? '[data-workspace-pane-toggle]' : '[aria-label="Workspace options"]';
+            document.querySelector<HTMLButtonElement>(selector)?.focus();
+          });
           return;
         }
       }
