@@ -1,5 +1,5 @@
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
-import { frameImageIdentity, visibleFrameUrl } from '../core/frameImageIdentity';
+import { frameImageIdentity, framePreviewEncoding, visibleFrameUrl } from '../core/frameImageIdentity';
 import { DEFAULT_EDIT, isNeutralEdit } from '../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFraming';
 import { loadImage } from '../providers/loadImage';
@@ -138,7 +138,10 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       const size = framedSize(source.naturalWidth, source.naturalHeight, framing);
       drawFramedPhoto(source, canvas, framing, { scale: Math.min(1, (variant === 'thumb' ? 400 : 2200) / Math.max(size.width, size.height)) });
       applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT);
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+      // A full-size edited view must not suffer a second lossy JPEG pass.
+      // Thumbnails stay compact JPEGs; full previews use lossless PNG.
+      const { mime, quality } = framePreviewEncoding(variant);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mime, quality));
       if (cancelled) return;
       if (!blob) throw new Error('Preview unavailable');
       const url = URL.createObjectURL(blob);
