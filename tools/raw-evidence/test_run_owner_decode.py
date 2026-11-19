@@ -22,6 +22,15 @@ class OwnerDecodeTests(unittest.TestCase):
         (self.samples / 'a.nef').write_bytes(b'synthetic only')
     def runner(self, stdout, returncode=0):
         return lambda *a, **kw: SimpleNamespace(stdout=stdout, stderr='', returncode=returncode)
+    def test_malformed_decoder_row_fails_closed(self):
+        output = ('a.nef | nikon-he | invalidx8 | 1ms\\n'
+                  'a.nef | nikon-he | 8x8 | 1ms\\n'
+                  'High Efficiency files decoded from sensor data: 1')
+        with self.assertRaisesRegex(ValueError, 'malformed'):
+            mod.parse_output(output)
+    def test_malformed_count_line_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, 'malformed'):
+            mod.parse_output('High Efficiency files decoded from sensor data: unknown')
     def test_missing_cfa_hash_fails_closed(self):
         with self.assertRaisesRegex(ValueError, 'CFA hash'):
             mod.collect(self.samples, self.tauri, self.runner('a.nef | nikon-he | 8x8 | 1ms\nHigh Efficiency files decoded from sensor data: 1'))
