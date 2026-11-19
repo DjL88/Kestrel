@@ -24,7 +24,7 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
 
   await page.goto('/');
   await checkViewport('Projects portrait');
-  await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' })).toBeVisible();
   // A phone must never advertise a physical Macro Pad configuration workflow.
   await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' }).getByRole('button', { name: /Macro pad/i })).toHaveCount(0);
@@ -65,7 +65,7 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(page.getByRole('toolbar', { name: 'Editor actions' })).toBeVisible();
   await checkViewport('Editor portrait');
-  await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const appearance = page.getByRole('dialog', { name: 'Appearance and layout settings' });
   await expect(appearance.getByRole('button', { name: 'Left-handed' })).toHaveAttribute('aria-pressed', 'true');
   await appearance.getByRole('button', { name: 'Right-handed' }).click();
@@ -96,7 +96,7 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await page.setViewportSize({ width: 1024, height: 768 });
   await checkViewport('Tablet landscape');
   expect(await editLayout()).toBe('row');
-  await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' })
     .getByRole('button', { name: 'Right-handed' })).toHaveAttribute('aria-pressed', 'true');
 });

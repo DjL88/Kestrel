@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArchiveRestore, ArrowLeft, Download, Ellipsis, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Trash2, Undo2 } from 'lucide-react';
+import { ArchiveRestore, ArrowLeft, Columns2, Download, Ellipsis, Grid3X3, Image as ImageIcon, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Trash2, Undo2 } from 'lucide-react';
 import type { ProjectSettings } from '../core/projectSettings';
 import { AppearanceSettings } from './AppearanceSettings';
 import { isDesktopApp } from '../providers/desktopShell';
@@ -10,6 +10,8 @@ import { FilterSortControl } from './FilterSortControl';
 interface TopWorkspaceBarProps {
   /** Work in hand (Tasks), shown compactly in this row rather than in rows of its own. */
   status?: ReactNode;
+  /** The Settings button, in the far right corner as on every page. */
+  settingsButton?: ReactNode;
   shoot: ShootDescriptor;
   counts: CullCounts;
   filter: FilterState;
@@ -292,6 +294,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
             </div>
           )}
         </div>
+        {props.settingsButton}
       </div>
     </header>
     <div role="toolbar" aria-label="Photo actions" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)] md:hidden">
@@ -337,6 +340,16 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
       )}
       <div className="hidden min-w-0 flex-1 items-center justify-end gap-2 md:flex">
         {/* The grid's Jump control is placed here (see VirtualizedContactSheet), in the bar rather than over a photo. */}
+        {/* Views as buttons, not hidden in a menu: grid, single photo, compare. Words as well as icons. */}
+        <div role="group" aria-label="View" className="flex shrink-0 items-center rounded-md border border-white/15 p-0.5">
+          {([['grid', Grid3X3], ['loupe', ImageIcon], ['compare', Columns2]] as const).map(([mode, Icon]) => (
+            <button key={mode} type="button" aria-label={viewLabels[mode]} aria-pressed={viewMode === mode} onClick={() => props.onViewModeChange(mode)}
+              title={mode === 'grid' ? 'Grid: every photo at once (G)' : mode === 'loupe' ? 'Single photo: one at a time, larger' : 'Compare: two photos side by side'}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded px-2.5 text-sm text-zinc-300 hover:bg-white/8 aria-pressed:bg-white/15 aria-pressed:text-white focus-visible:outline-2 focus-visible:outline-sky-300">
+              <Icon className="h-4 w-4" aria-hidden="true" /><span className="hidden lg:inline">{viewLabels[mode]}</span>
+            </button>
+          ))}
+        </div>
         <div id="kestrel-grid-tools" className="relative flex items-center" />
         <FilterSortControl searchQuery={searchQuery} onSearchChange={props.onSearchChange}
           ratingFilter={props.ratingFilter} onRatingFilterChange={props.onRatingFilterChange}

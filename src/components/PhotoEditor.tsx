@@ -2,12 +2,11 @@ import { newId } from '../core/ids';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
-import { ChevronDown, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, Settings2, SlidersHorizontal, Square, SquircleDashed, Undo2, Wand2 } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed, Undo2, Wand2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { CROP_RATIOS, DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawCrop, drawFramedPhoto, estimateLevel, fixedShape, framedSize, resizeCrop, resizeCropEdge, thirdsCropAnchor, type CropCorner, type CropEdge, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
-import { AppearanceDialog } from './AppearanceDialog';
 import { downloadExport } from '../providers/browserExport';
 import { QuickAdjust } from './QuickAdjust';
 import { AdjustmentSlider } from './AdjustmentSlider';
@@ -109,6 +108,8 @@ interface Props {
   focusPhoto?: boolean;
   /** Phone tool tabs reopen the bottom sheet when the shared panes were folded. */
   onExpandTools?: () => void;
+  /** Fold the panes away (the arrow on the tools' edge, or Tab). */
+  onFoldTools?: () => void;
   onApplyToKeepers: (edit: PhotoEdit) => void;
   onUndoKeeperEdits?: () => void;
 }
@@ -117,7 +118,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   frame, provider, needsAccess, bindings, onEdit, initialTab, onTabChange, onApplyLook, onExport, exportCount = 1, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, hand, onHandChange,
-  toolsCollapsed = false, focusPhoto = false, onExpandTools,
+  toolsCollapsed = false, focusPhoto = false, onExpandTools, onFoldTools,
 }: Props) {
   const originalCanvas = useRef<HTMLCanvasElement>(null);
   const editedCanvas = useRef<HTMLCanvasElement>(null);
@@ -187,7 +188,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [previewRecipe, setPreviewRecipe] = useState<{ edit?: PhotoEdit; framing?: PhotoFraming } | null>(null);
   const cropEntry = useRef<PhotoFraming | null>(null);
   const panelScroll = useRef<HTMLDivElement>(null);
-  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const isPhone = useMediaQuery('(max-width: 899px), (max-height: 549px)');
   // On a phone the tools open as a sheet above the bar. Tapping the open tab again folds it away for a full-height photo.
   const [sheetOpen, setSheetOpen] = useState(() => {
@@ -493,6 +493,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   // The bottom bar (App) holds a place for the zoom controls, so they sit where culling has them.
   const [zoomSlot, setZoomSlot] = useState<HTMLElement | null>(null);
   useEffect(() => { setZoomSlot(document.getElementById('viewer-zoom-slot')); }, []);
+  // The top row (App) holds a place for Export. Photo-only view removes the row, so look again when that changes.
+  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => { setHeaderSlot(document.getElementById('editor-header-actions')); }, [focusPhoto]);
 
   // Holding Shift shows the thirds grid, wherever the pointer is. Letting go, or leaving the window, hides it again.
   const [showGrid, setShowGrid] = useState(false);
@@ -977,7 +980,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
   return (
     <section aria-label="Photo editor" className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden bg-kestrel-stage">
-      {!focusPhoto && <div role="toolbar" aria-label="Editor actions" className="mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center justify-between gap-2 overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 pt-0.5 sm:px-4">
+      {/* On a phone, Quick adjust has Undo, Redo and Before/After within thumb reach, so this row would only repeat them. */}
+      {!focusPhoto && !(isPhone && tab === 'edit' && sheetOpen && !allControls && !(canLockOrientation && fullscreen)) && <div role="toolbar" aria-label="Editor actions" className="mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center justify-between gap-2 overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 pt-0.5 sm:px-4">
         <div className="flex items-center gap-1">
           <button type="button" className={`${button} inline-flex items-center`} aria-label="Undo" title={`Undo (${MOD}+Z)`} disabled={!frame.editHistory?.cursor} onClick={() => onHistoryStep(-1)}>
             <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Undo</span>
@@ -1017,11 +1021,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             eye={{ onClick: () => void zoomToEye(), busy: findingEye, disabled: findingEye || sourceState !== 'ready', title: "Zoom to the subject's eye (only moves the view)" }} />;
           return zoomSlot ? createPortal(controls, zoomSlot) : controls;
         })()}
-        <button type="button" className={`${button} inline-flex items-center`}
-          aria-label="Appearance and layout settings" aria-expanded={appearanceOpen}
-          onClick={() => setAppearanceOpen(true)} title="Display theme and editing tools side">
-          <Settings2 className="h-4 w-4" aria-hidden="true" />
-        </button>
+        {/* Settings is in the top right corner of every page (App). */}
         {canLockOrientation && fullscreen && (
           <button type="button" className={`${button} inline-flex items-center border border-white/15`}
             aria-pressed={landscapeLocked} onClick={() => void toggleLandscape()}
@@ -1030,10 +1030,18 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           </button>
         )}
         {/* Full screen lives in one place, the filmstrip bar (FilmstripDock), in the editor and culling alike. */}
+        {/* Export sits in the top row, where the library has it. */}
+        {headerSlot ? createPortal(<>
         <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? `Export ${exportCount} selected photos` : "Export this photo for social media or full size"}
           className={`${button} hidden items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover! workspace:inline-flex`}>
           <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? `Export ${exportCount}` : "Export"}
         </button>
+        </>, headerSlot) : <>
+        <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? `Export ${exportCount} selected photos` : "Export this photo for social media or full size"}
+          className={`${button} hidden items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover! workspace:inline-flex`}>
+          <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? `Export ${exportCount}` : "Export"}
+        </button>
+        </>}
 
         </div>
       </div>}
@@ -1218,7 +1226,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         window.clearTimeout(sliderTimer.current);
         sliderTimer.current = window.setTimeout(() => setSliderBusy(false), 700);
       }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
-        {!isPhone && tabList}
+        {!isPhone && <div className="sticky top-0 z-10 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
+          {onFoldTools && <button type="button" onClick={onFoldTools} aria-label="Fold editing tools" title="Fold the panels away for a bigger photo (Tab)"
+            className={`grid w-9 shrink-0 place-items-center border-b border-white/10 text-zinc-400 hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 ${panelSide === 'left' ? 'order-last' : ''}`}>
+            {panelSide === 'left' ? <ChevronLeft className="h-5 w-5" aria-hidden="true" /> : <ChevronRight className="h-5 w-5" aria-hidden="true" />}
+          </button>}
+          <div className="min-w-0 flex-1 [&>[role=tablist]]:mx-0 [&>[role=tablist]]:static">{tabList}</div>
+        </div>}
         {tab === 'auto' && !can('autoTab') && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto"><PaidNotice title="The Auto tab">Automatic colour and tone adjustments and local editing advice are here.</PaidNotice></div>
         )}
@@ -1598,7 +1612,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       {isPhone && !focusPhoto && tabList}
       </div>
       {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}
-      {appearanceOpen && <AppearanceDialog side={panelSide} onSideChange={onPanelSideChange} hand={hand} onHandChange={onHandChange} onClose={() => setAppearanceOpen(false)} onOpenMacroPad={onOpenMacroPad} />}
       {exportOpen && !onExport && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} onDownloadRequested={onExportRequested} />}
     </section>
   );

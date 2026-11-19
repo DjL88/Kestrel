@@ -31,8 +31,8 @@ test('Insight explains a failed local detector and never changes an edit before 
   await expect(page.getByRole('navigation', { name: 'Photo collections' })
     .getByRole('button', { name: 'To review 1' })).toBeVisible();
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
-  const toolbar = page.getByRole('toolbar', { name: 'Editor actions' });
-  const undo = toolbar.getByRole('button', { name: 'Undo', exact: true });
+  // Undo is in the editor's toolbar, or on a phone in Quick adjust (Step back) while that is showing.
+  const undo = page.getByRole('button', { name: /^(Undo|Step back)$/ });
   await expect(undo).toBeDisabled();
 
   const panel = page.getByRole('tabpanel', { name: 'Auto' });

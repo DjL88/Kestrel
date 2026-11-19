@@ -26,6 +26,8 @@ interface VirtualizedContactSheetProps {
   /** Right-click (or the Menu key) on a photo. */
   onPhotoMenu?: (frameId: string, x: number, y: number) => void;
   onOpenLoupe: (frameId: string) => void;
+  /** Double-click with a mouse opens the photo in the editor. */
+  onOpenEditor?: (frameId: string) => void;
   onDecideFrame: (frameId: string, decision: CullDecision) => void;
   onResetFrame: (frameId: string) => void;
 }
@@ -47,6 +49,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   multiSelect,
   onInfo,
   onOpenLoupe,
+  onOpenEditor,
   onPhotoMenu,
   onDecideFrame,
   onResetFrame,
@@ -326,7 +329,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         if (!event.repeat) onOpenLoupe(frame.id);
                       }}
                       onDoubleClick={(event) => {
-                        if (!multiSelect && !event.shiftKey && !event.ctrlKey && !event.metaKey) onOpenLoupe(frame.id);
+                        if (!multiSelect && !event.shiftKey && !event.ctrlKey && !event.metaKey) (onOpenEditor ?? onOpenLoupe)(frame.id);
                       }}
                       onContextMenu={(event) => { if (!onPhotoMenu) return; event.preventDefault(); onPhotoMenu(frame.id, event.clientX, event.clientY); }}
                       aria-haspopup={onPhotoMenu ? "menu" : undefined}
