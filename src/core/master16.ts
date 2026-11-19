@@ -1,7 +1,8 @@
 import { applyDetailRgb16, applyPhotoEditLinear, isNeutralTone, type PhotoEdit } from './photoEdits';
 import { cropRectangle, type PhotoFraming } from './photoFraming';
 import { THUMB, type Thumb } from './orientMatch';
-import { hasActiveMasks } from './maskTypes';
+import { LOCAL_KEYS, usesDetail, type Mask } from './maskTypes';
+import { effectiveAlpha } from './masks';
 import { hasNoiseReduction } from './noiseReduction';
 
 /**
@@ -49,7 +50,10 @@ export function thumbRgb16(image: Rgb16Image): Thumb {
 
 /** Why this edit cannot go through the 16-bit export yet, in plain words, or null when it can. */
 export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFraming | undefined): string | null {
-  if (edit && hasActiveMasks(edit.masks)) return 'The 16-bit TIFF does not include masks yet. The normal export keeps them.';
+  // Purely tonal local adjustments have a full-precision export implementation.
+  // Local Texture/Clarity/Sharpening still require a matching neighbour-aware,
+  // bounded-memory 16-bit implementation; never silently omit them.
+  if (edit && usesDetail(edit.masks)) return 'The 16-bit TIFF does not include local mask Texture, Clarity or Sharpening yet. The normal export keeps these adjustments.';
   if (edit && hasNoiseReduction(edit)) return 'The 16-bit TIFF does not include Noise reduction yet. The normal export keeps it.';
   if (framing && Math.abs(framing.straighten) > 1e-6) return 'The 16-bit TIFF does not include straightening yet. The normal export keeps it.';
   return null;
@@ -89,6 +93,62 @@ const TO_LINEAR = Float32Array.from({ length: 65536 }, (_, i) => {
   return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
 });
 
+/**
+ * Apply the *same mask alpha and mask ordering* as the live editor to 16-bit RGB,
+ * without converting the master through an 8-bit canvas. The current master is
+ * display-encoded sRGB, so local tones use the same decode → tone → encode maths
+ * as the 8-bit screen. This is preview-parity, not a claim of scene-linear masks.
+ *
+ * Calculate alpha for only a bounded row band: a 45 MP file never allocates
+ * a second full-size RGBA float image or an entire full-size alpha plane.
+ * Other masks may limit this mask, exactly as in the preview renderer.
+ */
+export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | undefined): void {
+  if (!masks?.length) return;
+  const { width, height, data } = image;
+  // 256k pixels = about 4 MiB temporary RGBA floats + 1 MiB alpha.
+  const rows = Math.max(1, Math.floor(262144 / width));
+  for (const mask of masks) {
+    if (!LOCAL_KEYS.some((key) => !!mask.edit[key])) continue;
+    // Failing here also protects direct callers that bypass master16Blocker.
+    if (['texture', 'clarity', 'sharpen'].some((key) => !!mask.edit[key as 'texture' | 'clarity' | 'sharpen'])) {
+      throw new Error('This 16-bit TIFF cannot yet include local mask Texture, Clarity or Sharpening.');
+    }
+    const local: PhotoEdit = { exposure: 0, warmth: 0, colour: 0, ...mask.edit };
+    if (isNeutralTone(local)) continue;
+    for (let from = 0; from < height; from += rows) {
+      const bandHeight = Math.min(rows, height - from);
+      const alpha = effectiveAlpha(mask, masks, width, bandHeight, {
+        aspect: height / width,
+        view: { x: 0, y: from / height, w: 1, h: bandHeight / height },
+      });
+      if (!alpha.some((value) => value > 0)) continue;
+      const count = width * bandHeight;
+      const rgba = new Float32Array(count * 4);
+      for (let p = 0; p < count; p++) {
+        const src = (from * width + p) * 3, dst = p * 4;
+        rgba[dst] = TO_LINEAR[data[src]];
+        rgba[dst + 1] = TO_LINEAR[data[src + 1]];
+        rgba[dst + 2] = TO_LINEAR[data[src + 2]];
+        rgba[dst + 3] = 1;
+      }
+      applyPhotoEditLinear(rgba, local);
+      for (let p = 0; p < count; p++) {
+        const strength = alpha[p];
+        if (strength <= 0) continue;
+        const src = (from * width + p) * 3, dst = p * 4;
+        const rest = 1 - strength;
+        // Match Kestrel's current visible 8-bit mask compositing formula,
+        // at 16-bit sample precision. A later scene-linear overhaul must
+        // update the screen and master together, with reference tests.
+        data[src] = Math.round(data[src] * rest + rgba[dst] * 65535 * strength);
+        data[src + 1] = Math.round(data[src + 1] * rest + rgba[dst + 1] * 65535 * strength);
+        data[src + 2] = Math.round(data[src + 2] * rest + rgba[dst + 2] * 65535 * strength);
+      }
+    }
+  }
+}
+
 /** Apply the edit in place: the whole-photo tone and colour, then Texture, Clarity and Sharpening. */
 export function editRgb16(image: Rgb16Image, edit: PhotoEdit): void {
   const { data } = image;
@@ -113,6 +173,7 @@ export function editRgb16(image: Rgb16Image, edit: PhotoEdit): void {
     }
   }
   applyDetailRgb16(data, image.width, image.height, edit, Math.max(image.width, image.height));
+  applyToneMasksRgb16(image, edit.masks);
 }
 
 /**
