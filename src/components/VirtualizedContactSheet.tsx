@@ -346,11 +346,13 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                     {/* Card Footer: Number, Filename & Colorblind-safe Decision Control */}
                     <div style={{ height: footerHeight }} className={`relative shrink-0 border-t border-white/6 ${stacked ? 'flex flex-col justify-center gap-1 px-1.5' : 'flex items-center justify-between gap-2 px-2.5'}`}>
                       {/* Independent facts, NOT a misleading percent-complete AI pipeline. Each state is also in text below. */}
+                      {/* Colour is never the only cue: done is a solid bar, loading is dotted, unavailable is hatched, and steps
+                          not done yet are a thin line. */}
                       <div data-testid="photo-tile-readiness" title={milestones.summary}
-                        className="pointer-events-none absolute inset-x-0 top-0 grid h-1 grid-cols-3 gap-px" aria-hidden="true">
-                        <span className={milestones.preview === 'ready' ? 'bg-emerald-400' : milestones.preview === 'unavailable' ? 'bg-rose-400' : 'bg-amber-400 motion-safe:animate-pulse'} />
-                        <span className={milestones.cullScanned ? 'bg-emerald-400' : 'bg-zinc-600'} />
-                        <span className={milestones.edited ? 'bg-emerald-400' : 'bg-zinc-600'} />
+                        className="pointer-events-none absolute inset-x-0 top-0 grid h-1 grid-cols-3 items-start gap-px" aria-hidden="true">
+                        <span data-state={milestones.preview} className={milestones.preview === 'ready' ? 'h-1 bg-emerald-400' : milestones.preview === 'unavailable' ? 'tile-hatched h-1 bg-rose-400' : 'tile-dotted h-1 bg-amber-400 motion-safe:animate-pulse'} />
+                        <span data-state={milestones.cullScanned ? 'done' : 'not-yet'} className={milestones.cullScanned ? 'h-1 bg-emerald-400' : 'h-px bg-zinc-500'} />
+                        <span data-state={milestones.edited ? 'done' : 'not-yet'} className={milestones.edited ? 'h-1 bg-emerald-400' : 'h-px bg-zinc-500'} />
                       </div>
                       <span className="sr-only">{milestones.summary}</span>
                       {/* Everything about the photo lives here, under it: nothing sits on the picture itself. */}

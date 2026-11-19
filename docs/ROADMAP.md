@@ -91,7 +91,7 @@ What worked: real Z 8 / Z5 II photos import, cull and edit; feather detail after
 
 **B. One consistent interface**
 - Progress in one place, in one style. Culling and importing use different pop-ups today.
-- Show each photo's progress in its tile footer as a red / amber / green bar. Animate it, respecting reduced motion.
+- ~~Show each photo's progress in its tile footer as a red / amber / green bar. Animate it, respecting reduced motion.~~ MERGED 19 Nov (#447 + coordinator): three markers per tile (preview, cull scan, saved edits) from real events, not a guessed queue; red/amber/green plus shape (solid, dotted, hatched, thin) so colour is never the only cue; the same words for screen readers; pulse only without reduced motion.
 - The Tasks ("Busy") button is fully rounded, unlike every other button. Make it match.
 - The Filter popover has white text on a white background. Make it follow the theme.
 - ~~Settings has two left/right choices ("Preferred hand" and "Editing panel position") that look like the same thing. Make them one clear choice.~~ MERGED 19 Nov: one "Preferred hand" choice moves the editing tools and touch controls together, in the Library and the editor; older settings that differed follow the hand.
