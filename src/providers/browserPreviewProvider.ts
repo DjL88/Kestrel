@@ -503,7 +503,8 @@ export class BrowserPreviewProvider implements PreviewProvider {
       if (url.startsWith('blob:')) URL.revokeObjectURL(url);
       return '';
     }
-    return this.rememberThumbnailUrl(frame, url, revision);
+    this.thumbUrlCache.set(frame.id, url);
+    return url;
   }
 
   private async buildLocalThumbnailUrl(frame: PhotoFrame, priority: ReadPriority, revision: number): Promise<string> {
