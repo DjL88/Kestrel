@@ -68,7 +68,7 @@ class EvidencePipelineTests(unittest.TestCase):
         aggregate = evaluator.evaluate(source)
         result = readiness.assess(aggregate)
         self.assertEqual(result["measurement_status"], "observed_safety_events")
-        self.assertEqual(result["real_risk_denominators"]["aircraft"], 100)
+        self.assertEqual(result["real_event_uncertainty"]["aircraft_osprey"]["denominator"], 100)
         self.assertEqual(result["observed_safety_events"]["aircraft_osprey"], 1)
         self.assertEqual(result["observed_safety_events"]["tiny_distant_bird_keeper_false_auto_reject"], 1)
 
@@ -79,8 +79,8 @@ class EvidencePipelineTests(unittest.TestCase):
         result = readiness.assess(aggregate)
         self.assertEqual(result["measurement_status"], "insufficient_real_coverage")
         self.assertEqual(result["real_risk_denominators"]["aircraft"], 0)
-        self.assertEqual(result["real_risk_events"]["aircraft_osprey"]["denominator"], 0)
-        self.assertIsNone(result["real_risk_events"]["aircraft_osprey"]["wilson_95_upper"])
+        self.assertEqual(result["real_event_uncertainty"]["aircraft_osprey"]["denominator"], 0)
+        self.assertIsNone(result["real_event_uncertainty"]["aircraft_osprey"]["wilson_95_upper"])
 
     def test_failed_or_missing_evaluator_inputs_do_not_become_success(self):
         with self.assertRaises(ValueError):
