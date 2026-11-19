@@ -121,5 +121,7 @@ export const STRICT_SPECIES_PROBABILITY = 0.95;
 /** Words for the user, in the same three steps as the species suggestions. */
 export function routeWording(result: RouteResult): string {
   const percent = result.probability;
-  return `${percent >= 0.8 ? 'Likely' : percent >= 0.45 ? 'Possibly' : 'Unsure'} ${result.best.label.toLowerCase()}`;
+  // A large top score is not enough for a confident claim when the runner-up is close.
+  // Keep the public wording aligned with the margin-aware route decision.
+  return `${result.confident && percent >= 0.8 ? 'Likely' : percent >= 0.45 ? 'Possibly' : 'Unsure'} ${result.best.label.toLowerCase()}`;
 }
