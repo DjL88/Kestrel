@@ -86,6 +86,20 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     return () => observer.disconnect();
   }, [frame.id, variant, priority]);
 
+  // When the background develop finishes this photo, the card swaps the camera's JPEG for Kestrel's develop.
+  const [developedRev, setDevelopedRev] = useState(0);
+  useEffect(() => {
+    if (variant !== 'thumb') return;
+    const key = frame.stableKey;
+    const onDeveloped = (event: Event) => {
+      if ((event as CustomEvent<string>).detail !== key) return;
+      thumbSources.delete(key);
+      setDevelopedRev((count) => count + 1);
+    };
+    previewProvider.events.addEventListener('developed', onDeveloped);
+    return () => previewProvider.events.removeEventListener('developed', onDeveloped);
+  }, [frame.stableKey, previewProvider, variant]);
+
   const edited = Boolean((frame.edit && !isNeutralEdit(frame.edit)) || (frame.framing &&
     (frame.framing.ratio || frame.framing.turns || frame.framing.straighten)));
 
@@ -157,7 +171,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [frame.id, frame.edit, frame.framing, edited, previewProvider, variant, needsAccess, priority, nearViewport, onPreviewStatus]);
+  }, [frame.id, frame.edit, frame.framing, edited, previewProvider, variant, needsAccess, priority, nearViewport, onPreviewStatus, developedRev]);
 
   const demoStyle: React.CSSProperties = {};
   if (!edited && frame.isDemo && frame.demoVariant) {

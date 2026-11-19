@@ -6,7 +6,8 @@
 const DB = 'kestrel-offline-previews-v1';
 const STORE = 'previews';
 const MAX_PREVIEW_BYTES = 1024 * 1024;
-const MAX_CACHED_PREVIEWS = 1200;
+// Embedded previews and background-developed ones, for shoots of about a thousand photos.
+const MAX_CACHED_PREVIEWS = 2400;
 
 export interface OfflinePreviewPair {
   thumbnail: Blob;

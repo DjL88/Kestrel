@@ -9,6 +9,7 @@ import {
 import { extractNefPreview } from '../core/nefPreview';
 import { PriorityReadQueue, type ReadPriority } from '../core/priorityReadQueue';
 import { isRawPreviewFile } from '../core/rawFormats';
+import { DEVELOP_VERSION } from '../core/backgroundDevelop';
 import {
   NativeRawUnsupportedError,
   type PreviewProvider,
@@ -57,6 +58,8 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
   private localBlobs = new Map<string, Blob>();
   private thumbUrlCache = new Map<string, string>();
+  /** Which original each cached thumbnail shows, so a newly developed picture replaces all of them. */
+  private thumbFrameKeys = new Map<string, string>();
   private fullUrlCache = new Map<string, string>();
   private fullFrameKeys = new Map<string, string>();
   private fullUrlOrder: string[] = [];
@@ -227,6 +230,50 @@ export class BrowserPreviewProvider implements PreviewProvider {
   private developing = new Map<string, symbol>();
 
   isDeveloped(stableKey: string): boolean { return this.developed.has(stableKey); }
+
+  /**
+   * Screen-sized pictures developed in the background from the RAW sensor data (src/core/backgroundDevelop.ts), stored
+   * beside the embedded previews and keyed by the original's identity and the develop's version. Tiles and the first
+   * moments in the editor show these instead of the camera's own JPEG.
+   */
+  private developedReviews = new Map<string, OfflinePreviewPair | null>();
+  /** Fires `developed` (detail: the original's stable key) when a background-developed picture is ready. */
+  readonly events = new EventTarget();
+
+  private developedCacheKey(frame: PhotoFrame): string {
+    return `developed-v${DEVELOP_VERSION}:${this.offlineCacheKey(frame)}`;
+  }
+
+  /** The stored developed picture, or null. Read once per original per session, then remembered. */
+  async developedReview(frame: PhotoFrame): Promise<OfflinePreviewPair | null> {
+    const key = this.developedCacheKey(frame);
+    if (this.developedReviews.has(key)) return this.developedReviews.get(key) ?? null;
+    const pair = await this.offlinePreviewCache.loadPreviewPair(key).catch(() => null);
+    // Another call may have stored a fresh one meanwhile; keep that.
+    if (!this.developedReviews.get(key)) this.developedReviews.set(key, pair);
+    return this.developedReviews.get(key) ?? null;
+  }
+
+  /** Keep a picture developed from the RAW, made small, and tell the tiles showing this original to redraw. */
+  async storeDevelopedPicture(frame: PhotoFrame, picture: Blob): Promise<void> {
+    const bitmap = await createImageBitmap(picture);
+    let pair: OfflinePreviewPair;
+    try {
+      const thumbnail = await encodePreview(bitmap, THUMB_MAX_WIDTH);
+      pair = { thumbnail, review: await encodePreview(bitmap, REVIEW_MAX_WIDTH, MAX_CACHED_PREVIEW_BYTES - thumbnail.size) };
+    } finally {
+      bitmap.close();
+    }
+    const key = this.developedCacheKey(frame);
+    this.developedReviews.set(key, pair);
+    await this.offlinePreviewCache.savePreviewPair(key, pair).catch(() => false);
+    for (const [frameId, url] of this.thumbUrlCache) {
+      if (this.thumbFrameKeys.get(frameId) !== frame.stableKey) continue;
+      URL.revokeObjectURL(url);
+      this.thumbUrlCache.delete(frameId);
+    }
+    this.events.dispatchEvent(new CustomEvent('developed', { detail: frame.stableKey }));
+  }
 
   private invalidateDevelopment(stableKey: string): void {
     this.developed.delete(stableKey);
@@ -423,6 +470,8 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.linkedOrder = [];
     this.developed.clear();
     this.developing.clear();
+    this.developedReviews.clear();
+    this.thumbFrameKeys.clear();
     this.pendingThumbs.clear();
     this.offlinePreviews.clear();
     this.offlinePreviewOrder = [];
@@ -430,6 +479,15 @@ export class BrowserPreviewProvider implements PreviewProvider {
   }
 
   private async buildLocalThumbnailUrl(frame: PhotoFrame, priority: ReadPriority): Promise<string> {
+    this.thumbFrameKeys.set(frame.id, frame.stableKey);
+    if (isRawPreviewFile(frame.filename)) {
+      const developed = await this.developedReview(frame);
+      if (developed) {
+        const url = URL.createObjectURL(developed.thumbnail);
+        this.thumbUrlCache.set(frame.id, url);
+        return url;
+      }
+    }
     const cacheKey = this.offlineCacheKey(frame);
     const offline = await loadOfflinePreview(cacheKey);
     if (offline) {
