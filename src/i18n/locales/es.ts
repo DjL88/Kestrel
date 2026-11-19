@@ -78,4 +78,11 @@ export const es: Translation = {
     restartIn: (name) => `Reiniciar en ${name}`,
     draft: 'Traducción provisional, aún no revisada por un hablante nativo. Algunas pantallas siguen en inglés.',
   },
+  appearance: {
+    "position": "¿Dónde quieres las herramientas?",
+    "positionHint": "Elige el lado para editar en una pantalla grande. En el móvil, las herramientas están debajo de la foto.",
+    "toolsSide": "Lado de las herramientas",
+    "left": "Izquierda",
+    "right": "Derecha"
+  },
 };
