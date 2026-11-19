@@ -78,4 +78,11 @@ export const de: Translation = {
     restartIn: (name) => `Neu starten auf ${name}`,
     draft: 'Vorläufige Übersetzung, noch nicht von Muttersprachlern geprüft. Einige Bildschirme sind noch auf Englisch.',
   },
+  appearance: {
+    "position": "Wo sollen die Werkzeuge stehen?",
+    "positionHint": "Wähle die Seite für die Bearbeitungswerkzeuge. Auf dem Handy stehen sie unter dem Foto.",
+    "toolsSide": "Werkzeugseite",
+    "left": "Links",
+    "right": "Rechts"
+  },
 };
