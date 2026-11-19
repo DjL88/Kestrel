@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Columns2, Minus, Plus, Redo2, RotateCcw, SlidersHorizontal, Undo2 } from 'lucide-react';
-import { QUICK_CONTROLS, changedKeys, controlFor, nudge, valueOf, valueText, type QuickKey } from '../core/quickControls';
+import { Check, Columns2, Minus, Plus, Redo2, SlidersHorizontal, Undo2 } from 'lucide-react';
+import { QUICK_CONTROLS, changedKeys, controlFor, nudge, valueOf, type QuickKey } from '../core/quickControls';
+import { AdjustmentSlider } from './AdjustmentSlider';
+import { signedAdjustment } from '../core/adjustmentSlider';
 import type { PhotoEdit } from '../core/photoEdits';
 
 interface Props {
@@ -55,10 +57,6 @@ export function QuickAdjust({ edit, disabled, onEdit, canStepBack, canStepForwar
         ))}
       </div>
 
-      <div className="flex items-center justify-between px-1">
-        <span className="text-sm font-medium text-zinc-100">{control.label}{value !== 0 && <span className="ml-2 text-xs font-normal text-sky-200">(adjusted)</span>}</span>
-        <output className="text-lg tabular-nums text-zinc-100" aria-live="off">{valueText(key, value)}</output>
-      </div>
       {(key === 'exposure' || key === 'brightness') && (
         <p className="px-1 text-xs text-zinc-400">
           {key === 'exposure'
@@ -66,12 +64,19 @@ export function QuickAdjust({ edit, disabled, onEdit, canStepBack, canStepForwar
             : 'Brightness adjusts the midtones without shifting pure black or white.'}
         </p>
       )}
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         <button type="button" className={round} aria-label={`${control.label} down`} title={`Lower ${control.label} a little`} disabled={disabled || value <= control.min} onClick={() => set(nudge(control, value, -1))}><Minus className="h-5 w-5" aria-hidden="true" /></button>
-        <input type="range" min={control.min} max={control.max} step={control.step} value={value} disabled={disabled} aria-label={`${control.label} adjustment`}
-          onChange={(event) => set(event.target.valueAsNumber)} onDoubleClick={() => set(0)} className="h-12 min-w-0 flex-1 accent-sky-300" />
+        <div className="min-w-0 flex-1">
+          <AdjustmentSlider layout="stacked" label={control.label} value={value}
+            min={control.min} max={control.max} step={control.step} disabled={disabled}
+            displayValue={key === 'exposure' ? `${signedAdjustment(value * 0.4)} EV`
+              : key === 'colour' && value === -2 ? 'Monochrome'
+              : key === 'warmth' ? `${signedAdjustment(Math.round(value * 8), 0)}%`
+              : key === 'colour' ? `${signedAdjustment(Math.round(value * 20), 0)}%`
+              : signedAdjustment(Math.round(value * 50), 0)}
+            onChange={set} />
+        </div>
         <button type="button" className={round} aria-label={`${control.label} up`} title={`Raise ${control.label} a little`} disabled={disabled || value >= control.max} onClick={() => set(nudge(control, value, 1))}><Plus className="h-5 w-5" aria-hidden="true" /></button>
-        <button type="button" className={round} aria-label={`Reset ${control.label}`} title={`Reset ${control.label}`} disabled={disabled || value === 0} onClick={() => set(0)}><RotateCcw className="h-5 w-5" aria-hidden="true" /></button>
       </div>
     </section>
   );

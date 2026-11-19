@@ -10,6 +10,8 @@ import { PhotoExportPanel } from './PhotoExportPanel';
 import { AppearanceDialog } from './AppearanceDialog';
 import { downloadExport } from '../providers/browserExport';
 import { QuickAdjust } from './QuickAdjust';
+import { AdjustmentSlider } from './AdjustmentSlider';
+import { signedAdjustment } from '../core/adjustmentSlider';
 import { AreaSelector } from './AreaSelector';
 import { sampledRegion, type Region } from '../core/subjectRegion';
 import { Histogram } from './Histogram';
@@ -1334,18 +1336,14 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         <div className="space-y-2 px-1 py-2">
           {EDIT_CHOICES.map(({ key, label, options }, index) => (
             <fieldset key={key} disabled={sourceState !== 'ready'} className="min-w-0 disabled:opacity-45">
-              <label className="block">
-                <span className="flex items-center justify-between text-xs text-zinc-300">
-                  <span>{label}{dialUsed && dial === index && <span className="ml-2 text-sky-200">Dial</span>}</span>
-                  <output className="tabular-nums text-zinc-400">{key === 'exposure' ? `${(edit[key] * 0.4).toFixed(2)} EV` :
-                    key === 'colour' && edit.colour === -2 ? 'Monochrome' : `${Math.round(edit[key] * (key === 'warmth' ? 8 : 20))}%`}</output>
-                </span>
-                <input type="range" min={key === 'exposure' ? -12.5 : -2} max={key === 'exposure' ? 12.5 : 2} step={0.1} value={edit[key]} aria-label={`${label} adjustment`}
-                  onFocus={() => setDial(index)}
-                  onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
-                  onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
-                  className="block min-h-9 w-full accent-sky-300 desk:min-h-7" />
-              </label>
+              <AdjustmentSlider label={label} value={edit[key]}
+                min={key === 'exposure' ? -12.5 : -2} max={key === 'exposure' ? 12.5 : 2} step={0.1}
+                disabled={sourceState !== 'ready'} onFocus={() => setDial(index)}
+                hint={dialUsed && dial === index ? 'Dial' : undefined}
+                displayValue={key === 'exposure' ? `${signedAdjustment(edit[key] * 0.4)} EV`
+                  : key === 'colour' && edit.colour === -2 ? 'Monochrome'
+                  : `${signedAdjustment(Math.round(edit[key] * (key === 'warmth' ? 8 : 20)), 0)}%`}
+                onChange={(value) => onEdit({ ...edit, [key]: value })} />
               {quickChoices && <div className="flex gap-1">
                 {options.map((name, index) => (
                   <button type="button" key={name} aria-pressed={edit[key] === index - 1}
@@ -1364,18 +1362,11 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           </summary>
           <div className="space-y-1 px-1 pb-2">
             {TONE_CONTROLS.map(({ key, label }) => (
-              <label key={key} className="block">
-                <span className="flex items-center justify-between text-xs text-zinc-300">
-                  <span>{label}{dialUsed && DIAL_KEYS[dial] === key && <span className="ml-2 text-sky-200">Dial</span>}</span>
-                  <output className="tabular-nums text-zinc-400">{Math.round((edit[key] ?? 0) * 50)}</output>
-                </span>
-                <input type="range" min={-2} max={2} step={0.05} value={edit[key] ?? 0} aria-label={`${label} adjustment`}
-                  title={key === 'brightness' ? 'Adjust midtone brightness while preserving pure black and white; use Exposure for overall light' : undefined}
-                  disabled={sourceState !== 'ready'}
-                  onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
-                  onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
-                  className="block min-h-9 w-full accent-sky-300 disabled:opacity-45 desk:min-h-7" />
-              </label>
+              <AdjustmentSlider key={key} label={label} value={edit[key] ?? 0}
+                min={-2} max={2} step={0.05} disabled={sourceState !== 'ready'}
+                hint={dialUsed && DIAL_KEYS[dial] === key ? 'Dial' : undefined}
+                title={key === 'brightness' ? 'Adjust midtone brightness while preserving pure black and white; use Exposure for overall light' : undefined}
+                onChange={(value) => onEdit({ ...edit, [key]: value })} />
             ))}
           </div>
         </details>
@@ -1385,30 +1376,19 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           </summary>
           <div className="space-y-1 px-1 pb-2">
             {DETAIL_CONTROLS.map(({ key, label }) => (
-              <label key={key} className="block">
-                <span className="flex items-center justify-between text-xs text-zinc-300">
-                  <span>{label}{dialUsed && DIAL_KEYS[dial] === key && <span className="ml-2 text-sky-200">Dial</span>}</span>
-                  <output className="tabular-nums text-zinc-400">{Math.round((edit[key] ?? 0) * 50)}</output>
-                </span>
-                <input type="range" min={key === 'sharpen' ? 0 : -2} max={2} step={0.05} value={edit[key] ?? 0} aria-label={`${label} adjustment`}
-                  disabled={sourceState !== 'ready'}
-                  onChange={(event) => onEdit({ ...edit, [key]: event.target.valueAsNumber })}
-                  onDoubleClick={() => onEdit({ ...edit, [key]: 0 })}
-                  className="block min-h-9 w-full accent-sky-300 disabled:opacity-45 desk:min-h-7" />
-              </label>
+              <AdjustmentSlider key={key} label={label} value={edit[key] ?? 0}
+                min={key === 'sharpen' ? 0 : -2} max={2} step={0.05}
+                disabled={sourceState !== 'ready'} hint={dialUsed && DIAL_KEYS[dial] === key ? 'Dial' : undefined}
+                onChange={(value) => onEdit({ ...edit, [key]: value })} />
             ))}
-            <label className="block" title="Smooths the coloured speckle that shows in dark areas of high-ISO photos. Only colour is smoothed: edges, feathers and fine texture are left alone.">
-              <span className="flex items-center justify-between text-xs text-zinc-300">
-                <span>{NOISE_CONTROL.label}</span>
-                <output className="tabular-nums text-zinc-400">{Math.round((edit.denoise ?? 0) * 50)}</output>
-              </span>
-              <input type="range" min={0} max={2} step={0.05} value={edit.denoise ?? 0} aria-label={`${NOISE_CONTROL.label} adjustment`}
-                aria-describedby="denoise-help" disabled={sourceState !== 'ready'}
-                onChange={(event) => onEdit({ ...edit, denoise: event.target.valueAsNumber })}
-                onDoubleClick={() => onEdit({ ...edit, denoise: 0 })}
-                className="block min-h-9 w-full accent-sky-300 disabled:opacity-45 desk:min-h-7" />
-              <span id="denoise-help" className="block text-xs text-zinc-400">Smooths colour speckle only. Edges and fine texture stay as they are.</span>
-            </label>
+            <div className="space-y-0.5">
+              <AdjustmentSlider label={NOISE_CONTROL.label} value={edit.denoise ?? 0}
+                min={0} max={2} step={0.05} disabled={sourceState !== 'ready'}
+                describedBy="denoise-help"
+                title="Smooths coloured speckle in high-ISO photos; not a claim of AI detail restoration"
+                onChange={(value) => onEdit({ ...edit, denoise: value })} />
+              <p id="denoise-help" className="text-xs text-zinc-400">Smooths colour speckle only. Edges and fine texture stay as they are.</p>
+            </div>
           </div>
         </details>
         <details className="border-b border-white/10 pb-1">
