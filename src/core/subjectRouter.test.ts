@@ -107,3 +107,27 @@ test('bad input is refused, never guessed from', () => {
   assert.throws(() => routeSubject(bad, vectors, categories), RangeError);
   assert.throws(() => routeSubject(picture({ bird: 1 }), [], []), RangeError);
 });
+
+
+test('corrupt or degenerate embeddings cannot produce a confident wildlife or aircraft label', () => {
+  const bird = picture({ bird: 1 });
+  const invalidVectors = vectors.map((vector) => Float32Array.from(vector));
+  invalidVectors[index('helicopter')][0] = Number.NaN;
+  assert.throws(() => routeSubject(bird, invalidVectors, categories), RangeError);
+  invalidVectors[index('helicopter')][0] = Number.POSITIVE_INFINITY;
+  assert.throws(() => routeSubject(bird, invalidVectors, categories), RangeError);
+  invalidVectors[index('helicopter')].fill(0);
+  assert.throws(() => routeSubject(bird, invalidVectors, categories), RangeError);
+  assert.throws(() => routeSubject(new Float32Array(bird.length), vectors, categories), RangeError);
+});
+
+test('corrupt detector scores never bias bird versus aircraft routing', () => {
+  const tie = picture({ bird: 1, helicopter: 1 });
+  const baseline = routeSubject(tie, vectors, categories);
+  for (const score of [Number.NaN, Number.POSITIVE_INFINITY, -1, 1.1]) {
+    const actual = routeSubject(tie, vectors, categories, [{ label: 'bird', score }]);
+    assert.equal(actual.best.id, baseline.best.id);
+    assert.equal(actual.confident, baseline.confident);
+    assert.equal(speciesGate(actual), 'strict');
+  }
+});
