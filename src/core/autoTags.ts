@@ -58,7 +58,7 @@ export function scanCandidates<T extends { id: string; removedAt?: number; speci
   // never infers "wildlife" from its own guess. The opted-in online helper is open-world (it answers "not an animal"
   // and sets the kind itself), so it may also look at photos nobody has classified yet. Photos classified as people,
   // landscape or other are never scanned.
-  return frames.filter((frame) => !frame.removedAt && !frame.speciesChecked &&
+  return frames.filter((frame) => frame.removedAt == null && !frame.speciesChecked &&
     (frame.subjectKind === 'wildlife' || (includeUnclassified && !frame.subjectKind)) &&
     !(frame.tags?.length) && !(frame.subjectNames?.length));
 }
@@ -68,10 +68,11 @@ export function scanCandidates<T extends { id: string; removedAt?: number; speci
  * sure, the photo may take it, and it is on the species list the model knows.
  */
 export function scanPatch(
-  frame: { tags?: readonly string[]; subjectNames?: readonly string[]; subjectKind?: string } & AutoState,
+  frame: { tags?: readonly string[]; subjectNames?: readonly string[]; subjectKind?: string; removedAt?: number } & AutoState,
   best: { name: string; probability: number; kind?: SubjectKind } | undefined,
 ): { speciesChecked: true; tags?: string[]; autoTags?: string[]; subjectKind?: SubjectKind } {
-  if (frame.subjectKind !== 'wildlife' || best?.kind !== 'wildlife' ||
+  // A scan can finish after the photo has been removed. Never resurrect a removed photo with a species tag.
+  if (frame.removedAt != null || frame.subjectKind !== 'wildlife' || best?.kind !== 'wildlife' ||
       !shouldAutoTag(best.probability) || !mayAutoTag(frame, best.name)) return { speciesChecked: true };
   return { speciesChecked: true, ...applyAutoTag(frame, best.name), ...(frame.subjectKind || !best.kind ? {} : { subjectKind: best.kind }) };
 }
