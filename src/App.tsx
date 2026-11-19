@@ -1933,7 +1933,7 @@ export default function App() {
               className="grid h-10 w-10 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
               {panesCollapsed ? <PanelLeftOpen className="h-4 w-4" aria-hidden="true" /> : <PanelLeftClose className="h-4 w-4" aria-hidden="true" />}
             </button>
-            <button type="button" aria-label={showPhotoInfo ? 'Hide photo info' : 'Show photo info'} aria-pressed={showPhotoInfo && !panesCollapsed}
+            <button type="button" aria-label={showPhotoInfo ? 'Hide photo info' : 'Show photo info'} title={showPhotoInfo ? 'Hide photo info' : 'Show photo info'} aria-pressed={showPhotoInfo && !panesCollapsed}
               onClick={() => { setWorkspacePanes({ folded: false }); setShowPhotoInfo((prev) => !prev); }}
               className="grid h-10 w-10 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
               <Info className="h-4 w-4" aria-hidden="true" />
@@ -2178,7 +2178,6 @@ export default function App() {
               onPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, hand: side, editPanelSide: side }))}
               hand={prefs.hand}
               onHandChange={(hand) => setPrefs((prev) => ({ ...prev, hand, editPanelSide: hand }))}
-              showFilmstrip={filmstripVisible}
               toolsCollapsed={panesCollapsed}
               focusPhoto={prefs.focusMode}
               onExpandTools={() => setWorkspacePanes({ folded: false })}
@@ -2423,7 +2422,8 @@ export default function App() {
         )}
       </main>
       {/* Independent full-width dock: side panels never constrain filmstrip width. */}
-      {!prefs.focusMode && visibleFrames.length > 0 && (
+      {/* Not in grid view, where every photo is already on screen. */}
+      {!prefs.focusMode && visibleFrames.length > 0 && (editing || prefs.viewMode !== 'grid') && (
         <FilmstripDock expanded={prefs.showFilmstrip} onToggle={toggleFilmstrip}>
             <Filmstrip
               onPhotoMenu={openPhotoMenu}

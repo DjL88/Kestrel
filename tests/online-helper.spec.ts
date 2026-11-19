@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createDemoShootState } from '../src/core/cullingEngine';
 import { encodeProjectBackup } from '../src/core/projectBackup';
 import { HELPER_CONSENT_VERSION } from '../src/core/onlineHelper';
-import { openPhotoInfo } from './helpers';
+import { openPhotoInfo, subjectTab } from './helpers';
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 const GOOGLE = '**/generativelanguage.googleapis.com/**';
@@ -191,12 +191,14 @@ test('one photo can be asked about by hand, and the answer is only a suggestion 
   await expect(page.getByRole('region', { name: 'Species recognition' })).toHaveCount(0, { timeout: 60000 });
   await expect(page.getByTestId('species-label')).toHaveCount(0);
   await openAutoTab(page);
+  await subjectTab(page);
   const panel = page.getByRole('region', { name: 'Species suggestions' });
   await panel.getByRole('button', { name: 'Ask the online helper about this photo' }).click();
   const suggestion = panel.getByRole('list', { name: 'Online suggestion' });
   await expect(suggestion).toContainText('Red kite');
   await expect(suggestion).toContainText('Milvus milvus');
   await expect(suggestion).toContainText('possible');
+  await subjectTab(page);
   const subject = page.getByRole('region', { name: 'What is in this photo' });
   await expect(subject.getByRole('list', { name: 'Tags' })).toHaveCount(0);
   await suggestion.getByRole('button', { name: 'Use Red kite' }).click();
@@ -211,11 +213,13 @@ test('the key can be removed from the settings, which turns the helper off and f
   await expect(page.getByTestId('species-label')).toHaveCount(3, { timeout: 60000 });
   expect(await page.evaluate(() => localStorage.getItem('kestrel.helper.v1'))).toContain('test-key-123');
   await openAutoTab(page);
+  await subjectTab(page);
   await page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: 'Online helper settings' }).click();
   const dialog = page.getByRole('dialog', { name: 'Online helper (optional)' });
   await expect(dialog.getByLabel('Your Gemini API key')).toHaveValue('test-key-123');
   await dialog.getByRole('button', { name: 'Remove key and turn off' }).click();
   await expect(dialog).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('kestrel.helper.v1'))).toBeNull();
+  await subjectTab(page);
   await expect(page.getByRole('region', { name: 'Species suggestions' }).getByRole('button', { name: 'Or set up the optional online helper' })).toBeVisible();
 });

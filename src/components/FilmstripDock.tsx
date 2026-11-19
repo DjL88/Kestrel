@@ -82,16 +82,16 @@ export function FilmstripDock({ expanded, onToggle, children }: FilmstripDockPro
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {typeof document !== 'undefined' && document.fullscreenEnabled && (
-            <button type="button" title={fullscreen ? 'Exit full screen' : 'Full screen'}
-              aria-label={fullscreen ? 'Exit full screen' : 'Full screen'} onClick={toggleFullscreen}
-              className="grid h-9 w-10 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+            <button type="button" aria-pressed={fullscreen} title={fullscreen ? 'Leave full screen (Esc)' : 'Full screen: the photo and tools fill the screen. Keyboard and macro pad keep working.'}
+              aria-label={fullscreen ? 'Leave full screen' : 'Full screen'} onClick={toggleFullscreen}
+              className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
               {fullscreen ? <Minimize2 className="h-4 w-4" aria-hidden="true"/> : <Maximize2 className="h-4 w-4" aria-hidden="true"/>}
             </button>
           )}
           <button type="button" onClick={onToggle} aria-expanded={expanded}
             aria-label={expanded ? 'Collapse filmstrip' : 'Expand filmstrip'}
             title={expanded ? 'Collapse filmstrip' : 'Expand filmstrip'}
-            className="grid h-9 w-10 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+            className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
             {expanded ? <ChevronDown className="h-5 w-5" aria-hidden="true"/> : <ChevronUp className="h-5 w-5" aria-hidden="true"/>}
           </button>
         </div>

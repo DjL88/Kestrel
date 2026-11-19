@@ -76,7 +76,9 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
     <aside
       aria-label="Photo info"
       className={`workspace-popover absolute inset-x-2 top-2 z-10 max-h-[min(calc(100%_-_1rem),calc(100dvh_-_7rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-4 shadow-2xl sm:w-72 lg:static lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-0 lg:shadow-none ${dockedSide === 'left'
-        ? 'sm:left-2 sm:right-auto lg:border-r'
+        // Only the docked panel (lg and up) changes side. Below that it floats over the photos, at the right edge where
+        // it covers the fewest of them (the first photo is at the top left).
+        ? 'sm:right-2 sm:left-auto lg:border-r'
         : 'sm:right-2 sm:left-auto lg:border-l'}`}
     >
       <div className="flex items-center justify-between gap-2">
@@ -90,7 +92,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
           <button key={tab} type="button" role="tab" id={`photo-tab-${tab}`}
             aria-selected={activeTab === tab} aria-controls={`photo-panel-${tab}`}
             onClick={() => setActiveTab(tab)}
-            className={`min-h-10 rounded-md px-2 text-sm focus-visible:outline-2 focus-visible:outline-sky-300 ${activeTab === tab ? 'bg-white/15 text-white' : 'text-zinc-400 hover:bg-white/5'}`}>
+            className={`min-h-11 rounded-md px-2 text-sm focus-visible:outline-2 focus-visible:outline-sky-300 ${activeTab === tab ? 'bg-white/15 text-white' : 'text-zinc-400 hover:bg-white/5'}`}>
             {tab === 'info' ? 'Info' : 'Subject'}
           </button>
         ))}

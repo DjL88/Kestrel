@@ -106,7 +106,7 @@ What worked: real Z 8 / Z5 II photos import, cull and edit; feather detail after
 
 **E. Owner feedback, 19 Nov (Windows build of `92d8f13`)**
 - ~~The header has three rows and a crowded top right. Make it two, and make the "Busy" button compact progress bars that also replace the "Adding photos" banner.~~ MERGED 19 Nov: Tasks sit inside the header's top row as one compact bar: the work in hand by name, its count as words and as a thin bar, "+N" for others, and the full list with Cancel when clicked. This applies in the library and the editor. The separate Busy row, the "Adding photos" banner and the subtitle count are gone, and the desktop folder scan has its own task. The project list keeps its strip for now.
-- ~~Photo info stays on the right whatever the Preferred hand; it should move with the hand, like the editing panel does.~~ MERGED 19 Nov: Photo info sits on the Preferred-hand side, where the editing tools are. Stage 1 of F below puts info on the other side once the editor and library share one frame.
+- ~~Photo info stays on the right whatever the Preferred hand; it should move with the hand, like the editing panel does.~~ MERGED 19 Nov (#471, with coordinator fixes): Photo info docks opposite the Preferred hand, in culling and the editor, with the editing tools on the hand side. Below 1024 px it floats at the right edge, over the fewest photos.
 - ~~"What is this a photo of?" buttons: the labels (Landscape) are too big for the buttons.~~ MERGED 19 Nov: four across only when the panel has room for the words, otherwise two by two (a container query); labels are never cut off.
 - ~~The File/Edit menu bar is white (system colours). Make it dark, or follow the app's theme.~~ MERGED 19 Nov: the window asks for the dark theme (every Kestrel theme is dark), and Tauri passes it to the Windows menu bar and title bar. Not yet seen on the laptop.
 
@@ -138,6 +138,40 @@ No free-floating windows: they cover the photo, drift off small screens, and are
 7. A left-hand mode rail (Library, Select, Edit, Projects; Settings at the foot), as part of F stage 1.
 
 Colour is never the only cue: the copper always comes with a shape, a fill or text.
+
+**H. Owner layout feedback, 19 Nov (editor screenshot)**
+
+Part of F; do these in this order.
+1. ~~Jump has stopped working.~~ FIXED 19 Nov: the shared "N of M · Jump" (#475 worker component) is wired into culling and the editor's bottom bar. On phones under 640 px it is left out of the culling bar for room; the grid keeps its own Jump.
+2. The filmstrip spans the full window width, whatever the side panes, and can be resized by dragging like the panes. "Hide filmstrip" goes; resizing to nothing hides it.
+3. Photo info sits below the Undo/Redo bar, like the editing tools, not beside it.
+4. Before/After aligns with the photo's left edge, and zoom with its right edge.
+5. Settings in the top right corner on every screen. Export in the top bar. Full screen in the filmstrip bar.
+6. Instead of buttons that show and hide each pane, a clickable arrow on the pane's edge folds it in or out.
+7. Culling gets the same header and filmstrip layout as editing.
+8. A small white Kestrel logo, top centre, on desktop.
+9. More in the right-click menu, especially while editing (copy/paste settings, reset, rotate, Before/After, zoom to eye, export).
+10. View options as buttons: single photo, grid, compare.
+11. Auto-rotate: straighten tilted horizons automatically, as a suggestion to apply.
+
+**I. Owner requests, 19 Nov evening: one consistent app on desktop and phone**
+
+A full pass through every page, as a user and a graphic designer: consistent, tidy, accessible, with the photo always clear to see. Take from main and the work in hand.
+1. **The two top bars are the same on every page**: things in the same places, with the same icons. Settings at the top right. Full screen once only (now in the filmstrip bar). The editor's two rows become one where they fit.
+2. **Double-click a photo to open it in the editor.**
+3. **Photo info is resizable** like the editing panel. Each pane shows or hides by an arrow on its own edge, not by a button in the top bar.
+4. **The filmstrip is resizable** (done in #478). Thumbnails keep their shape: 5:4 tiles, the photo fitted inside.
+5. **Full-screen editing:** sliders in a pop-up panel under a floating, movable button that shows or hides it. Pencil-friendly, for brushes.
+6. **Masks:**
+   - a new oval fills the area in view at the current zoom, rather than always starting big;
+   - ovals can be rotated;
+   - the brush shows its size while the size is chosen;
+   - masks can intersect other masks (for example, a gradient inside the subject).
+7. **The zoom slider uses the new copper slider style.**
+8. **Every slider has an ⓘ beside it.** Clicking it opens a small lightbox that says in plain words what the slider does.
+9. **Phone:** the same pass. Every page consistent, tidy and accessible, with the photo clear to see.
+10. **Plain British English** in every explanation.
+11. **Later, a translation layer**, once the layout settles. Western Europe first: Welsh, Dutch, US English, Spanish, French, then German, Italian and Portuguese. All wording would come from one place.
 
 **D. Library and projects**
 - Sort by date imported, date captured and date last edited.
@@ -231,6 +265,8 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
 
 | Date | Merged | Closed | Local evidence |
 | --- | --- | --- | --- |
+| 19 Nov 2026 (coordinator, main repaired) | this PR (main was red after #471, #474, #477, #478 and #479: tsc failed and 23 Playwright tests failed. Repairs: stale editor prop; no filmstrip in grid view; full screen in one place; slider tooltip, reset name and 44 px reset; Quick adjust "(adjusted)" words; culling bar fits (responsive compact zoom; Jump off phones); Photo info popover side and folded-rail name; tests follow the new filmstrip names) | | See PR. |
+| 19 Nov 2026 (coordinator, repair main) | this PR (carries #473 bottom bar and the worker's Jump; repairs main after #471, #472 and #474: Photo info popover side, folded-rail naming, tooltip, slider tooltip/reset name/"(adjusted)" words/44 px reset, Jump wiring, culling bar fit on 320 px phones, Eye's fixed name) | #473 (carried) | See PR. |
 | 19 Nov 2026 (coordinator, bottom bar) | #470 (Before/After grid behaviour); PR #473 bottom-bar integration (merge pending; earlier base checks reported in PR) | | Integration suite must be rerun. |
 | 19 Nov 2026 (coordinator, grid) | #469 (header and layout: lint, 973 unit, build, Playwright 285 PASS / 0 FAIL, src-tauri 21 PASS), this PR (no grid in Before/After; Shift shows it) | | See PR. |
 | 19 Nov 2026 (coordinator, header and layout) | this PR (two-row header with Tasks as a compact bar; no import banner; Add and options bordered; Photo info on the hand side; subject labels fit; dark window and menu bar; background develop waits for imports; ROADMAP E and F) | | See PR. |
