@@ -20,6 +20,7 @@ const clipped16 = (value: number): number => Math.max(0, Math.min(65535, Math.ro
 
 export function denoiseChromaRgb16(
   pixels: Uint16Array, width: number, height: number, strength: number, radius: 1 | 2,
+  bandPixels = TARGET_BAND_PIXELS,
 ): void {
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1 ||
       width * height > MAX_PIXELS || pixels.length !== width * height * 3) {
@@ -28,12 +29,15 @@ export function denoiseChromaRgb16(
   if (!Number.isFinite(strength) || strength < 0 || strength > 1 || (radius !== 1 && radius !== 2)) {
     throw new RangeError('16-bit noise reduction must have a strength of 0–1 and a 1–2 pixel radius.');
   }
+  if (!Number.isSafeInteger(bandPixels) || bandPixels < 1) {
+    throw new RangeError('Invalid denoise band pixel budget.');
+  }
   if (strength === 0 || (width === 1 && height === 1)) return;
 
   // Never keep a whole-frame output copy. A Nikon Z8 45 MP RGB16 image is
   // already about 270 MiB; only ~220k central pixels and their halo are copied.
   const stride = width * 3;
-  const rows = Math.max(1, Math.floor(TARGET_BAND_PIXELS / width));
+  const rows = Math.max(1, Math.floor(bandPixels / width));
   let originalTopHalo: Uint16Array | null = null;
   for (let from = 0; from < height; from += rows) {
     const to = Math.min(height, from + rows);
