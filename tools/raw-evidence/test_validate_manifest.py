@@ -31,6 +31,16 @@ class ManifestTests(unittest.TestCase):
     def test_case_insensitive_duplicate_rejected(self):
         other = dict(self.sample, file="SYNTHETIC.NEF")
         self.assertTrue(any("duplicate" in e for e in module.validate({"samples": [self.sample, other]}, self.root)))
+    def test_nonboolean_sensor_verification_rejected(self):
+        for flag in ("true", 1, None):
+            with self.subTest(flag=flag):
+                self.assertTrue(any("must be boolean" in e for e in self.check(sensor_decode_verified=flag)))
+    def test_blank_sensor_provenance_rejected(self):
+        self.assertTrue(any("reference evidence" in e for e in self.check(
+            source="sensor-cfa", sensor_decode_verified=True,
+            decoder="   ", reference_evidence="evidence-id")))
+    def test_nonboolean_nx_parity_claim_rejected(self):
+        self.assertTrue(any("parity" in e for e in self.check(nx_studio_parity="verified")))
     def test_structural_fixture(self):
         self.assertEqual(self.check(), [])
     def test_corruption(self):
