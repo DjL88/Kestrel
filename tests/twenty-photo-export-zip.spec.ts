@@ -44,7 +44,7 @@ test('20 imported photographs can be selected, edited and downloaded as a comple
   await expect(page.getByText('20 selected', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Edit selected' }).click();
-  const action = page.getByRole('toolbar', { name: 'Editor actions' }).getByRole('button', { name: 'Export 20' });
+  const action = page.getByRole('button', { name: 'Export 20', exact: true });
   await expect(action).toBeVisible();
   await action.click();
   const dialog = page.getByRole('dialog');

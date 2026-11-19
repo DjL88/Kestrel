@@ -35,7 +35,8 @@ test('Noise reduction is a Detail slider that only goes up, counts as an edit, a
   await expect(slider).toHaveAttribute('min', '0');
   await expect(slider).toHaveAttribute('max', '2');
   await expect(slider).toHaveValue('0');
-  const undo = page.getByRole('toolbar', { name: 'Editor actions' }).getByRole('button', { name: 'Undo', exact: true });
+  // Undo is in the editor's toolbar, or on a phone in Quick adjust (Step back) while that is showing.
+  const undo = page.getByRole('button', { name: /^(Undo|Step back)$/ });
   await expect(undo).toBeDisabled();
 
   await slider.focus();

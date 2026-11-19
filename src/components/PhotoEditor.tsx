@@ -981,7 +981,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   return (
     <section aria-label="Photo editor" className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden bg-kestrel-stage">
       {/* On a phone, Quick adjust has Undo, Redo and Before/After within thumb reach, so this row would only repeat them. */}
-      {!focusPhoto && !(isPhone && tab === 'edit' && sheetOpen && !(canLockOrientation && fullscreen)) && <div role="toolbar" aria-label="Editor actions" className="mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center justify-between gap-2 overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 pt-0.5 sm:px-4">
+      {!focusPhoto && !(isPhone && tab === 'edit' && sheetOpen && !allControls && !(canLockOrientation && fullscreen)) && <div role="toolbar" aria-label="Editor actions" className="mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center justify-between gap-2 overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 pt-0.5 sm:px-4">
         <div className="flex items-center gap-1">
           <button type="button" className={`${button} inline-flex items-center`} aria-label="Undo" title={`Undo (${MOD}+Z)`} disabled={!frame.editHistory?.cursor} onClick={() => onHistoryStep(-1)}>
             <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Undo</span>

@@ -4,6 +4,7 @@ import kestrelMark from '../assets/kestrel-mark.svg';
 import { version as appVersion } from '../../package.json';
 import { PHOTO_ACCEPT } from '../core/rawFormats';
 import { LicenceAndSettings } from './LicenceAndSettings';
+import { SettingsButton } from './SettingsButton';
 import { AppearanceDialog } from './AppearanceDialog';
 import { ConnectionsPanel } from './ConnectionsPanel';
 import type { ShootDescriptor } from '../core/types';
@@ -99,10 +100,7 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
         <div className="mb-7 flex items-center gap-2.5">
           <img src={kestrelMark} alt="" className="h-10 w-10" />
           <span className="text-lg font-semibold tracking-tight text-kestrel-ink">Kestrel</span>
-          <button type="button" aria-label="Appearance and layout settings" title="Appearance & layout"
-            onClick={() => setAppearanceOpen(true)} className="ml-auto grid min-h-11 min-w-11 place-items-center rounded-md text-zinc-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-            <Settings2 className="h-5 w-5" aria-hidden="true" />
-          </button>
+          <div className="ml-auto"><SettingsButton open={appearanceOpen} onOpen={() => setAppearanceOpen(true)} /></div>
         </div>
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>

@@ -119,11 +119,22 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');
-  const filmstrip = page.getByRole('toolbar', { name: 'Photo navigation and editing actions' });
-  await filmstrip.getByRole('button', { name: 'Copy', exact: true }).click();
+  // Copy and Paste: in the bottom bar on a larger screen; on a phone, in the photo's own menu (long press or right-click).
+  const narrow = page.viewportSize()!.width < 640;
+  const bar = page.getByRole('toolbar', { name: 'Photo navigation and editing actions' });
+  const fromMenu = async (item: RegExp) => {
+    // Unfold the filmstrip to reach the photo's menu if needed, and leave it as it was.
+    const expand = page.getByRole('button', { name: 'Expand filmstrip' });
+    const folded = await expand.isVisible();
+    if (folded) await expand.click();
+    await page.getByRole('region', { name: 'Full-width filmstrip' }).getByRole('button', { name: /^Jump to frame / }).first().click({ button: 'right' });
+    await page.getByRole('menu').getByRole('menuitem', { name: item }).click();
+    if (folded) await page.getByRole('button', { name: 'Collapse filmstrip' }).click();
+  };
+  if (narrow) await fromMenu(/^Copy adjustments/); else await bar.getByRole('button', { name: 'Copy', exact: true }).click();
   await light.press('ArrowLeft');
   await expect(light).toHaveValue('0');
-  await filmstrip.getByRole('button', { name: 'Paste', exact: true }).click();
+  if (narrow) await fromMenu(/^Paste adjustments/); else await bar.getByRole('button', { name: 'Paste', exact: true }).click();
   await expect(light).toHaveValue('0.1');
 
   await page.getByRole('tab', { name: 'Masks' }).click();
