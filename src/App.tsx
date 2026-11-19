@@ -1100,7 +1100,8 @@ export default function App() {
       if (prev.shoot.id !== cullingState.shoot.id) return prev;
       return { ...prev, frames: prev.frames.map((frame) =>
         frame.id === frameId && !frame.removedAt && !frame.speciesChecked && !frame.tags?.length && !frame.subjectNames?.length
-          ? { ...frame, ...patch } : frame) };
+          // A kind the person chose while the scan was running always wins over the scan's.
+          ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame) };
     }),
   });
 

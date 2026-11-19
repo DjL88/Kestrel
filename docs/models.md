@@ -39,6 +39,17 @@ The model ships inside the app. The 15 MB WebAssembly runtime is cached the firs
 ### Swapping the model
 Update `SUBJECT_MODEL` in `src/core/subjectModel.ts` (file, size, checksum, input size) and check the new model's licence and output format first. Larger models such as IS-Net or BiRefNet cut fine detail better but are tens to hundreds of megabytes.
 
+## Category gate: CLIP ViT-B/32 image encoder (desktop)
+| | |
+| --- | --- |
+| File | `public/models/clip-vit-b32-vision-uint8.onnx` |
+| Size | 88,648,915 bytes |
+| SHA-256 | `b95448754a6ae56964ec80c570c80bb9863787ee85f51b664abed8c0e5f22a7a` |
+| Model and weights | OpenAI CLIP, MIT; ONNX conversion and 8-bit quantisation by Xenova (MIT). Notice: `docs/notices/clip.txt` |
+| Category vectors | `src/assets/subject/vectors.json`, made from `src/assets/subject/taxonomy.json` by `tools/subject-router/make_category_vectors.py` |
+
+Before any species name is offered, the gate compares the picture with a wide list of subject categories (birds, mammals, aircraft, cars, buildings, scenes and more) and decides whether the species step may run (`src/core/subjectRouter.ts`, `src/core/categoryGate.ts`). A picture that is mostly not an animal gets no animal name; an unclassified picture that is clearly an animal becomes Wildlife. When unsure it says nothing. It runs on the desktop app, where the file ships in the installer; browsers leave it off until it is part of the opt-in download. Not yet measured on real shoots.
+
 ## Species suggestions model (bundled in desktop installers; optional in browsers)
 
 **Windows, macOS and Linux installers** now include the pinned 89 MB model,
