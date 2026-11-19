@@ -39,7 +39,7 @@ export function AdjustmentSlider({
   const id = useId();
   const fill = adjustmentFill(value, min, max, neutral);
   const shown = displayValue ?? signedAdjustment(value);
-  const changed = Math.abs(value - neutral) > 1e-8;
+  const changed = Number.isFinite(value) && Math.abs(value - neutral) >= step / 2;
   const progressStyle: CSSProperties = { left: `${fill.start}%`, width: `${fill.width}%` };
   const originStyle: CSSProperties = { left: `${fill.neutral}%` };
   return (
@@ -48,11 +48,11 @@ export function AdjustmentSlider({
       ${disabled ? 'opacity-45' : ''}`}>
       <label htmlFor={id} className={`min-w-0 leading-5 ${layout === 'stacked' ? 'flex-1 font-medium' : 'truncate'}`}>{label}{hint && <span className="ml-1.5 text-xs font-normal text-kestrel-copper">{hint}</span>}</label>
       <span className={`relative flex min-w-0 items-center ${layout === 'stacked' ? 'order-3 w-full' : ''}`}>
-        <span className="pointer-events-none absolute inset-x-0 h-1 rounded-full bg-white/25" aria-hidden="true" />
+        <span className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-white/25" aria-hidden="true" />
         {min < neutral && neutral < max && (
           <span className="pointer-events-none absolute top-1/2 h-2.5 w-px -translate-y-1/2 bg-white/35" style={originStyle} aria-hidden="true" />
         )}
-        <span className="pointer-events-none absolute h-1 rounded-full bg-kestrel-copper" style={progressStyle} aria-hidden="true" />
+        <span className="pointer-events-none absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-kestrel-copper" style={progressStyle} aria-hidden="true" />
         <input id={id} type="range" min={min} max={max} step={step} value={value} disabled={disabled}
           aria-label={ariaLabel ?? `${label} adjustment`} aria-valuetext={shown} aria-describedby={describedBy}
           onFocus={onFocus} onChange={(event) => onChange(event.target.valueAsNumber)}
