@@ -68,6 +68,24 @@ export async function developRawPrecisionEdited(file: Blob, recipe: NativeRawMas
   }
 }
 
+/** Nikon High Efficiency (HE/HE*) needs Kestrel's own decoder; a DNG copy lets other editors and tools read it too. */
+export const canSaveDngCopy = (filename: string) => isDesktopApp() && /\.nef$/i.test(filename);
+
+/**
+ * A lossless DNG of a Nikon High Efficiency NEF's sensor data, made by the desktop app's own decoder. The original is
+ * only read. Rejects in plain words for files that need no copy (other NEF modes and makers already open everywhere).
+ */
+export async function rawDngCopy(file: Blob): Promise<Blob> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  try {
+    const result = await invoke<ArrayBuffer>('raw_dng_copy', bytes);
+    return new Blob([result], { type: 'image/x-adobe-dng' });
+  } catch (error) {
+    throw new Error(typeof error === 'string' ? error : 'A DNG copy could not be made from this RAW file.');
+  }
+}
+
 async function thumbOf(bitmap: ImageBitmap): Promise<Float32Array> {
   const canvas = document.createElement('canvas');
   canvas.width = THUMB; canvas.height = THUMB;

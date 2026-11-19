@@ -3,11 +3,18 @@ name = "kestrel"
 version = "26.11.2"
 description = "Kestrel desktop app"
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.85"
 
 [lib]
 name = "kestrel_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+# Nikon High Efficiency (HE/HE*) decoding from the sensor data, via the ticoraw crate (MIT OR Apache-2.0). The codec is
+# patented and the crate's licence is not a patent licence: a public or commercial build must settle that first, or be
+# built with `--no-default-features` (docs/COMMERCIAL-RELEASE.md). Desktop only.
+default = ["nikon-he"]
+nikon-he = ["dep:ticoraw"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -26,5 +33,6 @@ serde_json = "1"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 rawler = "0.8"
+ticoraw = { version = "=0.2.0", optional = true }
 rayon = "1"
 image = { version = "0.25", default-features = false, features = ["jpeg", "tiff"] }

@@ -9,9 +9,7 @@
 
 use image::codecs::tiff::TiffEncoder;
 use image::{imageops, DynamicImage, ImageBuffer, ImageEncoder, Rgb};
-use rawler::decoders::RawDecodeParams;
 use rawler::imgop::develop::RawDevelop;
-use rawler::rawsource::RawSource;
 
 type Rgb16 = ImageBuffer<Rgb<u16>, Vec<u16>>;
 
@@ -318,9 +316,7 @@ pub fn develop_raw_rgb16_tiff_with_edit_and_framing(
 ) -> Result<Vec<u8>, String> {
     let edit = edit.validate()?;
     let framing = framing.validate()?;
-    let source = RawSource::new_from_slice(bytes);
-    let raw = rawler::decode(&source, &RawDecodeParams { image_index: 0 })
-        .map_err(|error| crate::raw::explain(&error.to_string()))?;
+    let (raw, _decoder) = crate::nikon_he::decode_sensor(bytes)?;
     // The same develop the editor's picture uses, so the 16-bit master starts from the pixels the person saw.
     let intermediate = match crate::scene_develop::develop_display(&raw)? {
         Some(display) => display,

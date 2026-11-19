@@ -43,7 +43,7 @@ const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
 import { isRawPreviewFile } from '../core/rawFormats';
 import { tasks } from '../core/taskStore';
-import { canDevelopRaw, developRaw, developRawPrecisionEdited, matchPreviewOrientation } from '../providers/rawDevelop';
+import { canDevelopRaw, canSaveDngCopy, developRaw, developRawPrecisionEdited, matchPreviewOrientation, rawDngCopy } from '../providers/rawDevelop';
 import { extractRawPreview } from '../core/nefPreview';
 import { nativeRawMasterRecipe, nativeRawMasterFraming } from '../core/nativeRawMaster';
 import { saveWithDialog } from '../providers/desktopShell';
@@ -121,6 +121,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [developNote, setDevelopNote] = useState<string | null>(null);
   const [masterBusy, setMasterBusy] = useState(false);
   const [masterNote, setMasterNote] = useState<string | null>(null);
+  const [dngBusy, setDngBusy] = useState(false);
+  const [dngNote, setDngNote] = useState<string | null>(null);
   const [compare, setCompare] = useState(false);
   const [beforeStage, setBeforeStage] = useState<ComparisonStage>('original');
   const [dial, setDial] = useState(0);
@@ -349,6 +351,28 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     }
   }
 
+
+  /** Save a lossless DNG of a Nikon High Efficiency RAW beside wherever the person chooses. The original is only read. */
+  async function saveDngCopy() {
+    if (dngBusy) return;
+    setDngBusy(true);
+    setDngNote(null);
+    const task = tasks.start('Making a DNG copy');
+    try {
+      const original = await provider.ensureOriginal(frame.stableKey);
+      if (!original) throw new Error('Reconnect the original RAW file first.');
+      const dng = await rawDngCopy(original);
+      const saved = await saveWithDialog(dng, frame.filename.replace(/\.[^.]+$/, '') + '.dng');
+      setDngNote(saved ? 'Saved a DNG copy of the sensor data. The original is unchanged.' : 'Cancelled; no file was written.');
+      task.finish(saved ? 'DNG copy saved' : 'Cancelled');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'A DNG copy could not be made.';
+      setDngNote(message);
+      task.fail(message);
+    } finally {
+      setDngBusy(false);
+    }
+  }
 
   useEffect(() => {
     const node = stage.current;
@@ -1256,6 +1280,16 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                 </button>
                 <p className="text-xs text-zinc-400">Uses original RAW, not its JPEG. Global tone/colour, crop and quarter-turn rotation. Straightening, masks and detail are blocked until the native renderer supports them. Colour accuracy is not yet certified.</p>
                 {masterNote && <p role="status" className="text-xs text-zinc-300">{masterNote}</p>}
+                {canSaveDngCopy(frame.filename) && (
+                  <>
+                    <button type="button" className={button + ' w-full border border-white/15'}
+                      disabled={dngBusy} onClick={() => void saveDngCopy()}>
+                      {dngBusy ? 'Making DNG copy…' : 'Save a DNG copy'}
+                    </button>
+                    <p className="text-xs text-zinc-400">For Nikon High Efficiency files, so other apps can open the sensor data too.</p>
+                    {dngNote && <p role="status" className="text-xs text-zinc-300">{dngNote}</p>}
+                  </>
+                )}
               </div>
             )}
           </div>

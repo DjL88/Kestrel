@@ -3,13 +3,12 @@
 //!
 //! Covers whatever the `rawler` decoder supports for the camera (Nikon NEF/NRW, Sony ARW, Canon CR2/CR3, Fujifilm RAF, DNG
 //! and others). A camera or compression mode it cannot read returns a plain error, and the app falls back to the preview
-//! inside the file. Newer lossy modes (for example Nikon High Efficiency) must be checked with real files before being claimed.
+//! inside the file. Nikon High Efficiency (HE/HE*) NEFs, which rawler cannot read, are decoded from their sensor data by
+//! `nikon_he.rs` and then take exactly the same path.
 
 use image::codecs::jpeg::JpegEncoder;
 use image::{imageops, RgbImage};
-use rawler::decoders::RawDecodeParams;
 use rawler::imgop::develop::RawDevelop;
-use rawler::rawsource::RawSource;
 
 /// Turn the picture the way the camera was held, from the file's EXIF orientation (1 to 8). The sensor data is always stored
 /// sideways-on, so without this a portrait photograph comes out lying on its side.
@@ -147,7 +146,7 @@ fn develop_with_system(_bytes: &[u8], _extension: &str) -> Result<Vec<u8>, Strin
     Err("No system RAW decoder is available on this computer.".to_string())
 }
 
-/// Develop a RAW file: the built-in decoder first, then (on a Mac) the system's, for modes such as Nikon HE and HE*.
+/// Develop a RAW file: Kestrel's own decoders first (rawler, and ticoraw for Nikon HE/HE*), then on a Mac the system's.
 pub fn develop_any(bytes: &[u8], extension: &str) -> Result<Vec<u8>, String> {
     match develop(bytes) {
         Ok(jpeg) => Ok(jpeg),
@@ -156,9 +155,8 @@ pub fn develop_any(bytes: &[u8], extension: &str) -> Result<Vec<u8>, String> {
 }
 
 pub fn develop(bytes: &[u8]) -> Result<Vec<u8>, String> {
-    let source = RawSource::new_from_slice(bytes);
-    let raw = rawler::decode(&source, &RawDecodeParams { image_index: 0 })
-        .map_err(|error| explain(&error.to_string()))?;
+    // Nikon High Efficiency NEFs are decoded from their sensor data by `nikon_he`; everything else by rawler.
+    let (raw, _decoder) = crate::nikon_he::decode_sensor(bytes)?;
     // Kestrel's own develop (highlight reconstruction, no clipping, filmic shoulder), shared with the 16-bit master.
     // Sensors it doesn't handle yet (monochrome, four-colour) keep rawler's default develop.
     let rgb8 = match crate::scene_develop::develop_display_rgb16(&raw, &crate::scene_develop::Look::default())? {
