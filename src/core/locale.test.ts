@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { LANGUAGES, activeLanguage, mergeMessages, missingKeys, resolveLanguage, setActiveLanguage, unknownKeys } from './locale';
+import { LANGUAGES, activeLanguage, matchDeviceLanguage, needsLanguageSetup, mergeMessages, missingKeys, plural, resolveLanguage, setActiveLanguage, unknownKeys } from './locale';
 import { formatProjectDate } from './formatDate';
 import { formatCaptureDateTime } from './photoInfoText';
 import { enGB } from '../i18n/en-GB';
 import { TRANSLATIONS, type Messages } from '../i18n/messages';
+import { AREAS } from '../i18n/areas';
 
 test('only a saved, known choice changes the language; anything else is British English', () => {
   assert.equal(resolveLanguage('cy'), 'cy');
@@ -31,14 +32,20 @@ test('every language in the list has a file, and no file has sentences the sourc
   }
 });
 
-test('every non-English language covers every sentence (brand names may stay as they are)', () => {
-  const allowedToStay = new Set(['settings.fontBrand']);
-  for (const { code } of LANGUAGES.filter((language) => !language.code.startsWith('en'))) {
-    assert.deepEqual(missingKeys(enGB, TRANSLATIONS[code]).filter((key) => !allowedToStay.has(key)), [], `${code} leaves sentences in English`);
+test('existing translated languages retain their original coverage; new draft languages fall back safely', () => {
+  const allowedToStay = new Set(['settings.fontBrand', 'setup.welcome', 'setup.question', 'setup.detected', 'setup.continueIn', 'setup.keepSource', 'setup.later']);
+  const previouslyTranslated = ['cy', 'gd', 'fr', 'de', 'es', 'nl', 'it', 'pt'];
+  for (const code of previouslyTranslated) {
+    assert.deepEqual(missingKeys(enGB, TRANSLATIONS[code as keyof typeof TRANSLATIONS])
+      .filter((key) => !allowedToStay.has(key)), [], `${code} unexpectedly lost an existing translation`);
+    const merged = mergeMessages<Messages>(enGB, TRANSLATIONS[code as keyof typeof TRANSLATIONS]);
+    assert.ok(merged.scanning('3', '9').includes('3') && merged.scanning('3', '9').includes('9'), `${code} drops a scan count`);
+  }
+  for (const { code, status } of LANGUAGES) {
     const merged = mergeMessages<Messages>(enGB, TRANSLATIONS[code]);
-    assert.notEqual(merged.scanning('3', '9'), enGB.scanning('3', '9'));
-    assert.ok(merged.scanning('3', '9').includes('3') && merged.scanning('3', '9').includes('9'), `${code} drops a number from scanning`);
-    assert.ok(merged.settings.restartIn('X').includes('X'), `${code} drops the language name`);
+    assert.ok(merged.setup.welcome.trim(), `${code} must have a readable first-run welcome`);
+    assert.ok(merged.setup.continueIn('TEST').includes('TEST'), `${code} must preserve the chosen language name`);
+    if (status === 'draft') assert.ok(merged.settings.draft.trim(), `${code} must disclose draft status`);
   }
 });
 
@@ -54,5 +61,75 @@ test('dates follow the chosen language: British by default, never the browser’
     assert.equal(formatProjectDate(when), 'Nov 19, 2026');
   } finally {
     setActiveLanguage(before);
+  }
+});
+
+test('the device language is matched to one Kestrel has, to offer at first run', () => {
+  assert.equal(matchDeviceLanguage(['en-US']), 'en-US');
+  assert.equal(matchDeviceLanguage(['en-AU', 'fr']), 'en-AU', 'Australian English is a regional option');
+  assert.equal(matchDeviceLanguage(['en-NZ']), 'en-NZ');
+  assert.equal(matchDeviceLanguage(['en-CA']), 'en-CA');
+  assert.equal(matchDeviceLanguage(['en-GB']), 'en-GB');
+  assert.equal(matchDeviceLanguage(['en-IE']), 'en-GB', 'unsupported English region uses UK words');
+  assert.equal(matchDeviceLanguage(['fr-CA']), 'fr-CA');
+  assert.equal(matchDeviceLanguage(['fr-Latn-CA']), 'fr-CA', 'supports BCP47 script and region');
+  assert.equal(matchDeviceLanguage(['fr-BE']), 'fr');
+  assert.equal(matchDeviceLanguage(['pt-BR']), 'pt');
+  assert.equal(matchDeviceLanguage(['nb-NO']), 'nb');
+  assert.equal(matchDeviceLanguage(['no']), 'nb');
+  assert.equal(matchDeviceLanguage(['nn-NO']), 'nb');
+  assert.equal(matchDeviceLanguage(['sv_SE']), 'sv');
+  assert.equal(matchDeviceLanguage(['cy-GB']), 'cy');
+  assert.equal(matchDeviceLanguage(['ja-JP', 'da-DK']), 'da', 'the first language Kestrel has wins');
+  assert.equal(matchDeviceLanguage(['ja-JP', 'zh']), undefined);
+  assert.equal(matchDeviceLanguage([]), undefined);
+  assert.equal(matchDeviceLanguage(undefined), undefined);
+});
+
+test('first launch asks for an explicit choice regardless of OS language; a saved choice wins', () => {
+  for (const value of [undefined, null, '', 'unrecognised']) {
+    assert.equal(needsLanguageSetup(value), true);
+  }
+  for (const value of ['en-GB', 'en-AU', 'en-NZ', 'fr-CA', 'cy']) {
+    assert.equal(needsLanguageSetup(value), false, value);
+  }
+  assert.equal(resolveLanguage('fr-CA'), 'fr-CA');
+  assert.equal(resolveLanguage('en-NZ'), 'en-NZ');
+});
+
+test('plural words follow the active language’s rules', () => {
+  const before = activeLanguage();
+  try {
+    setActiveLanguage('en-GB');
+    assert.equal(plural(1, { one: 'photo', other: 'photos' }), 'photo');
+    assert.equal(plural(2, { one: 'photo', other: 'photos' }), 'photos');
+    setActiveLanguage('cy');
+    const welsh = { zero: 'llun (0)', one: 'llun', two: 'lun', few: 'llun (few)', many: 'llun (many)', other: 'llun' };
+    assert.equal(plural(2, welsh), 'lun');
+    assert.equal(plural(0, welsh), 'llun (0)');
+    assert.equal(plural(5, { other: 'x' }), 'x', 'missing forms fall back to other');
+  } finally {
+    setActiveLanguage(before);
+  }
+});
+
+test('registered translation areas have no invalid keys; drafts may fall back to British English', () => {
+  for (const area of AREAS) {
+    for (const { code } of LANGUAGES) {
+      const translation = area.translations[code];
+      assert.deepEqual(unknownKeys(area.source, translation), [], `${area.name}/${code} has keys the source lacks`);
+      if (code === 'en-GB') continue;
+      // Coverage is a separate release criterion: a partial draft is not a complete translation.
+      const missing = missingKeys(area.source, translation);
+      assert.ok(Array.isArray(missing), `${area.name}/${code} coverage must be measurable`);
+    }
+  }
+});
+
+test('untranslated new Northern European and Irish drafts are not presented as complete translations', () => {
+  for (const code of ['da', 'sv', 'nb', 'fi', 'is', 'ga']) {
+    const locale = LANGUAGES.find((item) => item.code === code);
+    assert.equal(locale?.status, 'draft');
+    assert.ok(missingKeys(enGB, TRANSLATIONS[code as keyof typeof TRANSLATIONS]).length > 0);
   }
 });

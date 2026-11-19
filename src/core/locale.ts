@@ -21,14 +21,23 @@ export const LANGUAGES = [
   { code: 'en-GB', nativeName: 'English (UK)', englishName: 'English (UK)', status: 'source' },
   { code: 'en-US', nativeName: 'English (US)', englishName: 'English (US)', status: 'ready' },
   { code: 'en-CA', nativeName: 'English (Canada)', englishName: 'English (Canada)', status: 'ready' },
+  { code: 'en-AU', nativeName: 'English (Australia)', englishName: 'English (Australia)', status: 'ready' },
+  { code: 'en-NZ', nativeName: 'English (New Zealand)', englishName: 'English (New Zealand)', status: 'ready' },
   { code: 'cy', nativeName: 'Cymraeg', englishName: 'Welsh', status: 'draft' },
   { code: 'gd', nativeName: 'Gàidhlig', englishName: 'Scottish Gaelic', status: 'draft' },
   { code: 'fr', nativeName: 'Français', englishName: 'French', status: 'draft' },
+  { code: 'fr-CA', nativeName: 'Français (Canada)', englishName: 'French (Canada)', status: 'draft' },
   { code: 'de', nativeName: 'Deutsch', englishName: 'German', status: 'draft' },
   { code: 'es', nativeName: 'Español', englishName: 'Spanish', status: 'draft' },
   { code: 'nl', nativeName: 'Nederlands', englishName: 'Dutch', status: 'draft' },
   { code: 'it', nativeName: 'Italiano', englishName: 'Italian', status: 'draft' },
   { code: 'pt', nativeName: 'Português', englishName: 'Portuguese', status: 'draft' },
+  { code: 'ga', nativeName: 'Gaeilge', englishName: 'Irish', status: 'draft' },
+  { code: 'da', nativeName: 'Dansk', englishName: 'Danish', status: 'draft' },
+  { code: 'sv', nativeName: 'Svenska', englishName: 'Swedish', status: 'draft' },
+  { code: 'nb', nativeName: 'Norsk bokmål', englishName: 'Norwegian', status: 'draft' },
+  { code: 'fi', nativeName: 'Suomi', englishName: 'Finnish', status: 'draft' },
+  { code: 'is', nativeName: 'Íslenska', englishName: 'Icelandic', status: 'draft' },
 ] as const satisfies readonly LanguageOption[];
 
 export type LanguageCode = (typeof LANGUAGES)[number]['code'];
@@ -44,6 +53,53 @@ export function isLanguageCode(value: unknown): value is LanguageCode {
  */
 export function resolveLanguage(saved: unknown): LanguageCode {
   return isLanguageCode(saved) ? saved : SOURCE_LANGUAGE;
+}
+
+/** The welcome is an explicit first-run choice, including on British-English devices. */
+export function needsLanguageSetup(saved: unknown): boolean {
+  return !isLanguageCode(saved);
+}
+
+/** Other tags that mean one of Kestrel's languages: Norwegian has three codes, and Nynorsk readers read Bokmål. */
+const ALIASES: Record<string, LanguageCode> = { no: 'nb', nn: 'nb' };
+
+/**
+ * The device's own language, matched to one Kestrel has, to *offer* at first run (never applied without asking).
+ * Tries each of the device's preferred languages in order: the exact tag (en-US), then its language (fr-BE → fr,
+ * pt-BR → pt, nb-NO → nb). Australia, New Zealand and Canadian French retain their own choices.
+ * Other English regions use UK wording; an unsupported device language is not silently selected.
+ */
+export function matchDeviceLanguage(preferred: readonly string[] | undefined): LanguageCode | undefined {
+  for (const raw of preferred ?? []) {
+    if (typeof raw !== 'string' || !raw.trim()) continue;
+    const tag = raw.trim().replace(/_/g, '-');
+    const exact = LANGUAGES.find((language) => language.code.toLowerCase() === tag.toLowerCase());
+    if (exact) return exact.code;
+    const parts = tag.toLowerCase().split('-');
+    const base = parts[0];
+    // BCP-47 may include script before region (e.g. fr-Latn-CA).
+    const region = parts.find((part) => /^[a-z]{2}$/.test(part) && part !== base);
+    if (base === 'en') {
+      if (region === 'au') return 'en-AU';
+      if (region === 'nz') return 'en-NZ';
+      if (region === 'us') return 'en-US';
+      if (region === 'ca') return 'en-CA';
+      return 'en-GB';
+    }
+    if (base === 'fr' && region === 'ca') return 'fr-CA';
+    const byBase = LANGUAGES.find((language) => language.code === base) ?? (ALIASES[base] ? languageOption(ALIASES[base]) : undefined);
+    if (byBase) return byBase.code as LanguageCode;
+  }
+  return undefined;
+}
+
+/**
+ * Choose the right word for a number in the active language (Welsh has six forms, Irish five, English two).
+ * Forms not given fall back to `other`.
+ */
+export function plural(count: number, forms: Partial<Record<Intl.LDMLPluralRule, string>> & { other: string }): string {
+  const rule = new Intl.PluralRules(active).select(count);
+  return forms[rule] ?? forms.other;
 }
 
 export function languageOption(code: LanguageCode): LanguageOption {

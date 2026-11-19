@@ -55,6 +55,14 @@ export const enGB = {
     licence: 'Licence and settings',
     version: (version: string) => `Version ${version}`,
   },
+  setup: {
+    welcome: 'Welcome to Kestrel',
+    question: 'Which language would you like?',
+    detected: (name: string) => `Your device is set to ${name}.`,
+    continueIn: (name: string) => `Continue in ${name}`,
+    keepSource: 'Keep English (UK)',
+    later: 'You can change this at any time in Settings.',
+  },
   settings: {
     title: 'Appearance & layout',
     done: 'Done',
