@@ -3,6 +3,8 @@ import { adjustmentFill, signedAdjustment } from '../core/adjustmentSlider';
 
 interface Props {
   label: string;
+  /** Override for context-specific screen-reader clarity (e.g. a mask). */
+  ariaLabel?: string;
   value: number;
   min: number;
   max: number;
@@ -13,6 +15,8 @@ interface Props {
   neutral?: number;
   /** Existing visible units (e.g. EV or %); the actual edit numbers remain unchanged. */
   displayValue?: string;
+  /** Some positioning/size sliders must never reset to a zero outside their range. */
+  resettable?: boolean;
   title?: string;
   /** Optional small hint such as an active macro dial; never replaces the slider name. */
   hint?: string;
@@ -29,8 +33,8 @@ interface Props {
  * keyboard and touch through the numeric-value button.
  */
 export function AdjustmentSlider({
-  label, value, min, max, step, onChange, disabled = false, neutral = 0,
-  displayValue, title, hint, describedBy, onFocus, layout = 'row',
+  label, ariaLabel, value, min, max, step, onChange, disabled = false, neutral = 0,
+  displayValue, resettable = true, title, hint, describedBy, onFocus, layout = 'row',
 }: Props) {
   const id = useId();
   const fill = adjustmentFill(value, min, max, neutral);
@@ -50,18 +54,20 @@ export function AdjustmentSlider({
         )}
         <span className="pointer-events-none absolute h-1 rounded-full bg-kestrel-copper" style={progressStyle} aria-hidden="true" />
         <input id={id} type="range" min={min} max={max} step={step} value={value} disabled={disabled}
-          aria-label={`${label} adjustment`} aria-valuetext={shown} aria-describedby={describedBy}
+          aria-label={ariaLabel ?? `${label} adjustment`} aria-valuetext={shown} aria-describedby={describedBy}
           onFocus={onFocus} onChange={(event) => onChange(event.target.valueAsNumber)}
-          onDoubleClick={() => { if (!disabled) onChange(neutral); }}
+          onDoubleClick={() => { if (!disabled && resettable) onChange(neutral); }}
           className="kestrel-adjustment-range relative z-10 h-11 w-full min-w-0 cursor-pointer disabled:cursor-not-allowed" />
       </span>
-      <button type="button" aria-label={`Reset ${label} to neutral (currently ${shown})`}
-        title={changed ? `Reset ${label} to neutral` : `${label} is neutral`}
-        disabled={disabled || !changed} onClick={(event) => { event.preventDefault(); onChange(neutral); }}
-        className={`min-h-10 min-w-14 justify-self-end rounded-md px-1 text-right font-medium tabular-nums focus-visible:outline-2 focus-visible:outline-sky-300
-        ${changed ? 'text-zinc-100 hover:bg-white/10' : 'cursor-default text-zinc-400'}`}>
-        {shown}
-      </button>
+      {resettable ? (
+        <button type="button" aria-label={`Reset ${label} to neutral (currently ${shown})`}
+          title={changed ? `Reset ${label} to neutral` : `${label} is neutral`}
+          disabled={disabled || !changed} onClick={(event) => { event.preventDefault(); onChange(neutral); }}
+          className={`min-h-10 min-w-14 justify-self-end rounded-md px-1 text-right font-medium tabular-nums focus-visible:outline-2 focus-visible:outline-sky-300
+          ${changed ? 'text-zinc-100 hover:bg-white/10' : 'cursor-default text-zinc-400'}`}>
+          {shown}
+        </button>
+      ) : <output className="min-w-14 justify-self-end text-right text-zinc-200 tabular-nums">{shown}</output>}
     </div>
   );
 }
