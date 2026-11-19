@@ -6,6 +6,20 @@ export interface PhotoFraming {
   y: number;
   /** Crop box size as a fraction of the largest box for the ratio. Absent or 1 means the largest. */
   size?: number;
+  /** The shape was not chosen from the list: dragging an edge or drawing a box may change it. */
+  free?: boolean;
+}
+
+/** The named shapes in the Aspect ratio list. Choosing one fixes the shape for every drag. */
+export const CROP_RATIOS: ReadonlyArray<{ label: string; ratio: number }> = [
+  { label: 'Square', ratio: 1 }, { label: '4:5', ratio: 4 / 5 }, { label: '5:4', ratio: 5 / 4 },
+  { label: '3:2', ratio: 3 / 2 }, { label: '9:16', ratio: 9 / 16 }, { label: '2:3', ratio: 2 / 3 },
+];
+
+/** True when a named ratio was chosen, so edges and drawing must keep it. Original and Free leave the shape open. */
+export function fixedShape(framing: PhotoFraming): boolean {
+  const ratio = framing.ratio;
+  return ratio !== null && !framing.free && CROP_RATIOS.some((choice) => Math.abs(choice.ratio - ratio) < 1e-6);
 }
 
 export const MIN_CROP_SIZE = 0.08;
@@ -46,7 +60,91 @@ export function resizeCrop(
   const left = right ? fixed.x : fixed.x - w;
   const top = bottom ? fixed.y : fixed.y - h;
   const clamp = (value: number) => Math.max(0, Math.min(1, value));
-  return { ...framing, ratio, size: Math.min(1, w / largest), x: clamp((left + w / 2) / width), y: clamp((top + h / 2) / height) };
+  const resized = { ...framing, ratio, size: Math.min(1, w / largest), x: clamp((left + w / 2) / width), y: clamp((top + h / 2) / height) };
+  // From Original, the photo's own shape is kept for this drag but not fixed: the list then reads Free.
+  return framing.ratio === null ? { ...resized, free: true } : resized;
+}
+
+export type CropEdge = 'top' | 'bottom' | 'left' | 'right';
+
+/** The framing whose crop box is this rectangle (pixels of the rotated image). */
+function framingForBox(width: number, height: number, framing: PhotoFraming, box: PixelRect, free: boolean): PhotoFraming {
+  const ratio = box.width / box.height;
+  const largest = Math.min(width, height * ratio);
+  const next: PhotoFraming = {
+    ...framing, ratio, size: Math.min(1, box.width / largest),
+    x: Math.max(0, Math.min(1, (box.x + box.width / 2) / width)), y: Math.max(0, Math.min(1, (box.y + box.height / 2) / height)),
+  };
+  if (free) next.free = true; else delete next.free;
+  return next;
+}
+
+const clampTo = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value));
+
+/**
+ * Drag one edge of the crop box to a point. The opposite edge stays put. With an open shape (Original or Free) only
+ * that edge moves; with a named ratio the box keeps it, growing or shrinking about its centre along the other side.
+ */
+export function resizeCropEdge(
+  width: number, height: number, framing: PhotoFraming, edge: CropEdge, pointer: { x: number; y: number },
+): PhotoFraming {
+  const ratio = framing.ratio ?? width / height;
+  const box = cropRectangle(width, height, { ...framing, ratio });
+  const right = box.x + box.width;
+  const bottom = box.y + box.height;
+  const vertical = edge === 'top' || edge === 'bottom';
+  if (!fixedShape(framing)) {
+    const minW = width * MIN_CROP_SIZE;
+    const minH = height * MIN_CROP_SIZE;
+    const next = { ...box };
+    if (edge === 'top') { next.y = clampTo(pointer.y, 0, bottom - minH); next.height = bottom - next.y; }
+    if (edge === 'bottom') next.height = clampTo(pointer.y, box.y + minH, height) - box.y;
+    if (edge === 'left') { next.x = clampTo(pointer.x, 0, right - minW); next.width = right - next.x; }
+    if (edge === 'right') next.width = clampTo(pointer.x, box.x + minW, width) - box.x;
+    return framingForBox(width, height, framing, next, true);
+  }
+  const smallest = Math.min(width, height * ratio) * MIN_CROP_SIZE;
+  if (vertical) {
+    const room = edge === 'top' ? bottom : height - box.y;
+    const h = clampTo(edge === 'top' ? bottom - pointer.y : pointer.y - box.y, smallest / ratio, Math.min(room, width / ratio));
+    const w = h * ratio;
+    const x = clampTo(box.x + box.width / 2 - w / 2, 0, width - w);
+    return framingForBox(width, height, framing, { x, y: edge === 'top' ? bottom - h : box.y, width: w, height: h }, false);
+  }
+  const room = edge === 'left' ? right : width - box.x;
+  const w = clampTo(edge === 'left' ? right - pointer.x : pointer.x - box.x, smallest, Math.min(room, height * ratio));
+  const h = w / ratio;
+  const y = clampTo(box.y + box.height / 2 - h / 2, 0, height - h);
+  return framingForBox(width, height, framing, { x: edge === 'left' ? right - w : box.x, y, width: w, height: h }, false);
+}
+
+/**
+ * Draw a new crop box from where the drag started to where the pointer is now. A named ratio is kept, anchored at the
+ * starting point; otherwise the box is exactly the dragged rectangle. Never outside the photo, never below the minimum.
+ */
+export function drawCrop(
+  width: number, height: number, framing: PhotoFraming, start: { x: number; y: number }, end: { x: number; y: number },
+): PhotoFraming {
+  const from = { x: clampTo(start.x, 0, width), y: clampTo(start.y, 0, height) };
+  const to = { x: clampTo(end.x, 0, width), y: clampTo(end.y, 0, height) };
+  const rightward = to.x >= from.x;
+  const downward = to.y >= from.y;
+  let w: number;
+  let h: number;
+  if (fixedShape(framing)) {
+    const ratio = framing.ratio!;
+    const smallest = Math.min(width, height * ratio) * MIN_CROP_SIZE;
+    w = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y) * ratio);
+    w = Math.min(Math.max(w, smallest), width, height * ratio);
+    h = w / ratio;
+  } else {
+    w = Math.min(Math.max(Math.abs(to.x - from.x), width * MIN_CROP_SIZE), width);
+    h = Math.min(Math.max(Math.abs(to.y - from.y), height * MIN_CROP_SIZE), height);
+  }
+  // Near an edge the box slides inwards rather than shrinking below what was dragged.
+  const x = clampTo(rightward ? from.x : from.x - w, 0, width - w);
+  const y = clampTo(downward ? from.y : from.y - h, 0, height - h);
+  return framingForBox(width, height, framing, { x, y, width: w, height: h }, !fixedShape(framing));
 }
 
 /** Estimate a crop anchor from local detail in a small preview. */

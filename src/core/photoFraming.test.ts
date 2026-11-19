@@ -113,3 +113,66 @@ test('the preview keeps the crop size once the crop tool is closed, and shows th
   assert.equal(cropRectangle(6000, 4000, open).width, 6000);
   assert.ok(cropRectangle(6000, 4000, displayFramingFor(saved, false)).width < 6000);
 });
+
+import { drawCrop, fixedShape, resizeCropEdge } from './photoFraming';
+
+test('with an open shape, pulling one edge moves only that edge', () => {
+  for (const edge of ['top', 'bottom', 'left', 'right'] as const) {
+    const pointer = { top: { x: 0, y: 1000 }, bottom: { x: 0, y: 3000 }, left: { x: 1500, y: 0 }, right: { x: 4500, y: 0 } }[edge];
+    const framing = resizeCropEdge(6000, 4000, FRAMING, edge, pointer);
+    const box = cropRectangle(6000, 4000, framing);
+    const expected = {
+      top: { x: 0, y: 1000, width: 6000, height: 3000 }, bottom: { x: 0, y: 0, width: 6000, height: 3000 },
+      left: { x: 1500, y: 0, width: 4500, height: 4000 }, right: { x: 0, y: 0, width: 4500, height: 4000 },
+    }[edge];
+    for (const key of ['x', 'y', 'width', 'height'] as const) assert.ok(Math.abs(box[key] - expected[key]) <= 1, `${edge} ${key}: ${box[key]}`);
+    assert.equal(framing.free, true, 'the list then reads Free');
+  }
+});
+
+test('with a named ratio, pulling an edge keeps the ratio and the opposite edge', () => {
+  const start = { ...FRAMING, ratio: 4 / 5, size: 0.8 };
+  const before = cropRectangle(6000, 4000, start);
+  const framing = resizeCropEdge(6000, 4000, start, 'top', { x: 0, y: before.y + 600 });
+  const box = cropRectangle(6000, 4000, framing);
+  assert.ok(Math.abs(box.width / box.height - 0.8) < 0.01);
+  assert.ok(Math.abs(box.y + box.height - (before.y + before.height)) <= 1, 'bottom stays');
+  assert.ok(Math.abs(box.height - (before.height - 600)) <= 1);
+  assert.ok(Math.abs(box.x + box.width / 2 - (before.x + before.width / 2)) <= 1, 'stays centred across');
+  assert.ok(fixedShape(framing) && !framing.free);
+});
+
+test('an edge cannot pass the opposite edge or leave the photo', () => {
+  const squashed = cropRectangle(6000, 4000, resizeCropEdge(6000, 4000, FRAMING, 'top', { x: 0, y: 99999 }));
+  assert.ok(squashed.height >= 4000 * 0.08 - 1 && squashed.y + squashed.height <= 4000);
+  const square = { ...FRAMING, ratio: 1, size: 0.5 };
+  const grown = cropRectangle(6000, 4000, resizeCropEdge(6000, 4000, square, 'right', { x: 99999, y: 0 }));
+  assert.ok(grown.x >= 0 && grown.y >= 0 && grown.x + grown.width <= 6000 && grown.y + grown.height <= 4000);
+  assert.ok(Math.abs(grown.width - grown.height) <= 1);
+});
+
+test('drawing a box gives exactly the dragged rectangle, in any direction', () => {
+  const forward = cropRectangle(6000, 4000, drawCrop(6000, 4000, FRAMING, { x: 1000, y: 500 }, { x: 4000, y: 2500 }));
+  const backward = cropRectangle(6000, 4000, drawCrop(6000, 4000, FRAMING, { x: 4000, y: 2500 }, { x: 1000, y: 500 }));
+  for (const box of [forward, backward]) {
+    assert.ok(Math.abs(box.x - 1000) <= 1 && Math.abs(box.y - 500) <= 1, JSON.stringify(box));
+    assert.ok(Math.abs(box.width - 3000) <= 1 && Math.abs(box.height - 2000) <= 1, JSON.stringify(box));
+  }
+});
+
+test('drawing keeps a named ratio, stays inside the photo and above the minimum', () => {
+  const framing = drawCrop(6000, 4000, { ...FRAMING, ratio: 1 }, { x: 5000, y: 3000 }, { x: 9000, y: 3100 });
+  const box = cropRectangle(6000, 4000, framing);
+  assert.ok(Math.abs(box.width - box.height) <= 1);
+  assert.ok(box.x + box.width <= 6000 && box.y + box.height <= 4000);
+  assert.equal(framing.ratio, 1);
+  const dot = cropRectangle(6000, 4000, drawCrop(6000, 4000, FRAMING, { x: 100, y: 100 }, { x: 101, y: 101 }));
+  assert.ok(dot.width >= 6000 * 0.08 - 1 && dot.height >= 4000 * 0.08 - 1);
+});
+
+test('only a ratio chosen from the list fixes the shape', () => {
+  assert.equal(fixedShape(FRAMING), false);
+  assert.equal(fixedShape({ ...FRAMING, ratio: 1.5 }), true);
+  assert.equal(fixedShape({ ...FRAMING, ratio: 1.5, free: true }), false);
+  assert.equal(fixedShape({ ...FRAMING, ratio: 4 / 3 }), false, 'a shape no list entry names stays open');
+});

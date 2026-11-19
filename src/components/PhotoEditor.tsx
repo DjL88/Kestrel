@@ -5,7 +5,7 @@ import { messages as m } from '../i18n/messages';
 import { ChevronDown, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, Settings2, SlidersHorizontal, Square, SquircleDashed, Undo2, Wand2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
-import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFramedPhoto, estimateLevel, framedSize, resizeCrop, thirdsCropAnchor, type CropCorner, type PhotoFraming } from '../core/photoFraming';
+import { CROP_RATIOS, DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawCrop, drawFramedPhoto, estimateLevel, fixedShape, framedSize, resizeCrop, resizeCropEdge, thirdsCropAnchor, type CropCorner, type CropEdge, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
 import { AppearanceDialog } from './AppearanceDialog';
 import { downloadExport } from '../providers/browserExport';
@@ -236,6 +236,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [gridLines, setGridLines] = useState(true);
   const [cropNotice, setCropNotice] = useState('');
   const cropDrag = useRef<{ x: number; y: number; anchorX: number; anchorY: number } | null>(null);
+  // Drawing a new crop box with a mouse or pen: where it started, in photo pixels and on screen.
+  const cropDraw = useRef<{ start: { x: number; y: number }; client: { x: number; y: number }; moved: boolean } | null>(null);
+  const edgeDrag = useRef<{ edge: CropEdge; x: number; y: number; point: { x: number; y: number } } | null>(null);
   const [markFocus, setMarkFocus] = useState(false);
   const [transform, setTransform] = useState({ zoom: 1, pan: { x: 0, y: 0 } });
   const [eyeNote, setEyeNote] = useState<string | null>(null);
@@ -1062,8 +1065,33 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             {tab === 'masks' && selectingArea && !guide && position && size && !displayCompare && (
               <AreaSelector rect={position} onSelect={(region) => void findInArea(region)} onCancel={() => setSelectingArea(false)} />
             )}
+            {/* Drag across the photo with a mouse or pen to draw a new crop box. Touch keeps pinch and pan; the handles
+                work everywhere. */}
+            {cropRect && position && size && <div data-testid="crop-draw-surface" aria-hidden="true" className="absolute cursor-crosshair" style={position}
+              onPointerDown={(event) => {
+                if (event.button !== 0 || event.pointerType === 'touch') return;
+                event.stopPropagation();
+                event.currentTarget.setPointerCapture(event.pointerId);
+                const bounds = event.currentTarget.getBoundingClientRect();
+                cropDraw.current = {
+                  start: { x: (event.clientX - bounds.left) / bounds.width * size.width, y: (event.clientY - bounds.top) / bounds.height * size.height },
+                  client: { x: event.clientX, y: event.clientY }, moved: false,
+                };
+              }}
+              onPointerMove={(event) => {
+                const draw = cropDraw.current;
+                if (!draw || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+                // A click, or a wobble of a few pixels, never replaces the crop.
+                if (!draw.moved && Math.hypot(event.clientX - draw.client.x, event.clientY - draw.client.y) < 6) return;
+                draw.moved = true;
+                const bounds = event.currentTarget.getBoundingClientRect();
+                onFramingChange(drawCrop(size.width, size.height, framing, draw.start,
+                  { x: (event.clientX - bounds.left) / bounds.width * size.width, y: (event.clientY - bounds.top) / bounds.height * size.height }));
+              }}
+              onLostPointerCapture={() => { cropDraw.current = null; }}
+              onDoubleClick={(event) => event.stopPropagation()} />}
             {cropRect && <div style={cropRect}
-              className={`crop-guide absolute border border-white/90 ${gridLines ? 'crop-thirds' : ''} ${framing.ratio ? 'cursor-move' : 'pointer-events-none'}`}
+              className={`crop-guide absolute border border-white/90 ${gridLines ? 'crop-thirds' : ''} ${framing.ratio && !(outputSize && size && outputSize.width >= size.width - 1 && outputSize.height >= size.height - 1) ? 'cursor-move' : 'pointer-events-none'}`}
               onPointerDown={(event) => {
                 if (!framing.ratio) return;
                 event.stopPropagation();
@@ -1116,6 +1144,50 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   </button>
                 );
               })}
+              {outputSize && size && fit > 0 && cropRect && (['top', 'bottom', 'left', 'right'] as CropEdge[])
+                // Only where there is room between the corner handles.
+                .filter((edge) => (edge === 'top' || edge === 'bottom' ? cropRect.width : cropRect.height) >= 132)
+                .map((edge) => {
+                  const across = edge === 'top' || edge === 'bottom';
+                  const point = {
+                    x: outputSize.x + (edge === 'right' ? outputSize.width : edge === 'left' ? 0 : outputSize.width / 2),
+                    y: outputSize.y + (edge === 'bottom' ? outputSize.height : edge === 'top' ? 0 : outputSize.height / 2),
+                  };
+                  const apply = (target: { x: number; y: number }) => onFramingChange(resizeCropEdge(size.width, size.height, framing, edge, target));
+                  return (
+                    <button key={edge} type="button" aria-label={`Crop edge, ${edge}. Arrow keys move it.`} title="Drag to move this edge of the crop"
+                      className="pointer-events-auto absolute grid h-11 w-11 touch-none place-items-center focus-visible:outline-none"
+                      style={{
+                        ...(across ? { left: '50%', marginLeft: -22, [edge]: -22 } : { top: '50%', marginTop: -22, [edge]: -22 }),
+                        cursor: across ? 'ns-resize' : 'ew-resize',
+                      }}
+                      onPointerDown={(event) => {
+                        event.stopPropagation();
+                        event.currentTarget.setPointerCapture(event.pointerId);
+                        edgeDrag.current = { edge, x: event.clientX, y: event.clientY, point };
+                      }}
+                      onPointerMove={(event) => {
+                        const start = edgeDrag.current;
+                        if (!start || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+                        const scale = fit * transform.zoom;
+                        apply({ x: start.point.x + (event.clientX - start.x) / scale, y: start.point.y + (event.clientY - start.y) / scale });
+                      }}
+                      onLostPointerCapture={() => { edgeDrag.current = null; }}
+                      onDoubleClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => {
+                        const step = size.width * (event.shiftKey ? 0.05 : 0.01);
+                        const delta = across
+                          ? { ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key as 'ArrowUp' | 'ArrowDown']
+                          : { ArrowLeft: [-step, 0], ArrowRight: [step, 0] }[event.key as 'ArrowLeft' | 'ArrowRight'];
+                        if (!delta) return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        apply({ x: point.x + delta[0], y: point.y + delta[1] });
+                      }}>
+                      <span className={`${across ? 'h-1.5 w-5' : 'h-5 w-1.5'} border border-white bg-white/90 shadow-[0_0_0_1.5px_#000]`} />
+                    </button>
+                  );
+                })}
             </div>}
           </>}
           overlay={<>
@@ -1422,7 +1494,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               <button type="button" disabled={sourceState !== 'ready'} className={`${button} border border-white/15`}
                 onClick={() => { if (cropEntry.current) onFramingChange(cropEntry.current); setTab('edit'); }}>Cancel</button>
             </div>
-            <p className="px-1 text-xs text-zinc-400">Drag the corners or the box on the photo. Changes are saved as you go. Apply returns to the editing view with the crop in place, and Cancel puts back the crop you started with.</p>
+            <p className="px-1 text-xs text-zinc-400">Drag across the photo to draw a crop, or drag its corners, edges or middle. Pick a shape below to keep it while you drag. Changes are saved as you go. Apply returns to the editing view with the crop in place, and Cancel puts back the crop you started with.</p>
           <fieldset disabled={sourceState !== 'ready'} className="space-y-2">
             <div className="flex flex-wrap">
               <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={createCropCopy}>
@@ -1453,15 +1525,17 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                 Aspect ratio
               </span>
               <span className="relative inline-flex min-w-0 max-w-[60%] shrink-0 items-center">
-                <select aria-label="Crop aspect ratio" value={framing.ratio ?? ''} onChange={(event) => onFramingChange({ ...framing, ratio: Number(event.target.value) || null })}
+                <select aria-label="Crop aspect ratio" value={framing.ratio === null ? '' : fixedShape(framing) ? String(framing.ratio) : 'free'}
+                  onChange={(event) => {
+                    const { free: _free, ...rest } = framing;
+                    const value = event.target.value;
+                    if (value === 'free') onFramingChange({ ...rest, ratio: framing.ratio ?? (size ? size.width / size.height : null), free: true });
+                    else onFramingChange({ ...rest, ratio: Number(value) || null });
+                  }}
                   className="min-h-11 w-full min-w-0 appearance-none truncate rounded-md border border-white/10 bg-[#252830] py-2 pl-3 pr-10 text-sm text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
                   <option value="">Original</option>
-                  <option value={1}>Square</option>
-                  <option value={4 / 5}>4:5</option>
-                  <option value={5 / 4}>5:4</option>
-                  <option value={3 / 2}>3:2</option>
-                  <option value={9 / 16}>9:16</option>
-                  <option value={2 / 3}>2:3</option>
+                  <option value="free">Free</option>
+                  {CROP_RATIOS.map((choice) => <option key={choice.label} value={String(choice.ratio)}>{choice.label}</option>)}
                 </select>
                 <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 h-4 w-4 shrink-0 stroke-[1.75] text-zinc-300" />
               </span>
