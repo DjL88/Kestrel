@@ -78,3 +78,14 @@ test('a missing analysis result fails closed instead of being marked a keeper', 
   const results = finaliseCullEvidence(['missing'], new Map(), new Set(), new Map(), true);
   assert.deepEqual(results[0], { frameId: 'missing', decision: null, confidence: 'low', score: 0, reason: 'unavailable' });
 });
+
+test('failure of either evidence producer rejects rather than publishing partial results', async () => {
+  await assert.rejects(collectCullEvidence(
+    async () => [subject('bird')],
+    async () => { throw new Error('hash read failed'); },
+  ), /hash read failed/);
+  await assert.rejects(collectCullEvidence(
+    async () => { throw new Error('analysis cancelled'); },
+    async () => new Set<string>(),
+  ), /analysis cancelled/);
+});
