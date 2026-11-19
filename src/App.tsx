@@ -228,6 +228,8 @@ export default function App() {
   } | null>(null);
   /** The one import that may run at a time, and how to stop it. A second import would duplicate photos still in flight. */
   const importRef = useRef<{ projectId: string; controller: AbortController } | null>(null);
+  // Prevent new import batches from being committed once project navigation begins.
+  const leavingRef = useRef(false);
   const stopImport = useCallback(() => { importRef.current?.controller.abort(); }, []);
   const projectsOpenRef = useRef(projectsOpen);
   projectsOpenRef.current = projectsOpen;
@@ -304,6 +306,7 @@ export default function App() {
     setZoomLevel(1);
     setPanOffset({ x: 0, y: 0 });
     setPrefs((prev) => ({ ...prev, viewMode: 'grid' }));
+    leavingRef.current = false;
     setProjectsOpen(false);
   }
 
@@ -450,11 +453,20 @@ export default function App() {
     const store = storeRef.current!;
     setProjectBusy(true);
     setProjectError(undefined);
+    // Freeze incoming results *before* the asynchronous save. Otherwise an in-flight
+    // import batch may be added after the saved project snapshot has been taken.
+    leavingRef.current = true;
+    stopImport();
+    autoWorker.current?.controller.abort();
+    autoPendingIds.current.clear();
+    setAutoCullOpen(false);
+    setAutoCullHidden(false);
     try {
-      await store.saveProject(cullingState);
+      await store.saveProject(stateRef.current);
       setProjects(await store.listProjects());
       setProjectsOpen(true);
     } catch {
+      leavingRef.current = false;
       setProjectError('Could not save the project. Keep this tab open and retry after freeing storage.');
     } finally {
       setProjectBusy(false);
@@ -1341,20 +1353,26 @@ export default function App() {
     let lastShown = 0;
     const show = () => {
       if (!waiting.length) return;
+      if (leavingRef.current || projectsOpenRef.current || stateRef.current.shoot.id !== targetProjectId) {
+        waiting = [];
+        controller.abort();
+        return;
+      }
       const batch = waiting;
       for (const frame of batch) appended.add(frame.stableKey);
       waiting = [];
       lastShown = Date.now();
-      setCullingState((prev) => (prev.shoot.id !== targetProjectId ? prev : appendProjectPhotos(prev, batch, importId)));
+      setCullingState((prev) => (leavingRef.current || projectsOpenRef.current || prev.shoot.id !== targetProjectId
+        ? prev : appendProjectPhotos(prev, batch, importId)));
     };
     try {
       const { frames, unstoredKeys, uncachedPreviewKeys, failedNames, stopped } = await loadLocalFileListShoot(
         additions, previewProviderRef.current!, storeRef.current!,
         ({ frames: soFar, loaded, total }) => {
+          // Import is progressive, but saving a project is an atomic boundary.
+          if (leavingRef.current || projectsOpenRef.current || stateRef.current.shoot.id !== targetProjectId) { controller.abort(); return; }
           setLoadingProgress({ loaded, total });
           task?.progress(loaded, total);
-          // Leaving the project stops its import: photos must never be appended to a different project.
-          if (stateRef.current.shoot.id !== targetProjectId) { controller.abort(); return; }
           if (!progressive) return;
           for (const frame of soFar) if (!shown.has(frame.stableKey)) { shown.add(frame.stableKey); waiting.push(frame); }
           // A few photos at a time, not one save of the whole project per photo.
@@ -1362,7 +1380,7 @@ export default function App() {
         },
         { allowPartial: !options?.watched, signal: controller.signal },
       );
-      if (projectsOpenRef.current && progressive) {
+      if ((projectsOpenRef.current || leavingRef.current) && progressive) {
         // The project was closed: what was added before closing is saved; nothing more is added to a closed project.
         task?.finish(`Stopped when the project was closed; ${appended.size} photos were added.`);
         return;
