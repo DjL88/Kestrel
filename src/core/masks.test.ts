@@ -269,7 +269,7 @@ test('local noise reduction changes chroma only inside its mask and respects neu
 
   const result = new Uint8ClampedArray(base);
   applyMasks(result, width, height, [local], fullContext(width, height));
-  const inside = (24 * width + 19) * 4;
+  const inside = (24 * width + 20) * 4;
   const outside = (24 * width + 61) * 4;
   assert.notDeepEqual(Array.from(result.slice(inside, inside + 3)), Array.from(base.slice(inside, inside + 3)),
     'chromatic noise changes within the mask');
