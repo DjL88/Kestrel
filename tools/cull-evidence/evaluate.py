@@ -6,6 +6,7 @@ No model is run here; results describe only the supplied labelled evidence.
 """
 import argparse
 import json
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -13,6 +14,7 @@ TRUTH = {"bird", "aircraft", "person", "other-animal", "other"}
 PREDICTED = TRUTH | {"unknown"}
 DECISIONS = {"keep", "review", "reject"}
 PROVENANCE = {"real-labelled", "synthetic"}
+SUBJECT_SIZE = {"normal", "tiny", "distant", "unknown"}
 
 
 def evaluate(records):
@@ -24,23 +26,36 @@ def evaluate(records):
         if not isinstance(record, dict):
             raise ValueError(f"record {line}: expected object")
         required = {"id", "truth", "predicted", "decision", "keeper", "auto_species", "provenance"}
-        if set(record) != required:
+        if not (set(record) == required or set(record) == required | {"subject_size"}):
             raise ValueError(f"record {line}: fields missing or unexpected: {sorted(required ^ set(record))}")
         ident = record["id"]
-        if not isinstance(ident, str) or not ident or "/" in ident or chr(92) in ident or ident.strip() != ident:
+        if not isinstance(ident, str) or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}", ident) is None:
             raise ValueError(f"record {line}: invalid anonymous id")
         if ident.casefold() in seen:
             raise ValueError(f"record {line}: duplicate id")
         seen.add(ident.casefold())
         truth, predicted, decision = record["truth"], record["predicted"], record["decision"]
-        if truth not in TRUTH or predicted not in PREDICTED or decision not in DECISIONS:
+        if not (isinstance(truth, str) and truth in TRUTH and isinstance(predicted, str) and predicted in PREDICTED and isinstance(decision, str) and decision in DECISIONS):
             raise ValueError(f"record {line}: invalid class or decision")
-        if type(record["keeper"]) is not bool or record["provenance"] not in PROVENANCE:
+        if type(record["keeper"]) is not bool or not isinstance(record["provenance"], str) or record["provenance"] not in PROVENANCE:
             raise ValueError(f"record {line}: invalid keeper/provenance")
         species = record["auto_species"]
         if species is not None and (not isinstance(species, str) or not species.strip()):
             raise ValueError(f"record {line}: invalid auto_species")
+        size = record.get("subject_size", "unknown")
+        if not isinstance(size, str) or size not in SUBJECT_SIZE:
+            raise ValueError(f"record {line}: invalid subject_size")
         counts["total"] += 1
+        if truth == "bird":
+            counts[f"bird_size_{size}"] += 1
+            if size in {"tiny", "distant"}:
+                counts["small_bird_total"] += 1
+                if predicted == "unknown":
+                    counts["small_bird_abstained"] += 1
+                if decision == "review":
+                    counts["small_bird_review"] += 1
+                if record["keeper"] and decision == "reject":
+                    counts["small_bird_false_auto_reject"] += 1
         counts[record["provenance"]] += 1
         counts[f"truth_{truth}"] += 1
         matrix[(truth, predicted)] += 1
@@ -71,6 +86,11 @@ def evaluate(records):
         "confusion": {truth: {pred: matrix[(truth, pred)] for pred in sorted(PREDICTED)} for truth in sorted(TRUTH)},
         "abstained_subject": counts["abstained_subject"],
         "review_only": counts["review_only"],
+        "bird_size_counts": {size: counts[f"bird_size_{size}"] for size in sorted(SUBJECT_SIZE)},
+        "small_bird_total": counts["small_bird_total"],
+        "small_bird_abstained": counts["small_bird_abstained"],
+        "small_bird_review": counts["small_bird_review"],
+        "small_bird_false_auto_reject": counts["small_bird_false_auto_reject"],
         "false_auto_reject": counts["false_auto_reject"],
         "auto_species": counts["auto_species"],
         "unsafe_nonanimal_species": counts["unsafe_nonanimal_species"],
