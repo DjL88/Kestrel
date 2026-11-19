@@ -22,7 +22,7 @@ export interface SubjectGrid { w: number; h: number; data: string }
 
 export type MaskShape =
   | { kind: 'linear'; x1: number; y1: number; x2: number; y2: number }
-  | { kind: 'radial'; cx: number; cy: number; rx: number; ry: number }
+  | { kind: 'radial'; cx: number; cy: number; rx: number; ry: number; /** Clockwise in image coordinates; absent in older recipes means zero. */ angle?: number }
   | { kind: 'brush'; strokes: BrushStroke[] }
   /**
    * Found by the on-device model for the framing named by framingKey. Strokes refine it: paint adds, erase removes.
@@ -64,7 +64,7 @@ export function hasActiveMasks(masks: Mask[] | undefined): boolean {
 export function createMask(kind: Exclude<Mask['kind'], 'subject'>, id: string): Mask {
   const common = { id, invert: false, feather: 0.5, edit: {} as LocalEdit };
   if (kind === 'linear') return { ...common, kind, x1: 0.5, y1: 0.12, x2: 0.5, y2: 0.55 };
-  if (kind === 'radial') return { ...common, kind, cx: 0.5, cy: 0.5, rx: 0.25, ry: 0.18 };
+  if (kind === 'radial') return { ...common, kind, cx: 0.5, cy: 0.5, rx: 0.25, ry: 0.18, angle: 0 };
   return { ...common, kind: 'brush', strokes: [], feather: 0.6 };
 }
 
@@ -122,7 +122,7 @@ export function validMasks(value: unknown): value is Mask[] {
     if (typeof edit !== 'object' || edit === null) return false;
     if (!Object.entries(edit).every(([key, number]) => (LOCAL_KEYS as readonly string[]).includes(key) && finite(number, -2, 2))) return false;
     if (mask.kind === 'linear') return ['x1', 'y1', 'x2', 'y2'].every((key) => finite(mask[key], -2, 3));
-    if (mask.kind === 'radial') return finite(mask.cx, -2, 3) && finite(mask.cy, -2, 3) && finite(mask.rx, 0.001, 5) && finite(mask.ry, 0.001, 5);
+    if (mask.kind === 'radial') return finite(mask.cx, -2, 3) && finite(mask.cy, -2, 3) && finite(mask.rx, 0.001, 5) && finite(mask.ry, 0.001, 5) && (mask.angle === undefined || finite(mask.angle, -180, 180));
     const strokesValid = (strokes: unknown) => Array.isArray(strokes) && strokes.length <= 300 && strokes.every((stroke) => {
       if (typeof stroke !== 'object' || stroke === null) return false;
       const { radius, erase, points } = stroke as Record<string, unknown>;
