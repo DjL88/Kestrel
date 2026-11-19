@@ -186,11 +186,11 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const panelScroll = useRef<HTMLDivElement>(null);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const isPhone = useMediaQuery('(max-width: 899px), (max-height: 549px)');
-  const toolsHidden = focusPhoto || toolsCollapsed || (isPhone && !sheetOpen);
   // On a phone the tools open as a sheet above the bar. Tapping the open tab again folds it away for a full-height photo.
   const [sheetOpen, setSheetOpen] = useState(() => {
     try { return localStorage.getItem(SHEET_KEY) !== 'closed'; } catch { return true; }
   });
+  const toolsHidden = focusPhoto || toolsCollapsed || (isPhone && !sheetOpen);
   const rememberSheet = (open: boolean) => {
     setSheetOpen(open);
     try { localStorage.setItem(SHEET_KEY, open ? 'open' : 'closed'); } catch { /* the sheet still works for this session */ }
