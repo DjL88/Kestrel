@@ -1,4 +1,4 @@
-import { detailParams, editParams, hasDetail, type PhotoEdit } from '../core/photoEdits';
+import { DETAIL_CORE, detailParams, editParams, hasDetail, type PhotoEdit } from '../core/photoEdits';
 
 const VERTEX = `#version 300 es
 in vec2 p;
@@ -65,6 +65,7 @@ const DETAIL = `#version 300 es
 precision highp float;
 uniform sampler2D tone;
 uniform float sharpen, texture_, clarity, sharpenLod, textureLod_, clarityLod;
+float coreDetail(float b) { return b * b * b / (b * b + ${DETAIL_CORE} * ${DETAIL_CORE}); }
 in vec2 uv;
 out vec4 outColour;
 float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
@@ -74,9 +75,18 @@ void main() {
   vec4 t = texture(tone, at);
   float l = luma(t.rgb);
   float add = 0.0;
-  if (sharpen != 0.0) add += sharpen * (l - luma(textureLod(tone, at, sharpenLod).rgb));
-  if (texture_ != 0.0) add += texture_ * (l - luma(textureLod(tone, at, textureLod_).rgb));
-  if (clarity != 0.0) add += clarity * 4.0 * l * (1.0 - l) * (l - luma(textureLod(tone, at, clarityLod).rgb));
+  // Same as applyDetail in photoEdits.ts: positive Texture and Clarity boost a soft-cored band measured from a lightly
+  // smoothed copy, so noise in smooth backgrounds is not amplified; negative amounts soften everything.
+  float fine = luma(textureLod(tone, at, sharpenLod).rgb);
+  if (sharpen != 0.0) add += sharpen * (l - fine);
+  if (texture_ != 0.0) {
+    float tb = luma(textureLod(tone, at, textureLod_).rgb);
+    add += texture_ * (texture_ > 0.0 ? coreDetail(fine - tb) : l - tb);
+  }
+  if (clarity != 0.0) {
+    float cb = luma(textureLod(tone, at, clarityLod).rgb);
+    add += clarity * 4.0 * l * (1.0 - l) * (clarity > 0.0 ? coreDetail(fine - cb) : l - cb);
+  }
   outColour = vec4(clamp(t.rgb + add, 0.0, 1.0), t.a);
 }`;
 

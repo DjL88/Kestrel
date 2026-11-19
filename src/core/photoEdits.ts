@@ -154,6 +154,16 @@ function boxBlur(source: Float32Array, width: number, height: number, radius: nu
 }
 
 /** CPU reference for texture, clarity and sharpening. Adds the same luminance detail to every channel. */
+/**
+ * Texture and Clarity must not turn the noise in a smooth, out-of-focus background into grain (owner feedback, seen on
+ * _DJL5983 at Texture 13, Clarity 45). When they add detail they work on a band measured from a lightly smoothed copy
+ * (so single-pixel noise is not part of what they boost), and that band is soft-cored: values near the noise floor fade
+ * out, feather-scale detail passes. Negative amounts still soften everything, noise included. The GPU renderer
+ * (webglEdit.ts) uses the same formula.
+ */
+export const DETAIL_CORE = 0.008;
+export const coreDetail = (band: number) => band * band * band / (band * band + DETAIL_CORE * DETAIL_CORE);
+
 export function applyDetail(pixels: Uint8ClampedArray, width: number, height: number, edit: PhotoEdit, imageEdge: number): void {
   if (!hasDetail(edit)) return;
   const d = detailParams(edit, imageEdge);
@@ -161,15 +171,15 @@ export function applyDetail(pixels: Uint8ClampedArray, width: number, height: nu
   for (let i = 0; i < luma.length; i += 1) {
     luma[i] = (0.2126 * pixels[i * 4] + 0.7152 * pixels[i * 4 + 1] + 0.0722 * pixels[i * 4 + 2]) / 255;
   }
-  const sharpBlur = d.sharpen ? boxBlur(luma, width, height, d.sharpenRadius) : null;
+  const sharpBlur = d.sharpen || d.texture > 0 || d.clarity > 0 ? boxBlur(luma, width, height, d.sharpenRadius) : null;
   const textureBlur = d.texture ? boxBlur(luma, width, height, d.textureRadius) : null;
   const clarityBlur = d.clarity ? boxBlur(luma, width, height, d.clarityRadius) : null;
   for (let i = 0; i < luma.length; i += 1) {
     const l = luma[i];
     let add = 0;
-    if (sharpBlur) add += d.sharpen * (l - sharpBlur[i]);
-    if (textureBlur) add += d.texture * (l - textureBlur[i]);
-    if (clarityBlur) add += d.clarity * 4 * l * (1 - l) * (l - clarityBlur[i]);
+    if (d.sharpen) add += d.sharpen * (l - sharpBlur![i]);
+    if (textureBlur) add += d.texture * (d.texture > 0 ? coreDetail(sharpBlur![i] - textureBlur[i]) : l - textureBlur[i]);
+    if (clarityBlur) add += d.clarity * 4 * l * (1 - l) * (d.clarity > 0 ? coreDetail(sharpBlur![i] - clarityBlur[i]) : l - clarityBlur[i]);
     const j = i * 4;
     pixels[j] = Math.round(Math.min(1, Math.max(0, pixels[j] / 255 + add)) * 255);
     pixels[j + 1] = Math.round(Math.min(1, Math.max(0, pixels[j + 1] / 255 + add)) * 255);
