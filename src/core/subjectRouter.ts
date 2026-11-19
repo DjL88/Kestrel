@@ -130,7 +130,7 @@ export const GATE_MASS = { allow: 0.6, block: 0.6 } as const;
  * animals the list does not cover; a name is offered only if the species model is much more certain than usual.
  */
 export function speciesGate(result: RouteResult | null): SpeciesGate {
-  if (!result) return 'allow'; // The router model is not installed: keep today's behaviour rather than silently blocking.
+  if (!result) return 'block'; // No independent category evidence: never infer a species from a closed animal-only list.
   if (result.speciesProbability >= GATE_MASS.allow) return 'allow';
   if (1 - result.animalProbability >= GATE_MASS.block) return 'block';
   return 'strict';
