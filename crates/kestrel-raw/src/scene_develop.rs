@@ -536,7 +536,7 @@ mod timing {
         for entry in std::fs::read_dir(dir).unwrap().filter_map(|e| e.ok()) {
             let bytes = std::fs::read(entry.path()).unwrap();
             let t = std::time::Instant::now();
-            let jpeg = crate::raw::develop(&bytes);
+            let jpeg = crate::develop_jpeg(&bytes);
             let ms = t.elapsed().as_millis();
             let size = jpeg.as_ref().ok().and_then(|j| image::load_from_memory(j).ok()).map(|i| (i.width(), i.height()));
             println!("{:?} | {ms} ms | {:?}", entry.file_name(), size);

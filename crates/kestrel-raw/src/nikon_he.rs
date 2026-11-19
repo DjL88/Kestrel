@@ -104,7 +104,7 @@ pub fn high_efficiency_to_dng(_bytes: &[u8]) -> Result<Vec<u8>, String> {
 
 fn rawler_decode(bytes: &[u8]) -> Result<RawImage, String> {
     let source = RawSource::new_from_slice(bytes);
-    rawler::decode(&source, &RawDecodeParams { image_index: 0 }).map_err(|error| crate::raw::explain(&error.to_string()))
+    rawler::decode(&source, &RawDecodeParams { image_index: 0 }).map_err(|error| crate::explain(&error.to_string()))
 }
 
 /// Decode any RAW file's sensor data. High Efficiency NEFs go through ticoraw and an in-memory DNG; everything else

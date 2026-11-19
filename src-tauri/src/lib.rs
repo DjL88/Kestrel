@@ -1,8 +1,9 @@
 #[cfg(desktop)]
-mod nikon_he;
+use kestrel_raw::nikon_he;
 #[cfg(desktop)]
 mod raw;
-pub mod scene_develop;
+#[cfg(desktop)]
+pub use kestrel_raw::scene_develop;
 #[cfg(desktop)]
 pub mod raw_precision;
 #[cfg(desktop)]

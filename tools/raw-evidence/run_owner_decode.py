@@ -58,7 +58,8 @@ def collect(folder, tauri, runner=subprocess.run):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('samples', type=Path)
-    p.add_argument('--tauri', type=Path, default=Path('src-tauri'))
+    # The decoder and its owner test live in the shared crate (also used by the desktop app and the web build).
+    p.add_argument('--crate', '--tauri', dest='tauri', type=Path, default=Path('crates/kestrel-raw'))
     args = p.parse_args()
     try:
         print(json.dumps(collect(args.samples, args.tauri), indent=2))

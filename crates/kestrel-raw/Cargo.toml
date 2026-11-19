@@ -1,0 +1,26 @@
+[package]
+name = "kestrel-raw"
+version = "26.11.2"
+description = "Kestrel's RAW pipeline: sensor decode (rawler, and ticoraw for Nikon HE/HE*) and Kestrel's own develop"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+
+[features]
+default = ["nikon-he", "parallel"]
+# Nikon High Efficiency (HE/HE*) decoding from the sensor data, via ticoraw (MIT OR Apache-2.0). The codec is patented and
+# the crate's licence is not a patent licence: a public or commercial build must settle that first, or leave this out
+# (NOTICE.md, docs/COMMERCIAL-RELEASE.md).
+nikon-he = ["dep:ticoraw"]
+# Multi-threaded HE decoding on platforms with threads (the desktop app). WebAssembly builds leave it out.
+parallel = ["ticoraw?/parallel"]
+
+[dependencies]
+rawler = "0.8"
+rayon = "1"
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
+ticoraw = { version = "=0.2.0", optional = true, default-features = false }
+
+[dev-dependencies]
+# Hashes decoded mosaics for conformance evidence (nikon_he.rs).
+sha2 = "0.10"
