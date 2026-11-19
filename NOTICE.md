@@ -73,6 +73,8 @@ build tooling or a plugin SDK separately.
 
 ## Machine-learning models
 
+- **Category gate (CLIP ViT-B/32 image encoder, MIT)**: `public/models/clip-vit-b32-vision-uint8.onnx`,
+  shipped in desktop installers. Notice text in `docs/notices/clip.txt`; ship it alongside.
 - **Species suggestions (BioCLIP, MIT)** — already documented in full, including
   the required reproduced license text, in `docs/notices/bioclip.txt`. Keep that
   file alongside any build that bundles the species model.
