@@ -44,3 +44,27 @@ test('only Nikon High Efficiency files are reported as such', { skip }, async ()
   assert.equal(raw.sensorMode(dng.subarray(0, 4096), dng.length), 'other');
   assert.equal(raw.sensorMode(new Uint8Array(0), 0), 'other');
 });
+
+/**
+ * Optional, owner-provided or public CC0 Nikon HE/HE* files: KESTREL_RAW_SAMPLES=<folder> npm test. Every HE NEF there
+ * must be recognised from its headers (reading more only when asked) and develop to a full-size JPEG through the
+ * WebAssembly build the web app and the phone shells use. Nothing is written or uploaded.
+ */
+const samples = process.env.KESTREL_RAW_SAMPLES;
+test('owner HE/HE* files develop through the WebAssembly build', { skip: (!samples && 'KESTREL_RAW_SAMPLES not set') || skip }, async () => {
+  const { readdirSync } = await import('node:fs');
+  const raw = await instantiateRawWasm(new WebAssembly.Module(readFileSync(WASM)));
+  let developed = 0;
+  for (const name of readdirSync(samples!).filter((entry) => /\.nef$/i.test(entry))) {
+    const bytes = new Uint8Array(readFileSync(`${samples}/${name}`));
+    let mode = raw.sensorMode(bytes.subarray(0, 4 << 20), bytes.length);
+    for (let size = 8 << 20; mode === 'need-more' && size <= 64 << 20; size *= 2) mode = raw.sensorMode(bytes.subarray(0, Math.min(size, bytes.length)), bytes.length);
+    if (mode !== 'nikon-he' && mode !== 'nikon-he-star') continue;
+    const started = performance.now();
+    const size = jpegSize(raw.develop(bytes));
+    assert.ok(size && size.width > 1000 && size.height > 1000, `${name}: ${JSON.stringify(size)}`);
+    console.log(`${name} | ${mode} | ${size!.width}x${size!.height} | ${Math.round(performance.now() - started)}ms`);
+    developed += 1;
+  }
+  console.log(`HE/HE* files developed through WebAssembly: ${developed}`);
+});

@@ -10,9 +10,8 @@ name = "kestrel_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
-# Nikon High Efficiency (HE/HE*) decoding from the sensor data (crates/kestrel-raw, via ticoraw, MIT OR Apache-2.0). The codec is
-# patented and the crate's licence is not a patent licence: a public or commercial build must settle that first, or be
-# built with `--no-default-features` (docs/COMMERCIAL-RELEASE.md). Desktop only.
+# Nikon High Efficiency (HE/HE*) decoding from the sensor data (crates/kestrel-raw, via ticoraw, MIT OR Apache-2.0). In every
+# build by owner decision (19 Nov 2026; the codec is patented, see NOTICE.md). `--no-default-features` leaves it out.
 default = ["nikon-he"]
 nikon-he = ["kestrel-raw/nikon-he"]
 

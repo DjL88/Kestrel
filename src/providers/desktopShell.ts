@@ -1,6 +1,12 @@
 /** True when Kestrel is running inside the desktop app rather than a browser tab. */
 export const isDesktopApp = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
+/** The app shell on a phone or tablet (Tauri mobile). It has no native RAW commands; it uses the WebAssembly pipeline. */
+export const isMobileShell = () => isDesktopApp() && typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+/** Kestrel's RAW pipeline is compiled into this shell natively (Windows, macOS, Linux). Same code as the WebAssembly one. */
+export const hasNativeRaw = () => isDesktopApp() && !isMobileShell();
+
 const extensionOf = (name: string) => name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '';
 
 /**

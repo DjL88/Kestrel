@@ -85,7 +85,7 @@ interface RawExports {
   kr_result_len(): number;
 }
 
-export type WasmSensorMode = 'nikon-he' | 'nikon-he-star' | 'other';
+export type WasmSensorMode = 'nikon-he' | 'nikon-he-star' | 'other' | 'need-more';
 
 /** One instance of Kestrel's RAW WebAssembly. After any failure that stopped the module, make a new one. */
 export interface RawWasm {
@@ -125,7 +125,7 @@ export async function instantiateRawWasm(module: WebAssembly.Module): Promise<Ra
     },
     sensorMode(prefix, fileLength) {
       const code = withInput(prefix, (pointer) => raw.kr_sensor_mode(pointer, prefix.length, Math.max(fileLength, prefix.length)));
-      return code === 1 ? 'nikon-he' : code === 2 ? 'nikon-he-star' : 'other';
+      return code === 1 ? 'nikon-he' : code === 2 ? 'nikon-he-star' : code === 3 ? 'need-more' : 'other';
     },
   };
 }

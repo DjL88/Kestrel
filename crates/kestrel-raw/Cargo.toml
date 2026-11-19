@@ -8,9 +8,8 @@ publish = false
 
 [features]
 default = ["nikon-he", "parallel"]
-# Nikon High Efficiency (HE/HE*) decoding from the sensor data, via ticoraw (MIT OR Apache-2.0). The codec is patented and
-# the crate's licence is not a patent licence: a public or commercial build must settle that first, or leave this out
-# (NOTICE.md, docs/COMMERCIAL-RELEASE.md).
+# Nikon High Efficiency (HE/HE*) decoding from the sensor data, via ticoraw (MIT OR Apache-2.0). In every Kestrel build
+# by owner decision (19 Nov 2026); the codec is patented and the crate's licence is not a patent licence (NOTICE.md).
 nikon-he = ["dep:ticoraw"]
 # Multi-threaded HE decoding on platforms with threads (the desktop app). WebAssembly builds leave it out.
 parallel = ["ticoraw?/parallel"]

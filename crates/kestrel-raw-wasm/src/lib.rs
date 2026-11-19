@@ -51,16 +51,19 @@ pub unsafe extern "C" fn kr_develop(pointer: *const u8, len: usize) -> u32 {
     }
 }
 
-/// 0 for an ordinary RAW, 1 for Nikon High Efficiency, 2 for High Efficiency*, from a file's first bytes and full length.
+/// 0 for an ordinary RAW, 1 for Nikon High Efficiency, 2 for High Efficiency*, 3 for "send more of the file", from a
+/// file's first bytes and full length.
 ///
 /// # Safety
 /// `pointer` must point to `len` initialised bytes from `kr_alloc`.
 #[no_mangle]
 pub unsafe extern "C" fn kr_sensor_mode(pointer: *const u8, len: usize, file_len: usize) -> u32 {
     let prefix = std::slice::from_raw_parts(pointer, len);
-    match kestrel_raw::nikon_he::high_efficiency_mode_of_prefix(prefix, file_len.max(len)) {
-        Some(kestrel_raw::nikon_he::SensorDecoder::NikonHe) => 1,
-        Some(kestrel_raw::nikon_he::SensorDecoder::NikonHeStar) => 2,
+    use kestrel_raw::nikon_he::{PrefixVerdict, SensorDecoder};
+    match kestrel_raw::nikon_he::prefix_verdict(prefix, file_len.max(len)) {
+        PrefixVerdict::HighEfficiency(SensorDecoder::NikonHe) => 1,
+        PrefixVerdict::HighEfficiency(SensorDecoder::NikonHeStar) => 2,
+        PrefixVerdict::NeedMore => 3,
         _ => 0,
     }
 }

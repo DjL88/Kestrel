@@ -121,8 +121,13 @@ fn raw_sensor_mode(request: tauri::ipc::Request<'_>) -> Result<String, String> {
     let file_len = request.headers().get("x-file-length").and_then(|value| value.to_str().ok())
         .and_then(|value| value.parse::<usize>().ok()).filter(|&len| len >= bytes.len()).unwrap_or(bytes.len());
     // ticoraw bounds-checks every structure and never panics on hostile input; the guard is belt and braces.
-    let mode = std::panic::catch_unwind(|| nikon_he::high_efficiency_mode_of_prefix(bytes, file_len)).ok().flatten();
-    Ok(mode.map_or("other", |mode| mode.label()).to_string())
+    // ticoraw bounds-checks every structure; the guard is belt and braces. "need-more": send more of the file.
+    let verdict = std::panic::catch_unwind(|| nikon_he::prefix_verdict(bytes, file_len)).unwrap_or(nikon_he::PrefixVerdict::NotHighEfficiency);
+    Ok(match verdict {
+        nikon_he::PrefixVerdict::HighEfficiency(mode) => mode.label(),
+        nikon_he::PrefixVerdict::NeedMore => "need-more",
+        nikon_he::PrefixVerdict::NotHighEfficiency => "other",
+    }.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

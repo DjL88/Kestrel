@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 // Builds Kestrel's RAW pipeline (crates/kestrel-raw) as WebAssembly for the web app and copies it to
 // src/assets/wasm/kestrel_raw.wasm. Needs Rust with the wasm32-wasip1 target (rustup target add wasm32-wasip1).
-// The committed web binary is built WITHOUT the patented Nikon High Efficiency codec, because serving the web app is
-// distribution (NOTICE.md, docs/COMMERCIAL-RELEASE.md). Pass --with-nikon-he only for a private, local build.
+// One decoder for every platform: the binary includes Nikon High Efficiency (HE/HE*) decoding, as the desktop app does
+// (owner decision, 19 Nov 2026; NOTICE.md). Pass --without-nikon-he for a binary without it.
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
-const withoutHe = !process.argv.includes('--with-nikon-he');
+const withoutHe = process.argv.includes('--without-nikon-he');
 const manifest = 'crates/kestrel-raw-wasm/Cargo.toml';
 execFileSync('cargo', ['build', '--release', '--target', 'wasm32-wasip1', '--manifest-path', manifest,
-  ...(withoutHe ? [] : ['--features', 'nikon-he'])], { stdio: 'inherit' });
+  ...(withoutHe ? ['--no-default-features'] : [])], { stdio: 'inherit' });
 const built = 'crates/kestrel-raw-wasm/target/wasm32-wasip1/release/kestrel_raw_wasm.wasm';
 mkdirSync('src/assets/wasm', { recursive: true });
 copyFileSync(built, 'src/assets/wasm/kestrel_raw.wasm');
