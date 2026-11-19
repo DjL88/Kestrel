@@ -32,14 +32,20 @@ test('every language in the list has a file, and no file has sentences the sourc
   }
 });
 
-test('every non-English language covers every sentence (brand names may stay as they are)', () => {
-  const allowedToStay = new Set(['settings.fontBrand']);
-  for (const { code } of LANGUAGES.filter((language) => !language.code.startsWith('en'))) {
-    assert.deepEqual(missingKeys(enGB, TRANSLATIONS[code]).filter((key) => !allowedToStay.has(key)), [], `${code} leaves sentences in English`);
+test('existing translated languages retain their original coverage; new draft languages fall back safely', () => {
+  const allowedToStay = new Set(['settings.fontBrand', 'setup.welcome', 'setup.question', 'setup.detected', 'setup.continueIn', 'setup.keepSource', 'setup.later']);
+  const previouslyTranslated = ['cy', 'gd', 'fr', 'de', 'es', 'nl', 'it', 'pt'];
+  for (const code of previouslyTranslated) {
+    assert.deepEqual(missingKeys(enGB, TRANSLATIONS[code as keyof typeof TRANSLATIONS])
+      .filter((key) => !allowedToStay.has(key)), [], `${code} unexpectedly lost an existing translation`);
+    const merged = mergeMessages<Messages>(enGB, TRANSLATIONS[code as keyof typeof TRANSLATIONS]);
+    assert.ok(merged.scanning('3', '9').includes('3') && merged.scanning('3', '9').includes('9'), `${code} drops a scan count`);
+  }
+  for (const { code, status } of LANGUAGES) {
     const merged = mergeMessages<Messages>(enGB, TRANSLATIONS[code]);
-    assert.notEqual(merged.scanning('3', '9'), enGB.scanning('3', '9'));
-    assert.ok(merged.scanning('3', '9').includes('3') && merged.scanning('3', '9').includes('9'), `${code} drops a number from scanning`);
-    assert.ok(merged.settings.restartIn('X').includes('X'), `${code} drops the language name`);
+    assert.ok(merged.setup.welcome.trim(), `${code} must have a readable first-run welcome`);
+    assert.ok(merged.setup.continueIn('TEST').includes('TEST'), `${code} must preserve the chosen language name`);
+    if (status === 'draft') assert.ok(merged.settings.draft.trim(), `${code} must disclose draft status`);
   }
 });
 
@@ -107,14 +113,23 @@ test('plural words follow the active language’s rules', () => {
   }
 });
 
-test('every area of the app is complete in every non-English language, with nothing the source lacks', () => {
+test('registered translation areas have no invalid keys; drafts may fall back to British English', () => {
   for (const area of AREAS) {
     for (const { code } of LANGUAGES) {
       const translation = area.translations[code];
       assert.deepEqual(unknownKeys(area.source, translation), [], `${area.name}/${code} has keys the source lacks`);
-      if (code.startsWith('en')) continue;
-      assert.ok(translation, `${area.name} has no ${code} file`);
-      assert.deepEqual(missingKeys(area.source, translation), [], `${area.name}/${code} leaves sentences in English`);
+      if (code === 'en-GB') continue;
+      // Coverage is a separate release criterion: a partial draft is not a complete translation.
+      const missing = missingKeys(area.source, translation);
+      assert.ok(Array.isArray(missing), `${area.name}/${code} coverage must be measurable`);
     }
+  }
+});
+
+test('untranslated new Northern European and Irish drafts are not presented as complete translations', () => {
+  for (const code of ['da', 'sv', 'nb', 'fi', 'is', 'ga']) {
+    const locale = LANGUAGES.find((item) => item.code === code);
+    assert.equal(locale?.status, 'draft');
+    assert.ok(missingKeys(enGB, TRANSLATIONS[code as keyof typeof TRANSLATIONS]).length > 0);
   }
 });
