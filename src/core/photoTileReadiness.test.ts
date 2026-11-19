@@ -39,3 +39,23 @@ test('edited marker reflects actual saved nondestructive adjustments, not an uns
   assert.equal(edited.edited, true);
   assert.match(edited.summary, /Saved edits/);
 });
+
+test('live analysis stages are honest and never count as a saved cull score', () => {
+  const queued = photoTileMilestones({}, 'ready', 'queued');
+  assert.equal(queued.analysis, 'queued');
+  assert.equal(queued.cullScanned, false);
+  assert.match(queued.summary, /Waiting for local analysis/);
+  const checking = photoTileMilestones({}, 'ready', 'analysing');
+  assert.equal(checking.analysis, 'analysing');
+  assert.match(checking.summary, /Analysing this photo/);
+  const tentative = photoTileMilestones({}, 'ready', 'analysed');
+  assert.equal(tentative.cullScanned, false);
+  assert.match(tentative.summary, /finishing shoot comparison/);
+  const unavailable = photoTileMilestones({}, 'ready', 'unavailable');
+  assert.equal(unavailable.cullScanned, false);
+  assert.match(unavailable.summary, /manual review available/);
+  const final = photoTileMilestones({ cullScore: 75 }, 'ready', 'analysing');
+  assert.equal(final.analysis, 'recorded');
+  assert.equal(final.cullScanned, true);
+  assert.match(final.summary, /Cull scan recorded/);
+});
