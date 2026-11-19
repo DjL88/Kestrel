@@ -1,4 +1,5 @@
 import { newId } from '../core/ids';
+import { AdjustmentSlider } from './AdjustmentSlider';
 import { Eraser, Paintbrush, Plus, Trash2 } from 'lucide-react';
 import { ScanSearch, SquareDashedMousePointer } from 'lucide-react';
 import { LOCAL_DETAIL_KEYS, LOCAL_KEYS, MAX_MASKS, createMask, type LocalKey, type Mask } from '../core/maskTypes';
@@ -105,11 +106,10 @@ export function MaskPanel(props: Props) {
             <input type="checkbox" checked={selected.invert} onChange={(event) => update({ invert: event.target.checked })} /> Invert (affect everything else)
           </label>
           {selected.kind !== 'brush' && (
-            <label className="block text-xs text-zinc-300">
-              <span className="flex justify-between"><span>Edge softness</span><output className="tabular-nums text-zinc-400">{Math.round(selected.feather * 100)}</output></span>
-              <input type="range" min={0} max={1} step={0.01} value={selected.feather} aria-label="Edge softness"
-                onChange={(event) => update({ feather: event.target.valueAsNumber })} className="block min-h-9 w-full accent-sky-300 desk:min-h-7" />
-            </label>
+            <AdjustmentSlider label="Edge softness" ariaLabel="Edge softness" value={selected.feather}
+              min={0} max={1} neutral={0} step={0.01} disabled={disabled} resettable={false}
+              displayValue={`${Math.round(selected.feather * 100)}%`}
+              onChange={(value) => update({ feather: value })} />
           )}
           {selected.kind === 'subject' && (
             <div className="space-y-1 rounded bg-black/20 p-2 text-xs text-zinc-300">
@@ -123,11 +123,10 @@ export function MaskPanel(props: Props) {
           )}
           {(selected.kind === 'brush' || selected.kind === 'subject') && (
             <div className="space-y-1">
-              <label className="block text-xs text-zinc-300">
-                <span className="flex justify-between"><span>Brush size</span><output className="tabular-nums text-zinc-400">{Math.round(brushRadius * 200)}</output></span>
-                <input type="range" min={0.01} max={0.2} step={0.005} value={brushRadius} aria-label="Brush size"
-                  onChange={(event) => props.onBrushRadius(event.target.valueAsNumber)} className="block min-h-9 w-full accent-sky-300 desk:min-h-7" />
-              </label>
+              <AdjustmentSlider label="Brush size" ariaLabel="Brush size" value={brushRadius}
+                min={0.01} max={0.2} neutral={0.01} step={0.005} disabled={disabled} resettable={false}
+                displayValue={String(Math.round(brushRadius * 200))}
+                onChange={props.onBrushRadius} />
               <div className="flex gap-1">
                 <button type="button" aria-pressed={paintOn && !erase} className={`${chip} flex-1 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15`} onClick={() => { const off = paintOn && !erase; props.onErase(false); props.onPaintOn(!off); }}>
                   <Paintbrush className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />{selected.kind === 'subject' ? 'Add' : 'Paint'}
@@ -161,13 +160,11 @@ export function MaskPanel(props: Props) {
           )}
           <div className="space-y-1 pt-1">
             {LOCAL_KEYS.map((key) => (
-              <label key={key} className={`block text-xs text-zinc-300 ${key === LOCAL_DETAIL_KEYS[0] ? 'mt-2 border-t border-white/10 pt-2' : ''}`}>
-                <span className="flex justify-between"><span>{LABELS[key]}</span><output className="tabular-nums text-zinc-400">{Math.round((selected.edit[key] ?? 0) * 50)}</output></span>
-                <input type="range" min={-2} max={2} step={0.05} value={selected.edit[key] ?? 0} aria-label={`${LABELS[key]} for this mask`}
-                  onChange={(event) => update({ edit: { ...selected.edit, [key]: event.target.valueAsNumber } })}
-                  onDoubleClick={() => update({ edit: { ...selected.edit, [key]: 0 } })}
-                  className="block min-h-9 w-full accent-sky-300 desk:min-h-7" />
-              </label>
+              <div key={key} className={key === LOCAL_DETAIL_KEYS[0] ? 'mt-2 border-t border-white/10 pt-2' : ''}>
+                <AdjustmentSlider label={LABELS[key]} ariaLabel={`${LABELS[key]} for this mask`}
+                  value={selected.edit[key] ?? 0} min={-2} max={2} step={0.05} disabled={disabled}
+                  onChange={(value) => update({ edit: { ...selected.edit, [key]: value } })} />
+              </div>
             ))}
           </div>
           <button type="button" className={`${chip} inline-flex w-full items-center justify-center gap-1`}
