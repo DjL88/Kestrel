@@ -1,0 +1,28 @@
+# Kestrel Select: labelled evidence, not a model benchmark
+
+Run locally (Python standard library only):
+
+```sh
+python3 -m unittest discover -s tools/cull-evidence -v
+python3 tools/cull-evidence/evaluate.py /path/to/private-anonymous-results.jsonl
+```
+
+Each JSONL record must have these seven required fields (one photo per line), plus an optional independently annotated `subject_size`:
+
+```json
+{"id":"fixture-001","truth":"aircraft","predicted":"bird","decision":"review","keeper":true,"auto_species":"Osprey","provenance":"real-labelled"}
+```
+
+- `id`: stable anonymous unique identifier using only ASCII letters, numbers, hyphens or underscores (up to 80 characters); **never** a path, filename, EXIF, location or person name.
+- `truth`: independent human annotation: `bird`, `aircraft`, `person`, `other-animal`, `other`.
+- `predicted`: the app's **general subject** decision, including `unknown` for abstention.
+- `decision`: app's automatic `keep`, `review` or `reject`, before manual intervention.
+- `keeper`: human annotation that rejecting this image would discard a keeper.
+- `auto_species`: the automatically applied species label, or `null`. **Do not** put user-entered or merely suggested labels here.
+- `provenance`: `real-labelled` only for independently reviewed real photographs; otherwise `synthetic`.
+
+- `subject_size` (optional): independent human annotation of subject visibility: `normal`, `tiny`, `distant`, or `unknown`. Missing means `unknown`, **not** normal. Never infer size from the model prediction. The evaluator reports the tiny/distant bird denominator, abstentions, review-only and false automatic rejects, plus unknown-size bird counts. No subgroup accuracy claim without real labelled examples and documented annotation rules.
+
+Output includes the subject confusion matrix, abstentions, review-only decisions, false automatic rejects of human keepers, and aircraft/Osprey automatic labels. Counts do **not** establish calibrated model confidence, correctness of bird species, or absence of false negatives outside the sample. The `real_500_photo_benchmark` flag is only an input-count/provenance check, **not independent verification** of labels or a passing score. Report capture sources, label protocol, reviewer disagreement, model/build version, hardware, denominators and uncertainty separately before any published accuracy claim.
+
+Never commit private image data, file paths, owner photos or personally identifying annotations. Keep the labelled input locally; publish only reviewed aggregate counts. Tests use synthetic records, not actual birds or helicopters.
