@@ -2338,9 +2338,9 @@ export default function App() {
             />
           )}
 
-          {editing && selectedFrame && !prefs.focusMode && (
+          {editing && selectedFrame && (
             <div role="toolbar" aria-label="Filmstrip controls"
-              className={`mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center gap-1 overflow-x-auto border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'workspace:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'workspace:pr-[var(--editor-panel-w,0px)]') : ''}`}>
+              className={`${prefs.focusMode ? 'hidden ' : ''}mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center gap-1 overflow-x-auto border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'workspace:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'workspace:pr-[var(--editor-panel-w,0px)]') : ''}`}>
               {/* Section F: one footer order across Review and Edit — navigation, actions, then zoom. */}
               <button type="button" aria-label="Previous photo" title="Previous photo (←)" disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) <= 0} onClick={() => handleStepFrame(-1)}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
@@ -2387,7 +2387,7 @@ export default function App() {
             </div>
           )}
           {/* Persistent Filmstrip in Loupe & Compare Modes */}
-          {filmstripVisible && (editing || prefs.viewMode !== 'grid') && visibleFrames.length > 0 && (
+          {!prefs.focusMode && filmstripVisible && (editing || prefs.viewMode !== 'grid') && visibleFrames.length > 0 && (
             <div className={editing ? (prefs.editPanelSide === 'left' ? 'workspace:pl-[var(--editor-panel-w,0px)]' : 'workspace:pr-[var(--editor-panel-w,0px)]') : undefined}>
             <Filmstrip
               onPhotoMenu={openPhotoMenu}
