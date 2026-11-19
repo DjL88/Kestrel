@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { frameImageIdentity, visibleFrameUrl } from './frameImageIdentity';
+import { frameImageIdentity, framePreviewEncoding, visibleFrameUrl } from './frameImageIdentity';
 
 test('the same photograph keeps its preview during a reversible slider edit', () => {
   const frame = { id: 'frame-1', stableKey: 'original-on-disk' };
@@ -28,4 +28,9 @@ test('fast 500-photo navigation never associates a stale photo with a new select
     assert.equal(visibleFrameUrl({ identity: next, url: 'blob:next' }, current), '');
     assert.equal(visibleFrameUrl({ identity: current, url: 'blob:correct' }, current), 'blob:correct');
   }
+});
+
+test('edited full photo preview is lossless; thumbnails remain compact JPEGs', () => {
+  assert.deepEqual(framePreviewEncoding('full'), { mime: 'image/png' });
+  assert.deepEqual(framePreviewEncoding('thumb'), { mime: 'image/jpeg', quality: 0.92 });
 });
