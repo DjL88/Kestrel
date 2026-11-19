@@ -89,8 +89,9 @@ test('500 photos, target 20: initial Auto Cull, Auto Edit and keeper export hand
   await expect(page.getByRole('slider', { name: 'Colour adjustment' })).toHaveValue('-2');
   await expect(page.getByText('Monochrome', { exact: true })).toBeVisible();
   await page.getByRole('tab', { name: 'Auto' }).click();
-  await expect(page.getByRole('heading', { name: 'What is this a photo of?' })).toHaveCount(0);
-  await expect(page.getByPlaceholder('Add a tag')).toHaveCount(0);
+  // Categorisation is not an editing tool: it is in Photo info (docked beside the editor since Section F), not in Auto.
+  await expect(page.getByRole('tabpanel', { name: 'Auto' }).getByRole('heading', { name: 'What is this a photo of?' })).toHaveCount(0);
+  await expect(page.getByRole('tabpanel', { name: 'Auto' }).getByPlaceholder('Add a tag')).toHaveCount(0);
   await page.getByRole('button', { name: 'Back', exact: true }).click();
 
   // Categorisation and EXIF live in the Library Photo info sidebar, which now opens by default on desktop.
