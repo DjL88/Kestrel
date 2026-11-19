@@ -17,6 +17,7 @@ export function createEmptyProject(
 /** Removal timestamps are optional, not booleans: 0 is a valid removed marker. */
 export function appendProjectPhotos(
   project: CullingState, incoming: PhotoFrame[], importId: string,
+  options: { sequenceBase?: number } = {},
 ): CullingState {
   const seen = new Set(project.frames.filter((frame) => frame.removedAt == null).map((frame) => frame.stableKey));
   // Adding a removed photo again brings it back as a fresh, unreviewed photo instead of silently doing nothing.
@@ -35,7 +36,14 @@ export function appendProjectPhotos(
     added.push({
       ...frame,
       id: `${importId}-${frame.id}`,
-      sequenceIndex: sequenceStart + added.length + 1,
+      // During out-of-order asynchronous imports, preserve the filename/camera
+      // capture position rather than assigning a new number by I/O completion.
+      // Other workflows keep the historical append-based numbering.
+      sequenceIndex: Number.isSafeInteger(options.sequenceBase) &&
+        Number.isSafeInteger(frame.sequenceIndex) && frame.sequenceIndex > 0 &&
+        Number.isSafeInteger(options.sequenceBase! + frame.sequenceIndex)
+        ? options.sequenceBase! + frame.sequenceIndex
+        : sequenceStart + added.length + 1,
       burstGroupId: frame.burstGroupId ? `${frame.burstGroupId}-${importId}` : null,
     });
   }

@@ -1,6 +1,7 @@
 import { PHOTO_EXTENSIONS } from '../core/rawFormats';
 import { assignBurstGroups } from '../core/cullingEngine';
 import { spreadPhotoOrder } from '../core/photoProcessingOrder';
+import { completeImportChunk } from '../core/progressiveImportChunk';
 import { parseImageExif } from '../core/exifParser';
 import type { ExifMetadata, PhotoFrame, ShootDescriptor } from '../core/types';
 import type { BrowserCatalogueStore } from './browserCatalogueStore';
@@ -113,8 +114,11 @@ export async function loadLocalFileListShoot(
   previewProvider: BrowserPreviewProvider,
   store: BrowserCatalogueStore,
   onProgress?: (progress: LocalLoadProgress) => void,
-  /** signal: Stop. Photos already read are returned (nothing is lost); the rest are not started. */
-  options: { allowPartial?: boolean; signal?: AbortSignal } = {},
+  /** signal: Stop. Photos already read are returned (nothing is lost); the rest are not started.
+   * onFrameReady: only partial/manual import, after this original is fully registered
+   * and its EXIF and previews are available. Other files may still be reading.
+   */
+  options: { allowPartial?: boolean; signal?: AbortSignal; onFrameReady?: (frame: PhotoFrame) => void } = {},
 ): Promise<{ shoot: ShootDescriptor; frames: PhotoFrame[]; storedAllBlobs: boolean; unstoredKeys: string[]; uncachedPreviewKeys: string[]; failedNames: string[]; stopped: boolean }> {
   const sortedFiles = files
     .map((f) => (f instanceof File ? pickedFromFile(f) : f))
@@ -141,8 +145,9 @@ export async function loadLocalFileListShoot(
   for (let i = 0; i < validFiles.length; i += BATCH_SIZE) {
     if (options.signal?.aborted) { stopped = true; break; }
     const chunk = validFiles.slice(i, i + BATCH_SIZE);
-    const processed = await Promise.all(
-      chunk.map(async (file, offset): Promise<PhotoFrame | null> => {
+    const processed = await completeImportChunk(
+      chunk,
+      async (file, offset): Promise<PhotoFrame | null> => {
         const idx = captureOrder.get(file) ?? i + offset + 1;
         const stableKey = pickedKey(file);
         if (file.path && isDesktopApp()) {
@@ -186,7 +191,12 @@ export async function loadLocalFileListShoot(
 
         const exif = await parseImageExif(opened, file.name);
         return frameFor(file, stableKey, idx, exif);
-      })
+      },
+      // A slow 29 MB NEF must not delay ready neighbours in its 4-file
+      // import lane. Watched batches are deliberately all-or-nothing.
+      allowPartial ? (frame) => {
+        if (!options.signal?.aborted) options.onFrameReady?.(frame);
+      } : undefined,
     );
 
     for (let index = 0; index < processed.length; index += 1) {

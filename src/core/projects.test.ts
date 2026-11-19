@@ -163,3 +163,38 @@ test('a progressive import in batches ends with the same photos and bursts as ad
   assert.equal(applyImportBursts(finished, assignBurstGroups(shots), 'imp'), finished, 'nothing to change returns the same state');
   assert.equal(applyImportBursts(finished, assignBurstGroups(shots), 'other'), finished, 'other imports are untouched');
 });
+
+test('out-of-order photo arrivals retain stable original capture indices and final burst groups', () => {
+  const times = [0, 1_000, 2_000, 3_000, 600_000];
+  const originals = times.map((time, index) => ({
+    ...generateDemoShootFrames(1)[0],
+    id: `raw-${index + 1}`, stableKey: `photo-${index + 1}`,
+    filename: `p${index + 1}.nef`, sequenceIndex: index + 1,
+    decision: 'unreviewed' as const,
+    exif: { camera: 'NIKON Z 8', capturedAtMs: 1_700_000_000_000 + time },
+  }));
+  const initially = createEmptyProject('shoot', 'Flying birds');
+  const earlier = { ...initially, frames: [{
+    ...originals[0], id: 'existing', stableKey: 'old-photo', sequenceIndex: 10,
+  }] };
+  const options = { sequenceBase: 10 };
+  let inProgress: CullingState = earlier;
+  // The third original arrives before the first, which is blocked by slow I/O.
+  for (const index of [2, 4, 0, 3, 1]) {
+    inProgress = appendProjectPhotos(inProgress, [originals[index]], 'fast', options);
+  }
+  assert.deepEqual(inProgress.frames.slice(1).map((frame) => frame.sequenceIndex), [13, 15, 11, 14, 12]);
+  // The final regroup must correct burst membership without changing the
+  // capture position or overwriting a decision made while importing.
+  inProgress = { ...inProgress, frames: inProgress.frames.map((frame) =>
+    frame.stableKey === 'photo-3' ? { ...frame, decision: 'keep' as const } : frame) };
+  const final = applyImportBursts(inProgress, assignBurstGroups(originals), 'fast');
+  const byKey = new Map(final.frames.map((frame) => [frame.stableKey, frame]));
+  for (const original of originals) {
+    const stored = byKey.get(original.stableKey)!;
+    assert.equal(stored.sequenceIndex, options.sequenceBase + original.sequenceIndex);
+    assert.equal(stored.id, `fast-${original.id}`);
+  }
+  assert.equal(byKey.get('photo-3')!.decision, 'keep');
+  assert.ok([...byKey.values()].filter((frame) => frame.burstCount === 4).length >= 4);
+});
