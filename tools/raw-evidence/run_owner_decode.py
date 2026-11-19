@@ -9,7 +9,8 @@ import subprocess
 from pathlib import Path
 
 ROW = re.compile(r'^([^/\\|]+\.nef) \| (nikon-he(?:-star)?) \| ([1-9][0-9]*)x([1-9][0-9]*) \| ([0-9]+(?:\.[0-9]+)?(?:ms|s))$', re.I)
-CFA = re.compile(r'^cfa-sha256 \\| ([^/\\\\|]+\\.nef) \\| ([0-9a-f]{64})
+CFA = re.compile(r'^cfa-sha256 [|] ([^/\\\\|]+[.]nef) [|] ([0-9a-f]{64})$', re.I)
+COUNT = re.compile(r'^High Efficiency files decoded from sensor data: ([0-9]+)$')
 
 def parse_output(output):
     rows, counts = [], []
