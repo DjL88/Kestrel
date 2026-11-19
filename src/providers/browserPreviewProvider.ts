@@ -280,6 +280,9 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
   /** A changed/reconnected original invalidates all caches, including in-flight thumbnail work. */
   private invalidateSourcePreviews(stableKey: string): void {
+    // A pending disk read must never resurrect bytes from the prior linked original.
+    this.linkedGeneration.set(stableKey, (this.linkedGeneration.get(stableKey) ?? 0) + 1);
+    this.linkedLoading.delete(stableKey);
     this.sourceRevisions.set(stableKey, (this.sourceRevisions.get(stableKey) ?? 0) + 1);
     this.invalidateDevelopment(stableKey);
     this.invalidateFullPreview(stableKey);
