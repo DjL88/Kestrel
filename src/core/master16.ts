@@ -1,7 +1,7 @@
 import { applyDetailRgb16, applyPhotoEditLinear, detailParams, hasDetail, isNeutralTone, type PhotoEdit } from './photoEdits';
 import { cropRectangle, rotationCoverage, type PhotoFraming } from './photoFraming';
 import { THUMB, type Thumb } from './orientMatch';
-import { LOCAL_KEYS, type Mask } from './maskTypes';
+import { LOCAL_KEYS, validMasks, type Mask } from './maskTypes';
 import { effectiveAlpha } from './masks';
 import { noiseStrength } from './noiseReduction';
 import { denoiseChromaRgb16 } from './chromaDenoise16';
@@ -60,12 +60,29 @@ export function thumbRgb16(image: Rgb16Image): Thumb {
 }
 
 /** Why this edit cannot go through the 16-bit export yet, in plain words, or null when it can. */
+const EXPORT_EDIT_KEYS = new Set([
+  'exposure', 'warmth', 'colour', 'brightness', 'contrast', 'highlights',
+  'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity',
+  'sharpen', 'denoise', 'masks',
+]);
+
+/** Stop rather than quietly export a future or malformed edit that this
+ * high-precision renderer cannot faithfully reproduce. */
 export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFraming | undefined): string | null {
-  // Local tone, texture, clarity and sharpening have a bounded, high-precision
-  // path. Keep this hook so unsupported options can still fail closed later.
-  // The bounded 16-bit chroma reducer now runs before tone/detail, like the screen.
-  // This does not assert parity with TrueDetail AI or DxO-class luminance denoise.
-  // Straightening is applied with the same centre, angle and coverage geometry as the preview.
+  if (edit) {
+    for (const key of Object.keys(edit)) {
+      if (!EXPORT_EDIT_KEYS.has(key)) return `The 16-bit TIFF cannot include the "${key}" adjustment yet.`;
+    }
+    if (edit.masks !== undefined && !validMasks(edit.masks)) {
+      return 'One or more saved masks could not be safely included in the 16-bit TIFF.';
+    }
+  }
+  if (framing && (
+    !Number.isInteger(framing.turns) || !Number.isFinite(framing.straighten) ||
+    !Number.isFinite(framing.x) || !Number.isFinite(framing.y) ||
+    (framing.ratio !== null && (!(framing.ratio > 0) || !Number.isFinite(framing.ratio))) ||
+    (framing.size !== undefined && (!(framing.size > 0) || !Number.isFinite(framing.size)))
+  )) return 'The saved crop or rotation is invalid, so no 16-bit TIFF was made.';
   return null;
 }
 
