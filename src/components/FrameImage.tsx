@@ -61,7 +61,8 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   panOffset = { x: 0, y: 0 },
 }) => {
   // Keep a finished render for same-frame slider updates, never for a different photo.
-  const identity = frameImageIdentity(frame, variant);
+  const [sourceRevision, setSourceRevision] = useState(0);
+  const identity = frameImageIdentity(frame, variant, sourceRevision);
   const [preview, setPreview] = useState<{ identity: string; url: string }>({ identity: '', url: '' });
   const src = visibleFrameUrl(preview, identity);
   const [loading, setLoading] = useState<boolean>(true);
@@ -92,6 +93,16 @@ export const FrameImage: React.FC<FrameImageProps> = ({
 
   // When the background develop finishes this photo, the card swaps the camera's JPEG for Kestrel's develop.
   const [developedRev, setDevelopedRev] = useState(0);
+  useEffect(() => {
+    const key = frame.stableKey;
+    const onInvalidate = (event: Event) => {
+      if ((event as CustomEvent<string>).detail !== key) return;
+      thumbSources.delete(key);
+      setSourceRevision((revision) => revision + 1);
+    };
+    previewProvider.events.addEventListener('preview-invalidated', onInvalidate);
+    return () => previewProvider.events.removeEventListener('preview-invalidated', onInvalidate);
+  }, [frame.stableKey, previewProvider]);
   useEffect(() => {
     if (variant !== 'thumb') return;
     const key = frame.stableKey;
