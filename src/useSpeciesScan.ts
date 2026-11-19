@@ -92,7 +92,8 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
             const best = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
             const named = best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) } : undefined;
             if (!gateOn) {
-              patch = scanPatch(frame, named);
+              // No independent category evidence: a closed-list species score is not proof of wildlife.
+              // Leave the photo for review; do not mark it checked so a future gate can examine it.
             } else {
               // The gate looks at the same square as the species model. If it fails, nothing is decided for this photo.
               const outcome = gateOutcome(await routePicture(picture, subjectCrop(picture.width, picture.height, grid)), frame.subjectKind);
