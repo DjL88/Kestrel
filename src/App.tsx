@@ -39,6 +39,7 @@ import { AutoCullPanel } from './components/AutoCullPanel';
 import { scanForCulling } from './providers/browserAutoCull';
 import { limitAutoKeepers } from './core/autoCull';
 import { backgroundCullCandidates, backgroundCullMoves, backgroundDevelopTargets } from './core/backgroundAutoPolicy';
+import { commitCompletedAutoResult } from './core/progressiveAutoCommit';
 import { prioritizePhotoProcessing } from './core/photoProcessingOrder';
 import { GuidedBanner } from './components/GuidedBanner';
 import { guidedStep, remainingWereScanned } from './core/guidedProgress';
@@ -869,16 +870,22 @@ export default function App() {
       controller.signal.addEventListener('abort', () => { tasks.cancel(task.id); }, { once: true });
       try {
         const edits = await suggestKeeperAutoEdits(prioritizePhotoProcessing(snapshot.frames), provider, controller.signal,
-          (count) => task.progress(count), targets);
+          (count) => task.progress(count), targets,
+          (frameId, edit) => {
+            if (!alive() || leavingRef.current) return;
+            // The photographer can edit, reject, remove or switch projects while
+            // the next photo is processing. Every result checks the LIVE state.
+            setCullingState((prev) => {
+              if (!alive() || leavingRef.current || controller.signal.aborted) return prev;
+              return commitCompletedAutoResult(prev, {
+                projectId, frameId, edit, at: Date.now(),
+                editingFrameId: editingRef.current ? prev.selectedFrameId ?? undefined : undefined,
+              });
+            });
+          });
         if (!alive()) return;
-        setCullingState((prev) => {
-          if (prev.shoot.id !== projectId || controller.signal.aborted || !prev.settings?.autoEdit) return prev;
-          const stillUntouched = backgroundDevelopTargets(prev.frames, targets);
-          if (editingRef.current && prev.selectedFrameId) stillUntouched.delete(prev.selectedFrameId);
-          const frames = applyKeeperAutoEdits(prev.frames, edits, Date.now(), stillUntouched);
-          return frames.some((frame, index) => frame !== prev.frames[index])
-            ? { ...prev, frames, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } } : prev;
-        });
+        // Earlier completed photos remain edited even if a later photo fails
+        // or Stop is pressed; nothing is held in a batch-wide commit.
         task.finish(`${edits.size} starting looks prepared; existing manual edits preserved`);
       } catch (error) {
         if (!controller.signal.aborted) task.fail(error instanceof Error ? error.message : 'Auto Develop could not finish');
