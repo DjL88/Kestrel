@@ -409,7 +409,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       const offline = this.developed.get(key) ?? cachedPreviews?.review ?? await loadOfflinePreview(cacheKey);
       if (!offline) return '';
       if (epoch !== this.cacheEpoch) return '';
-    if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.getFullPreviewUrl(frame, priority);
+      if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.getFullPreviewUrl(frame, priority);
       const fallbackUrl = URL.createObjectURL(offline);
       this.fullUrlCache.set(key, fallbackUrl);
       // Without the linked original, even a previously developed bitmap is only a review fallback.
