@@ -14,6 +14,8 @@ interface Props {
   /** Existing visible units (e.g. EV or %); the actual edit numbers remain unchanged. */
   displayValue?: string;
   title?: string;
+  /** Optional small hint such as an active macro dial; never replaces the slider name. */
+  hint?: string;
   describedBy?: string;
   onFocus?: () => void;
   /** Mobile Quick Adjust gives the same slider a stacked, thumb-sized layout. */
@@ -28,7 +30,7 @@ interface Props {
  */
 export function AdjustmentSlider({
   label, value, min, max, step, onChange, disabled = false, neutral = 0,
-  displayValue, title, describedBy, onFocus, layout = 'row',
+  displayValue, title, hint, describedBy, onFocus, layout = 'row',
 }: Props) {
   const id = useId();
   const fill = adjustmentFill(value, min, max, neutral);
@@ -40,7 +42,7 @@ export function AdjustmentSlider({
     <div title={title} className={`kestrel-adjustment min-w-0 items-center gap-2.5 rounded-md py-0.5 text-sm text-zinc-200
       ${layout === 'stacked' ? 'flex flex-wrap justify-between gap-y-0.5' : 'grid grid-cols-[minmax(4.5rem,0.85fr)_minmax(4rem,1.5fr)_minmax(3.5rem,auto)]'}
       ${disabled ? 'opacity-45' : ''}`}>
-      <label htmlFor={id} className={`min-w-0 leading-5 ${layout === 'stacked' ? 'flex-1 font-medium' : 'truncate'}`}>{label}</label>
+      <label htmlFor={id} className={`min-w-0 leading-5 ${layout === 'stacked' ? 'flex-1 font-medium' : 'truncate'}`}>{label}{hint && <span className="ml-1.5 text-xs font-normal text-kestrel-copper">{hint}</span>}</label>
       <span className={`relative flex min-w-0 items-center ${layout === 'stacked' ? 'order-3 w-full' : ''}`}>
         <span className="pointer-events-none absolute inset-x-0 h-1 rounded-full bg-white/25" aria-hidden="true" />
         {min < neutral && neutral < max && (
