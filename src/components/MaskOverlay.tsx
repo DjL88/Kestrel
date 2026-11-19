@@ -122,7 +122,7 @@ export function MaskOverlay({ mask, masks, aspect, rect, brushRadius, paintOn = 
 
   const painting = (mask.kind === 'brush' || mask.kind === 'subject') && paintOn;
   return (
-    <div ref={root} className={`absolute z-10 ${painting ? 'pointer-events-auto cursor-crosshair touch-none' : 'pointer-events-none'}`} style={rect}
+    <div ref={root} data-testid="mask-overlay" className={`absolute z-10 ${painting ? 'pointer-events-auto cursor-crosshair touch-none' : 'pointer-events-none'}`} style={rect}
       onPointerDown={painting ? (event) => {
         if (!event.isPrimary) return;
         event.stopPropagation();

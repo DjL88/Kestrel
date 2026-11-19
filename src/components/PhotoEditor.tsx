@@ -19,7 +19,7 @@ import { applyFix, critique, toneOnlyEdit, type Opinion } from '../core/critique
 import { fullContext } from '../core/masks';
 import { MaskOverlay } from './MaskOverlay';
 import { MaskPanel } from './MaskPanel';
-import { createSubjectMask, framingKey, type SubjectDetail, type SubjectGrid } from '../core/maskTypes';
+import { createSubjectMask, framingKey, onlyAdjustmentsChanged, type SubjectDetail, type SubjectGrid } from '../core/maskTypes';
 import { detectSubjectGuided, detectSubjectInArea, type GuidedSubject } from '../providers/subjectDetector';
 import { GUIDED_RENDER_EDGE } from '../core/subjectGuide';
 import { panToCentre } from '../core/eyeFinder';
@@ -155,6 +155,14 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [showMaskOverlay, setShowMaskOverlay] = useState(true);
   // The mask tint hides the real change, so it steps aside while a slider is being moved.
   const [sliderBusy, setSliderBusy] = useState(false);
+  // While a mask's sliders move, and for 3 seconds after, the highlight steps aside so it doesn't cover the change.
+  const sliderPause = useRef<number | undefined>(undefined);
+  const pauseMaskHighlight = () => {
+    setSliderBusy(true);
+    window.clearTimeout(sliderPause.current);
+    sliderPause.current = window.setTimeout(() => setSliderBusy(false), 3000);
+  };
+  useEffect(() => () => window.clearTimeout(sliderPause.current), []);
   const sliderTimer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(sliderTimer.current), []);
   const [dialUsed, setDialUsed] = useState(false);
@@ -1485,7 +1493,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           <div role="tabpanel" id="panel-masks" aria-labelledby="tab-masks">
             <MaskPanel masks={edit.masks ?? []} selectedId={selectedMaskId} disabled={sourceState !== 'ready'}
               brushRadius={brushRadius} paintOn={paintOn} onPaintOn={setPaintOn} erase={erase} showOverlay={showMaskOverlay}
-              onSelect={setSelectedMaskId} onChange={(masks) => onEdit({ ...edit, masks })}
+              onSelect={setSelectedMaskId} onChange={(masks) => { if (onlyAdjustmentsChanged(edit.masks ?? [], masks)) pauseMaskHighlight(); onEdit({ ...edit, masks }); }}
               onBrushRadius={setBrushRadius} onErase={setErase} onShowOverlay={setShowMaskOverlay}
               onFindSubject={(background) => void findSubject(background)} onRefind={(id) => void findSubject(false, id)} selectingArea={selectingArea} onSelectArea={setSelectingArea}
               detecting={detecting} detectNotice={detectNotice} currentFramingKey={framingKey(framing)} />
