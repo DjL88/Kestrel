@@ -16,7 +16,7 @@ export interface RatingFilter {
 export type WorkspaceViewMode = 'loupe' | 'grid' | 'compare';
 
 /** How the visible photos are ordered. Confidence falls back to last for photos auto-cull has not scored. */
-export type SortOrder = 'captured-desc' | 'captured-asc' | 'rating-desc' | 'name-asc' | 'confidence-desc';
+export type SortOrder = 'captured-desc' | 'captured-asc' | 'rating-desc' | 'name-asc' | 'confidence-desc' | 'edited-desc';
 
 export type DemoAssetKey =
   | 'red-kite'

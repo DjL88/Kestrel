@@ -64,7 +64,7 @@ export function TaskManager() {
         </section>
       )}
       <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}
-        className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium hover:brightness-125 focus-visible:outline-2 focus-visible:outline-sky-300 ${classes}`}>
+        className={`inline-flex min-h-11 items-center gap-2 rounded-md border px-4 text-sm font-medium hover:brightness-125 focus-visible:outline-2 focus-visible:outline-sky-300 ${classes}`}>
         <Icon className={`h-4 w-4 ${health === 'ok' ? 'motion-safe:animate-spin' : ''}`} aria-hidden="true" />
         {running > 0 ? `${word} · ${running} task${running === 1 ? '' : 's'}` : word}
       </button>

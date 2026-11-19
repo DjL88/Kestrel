@@ -10,6 +10,7 @@ import { messages as m, formatCount } from '../i18n/messages';
 import { scanForCulling } from '../providers/browserAutoCull';
 import { bundledModelUrl } from '../providers/bundledModelAssets';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
+import { WorkProgressBar } from './WorkProgressBar';
 
 interface Props {
   frames: PhotoFrame[];
@@ -150,6 +151,15 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
         {progress !== undefined && onHide && <button type="button" autoFocus className={`${button} border border-white/15 font-medium`}
           onClick={onHide}>Cull in the background</button>}
         {progress !== undefined && onHide && <p className="text-xs text-zinc-400">Keep looking, choosing and editing while this runs. Your own choices always win. Progress and Stop are in Tasks.</p>}
+        {progress !== undefined && (
+          <div className="rounded-lg border border-white/12 bg-kestrel-panel px-3 py-2">
+            <div className="mb-2 flex items-center justify-between gap-3 text-xs text-zinc-300">
+              <span>Reviewing photos</span>
+              <span className="tabular-nums">{formatCount.format(progress)} of {formatCount.format(total)}</span>
+            </div>
+            <WorkProgressBar done={progress} total={total} label="Culling photos" />
+          </div>
+        )}
         {progress !== undefined && <button type="button" className={button}
           onClick={() => { if (taskId.current !== null) tasks.cancel(taskId.current); }}>{m.stopScan}</button>}
         {!candidates.length && <p className="text-sm text-zinc-400">{m.noCandidates}</p>}
