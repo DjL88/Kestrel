@@ -27,7 +27,7 @@ def evaluate(records):
         if set(record) != required:
             raise ValueError(f"record {line}: fields missing or unexpected: {sorted(required ^ set(record))}")
         ident = record["id"]
-        if not isinstance(ident, str) or not ident or "/" in ident or "\\\\" in ident or ident.strip() != ident:
+        if not isinstance(ident, str) or not ident or "/" in ident or chr(92) in ident or ident.strip() != ident:
             raise ValueError(f"record {line}: invalid anonymous id")
         if ident.casefold() in seen:
             raise ValueError(f"record {line}: duplicate id")
