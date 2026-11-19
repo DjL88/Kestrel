@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from 'react';
 import { ArrowLeftRight, ChevronLeft, ChevronRight, Maximize2, ZoomIn } from 'lucide-react';
 import type { CullDecision, PhotoFrame } from '../core/types';
 import { toggleCompareDecision } from '../core/compareDecision';
@@ -34,6 +35,21 @@ export function CompareView({
   const canGoBack = previous !== null && previous !== rightFrame?.id;
   const canGoForward = next !== null && next !== rightFrame?.id;
 
+  // Shortcuts are deliberately scoped to the focused comparison surface.
+  // Inputs, dialogs, toolbar buttons and the app-wide F/Tab handlers retain control.
+  function handleCompareKey(event: KeyboardEvent<HTMLElement>) {
+    if (event.target !== event.currentTarget || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat || event.nativeEvent.isComposing) return;
+    const key = event.key.toLowerCase();
+    if (key === 'arrowleft' && canGoBack && previous) onSelectRight(previous);
+    else if (key === 'arrowright' && canGoForward && next) onSelectRight(next);
+    else if (key === 'k' && rightFrame) onDecideFrame(rightFrame.id, toggleCompareDecision(rightFrame.decision, 'keep'));
+    else if (key === 'x' && rightFrame) onDecideFrame(rightFrame.id, toggleCompareDecision(rightFrame.decision, 'reject'));
+    else if (key === 'u' && rightFrame) onDecideFrame(rightFrame.id, 'unreviewed');
+    else return;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
   function photo(frame: PhotoFrame | null) {
     if (!frame) return <div className="grid h-full place-items-center text-sm text-zinc-400">No photo selected</div>;
     return <FrameImage frame={frame} previewProvider={previewProvider} needsAccess={needsAccess}
@@ -41,7 +57,7 @@ export function CompareView({
   }
 
   return (
-    <section aria-label="Compare photos" className="flex min-h-0 flex-1 flex-col">
+    <section aria-label="Compare photos" aria-description="When this comparison is focused: Left and Right select photo B; K keeps B, X rejects B, U clears B. Tab moves through controls." tabIndex={0} onKeyDown={handleCompareKey} className="flex min-h-0 flex-1 flex-col focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky-300">
       <PhotoViewport base={photo(rightFrame)} overlay={photo(leftFrame)} labels={['A', 'B']}
         zoom={zoomLevel} pan={panOffset} onTransform={onTransform} />
       <div role="toolbar" aria-label="Compare photo controls" className="flex flex-wrap items-center justify-between gap-x-2 border-t border-white/10 bg-kestrel-panel px-1 sm:px-3">
