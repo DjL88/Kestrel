@@ -3,7 +3,7 @@ import { ArrowLeftRight, ChevronLeft, ChevronRight, Maximize2, ZoomIn } from 'lu
 import type { CullDecision, PhotoFrame } from '../core/types';
 import { toggleCompareDecision } from '../core/compareDecision';
 import { resolveCompareKey } from '../core/compareKeyboard';
-import { stepSelection } from '../core/cullingEngine';
+import { compareNavigation } from '../core/compareNavigation';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { FrameImage } from './FrameImage';
 import { PhotoViewport } from './PhotoViewport';
@@ -30,12 +30,10 @@ export function CompareView({
   onTransform, onSwapPanes, candidates, onSelectRight, onDecideFrame, onExitCompare,
 }: Props) {
   const surfaceRef = useRef<HTMLElement>(null);
-  const alternatives = candidates.filter((frame) => frame.id !== leftFrame?.id);
-  const previous = stepSelection(alternatives, rightFrame?.id ?? null, -1);
-  const next = stepSelection(alternatives, rightFrame?.id ?? null, 1);
-  const uniqueRight = rightFrame?.id !== leftFrame?.id;
-  const canGoBack = previous !== null && previous !== rightFrame?.id;
-  const canGoForward = next !== null && next !== rightFrame?.id;
+  const { previous, next, currentValid } = compareNavigation(candidates, leftFrame?.id ?? null, rightFrame?.id ?? null);
+  const uniqueRight = !!rightFrame && !!leftFrame && rightFrame.id !== leftFrame.id && currentValid;
+  const canGoBack = previous !== null;
+  const canGoForward = next !== null;
 
   // Clicking a photograph makes the comparison keyboard-ready without requiring
   // the photographer to find a tiny focus target. Never steal focus from a
@@ -65,8 +63,8 @@ export function CompareView({
   }
 
   return (
-    <section ref={surfaceRef} onPointerDownCapture={focusPhotoSurface} aria-label="Compare photos" aria-description="When this comparison is focused: Click the photo to use shortcuts: Left and Right select photo B; K keeps B, X rejects B, U clears B. Tab moves through controls." tabIndex={0} onKeyDown={handleCompareKey} className="flex min-h-0 flex-1 flex-col focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky-300">
-      <PhotoViewport base={photo(rightFrame)} overlay={photo(leftFrame)} labels={['A', 'B']}
+    <section ref={surfaceRef} onPointerDownCapture={focusPhotoSurface} aria-label="Compare photos" aria-description="Click a photo to focus this comparison. Left and Right select photo B. K keeps B, X rejects B, U clears B. Tab moves through controls." tabIndex={0} onKeyDown={handleCompareKey} className="flex min-h-0 flex-1 flex-col focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky-300">
+      <PhotoViewport base={photo(uniqueRight ? rightFrame : null)} overlay={photo(leftFrame)} labels={['A', 'B']}
         zoom={zoomLevel} pan={panOffset} onTransform={onTransform} />
       <div role="toolbar" aria-label="Compare photo controls" className="flex flex-wrap items-center justify-between gap-x-2 border-t border-white/10 bg-kestrel-panel px-1 sm:px-3">
         <div role="group" aria-label="Compare zoom" className="flex items-center">
@@ -85,10 +83,10 @@ export function CompareView({
             A · {leftFrame?.filename ?? 'Select photo'}
           </span>
           <button type="button" className={`${control} disabled:opacity-35`} disabled={!canGoBack} onClick={() => previous && onSelectRight(previous)} aria-label="Previous photo B" title="Previous photo B"><ChevronLeft className="h-4 w-4" /></button>
-          <span data-testid="compare-photo-b" className="min-w-0 flex-1 truncate text-xs text-zinc-300" title={rightFrame?.filename}>B · {rightFrame?.filename ?? 'Select photo'}</span>
+          <span data-testid="compare-photo-b" className="min-w-0 flex-1 truncate text-xs text-zinc-300" title={uniqueRight ? rightFrame?.filename : undefined}>B · {uniqueRight ? rightFrame?.filename : 'Select photo'}</span>
           <button type="button" className={`${control} disabled:opacity-35`} disabled={!canGoForward} onClick={() => next && onSelectRight(next)} aria-label="Next photo B" title="Next photo B"><ChevronRight className="h-4 w-4" /></button>
         </div>
-        <button type="button" className={control} onClick={onSwapPanes} aria-label="Swap photos A and B" title="Swap photos A and B"><ArrowLeftRight className="h-4 w-4" /></button>
+        <button type="button" className={control} disabled={!uniqueRight} onClick={onSwapPanes} aria-label="Swap photos A and B" title="Swap photos A and B"><ArrowLeftRight className="h-4 w-4" /></button>
         {([['A', leftFrame], ['B', rightFrame]] as const).map(([side, frame]) => (
           frame && (side === 'A' || uniqueRight) && (
             <div key={side} role="group" aria-label={`Decisions for photo ${side}`} className="flex items-center">
