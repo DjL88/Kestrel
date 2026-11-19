@@ -31,3 +31,28 @@ export function compareNavigation(
     available: ids.length,
   };
 }
+
+/** Honest progress and explicit recovery for Compare's live filtered queue.
+ * Never silently replace a stale B: the user must choose to load the next
+ * valid candidate. The A reference is fixed and must remain valid.
+ */
+export function compareQueueState(
+  candidates: readonly PhotoFrame[],
+  leftId: string | null,
+  rightId: string | null,
+): { position: number; total: number; recoveryId: string | null; state: 'ready' | 'missing-reference' | 'missing-comparison' | 'unselected' | 'empty' } {
+  const nav = compareNavigation(candidates, leftId, rightId);
+  if (!nav.referenceValid) return { position: 0, total: nav.available, recoveryId: null, state: 'missing-reference' };
+  if (!nav.available) return { position: 0, total: 0, recoveryId: null, state: 'empty' };
+  if (rightId === null) return { position: 0, total: nav.available, recoveryId: nav.next, state: 'unselected' };
+  if (!nav.currentValid) return { position: 0, total: nav.available, recoveryId: nav.next, state: 'missing-comparison' };
+  const seen = new Set<string>();
+  let position = 0;
+  for (const frame of candidates) {
+    if (frame.removedAt != null || frame.id === leftId || seen.has(frame.id)) continue;
+    seen.add(frame.id);
+    position++;
+    if (frame.id === rightId) return { position, total: nav.available, recoveryId: null, state: 'ready' };
+  }
+  return { position: 0, total: nav.available, recoveryId: nav.next, state: 'missing-comparison' };
+}
