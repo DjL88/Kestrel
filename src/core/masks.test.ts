@@ -235,3 +235,18 @@ test('only slider changes count as adjustments; moving, painting, adding or dele
   assert.equal(onlyAdjustmentsChanged(masks, masks), false, 'nothing changed');
   assert.equal(onlyAdjustmentsChanged([], []), false);
 });
+
+test('rotated oval changes orientation without changing its centre or invalidating old recipes', () => {
+  const oldMask = { ...createMask('radial', 'rotation'), kind: 'radial' as const, cx: 0.5, cy: 0.5, rx: 0.35, ry: 0.08, feather: 0.2 };
+  const unrotated = maskAlpha(oldMask, W, H, ctx);
+  const rotated = { ...oldMask, angle: 90 };
+  const turned = maskAlpha(rotated, W, H, ctx);
+  assert.equal(validMasks([oldMask]), true, 'earlier saved masks without angle remain valid');
+  assert.equal(validMasks([rotated]), true);
+  assert.equal(validMasks([{ ...rotated, angle: Number.NaN }]), false);
+  assert.ok(at(unrotated, 75, 40) > 0.9, 'wide oval covers horizontal point');
+  assert.ok(at(turned, 75, 40) < 0.1, 'rotating no longer covers horizontal point');
+  assert.ok(at(turned, 50, 62) > 0.9, 'rotated oval covers vertical point');
+  assert.ok(at(unrotated, 50, 62) < 0.1);
+  assert.ok(at(turned, 50, 40) > 0.95, 'centre stays selected');
+});

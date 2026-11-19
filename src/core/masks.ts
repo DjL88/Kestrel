@@ -159,7 +159,16 @@ export function maskAlpha(mask: Mask, width: number, height: number, context: Ma
         const t = ((nx - mask.x1) * dx + (ny - mask.y1) * aspect * dy) / lengthSquared;
         a = 1 - smoothstep(low, high, t);
       } else if (mask.kind === 'radial') {
-        const d = Math.hypot((nx - mask.cx) / mask.rx, ((ny - mask.cy) * aspect) / mask.ry);
+        // Rotate the offset back into the oval's local axes. Both axes
+        // use photo-width units so orientation remains stable at every crop/zoom.
+        const rad = ((mask.angle ?? 0) * Math.PI) / 180;
+        const cosine = Math.cos(rad);
+        const sine = Math.sin(rad);
+        const offsetX = nx - mask.cx;
+        const offsetY = (ny - mask.cy) * aspect;
+        const localX = offsetX * cosine + offsetY * sine;
+        const localY = -offsetX * sine + offsetY * cosine;
+        const d = Math.hypot(localX / mask.rx, localY / mask.ry);
         a = 1 - smoothstep(inner, 1, d);
       } else if (mask.kind === 'subject') {
         let value = sampleBrush(brush!, nx, ny);
