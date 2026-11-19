@@ -178,3 +178,46 @@ test('local Brightness raises subject midtones without brightening outside a sof
   assert.equal(pixels[(2 * W + 2) * 4], 110);
   assert.equal(pixels[(40 * W + 50) * 4 + 3], 255);
 });
+
+/** A w × h grid, encoded as the recipe stores it, from a function giving 0 to 1 per cell. */
+function encodedGrid(w: number, h: number, value: (x: number, y: number) => number) {
+  let binary = '';
+  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) binary += String.fromCharCode(Math.round(value(x, y) * 255));
+  return { w, h, data: btoa(binary) };
+}
+
+test('a subject\'s fine outline is used inside its region, and the coarse grid outside it', () => {
+  // Coarse: a blurry blob. Fine: a crisp disc in the region x 0.4–0.6, y 0.4–0.6 (of the framed photo).
+  const coarse = encodedGrid(16, 13, (x, y) => Math.max(0, 1 - Math.hypot(x - 8, y - 6.5) / 4));
+  const detail = { region: { x: 0.4, y: 0.4, w: 0.2, h: 0.2 }, grid: encodedGrid(64, 64, (x, y) => Math.hypot(x - 32, y - 32) < 20 ? 1 : 0) };
+  const mask = { ...createSubjectMask('s', coarse, 'k', 'high', detail), feather: 0 };
+  assert.equal(validMasks([mask]), true);
+  const alpha = maskAlpha(mask, W, H, ctx);
+  // Centre of the disc: fully selected. Just outside the disc but inside the region: clear, though the blur says otherwise.
+  assert.ok(at(alpha, 50, 40) > 0.99);
+  const insideRegionOutsideDisc = at(alpha, 59, 47); // nx 0.595, ny 0.594: outside the disc (radius ~0.0625)
+  assert.ok(insideRegionOutsideDisc < 0.01, `${insideRegionOutsideDisc}`);
+  // Without the detail the same point is in the coarse blob.
+  const coarseOnly = maskAlpha({ ...mask, detail: undefined }, W, H, ctx);
+  assert.ok(at(coarseOnly, 50, 40) > 0.99);
+});
+
+test('brush strokes still win over the fine outline where they touch', () => {
+  const coarse = encodedGrid(16, 13, () => 0);
+  const detail = { region: { x: 0.25, y: 0.25, w: 0.5, h: 0.5 }, grid: encodedGrid(32, 32, () => 1) };
+  const base = { ...createSubjectMask('s', coarse, 'k', 'high', detail), feather: 0 };
+  const erased = { ...base, strokes: [createBrushStroke([0.5, 0.5], 0.08, true, false)] };
+  const alpha = maskAlpha(erased, W, H, ctx);
+  assert.ok(at(alpha, 50, 40) < 0.05, 'erased at the stroke centre');
+  assert.ok(at(alpha, 30, 25) > 0.95, 'untouched parts of the region keep the fine outline');
+});
+
+test('damaged subject detail is refused', () => {
+  const coarse = encodedGrid(16, 13, () => 0.5);
+  const good = createSubjectMask('s', coarse, 'k', 'high', { region: { x: 0.1, y: 0.1, w: 0.3, h: 0.3 }, grid: encodedGrid(16, 16, () => 1) });
+  assert.equal(validMasks([good]), true);
+  assert.equal(validMasks([{ ...good, detail: { ...good.detail!, region: { x: 0.9, y: 0.1, w: 0.3, h: 0.3 } } }]), false);
+  assert.equal(validMasks([{ ...good, detail: { ...good.detail!, region: { x: Number.NaN, y: 0, w: 0.3, h: 0.3 } } }]), false);
+  assert.equal(validMasks([{ ...good, detail: { ...good.detail!, grid: { w: 16, h: 16, data: 'short' } } }]), false);
+  assert.equal(validMasks([{ ...good, detail: null }]), false);
+});

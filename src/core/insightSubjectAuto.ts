@@ -1,5 +1,5 @@
 import type { PhotoEdit } from './photoEdits';
-import type { LocalEdit, Mask, SubjectGrid } from './maskTypes';
+import type { LocalEdit, Mask, SubjectDetail, SubjectGrid } from './maskTypes';
 
 /**
  * Kestrel Insight research: a conservative, offline subject-aware Auto proposal.
@@ -16,7 +16,8 @@ export interface SubjectAutoInput {
   /** Current prospective global recipe (not a saved edit). */
   edit: PhotoEdit;
   subjectKind: InsightSubjectKind;
-  segmentation?: { grid: SubjectGrid; confidence: 'high' | 'medium' | 'low' } | null;
+  /** `detail` is the fine, edge-refined outline; it only changes how the saved mask's edge is drawn. */
+  segmentation?: { grid: SubjectGrid; confidence: 'high' | 'medium' | 'low'; detail?: SubjectDetail | null } | null;
   framingKey: string;
   /** Distinct ID for the prospective mask, supplied by the caller. */
   maskId: string;
@@ -102,7 +103,7 @@ export function proposeSubjectAwareAuto(input: SubjectAutoInput): SubjectAutoPro
   const difference = backgroundLuma - subjectLuma;
   const subjectMask = (local: LocalEdit): Mask => ({
     id: maskId, kind: 'subject', grid: segmentation.grid, framingKey, confidence: segmentation.confidence,
-    strokes: [], invert: false, feather: 0.55, edit: local,
+    strokes: [], invert: false, feather: 0.55, edit: local, ...(segmentation.detail ? { detail: segmentation.detail } : {}),
   });
   if (difference < (subjectKind === 'other' ? 0.23 : segmentation.confidence === 'high' ? 0.12 : 0.18) ||
       subjectLuma > 0.72 || clipped / subjectCount > 0.03) {

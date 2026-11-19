@@ -9,10 +9,9 @@ import { DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawFr
 import { PhotoExportPanel } from './PhotoExportPanel';
 import { AppearanceDialog } from './AppearanceDialog';
 import { downloadExport } from '../providers/browserExport';
-import { gridSizeFor } from '../core/subjectModel';
 import { QuickAdjust } from './QuickAdjust';
 import { AreaSelector } from './AreaSelector';
-import { placeInRegion, sampledRegion, type Region } from '../core/subjectRegion';
+import { sampledRegion, type Region } from '../core/subjectRegion';
 import { Histogram } from './Histogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
@@ -20,8 +19,8 @@ import { applyFix, critique, toneOnlyEdit, type Opinion } from '../core/critique
 import { fullContext } from '../core/masks';
 import { MaskOverlay } from './MaskOverlay';
 import { MaskPanel } from './MaskPanel';
-import { createSubjectMask, framingKey, type SubjectGrid } from '../core/maskTypes';
-import { detectSubject, detectSubjectGuided } from '../providers/subjectDetector';
+import { createSubjectMask, framingKey, type SubjectDetail, type SubjectGrid } from '../core/maskTypes';
+import { detectSubjectGuided, detectSubjectInArea, type GuidedSubject } from '../providers/subjectDetector';
 import { GUIDED_RENDER_EDGE } from '../core/subjectGuide';
 import { findEye, lumaOf, panToCentre } from '../core/eyeFinder';
 import { subjectWeights } from '../core/naturalAuto';
@@ -142,7 +141,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [autoAnalysing, setAutoAnalysing] = useState(false);
   // Invalidates slow ONNX results when a proposal is replaced, a tab changes or this editor unmounts.
   const autoRun = useRef(0);
-  const subjectCache = useRef<{ source: HTMLImageElement; cropKey: string; result: Awaited<ReturnType<typeof detectSubject>> } | null>(null);
+  const subjectCache = useRef<{ source: HTMLImageElement; cropKey: string; result: GuidedSubject } | null>(null);
   useEffect(() => () => { autoRun.current += 1; }, []);
   // Once asked for, the opinion stays up to date as the edit changes, until it is hidden.
   const [opinions, setOpinions] = useState<Opinion[] | null>(null);
@@ -665,7 +664,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       }
       const analysis = analysisContext.getImageData(0, 0, analysisCanvas.width, analysisCanvas.height);
       const category = autoSubjectKind();
-      let segmentation: { grid: SubjectGrid; confidence: 'high' | 'medium' | 'low' } | null = null;
+      let segmentation: { grid: SubjectGrid; confidence: 'high' | 'medium' | 'low'; detail?: SubjectDetail | null } | null = null;
       let subjectNote = '';
       if (category !== 'landscape') {
         try {
@@ -690,7 +689,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             if (stillCurrent()) subjectCache.current = { source: originalSource, cropKey, result: detection };
           }
           if (!stillCurrent()) return;
-          if (detection.assessment.usable) segmentation = { grid: detection.grid, confidence: detection.assessment.confidence };
+          if (detection.assessment.usable) segmentation = { grid: detection.grid, confidence: detection.assessment.confidence, detail: detection.detail };
           else subjectNote = 'Subject edges were uncertain, so only whole-photo adjustments were considered.';
         } catch {
           if (!stillCurrent()) return;
@@ -822,7 +821,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     try {
       const framed = document.createElement('canvas');
       drawFramedPhoto(source, framed, framing, { scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(outputSize.width, outputSize.height)) });
-      const { grid, assessment, guide } = await detectSubjectGuided(framed);
+      const { grid, assessment, guide, detail } = await detectSubjectGuided(framed);
       if (detectionContext.current !== startedFor) {
         if (detectionContext.current) setDetectNotice('Photo edits changed. Find the subject or background again.');
         return;
@@ -835,9 +834,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       const key = framingKey(framing);
       if (replaceId) {
         onEdit({ ...edit, masks: masks.map((mask) => mask.id === replaceId && mask.kind === 'subject'
-          ? { ...mask, grid, framingKey: key, confidence: assessment.confidence, strokes: [] } : mask) });
+          ? { ...mask, grid, detail: detail ?? undefined, framingKey: key, confidence: assessment.confidence, strokes: [] } : mask) });
       } else {
-        const mask = { ...createSubjectMask(newId(), grid, key, assessment.confidence), invert: background };
+        const mask = { ...createSubjectMask(newId(), grid, key, assessment.confidence, detail), invert: background };
         onEdit({ ...edit, masks: [...masks, mask] });
         setSelectedMaskId(mask.id);
         setShowMaskOverlay(true);
@@ -867,14 +866,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       piece.width = box.w;
       piece.height = box.h;
       piece.getContext('2d')?.drawImage(preview, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
-      const { grid, assessment } = await detectSubject(piece, { maxCoverage: 0.98 });
+      const { grid, assessment, detail } = await detectSubjectInArea(piece, bounds, preview.height / preview.width);
       if (detectionContext.current !== startedFor) {
         if (detectionContext.current) setDetectNotice('Photo edits changed. Select the area again.');
         return;
       }
       if (!assessment.usable) { setDetectNotice(assessment.reason); return; }
-      const full = gridSizeFor(preview.height / preview.width);
-      const mask = createSubjectMask(newId(), placeInRegion(grid, bounds, full.w, full.h), framingKey(framing), assessment.confidence);
+      const mask = createSubjectMask(newId(), grid, framingKey(framing), assessment.confidence, detail);
       onEdit({ ...edit, masks: [...(edit.masks ?? []), mask] });
       setSelectedMaskId(mask.id);
       setShowMaskOverlay(true);
