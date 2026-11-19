@@ -178,9 +178,9 @@ A full pass through every page, as a user and a graphic designer: consistent, ti
 Seen by running the web build with 12 synthetic photos and reading the source. It is written from five points of view: user, photographer, designer, developer and brand. Items already in E–I are not repeated. Take them in this order.
 
 *Trust and colour-blind safety (first: these break the spec's "colour is never the only cue")*
-1. **Keep and Reject on grid tiles differ only by border colour (blue or orange) and dimming.** The word is for screen readers only, and both show the same "×/Back to review" button (`VirtualizedContactSheet.tsx`, `DecisionButtons.tsx`). Add a visible ✓ Kept or ✕ Rejected badge, like the filmstrip's.
-2. **Selected tiles in multi-select show only a ring.** Add a tick, as the filmstrip does.
-3. **Toggles and pressed states use a blue tint only:** Photo info Keep/Reject, Compare's decisions, mask and Auto-cull toggles. Add a ✓ or bold text with `aria-pressed`, as Preferred hand already does.
+1. ~~**Keep and Reject on grid tiles differ only by border colour (blue or orange) and dimming.** The word is for screen readers only, and both show the same "×/Back to review" button (`VirtualizedContactSheet.tsx`, `DecisionButtons.tsx`). Add a visible ✓ Kept or ✕ Rejected badge, like the filmstrip's.~~ MERGED 19 Nov: each tile's footer shows **✓ Kept** (solid) or **✕ Rejected** (dashed outline) in words, never on the photo.
+2. ~~**Selected tiles in multi-select show only a ring.** Add a tick, as the filmstrip does.~~ MERGED 19 Nov: while selecting, each tile has a tick box (empty or ticked) by its name; the current tile's border is also thicker.
+3. **Toggles and pressed states use a blue tint only:** *Part MERGED 19 Nov: Photo info's flag and Compare's Keep/Reject show ✓ and bold words when chosen.* Still to do: Photo info Keep/Reject, Compare's decisions, mask and Auto-cull toggles. Add a ✓ or bold text with `aria-pressed`, as Preferred hand already does.
 4. **Success and failure messages are green or amber text with no icon:** connections, licence, online helper and export. Use one shared notice with an icon and a first word ("Done:", "Couldn't:").
 
 *One word for one thing (low confidence, autism: predictable language)*

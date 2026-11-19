@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Info, SlidersHorizontal, Star } from 'lucide-react';
+import { Check, Info, SlidersHorizontal, Square, SquareCheck, Star, X } from 'lucide-react';
 import type { CullDecision, PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { DecisionButtons } from './DecisionButtons';
@@ -278,7 +278,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                     }}
                     className={`relative flex flex-col rounded-lg border overflow-hidden motion-safe:transition-colors ${
                       isSelected
-                        ? 'border-sky-400 bg-[#1B1F27] ring-1 ring-sky-400/50'
+                        ? 'border-2 border-sky-300 bg-[#1B1F27] ring-1 ring-sky-400/50'
                         : isKeep
                         ? 'border-sky-400/40 bg-[#15181E] hover:border-sky-400/70'
                         : isReject
@@ -371,11 +371,20 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                       {/* Everything about the photo lives here, under it: nothing sits on the picture itself. */}
                       <div className="flex min-w-0 flex-1 items-center gap-1">
                         <div className="min-w-0 flex-1">
-                          <div className="text-[11px] font-medium text-zinc-200 truncate">
-                            {frame.filename}
-                            <span className="sr-only">, {frame.decision === 'keep' ? 'Keeper' : frame.decision === 'reject' ? 'In Trash' : 'To review'}</span>
+                          <div className="flex min-w-0 items-center gap-1 text-[11px] font-medium text-zinc-200">
+                            {/* While selecting, a tick box shows which photos are chosen: a shape, not just the border colour. */}
+                            {multiSelect && (isMarked
+                              ? <SquareCheck data-testid="tile-selected" className="h-3.5 w-3.5 shrink-0 text-sky-200" aria-hidden="true" />
+                              : <Square className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />)}
+                            <span className="truncate">{frame.filename}</span>
+                            {frame.decision === 'unreviewed' && <span className="sr-only">, To review</span>}
                           </div>
                           <div className="flex min-w-0 items-center gap-1.5 text-[10px] text-zinc-500">
+                            {/* The decision in words and a shape, so it never depends on telling blue from orange. */}
+                            {isKeep && <span data-testid="tile-decision" className="inline-flex shrink-0 items-center gap-0.5 rounded bg-sky-400/15 px-1 font-semibold text-sky-100">
+                              <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />Kept</span>}
+                            {isReject && <span data-testid="tile-decision" className="inline-flex shrink-0 items-center gap-0.5 rounded border border-dashed border-orange-300/60 px-1 font-semibold text-orange-100">
+                              <X className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />Rejected</span>}
                             <span className="shrink-0 font-mono tabular-nums">#{String(frame.sequenceIndex).padStart(4, '0')}</span>
                             {Boolean(frame.rating ?? frame.exif.rating) && <span className="inline-flex shrink-0 items-center gap-0.5 text-zinc-300">
                               <Star className="h-2.5 w-2.5" aria-hidden="true" />{frame.rating ?? frame.exif.rating}</span>}
