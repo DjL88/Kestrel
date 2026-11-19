@@ -43,8 +43,15 @@ export function AdjustmentSlider({
   const lastSent = useRef<number | null>(null);
   useEffect(() => {
     if (dragging.current) return;
-    // Ignore delayed parent echoes of earlier pointer positions.
-    if (lastSent.current !== null && Math.abs(value - lastSent.current) > step / 2) return;
+    // Parent renders can arrive out of order during a drag. Keep the thumb
+    // responsive, but never permanently block undo, reset or photo changes.
+    if (lastSent.current !== null && Math.abs(value - lastSent.current) > step / 2) {
+      const reconcile = window.setTimeout(() => {
+        lastSent.current = null;
+        setLocalValue(value);
+      }, 350);
+      return () => window.clearTimeout(reconcile);
+    }
     lastSent.current = null;
     setLocalValue(value);
   }, [value, step]);
@@ -60,7 +67,7 @@ export function AdjustmentSlider({
   const originStyle: CSSProperties = { left: `${fill.neutral}%` };
   return (
     <div title={title} className={`kestrel-adjustment min-w-0 items-center gap-x-2 gap-y-0 rounded-md py-0.5 text-sm text-zinc-200
-      ${layout === 'stacked' ? 'grid grid-cols-[minmax(0,1fr)_auto] -my-1' : 'grid grid-cols-[minmax(4.5rem,0.85fr)_minmax(4rem,1.5fr)_minmax(3.5rem,auto)]'}
+      ${layout === 'stacked' ? 'grid grid-cols-[minmax(0,1fr)_auto] -my-1.5' : 'grid grid-cols-[minmax(4.5rem,0.85fr)_minmax(4rem,1.5fr)_minmax(3.5rem,auto)]'}
       ${disabled ? 'opacity-45' : ''}`}>
       <label htmlFor={id} className={`min-w-0 leading-5 ${layout === 'stacked' ? 'col-start-1 font-medium whitespace-normal' : 'truncate'}`}>{label}{hint && <span className="ml-1.5 text-xs font-normal text-kestrel-copper">{hint}</span>}</label>
       <span className={`relative flex min-w-0 items-center ${layout === 'stacked' ? 'col-span-2 row-start-2 w-full' : ''}`}>
@@ -72,8 +79,8 @@ export function AdjustmentSlider({
         <input id={id} type="range" min={min} max={max} step={step} value={localValue} disabled={disabled}
           aria-label={ariaLabel ?? `${label} adjustment`} aria-valuetext={shown} aria-describedby={describedBy}
           onFocus={onFocus} onPointerDown={() => { dragging.current = true; }}
-          onPointerUp={() => { dragging.current = false; }}
-          onPointerCancel={() => { dragging.current = false; }}
+          onPointerUp={() => { dragging.current = false; if (lastSent.current === null) setLocalValue(value); }}
+          onPointerCancel={() => { dragging.current = false; lastSent.current = null; setLocalValue(value); }}
           onChange={(event) => change(event.target.valueAsNumber)}
           onDoubleClick={() => { if (!disabled && resettable) change(neutral); }}
           className="kestrel-adjustment-range relative z-10 h-10 w-full min-w-0 cursor-pointer disabled:cursor-not-allowed" />
