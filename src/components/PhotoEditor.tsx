@@ -21,7 +21,8 @@ import { fullContext } from '../core/masks';
 import { MaskOverlay } from './MaskOverlay';
 import { MaskPanel } from './MaskPanel';
 import { createSubjectMask, framingKey, type SubjectGrid } from '../core/maskTypes';
-import { detectSubject } from '../providers/subjectDetector';
+import { detectSubject, detectSubjectGuided } from '../providers/subjectDetector';
+import { GUIDED_RENDER_EDGE } from '../core/subjectGuide';
 import { PresetPanel } from './PresetPanel';
 import { mergeAutoSuggestion } from '../core/autoEnhance';
 import { describeOutcome, naturalAuto, stageNaturalRecipe } from '../core/naturalAuto';
@@ -619,10 +620,15 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             // Slow or broken inference must not hold the editing workflow hostage.
             let timeout: number | undefined;
             try {
+              // The detector steers the outline to small, distant subjects; it falls back to the whole photo by itself.
+              const guideCanvas = document.createElement('canvas');
+              drawFramedPhoto(originalSource, guideCanvas, frame.framing ?? DEFAULT_FRAMING, {
+                scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(outputSize.width, outputSize.height)),
+              });
               detection = await Promise.race([
-                detectSubject(analysisCanvas),
+                detectSubjectGuided(guideCanvas),
                 new Promise<never>((_, reject) => {
-                  timeout = window.setTimeout(() => reject(new Error('Subject analysis timed out')), 8000);
+                  timeout = window.setTimeout(() => reject(new Error('Subject analysis timed out')), 12000);
                 }),
               ]);
             } finally { if (timeout !== undefined) window.clearTimeout(timeout); }
@@ -759,9 +765,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     setDetecting(true);
     setDetectNotice('');
     try {
-      const preview = document.createElement('canvas');
-      drawFramedPhoto(source, preview, framing, { scale: Math.min(1, 640 / Math.max(outputSize.width, outputSize.height)) });
-      const { grid, assessment } = await detectSubject(preview);
+      const framed = document.createElement('canvas');
+      drawFramedPhoto(source, framed, framing, { scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(outputSize.width, outputSize.height)) });
+      const { grid, assessment, guide } = await detectSubjectGuided(framed);
       if (detectionContext.current !== startedFor) {
         if (detectionContext.current) setDetectNotice('Photo edits changed. Find the subject or background again.');
         return;
@@ -781,7 +787,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         setSelectedMaskId(mask.id);
         setShowMaskOverlay(true);
       }
-      setDetectNotice(assessment.reason);
+      setDetectNotice(guide ? `Traced the subject the detector found, at full detail. ${assessment.reason}` : assessment.reason);
     } catch (error) {
       if (detectionContext.current === startedFor) {
         setDetectNotice(error instanceof Error ? error.message : 'Subject detection failed.');
