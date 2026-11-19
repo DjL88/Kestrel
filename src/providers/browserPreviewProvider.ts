@@ -345,7 +345,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       if (!preview) return null;
       const bytes = await materialize(preview, 'image/jpeg');
       if (!await range.verify()) return null;
-      if ((this.linkedGeneration.get(key) ?? 0) !== generation || this.developed.has(key) || this.linked.get(key) !== linked) return null;
+      if ((this.linkedGeneration.get(key) ?? 0) !== generation || this.developed.has(key) || this.localBlobs.has(key) || this.linked.get(key) !== linked) return null;
       const ready = this.fullUrlCache.get(key);
       if (ready) return ready;
       const url = URL.createObjectURL(bytes);
@@ -376,6 +376,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
     // Virtual copies have different edit recipes but share the same unedited source.
     const key = frame.stableKey;
+    const revision = this.sourceRevisions.get(key) ?? 0;
     this.fullFrameKeys.set(frame.id, key);
     const cached = this.fullUrlCache.get(key);
     if (cached) {
@@ -391,11 +392,15 @@ export class BrowserPreviewProvider implements PreviewProvider {
     const blob = await this.ensureOriginal(key, priority);
     const cacheKey = this.offlineCacheKey(frame);
     const cachedPreviews = await this.loadOfflinePreviews(cacheKey);
+    // A relink or replacement may land while a slow original/offline read runs.
+    // Never install a URL for the superseded source revision.
+    if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.getFullPreviewUrl(frame, priority);
     if (!blob) {
       // The original drive may be disconnected. Show a cached preview,
       // never imply this is suitable for full-resolution export or RAW editing.
       const offline = this.developed.get(key) ?? cachedPreviews?.review ?? await loadOfflinePreview(cacheKey);
       if (!offline) return '';
+      if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.getFullPreviewUrl(frame, priority);
       const fallbackUrl = URL.createObjectURL(offline);
       this.fullUrlCache.set(key, fallbackUrl);
       // Without the linked original, even a previously developed bitmap is only a review fallback.
@@ -427,6 +432,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       }
     }
     if (!previewBlob) return '';
+    if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.getFullPreviewUrl(frame, priority);
     // A concurrent request for a virtual copy may already have cached this source.
     const ready = this.fullUrlCache.get(key);
     if (ready) return ready;
@@ -564,7 +570,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       const thumbBlob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, 'image/jpeg', 0.82)
       );
-      if (thumbBlob) void saveOfflinePreview(cacheKey, thumbBlob);
+      if (thumbBlob && revision === (this.sourceRevisions.get(frame.stableKey) ?? 0)) void saveOfflinePreview(cacheKey, thumbBlob);
       const url = URL.createObjectURL(thumbBlob ?? sourceBlob);
       return this.rememberThumbnailUrl(frame, url, revision);
     } catch {
