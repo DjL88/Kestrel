@@ -51,6 +51,7 @@ export function MaskOverlay({ mask, masks, aspect, rect, brushRadius, paintOn = 
   const shade = useRef<HTMLCanvasElement>(null);
   const [box, setBox] = useState({ w: 1, h: 1 });
   const [live, setLive] = useState<number[] | null>(null);
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const node = root.current;
@@ -104,14 +105,23 @@ export function MaskOverlay({ mask, masks, aspect, rect, brushRadius, paintOn = 
       <Handle x={mask.x2} y={mask.y2} label="Gradient end, no effect. Arrow keys move it." onMove={(p) => onChange({ ...mask, x2: p.x, y2: p.y })} />
     </>;
   } else if (mask.kind === 'radial') {
+    const angle = mask.angle ?? 0;
+    const radians = (angle * Math.PI) / 180;
+    const cosine = Math.cos(radians);
+    const sine = Math.sin(radians);
+    const rotation = `rotate(${angle} ${mask.cx * w} ${mask.cy * h})`;
+    const widthPoint = { x: mask.cx + mask.rx * cosine, y: mask.cy + mask.rx * sine / aspect };
+    const heightPoint = { x: mask.cx - mask.ry * sine, y: mask.cy + mask.ry * cosine / aspect };
+    const anglePoint = { x: mask.cx + (mask.rx + 0.13) * cosine, y: mask.cy + (mask.rx + 0.13) * sine / aspect };
     shapes = <>
-      <ellipse cx={mask.cx * w} cy={mask.cy * h} rx={mask.rx * w} ry={mask.ry * w} fill="none" stroke="#000" strokeWidth="4" />
-      <ellipse cx={mask.cx * w} cy={mask.cy * h} rx={mask.rx * w} ry={mask.ry * w} fill="none" stroke="#fff" strokeWidth="2" />
+      <ellipse cx={mask.cx * w} cy={mask.cy * h} rx={mask.rx * w} ry={mask.ry * w} transform={rotation} fill="none" stroke="#000" strokeWidth="4" />
+      <ellipse cx={mask.cx * w} cy={mask.cy * h} rx={mask.rx * w} ry={mask.ry * w} transform={rotation} fill="none" stroke="#fff" strokeWidth="2" />
     </>;
     handles = <>
-      <Handle x={mask.cx} y={mask.cy} label="Move the oval. Arrow keys move it." onMove={(p) => onChange({ ...mask, cx: p.x, cy: p.y })} />
-      <Handle x={clamp(mask.cx + mask.rx)} y={mask.cy} label="Oval width. Arrow keys resize it." onMove={(p) => onChange({ ...mask, rx: Math.max(0.01, Math.abs(p.x - mask.cx)) })} />
-      <Handle x={mask.cx} y={clamp(mask.cy + mask.ry / aspect)} label="Oval height. Arrow keys resize it." onMove={(p) => onChange({ ...mask, ry: Math.max(0.01, Math.abs(p.y - mask.cy) * aspect) })} />
+      <Handle x={mask.cx} y={mask.cy} label="Move oval. Arrow keys move it." onMove={(p) => onChange({ ...mask, cx: p.x, cy: p.y })} />
+      <Handle x={clamp(widthPoint.x)} y={clamp(widthPoint.y)} label="Oval width. Arrow keys resize." onMove={(p) => onChange({ ...mask, rx: Math.max(0.01, Math.abs((p.x - mask.cx) * cosine + (p.y - mask.cy) * aspect * sine)) })} />
+      <Handle x={clamp(heightPoint.x)} y={clamp(heightPoint.y)} label="Oval height. Arrow keys resize." onMove={(p) => onChange({ ...mask, ry: Math.max(0.01, Math.abs(-(p.x - mask.cx) * sine + (p.y - mask.cy) * aspect * cosine)) })} />
+      <Handle x={clamp(anglePoint.x)} y={clamp(anglePoint.y)} label="Rotate oval. Arrow keys move rotation handle." onMove={(p) => onChange({ ...mask, angle: Math.round(Math.atan2((p.y - mask.cy) * aspect, p.x - mask.cx) * 180 / Math.PI) })} />
     </>;
   } else if (live && (mask.kind === 'brush' || mask.kind === 'subject')) {
     const points: string[] = [];
@@ -130,9 +140,12 @@ export function MaskOverlay({ mask, masks, aspect, rect, brushRadius, paintOn = 
         const p = toNorm(event);
         setLive([p.x, p.y]);
       } : undefined}
+      onPointerEnter={painting ? (event) => setCursor(toNorm(event)) : undefined}
+      onPointerLeave={painting ? () => setCursor(null) : undefined}
       onPointerMove={painting ? (event) => {
-        if (!live || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
         const p = toNorm(event);
+        setCursor(p);
+        if (!live || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
         const lastX = live[live.length - 2];
         const lastY = live[live.length - 1];
         if (Math.hypot(p.x - lastX, (p.y - lastY) * aspect) < 0.003 || live.length >= 3000) return;
@@ -147,6 +160,7 @@ export function MaskOverlay({ mask, masks, aspect, rect, brushRadius, paintOn = 
       <canvas ref={shade} aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full" style={{ imageRendering: 'auto' }} />
       <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" viewBox={`0 0 ${w} ${h}`}>{shapes}</svg>
       {handles}
+      {painting && cursor && <span aria-hidden="true" className="pointer-events-none absolute z-20 rounded-full border border-white/90 bg-sky-300/10 shadow-[0_0_0_1px_#121418]" style={{ left: `${cursor.x * 100}%`, top: `${cursor.y * 100}%`, width: `${brushRadius * 200}%`, aspectRatio: '1', transform: 'translate(-50%, -50%)' }} />}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { percentFor, stepZoom, zoomForPercent } from '../core/zoomControls';
+import { adjustmentFill } from '../core/adjustmentSlider';
 
 interface ZoomControlsProps {
   /** 1 is the whole photo fitted to the view. */
@@ -24,6 +25,8 @@ interface ZoomControlsProps {
  */
 export function ZoomControls({ zoom, fit, dpr, maxZoom, onZoom, eye, note, compact = false, className = '' }: ZoomControlsProps) {
   const ready = fit > 0;
+  const rangeMax = Math.max(1.01, maxZoom);
+  const progress = adjustmentFill(zoom, 1, rangeMax, 1);
   return (
     <div role="group" aria-label="Zoom" className={`flex shrink-0 items-center gap-0.5 rounded-md border border-white/10 px-1 text-xs text-zinc-100 ${className}`}>
       <button type="button" aria-label="Zoom out" title="Zoom out (-)" disabled={!ready} className="grid h-11 min-w-11 place-items-center rounded hover:bg-white/15 disabled:opacity-40"
@@ -31,9 +34,14 @@ export function ZoomControls({ zoom, fit, dpr, maxZoom, onZoom, eye, note, compa
       <span aria-live="polite" aria-label="Zoom level" className="min-w-10 text-center tabular-nums">{ready ? `${percentFor(zoom, fit, dpr)}%` : '—'}</span>
       <button type="button" aria-label="Zoom in" title="Zoom in (+)" disabled={!ready} className="grid h-11 min-w-11 place-items-center rounded hover:bg-white/15 disabled:opacity-40"
         onClick={() => onZoom(stepZoom(zoom, 1, maxZoom))}>+</button>
-      <input type="range" min={1} max={Math.max(1.01, maxZoom)} step={(Math.max(1.01, maxZoom) - 1) / 200} value={zoom} disabled={!ready}
-        aria-label="Zoom amount" onChange={(event) => onZoom(event.target.valueAsNumber)}
-        className={`min-h-11 w-20 accent-sky-300 desk:min-h-9 ${compact ? 'hidden @6xl:block' : ''}`} />
+      <span className={`relative w-24 shrink-0 items-center ${compact ? 'hidden @6xl:flex' : 'flex'}`}>
+        <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-white/25" />
+        <span aria-hidden="true" className="pointer-events-none absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-kestrel-copper"
+          style={{ left: `${progress.start}%`, width: `${progress.width}%` }} />
+        <input type="range" min={1} max={rangeMax} step={(rangeMax - 1) / 200} value={zoom} disabled={!ready}
+          aria-label="Zoom amount" onChange={(event) => onZoom(event.target.valueAsNumber)}
+          className="kestrel-adjustment-range relative z-10 h-11 w-full min-w-0 cursor-pointer disabled:cursor-not-allowed" />
+      </span>
       <button type="button" title="Fit to screen" className="h-11 min-w-11 rounded px-1.5 hover:bg-white/15" onClick={() => onZoom(1)}>Fit</button>
       <button type="button" title="Actual pixels" disabled={!ready} className="h-11 min-w-11 rounded px-1.5 hover:bg-white/15 disabled:opacity-40"
         onClick={() => onZoom(zoomForPercent(100, fit, dpr))}>100%</button>

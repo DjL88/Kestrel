@@ -31,6 +31,7 @@ interface ExifInspectorProps {
 
 export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide = 'right', batchCount, onClose, onRate, onFlag, onSubjects, onKeepTag, loadPicture, mates = [], onTagPhotos, onAutoTag }) => {
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'info' | 'subject'>('info');
   const [picture, setPicture] = useState<HTMLCanvasElement | null>(null);
   const frameId = frame?.id;
   // The species model looks at a small copy of the photo, made when its details are opened.
@@ -86,7 +87,18 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
-      <p className="break-words text-sm text-zinc-200">{frame.filename}</p>
+      <div role="tablist" aria-label="Photo details" className="mt-2 grid grid-cols-2 gap-1 rounded-lg bg-black/20 p-1">
+        {(['info', 'subject'] as const).map((tab) => (
+          <button key={tab} type="button" role="tab" id={`photo-tab-${tab}`}
+            aria-selected={activeTab === tab} aria-controls={`photo-panel-${tab}`}
+            onClick={() => setActiveTab(tab)}
+            className={`min-h-10 rounded-md px-2 text-sm focus-visible:outline-2 focus-visible:outline-sky-300 ${activeTab === tab ? 'bg-white/15 text-white' : 'text-zinc-400 hover:bg-white/5'}`}>
+            {tab === 'info' ? 'Info' : 'Subject'}
+          </button>
+        ))}
+      </div>
+      <div id="photo-panel-info" role="tabpanel" aria-labelledby="photo-tab-info" hidden={activeTab !== 'info'}>
+      <p className="mt-3 break-words text-sm text-zinc-200">{frame.filename}</p>
       <button type="button" onClick={() => void copyInfo()} title="Copy camera details, rating and decision; excludes location and file paths"
         className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-md border border-white/15 px-3 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">
         <ClipboardCopy className="h-4 w-4" aria-hidden="true" />Copy photo details
@@ -106,7 +118,8 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
           ))}
         </dl>
       </section>
-      <div className="mt-3 border-t border-white/10 pt-3">
+      </div>
+      <div id="photo-panel-subject" role="tabpanel" aria-labelledby="photo-tab-subject" hidden={activeTab !== 'subject'} className="pt-3">
         <SubjectPanel kind={frame.subjectKind} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} autoTags={frame.autoTags}
           onChange={(tags, kind) => onSubjects(frame, tags, kind)} onKeep={(name) => onKeepTag(frame, name)} />
         {frame.subjectKind !== 'wildlife' && (
@@ -123,6 +136,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
             onTagMates={onTagPhotos} />
         )}
       </div>
+      <div hidden={activeTab !== 'info'}>
       {batchCount > 1 && <p className="mt-3 text-xs text-sky-200">Apply ratings and flags to {batchCount} selected photos</p>}
       <div className="mt-3 border-y border-white/10 py-2">
         <div role="group" aria-label={`Star rating, ${rating} of 5`} className="flex flex-wrap">
@@ -142,6 +156,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
             </button>
           ))}
         </div>
+      </div>
       </div>
 
     </aside>
