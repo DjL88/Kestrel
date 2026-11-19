@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArchiveRestore, ArrowLeft, Download, Ellipsis, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Trash2, Undo2 } from 'lucide-react';
 import type { ProjectSettings } from '../core/projectSettings';
 import { AppearanceSettings } from './AppearanceSettings';
@@ -8,6 +8,8 @@ import type { CullCounts, FilterState, RatingFilter, ShootDescriptor, SortOrder,
 import { FilterSortControl } from './FilterSortControl';
 
 interface TopWorkspaceBarProps {
+  /** Work in hand (Tasks), shown compactly in this row rather than in rows of its own. */
+  status?: ReactNode;
   shoot: ShootDescriptor;
   counts: CullCounts;
   filter: FilterState;
@@ -157,12 +159,12 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-semibold text-zinc-100" title={shoot.title}>{shoot.title}</div>
         <div className="truncate text-xs text-zinc-400">
-          {loadingProgress ? `Adding photos ${loadingProgress.loaded}/${loadingProgress.total}` :
-            shoot.inbox ? `${counts.all} ${counts.all === 1 ? 'photo' : 'photos'}${searchQuery ? ' · Search active' : ''}${props.ratingFilter || props.cameraFilter || props.lensFilter ? ' · Filters active' : ''}` : `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter === 'all' || filter === 'reject' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}${props.ratingFilter || props.cameraFilter || props.lensFilter ? ' · Filters active' : ''}`}
+          {shoot.inbox ? `${counts.all} ${counts.all === 1 ? 'photo' : 'photos'}${searchQuery ? ' · Search active' : ''}${props.ratingFilter || props.cameraFilter || props.lensFilter ? ' · Filters active' : ''}` : `${shoot.sourceKind === 'demo' ? 'Demo · ' : ''}${counts.keep}/${keeperTarget} keepers${filter === 'all' || filter === 'reject' ? ` · ${filterLabels[filter]}` : ''}${searchQuery ? ' · Search active' : ''}${props.ratingFilter || props.cameraFilter || props.lensFilter ? ' · Filters active' : ''}`}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <button type="button" onClick={props.onOpenShootModal} disabled={props.actionsDisabled || props.addDisabled} className={`${actionClass} border border-white/12 max-md:hidden`} aria-label="Add photos to project" title="Add photos">
+      <div className="flex min-w-0 shrink items-center gap-2">
+        {props.status}
+        <button type="button" onClick={props.onOpenShootModal} disabled={props.actionsDisabled || props.addDisabled} className={`${actionClass} border border-white/15 max-md:hidden`} aria-label="Add photos to project" title="Add photos">
           <Plus className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">Add</span>
         </button>
@@ -177,7 +179,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           <span className="tabular-nums sm:hidden" aria-hidden="true">{props.exportLabel?.replace('Export', '').trim()}</span>
         </button>
         <div ref={menuRef}>
-          <button ref={triggerRef} data-focus-fallback type="button" disabled={props.actionsDisabled} className={`${actionClass} max-md:hidden`} onClick={() => setMenuOpen(!menuOpen)}
+          <button ref={triggerRef} data-focus-fallback type="button" disabled={props.actionsDisabled} className={`${actionClass} border border-white/15 max-md:hidden`} onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Workspace options" title="Workspace options" aria-expanded={menuOpen} aria-controls="workspace-options">
             <Ellipsis className="h-5 w-5" aria-hidden="true" />
           </button>

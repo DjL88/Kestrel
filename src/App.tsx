@@ -15,7 +15,6 @@ import { WatchFolderDialog } from './components/WatchFolderDialog';
 import { useFolderWatch } from './providers/useFolderWatch';
 import { PHOTO_ACCEPT } from './core/rawFormats';
 import { TaskManager } from './components/TaskManager';
-import { ImportProgress } from './components/ImportProgress';
 import { PhotoContextMenu } from './components/PhotoContextMenu';
 import { ratingFor, targetsFor, type PhotoAction } from './core/photoMenu';
 import { DropOverlay } from './components/DropOverlay';
@@ -49,7 +48,7 @@ import { BatchLookDialog } from './components/BatchLookDialog';
 import { SelectionLookDialog } from './components/SelectionLookDialog';
 import { applySelectedLook, previewSelectedLook } from './core/selectedLooks';
 import { suggestKeeperAutoEdits, applyKeeperAutoEdits } from './providers/batchAutoEdit';
-import { tasks } from './core/taskStore';
+import { tasks, type TaskHandle } from './core/taskStore';
 import { applyKeeperLook, previewKeeperLook } from './core/batchLooks';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { restoreProjectBackup } from './core/projectBackup';
@@ -1519,6 +1518,8 @@ export default function App() {
       if (importRef.current) { setFolderError('Photos are still being added. Wait for that to finish, or stop it, before adding more.'); return; }
       // Looking through a big folder takes a while: claim the import and show progress from the moment it is chosen.
       const controller = new AbortController();
+      // Shown in Tasks, like every other job: looking through the folder, then adding its photos.
+      let finding: TaskHandle | null = null;
       try {
         const chosen = await pickFolderNatively({
           signal: controller.signal,
@@ -1526,13 +1527,20 @@ export default function App() {
             importRef.current = { projectId: cullingState.shoot.id, controller };
             setOpenShootModal(false);
             setLoadingProgress({ loaded: 0, total: 0, finding: true });
+            finding = tasks.start('Finding photos in the folder', { cancel: () => controller.abort() });
           },
-          onProgress: (done, total) => setLoadingProgress({ loaded: done, total, finding: true }),
+          onProgress: (done, total) => {
+            setLoadingProgress({ loaded: done, total, finding: true });
+            finding?.progress(done, total || null);
+          },
         });
+        (finding as TaskHandle | null)?.finish();
+        finding = null;
         if (chosen === 'cancelled') return;
         if (!chosen.length) { setFolderError('This folder has no supported photos.'); return; }
         await handleSelectLocalFiles(chosen, { claimed: controller });
       } catch { setFolderError('Could not read that folder.'); } finally {
+        (finding as TaskHandle | null)?.finish();
         // Read through a function: TypeScript cannot see that onChosen set the claim.
         if (claimedBy(importRef.current, controller)) { importRef.current = null; setLoadingProgress(null); }
       }
@@ -1824,7 +1832,6 @@ export default function App() {
           onChoose={choosePhotoAction} onClose={() => setPhotoMenu(null)} />;
       })()}
       <DesktopUpdate />
-      <TaskManager />
       {locationsOpen && <ProjectLocationsDialog state={cullingState} onClose={() => setLocationsOpen(false)} />}
       {syncOpen && <SyncFolderDialog title={cullingState.shoot.title} projectId={cullingState.shoot.id} updatedAt={cullingState.shoot.lastUpdatedAt} frames={cullingState.frames} onClose={() => setSyncOpen(false)}
         onApply={(frames) => setCullingState((prev) => ({ ...prev, frames, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() } }))} />}
@@ -1844,6 +1851,7 @@ export default function App() {
         <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-kestrel-panel px-3 py-1">
           <button type="button" onClick={leaveEditor} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300" aria-label="Back" title="Back to photo library"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</button>
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? 'Edit photo'}</h1>
+          <TaskManager inline />
           {multiSelect && selectedVisibleFrames.length > 0 && (
             <span className="shrink-0 text-xs tabular-nums text-zinc-300">{selectedVisibleFrames.length} selected</span>
           )}
@@ -1857,6 +1865,7 @@ export default function App() {
           )}
         </header>
       ) : <TopWorkspaceBar
+        status={<TaskManager inline />}
         shoot={cullingState.shoot}
         counts={counts}
         filter={cullingState.filter}
@@ -2134,7 +2143,6 @@ export default function App() {
               </div>
             </div>
           )}
-          {loadingProgress && <ImportProgress loaded={loadingProgress.loaded} total={loadingProgress.total} finding={loadingProgress.finding} onStop={stopImport} />}
           {!editing && !cullingState.shoot.inbox && !loadingProgress && guidedDismissedFor !== cullingState.shoot.id &&
             ((guided === 'reviewing' && cullingState.filter === 'unreviewed') ||
              ((guided === 'improving' || guided === 'ready') && cullingState.filter === 'keep')) && (

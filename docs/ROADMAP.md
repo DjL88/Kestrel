@@ -104,6 +104,12 @@ What worked: real Z 8 / Z5 II photos import, cull and edit; feather detail after
 - ~~Show a 3×3 thirds grid when hovering over the photo.~~ MERGED 19 Nov: appears while a mouse or pen is over the photo in the editor, follows the Gridlines switch, takes no clicks, zooms with the photo; never on touch screens.
 - ~~Texture and Clarity make out-of-focus backgrounds noisier (seen on `_DJL5983`: Texture 13, Clarity 45). Detail controls should spare smooth, noise-level areas, or be offered on the subject only.~~ MERGED 19 Nov: positive Texture and Clarity boost a soft-cored band measured from a lightly smoothed copy, on screen (WebGL) and in export alike; on a synthetic noisy background the grain no longer grows (old maths: +55%), while fine stripes still gain contrast. Not yet judged on `_DJL5983` itself.
 
+**E. Owner feedback, 19 Nov (Windows build of `92d8f13`)**
+- ~~The header has three rows and a crowded top right. Make it two, and make the "Busy" button compact progress bars that also replace the "Adding photos" banner.~~ MERGED 19 Nov: Tasks sit inside the header's top row as one compact bar: the work in hand by name, its count as words and as a thin bar, "+N" for others, and the full list with Cancel when clicked. This applies in the library and the editor. The separate Busy row, the "Adding photos" banner and the subtitle count are gone, and the desktop folder scan has its own task. The project list keeps its strip for now.
+- Photo info stays on the right whatever the Preferred hand; it should move with the hand, like the editing panel does.
+- "What is this a photo of?" buttons: the labels (Landscape) are too big for the buttons.
+- The File/Edit menu bar is white (system colours). Make it dark, or follow the app's theme.
+
 **D. Library and projects**
 - Sort by date imported, date captured and date last edited.
 - Projects as tags rather than folders: one library of every photo, filtered by one or more projects.
