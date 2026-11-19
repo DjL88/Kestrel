@@ -78,4 +78,11 @@ export const it: Translation = {
     restartIn: (name) => `Riavvia in ${name}`,
     draft: 'Traduzione provvisoria, non ancora verificata da un madrelingua. Alcune schermate sono ancora in inglese.',
   },
+  appearance: {
+    "position": "Da che lato vuoi gli strumenti?",
+    "positionHint": "Scegli il lato degli strumenti su uno schermo grande. Sul telefono sono sotto la foto.",
+    "toolsSide": "Lato degli strumenti",
+    "left": "Sinistra",
+    "right": "Destra"
+  },
 };
