@@ -8,8 +8,8 @@ test.describe('a phone turned sideways', () => {
     await page.goto('/');
     await page.getByTestId('quick-edit-input').setInputFiles(photo);
     await page.getByRole('tab', { name: 'Edit' }).click({ timeout: 20000 });
-    await expect(page.getByRole('button', { name: /Pin filmstrip/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Hide filmstrip/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Expand filmstrip/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Collapse filmstrip/ })).toHaveCount(0);
   });
 });
 
@@ -20,6 +20,6 @@ test.describe('a desktop window', () => {
     await page.goto('/');
     await page.getByTestId('quick-edit-input').setInputFiles(photo);
     await page.getByRole('tab', { name: 'Edit' }).click({ timeout: 20000 });
-    await expect(page.getByRole('button', { name: /Hide filmstrip/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Collapse filmstrip/ })).toBeVisible();
   });
 });

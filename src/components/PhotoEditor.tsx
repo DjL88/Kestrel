@@ -1029,12 +1029,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             {landscapeLocked ? 'Auto rotate' : 'Landscape'}
           </button>
         )}
-        {canFullscreen && (
-          <button type="button" className={`${button} inline-flex items-center`} aria-pressed={fullscreen} onClick={toggleFullscreen}
-            aria-label={fullscreen ? 'Leave full screen' : 'Full screen'} title={fullscreen ? 'Leave full screen (Esc)' : 'Full screen: the photo and tools fill the screen. Keyboard and macro pad keep working.'}>
-            {fullscreen ? <Minimize className="h-4 w-4" aria-hidden="true" /> : <Maximize className="h-4 w-4" aria-hidden="true" />}
-          </button>
-        )}
+        {/* Full screen lives in one place, the filmstrip bar (FilmstripDock), in the editor and culling alike. */}
         <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? `Export ${exportCount} selected photos` : "Export this photo for social media or full size"}
           className={`${button} hidden items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover! workspace:inline-flex`}>
           <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? `Export ${exportCount}` : "Export"}

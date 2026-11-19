@@ -89,10 +89,10 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   if ((page.viewportSize()?.width ?? 0) >= 768) {
     const panelFitsWindow = () => page.evaluate(() => document.querySelector('[role=tablist]')!.parentElement!.getBoundingClientRect().bottom <= window.innerHeight + 1);
     expect(await panelFitsWindow()).toBe(true);
-    const strip = page.getByRole('toolbar', { name: 'Filmstrip controls' });
-    await strip.getByRole('button', { name: 'Hide filmstrip' }).click();
+    const strip = page.getByRole('toolbar', { name: 'Photo navigation and editing actions' });
+    await page.getByRole('button', { name: 'Collapse filmstrip' }).click();
     await expect.poll(panelFitsWindow).toBe(true);
-    await strip.getByRole('button', { name: 'Pin filmstrip' }).click();
+    await page.getByRole('button', { name: 'Expand filmstrip' }).click();
     await expect.poll(panelFitsWindow).toBe(true);
   }
   // Suggest a look always says something and stays on the page, whether or not this particular photo needed
@@ -119,7 +119,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');
-  const filmstrip = page.getByRole('toolbar', { name: 'Filmstrip controls' });
+  const filmstrip = page.getByRole('toolbar', { name: 'Photo navigation and editing actions' });
   await filmstrip.getByRole('button', { name: 'Copy', exact: true }).click();
   await light.press('ArrowLeft');
   await expect(light).toHaveValue('0');

@@ -34,7 +34,7 @@ test('select multiple photos in Library, edit just that queue and export togethe
   await expect(film.getByRole('button', { name: 'Select frame-1.png' })).toBeVisible();
   await expect(film.getByRole('button', { name: 'Select frame-3.png' })).toBeVisible();
   await expect(film.getByRole('button', { name: 'Select frame-2.png' })).toHaveCount(0);
-  const batch = page.getByRole('toolbar', { name: 'Filmstrip controls' });
+  const batch = page.getByRole('toolbar', { name: 'Photo navigation and editing actions' });
   // Primary Export handles selected photos; the filmstrip has no duplicate Export action.
   await expect(batch.getByRole('button', { name: 'Export', exact: true })).toHaveCount(0);
   await expect(batch.getByRole('button', { name: 'Edit together' })).toBeVisible();
@@ -46,7 +46,7 @@ test('select multiple photos in Library, edit just that queue and export togethe
   await expect(light).toHaveValue('0.1');
   // Navigation flushes a pending linked adjustment, even when it happens immediately.
   // The arrow buttons are available after unpinning the persistent filmstrip.
-  await batch.getByRole('button', { name: 'Hide filmstrip' }).click();
+  await page.getByRole('button', { name: 'Collapse filmstrip' }).click();
   await page.getByRole('button', { name: 'Next photo' }).click();
   await expect(light).toHaveValue('0.1');
   // The primary Export button follows the selection, even with the filmstrip hidden.
@@ -85,7 +85,7 @@ test('filmstrip selection can bulk export and paste slider edits, keeping origin
   const light = page.getByRole('slider', { name: 'Exposure adjustment' });
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');
-  const bar = page.getByRole('toolbar', { name: 'Filmstrip controls' });
+  const bar = page.getByRole('toolbar', { name: 'Photo navigation and editing actions' });
   await bar.getByRole('button', { name: 'Copy', exact: true }).click();
   await bar.getByRole('button', { name: 'Select photos' }).click();
   const film = page.locator('[aria-label="Shoot filmstrip"]');

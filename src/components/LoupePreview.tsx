@@ -177,7 +177,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
       </div>}
 
       {/* The same order as the editor's bottom bar: previous and next on the left, this view's actions, zoom on the right. */}
-      {!focusPhoto && <div role="group" aria-label="Single photo controls" className="mobile-toolbar-scroll flex min-h-13 shrink-0 items-center gap-1 overflow-x-auto border-t border-white/8 bg-kestrel-panel px-1.5 sm:px-4">
+      {!focusPhoto && <div role="group" aria-label="Single photo controls" className="@container mobile-toolbar-scroll flex min-h-13 shrink-0 items-center gap-1 overflow-x-auto border-t border-white/8 bg-kestrel-panel px-1.5 sm:px-4">
         <button type="button" disabled={!hasPrev} onClick={() => onStepFrame(-1)} aria-label="Previous frame" title="Previous frame (←)"
           className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:opacity-30">
           <ChevronLeft className="h-5 w-5" aria-hidden="true" />
@@ -213,7 +213,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
           )}
         </div>
         {/* Same full zoom controls as Edit on desktop/tablet. On small phones, the compact Eye button remains accessible and pinch zoom remains available. */}
-        <ZoomControls className="max-sm:hidden" zoom={zoomLevel} fit={measure.fit} dpr={dpr} maxZoom={maxZoomFor(measure.fit || 1, dpr)} note={eyeNote}
+        <ZoomControls compact className="max-sm:hidden" zoom={zoomLevel} fit={measure.fit} dpr={dpr} maxZoom={maxZoomFor(measure.fit || 1, dpr)} note={eyeNote}
           onZoom={(zoom) => { onZoomChange(zoom); if (zoom === 1) onPanChange({ x: 0, y: 0 }); }}
           eye={{ onClick: toggleEyeMode, busy: eyeBusy, pressed: eyeMode,
             title: eyeMode ? 'Eye on: every photo opens zoomed to the eye. Press to go back to the whole photo.' : 'Zoom to the eye, and keep doing so on every photo' }} />

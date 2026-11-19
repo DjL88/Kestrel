@@ -6,7 +6,7 @@ test('the editor\'s bottom bar has previous and next on the left and zoom on the
   test.skip(!!isMobile, 'phones use the editing sheet; the bar order is a desktop layout');
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles(photo);
-  const bar = page.getByRole('toolbar', { name: 'Filmstrip controls' });
+  const bar = page.getByRole('toolbar', { name: 'Photo navigation and editing actions' });
   const zoom = bar.getByRole('group', { name: 'Zoom' });
   await expect(zoom).toBeVisible({ timeout: 20000 });
   const previous = (await bar.getByRole('button', { name: 'Previous photo' }).boundingBox())!;
@@ -18,5 +18,5 @@ test('the editor\'s bottom bar has previous and next on the left and zoom on the
   await page.getByRole('button', { name: 'Show photo only' }).click();
   await expect(bar).toHaveCount(0);
   await page.getByRole('button', { name: /Exit photo-only view/ }).click();
-  await expect(page.getByRole('toolbar', { name: 'Filmstrip controls' }).getByRole('group', { name: 'Zoom' })).toBeVisible();
+  await expect(page.getByRole('toolbar', { name: 'Photo navigation and editing actions' }).getByRole('group', { name: 'Zoom' })).toBeVisible();
 });

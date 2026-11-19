@@ -154,6 +154,25 @@ Part of F; do these in this order.
 10. View options as buttons: single photo, grid, compare.
 11. Auto-rotate: straighten tilted horizons automatically, as a suggestion to apply.
 
+**I. Owner requests, 19 Nov evening: one consistent app on desktop and phone**
+
+A full pass through every page, as a user and a graphic designer: consistent, tidy, accessible, with the photo always clear to see. Take from main and the work in hand.
+1. **The two top bars are the same on every page**: things in the same places, with the same icons. Settings at the top right. Full screen once only (now in the filmstrip bar). The editor's two rows become one where they fit.
+2. **Double-click a photo to open it in the editor.**
+3. **Photo info is resizable** like the editing panel. Each pane shows or hides by an arrow on its own edge, not by a button in the top bar.
+4. **The filmstrip is resizable** (done in #478). Thumbnails keep their shape: 5:4 tiles, the photo fitted inside.
+5. **Full-screen editing:** sliders in a pop-up panel under a floating, movable button that shows or hides it. Pencil-friendly, for brushes.
+6. **Masks:**
+   - a new oval fills the area in view at the current zoom, rather than always starting big;
+   - ovals can be rotated;
+   - the brush shows its size while the size is chosen;
+   - masks can intersect other masks (for example, a gradient inside the subject).
+7. **The zoom slider uses the new copper slider style.**
+8. **Every slider has an ⓘ beside it.** Clicking it opens a small lightbox that says in plain words what the slider does.
+9. **Phone:** the same pass. Every page consistent, tidy and accessible, with the photo clear to see.
+10. **Plain British English** in every explanation.
+11. **Later, a translation layer**, once the layout settles. Western Europe first: Welsh, Dutch, US English, Spanish, French, then German, Italian and Portuguese. All wording would come from one place.
+
 **D. Library and projects**
 - Sort by date imported, date captured and date last edited.
 - Projects as tags rather than folders: one library of every photo, filtered by one or more projects.
@@ -246,6 +265,7 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
 
 | Date | Merged | Closed | Local evidence |
 | --- | --- | --- | --- |
+| 19 Nov 2026 (coordinator, main repaired) | this PR (main was red after #471, #474, #477, #478 and #479: tsc failed and 23 Playwright tests failed. Repairs: stale editor prop; no filmstrip in grid view; full screen in one place; slider tooltip, reset name and 44 px reset; Quick adjust "(adjusted)" words; culling bar fits (responsive compact zoom; Jump off phones); Photo info popover side and folded-rail name; tests follow the new filmstrip names) | | See PR. |
 | 19 Nov 2026 (coordinator, repair main) | this PR (carries #473 bottom bar and the worker's Jump; repairs main after #471, #472 and #474: Photo info popover side, folded-rail naming, tooltip, slider tooltip/reset name/"(adjusted)" words/44 px reset, Jump wiring, culling bar fit on 320 px phones, Eye's fixed name) | #473 (carried) | See PR. |
 | 19 Nov 2026 (coordinator, bottom bar) | #470 (Before/After grid behaviour); PR #473 bottom-bar integration (merge pending; earlier base checks reported in PR) | | Integration suite must be rerun. |
 | 19 Nov 2026 (coordinator, grid) | #469 (header and layout: lint, 973 unit, build, Playwright 285 PASS / 0 FAIL, src-tauri 21 PASS), this PR (no grid in Before/After; Shift shows it) | | See PR. |

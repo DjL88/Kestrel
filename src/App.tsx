@@ -2422,7 +2422,8 @@ export default function App() {
         )}
       </main>
       {/* Independent full-width dock: side panels never constrain filmstrip width. */}
-      {!prefs.focusMode && visibleFrames.length > 0 && (
+      {/* Not in grid view, where every photo is already on screen. */}
+      {!prefs.focusMode && visibleFrames.length > 0 && (editing || prefs.viewMode !== 'grid') && (
         <FilmstripDock expanded={prefs.showFilmstrip} onToggle={toggleFilmstrip}>
             <Filmstrip
               onPhotoMenu={openPhotoMenu}
