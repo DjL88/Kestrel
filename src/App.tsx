@@ -33,6 +33,8 @@ import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
 import { ArrowLeft, ChevronLeft, ChevronRight, Copy, ClipboardPaste, Info, PanelLeftClose, PanelLeftOpen, Maximize2 } from 'lucide-react';
 import { WorkspacePaneRail } from './components/WorkspacePaneRail';
 import { PhotoJump } from './components/PhotoJump';
+import { SettingsButton } from './components/SettingsButton';
+import { AppearanceDialog } from './components/AppearanceDialog';
 import { photoInfoDockSide, readWorkspacePaneState, toggleWorkspacePanes, writeWorkspacePaneState } from './core/workspacePaneState';
 import { newId } from './core/ids';
 import { redoLabel, undoLabel } from './core/describeAction';
@@ -180,6 +182,8 @@ export default function App() {
   const [guidedDismissedFor, setGuidedDismissedFor] = useState<string | null>(null);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
   const [showPhotoInfo, setShowPhotoInfo] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
+  // Settings (display, preferred hand, keyboard and macro pad): one dialog, opened from the top right of every page.
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Section F: a workspace layout belongs to the device, not to each photo,
   // project, synced catalogue or editor tab. A private-storage failure is safe.
   const [workspacePanes, setWorkspacePanes] = useState(readWorkspacePaneState);
@@ -1920,35 +1924,25 @@ export default function App() {
           </div>
         </div>
       )}
+      {settingsOpen && <AppearanceDialog side={prefs.editPanelSide} onSideChange={(side) => setPrefs((prev) => ({ ...prev, hand: side, editPanelSide: side }))}
+        hand={prefs.hand} onHandChange={(hand) => setPrefs((prev) => ({ ...prev, hand, editPanelSide: hand }))}
+        onClose={() => setSettingsOpen(false)} onOpenMacroPad={() => { setSettingsOpen(false); setMacroPadMode(editing ? 'edit' : 'cull'); setMacroPadModal(true); }} />}
       <DropOverlay dragging={drop.dragging} message={drop.message} onDismiss={drop.clearMessage} />
       {prefs.focusMode ? null : editing ? (
         <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-kestrel-panel px-3 py-1">
           <button type="button" onClick={leaveEditor} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300" aria-label="Back" title="Back to photo library"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</button>
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? 'Edit photo'}</h1>
           <TaskManager inline />
-          <div className="flex shrink-0 items-center gap-0.5" role="group" aria-label="Workspace panels">
-            <button type="button" data-workspace-pane-toggle aria-label={panesCollapsed ? 'Expand workspace panels' : 'Fold workspace panels'}
-              title="Fold or expand tools and photo info (Tab when photo is focused)" aria-pressed={panesCollapsed}
-              onClick={togglePanes}
-              className="grid h-10 w-10 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-              {panesCollapsed ? <PanelLeftOpen className="h-4 w-4" aria-hidden="true" /> : <PanelLeftClose className="h-4 w-4" aria-hidden="true" />}
-            </button>
-            <button type="button" aria-label={showPhotoInfo ? 'Hide photo info' : 'Show photo info'} title={showPhotoInfo ? 'Hide photo info' : 'Show photo info'} aria-pressed={showPhotoInfo && !panesCollapsed}
-              onClick={() => { setWorkspacePanes({ folded: false }); setShowPhotoInfo((prev) => !prev); }}
-              className="grid h-10 w-10 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-              <Info className="h-4 w-4" aria-hidden="true" />
-            </button>
-            <button type="button" aria-label="Show photo only" title="Photo only (F)" onClick={() => setPrefs((prev) => ({ ...prev, focusMode: true }))}
-              className="grid h-10 w-10 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-              <Maximize2 className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
+          {/* The same order as the library's top row: work in hand, this page's actions (Export), then Settings. */}
+          <div id="editor-header-actions" className="flex shrink-0 items-center gap-2" />
+          <SettingsButton open={settingsOpen} onOpen={() => setSettingsOpen(true)} />
           {multiSelect && selectedVisibleFrames.length > 0 && (
             <span className="shrink-0 text-xs tabular-nums text-zinc-300">{selectedVisibleFrames.length} selected</span>
           )}
         </header>
       ) : <TopWorkspaceBar
         status={<TaskManager inline />}
+        settingsButton={<SettingsButton open={settingsOpen} onOpen={() => setSettingsOpen(true)} />}
         shoot={cullingState.shoot}
         counts={counts}
         filter={cullingState.filter}
@@ -2181,6 +2175,7 @@ export default function App() {
               toolsCollapsed={panesCollapsed}
               focusPhoto={prefs.focusMode}
               onExpandTools={() => setWorkspacePanes({ folded: false })}
+              onFoldTools={() => setWorkspacePanes({ folded: true })}
               keeperCount={counts.keep}
               onApplyToKeepers={applyEditToKeepers}
               onUndoKeeperEdits={batchUndo ? undoKeeperEdits : undefined}
@@ -2237,7 +2232,8 @@ export default function App() {
               </div>
             </div>
           )}
-          {!editing && !cullingState.shoot.inbox && !loadingProgress && guidedDismissedFor !== cullingState.shoot.id &&
+          {/* Guidance sits above the grid only: single photo and compare give the photo the room. */}
+          {!editing && prefs.viewMode === 'grid' && !cullingState.shoot.inbox && !loadingProgress && guidedDismissedFor !== cullingState.shoot.id &&
             ((guided === 'reviewing' && cullingState.filter === 'unreviewed') ||
              ((guided === 'improving' || guided === 'ready') && cullingState.filter === 'keep')) && (
             <GuidedBanner step={guided} unreviewed={counts.unreviewed} keepers={counts.keep} scanned={remainingWereScanned(cullingState.frames)} uneditedKeepers={uneditedKeepers}
@@ -2254,7 +2250,7 @@ export default function App() {
               onExportKeepers={() => setExportFrames(cullingState.frames.filter((frame) => !frame.removedAt && frame.decision === 'keep'))}
               onDismiss={() => setGuidedDismissedFor(cullingState.shoot.id)} />
           )}
-          {!editing && can('speciesId') && <SpeciesScanBanner scan={scan} />}
+          {!editing && prefs.viewMode === 'grid' && can('speciesId') && <SpeciesScanBanner scan={scan} />}
           {can('onlineAi') && <OnlineHelperDialog />}
           {!editing && visibleFrames.length > 0 && prefs.viewMode === 'grid' && (
             <VirtualizedContactSheet
@@ -2277,6 +2273,7 @@ export default function App() {
                 handleSelectFrame(frameId);
                 setPrefs((prev) => ({ ...prev, viewMode: 'loupe' }));
               }}
+              onOpenEditor={(frameId) => { handleSelectFrame(frameId); setEditQueueIds(null); setEditing(true); }}
               onDecideFrame={(frameId, decision) =>
                 handleDecideFrame(frameId, decision, false)
               }
@@ -2358,11 +2355,12 @@ export default function App() {
                   const next = editorFrames[index];
                   if (next) handleSelectFrame(next.id);
                 }} />
-              <button type="button" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10"
+              {/* On phones, Copy and Paste are in the photo's long-press menu, so this bar fits the screen. */}
+              <button type="button" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10 max-sm:hidden"
                 onClick={() => { setCopiedEdit(selectedFrame.edit ?? DEFAULT_EDIT); showToast('Adjustments copied'); }}>
                 <Copy className="h-4 w-4" aria-hidden="true" /> Copy
               </button>
-              {!multiSelect && <button type="button" disabled={!copiedEdit} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40"
+              {!multiSelect && <button type="button" disabled={!copiedEdit} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40 max-sm:hidden"
                 onClick={() => { if (copiedEdit) { updateFrame(selectedFrame.id, { edit: isEmptyEdit(copiedEdit) ? undefined : { ...copiedEdit } }); showToast('Adjustments pasted'); } }}>
                 <ClipboardPaste className="h-4 w-4" aria-hidden="true" /> Paste
               </button>}
@@ -2424,7 +2422,7 @@ export default function App() {
       {/* Independent full-width dock: side panels never constrain filmstrip width. */}
       {/* Not in grid view, where every photo is already on screen. */}
       {!prefs.focusMode && visibleFrames.length > 0 && (editing || prefs.viewMode !== 'grid') && (
-        <FilmstripDock expanded={prefs.showFilmstrip} onToggle={toggleFilmstrip}>
+        <FilmstripDock expanded={prefs.showFilmstrip} onToggle={toggleFilmstrip} onPhotoOnly={() => setPrefs((prev) => ({ ...prev, focusMode: true }))}>
             <Filmstrip
               onPhotoMenu={openPhotoMenu}
               frames={editing ? editorFrames : visibleFrames}

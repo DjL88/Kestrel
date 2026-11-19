@@ -68,13 +68,13 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   const light = page.getByRole('slider', { name: 'Exposure adjustment' });
   await expect(light).toBeEnabled();
   await expectIconButtonsHaveTooltips(page, 'the editor');
-  await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Macro pad/i })).toHaveCount(0);
   await page.getByRole('button', { name: 'Done' }).click();
   // The desktop-only macro pad is in Appearance & layout. Fake only the shell marker while opening it.
   await page.evaluate(() => { Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true }); });
-  await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Macro pad & keyboard shortcuts…' }).click();
   // The instructions start folded away, so the keymap is what shows first. Open them to read how it works.
   await page.getByText('How to use a macro pad').click();

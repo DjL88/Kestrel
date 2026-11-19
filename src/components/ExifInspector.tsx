@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ClipboardCopy, Star, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardCopy, Star, X } from 'lucide-react';
 import { formatCaptureDateTime, photoInfoText } from '../core/photoInfoText';
 import { SubjectPanel } from './SubjectPanel';
 import { SpeciesSuggestions } from './SpeciesSuggestions';
@@ -83,8 +83,10 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Photo info</h2>
-        <button type="button" onClick={onClose} aria-label="Close photo info" title="Close photo info" className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10">
-          <X className="h-4 w-4" aria-hidden="true" />
+        {/* An arrow towards the edge it folds into, as on the editing tools; on small screens, where it floats, a cross. */}
+        <button type="button" onClick={onClose} aria-label="Close photo info" title="Fold photo info away" className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+          <X className="h-4 w-4 lg:hidden" aria-hidden="true" />
+          {dockedSide === 'left' ? <ChevronLeft className="hidden h-5 w-5 lg:block" aria-hidden="true" /> : <ChevronRight className="hidden h-5 w-5 lg:block" aria-hidden="true" />}
         </button>
       </div>
       <div role="tablist" aria-label="Photo details" className="mt-2 grid grid-cols-2 gap-1 rounded-lg bg-black/20 p-1">

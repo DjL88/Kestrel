@@ -163,7 +163,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-kestrel-stage">
       <div ref={viewRef} data-photo-stage tabIndex={0} aria-label="Photo canvas"
         className="relative flex min-h-0 flex-1 flex-col focus-visible:outline-2 focus-visible:outline-sky-300">
-        <PhotoViewport
+        <PhotoViewport showZoomButton={false}
           zoom={zoomLevel} pan={panOffset} onTransform={(zoom, pan) => {
             onZoomChange(zoom);
             onPanChange(pan);

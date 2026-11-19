@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
-import { ChevronDown, ChevronUp, Maximize2, Minimize2, GripHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronUp, Focus, Maximize2, Minimize2, GripHorizontal } from 'lucide-react';
 import { clampFilmstripHeight, FILMSTRIP_SIZE_KEY, parseFilmstripHeight } from '../core/filmstripGeometry';
 
 interface FilmstripDockProps {
   expanded: boolean;
   onToggle: () => void;
+  /** Photo only: hide every bar and pane (F). Beside full screen, its companion. */
+  onPhotoOnly?: () => void;
   children: React.ReactNode;
 }
 
@@ -13,7 +15,7 @@ interface FilmstripDockProps {
  * Drag its top grip to resize. Resize never overlays the photograph.
  * Arrow toggles the strip. Height belongs only to the local device.
  */
-export function FilmstripDock({ expanded, onToggle, children }: FilmstripDockProps) {
+export function FilmstripDock({ expanded, onToggle, onPhotoOnly, children }: FilmstripDockProps) {
   const [height, setHeight] = useState(() => {
     try { return parseFilmstripHeight(window.localStorage.getItem(FILMSTRIP_SIZE_KEY), window.innerHeight); }
     catch { return parseFilmstripHeight(null, typeof window === 'undefined' ? 800 : window.innerHeight); }
@@ -81,6 +83,12 @@ export function FilmstripDock({ expanded, onToggle, children }: FilmstripDockPro
           {expanded && <span className="hidden text-zinc-500 sm:inline">Drag to resize</span>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {onPhotoOnly && (
+            <button type="button" onClick={onPhotoOnly} aria-label="Show photo only" title="Photo only: hide every bar and panel (F). Esc brings them back."
+              className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+              <Focus className="h-4 w-4" aria-hidden="true"/>
+            </button>
+          )}
           {typeof document !== 'undefined' && document.fullscreenEnabled && (
             <button type="button" aria-pressed={fullscreen} title={fullscreen ? 'Leave full screen (Esc)' : 'Full screen: the photo and tools fill the screen. Keyboard and macro pad keep working.'}
               aria-label={fullscreen ? 'Leave full screen' : 'Full screen'} onClick={toggleFullscreen}
