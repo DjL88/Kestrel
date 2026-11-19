@@ -148,7 +148,7 @@ test('the thumbnail compares like the editor\'s own (bright side stays on the sa
 test('tonal feather/subject masks are exported at 16-bit and agree with the visible 8-bit preview', () => {
   const width = 64, height = 64, initial = 23_000;
   const mask: Mask = {
-    ...createMask('radial', 'bird'), cx: 0.5, cy: 0.5, rx: 0.24, ry: 0.24,
+    ...createMask('radial', 'bird'), kind: 'radial', cx: 0.5, cy: 0.5, rx: 0.24, ry: 0.24,
     feather: 0.7, edit: { exposure: 0.9, shadows: 0.3 },
   };
   const frame: Rgb16Image = { width, height, data: new Uint16Array(width * height * 3).fill(initial) };
@@ -169,7 +169,7 @@ test('tonal feather/subject masks are exported at 16-bit and agree with the visi
 test('a brush stroke and an inverted subject-style mask change only the selected pixels', () => {
   const width = 120, height = 80, initial = 25_000;
   const brush: Mask = {
-    ...createMask('brush', 'paint'), edit: { exposure: 1 },
+    ...createMask('brush', 'paint'), kind: 'brush', edit: { exposure: 1 },
     strokes: [{ radius: 0.12, erase: false, points: [0.5, 0.5] }],
   };
   const frame: Rgb16Image = { width, height, data: new Uint16Array(width * height * 3).fill(initial) };
@@ -183,7 +183,7 @@ test('a brush stroke and an inverted subject-style mask change only the selected
 test('tonal mask bands join exactly at high-resolution row boundaries', () => {
   const width = 1024, height = 520, initial = 18_000;
   const mask: Mask = {
-    ...createMask('linear', 'sky'), x1: 0.5, y1: 0, x2: 0.5, y2: 1,
+    ...createMask('linear', 'sky'), kind: 'linear', x1: 0.5, y1: 0, x2: 0.5, y2: 1,
     feather: 1, edit: { exposure: 0.65 },
   };
   const frame: Rgb16Image = { width, height, data: new Uint16Array(width * height * 3).fill(initial) };
