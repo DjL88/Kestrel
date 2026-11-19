@@ -91,6 +91,8 @@ export type WasmSensorMode = 'nikon-he' | 'nikon-he-star' | 'other' | 'need-more
 export interface RawWasm {
   develop(file: Uint8Array): Uint8Array;
   sensorMode(prefix: Uint8Array, fileLength: number): WasmSensorMode;
+  /** The module's memory now. WebAssembly memory only ever grows, so this is the high-water mark so far. */
+  memoryBytes(): number;
 }
 
 /** Instantiate the RAW decoder from its compiled module. Works in a Web Worker and in Node (for tests). */
@@ -115,14 +117,19 @@ export async function instantiateRawWasm(module: WebAssembly.Module): Promise<Ra
       try {
         status = withInput(file, (pointer) => raw.kr_develop(pointer, file.length));
       } catch (error) {
-        // A trap ("unreachable") after a panic: report the decoder's own message when it left one.
-        const said = shim.stderr().split('\n').find((line) => line.includes('panicked'))?.replace(/^.*panicked at [^:]*:\d+:\d+:\s*/, '');
+        // A trap ("unreachable") after a panic or a failed allocation: say which, in plain words.
+        const stderr = shim.stderr();
+        if (/memory allocation of \d+ bytes failed/.test(stderr) || error instanceof RangeError) {
+          throw new Error('This device ran out of room to develop this RAW file. Kestrel keeps using the preview stored in the file.', { cause: error });
+        }
+        const said = stderr.split('\n').find((line) => line.includes('panicked'))?.replace(/^.*panicked at [^:]*:\d+:\d+:\s*/, '');
         throw new Error(said ? `This RAW file could not be read: ${said}` : 'This RAW file could not be read.', { cause: error });
       }
       const output = result();
       if (status !== 0) throw new Error(new TextDecoder().decode(output) || 'This RAW file could not be read.');
       return output;
     },
+    memoryBytes: () => raw.memory.buffer.byteLength,
     sensorMode(prefix, fileLength) {
       const code = withInput(prefix, (pointer) => raw.kr_sensor_mode(pointer, prefix.length, Math.max(fileLength, prefix.length)));
       return code === 1 ? 'nikon-he' : code === 2 ? 'nikon-he-star' : code === 3 ? 'need-more' : 'other';

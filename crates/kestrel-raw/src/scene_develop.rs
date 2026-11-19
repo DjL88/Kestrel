@@ -17,6 +17,13 @@
 
 use image::{DynamicImage, ImageBuffer, Rgb, RgbImage};
 use rawler::imgop::develop::{Intermediate, ProcessingStep, RawDevelop};
+use rawler::imgop::raw::correct_blacklevel_cfa;
+use rawler::imgop::sensor::bayer::ppg::PPGDemosaic;
+use rawler::imgop::sensor::Demosaic;
+use rawler::imgop::{Dim2, Point, Rect};
+use rawler::pixarray::PixF32;
+use rawler::rawimage::{RawImageData, RawPhotometricInterpretation};
+use rawler::cfa::CFA;
 use rawler::imgop::matrix::{multiply, normalize, pseudo_inverse};
 use rawler::imgop::xyz::{Illuminant, SRGB_TO_XYZ_D65};
 use rawler::RawImage;
@@ -137,6 +144,15 @@ fn contrast(v: f32, amount: f32) -> f32 {
 /// Develop a decoded RAW into display-ready sRGB, 16 bits per channel, before orientation.
 /// Returns `None` for sensors this path doesn't handle yet (monochrome, four-colour CFA); callers fall back.
 pub fn develop_display_rgb16(raw: &RawImage, look: &Look) -> Result<Option<ImageBuffer<Rgb<u16>, Vec<u16>>>, String> {
+    match strip_plan(raw) {
+        Some(plan) => Ok(Some(develop_in_strips(raw, look, &plan))),
+        None => develop_display_rgb16_whole(raw, look),
+    }
+}
+
+/// The whole frame at once, through rawler's develop. Used for sensors the strip path doesn't cover (X-Trans, Fuji
+/// rotation, four-colour, monochrome) and, in tests, as the reference the strip path must match exactly.
+pub fn develop_display_rgb16_whole(raw: &RawImage, look: &Look) -> Result<Option<ImageBuffer<Rgb<u16>, Vec<u16>>>, String> {
     let steps = [
         ProcessingStep::Rescale, ProcessingStep::Demosaic, ProcessingStep::FujiRotate,
         ProcessingStep::CropActiveArea, ProcessingStep::CropDefault,
@@ -146,14 +162,26 @@ pub fn develop_display_rgb16(raw: &RawImage, look: &Look) -> Result<Option<Image
     let Intermediate::ThreeColor(pixels) = intermediate else { return Ok(None) };
     let dim = pixels.dim();
     let (width, height) = (dim.w as u32, dim.h as u32);
-    let wb = wb_normalised(raw);
-    let cam2rgb = camera_to_srgb(raw);
-    // After Rescale each raw channel saturates at 1.0, so after white balance it saturates at wb[i].
-    let clip = wb;
-    let gain = 2f32.powf(look.baseline_ev);
+    let transform = PixelTransform::new(raw, look);
     let mut out: Vec<u16> = vec![0; pixels.data.len() * 3];
     // Rows in parallel: every pixel is independent, so the result is identical to a serial pass.
-    out.par_chunks_mut(dim.w * 3).zip(pixels.data.par_chunks(dim.w)).for_each(|(row_out, row_in)| {
+    out.par_chunks_mut(dim.w * 3).zip(pixels.data.par_chunks(dim.w)).for_each(|(row_out, row_in)| transform.row(row_in, row_out));
+    refine(&mut out, dim.w, dim.h, look);
+    Ok(ImageBuffer::from_raw(width, height, out))
+}
+
+/// White balance, highlight rebuild, camera matrix, exposure, saturation, tone and the display curve, one pixel at a time.
+struct PixelTransform { wb: [f32; 3], cam2rgb: [[f32; 3]; 3], gain: f32, look: Look }
+
+impl PixelTransform {
+    fn new(raw: &RawImage, look: &Look) -> Self {
+        Self { wb: wb_normalised(raw), cam2rgb: camera_to_srgb(raw), gain: 2f32.powf(look.baseline_ev), look: *look }
+    }
+
+    fn row(&self, row_in: &[[f32; 3]], row_out: &mut [u16]) {
+        let (wb, cam2rgb, gain, look) = (self.wb, self.cam2rgb, self.gain, &self.look);
+        // After Rescale each raw channel saturates at 1.0, so after white balance it saturates at wb[i].
+        let clip = wb;
         for (pix, dst) in row_in.iter().zip(row_out.chunks_exact_mut(3)) {
             let balanced = [pix[0] * wb[0], pix[1] * wb[1], pix[2] * wb[2]];
             let c = reconstruct_highlights(balanced, clip);
@@ -170,9 +198,93 @@ pub fn develop_display_rgb16(raw: &RawImage, look: &Look) -> Result<Option<Image
                 *slot = (display * 65535.0 + 0.5) as u16;
             }
         }
+    }
+}
+
+// ---- Developing in strips -------------------------------------------------------------------------------------
+//
+// rawler's develop holds the whole frame several times over in 32-bit floats (scaled mosaic, demosaiced RGB, its
+// cropped copy): about 1.9 GB for a 45-megapixel Z 8 frame in WebAssembly, too much for a phone. The strip path scales
+// and demosaics a band of rows at a time, with overlap, using rawler's own scaling and PPG demosaic, and writes the
+// finished rows straight into the output. It gives exactly the same numbers as the whole-frame path: PPG treats only
+// the 3 pixels nearest its region's edge differently, and the overlap is far wider; strips start on even rows so the
+// 2 x 2 colour pattern and black levels line up.
+
+/// Output rows developed per strip.
+const STRIP_ROWS: usize = 256;
+/// Extra rows above and below each strip, discarded afterwards. Must be even and well over PPG's 3-pixel border.
+const STRIP_OVERLAP: usize = 16;
+
+struct StripPlan {
+    /// The sensor's active area, in raw coordinates.
+    active: Rect,
+    /// The final picture, relative to the active area.
+    crop: Rect,
+    cfa: CFA,
+}
+
+/// When the strip path applies, and the exact active area and crop rawler's develop would use. None: use the whole frame.
+fn strip_plan(raw: &RawImage) -> Option<StripPlan> {
+    let RawPhotometricInterpretation::Cfa(config) = &raw.photometric else { return None };
+    if raw.cpp != 1 || !config.cfa.is_rgb() || config.sensor != rawler::imgop::sensor::SensorType::Bayer || raw.fuji_rotation_width.is_some() {
+        return None;
+    }
+    if !matches!(raw.data, RawImageData::Integer(_)) || raw.width < 16 || raw.height < 16 {
+        return None;
+    }
+    let full = Rect::new(Point::new(0, 0), Dim2::new(raw.width, raw.height));
+    let active = raw.active_area.unwrap_or(full);
+    // As rawler's CropDefault: the default crop (or the active area), made relative to the active area, applied only when
+    // its size differs from the active area's.
+    let mut crop = raw.crop_area.or(raw.active_area).unwrap_or(full);
+    if raw.active_area.is_some() {
+        crop = crop.adapt(&active);
+    }
+    if crop.d == active.d || raw.crop_area.or(raw.active_area).is_none() {
+        crop = Rect::new(Point::new(0, 0), active.d);
+    }
+    Some(StripPlan { active, crop, cfa: config.cfa.clone() })
+}
+
+fn develop_in_strips(raw: &RawImage, look: &Look, plan: &StripPlan) -> ImageBuffer<Rgb<u16>, Vec<u16>> {
+    let RawImageData::Integer(samples) = &raw.data else { unreachable!("checked in strip_plan") };
+    let (width, height) = (plan.crop.d.w, plan.crop.d.h);
+    let transform = PixelTransform::new(raw, look);
+    let black = raw.blacklevel.as_bayer_array();
+    let white = raw.whitelevel.as_bayer_array();
+    let ppg = PPGDemosaic::new();
+    let colours = match &raw.photometric { RawPhotometricInterpretation::Cfa(config) => config.colors.clone(), _ => unreachable!() };
+    let active_top = plan.active.p.y;
+    let active_bottom = plan.active.p.y + plan.active.d.h;
+    let mut out: Vec<u16> = vec![0; width * height * 3];
+    // Each strip is independent, so strips can run in parallel where there are threads; the result is identical.
+    out.par_chunks_mut(STRIP_ROWS * width * 3).enumerate().for_each(|(index, band)| {
+        let first = index * STRIP_ROWS; // first output row of this strip
+        let rows = band.len() / (width * 3);
+        // The same rows in raw coordinates, then widened by the overlap, kept inside the active area, starting on an even
+        // row and covering an even number of rows (rawler scales two rows at a time).
+        let wanted_top = active_top + plan.crop.p.y + first;
+        let wanted_bottom = wanted_top + rows;
+        let top = wanted_top.saturating_sub(STRIP_OVERLAP).max(active_top) & !1;
+        let mut bottom = (wanted_bottom + STRIP_OVERLAP).min(active_bottom);
+        if (bottom - top) % 2 == 1 && bottom < raw.height { bottom += 1; }
+        let strip_rows = bottom - top;
+        let mut scaled: Vec<f32> = samples[top * raw.width..bottom * raw.width].iter().map(|&v| v as f32).collect();
+        correct_blacklevel_cfa(&mut scaled, raw.width, strip_rows, &black, &white);
+        let pixels = PixF32::new_with(scaled, raw.width, strip_rows);
+        // The demosaic region: the active area's columns, and the rows of this strip that lie inside the active area.
+        let roi_top = top.max(active_top);
+        let roi_bottom = bottom.min(active_bottom);
+        let roi = Rect::new(Point::new(plan.active.p.x, roi_top - top), Dim2::new(plan.active.d.w, roi_bottom - roi_top));
+        let rgb = ppg.demosaic(&pixels, &plan.cfa, &colours, roi);
+        for row in 0..rows {
+            let in_roi = wanted_top + row - roi_top;
+            let line = &rgb.pixels()[in_roi * plan.active.d.w + plan.crop.p.x..][..width];
+            transform.row(line, &mut band[row * width * 3..(row + 1) * width * 3]);
+        }
     });
-    refine(&mut out, dim.w, dim.h, look);
-    Ok(ImageBuffer::from_raw(width, height, out))
+    refine(&mut out, width, height, look);
+    ImageBuffer::from_raw(width as u32, height as u32, out).expect("buffer sized to the picture")
 }
 
 // ---- Chroma noise reduction and capture sharpening ------------------------------------------------------------
@@ -330,6 +442,62 @@ pub fn develop_display(raw: &RawImage) -> Result<Option<DynamicImage>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A synthetic Bayer frame with texture, a default crop at odd offsets and a portrait orientation, as rawler reads
+    /// it from a DNG. Sizes are deliberately not multiples of the strip height.
+    #[cfg(feature = "nikon-he")]
+    fn synthetic_raw(width: usize, height: usize) -> RawImage {
+        let mut seed = 0x2545_f491_u32;
+        let pixels = (0..width * height).map(|i| {
+            seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5;
+            let (x, y) = (i % width, i / width);
+            (1008 + ((x * 37 + y * 11) % 9000) + (seed % 400) as usize) as u16
+        }).collect();
+        let decoded = ticoraw::DecodedRaw {
+            make: "NIKON CORPORATION".into(), model: "NIKON Z 8".into(),
+            image: ticoraw::CfaImage { width, height, pixels },
+            color: ticoraw::ColorInfo { cfa_pattern: [0, 1, 1, 2], black_level: [1008, 1010, 1009, 1007], white_level: 15520,
+                color_matrix: Some([(9000, 10000), (-2000, 10000), (-500, 10000), (-4000, 10000), (12000, 10000), (1500, 10000), (-800, 10000), (2200, 10000), (6000, 10000)]),
+                as_shot_neutral: Some([(1, 2), (1, 1), (2, 3)]) },
+            orientation: 6,
+            crop: Some(ticoraw::Crop { x: 6, y: 5, width: width - 13, height: height - 11 }),
+            baseline_exposure: None,
+        };
+        let dng = ticoraw::dng::encode_uncompressed_dng(&decoded).unwrap();
+        crate::nikon_he::decode_sensor(&dng).unwrap().0
+    }
+
+    #[cfg(feature = "nikon-he")]
+    #[test]
+    fn strips_give_exactly_the_whole_frame_result() {
+        for (w, h) in [(96, 64), (640, 531), (1000, 2 * STRIP_ROWS + 37)] {
+            let raw = synthetic_raw(w, h);
+            assert!(strip_plan(&raw).is_some(), "{w}x{h}: a Bayer frame takes the strip path");
+            let whole = develop_display_rgb16_whole(&raw, &Look::default()).unwrap().unwrap();
+            let strips = develop_display_rgb16(&raw, &Look::default()).unwrap().unwrap();
+            assert_eq!(strips.dimensions(), whole.dimensions(), "{w}x{h}: size");
+            let differing = strips.as_raw().iter().zip(whole.as_raw()).filter(|(a, b)| a != b).count();
+            assert_eq!(differing, 0, "{w}x{h}: {differing} samples differ");
+        }
+    }
+
+    /// Optional, real files: KESTREL_RAW_SAMPLES=<folder>. Every RAW that decodes must develop identically in strips.
+    #[test]
+    fn real_files_develop_identically_in_strips() {
+        let Some(folder) = std::env::var_os("KESTREL_RAW_SAMPLES") else { return };
+        let mut checked = 0;
+        for entry in std::fs::read_dir(folder).expect("samples folder").flatten() {
+            let Ok(bytes) = std::fs::read(entry.path()) else { continue };
+            let Ok((raw, _)) = crate::nikon_he::decode_sensor(&bytes) else { continue };
+            if strip_plan(&raw).is_none() { continue }
+            let whole = develop_display_rgb16_whole(&raw, &Look::default()).unwrap().unwrap();
+            let strips = develop_display_rgb16(&raw, &Look::default()).unwrap().unwrap();
+            assert_eq!(strips.dimensions(), whole.dimensions(), "{}", entry.path().display());
+            assert!(strips.as_raw() == whole.as_raw(), "{}: strip develop differs", entry.path().display());
+            checked += 1;
+        }
+        eprintln!("RAW files developed identically in strips: {checked}");
+    }
 
     #[test]
     fn shoulder_is_continuous_monotonic_and_never_reaches_a_wall() {
