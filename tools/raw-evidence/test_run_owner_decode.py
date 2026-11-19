@@ -51,14 +51,14 @@ class OwnerDecodeTests(unittest.TestCase):
         self.assertEqual(row['nx_studio_parity'], 'NOT RUN')
     def test_unreported_nef_is_visible_not_verified(self):
         (self.samples / 'b.NEF').write_bytes(b'synthetic not independently classified')
-        output = 'a.nef | nikon-he | 8x8 | 1ms\\ncfa-sha256 | a.nef | ' + 'a'*64 + '\\nHigh Efficiency files decoded from sensor data: 1'
+        output = 'a.nef | nikon-he | 8x8 | 1ms\ncfa-sha256 | a.nef | ' + 'a'*64 + '\nHigh Efficiency files decoded from sensor data: 1'
         evidence = mod.collect(self.samples, self.tauri, self.runner(output))
         self.assertEqual(evidence['inventory']['top_level_nef_count'], 2)
         self.assertEqual(evidence['inventory']['unreported_files'], ['b.NEF'])
         self.assertEqual(evidence['inventory']['coverage'], 'NOT VERIFIED')
     def test_unreported_symlink_fails_closed(self):
         (self.samples / 'b.nef').symlink_to(self.samples / 'a.nef')
-        output = 'a.nef | nikon-he | 8x8 | 1ms\\ncfa-sha256 | a.nef | ' + 'a'*64 + '\\nHigh Efficiency files decoded from sensor data: 1'
+        output = 'a.nef | nikon-he | 8x8 | 1ms\ncfa-sha256 | a.nef | ' + 'a'*64 + '\nHigh Efficiency files decoded from sensor data: 1'
         with self.assertRaisesRegex(ValueError, 'inventory'):
             mod.collect(self.samples, self.tauri, self.runner(output))
     def test_zero_files_not_pass(self):
