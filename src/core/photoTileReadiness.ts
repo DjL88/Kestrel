@@ -45,3 +45,19 @@ export function photoTileMilestones(
     summary: `${previewText}. ${analysisText}. ${edited ? 'Saved edits' : 'No saved edits'}.`,
   };
 }
+
+/**
+ * How each marker state looks, colour aside: CLAUDE.md allows no colour-only cues, so every state a segment can show
+ * has its own shape. `pattern` names a CSS class in index.css (or none); `full` is the full-height bar, otherwise a
+ * thin line. Colours are added by the component and are a second cue only.
+ */
+export type SegmentState = PhotoPreviewReadiness | PhotoTileMilestones['analysis'] | 'done' | 'not-yet';
+export function segmentShape(state: SegmentState): { pattern: '' | 'tile-dotted' | 'tile-dashed' | 'tile-hatched'; full: boolean } {
+  switch (state) {
+    case 'ready': case 'recorded': case 'done': return { pattern: '', full: true };
+    case 'loading': case 'analysing': return { pattern: 'tile-dotted', full: true };
+    case 'analysed': return { pattern: 'tile-dashed', full: true };
+    case 'unavailable': return { pattern: 'tile-hatched', full: true };
+    case 'queued': case 'idle': case 'not-yet': return { pattern: '', full: false };
+  }
+}

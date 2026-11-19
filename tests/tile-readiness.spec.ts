@@ -23,6 +23,6 @@ test('each tile shows its preview, cull and edit state, by shape as well as colo
   // Ready is a solid, full-height bar; steps not done yet are a thin line: the difference is shape, not only colour.
   const height = (index: number) => bar.locator('span').nth(index).evaluate((element) => element.getBoundingClientRect().height);
   expect(await height(0)).toBeGreaterThan(await height(1));
-  await expect(bar.locator('span').nth(1)).toHaveAttribute('data-state', 'not-yet');
+  await expect(bar.locator('span').nth(1)).toHaveAttribute('data-state', 'idle');
   await expect(page.getByText('Preview ready to open. No cull scan recorded. No saved edits.')).toHaveCount(1);
 });

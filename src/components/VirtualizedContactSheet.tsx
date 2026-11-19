@@ -5,7 +5,7 @@ import type { CullDecision, PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { DecisionButtons } from './DecisionButtons';
 import { isEdited } from '../core/editedState';
-import { photoTileMilestones, type PhotoPreviewReadiness } from '../core/photoTileReadiness';
+import { photoTileMilestones, segmentShape, type PhotoPreviewReadiness } from '../core/photoTileReadiness';
 import type { CullScanStage } from '../core/cullScanProgress';
 import { speciesShown } from '../core/autoTags';
 import { FrameImage } from './FrameImage';
@@ -350,19 +350,19 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                     {/* Card Footer: Number, Filename & Colorblind-safe Decision Control */}
                     <div style={{ height: footerHeight }} className={`relative shrink-0 border-t border-white/6 ${stacked ? 'flex flex-col justify-center gap-1 px-1.5' : 'flex items-center justify-between gap-2 px-2.5'}`}>
                       {/* Independent facts, NOT a misleading percent-complete AI pipeline. Each state is also in text below. */}
-                      {/* Colour is never the only cue: done is a solid bar, loading is dotted, unavailable is hatched, and steps
-                          not done yet are a thin line. */}
+                      {/* Colour is never the only cue: done is a solid bar, in progress is dotted, analysed but still being compared
+                          across the shoot is dashed, unavailable is hatched, and steps not done yet are a thin line. */}
                       <div data-testid="photo-tile-readiness" title={milestones.summary}
                         className="pointer-events-none absolute inset-x-0 top-0 grid h-1 grid-cols-3 items-start gap-px" aria-hidden="true">
-                        <span data-state={milestones.preview} className={milestones.preview === 'ready' ? 'h-1 bg-emerald-400' : milestones.preview === 'unavailable' ? 'tile-hatched h-1 bg-rose-400' : 'tile-dotted h-1 bg-amber-400 motion-safe:animate-pulse'} />
-                        <span data-state={milestones.analysis} className={
-                          milestones.analysis === 'recorded' ? 'h-1 bg-emerald-400'
-                            : milestones.analysis === 'analysing' ? 'tile-dotted h-1 bg-amber-400 motion-safe:animate-pulse'
-                            : milestones.analysis === 'analysed' ? 'h-1 bg-sky-400'
-                            : milestones.analysis === 'unavailable' ? 'tile-hatched h-1 bg-rose-400'
-                            : 'h-px bg-zinc-500'
-                        } />
-                        <span data-state={milestones.edited ? 'done' : 'not-yet'} className={milestones.edited ? 'h-1 bg-emerald-400' : 'h-px bg-zinc-500'} />
+                        {([
+                          [milestones.preview, milestones.preview === 'ready' ? 'bg-emerald-400' : milestones.preview === 'unavailable' ? 'bg-rose-400' : 'bg-amber-400'],
+                          [milestones.analysis, milestones.analysis === 'recorded' ? 'bg-emerald-400' : milestones.analysis === 'analysing' ? 'bg-amber-400' : milestones.analysis === 'analysed' ? 'bg-sky-400' : milestones.analysis === 'unavailable' ? 'bg-rose-400' : 'bg-zinc-500'],
+                          [milestones.edited ? 'done' : 'not-yet', milestones.edited ? 'bg-emerald-400' : 'bg-zinc-500'],
+                        ] as const).map(([state, colour], index) => {
+                          const shape = segmentShape(state);
+                          const busy = state === 'loading' || state === 'analysing';
+                          return <span key={index} data-state={state} className={`${shape.pattern} ${shape.full ? 'h-1' : 'h-px'} ${colour}${busy ? ' motion-safe:animate-pulse' : ''}`} />;
+                        })}
                       </div>
                       <span className="sr-only">{milestones.summary}</span>
                       {/* Everything about the photo lives here, under it: nothing sits on the picture itself. */}
