@@ -78,4 +78,46 @@ export const es: Translation = {
     restartIn: (name) => `Reiniciar en ${name}`,
     draft: 'Traducción provisional, aún no revisada por un hablante nativo. Algunas pantallas siguen en inglés.',
   },
+  appearance: {
+    dialogLabel: "Ajustes de pantalla y diseño",
+    shortcuts: "Atajos de teclado y controles",
+    "position": "¿Dónde quieres las herramientas?",
+    "positionHint": "Elige el lado para editar en una pantalla grande. En el móvil, las herramientas están debajo de la foto.",
+    "toolsSide": "Lado de las herramientas",
+    "left": "Izquierda",
+    "right": "Derecha"
+  },
+  adjustment: {
+    "exposure": "Exposición",
+    "warmth": "Calidez",
+    "colour": "Color",
+    "brightness": "Brillo",
+    "contrast": "Contraste",
+    "highlights": "Altas luces",
+    "shadows": "Sombras",
+    "whites": "Zonas más claras",
+    "blacks": "Zonas más oscuras",
+    "vibrance": "Intensidad",
+    "texture": "Textura",
+    "clarity": "Claridad",
+    "sharpen": "Nitidez",
+    "denoise": "Reducir ruido"
+  },
+  quick: {
+    changed: "(modificado)",
+    "title": "Edición rápida",
+    "allControls": "Todos los controles",
+    "choose": "Elegir un ajuste"
+  },
+  photoInfo: {
+    "title": "Información de la foto",
+    "tabInfo": "Información",
+    "tabSubject": "Sujeto",
+    "copy": "Copiar detalles",
+    "camera": "Cámara",
+    "lens": "Objetivo",
+    "captured": "Capturada",
+    "undecided": "Sin decidir",
+    "reject": "Rechazar"
+  },
 };
