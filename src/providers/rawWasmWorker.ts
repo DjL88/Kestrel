@@ -13,6 +13,8 @@ const scope = self as unknown as {
 };
 
 let compiled: Promise<WebAssembly.Module> | null = null;
+/** Above this, the instance is dropped after a develop and the next file gets a fresh one (the compiled module is kept). */
+const RECYCLE_ABOVE_BYTES = 256 * 1024 * 1024;
 let instance: RawWasm | null = null;
 
 async function decoder(url: string): Promise<RawWasm> {
@@ -31,6 +33,8 @@ scope.onmessage = async (event: MessageEvent) => {
     const raw = await decoder(message.url);
     if (message.type === 'develop') {
       const jpeg = raw.develop(new Uint8Array(message.bytes as ArrayBuffer));
+      // WebAssembly memory never shrinks: after a big frame, let this instance go so the memory is given back.
+      if (raw.memoryBytes() > RECYCLE_ABOVE_BYTES) instance = null;
       scope.postMessage({ type: 'developed', id: message.id, jpeg: jpeg.buffer }, [jpeg.buffer]);
     } else if (message.type === 'mode') {
       scope.postMessage({ type: 'mode', id: message.id, mode: raw.sensorMode(new Uint8Array(message.prefix as ArrayBuffer), message.fileLength) });

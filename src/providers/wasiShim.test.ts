@@ -68,3 +68,10 @@ test('owner HE/HE* files develop through the WebAssembly build', { skip: (!sampl
   }
   console.log(`HE/HE* files developed through WebAssembly: ${developed}`);
 });
+
+test('the decoder reports its memory, so the worker can give it back after a big file', { skip }, async () => {
+  const raw = await instantiateRawWasm(new WebAssembly.Module(readFileSync(WASM)));
+  const before = raw.memoryBytes();
+  raw.develop(new Uint8Array(readFileSync(DNG)));
+  assert.ok(before > 0 && raw.memoryBytes() >= before, 'memory only grows within one instance');
+});
