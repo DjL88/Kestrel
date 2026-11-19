@@ -18,15 +18,25 @@ export interface Rgb16Image {
   data: Uint16Array;
 }
 
-/** Read the decoder's layout: width and height (u32), then RGB samples (u16), all little-endian. */
-export function parseRgb16(buffer: ArrayBuffer): Rgb16Image {
+/** Read the decoder's layout: width/height (u32), then RGB samples (u16), little-endian.
+ * By default the returned image owns a copy to keep existing callers isolated.
+ * shareFreshDecoderBuffer is only for the newly developed, owned working
+ * ArrayBuffer (NOT an original RAW file): it avoids copying an entire 45MP
+ * RGB16 frame when the platform is little-endian. The export is allowed to
+ * edit that working buffer in place. Big-endian hosts always copy.
+ */
+export function parseRgb16(buffer: ArrayBuffer, shareFreshDecoderBuffer = false): Rgb16Image {
   const view = new DataView(buffer);
   if (buffer.byteLength < 8) throw new Error('The 16-bit picture is empty.');
   const width = view.getUint32(0, true);
   const height = view.getUint32(4, true);
   if (!width || !height || buffer.byteLength !== 8 + width * height * 6) throw new Error('The 16-bit picture is incomplete.');
+  const littleEndian = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
+  if (shareFreshDecoderBuffer && littleEndian) {
+    return { width, height, data: new Uint16Array(buffer, 8, width * height * 3) };
+  }
   const data = new Uint16Array(width * height * 3);
-  if (new Uint8Array(new Uint16Array([1]).buffer)[0] === 1) data.set(new Uint16Array(buffer, 8, width * height * 3));
+  if (littleEndian) data.set(new Uint16Array(buffer, 8, width * height * 3));
   else for (let i = 0; i < data.length; i += 1) data[i] = view.getUint16(8 + i * 2, true);
   return { width, height, data };
 }
@@ -67,12 +77,20 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
  * it neither goes through an 8-bit canvas nor allocates a rotated full frame.
  * extraTurns first aligns the RAW to the picture the editor shows.
  */
-export function frameRgb16(image: Rgb16Image, framing: PhotoFraming, extraTurns = 0): Rgb16Image {
+export function frameRgb16(image: Rgb16Image, framing: PhotoFraming, extraTurns = 0, reuseIdentity = false): Rgb16Image {
   const turns = (((framing.turns + extraTurns) % 4) + 4) % 4;
   const sideways = turns % 2 === 1;
   const width = sideways ? image.height : image.width;
   const height = sideways ? image.width : image.height;
   const crop = cropRectangle(width, height, framing);
+  // Only the export path opts in: its source is a freshly decoded scratch
+  // buffer that no other UI or persistent store can observe. No crop, turn,
+  // straighten or dimension change means there is nothing to resample; keep
+  // the source's 16-bit pixels in place and avoid a whole-frame copy.
+  if (reuseIdentity && turns === 0 && Math.abs(framing.straighten) <= 1e-6 &&
+      crop.x === 0 && crop.y === 0 && crop.width === image.width && crop.height === image.height) {
+    return image;
+  }
   const out = new Uint16Array(crop.width * crop.height * 3);
   const { width: w, height: h, data } = image;
   const straighten = Math.abs(framing.straighten) > 1e-6;
