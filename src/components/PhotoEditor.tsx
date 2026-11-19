@@ -100,6 +100,12 @@ interface Props {
   hand?: 'left' | 'right';
   onHandChange?: (hand: 'left' | 'right') => void;
   showFilmstrip: boolean;
+  /** Shared Section F desktop layout: tools fold into a docked rail. */
+  toolsCollapsed?: boolean;
+  /** Photo-only mode hides editing chrome without altering edits or zoom. */
+  focusPhoto?: boolean;
+  /** Phone tool tabs reopen the bottom sheet when the shared panes were folded. */
+  onExpandTools?: () => void;
   onApplyToKeepers: (edit: PhotoEdit) => void;
   onUndoKeeperEdits?: () => void;
 }
@@ -108,6 +114,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   frame, provider, needsAccess, bindings, onEdit, initialTab, onTabChange, onApplyLook, onExport, exportCount = 1, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, hand, onHandChange, showFilmstrip,
+  toolsCollapsed = false, focusPhoto = false, onExpandTools,
 }: Props) {
   const originalCanvas = useRef<HTMLCanvasElement>(null);
   const editedCanvas = useRef<HTMLCanvasElement>(null);
@@ -183,11 +190,18 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [sheetOpen, setSheetOpen] = useState(() => {
     try { return localStorage.getItem(SHEET_KEY) !== 'closed'; } catch { return true; }
   });
+  const toolsHidden = focusPhoto || toolsCollapsed || (isPhone && !sheetOpen);
   const rememberSheet = (open: boolean) => {
     setSheetOpen(open);
     try { localStorage.setItem(SHEET_KEY, open ? 'open' : 'closed'); } catch { /* the sheet still works for this session */ }
   };
   const chooseTab = (id: Tab) => {
+    if (toolsCollapsed) {
+      onExpandTools?.();
+      setTab(id);
+      if (isPhone) rememberSheet(true);
+      return;
+    }
     if (!isPhone) { setTab(id); return; }
     if (id === tab && sheetOpen) {
       // Folding the crop tool away applies the crop, since its Apply button is inside the sheet.
@@ -963,7 +977,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
   return (
     <section aria-label="Photo editor" className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden bg-kestrel-stage">
-      <div role="toolbar" aria-label="Editor actions" className="mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center justify-between gap-2 overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 pt-0.5 sm:px-4">
+      {!focusPhoto && <div role="toolbar" aria-label="Editor actions" className="mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center justify-between gap-2 overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 pt-0.5 sm:px-4">
         <div className="flex items-center gap-1">
           <button type="button" className={`${button} inline-flex items-center`} aria-label="Undo" title={`Undo (${MOD}+Z)`} disabled={!frame.editHistory?.cursor} onClick={() => onHistoryStep(-1)}>
             <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Undo</span>
@@ -1044,9 +1058,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         </button>
 
         </div>
-      </div>
+      </div>}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden workspace:flex-row">
-      <div ref={stage} data-photo-stage className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
+      <div ref={stage} data-photo-stage tabIndex={0} aria-label="Photo canvas" className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black focus-visible:outline-2 focus-visible:outline-sky-300">
         <PhotoViewport zoom={transform.zoom} pan={transform.pan} maxZoom={maxZoom} showZoomButton={false}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
           overlayMode={displayCompare ? 'wipe' : 'hidden'}
@@ -1219,13 +1233,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           </p>
         )}
       </div>
-      <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />
+      {!toolsHidden && <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />}
       <div ref={panelScroll} onInput={(event) => {
         if (tab !== 'masks' || !(event.target instanceof HTMLInputElement) || event.target.type !== 'range') return;
         setSliderBusy(true);
         window.clearTimeout(sliderTimer.current);
         sliderTimer.current = window.setTimeout(() => setSliderBusy(false), 700);
-      }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${isPhone && !sheetOpen ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 ${showFilmstrip ? 'workspace:-mb-[156px] workspace:pb-[172px] ' : ''}workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
+      }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 ${showFilmstrip ? 'workspace:-mb-[156px] workspace:pb-[172px] ' : ''}workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
         {!isPhone && tabList}
         {tab === 'auto' && !can('autoTab') && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto"><PaidNotice title="The Auto tab">Automatic colour and tone adjustments and local editing advice are here.</PaidNotice></div>
@@ -1625,7 +1639,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           </div>
         )}
       </div>
-      {isPhone && tabList}
+      {isPhone && !focusPhoto && tabList}
       </div>
       {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}
       {appearanceOpen && <AppearanceDialog side={panelSide} onSideChange={onPanelSideChange} hand={hand} onHandChange={onHandChange} onClose={() => setAppearanceOpen(false)} onOpenMacroPad={onOpenMacroPad} />}

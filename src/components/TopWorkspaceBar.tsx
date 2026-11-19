@@ -77,6 +77,9 @@ interface TopWorkspaceBarProps {
   onUndo?: () => void;
   focusMode: boolean;
   onToggleFocusMode: () => void;
+  /** Section F: both workspace panes fold into thin docked icon rails. */
+  panesCollapsed?: boolean;
+  onTogglePanes?: () => void;
   onRedo?: () => void;
   loadingProgress?: { loaded: number; total: number } | null;
 }
@@ -249,9 +252,13 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                     <input type="checkbox" checked={props.showFilmstrip} onChange={props.onToggleFilmstrip} />
                     Pin filmstrip
                   </label>
+                  {props.onTogglePanes && <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
+                    <input type="checkbox" checked={props.panesCollapsed ?? false} onChange={props.onTogglePanes} />
+                    Fold tools and photo info into icon rails
+                  </label>}
                   <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
                     <input type="checkbox" checked={props.focusMode} onChange={props.onToggleFocusMode} />
-                    Focus mode
+                    Photo-only view (F)
                   </label>
                   <AppearanceSettings side={props.editPanelSide} onSideChange={props.onEditPanelSideChange} hand={props.hand} onHandChange={props.onHandChange} />
                   {isDesktopApp() && <button type="button" onClick={() => choose(props.onOpenMacroPadModal, false)}

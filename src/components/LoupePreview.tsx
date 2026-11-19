@@ -37,6 +37,8 @@ interface LoupePreviewProps {
   bindings: KeyBindingsMap;
   knobMode: KnobFunction;
   showShortcutsOverlay: boolean;
+  /** Section F photo-only mode: no controls on top of the photograph. */
+  focusPhoto?: boolean;
   onExecuteCommand: (commandId: CommandId) => void;
   onStepFrame: (delta: number) => void;
   onResetFrame: () => void;
@@ -58,6 +60,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
   bindings,
   knobMode,
   showShortcutsOverlay,
+  focusPhoto = false,
   onExecuteCommand,
   onStepFrame,
   onResetFrame,
@@ -127,7 +130,8 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
 
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-kestrel-stage">
-      <div ref={viewRef} className="relative flex min-h-0 flex-1 flex-col">
+      <div ref={viewRef} data-photo-stage tabIndex={0} aria-label="Photo canvas"
+        className="relative flex min-h-0 flex-1 flex-col focus-visible:outline-2 focus-visible:outline-sky-300">
         <PhotoViewport
           zoom={zoomLevel} pan={panOffset} onTransform={(zoom, pan) => {
             onZoomChange(zoom);
@@ -137,11 +141,11 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
             needsAccess={needsAccess} className="h-full w-full" imgClassName="object-contain" />}
         />
       </div>
-      <div className="absolute right-4 bottom-16 z-10 hidden lg:block">
+      {!focusPhoto && <div className="absolute right-4 bottom-16 z-10 hidden lg:block">
         <ShortcutOverlay bindings={bindings} knobMode={knobMode} visible={showShortcutsOverlay} />
-      </div>
+      </div>}
 
-      <div role="group" aria-label="Single photo controls" className="flex min-h-13 shrink-0 items-center justify-between gap-1 border-t border-white/8 bg-kestrel-panel px-1.5 sm:px-4">
+      {!focusPhoto && <div role="group" aria-label="Single photo controls" className="flex min-h-13 shrink-0 items-center justify-between gap-1 border-t border-white/8 bg-kestrel-panel px-1.5 sm:px-4">
         <button type="button" disabled={!hasPrev} onClick={() => onStepFrame(-1)} aria-label="Previous frame" title="Previous frame"
           className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:opacity-30">
           <ChevronLeft className="h-5 w-5" aria-hidden="true" />
@@ -174,7 +178,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
           className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:opacity-30">
           <ChevronRight className="h-5 w-5" aria-hidden="true" />
         </button>
-      </div>
+      </div>}
     </div>
   );
 };

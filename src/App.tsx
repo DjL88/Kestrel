@@ -30,7 +30,9 @@ import { applyAutoTag, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTa
 import { burstMates, tagFrames } from './core/speciesBurst';
 import { loadImage } from './providers/loadImage';
 import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
-import { ArrowLeft, Copy, ClipboardPaste, Pin, PinOff } from 'lucide-react';
+import { ArrowLeft, Copy, ClipboardPaste, Pin, PinOff, Info, PanelLeftClose, PanelLeftOpen, Maximize2 } from 'lucide-react';
+import { WorkspacePaneRail } from './components/WorkspacePaneRail';
+import { photoInfoDockSide, readWorkspacePaneState, toggleWorkspacePanes, writeWorkspacePaneState } from './core/workspacePaneState';
 import { newId } from './core/ids';
 import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
@@ -176,6 +178,12 @@ export default function App() {
   const [guidedDismissedFor, setGuidedDismissedFor] = useState<string | null>(null);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
   const [showPhotoInfo, setShowPhotoInfo] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
+  // Section F: a workspace layout belongs to the device, not to each photo,
+  // project, synced catalogue or editor tab. A private-storage failure is safe.
+  const [workspacePanes, setWorkspacePanes] = useState(readWorkspacePaneState);
+  useEffect(() => { writeWorkspacePaneState(workspacePanes); }, [workspacePanes]);
+  const togglePanes = () => setWorkspacePanes(toggleWorkspacePanes);
+  const panesCollapsed = workspacePanes.folded;
   const [copiedEdit, setCopiedEdit] = useState<PhotoEdit | null>(null);
   const [batchUndo, setBatchUndo] = useState<{
     applied: PhotoEdit;
@@ -582,8 +590,8 @@ export default function App() {
     // Follow the selected photo rather than a previously opened thumbnail info popup.
     setInfoFrameId(undefined);
     flushLinkedEdit();
-    setZoomLevel(1);
-    setPanOffset({ x: 0, y: 0 });
+    // Preserve loupe zoom and pan as photos are stepped through, as in the
+    // shared editor. Fit remains an explicit action rather than a forced reset.
     setCullingState((prev) => ({
       ...prev,
       selectedFrameId: frameId,
@@ -1321,13 +1329,46 @@ export default function App() {
       if (projectsOpen || exportFrames.length || (autoCullOpen && !autoCullHidden) || pendingAction || removedOpen) return;
       // Already handled by an open menu or dialog (for example Escape closing Workspace options).
       if (e.defaultPrevented) return;
-      if (e.key === 'Escape' && showPhotoInfo) {
+      const modalOpen = openShootModal || macroPadModal;
+      if (e.key === 'Escape' && prefs.focusMode && !modalOpen) {
+        e.preventDefault();
+        setPrefs((prev) => ({ ...prev, focusMode: false }));
+        return;
+      }
+      if (e.key === 'Escape' && showPhotoInfo && !prefs.focusMode && !panesCollapsed) {
         setShowPhotoInfo(false);
         setInfoFrameId(undefined);
         infoTriggerRef.current?.focus();
         return;
       }
-      const isModalOpen = openShootModal || macroPadModal;
+      const isModalOpen = modalOpen;
+      const plainKey = !e.ctrlKey && !e.metaKey && !e.altKey;
+      const inControl = isEditableElement(e.target) || (e.target instanceof Element && Boolean(
+        e.target.closest('button,a,[role="dialog"],[role="menu"],[data-workspace-options]')
+      ));
+      if (plainKey && !inControl && !isModalOpen) {
+        if (e.key.toLowerCase() === 'f') {
+          e.preventDefault();
+          setPrefs((prev) => ({ ...prev, focusMode: !prev.focusMode,
+            viewMode: prev.focusMode || editing || prev.viewMode !== 'grid' ? prev.viewMode : 'loupe' }));
+          return;
+        }
+        // Tab is *only* a pane shortcut while the photograph itself owns
+        // focus. Elsewhere it remains normal keyboard/screen-reader navigation.
+        if (e.key === 'Tab' && !e.shiftKey && !prefs.focusMode &&
+            window.matchMedia('(min-width: 1024px)').matches &&
+            e.target instanceof Element && e.target.matches('[data-photo-stage]')) {
+          e.preventDefault();
+          setWorkspacePanes(toggleWorkspacePanes);
+          // Move focus to a visible keyboard control instead of trapping Tab
+          // on the photo canvas. Other Tab presses navigate normally.
+          requestAnimationFrame(() => {
+            const selector = editing ? '[data-workspace-pane-toggle]' : '[aria-label="Workspace options"]';
+            document.querySelector<HTMLButtonElement>(selector)?.focus();
+          });
+          return;
+        }
+      }
       if (editing) {
         if (!isModalOpen && e.key === 'Escape') { setEditing(false); setEditQueueIds(null); setMultiSelect(false); setSelectedIds(new Set()); }
         return;
@@ -1349,7 +1390,7 @@ export default function App() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [projectsOpen, loadingProgress, exportFrames.length, autoCullOpen, autoCullHidden, pendingAction, removedOpen, showPhotoInfo, editing, openShootModal, macroPadModal, prefs.bindings, executeCommand]);
+  }, [projectsOpen, loadingProgress, exportFrames.length, autoCullOpen, autoCullHidden, pendingAction, removedOpen, showPhotoInfo, editing, openShootModal, macroPadModal, prefs.bindings, prefs.focusMode, prefs.viewMode, panesCollapsed, executeCommand]);
 
   const droppedInProjectRef = useRef<(files: File[]) => Promise<void>>(async () => {});
   const watchImportRef = useRef<(files: File[]) => Promise<number>>(async () => 0);
@@ -1878,11 +1919,28 @@ export default function App() {
         </div>
       )}
       <DropOverlay dragging={drop.dragging} message={drop.message} onDismiss={drop.clearMessage} />
-      {editing ? (
+      {prefs.focusMode ? null : editing ? (
         <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-kestrel-panel px-3 py-1">
           <button type="button" onClick={leaveEditor} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300" aria-label="Back" title="Back to photo library"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</button>
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? 'Edit photo'}</h1>
           <TaskManager inline />
+          <div className="flex shrink-0 items-center gap-0.5" role="group" aria-label="Workspace panels">
+            <button type="button" data-workspace-pane-toggle aria-label={panesCollapsed ? 'Expand workspace panels' : 'Fold workspace panels'}
+              title="Fold or expand tools and photo info (Tab when photo is focused)" aria-pressed={panesCollapsed}
+              onClick={togglePanes}
+              className="grid h-10 w-10 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+              {panesCollapsed ? <PanelLeftOpen className="h-4 w-4" aria-hidden="true" /> : <PanelLeftClose className="h-4 w-4" aria-hidden="true" />}
+            </button>
+            <button type="button" aria-label={showPhotoInfo ? 'Hide photo info' : 'Show photo info'} aria-pressed={showPhotoInfo && !panesCollapsed}
+              onClick={() => { setWorkspacePanes({ folded: false }); setShowPhotoInfo((prev) => !prev); }}
+              className="grid h-10 w-10 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+              <Info className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <button type="button" aria-label="Show photo only" title="Photo only (F)" onClick={() => setPrefs((prev) => ({ ...prev, focusMode: true }))}
+              className="grid h-10 w-10 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+              <Maximize2 className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
           {multiSelect && selectedVisibleFrames.length > 0 && (
             <span className="shrink-0 text-xs tabular-nums text-zinc-300">{selectedVisibleFrames.length} selected</span>
           )}
@@ -1986,10 +2044,9 @@ export default function App() {
         }}
         multiSelect={multiSelect}
         focusMode={prefs.focusMode}
-        onToggleFocusMode={() => {
-          setShowPhotoInfo(false);
-          setPrefs((prev) => ({ ...prev, focusMode: !prev.focusMode }));
-        }}
+        onToggleFocusMode={() => setPrefs((prev) => ({ ...prev, focusMode: !prev.focusMode }))}
+        panesCollapsed={panesCollapsed}
+        onTogglePanes={togglePanes}
         onBatchLook={previewKeeperLook(cullingState.frames).total > 0 ? () => setBatchLookOpen(true) : undefined}
         onAutoAdjustKeepers={!autoAdjustController.current && previewKeeperLook(cullingState.frames).eligible > 0 ? () => setAutoAdjustOpen(true) : undefined}
         onExportKeepers={cullingState.filter === 'keep' && visibleFrames.length
@@ -2051,10 +2108,15 @@ export default function App() {
 
       {projectError && <p role="alert" className="bg-orange-950 px-3 py-2 text-sm text-orange-100">{projectError}</p>}
 
-      {/* Photo info sits on the Preferred-hand side, where the editing tools are, so the panel never swaps sides. */}
-      <main key={previewRevision} className={`relative flex-1 flex min-h-0 min-w-0 ${prefs.hand === 'left' ? 'flex-row-reverse' : ''}`}>
+      {/* Section F: the shared photo frame docks tools on the preferred-hand
+          side and Photo Info on the OTHER side, in editing and review alike. */}
+      <main key={previewRevision} className={`relative flex-1 flex min-h-0 min-w-0 ${prefs.hand === 'right' ? 'lg:flex-row-reverse' : ''}`}>
         <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           {editing && selectedFrame && (
+            <div className="flex min-h-0 min-w-0 flex-1">
+              {panesCollapsed && !prefs.focusMode && prefs.hand === 'left' && (
+                <WorkspacePaneRail kind="tools" side="left" onExpand={() => setWorkspacePanes({ folded: false })} />
+              )}
             <PhotoEditor
               initialTab={editorTab}
               onTabChange={setEditorTab}
@@ -2123,10 +2185,17 @@ export default function App() {
               hand={prefs.hand}
               onHandChange={(hand) => setPrefs((prev) => ({ ...prev, hand, editPanelSide: hand }))}
               showFilmstrip={filmstripVisible}
+              toolsCollapsed={panesCollapsed}
+              focusPhoto={prefs.focusMode}
+              onExpandTools={() => setWorkspacePanes({ folded: false })}
               keeperCount={counts.keep}
               onApplyToKeepers={applyEditToKeepers}
               onUndoKeeperEdits={batchUndo ? undoKeeperEdits : undefined}
             />
+              {panesCollapsed && !prefs.focusMode && prefs.hand === 'right' && (
+                <WorkspacePaneRail kind="tools" side="right" onExpand={() => setWorkspacePanes({ folded: false })} />
+              )}
+            </div>
           )}
           {!editing && liveFrames.length === 0 && (
             <div className="grid flex-1 place-items-center p-4">
@@ -2239,6 +2308,7 @@ export default function App() {
               bindings={prefs.bindings}
               knobMode={prefs.knobMode}
               showShortcutsOverlay={prefs.showShortcutsOverlay && !prefs.focusMode}
+              focusPhoto={prefs.focusMode}
               onExecuteCommand={executeCommand}
               onStepFrame={handleStepFrame}
               onResetFrame={() => selectedFrame && requestReset([selectedFrame.id])}
@@ -2276,7 +2346,7 @@ export default function App() {
             />
           )}
 
-          {editing && selectedFrame && (
+          {editing && selectedFrame && !prefs.focusMode && (
             <div role="toolbar" aria-label="Filmstrip controls"
               className={`mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center gap-1 overflow-x-auto border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'workspace:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'workspace:pr-[var(--editor-panel-w,0px)]') : ''}`}>
               <button type="button" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10"
@@ -2341,8 +2411,8 @@ export default function App() {
           )}
         </div>
 
-        {!editing && showPhotoInfo && (
-          <ExifInspector onSubjects={(frame, tags, kind) => setSubjects(frame, tags, kind)} onKeepTag={(frame, name) => keepTag(frame, name)}
+        {!prefs.focusMode && !panesCollapsed && showPhotoInfo && (
+          <ExifInspector dockedSide={photoInfoDockSide(prefs.hand)} onSubjects={(frame, tags, kind) => setSubjects(frame, tags, kind)} onKeepTag={(frame, name) => keepTag(frame, name)}
             loadPicture={loadSpeciesPicture}
             mates={burstMates(cullingState.frames, infoFrameId ? cullingState.frames.find((frame) => frame.id === infoFrameId) ?? { id: '', burstGroupId: null } : selectedFrame ?? { id: '', burstGroupId: null })}
             onTagPhotos={(ids, name, kind) => setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() }, frames: tagFrames(prev.frames, ids, name, kind) }))}
@@ -2361,7 +2431,19 @@ export default function App() {
             }}
           />
         )}
+        {!prefs.focusMode && (panesCollapsed || !showPhotoInfo) && visibleFrames.length > 0 && (
+          <WorkspacePaneRail kind="info" side={photoInfoDockSide(prefs.hand)}
+            onExpand={() => { setWorkspacePanes({ folded: false }); setShowPhotoInfo(true); }} />
+        )}
       </main>
+      {prefs.focusMode && (
+        <div className="flex shrink-0 justify-end border-t border-white/10 bg-kestrel-panel px-3 py-1">
+          <button type="button" onClick={() => setPrefs((prev) => ({ ...prev, focusMode: false }))}
+            className="min-h-10 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+            Exit photo-only view (F)
+          </button>
+        </div>
+      )}
 
       {autoAdjustSelectedOpen && <ConfirmDialog title="Auto-adjust selected photos?" confirmLabel="Analyse selected photos"
         cancelLabel="Cancel" onCancel={() => setAutoAdjustSelectedOpen(false)}

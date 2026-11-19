@@ -11,6 +11,8 @@ import type { CullDecision, PhotoFrame } from '../core/types';
 
 interface ExifInspectorProps {
   frame: PhotoFrame | null;
+  /** The dock sits opposite the photographer's preferred tool hand. */
+  dockedSide?: 'left' | 'right';
   onClose: () => void;
   batchCount: number;
   onRate: (id: string, rating: number) => void;
@@ -27,7 +29,7 @@ interface ExifInspectorProps {
   onAutoTag?: (frame: PhotoFrame, name: string, kind: SubjectKind | undefined) => void;
 }
 
-export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount, onClose, onRate, onFlag, onSubjects, onKeepTag, loadPicture, mates = [], onTagPhotos, onAutoTag }) => {
+export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide = 'right', batchCount, onClose, onRate, onFlag, onSubjects, onKeepTag, loadPicture, mates = [], onTagPhotos, onAutoTag }) => {
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [picture, setPicture] = useState<HTMLCanvasElement | null>(null);
   const frameId = frame?.id;
@@ -72,7 +74,9 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
   return (
     <aside
       aria-label="Photo info"
-      className="workspace-popover absolute inset-x-2 top-2 z-10 max-h-[min(calc(100%_-_1rem),calc(100dvh_-_7rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-4 shadow-2xl sm:right-2 sm:left-auto sm:w-72 lg:static lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-0 lg:border-l lg:shadow-none hand-left:sm:left-2 hand-left:sm:right-auto hand-left:lg:border-l-0 hand-left:lg:border-r"
+      className={`workspace-popover absolute inset-x-2 top-2 z-10 max-h-[min(calc(100%_-_1rem),calc(100dvh_-_7rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-4 shadow-2xl sm:w-72 lg:static lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-0 lg:shadow-none ${dockedSide === 'left'
+        ? 'sm:left-2 sm:right-auto lg:border-r'
+        : 'sm:right-2 sm:left-auto lg:border-l'}`}
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Photo info</h2>
