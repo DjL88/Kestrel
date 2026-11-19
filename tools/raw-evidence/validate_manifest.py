@@ -58,12 +58,16 @@ def validate(data, root):
                 h.update(chunk)
         if h.hexdigest() != digest:
             errors.append(f"{p}: sha256 mismatch")
-        if sample.get("sensor_decode_verified") is True:
+        verified = sample.get("sensor_decode_verified", False)
+        if type(verified) is not bool:
+            errors.append(f"{p}: sensor_decode_verified must be boolean")
+        if verified is True:
             if sample.get("source") != "sensor-cfa":
                 errors.append(f"{p}: preview/render cannot be verified sensor decode")
-            if not sample.get("decoder") or not sample.get("reference_evidence"):
+            if any(not isinstance(sample.get(key), str) or not sample[key].strip()
+                   for key in ("decoder", "reference_evidence")):
                 errors.append(f"{p}: verified sensor decode needs decoder and reference evidence")
-        if sample.get("nx_studio_parity") is True:
+        if sample.get("nx_studio_parity", False) is not False:
             errors.append(f"{p}: unqualified NX Studio parity claim prohibited; record measurements separately")
     return errors
 
