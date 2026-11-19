@@ -210,7 +210,8 @@ function applyDetailMaskRgb16(image: Rgb16Image, mask: Mask, masks: readonly Mas
   const { width, height, data } = image;
   const edge = Math.max(width, height);
   const d = detailParams(local, edge);
-  const margin = Math.max(d.sharpenRadius, d.textureRadius, d.clarityRadius);
+  const denoiseRadius = noiseStrength(local.denoise) > 0 ? ((local.denoise ?? 0) > 1 ? 2 : 1) : 0;
+  const margin = Math.max(d.sharpenRadius, d.textureRadius, d.clarityRadius, denoiseRadius);
   // A band's top halo is retained before writing its interior. Ensuring at
   // least one margin's worth of interior keeps the previous original halo
   // sufficient, even for Clarity on a full-resolution Nikon image.
@@ -225,6 +226,7 @@ function applyDetailMaskRgb16(image: Rgb16Image, mask: Mask, masks: readonly Mas
     if (kept && first < from) source.set(kept, 0);
     // Capture the original (not locally adjusted) lower halo for next stripe.
     kept = to < height ? source.slice((Math.max(first, to - margin) - first) * stride, (to - first) * stride) : null;
+    if (denoiseRadius > 0) denoiseChromaRgb16(source, width, last - first, noiseStrength(local.denoise), denoiseRadius as 1 | 2);
     applyToneRgb16(source, local);
     applyDetailRgb16(source, width, last - first, local, edge);
     const bandHeight = to - from;
@@ -262,7 +264,7 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
   for (const mask of masks) {
     if (!LOCAL_KEYS.some((key) => !!mask.edit[key])) continue;
     const local: PhotoEdit = { exposure: 0, warmth: 0, colour: 0, ...mask.edit };
-    if (hasDetail(local)) {
+    if (hasDetail(local) || noiseStrength(local.denoise) > 0) {
       applyDetailMaskRgb16(image, mask, masks, local, detailBandPixels);
       continue;
     }
