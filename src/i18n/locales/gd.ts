@@ -79,6 +79,8 @@ export const gd: Translation = {
     draft: 'Eadar-theangachadh dreachd, gun sgrùdadh le fileantach fhathast. Tha cuid de sgrìnichean sa Bheurla fhathast.',
   },
   appearance: {
+    dialogLabel: "Roghainnean taisbeanaidh is cruth",
+    shortcuts: "Ath-ghoiridean meur-chlàir is rianadair",
     "position": "Dè an taobh airson nan innealan?",
     "positionHint": "Tagh taobh na sgrìn airson innealan deasachaidh. Air fòn, tha iad fon dealbh.",
     "toolsSide": "Taobh nan innealan",
