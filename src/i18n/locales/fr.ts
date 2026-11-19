@@ -78,4 +78,11 @@ export const fr: Translation = {
     restartIn: (name) => `Redémarrer en ${name}`,
     draft: 'Traduction provisoire, pas encore relue par un locuteur natif. Certains écrans sont encore en anglais.',
   },
+  appearance: {
+    "position": "De quel côté placer les outils ?",
+    "positionHint": "Choisissez le côté des outils sur un grand écran. Sur téléphone, ils sont sous la photo.",
+    "toolsSide": "Côté des outils",
+    "left": "Gauche",
+    "right": "Droite"
+  },
 };
