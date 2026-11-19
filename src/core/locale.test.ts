@@ -32,9 +32,12 @@ test('every language in the list has a file, and no file has sentences the sourc
 });
 
 test('every non-English language covers every sentence (brand names may stay as they are)', () => {
+  // Existing home/culling/settings coverage is required. Editor, Photo Info and setup
+  // are being added screen by screen; a draft must not be reported as fully translated.
   const allowedToStay = new Set(['settings.fontBrand']);
+  const newlyMigrated = ['appearance.', 'adjustment.', 'quick.', 'photoInfo.', 'setup.'];
   for (const { code } of LANGUAGES.filter((language) => !language.code.startsWith('en'))) {
-    assert.deepEqual(missingKeys(enGB, TRANSLATIONS[code]).filter((key) => !allowedToStay.has(key)), [], `${code} leaves sentences in English`);
+    assert.deepEqual(missingKeys(enGB, TRANSLATIONS[code]).filter((key) => !allowedToStay.has(key) && !newlyMigrated.some((prefix) => key.startsWith(prefix))), [], `${code} lost a previously translated sentence`);
     const merged = mergeMessages<Messages>(enGB, TRANSLATIONS[code]);
     assert.notEqual(merged.scanning('3', '9'), enGB.scanning('3', '9'));
     assert.ok(merged.scanning('3', '9').includes('3') && merged.scanning('3', '9').includes('9'), `${code} drops a number from scanning`);
@@ -55,4 +58,30 @@ test('dates follow the chosen language: British by default, never the browser’
   } finally {
     setActiveLanguage(before);
   }
+});
+
+test('all eight established translation drafts include every visible Settings layout label', () => {
+  const sourceKeys = Object.keys(enGB.appearance);
+  for (const code of ['cy', 'gd', 'fr', 'de', 'es', 'nl', 'it', 'pt'] as const) {
+    const translated = TRANSLATIONS[code].appearance;
+    assert.ok(translated, `${code}: appearance translation is missing`);
+    for (const key of sourceKeys) {
+      const value = translated?.[key as keyof typeof translated];
+      assert.equal(typeof value, 'string', `${code}: appearance.${key} is untranslated`);
+      assert.ok((value as string).trim().length > 2, `${code}: appearance.${key} is empty`);
+    }
+    const merged = mergeMessages<Messages>(enGB, TRANSLATIONS[code]);
+    assert.notEqual(merged.appearance.position, enGB.appearance.position,
+      `${code}: the editing tools question must not appear in English`);
+  }
+});
+
+test('Welsh Photo Info dynamic labels keep the number and the choice', () => {
+  const welsh = mergeMessages<Messages>(enGB, TRANSLATIONS.cy);
+  assert.match(welsh.photoInfo.burst('2', '10'), /2/);
+  assert.match(welsh.photoInfo.burst('2', '10'), /10/);
+  assert.match(welsh.photoInfo.batch('3'), /3/);
+  assert.match(welsh.photoInfo.rateStars('5'), /5/);
+  assert.match(welsh.quick.down(welsh.adjustment.colour), /Lliw/);
+  assert.notEqual(welsh.photoInfo.title, enGB.photoInfo.title);
 });
