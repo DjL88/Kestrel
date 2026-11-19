@@ -59,8 +59,16 @@ def evaluate(records):
         counts[record["provenance"]] += 1
         if record["provenance"] == "real-labelled":
             counts[f"real_truth_{truth}"] += 1
+            if record["keeper"]:
+                counts["real_keeper_total"] += 1
+                if decision == "reject":
+                    counts["real_keeper_false_auto_reject"] += 1
             if truth == "bird" and size in {"tiny", "distant"}:
                 counts["real_small_birds"] += 1
+                if record["keeper"]:
+                    counts["real_small_bird_keeper_total"] += 1
+                    if decision == "reject":
+                        counts["real_small_bird_keeper_false_auto_reject"] += 1
         counts[f"truth_{truth}"] += 1
         matrix[(truth, predicted)] += 1
         if predicted == "unknown":
@@ -74,10 +82,16 @@ def evaluate(records):
             if truth != "bird" and truth != "other-animal":
                 counts["unsafe_nonanimal_species"] += 1
                 species_errors.append(ident)
+                if record["provenance"] == "real-labelled":
+                    counts["real_unsafe_nonanimal_species"] += 1
                 if truth == "aircraft":
                     counts["aircraft_species"] += 1
+                    if record["provenance"] == "real-labelled":
+                        counts["real_aircraft_species"] += 1
                     if species.casefold() == "osprey":
                         counts["aircraft_osprey"] += 1
+                        if record["provenance"] == "real-labelled":
+                            counts["real_aircraft_osprey"] += 1
     if not counts["total"]:
         raise ValueError("empty evidence is not a benchmark")
     real = counts["real-labelled"]
@@ -89,6 +103,21 @@ def evaluate(records):
         "truth_counts": {key: counts[f"truth_{key}"] for key in sorted(TRUTH)},
         "real_truth_counts": {key: counts[f"real_truth_{key}"] for key in sorted(TRUTH)},
         "real_small_bird_count": counts["real_small_birds"],
+        # Raw counts and explicit at-risk denominators. Never mix synthetic
+        # fixtures into reported real-world unsafe-event frequencies.
+        "real_risk_denominators": {
+            "aircraft": counts["real_truth_aircraft"],
+            "nonanimal": sum(counts[f"real_truth_{key}"] for key in ("aircraft", "person", "other")),
+            "human_keepers": counts["real_keeper_total"],
+            "tiny_distant_bird_keepers": counts["real_small_bird_keeper_total"],
+        },
+        "real_risk_events": {
+            "aircraft_osprey": counts["real_aircraft_osprey"],
+            "aircraft_any_species": counts["real_aircraft_species"],
+            "nonanimal_any_species": counts["real_unsafe_nonanimal_species"],
+            "human_keeper_false_auto_reject": counts["real_keeper_false_auto_reject"],
+            "tiny_distant_bird_keeper_false_auto_reject": counts["real_small_bird_keeper_false_auto_reject"],
+        },
         "coverage_gaps": [label for label, present in (
             ("500 independently labelled real photos", real >= 500 and counts["synthetic"] == 0),
             ("real aircraft", counts["real_truth_aircraft"] > 0),
