@@ -59,6 +59,12 @@ def evaluate(records):
         counts[record["provenance"]] += 1
         if record["provenance"] == "real-labelled":
             counts[f"real_truth_{truth}"] += 1
+            if predicted == "unknown":
+                counts["real_abstained_subject"] += 1
+                counts[f"real_abstained_{truth}"] += 1
+            if decision == "review":
+                counts["real_review_only"] += 1
+                counts[f"real_review_{truth}"] += 1
             if record["keeper"]:
                 counts["real_keeper_total"] += 1
                 if decision == "reject":
@@ -118,6 +124,18 @@ def evaluate(records):
             "human_keeper_false_auto_reject": counts["real_keeper_false_auto_reject"],
             "tiny_distant_bird_keeper_false_auto_reject": counts["real_small_bird_keeper_false_auto_reject"],
         },
+        "real_subject_abstention": {
+            "total": counts["real_abstained_subject"],
+            "denominator": real,
+            "by_truth": {key: {
+                "unknown": counts[f"real_abstained_{key}"],
+                "review": counts[f"real_review_{key}"],
+                "denominator": counts[f"real_truth_{key}"],
+            } for key in sorted(TRUTH)},
+        },
+        "real_review_only": counts["real_review_only"],
+        "decision_origin_known": False,
+        "keeper_rejection_note": "Decision origin is not captured; keeper reject events cannot be asserted automatic. Independently verify auto versus manual provenance before claiming false AUTO reject rates.",
         "coverage_gaps": [label for label, present in (
             ("500 independently labelled real photos", real >= 500 and counts["synthetic"] == 0),
             ("real aircraft", counts["real_truth_aircraft"] > 0),
