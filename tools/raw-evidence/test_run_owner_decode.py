@@ -35,7 +35,7 @@ class OwnerDecodeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'CFA hash'):
             mod.collect(self.samples, self.tauri, self.runner(output))
     def test_native_success_is_only_limited_evidence(self):
-        evidence = mod.collect(self.samples, self.tauri, self.runner('a.nef | nikon-he | 8x8 | 1ms\nHigh Efficiency files decoded from sensor data: 1'))
+        evidence = mod.collect(self.samples, self.tauri, self.runner('a.nef | nikon-he | 8x8 | 1ms\ncfa-sha256 | a.nef | ' + 'a'*64 + '\nHigh Efficiency files decoded from sensor data: 1'))
         row = evidence['samples'][0]
         self.assertEqual(row['sha256'], hashlib.sha256(b'synthetic only').hexdigest())
         self.assertEqual(row['cfa_hash'], 'a'*64)
