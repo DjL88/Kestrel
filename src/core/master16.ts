@@ -3,7 +3,8 @@ import { cropRectangle, rotationCoverage, type PhotoFraming } from './photoFrami
 import { THUMB, type Thumb } from './orientMatch';
 import { LOCAL_KEYS, usesDetail, type Mask } from './maskTypes';
 import { effectiveAlpha } from './masks';
-import { hasNoiseReduction } from './noiseReduction';
+import { noiseStrength } from './noiseReduction';
+import { denoiseChromaRgb16 } from './chromaDenoise16';
 
 /**
  * Kestrel's 16-bit export. The RAW decoder's full-size 16-bit picture (display-encoded sRGB, as it was before the editor's
@@ -54,7 +55,8 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
   // Local Texture/Clarity/Sharpening still require a matching neighbour-aware,
   // bounded-memory 16-bit implementation; never silently omit them.
   if (edit && usesDetail(edit.masks)) return 'The 16-bit TIFF does not include local mask Texture, Clarity or Sharpening yet. The normal export keeps these adjustments.';
-  if (edit && hasNoiseReduction(edit)) return 'The 16-bit TIFF does not include Noise reduction yet. The normal export keeps it.';
+  // The bounded 16-bit chroma reducer now runs before tone/detail, like the screen.
+  // This does not assert parity with TrueDetail AI or DxO-class luminance denoise.
   // Straightening is applied with the same centre, angle and coverage geometry as the preview.
   return null;
 }
@@ -184,9 +186,12 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
   }
 }
 
-/** Apply the edit in place: the whole-photo tone and colour, then Texture, Clarity and Sharpening. */
+/** Apply the edit in place: conservative chroma denoise, tone/colour,
+ * global Texture/Clarity/Sharpening and then the same local mask ordering as screen. */
 export function editRgb16(image: Rgb16Image, edit: PhotoEdit): void {
   const { data } = image;
+  const chroma = noiseStrength(edit.denoise);
+  if (chroma > 0) denoiseChromaRgb16(data, image.width, image.height, chroma, (edit.denoise ?? 0) > 1 ? 2 : 1);
   if (!isNeutralTone(edit)) {
     const CHUNK = 16384;
     const floats = new Float32Array(CHUNK * 4);
