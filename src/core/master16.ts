@@ -73,6 +73,16 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
     for (const key of Object.keys(edit)) {
       if (!EXPORT_EDIT_KEYS.has(key)) return `The 16-bit TIFF cannot include the "${key}" adjustment yet.`;
     }
+    // Saved projects can contain values from older versions or corrupted JSON.
+    // A NaN/Infinity or non-number must never silently become black/white
+    // archival pixels in a purportedly faithful 16-bit master.
+    for (const key of EXPORT_EDIT_KEYS) {
+      if (key === 'masks') continue;
+      const value = edit[key as keyof PhotoEdit];
+      if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value))) {
+        return `The saved "${key}" adjustment is invalid, so no 16-bit TIFF was made.`;
+      }
+    }
     if (edit.masks !== undefined && !validMasks(edit.masks)) {
       return 'One or more saved masks could not be safely included in the 16-bit TIFF.';
     }
@@ -315,6 +325,16 @@ const SRGB_ICC_PROFILE = Uint8Array.from(atob(SRGB_ICC_BASE64), (char) => char.c
 /** A baseline uncompressed 16-bit RGB TIFF, tagged with the actual output sRGB ICC profile. */
 export function encodeTiff16(image: Rgb16Image): Blob {
   const { width, height } = image;
+  // TIFF strip offsets/counts below use 32-bit fields. Refuse corrupt or
+  // impossible buffers rather than writing a plausible-looking damaged master.
+  const pixels = width * height;
+  const bytes = pixels * 6;
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) ||
+      width <= 0 || height <= 0 || !Number.isSafeInteger(pixels) ||
+      bytes > 0xffffffff - 65536 ||
+      !(image.data instanceof Uint16Array) || image.data.length !== pixels * 3) {
+    throw new Error('The 16-bit picture has invalid dimensions or pixel data.');
+  }
   const entries: Array<[tag: number, type: number, count: number, value: number]> = [];
   const SHORT = 3, LONG = 4, RATIONAL = 5, ASCII = 2, UNDEFINED = 7;
   const software = 'Kestrel\0';

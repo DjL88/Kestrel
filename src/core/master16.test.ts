@@ -378,3 +378,28 @@ test('full 16-bit export supports existing edits and fails closed on future/inva
     'invalid framing must not produce an empty or misleading master');
 
 });
+
+test('16-bit export refuses invalid saved numeric edits instead of silently corrupting the master', () => {
+  for (const key of ['exposure', 'warmth', 'colour', 'brightness', 'contrast', 'highlights',
+    'shadows', 'whites', 'blacks', 'vibrance', 'texture', 'clarity', 'sharpen', 'denoise']) {
+    for (const bad of [NaN, Infinity, -Infinity, '1']) {
+      const edit = { ...DEFAULT_EDIT, [key]: bad } as unknown as PhotoEdit;
+      assert.match(master16Blocker(edit, DEFAULT_FRAMING) ?? '', /invalid/, `${key}: ${String(bad)}`);
+    }
+  }
+  assert.equal(master16Blocker({ ...DEFAULT_EDIT, exposure: 0.5, denoise: 1 }, DEFAULT_FRAMING), null);
+});
+
+
+test('archival TIFF refuses truncated, oversized and invalid 16-bit frames', () => {
+  const valid: Rgb16Image = { width: 2, height: 2, data: new Uint16Array(12).fill(32769) };
+  assert.ok(encodeTiff16(valid).size > 24, 'valid high-bit-depth master still exports');
+  for (const bad of [
+    { ...valid, width: 3 },
+    { ...valid, height: 0 },
+    { ...valid, width: NaN },
+    { ...valid, width: 1.5 },
+    { ...valid, width: 100000, height: 100000 },
+    { ...valid, data: new Uint16Array(11) },
+  ]) assert.throws(() => encodeTiff16(bad), /invalid dimensions or pixel data/);
+});
