@@ -3,6 +3,11 @@ export interface WorkspacePaneState {
   /** When true, editing tools and Photo Info fold into labelled icon rails. */
   folded: boolean;
 }
+/** Information is always on the *opposite* side from the user's chosen tools. */
+export function photoInfoDockSide(hand: 'left' | 'right'): 'left' | 'right' {
+  return hand === 'left' ? 'right' : 'left';
+}
+
 export const WORKSPACE_PANES_KEY = 'kestrel-workspace-panes-v1';
 export const DEFAULT_WORKSPACE_PANES: Readonly<WorkspacePaneState> = { folded: false };
 
