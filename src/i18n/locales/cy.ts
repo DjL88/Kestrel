@@ -78,4 +78,11 @@ export const cy: Translation = {
     restartIn: (name) => `Ailgychwyn yn ${name}`,
     draft: 'Cyfieithiad drafft, heb ei wirio gan siaradwr brodorol eto. Mae rhai sgriniau yn Saesneg o hyd.',
   },
+  appearance: {
+    "position": "Ar ba ochr dylai'r offer fod?",
+    "positionHint": "Dewiswch ochr y sgrin ar gyfer offer golygu. Ar ffôn, mae'r offer o dan y llun.",
+    "toolsSide": "Ochr yr offer golygu",
+    "left": "Chwith",
+    "right": "Dde"
+  },
 };
