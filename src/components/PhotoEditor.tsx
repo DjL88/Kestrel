@@ -473,6 +473,21 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     return () => window.clearTimeout(timer);
   }, [eyeNote]);
 
+  // Holding Shift shows the thirds grid, wherever the pointer is. Letting go, or leaving the window, hides it again.
+  const [showGrid, setShowGrid] = useState(false);
+  useEffect(() => {
+    const down = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (event.key === 'Shift' && !event.repeat && !target?.closest('input, textarea, select, [contenteditable="true"]')) setShowGrid(true);
+    };
+    const up = (event: KeyboardEvent) => { if (event.key === 'Shift') setShowGrid(false); };
+    const away = () => setShowGrid(false);
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    window.addEventListener('blur', away);
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', away); };
+  }, []);
+
   useEffect(() => {
     const onZoomKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -1042,9 +1057,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             {detail && <canvas ref={editedDetail} aria-hidden="true" hidden={!showDetail}
               className="absolute" style={detail.style} />}
             {/* A 3 × 3 thirds grid while the pointer is over the photo (not on touch screens). It follows the Gridlines
-                switch in Crop, takes no clicks, and zooms with the photo. */}
-            {!guide && position && gridLines && sourceState === 'ready' && <div aria-hidden="true" data-testid="thirds-grid"
-              className="thirds-hover crop-thirds pointer-events-none absolute" style={position} />}
+                switch in Crop, stays out of the way of Before/After, takes no clicks, and zooms with the photo. Holding
+                Shift shows it at any time, Before/After included. */}
+            {!guide && position && sourceState === 'ready' && (showGrid || (gridLines && !displayCompare)) && <div aria-hidden="true" data-testid="thirds-grid"
+              className={`${showGrid ? '' : 'thirds-hover'} crop-thirds pointer-events-none absolute`} style={position} />}
             {!guide && position && markFocus && <button type="button" aria-label="Place export focus point" title="Place export focus point"
               className="absolute z-10 cursor-crosshair focus-visible:outline-2 focus-visible:outline-sky-200" style={position}
               onClick={(event) => {

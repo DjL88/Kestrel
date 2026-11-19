@@ -23,6 +23,18 @@ test('a thirds grid appears while the pointer is over the photo, and follows the
   // It never takes clicks: the photo underneath stays reachable.
   await expect(grid).toHaveCSS('pointer-events', 'none');
 
+  // Before/After needs a clear view: no grid while it is on, unless Shift is held.
+  await page.getByRole('button', { name: /^Before \/ After/ }).click();
+  await expect(grid).toHaveCount(0);
+  await page.keyboard.down('Shift');
+  await expect(grid).toBeVisible();
+  await page.mouse.move(2, 2);
+  await expect.poll(opacity, { message: 'held Shift shows it wherever the pointer is' }).toBe('1');
+  await page.keyboard.up('Shift');
+  await expect(grid).toHaveCount(0);
+  await page.getByRole('button', { name: /^Before \/ After/ }).click();
+  await expect(grid).toHaveCount(1);
+
   // Turning Gridlines off in Crop removes it.
   await page.getByRole('tab', { name: 'Crop' }).click();
   await page.getByRole('checkbox', { name: 'Gridlines' }).uncheck();
