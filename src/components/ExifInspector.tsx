@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { messages as m } from '../i18n/messages';
 import { ChevronLeft, ChevronRight, ClipboardCopy, Star, X } from 'lucide-react';
 import { formatCaptureDateTime, photoInfoText } from '../core/photoInfoText';
 import { SubjectPanel } from './SubjectPanel';
@@ -49,22 +50,22 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
   async function copyInfo() {
     try {
       await navigator.clipboard.writeText(photoInfoText(selectedFrame));
-      setCopyStatus('Photo details copied.');
+      setCopyStatus(m.photoInfo.copied);
     } catch {
-      setCopyStatus('Could not copy. Allow clipboard access or try again.');
+      setCopyStatus(m.photoInfo.copyFailed);
     }
   }
   const rating = frame.rating ?? exif.rating ?? 0;
   const rows: { label: string; value: string }[] = [
-    { label: 'Camera', value: exif.camera ?? '' },
-    { label: 'Lens', value: exif.lens ?? '' },
-    { label: 'Focal Length', value: formatFocalLength(exif.focalLengthMm) },
-    { label: 'Aperture', value: formatAperture(exif.apertureF) },
-    { label: 'Shutter', value: exif.shutterSpeed ?? '' },
+    { label: m.photoInfo.camera, value: exif.camera ?? '' },
+    { label: m.photoInfo.lens, value: exif.lens ?? '' },
+    { label: m.photoInfo.focalLength, value: formatFocalLength(exif.focalLengthMm) },
+    { label: m.photoInfo.aperture, value: formatAperture(exif.apertureF) },
+    { label: m.photoInfo.shutter, value: exif.shutterSpeed ?? '' },
     { label: 'ISO', value: typeof exif.iso === 'number' ? String(exif.iso) : '' },
-    { label: 'Captured', value: formatCaptureDateTime(exif.capturedAtMs) },
+    { label: m.photoInfo.captured, value: formatCaptureDateTime(exif.capturedAtMs) },
     {
-      label: 'Dimensions',
+      label: m.photoInfo.dimensions,
       value:
         typeof exif.width === 'number' && typeof exif.height === 'number'
           ? `${exif.width} × ${exif.height}`
@@ -74,7 +75,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
 
   return (
     <aside
-      aria-label="Photo info"
+      aria-label={m.photoInfo.title}
       className={`workspace-popover absolute inset-x-2 top-2 z-10 max-h-[min(calc(100%_-_1rem),calc(100dvh_-_7rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-4 shadow-2xl sm:w-72 lg:static lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-0 lg:shadow-none ${dockedSide === 'left'
         // Only the docked panel (lg and up) changes side. Below that it floats over the photos, at the right edge where
         // it covers the fewest of them (the first photo is at the top left).
@@ -82,35 +83,35 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
         : 'sm:right-2 sm:left-auto lg:border-l'}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">Photo info</h2>
+        <h2 className="text-sm font-semibold">{m.photoInfo.title}</h2>
         {/* An arrow towards the edge it folds into, as on the editing tools; on small screens, where it floats, a cross. */}
-        <button type="button" onClick={onClose} aria-label="Close photo info" title="Fold photo info away" className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+        <button type="button" onClick={onClose} aria-label={m.photoInfo.close} title={m.photoInfo.fold} className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
           <X className="h-4 w-4 lg:hidden" aria-hidden="true" />
           {dockedSide === 'left' ? <ChevronLeft className="hidden h-5 w-5 lg:block" aria-hidden="true" /> : <ChevronRight className="hidden h-5 w-5 lg:block" aria-hidden="true" />}
         </button>
       </div>
-      <div role="tablist" aria-label="Photo details" className="mt-2 grid grid-cols-2 gap-1 rounded-lg bg-black/20 p-1">
+      <div role="tablist" aria-label={m.photoInfo.details} className="mt-2 grid grid-cols-2 gap-1 rounded-lg bg-black/20 p-1">
         {(['info', 'subject'] as const).map((tab) => (
           <button key={tab} type="button" role="tab" id={`photo-tab-${tab}`}
             aria-selected={activeTab === tab} aria-controls={`photo-panel-${tab}`}
             onClick={() => setActiveTab(tab)}
             className={`min-h-11 rounded-md px-2 text-sm focus-visible:outline-2 focus-visible:outline-sky-300 ${activeTab === tab ? 'bg-white/15 text-white' : 'text-zinc-400 hover:bg-white/5'}`}>
-            {tab === 'info' ? 'Info' : 'Subject'}
+            {tab === 'info' ? m.photoInfo.tabInfo : m.photoInfo.tabSubject}
           </button>
         ))}
       </div>
       <div id="photo-panel-info" role="tabpanel" aria-labelledby="photo-tab-info" hidden={activeTab !== 'info'}>
       <p className="mt-3 break-words text-sm text-zinc-200">{frame.filename}</p>
-      <button type="button" onClick={() => void copyInfo()} title="Copy camera details, rating and decision; excludes location and file paths"
+      <button type="button" onClick={() => void copyInfo()} title={m.photoInfo.copyHint}
         className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-md border border-white/15 px-3 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">
-        <ClipboardCopy className="h-4 w-4" aria-hidden="true" />Copy photo details
+        <ClipboardCopy className="h-4 w-4" aria-hidden="true" />{m.photoInfo.copy}
       </button>
       {copyStatus && <p role="status" className="mt-1 text-xs text-zinc-300">{copyStatus}</p>}
       {exif.formatLabel && <p className="mt-1 text-xs text-zinc-400">{exif.formatLabel}</p>}
-      {frame.burstGroupId && <p className="mt-1 text-xs text-zinc-400">Burst frame {frame.burstIndex} of {frame.burstCount}</p>}
-      {exif.isEmbeddedPreviewOnly && <p className="mt-1 text-xs text-zinc-300">Embedded RAW preview (not full RAW decoding)</p>}
-      <section aria-label="Camera and capture details" className="mt-3 border-t border-white/10 pt-3">
-        <h3 className="mb-2 text-xs font-semibold text-zinc-200">Camera & capture</h3>
+      {frame.burstGroupId && <p className="mt-1 text-xs text-zinc-400">{m.photoInfo.burst(String(frame.burstIndex ?? 0), String(frame.burstCount ?? 0))}</p>}
+      {exif.isEmbeddedPreviewOnly && <p className="mt-1 text-xs text-zinc-300">{m.photoInfo.embeddedPreview}</p>}
+      <section aria-label={m.photoInfo.cameraCapture} className="mt-3 border-t border-white/10 pt-3">
+        <h3 className="mb-2 text-xs font-semibold text-zinc-200">{m.photoInfo.cameraCapture}</h3>
         <dl className="space-y-2 text-xs">
           {rows.filter(({ value }) => value).map(({ label, value }) => (
             <div key={label} className="grid grid-cols-[auto_1fr] items-baseline gap-2">
@@ -126,7 +127,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
           onChange={(tags, kind) => onSubjects(frame, tags, kind)} onKeep={(name) => onKeepTag(frame, name)} />
         {frame.subjectKind !== 'wildlife' && (
           <p className="mt-2 text-xs text-zinc-400">
-            Species matches are suggestions, not proof of an animal. Choose Wildlife above to allow automatic species tags; aircraft and other subjects will not be given bird names automatically.
+            {m.photoInfo.speciesNotice}
           </p>
         )}
         {loadPicture && (
@@ -139,23 +140,23 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
         )}
       </div>
       <div hidden={activeTab !== 'info'}>
-      {batchCount > 1 && <p className="mt-3 text-xs text-sky-200">Apply ratings and flags to {batchCount} selected photos</p>}
+      {batchCount > 1 && <p className="mt-3 text-xs text-sky-200">{m.photoInfo.batch(String(batchCount))}</p>}
       <div className="mt-3 border-y border-white/10 py-2">
-        <div role="group" aria-label={`Star rating, ${rating} of 5`} className="flex flex-wrap">
+        <div role="group" aria-label={m.photoInfo.starRating(String(rating))} className="flex flex-wrap">
           {[1, 2, 3, 4, 5].map((star) => (
-            <button key={star} type="button" aria-label={`Rate ${star} of 5 stars`} title={`Rate ${star} of 5 stars`} aria-pressed={rating === star}
+            <button key={star} type="button" aria-label={m.photoInfo.rateStars(String(star))} title={m.photoInfo.rateStars(String(star))} aria-pressed={rating === star}
               onClick={() => onRate(frame.id, star)} className="grid h-11 w-10 place-items-center rounded-md hover:bg-white/8">
               <Star className={`h-5 w-5 ${rating >= star ? 'fill-current text-sky-200' : 'text-zinc-400'}`} aria-hidden="true" />
             </button>
           ))}
-          {(rating > 0 || batchCount > 1) && <button type="button" onClick={() => onRate(frame.id, 0)} className="min-h-11 px-2 text-xs text-zinc-300">Clear stars</button>}
+          {(rating > 0 || batchCount > 1) && <button type="button" onClick={() => onRate(frame.id, 0)} className="min-h-11 px-2 text-xs text-zinc-300">{m.photoInfo.clearStars}</button>}
         </div>
-        <div role="group" aria-label="Photo flag" className="flex flex-wrap gap-1">
+        <div role="group" aria-label={m.photoInfo.flag} className="flex flex-wrap gap-1">
           {(['unreviewed', 'keep', 'reject'] as const).map((flag) => (
             <button key={flag} type="button" aria-pressed={frame.decision === flag} onClick={() => onFlag(frame.id, flag)}
               className="min-h-11 rounded-md px-2 text-xs capitalize text-zinc-300 hover:bg-white/8 aria-pressed:bg-white/15 aria-pressed:font-semibold aria-pressed:text-white">
               {/* The chosen flag shows a tick and bold words, not only a lighter background. */}
-              {frame.decision === flag && <span aria-hidden="true">✓ </span>}{flag === 'unreviewed' ? 'Unflagged' : flag}
+              {frame.decision === flag && <span aria-hidden="true">✓ </span>}{flag === 'unreviewed' ? m.photoInfo.undecided : flag === 'keep' ? m.keep : m.photoInfo.reject}
             </button>
           ))}
         </div>
