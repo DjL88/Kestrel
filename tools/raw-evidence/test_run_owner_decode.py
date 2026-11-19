@@ -23,8 +23,8 @@ class OwnerDecodeTests(unittest.TestCase):
     def runner(self, stdout, returncode=0):
         return lambda *a, **kw: SimpleNamespace(stdout=stdout, stderr='', returncode=returncode)
     def test_malformed_decoder_row_fails_closed(self):
-        output = ('a.nef | nikon-he | invalidx8 | 1ms\\n'
-                  'a.nef | nikon-he | 8x8 | 1ms\\n'
+        output = ('a.nef | nikon-he | invalidx8 | 1ms\n'
+                  'a.nef | nikon-he | 8x8 | 1ms\n'
                   'High Efficiency files decoded from sensor data: 1')
         with self.assertRaisesRegex(ValueError, 'malformed'):
             mod.parse_output(output)
