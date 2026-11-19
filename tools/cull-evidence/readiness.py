@@ -99,6 +99,32 @@ def assess(report: dict, minimums: dict = DEFAULT_MINIMUMS):
             item = by_truth[key]
             if not isinstance(item, dict) or item.get("denominator") != count or any(type(item.get(k)) is not int or not 0 <= item[k] <= count for k in ("unknown", "review")):
                 raise ValueError("invalid per-class abstention/review count")
+    origin = report.get("real_decision_origin")
+    auto_risk = None
+    if origin is not None:
+        if not isinstance(origin, dict):
+            raise ValueError("invalid decision origin summary")
+        required_origin = {"known", "auto_keeper_denominator", "unknown_origin_keeper_denominator",
+                           "auto_keeper_reject_events", "manual_keeper_reject_events",
+                           "unknown_origin_keeper_reject_events", "auto_tiny_distant_keeper_reject_events"}
+        if set(origin) != required_origin or type(origin["known"]) is not bool:
+            raise ValueError("incomplete decision origin evidence")
+        if any(type(origin[key]) is not int or origin[key] < 0 for key in required_origin - {"known"}):
+            raise ValueError("invalid decision origin counts")
+        auto_n = origin["auto_keeper_denominator"]
+        unknown_n = origin["unknown_origin_keeper_denominator"]
+        auto_e = origin["auto_keeper_reject_events"]
+        manual_e = origin["manual_keeper_reject_events"]
+        unknown_e = origin["unknown_origin_keeper_reject_events"]
+        if auto_n + unknown_n > denominators["human_keepers"] or auto_e > auto_n or unknown_e > unknown_n:
+            raise ValueError("decision origin denominator inconsistent")
+        if auto_e + manual_e + unknown_e != events["human_keeper_false_auto_reject"]:
+            raise ValueError("keeper reject origins do not reconcile")
+        if origin["auto_tiny_distant_keeper_reject_events"] > min(auto_e, events["tiny_distant_bird_keeper_false_auto_reject"]):
+            raise ValueError("tiny/distant automatic rejection inconsistent")
+        if origin["known"] != (unknown_n == 0 and denominators["human_keepers"] > 0):
+            raise ValueError("decision origin known flag inconsistent")
+        auto_risk = {"events": auto_e, "denominator": auto_n, "wilson_95_upper": wilson_upper(auto_e, auto_n)}
     missing = [{"stratum": key, "observed": measured[key], "minimum": required}
                for key, required in minimums.items() if measured[key] < required]
     unsafe = {key: row["events"] for key, row in bounds.items() if row["events"]}
@@ -111,8 +137,9 @@ def assess(report: dict, minimums: dict = DEFAULT_MINIMUMS):
         "real_event_uncertainty": bounds,
         "synthetic_excluded_from_readiness": synthetic,
         "real_subject_abstention": abstention,
-        "decision_origin_known": False,
-        "keeper_reject_origin_warning": "Human-keeper rejection is observed; auto-vs-manual decision origin was not captured. Do not claim measured false AUTO reject rates.",
+        "decision_origin_known": origin["known"] if origin is not None else False,
+        "real_automatic_keeper_reject_uncertainty": auto_risk,
+        "keeper_reject_origin_warning": "Legacy keeper-rejection totals mix origins. Automatic rate requires explicit auto decision origin; unknown/manual rejects must not be counted as automatic. Provenance is self-reported and requires app verification.",
         "release_approval": False,
         "note": "Coverage and uncertainty only. Does not validate labels, sampling, model/build provenance, statistical power or real-world safety. Human review and independent photos required.",
     }
