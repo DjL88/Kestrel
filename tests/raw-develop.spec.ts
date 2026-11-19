@@ -94,10 +94,15 @@ test('when a RAW cannot be developed automatically, the person is told and can r
   await expect.poll(() => page.evaluate(() => (window as unknown as { __developCalls: number }).__developCalls)).toBe(2);
 });
 
-test('outside the desktop app there is no Develop button, only the honest preview note', async ({ page }) => {
+test('in the web app a RAW the decoder cannot read behaves as on desktop: honest note, preview kept, retry offered', async ({ page }) => {
+  // The web app develops RAW files with the same pipeline compiled to WebAssembly. This test file is only a TIFF
+  // wrapper round a JPEG, with no sensor data, so development fails and the embedded preview is kept, as on desktop.
   await openEdit(page);
-  await expect(page.getByText("You're editing the quick preview", { exact: false })).toBeVisible({ timeout: 20000 });
-  await expect(page.getByRole('button', { name: 'Develop from RAW' })).toHaveCount(0);
+  await expect(page.getByRole('status').filter({ hasText: 'keeps using the preview stored in the file' })).toBeVisible({ timeout: 60000 });
+  await expect(page.getByText("You're editing the quick preview", { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Develop from RAW' })).toBeEnabled();
+  // Desktop-only extras stay off in the browser.
+  await expect(page.getByRole('button', { name: /16-bit TIFF/ })).toHaveCount(0);
 });
 
 test('unreadable native output never replaces the working RAW preview', async ({ page }) => {

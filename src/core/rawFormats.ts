@@ -1,7 +1,8 @@
 /**
- * Camera RAW files Kestrel can open by reading the JPEG preview the camera stored inside them. This is NOT full RAW
- * decoding: the picture shown, edited and exported is that embedded preview. A file whose preview cannot be found is
- * reported as such, never faked. Support for each maker is only claimed after real files from the camera are tested.
+ * Camera RAW files Kestrel can open. Import and the grid use the JPEG preview the camera stored inside them; opening a
+ * photo in the editor then develops the sensor data where it can (desktop app, and the WebAssembly pipeline in the web
+ * app) and says so, otherwise it keeps the embedded preview and says that instead. A file whose preview cannot be found
+ * is reported as such, never faked. Support for each maker is only claimed after real files from the camera are tested.
  */
 export interface RawFormat { ext: string; brand: string }
 

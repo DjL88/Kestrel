@@ -173,7 +173,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
   /** Save small, nondestructive source previews for linked originals; never persist the original itself. */
   async cacheOfflinePreviews(stableKey: string, filename: string, original: Blob | RangeBlob): Promise<boolean> {
-    // A RAW is never decoded by the browser: without an embedded preview there is nothing to cache (the photo stays
+    // The offline cache holds embedded previews only (sensor development happens when a photo is edited): without one there is nothing to cache (the photo stays
     // usable from its original). Reading the whole RAW just to fail in createImageBitmap was the slowest import path.
     const source = isRawPreviewFile(filename) ? await extractNefPreview(original as Blob) : original;
     if (!source) return false;

@@ -26,7 +26,7 @@ pub fn apply_orientation(image: RgbImage, exif_orientation: u16) -> RgbImage {
 /// Shared by every adapter (desktop develop, the 16-bit master, WebAssembly) so each gives the same plain wording.
 pub fn explain(error: &str) -> String {
     if error.contains("HighEfficen") || error.contains("HighEfficien") {
-        "This Nikon High Efficiency (HE/HE*) RAW cannot be decoded by Kestrel’s built-in decoder. System RAW support varies by computer and operating-system version.".to_string()
+        "This build of Kestrel can’t develop Nikon High Efficiency (HE/HE*) RAW files from their sensor data.".to_string()
     } else {
         format!("This RAW file could not be read: {error}")
     }
@@ -107,8 +107,8 @@ mod tests {
     fn nikon_high_efficiency_is_explained_in_plain_words() {
         let message = super::explain("Failed to decode image, possibly corrupt image: NEF compression Some(HighEfficencyStar) is not supported");
         assert!(message.contains("High Efficiency") && !message.contains("Some("), "{message}");
-        assert!(message.contains("varies by computer"), "{message}");
-        assert!(!message.contains("a Mac can"), "{message}");
+        assert!(message.contains("can’t develop"), "{message}");
+        assert!(!message.contains("a Mac can") && !message.contains("varies by computer"), "{message}");
         // Decoder versions may use the corrected English spelling instead of rawler’s historical typo.
         for variant in ["HighEfficiency", "HighEfficiencyStar", "HighEfficency", "HighEfficencyStar"] {
             let explained = super::explain(&format!("NEF compression Some({variant}) is not supported"));

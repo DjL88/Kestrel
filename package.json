@@ -19,7 +19,8 @@
     "desktop:build": "node scripts/build-desktop.mjs",
     "mcp": "tsx tools/mcp/kestrel-mcp.ts",
     "compare:auto": "tsx scripts/natural-auto-compare.ts",
-    "journey:local": "tsx scripts/journey-local.ts"
+    "journey:local": "tsx scripts/journey-local.ts",
+    "raw:wasm": "node scripts/build-raw-wasm.mjs"
   },
   "dependencies": {
     "@fontsource/atkinson-hyperlegible": "^5.3.0",

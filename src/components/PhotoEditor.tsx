@@ -45,7 +45,7 @@ const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
 import { isRawPreviewFile } from '../core/rawFormats';
 import { tasks } from '../core/taskStore';
-import { canDevelopRaw, developRaw, developRawPrecisionEdited, matchPreviewOrientation, rawDngCopy, rawSensorMode, sensorModeLabel, type RawSensorMode } from '../providers/rawDevelop';
+import { canDevelopRaw, canExportRawMaster, developRaw, developRawPrecisionEdited, matchPreviewOrientation, rawDngCopy, rawSensorMode, sensorModeLabel, type RawSensorMode } from '../providers/rawDevelop';
 import { extractRawPreview } from '../core/nefPreview';
 import { nativeRawMasterRecipe, nativeRawMasterFraming } from '../core/nativeRawMaster';
 import { saveWithDialog } from '../providers/desktopShell';
@@ -1324,7 +1324,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                 {developing ? 'Developing…' : 'Develop from RAW'}
               </button>
             )}
-            {canDevelopRaw() && (
+            {canExportRawMaster() && (
               <div className="space-y-1 border-t border-white/10 pt-2">
                 <button type="button" className={button + ' w-full border border-white/15'}
                   disabled={masterBusy || sourceState !== 'ready'} onClick={() => void exportHighPrecisionMaster()}>
