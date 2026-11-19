@@ -8,7 +8,9 @@ import {
   Undo2,
 } from 'lucide-react';
 import { panToCentre } from '../core/eyeFinder';
-import { zoomForPercent } from '../core/zoomControls';
+import { maxZoomFor, zoomForPercent } from '../core/zoomControls';
+import { ZoomControls } from './ZoomControls';
+import { PhotoJump } from './PhotoJump';
 import { locateEye } from '../providers/eyeLocator';
 import {
   type CommandId,
@@ -33,6 +35,10 @@ interface LoupePreviewProps {
   canUndo: boolean;
   hasPrev: boolean;
   hasNext: boolean;
+  /** Current position in the same filtered visible shoot used by the filmstrip. */
+  photoIndex: number;
+  photoCount: number;
+  onJumpToIndex: (index: number) => void;
   needsAccess: boolean;
   bindings: KeyBindingsMap;
   knobMode: KnobFunction;
@@ -56,6 +62,9 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
   canUndo,
   hasPrev,
   hasNext,
+  photoIndex,
+  photoCount,
+  onJumpToIndex,
   needsAccess,
   bindings,
   knobMode,
@@ -117,6 +126,28 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
     }
   };
 
+  // How big the shown picture is and how much room it has, so the zoom level reads in the same percent as the editor's.
+  const [measure, setMeasure] = useState<{ fit: number }>({ fit: 0 });
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    let timer: number | undefined;
+    const update = () => {
+      const image = view.querySelector('img');
+      const box = view.getBoundingClientRect();
+      if (image?.naturalWidth && box.width) {
+        setMeasure({ fit: Math.min(box.width / image.naturalWidth, box.height / image.naturalHeight) });
+      } else {
+        timer = window.setTimeout(update, 250);
+      }
+    };
+    update();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
+    observer?.observe(view);
+    return () => { window.clearTimeout(timer); observer?.disconnect(); };
+  }, [frameId]);
+  const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
+
   if (!frame) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-kestrel-stage text-zinc-400 p-8 text-center">
@@ -145,12 +176,18 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
         <ShortcutOverlay bindings={bindings} knobMode={knobMode} visible={showShortcutsOverlay} />
       </div>}
 
-      {!focusPhoto && <div role="group" aria-label="Single photo controls" className="flex min-h-13 shrink-0 items-center justify-between gap-1 border-t border-white/8 bg-kestrel-panel px-1.5 sm:px-4">
-        <button type="button" disabled={!hasPrev} onClick={() => onStepFrame(-1)} aria-label="Previous frame" title="Previous frame"
+      {/* The same order as the editor's bottom bar: previous and next on the left, this view's actions, zoom on the right. */}
+      {!focusPhoto && <div role="group" aria-label="Single photo controls" className="mobile-toolbar-scroll flex min-h-13 shrink-0 items-center gap-1 overflow-x-auto border-t border-white/8 bg-kestrel-panel px-1.5 sm:px-4">
+        <button type="button" disabled={!hasPrev} onClick={() => onStepFrame(-1)} aria-label="Previous frame" title="Previous frame (←)"
           className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:opacity-30">
           <ChevronLeft className="h-5 w-5" aria-hidden="true" />
         </button>
-        <div className="flex min-w-0 items-center gap-1 sm:gap-2">
+        <button type="button" disabled={!hasNext} onClick={() => onStepFrame(1)} aria-label="Next frame" title="Next frame (→)"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:opacity-30">
+          <ChevronRight className="h-5 w-5" aria-hidden="true" />
+        </button>
+        <PhotoJump index={photoIndex} total={photoCount} onJump={onJumpToIndex} />
+        <div className="flex flex-1 shrink-0 items-center justify-center gap-1 sm:gap-2">
           <DecisionButtons labels decision={frame.decision} filename={frame.filename} edited={isEdited(frame)}
             onKeep={() => onExecuteCommand('cull.keep')}
             onBackToReview={() => onExecuteCommand('cull.unreviewed')}
@@ -161,11 +198,10 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
             <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="hidden min-[360px]:inline">Undo</span>
           </button>
           <button type="button" aria-label="Eye" aria-pressed={eyeMode} onClick={toggleEyeMode}
-            title={eyeMode ? 'Eye on: every photo opens zoomed to the eye. Press to go back to the whole photo.' : 'Zoom to the eye, and keep doing so on every photo'}
-            className="hidden h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-md px-1.5 text-sm text-zinc-200 hover:bg-white/8 aria-pressed:bg-white/15 sm:inline-flex sm:gap-1.5 sm:px-2.5">
-            <Eye className="h-4 w-4" aria-hidden="true" /><span className="hidden min-[360px]:inline">{eyeBusy ? 'Eye…' : 'Eye'}</span>
+            title={eyeMode ? 'Stop following the eye' : 'Zoom to the eye and follow it across photos'}
+            className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-zinc-200 hover:bg-white/8 aria-pressed:bg-white/15 sm:hidden">
+            <Eye className="h-5 w-5" aria-hidden="true" />
           </button>
-          {eyeNote && <span role="status" className="sr-only text-xs text-zinc-300 lg:not-sr-only lg:max-w-56 lg:truncate">{eyeNote}</span>}
           {onOpenMenu && (
             <button type="button" aria-haspopup="menu" aria-label={`More actions for ${frame.filename}`} title="More: reset edit, duplicate, copy adjustments, rate, export"
               onClick={(event) => { const box = event.currentTarget.getBoundingClientRect(); onOpenMenu(box.left, box.top); }}
@@ -174,10 +210,11 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
             </button>
           )}
         </div>
-        <button type="button" disabled={!hasNext} onClick={() => onStepFrame(1)} aria-label="Next frame" title="Next frame"
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:opacity-30">
-          <ChevronRight className="h-5 w-5" aria-hidden="true" />
-        </button>
+        {/* Same full zoom controls as Edit on desktop/tablet. On small phones, the compact Eye button remains accessible and pinch zoom remains available. */}
+        <ZoomControls className="max-sm:hidden" zoom={zoomLevel} fit={measure.fit} dpr={dpr} maxZoom={maxZoomFor(measure.fit || 1, dpr)} note={eyeNote}
+          onZoom={(zoom) => { onZoomChange(zoom); if (zoom === 1) onPanChange({ x: 0, y: 0 }); }}
+          eye={{ onClick: toggleEyeMode, busy: eyeBusy, pressed: eyeMode,
+            title: eyeMode ? 'Eye on: every photo opens zoomed to the eye. Press to go back to the whole photo.' : 'Zoom to the eye, and keep doing so on every photo' }} />
       </div>}
     </div>
   );

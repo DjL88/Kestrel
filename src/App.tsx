@@ -30,8 +30,9 @@ import { applyAutoTag, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTa
 import { burstMates, tagFrames } from './core/speciesBurst';
 import { loadImage } from './providers/loadImage';
 import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
-import { ArrowLeft, Copy, ClipboardPaste, Pin, PinOff, Info, PanelLeftClose, PanelLeftOpen, Maximize2 } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Copy, ClipboardPaste, Pin, PinOff, Info, PanelLeftClose, PanelLeftOpen, Maximize2 } from 'lucide-react';
 import { WorkspacePaneRail } from './components/WorkspacePaneRail';
+import { PhotoJump } from './components/PhotoJump';
 import { photoInfoDockSide, readWorkspacePaneState, toggleWorkspacePanes, writeWorkspacePaneState } from './core/workspacePaneState';
 import { newId } from './core/ids';
 import { redoLabel, undoLabel } from './core/describeAction';
@@ -1944,14 +1945,6 @@ export default function App() {
           {multiSelect && selectedVisibleFrames.length > 0 && (
             <span className="shrink-0 text-xs tabular-nums text-zinc-300">{selectedVisibleFrames.length} selected</span>
           )}
-          {!filmstripVisible && (
-            <div className="flex shrink-0">
-              <button type="button" aria-label="Previous photo" title="Previous photo" disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) <= 0} onClick={() => handleStepFrame(-1)}
-                className="h-11 w-11 rounded-md text-lg disabled:opacity-30">‹</button>
-              <button type="button" aria-label="Next photo" title="Next photo" disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) < 0 || (editQueueIds ? editorIndex >= editorFrames.length - 1 : selectedVisibleIndex >= visibleFrames.length - 1)} onClick={() => handleStepFrame(1)}
-                className="h-11 w-11 rounded-md text-lg disabled:opacity-30">›</button>
-            </div>
-          )}
         </header>
       ) : <TopWorkspaceBar
         status={<TaskManager inline />}
@@ -2311,6 +2304,12 @@ export default function App() {
               focusPhoto={prefs.focusMode}
               onExecuteCommand={executeCommand}
               onStepFrame={handleStepFrame}
+              photoIndex={selectedVisibleIndex}
+              photoCount={visibleFrames.length}
+              onJumpToIndex={(index) => {
+                const next = visibleFrames[index];
+                if (next) handleSelectFrame(next.id);
+              }}
               onResetFrame={() => selectedFrame && requestReset([selectedFrame.id])}
               onOpenMenu={(x, y) => selectedFrame && openPhotoMenu(selectedFrame.id, x, y)}
             />
@@ -2346,9 +2345,19 @@ export default function App() {
             />
           )}
 
-          {editing && selectedFrame && !prefs.focusMode && (
+          {editing && selectedFrame && (
             <div role="toolbar" aria-label="Filmstrip controls"
-              className={`mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center gap-1 overflow-x-auto border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'workspace:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'workspace:pr-[var(--editor-panel-w,0px)]') : ''}`}>
+              className={`${prefs.focusMode ? 'hidden ' : ''}mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center gap-1 overflow-x-auto border-t border-white/10 bg-kestrel-panel px-2 ${filmstripVisible ? (prefs.editPanelSide === 'left' ? 'workspace:pl-[calc(var(--editor-panel-w,0px)+0.5rem)]' : 'workspace:pr-[var(--editor-panel-w,0px)]') : ''}`}>
+              {/* Section F: one footer order across Review and Edit — navigation, actions, then zoom. */}
+              <button type="button" aria-label="Previous photo" title="Previous photo (←)" disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) <= 0} onClick={() => handleStepFrame(-1)}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
+              <button type="button" aria-label="Next photo" title="Next photo (→)" disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) < 0 || (editQueueIds ? editorIndex >= editorFrames.length - 1 : selectedVisibleIndex >= visibleFrames.length - 1)} onClick={() => handleStepFrame(1)}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
+              <PhotoJump index={editorIndex} total={editorFrames.length}
+                onJump={(index) => {
+                  const next = editorFrames[index];
+                  if (next) handleSelectFrame(next.id);
+                }} />
               <button type="button" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10"
                 onClick={() => { setCopiedEdit(selectedFrame.edit ?? DEFAULT_EDIT); showToast('Adjustments copied'); }}>
                 <Copy className="h-4 w-4" aria-hidden="true" /> Copy
@@ -2381,7 +2390,8 @@ export default function App() {
                 <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs text-orange-200 hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setPendingAction({ kind: 'trash', frameIds: selectedVisibleFrames.map((frame) => frame.id) })}>Trash</button>
               </>}
-              <button type="button" aria-pressed={filmstripVisible} className="ml-auto inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10"
+              <div id="viewer-zoom-slot" className="ml-auto flex shrink-0 items-center" />
+              <button type="button" aria-pressed={filmstripVisible} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10"
                 onClick={() => setPrefs((prev) => ({ ...prev, showFilmstrip: !filmstripVisible, focusMode: false }))}>
                 {filmstripVisible ? <PinOff className="h-4 w-4" aria-hidden="true" /> : <Pin className="h-4 w-4" aria-hidden="true" />}
                 {filmstripVisible ? 'Hide filmstrip' : 'Pin filmstrip'}
@@ -2389,7 +2399,7 @@ export default function App() {
             </div>
           )}
           {/* Persistent Filmstrip in Loupe & Compare Modes */}
-          {filmstripVisible && (editing || prefs.viewMode !== 'grid') && visibleFrames.length > 0 && (
+          {!prefs.focusMode && filmstripVisible && (editing || prefs.viewMode !== 'grid') && visibleFrames.length > 0 && (
             <div className={editing ? (prefs.editPanelSide === 'left' ? 'workspace:pl-[var(--editor-panel-w,0px)]' : 'workspace:pr-[var(--editor-panel-w,0px)]') : undefined}>
             <Filmstrip
               onPhotoMenu={openPhotoMenu}

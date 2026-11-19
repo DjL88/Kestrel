@@ -74,7 +74,7 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
       <div className="relative min-w-0">
         <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}
           aria-label={`Tasks: ${summary}${others ? `, and ${others} more` : ''}`} title="Show every task, with Cancel"
-          className={`flex min-h-11 w-56 max-w-full min-w-0 flex-col justify-center gap-1 rounded-md border px-2.5 py-1 text-left text-xs hover:brightness-125 focus-visible:outline-2 focus-visible:outline-sky-300 max-sm:w-36 ${classes}`}>
+          className={`flex min-h-11 max-w-full min-w-0 flex-col justify-center gap-1 rounded-md border px-2.5 py-1 text-left text-xs hover:brightness-125 focus-visible:outline-2 focus-visible:outline-sky-300 ${first ? 'w-56 max-sm:w-36' : 'w-auto'} ${classes}`}>
           <span className="flex w-full min-w-0 items-center gap-1.5">
             <Icon className={`h-3.5 w-3.5 shrink-0 ${health === 'ok' ? 'motion-safe:animate-spin' : ''}`} aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate font-medium">{first ? first.title : word}</span>
