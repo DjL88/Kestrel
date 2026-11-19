@@ -49,5 +49,31 @@ class EvidenceTests(unittest.TestCase):
                 module.evaluate(rows)
 
 
+    def test_tiny_distant_bird_subgroups_do_not_hide_false_rejects(self):
+        records = [
+            dict(row("tiny-1", predicted="unknown", decision="review"), subject_size="tiny"),
+            dict(row("distant-1", predicted="aircraft", decision="reject"), subject_size="distant"),
+            dict(row("normal-1", predicted="bird"), subject_size="normal"),
+            row("unmeasured-1"),
+        ]
+        report = module.evaluate(records)
+        self.assertEqual(report["small_bird_total"], 2)
+        self.assertEqual(report["small_bird_abstained"], 1)
+        self.assertEqual(report["small_bird_review"], 1)
+        self.assertEqual(report["small_bird_false_auto_reject"], 1)
+        self.assertEqual(report["bird_size_counts"], {"distant": 1, "normal": 1, "tiny": 1, "unknown": 1})
+        self.assertFalse(report["real_500_photo_benchmark"])
+
+    def test_malformed_unhashable_labels_and_privacy_sensitive_ids_fail_closed(self):
+        for changes in [
+            {"truth": []}, {"predicted": {}}, {"decision": []},
+            {"provenance": []}, {"subject_size": []}, {"subject_size": "microscopic"},
+            {"id": "C:private"}, {"id": "photo.jpg"}, {"id": "a@example.com"},
+            {"id": " "}, {"id": 42},
+        ]:
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                module.evaluate([dict(row("safe"), **changes)])
+
+
 if __name__ == "__main__":
     unittest.main()
