@@ -78,4 +78,46 @@ export const nl: Translation = {
     restartIn: (name) => `Opnieuw starten in het ${name}`,
     draft: 'Voorlopige vertaling, nog niet nagekeken door een moedertaalspreker. Sommige schermen zijn nog in het Engels.',
   },
+  appearance: {
+    dialogLabel: "Instellingen voor weergave en indeling",
+    shortcuts: "Sneltoetsen en bedieningsknoppen",
+    "position": "Aan welke kant wil je de gereedschappen?",
+    "positionHint": "Kies de kant voor de bewerkingsgereedschappen. Op een telefoon staan ze onder de foto.",
+    "toolsSide": "Kant van de gereedschappen",
+    "left": "Links",
+    "right": "Rechts"
+  },
+  adjustment: {
+    "exposure": "Belichting",
+    "warmth": "Warmte",
+    "colour": "Kleur",
+    "brightness": "Helderheid",
+    "contrast": "Contrast",
+    "highlights": "Hooglichten",
+    "shadows": "Schaduwen",
+    "whites": "Lichtste delen",
+    "blacks": "Donkerste delen",
+    "vibrance": "Levendigheid",
+    "texture": "Textuur",
+    "clarity": "Helderheid van details",
+    "sharpen": "Verscherpen",
+    "denoise": "Ruis verminderen"
+  },
+  quick: {
+    changed: "(gewijzigd)",
+    "title": "Snel bewerken",
+    "allControls": "Alle regelaars",
+    "choose": "Kies een aanpassing"
+  },
+  photoInfo: {
+    "title": "Foto-informatie",
+    "tabInfo": "Info",
+    "tabSubject": "Onderwerp",
+    "copy": "Fotogegevens kopiëren",
+    "camera": "Camera",
+    "lens": "Objectief",
+    "captured": "Gemaakt",
+    "undecided": "Nog niet gekozen",
+    "reject": "Afwijzen"
+  },
 };
