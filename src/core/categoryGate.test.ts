@@ -47,3 +47,21 @@ test('a picture halfway between a bird and a helicopter is not classified', () =
   assert.equal(outcome.kind, undefined, 'unknown stays unknown');
   assert.notEqual(outcome.species, 'allow');
 });
+
+test('aircraft and non-animal evidence cannot be promoted to a species by a manual Wildlife kind', () => {
+  // Closed-list animal embeddings must never override independent negative subject evidence.
+  for (const id of ['helicopter', 'airliner', 'military-jet', 'drone', 'car', 'architecture', 'mountain']) {
+    const evidence = route(at(id));
+    assert.equal(gateOutcome(evidence, 'wildlife').species, 'block', id);
+    assert.equal(gateOutcome(evidence, undefined).kind, undefined, id);
+  }
+});
+
+test('an ambiguous aircraft-versus-bird route never qualifies for ordinary automatic species suggestions', () => {
+  const blend = Float32Array.from(at('bird'), (value, i) => value + at('helicopter')[i]);
+  const evidence = route(blend);
+  assert.notEqual(gateOutcome(evidence, 'wildlife').species, 'allow');
+  assert.equal(gateOutcome(evidence, undefined).kind, undefined);
+  // The user may keep Wildlife manually; the classifier cannot silently change it.
+  assert.equal(gateOutcome(evidence, 'wildlife').kind, undefined);
+});
