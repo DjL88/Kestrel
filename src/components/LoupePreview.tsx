@@ -186,8 +186,10 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
           className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:opacity-30">
           <ChevronRight className="h-5 w-5" aria-hidden="true" />
         </button>
-        <PhotoJump index={photoIndex} total={photoCount} onJump={onJumpToIndex} />
-        <div className="flex flex-1 shrink-0 items-center justify-center gap-1 sm:gap-2">
+        {/* Phones have no room for Jump beside the decisions; they swipe or step, and the grid has Jump too. */}
+        <div className="max-sm:hidden"><PhotoJump index={photoIndex} total={photoCount} onJump={onJumpToIndex} /></div>
+        {/* Centred with auto margins, not justify-center: when space runs short it never spills over Jump. */}
+        <div className="mx-auto flex shrink-0 items-center gap-1 sm:gap-2">
           <DecisionButtons labels decision={frame.decision} filename={frame.filename} edited={isEdited(frame)}
             onKeep={() => onExecuteCommand('cull.keep')}
             onBackToReview={() => onExecuteCommand('cull.unreviewed')}
@@ -199,7 +201,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
           </button>
           <button type="button" aria-label="Eye" aria-pressed={eyeMode} onClick={toggleEyeMode}
             title={eyeMode ? 'Stop following the eye' : 'Zoom to the eye and follow it across photos'}
-            className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-zinc-200 hover:bg-white/8 aria-pressed:bg-white/15 sm:hidden">
+            className="hidden h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-zinc-200 hover:bg-white/8 aria-pressed:bg-white/15 min-[360px]:max-sm:inline-flex">
             <Eye className="h-5 w-5" aria-hidden="true" />
           </button>
           {onOpenMenu && (

@@ -70,7 +70,7 @@ export function AdjustmentSlider({
         )}
         <span className="pointer-events-none absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-kestrel-copper" style={progressStyle} aria-hidden="true" />
         <input id={id} type="range" min={min} max={max} step={step} value={localValue} disabled={disabled}
-          aria-label={ariaLabel ?? `${label} adjustment`} aria-valuetext={shown} aria-describedby={describedBy}
+          aria-label={ariaLabel ?? `${label} adjustment`} aria-valuetext={shown} aria-describedby={describedBy} title={title}
           onFocus={onFocus} onPointerDown={() => { dragging.current = true; }}
           onPointerUp={() => { dragging.current = false; }}
           onPointerCancel={() => { dragging.current = false; }}
@@ -79,10 +79,10 @@ export function AdjustmentSlider({
           className="kestrel-adjustment-range relative z-10 h-11 w-full min-w-0 cursor-pointer disabled:cursor-not-allowed" />
       </span>
       {resettable ? (
-        <button type="button" aria-label={`Reset ${label} to neutral (currently ${shown})`}
+        <button type="button" aria-label={`Reset ${label}`} aria-description={`Currently ${shown}; resets to neutral`}
           title={changed ? `Reset ${label} to neutral` : `${label} is neutral`}
-          disabled={disabled || !changed} onClick={(event) => { event.preventDefault(); onChange(neutral); }}
-          className={`min-h-10 min-w-14 justify-self-end rounded-md px-1 text-right font-medium tabular-nums focus-visible:outline-2 focus-visible:outline-sky-300
+          disabled={disabled || !changed} onClick={(event) => { event.preventDefault(); change(neutral); }}
+          className={`min-h-11 min-w-14 justify-self-end rounded-md px-1 text-right font-medium tabular-nums focus-visible:outline-2 focus-visible:outline-sky-300
           ${layout === 'stacked' ? 'col-start-2 row-start-1' : ''} ${changed ? 'text-zinc-100 hover:bg-white/10' : 'cursor-default text-zinc-400'}`}>
           {shown}
         </button>

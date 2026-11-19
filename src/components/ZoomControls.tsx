@@ -39,7 +39,7 @@ export function ZoomControls({ zoom, fit, dpr, maxZoom, onZoom, eye, note, compa
         onClick={() => onZoom(zoomForPercent(100, fit, dpr))}>100%</button>
       {!compact && <button type="button" title="Twice actual pixels" disabled={!ready} className="h-11 min-w-11 rounded px-1.5 hover:bg-white/15 disabled:opacity-40"
         onClick={() => onZoom(zoomForPercent(200, fit, dpr))}>200%</button>}
-      <button type="button" title={eye.title} aria-pressed={eye.pressed} disabled={eye.disabled}
+      <button type="button" aria-label="Eye" aria-busy={eye.busy || undefined} title={eye.title} aria-pressed={eye.pressed} disabled={eye.disabled}
         className="h-11 min-w-11 rounded px-1.5 hover:bg-white/15 aria-pressed:bg-white/15 disabled:opacity-40" onClick={eye.onClick}>{eye.busy ? 'Eye…' : 'Eye'}</button>
       {note && <span role="status" className="max-w-56 truncate px-1 text-xs text-zinc-300">{note}</span>}
     </div>

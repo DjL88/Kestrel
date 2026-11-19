@@ -139,6 +139,21 @@ No free-floating windows: they cover the photo, drift off small screens, and are
 
 Colour is never the only cue: the copper always comes with a shape, a fill or text.
 
+**H. Owner layout feedback, 19 Nov (editor screenshot)**
+
+Part of F; do these in this order.
+1. ~~Jump has stopped working.~~ FIXED 19 Nov: the shared "N of M · Jump" (#475 worker component) is wired into culling and the editor's bottom bar. On phones under 640 px it is left out of the culling bar for room; the grid keeps its own Jump.
+2. The filmstrip spans the full window width, whatever the side panes, and can be resized by dragging like the panes. "Hide filmstrip" goes; resizing to nothing hides it.
+3. Photo info sits below the Undo/Redo bar, like the editing tools, not beside it.
+4. Before/After aligns with the photo's left edge, and zoom with its right edge.
+5. Settings in the top right corner on every screen. Export in the top bar. Full screen in the filmstrip bar.
+6. Instead of buttons that show and hide each pane, a clickable arrow on the pane's edge folds it in or out.
+7. Culling gets the same header and filmstrip layout as editing.
+8. A small white Kestrel logo, top centre, on desktop.
+9. More in the right-click menu, especially while editing (copy/paste settings, reset, rotate, Before/After, zoom to eye, export).
+10. View options as buttons: single photo, grid, compare.
+11. Auto-rotate: straighten tilted horizons automatically, as a suggestion to apply.
+
 **D. Library and projects**
 - Sort by date imported, date captured and date last edited.
 - Projects as tags rather than folders: one library of every photo, filtered by one or more projects.
@@ -231,6 +246,7 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
 
 | Date | Merged | Closed | Local evidence |
 | --- | --- | --- | --- |
+| 19 Nov 2026 (coordinator, repair main) | this PR (carries #473 bottom bar and the worker's Jump; repairs main after #471, #472 and #474: Photo info popover side, folded-rail naming, tooltip, slider tooltip/reset name/"(adjusted)" words/44 px reset, Jump wiring, culling bar fit on 320 px phones, Eye's fixed name) | #473 (carried) | See PR. |
 | 19 Nov 2026 (coordinator, bottom bar) | #470 (Before/After grid behaviour); PR #473 bottom-bar integration (merge pending; earlier base checks reported in PR) | | Integration suite must be rerun. |
 | 19 Nov 2026 (coordinator, grid) | #469 (header and layout: lint, 973 unit, build, Playwright 285 PASS / 0 FAIL, src-tauri 21 PASS), this PR (no grid in Before/After; Shift shows it) | | See PR. |
 | 19 Nov 2026 (coordinator, header and layout) | this PR (two-row header with Tasks as a compact bar; no import banner; Add and options bordered; Photo info on the hand side; subject labels fit; dark window and menu bar; background develop waits for imports; ROADMAP E and F) | | See PR. |

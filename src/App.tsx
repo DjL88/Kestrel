@@ -2178,7 +2178,6 @@ export default function App() {
               onPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, hand: side, editPanelSide: side }))}
               hand={prefs.hand}
               onHandChange={(hand) => setPrefs((prev) => ({ ...prev, hand, editPanelSide: hand }))}
-              showFilmstrip={filmstripVisible}
               toolsCollapsed={panesCollapsed}
               focusPhoto={prefs.focusMode}
               onExpandTools={() => setWorkspacePanes({ folded: false })}
