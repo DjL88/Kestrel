@@ -86,7 +86,7 @@ export function AdjustmentSlider({
           ${layout === 'stacked' ? 'col-start-2 row-start-1' : ''} ${changed ? 'text-zinc-100 hover:bg-white/10' : 'cursor-default text-zinc-400'}`}>
           {shown}
         </button>
-      ) : <output className={`${layout === 'stacked' ? 'col-start-2 row-start-1' : ''} min-w-14 justify-self-end text-right text-zinc-200 tabular-nums">{shown}</output>}
+      ) : <output className={`${layout === 'stacked' ? 'col-start-2 row-start-1' : ''} min-w-14 justify-self-end text-right text-zinc-200 tabular-nums`}>{shown}</output>}
     </div>
   );
 }
