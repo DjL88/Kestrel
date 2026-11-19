@@ -1,0 +1,14 @@
+# Kestrel — instructions for AI coding agents
+
+This repository has **one product contract and one live coordination board**. These rules apply to Codex, Claude, ChatGPT, scheduled workers, and any other coding agent.
+
+1. **Product intent:** read [docs/PRODUCT-SPEC.md](docs/PRODUCT-SPEC.md). Kestrel is an offline-first, nondestructive photographer's workflow, not a feature collection.
+2. **Evidence and priorities:** read [docs/ROADMAP.md](docs/ROADMAP.md). Never infer that a feature works because a draft PR or design document says so.
+3. **Shared live board:** read [Kestrel execution board #418](https://github.com/DjL88/Kestrel/issues/418), especially new comments, and the current open PRs. The board assigns ten non-overlapping workstreams across five recurring workers; it is the active claim and handover queue.
+4. **Before editing:** check current `main` commit, open PR filenames and all outstanding claims on #418. Comment `CLAIM K-XX | agent | branch | paths | start UTC | acceptance`. Work on a unique branch. Never edit a file claimed by another live agent or overwrite someone else's pending PR. Work on a different primary/secondary track if blocked.
+5. **After editing:** comment `STATUS K-XX | DONE/PARTIAL/BLOCKED | branch/commit/PR | paths | PASS/FAIL/NOT RUN evidence | next step | RELEASE/RETAIN CLAIM`. The board's coordinator, not every worker, maintains its checklist and the status summary in ROADMAP.md.
+6. **No claims without proof:** local tests where possible, actual native/real-photo tests for native/RAW claims; GitHub Actions without a runner (zero steps) are **INFRASTRUCTURE BLOCKED**, not code failures or green checks. Never bypass gates or merge while required checks are blocked without explicit owner authorisation.
+7. **Privacy and authenticity:** never modify RAW originals, upload private photos, silently downsample, invent image content, replace pixels with generative AI, or pretend an embedded preview is sensor-developed RAW. Models may guide conservative selection, masks and reversible conventional editing parameters. Do not spend money or accept licensing terms on the owner's behalf.
+8. **Keep one simple experience:** Import → Review → Improve → Export → Reopen. One Library/Review/Edit workspace, one Settings home and one progress vocabulary, with accessible, calm, human-language UI across platforms.
+
+Read [CLAUDE.md](CLAUDE.md) as the detailed implementation and test policy; the filename is historical and the rules are **not Claude-only**. Existing [PR #416](https://github.com/DjL88/Kestrel/pull/416) owns important import/flow paths, and [PR #417](https://github.com/DjL88/Kestrel/pull/417) owns Nikon evidence documentation; always check their live status before changes.
