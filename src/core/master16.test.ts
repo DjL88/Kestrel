@@ -1,9 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { applyDetail, applyDetailRgb16, applyPhotoEdit, applyPhotoEditLinear, DEFAULT_EDIT, decodeEncoded } from './photoEdits';
-import { editRgb16, encodeTiff16, frameRgb16, master16Blocker, parseRgb16, thumbRgb16, type Rgb16Image } from './master16';
+import { editRgb16, applyToneMasksRgb16, encodeTiff16, frameRgb16, master16Blocker, parseRgb16, thumbRgb16, type Rgb16Image } from './master16';
 import { DEFAULT_FRAMING } from './photoFraming';
 import { THUMB } from './orientMatch';
+import { applyMasks, fullContext, maskAlpha } from './masks';
+import { createMask, type Mask } from './maskTypes';
 
 const EDIT = { ...DEFAULT_EDIT, exposure: 0.6, warmth: 0.3, colour: 0.4, contrast: 0.5, shadows: 1, highlights: -1, whites: 0.5, blacks: 0.4, vibrance: 0.6, brightness: 0.5 };
 
@@ -143,8 +145,67 @@ test('the thumbnail compares like the editor\'s own (bright side stays on the sa
   assert.ok(thumb[0] < 1 && thumb[THUMB - 1] > 254);
 });
 
+test('tonal feather/subject masks are exported at 16-bit and agree with the visible 8-bit preview', () => {
+  const width = 64, height = 64, initial = 23_000;
+  const mask: Mask = {
+    ...createMask('radial', 'bird'), cx: 0.5, cy: 0.5, rx: 0.24, ry: 0.24,
+    feather: 0.7, edit: { exposure: 0.9, shadows: 0.3 },
+  };
+  const frame: Rgb16Image = { width, height, data: new Uint16Array(width * height * 3).fill(initial) };
+  const preview = new Uint8ClampedArray(width * height * 4);
+  for (let p = 0; p < width * height; p++) preview.set([Math.round(initial / 257), Math.round(initial / 257), Math.round(initial / 257), 255], p * 4);
+  applyMasks(preview, width, height, [mask], fullContext(width, height));
+  assert.equal(master16Blocker({ ...DEFAULT_EDIT, masks: [mask] }, DEFAULT_FRAMING), null);
+  editRgb16(frame, { ...DEFAULT_EDIT, masks: [mask] });
+  const at = (x: number, y: number) => frame.data[(y * width + x) * 3];
+  assert.ok(at(32, 32) > initial + 1000, 'the bird centre receives the local exposure change');
+  assert.equal(at(0, 0), initial, 'unmasked background is untouched');
+  for (let p = 0; p < width * height; p++) {
+    // Both paths use the same mask alpha, tone maths and compositing.
+    assert.ok(Math.abs(frame.data[p * 3] / 257 - preview[p * 4]) <= 2, `preview/master parity at pixel ${p}`);
+  }
+});
+
+test('a brush stroke and an inverted subject-style mask change only the selected pixels', () => {
+  const width = 120, height = 80, initial = 25_000;
+  const brush: Mask = {
+    ...createMask('brush', 'paint'), edit: { exposure: 1 },
+    strokes: [{ radius: 0.12, erase: false, points: [0.5, 0.5] }],
+  };
+  const frame: Rgb16Image = { width, height, data: new Uint16Array(width * height * 3).fill(initial) };
+  editRgb16(frame, { ...DEFAULT_EDIT, masks: [brush] });
+  const at = (x: number, y: number) => frame.data[(y * width + x) * 3];
+  assert.ok(at(60, 40) > initial);
+  assert.equal(at(0, 0), initial);
+  assert.equal(at(119, 79), initial);
+});
+
+test('tonal mask bands join exactly at high-resolution row boundaries', () => {
+  const width = 1024, height = 520, initial = 18_000;
+  const mask: Mask = {
+    ...createMask('linear', 'sky'), x1: 0.5, y1: 0, x2: 0.5, y2: 1,
+    feather: 1, edit: { exposure: 0.65 },
+  };
+  const frame: Rgb16Image = { width, height, data: new Uint16Array(width * height * 3).fill(initial) };
+  // This traverses three independent 256-row bands.
+  applyToneMasksRgb16(frame, [mask]);
+  const alpha = maskAlpha(mask, width, height, fullContext(width, height));
+  const sourceTone = { width: 1, height: 1, data: new Uint16Array([initial, initial, initial]) };
+  editRgb16(sourceTone, { ...DEFAULT_EDIT, exposure: 0.65 });
+  const edited = sourceTone.data[0];
+  for (const y of [0, 1, 254, 255, 256, 257, 510, 511, 512, 519]) {
+    const p = y * width + 512;
+    const expected = Math.round(initial * (1 - alpha[p]) + edited * alpha[p]);
+    assert.ok(Math.abs(frame.data[p * 3] - expected) <= 1, `seam-free mask at row ${y}`);
+  }
+});
+
 test('edits the 16-bit TIFF cannot carry yet are named, never silently dropped', () => {
   assert.equal(master16Blocker(EDIT, DEFAULT_FRAMING), null);
   assert.match(master16Blocker({ ...EDIT, denoise: 1 }, DEFAULT_FRAMING)!, /Noise reduction/);
+  const localDetail: Mask = { ...createMask('radial', 'feathers'), edit: { texture: 1 } };
+  assert.match(master16Blocker({ ...EDIT, masks: [localDetail] }, DEFAULT_FRAMING)!, /local mask Texture/);
+  const frame: Rgb16Image = { width: 16, height: 16, data: new Uint16Array(16 * 16 * 3) };
+  assert.throws(() => applyToneMasksRgb16(frame, [localDetail]), /local mask Texture/);
   assert.match(master16Blocker(EDIT, { ...DEFAULT_FRAMING, straighten: 2 })!, /straightening/);
 });
