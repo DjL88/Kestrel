@@ -104,6 +104,7 @@ export const cy: Translation = {
     "denoise": "Lleihau sŵn"
   },
   quick: {
+    changed: "(wedi newid)",
     "title": "Golygu cyflym",
     "stepBack": "Cam yn ôl",
     "stepBackHint": "Dadwneud un newid",
