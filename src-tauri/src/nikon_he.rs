@@ -194,6 +194,26 @@ mod tests {
         assert_eq!(high_efficiency_mode_of_prefix(b"", 0), None);
     }
 
+    /// SHA-256 of the whole mosaic as little-endian u16, row-major: ticoraw's conformance `cfa_sha256`.
+    fn cfa_sha256(raw: &RawImage) -> Option<String> {
+        use sha2::{Digest, Sha256};
+        let rawler::RawImageData::Integer(samples) = &raw.data else { return None };
+        let mut hasher = Sha256::new();
+        for sample in samples { hasher.update(sample.to_le_bytes()); }
+        Some(hasher.finalize().iter().map(|byte| format!("{byte:02x}")).collect())
+    }
+
+    #[test]
+    fn the_reported_cfa_hash_is_the_decoders_own_mosaic_hash() {
+        use sha2::{Digest, Sha256};
+        let synthetic = synthetic_z8(40, 24);
+        let raw = rawler_decode(&ticoraw::dng::encode_uncompressed_dng(&synthetic).unwrap()).unwrap();
+        let mut hasher = Sha256::new();
+        for sample in &synthetic.image.pixels { hasher.update(sample.to_le_bytes()); }
+        let expected: String = hasher.finalize().iter().map(|byte| format!("{byte:02x}")).collect();
+        assert_eq!(cfa_sha256(&raw).as_deref(), Some(expected.as_str()));
+    }
+
     #[test]
     fn decoder_labels_are_stable() {
         assert_eq!(SensorDecoder::Rawler.label(), "rawler");
@@ -215,7 +235,15 @@ mod tests {
             let started = std::time::Instant::now();
             let (raw, decoder) = decode_sensor(&bytes).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
             assert_eq!(decoder, mode);
-            eprintln!("{} | {} | {}x{} | {:?}", path.display(), decoder.label(), raw.width, raw.height, started.elapsed());
+            // File name only (never the private folder path), and time in plain milliseconds, so
+            // tools/raw-evidence/run_owner_decode.py can read each line.
+            let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            eprintln!("{name} | {} | {}x{} | {:.1}ms", decoder.label(), raw.width, raw.height, started.elapsed().as_secs_f64() * 1000.0);
+            // The whole mosaic as little-endian u16, the hash ticoraw's conformance manifest (Adobe-verified) lists
+            // as cfa_sha256, so a run over those public CC0 samples shows bit-exact decoding, not just a picture.
+            if let Some(hex) = cfa_sha256(&raw) {
+                eprintln!("cfa-sha256 | {name} | {hex}");
+            }
             decoded += 1;
         }
         eprintln!("High Efficiency files decoded from sensor data: {decoded}");

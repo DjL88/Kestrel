@@ -16,6 +16,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 default = ["nikon-he"]
 nikon-he = ["dep:ticoraw"]
 
+[dev-dependencies]
+# Test-only: hashes decoded mosaics for conformance evidence (nikon_he.rs).
+sha2 = "0.10"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
