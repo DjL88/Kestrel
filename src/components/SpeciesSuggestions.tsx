@@ -103,7 +103,7 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
         void findSimilar(best.label.common, kindFor(best.label));
       }
       setDismissed([]);
-    } catch (reason) {
+    } catch {
       if (mine === run.current) { setResults([]); setGateNote('The subject checker could not confirm an animal. Add a name yourself if you know it.'); }
     } finally {
       if (mine === run.current) setBusy(false);
