@@ -24,7 +24,7 @@ class OwnerDecodeTests(unittest.TestCase):
         return lambda *a, **kw: SimpleNamespace(stdout=stdout, stderr='', returncode=returncode)
     def test_missing_cfa_hash_fails_closed(self):
         with self.assertRaisesRegex(ValueError, 'CFA hash'):
-            mod.collect(self.samples, self.tauri, self.runner('a.nef | nikon-he | 8x8 | 1ms\\ncfa-sha256 | a.nef | ' + 'a'*64 + '\\nHigh Efficiency files decoded from sensor data: 1'))
+            mod.collect(self.samples, self.tauri, self.runner('a.nef | nikon-he | 8x8 | 1ms\\nHigh Efficiency files decoded from sensor data: 1'))
     def test_duplicate_cfa_hash_fails_closed(self):
         digest = 'a' * 64
         output = f'a.nef | nikon-he | 8x8 | 1ms\\ncfa-sha256 | a.nef | {digest}\\ncfa-sha256 | a.nef | {digest}\\nHigh Efficiency files decoded from sensor data: 1'
