@@ -70,3 +70,41 @@ test('old concurrent thumbnail request never overwrites the replacement image ca
   assert.equal(await (await fetch(await provider.getThumbnailUrl(photo))).text(), 'NEW');
   provider.clear();
 });
+
+test('clearing a project while thumbnail loading is pending cannot revive its old preview', async () => {
+  const provider = new BrowserPreviewProvider();
+  const key = 'project-cleared';
+  const photo = frame('frame-before-clear', key);
+  let resolveRead: ((blob: Blob) => void) | undefined;
+  provider.registerLinked(key, {
+    size: 3, lastModified: 1,
+    read: () => new Promise<Blob>((resolve) => { resolveRead = resolve; }),
+  });
+  const pending = provider.getThumbnailUrl(photo);
+  for (let i = 0; i < 10 && !resolveRead; i++) await Promise.resolve();
+  assert.ok(resolveRead, 'pending linked source read began');
+  provider.clear();
+  resolveRead!(new Blob(['OLD'], { type: 'image/jpeg' }));
+  assert.equal(await pending, '', 'old project thumbnail must not reappear after clear');
+  assert.equal(await provider.getThumbnailUrl(photo), '', 'no old original is registered after clear');
+});
+
+test('full-size preview replacement refuses stale in-flight original read', async () => {
+  const provider = new BrowserPreviewProvider();
+  const key = 'full-replacement';
+  const photo = frame('large-photo', key);
+  let resolveRead: ((blob: Blob) => void) | undefined;
+  provider.registerLinked(key, {
+    size: 3, lastModified: 1,
+    read: () => new Promise<Blob>((resolve) => { resolveRead = resolve; }),
+  });
+  const earlier = provider.getFullPreviewUrl(photo);
+  for (let i = 0; i < 10 && !resolveRead; i++) await Promise.resolve();
+  assert.ok(resolveRead);
+  provider.registerBlob(key, new Blob(['FRESH'], { type: 'image/jpeg' }));
+  resolveRead!(new Blob(['STALE'], { type: 'image/jpeg' }));
+  const oldResult = await earlier;
+  assert.equal(await (await fetch(oldResult)).text(), 'FRESH',
+    'an in-flight full-preview request must recover to the replacement original');
+  provider.clear();
+});
