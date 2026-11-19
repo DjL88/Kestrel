@@ -123,6 +123,12 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
           }
         }
         if (!stillCurrent() || !readAutoTag()) continue;
+        // A person may edit, reject, remove or reclassify this photo while an ONNX
+        // inference or the optional helper is running. The old snapshot must never
+        // write a species result over their newer decision. Revisit the new frame
+        // on a later pass instead of treating the stale result as checked.
+        const liveFrame = latest.current.frames.find((item) => item.id === frame.id);
+        if (!liveFrame || liveFrame !== frame || liveFrame.removedAt != null) continue;
         skipped.current.add(frameKey(frame.id));
         if (patch) report(frame.id, patch);
         await new Promise((resolve) => window.setTimeout(resolve, asked ? HELPER_GAP_MS : 30));
