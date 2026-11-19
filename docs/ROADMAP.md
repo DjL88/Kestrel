@@ -115,7 +115,7 @@ What worked: real Z 8 / Z5 II photos import, cull and edit; feather detail after
 **F. One ergonomic workspace (owner request 19 Nov; coordinator's design)**
 
 The library, culling and editing share one frame. Build in this order:
-1. **Shared shell.**
+1. **Shared shell.** *Bottom bar integrated on PR #473 (merge pending):* culling's single-photo view and the editor now share one bar order: ‹ › on the left, the view's own actions in the middle, and `ZoomControls` on the right (− level + slider, Fit, 100%, 200%, Eye). Culling gained the full zoom set, the editor's zoom moved down from the top toolbar, and its ‹ › no longer hide in the header. Still to do: Jump in the bar, one shared frame component, and culling's 100% for edited photos (it measures the 2200-pixel render).
    - The photo in the centre. Tools on the Preferred-hand side, Photo info on the other.
    - One bottom bar in fixed places, in culling and editing alike: filmstrip, ‹ › (also ← →), zoom (Fit / 100% / 200% / Eye) and Jump.
    - Editing becomes the same page with different tools, not a separate layout.
@@ -125,6 +125,19 @@ The library, culling and editing share one frame. Build in this order:
 5. **Phones:** the same sections in one bottom sheet.
 
 No free-floating windows: they cover the photo, drift off small screens, and are hard for keyboard and screen-reader users. Docking gives the same flexibility.
+
+**G. Taken from the owner's concept mock-up (19 Nov)**
+
+"Not re-inventing the wheel": adopt the placements and shading the owner liked, in this order:
+1. The active editor tab as a filled copper pill, not an underline.
+2. Sliders with an icon, a copper fill from zero to the value, and a signed value right-aligned (+0.3, −0.4).
+3. "‹ 1 of 28 ›" in the bottom bar, grid/single view buttons at its left, and a copper border on the selected thumbnail.
+4. Before/After as floating pill labels, with a round ◂▸ handle on the split line.
+5. A breadcrumb in the editor header (Project / date / file).
+6. Auto's actions as cards (icon, title, one-line description, ›); the subject mask as a card with an eye toggle.
+7. A left-hand mode rail (Library, Select, Edit, Projects; Settings at the foot), as part of F stage 1.
+
+Colour is never the only cue: the copper always comes with a shape, a fill or text.
 
 **D. Library and projects**
 - Sort by date imported, date captured and date last edited.
@@ -218,6 +231,7 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
 
 | Date | Merged | Closed | Local evidence |
 | --- | --- | --- | --- |
+| 19 Nov 2026 (coordinator, bottom bar) | #470 (Before/After grid behaviour); PR #473 bottom-bar integration (merge pending; earlier base checks reported in PR) | | Integration suite must be rerun. |
 | 19 Nov 2026 (coordinator, grid) | #469 (header and layout: lint, 973 unit, build, Playwright 285 PASS / 0 FAIL, src-tauri 21 PASS), this PR (no grid in Before/After; Shift shows it) | | See PR. |
 | 19 Nov 2026 (coordinator, header and layout) | this PR (two-row header with Tasks as a compact bar; no import banner; Add and options bordered; Photo info on the hand side; subject labels fit; dark window and menu bar; background develop waits for imports; ROADMAP E and F) | | See PR. |
 | 19 Nov 2026 (coordinator, Windows build) | #465 (background RAW develop: 973 unit PASS, Playwright 284 PASS / 0 FAIL), this PR (`Build-Kestrel.ps1` runs as many compile jobs as memory allows, then retries once with one job: the owner's laptop build ran out of memory) | | PowerShell: NOT RUN (no PowerShell here); first real run is the owner's laptop build. No app code changed. |
