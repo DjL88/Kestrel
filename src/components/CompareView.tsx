@@ -66,6 +66,7 @@ export function CompareView({
   return (
     <section ref={surfaceRef} onPointerDownCapture={focusPhotoSurface} aria-label="Compare photos" aria-description="Click a photo to focus this comparison. Left and Right select photo B. K keeps B, X rejects B, U clears B. Tab moves through controls." tabIndex={0} onKeyDown={handleCompareKey} className="flex min-h-0 flex-1 flex-col focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky-300">
       {!referenceValid && <p role="status" className="px-3 py-2 text-sm text-amber-200">Reference photo A is no longer in this review. Return to Review and select a new reference before comparing or making decisions.</p>}
+      {queue.state === 'unselected' && <div role="status" className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm text-zinc-300"><span>Choose a photo B to begin comparing.</span><button type="button" className={control} disabled={!queue.recoveryId} onClick={() => queue.recoveryId && onSelectRight(queue.recoveryId)}>Select first photo B</button></div>}
       {queue.state === 'missing-comparison' && <div role="status" className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm text-amber-200">
         <span>Photo B is no longer in this review. No decision can be made until another photo is selected.</span>
         {queue.recoveryId && <button type="button" className={control} onClick={() => queue.recoveryId && onSelectRight(queue.recoveryId)}>Select first available photo B</button>}
