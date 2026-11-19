@@ -60,7 +60,7 @@ export function AdjustmentSlider({
   const originStyle: CSSProperties = { left: `${fill.neutral}%` };
   return (
     <div title={title} className={`kestrel-adjustment min-w-0 items-center gap-x-2 gap-y-0 rounded-md py-0.5 text-sm text-zinc-200
-      ${layout === 'stacked' ? 'grid grid-cols-[minmax(0,1fr)_auto]' : 'grid grid-cols-[minmax(4.5rem,0.85fr)_minmax(4rem,1.5fr)_minmax(3.5rem,auto)]'}
+      ${layout === 'stacked' ? 'grid grid-cols-[minmax(0,1fr)_auto] -my-1' : 'grid grid-cols-[minmax(4.5rem,0.85fr)_minmax(4rem,1.5fr)_minmax(3.5rem,auto)]'}
       ${disabled ? 'opacity-45' : ''}`}>
       <label htmlFor={id} className={`min-w-0 leading-5 ${layout === 'stacked' ? 'col-start-1 font-medium whitespace-normal' : 'truncate'}`}>{label}{hint && <span className="ml-1.5 text-xs font-normal text-kestrel-copper">{hint}</span>}</label>
       <span className={`relative flex min-w-0 items-center ${layout === 'stacked' ? 'col-span-2 row-start-2 w-full' : ''}`}>
@@ -76,12 +76,12 @@ export function AdjustmentSlider({
           onPointerCancel={() => { dragging.current = false; }}
           onChange={(event) => change(event.target.valueAsNumber)}
           onDoubleClick={() => { if (!disabled && resettable) change(neutral); }}
-          className="kestrel-adjustment-range relative z-10 h-11 w-full min-w-0 cursor-pointer disabled:cursor-not-allowed" />
+          className="kestrel-adjustment-range relative z-10 h-10 w-full min-w-0 cursor-pointer disabled:cursor-not-allowed" />
       </span>
       {resettable ? (
         <button type="button" aria-label={`Reset ${label} to neutral (currently ${shown})`}
           title={changed ? `Reset ${label} to neutral` : `${label} is neutral`}
-          disabled={disabled || !changed} onClick={(event) => { event.preventDefault(); onChange(neutral); }}
+          disabled={disabled || !changed} onClick={(event) => { event.preventDefault(); change(neutral); }}
           className={`min-h-10 min-w-14 justify-self-end rounded-md px-1 text-right font-medium tabular-nums focus-visible:outline-2 focus-visible:outline-sky-300
           ${layout === 'stacked' ? 'col-start-2 row-start-1' : ''} ${changed ? 'text-zinc-100 hover:bg-white/10' : 'cursor-default text-zinc-400'}`}>
           {shown}
