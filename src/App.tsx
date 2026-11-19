@@ -32,7 +32,7 @@ import { loadImage } from './providers/loadImage';
 import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
 import { ArrowLeft, Copy, ClipboardPaste, Pin, PinOff, Info, PanelLeftClose, PanelLeftOpen, Maximize2 } from 'lucide-react';
 import { WorkspacePaneRail } from './components/WorkspacePaneRail';
-import { readWorkspacePaneState, toggleWorkspacePanes, writeWorkspacePaneState } from './core/workspacePaneState';
+import { photoInfoDockSide, readWorkspacePaneState, toggleWorkspacePanes, writeWorkspacePaneState } from './core/workspacePaneState';
 import { newId } from './core/ids';
 import { redoLabel, undoLabel } from './core/describeAction';
 import { jumpToStep, recordEdit, stepEdit } from './core/editHistory';
@@ -2412,7 +2412,7 @@ export default function App() {
         </div>
 
         {!prefs.focusMode && !panesCollapsed && showPhotoInfo && (
-          <ExifInspector dockedSide={prefs.hand === 'right' ? 'left' : 'right'} onSubjects={(frame, tags, kind) => setSubjects(frame, tags, kind)} onKeepTag={(frame, name) => keepTag(frame, name)}
+          <ExifInspector dockedSide={photoInfoDockSide(prefs.hand)} onSubjects={(frame, tags, kind) => setSubjects(frame, tags, kind)} onKeepTag={(frame, name) => keepTag(frame, name)}
             loadPicture={loadSpeciesPicture}
             mates={burstMates(cullingState.frames, infoFrameId ? cullingState.frames.find((frame) => frame.id === infoFrameId) ?? { id: '', burstGroupId: null } : selectedFrame ?? { id: '', burstGroupId: null })}
             onTagPhotos={(ids, name, kind) => setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() }, frames: tagFrames(prev.frames, ids, name, kind) }))}
@@ -2432,7 +2432,7 @@ export default function App() {
           />
         )}
         {!prefs.focusMode && (panesCollapsed || !showPhotoInfo) && visibleFrames.length > 0 && (
-          <WorkspacePaneRail kind="info" side={prefs.hand === 'right' ? 'left' : 'right'}
+          <WorkspacePaneRail kind="info" side={photoInfoDockSide(prefs.hand)}
             onExpand={() => { setWorkspacePanes({ folded: false }); setShowPhotoInfo(true); }} />
         )}
       </main>
