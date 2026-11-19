@@ -38,11 +38,13 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
   await page.getByRole('button', { name: 'Create project' }).click();
   await checkViewport('Empty library portrait');
-  // The Library More menu exposes the same handedness setting used by the Editor.
+  // The Library More menu exposes the same handedness setting used by the Editor: one choice, not a second
+  // "panel side" that looks like the same question.
   await page.getByRole('button', { name: 'More', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Left side' })).toBeVisible();
-  await page.getByRole('button', { name: 'Left side' }).click();
-  await expect(page.getByRole('button', { name: 'Left side' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Left-handed' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Left side' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Left-handed' }).click();
+  await expect(page.getByRole('button', { name: 'Left-handed' })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'More', exact: true }).click();
 
   await page.getByRole('button', { name: 'Add photos', exact: true }).click();
@@ -65,9 +67,9 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await checkViewport('Editor portrait');
   await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
   const appearance = page.getByRole('dialog', { name: 'Appearance and layout settings' });
-  await expect(appearance.getByRole('button', { name: 'Left side' })).toHaveAttribute('aria-pressed', 'true');
-  await appearance.getByRole('button', { name: 'Right side' }).click();
-  await expect(appearance.getByRole('button', { name: 'Right side' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(appearance.getByRole('button', { name: 'Left-handed' })).toHaveAttribute('aria-pressed', 'true');
+  await appearance.getByRole('button', { name: 'Right-handed' }).click();
+  await expect(appearance.getByRole('button', { name: 'Right-handed' })).toHaveAttribute('aria-pressed', 'true');
   // The softer dark theme is the default now (#336), so switch to the other dark theme to prove a change applies.
   await appearance.getByRole('radio', { name: 'Classic dark' }).check();
   await appearance.getByRole('button', { name: 'Done' }).click();
@@ -96,5 +98,5 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   expect(await editLayout()).toBe('row');
   await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
   await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' })
-    .getByRole('button', { name: 'Right side' })).toHaveAttribute('aria-pressed', 'true');
+    .getByRole('button', { name: 'Right-handed' })).toHaveAttribute('aria-pressed', 'true');
 });

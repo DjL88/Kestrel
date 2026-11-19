@@ -94,7 +94,7 @@ What worked: real Z 8 / Z5 II photos import, cull and edit; feather detail after
 - Show each photo's progress in its tile footer as a red / amber / green bar. Animate it, respecting reduced motion.
 - The Tasks ("Busy") button is fully rounded, unlike every other button. Make it match.
 - The Filter popover has white text on a white background. Make it follow the theme.
-- Settings has two left/right choices ("Preferred hand" and "Editing panel position") that look like the same thing. Make them one clear choice.
+- ~~Settings has two left/right choices ("Preferred hand" and "Editing panel position") that look like the same thing. Make them one clear choice.~~ MERGED 19 Nov: one "Preferred hand" choice moves the editing tools and touch controls together, in the Library and the editor; older settings that differed follow the hand.
 - The same zoom in the culling viewer and the editor. Keep the zoom and position when switching Before/After, changing photos or opening settings.
 
 **C. Editing tools**

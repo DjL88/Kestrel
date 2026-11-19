@@ -149,6 +149,10 @@ export default function App() {
   const [prefs, setPrefs] = useState<UserPreferences>(() => loadPreferences());
   // Left- or right-handed use is read by the whole page's styles, so the home page and every dialog follow it too.
   useEffect(() => { document.documentElement.dataset.hand = prefs.hand; }, [prefs.hand]);
+  // Hand and editing-panel side are one choice now. Settings saved when they could differ follow the hand.
+  useEffect(() => {
+    if (prefs.editPanelSide !== prefs.hand) setPrefs((prev) => (prev.editPanelSide === prev.hand ? prev : { ...prev, editPanelSide: prev.hand }));
+  }, [prefs.hand, prefs.editPanelSide]);
   const [cullingState, setCullingState] = useState<CullingState>(() =>
     createEmptyProject('uninitialised', '')
   );
@@ -1758,7 +1762,7 @@ export default function App() {
         onArchive={(project) => setProjectAction({ kind: 'archive', project })} onDelete={(project) => setProjectAction({ kind: 'delete', project })}
         onUnarchive={(id) => void unarchiveProject(id)} onQuickEdit={(files) => void quickEdit(files)}
         editPanelSide={prefs.editPanelSide}
-        onEditPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, editPanelSide: side }))}
+        onEditPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, hand: side, editPanelSide: side }))}
         onOpenMacroPad={() => { setMacroPadMode('cull'); setMacroPadModal(true); }} />
       <MacroPadModal open={macroPadModal} openTo={macroPadMode} onClose={() => setMacroPadModal(false)}
         bindings={prefs.bindings}
@@ -1867,7 +1871,7 @@ export default function App() {
           setCullingState((prev) => ({ ...prev, keeperTarget: target }))
         }
         editPanelSide={prefs.editPanelSide}
-        onEditPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, editPanelSide: side }))}
+        onEditPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, hand: side, editPanelSide: side }))}
         viewMode={prefs.viewMode}
         onViewModeChange={(mode) => {
           if (mode === 'compare') {
@@ -2037,7 +2041,7 @@ export default function App() {
               onFramingChange={(framing) => updateFrame(selectedFrame.id, { framing })}
               onRemoveVirtualCopy={selectedFrame.virtualCopy ? removeVirtualCopy : undefined}
               panelSide={prefs.editPanelSide}
-              onPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, editPanelSide: side }))}
+              onPanelSideChange={(side) => setPrefs((prev) => ({ ...prev, hand: side, editPanelSide: side }))}
               hand={prefs.hand}
               onHandChange={(hand) => setPrefs((prev) => ({ ...prev, hand, editPanelSide: hand }))}
               showFilmstrip={filmstripVisible}
