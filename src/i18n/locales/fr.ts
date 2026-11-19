@@ -87,4 +87,36 @@ export const fr: Translation = {
     "left": "Gauche",
     "right": "Droite"
   },
+  adjustment: {
+    "exposure": "Exposition",
+    "warmth": "Chaleur",
+    "colour": "Couleur",
+    "brightness": "Luminosité",
+    "contrast": "Contraste",
+    "highlights": "Hautes lumières",
+    "shadows": "Ombres",
+    "whites": "Zones les plus claires",
+    "blacks": "Zones les plus sombres",
+    "vibrance": "Vibrance",
+    "texture": "Texture",
+    "clarity": "Clarté",
+    "sharpen": "Netteté",
+    "denoise": "Réduction du bruit"
+  },
+  quick: {
+    "title": "Retouche rapide",
+    "allControls": "Tous les réglages",
+    "choose": "Choisir un réglage"
+  },
+  photoInfo: {
+    "title": "Infos de la photo",
+    "tabInfo": "Infos",
+    "tabSubject": "Sujet",
+    "copy": "Copier les détails",
+    "camera": "Appareil photo",
+    "lens": "Objectif",
+    "captured": "Prise le",
+    "undecided": "À décider",
+    "reject": "Rejeter"
+  },
 };
