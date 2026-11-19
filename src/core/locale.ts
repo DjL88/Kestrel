@@ -29,6 +29,12 @@ export const LANGUAGES = [
   { code: 'nl', nativeName: 'Nederlands', englishName: 'Dutch', status: 'draft' },
   { code: 'it', nativeName: 'Italiano', englishName: 'Italian', status: 'draft' },
   { code: 'pt', nativeName: 'Português', englishName: 'Portuguese', status: 'draft' },
+  { code: 'ga', nativeName: 'Gaeilge', englishName: 'Irish', status: 'draft' },
+  { code: 'da', nativeName: 'Dansk', englishName: 'Danish', status: 'draft' },
+  { code: 'sv', nativeName: 'Svenska', englishName: 'Swedish', status: 'draft' },
+  { code: 'nb', nativeName: 'Norsk bokmål', englishName: 'Norwegian', status: 'draft' },
+  { code: 'fi', nativeName: 'Suomi', englishName: 'Finnish', status: 'draft' },
+  { code: 'is', nativeName: 'Íslenska', englishName: 'Icelandic', status: 'draft' },
 ] as const satisfies readonly LanguageOption[];
 
 export type LanguageCode = (typeof LANGUAGES)[number]['code'];
@@ -44,6 +50,37 @@ export function isLanguageCode(value: unknown): value is LanguageCode {
  */
 export function resolveLanguage(saved: unknown): LanguageCode {
   return isLanguageCode(saved) ? saved : SOURCE_LANGUAGE;
+}
+
+/** Other tags that mean one of Kestrel's languages: Norwegian has three codes, and Nynorsk readers read Bokmål. */
+const ALIASES: Record<string, LanguageCode> = { no: 'nb', nn: 'nb', en: 'en-GB' };
+
+/**
+ * The device's own language, matched to one Kestrel has, to *offer* at first run (never applied without asking).
+ * Tries each of the device's preferred languages in order: the exact tag (en-US), then its language (fr-BE → fr,
+ * pt-BR → pt, nb-NO → nb). English from elsewhere (en-AU, en-IE, en-NZ) is offered as British English.
+ */
+export function matchDeviceLanguage(preferred: readonly string[] | undefined): LanguageCode | undefined {
+  for (const raw of preferred ?? []) {
+    if (typeof raw !== 'string' || !raw.trim()) continue;
+    const tag = raw.trim().replace('_', '-');
+    const exact = LANGUAGES.find((language) => language.code.toLowerCase() === tag.toLowerCase());
+    if (exact) return exact.code;
+    const base = tag.split('-')[0].toLowerCase();
+    if (base === 'en') return 'en-GB';
+    const byBase = LANGUAGES.find((language) => language.code === base) ?? (ALIASES[base] ? languageOption(ALIASES[base]) : undefined);
+    if (byBase) return byBase.code as LanguageCode;
+  }
+  return undefined;
+}
+
+/**
+ * Choose the right word for a number in the active language (Welsh has six forms, Irish five, English two).
+ * Forms not given fall back to `other`.
+ */
+export function plural(count: number, forms: Partial<Record<Intl.LDMLPluralRule, string>> & { other: string }): string {
+  const rule = new Intl.PluralRules(active).select(count);
+  return forms[rule] ?? forms.other;
 }
 
 export function languageOption(code: LanguageCode): LanguageOption {

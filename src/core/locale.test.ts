@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { LANGUAGES, activeLanguage, mergeMessages, missingKeys, resolveLanguage, setActiveLanguage, unknownKeys } from './locale';
+import { LANGUAGES, activeLanguage, matchDeviceLanguage, mergeMessages, missingKeys, plural, resolveLanguage, setActiveLanguage, unknownKeys } from './locale';
 import { formatProjectDate } from './formatDate';
 import { formatCaptureDateTime } from './photoInfoText';
 import { enGB } from '../i18n/en-GB';
 import { TRANSLATIONS, type Messages } from '../i18n/messages';
+import { AREAS } from '../i18n/areas';
 
 test('only a saved, known choice changes the language; anything else is British English', () => {
   assert.equal(resolveLanguage('cy'), 'cy');
@@ -54,5 +55,49 @@ test('dates follow the chosen language: British by default, never the browser’
     assert.equal(formatProjectDate(when), 'Nov 19, 2026');
   } finally {
     setActiveLanguage(before);
+  }
+});
+
+test('the device language is matched to one Kestrel has, to offer at first run', () => {
+  assert.equal(matchDeviceLanguage(['en-US']), 'en-US');
+  assert.equal(matchDeviceLanguage(['en-AU', 'fr']), 'en-GB', 'other English goes to British English');
+  assert.equal(matchDeviceLanguage(['fr-BE']), 'fr');
+  assert.equal(matchDeviceLanguage(['pt-BR']), 'pt');
+  assert.equal(matchDeviceLanguage(['nb-NO']), 'nb');
+  assert.equal(matchDeviceLanguage(['no']), 'nb');
+  assert.equal(matchDeviceLanguage(['nn-NO']), 'nb');
+  assert.equal(matchDeviceLanguage(['sv_SE']), 'sv');
+  assert.equal(matchDeviceLanguage(['cy-GB']), 'cy');
+  assert.equal(matchDeviceLanguage(['ja-JP', 'da-DK']), 'da', 'the first language Kestrel has wins');
+  assert.equal(matchDeviceLanguage(['ja-JP', 'zh']), undefined);
+  assert.equal(matchDeviceLanguage([]), undefined);
+  assert.equal(matchDeviceLanguage(undefined), undefined);
+});
+
+test('plural words follow the active language’s rules', () => {
+  const before = activeLanguage();
+  try {
+    setActiveLanguage('en-GB');
+    assert.equal(plural(1, { one: 'photo', other: 'photos' }), 'photo');
+    assert.equal(plural(2, { one: 'photo', other: 'photos' }), 'photos');
+    setActiveLanguage('cy');
+    const welsh = { zero: 'llun (0)', one: 'llun', two: 'lun', few: 'llun (few)', many: 'llun (many)', other: 'llun' };
+    assert.equal(plural(2, welsh), 'lun');
+    assert.equal(plural(0, welsh), 'llun (0)');
+    assert.equal(plural(5, { other: 'x' }), 'x', 'missing forms fall back to other');
+  } finally {
+    setActiveLanguage(before);
+  }
+});
+
+test('every area of the app is complete in every non-English language, with nothing the source lacks', () => {
+  for (const area of AREAS) {
+    for (const { code } of LANGUAGES) {
+      const translation = area.translations[code];
+      assert.deepEqual(unknownKeys(area.source, translation), [], `${area.name}/${code} has keys the source lacks`);
+      if (code.startsWith('en')) continue;
+      assert.ok(translation, `${area.name} has no ${code} file`);
+      assert.deepEqual(missingKeys(area.source, translation), [], `${area.name}/${code} leaves sentences in English`);
+    }
   }
 });

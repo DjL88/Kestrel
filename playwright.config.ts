@@ -8,6 +8,8 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:4173',
     browserName: 'chromium',
+    // Tests read British English. A device in another language is offered it at first run (tests/language.spec.ts).
+    locale: 'en-GB',
     launchOptions: process.env.KESTREL_CHROME_PATH ? { executablePath: process.env.KESTREL_CHROME_PATH } : undefined,
   },
   projects: [

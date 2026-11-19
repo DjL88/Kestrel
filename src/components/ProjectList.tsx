@@ -9,6 +9,7 @@ import { AppearanceDialog } from './AppearanceDialog';
 import { ConnectionsPanel } from './ConnectionsPanel';
 import type { ShootDescriptor } from '../core/types';
 import { NewProjectWizard } from './NewProjectWizard';
+import { LanguageWelcome } from './LanguageWelcome';
 import { CatalogueStorage } from './CatalogueStorage';
 import type { ProjectSettings } from '../core/projectSettings';
 import { filterProjects, inboxFirst, sortProjects, splitProjects, type ProjectSort } from '../core/projects';
@@ -154,6 +155,7 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
             </label>
           </div>
         )}
+        <LanguageWelcome />
         {creating && <NewProjectWizard loading={loading} onCancel={() => setCreating(false)} onCreate={onCreate} />}
         {error && <p role="alert" className="mb-3 text-sm text-orange-200">{error}</p>}
         {loading && <p role="status" className="mb-3 text-sm text-zinc-400">{m.home.opening}</p>}
