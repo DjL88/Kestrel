@@ -1,5 +1,5 @@
 import { applyDetailRgb16, applyPhotoEditLinear, isNeutralTone, type PhotoEdit } from './photoEdits';
-import { cropRectangle, type PhotoFraming } from './photoFraming';
+import { cropRectangle, rotationCoverage, type PhotoFraming } from './photoFraming';
 import { THUMB, type Thumb } from './orientMatch';
 import { LOCAL_KEYS, usesDetail, type Mask } from './maskTypes';
 import { effectiveAlpha } from './masks';
@@ -55,13 +55,17 @@ export function master16Blocker(edit: PhotoEdit | undefined, framing: PhotoFrami
   // bounded-memory 16-bit implementation; never silently omit them.
   if (edit && usesDetail(edit.masks)) return 'The 16-bit TIFF does not include local mask Texture, Clarity or Sharpening yet. The normal export keeps these adjustments.';
   if (edit && hasNoiseReduction(edit)) return 'The 16-bit TIFF does not include Noise reduction yet. The normal export keeps it.';
-  if (framing && Math.abs(framing.straighten) > 1e-6) return 'The 16-bit TIFF does not include straightening yet. The normal export keeps it.';
+  // Straightening is applied with the same centre, angle and coverage geometry as the preview.
   return null;
 }
 
 /**
- * Turn the picture clockwise by `turns` quarter turns, then cut out the framing's crop, exactly as the editor frames it
- * (`drawFramedPhoto` without straightening). `extraTurns` first lines the picture up with the one the editor shows.
+ * Rotate the sensor-derived picture to match the editor, apply straightening
+ * with the preview's centre/coverage geometry, then cut the saved crop.
+ * A neutral straighten retains the original exact integer sample mapping.
+ * Non-zero straighten inverse-samples the decoded 16-bit pixels bilinearly;
+ * it neither goes through an 8-bit canvas nor allocates a rotated full frame.
+ * extraTurns first aligns the RAW to the picture the editor shows.
  */
 export function frameRgb16(image: Rgb16Image, framing: PhotoFraming, extraTurns = 0): Rgb16Image {
   const turns = (((framing.turns + extraTurns) % 4) + 4) % 4;
@@ -71,6 +75,10 @@ export function frameRgb16(image: Rgb16Image, framing: PhotoFraming, extraTurns 
   const crop = cropRectangle(width, height, framing);
   const out = new Uint16Array(crop.width * crop.height * 3);
   const { width: w, height: h, data } = image;
+  const straighten = Math.abs(framing.straighten) > 1e-6;
+  const angle = framing.straighten * Math.PI / 180;
+  const coverage = straighten ? rotationCoverage(width, height, angle) : 1;
+  const cos = Math.cos(angle), sin = Math.sin(angle);
   for (let y = 0; y < crop.height; y += 1) {
     const ty = crop.y + y;
     for (let x = 0; x < crop.width; x += 1) {
@@ -80,9 +88,36 @@ export function frameRgb16(image: Rgb16Image, framing: PhotoFraming, extraTurns 
       const sy = turns === 0 ? ty : turns === 1 ? h - 1 - tx : turns === 2 ? h - 1 - ty : tx;
       const from = (sy * w + sx) * 3;
       const to = (y * crop.width + x) * 3;
-      out[to] = data[from];
-      out[to + 1] = data[from + 1];
-      out[to + 2] = data[from + 2];
+      if (!straighten) {
+        out[to] = data[from];
+        out[to + 1] = data[from + 1];
+        out[to + 2] = data[from + 2];
+        continue;
+      }
+      // A destination pixel centre, in the rotated-but-uncropped canvas.
+      // Inverse of drawFramedPhoto's rotate(angle) and scale(coverage).
+      const dx = tx + 0.5 - width / 2;
+      const dy = ty + 0.5 - height / 2;
+      const px = (cos * dx + sin * dy) / coverage + width / 2 - 0.5;
+      const py = (-sin * dx + cos * dy) / coverage + height / 2 - 0.5;
+      const x0 = Math.max(0, Math.min(width - 1, Math.floor(px)));
+      const y0 = Math.max(0, Math.min(height - 1, Math.floor(py)));
+      const x1 = Math.max(0, Math.min(width - 1, x0 + 1));
+      const y1 = Math.max(0, Math.min(height - 1, y0 + 1));
+      const fx = Math.max(0, Math.min(1, px - x0));
+      const fy = Math.max(0, Math.min(1, py - y0));
+      const xy = (xx: number, yy: number) => {
+        const a = turns === 0 ? xx : turns === 1 ? yy : turns === 2 ? w - 1 - xx : w - 1 - yy;
+        const b = turns === 0 ? yy : turns === 1 ? h - 1 - xx : turns === 2 ? h - 1 - yy : xx;
+        return (b * w + a) * 3;
+      };
+      const topLeft = xy(x0, y0), topRight = xy(x1, y0);
+      const bottomLeft = xy(x0, y1), bottomRight = xy(x1, y1);
+      for (let c = 0; c < 3; c++) {
+        const top = data[topLeft + c] * (1 - fx) + data[topRight + c] * fx;
+        const bottom = data[bottomLeft + c] * (1 - fx) + data[bottomRight + c] * fx;
+        out[to + c] = Math.round(top * (1 - fy) + bottom * fy);
+      }
     }
   }
   return { width: crop.width, height: crop.height, data: out };
