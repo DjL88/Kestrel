@@ -75,5 +75,31 @@ class EvidenceTests(unittest.TestCase):
                 module.evaluate([dict(row("safe"), **changes)])
 
 
+    def test_500_real_birds_without_aircraft_is_not_stratified_evidence(self):
+        samples = [row(f"bird-{i}", provenance="real-labelled") for i in range(500)]
+        report = module.evaluate(samples)
+        self.assertTrue(report["real_500_photo_benchmark"], "legacy count flag remains a provenance gate")
+        self.assertEqual(report["real_truth_counts"]["aircraft"], 0)
+        self.assertEqual(report["real_small_bird_count"], 0)
+        self.assertIn("real aircraft", report["coverage_gaps"])
+        self.assertIn("real tiny/distant birds", report["coverage_gaps"])
+        self.assertIn("real non-bird/non-aircraft negatives", report["coverage_gaps"])
+
+    def test_real_strata_are_not_filled_by_synthetic_examples(self):
+        samples = [
+            row("real-aircraft", truth="aircraft", predicted="unknown", provenance="real-labelled"),
+            dict(row("real-small", provenance="real-labelled"), subject_size="tiny"),
+            row("real-bird", provenance="real-labelled"),
+            row("real-other", truth="other", predicted="other", provenance="real-labelled"),
+            dict(row("synthetic-small"), subject_size="distant"),
+        ]
+        report = module.evaluate(samples)
+        self.assertEqual(report["real_truth_counts"]["aircraft"], 1)
+        self.assertEqual(report["real_small_bird_count"], 1)
+        self.assertEqual(report["real_truth_counts"]["bird"], 2)
+        self.assertEqual(report["coverage_gaps"], ["500 independently labelled real photos"])
+        self.assertFalse(report["real_500_photo_benchmark"])
+
+
 if __name__ == "__main__":
     unittest.main()
