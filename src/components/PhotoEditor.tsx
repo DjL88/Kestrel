@@ -32,7 +32,9 @@ import { describeOutcome, naturalAuto, stageNaturalRecipe } from '../core/natura
 import { proposeSubjectAwareAuto, type InsightSubjectKind } from '../core/insightSubjectAuto';
 import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
 import { PhotoViewport } from './PhotoViewport';
-import { maxZoomFor, percentFor, stepZoom, zoomForPercent } from '../core/zoomControls';
+import { maxZoomFor, stepZoom, zoomForPercent } from '../core/zoomControls';
+import { ZoomControls } from './ZoomControls';
+import { createPortal } from 'react-dom';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, DETAIL_CONTROLS, NOISE_CONTROL, isNeutralEdit, isEmptyEdit, type PhotoEdit } from '../core/photoEdits';
 import type { PhotoFrame } from '../core/types';
@@ -488,6 +490,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     const timer = window.setTimeout(() => setEyeNote(null), 5000);
     return () => window.clearTimeout(timer);
   }, [eyeNote]);
+
+  // The bottom bar (App) holds a place for the zoom controls, so they sit where culling has them.
+  const [zoomSlot, setZoomSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => { setZoomSlot(document.getElementById('viewer-zoom-slot')); }, []);
 
   // Holding Shift shows the thirds grid, wherever the pointer is. Letting go, or leaving the window, hides it again.
   const [showGrid, setShowGrid] = useState(false);
@@ -1013,29 +1019,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           )}
         </div>
         <div className="flex items-center gap-1">
-        {/* Zoom lives in the toolbar, never over the photo and without taking height from it. */}
-        {fit > 0 && (
-          <div role="group" aria-label="Zoom" className="flex shrink-0 items-center gap-0.5 rounded-md border border-white/10 px-1 text-xs text-zinc-100">
-            <button type="button" aria-label="Zoom out" title="Zoom out (-)" className="h-7 w-7 rounded hover:bg-white/15"
-              onClick={() => zoomTo(stepZoom(transform.zoom, -1, maxZoom))}>−</button>
-            <span aria-live="polite" aria-label="Zoom level" className="min-w-10 text-center tabular-nums">{percentFor(transform.zoom, fit, dpr)}%</span>
-            <button type="button" aria-label="Zoom in" title="Zoom in (+)" className="h-7 w-7 rounded hover:bg-white/15"
-              onClick={() => zoomTo(stepZoom(transform.zoom, 1, maxZoom))}>+</button>
-            <input type="range" min={1} max={maxZoom} step={(maxZoom - 1) / 200} value={transform.zoom}
-              aria-label="Zoom amount" onChange={(event) => zoomTo(event.target.valueAsNumber)}
-              className="min-h-11 w-20 accent-sky-300 desk:min-h-9" />
-            <button type="button" title="Fit to screen " className="h-7 rounded px-1.5 hover:bg-white/15" onClick={() => zoomTo(1)}>Fit</button>
-            <button type="button" title="Actual pixels " className="h-7 rounded px-1.5 hover:bg-white/15"
-              onClick={() => zoomTo(zoomForPercent(100, fit, dpr))}>100%</button>
-            <button type="button" title="Twice actual pixels " className="h-7 rounded px-1.5 hover:bg-white/15"
-              onClick={() => zoomTo(zoomForPercent(200, fit, dpr))}>200%</button>
-            <button type="button" title="Zoom to the subject's eye (only moves the view)" className="h-7 rounded px-1.5 hover:bg-white/15"
-              disabled={findingEye || sourceState !== 'ready'} onClick={() => void zoomToEye()}>{findingEye ? 'Eye…' : 'Eye'}</button>
-            {eyeNote && <span role="status" className="px-1 text-xs text-zinc-300">{eyeNote}</span>}
-
-
-          </div>
-        )}
+        {/* Zoom lives in the bottom bar with the photo navigation, in the same place as in culling (ZoomControls). */}
+        {fit > 0 && (() => {
+          const controls = <ZoomControls zoom={transform.zoom} fit={fit} dpr={dpr} maxZoom={maxZoom} onZoom={zoomTo} note={eyeNote}
+            eye={{ onClick: () => void zoomToEye(), busy: findingEye, disabled: findingEye || sourceState !== 'ready', title: "Zoom to the subject's eye (only moves the view)" }} />;
+          return zoomSlot ? createPortal(controls, zoomSlot) : controls;
+        })()}
         <button type="button" className={`${button} inline-flex items-center`}
           aria-label="Appearance and layout settings" aria-expanded={appearanceOpen}
           onClick={() => setAppearanceOpen(true)} title="Display theme and editing tools side">
