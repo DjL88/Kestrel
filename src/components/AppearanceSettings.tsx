@@ -7,14 +7,18 @@ interface Props {
   onHandChange?: (hand: 'left' | 'right') => void;
 }
 
-/** One persistent handedness setting shared by Library and Editor on every device. */
+/**
+ * One choice, not two: which hand you use decides where the editing tools sit on a wide screen and where the touch
+ * controls sit on a phone, in the Library and the editor alike. (There used to be a separate "Editing panel position"
+ * that looked like the same question.)
+ */
 export function AppearanceSettings({ side, onSideChange, hand, onHandChange }: Props) {
   return (
     <div className="space-y-3 px-1 pb-2">
-      {hand && onHandChange && (
+      {hand && onHandChange ? (
         <fieldset className="space-y-1">
           <legend className="text-sm font-medium text-zinc-200">Preferred hand</legend>
-          <p className="text-xs text-zinc-400">Positions one-handed touch controls for comfort.</p>
+          <p className="text-xs text-zinc-400">The editing tools and touch controls move to this side, on every screen.</p>
           <div className="grid grid-cols-2 gap-2" role="group" aria-label="Preferred hand">
             {(['left', 'right'] as const).map((choice) => (
               <button key={choice} type="button" aria-pressed={hand === choice} onClick={() => onHandChange(choice)}
@@ -24,7 +28,7 @@ export function AppearanceSettings({ side, onSideChange, hand, onHandChange }: P
             ))}
           </div>
         </fieldset>
-      )}
+      ) : (
       <fieldset className="space-y-1">
         <legend className="text-sm font-medium text-zinc-200">Editing panel position</legend>
         <p className="text-xs text-zinc-400">Choose which side is most comfortable on a wide screen. On a phone, tools stay below the photo.</p>
@@ -38,6 +42,7 @@ export function AppearanceSettings({ side, onSideChange, hand, onHandChange }: P
           ))}
         </div>
       </fieldset>
+      )}
       <ThemePicker />
     </div>
   );
