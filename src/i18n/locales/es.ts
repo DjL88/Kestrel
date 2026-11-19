@@ -79,6 +79,8 @@ export const es: Translation = {
     draft: 'Traducción provisional, aún no revisada por un hablante nativo. Algunas pantallas siguen en inglés.',
   },
   appearance: {
+    dialogLabel: "Ajustes de pantalla y diseño",
+    shortcuts: "Atajos de teclado y controles",
     "position": "¿Dónde quieres las herramientas?",
     "positionHint": "Elige el lado para editar en una pantalla grande. En el móvil, las herramientas están debajo de la foto.",
     "toolsSide": "Lado de las herramientas",
