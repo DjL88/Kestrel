@@ -8,7 +8,7 @@ import re
 import subprocess
 from pathlib import Path
 
-ROW = re.compile(r'^(.+\.nef) \| (nikon-he(?:-star)?) \| ([1-9][0-9]*)x([1-9][0-9]*) \| (.+)$', re.I)
+ROW = re.compile(r'^([^/\\|]+\.nef) \| (nikon-he(?:-star)?) \| ([1-9][0-9]*)x([1-9][0-9]*) \| ([0-9]+(?:\.[0-9]+)?(?:ms|s))$', re.I)
 COUNT = re.compile(r'^High Efficiency files decoded from sensor data: ([0-9]+)$')
 
 def parse_output(output):
