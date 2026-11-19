@@ -1,6 +1,7 @@
 import { THUMB, bestTurn } from '../core/orientMatch';
 import type { NativeRawMasterRecipe, NativeRawMasterFraming } from '../core/nativeRawMaster';
 import { isDesktopApp } from './desktopShell';
+import { developRawInBrowser, sensorModeInBrowser, webRawAvailable } from './rawWasm';
 
 /** Fail closed before allocating/copying a potentially huge RAW file for native decoding. */
 export function validateRawExtension(extension: string): string {
@@ -13,8 +14,14 @@ export function validateRawExtension(extension: string): string {
   return value;
 }
 
-/** Developing a RAW file's sensor data needs the desktop app's native decoder. */
-export const canDevelopRaw = () => isDesktopApp();
+/**
+ * Developing a RAW file's sensor data: natively in the desktop app, and with the same Rust pipeline compiled to
+ * WebAssembly in the browser when this build carries it.
+ */
+export const canDevelopRaw = () => isDesktopApp() || webRawAvailable();
+
+/** The 16-bit TIFF master and DNG copies are written by the desktop app only, for now. */
+export const canExportRawMaster = () => isDesktopApp();
 
 /**
  * Send a RAW file to the desktop app's decoder and get back the full-size developed picture as a JPEG. The original file
@@ -24,6 +31,7 @@ export async function developRaw(file: Blob, extension = 'nef'): Promise<Blob> {
   // Do not silently reinterpret unknown formats (or path-like values) as a Nikon NEF or any one maker's format.
   // The native decoder independently validates its extension as a second boundary.
   const normalizedExtension = validateRawExtension(extension);
+  if (!isDesktopApp()) return developRawInBrowser(file);
   const { invoke } = await import('@tauri-apps/api/core');
   const bytes = new Uint8Array(await file.arrayBuffer());
   try {
@@ -75,11 +83,12 @@ export type RawSensorMode = 'nikon-he' | 'nikon-he-star' | 'other';
 const SENSOR_MODE_PREFIX = 4 * 1024 * 1024;
 
 /**
- * Whether a NEF is Nikon High Efficiency (HE or HE*), read by the desktop app from the file's headers only. Anything
- * that isn't a desktop NEF, or can't be read, is 'other': the answer only ever adds a label or a DNG option.
+ * Whether a NEF is Nikon High Efficiency (HE or HE*), read from the file's headers only (natively on desktop, by the
+ * WebAssembly pipeline in the browser). Anything else, or anything unreadable, is 'other': it only ever adds a label.
  */
 export async function rawSensorMode(file: Blob, filename: string): Promise<RawSensorMode> {
-  if (!isDesktopApp() || !/\.nef$/i.test(filename)) return 'other';
+  if (!/\.nef$/i.test(filename)) return 'other';
+  if (!isDesktopApp()) return webRawAvailable() ? sensorModeInBrowser(file, SENSOR_MODE_PREFIX) : 'other';
   try {
     const { invoke } = await import('@tauri-apps/api/core');
     const prefix = new Uint8Array(await file.slice(0, SENSOR_MODE_PREFIX).arrayBuffer());

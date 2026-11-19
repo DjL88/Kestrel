@@ -34,6 +34,14 @@ installs). **Before any public or paid build:** get a patent/licensing opinion, 
 build with `--no-default-features`, in which case HE files fall back to the
 embedded preview as before. Writing our own decoder would not avoid the patents.
 
+## The web app's RAW decoder (`src/assets/wasm/kestrel_raw.wasm`)
+
+The web app ships Kestrel's RAW pipeline (`crates/kestrel-raw`, via `crates/kestrel-raw-wasm`) compiled to
+WebAssembly. Serving the web app distributes that binary, so the `rawler` LGPL-2.1 question above applies to it too.
+The source of every part is in this repository and the binary is rebuilt with `npm run raw:wasm`. The committed
+binary is built **without** the `nikon-he` codec (`ticoraw`) because of the patent question above; a private, local
+build can add it with `npm run raw:wasm -- --with-nikon-he`.
+
 ## Rust crates (desktop shell, `src-tauri/Cargo.toml`)
 
 | Crate | License | Role |
