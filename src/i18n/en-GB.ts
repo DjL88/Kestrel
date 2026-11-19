@@ -77,6 +77,8 @@ export const enGB = {
     draft: 'Draft translation, not yet checked by a native speaker. Some screens are still in English.',
   },
   appearance: {
+    dialogLabel: 'Display and layout settings',
+    shortcuts: 'Keyboard and controller shortcuts',
     position: 'Which side should the tools be on?',
     positionHint: 'Choose where editing tools appear on a large screen. On a phone, they stay below the photo.',
     toolsSide: 'Side for editing tools',
