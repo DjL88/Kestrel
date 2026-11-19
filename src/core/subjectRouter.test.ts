@@ -78,8 +78,10 @@ test('landscapes and buildings are blocked from animal names', () => {
   }
 });
 
-test('with no router model the gate leaves today\'s behaviour alone', () => {
-  assert.equal(speciesGate(null), 'allow');
+test('missing router evidence cannot authorise closed-list species identification', () => {
+  assert.equal(speciesGate(null), 'block', 'an absent router must never turn a helicopter into an Osprey');
+  assert.equal(speciesGate(routeSubject(picture({ bird: 1 }), vectors, categories)), 'allow', 'independent bird evidence still allows species');
+  assert.equal(speciesGate(routeSubject(picture({ helicopter: 1 }), vectors, categories)), 'block', 'aircraft evidence blocks species');
 });
 
 test('a detector that saw an aeroplane breaks a tie towards aircraft, but cannot override a clear picture', () => {
