@@ -93,20 +93,18 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
             const top = pickSuggestions(rankSpecies(embedding, labels, vectors, personalBonus(labels, readSpeciesCounts())))[0];
             const best = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
             const named = best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) } : undefined;
-            {
-              // The gate looks at the same square as the species model. If it fails, nothing is decided for this photo.
-              const outcome = gateOutcome(await routePicture(picture, subjectCrop(picture.width, picture.height, grid)), frame.subjectKind);
-              const kind = frame.subjectKind ?? outcome.kind;
-              if (kind === 'wildlife' && outcome.species !== 'block') {
-                const sureEnough = outcome.species === 'allow' || (named && named.probability >= STRICT_SPECIES_PROBABILITY);
-                patch = scanPatch({ ...frame, subjectKind: kind }, sureEnough ? named : undefined);
-                if (outcome.kind) patch = { ...patch, subjectKind: outcome.kind };
-              } else if (kind) {
-                // Not an animal the list can name (a helicopter, a car): looked at, and no animal name offered.
-                patch = { speciesChecked: true };
-              }
-              // Unclassified and not clearly an animal: unknown stays unknown, and the opted-in helper may still answer.
+            // The gate looks at the same square as the species model. If it fails, nothing is decided for this photo.
+            const outcome = gateOutcome(await routePicture(picture, subjectCrop(picture.width, picture.height, grid)), frame.subjectKind);
+            const kind = frame.subjectKind ?? outcome.kind;
+            if (kind === 'wildlife' && outcome.species !== 'block') {
+              const sureEnough = outcome.species === 'allow' || (named && named.probability >= STRICT_SPECIES_PROBABILITY);
+              patch = scanPatch({ ...frame, subjectKind: kind }, sureEnough ? named : undefined);
+              if (outcome.kind) patch = { ...patch, subjectKind: outcome.kind };
+            } else if (kind) {
+              // Not an animal the list can name (a helicopter, a car): looked at, and no animal name offered.
+              patch = { speciesChecked: true };
             }
+            // Unclassified and not clearly an animal: unknown stays unknown, and the opted-in helper may still answer.
           } catch { /* A failed local analysis can still use the opted-in fallback. */ }
         }
         if (!stillCurrent() || !readAutoTag()) continue;
