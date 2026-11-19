@@ -68,13 +68,16 @@ export function routeSubject(
 ): RouteResult {
   if (!categories.length || categories.length !== vectors.length) throw new RangeError('There must be exactly one vector per category.');
   if (!vectors.every((vector) => vector.length === embedding.length)) throw new RangeError('The picture and the categories use different vector sizes.');
-  if (![...Array.from(embedding)].every(Number.isFinite)) throw new RangeError('The picture embedding is not a valid vector.');
+  if (!Array.from(embedding).every(Number.isFinite) || !Array.from(embedding).some((value) => value !== 0)) throw new RangeError('The picture embedding is not a valid vector.');
+  if (!vectors.every((vector) => Array.from(vector).every(Number.isFinite) && Array.from(vector).some((value) => value !== 0))) {
+    throw new RangeError('Category vectors must be finite and nonzero.');
+  }
   const scale = norm(embedding);
   const logits = vectors.map((vector, index) => {
     let value = LOGIT_SCALE * dot(embedding, vector) / (scale * norm(vector));
     // The strongest supporting detection for this category counts, scaled by how sure the detector was.
     const support = detections
-      .filter((detection) => detection.score >= thresholds.detectorMinimumScore && categories[index].detector.includes(detection.label))
+      .filter((detection) => Number.isFinite(detection.score) && detection.score >= thresholds.detectorMinimumScore && detection.score <= 1 && categories[index].detector.includes(detection.label))
       .reduce((best, detection) => Math.max(best, detection.score), 0);
     return value + thresholds.detectorBonus * support;
   });
