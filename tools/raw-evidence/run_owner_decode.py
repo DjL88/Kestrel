@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 
 ROW = re.compile(r'^([^/\\|]+\.nef) \| (nikon-he(?:-star)?) \| ([1-9][0-9]*)x([1-9][0-9]*) \| ([0-9]+(?:\.[0-9]+)?(?:ms|s))$', re.I)
+CFA = re.compile(r'^cfa-sha256 [|] ([^/\\\\|]+[.]nef) [|] ([0-9a-f]{64})$', re.I)
 COUNT = re.compile(r'^High Efficiency files decoded from sensor data: ([0-9]+)$')
 
 def parse_output(output):
@@ -16,6 +17,10 @@ def parse_output(output):
     for line in output.splitlines():
         line = line.strip()
         match = ROW.fullmatch(line)
+        if line.lower().startswith('cfa-sha256 |'):
+            continue
+        if (' | nikon-he' in line.lower() or line.lower().startswith('high efficiency files decoded from sensor data:')) and not (match or COUNT.fullmatch(line)):
+            raise ValueError('malformed native HE decode report')
         if match:
             path, decoder, width, height, elapsed = match.groups()
             rows.append((Path(path).name, decoder.lower(), int(width), int(height), elapsed))
@@ -28,6 +33,25 @@ def parse_output(output):
         raise ValueError('ambiguous duplicate NEF basenames')
     return rows
 
+def parse_cfa_hashes(output, rows):
+    hashes = {}
+    for line in output.splitlines():
+        line = line.strip()
+        if not line.startswith('cfa-sha256 |'):
+            continue
+        match = CFA.fullmatch(line)
+        if not match:
+            raise ValueError('malformed native CFA hash report')
+        name, digest = match.groups()
+        key = name.casefold()
+        if key in hashes:
+            raise ValueError('duplicate native CFA hash report')
+        hashes[key] = digest.lower()
+    expected = {row[0].casefold() for row in rows}
+    if set(hashes) != expected:
+        raise ValueError('native CFA hash report missing or does not match decoded files')
+    return hashes
+
 def collect(folder, tauri, runner=subprocess.run):
     folder = Path(folder).resolve(strict=True)
     tauri = Path(tauri).resolve(strict=True)
@@ -39,6 +63,7 @@ def collect(folder, tauri, runner=subprocess.run):
     if result.returncode != 0:
         raise ValueError('native HE decode test failed; do not record a PASS')
     rows = parse_output(result.stdout + '\n' + result.stderr)
+    cfa_hashes = parse_cfa_hashes(result.stdout + '\n' + result.stderr, rows)
     evidence = []
     for name, decoder, width, height, elapsed in rows:
         path = folder / name
@@ -50,10 +75,10 @@ def collect(folder, tauri, runner=subprocess.run):
                 digest.update(chunk)
         evidence.append({'file': name, 'sha256': digest.hexdigest(), 'decoder': decoder,
                          'width': width, 'height': height, 'native_elapsed': elapsed,
-                         'sensor_decode_test': 'PASS', 'cfa_hash': None,
+                         'sensor_decode_test': 'PASS', 'cfa_hash': cfa_hashes[name.casefold()],
                          'colour_accuracy': 'NOT VERIFIED', 'nx_studio_parity': 'NOT RUN'})
     return {'schema': 'kestrel-owner-he-decode-evidence-v1', 'samples': evidence,
-            'limits': 'Native test reports decoder/dimensions, not CFA hash, reference comparison or legal clearance.'}
+            'limits': 'Native test reports decoder/dimensions/CFA hash; hash is NOT independent reference parity or legal clearance.'}
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
