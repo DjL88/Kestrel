@@ -32,6 +32,7 @@ import { loadImage } from './providers/loadImage';
 import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
 import { ArrowLeft, ChevronLeft, ChevronRight, Copy, ClipboardPaste, Pin, PinOff, Info, PanelLeftClose, PanelLeftOpen, Maximize2 } from 'lucide-react';
 import { WorkspacePaneRail } from './components/WorkspacePaneRail';
+import { PhotoJump } from './components/PhotoJump';
 import { photoInfoDockSide, readWorkspacePaneState, toggleWorkspacePanes, writeWorkspacePaneState } from './core/workspacePaneState';
 import { newId } from './core/ids';
 import { redoLabel, undoLabel } from './core/describeAction';
@@ -2303,6 +2304,12 @@ export default function App() {
               focusPhoto={prefs.focusMode}
               onExecuteCommand={executeCommand}
               onStepFrame={handleStepFrame}
+              photoIndex={selectedVisibleIndex}
+              photoCount={visibleFrames.length}
+              onJumpToIndex={(index) => {
+                const next = visibleFrames[index];
+                if (next) handleSelectFrame(next.id);
+              }}
               onResetFrame={() => selectedFrame && requestReset([selectedFrame.id])}
               onOpenMenu={(x, y) => selectedFrame && openPhotoMenu(selectedFrame.id, x, y)}
             />
@@ -2346,6 +2353,11 @@ export default function App() {
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
               <button type="button" aria-label="Next photo" title="Next photo (→)" disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) < 0 || (editQueueIds ? editorIndex >= editorFrames.length - 1 : selectedVisibleIndex >= visibleFrames.length - 1)} onClick={() => handleStepFrame(1)}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
+              <PhotoJump index={editorIndex} total={editorFrames.length}
+                onJump={(index) => {
+                  const next = editorFrames[index];
+                  if (next) handleSelectFrame(next.id);
+                }} />
               <button type="button" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10"
                 onClick={() => { setCopiedEdit(selectedFrame.edit ?? DEFAULT_EDIT); showToast('Adjustments copied'); }}>
                 <Copy className="h-4 w-4" aria-hidden="true" /> Copy
