@@ -100,7 +100,7 @@ What worked: real Z 8 / Z5 II photos import, cull and edit; feather detail after
 **C. Editing tools**
 - Crop: draw the box with the mouse, and pull in from any edge, not only the corners.
 - ~~Hide the mask highlight while a slider moves and for about 3 seconds after, so it does not cover the edit.~~ MERGED 19 Nov: a mask's sliders and edge softness hide the highlight until 3 s after the last move; moving, painting, adding or deleting a mask keeps it (`onlyAdjustmentsChanged`).
-- Show a 3×3 thirds grid when hovering over the photo.
+- ~~Show a 3×3 thirds grid when hovering over the photo.~~ MERGED 19 Nov: appears while a mouse or pen is over the photo in the editor, follows the Gridlines switch, takes no clicks, zooms with the photo; never on touch screens.
 - Texture and Clarity make out-of-focus backgrounds noisier (seen on `_DJL5983`: Texture 13, Clarity 45). Detail controls should spare smooth, noise-level areas, or be offered on the subject only.
 
 **D. Library and projects**

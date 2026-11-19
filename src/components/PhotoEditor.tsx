@@ -1028,7 +1028,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         </div>
       </div>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden workspace:flex-row">
-      <div ref={stage} className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
+      <div ref={stage} data-photo-stage className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
         <PhotoViewport zoom={transform.zoom} pan={transform.pan} maxZoom={maxZoom} showZoomButton={false}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
           overlayMode={displayCompare ? 'wipe' : 'hidden'}
@@ -1038,6 +1038,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               hidden={sourceState !== 'ready'} className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />
             {detail && <canvas ref={editedDetail} aria-hidden="true" hidden={!showDetail}
               className="absolute" style={detail.style} />}
+            {/* A 3 × 3 thirds grid while the pointer is over the photo (not on touch screens). It follows the Gridlines
+                switch in Crop, takes no clicks, and zooms with the photo. */}
+            {!guide && position && gridLines && sourceState === 'ready' && <div aria-hidden="true" data-testid="thirds-grid"
+              className="thirds-hover crop-thirds pointer-events-none absolute" style={position} />}
             {!guide && position && markFocus && <button type="button" aria-label="Place export focus point" title="Place export focus point"
               className="absolute z-10 cursor-crosshair focus-visible:outline-2 focus-visible:outline-sky-200" style={position}
               onClick={(event) => {
