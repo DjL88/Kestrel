@@ -1,0 +1,46 @@
+# Flight One — integrated Kestrel quality release
+
+**Owner direction (19 November 2026):** deliver one coherent Kestrel update, not a collection of isolated micro-features. This is an **integration/release acceptance contract**, not a new product roadmap. Product intent lives in [PRODUCT-SPEC.md](PRODUCT-SPEC.md), prioritised status in [ROADMAP.md](ROADMAP.md), and live ownership in [issue #418](https://github.com/DjL88/Kestrel/issues/418).
+
+**Release promise:** a photographer can import 500 mixed Nikon Z8 and Z5II files, see and act on each photo without waiting for the shoot to complete, safely select the best birds, apply conservative natural edits and feather-aware masks, export correctly colour-managed full-resolution masters and social derivatives, and reopen the work offline without losing a decision, an edit, or a link to the original. Originals are immutable. No generative or invented pixels.
+
+## How the five pillars fit together
+
+| Pillar | Owns the input/output contract | Real-photo evidence required | Current gap / stop-ship |
+| --- | --- | --- | --- |
+| **1. Precision & colour** (K-05/K-08, Q-02/Q-03) | Original sensor CFA or explicitly labelled fallback → decoded linear working pixels → non-destructive edit → actual tagged output | Z8/Z5II lossless/HE/HE* source SHA, CFA provenance, matching NX Studio references, measured colour/gradient/white plumage differences; TIFF 16-bit and embedded ICC, same crop/mask/denoise as screen | ICC-tagging in this branch improves **current display-encoded sRGB TIFF**, **not** yet a scene-linear 16-bit preview; masks, straightening and denoise remain explicitly blocked in the 16-bit path |
+| **2. 500-photo workflow** (K-01/K-04/K-06, Q-01/Q-06) | Read original → EXIF/preview → independent per-photo readiness → progressive analysis → shoot-wide ranking → selectable edits → cancellable exports → reopen/relink | Optimised Mac/Windows from identical main SHA; real 500 then 2,000 photo mixed shoot; first-photo latency p50/p95, memory peak, cancel/resume, missed files, no wrong links and zero changed original hashes | #463 preflight integration is in review; no joined owner-device 500-RAW proof yet |
+| **3. Trustworthy subjects** (K-03/K-09, Q-04/Q-09) | Unclassified / aircraft / animal / person / unknown gate → optional species → conservative keep/review with manual precedence | Independently labelled real helicopters, Osprey, small/distant birds, Dippers, other negatives; aircraft→species and false keeper auto-reject denominators and confidence bounds | #462 evidence metrics are in review; no independent real-world accuracy claim yet |
+| **4. Natural Auto + masks** (K-02/K-07/K-08, Q-05/Q-10) | Trusted subject/mask/uncertainty and image information → **recipe only** → reversible screen/full-res render → qualitative acceptance | Before/after on authentic plumage, highlights, sunsets, backlit legs, overlapping twigs, noise/bokeh; mask fringe and gamut/hue changes; human preference against untouched/NX Studio/reference editors | This PR protects small vivid subjects from washed-out unattended Auto. Full precision mask/export parity and benchmarked outlines not achieved |
+| **5. TrueDetail** (K-05/K-08, Q-08) | Sensor-derived linear detail + ISO/scene noise estimate → bounded non-generative denoise/demosaic/capture sharpening → colour-managed render | Blinded high-ISO 100% feather/eye crops vs Lightroom Denoise, DxO DeepPRIME and NX Studio; texture preservation, artefacts, noise, speed, battery/RAM | Research-only: **do not** unlock paid feature or market parity until model and measurements are real |
+
+### Order and integration boundaries
+
+**A. Establish the gold test shoot.** User-owned NEFs stay local; use an explicitly licensed/public synthetic fixture subset for committed regression. Record manifest locally: source SHA-256, model/app SHA, camera, mode, ISO, dimensions, expected keeper/reject/unknown, eye/bird/aircraft labels and original/edit export paths. Keep private photos, GPS and path names off GitHub.
+
+**B. Stabilise the journey before adding capabilities.** Integrate and run #463 progressive import/preflight and #462 cull evidence only after full-suite validation and safe PR review. When model analysis is unavailable, a photo must stay clickable, marked Review/Unknown rather than automatically rejected. Stop and project switch must not apply stale observations. Golden end-to-end Playwright tests must be run with real installers as well as synthetic web tests.
+
+**C. Make one pixel-quality path, not competing renderers.** Decoder provenance, white balance, demosaic, baseline exposure, highlight shoulder, 16-bit/float working representation, mask composition, detail and final colour transform must be explicitly ordered. No false "16-bit scene-linear" claim from a 16-bit TIFF carrying display-encoded RGB. Do not silently omit a mask, denoise or rotation. Until supported, refuse with a clear remedy. The TIFF generated in this branch contains a standard sRGB ICC profile only, **not** Display P3/AdobeRGB or NX Studio-verified colour.
+
+**D. Apply intelligence conservatively.** Category gate before species; separate animal identity confidence from mask coverage and edit effect. Unknown subjects and uncertain eyes don't force confident names or auto-rejection. No AI image synthesis: suggest sliders and masks, keep manual overrides intact. If natural Auto breaks hue, crushes detail or clips, leave the unedited photograph intact and present a reversible suggestion instead.
+
+**E. Prove the output and return trip.** A full-size 16-bit master and social JPEG from one source must have expected dimensions, crop, orientation, all claimed adjustments and valid ICC. Compare export to screen within defined tolerances, and measure output sharpness/colour against reference. Kill/relaunch mid-shoot and after export; reattach a moved NAS/removable drive; verify source SHA, stable identity, decisions, virtual copies and history.
+
+## One release gate (all must pass)
+
+- [ ] **Real Nikon RAW evidence:** at least one supported lossless, HE and HE* path for each camera where the mode exists, independently inventoried and sensor-vs-preview disclosed. One codec or patent uncertainty means no commercial-release claim.
+- [ ] **Pixel quality:** master output includes every visible edit, at the requested bit depth and ICC. Neutral and high-ISO cases, clipped white plumage, fine feather/leg/branch edges and 16-bit gradients pass blind review and reproducible numeric checks.
+- [ ] **Subject safety:** independently labelled stratified real fixtures; report confusion, abstention, false keeper rejection, aircraft→Osprey errors, model and sample provenance. Zero events with zero denominator = NO EVIDENCE.
+- [ ] **Golden journey:** a 500-real-photo shoot on **both installed optimised Windows and macOS** builds of the same main commit, with import usable mid-batch, Stop/retry, edit and export, offline close/reopen/relink. Then stress-test 2,000.
+- [ ] **Cross-platform:** desktop and phone/tablet UI contain no inaccessible controls at physical screen sizes and 100/125/150% desktop scaling; label where browser/mobile memory makes full-quality RAW export unavailable.
+- [ ] **Performance:** publish first-click p50/p95, 500-photo throughput, per-step p95 responsiveness, peak resident/GPU memory at 8/16/32GB, battery/thermal fallback where applicable, and normal/hard-Nikon cases.
+- [ ] **TrueDetail:** don't label research prototypes as shipped; no invented detail; blind human and objective feather/noise comparisons reported, including failure cases.
+- [ ] **Privacy and legal:** originals unchanged SHA before/after; no image/PII uploaded; all model/code/codec dependencies and patent distribution cleared for actual release.
+- [ ] **Build and test:** `npm run lint`, `npm test`, `npm run build`, full desktop+phone Playwright, relevant Rust/Python, installed apps and real-file checks: **PASS / FAIL / NOT RUN** with exact main SHA and platform. GitHub billing-blocked runner with zero steps is **INFRASTRUCTURE BLOCKED**, not a pass.
+- [ ] **Independent owner review:** owner opens the release build, reviews the expected 500-photo album and exports, approves the actual workflow. No implied approval from a PR merge.
+
+## Execution: one release train, parallel tracks
+
+Use the current five hourly workers, not five competing roadmaps. Integration owns the final test shoot, merge queue, release branch, cross-platform builds, and per-photo progress. RAW owns pixel quality + ICC + HE provenance + TrueDetail tests; culling owns safety and labeled accuracy; UX owns the single calm workflow, natural Auto and mask experience; architecture owns originals, stable IDs, reopen/relink and performance. Each contributor should prioritise a complete **vertical outcome** and integrate with the shared gate, not create a standalone demo or docs-only micro-PR. Existing owners retain their active PRs and exclusive paths; do not force-push or double-implement #462/#463.
+
+**Reviewable development is not a release.** The branch containing this contract contributes sRGB ICC tagging and small vivid subject hue/desaturation guardrails with synthetic regressions. Those improve safety now but do not mark any of the major #418 items complete; only the comprehensive evidence above can do that.
