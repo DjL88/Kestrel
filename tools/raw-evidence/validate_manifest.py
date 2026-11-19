@@ -46,6 +46,9 @@ def validate(data, root):
             continue
         seen_files.add(name.casefold())
         path = (root / name).resolve()
+        if (root / name).is_symlink():
+            errors.append(f"{p}: symlink fixture not allowed")
+            continue
         if not path.is_relative_to(root.resolve()) or not path.is_file():
             errors.append(f"{p}: missing or escaped fixture")
             continue
