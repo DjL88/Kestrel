@@ -3,6 +3,10 @@ import { Check, Download, Loader2, RefreshCw, X } from 'lucide-react';
 import { SPECIES_MODEL, megabytes } from '../core/speciesModel';
 import { confidenceWord, kindFor, personalBonus, pickSuggestions, rankSpecies, similarPhotos, type Suggestion } from '../core/speciesMatch';
 import { qualifiesForAutoTag } from '../core/autoTags';
+import { gateOutcome } from '../core/categoryGate';
+import { STRICT_SPECIES_PROBABILITY } from '../core/subjectRouter';
+import { subjectCrop } from '../core/subjectCrop';
+import { gateAvailable, routePicture } from '../providers/categoryGate';
 import { readAutoTag, readSpeciesCounts, rememberSpecies, saveAutoTag } from '../providers/speciesLearning';
 import { helperReady, failureMessage, type HelperAnswer } from '../core/onlineHelper';
 import { openHelperDialog, useHelperSettings } from '../providers/helperSettings';
@@ -45,13 +49,14 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
   const [onlineAnswer, setOnlineAnswer] = useState<HelperAnswer | null>(null);
   const [onlineNote, setOnlineNote] = useState('');
   // The latest values, read after the model has finished, since they may have changed while it was thinking.
-  const latest = useRef({ canAutoTag, declined, onAutoTag, autoOn });
-  latest.current = { canAutoTag, declined, onAutoTag, autoOn };
+  const latest = useRef({ canAutoTag, declined, onAutoTag, autoOn, kind, tags, frameId });
+  latest.current = { canAutoTag, declined, onAutoTag, autoOn, kind, tags, frameId };
   const [status, setStatus] = useState<SpeciesStatus | 'checking'>('checking');
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<Suggestion[] | null>(null);
+  const [gateNote, setGateNote] = useState('');
   const [dismissed, setDismissed] = useState<string[]>([]);
   const abort = useRef<AbortController | null>(null);
   const run = useRef(0);
@@ -68,21 +73,38 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
     setBusy(true);
     setError('');
     try {
-      const [{ labels, vectors }, embedding_] = await Promise.all([loadSpeciesLabels(), embedPicture(picture)]);
+      // A species-only classifier cannot tell a helicopter from an Osprey. Do not
+      // infer a name unless independent on-device category evidence permits it.
+      if (!gateAvailable()) {
+        setResults([]);
+        setGateNote('Species suggestions need the on-device subject checker. Add a name yourself if you know it.');
+        return;
+      }
+      const route = await routePicture(picture, subjectCrop(picture.width, picture.height, null));
       if (mine !== run.current) return;
+      const gate = gateOutcome(route, latest.current.kind).species;
+      if (gate === 'block') {
+        setResults([]);
+        setGateNote('Not enough evidence to suggest an animal name. You can still add one yourself.');
+        return;
+      }
+      const [{ labels, vectors }, embedding_] = await Promise.all([loadSpeciesLabels(), embedPicture(picture)]);
+      if (mine !== run.current || latest.current.kind !== 'wildlife' || latest.current.frameId !== frameId) return;
       embedding.current = embedding_;
-      const picked = pickSuggestions(rankSpecies(embedding_, labels, vectors, personalBonus(labels, readSpeciesCounts())));
+      const picked = pickSuggestions(rankSpecies(embedding_, labels, vectors, personalBonus(labels, readSpeciesCounts())))
+        .filter((entry) => gate === 'allow' || entry.probability >= STRICT_SPECIES_PROBABILITY);
       setResults(picked);
+      setGateNote(gate === 'strict' ? 'Subject uncertain. These are suggestions to review, not automatic labels.' : '');
       // A strong match must also lead before personal ranking preferences are applied.
       const best = picked[0];
       const now = latest.current;
-      if (best && now.autoOn && now.canAutoTag && qualifiesForAutoTag(best, embedding_, labels, vectors) && !now.declined.some((name) => name.toLowerCase() === best.label.common.toLowerCase())) {
+      if (gate === 'allow' && best && now.kind === 'wildlife' && now.frameId === frameId && now.tags.length === 0 && now.autoOn && now.canAutoTag && qualifiesForAutoTag(best, embedding_, labels, vectors) && !now.declined.some((name) => name.toLowerCase() === best.label.common.toLowerCase())) {
         now.onAutoTag?.(best.label.common, kindFor(best.label));
         void findSimilar(best.label.common, kindFor(best.label));
       }
       setDismissed([]);
     } catch (reason) {
-      if (mine === run.current) setError(reason instanceof Error ? reason.message : 'Could not look at this photo.');
+      if (mine === run.current) { setResults([]); setGateNote('The subject checker could not confirm an animal. Add a name yourself if you know it.'); }
     } finally {
       if (mine === run.current) setBusy(false);
     }
@@ -91,6 +113,7 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
   // Look at each photo once, when it is ready and the model is on this device.
   useEffect(() => {
     setResults(null);
+    setGateNote('');
     setDismissed([]);
     setOffer(null);
     setOnlineAnswer(null);
@@ -233,7 +256,8 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
           className="grid h-10 w-10 place-items-center rounded-md hover:bg-white/10 disabled:opacity-45"><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} aria-hidden="true" /></button>
       </div>
       {busy && <p role="status" className="flex items-center gap-1.5 text-xs text-zinc-400"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />Looking at your photo…</p>}
-      {!busy && results && shown.length === 0 && <p role="status" className="text-xs text-zinc-400">{results.length ? 'Nothing else to suggest.' : 'No clear match. Add a tag yourself, or tap Look again after cropping closer.'}</p>}
+      {gateNote && <p role="status" className="text-xs text-zinc-400">{gateNote}</p>}
+      {!busy && results && shown.length === 0 && !gateNote && <p role="status" className="text-xs text-zinc-400">{results.length ? 'Nothing else to suggest.' : 'No clear match. Add a tag yourself, or tap Look again after cropping closer.'}</p>}
       {shown.length > 0 && (
         <ul aria-label="Suggested names" className="space-y-1">
           {shown.map((entry) => (
