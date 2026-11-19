@@ -13,6 +13,9 @@ def validate(data, root):
     errors = []
     if not isinstance(data, dict) or not isinstance(data.get("samples"), list):
         return ["manifest must contain a samples array"]
+    if not data["samples"]:
+        return ["manifest must contain at least one sample"]
+    seen_files = set()
     for i, sample in enumerate(data["samples"]):
         p = f"samples[{i}]"
         if not isinstance(sample, dict):
@@ -35,6 +38,13 @@ def validate(data, root):
         if not isinstance(digest, str) or len(digest) != 64 or any(c not in HEX for c in digest):
             errors.append(f"{p}: invalid sha256")
             continue
+        if "\\" in name or Path(name).name != name:
+            errors.append(f"{p}: unsafe or non-portable fixture filename")
+            continue
+        if name.casefold() in seen_files:
+            errors.append(f"{p}: duplicate fixture filename")
+            continue
+        seen_files.add(name.casefold())
         path = (root / name).resolve()
         if not path.is_relative_to(root.resolve()) or not path.is_file():
             errors.append(f"{p}: missing or escaped fixture")
