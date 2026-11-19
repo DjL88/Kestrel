@@ -109,3 +109,19 @@ export function gridSizeFor(aspect: number): { w: number; h: number } {
   const long = 192;
   return aspect >= 1 ? { w: Math.max(8, Math.round(long / aspect)), h: long } : { w: long, h: Math.max(8, Math.round(long * aspect)) };
 }
+
+/** Encode 0-to-1 values (w × h) as a recipe grid. */
+export function encodeValues(values: Float32Array, w: number, h: number): SubjectGrid {
+  let binary = '';
+  for (let i = 0; i < w * h; i += 1) binary += String.fromCharCode(Math.round(Math.min(1, Math.max(0, values[i] || 0)) * 255));
+  return { w, h, data: btoa(binary) };
+}
+
+/** Longest side of a subject's fine outline grid. Recipes stay small; the validator allows 512. */
+export const DETAIL_EDGE = 384;
+
+/** Size of the fine outline grid for a cut-out of this many pixels: never more cells than pixels, never below 8. */
+export function detailSizeFor(width: number, height: number): { w: number; h: number } {
+  const scale = Math.min(1, DETAIL_EDGE / Math.max(width, height));
+  return { w: Math.max(8, Math.round(width * scale)), h: Math.max(8, Math.round(height * scale)) };
+}

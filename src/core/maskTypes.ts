@@ -28,7 +28,16 @@ export type MaskShape =
    * Found by the on-device model for the framing named by framingKey. Strokes refine it: paint adds, erase removes.
    * Invert gives the background.
    */
-  | { kind: 'subject'; grid: SubjectGrid; framingKey: string; confidence: 'high' | 'medium' | 'low'; strokes: BrushStroke[] };
+  | { kind: 'subject'; grid: SubjectGrid; framingKey: string; confidence: 'high' | 'medium' | 'low'; strokes: BrushStroke[];
+      /**
+       * Optional fine outline for the area around the subject (0 to 1 across the framed photo), refined against the
+       * photo's own pixels. Used inside `region` wherever no brush stroke has touched; `grid` stays the whole-photo
+       * fallback, so older versions of Kestrel still read the mask.
+       */
+      detail?: SubjectDetail };
+
+/** A subject outline at finer resolution for one rectangle of the framed photo. */
+export interface SubjectDetail { region: { x: number; y: number; w: number; h: number }; grid: SubjectGrid }
 
 /** Restrict a mask by another one: only where it overlaps (intersect), or everywhere except it (subtract). */
 export interface MaskLimit { id: string; mode: 'intersect' | 'subtract' }
@@ -70,8 +79,29 @@ export function createBrushStroke(points: number[], radius: number, erase: boole
   return { points: points.map((value) => Math.round(value * 10000) / 10000), radius, erase: erase !== inverted };
 }
 
-export function createSubjectMask(id: string, grid: SubjectGrid, key: string, confidence: 'high' | 'medium' | 'low'): Extract<Mask, { kind: 'subject' }> {
-  return { id, kind: 'subject', grid, framingKey: key, confidence, strokes: [], invert: false, feather: 0.5, edit: {} };
+export function createSubjectMask(id: string, grid: SubjectGrid, key: string, confidence: 'high' | 'medium' | 'low', detail?: SubjectDetail | null): Extract<Mask, { kind: 'subject' }> {
+  return { id, kind: 'subject', grid, framingKey: key, confidence, strokes: [], invert: false, feather: 0.5, edit: {}, ...(detail ? { detail } : {}) };
+}
+
+/** A base64 grid of w × h bytes within the sizes Kestrel writes. */
+function validGrid(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) return false;
+  const { w, h, data } = value as Record<string, unknown>;
+  if (!Number.isInteger(w) || !Number.isInteger(h) || !finite(w, 8, 512) || !finite(h, 8, 512)) return false;
+  const cells = (w as number) * (h as number);
+  const expectedPadding = (3 - cells % 3) % 3;
+  return typeof data === 'string' && data.length === 4 * Math.ceil(cells / 3) && /^[A-Za-z0-9+/]*={0,2}$/.test(data) &&
+    (data.match(/=+$/)?.[0].length ?? 0) === expectedPadding;
+}
+
+function validDetail(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (typeof value !== 'object' || value === null) return false;
+  const { region, grid } = value as Record<string, unknown>;
+  if (typeof region !== 'object' || region === null) return false;
+  const { x, y, w, h } = region as Record<string, unknown>;
+  return finite(x, 0, 1) && finite(y, 0, 1) && finite(w, 0.001, 1) && finite(h, 0.001, 1) &&
+    (x as number) + (w as number) <= 1.000001 && (y as number) + (h as number) <= 1.000001 && validGrid(grid);
 }
 
 const finite = (value: unknown, low: number, high: number): value is number =>
@@ -101,13 +131,7 @@ export function validMasks(value: unknown): value is Mask[] {
     });
     if (mask.kind === 'brush') return strokesValid(mask.strokes);
     if (mask.kind === 'subject') {
-      const grid = mask.grid as Record<string, unknown> | null;
-      if (typeof grid !== 'object' || grid === null) return false;
-      const { w, h, data } = grid;
-      if (!Number.isInteger(w) || !Number.isInteger(h) || !finite(w, 8, 512) || !finite(h, 8, 512)) return false;
-      const cells = w * h;
-      const expectedPadding = (3 - cells % 3) % 3;
-      if (typeof data !== 'string' || data.length !== 4 * Math.ceil(cells / 3) || !/^[A-Za-z0-9+/]*={0,2}$/.test(data) || (data.match(/=+$/)?.[0].length ?? 0) !== expectedPadding) return false;
+      if (!validGrid(mask.grid) || !validDetail(mask.detail)) return false;
       return typeof mask.framingKey === 'string' && mask.framingKey.length <= 80 &&
         ['high', 'medium', 'low'].includes(mask.confidence as string) && strokesValid(mask.strokes);
     }

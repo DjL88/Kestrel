@@ -20,7 +20,34 @@ const smoothstep = (low: number, high: number, x: number) => {
 };
 
 const BRUSH_WIDTH = 384;
-const brushCache = new WeakMap<Mask, { aspect: number; rows: number; grid: Float32Array }>();
+const brushCache = new WeakMap<Mask, { aspect: number; rows: number; grid: Float32Array; touched: Float32Array }>();
+const detailCache = new WeakMap<object, Float32Array>();
+
+/** The subject's fine outline, decoded once per mask. */
+function detailValues(detail: NonNullable<Extract<Mask, { kind: 'subject' }>['detail']>): Float32Array {
+  let values = detailCache.get(detail);
+  if (!values) {
+    const bytes = decodeGrid(detail.grid.data, detail.grid.w * detail.grid.h);
+    values = new Float32Array(bytes.length);
+    for (let i = 0; i < bytes.length; i += 1) values[i] = bytes[i] / 255;
+    detailCache.set(detail, values);
+  }
+  return values;
+}
+
+/** The fine outline at a point of the framed photo, or null outside its region. Bilinear between cells. */
+function sampleDetail(detail: NonNullable<Extract<Mask, { kind: 'subject' }>['detail']>, nx: number, ny: number): number | null {
+  const { region, grid } = detail;
+  const lx = (nx - region.x) / region.w;
+  const ly = (ny - region.y) / region.h;
+  if (lx < 0 || lx > 1 || ly < 0 || ly > 1) return null;
+  const values = detailValues(detail);
+  const fx = Math.min(grid.w - 1.001, Math.max(0, lx * grid.w - 0.5));
+  const fy = Math.min(grid.h - 1.001, Math.max(0, ly * grid.h - 0.5));
+  const x = Math.floor(fx), y = Math.floor(fy), tx = fx - x, ty = fy - y;
+  const at = (xx: number, yy: number) => values[yy * grid.w + xx];
+  return (at(x, y) * (1 - tx) + at(x + 1, y) * tx) * (1 - ty) + (at(x, y + 1) * (1 - tx) + at(x + 1, y + 1) * tx) * ty;
+}
 
 function decodeGrid(data: string, count: number): Uint8Array {
   const binary = atob(data);
@@ -51,6 +78,8 @@ function brushGrid(mask: Extract<Mask, { kind: 'brush' | 'subject' }>, aspect: n
   if (cached && cached.aspect === aspect) return cached;
   const rows = Math.max(1, Math.round(BRUSH_WIDTH * aspect));
   const grid = new Float32Array(BRUSH_WIDTH * rows);
+  // How strongly brush strokes touched each cell, so a fine subject outline gives way to the person's own strokes.
+  const touched = new Float32Array(BRUSH_WIDTH * rows);
   if (mask.kind === 'subject') seedFromSubject(grid, rows, mask.grid);
   const dab = (cx: number, cy: number, radius: number, erase: boolean) => {
     const rGrid = radius * BRUSH_WIDTH;
@@ -64,6 +93,7 @@ function brushGrid(mask: Extract<Mask, { kind: 'brush' | 'subject' }>, aspect: n
       const strength = 1 - smoothstep(0.45, 1, d);
       const index = y * BRUSH_WIDTH + x;
       grid[index] = erase ? grid[index] * (1 - strength) : Math.max(grid[index], strength);
+      touched[index] = Math.max(touched[index], strength);
     }
   };
   for (const stroke of mask.strokes) {
@@ -81,19 +111,20 @@ function brushGrid(mask: Extract<Mask, { kind: 'brush' | 'subject' }>, aspect: n
       }
     }
   }
-  const made = { aspect, rows, grid };
+  const made = { aspect, rows, grid, touched };
   brushCache.set(mask, made);
   return made;
 }
 
-function sampleBrush(made: { rows: number; grid: Float32Array }, nx: number, ny: number): number {
+function sampleBrush(made: { rows: number; grid: Float32Array; touched: Float32Array }, nx: number, ny: number, layer: 'grid' | 'touched' = 'grid'): number {
   const fx = Math.min(BRUSH_WIDTH - 1.001, Math.max(0, nx * BRUSH_WIDTH - 0.5));
   const fy = Math.min(made.rows - 1.001, Math.max(0, ny * made.rows - 0.5));
   const x = Math.floor(fx);
   const y = Math.floor(fy);
   const tx = fx - x;
   const ty = fy - y;
-  const at = (xx: number, yy: number) => made.grid[Math.min(made.rows - 1, yy) * BRUSH_WIDTH + Math.min(BRUSH_WIDTH - 1, xx)];
+  const values = layer === 'grid' ? made.grid : made.touched;
+  const at = (xx: number, yy: number) => values[Math.min(made.rows - 1, yy) * BRUSH_WIDTH + Math.min(BRUSH_WIDTH - 1, xx)];
   return (at(x, y) * (1 - tx) + at(x + 1, y) * tx) * (1 - ty) + (at(x, y + 1) * (1 - tx) + at(x + 1, y + 1) * tx) * ty;
 }
 
@@ -131,7 +162,13 @@ export function maskAlpha(mask: Mask, width: number, height: number, context: Ma
         const d = Math.hypot((nx - mask.cx) / mask.rx, ((ny - mask.cy) * aspect) / mask.ry);
         a = 1 - smoothstep(inner, 1, d);
       } else if (mask.kind === 'subject') {
-        a = smoothstep(0.5 - soften, 0.5 + soften, sampleBrush(brush!, nx, ny));
+        let value = sampleBrush(brush!, nx, ny);
+        const fine = mask.detail ? sampleDetail(mask.detail, nx, ny) : null;
+        if (fine !== null) {
+          const stroke = mask.strokes.length ? sampleBrush(brush!, nx, ny, 'touched') : 0;
+          value = fine + (value - fine) * stroke;
+        }
+        a = smoothstep(0.5 - soften, 0.5 + soften, value);
       } else {
         a = sampleBrush(brush!, nx, ny);
       }
