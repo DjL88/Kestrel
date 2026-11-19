@@ -8,7 +8,7 @@ import { helperReady, failureMessage, type HelperAnswer } from '../core/onlineHe
 import { openHelperDialog, useHelperSettings } from '../providers/helperSettings';
 import { HelperError, geminiTransport, imageForHelper } from '../providers/onlineHelper';
 import type { SubjectKind } from '../core/subjectTags';
-import { downloadSpeciesModel, embedPicture, loadSpeciesLabels, speciesStatus, type SpeciesStatus } from '../providers/speciesModel';
+import { SPECIES_DOWNLOAD_BYTES, downloadSpeciesModel, embedPicture, loadSpeciesLabels, speciesStatus, type SpeciesStatus } from '../providers/speciesModel';
 
 interface Props {
   frameId: string;
@@ -194,10 +194,10 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
     return (
       <section aria-label="Species suggestions" className="space-y-2 px-1 pb-2">
         <h3 className="text-sm font-medium text-zinc-100">Suggest what is in your photos</h3>
-        <p className="text-xs text-zinc-400">Turn on suggestions for birds and animals. It is a {megabytes(SPECIES_MODEL.bytes)} download, then it works offline and your photos never leave this device.</p>
+        <p className="text-xs text-zinc-400">Turn on suggestions for birds and animals. It is a {megabytes(SPECIES_DOWNLOAD_BYTES)} download (a subject checker and the species model), then it works offline and your photos never leave this device.</p>
         {progress === null ? (
           <button type="button" onClick={() => void download()} className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-white/15 px-3 text-sm font-medium hover:bg-white/10">
-            <Download className="h-4 w-4" aria-hidden="true" />Download ({megabytes(SPECIES_MODEL.bytes)})
+            <Download className="h-4 w-4" aria-hidden="true" />Download ({megabytes(SPECIES_DOWNLOAD_BYTES)})
           </button>
         ) : (
           <div className="space-y-1">

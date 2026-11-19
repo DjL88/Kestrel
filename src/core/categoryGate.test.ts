@@ -36,9 +36,9 @@ test('a kind the person chose always wins', () => {
   assert.equal(gateOutcome(route(at('bird')), 'people').kind, undefined);
 });
 
-test('without the gate model, behaviour is exactly as before', () => {
-  assert.deepEqual(gateOutcome(null, undefined), { species: 'allow' });
-  assert.deepEqual(gateOutcome(null, 'wildlife'), { species: 'allow' });
+test('without category evidence, no automatic animal name, even on a photo marked Wildlife', () => {
+  assert.deepEqual(gateOutcome(null, undefined), { species: 'block' });
+  assert.deepEqual(gateOutcome(null, 'wildlife'), { species: 'block' });
 });
 
 test('a picture halfway between a bird and a helicopter is not classified', () => {

@@ -108,11 +108,14 @@ test('a strong local result stays on-device and an unresolved photo uses the opt
   const seen = await pretendGemini(page, (route) => route.fulfill({ json: OWL, headers: { 'access-control-allow-origin': '*' } }));
   await page.goto('/');
   const standIn = Array.from(readFileSync('tests/fixtures/stand-in-species.onnx'));
-  await page.evaluate(async ({ bytes, consent }) => {
+  // The browser's species download also keeps the subject checker (category gate); its stand-in "sees" a bird.
+  const standInGate = Array.from(readFileSync('tests/fixtures/stand-in-gate.onnx'));
+  await page.evaluate(async ({ bytes, gate, consent }) => {
     const cache = await caches.open('kestrel-species-v1');
     await cache.put('/stand-in-species.onnx', new Response(new Uint8Array(bytes)));
+    await cache.put('/stand-in-gate.onnx', new Response(new Uint8Array(gate)));
     localStorage.setItem('kestrel.helper.v1', JSON.stringify({ enabled: true, consent, key: 'test-key-123' }));
-  }, { bytes: standIn, consent: HELPER_CONSENT_VERSION });
+  }, { bytes: standIn, gate: standInGate, consent: HELPER_CONSENT_VERSION });
   await page.reload();
 
   const project = createDemoShootState(2);

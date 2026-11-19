@@ -6,13 +6,46 @@ import { routeSubject, type RouteResult, type SubjectCategory } from '../core/su
 import type { SquareCrop } from '../core/subjectCrop';
 import { friendlyToolError } from '../core/toolErrors';
 import { isDesktopApp } from './desktopShell';
+import { getModel, hasModel, putModel, removeModel } from './modelStore';
 
 /**
  * Runs the category gate's image model (CLIP ViT-B/32, MIT, public/models) on this device and routes the picture.
- * The desktop app carries the file in its installer, so the gate is on there. In a browser it stays off for now: the file
- * is another 89 MB, and browsers only download models the person asks for. Then the species step behaves as before.
+ * The desktop app and the phone/tablet shells carry the file with the app. In a browser it comes with the species model,
+ * in the same opt-in download, and is kept on the device for offline use.
  */
-export const gateAvailable = () => isDesktopApp();
+export async function gateAvailable(): Promise<boolean> {
+  if (isDesktopApp()) return true;
+  return hasModel(GATE_MODEL.cache, GATE_MODEL.url).catch(() => false);
+}
+
+/** Download the gate model in a browser, check it as it arrives, and keep it. Progress is 0 to 1. */
+export async function downloadGateModel(onProgress: (fraction: number) => void, signal?: AbortSignal): Promise<void> {
+  if (isDesktopApp() || await hasModel(GATE_MODEL.cache, GATE_MODEL.url)) { onProgress(1); return; }
+  const response = await fetch(GATE_MODEL.url, { signal });
+  if (!response.ok || !response.body) throw new Error('The subject checker could not be downloaded.');
+  const reader = response.body.getReader();
+  const hash = new Sha256Stream();
+  const pieces: Uint8Array[] = [];
+  let received = 0;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    hash.update(value);
+    pieces.push(value);
+    received += value.length;
+    onProgress(Math.min(0.98, received / GATE_MODEL.bytes));
+  }
+  if (received !== GATE_MODEL.bytes || hash.digest() !== GATE_MODEL.sha256) {
+    throw new Error('The downloaded subject checker does not match its checksum, so it was not kept. Try again.');
+  }
+  await putModel(GATE_MODEL.cache, GATE_MODEL.url, new Blob(pieces as BlobPart[], { type: 'application/octet-stream' }));
+  onProgress(1);
+}
+
+export async function removeGateModel(): Promise<void> {
+  loading = null;
+  await removeModel(GATE_MODEL.cache, GATE_MODEL.url);
+}
 
 type Ort = typeof import('onnxruntime-web/wasm');
 interface Loaded { ort: Ort; session: import('onnxruntime-web/wasm').InferenceSession; categories: SubjectCategory[]; vectors: Float32Array[] }
@@ -20,9 +53,17 @@ let loading: Promise<Loaded> | null = null;
 
 function load(): Promise<Loaded> {
   loading ??= (async () => {
-    const response = await fetch(GATE_MODEL.url);
-    if (!response.ok) throw new Error('The subject category model is missing. Reinstall Kestrel.');
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    let bytes: Uint8Array;
+    const stored = isDesktopApp() ? undefined : await getModel(GATE_MODEL.cache, GATE_MODEL.url);
+    if (stored) {
+      bytes = new Uint8Array(await stored.arrayBuffer());
+    } else if (isDesktopApp()) {
+      const response = await fetch(GATE_MODEL.url);
+      if (!response.ok) throw new Error('The subject category model is missing. Reinstall Kestrel.');
+      bytes = new Uint8Array(await response.arrayBuffer());
+    } else {
+      throw new Error('The subject checker has not been downloaded.');
+    }
     const hash = new Sha256Stream();
     hash.update(bytes);
     if (bytes.byteLength !== GATE_MODEL.bytes || hash.digest() !== GATE_MODEL.sha256) {
