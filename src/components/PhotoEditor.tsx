@@ -196,7 +196,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     try { localStorage.setItem(SHEET_KEY, open ? 'open' : 'closed'); } catch { /* the sheet still works for this session */ }
   };
   const chooseTab = (id: Tab) => {
-    if (toolsCollapsed) onExpandTools?.();
+    if (toolsCollapsed) {
+      onExpandTools?.();
+      setTab(id);
+      if (isPhone) rememberSheet(true);
+      return;
+    }
     if (!isPhone) { setTab(id); return; }
     if (id === tab && sheetOpen) {
       // Folding the crop tool away applies the crop, since its Apply button is inside the sheet.
