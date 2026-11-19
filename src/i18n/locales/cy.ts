@@ -79,6 +79,8 @@ export const cy: Translation = {
     draft: 'Cyfieithiad drafft, heb ei wirio gan siaradwr brodorol eto. Mae rhai sgriniau yn Saesneg o hyd.',
   },
   appearance: {
+    dialogLabel: "Gosodiadau dangos a chynllun",
+    shortcuts: "Llwybrau byr bysellfwrdd a rheolydd",
     "position": "Ar ba ochr dylai'r offer fod?",
     "positionHint": "Dewiswch ochr y sgrin ar gyfer offer golygu. Ar ffôn, mae'r offer o dan y llun.",
     "toolsSide": "Ochr yr offer golygu",
