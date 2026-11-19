@@ -10,6 +10,7 @@ import {
 import { panToCentre } from '../core/eyeFinder';
 import { maxZoomFor, zoomForPercent } from '../core/zoomControls';
 import { ZoomControls } from './ZoomControls';
+import { PhotoJump } from './PhotoJump';
 import { locateEye } from '../providers/eyeLocator';
 import {
   type CommandId,
@@ -34,6 +35,10 @@ interface LoupePreviewProps {
   canUndo: boolean;
   hasPrev: boolean;
   hasNext: boolean;
+  /** Current position in the same filtered visible shoot used by the filmstrip. */
+  photoIndex: number;
+  photoCount: number;
+  onJumpToIndex: (index: number) => void;
   needsAccess: boolean;
   bindings: KeyBindingsMap;
   knobMode: KnobFunction;
@@ -57,6 +62,9 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
   canUndo,
   hasPrev,
   hasNext,
+  photoIndex,
+  photoCount,
+  onJumpToIndex,
   needsAccess,
   bindings,
   knobMode,
@@ -178,6 +186,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
           className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/8 disabled:opacity-30">
           <ChevronRight className="h-5 w-5" aria-hidden="true" />
         </button>
+        <PhotoJump index={photoIndex} total={photoCount} onJump={onJumpToIndex} />
         <div className="flex flex-1 shrink-0 items-center justify-center gap-1 sm:gap-2">
           <DecisionButtons labels decision={frame.decision} filename={frame.filename} edited={isEdited(frame)}
             onKeep={() => onExecuteCommand('cull.keep')}
