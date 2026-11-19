@@ -23,7 +23,7 @@ def fixture(bits=16, icc=True, flat=False, truncate=False, width=2):
         if tag == 273: values = [cursor + (128 if icc else 0)]
         raw = (struct.pack('<' + ('H' if typ == 3 else 'I') * len(values), *values)
                if typ in (3,4) else values)
-        val = raw.ljust(4,b'\\0') if len(raw) <= 4 else struct.pack('<I',cursor)
+        val = raw.ljust(4,bytes(1)) if len(raw) <= 4 else struct.pack('<I',cursor)
         if len(raw) > 4:
             extra.extend(raw)
             cursor += len(raw)
