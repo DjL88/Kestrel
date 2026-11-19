@@ -76,6 +76,63 @@
   }
 }
 
+/* Section F — the same calm adjustment slider in Edit, Quick Adjust and Masks.
+   Range thumbs remain native keyboard controls; track colour is supplemental to
+   the numeric value and visible neutral tick. Only chrome changes, never pixels. */
+.kestrel-adjustment-range {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  margin: 0;
+  touch-action: pan-y;
+}
+.kestrel-adjustment-range::-webkit-slider-runnable-track {
+  height: 4px;
+  background: transparent;
+  border: 0;
+}
+.kestrel-adjustment-range::-moz-range-track {
+  height: 4px;
+  background: transparent;
+  border: 0;
+}
+.kestrel-adjustment-range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 17px;
+  height: 17px;
+  margin-top: -6.5px;
+  border-radius: 50%;
+  border: 1px solid rgb(20 22 27 / 0.6);
+  background: #f4f2ed;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+}
+.kestrel-adjustment-range::-moz-range-thumb {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 1px solid rgb(20 22 27 / 0.6);
+  background: #f4f2ed;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+}
+.kestrel-adjustment-range:focus-visible {
+  outline: 2px solid #a8d7ff;
+  outline-offset: 1px;
+  border-radius: 5px;
+}
+.kestrel-adjustment-range:disabled::-webkit-slider-thumb { opacity: 0.6; }
+.kestrel-adjustment-range:disabled::-moz-range-thumb { opacity: 0.6; }
+@media (pointer: coarse) {
+  .kestrel-adjustment-range::-webkit-slider-thumb { width: 21px; height: 21px; margin-top: -8.5px; }
+  .kestrel-adjustment-range::-moz-range-thumb { width: 21px; height: 21px; }
+}
+@media (forced-colors: active) {
+  .kestrel-adjustment-range::-webkit-slider-thumb { background: ButtonText; border-color: Canvas; }
+  .kestrel-adjustment-range::-moz-range-thumb { background: ButtonText; border-color: Canvas; }
+  .kestrel-adjustment-range:focus-visible { outline-color: Highlight; }
+  .kestrel-adjustment [aria-hidden="true"] { forced-color-adjust: none; }
+}
+
 /* The browser viewport, not document content, defines the mobile shell. Long
    toolbars scroll within themselves; never let them widen the page. */
 @media (max-width: 899px), (max-height: 549px) {
