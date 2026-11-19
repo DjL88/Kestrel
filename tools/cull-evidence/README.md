@@ -36,3 +36,17 @@ The report separately lists `real_truth_counts`, `real_small_bird_count` and `co
 `real_risk_denominators` and `real_risk_events` separate independently labelled real-photo records from synthetic fixtures. The four denominator groups are **real aircraft**, **real non-animals** (aircraft/person/other), **human-labelled real keepers**, and **human-labelled real tiny/distant-bird keepers**. Their corresponding event counts include aircraft incorrectly auto-tagged Osprey or another species, non-animals automatically assigned any species, and human keepers automatically rejected (including the tiny/distant subgroup). The original top-level counts still include both synthetic and real inputs for backwards compatibility.
 
 A zero denominator means **no evidence**, not a 0% error rate. Do not divide by zero, derive significance from a handful of examples, or claim this report proves a deployed model's real-world performance. To estimate error rates or uncertainty, first validate the capture/model-build provenance, independently reviewed annotations, sampling strategy and per-stratum sample sizes. Data stay local; publish only reviewed aggregate counts.
+
+## Evidence readiness (offline, not release approval)
+
+First produce an **aggregate** JSON file locally from anonymous labelled JSONL. Then inspect measurement coverage, observed safety incidents and uncertainty:
+
+```sh
+python3 tools/cull-evidence/evaluate.py /path/to/local-labels.jsonl > /path/to/local-aggregate.json
+python3 tools/cull-evidence/readiness.py /path/to/local-aggregate.json
+python3 -m unittest discover -s tools/cull-evidence -v
+```
+
+The readiness report checks real-labelled coverage of at least 500 photos, including default *illustrative* minimums of 50 aircraft, 50 ordinary birds, 50 tiny/distant birds, 50 non-animal negatives and 100 human-labelled keepers. These minimums are conservative **workflow checks**, not scientifically calibrated sample-size thresholds; the Python `assess` function accepts an explicit complete minimums dictionary for a preregistered study. Synthetic evidence never fills the real denominators.
+
+For each real-only risk event it publishes a two-sided 95% Wilson **upper confidence limit**, or `null` when the denominator is zero. Even when a sample has zero failures, its upper bound is not zero. Observed aircraft→Osprey or keeper false-reject incidents remain visible. Status `coverage_sufficient_for_human_review` is **not** a pass/fail performance judgement; `release_approval` is always `false`. Independent annotation, confidence calibration, source integrity, model/app build, representative sampling, and owner acceptance must be demonstrated separately. Keep individual photo evidence and images local.
