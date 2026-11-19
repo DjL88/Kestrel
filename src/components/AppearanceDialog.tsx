@@ -1,6 +1,7 @@
 import { AppearanceSettings } from './AppearanceSettings';
 import { Keyboard } from 'lucide-react';
 import { isDesktopApp } from '../providers/desktopShell';
+import { messages as m } from '../i18n/messages';
 
 interface Props {
   side: 'left' | 'right';
@@ -28,8 +29,8 @@ export function AppearanceDialog({ side, onSideChange, hand, onHandChange, onClo
         }}
         className="max-h-[85dvh] w-full max-w-md min-w-0 overflow-y-auto rounded-xl border border-white/15 bg-kestrel-panel p-4 shadow-2xl">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold">Appearance & layout</h2>
-          <button type="button" autoFocus className="min-h-11 rounded-md px-3 text-sm hover:bg-white/10" onClick={onClose}>Done</button>
+          <h2 className="text-base font-semibold">{m.settings.title}</h2>
+          <button type="button" autoFocus className="min-h-11 rounded-md px-3 text-sm hover:bg-white/10" onClick={onClose}>{m.settings.done}</button>
         </div>
         <AppearanceSettings side={side} onSideChange={onSideChange} hand={hand} onHandChange={onHandChange} />
         {onOpenMacroPad && isDesktopApp() && (

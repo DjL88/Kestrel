@@ -1,15 +1,13 @@
 import type { PhotoFrame } from './types';
 import { formatAperture, formatFocalLength } from './exifParser';
+import { formatCapturedAt } from './formatDate';
 
-/** Human-readable capture date and time, in the photographer's local display locale. */
+/** Human-readable capture date and time, in the language chosen in Settings (British English by default). */
 export function formatCaptureDateTime(ms?: number): string {
   if (typeof ms !== 'number' || !Number.isFinite(ms)) return '';
   const captured = new Date(ms);
   if (Number.isNaN(captured.getTime())) return '';
-  return captured.toLocaleString([], {
-    year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-  });
+  return formatCapturedAt(ms);
 }
 
 /** Plain-text camera details only: no GPS, serial numbers, file paths or photos. */
