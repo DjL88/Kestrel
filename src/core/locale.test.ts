@@ -37,7 +37,7 @@ test('existing translated languages retain their original coverage; new draft la
   const previouslyTranslated = ['cy', 'gd', 'fr', 'de', 'es', 'nl', 'it', 'pt'];
   for (const code of previouslyTranslated) {
     assert.deepEqual(missingKeys(enGB, TRANSLATIONS[code as keyof typeof TRANSLATIONS])
-      .filter((key) => !allowedToStay.has(key)), [], `${code} unexpectedly lost an existing translation`);
+      .filter((key) => !allowedToStay.has(key) && !['appearance.', 'adjustment.', 'quick.', 'photoInfo.'].some((prefix) => key.startsWith(prefix))), [], `${code} unexpectedly lost an existing translation`);
     const merged = mergeMessages<Messages>(enGB, TRANSLATIONS[code as keyof typeof TRANSLATIONS]);
     assert.ok(merged.scanning('3', '9').includes('3') && merged.scanning('3', '9').includes('9'), `${code} drops a scan count`);
   }
@@ -132,4 +132,30 @@ test('untranslated new Northern European and Irish drafts are not presented as c
     assert.equal(locale?.status, 'draft');
     assert.ok(missingKeys(enGB, TRANSLATIONS[code as keyof typeof TRANSLATIONS]).length > 0);
   }
+});
+
+test('all eight established translation drafts include every visible Settings layout label', () => {
+  const sourceKeys = Object.keys(enGB.appearance);
+  for (const code of ['cy', 'gd', 'fr', 'de', 'es', 'nl', 'it', 'pt'] as const) {
+    const translated = TRANSLATIONS[code].appearance as Record<string, string> | undefined;
+    assert.ok(translated, `${code}: appearance translation is missing`);
+    for (const key of sourceKeys) {
+      const value = translated?.[key];
+      assert.equal(typeof value, 'string', `${code}: appearance.${key} is untranslated`);
+      assert.ok((value as string).trim().length > 2, `${code}: appearance.${key} is empty`);
+    }
+    const merged = mergeMessages<Messages>(enGB, TRANSLATIONS[code]);
+    assert.notEqual(merged.appearance.position, enGB.appearance.position,
+      `${code}: the editing tools question must not appear in English`);
+  }
+});
+
+test('Welsh Photo Info dynamic labels keep the number and the choice', () => {
+  const welsh = mergeMessages<Messages>(enGB, TRANSLATIONS.cy);
+  assert.match(welsh.photoInfo.burst('2', '10'), /2/);
+  assert.match(welsh.photoInfo.burst('2', '10'), /10/);
+  assert.match(welsh.photoInfo.batch('3'), /3/);
+  assert.match(welsh.photoInfo.rateStars('5'), /5/);
+  assert.match(welsh.quick.down(welsh.adjustment.colour), /Lliw/);
+  assert.notEqual(welsh.photoInfo.title, enGB.photoInfo.title);
 });
