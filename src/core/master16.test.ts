@@ -90,6 +90,43 @@ test('quarter turns go clockwise, as in the editor, and the crop is cut after tu
   assert.deepEqual(layout(frameRgb16(numbered(), { ...DEFAULT_FRAMING, turns: 1, ratio: 1, x: 1, y: 1 })), [[5, 2], [6, 3]]);
 });
 
+test('straightening applies at 16-bit precision without clipping a constant image', () => {
+  const width = 111, height = 73, value = 31_234;
+  const image: Rgb16Image = { width, height, data: new Uint16Array(width * height * 3).fill(value) };
+  for (const angle of [-13, -4, 0.75, 6.5, 13]) {
+    const framed = frameRgb16(image, { ...DEFAULT_FRAMING, straighten: angle });
+    assert.equal(framed.width, width);
+    assert.equal(framed.height, height);
+    assert.ok(framed.data.every((sample) => sample === value), `no black borders or 8-bit banding at angle ${angle}`);
+  }
+});
+
+test('straightening turns a true 16-bit horizontal gradient without an 8-bit roundtrip', () => {
+  const width = 96, height = 64;
+  const image: Rgb16Image = { width, height, data: new Uint16Array(width * height * 3) };
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const at = (y * width + x) * 3;
+    image.data[at] = 1000 + x * 460;
+    image.data[at + 1] = 2500 + y * 650;
+    image.data[at + 2] = 17_777;
+  }
+  const output = frameRgb16(image, { ...DEFAULT_FRAMING, straighten: 7 });
+  const at = (x: number, y: number, channel = 0) => output.data[(y * width + x) * 3 + channel];
+  assert.ok(at(48, 10) < at(48, 52), 'positive rotation makes horizontal content slant clockwise');
+  assert.equal(at(48, 32, 2), 17_777, 'untouched channel retains its 16-bit sample');
+  assert.ok(output.data.some((value) => value % 257 !== 0), 'straighten did not quantise to 8-bit');
+  assert.ok(at(48, 32) > 21_000 && at(48, 32) < 24_000, 'centre stays near the original centre');
+});
+
+test('straighten after quarter-turn and crop preserves dimensions and source boundaries', () => {
+  const width = 121, height = 87, value = 26_543;
+  const image: Rgb16Image = { width, height, data: new Uint16Array(width * height * 3).fill(value) };
+  const framed = frameRgb16(image, { ...DEFAULT_FRAMING, turns: 1, ratio: 1, straighten: 5 });
+  assert.equal(framed.width, height);
+  assert.equal(framed.height, height);
+  assert.ok(framed.data.every((sample) => sample === value), 'orientation and crop do not reveal black frame');
+});
+
 test('the TIFF holds the exact 16-bit samples, with the headers every reader needs', async () => {
   const image: Rgb16Image = { width: 5, height: 3, data: Uint16Array.from({ length: 45 }, (_, i) => i * 1400 + 7) };
   const tiff = new DataView(await encodeTiff16(image).arrayBuffer());
@@ -226,5 +263,5 @@ test('edits the 16-bit TIFF cannot carry yet are named, never silently dropped',
   assert.match(master16Blocker({ ...EDIT, masks: [localDetail] }, DEFAULT_FRAMING)!, /local mask Texture/);
   const frame: Rgb16Image = { width: 16, height: 16, data: new Uint16Array(16 * 16 * 3) };
   assert.throws(() => applyToneMasksRgb16(frame, [localDetail]), /local mask Texture/);
-  assert.match(master16Blocker(EDIT, { ...DEFAULT_FRAMING, straighten: 2 })!, /straightening/);
+  assert.equal(master16Blocker(EDIT, { ...DEFAULT_FRAMING, straighten: 2 }), null, '16-bit TIFF now includes straightening');
 });
