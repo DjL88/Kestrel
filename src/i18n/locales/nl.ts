@@ -104,6 +104,7 @@ export const nl: Translation = {
     "denoise": "Ruis verminderen"
   },
   quick: {
+    changed: "(gewijzigd)",
     "title": "Snel bewerken",
     "allControls": "Alle regelaars",
     "choose": "Kies een aanpassing"
