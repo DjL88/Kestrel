@@ -147,3 +147,18 @@ test('high top probability with insufficient margin never reads as a likely subj
   assert.match(routeWording(confidentAircraft), /^Likely helicopter$/);
   assert.equal(speciesGate(confidentAircraft), 'block');
 });
+
+test('finite extreme-magnitude embeddings keep finite probabilities and conservative species gating', () => {
+  // All inputs are finite. The former unscaled dot/norm implementation overflowed
+  // to Infinity, producing NaN probabilities and an invalid confident result.
+  const largePicture = Float64Array.from(picture({ helicopter: 1 }), (value) => value * 1e200);
+  const largeVectors = vectors.map((vector) => Float64Array.from(vector, (value) => value * 1e200));
+  const result = routeSubject(largePicture, largeVectors, categories);
+  assert.equal(result.best.id, 'helicopter');
+  assert.equal(result.category?.id, 'helicopter');
+  assert.equal(speciesGate(result), 'block');
+  assert.ok(Number.isFinite(result.probability));
+  assert.ok(Number.isFinite(result.margin));
+  assert.ok(result.top.every((entry) => Number.isFinite(entry.probability)));
+  assert.equal(result.confident, true);
+});
