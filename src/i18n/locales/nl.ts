@@ -87,4 +87,36 @@ export const nl: Translation = {
     "left": "Links",
     "right": "Rechts"
   },
+  adjustment: {
+    "exposure": "Belichting",
+    "warmth": "Warmte",
+    "colour": "Kleur",
+    "brightness": "Helderheid",
+    "contrast": "Contrast",
+    "highlights": "Hooglichten",
+    "shadows": "Schaduwen",
+    "whites": "Lichtste delen",
+    "blacks": "Donkerste delen",
+    "vibrance": "Levendigheid",
+    "texture": "Textuur",
+    "clarity": "Helderheid van details",
+    "sharpen": "Verscherpen",
+    "denoise": "Ruis verminderen"
+  },
+  quick: {
+    "title": "Snel bewerken",
+    "allControls": "Alle regelaars",
+    "choose": "Kies een aanpassing"
+  },
+  photoInfo: {
+    "title": "Foto-informatie",
+    "tabInfo": "Info",
+    "tabSubject": "Onderwerp",
+    "copy": "Fotogegevens kopiëren",
+    "camera": "Camera",
+    "lens": "Objectief",
+    "captured": "Gemaakt",
+    "undecided": "Nog niet gekozen",
+    "reject": "Afwijzen"
+  },
 };
