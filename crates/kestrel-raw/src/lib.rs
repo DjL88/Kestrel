@@ -5,4 +5,4 @@ pub mod nikon_he;
 pub mod scene_develop;
 mod develop;
 
-pub use develop::{apply_orientation, develop_jpeg, explain};
+pub use develop::{apply_orientation, develop_jpeg, develop_rgb16, explain, rgb16_bytes};

@@ -50,7 +50,31 @@ test('a RAW opened in the web app is developed from its sensor data, and says so
   if (await all.isVisible()) await all.click();
   await expect(page.getByText('Developed from the RAW file', { exact: false })).toBeVisible({ timeout: 90_000 });
   await expect(page.getByText('keeps using the preview stored in the file', { exact: false })).toHaveCount(0);
-  // Desktop-only extras stay off in the browser.
-  await expect(page.getByRole('button', { name: /16-bit TIFF/ })).toHaveCount(0);
+  // The DNG copy is a desktop extra; the 16-bit TIFF is made in the browser too.
   await expect(page.getByRole('button', { name: 'Save a DNG copy' })).toHaveCount(0);
+
+  // A 16-bit TIFF straight from the sensor data, through the same WebAssembly decoder and the screen's edit maths.
+  await page.getByRole('slider', { name: /^Exposure/ }).first().fill('0.5');
+  const download = page.waitForEvent('download', { timeout: 60_000 });
+  await page.getByRole('button', { name: 'Export 16-bit TIFF' }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe('synthetic_16bit.tif');
+  const tiff = readFileSync(await file.path());
+  expect(tiff.readUInt16LE(0)).toBe(0x4949);
+  const ifd = tiff.readUInt32LE(4);
+  const tags = new Map<number, number>();
+  for (let i = 0; i < tiff.readUInt16LE(ifd); i += 1) {
+    const at = ifd + 2 + i * 12;
+    const short = tiff.readUInt16LE(at + 2) === 3 && tiff.readUInt32LE(at + 4) === 1;
+    tags.set(tiff.readUInt16LE(at), short ? tiff.readUInt16LE(at + 8) : tiff.readUInt32LE(at + 8));
+  }
+  // Full size and turned the way the camera was held, like the picture on screen: 64 x 96.
+  expect([tags.get(256), tags.get(257)]).toEqual([64, 96]);
+  expect(tiff.readUInt16LE(tags.get(258)!)).toBe(16);
+  // Real 16-bit values, not 8-bit ones scaled up (which would all be multiples of 257).
+  const start = tags.get(273)!;
+  let notScaled = 0;
+  for (let i = 0; i < 64 * 96 * 3; i += 1) if (tiff.readUInt16LE(start + i * 2) % 257 !== 0) notScaled += 1;
+  expect(notScaled).toBeGreaterThan(64 * 96);
+  await expect(page.getByText('Saved a 16-bit TIFF', { exact: false })).toBeVisible();
 });

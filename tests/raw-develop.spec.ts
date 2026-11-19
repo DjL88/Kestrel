@@ -101,7 +101,7 @@ test('in the web app a RAW the decoder cannot read behaves as on desktop: honest
   await expect(page.getByRole('status').filter({ hasText: 'keeps using the preview stored in the file' })).toBeVisible({ timeout: 60000 });
   await expect(page.getByText("You're editing the quick preview", { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Develop from RAW' })).toBeEnabled();
-  // Desktop-only extras stay off in the browser.
+  // Nothing was developed, so there is no sensor data to offer as a 16-bit TIFF.
   await expect(page.getByRole('button', { name: /16-bit TIFF/ })).toHaveCount(0);
 });
 
