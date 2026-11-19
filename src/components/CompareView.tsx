@@ -30,8 +30,8 @@ export function CompareView({
   onTransform, onSwapPanes, candidates, onSelectRight, onDecideFrame, onExitCompare,
 }: Props) {
   const surfaceRef = useRef<HTMLElement>(null);
-  const { previous, next, currentValid } = compareNavigation(candidates, leftFrame?.id ?? null, rightFrame?.id ?? null);
-  const uniqueRight = !!rightFrame && !!leftFrame && rightFrame.id !== leftFrame.id && currentValid;
+  const { previous, next, currentValid, referenceValid } = compareNavigation(candidates, leftFrame?.id ?? null, rightFrame?.id ?? null);
+  const uniqueRight = !!rightFrame && !!leftFrame && referenceValid && rightFrame.id !== leftFrame.id && currentValid;
   const canGoBack = previous !== null;
   const canGoForward = next !== null;
 
@@ -64,7 +64,8 @@ export function CompareView({
 
   return (
     <section ref={surfaceRef} onPointerDownCapture={focusPhotoSurface} aria-label="Compare photos" aria-description="Click a photo to focus this comparison. Left and Right select photo B. K keeps B, X rejects B, U clears B. Tab moves through controls." tabIndex={0} onKeyDown={handleCompareKey} className="flex min-h-0 flex-1 flex-col focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky-300">
-      <PhotoViewport base={photo(uniqueRight ? rightFrame : null)} overlay={photo(leftFrame)} labels={['A', 'B']}
+      {!referenceValid && <p role="status" className="px-3 py-2 text-sm text-amber-200">Reference photo A is no longer in this review. Return to Review and select a new reference before comparing or making decisions.</p>}
+      <PhotoViewport base={photo(uniqueRight ? rightFrame : null)} overlay={photo(referenceValid ? leftFrame : null)} labels={['A', 'B']}
         zoom={zoomLevel} pan={panOffset} onTransform={onTransform} />
       <div role="toolbar" aria-label="Compare photo controls" className="flex flex-wrap items-center justify-between gap-x-2 border-t border-white/10 bg-kestrel-panel px-1 sm:px-3">
         <div role="group" aria-label="Compare zoom" className="flex items-center">
@@ -79,8 +80,8 @@ export function CompareView({
           </button>
         </div>
         <div className="flex w-full min-w-0 items-center sm:w-auto sm:flex-1">
-          <span data-testid="compare-photo-a" className="min-w-0 flex-1 truncate px-2 text-xs text-zinc-300" title={leftFrame?.filename}>
-            A · {leftFrame?.filename ?? 'Select photo'}
+          <span data-testid="compare-photo-a" className="min-w-0 flex-1 truncate px-2 text-xs text-zinc-300" title={referenceValid ? leftFrame?.filename : 'Reference unavailable'}>
+            A · {referenceValid ? leftFrame?.filename : 'Reference unavailable'}
           </span>
           <button type="button" className={`${control} disabled:opacity-35`} disabled={!canGoBack} onClick={() => previous && onSelectRight(previous)} aria-label="Previous photo B" title="Previous photo B"><ChevronLeft className="h-4 w-4" /></button>
           <span data-testid="compare-photo-b" className="min-w-0 flex-1 truncate text-xs text-zinc-300" title={uniqueRight ? rightFrame?.filename : undefined}>B · {uniqueRight ? rightFrame?.filename : 'Select photo'}</span>
@@ -88,7 +89,7 @@ export function CompareView({
         </div>
         <button type="button" className={control} disabled={!uniqueRight} onClick={onSwapPanes} aria-label="Swap photos A and B" title="Swap photos A and B"><ArrowLeftRight className="h-4 w-4" /></button>
         {([['A', leftFrame], ['B', rightFrame]] as const).map(([side, frame]) => (
-          frame && (side === 'A' || uniqueRight) && (
+          frame && (side === 'A' ? referenceValid : uniqueRight) && (
             <div key={side} role="group" aria-label={`Decisions for photo ${side}`} className="flex items-center">
               {(['keep', 'reject'] as const).map((decision) => (
                 <button type="button" key={decision}
