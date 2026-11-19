@@ -1379,6 +1379,7 @@ export default function App() {
     // all-or-nothing (the watcher retries a whole batch), so they are still added at the end.
     const progressive = !options?.watched;
     const importId = newId().slice(0, 8);
+    const importSequenceBase = cullingState.frames.reduce((max, frame) => Math.max(max, frame.sequenceIndex), 0);
     const shown = new Set<string>(); // queued to be shown
     const appended = new Set<string>(); // actually added to the project
     let waiting: PhotoFrame[] = [];
@@ -1395,22 +1396,34 @@ export default function App() {
       waiting = [];
       lastShown = Date.now();
       setCullingState((prev) => (retiredImportsRef.current.has(controller) || leavingRef.current || projectsOpenRef.current || prev.shoot.id !== targetProjectId
-        ? prev : appendProjectPhotos(prev, batch, importId)));
+        ? prev : appendProjectPhotos(prev, batch, importId, { sequenceBase: importSequenceBase })));
     };
     try {
       const { frames, unstoredKeys, uncachedPreviewKeys, failedNames, stopped } = await loadLocalFileListShoot(
         additions, previewProviderRef.current!, storeRef.current!,
-        ({ frames: soFar, loaded, total }) => {
-          // Import is progressive, but saving a project is an atomic boundary.
+        ({ loaded, total }) => {
+          // Chunk completion still controls the numeric import progress. A
+          // separate event releases each ready photo sooner than the chunk.
           if (retiredImportsRef.current.has(controller) || leavingRef.current || projectsOpenRef.current || stateRef.current.shoot.id !== targetProjectId) { controller.abort(); return; }
           setLoadingProgress({ loaded, total });
           task?.progress(loaded, total);
-          if (!progressive) return;
-          for (const frame of soFar) if (!shown.has(frame.stableKey)) { shown.add(frame.stableKey); waiting.push(frame); }
-          // A few photos at a time, not one save of the whole project per photo.
-          if (waiting.length >= 24 || Date.now() - lastShown > 1200 || shown.size <= 8) show();
         },
-        { allowPartial: !options?.watched, signal: controller.signal },
+        {
+          allowPartial: !options?.watched, signal: controller.signal,
+          onFrameReady: progressive ? (frame) => {
+            if (retiredImportsRef.current.has(controller) || leavingRef.current || projectsOpenRef.current ||
+                stateRef.current.shoot.id !== targetProjectId || controller.signal.aborted) {
+              controller.abort();
+              return;
+            }
+            if (shown.has(frame.stableKey)) return;
+            shown.add(frame.stableKey);
+            waiting.push(frame);
+            // The first eight appear independently, then larger groups limit
+            // catalogue writes and React renders in a 500-photo shoot.
+            if (waiting.length >= 24 || Date.now() - lastShown > 1200 || shown.size <= 8) show();
+          } : undefined,
+        },
       );
       if ((projectsOpenRef.current || leavingRef.current || retiredImportsRef.current.has(controller)) && progressive) {
         // The project was closed: what was added before closing is saved; nothing more is added to a closed project.
@@ -1446,7 +1459,7 @@ export default function App() {
         if (prev.shoot.id !== targetProjectId) return prev;
         // The remaining photos, then the final burst groups (a burst can straddle two batches).
         // Only photos not added yet: one already added and then removed during the import must stay removed.
-        const next = applyImportBursts(appendProjectPhotos(prev, frames.filter((frame) => !appended.has(frame.stableKey)), importId), frames, importId);
+        const next = applyImportBursts(appendProjectPhotos(prev, frames.filter((frame) => !appended.has(frame.stableKey)), importId, { sequenceBase: importSequenceBase }), frames, importId);
         const first = options?.openEditor ? next.frames.find((frame) => frame.id.startsWith(`${importId}-`)) : undefined;
         return first ? { ...next, filter: 'all', selectedFrameId: first.id } : next;
       });
