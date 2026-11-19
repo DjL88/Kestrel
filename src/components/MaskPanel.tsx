@@ -105,6 +105,12 @@ export function MaskPanel(props: Props) {
           <label className="flex min-h-9 items-center gap-2 text-sm">
             <input type="checkbox" checked={selected.invert} onChange={(event) => update({ invert: event.target.checked })} /> Invert (affect everything else)
           </label>
+          {selected.kind === 'radial' && (
+            <AdjustmentSlider label="Oval rotation" ariaLabel="Oval rotation in degrees" value={selected.angle ?? 0}
+              min={-180} max={180} neutral={0} step={1} disabled={disabled}
+              displayValue={`${Math.round(selected.angle ?? 0)}°`}
+              onChange={(value) => update({ angle: value })} />
+          )}
           {selected.kind !== 'brush' && (
             <AdjustmentSlider label="Edge softness" ariaLabel="Edge softness" value={selected.feather}
               min={0} max={1} neutral={0} step={0.01} disabled={disabled} resettable={false}
@@ -141,16 +147,16 @@ export function MaskPanel(props: Props) {
           )}
           {masks.length > 1 && (
             <label className="block text-xs text-zinc-300">
-              Limit this mask
-              <select aria-label="Limit this mask" value={selected.limit ? `${selected.limit.mode}:${selected.limit.id}` : 'none'}
+              Combine with another mask
+              <select aria-label="Combine with another mask" value={selected.limit ? `${selected.limit.mode}:${selected.limit.id}` : 'none'}
                 onChange={(event) => {
                   const [mode, ...rest] = event.target.value.split(':');
                   update({ limit: mode === 'none' ? undefined : { mode: mode as 'intersect' | 'subtract', id: rest.join(':') } });
                 }}
                 className="mt-1 min-h-10 w-full rounded-md border border-white/10 bg-kestrel-panel px-2 text-sm text-zinc-100">
-                <option value="none">Not limited</option>
+                <option value="none">Use whole mask</option>
                 {masks.filter((other) => other.id !== selected.id).map((other) => (
-                  <option key={`i${other.id}`} value={`intersect:${other.id}`}>Only where it overlaps {maskName(masks, other)}</option>
+                  <option key={`i${other.id}`} value={`intersect:${other.id}`}>Intersect with {maskName(masks, other)}</option>
                 ))}
                 {masks.filter((other) => other.id !== selected.id).map((other) => (
                   <option key={`s${other.id}`} value={`subtract:${other.id}`}>Everywhere except {maskName(masks, other)}</option>
