@@ -24,6 +24,7 @@ import { DesktopUpdate } from './components/DesktopUpdate';
 import { useDesktopMenu } from './providers/useDesktopMenu';
 import { OnlineHelperDialog } from './components/OnlineHelperDialog';
 import { useSpeciesScan } from './useSpeciesScan';
+import { useBackgroundDevelop } from './useBackgroundDevelop';
 import { SpeciesScanBanner } from './components/SpeciesScanBanner';
 import type { SubjectKind } from './core/subjectTags';
 import { applyAutoTag, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTags';
@@ -1123,6 +1124,13 @@ export default function App() {
           // A kind the person chose while the scan was running always wins over the scan's.
           ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame) };
     }),
+  });
+
+  // Every RAW is developed from its sensor data in the background, so the library shows Kestrel's develop, not the
+  // camera's JPEG. Paused while a photo is edited (the editor develops its own photo at full size first).
+  useBackgroundDevelop({
+    projectId: cullingState.shoot.id, frames: cullingState.frames, provider: previewProviderRef.current,
+    active: !projectsOpen && !editing, onScreen: cullingState.selectedFrameId,
   });
 
   const jumpPhotoHistory = (frameId: string, cursor: number) => {
