@@ -22,9 +22,9 @@ export interface GateOutcome {
   species: SpeciesGate;
 }
 
-/** What the gate allows for one photo. `route` is null when the gate model isn't available: today's behaviour. */
+/** What the gate allows for one photo. Missing model evidence never authorises an automatic species name. */
 export function gateOutcome(route: RouteResult | null, currentKind: SubjectKind | undefined): GateOutcome {
-  const species = speciesGate(route);
+  const species = route ? speciesGate(route) : 'block';
   const clearlyAnimal = !!route?.confident && route.category?.group === 'animal' && species === 'allow';
   return !currentKind && clearlyAnimal ? { kind: 'wildlife', species } : { species };
 }
