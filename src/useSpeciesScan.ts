@@ -83,7 +83,9 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
         if (!picture) { skipped.current.add(frameKey(frame.id)); continue; }
 
         let patch: ReturnType<typeof scanPatch> | undefined;
-        if (available.localReady && localLabels) {
+        // A closed-list species model must not even run without independent category evidence.
+        // This also avoids wasted per-photo ONNX inference on browser builds without the gate.
+        if (available.localReady && localLabels && gateOn) {
           try {
             // analysePicture locates the subject on-device before comparing it with the saved species vectors.
             const { labels, vectors } = localLabels;
@@ -91,10 +93,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
             const top = pickSuggestions(rankSpecies(embedding, labels, vectors, personalBonus(labels, readSpeciesCounts())))[0];
             const best = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
             const named = best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) } : undefined;
-            if (!gateOn) {
-              // No independent category evidence: a closed-list species score is not proof of wildlife.
-              // Leave the photo for review; do not mark it checked so a future gate can examine it.
-            } else {
+            {
               // The gate looks at the same square as the species model. If it fails, nothing is decided for this photo.
               const outcome = gateOutcome(await routePicture(picture, subjectCrop(picture.width, picture.height, grid)), frame.subjectKind);
               const kind = frame.subjectKind ?? outcome.kind;
