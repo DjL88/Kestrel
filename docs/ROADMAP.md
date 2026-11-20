@@ -62,6 +62,14 @@ Image watermark originals are stored as validated PNG/JPEG/WebP blobs (up to 3 M
 
 **Tests authored, NOT RUN:** content-digest deduplication and read-back integrity, invalid/missing/script sources, legacy data conversion, preset privacy, and stored custom upscale. Release gates still need TypeScript/lint/full suite, export proof/output pixel comparison, browser IndexedDB migration, Tauri WebViews, Windows/Mac/iOS/Android, storage quota/device failures, 500-photo queue and restart. This is not a claim that the wider roadmap has reached testing-only status.
 
+### 20 November 2026 — direct full-size JPEG and one-choice guided export (implementation merged when reviewed)
+
+Export now offers **Full size · JPEG** alongside the original-dimension PNG and before/after choices; standard JPEG uses the same ordinary reversible photo renderer at the actual available source dimensions, with default quality 96%, opt-in metadata and existing fixed proof/crop/watermark handling. Output names are distinct from PNG, with a dedicated `JPEG/` batch destination. A JPEG of a RAW-derived display/embedded preview is an **8-bit sharing copy**, **not** sensor-verified 16-bit master data; the RAW provenance warning is visible in both list and guided Export. Genuine full-size sensor-derived TIFF retains its separate evidence gate and is never secretly replaced by this JPEG. Neither standard choice silently enlarges missing pixels.
+
+Guided Export now **auto-selects the sole format and skips the redundant size step** for Master PNG, Full-size JPEG, Before/After and any future one-choice destination. Existing multiple-size social platforms and Custom keep the size picker. Single fixed-shape destinations still receive the crop-position screen; Back returns to the screen actually visited. The final proof, metadata/watermark options and export confirmation remain available. Changes are localised across the standard Export language packs, with regression tests authored for naming, single-choice navigation, crop preservation and batches.
+
+**Still NOT RUN:** TypeScript/lint, unit suite, Vite/native builds, 500-photo RAW/JPEG/HEIC export journeys, real fixed proof/output pixel comparisons, phone/tablet/foldable layout and Windows/macOS installed tests. This does **not** close the other incomplete roadmap implementation, RAW fidelity or durable restart recovery. No high-bit-depth/raw parity claim.
+
 ## 1. Where Kestrel is today
 
 | Area | Status | Evidence and gaps |
