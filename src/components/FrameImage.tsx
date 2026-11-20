@@ -138,8 +138,10 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     // Keep showing the current picture while an edited one is being redrawn.
     if (!hasImage.current) {
       setPreview({ identity, url: '' });
-      setLoading(true);
     }
+    // Keep the previous render visible, but report quality work so the
+    // refresh indicator stays live during every edit, not only initial load.
+    setLoading(true);
     setErrored(false);
 
     const render = async () => {
@@ -266,7 +268,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           }}
           style={demoStyle}
           className={`w-full h-full select-none motion-safe:transition-opacity motion-safe:duration-150 ${
-            loading ? 'opacity-0' : 'opacity-100'
+            loading && !hasImage.current ? 'opacity-0' : 'opacity-100'
           } ${edited && variant === 'thumb' ? 'object-contain' : imgClassName}`}
         />
       )}

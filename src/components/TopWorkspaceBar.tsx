@@ -267,6 +267,10 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
 
                 <details className="border-t border-white/10 pt-1" open>
                   <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-zinc-200">View · show, hide and layout</summary>
+                  <button type="button" onClick={() => choose(() => window.dispatchEvent(new Event('kestrel:toggle-burst-group')))}
+                    className="flex min-h-10 w-full items-center rounded-md px-2 text-left text-sm text-zinc-100 hover:bg-white/10">
+                    Group or ungroup bursts
+                  </button>
                   <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
                     <input type="checkbox" checked={props.showFilmstrip} onChange={props.onToggleFilmstrip} />
                     {t.top.pinFilmstrip}

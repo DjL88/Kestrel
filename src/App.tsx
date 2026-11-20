@@ -591,6 +591,7 @@ export default function App() {
       }),
       on('view-info', () => setShowPhotoInfo((value) => !value)),
       on('view-tools', () => setWorkspacePanes((value) => ({ ...value, folded: !value.folded }))),
+      on('view-bursts', () => window.dispatchEvent(new Event('kestrel:toggle-burst-group'))),
       on('view-left', () => setPrefs((prev) => ({ ...prev, hand: 'left', editPanelSide: 'left' }))),
       on('view-right', () => setPrefs((prev) => ({ ...prev, hand: 'right', editPanelSide: 'right' }))),
       on('settings-ai', () => { setSettingsSection('ai'); setSettingsOpen(true); }),
@@ -2545,7 +2546,9 @@ export default function App() {
       {/* Independent full-width dock: side panels never constrain filmstrip width. */}
       {/* Not in grid view, where every photo is already on screen. */}
       {!prefs.focusMode && visibleFrames.length > 0 && (editing || prefs.viewMode !== 'grid') && (
-        <FilmstripDock expanded={prefs.showFilmstrip} onToggle={toggleFilmstrip} onPhotoOnly={() => setPrefs((prev) => ({ ...prev, focusMode: true }))}>
+        <FilmstripDock expanded={prefs.showFilmstrip} onToggle={toggleFilmstrip}
+          onBeforeAfter={editing ? () => window.dispatchEvent(new Event('kestrel:toggle-before-after')) : undefined}
+          onPhotoOnly={() => setPrefs((prev) => ({ ...prev, focusMode: true }))}>
             <Filmstrip
               onPhotoMenu={openPhotoMenu}
               frames={editing ? editorFrames : visibleFrames}
