@@ -80,6 +80,15 @@ export function createTaskStore(now: () => number = Date.now) {
       try { stop(); } catch { /* the job is already finishing */ }
       return true;
     },
+    /** Hide one completed/failed/cancelled task without touching other failures. */
+    dismissFinished(id: number): boolean {
+      if (!tasks.some(task => task.id === id && task.state !== 'running')) return false;
+      tasks = tasks.filter(task => task.id !== id);
+      cancels.delete(id);
+      cancelledIds.delete(id);
+      emit();
+      return true;
+    },
     clearFinished() { tasks = tasks.filter((task) => task.state === 'running'); emit(); },
     list: () => tasks,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
