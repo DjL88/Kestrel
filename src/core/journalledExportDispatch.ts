@@ -149,7 +149,12 @@ export function createJournalledExportDispatch(
         const { checkpoint, pending } = await journal.pendingForExplicitResume<Recipe>(
           id, adapter.verifySource, adapter.verifyOutput,
         );
-        if (!pending.length) return null;
+        if (!pending.length) {
+          // A crash after the last receipt but before the final state update
+          // leaves a complete set of verified outputs and no work to enqueue.
+          if (checkpoint.state !== 'completed') journal.save({ ...checkpoint, state: 'completed' });
+          return null;
+        }
         return enqueueVerified(checkpoint, pending, adapter);
       } finally {
         // Once enqueued, active owns the lease until ticket.done settles.
