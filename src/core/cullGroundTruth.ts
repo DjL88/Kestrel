@@ -33,6 +33,8 @@ export interface CullEvaluation {
   falseKeepRate: number | null;
   aircraftLabelledBird: number;
   aircraftCount: number;
+  /** Aircraft frames without an explicit prediction cannot certify classification safety. */
+  aircraftPredictionsMissing: number;
   aircraftBirdConfusionRate: number | null;
   errors: string[];
 }
@@ -51,7 +53,7 @@ export function evaluateCullGroundTruth(frames: readonly LabelledCullFrame[]): C
   const errors: string[] = [];
   let evaluated = 0, invalid = 0, abstained = 0, proposedKeep = 0;
   let proposedReject = 0, keeperCount = 0, keptKeepers = 0;
-  let falseRejects = 0, aircraftCount = 0, aircraftLabelledBird = 0;
+  let falseRejects = 0, aircraftCount = 0, aircraftLabelledBird = 0, aircraftPredictionsMissing = 0;
   let automaticKeptKeepers = 0, nonKeeperCount = 0, falseKeeps = 0;
   frames.forEach((frame, index) => {
     if (!frame || typeof frame.id !== 'string' || !frame.id.trim() ||
@@ -80,6 +82,7 @@ export function evaluateCullGroundTruth(frames: readonly LabelledCullFrame[]): C
     if (frame.suggestion === 'reject') proposedReject++;
     if (frame.subject === 'aircraft') {
       aircraftCount++;
+      if (frame.predictedSubject == null) aircraftPredictionsMissing++;
       if (frame.predictedSubject === 'bird') aircraftLabelledBird++;
     }
   });
@@ -93,7 +96,7 @@ export function evaluateCullGroundTruth(frames: readonly LabelledCullFrame[]): C
     automaticKeeperRecall: keeperCount ? automaticKeptKeepers / keeperCount : null,
     falseKeeps, nonKeeperCount,
     falseKeepRate: nonKeeperCount ? falseKeeps / nonKeeperCount : null,
-    aircraftLabelledBird, aircraftCount,
+    aircraftLabelledBird, aircraftCount, aircraftPredictionsMissing,
     aircraftBirdConfusionRate: aircraftCount ? aircraftLabelledBird / aircraftCount : null,
     errors,
   };
@@ -103,10 +106,13 @@ export function passesCullSafetyGate(
   evaluation: CullEvaluation,
   minimumEvaluated: number,
   maximumFalseRejectRate = 0,
+  minimumAutomaticKeeperRecall = 0.5,
 ): boolean {
   return Number.isInteger(minimumEvaluated) && minimumEvaluated > 0 &&
     Number.isFinite(maximumFalseRejectRate) &&
     maximumFalseRejectRate >= 0 && maximumFalseRejectRate <= 1 &&
+    Number.isFinite(minimumAutomaticKeeperRecall) &&
+    minimumAutomaticKeeperRecall > 0 && minimumAutomaticKeeperRecall <= 1 &&
     evaluation.invalid === 0 && evaluation.total === evaluation.evaluated &&
     evaluation.errors.length === 0 &&
     evaluation.evaluated === evaluation.keeperCount + evaluation.nonKeeperCount &&
@@ -114,6 +120,7 @@ export function passesCullSafetyGate(
     evaluation.falseRejects >= 0 && evaluation.falseRejects <= evaluation.keeperCount &&
     evaluation.falseKeeps >= 0 && evaluation.falseKeeps <= evaluation.nonKeeperCount &&
     evaluation.aircraftLabelledBird >= 0 && evaluation.aircraftLabelledBird <= evaluation.aircraftCount &&
+    evaluation.aircraftPredictionsMissing === 0 &&
     evaluation.keeperRecall !== null &&
     evaluation.keeperRecall === 1 - evaluation.falseRejects / evaluation.keeperCount &&
     evaluation.falseRejectRate === evaluation.falseRejects / evaluation.keeperCount &&
@@ -123,9 +130,10 @@ export function passesCullSafetyGate(
     evaluation.nonKeeperCount > 0 && evaluation.falseKeeps === 0 &&
     evaluation.falseKeepRate === 0 &&
     evaluation.automaticKeeperRecall !== null &&
-    evaluation.automaticKeeperRecall >= 0 && evaluation.automaticKeeperRecall <= 1 &&
+    evaluation.automaticKeeperRecall >= minimumAutomaticKeeperRecall && evaluation.automaticKeeperRecall <= 1 &&
     evaluation.keeperCount > 0 && evaluation.aircraftCount > 0 &&
     evaluation.falseRejectRate !== null &&
     evaluation.falseRejectRate <= maximumFalseRejectRate &&
-    evaluation.aircraftLabelledBird === 0;
+    evaluation.aircraftLabelledBird === 0 &&
+    evaluation.aircraftBirdConfusionRate === evaluation.aircraftLabelledBird / evaluation.aircraftCount;
 }
