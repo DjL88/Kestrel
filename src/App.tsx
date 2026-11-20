@@ -1948,8 +1948,11 @@ export default function App() {
           <div id="editor-header-actions" className="flex shrink-0 items-center gap-2" />
           <button type="button" ref={infoTriggerRef} onClick={() => {
             setInfoFrameId(undefined);
+            // A folded panel is hidden even if its previous "open" preference is true.
+            // The first click must reopen it, not toggle that stale preference to false.
+            const currentlyVisible = !panesCollapsed && showPhotoInfo;
             setWorkspacePanes({ folded: false });
-            setShowPhotoInfo((visible) => !visible);
+            setShowPhotoInfo(!currentlyVisible);
           }} aria-label={messages.photoInfo.title} title={messages.photoInfo.title} aria-pressed={showPhotoInfo && !panesCollapsed}
             className="grid h-11 w-11 shrink-0 place-items-center rounded-md text-zinc-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 aria-pressed:bg-white/15">
             <Info className="h-5 w-5" aria-hidden="true" />
