@@ -15,20 +15,25 @@ export async function writeExclusiveBlob(
   blob: Blob,
   openExclusive: () => Promise<ExclusiveWriteHandle>,
   removeIncomplete: () => Promise<void>,
+  signal?: AbortSignal,
 ): Promise<void> {
   // Open first. A collision or permissions failure must not remove a file that
   // existed before this call.
+  signal?.throwIfAborted();
   const handle = await openExclusive();
   const reader = blob.stream().getReader();
   let closed = false;
   let complete = false;
   try {
     while (true) {
+      signal?.throwIfAborted();
       const { done, value } = await reader.read();
+      signal?.throwIfAborted();
       if (done) break;
       if (!(value instanceof Uint8Array)) throw new Error('The export stream returned invalid bytes.');
       let offset = 0;
       while (offset < value.byteLength) {
+        signal?.throwIfAborted();
         const n = await handle.write(value.subarray(offset));
         if (!Number.isInteger(n) || n <= 0 || n > value.byteLength - offset) {
           throw new Error('The destination did not accept all export bytes.');
@@ -36,6 +41,7 @@ export async function writeExclusiveBlob(
         offset += n;
       }
     }
+    signal?.throwIfAborted();
     await handle.close();
     closed = true;
     complete = true;

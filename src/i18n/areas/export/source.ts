@@ -206,6 +206,10 @@ export const source = {
     prefixesAndQuality: 'Filename prefixes and JPEG quality',
   },
   results: {
+    backgroundSaving: (count: number) => `Exporting ${count} files in background`,
+    choosingFolder: 'Choosing folder…',
+    desktopBackground: (count: number) => `Save ${count} files to a folder in background`,
+    desktopBackgroundHelp: 'Choose a folder once. Files are saved one by one into a new dated Kestrel Exports folder, grouped by destination. Progress and errors appear in Task Manager; you can keep editing while exports run.',
     saving: 'Saving…',
     saved: (name: string) => `Saved ${name}`,
     ready: (count: number) => plural(count, { one: `${count} file ready`, other: `${count} files ready` }),

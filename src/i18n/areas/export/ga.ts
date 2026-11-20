@@ -206,6 +206,10 @@ export const ga: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Réimíreanna ainmneacha comhad agus cáilíocht JPEG',
   },
   results: {
+    backgroundSaving: (count) => `Ag easpórtáil ${count} comhad sa chúlra`,
+    choosingFolder: "Fillteán á roghnú…",
+    desktopBackground: (count) => `Sábháil ${count} comhad i bhfillteán sa chúlra`,
+    desktopBackgroundHelp: "Roghnaigh fillteán uair amháin. Sábháiltear comhaid ceann ar cheann i bhfillteán nua Kestrel Exports, grúpáilte de réir ceann scríbe. Feictear dul chun cinn agus earráidí sa Bhainisteoir Tascanna.",
     saving: 'Á shábháil…',
     saved: (name) => `Sábháladh ${name}`,
     ready: (count) => `${files(count)} réidh`,

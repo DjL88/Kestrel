@@ -205,6 +205,10 @@ export const da: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Præfikser til filnavne og JPEG-kvalitet',
   },
   results: {
+    backgroundSaving: (count) => `Eksporterer ${count} filer i baggrunden`,
+    choosingFolder: "Vælger mappe…",
+    desktopBackground: (count) => `Gem ${count} filer i en mappe i baggrunden`,
+    desktopBackgroundHelp: "Vælg en mappe én gang. Filerne gemmes en ad gangen i en ny dateret Kestrel Exports-mappe, grupperet efter destination. Du kan fortsætte med at redigere; opgavestyringen viser status og fejl.",
     saving: 'Gemmer…',
     saved: (name) => `${name} er gemt`,
     ready: (count) => plural(count, { one: `${count} fil klar`, other: `${count} filer klar` }),

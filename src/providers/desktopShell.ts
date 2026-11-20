@@ -33,3 +33,31 @@ export async function saveWithDialog(blob: Blob, name: string, requireMatchingEx
   } catch { /* The file has already been saved. */ }
   return true;
 }
+
+
+/**
+ * An explicitly selected local desktop folder. A unique run folder makes
+ * repeated exports independent, with each output opened exclusively.
+ * The app-lifetime task queue owns the files after the export dialog closes.
+ */
+export async function chooseDesktopExportFolder() {
+  if (!isDesktopApp() || isMobileShell()) throw new Error('Folder-based background export needs the desktop app.');
+  const [{ open: choose }, { open: openFile, mkdir, remove }, { join }, { createDesktopFolderDestination }, { exportRunFolder }] = await Promise.all([
+    import('@tauri-apps/plugin-dialog'),
+    import('@tauri-apps/plugin-fs'),
+    import('@tauri-apps/api/path'),
+    import('../core/desktopExportFolder'),
+    import('../core/exportPlace'),
+  ]);
+  const chosen = await choose({ directory: true, multiple: false, title: 'Choose where to save Kestrel exports' });
+  if (typeof chosen !== 'string' || !chosen) return null; // Folder picker cancelled.
+  const folder = exportRunFolder(new Date(), crypto.randomUUID()).slice('export/'.length);
+  const root = await join(chosen, 'Kestrel Exports', folder);
+  await mkdir(root, { recursive: true });
+  return createDesktopFolderDestination(root, {
+    join: (...parts) => join(...parts),
+    mkdir: async path => { await mkdir(path, { recursive: true }); },
+    openExclusive: path => openFile(path, { write: true, createNew: true }),
+    removeIncomplete: async path => { await remove(path); },
+  });
+}

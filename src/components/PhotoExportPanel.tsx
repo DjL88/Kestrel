@@ -43,7 +43,7 @@ import { NO_OVERLAY, exportOverlayTitle, photoOverlayLines, type OverlayOptions 
 import { exportFilename } from '../core/exportProfiles';
 import { SocialIcon } from './SocialIcon';
 import type { ExportPlace } from '../providers/exportToPlace';
-import { isDesktopApp, saveWithDialog } from '../providers/desktopShell';
+import { chooseDesktopExportFolder, isDesktopApp, isMobileShell, saveWithDialog } from '../providers/desktopShell';
 import { exportText as t } from '../i18n/areas/export';
 import { formatLabel, shapeName, sizeName, watermarkPositionLabel } from '../i18n/areas/export/labels';
 
@@ -383,8 +383,9 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
    *
    * Ordinary browser downloads and the manual Save/ZIP route remain available below.
    */
-  async function queueToConnectedPlace() {
-    if (!exportPlace || saveRunning.current || activeExport.current || !total || blocked) return;
+  async function queueToBackgroundDestination(kind: 'connected' | 'desktop') {
+    if ((kind === 'connected' && !exportPlace) || (kind === 'desktop' && (!desktop || isMobileShell())) ||
+        saveRunning.current || activeExport.current || !total || blocked) return;
     if (timestamp === 'custom' && !parseCustomExportDate(customDate)) {
       setError(t.panel.invalidDate); return;
     }
@@ -403,8 +404,8 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     setError('');
     try {
       // An explicit click grants the chosen destination; no implicit upload.
-      const destination = await exportPlace.openBatch();
-      if (cancelled.current) return;
+      const destination = kind === 'desktop' ? await chooseDesktopExportFolder() : await exportPlace!.openBatch();
+      if (!destination || cancelled.current) return; // Cancelling the folder picker is not an export.
       const photographs = structuredClone(frames);
       const options = {
         formats: structuredClone(selected), anchors: structuredClone(anchors),
@@ -414,7 +415,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       const planned = planConnectedExports(photographs, options.formats, options.naming);
       if (!planned.length) throw new Error('Choose at least one export format.');
       const ticket = exportBatchQueue.enqueue({
-        title: `Saving ${planned.length} photo exports to ${exportPlace.label} · ${destination.folder}`,
+        title: `${t.results.backgroundSaving(planned.length)} · ${destination.folder}`,
         items: planned.map(entry => entry.item),
         recipe: options,
       }, {
@@ -905,11 +906,21 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
           onAnchor={(frame, format, point) => setAnchors(prior => ({ ...prior, [`${frame.id}|${format.id}`]: point }))}
           onZoom={(frame, format, zoom) => setZooms(prior => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))} />}
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+        {!resultsReady && desktop && !isMobileShell() && (
+          <div className="mb-3 flex flex-col gap-1 rounded-lg border border-white/15 bg-black/15 p-3">
+            <button type="button" disabled={!total || progress !== null || blocked || placeBusy}
+              className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}
+              onClick={() => void queueToBackgroundDestination('desktop')}>
+              {placeBusy ? t.results.choosingFolder : t.results.desktopBackground(total)}
+            </button>
+            <p className="text-xs text-zinc-300">{t.results.desktopBackgroundHelp}</p>
+          </div>
+        )}
         {!resultsReady && exportPlace && (
           <div className="mb-3 flex flex-col gap-1 rounded-lg border border-white/15 bg-black/15 p-3">
             <button type="button" disabled={!total || progress !== null || blocked || placeBusy}
               className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}
-              onClick={() => void queueToConnectedPlace()}>
+              onClick={() => void queueToBackgroundDestination('connected')}>
               {placeBusy ? 'Connecting to destination…' : `Save ${total} to ${exportPlace.label} in background`}
             </button>
             <p className="text-xs text-zinc-300">

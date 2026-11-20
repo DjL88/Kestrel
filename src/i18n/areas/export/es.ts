@@ -205,6 +205,10 @@ export const es: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Prefijos de nombre de archivo y calidad JPEG',
   },
   results: {
+    backgroundSaving: (count) => `Exportando ${count} archivos en segundo plano`,
+    choosingFolder: "Seleccionando carpeta…",
+    desktopBackground: (count) => `Guardar ${count} archivos en una carpeta en segundo plano`,
+    desktopBackgroundHelp: "Elige una carpeta una sola vez. Los archivos se guardan uno a uno en una nueva carpeta Kestrel Exports con fecha, agrupados por destino. Puedes seguir editando mientras el administrador de tareas muestra el progreso y los errores.",
     saving: 'Guardando…',
     saved: (name) => `${name} guardado`,
     ready: (count) => plural(count, { one: `${count} archivo listo`, other: `${count} archivos listos` }),

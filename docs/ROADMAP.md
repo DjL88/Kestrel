@@ -22,6 +22,12 @@ Every status uses exactly one of these labels:
 
 The manual Export/ZIP path and the connected-background path now use the same RAW master gate. A full-size PNG made from an 8-bit RAW preview is **not** a validated sensor-quality RAW master, even if the source was developed for display. For real RAW input, the standard *master* choice reports why it is unavailable; smaller named web/social outputs and ordinary raster masters remain available. No file is written and no free export allowance is reserved by the rejected manual request. This closes one inconsistent route, **not** the P0 Nikon HE/HE* ICC/16-bit export acceptance gate. Automated regression tests have been added but **NOT RUN** from this session; installed Mac/Windows/browser/mobile and real-photo fidelity remain **NOT RUN**.
 
+### 20 November 2026 — desktop Export Flight: select one folder, save in the background (PR under review)
+
+**Code authored; installed behaviour NOT RUN.** The Export panel can offer a desktop-only folder picker for a one-click, app-lifetime background batch. A uniquely named `Kestrel Exports/<date>-<run-id>/` folder is prepared under the chosen directory; the existing Task Manager queue then renders one file at a time, grouping outputs into the appropriate destination subfolders. Each file opens exclusively (no silent overwrite), streams bytes without holding the whole finished batch in memory, and removes its own incomplete file if a write fails or is cancelled. The dialog closes only once the queue accepts the job. Folder-picker cancellation leaves the export allowance unused. Tests cover destination safety, existing-file collisions, and cancellation before and during a write.
+
+**Not yet release-grade:** This queue lives for the app process only; a restart cannot automatically resume interrupted jobs. There is no durable, crash-safe atomic rename/fsync checkpoint in this route. The code must be checked on actual Windows/macOS permissions, filesystem and NAS drives, with `npm run lint`, `npm test`, `npm run build` and Playwright before being called verified. Mobile/browser retain their existing download/ZIP path; high-fidelity Nikon HE/HE* and true 16-bit master proof remain separate P0 release gates.
+
 ## 1. Where Kestrel is today
 
 | Area | Status | Evidence and gaps |
