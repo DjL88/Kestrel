@@ -352,3 +352,39 @@ test('missing or relinked RAW original never falls back to a stale embedded JPEG
   await assert.rejects(loadExportSource(frame, { ...provider, ensureOriginal: async () => undefined },
     'selected', decode), /Reconnect Z5II.NEF/);
 });
+
+
+test('concurrent RAW edit and export requests share one sensor decode and reuse its result', async (t) => {
+  stubExportImage(t);
+  const frame = { ...createDemoShootState(1).frames[0], filename: 'Dunnock.NEF', stableKey: 'shared-raw', isDemo: false };
+  const original = new Blob(['sensor samples']);
+  let developed = false;
+  let calls = 0;
+  let resume!: () => void;
+  const blocked = new Promise<void>(resolve => { resume = resolve; });
+  const provider = {
+    getFullPreviewUrl: async () => developed ? 'blob:current-sensor' : 'blob:camera-preview',
+    hasBlob: () => true,
+    isDeveloped: () => developed,
+    ensureOriginal: async () => original,
+    getOriginal: () => original,
+    developFromOriginal: async (_key: string, decode: (file: Blob) => Promise<Blob>) => {
+      calls++;
+      await blocked;
+      await decode(original);
+      developed = true;
+      return 'ready' as const;
+    },
+  };
+  const decoder = async () => new Blob(['full pixels'], { type: 'image/jpeg' });
+  const first = loadExportSource(frame, provider, 'selected', decoder);
+  const second = loadExportSource(frame, provider, 'selected', decoder);
+  resume();
+  const [a, b] = await Promise.all([first, second]);
+  assert.equal(a.src, 'blob:current-sensor');
+  assert.equal(b.src, 'blob:current-sensor');
+  assert.equal(calls, 1, 'only one RAW decode should be scheduled');
+  const third = await loadExportSource(frame, provider, 'selected', decoder);
+  assert.equal(third.src, 'blob:current-sensor');
+  assert.equal(calls, 1, 'subsequent edits must reuse the developed pixels');
+});
