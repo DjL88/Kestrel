@@ -16,6 +16,7 @@ locals {
     KCP_SIGNING_KEY_PEM    = "kcp-signing-key-pem"    # Ed25519 private key (PEM): signs offline grants and the manifest
     KCP_LICENCE_PUBLIC_KEY = "kcp-licence-public-key" # base64 public half of the KESTREL1 licence key (not secret, kept with the rest)
     KCP_WEBHOOK_SECRET     = "kcp-webhook-secret"     # shared secret for signed billing webhooks
+    KCP_ADMIN_EMAILS       = "kcp-admin-emails"       # Google account(s) allowed into /admin, comma-separated (kept out of git and state)
   }
   # The KESTREL1 licence-issuing PRIVATE key. Only the admin console's "issue a key" needs it. It is mounted into the
   # service only when var.licence_issuing_enabled is true, and only this service's account can read it.
@@ -152,6 +153,13 @@ resource "google_cloud_run_v2_service" "control_plane" {
       env {
         name  = "KCP_ALLOWED_ORIGINS"
         value = local.control_plane_origins
+      }
+      dynamic "env" {
+        for_each = var.google_oauth_client_id == "" ? [] : [var.google_oauth_client_id]
+        content {
+          name  = "KCP_GOOGLE_CLIENT_ID"
+          value = env.value
+        }
       }
       dynamic "env" {
         for_each = local.control_plane_secrets

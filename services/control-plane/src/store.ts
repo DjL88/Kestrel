@@ -36,6 +36,8 @@ export interface LicenceRecord {
   offlineGraceDays: number;
   validUntilMs: number | null;
   updatedAtMs: number;
+  /** Admin's note, e.g. who a gift key is for. Never shown to the licensee. */
+  note: string | null;
 }
 
 export interface ActivationRecord {
@@ -85,6 +87,19 @@ export interface AuditRecord {
   detail: string;
 }
 
+export type ContactStatus = 'new' | 'read' | 'answered';
+/** A message from the website's contact form. Stored only because the sender ticked the consent box. */
+export interface ContactMessageRecord {
+  messageId: string;
+  receivedAtMs: number;
+  name: string;
+  email: string;
+  message: string;
+  status: ContactStatus;
+}
+
+export interface BillingEventRecord { eventId: string; eventType: string; receivedAtMs: number }
+
 export interface BillingEvent {
   id: string;
   type: 'licence.created' | 'licence.renewed' | 'licence.revoked';
@@ -115,6 +130,7 @@ export interface Store {
   /** False when an account with that email hash already exists. */
   createAccount(account: AccountRecord): Promise<boolean>;
   getAccount(accountId: string): Promise<AccountRecord | undefined>;
+  setAccountRole(accountId: string, role: Role): Promise<void>;
   findAccountByEmailHash(emailHash: string): Promise<AccountRecord | undefined>;
   addRefreshToken(tokenHash: string, accountId: string, expiresAtMs: number): Promise<void>;
   /** Single use: marks the token used and returns its account, or undefined when missing, used or expired. */
@@ -131,6 +147,12 @@ export interface Store {
   setLicenceStatus(licenceId: string, status: LicenceStatus, nowMs: number): Promise<boolean>;
   /** Extends validity and reactivates. Undefined when there is no such licence. */
   extendLicence(licenceId: string, days: number, nowMs: number): Promise<number | undefined>;
+  /** Most recently changed first. */
+  listLicences(limit: number): Promise<LicenceRecord[]>;
+  /** Most recently seen first. */
+  listActivations(limit: number): Promise<ActivationRecord[]>;
+  /** Frees the device's slot. False when there is no such activation. */
+  deactivateDevice(activationId: string): Promise<boolean>;
 
   // Managed AI allowance
   /** Atomic: starts a new period when due, then takes one unit if any remain. */
@@ -138,10 +160,14 @@ export interface Store {
   refundQuota(accountId: string): Promise<void>;
   getQuota(accountId: string): Promise<QuotaRecord | undefined>;
   setQuotaLimit(accountId: string, requestsLimit: number, nowMs: number): Promise<void>;
+  /** Most recent period first. */
+  listQuotas(limit: number): Promise<QuotaRecord[]>;
 
   // Billing
   /** Atomic and idempotent on the event id: 'replayed' means nothing changed. */
   applyBillingEvent(event: BillingEvent, nowMs: number): Promise<'applied' | 'replayed'>;
+  /** Newest first. */
+  listBillingEvents(limit: number): Promise<BillingEventRecord[]>;
 
   // Models and releases
   /** False when that asset version is already registered on that channel. */
@@ -152,6 +178,13 @@ export interface Store {
   /** False when that release version is already published on that channel. */
   insertRelease(release: ReleaseRecord): Promise<boolean>;
   listReleases(platform: string, channel: string): Promise<ReleaseRecord[]>;
+
+  // Contact form
+  insertContactMessage(message: ContactMessageRecord): Promise<void>;
+  /** Newest first. */
+  listContactMessages(limit: number): Promise<ContactMessageRecord[]>;
+  /** False when there is no such message. */
+  setContactMessageStatus(messageId: string, status: ContactStatus): Promise<boolean>;
 
   // Settings, counts and audit
   getSetting(name: string): Promise<string | undefined>;
@@ -173,7 +206,7 @@ export const AUDIT_DETAIL_MAX = 500;
 export const QUOTA_DEFAULT_LIMIT = 500;
 
 export function newLicence(licenceId: string, plan: LicencePlan, nowMs: number, extra: Partial<LicenceRecord> = {}): LicenceRecord {
-  return { licenceId, accountId: null, plan, managedAi: false, status: 'active', maxDevices: 3, offlineGraceDays: 30, validUntilMs: null, updatedAtMs: nowMs, ...extra };
+  return { licenceId, accountId: null, plan, managedAi: false, status: 'active', maxDevices: 3, offlineGraceDays: 30, validUntilMs: null, updatedAtMs: nowMs, note: null, ...extra };
 }
 
 export function licenceIsUsable(licence: LicenceRecord, nowMs: number): boolean {

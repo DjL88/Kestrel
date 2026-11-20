@@ -3,59 +3,149 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self'; frame-src https://accounts.google.com/gsi/; connect-src 'self' https://accounts.google.com/gsi/; form-action 'none'; base-uri 'none'">
 <meta name="robots" content="noindex,nofollow">
-<title>Kestrel Admin</title>
-<style>
-  :root{color-scheme:dark;background:#14161b;color:#f4efe6;font:16px/1.5 system-ui,sans-serif}
-  body{max-width:800px;margin:36px auto;padding:0 20px}
-  a{color:#9cc3db}h1,h2{line-height:1.2}section,form{margin:24px 0}
-  .panel{padding:20px;border:1px solid #343946;border-radius:12px;background:#1a1d23}
-  label{display:block;margin:12px 0}input,select,button{font:inherit;min-height:44px;padding:4px 10px;border:1px solid #686f7b;border-radius:6px}
-  input[type=checkbox]{min-height:auto;accent-color:#d97840}button{font-weight:700;background:#d97840;color:#14161b;cursor:pointer}
-  button:disabled{cursor:wait;opacity:.65}:focus-visible{outline:3px solid #9cc3db;outline-offset:3px}
-  progress{width:100%;accent-color:#d97840}dd{margin:0 0 12px;color:#c7cfdc}
-</style>
-<script type="module" src="/assets/tax-admin.js"></script>
+<meta name="referrer" content="no-referrer">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<title>Kestrel admin</title>
+<link rel="stylesheet" href="/assets/admin.css">
+<script type="module" src="/assets/admin.js"></script>
 </head>
 <body>
-<header><a href="/">Kestrel</a><h1>Admin</h1></header>
-<main>
-<form id="sign-in" class="panel" method="post">
-  <h2>Sign in</h2>
-  <label>Email <input name="email" type="email" autocomplete="username" required></label>
-  <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
-  <button>Sign in</button>
-</form>
+<a class="skip" href="#main">Skip to the console</a>
+<header class="top">
+  <a class="brand" href="/"><img src="/assets/kestrel-symbol.svg" alt="" width="36" height="31">Kestrel</a>
+  <span class="title">Admin</span>
+  <span id="who" class="muted"></span>
+  <button type="button" id="sign-out" class="quiet" hidden>Sign out</button>
+</header>
+<main id="main" tabindex="-1">
 <p id="status" role="status" aria-live="polite"></p>
-<div id="dashboard" hidden>
-  <button type="button" id="sign-out">Sign out</button>
-  <section class="panel" aria-labelledby="turnover-title">
-    <h2 id="turnover-title">UK VAT registration</h2>
-    <label for="turnover">UK taxable turnover over the last 12 months</label>
-    <progress id="turnover" max="90000" value="0"></progress>
-    <p id="turnover-value"></p>
-    <p id="turnover-state"></p>
-    <button type="button" id="refresh">Refresh</button>
+
+<section id="sign-in" class="panel" aria-labelledby="sign-in-title">
+  <h1 id="sign-in-title">Sign in</h1>
+  <p class="muted">Only the owner's Google account can use this page. Every view and change is recorded in the audit log.</p>
+  <div id="google-button"></div>
+  <p id="google-missing" class="muted" hidden>Google sign-in is not set up on this server yet.</p>
+  <form id="password-form" hidden>
+    <p class="muted">Local development: sign in with an administrator's email and password.</p>
+    <label>Email <input name="email" type="email" autocomplete="username" required></label>
+    <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+    <button>Sign in</button>
+  </form>
+</section>
+
+<div id="console" hidden>
+  <nav class="tabs" aria-label="Console sections">
+    <a href="#overview">Overview</a><a href="#licensees">Licensees and devices</a><a href="#issue">Issue a key</a>
+    <a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#audit">Audit log</a>
+  </nav>
+
+  <section id="overview" class="panel" aria-labelledby="overview-title">
+    <h2 id="overview-title">Overview</h2>
+    <dl id="overview-list" class="facts"></dl>
+    <button type="button" id="refresh-all" class="quiet">Refresh everything</button>
   </section>
-  <form id="tax-settings" class="panel">
-    <h2>Tax settings</h2>
-    <label><input type="checkbox" name="ukVatRegistered"> Charge UK VAT</label>
-    <label>HMRC VAT registration number <input name="ukVatNumber" autocomplete="off" maxlength="22"></label>
-    <label>Consumer price
-      <select name="b2cPricing">
-        <option value="exclusive">Add VAT and sales tax to the £29 base</option>
-        <option value="inclusive">Include tax in the £29 total</option>
-      </select>
-    </label>
-    <button>Save settings</button>
-  </form>
-  <form id="oss" class="panel">
-    <h2>EU Non-Union OSS</h2>
-    <label>Year <input type="number" name="year" min="2020" max="9998" required></label>
-    <label>Quarter <select name="quarter"><option value="1">January to March</option><option value="2">April to June</option><option value="3">July to September</option><option value="4">October to December</option></select></label>
-    <button>Download GBP summary</button>
-  </form>
+
+  <section id="licensees" class="panel" aria-labelledby="licensees-title">
+    <h2 id="licensees-title">Licensees and devices</h2>
+    <p class="muted">Revoking a key stops new activations and renewals. It never touches anyone's photos or edits, and a device keeps its offline grant until it lapses (30 days). Freeing a device lets the key be used on another one.</p>
+    <label class="inline">Filter <input id="licence-filter" type="search" placeholder="Licence, account or note"></label>
+    <div class="scroll"><table id="licence-table">
+      <caption class="sr-only">Licences, newest change first</caption>
+      <thead><tr><th scope="col">Licence</th><th scope="col">Status</th><th scope="col">Account</th><th scope="col">Note</th><th scope="col">Valid until</th><th scope="col">Devices</th><th scope="col">AI allowance</th><th scope="col">Actions</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p id="licence-empty" class="muted" hidden>No licences yet.</p>
+  </section>
+
+  <section id="issue" class="panel" aria-labelledby="issue-title">
+    <h2 id="issue-title">Issue a free or gift key</h2>
+    <form id="issue-form">
+      <label>Note (who it is for; only you see this) <input name="note" maxlength="200" autocomplete="off"></label>
+      <label>Expires after (days; leave empty for no expiry) <input name="validDays" type="number" min="1" max="3650" inputmode="numeric"></label>
+      <label>Devices <input name="maxDevices" type="number" min="1" max="20" value="3" required inputmode="numeric"></label>
+      <label>Account id (optional) <input name="accountId" autocomplete="off" pattern="acc_[A-Za-z0-9_-]+"></label>
+      <label class="check"><input type="checkbox" name="managedAi"> Include the online helper (AI allowance)</label>
+      <p class="muted">The expiry is checked when the app activates or renews online. A key used only offline is not checked against it.</p>
+      <button>Issue key</button>
+    </form>
+    <div id="issued" hidden>
+      <h3>New key</h3>
+      <p><strong>Copy it now.</strong> Kestrel does not keep a copy of the key, only its licence id.</p>
+      <label>Licence key <textarea id="issued-key" rows="3" readonly></textarea></label>
+      <button type="button" id="copy-key">Copy key</button>
+    </div>
+  </section>
+
+  <section id="usage" class="panel" aria-labelledby="usage-title">
+    <h2 id="usage-title">AI usage this period</h2>
+    <p id="usage-state" class="muted"></p>
+    <div class="scroll"><table id="usage-table">
+      <caption class="sr-only">AI allowance used per account</caption>
+      <thead><tr><th scope="col">Account</th><th scope="col">Used</th><th scope="col">Allowance</th><th scope="col">Period ends</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p id="usage-empty" class="muted" hidden>Nobody has used the online helper yet.</p>
+  </section>
+
+  <section id="payments" class="panel" aria-labelledby="payments-title">
+    <h2 id="payments-title">Payments</h2>
+    <p id="payments-state" class="muted"></p>
+    <div class="scroll"><table id="payments-table">
+      <caption class="sr-only">Paid checkouts, newest first</caption>
+      <thead><tr><th scope="col">Paid</th><th scope="col">Invoice</th><th scope="col">Status</th><th scope="col">Country</th><th scope="col">Net</th><th scope="col">Tax</th><th scope="col">Total</th><th scope="col">Account</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p id="payments-empty" class="muted" hidden>No payments yet.</p>
+  </section>
+
+  <section id="messages" class="panel" aria-labelledby="messages-title">
+    <h2 id="messages-title">Messages</h2>
+    <p class="muted">From the website's contact form. Reply from your own email; then mark the message answered.</p>
+    <ol id="message-list" class="messages"></ol>
+    <p id="messages-empty" class="muted" hidden>No messages.</p>
+  </section>
+
+  <section id="tax" class="panel" aria-labelledby="tax-title">
+    <h2 id="tax-title">Tax</h2>
+    <p id="tax-unavailable" class="muted" hidden></p>
+    <div id="tax-body">
+      <h3>UK VAT registration</h3>
+      <label for="turnover">UK taxable turnover over the last 12 months</label>
+      <progress id="turnover" max="90000" value="0"></progress>
+      <p id="turnover-value"></p>
+      <p id="turnover-state"></p>
+      <form id="tax-settings">
+        <h3>Tax settings</h3>
+        <label class="check"><input type="checkbox" name="ukVatRegistered"> Charge UK VAT</label>
+        <label>HMRC VAT registration number <input name="ukVatNumber" autocomplete="off" maxlength="22"></label>
+        <label>Consumer price
+          <select name="b2cPricing">
+            <option value="exclusive">Add VAT and sales tax to the £29 base</option>
+            <option value="inclusive">Include tax in the £29 total</option>
+          </select>
+        </label>
+        <button>Save settings</button>
+      </form>
+      <form id="oss">
+        <h3>EU Non-Union OSS</h3>
+        <label>Year <input type="number" name="year" min="2020" max="9998" required></label>
+        <label>Quarter <select name="quarter"><option value="1">January to March</option><option value="2">April to June</option><option value="3">July to September</option><option value="4">October to December</option></select></label>
+        <button>Download GBP summary</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="audit" class="panel" aria-labelledby="audit-title">
+    <h2 id="audit-title">Audit log</h2>
+    <p class="muted">The 200 most recent entries, allowed and refused. Nothing can edit or delete them.</p>
+    <div class="scroll"><table id="audit-table">
+      <caption class="sr-only">Audit log, newest first</caption>
+      <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">What</th><th scope="col">Outcome</th><th scope="col">Detail</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
 </div>
 </main>
 </body>

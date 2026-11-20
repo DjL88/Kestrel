@@ -27,6 +27,10 @@ export interface Config {
   releaseHosts: string[];
   /** Development only: creates throwaway keys and an admin account. */
   devMode: boolean;
+  /** Google accounts allowed into the admin console (lower-case emails). Empty: admin sessions come only from accounts with the admin role. */
+  adminEmails: string[];
+  /** OAuth web client id for "Sign in with Google" on /admin. Not a secret. Absent: Google sign-in is off. */
+  googleClientId?: string;
 }
 
 const required = (env: NodeJS.ProcessEnv, name: string): string => {
@@ -62,5 +66,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     allowedOrigins: (env.KCP_ALLOWED_ORIGINS ?? 'tauri://localhost,http://tauri.localhost,https://tauri.localhost,http://localhost:3000').split(',').map((s) => s.trim()).filter(Boolean),
     releaseHosts: ['github.com'],
     devMode,
+    adminEmails: (env.KCP_ADMIN_EMAILS ?? '').split(/[,\s]+/).map((s) => s.trim().toLowerCase()).filter(Boolean),
+    googleClientId: env.KCP_GOOGLE_CLIENT_ID || undefined,
   };
 }

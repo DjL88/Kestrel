@@ -1,7 +1,7 @@
 import { uuid } from './crypto.ts';
 import {
   clipAuditDetail, extendedUntil, licenceAfterBillingEvent, licenceIsUsable, newLicence, QUOTA_DEFAULT_LIMIT,
-  type AccountRecord, type ActivationOutcome, type ActivationRequest, type AuditRecord, type BillingEvent, type LicenceRecord,
+  type AccountRecord, type ActivationOutcome, type ActivationRecord, type BillingEventRecord, type ContactMessageRecord, type ContactStatus, type Role, type ActivationRequest, type AuditRecord, type BillingEvent, type LicenceRecord,
   type LicenceStatus, type ModelAssetRecord, type QuotaRecord, type ReleaseRecord, type Store,
 } from './store.ts';
 
@@ -32,6 +32,7 @@ export interface FsTransaction {
   set(ref: FsDocRef, data: FsData): FsTransaction;
   create(ref: FsDocRef, data: FsData): FsTransaction;
   update(ref: FsDocRef, data: FsData): FsTransaction;
+  delete(ref: FsDocRef): FsTransaction;
 }
 export interface FirestoreLike {
   collection(path: string): FsCollection;
@@ -62,6 +63,7 @@ const C = {
   releases: 'desktop_releases',
   settings: 'settings',
   audit: 'audit_log',
+  contact: 'contact_messages',
 } as const;
 
 // Licence documents carry one extra field, deviceCount, so a transaction can check the slot limit by reading a single
@@ -70,6 +72,7 @@ const toLicence = (d: FsData): LicenceRecord => ({
   licenceId: d.licenceId as string, accountId: (d.accountId as string | null) ?? null, plan: d.plan as LicenceRecord['plan'],
   managedAi: d.managedAi === true, status: d.status as LicenceStatus, maxDevices: d.maxDevices as number,
   offlineGraceDays: d.offlineGraceDays as number, validUntilMs: (d.validUntilMs as number | null) ?? null, updatedAtMs: d.updatedAtMs as number,
+  note: typeof d.note === 'string' ? d.note : null,
 });
 const licenceDoc = (l: LicenceRecord, deviceCount: number): FsData => ({ ...l, deviceCount });
 const deviceCountOf = (d: FsData | undefined) => (typeof d?.deviceCount === 'number' ? d.deviceCount : 0);
@@ -99,6 +102,12 @@ export class FirestoreStore implements Store {
   async getAccount(accountId: string) {
     const snap = await this.ref(C.accounts, accountId).get();
     return snap.exists ? (snap.data() as unknown as AccountRecord) : undefined;
+  }
+  async setAccountRole(accountId: string, role: Role): Promise<void> {
+    await this.db.runTransaction(async (tx) => {
+      const ref = this.ref(C.accounts, accountId);
+      if ((await tx.get(ref)).exists) tx.update(ref, { role });
+    });
   }
   async findAccountByEmailHash(emailHash: string) {
     const snap = await this.ref(C.emails, emailHash).get();
@@ -182,6 +191,27 @@ export class FirestoreStore implements Store {
     });
   }
 
+  async listLicences(limit: number) {
+    const snap = await this.db.collection(C.licences).orderBy('updatedAtMs', 'desc').limit(limit).get();
+    return snap.docs.map((d) => toLicence(d.data()!));
+  }
+  async listActivations(limit: number) {
+    const snap = await this.db.collection(C.activations).orderBy('lastSeenMs', 'desc').limit(limit).get();
+    return snap.docs.map((d) => d.data() as unknown as ActivationRecord);
+  }
+  async deactivateDevice(activationId: string): Promise<boolean> {
+    return this.db.runTransaction(async (tx) => {
+      const found = await tx.get(this.db.collection(C.activations).where('activationId', '==', activationId));
+      if (found.empty) return false;
+      const doc = found.docs[0];
+      const licenceRef = this.ref(C.licences, doc.data()!.licenceId as string);
+      const licenceSnap = await tx.get(licenceRef);
+      tx.delete(this.ref(C.activations, doc.id));
+      if (licenceSnap.exists) tx.update(licenceRef, { deviceCount: Math.max(deviceCountOf(licenceSnap.data()) - 1, 0) });
+      return true;
+    });
+  }
+
   async reserveQuota(accountId: string, nowMs: number, periodMs: number): Promise<boolean> {
     return this.db.runTransaction(async (tx) => {
       const ref = this.ref(C.quotas, accountId);
@@ -214,6 +244,11 @@ export class FirestoreStore implements Store {
     });
   }
 
+  async listQuotas(limit: number) {
+    const snap = await this.db.collection(C.quotas).orderBy('periodStartMs', 'desc').limit(limit).get();
+    return snap.docs.map((d) => toQuota(d.data()!));
+  }
+
   async applyBillingEvent(event: BillingEvent, nowMs: number): Promise<'applied' | 'replayed'> {
     return this.db.runTransaction(async (tx) => {
       const eventRef = this.ref(C.billing, event.id);
@@ -225,6 +260,11 @@ export class FirestoreStore implements Store {
       if (next) tx.set(licenceRef, licenceDoc(next, deviceCountOf(licenceSnap.data())));
       return 'applied' as const;
     });
+  }
+
+  async listBillingEvents(limit: number): Promise<BillingEventRecord[]> {
+    const snap = await this.db.collection(C.billing).orderBy('receivedAtMs', 'desc').limit(limit).get();
+    return snap.docs.map((d) => ({ eventId: d.id, eventType: d.data()!.eventType as string, receivedAtMs: d.data()!.receivedAtMs as number }));
   }
 
   async insertModelAsset(a: ModelAssetRecord): Promise<boolean> {
@@ -254,6 +294,20 @@ export class FirestoreStore implements Store {
   async listReleases(platform: string, channel: string) {
     const snap = await this.db.collection(C.releases).where('platform', '==', platform).where('channel', '==', channel).get();
     return snap.docs.map((d) => d.data() as unknown as ReleaseRecord);
+  }
+
+  async insertContactMessage(m: ContactMessageRecord): Promise<void> { await this.ref(C.contact, m.messageId).create({ ...m }); }
+  async listContactMessages(limit: number) {
+    const snap = await this.db.collection(C.contact).orderBy('receivedAtMs', 'desc').limit(limit).get();
+    return snap.docs.map((d) => d.data() as unknown as ContactMessageRecord);
+  }
+  async setContactMessageStatus(messageId: string, status: ContactStatus): Promise<boolean> {
+    return this.db.runTransaction(async (tx) => {
+      const ref = this.ref(C.contact, messageId);
+      if (!(await tx.get(ref)).exists) return false;
+      tx.update(ref, { status });
+      return true;
+    });
   }
 
   async getSetting(name: string) {

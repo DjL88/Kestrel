@@ -46,10 +46,12 @@ export async function newTestStore(): Promise<Store> {
   return openStore({ store: 'firestore', databasePath: '', firestoreProjectId: `kestrel-test-${process.pid}-${++harnessCount}` });
 }
 
-export async function startHarness(provider: AiProvider | null = fakeProvider(), commerce?: AppOptions['commerce']): Promise<Harness> {
+export interface HarnessExtras { env?: NodeJS.ProcessEnv; googleKeys?: AppOptions['googleKeys']; payments?: AppOptions['payments'] }
+
+export async function startHarness(provider: AiProvider | null = fakeProvider(), commerce?: AppOptions['commerce'], extras: HarnessExtras = {}): Promise<Harness> {
   const clock = { now: Date.UTC(2026, 10, 18, 12) };
-  const config = loadConfig({ KCP_DEV_MODE: '1' });
-  const app = createApp({ config, store: await newTestStore(), provider, commerce, now: () => clock.now });
+  const config = loadConfig({ KCP_DEV_MODE: '1', ...extras.env });
+  const app = createApp({ config, store: await newTestStore(), provider, commerce, payments: extras.payments, googleKeys: extras.googleKeys, now: () => clock.now });
   const server: Server = createServer((req, res) => { void app.handle(req, res); });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;

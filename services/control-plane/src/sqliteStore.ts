@@ -3,19 +3,19 @@ import { DatabaseSync } from 'node:sqlite';
 import { uuid } from './crypto.ts';
 import {
   clipAuditDetail, extendedUntil, licenceAfterBillingEvent, licenceIsUsable, newLicence,
-  type AccountRecord, type ActivationOutcome, type ActivationRequest, type AuditRecord, type BillingEvent, type LicenceRecord,
+  type AccountRecord, type ActivationOutcome, type ActivationRecord, type BillingEventRecord, type ContactMessageRecord, type ContactStatus, type Role, type ActivationRequest, type AuditRecord, type BillingEvent, type LicenceRecord,
   type LicenceStatus, type ModelAssetRecord, type QuotaRecord, type ReleaseRecord, type Store,
 } from './store.ts';
 
 type Value = string | number | null;
 
-interface LicenceRow { licence_id: string; account_id: string | null; plan: LicenceRecord['plan']; managed_ai: number; status: LicenceStatus; max_devices: number; offline_grace_days: number; valid_until_ms: number | null; updated_at_ms: number }
+interface LicenceRow { licence_id: string; account_id: string | null; plan: LicenceRecord['plan']; managed_ai: number; status: LicenceStatus; max_devices: number; offline_grace_days: number; valid_until_ms: number | null; updated_at_ms: number; note: string | null }
 interface AccountRow { account_id: string; email_hash: string; password_hash: string; role: AccountRecord['role']; status: AccountRecord['status']; created_at_ms: number }
 interface AssetRow { asset_id: string; kind: string; version: string; channel: string; path: string; sha256: string; bytes: number; required_app_min: string; status: ModelAssetRecord['status']; created_at_ms: number }
 
 const licence = (r: LicenceRow): LicenceRecord => ({
   licenceId: r.licence_id, accountId: r.account_id, plan: r.plan, managedAi: r.managed_ai === 1, status: r.status,
-  maxDevices: r.max_devices, offlineGraceDays: r.offline_grace_days, validUntilMs: r.valid_until_ms, updatedAtMs: r.updated_at_ms,
+  maxDevices: r.max_devices, offlineGraceDays: r.offline_grace_days, validUntilMs: r.valid_until_ms, updatedAtMs: r.updated_at_ms, note: r.note ?? null,
 });
 const account = (r: AccountRow): AccountRecord => ({ accountId: r.account_id, emailHash: r.email_hash, passwordHash: r.password_hash, role: r.role, status: r.status, createdAtMs: r.created_at_ms });
 const asset = (r: AssetRow): ModelAssetRecord => ({
@@ -38,6 +38,9 @@ export class SqliteStore implements Store {
     this.db = new DatabaseSync(path);
     this.db.exec('PRAGMA foreign_keys = ON;');
     this.db.exec(readFileSync(new URL('../schema.sql', import.meta.url), 'utf8'));
+    // Databases made before licences had a note.
+    const columns = this.all<{ name: string }>('PRAGMA table_info(licences)').map((c) => c.name);
+    if (!columns.includes('note')) this.db.exec('ALTER TABLE licences ADD COLUMN note TEXT');
   }
 
   private get<T>(sql: string, ...params: Value[]): T | undefined { return this.db.prepare(sql).get(...params) as T | undefined; }
@@ -48,11 +51,11 @@ export class SqliteStore implements Store {
     try { const result = body(); this.db.exec('COMMIT'); return result; } catch (error) { this.db.exec('ROLLBACK'); throw error; }
   }
   private writeLicence(l: LicenceRecord): void {
-    this.run(`INSERT INTO licences (licence_id, account_id, plan, managed_ai, status, max_devices, offline_grace_days, valid_until_ms, updated_at_ms)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (licence_id) DO UPDATE SET account_id = excluded.account_id, plan = excluded.plan,
+    this.run(`INSERT INTO licences (licence_id, account_id, plan, managed_ai, status, max_devices, offline_grace_days, valid_until_ms, updated_at_ms, note)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (licence_id) DO UPDATE SET account_id = excluded.account_id, plan = excluded.plan,
       managed_ai = excluded.managed_ai, status = excluded.status, max_devices = excluded.max_devices, offline_grace_days = excluded.offline_grace_days,
-      valid_until_ms = excluded.valid_until_ms, updated_at_ms = excluded.updated_at_ms`,
-    l.licenceId, l.accountId, l.plan, l.managedAi ? 1 : 0, l.status, l.maxDevices, l.offlineGraceDays, l.validUntilMs, l.updatedAtMs);
+      valid_until_ms = excluded.valid_until_ms, updated_at_ms = excluded.updated_at_ms, note = excluded.note`,
+    l.licenceId, l.accountId, l.plan, l.managedAi ? 1 : 0, l.status, l.maxDevices, l.offlineGraceDays, l.validUntilMs, l.updatedAtMs, l.note);
   }
   private readLicence(licenceId: string): LicenceRecord | undefined {
     const row = this.get<LicenceRow>('SELECT * FROM licences WHERE licence_id = ?', licenceId);
@@ -67,6 +70,7 @@ export class SqliteStore implements Store {
     } catch (error) { if (isConstraint(error)) return false; throw error; }
   }
   async getAccount(accountId: string) { const r = this.get<AccountRow>('SELECT * FROM accounts WHERE account_id = ?', accountId); return r && account(r); }
+  async setAccountRole(accountId: string, role: Role): Promise<void> { this.run('UPDATE accounts SET role = ? WHERE account_id = ?', role, accountId); }
   async findAccountByEmailHash(emailHash: string) { const r = this.get<AccountRow>('SELECT * FROM accounts WHERE email_hash = ?', emailHash); return r && account(r); }
 
   async addRefreshToken(tokenHash: string, accountId: string, expiresAtMs: number): Promise<void> {
@@ -116,6 +120,14 @@ export class SqliteStore implements Store {
     });
   }
 
+  async listLicences(limit: number) { return this.all<LicenceRow>('SELECT * FROM licences ORDER BY updated_at_ms DESC, rowid DESC LIMIT ?', limit).map(licence); }
+  async listActivations(limit: number): Promise<ActivationRecord[]> {
+    return this.all<{ activation_id: string; licence_id: string; device_hash: string; platform: string; app_version: string; last_seen_ms: number }>(
+      'SELECT * FROM device_activations ORDER BY last_seen_ms DESC, rowid DESC LIMIT ?', limit)
+      .map((r) => ({ activationId: r.activation_id, licenceId: r.licence_id, deviceHash: r.device_hash, platform: r.platform, appVersion: r.app_version, lastSeenMs: r.last_seen_ms }));
+  }
+  async deactivateDevice(activationId: string) { return this.run('DELETE FROM device_activations WHERE activation_id = ?', activationId) === 1; }
+
   async reserveQuota(accountId: string, nowMs: number, periodMs: number): Promise<boolean> {
     return this.transaction(() => {
       const row = this.get<{ period_start_ms: number }>('SELECT period_start_ms FROM ai_usage_quotas WHERE account_id = ?', accountId);
@@ -136,6 +148,11 @@ export class SqliteStore implements Store {
       accountId, nowMs, requestsLimit);
   }
 
+  async listQuotas(limit: number): Promise<QuotaRecord[]> {
+    return this.all<{ account_id: string; period_start_ms: number; requests_used: number; requests_limit: number }>('SELECT * FROM ai_usage_quotas ORDER BY period_start_ms DESC LIMIT ?', limit)
+      .map((r) => ({ accountId: r.account_id, periodStartMs: r.period_start_ms, requestsUsed: r.requests_used, requestsLimit: r.requests_limit }));
+  }
+
   async applyBillingEvent(event: BillingEvent, nowMs: number): Promise<'applied' | 'replayed'> {
     return this.transaction(() => {
       if (this.run('INSERT INTO billing_events (event_id, event_type, received_at_ms) VALUES (?, ?, ?) ON CONFLICT (event_id) DO NOTHING', event.id, event.type, nowMs) !== 1) return 'replayed';
@@ -143,6 +160,11 @@ export class SqliteStore implements Store {
       if (next) this.writeLicence(next);
       return 'applied';
     });
+  }
+
+  async listBillingEvents(limit: number): Promise<BillingEventRecord[]> {
+    return this.all<{ event_id: string; event_type: string; received_at_ms: number }>('SELECT * FROM billing_events ORDER BY received_at_ms DESC, rowid DESC LIMIT ?', limit)
+      .map((r) => ({ eventId: r.event_id, eventType: r.event_type, receivedAtMs: r.received_at_ms }));
   }
 
   async insertModelAsset(a: ModelAssetRecord): Promise<boolean> {
@@ -177,6 +199,18 @@ export class SqliteStore implements Store {
     return this.all<{ version: string; url: string; notes: string; min_supported: string; published_at_ms: number }>(
       'SELECT version, url, notes, min_supported, published_at_ms FROM desktop_releases WHERE platform = ? AND channel = ?', platform, channel)
       .map((r) => ({ platform, channel, version: r.version, url: r.url, notes: r.notes, minSupported: r.min_supported, publishedAtMs: r.published_at_ms }));
+  }
+
+  async insertContactMessage(m: ContactMessageRecord): Promise<void> {
+    this.run('INSERT INTO contact_messages (message_id, received_at_ms, name, email, message, status) VALUES (?, ?, ?, ?, ?, ?)', m.messageId, m.receivedAtMs, m.name, m.email, m.message, m.status);
+  }
+  async listContactMessages(limit: number): Promise<ContactMessageRecord[]> {
+    return this.all<{ message_id: string; received_at_ms: number; name: string; email: string; message: string; status: ContactStatus }>(
+      'SELECT * FROM contact_messages ORDER BY received_at_ms DESC, rowid DESC LIMIT ?', limit)
+      .map((r) => ({ messageId: r.message_id, receivedAtMs: r.received_at_ms, name: r.name, email: r.email, message: r.message, status: r.status }));
+  }
+  async setContactMessageStatus(messageId: string, status: ContactStatus) {
+    return this.run('UPDATE contact_messages SET status = ? WHERE message_id = ?', status, messageId) === 1;
   }
 
   async getSetting(name: string) { return this.get<{ value: string }>('SELECT value FROM settings WHERE name = ?', name)?.value; }

@@ -58,3 +58,9 @@ variable "licence_issuing_enabled" {
   type        = bool
   default     = false
 }
+
+variable "google_oauth_client_id" {
+  description = "OAuth web client id for Sign in with Google on /admin (APIs & Services > Credentials). Not a secret. Empty: Google sign-in is off."
+  type        = string
+  default     = ""
+}
