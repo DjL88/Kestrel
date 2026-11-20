@@ -189,6 +189,7 @@ export default function App() {
   const [showPhotoInfo, setShowPhotoInfo] = useState(() => typeof window !== 'undefined' && window.matchMedia(PHOTO_INFO_DOCK_QUERY).matches);
   // Settings (display, preferred hand, keyboard and macro pad): one dialog, opened from the top right of every page.
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<'general' | 'ai' | 'storage'>('general');
   // Section F: a workspace layout belongs to the device, not to each photo,
   // project, synced catalogue or editor tab. A private-storage failure is safe.
   const [workspacePanes, setWorkspacePanes] = useState(readWorkspacePaneState);
@@ -565,6 +566,29 @@ export default function App() {
       : visibleFrames,
     [cullingState.frames, visibleFrames, editQueueIds]);
   const editorIndex = editorFrames.findIndex((frame) => frame.id === cullingState.selectedFrameId);
+
+  // Native desktop menu commands route to the same actions as the visible controls.
+  // Listeners are registered once; shortcuts never act on arbitrary webview text.
+  useEffect(() => {
+    const on = (id: string, fn: () => void) => {
+      const name = 'kestrel:menu-' + id;
+      window.addEventListener(name, fn);
+      return () => window.removeEventListener(name, fn);
+    };
+    const handlers = [
+      on('add', () => { if (!projectsOpen) { setFolderError(null); setOpenShootModal(true); } }),
+      on('edit-photo', () => { if (!projectsOpen && cullingState.selectedFrameId) { setEditQueueIds(visibleFrames.map((frame) => frame.id)); setEditing(true); } }),
+      on('edit-auto', () => { if (!projectsOpen) setAutoAdjustOpen(true); }),
+      on('edit-look', () => { if (!projectsOpen) setBatchLookOpen(true); }),
+      on('view-info', () => setShowPhotoInfo((value) => !value)),
+      on('view-tools', () => setWorkspacePanes((value) => ({ ...value, folded: !value.folded }))),
+      on('view-left', () => setPrefs((prev) => ({ ...prev, hand: 'left', editPanelSide: 'left' }))),
+      on('view-right', () => setPrefs((prev) => ({ ...prev, hand: 'right', editPanelSide: 'right' }))),
+      on('settings-ai', () => { setSettingsSection('ai'); setSettingsOpen(true); }),
+      on('settings-storage', () => { setSettingsSection('storage'); setSettingsOpen(true); }),
+    ];
+    return () => handlers.forEach((off) => off());
+  }, [projectsOpen, cullingState.selectedFrameId, visibleFrames]);
 
   const selectedFrame: PhotoFrame | null = useMemo(() => {
     if (!cullingState.selectedFrameId) return visibleFrames[0] ?? null;
@@ -1971,9 +1995,9 @@ export default function App() {
           </div>
         </div>
       )}
-      {settingsOpen && <AppearanceDialog side={prefs.editPanelSide} onSideChange={(side) => setPrefs((prev) => ({ ...prev, hand: side, editPanelSide: side }))}
+      {settingsOpen && <AppearanceDialog initialSection={settingsSection} side={prefs.editPanelSide} onSideChange={(side) => setPrefs((prev) => ({ ...prev, hand: side, editPanelSide: side }))}
         hand={prefs.hand} onHandChange={(hand) => setPrefs((prev) => ({ ...prev, hand, editPanelSide: hand }))}
-        onClose={() => setSettingsOpen(false)} onOpenMacroPad={() => { setSettingsOpen(false); setMacroPadMode(editing ? 'edit' : 'cull'); setMacroPadModal(true); }} />}
+        onClose={() => { setSettingsOpen(false); setSettingsSection('general'); }} onOpenMacroPad={() => { setSettingsOpen(false); setMacroPadMode(editing ? 'edit' : 'cull'); setMacroPadModal(true); }} />}
       <DropOverlay dragging={drop.dragging} message={drop.message} onDismiss={drop.clearMessage} />
       {prefs.focusMode ? null : editing ? (
         <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-kestrel-panel px-3 py-1">
