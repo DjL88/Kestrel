@@ -78,6 +78,7 @@ import { CompareView } from './components/CompareView';
 import { ExifInspector } from './components/ExifInspector';
 import { Filmstrip } from './components/Filmstrip';
 import { FilmstripDock } from './components/FilmstripDock';
+import { DecisionButtons } from './components/DecisionButtons';
 import { isEdited } from './core/editedState';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { RemovedPhotosPanel } from './components/RemovedPhotosPanel';
@@ -553,9 +554,15 @@ export default function App() {
     [cullingState.frames]
   );
 
+  // A Review filter must not evict a photograph from an active editing
+  // session when Keep/Reject changes that photo's decision. Freeze the queue
+  // by ID on entry; look up the latest frame object so edits stay live.
   const editorFrames = useMemo(() =>
-    editQueueIds?.length ? visibleFrames.filter((frame) => editQueueIds.includes(frame.id)) : visibleFrames,
-    [visibleFrames, editQueueIds]);
+    editQueueIds?.length
+      ? editQueueIds.map((id) => cullingState.frames.find((frame) => frame.id === id && !frame.removedAt))
+          .filter((frame): frame is PhotoFrame => Boolean(frame))
+      : visibleFrames,
+    [cullingState.frames, visibleFrames, editQueueIds]);
   const editorIndex = editorFrames.findIndex((frame) => frame.id === cullingState.selectedFrameId);
 
   const selectedFrame: PhotoFrame | null = useMemo(() => {
@@ -654,7 +661,10 @@ export default function App() {
       setPanOffset({ x: 0, y: 0 });
       setCullingState((prev) => {
         const currentVisible = filterFrames(prev.frames, prev.filter, prev.searchQuery, prev.ratingFilter, prev.cameraFilter, prev.lensFilter);
-        const available = editQueueIds?.length ? currentVisible.filter((frame) => editQueueIds.includes(frame.id)) : currentVisible;
+        const available = editQueueIds?.length
+          ? editQueueIds.map((id) => prev.frames.find((frame) => frame.id === id && !frame.removedAt))
+              .filter((frame): frame is PhotoFrame => Boolean(frame))
+          : currentVisible;
         const nextId = stepSelection(available, prev.selectedFrameId, delta);
         if (!nextId || nextId === prev.selectedFrameId) return prev;
         return {
@@ -737,7 +747,7 @@ export default function App() {
     const rating = ratingFor(action);
     if (rating !== null) { rateOrFlagPhotos(menu.frameId, { rating }); return; }
     switch (action) {
-      case 'edit': handleSelectFrame(menu.frameId); setEditQueueIds(null); setEditing(true); break;
+      case 'edit': handleSelectFrame(menu.frameId); setEditQueueIds(visibleFrames.map((frame) => frame.id)); setEditing(true); break;
       case 'info': setInfoFrameId(menu.frameId); setShowPhotoInfo(true); break;
       case 'keep': rateOrFlagPhotos(menu.frameId, { flag: 'keep' }); break;
       case 'trash': rateOrFlagPhotos(menu.frameId, { flag: 'reject' }); break;
@@ -2089,7 +2099,7 @@ export default function App() {
         editLabel={multiSelect && selectedVisibleFrames.length > 0 ? t.selection.editSelected : undefined}
         onEditPhoto={multiSelect && selectedVisibleFrames.length > 0
           ? startSelectedEditing
-          : selectedFrame ? () => { setEditQueueIds(null); setEditing(true); } : undefined}
+          : selectedFrame ? () => { setEditQueueIds(visibleFrames.map((frame) => frame.id)); setEditing(true); } : undefined}
       />}
 
       <input ref={relinkInput} type="file" hidden multiple accept={PHOTO_ACCEPT} data-testid="relink-file-input"
@@ -2303,7 +2313,7 @@ export default function App() {
                 handleSelectFrame(frameId);
                 setPrefs((prev) => ({ ...prev, viewMode: 'loupe' }));
               }}
-              onOpenEditor={(frameId) => { handleSelectFrame(frameId); setEditQueueIds(null); setEditing(true); }}
+              onOpenEditor={(frameId) => { handleSelectFrame(frameId); setEditQueueIds(visibleFrames.map((frame) => frame.id)); setEditing(true); }}
               onDecideFrame={(frameId, decision) =>
                 handleDecideFrame(frameId, decision, false)
               }
@@ -2380,6 +2390,18 @@ export default function App() {
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
               <button type="button" aria-label={t.editorBar.next} title={t.editorBar.nextTitle} disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) < 0 || (editQueueIds ? editorIndex >= editorFrames.length - 1 : selectedVisibleIndex >= visibleFrames.length - 1)} onClick={() => handleStepFrame(1)}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
+              {/* A photograph remains reviewable while editing. These are the exact same
+                  reversible Keep / Undecided / Reject actions as Library and Compare,
+                  not a second set of flags. Keep the controls ahead of optional tools
+                  so a narrow phone can use them without horizontally scrolling. */}
+              <div role="group" aria-label="Photo decision" className="flex shrink-0 items-center border-x border-white/10 px-1">
+                <DecisionButtons labels decision={selectedFrame.decision} filename={selectedFrame.filename}
+                  edited={false}
+                  onKeep={() => handleDecideFrame(selectedFrame.id, 'keep', false)}
+                  onBackToReview={() => handleDecideFrame(selectedFrame.id, 'unreviewed', false)}
+                  onTrash={() => handleDecideFrame(selectedFrame.id, 'reject', false)}
+                  onReset={() => requestReset([selectedFrame.id])} />
+              </div>
               <PhotoJump index={editorIndex} total={editorFrames.length}
                 onJump={(index) => {
                   const next = editorFrames[index];
