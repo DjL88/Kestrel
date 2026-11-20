@@ -89,3 +89,26 @@ test('detached Photo Info and Editing Tools can be focused independently without
   await expect(page.getByRole('region', { name: 'Photo editor' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Undock editing tools' })).toBeFocused();
 });
+
+test('View menu can independently hide, show, undock and dock editing tabs', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openOnePhotoProject(page);
+  await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+
+  const view = page.locator('header summary[aria-label="View · show or hide"]');
+  await view.click();
+  const controls = page.getByRole('group', { name: 'Editor tab and panel options' });
+  await expect(controls).toBeVisible();
+  await controls.getByRole('button', { name: 'Hide Crop' }).click();
+  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveCount(0);
+  await controls.getByRole('button', { name: 'Show Crop' }).click();
+  await expect(page.getByRole('tab', { name: 'Crop' })).toBeVisible();
+
+  await controls.getByRole('button', { name: 'Undock Auto' }).click();
+  const floating = page.locator('[data-floating-pane="kestrel-tab-float-auto-v1"]');
+  await expect(floating).toBeVisible();
+  await view.click();
+  await controls.getByRole('button', { name: 'Dock Auto' }).click();
+  await expect(floating).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Photo editor' })).toBeVisible();
+});
