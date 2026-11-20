@@ -48,6 +48,7 @@ export const de: AreaTranslation<typeof source> = {
     saveFailed: "Exportvorgaben konnten auf diesem Gerät nicht gespeichert werden.",
     standardOnly: "Vorgaben speichern Standardformate.",
   },
+  comparison: { before: "Vorher", after: "Nachher" },
   proof: {
     title: "Exportvorschau",
     photo: "Foto",
@@ -72,6 +73,7 @@ export const de: AreaTranslation<typeof source> = {
     blur: 'Eine unscharfe Kopie des Fotos',
   },
   formats: {
+    beforeAfter: "Vorher und Nachher · nebeneinander",
     fullSize: 'Volle Größe',
     customSize: 'Eigene Größe',
     master: 'Volle Größe · PNG',
