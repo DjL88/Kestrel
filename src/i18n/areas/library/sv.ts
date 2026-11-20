@@ -339,6 +339,18 @@ export const sv: AreaTranslation<typeof source> = {
     eye: 'Öga',
     eyeBusy: 'Öga…',
   },
+  floatingPane: {
+    undockTools: "Koppla loss redigeringsverktyg",
+    undockToolsHelp: "Flytta verktygen till ett fönster som kan ändra storlek",
+    undockInfo: "Koppla loss fotoinformation",
+    undockInfoHelp: "Flytta fotoinformationen till ett fönster som kan ändra storlek",
+    move: (title) => `Flytta ${title} med piltangenterna`,
+    drag: (title) => `Dra för att flytta ${title}, eller använd piltangenterna`,
+    restore: (title) => `Återställ storleken på panelen ${title}`,
+    maximise: (title) => `Maximera panelen ${title}`,
+    pin: (title) => `Håll ${title} synlig i läget Endast foto`,
+    dock: (title) => `Docka ${title}`,
+  },
   paneRail: {
     editingTools: 'Redigeringsverktyg',
     photoInfo: 'Fotoinfo',
