@@ -14,7 +14,7 @@ resource "google_storage_bucket" "demo_published" {
   public_access_prevention    = "inherited"
   force_destroy               = false
   cors {
-    origin          = concat(var.allowed_origins, ["https://${google_firebase_hosting_site.site.site_id}.web.app"])
+    origin          = ["*"] # All images in THIS bucket are explicitly published; preview channels also work
     method          = ["GET", "HEAD"]
     response_header = ["Content-Type", "ETag"]
     max_age_seconds = 300

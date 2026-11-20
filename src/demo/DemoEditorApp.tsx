@@ -17,6 +17,7 @@ interface Example {
   alt: string;
   imageUrl?: string | null;
   published: boolean;
+  publishedRevision?: number | null;
   revision: number;
   edit?: PhotoEdit;
   framing?: PhotoFraming;
@@ -183,12 +184,12 @@ export function DemoEditorApp() {
       return active.meta.id;
     });
   }
-  function publish() {
+  function publish(nextPublished: boolean) {
     void adminAction(async () => {
       if (!active) return undefined;
       if (dirty) throw new Error('Save the edits and subject details before publishing.');
       await api('admin/demo/photos/' + encodeURIComponent(active.meta.id) + '/publish', token,
-        { revision: active.meta.revision, published: !active.meta.published });
+        { revision: active.meta.revision, published: nextPublished });
       return active.meta.id;
     });
   }
@@ -216,9 +217,11 @@ export function DemoEditorApp() {
               const file = event.target.files?.[0]; event.target.value = ''; if (file) upload(file);
             }} />
             <button type="button" onClick={save} disabled={busy || !active || !dirty} className="rounded-md border border-white/25 px-3 py-2">Save settings</button>
-            <button type="button" onClick={publish} disabled={busy || !active || dirty} className="rounded-md bg-amber-700 px-3 py-2 font-semibold">
-              {active?.meta.published ? 'Unpublish' : 'Publish'}
+            <button type="button" onClick={() => publish(true)} disabled={busy || !active || dirty} className="rounded-md bg-amber-700 px-3 py-2 font-semibold">
+              {active?.meta.published ? 'Publish saved changes' : 'Publish'}
             </button>
+            {active?.meta.published && <button type="button" onClick={() => publish(false)} disabled={busy || dirty}
+              className="rounded-md border border-white/25 px-3 py-2">Unpublish</button>}
             <button type="button" onClick={remove} disabled={busy || !active} className="rounded-md border border-rose-500 px-3 py-2">Delete</button>
           </div>
           {active && <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
