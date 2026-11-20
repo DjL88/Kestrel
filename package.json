@@ -12,7 +12,7 @@
     "lint": "tsc --noEmit",
     "test:e2e": "playwright test",
     "test:raw-master": "node scripts/test-raw-master.mjs",
-    "test": "tsx --test src/core/*.test.ts src/providers/*.test.ts tools/mcp/*.test.ts services/control-plane/test/*.test.ts",
+    "test": "node --import tsx --test \"src/core/*.test.ts\" \"src/providers/*.test.ts\" \"tools/mcp/*.test.ts\" \"services/control-plane/test/*.test.ts\"",
     "control-plane": "npm --prefix services/control-plane start",
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
