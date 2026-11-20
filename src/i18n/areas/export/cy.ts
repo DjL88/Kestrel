@@ -212,6 +212,10 @@ export const cy: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Rhagddodiaid enwau ffeiliau ac ansawdd JPEG',
   },
   results: {
+    connectedBackground: (count, place) => `Cadw ${count} allforiad i ${place} yn y cefndir`,
+    connectingDestination: "Yn cysylltu â’r gyrchfan…",
+    connectedBackgroundHelp: "Cedwir y ffeiliau fesul un mewn ffolder newydd, wedi’u grwpio yn ôl cyrchfan. Mae Allforio yn cau ar ôl derbyn y dasg; gwelwch gynnydd neu wallau yn y Rheolwr Tasgau.",
+
     backgroundSaving: (count) => `Allforio ${count} o ffeiliau yn y cefndir`,
     choosingFolder: "Dewis ffolder…",
     desktopBackground: (count) => `Cadw ${count} o ffeiliau mewn ffolder yn y cefndir`,
