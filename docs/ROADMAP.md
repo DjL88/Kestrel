@@ -339,6 +339,21 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
   - **Budget alert:** £20/month (50/90/100%).
 - **Next:** the app fetches `manifest/stable.json` and pins the key above (nothing calls `modelDelivery.ts` yet); then accounts, licences, payments and the admin console (see the licensing plan); then the control plane on Cloud Run with Cloud SQL.
 
+### Accounts, licences, payments and the admin console (owner decisions, 20 Nov; lifted from the P3 freeze)
+Kestrel stays free and anonymous offline. An account is needed only to buy Pro or use it on several devices.
+- **Product:** Pro is a **one-off licence** (no subscriptions). Basic stays free: manual culling and editing, export and local backup are never gated (K.17 decides what is Pro).
+- **Accounts:** Sign in with Apple, Sign in with Google, and an email link (no passwords). Apple's rule: the iPhone/iPad app must offer Sign in with Apple if it offers Google.
+- **Payments:**
+  - Website and desktop: **SumUp Hosted Checkout** (cards, Apple Pay, Google Pay). The SumUp webhook and checkout status are the source of truth, never the browser redirect. Apple Pay on the web needs each domain registered with Apple.
+  - iPhone/iPad and Android apps: the stores' own in-app purchase (StoreKit / Play Billing; store rules for unlocking features). Purchases are verified server-side (App Store Server API and Notifications v2; Play Developer API and Real-time developer notifications) and linked to the signed-in Kestrel account.
+- **One licence on every device:** the server keeps account → entitlements (from SumUp, Apple, Google and redeemed keys). Each device gets the existing Ed25519 **offline grant** (`entitlementGrant.ts`), valid 30 days, renewed when online; device slots as built in the control plane.
+- **Licence keys** (`KESTREL1`, `licence.ts`): issued for free or gift licences from the admin console, redeemable into an account or offline. The licence-issuing private key stays offline/in Secret Manager, never in the app.
+- **Admin console:** `/admin` on the website, Google sign-in restricted to the owner's account. Shows licensees, devices, usage (AI allowance), payments and refunds; issues and revokes keys; audited (the control plane already has audited admin routes).
+- **Server:** the control plane on Cloud Run (europe-west2) with **Firestore** (owner choice: free tier, serverless) behind a storage adapter replacing `node:sqlite`; secrets in Secret Manager; SumUp and store keys added by the owner, never committed.
+- **Tax:** SumUp is a payment processor, not merchant of record. UK VAT and EU non-Union OSS (customer-country rate, two location proofs) are the owner's to confirm with an accountant; invoices/receipts must show VAT when registered.
+- **Privacy:** store only what licensing needs (account id, email, entitlements, device ids, payment references); no photos or catalogues; deletion on request; PRIVACY.md updated before launch.
+- **Order of work:** (1) Firestore adapter + control plane on Cloud Run; (2) admin console with key issuing; (3) accounts (Google, Apple, email link) and licence linking in the app; (4) SumUp checkout + webhook; (5) App Store and Play purchases; (6) price, tax and legal pages. Each a small PR, merged by the coordinator.
+
 ### P3: Frozen until P1.1 lands (see "Image first" above)
 - A metadata-only serialiser and local sync outbox, with synthetic tests of conflict-safe sync between two devices. (Gates carried over from the closed #363: originals and previews never upload; a licence isn't an account or a key; local writing works with the network off.)
 - Control plane: deployment, app sign-in, choosing the managed transport, storing grants for `useAccess`, a PostgreSQL adapter.
