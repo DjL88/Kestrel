@@ -196,6 +196,7 @@ pub fn run() {
                 &MenuItem::with_id(app, "view-info", "Show or hide Photo info", true, None::<&str>)?,
                 &MenuItem::with_id(app, "view-bursts", "Group or ungroup bursts", true, None::<&str>)?,
                 &MenuItem::with_id(app, "view-tools", "Show or hide editing tools", true, None::<&str>)?,
+                &MenuItem::with_id(app, "view-all-tabs", "Show and dock all editor tabs", true, None::<&str>)?,
                 &PredefinedMenuItem::separator(app)?,
                 &MenuItem::with_id(app, "view-left", "Panels on the left", true, None::<&str>)?,
                 &MenuItem::with_id(app, "view-right", "Panels on the right", true, None::<&str>)?,
