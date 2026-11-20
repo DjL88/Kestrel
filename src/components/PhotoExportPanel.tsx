@@ -867,19 +867,16 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
         )}
         {!resultsReady && frames.length === 1 && !frames[0].isDemo &&
           isRawPreviewFile(frames[0].filename) && canDevelopRaw() && (
-          <section aria-label={editorT.raw.master} className="mb-3 rounded-lg border border-white/15 bg-black/15 p-3">
+          <section aria-label={t.rawTiff.action} className="mb-3 rounded-lg border border-white/15 bg-black/15 p-3">
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" className={`${button} border border-white/20 font-medium`}
                 disabled={saving || progress !== null || placeBusy} onClick={() => void saveRawTiff()}>
-                {saving ? editorT.raw.masterBusy : editorT.raw.master}
+                {saving ? editorT.raw.masterBusy : t.rawTiff.action}
               </button>
               <details className="min-w-0 flex-1 text-xs text-zinc-300">
-                <summary className="min-h-11 cursor-pointer py-2">16-bit RAW details</summary>
+                <summary className="min-h-11 cursor-pointer py-2">{t.rawTiff.details}</summary>
                 <p className="pb-2">
-                  This optional TIFF uses the RAW sensor data and saved edits, not the 8-bit preview.
-                  It is separate from the web and social export renderer. It adds no text or watermark and
-                  includes no optional GPS or EXIF by default. Colour accuracy and performance still need
-                  prototype verification on your camera and device. Unsupported edits stop the save.
+                  {t.rawTiff.help}
                 </p>
               </details>
             </div>
