@@ -1685,7 +1685,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
       </div>
       ); return floatingTools
-        ? <FloatingPane title="Editing tools" initialSide={panelSide} storageKey="kestrel-tools-float-rect-v1" onDock={() => setToolsUndocked(false)}>{toolPanel}</FloatingPane>
+        ? <FloatingPane title="Editing tools" initialSide={panelSide} storageKey="kestrel-tools-float-rect-v1" dockFocusSelector='[aria-label="Undock editing tools"]' onDock={() => setToolsUndocked(false)}>{toolPanel}</FloatingPane>
         : toolPanel; })()}
       {isPhone && !focusPhoto && tabList}
       </div>

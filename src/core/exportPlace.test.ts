@@ -38,3 +38,19 @@ test('separate export runs in the same minute never share destination paths', ()
   assert.equal(isWritablePath(first[0]), true);
   assert.equal(isWritablePath(second[0]), true);
 });
+
+test('groups social outputs into destination folders and resolves collisions within each folder', () => {
+  const paths = exportPaths([
+    { name: 'kite.jpg', platform: 'instagram' },
+    { name: 'kite.jpg', platform: 'facebook' },
+    { name: 'KITE.JPG', platform: 'instagram' },
+    { name: 'kite.jpg' },
+  ], when);
+  assert.deepEqual(paths, [
+    'export/2026-11-16 14-05/instagram/kite.jpg',
+    'export/2026-11-16 14-05/facebook/kite.jpg',
+    'export/2026-11-16 14-05/instagram/KITE-2.JPG',
+    'export/2026-11-16 14-05/kite.jpg',
+  ]);
+  assert.ok(paths.every(isWritablePath));
+});
