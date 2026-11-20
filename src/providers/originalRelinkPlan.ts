@@ -75,6 +75,12 @@ export function planOriginalRelink(
     }
   }
   for (const candidate of candidates) {
+    // Count every non-empty physical path, including malformed candidate rows.
+    // Otherwise an invalid duplicate can be invisible to collision checks.
+    if (filename(candidate.path)) {
+      const path = normalizedPath(candidate.path);
+      candidatePaths.set(path, (candidatePaths.get(path) ?? 0) + 1);
+    }
     if (!valid(candidate) || !validDigest(candidate.sha256)) continue;
     if (candidate.sha256) {
       const hashKey = hashedSignature(candidate);
@@ -82,9 +88,7 @@ export function planOriginalRelink(
       hashedCandidateBySignature.set(hashKey, candidate);
     }
     const key = signature(candidate);
-    const path = normalizedPath(candidate.path);
     candidateCount.set(key, (candidateCount.get(key) ?? 0) + 1);
-    candidatePaths.set(path, (candidatePaths.get(path) ?? 0) + 1);
   }
   const candidateBySignature = new Map<string, CandidateOriginal>();
   for (const candidate of candidates) {
