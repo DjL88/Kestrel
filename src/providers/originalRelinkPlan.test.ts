@@ -158,3 +158,25 @@ test('digest and legacy metadata modes cannot assign the same NAS path twice', (
   assert.deepEqual(result.matches, []);
   assert.deepEqual(result.ambiguous, ['z8', 'legacy']);
 });
+
+test('malformed duplicate NAS paths block digest matches rather than hiding collisions', () => {
+  const saved = { ...original, sha256: shaA };
+  const good = { path: '//NAS/archive/renamed.NEF', size: 10000, lastModified: 9999, sha256: shaA };
+  for (const malformed of [
+    { ...good, size: NaN },
+    { ...good, sha256: 'malformed' },
+    { ...good, lastModified: Infinity },
+  ]) {
+    const result = planOriginalRelink([saved], [good, malformed]);
+    assert.deepEqual(result.matches, []);
+    assert.deepEqual(result.ambiguous, ['z8']);
+  }
+});
+
+test('malformed duplicate NAS paths block legacy metadata matches too', () => {
+  const good = { path: '//NAS/archive/_DSC0001.NEF', size: 10000, lastModified: 1234 };
+  const malformed = { ...good, size: -1, path: '//nas/archive/_dsc0001.nef' };
+  const result = planOriginalRelink([original], [good, malformed]);
+  assert.deepEqual(result.matches, []);
+  assert.deepEqual(result.ambiguous, ['z8']);
+});
