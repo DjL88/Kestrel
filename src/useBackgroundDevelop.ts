@@ -39,7 +39,8 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
     if (running.current || !canDevelopRaw()) return;
     running.current = true;
     let task: TaskHandle | null = null;
-    let done = 0;
+    let processed = 0;
+    let developedCount = 0;
     try {
       for (;;) {
         const { projectId: id, frames: current, provider: store, onScreen: shown } = latest.current;
@@ -53,23 +54,22 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
         const original = await store.ensureOriginal(frame.stableKey, 'background');
         if (!original || !stillCurrent()) continue;
         task ??= tasks.start(t.tasks.developingRaw, { total: queue.length, cancel: () => { stoppedFor.current = id; } });
-        task.progress(done, done + queue.length, frame.filename);
+        task.progress(processed, processed + queue.length, frame.filename);
         try {
           const developed = await developRaw(original, /\.([a-z0-9]+)$/i.exec(frame.filename)?.[1] ?? 'nef');
           const turned = await matchPreviewOrientation(developed, await extractRawPreview(original).catch(() => null));
-          // The person may have left the project while this one developed; the picture is still right for its original.
-          await store.storeDevelopedPicture(frame, turned);
+          if (await store.storeDevelopedPicture(frame, original, turned)) developedCount += 1;
         } catch {
           // Unreadable sensor data: the embedded preview stays, and the editor says why when this photo is opened.
         }
-        done += 1;
-        task.progress(done, done + queue.length - 1);
+        processed += 1;
+        task.progress(processed, processed + queue.length - 1);
       }
     } finally {
       running.current = false;
       if (task) {
         if (stoppedFor.current === latest.current.projectId) task.finish(t.tasks.developStopped);
-        else task.finish(t.tasks.developed(done));
+        else task.finish(t.tasks.developed(developedCount));
       }
     }
   }, []);

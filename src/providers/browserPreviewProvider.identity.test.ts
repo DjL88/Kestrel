@@ -126,3 +126,16 @@ test('a reopened RAW can use a persisted developed review when its original is o
     await assert.rejects(fetch(first));
   } finally { provider.clear(); }
 });
+
+test('background development cannot publish an older original after a replacement or project clear', async () => {
+  const provider = new BrowserPreviewProvider();
+  const photo = { ...frame('stale-develop', 'developing-original'), filename: 'bird.nef' };
+  const oldOriginal = new Blob(['old RAW']);
+  const newOriginal = new Blob(['replacement RAW']);
+  const picture = new Blob(['developed JPEG']);
+  provider.registerBlob(photo.stableKey, oldOriginal);
+  provider.registerBlob(photo.stableKey, newOriginal);
+  assert.equal(await provider.storeDevelopedPicture(photo, oldOriginal, picture), false);
+  provider.clear();
+  assert.equal(await provider.storeDevelopedPicture(photo, newOriginal, picture), false);
+});
