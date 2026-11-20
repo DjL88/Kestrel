@@ -174,3 +174,14 @@ month, so only when needed).
 ## Removing it
 
 `terraform destroy` removes everything this folder created. Buckets must be empty first; download what you want to keep.
+
+
+### Scheduled Pro price review
+
+When enabled, Cloud Scheduler starts the `kestrel-pricing-review` Cloud Run job on the 20th of each month at 09:00 London time. It reads ECB reference rates and, in April, uses ONS CPI series D7BT to compare the latest available index with the month of the last approved GBP price. The job saves one proposal per month. It cannot set the approved price or enable checkout.
+
+Before enabling it, build and publish an image from a commit containing `src/commerce/runPriceReview.ts`. In the control plane's Firestore database, seed `pricing_settings/current` with `gbpProBasePence` (integer pence, initially 2900), `effectiveDate` (the approved price date in YYYY-MM-DD) and `currencies` (the ISO codes to review, for example GBP, USD, EUR and AUD). Review the rollout with `terraform plan` before setting `pricing_review_enabled=true` alongside the new image. Run the job once and check the **Price review** section in the signed-in admin console. The settings document remains the approved baseline, and `pricing_reviews/<YYYY-MM>` contains the proposals for review.
+
+- [ECB reference rates](https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html)
+- [ONS all-items CPI index](https://www.ons.gov.uk/economy/inflationandpriceindices/timeseries/d7bt)
+- [Scheduling Cloud Run jobs](https://docs.cloud.google.com/run/docs/execute/jobs-on-schedule)

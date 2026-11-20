@@ -2,9 +2,15 @@ import type { Firestore } from '@google-cloud/firestore';
 import { commerceCollections, type RollingTurnoverRecord, type TaxSettingsRecord, type TransactionRecord } from './records.ts';
 import { validateUkVatSettings, type TaxSettings } from './tax.ts';
 import { ukTurnoverMetrics } from './turnover.ts';
+import type { proposePrices } from './priceReview.ts';
 
 export class CommerceLedger {
   constructor(private readonly db: Firestore) {}
+
+  async latestPriceReview(): Promise<ReturnType<typeof proposePrices> | null> {
+    const rows = await this.db.collection('pricing_reviews').orderBy('month', 'desc').limit(1).get();
+    return rows.docs[0]?.data() as ReturnType<typeof proposePrices> | undefined ?? null;
+  }
 
   async getTaxSettings(): Promise<TaxSettings> {
     const settings = await this.db.collection(commerceCollections.settings).doc('current').get();

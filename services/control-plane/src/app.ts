@@ -27,6 +27,7 @@ export interface AppOptions {
   config: Config;
   store?: Store;
   commerce?: Pick<CommerceLedger, 'getTaxSettings' | 'updateTaxSettings' | 'recordTurnover' | 'ossQuarter'>;
+  pricing?: Pick<CommerceLedger, 'latestPriceReview'>;
   /** Paid checkouts for the admin console's Payments table (the Firestore commerce ledger). */
   payments?: { listTransactions(limit: number): Promise<TransactionRecord[]> };
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
@@ -380,6 +381,14 @@ export function createApp(options: AppOptions) {
         const body = parseJson(AdminTaxSettings, req.rawBody);
         await commerce.updateTaxSettings(body, claims.sub);
         return adminDone(claims, 'tax.settings', 'ukVatRegistered=' + body.ukVatRegistered, { saved: true });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/pricing/review', summary: 'Read the latest scheduled price proposal', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'pricing.review.read');
+        if (!options.pricing) throw new ApiError(503, 'PRICING_REVIEW_UNAVAILABLE', 'Price reviews need the Firestore commerce ledger.');
+        return adminDone(claims, 'pricing.review.read', '', { review: await options.pricing.latestPriceReview() });
       },
     },
     {

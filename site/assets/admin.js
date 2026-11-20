@@ -129,7 +129,7 @@ act($('sign-out'), 'click', () => signOut('Signed out.'));
 // ---- Sections --------------------------------------------------------------------------------------------------
 
 async function refreshAll() {
-  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadMessages(), loadTax(), loadAudit()]);
+  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadMessages(), loadTax(), loadPriceReview(), loadAudit()]);
   const failed = results.find(r => r.status === 'rejected' && !(r.reason instanceof SignedOut));
   if (failed) say(failed.reason.message);
 }
@@ -270,6 +270,37 @@ async function loadMessages() {
 }
 
 // ---- Tax (from the tax admin, #547) ----------------------------------------------------------------------------
+async function loadPriceReview() {
+  $('price-review-table').hidden = true;
+  $('price-review-rows').replaceChildren();
+  let review;
+  try { ({ review } = await api('admin/pricing/review')); } catch (error) {
+    if (error instanceof SignedOut) throw error;
+    $('price-review-status').textContent = error.message;
+    return;
+  }
+  if (!review) {
+    $('price-review-status').textContent = 'No scheduled review has run yet.';
+    return;
+  }
+  $('price-review-status').textContent = `${review.month} · ECB reference rates for ${review.rateDate} · For review. Live prices are unchanged.`
+    + (review.inflation ? ` April UK CPI: ${review.inflation.baseline.date} to ${review.inflation.latest.date}.` : '');
+  for (const price of review.prices) {
+    const row = el('tr');
+    cell(row, price.currency);
+    if (price.status === 'for-review') {
+      const money = new Intl.NumberFormat('en-GB', { style: 'currency', currency: price.currency });
+      cell(row, money.format(price.unroundedMajor));
+      cell(row, money.format(price.proposedMajor));
+    } else {
+      cell(row, 'Rate unavailable');
+      cell(row, '—');
+    }
+    $('price-review-rows').append(row);
+  }
+  $('price-review-table').hidden = false;
+}
+
 const taxForm = $('tax-settings');
 const ossForm = $('oss');
 ossForm.elements.year.value = new Date().getFullYear();
