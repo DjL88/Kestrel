@@ -47,11 +47,19 @@ test('rejects duplicate physical file, even with distinct photo IDs', async () =
   assert.equal(result.ok, false);
 }));
 
-test('rejects symlinks, missing files and relative paths', async () => sandbox(async dir => {
+test('rejects symlinks, missing files and relative paths', async (t) => sandbox(async dir => {
   const target = join(dir, 'target.nef'), link = join(dir, 'link.nef');
   await writeFile(target, 'bird');
-  await symlink(target, link);
-  for (const path of [link, join(dir, 'missing.nef'), 'relative.nef']) {
+  const paths = [join(dir, 'missing.nef'), 'relative.nef'];
+  // Windows lets ordinary accounts create symbolic links only with Developer Mode on; check them where possible.
+  try {
+    await symlink(target, link);
+    paths.unshift(link);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EPERM') throw error;
+    t.diagnostic('symbolic links not permitted on this machine; symlink case not checked here');
+  }
+  for (const path of paths) {
     const result = await verifyDesktopRelinkFiles([identity('bird', 'bird')], [{ photoId: 'bird', path }]);
     assert.equal(result.ok, false);
   }
