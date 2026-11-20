@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** German. DRAFT: written without a native speaker's check. */
 export const de: AreaTranslation<typeof source> = {
+  presets: {
+    title: "Exportvorgaben",
+    name: "Name der Vorgabe",
+    save: "Vorgabe speichern",
+    applied: (name: string) => `${name} angewendet.`,
+    remove: (name: string) => `Vorgabe ${name} entfernen`,
+    removed: "Vorgabe entfernt.",
+    duplicate: "Wähle einen anderen Namen.",
+    saved: "Vorgabe gespeichert.",
+    saveFailed: "Exportvorgaben konnten auf diesem Gerät nicht gespeichert werden.",
+    standardOnly: "Vorgaben speichern Standardformate.",
+  },
   proof: {
     title: "Exportvorschau",
     photo: "Foto",

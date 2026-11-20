@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** French. DRAFT: written without a native speaker's check. */
 export const fr: AreaTranslation<typeof source> = {
+  presets: {
+    title: "Préréglages d’export",
+    name: "Nom du préréglage",
+    save: "Enregistrer le préréglage",
+    applied: (name: string) => `${name} appliqué.`,
+    remove: (name: string) => `Supprimer le préréglage ${name}`,
+    removed: "Préréglage supprimé.",
+    duplicate: "Choisissez un autre nom.",
+    saved: "Préréglage enregistré.",
+    saveFailed: "Impossible d’enregistrer les préréglages sur cet appareil.",
+    standardOnly: "Les préréglages enregistrent les formats standard.",
+  },
   proof: {
     title: "Épreuve d’export",
     photo: "Photo",

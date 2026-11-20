@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** Swedish. DRAFT: written without a native speaker's check. */
 export const sv: AreaTranslation<typeof source> = {
+  presets: {
+    title: "Exportförinställningar",
+    name: "Förinställningens namn",
+    save: "Spara förinställning",
+    applied: (name: string) => `${name} tillämpades.`,
+    remove: (name: string) => `Ta bort förinställningen ${name}`,
+    removed: "Förinställningen togs bort.",
+    duplicate: "Välj ett annat namn.",
+    saved: "Förinställningen sparades.",
+    saveFailed: "Det gick inte att spara exportförinställningar på den här enheten.",
+    standardOnly: "Förinställningar sparar standardformat.",
+  },
   proof: {
     title: "Exportprov",
     photo: "Foto",

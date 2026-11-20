@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** Spanish (Spain). DRAFT: written without a native speaker's check. */
 export const es: AreaTranslation<typeof source> = {
+  presets: {
+    title: "Ajustes preestablecidos de exportación",
+    name: "Nombre del ajuste",
+    save: "Guardar ajuste",
+    applied: (name: string) => `Se ha aplicado ${name}.`,
+    remove: (name: string) => `Eliminar el ajuste ${name}`,
+    removed: "Ajuste eliminado.",
+    duplicate: "Usa otro nombre.",
+    saved: "Ajuste guardado.",
+    saveFailed: "No se pudieron guardar los ajustes de exportación en este dispositivo.",
+    standardOnly: "Los ajustes guardan formatos estándar.",
+  },
   proof: {
     title: "Prueba de exportación",
     photo: "Foto",

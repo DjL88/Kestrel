@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** Italian. DRAFT: written without a native speaker's check. */
 export const it: AreaTranslation<typeof source> = {
+  presets: {
+    title: "Preimpostazioni di esportazione",
+    name: "Nome della preimpostazione",
+    save: "Salva preimpostazione",
+    applied: (name: string) => `Applicata ${name}.`,
+    remove: (name: string) => `Rimuovi la preimpostazione ${name}`,
+    removed: "Preimpostazione rimossa.",
+    duplicate: "Scegli un altro nome.",
+    saved: "Preimpostazione salvata.",
+    saveFailed: "Impossibile salvare le preimpostazioni su questo dispositivo.",
+    standardOnly: "Le preimpostazioni salvano i formati standard.",
+  },
   proof: {
     title: "Prova di esportazione",
     photo: "Foto",

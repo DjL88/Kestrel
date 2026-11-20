@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** Danish. DRAFT: written without a native speaker's check. */
 export const da: AreaTranslation<typeof source> = {
+  presets: {
+    title: "Eksportforvalg",
+    name: "Navn på forvalg",
+    save: "Gem forvalg",
+    applied: (name: string) => `${name} blev anvendt.`,
+    remove: (name: string) => `Fjern forvalget ${name}`,
+    removed: "Forvalget blev fjernet.",
+    duplicate: "Vælg et andet navn.",
+    saved: "Forvalget blev gemt.",
+    saveFailed: "Eksportforvalg kunne ikke gemmes på denne enhed.",
+    standardOnly: "Forvalg gemmer standardformater.",
+  },
   proof: {
     title: "Eksportprøve",
     photo: "Foto",

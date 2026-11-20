@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** Icelandic. DRAFT: written without a native speaker's check. */
 export const is: AreaTranslation<typeof source> = {
+  presets: {
+    title: "Forstillingar útflutnings",
+    name: "Heiti forstillingar",
+    save: "Vista forstillingu",
+    applied: (name: string) => `Forstillingin ${name} var notuð.`,
+    remove: (name: string) => `Fjarlægja forstillinguna ${name}`,
+    removed: "Forstilling var fjarlægð.",
+    duplicate: "Veldu annað heiti.",
+    saved: "Forstilling var vistuð.",
+    saveFailed: "Ekki tókst að vista forstillingar á þessu tæki.",
+    standardOnly: "Forstillingar vista stöðluð snið.",
+  },
   proof: {
     title: "Útflutningsprófun",
     photo: "Mynd",

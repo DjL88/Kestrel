@@ -7,6 +7,18 @@ import type { source } from './source';
  * ("3 llun", "5 ffeil"), so these sentences need only one form.
  */
 export const cy: AreaTranslation<typeof source> = {
+  presets: {
+    title: "Rhagosodiadau allforio",
+    name: "Enw’r rhagosodiad",
+    save: "Cadw’r rhagosodiad",
+    applied: (name: string) => `Defnyddiwyd ${name}.`,
+    remove: (name: string) => `Dileu’r rhagosodiad ${name}`,
+    removed: "Dilëwyd y rhagosodiad.",
+    duplicate: "Dewiswch enw arall.",
+    saved: "Cadwyd y rhagosodiad.",
+    saveFailed: "Doedd dim modd cadw’r rhagosodiadau ar y ddyfais hon.",
+    standardOnly: "Mae rhagosodiadau’n cadw fformatau safonol.",
+  },
   proof: {
     title: "Prawf allforio",
     photo: "Llun",

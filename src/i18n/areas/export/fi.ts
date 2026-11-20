@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** Finnish. DRAFT: written without a native speaker's check. */
 export const fi: AreaTranslation<typeof source> = {
+  presets: {
+    title: "Viennin esiasetukset",
+    name: "Esiasetuksen nimi",
+    save: "Tallenna esiasetus",
+    applied: (name: string) => `Esiasetus ${name} otettiin käyttöön.`,
+    remove: (name: string) => `Poista esiasetus ${name}`,
+    removed: "Esiasetus poistettiin.",
+    duplicate: "Valitse toinen nimi.",
+    saved: "Esiasetus tallennettiin.",
+    saveFailed: "Viennin esiasetuksia ei voitu tallentaa tälle laitteelle.",
+    standardOnly: "Esiasetukset tallentavat vakiomuodot.",
+  },
   proof: {
     title: "Vientivedos",
     photo: "Kuva",
