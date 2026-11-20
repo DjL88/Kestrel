@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { link, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -66,4 +66,30 @@ test('500 synthetic files stream sequentially; one replacement rejects all', asy
   const result = await verifyDesktopRelinkFiles(originals, files);
   assert.equal(result.ok, false);
   if (!result.ok) assert.ok(result.failures.some(f => f.photoId === 'p379'));
+}));
+
+
+test('rejects distinct hard-link paths to the same physical file', async () => sandbox(async dir => {
+  const first = join(dir, 'first.nef'), second = join(dir, 'second.nef');
+  await writeFile(first, 'identical original bytes');
+  await link(first, second);
+  const result = await verifyDesktopRelinkFiles(
+    [identity('one', 'identical original bytes'), identity('two', 'identical original bytes')],
+    [{ photoId: 'one', path: first }, { photoId: 'two', path: second }],
+  );
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.ok(result.failures.some(f => f.photoId === 'two' && f.reason === 'duplicate-candidate-path'));
+}));
+
+test('a hard link cannot be used to relink a second photo in a 500-file batch', async () => sandbox(async dir => {
+  const originals = Array.from({ length: 500 }, (_, i) => identity('p' + i, 'original-' + i));
+  const files = originals.map(o => ({ photoId: o.photoId, path: join(dir, o.photoId + '.nef') }));
+  await Promise.all(files.map((f, i) => writeFile(f.path, 'original-' + i)));
+  // Two IDs with the same bytes are still distinct catalogue originals.
+  await rm(files[499].path);
+  await link(files[0].path, files[499].path);
+  originals[499] = identity('p499', 'original-0');
+  const result = await verifyDesktopRelinkFiles(originals, files);
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.ok(result.failures.some(f => f.photoId === 'p499' && f.reason === 'duplicate-candidate-path'));
 }));
