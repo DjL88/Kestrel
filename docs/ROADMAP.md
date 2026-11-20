@@ -18,6 +18,10 @@ Every status uses exactly one of these labels:
 
 *Last reconciled: 18 November 2026, after the integration pass that merged #353–#361 and #364 and closed #362 and #363.*
 
+### 20 November 2026 — connected background export language parity
+
+**Code authored, acceptance NOT RUN.** The connected cloud/NAS export batch action now uses the same language catalogue as the desktop Export Flight. Its destination-specific button, connecting/busy state and instructions for the new destination-grouped folder, closing the dialog after acceptance, and tracking progress/errors in Task Manager use British English source and translations in all full language packs. Earlier hard-coded English text has been removed. This does **not** imply cloud/NAS credentials, permissions, network availability, persistence after app restart or offline/online transitions have been verified. **NOT RUN:** linter, translation completeness build, UI screen-reader/RTL inspection, connected NAS/cloud provider end-to-end or physical prototype checks.
+
 ### 20 November 2026 — translated, focus-safe floating Editing Tools and Photo Info
 
 **Code authored, visual acceptance NOT RUN.** The existing undock/dock, draggable, resizable, maximisable and pinnable panels are connected to translated British English source and all full language packs: move/arrow-key instructions, restore/maximise, pin in Photo-only mode, dock and undock. The float titles use the translated editing-tools and Photo Info labels. Keyboard focus after docking returns by stable `data-editor-undock` / `data-info-undock` controls instead of English `aria-label` string matching. This removes a known non-English UI gap without changing the resize and drag geometry or saving any photo state. **NOT RUN:** TypeScript, locale rendering, keyboard/SR Playwright, Windows/Mac/tablet installed journey; retain Section F4/F5 acceptance for prototype testing.
