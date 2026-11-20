@@ -42,8 +42,6 @@ export function ZoomControls({ zoom, fit, dpr, maxZoom, onZoom, eye, note, compa
         <input type="range" min={1} max={rangeMax} step={(rangeMax - 1) / 200} value={zoom} disabled={!ready}
           aria-label={t.zoom.amount} onChange={(event) => onZoom(event.target.valueAsNumber)}
           className="kestrel-adjustment-range relative z-10 h-11 w-full min-w-0 cursor-pointer disabled:cursor-not-allowed" />
-          aria-label="Zoom amount" onChange={(event) => onZoom(event.target.valueAsNumber)}
-          className="kestrel-adjustment-range relative z-[1] h-11 w-full min-w-0 cursor-pointer disabled:cursor-not-allowed" />
       </span>
       <button type="button" title={t.zoom.fitTitle} className="h-11 min-w-11 rounded px-1.5 hover:bg-white/15" onClick={() => onZoom(1)}>{t.zoom.fit}</button>
       <button type="button" title={t.zoom.actualPixels} disabled={!ready} className="h-11 min-w-11 rounded px-1.5 hover:bg-white/15 disabled:opacity-40"
