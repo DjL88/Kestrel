@@ -580,6 +580,15 @@ export default function App() {
       on('edit-photo', () => { if (!projectsOpen && cullingState.selectedFrameId) { setEditQueueIds(visibleFrames.map((frame) => frame.id)); setEditing(true); } }),
       on('edit-auto', () => { if (!projectsOpen) setAutoAdjustOpen(true); }),
       on('edit-look', () => { if (!projectsOpen) setBatchLookOpen(true); }),
+      on('edit-copy-adjustments', () => {
+        const selected = stateRef.current.frames.find((frame) => frame.id === cullingState.selectedFrameId);
+        if (selected) setCopiedEdit(selected.edit ?? DEFAULT_EDIT);
+      }),
+      on('edit-paste-adjustments', () => {
+        if (copiedEdit && cullingState.selectedFrameId) {
+          updateFrame(cullingState.selectedFrameId, { edit: isEmptyEdit(copiedEdit) ? undefined : { ...copiedEdit } });
+        }
+      }),
       on('view-info', () => setShowPhotoInfo((value) => !value)),
       on('view-tools', () => setWorkspacePanes((value) => ({ ...value, folded: !value.folded }))),
       on('view-left', () => setPrefs((prev) => ({ ...prev, hand: 'left', editPanelSide: 'left' }))),
@@ -588,7 +597,7 @@ export default function App() {
       on('settings-storage', () => { setSettingsSection('storage'); setSettingsOpen(true); }),
     ];
     return () => handlers.forEach((off) => off());
-  }, [projectsOpen, cullingState.selectedFrameId, visibleFrames]);
+  }, [projectsOpen, cullingState.selectedFrameId, visibleFrames, copiedEdit]);
 
   const selectedFrame: PhotoFrame | null = useMemo(() => {
     if (!cullingState.selectedFrameId) return visibleFrames[0] ?? null;
@@ -2366,6 +2375,18 @@ export default function App() {
               onDecideFrame={(frameId, decision) =>
                 handleDecideFrame(frameId, decision, false)
               }
+              onBatchDecision={(ids, decision) => {
+                if (decision === 'reject' && ids.some((id) => cullingState.frames.some((frame) => frame.id === id && frame.decision === 'keep'))) {
+                  setPendingAction({ kind: 'trash', frameIds: ids, allowAdvance: false });
+                  return;
+                }
+                setCullingState((previous) => ids.reduce((state, id) =>
+                  applyDecisionWithHistory(state, id, decision, { allowAdvance: false }), previous));
+              }}
+              onExportSelected={(ids) => {
+                const chosen = new Set(ids);
+                setExportFrames(cullingState.frames.filter((frame) => chosen.has(frame.id) && !frame.removedAt));
+              }}
             />
           )}
 
