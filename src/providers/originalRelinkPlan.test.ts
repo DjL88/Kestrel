@@ -150,3 +150,11 @@ test('500 SHA-256 verified synthetic relinks tolerate changed names and timestam
   assert.deepEqual(result.unresolved, []);
   for (let i = 0; i < 500; i++) assert.equal(result.matches[i].id, saved[i].id);
 });
+
+test('digest and legacy metadata modes cannot assign the same NAS path twice', () => {
+  const candidate = { path: '//NAS/_DSC0001.NEF', size: 10000, lastModified: 1234, sha256: shaA };
+  const records = [{ ...original, sha256: shaA }, { ...original, id: 'legacy' }];
+  const result = planOriginalRelink(records, [candidate]);
+  assert.deepEqual(result.matches, []);
+  assert.deepEqual(result.ambiguous, ['z8', 'legacy']);
+});
