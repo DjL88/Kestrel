@@ -36,6 +36,13 @@
     .download{display:inline-block;background:var(--copper-hover);color:var(--canvas);font-weight:750;border-radius:8px;padding:8px 12px;text-decoration:none}
     .muted{color:#bdc4cf}.steps{padding-left:24px;max-width:740px}.steps li{margin-bottom:12px}
     .note{border-left:3px solid #d97840;padding:10px 17px;background:#191d26;max-width:800px}
+    .compare{max-width:560px;margin:28px 0 0;background:var(--panel);border:1px solid #343946;border-radius:14px;padding:16px}
+    .compare legend{font-weight:700;padding:0 6px}.compare input{accent-color:var(--copper-hover);margin-right:6px}
+    .compare label{display:inline-flex;align-items:center;min-height:44px;margin-right:16px;color:#d3d9e5;cursor:pointer}
+    .compare input:focus-visible{outline:2px solid #9cc3db;outline-offset:3px}
+    .compare-frame{display:grid;background:var(--canvas);border-radius:8px;overflow:hidden}
+    .compare-frame img{grid-area:1/1;width:100%;height:auto;visibility:hidden}
+    #edit-before:checked~.compare-frame .before,#edit-after:checked~.compare-frame .after{visibility:visible}
     footer{padding:30px 0;border-top:1px solid #343946;color:#bfc6d2}
     @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
   </style>
@@ -51,6 +58,15 @@
   <p class="lead">I built Kestrel to make that part easier. Find the keepers, make a few edits you understand, and export. Machine learning can help reduce noise, find a subject or suggest a mask. Every edit is yours to adjust, and Kestrel never generates new detail.</p>
   <p class="lead">It works offline, with photos on your device or in storage you choose. I’m building it with colour-blind photographers in mind, and I’d rather sell it once than ask you to pay every month.</p>
   <p><a class="cta" href="#downloads">Explore downloads</a> <a href="#pricing">See pricing</a></p>
+  <fieldset class="compare">
+    <legend>Compare a wildlife edit</legend>
+    <input type="radio" name="wildlife-edit" id="edit-before" checked><label for="edit-before">Before</label>
+    <input type="radio" name="wildlife-edit" id="edit-after"><label for="edit-after">After</label>
+    <div class="compare-frame">
+      <img class="before" src="assets/wildlife-before.webp" width="720" height="720" alt="Original photograph of a small brown bird perched on a branch">
+      <img class="after" src="assets/wildlife-after.webp" width="720" height="720" alt="Edited photograph of the same bird after noise reduction, masking and clarity adjustments">
+    </div>
+  </fieldset>
   <section id="downloads" aria-labelledby="downloads-title">
     <h2 id="downloads-title">Get Kestrel</h2>
     <p class="muted">Kestrel is in development. Installers appear here only after a matching application release has been published. Model files and source archives are not app installers.</p>
