@@ -86,7 +86,7 @@ test('filmstrip selection can bulk export and paste slider edits, keeping origin
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');
   const bar = page.getByRole('toolbar', { name: 'Photo navigation and editing actions' });
-  await bar.getByRole('button', { name: 'Copy', exact: true }).click();
+  await bar.getByRole('button', { name: 'Copy edits', exact: true }).click();
   await bar.getByRole('button', { name: 'Select photos' }).click();
   const film = page.locator('[aria-label="Shoot filmstrip"]');
   // Select photos starts with the active photo marked; clear it for this two-photo test.

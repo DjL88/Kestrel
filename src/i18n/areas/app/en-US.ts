@@ -14,6 +14,10 @@ export const enUS: AreaTranslation<typeof source> = {
   tasks: {
     analysedWithAdjustments: (count) => `${count} photos analyzed with usable adjustments`,
   },
+  editorBar: {
+    copyTitle: 'Copy this photo\'s edits (light, color, detail and masks). The crop is not copied.',
+    pasteTitle: 'Paste the copied edits (light, color, detail and masks) onto this photo. Its crop stays as it is.',
+  },
   confirm: {
     autoAdjustSelected: {
       confirm: 'Analyze selected photos',
