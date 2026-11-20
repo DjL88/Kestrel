@@ -20,22 +20,30 @@ function Panel() {
   const [agreed, setAgreed] = useState(saved.consent === HELPER_CONSENT_VERSION);
   const [status, setStatus] = useState<{ tone: 'ok' | 'bad' | 'busy'; text: string } | null>(null);
   const first = useRef<HTMLInputElement>(null);
+  const checking = useRef<AbortController | null>(null);
+  const cancelCheck = () => { checking.current?.abort(); checking.current = null; };
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     first.current?.focus();
-    return () => returnFocus(previous);
+    return () => { cancelCheck(); returnFocus(previous); };
   }, []);
 
   async function test(): Promise<string | null> {
+    cancelCheck();
+    const controller = new AbortController();
+    checking.current = controller;
     setStatus({ tone: 'busy', text: t.helper.checking });
     try {
-      const { model } = await checkKey(key.trim());
+      const { model } = await checkKey(key.trim(), fetch, controller.signal);
+      if (checking.current !== controller || controller.signal.aborted) return null;
       setStatus({ tone: 'ok', text: t.helper.works });
       return model;
     } catch (error) {
-      if ((error as Error).name === 'AbortError') return null;
+      if (checking.current !== controller || controller.signal.aborted || (error as Error).name === 'AbortError') return null;
       setStatus({ tone: 'bad', text: error instanceof HelperError && error.message ? error.message : t.helper.couldNotCheck });
       return null;
+    } finally {
+      if (checking.current === controller) checking.current = null;
     }
   }
 
@@ -51,7 +59,7 @@ function Panel() {
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-3 sm:p-4"
       onKeyDown={(event) => {
         event.stopPropagation();
-        if (event.key === 'Escape') { event.preventDefault(); openHelperDialog(false); }
+        if (event.key === 'Escape') { event.preventDefault(); cancelCheck(); openHelperDialog(false); }
         if (event.key === 'Tab') {
           const order = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), a[href]')];
           if (!order.length) return;
@@ -79,15 +87,15 @@ function Panel() {
           {t.helper.agree}
         </label>
         <label className="block text-sm text-zinc-200">{t.helper.keyLabel}
-          <input type="password" autoComplete="off" spellCheck={false} className={`${field} mt-1`} value={key} onChange={(event) => { setKey(event.target.value); setStatus(null); }} placeholder={t.helper.keyPlaceholder} />
+          <input type="password" autoComplete="off" spellCheck={false} className={`${field} mt-1`} value={key} onChange={(event) => { cancelCheck(); setKey(event.target.value); setStatus(null); }} placeholder={t.helper.keyPlaceholder} />
         </label>
         <p className="text-xs text-zinc-400">{t.helper.keyNote}</p>
         {status && <p role={status.tone === 'bad' ? 'alert' : 'status'} className={`text-sm ${status.tone === 'bad' ? 'text-orange-200' : status.tone === 'ok' ? 'text-emerald-200' : 'text-zinc-300'}`}>{status.text}</p>}
         </div>
         <div className="flex shrink-0 flex-wrap justify-between gap-2 border-t border-white/10 px-5 py-3">
-          <button type="button" onClick={() => { forgetHelper(); openHelperDialog(false); }} className="min-h-11 rounded-md px-3 text-sm text-zinc-300 underline underline-offset-4 hover:text-white">{t.helper.remove}</button>
+          <button type="button" onClick={() => { cancelCheck(); forgetHelper(); openHelperDialog(false); }} className="min-h-11 rounded-md px-3 text-sm text-zinc-300 underline underline-offset-4 hover:text-white">{t.helper.remove}</button>
           <span className="flex gap-2">
-            <button type="button" onClick={() => openHelperDialog(false)} className="min-h-11 rounded-md border border-white/20 px-4 text-sm font-semibold hover:bg-white/8">{t.common.close}</button>
+            <button type="button" onClick={() => { cancelCheck(); openHelperDialog(false); }} className="min-h-11 rounded-md border border-white/20 px-4 text-sm font-semibold hover:bg-white/8">{t.common.close}</button>
             <button type="button" disabled={!agreed || !key.trim() || status?.tone === 'busy'} onClick={() => void save()}
               className="min-h-11 rounded-md bg-kestrel-copper px-4 text-sm font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-45">{t.helper.turnOn}</button>
           </span>
