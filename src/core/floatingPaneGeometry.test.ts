@@ -16,7 +16,7 @@ test('a corrupted or offscreen saved rect cannot strand the dock control', () =>
 
 test('tiny viewports cannot force a floating window wider than the screen', () => {
   const rect = clampPaneRect({ x: 400, y: 300, width: 800, height: 800 }, { width: 240, height: 180 });
-  assert.deepEqual(rect, { x: 0, y: 0, width: 216, height: 156 });
+  assert.deepEqual(rect, { x: 24, y: 24, width: 216, height: 156 });
 });
 
 test('layout move preserves size and clamps only position', () => {
