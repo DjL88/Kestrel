@@ -89,18 +89,32 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   expect(await editLayout()).toBe('column');
   await page.setViewportSize({ width: 860, height: 480 });
   await expect.poll(editLayout).toBe('row');
-  await checkViewport('Wide landscape editor with docked tools');
+  await checkViewport('Wide short landscape editor');
   await page.setViewportSize({ width: 667, height: 375 });
   await expect.poll(editLayout).toBe('column');
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
   await page.setViewportSize({ width: 320, height: 568 });
   await checkViewport('Editor small phone');
   await page.setViewportSize({ width: 850, height: 700 });
-  await checkViewport('Foldable unfolded landscape workspace');
-  expect(await editLayout()).toBe('row');
+  await checkViewport('Foldable unfolded narrow workspace');
+  expect(await editLayout()).toBe('column');
+  await page.setViewportSize({ width: 320, height: 568 });
+  const essentialTabs = page.getByRole('tablist', { name: 'Editing tools' });
+  // The cover-screen icon rail must preserve meaningful accessible names.
+  if (await essentialTabs.count()) {
+    const tabs = essentialTabs.getByRole('tab');
+    expect(await tabs.count()).toBeGreaterThan(3);
+    for (const tab of await tabs.all()) expect(await tab.getAttribute('aria-label')).toBeTruthy();
+  }
   await page.setViewportSize({ width: 1024, height: 768 });
   await checkViewport('Tablet landscape');
   expect(await editLayout()).toBe('row');
+  // A landscape tablet must expose the same side-panel editing workspace as desktop.
+  await expect(page.getByTestId('editor-responsive-layout')).toHaveCSS('flex-direction', 'row');
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await checkViewport('Large unfolded book-style display');
+  await expect(page.getByTestId('editor-responsive-layout')).toHaveCSS('flex-direction', 'row');
+  await page.setViewportSize({ width: 1024, height: 768 });
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Display and layout settings' })
     .getByRole('button', { name: 'Right-handed' })).toHaveAttribute('aria-pressed', 'true');

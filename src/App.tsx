@@ -183,7 +183,7 @@ export default function App() {
   /** The guided "what's next" banner, dismissed for one project at a time. Resets on reload or when a different project opens. */
   const [guidedDismissedFor, setGuidedDismissedFor] = useState<string | null>(null);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
-  const [showPhotoInfo, setShowPhotoInfo] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
+  const [showPhotoInfo, setShowPhotoInfo] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 900px) and (min-height: 550px)').matches);
   // Settings (display, preferred hand, keyboard and macro pad): one dialog, opened from the top right of every page.
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Section F: a workspace layout belongs to the device, not to each photo,
@@ -324,7 +324,7 @@ export default function App() {
     });
     setEditing(false);
     setInfoFrameId(undefined);
-    setShowPhotoInfo(window.matchMedia('(min-width: 1024px)').matches);
+    setShowPhotoInfo(window.matchMedia('(min-width: 900px) and (min-height: 550px)').matches);
     setMultiSelect(false);
     setSelectedIds(new Set());
     setBatchUndo(null);
@@ -1364,7 +1364,7 @@ export default function App() {
         // Tab is *only* a pane shortcut while the photograph itself owns
         // focus. Elsewhere it remains normal keyboard/screen-reader navigation.
         if (e.key === 'Tab' && !e.shiftKey && !prefs.focusMode &&
-            window.matchMedia('(min-width: 1024px)').matches &&
+            window.matchMedia('(min-width: 900px) and (min-height: 550px)').matches &&
             e.target instanceof Element && e.target.matches('[data-photo-stage]')) {
           e.preventDefault();
           setWorkspacePanes(toggleWorkspacePanes);
@@ -2099,7 +2099,7 @@ export default function App() {
 
       {/* Section F: the shared photo frame docks tools on the preferred-hand
           side and Photo Info on the OTHER side, in editing and review alike. */}
-      <main key={previewRevision} className={`relative flex-1 flex min-h-0 min-w-0 ${prefs.hand === 'right' ? 'lg:flex-row-reverse' : ''}`}>
+      <main key={previewRevision} className={`relative flex-1 flex min-h-0 min-w-0 ${prefs.hand === 'right' ? 'workspace:flex-row-reverse' : ''}`}>
         <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           {editing && selectedFrame && (
             <div className="flex min-h-0 min-w-0 flex-1">

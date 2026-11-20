@@ -3,8 +3,7 @@
 /* Compact sizing is for a wide screen with a mouse. A phone on its side or an iPad is wide but still touch, so it keeps big targets. */
 @custom-variant desk (@media (min-width: 768px) and (pointer: fine));
 /* Workspace layout depends on usable dimensions, not iPhone/iPad/Android labels. */
-/* Keep in sync with the editor's workspace media query. */
-@custom-variant workspace (@media ((min-width: 900px) and (min-height: 550px)) or ((orientation: landscape) and (min-width: 840px) and (min-height: 440px)));
+@custom-variant workspace (@media ((min-width: 900px) and (min-height: 550px)) or ((min-width: 840px) and (min-height: 440px) and (max-height: 549px)));
 @custom-variant hand-left (:root[data-hand="left"] &);
 
 @theme {
@@ -251,3 +250,26 @@ html[data-calm="true"] *, html[data-calm="true"] *::before, html[data-calm="true
 .tile-dotted { background-image: radial-gradient(circle, rgb(0 0 0 / 0.55) 0.75px, transparent 1px); background-size: 4px 4px; }
 .tile-dashed { background-image: repeating-linear-gradient(90deg, rgb(0 0 0 / 0.55) 0 2px, transparent 2px 5px); }
 .tile-hatched { background-image: repeating-linear-gradient(135deg, rgb(0 0 0 / 0.6) 0 2px, transparent 2px 4px); }
+
+/* Small phone/flip-cover displays: show just the essential icon rail, not cramped labels.
+   The buttons retain accessible names and 44px+ touch targets. */
+@media (max-width: 420px) {
+  .kestrel-editor-main { min-width: 0; }
+}
+
+/* Fold-aware layout for spanning browsers: preserve a safe gap at a physical
+   hinge between the photo stage and tools. No device-name sniffing; iOS and
+   browsers without viewport segments retain the ordinary dimension-based layout. */
+@media (horizontal-viewport-segments: 2) and (min-width: 900px) and (min-height: 550px) {
+  .kestrel-editor-main {
+    column-gap: max(12px, calc(env(viewport-segment-left 1 0, 50vw) - env(viewport-segment-right 0 0, 50vw)));
+  }
+  .kestrel-editor-main > [data-photo-stage] { min-width: 0; }
+}
+
+/* In book/tabletop posture, leave independently scrollable panels usable;
+   do not force a landscape desktop layout simply because width is large. */
+@media (device-posture: folded) and (vertical-viewport-segments: 2) {
+  .kestrel-editor-main { min-height: 0; }
+  .kestrel-editor-main > [data-photo-stage] { min-height: 0; }
+}
