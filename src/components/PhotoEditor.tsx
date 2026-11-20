@@ -293,6 +293,19 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       if (nextTab) setTab(nextTab);
     }
   };
+  useEffect(() => {
+    const disposers: Array<() => void> = [];
+    for (const id of FLOATABLE_TABS) {
+      const handler = () => toggleHideTab(id);
+      const event = 'kestrel:menu-view-tab-' + id;
+      window.addEventListener(event, handler);
+      disposers.push(() => window.removeEventListener(event, handler));
+    }
+    const floatActive = () => toggleFloatTab(tab);
+    window.addEventListener('kestrel:menu-view-tab-float', floatActive);
+    disposers.push(() => window.removeEventListener('kestrel:menu-view-tab-float', floatActive));
+    return () => disposers.forEach((off) => off());
+  }, [tab, hiddenTabs]);
   const floatingTools = undockedTools && floatingTabs.size === 0 && !isPhone && !toolsCollapsed;
   // On a phone the tools open as a sheet above the bar. Tapping the open tab again folds it away for a full-height photo.
   const [sheetOpen, setSheetOpen] = useState(() => {
