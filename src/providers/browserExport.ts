@@ -29,7 +29,7 @@ import { isDesktopApp, saveWithDialog } from './desktopShell';
 export async function loadExportSource(
   frame: PhotoFrame,
   provider: Pick<BrowserPreviewProvider, 'getFullPreviewUrl' | 'hasBlob'>
-    & Partial<Pick<BrowserPreviewProvider, 'isOfflineFallback' | 'ensureOriginal'>>,
+    & Partial<Pick<BrowserPreviewProvider, 'isOfflineFallback' | 'ensureOriginal' | 'isDeveloped' | 'getOriginal'>>,
   priority: 'background' | 'visible' | 'selected' = 'selected',
   rawDecoder: ((original: Blob, extension: string) => Promise<Blob>) | null = canDevelopRaw() ? developRaw : null,
 ) {
@@ -38,8 +38,14 @@ export async function loadExportSource(
   // A RAW without an embedded JPEG must not be a dead end. Use the same
   // Kestrel sensor decoder that develops it in Edit; this is still an 8-bit
   // rendered picture, not an archival 16-bit sensor master.
-  if ((!url || cachedReviewOnly) && !frame.isDemo && isRawPreviewFile(frame.filename)
-      && provider.hasBlob(frame.stableKey) && rawDecoder && provider.ensureOriginal) {
+  // A valid camera JPEG is a useful instant preview, not evidence that a RAW
+  // was developed at sensor resolution. On the real provider, prefer the
+  // original and Kestrel's decoder if no current full development exists.
+  // Injected legacy providers without isDeveloped preserve their preview mode.
+  const needsSensorDevelopment = !frame.isDemo && isRawPreviewFile(frame.filename)
+    && provider.hasBlob(frame.stableKey) && rawDecoder && provider.ensureOriginal
+    && (!url || cachedReviewOnly || provider.isDeveloped?.(frame.stableKey) === false);
+  if (needsSensorDevelopment) {
     const original = await provider.ensureOriginal(frame.stableKey, priority);
     if (!original) throw new Error(`Reconnect ${frame.filename} before exporting. The original RAW file is not available.`);
     const extension = frame.filename.split('.').at(-1)?.toLowerCase() ?? '';
@@ -49,6 +55,11 @@ export async function loadExportSource(
     } catch (reason) {
       const detail = reason instanceof Error ? reason.message : 'Unknown decoder failure.';
       throw new Error(`Kestrel could not develop ${frame.filename} from its RAW sensor data: ${detail} The original is unchanged.`);
+    }
+    // A relink or changed drive may have landed during a slow decode. Never
+    // export pixels associated with a superseded original in that case.
+    if (provider.getOriginal && provider.getOriginal(frame.stableKey) !== original) {
+      throw new Error(`The original for ${frame.filename} changed during RAW development. Retry the export.`);
     }
     if (rendered.type !== 'image/jpeg' || rendered.size === 0) {
       throw new Error(`Kestrel's RAW decoder did not return a usable image for ${frame.filename}. The original is unchanged.`);
