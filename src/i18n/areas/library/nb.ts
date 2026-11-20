@@ -339,6 +339,18 @@ export const nb: AreaTranslation<typeof source> = {
     eye: 'Øye',
     eyeBusy: 'Øye…',
   },
+  floatingPane: {
+    undockTools: "Løsne redigeringsverktøy",
+    undockToolsHelp: "Flytt verktøyene til et vindu som kan endre størrelse",
+    undockInfo: "Løsne bildeinformasjon",
+    undockInfoHelp: "Flytt bildeinformasjonen til et vindu som kan endre størrelse",
+    move: (title) => `Flytt ${title} med piltastene`,
+    drag: (title) => `Dra for å flytte ${title}, eller bruk piltastene`,
+    restore: (title) => `Gjenopprett størrelsen på panelet ${title}`,
+    maximise: (title) => `Maksimer panelet ${title}`,
+    pin: (title) => `Hold ${title} synlig i Bare bilde-modus`,
+    dock: (title) => `Dokk ${title}`,
+  },
   paneRail: {
     editingTools: 'Redigeringsverktøy',
     photoInfo: 'Bildeinfo',
