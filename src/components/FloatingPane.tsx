@@ -98,10 +98,10 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
   };
   return createPortal(
     <section ref={frame} aria-label={title} data-floating-pane={storageKey}
-      className="fixed flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/25 bg-kestrel-panel shadow-2xl"
+      className="fixed z-40 flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/25 bg-kestrel-panel shadow-2xl"
       style={maximised
-        ? { inset: GAP, width: 'auto', height: 'auto', zIndex: FLOATING_PANE_Z.background }
-        : { left: rect.x, top: rect.y, width: rect.width, height: rect.height, resize: 'both', maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100dvh - 24px)', zIndex: FLOATING_PANE_Z.background }}
+        ? { inset: GAP, width: 'auto', height: 'auto' }
+        : { left: rect.x, top: rect.y, width: rect.width, height: rect.height, resize: 'both', maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100dvh - 24px)' }}
       onPointerDownCapture={bringToFront}
       onFocusCapture={bringToFront}
       onKeyDownCapture={(event) => {
