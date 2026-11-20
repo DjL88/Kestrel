@@ -84,6 +84,7 @@ import { CompareView } from './components/CompareView';
 import { ExifInspector } from './components/ExifInspector';
 import { Filmstrip } from './components/Filmstrip';
 import { FilmstripDock } from './components/FilmstripDock';
+import { DecisionButtons } from './components/DecisionButtons';
 import { isEdited } from './core/editedState';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { RemovedPhotosPanel } from './components/RemovedPhotosPanel';
@@ -235,7 +236,7 @@ export default function App() {
     commit?.();
   };
   const [infoFrameId, setInfoFrameId] = useState<string>();
-  const infoTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const infoTriggerRef = useRef<HTMLElement | null>(null);
 
   // Viewport zoom/pan state
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -2057,16 +2058,54 @@ export default function App() {
         onClose={() => { setSettingsOpen(false); setSettingsSection('general'); }} onOpenMacroPad={() => { setSettingsOpen(false); setMacroPadMode(editing ? 'edit' : 'cull'); setMacroPadModal(true); }} />}
       <DropOverlay dragging={drop.dragging} message={drop.message} onDismiss={drop.clearMessage} />
       {prefs.focusMode ? null : editing ? (
-        <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-kestrel-panel px-3 py-1">
+        <header className="relative z-40 flex shrink-0 items-center gap-2 border-b border-white/10 bg-kestrel-panel px-2 py-1 sm:gap-3 sm:px-3">
           <button type="button" onClick={leaveEditor} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300" aria-label={t.header.back} title={t.header.backTitle}><ArrowLeft className="h-4 w-4" aria-hidden="true" />{t.header.back}</button>
+          {/* The View menu is the only home for show/hide controls in Edit, just as in Review. */}
+          <details className="relative shrink-0" onKeyDown={(event) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.open = false;
+            event.currentTarget.querySelector('summary')?.focus();
+          }} onBlur={(event) => {
+            if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget))
+              event.currentTarget.open = false;
+          }}>
+            <summary ref={(node) => { infoTriggerRef.current = node; }} aria-label={libraryT.top.viewLayout}
+              className="flex min-h-11 cursor-pointer list-none items-center rounded-md px-2 text-sm text-zinc-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 [&::-webkit-details-marker]:hidden">
+              {libraryT.top.view}
+            </summary>
+            <div className="absolute left-0 top-full z-50 mt-1 w-[min(18rem,calc(100vw-6rem))] space-y-1 rounded-xl border border-white/15 bg-kestrel-raised p-3 text-sm text-zinc-100 shadow-2xl">
+              <label className="flex min-h-10 items-center gap-2">
+                <input type="checkbox" checked={showPhotoInfo && !panesCollapsed}
+                  onChange={(event) => {
+                    setInfoFrameId(undefined);
+                    setWorkspacePanes({ folded: false });
+                    setShowPhotoInfo(event.target.checked);
+                  }} />
+                {libraryT.top.photoInfo}
+              </label>
+              <label className="flex min-h-10 items-center gap-2">
+                <input type="checkbox" checked={prefs.showFilmstrip} onChange={toggleFilmstrip} />
+                {libraryT.top.showFilmstrip}
+              </label>
+              <label className="flex min-h-10 items-center gap-2">
+                <input type="checkbox" checked={panesCollapsed} onChange={togglePanes} />
+                {libraryT.top.foldPanes}
+              </label>
+              <label className="flex min-h-10 items-center gap-2">
+                <input type="checkbox" checked={prefs.focusMode} onChange={() => setPrefs((prev) => ({ ...prev, focusMode: !prev.focusMode }))} />
+                {libraryT.top.photoOnly}
+              </label>
+            </div>
+          </details>
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? t.header.editPhoto}</h1>
+          {multiSelect && selectedVisibleFrames.length > 0 && (
+            <span className="hidden shrink-0 text-xs tabular-nums text-zinc-300 sm:inline">{t.header.selected(selectedVisibleFrames.length)}</span>
+          )}
           <TaskManager inline />
-          {/* The same order as the library's top row: work in hand, this page's actions (Export), then Settings. */}
           <div id="editor-header-actions" className="flex shrink-0 items-center gap-2" />
           <SettingsButton open={settingsOpen} onOpen={() => setSettingsOpen(true)} />
-          {multiSelect && selectedVisibleFrames.length > 0 && (
-            <span className="shrink-0 text-xs tabular-nums text-zinc-300">{t.header.selected(selectedVisibleFrames.length)}</span>
-          )}
         </header>
       ) : <TopWorkspaceBar
         status={<TaskManager inline />}
@@ -2509,7 +2548,16 @@ export default function App() {
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
               <button type="button" aria-label={t.editorBar.next} title={t.editorBar.nextTitle} disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) < 0 || (editQueueIds ? editorIndex >= editorFrames.length - 1 : selectedVisibleIndex >= visibleFrames.length - 1)} onClick={() => handleStepFrame(1)}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
-              {/* Review and Photo Info own the culling controls; the Edit footer stays clean. */}
+              {/* Keep/Review/Reject remain available in Edit without switching screens.
+                  These reuse the same decisions and history as Library and Compare. */}
+              <div role="group" aria-label={libraryT.top.photoActions} className="flex shrink-0 items-center border-x border-white/10 px-1">
+                <DecisionButtons labels decision={selectedFrame.decision} filename={selectedFrame.filename}
+                  edited={false}
+                  onKeep={() => handleDecideFrame(selectedFrame.id, 'keep', false)}
+                  onBackToReview={() => handleDecideFrame(selectedFrame.id, 'unreviewed', false)}
+                  onTrash={() => handleDecideFrame(selectedFrame.id, 'reject', false)}
+                  onReset={() => requestReset([selectedFrame.id])} />
+              </div>
               <PhotoJump index={editorIndex} total={editorFrames.length}
                 onJump={(index) => {
                   const next = editorFrames[index];

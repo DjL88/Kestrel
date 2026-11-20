@@ -93,8 +93,8 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
         if (!await saveWithDialog(file, filename, true)) return;
       } else if (isMobileShell()) {
         const share = { files: [new File([file], filename, { type: file.type })] };
-        if (!navigator.canShare?.(share)) throw new Error('This device cannot share XMP files.');
-        await navigator.share(share);
+        if (navigator.canShare?.(share)) await navigator.share(share);
+        else downloadInBrowser(file, filename);
       } else {
         downloadInBrowser(file, filename);
       }
@@ -231,19 +231,17 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
         </div>
       </div>
       {!frame.isDemo && (
-        <section className="mt-3 border-t border-white/10 pt-3" aria-label="XMP sidecar">
+        <section className="mt-3 border-t border-white/10 pt-3" aria-label={exportText.sidecar.save}>
           <input ref={sidecarInput} type="file" accept=".xmp,application/rdf+xml" hidden onChange={event => {
             const file = event.currentTarget.files?.[0];
             event.currentTarget.value = '';
             if (file) void importSidecar(file);
           }} />
           <div className="grid grid-cols-2 gap-2">
-            {(!isMobileShell() || typeof navigator.share === 'function') && (
-              <button type="button" onClick={() => void saveSidecar()} disabled={sidecarBusy}
+            <button type="button" onClick={() => void saveSidecar()} disabled={sidecarBusy}
                 className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-md border border-white/15 px-2 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
                 <Download className="h-4 w-4 shrink-0" aria-hidden="true" />{exportText.sidecar.save}
               </button>
-            )}
             <button type="button" onClick={() => sidecarInput.current?.click()} disabled={sidecarBusy}
               className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-md border border-white/15 px-2 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
               {exportText.sidecar.load}

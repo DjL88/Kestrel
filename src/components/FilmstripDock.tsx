@@ -66,13 +66,13 @@ export function FilmstripDock({ expanded, onToggle, onPhotoOnly, children }: Fil
       style={{ height: expanded ? height + 36 : 36 }}>
       <div className="flex h-9 shrink-0 items-center justify-between gap-2 px-2 sm:px-4">
         <div className="flex shrink-0 items-center gap-1 text-xs text-zinc-300">
-          <span>{t.filmstripDock.filmstrip}</span>
           <button type="button" onClick={onToggle} aria-expanded={expanded}
             aria-label={expanded ? t.filmstripDock.collapse : t.filmstripDock.expand}
             title={expanded ? t.filmstripDock.collapse : t.filmstripDock.expand}
             className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
             {expanded ? <ChevronDown className="h-5 w-5" aria-hidden="true"/> : <ChevronUp className="h-5 w-5" aria-hidden="true"/>}
           </button>
+          <span>{t.filmstripDock.filmstrip}</span>
         </div>
         <div role="separator" tabIndex={expanded ? 0 : -1} aria-label={t.filmstripDock.resize} aria-orientation="horizontal"
           aria-valuemin={80} aria-valuemax={clampFilmstripHeight(9999, typeof window === 'undefined' ? 800 : window.innerHeight)}
