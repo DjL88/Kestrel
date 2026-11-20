@@ -82,7 +82,8 @@ function loadChosen(freshStart = false): string[] {
 
 export function PhotoExportPanel({ frames, provider, source, onClose, onDownloadRequested, exportPlace }: Props) {
   const [placeNote, setPlaceNote] = useState<{ ok: boolean; text: string } | null>(null);
-  const [placeBusy, setPlaceBusy] = useState(false);
+  const [placeTaskId, setPlaceTaskId] = useState<number | null>(null);
+  const placeBusy = placeTaskId !== null;
   const [chosen, setChosen] = useState<string[]>(() => loadChosen(readView() === 'wizard'));
   const [preferences] = useState(() => readExportPreferences({ getItem: (key) => localStorage.getItem(key) }));
   const [fits, setFits] = useState(preferences.fits);
@@ -177,17 +178,30 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
   async function deliverToPlace() {
     if (!exportPlace || saveRunning.current) return;
     saveRunning.current = true;
-    setPlaceBusy(true);
     setPlaceNote(null);
+    const controller = new AbortController();
+    const task = tasks.start(t.results.alsoSave(exportPlace.label), {
+      total: files.length, cancel: () => controller.abort(),
+    });
+    setPlaceTaskId(task.id);
     try {
-      const result = await exportPlace.save(files, files.map(file => outputPlatforms.current.get(file)));
-      if (result.ok) finishDelivery(frames, true);
-      else if (!cancelled.current) setPlaceNote({ ok: false, text: result.message });
+      const result = await exportPlace.save(files, files.map(file => outputPlatforms.current.get(file)), {
+        signal: controller.signal,
+        onProgress: count => task.progress(count),
+      });
+      if (result.ok) {
+        task.finish();
+        finishDelivery(frames, true);
+      } else {
+        if (!result.stopped) task.fail(result.message);
+        if (!cancelled.current) setPlaceNote({ ok: false, text: result.message });
+      }
     } catch {
+      task.fail(t.panel.saveFailed);
       if (!cancelled.current) setPlaceNote({ ok: false, text: t.panel.saveFailed });
     } finally {
       saveRunning.current = false;
-      if (!cancelled.current) setPlaceBusy(false);
+      if (!cancelled.current) setPlaceTaskId(null);
     }
   }
 
@@ -671,6 +685,9 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
                 onClick={() => { if (zip) void deliver(zip, 'kestrel-exports.zip', frames); }}>{zip ? (desktop ? t.results.saveZip : t.results.downloadZip) : t.results.packingZip}</button>}
               {exportPlace && <button type="button" className={button} disabled={saving || placeBusy}
                 onClick={() => void deliverToPlace()}>{placeBusy ? t.results.saving : t.results.alsoSave(exportPlace.label)}</button>}
+              {placeTaskId !== null && <button type="button" className={button} onClick={() => tasks.cancel(placeTaskId)}>
+                {t.looks.cancel}
+              </button>}
               {canShare && <button type="button" className={button} disabled={saving || placeBusy} onClick={() => {
                 void navigator.share({ files }).catch((reason) => {
                   if ((reason as Error).name !== 'AbortError') setError(t.results.shareFailed);
