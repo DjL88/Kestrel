@@ -339,6 +339,18 @@ export const de: AreaTranslation<typeof source> = {
     eye: 'Auge',
     eyeBusy: 'Auge…',
   },
+  floatingPane: {
+    undockTools: "Bearbeitungswerkzeuge abdocken",
+    undockToolsHelp: "Werkzeuge in ein verschiebbares, skalierbares Fenster verschieben",
+    undockInfo: "Fotoinfos abdocken",
+    undockInfoHelp: "Fotoinfos in ein verschiebbares, skalierbares Fenster verschieben",
+    move: (title) => `${title} mit den Pfeiltasten verschieben`,
+    drag: (title) => `${title} ziehen oder mit den Pfeiltasten verschieben`,
+    restore: (title) => `Grösse des Bereichs ${title} wiederherstellen`,
+    maximise: (title) => `Bereich ${title} maximieren`,
+    pin: (title) => `${title} im Modus Nur Foto sichtbar halten`,
+    dock: (title) => `${title} andocken`,
+  },
   paneRail: {
     editingTools: 'Bearbeitungswerkzeuge',
     photoInfo: 'Fotoinfos',
