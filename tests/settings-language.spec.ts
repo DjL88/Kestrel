@@ -8,7 +8,7 @@ test('Welsh Settings translates layout controls and keeps the selected side', as
   await page.addInitScript(() => localStorage.setItem('kestrel-language', 'cy'));
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Prosiectau' })).toBeVisible();
-  await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Gosodiadau', exact: true }).first().click();
 
   const dialog = page.getByRole('dialog', { name: 'Gosodiadau dangos a chynllun' });
   await expect(dialog).toBeVisible();

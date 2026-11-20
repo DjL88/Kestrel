@@ -6,6 +6,7 @@ import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { FrameImage } from './FrameImage';
 import { openPhotoMenuFromKeyboard } from './PhotoContextMenu';
+import { libraryText as t } from '../i18n/areas/library';
 
 interface FilmstripProps {
   frames: PhotoFrame[];
@@ -90,7 +91,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
     <div
       ref={scrollerRef}
       onScroll={(e) => setScrollLeft(e.currentTarget.scrollLeft)}
-      aria-label="Shoot filmstrip"
+      aria-label={t.filmstrip.label}
       className="h-full min-h-0 shrink-0 bg-[#121418] overflow-x-auto overflow-y-hidden relative select-none"
     >
       <div style={{ width: totalWidth, height: '100%', position: 'relative' }}>
@@ -127,7 +128,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
                     className={`h-[2px] bg-zinc-500/70 w-full ${
                       !sameBurstAsPrev ? 'rounded-l ml-1' : ''
                     } ${!sameBurstAsNext ? 'rounded-r mr-1' : ''}`}
-                    title={`Burst ${frame.burstGroupId.replace('burst-', '')} (${frame.burstIndex}/${frame.burstCount})`}
+                    title={t.filmstrip.burst(frame.burstGroupId.replace('burst-', ''), frame.burstIndex, frame.burstCount)}
                   />
                 )}
               </div>
@@ -148,7 +149,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
                 aria-haspopup={onPhotoMenu ? "menu" : undefined}
                 aria-keyshortcuts={onPhotoMenu ? "Shift+F10 ContextMenu" : undefined}
                 aria-pressed={isMarked}
-                aria-label={`${multiSelect ? 'Select' : 'Jump to frame'} ${frame.filename}`} title={`${multiSelect ? 'Select' : 'Jump to frame'} ${frame.filename}`}
+                aria-label={multiSelect ? t.filmstrip.select(frame.filename) : t.filmstrip.jumpToFrame(frame.filename)} title={multiSelect ? t.filmstrip.select(frame.filename) : t.filmstrip.jumpToFrame(frame.filename)}
                 className={`relative flex-1 rounded overflow-hidden border transition-colors focus-visible:outline-2 focus-visible:outline-sky-400 ${
                   isMarked
                     ? 'border-sky-200 ring-2 ring-sky-200'
@@ -175,7 +176,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
 
                 {isMarked && <span aria-hidden="true" className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full border border-sky-100 bg-sky-300 text-zinc-950"><Check className="h-3.5 w-3.5" /></span>}
                 {isEdited(frame) && (
-                  <span role="img" aria-label="Edited" title="Edited"
+                  <span role="img" aria-label={t.filmstrip.edited} title={t.filmstrip.edited}
                     className="absolute top-1 left-1 grid h-4 w-4 place-items-center rounded-full bg-kestrel-canvas/85 text-sky-200">
                     <SlidersHorizontal className="h-2.5 w-2.5" aria-hidden="true" />
                   </span>
@@ -188,7 +189,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
                 {/* Decision badge */}
                 {frame.decision === 'keep' && (
                   <span
-                    aria-label="Keep"
+                    aria-label={t.filmstrip.keep}
                     className="absolute top-1 right-1 w-4 h-4 rounded bg-sky-500 text-zinc-950 flex items-center justify-center"
                   >
                     <Check className="w-3 h-3 stroke-[2.5]" aria-hidden="true" />
@@ -196,7 +197,7 @@ export const Filmstrip: React.FC<FilmstripProps> = ({
                 )}
                 {frame.decision === 'reject' && (
                   <span
-                    aria-label="Reject"
+                    aria-label={t.filmstrip.reject}
                     className="absolute top-1 right-1 w-4 h-4 rounded bg-orange-500 text-zinc-950 flex items-center justify-center"
                   >
                     <X className="w-3 h-3 stroke-[2.5]" aria-hidden="true" />

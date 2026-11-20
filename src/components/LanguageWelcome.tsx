@@ -22,6 +22,7 @@ export function LanguageWelcome() {
   const chosen = languageOption(pending);
   // Written in the language being offered, so its speaker can read the card before choosing.
   const words = mergeMessages<Messages>(enGB, TRANSLATIONS[pending]).setup;
+  const deviceWords = mergeMessages<Messages>(enGB, deviceLanguage ? TRANSLATIONS[deviceLanguage] : {}).setup;
   const deviceWords = mergeMessages<Messages>(enGB, deviceLanguage ? TRANSLATIONS[deviceLanguage] : undefined).setup;
   return (
     <section aria-labelledby={`${id}-title`} lang={chosen.code}

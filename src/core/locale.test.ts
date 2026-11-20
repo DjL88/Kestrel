@@ -113,24 +113,21 @@ test('plural words follow the active language’s rules', () => {
   }
 });
 
-test('registered translation areas have no invalid keys; drafts may fall back to British English', () => {
+test('every area is complete in every full language; regional variants (en-AU, fr-CA…) may override only what differs', () => {
   for (const area of AREAS) {
     for (const { code } of LANGUAGES) {
       const translation = area.translations[code];
       assert.deepEqual(unknownKeys(area.source, translation), [], `${area.name}/${code} has keys the source lacks`);
-      if (code === 'en-GB') continue;
-      // Coverage is a separate release criterion: a partial draft is not a complete translation.
-      const missing = missingKeys(area.source, translation);
-      assert.ok(Array.isArray(missing), `${area.name}/${code} coverage must be measurable`);
+      if (code.startsWith('en') || code.includes('-')) continue;
+      assert.ok(translation, `${area.name} has no ${code} file`);
+      assert.deepEqual(missingKeys(area.source, translation), [], `${area.name}/${code} leaves sentences in English`);
     }
   }
 });
 
-test('untranslated new Northern European and Irish drafts are not presented as complete translations', () => {
-  for (const code of ['da', 'sv', 'nb', 'fi', 'is', 'ga']) {
-    const locale = LANGUAGES.find((item) => item.code === code);
-    assert.equal(locale?.status, 'draft');
-    assert.ok(missingKeys(enGB, TRANSLATIONS[code as keyof typeof TRANSLATIONS]).length > 0);
+test('translations without a native speaker’s check are labelled as drafts', () => {
+  for (const code of ['cy', 'gd', 'ga', 'fr', 'fr-CA', 'de', 'es', 'nl', 'it', 'pt', 'da', 'sv', 'nb', 'fi', 'is']) {
+    assert.equal(LANGUAGES.find((item) => item.code === code)?.status, 'draft', code);
   }
 });
 
@@ -140,6 +137,7 @@ test('all eight established translation drafts include every visible Settings la
     const translated = TRANSLATIONS[code].appearance as Record<string, string> | undefined;
     assert.ok(translated, `${code}: appearance translation is missing`);
     for (const key of sourceKeys) {
+      const value: string | undefined = translated?.[key];
       const value: unknown = translated?.[key];
       assert.equal(typeof value, 'string', `${code}: appearance.${key} is untranslated`);
       assert.ok((value as string).trim().length > 2, `${code}: appearance.${key} is empty`);

@@ -9,6 +9,7 @@ import { ImageOff } from 'lucide-react';
 import type { PhotoFrame } from '../core/types';
 import type { PhotoPreviewReadiness } from '../core/photoTileReadiness';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
+import { viewerText as t } from '../i18n/areas/viewer';
 
 interface FrameImageProps {
   frame: PhotoFrame;
@@ -219,7 +220,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           {frame.filename}
         </span>
         <span className="text-[11px] text-zinc-400 mt-0.5">
-          {needsAccess ? 'Original unavailable — reconnect its folder or drive' : 'Preview unavailable'}
+          {needsAccess ? t.frame.originalUnavailable : t.frame.previewUnavailable}
         </span>
       </div>
     );

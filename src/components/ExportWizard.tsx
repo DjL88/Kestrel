@@ -1,17 +1,19 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { EXPORT_FORMATS, PLATFORMS, formatById, shapeLabel, sizeLabel, type BarStyle, type ExportFormat, type Fit } from '../core/exportFormats';
+import { EXPORT_FORMATS, PLATFORMS, formatById, type BarStyle, type ExportFormat, type Fit } from '../core/exportFormats';
 import type { FocusPoint } from '../core/exportFraming';
 import type { PhotoFrame } from '../core/types';
 import type { OverlayOptions } from '../core/exportOverlay';
 import { ExportPreviewTile } from './ExportPreviewTile';
 import { SocialIcon } from './SocialIcon';
+import { exportText as t } from '../i18n/areas/export';
+import { formatLabel, shapeName, sizeName } from '../i18n/areas/export/labels';
 
 type Step = 'platform' | 'size' | 'position' | 'review';
 const STEPS: { id: Step; label: string }[] = [
-  { id: 'platform', label: 'Where to' }, { id: 'size', label: 'Size' }, { id: 'position', label: 'Position' }, { id: 'review', label: 'Export' },
+  { id: 'platform', label: t.wizard.steps.platform }, { id: 'size', label: t.wizard.steps.size }, { id: 'position', label: t.wizard.steps.position }, { id: 'review', label: t.wizard.steps.review },
 ];
-const FIT_LABELS: Record<Fit, string> = { fill: 'Crop to fill the shape', bars: 'Whole photo, with borders', keep: 'Keep the photo’s shape' };
+const FIT_LABELS: Record<Fit, string> = t.fit;
 const field = 'min-h-10 w-full rounded-md border border-white/15 bg-[#15171C] px-2 text-base sm:text-sm';
 const quiet = 'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-white/15 px-3 text-sm font-medium hover:bg-white/10 disabled:opacity-45';
 const primary = 'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-kestrel-copper px-4 text-sm font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-45';
@@ -84,7 +86,7 @@ export function ExportWizard(props: Props) {
   const countFor = (id: string) => id === 'master' ? Number(chosen.includes('master')) : id === 'custom' ? Number(props.customOn)
     : EXPORT_FORMATS.filter((format) => format.platform === id && chosen.includes(format.id)).length;
   const choices = platform === 'master' ? [formatById('master')!] : EXPORT_FORMATS.filter((format) => format.platform === platform);
-  const platformName = platform === 'master' ? 'Full size' : platform === 'custom' ? 'Custom size' : PLATFORMS.find((entry) => entry.id === platform)?.label ?? '';
+  const platformName = platform === 'master' ? t.formats.fullSize : platform === 'custom' ? t.formats.customSize : PLATFORMS.find((entry) => entry.id === platform)?.label ?? '';
 
   const next = () => {
     if (step === 'platform') return setStep('size');
@@ -98,12 +100,12 @@ export function ExportWizard(props: Props) {
     if (step === 'review') { setIndex(Math.max(0, positionable.length - 1)); return setStep(positionable.length ? 'position' : 'size'); }
   };
   const canNext = step === 'platform' ? Boolean(platform) : step === 'review' ? props.total > 0 && !props.busy && !props.blocked : props.total > 0 && !props.blocked;
-  const nextLabel = step === 'review' ? (props.progress !== null ? `Preparing ${props.progress}/${props.total}…` : `Prepare ${props.total} ${props.total === 1 ? 'file' : 'files'}`)
-    : step === 'position' && index < positionable.length - 1 ? 'Next size' : 'Next';
+  const nextLabel = step === 'review' ? (props.progress !== null ? t.wizard.preparing(props.progress, props.total) : t.prepare.files(props.total))
+    : step === 'position' && index < positionable.length - 1 ? t.wizard.nextSize : t.wizard.next;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-      <ol aria-label="Export steps" className="flex items-center justify-center gap-1 text-xs text-zinc-400">
+      <ol aria-label={t.wizard.stepsLabel} className="flex items-center justify-center gap-1 text-xs text-zinc-400">
         {STEPS.map((entry, position) => (
           <li key={entry.id} aria-current={entry.id === step ? 'step' : undefined}
             className={`flex items-center gap-1 rounded-full px-2.5 py-1 ${entry.id === step ? 'bg-sky-300/20 text-sky-100' : position < at ? 'text-zinc-200' : ''}`}>
@@ -114,10 +116,10 @@ export function ExportWizard(props: Props) {
 
       <div ref={content} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-2">
         {step === 'platform' && (
-          <section aria-label="Where is it going?" className="space-y-2">
-            <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-zinc-100">Where is it going?</h3>
+          <section aria-label={t.wizard.where} className="space-y-2">
+            <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-zinc-100">{t.wizard.where}</h3>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {[{ id: 'master', label: 'Full size' }, ...PLATFORMS, { id: 'custom', label: 'Custom size' }].map((entry) => (
+              {[{ id: 'master', label: t.formats.fullSize }, ...PLATFORMS, { id: 'custom', label: t.formats.customSize }].map((entry) => (
                 <button key={entry.id} type="button" aria-pressed={platform === entry.id} onClick={() => { setPlatform(entry.id); setStep('size'); }}
                   className="relative flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg border border-white/12 bg-white/5 px-2 text-sm text-zinc-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 aria-pressed:border-sky-300">
                   {entry.id === 'master' || entry.id === 'custom' ? <ShapeGlyph width={entry.id === 'master' ? 4 : 1} height={entry.id === 'master' ? 3 : 1} /> : <SocialIcon id={entry.id as never} className="h-6 w-6" />}
@@ -126,20 +128,20 @@ export function ExportWizard(props: Props) {
                 </button>
               ))}
             </div>
-            <p className="text-xs text-zinc-400">You can pick more than one place. Sizes are common starting points, so check a platform’s current advice before posting.</p>
+            <p className="text-xs text-zinc-400">{t.wizard.morePlaces}</p>
           </section>
         )}
 
         {step === 'size' && (
-          <section aria-label={`${platformName} sizes`} className="space-y-2">
-            <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-zinc-100">{platformName}: which size?</h3>
+          <section aria-label={t.wizard.sizesLabel(platformName)} className="space-y-2">
+            <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-zinc-100">{t.wizard.whichSize(platformName)}</h3>
             {platform === 'custom' ? props.customSlot : (
               <div className="space-y-1.5">
                 {choices.map((format) => (
                   <label key={format.id} className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border border-white/12 bg-white/5 px-3 hover:bg-white/10 has-[:checked]:border-sky-300">
                     <input type="checkbox" checked={chosen.includes(format.id)} onChange={(event) => props.onToggle(format.id, event.target.checked)} />
                     <ShapeGlyph width={format.width} height={format.height} />
-                    <span className="min-w-0 flex-1"><span className="block text-sm">{format.label}</span><span className="block text-xs text-zinc-400">{sizeLabel(format)}</span></span>
+                    <span className="min-w-0 flex-1"><span className="block text-sm">{formatLabel(format)}</span><span className="block text-xs text-zinc-400">{sizeName(format)}</span></span>
                   </label>
                 ))}
               </div>
@@ -148,14 +150,14 @@ export function ExportWizard(props: Props) {
         )}
 
         {step === 'position' && current && frame && (
-          <section aria-label="Position" className="space-y-2">
+          <section aria-label={t.wizard.steps.position} className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-zinc-100">Position · {current.label} <span className="font-normal text-zinc-400">({index + 1} of {positionable.length})</span></h3>
+              <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-zinc-100">{t.wizard.positionHeading(formatLabel(current))} <span className="font-normal text-zinc-400">{t.wizard.sizeOf(index + 1, positionable.length)}</span></h3>
               {frames.length > 1 && (
                 <span className="flex items-center gap-1 text-xs text-zinc-300">
-                  <button type="button" className="grid h-9 w-9 place-items-center rounded-md hover:bg-white/10 disabled:opacity-40" aria-label="Previous photo" disabled={photo === 0} onClick={() => setPhoto(photo - 1)}><ChevronLeft className="h-4 w-4" aria-hidden="true" /></button>
-                  Photo {photo + 1} of {frames.length}
-                  <button type="button" className="grid h-9 w-9 place-items-center rounded-md hover:bg-white/10 disabled:opacity-40" aria-label="Next photo" disabled={photo >= frames.length - 1} onClick={() => setPhoto(photo + 1)}><ChevronRight className="h-4 w-4" aria-hidden="true" /></button>
+                  <button type="button" className="grid h-9 w-9 place-items-center rounded-md hover:bg-white/10 disabled:opacity-40" aria-label={t.wizard.previousPhoto} disabled={photo === 0} onClick={() => setPhoto(photo - 1)}><ChevronLeft className="h-4 w-4" aria-hidden="true" /></button>
+                  {t.wizard.photoOf(photo + 1, frames.length)}
+                  <button type="button" className="grid h-9 w-9 place-items-center rounded-md hover:bg-white/10 disabled:opacity-40" aria-label={t.wizard.nextPhoto} disabled={photo >= frames.length - 1} onClick={() => setPhoto(photo + 1)}><ChevronRight className="h-4 w-4" aria-hidden="true" /></button>
                 </span>
               )}
             </div>
@@ -166,16 +168,16 @@ export function ExportWizard(props: Props) {
                 platform={current.platform} overlay={props.overlay} onTurn={() => props.onTurn(current.id)} />
             </div>
             {chosen.includes(current.id) && (
-              <label className="block text-sm">How it fits
+              <label className="block text-sm">{t.wizard.howItFits}
                 <select className={`${field} mt-1`} value={props.fits[current.id] ?? current.fit} onChange={(event) => props.onFit(current.id, event.target.value as Fit)}>
                   {(Object.keys(FIT_LABELS) as Fit[]).map((fit) => <option key={fit} value={fit}>{FIT_LABELS[fit]}</option>)}
                 </select>
               </label>
             )}
             {current.fit === 'bars' && (
-              <label className="block text-sm">Borders
+              <label className="block text-sm">{t.borders.label}
                 <select className={`${field} mt-1`} value={props.bars} onChange={(event) => props.onBars(event.target.value as BarStyle)}>
-                  <option value="white">White</option><option value="black">Black</option><option value="blur">A blurred copy of the photo</option>
+                  <option value="white">{t.borders.white}</option><option value="black">{t.borders.black}</option><option value="blur">{t.borders.blur}</option>
                 </select>
               </label>
             )}
@@ -184,20 +186,20 @@ export function ExportWizard(props: Props) {
         )}
 
         {step === 'review' && (
-          <section aria-label="Ready to export" className="space-y-3">
-            <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-zinc-100">Ready to export</h3>
+          <section aria-label={t.wizard.ready} className="space-y-3">
+            <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-zinc-100">{t.wizard.ready}</h3>
             <ul className="space-y-1">
               {selected.map((format) => (
                 <li key={format.id} className="flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2 text-sm">
                   {format.platform ? <SocialIcon id={format.platform} className="h-5 w-5 shrink-0 text-zinc-200" /> : <ShapeGlyph width={format.width} height={format.height} />}
-                  <span className="min-w-0 flex-1"><span className="block truncate">{format.label}</span><span className="block text-xs text-zinc-400">{sizeLabel(format)}{format.width ? ` · ${shapeLabel(format.width, format.height)}` : ''}</span></span>
+                  <span className="min-w-0 flex-1"><span className="block truncate">{formatLabel(format)}</span><span className="block text-xs text-zinc-400">{sizeName(format)}{format.width ? ` · ${shapeName(format.width, format.height)}` : ''}</span></span>
                   <span className="text-xs text-zinc-400">× {frames.length}</span>
-                  <button type="button" className="min-h-10 rounded-md px-2 text-xs text-zinc-300 underline underline-offset-4 hover:text-white" aria-label={`Remove ${format.label}`}
-                    onClick={() => (format.id === 'custom' ? props.onCustomOn(false) : props.onToggle(format.id, false))}>Remove</button>
+                  <button type="button" className="min-h-10 rounded-md px-2 text-xs text-zinc-300 underline underline-offset-4 hover:text-white" aria-label={t.wizard.removeFormat(formatLabel(format))}
+                    onClick={() => (format.id === 'custom' ? props.onCustomOn(false) : props.onToggle(format.id, false))}>{t.wizard.remove}</button>
                 </li>
               ))}
             </ul>
-            <button type="button" className={quiet} onClick={() => setStep('platform')}><Plus className="h-4 w-4" aria-hidden="true" />Add another place</button>
+            <button type="button" className={quiet} onClick={() => setStep('platform')}><Plus className="h-4 w-4" aria-hidden="true" />{t.wizard.addPlace}</button>
             {frame && selected[0] && (props.overlay.on || props.overlay.watermark?.on) && (
               <div className="mx-auto max-w-md">
                 <ExportPreviewTile key={`review-${frame.id}|${selected[0].id}`} large frame={frame}
@@ -214,7 +216,7 @@ export function ExportWizard(props: Props) {
       </div>
 
       <div className="flex shrink-0 items-center justify-between gap-2 border-t border-white/10 bg-kestrel-raised px-4 py-3 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-        <button type="button" className={quiet} onClick={back} disabled={step === 'platform' || props.progress !== null}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back</button>
+        <button type="button" className={quiet} onClick={back} disabled={step === 'platform' || props.progress !== null}><ArrowLeft className="h-4 w-4" aria-hidden="true" />{t.wizard.back}</button>
         {step !== 'platform' && <button type="button" className={primary} onClick={next} disabled={!canNext}>{nextLabel}{step !== 'review' && <ArrowRight className="h-4 w-4" aria-hidden="true" />}</button>}
       </div>
     </div>

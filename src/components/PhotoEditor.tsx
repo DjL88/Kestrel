@@ -2,6 +2,7 @@ import { newId } from '../core/ids';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
+import { editorText as t } from '../i18n/areas/editor';
 import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed, Undo2, Wand2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
@@ -16,6 +17,8 @@ import { sampledRegion, type Region } from '../core/subjectRegion';
 import { Histogram } from './Histogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
+import { applyFix, critique, toneOnlyEdit, type Opinion, type OpinionFigures } from '../core/critique';
+import { fullContext } from '../core/masks';
 import { applyFix, critique, toneOnlyEdit, type Opinion } from '../core/critique';
 import { fullContext, maskAlpha } from '../core/masks';
 import { ColourCheckPanel, type ColourPreview } from './ColourCheckPanel';
@@ -60,16 +63,40 @@ const SHEET_KEY = 'kestrel-sheet-v1';
 export type EditorTab = 'auto' | 'crop' | 'edit' | 'masks' | 'history' | 'export';
 type Tab = EditorTab;
 const TABS: { id: Tab; label: string; Icon: typeof Crop }[] = [
-  { id: 'auto', label: 'Auto', Icon: Lightbulb },
-  { id: 'crop', label: 'Crop', Icon: Crop },
-  { id: 'edit', label: 'Edit', Icon: SlidersHorizontal },
-  { id: 'masks', label: 'Masks', Icon: SquircleDashed },
-  { id: 'history', label: 'History', Icon: History },
-  { id: 'export', label: 'Export', Icon: Download },
+  { id: 'auto', label: t.tabs.auto, Icon: Lightbulb },
+  { id: 'crop', label: t.tabs.crop, Icon: Crop },
+  { id: 'edit', label: t.tabs.edit, Icon: SlidersHorizontal },
+  { id: 'masks', label: t.tabs.masks, Icon: SquircleDashed },
+  { id: 'history', label: t.tabs.history, Icon: History },
+  { id: 'export', label: t.tabs.export, Icon: Download },
 ];
 
 /** The modifier key people expect on this device, for shortcut hints in tooltips. */
 const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
+
+/** The quick choices under Exposure, Warmth and Colour, in the order of EDIT_CHOICES' options (-1, 0, +1). */
+const CHOICE_WORDS: Record<(typeof EDIT_CHOICES)[number]['key'], readonly string[]> = {
+  exposure: [t.choices.darker, t.choices.neutral, t.choices.brighter],
+  warmth: [t.choices.cooler, t.choices.neutral, t.choices.warmer],
+  colour: [t.choices.softer, t.choices.neutral, t.choices.richer],
+};
+
+/** The name `beforeSnapshot` gives a comparison stage, in the session's language. */
+function stageLabel(label: string): string {
+  if (label === 'Original') return t.common.original;
+  if (label === 'Last export') return t.editor.lastExport;
+  const step = /^Edit (\d+)$/.exec(label);
+  return step ? t.editor.editStep(Number(step[1])) : label;
+}
+
+type OpinionText = { title: string; detail: (figures: OpinionFigures) => string; fix?: string };
+
+/** A quality check's words, looked up by its id; an unknown id keeps the words `critique` gave it. */
+function opinionWords(opinion: Opinion): { title: string; detail: string; fix: string } {
+  const words = (t.critique.opinions as unknown as Record<string, OpinionText | undefined>)[opinion.id];
+  if (!words) return { title: opinion.title, detail: opinion.detail, fix: opinion.fixLabel ?? t.common.apply };
+  return { title: words.title, detail: words.detail(opinion.figures ?? {}), fix: words.fix ?? t.common.apply };
+}
 
 interface Props {
   /** Opens the macro pad settings and how-to, on the Edit tab. */
@@ -247,7 +274,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       else { await screen.orientation.lock('landscape'); setLandscapeLocked(true); }
       setOrientationNotice('');
     } catch {
-      setOrientationNotice('This device cannot lock rotation. Turn your device to view the photo in landscape.');
+      setOrientationNotice(t.editor.rotationLocked);
     }
   };
   // A saved or resized layout can leave the Export tab selected on a screen that has no such tab.
@@ -335,7 +362,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   /** Decode the RAW sensor data (desktop app only) and use the full-size result in place of the embedded preview. */
   async function developFromRaw() {
     setDeveloping(true); setDevelopNote(null);
-    const task = tasks.start(`Developing ${frame.filename} from RAW`);
+    const task = tasks.start(t.raw.developingTask(frame.filename));
     try {
       const key = frame.stableKey;
       const result = await provider.developFromOriginal(key, async (original) => {
@@ -345,20 +372,20 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         return matchPreviewOrientation(developed, await extractRawPreview(original).catch(() => null));
       });
       if (result === 'missing') {
-        const message = 'Reconnect the original file first.';
+        const message = t.raw.reconnectFirst;
         setDevelopNote(message);
         task.fail(message);
         return;
       }
       if (result === 'superseded') {
-        task.finish('The source changed or a newer development started.');
+        task.finish(t.raw.superseded);
         return;
       }
       task.finish();
       setDevelopedRev((count) => count + 1);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'This RAW file could not be developed.';
-      setDevelopNote(`${message} Kestrel keeps using the preview stored in the file.`);
+      const message = error instanceof Error ? error.message : t.raw.developFailed;
+      setDevelopNote(t.raw.developFailedNote(message));
       task.fail(message);
     } finally { setDeveloping(false); }
   }
@@ -373,27 +400,27 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     if (masterBusy) return;
     setMasterBusy(true);
     setMasterNote(null);
-    const task = tasks.start('Making a 16-bit TIFF from the RAW');
+    const task = tasks.start(t.raw.masterTask);
     try {
       if (previewRecipe || pendingAuto) {
-        throw new Error('Apply or discard the previewed edit before exporting the saved RAW recipe.');
+        throw new Error(t.raw.masterApplyFirst);
       }
-      if (!source) throw new Error('Wait for the photo to open before exporting.');
+      if (!source) throw new Error(t.raw.masterWait);
       const original = await provider.ensureOriginal(frame.stableKey);
-      if (!original) throw new Error('Reconnect the original RAW file before exporting.');
+      if (!original) throw new Error(t.raw.masterReconnect);
       const output = await exportRaw16Tiff(original, source, frame.edit ?? DEFAULT_EDIT, frame.framing);
       const name = frame.filename.replace(/\.[^.]+$/, '') + '_16bit.tif';
       // The browser hands the file to its own downloads; the desktop app asks where to save it.
       const saved = isDesktopApp() ? await saveWithDialog(output, name) : (downloadExport(output, name), true);
       if (saved) {
-        setMasterNote('Saved a 16-bit TIFF made from the RAW sensor data, with the same edit as the screen. No colour profile is embedded yet; the colours are sRGB.');
-        task.finish('16-bit TIFF saved');
+        setMasterNote(t.raw.masterSaved);
+        task.finish(t.raw.masterSavedTask);
       } else {
-        setMasterNote('Export cancelled; no file was written.');
-        task.finish('Cancelled');
+        setMasterNote(t.raw.masterCancelled);
+        task.finish(t.raw.cancelledTask);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to produce the high-bit-depth TIFF.';
+      const message = error instanceof Error ? error.message : t.raw.masterFailed;
       setMasterNote(message);
       task.fail(message);
     } finally {
@@ -407,16 +434,16 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     if (dngBusy) return;
     setDngBusy(true);
     setDngNote(null);
-    const task = tasks.start('Making a DNG copy');
+    const task = tasks.start(t.raw.dngTask);
     try {
       const original = await provider.ensureOriginal(frame.stableKey);
-      if (!original) throw new Error('Reconnect the original RAW file first.');
+      if (!original) throw new Error(t.raw.dngReconnect);
       const dng = await rawDngCopy(original);
       const saved = await saveWithDialog(dng, frame.filename.replace(/\.[^.]+$/, '') + '.dng');
-      setDngNote(saved ? 'Saved a DNG copy of the sensor data. The original is unchanged.' : 'Cancelled; no file was written.');
-      task.finish(saved ? 'DNG copy saved' : 'Cancelled');
+      setDngNote(saved ? t.raw.dngSaved : t.raw.dngCancelled);
+      task.finish(saved ? t.raw.dngSavedTask : t.raw.cancelledTask);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'A DNG copy could not be made.';
+      const message = error instanceof Error ? error.message : t.raw.dngFailed;
       setDngNote(message);
       task.fail(message);
     } finally {
@@ -452,6 +479,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const displayFraming = useMemo(() => displayFramingFor(framing, guide), [framing, guide]);
   const displayCompare = compare && !guide && sourceState === 'ready';
   const before = beforeSnapshot(frame, beforeStage);
+  const beforeLabel = stageLabel(before.label);
   const outputSize = source ? framedSize(source.naturalWidth, source.naturalHeight, framing) : null;
   const size = source ? framedSize(source.naturalWidth, source.naturalHeight, displayFraming) : null;
   const fit = size ? Math.min(viewport.width / size.width, viewport.height / size.height) : 0;
@@ -491,7 +519,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       const zoom = Math.max(1, Math.min(maxZoom, zoomForPercent(200, fit, dpr)));
       setTransform({ zoom, pan: panToCentre(eye, { width: position.width, height: position.height }, zoom) });
     } catch (error) {
-      setEyeNote(error instanceof Error ? error.message : 'Could not look for the eye.');
+      setEyeNote(error instanceof Error ? error.message : t.editor.eyeFailed);
     } finally {
       setFindingEye(false);
     }
@@ -606,7 +634,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       event.preventDefault();
       const key = DIAL_KEYS[dial];
       switch (command.id) {
-        case 'edit.copy': onCopyEdit(edit); setEditNotice('Adjustments copied'); break;
+        case 'edit.copy': onCopyEdit(edit); setEditNotice(t.editor.adjustmentsCopied); break;
         case 'edit.paste': if (copiedEdit) onEdit(copiedEdit); break;
         case 'edit.reset': onEdit(DEFAULT_EDIT); break;
         case 'edit.beforeAfter': if (!guide) setCompare((value) => !value); break;
@@ -677,12 +705,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     setPendingAuto(null);
     setPreviewRecipe(null);
     setOpinions(null);
-    setAutoNotes(['Analysing your photograph on this device…']);
+    setAutoNotes([t.auto.analysing]);
     const stillCurrent = () => run === autoRun.current && detectionContext.current === startedFor &&
       sourceImage.current === originalSource && Boolean(originalSource);
     try {
       if (!originalSource || !outputSize || !startedFor) {
-        if (run === autoRun.current) setAutoNotes(['Could not analyse this photo. Your edits have not changed.']);
+        if (run === autoRun.current) setAutoNotes([t.auto.couldNotAnalyse]);
         return;
       }
       // Analyse exactly the unedited, framed image (crop and rotation applied), not the adjusted editor canvas.
@@ -692,7 +720,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       });
       const analysisContext = analysisCanvas.getContext('2d', { willReadFrequently: true });
       if (!analysisContext || analysisCanvas.width < 16 || analysisCanvas.height < 16) {
-        if (stillCurrent()) setAutoNotes(['This preview is too small to analyse. Your edits have not changed.']);
+        if (stillCurrent()) setAutoNotes([t.auto.tooSmall]);
         return;
       }
       const analysis = analysisContext.getImageData(0, 0, analysisCanvas.width, analysisCanvas.height);
@@ -723,19 +751,19 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           }
           if (!stillCurrent()) return;
           if (detection.assessment.usable) segmentation = { grid: detection.grid, confidence: detection.assessment.confidence, detail: detection.detail };
-          else subjectNote = 'Subject edges were uncertain, so only whole-photo adjustments were considered.';
+          else subjectNote = t.auto.subjectUncertain;
         } catch {
           if (!stillCurrent()) return;
-          subjectNote = 'Subject detection was unavailable. Whole-photo suggestions still work offline.';
+          subjectNote = t.auto.subjectUnavailable;
         }
       } else {
-        subjectNote = 'The atmosphere is preserved without an automatic subject mask.';
+        subjectNote = t.auto.atmosphere;
       }
       const natural = naturalAuto({
         pixels: analysis.data, width: analysis.width, height: analysis.height, segmentation, iso: frame.exif?.iso,
       });
       if (natural.notes.includes('This preview is too small or too large to analyse.')) {
-        if (stillCurrent()) setAutoNotes(['This preview could not be analysed. Your edits have not changed.']);
+        if (stillCurrent()) setAutoNotes([t.auto.notAnalysed]);
         return;
       }
       let proposal = mergeAutoSuggestion(savedEdit, natural.edit).edit;
@@ -747,7 +775,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         });
         proposal = local.edit;
         usedMask = local.usedMask;
-        subjectNote = local.usedMask ? local.reason : 'No local subject adjustment was needed. ' + local.reason;
+        subjectNote = local.usedMask ? local.reason : t.auto.noLocalAdjustment(local.reason);
       }
       // Render and check before offering: full strength, then gentler, then nothing.
       const staged = stageNaturalRecipe(analysis.data, analysis.width, analysis.height, savedEdit, proposal, segmentation);
@@ -759,17 +787,17 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       setAutoNotes([
         changed
           ? keptMask
-            ? 'Previewing a natural look with a gentle subject-only adjustment. Nothing is saved until you apply it.'
-            : 'Previewing a natural look. Nothing is saved until you apply it.'
+            ? t.auto.previewingWithMask
+            : t.auto.previewingLook
           : staged.outcome === 'declined'
-            ? 'No change suggested. Your photo is exactly as it was.'
-            : 'Your photo already works. No new edit was suggested.',
+            ? t.auto.declined
+            : t.auto.alreadyWorks,
         describeOutcome(staged.outcome, staged.reason),
         ...natural.notes.filter((note) => !note.includes('already works')),
         usedMask || subjectNote ? subjectNote : '',
       ].filter(Boolean));
     } catch {
-      if (stillCurrent()) setAutoNotes(['Could not complete the suggestion. Your existing edits are unchanged.']);
+      if (stillCurrent()) setAutoNotes([t.auto.failed]);
     } finally {
       if (run === autoRun.current) setAutoAnalysing(false);
     }
@@ -859,7 +887,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   useEffect(() => {
     if (!pendingAuto || !source || !outputSize) return;
     try { updateOpinions(); }
-    catch { setAutoNotes((notes) => [...notes, 'Quality checks are unavailable for this preview.']); }
+    catch { setAutoNotes((notes) => [...notes, t.auto.qualityUnavailable]); }
     // Recompute when the proposed recipe or image is replaced.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingAuto, source]);
@@ -883,7 +911,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       drawFramedPhoto(source, framed, framing, { scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(outputSize.width, outputSize.height)) });
       const { grid, assessment, guide, detail } = await detectSubjectGuided(framed);
       if (detectionContext.current !== startedFor) {
-        if (detectionContext.current) setDetectNotice('Photo edits changed. Find the subject or background again.');
+        if (detectionContext.current) setDetectNotice(t.masks.editsChangedFind);
         return;
       }
       if (!assessment.usable) {
@@ -901,10 +929,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         setSelectedMaskId(mask.id);
         setShowMaskOverlay(true);
       }
-      setDetectNotice(guide ? `Traced the subject the detector found, at full detail. ${assessment.reason}` : assessment.reason);
+      setDetectNotice(guide ? t.masks.traced(assessment.reason) : assessment.reason);
     } catch (error) {
       if (detectionContext.current === startedFor) {
-        setDetectNotice(error instanceof Error ? error.message : 'Subject detection failed.');
+        setDetectNotice(error instanceof Error ? error.message : t.masks.detectionFailed);
       }
     } finally {
       if (detectionContext.current) setDetecting(false);
@@ -928,7 +956,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       piece.getContext('2d')?.drawImage(preview, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
       const { grid, assessment, detail } = await detectSubjectInArea(piece, bounds, preview.height / preview.width);
       if (detectionContext.current !== startedFor) {
-        if (detectionContext.current) setDetectNotice('Photo edits changed. Select the area again.');
+        if (detectionContext.current) setDetectNotice(t.masks.editsChangedArea);
         return;
       }
       if (!assessment.usable) { setDetectNotice(assessment.reason); return; }
@@ -938,7 +966,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       setShowMaskOverlay(true);
       setDetectNotice(assessment.reason);
     } catch (error) {
-      if (detectionContext.current === startedFor) setDetectNotice(error instanceof Error ? error.message : 'Subject detection failed.');
+      if (detectionContext.current === startedFor) setDetectNotice(error instanceof Error ? error.message : t.masks.detectionFailed);
     } finally {
       if (detectionContext.current) setDetecting(false);
     }
@@ -966,11 +994,11 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     if (!sample) return;
     const correction = estimateLevel(sample.data, sample.width, sample.height);
     if (correction === null) {
-      setCropNotice('No clear horizon or level line found.');
+      setCropNotice(t.crop.noHorizon);
       return;
     }
     onFramingChange({ ...framing, straighten: correction });
-    setCropNotice(correction ? `Straightened by ${correction}°` : 'The detected line is already level.');
+    setCropNotice(correction ? t.crop.straightened(correction) : t.crop.alreadyLevel);
   }
 
   /** One tab bar. On a phone it is a bottom toolbar of large icons, and on wider screens the top of the side panel. */
@@ -978,7 +1006,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   // which leaves the side panel's tabs with room to breathe.
   const visibleTabs = isPhone ? TABS : TABS.filter((entry) => entry.id !== 'export');
   const tabList = (
-    <div role="tablist" aria-label="Editing tools"
+    <div role="tablist" aria-label={t.editor.tablist}
       className={isPhone
         ? 'grid shrink-0 grid-cols-6 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]'
         : 'sticky top-0 z-20 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 workspace:-mx-4 workspace:px-3'}
@@ -1008,32 +1036,32 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
 
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
   return (
-    <section aria-label="Photo editor" className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden bg-kestrel-stage">
+    <section aria-label={t.editor.region} className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden bg-kestrel-stage">
       {/* On a phone, Quick adjust has Undo, Redo and Before/After within thumb reach, so this row would only repeat them. */}
-      {!focusPhoto && !(isPhone && tab === 'edit' && sheetOpen && !allControls && !(canLockOrientation && fullscreen)) && <div role="toolbar" aria-label="Editor actions" className="mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center justify-between gap-2 overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 pt-0.5 sm:px-4">
+      {!focusPhoto && !(isPhone && tab === 'edit' && sheetOpen && !allControls && !(canLockOrientation && fullscreen)) && <div role="toolbar" aria-label={t.editor.toolbar} className="mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center justify-between gap-2 overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 pt-0.5 sm:px-4">
         <div className="flex items-center gap-1">
-          <button type="button" className={`${button} inline-flex items-center`} aria-label="Undo" title={`Undo (${MOD}+Z)`} disabled={!frame.editHistory?.cursor} onClick={() => onHistoryStep(-1)}>
-            <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Undo</span>
+          <button type="button" className={`${button} inline-flex items-center`} aria-label={m.undo} title={t.editor.undoTitle(MOD)} disabled={!frame.editHistory?.cursor} onClick={() => onHistoryStep(-1)}>
+            <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">{m.undo}</span>
           </button>
-          <button type="button" className={`${button} inline-flex items-center`} aria-label="Redo" title={`Redo (${MOD}+Shift+Z)`} disabled={!frame.editHistory || frame.editHistory.cursor >= frame.editHistory.steps.length} onClick={() => onHistoryStep(1)}>
-            <Redo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">Redo</span>
+          <button type="button" className={`${button} inline-flex items-center`} aria-label={m.redo} title={t.editor.redoTitle(MOD)} disabled={!frame.editHistory || frame.editHistory.cursor >= frame.editHistory.steps.length} onClick={() => onHistoryStep(1)}>
+            <Redo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">{m.redo}</span>
           </button>
           <button type="button" aria-pressed={displayCompare} disabled={sourceState !== 'ready' || guide} onClick={() => setCompare(!compare)}
-            title="Compare the current edit against an earlier stage (backslash)"
+            title={t.editor.compareTitle}
             className={`${button} inline-flex items-center gap-1.5 border border-white/15 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/20 aria-pressed:text-sky-100`}>
             <Columns2 className="h-4 w-4" aria-hidden="true" />
-            <span>Before / After</span>
-            <span className="rounded bg-black/40 px-1.5 text-xs">{displayCompare ? 'On' : 'Off'}</span>
+            <span>{t.editor.beforeAfter}</span>
+            <span className="rounded bg-black/40 px-1.5 text-xs">{displayCompare ? t.editor.on : t.editor.off}</span>
           </button>
           {displayCompare && (
             <label className="min-w-0">
-              <span className="sr-only">Before comparison stage</span>
-              <select aria-label="Before comparison stage" value={beforeStage}
+              <span className="sr-only">{t.editor.beforeStage}</span>
+              <select aria-label={t.editor.beforeStage} value={beforeStage}
                 onChange={(event) => setBeforeStage(event.target.value as ComparisonStage)}
                 className="h-11 max-w-[145px] rounded-md border border-white/15 bg-kestrel-panel px-1 text-xs text-zinc-100 focus-visible:outline-2 focus-visible:outline-sky-300 sm:max-w-[205px]">
-                <option value="original">Original</option>
-                <option value="previous" disabled={!frame.editHistory?.cursor}>Previous edit</option>
-                <option value="last-export" disabled={!frame.lastExport}>Last export</option>
+                <option value="original">{t.common.original}</option>
+                <option value="previous" disabled={!frame.editHistory?.cursor}>{t.editor.previousEdit}</option>
+                <option value="last-export" disabled={!frame.lastExport}>{t.editor.lastExport}</option>
                 {(frame.editHistory?.steps ?? []).map((step, index) => (
                   <option value={`step:${index + 1}`} key={index}>
                     {index + 1}. {m.historyStep[step.kind]} · {formatClock(step.at)}
@@ -1047,41 +1075,41 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         {/* Zoom lives in the bottom bar with the photo navigation, in the same place as in culling (ZoomControls). */}
         {fit > 0 && (() => {
           const controls = <ZoomControls zoom={transform.zoom} fit={fit} dpr={dpr} maxZoom={maxZoom} onZoom={zoomTo} note={eyeNote}
-            eye={{ onClick: () => void zoomToEye(), busy: findingEye, disabled: findingEye || sourceState !== 'ready', title: "Zoom to the subject's eye (only moves the view)" }} />;
+            eye={{ onClick: () => void zoomToEye(), busy: findingEye, disabled: findingEye || sourceState !== 'ready', title: t.editor.eyeTitle }} />;
           return zoomSlot ? createPortal(controls, zoomSlot) : controls;
         })()}
         {/* Settings is in the top right corner of every page (App). */}
         {canLockOrientation && fullscreen && (
           <button type="button" className={`${button} inline-flex items-center border border-white/15`}
             aria-pressed={landscapeLocked} onClick={() => void toggleLandscape()}
-            title="Use landscape for this full-screen photo; return to automatic rotation when finished">
-            {landscapeLocked ? 'Auto rotate' : 'Landscape'}
+            title={t.editor.landscapeTitle}>
+            {landscapeLocked ? t.editor.autoRotate : t.editor.landscape}
           </button>
         )}
         {/* Full screen lives in one place, the filmstrip bar (FilmstripDock), in the editor and culling alike. */}
         {/* Export sits in the top row, where the library has it. */}
         {headerSlot ? createPortal(<>
-        <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? `Export ${exportCount} selected photos` : "Export this photo for social media or full size"}
+        <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? t.editor.exportSelectedTitle(exportCount) : t.editor.exportTitle}
           className={`${button} hidden items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover! workspace:inline-flex`}>
-          <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? `Export ${exportCount}` : "Export"}
+          <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? t.editor.exportCount(exportCount) : t.editor.export}
         </button>
         </>, headerSlot) : <>
-        <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? `Export ${exportCount} selected photos` : "Export this photo for social media or full size"}
+        <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? t.editor.exportSelectedTitle(exportCount) : t.editor.exportTitle}
           className={`${button} hidden items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover! workspace:inline-flex`}>
-          <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? `Export ${exportCount}` : "Export"}
+          <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? t.editor.exportCount(exportCount) : t.editor.export}
         </button>
         </>}
 
         </div>
       </div>}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden workspace:flex-row">
-      <div ref={stage} data-photo-stage tabIndex={0} aria-label="Photo canvas" className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black focus-visible:outline-2 focus-visible:outline-sky-300">
+      <div ref={stage} data-photo-stage tabIndex={0} aria-label={t.editor.canvas} className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black focus-visible:outline-2 focus-visible:outline-sky-300">
         <PhotoViewport zoom={transform.zoom} pan={transform.pan} maxZoom={maxZoom} showZoomButton={false}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
           overlayMode={displayCompare ? 'wipe' : 'hidden'}
-          labels={displayCompare ? [before.label, 'Now'] : undefined}
+          labels={displayCompare ? [beforeLabel, t.editor.now] : undefined}
           base={<>
-            <canvas ref={editedCanvas} aria-label="Edited photo" role="img"
+            <canvas ref={editedCanvas} aria-label={t.editor.editedPhoto} role="img"
               hidden={sourceState !== 'ready'} className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />
             {detail && <canvas ref={editedDetail} aria-hidden="true" hidden={!showDetail}
               className="absolute" style={detail.style} />}
@@ -1090,7 +1118,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                 Shift shows it at any time, Before/After included. */}
             {!guide && position && sourceState === 'ready' && (showGrid || (gridLines && !displayCompare)) && <div aria-hidden="true" data-testid="thirds-grid"
               className={`${showGrid ? '' : 'thirds-hover'} crop-thirds pointer-events-none absolute`} style={position} />}
-            {!guide && position && markFocus && <button type="button" aria-label="Place export focus point" title="Place export focus point"
+            {!guide && position && markFocus && <button type="button" aria-label={t.editor.placeFocus} title={t.editor.placeFocus}
               className="absolute z-10 cursor-crosshair focus-visible:outline-2 focus-visible:outline-sky-200" style={position}
               onClick={(event) => {
                 const bounds = event.currentTarget.getBoundingClientRect();
@@ -1158,10 +1186,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             >
               {outputSize && size && fit > 0 && (['tl', 'tr', 'bl', 'br'] as CropCorner[]).map((corner) => {
                 const point = { x: outputSize.x + (corner.endsWith('r') ? outputSize.width : 0), y: outputSize.y + (corner.startsWith('b') ? outputSize.height : 0) };
-                const names = { tl: 'top left', tr: 'top right', bl: 'bottom left', br: 'bottom right' };
-                const apply = (target: { x: number; y: number }) => onFramingChange(resizeCrop(size.width, size.height, framing, corner, target));
+                                const apply = (target: { x: number; y: number }) => onFramingChange(resizeCrop(size.width, size.height, framing, corner, target));
                 return (
-                  <button key={corner} type="button" aria-label={`Crop corner, ${names[corner]}. Arrow keys resize it.`} title="Drag to resize the crop"
+                  <button key={corner} type="button" aria-label={t.crop.corner(t.crop.corners[corner])} title={t.crop.cornerTitle}
                     className="pointer-events-auto absolute grid h-11 w-11 touch-none place-items-center focus-visible:outline-none"
                     style={{ [corner.startsWith('t') ? 'top' : 'bottom']: -22, [corner.endsWith('l') ? 'left' : 'right']: -22, cursor: corner === 'tl' || corner === 'br' ? 'nwse-resize' : 'nesw-resize' }}
                     onPointerDown={(event) => {
@@ -1200,7 +1227,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   };
                   const apply = (target: { x: number; y: number }) => onFramingChange(resizeCropEdge(size.width, size.height, framing, edge, target));
                   return (
-                    <button key={edge} type="button" aria-label={`Crop edge, ${edge}. Arrow keys move it.`} title="Drag to move this edge of the crop"
+                    <button key={edge} type="button" aria-label={t.crop.edge(t.crop.edges[edge])} title={t.crop.edgeTitle}
                       className="pointer-events-auto absolute grid h-11 w-11 touch-none place-items-center focus-visible:outline-none"
                       style={{
                         ...(across ? { left: '50%', marginLeft: -22, [edge]: -22 } : { top: '50%', marginTop: -22, [edge]: -22 }),
@@ -1236,7 +1263,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             </div>}
           </>}
           overlay={<>
-            <canvas ref={originalCanvas} aria-label={`${before.label} photo`} role="img"
+            <canvas ref={originalCanvas} aria-label={t.editor.beforePhoto(beforeLabel)} role="img"
               className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />
             {detail && displayCompare && <canvas ref={originalDetail} aria-hidden="true" hidden={!showDetail}
               className="absolute" style={detail.style} />}
@@ -1244,7 +1271,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         />
         {sourceState !== 'ready' && (
           <p role="status" className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-zinc-300">
-            {sourceState === 'loading' ? 'Opening photo…' : needsAccess ? 'Reconnect the original file to edit it.' : 'This photo has no browser-readable preview.'}
+            {sourceState === 'loading' ? t.editor.opening : needsAccess ? t.editor.reconnect : t.editor.noPreview}
           </p>
         )}
       </div>
@@ -1255,6 +1282,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         window.clearTimeout(sliderTimer.current);
         sliderTimer.current = window.setTimeout(() => setSliderBusy(false), 700);
       }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
+        {!isPhone && <div className="sticky top-0 z-10 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
+          {onFoldTools && <button type="button" onClick={onFoldTools} aria-label={t.editor.fold} title={t.editor.foldTitle}
         {!isPhone && <div className="sticky top-0 z-20 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
           {onFoldTools && <button type="button" onClick={onFoldTools} aria-label="Fold editing tools" title="Fold the panels away for a bigger photo (Tab)"
             className={`grid w-9 shrink-0 place-items-center border-b border-white/10 text-zinc-400 hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 ${panelSide === 'left' ? 'order-last' : ''}`}>
@@ -1263,43 +1292,43 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           <div className="min-w-0 flex-1 [&>[role=tablist]]:mx-0 [&>[role=tablist]]:static">{tabList}</div>
         </div>}
         {tab === 'auto' && !can('autoTab') && (
-          <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto"><PaidNotice title="The Auto tab">Automatic colour and tone adjustments and local editing advice are here.</PaidNotice></div>
+          <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto"><PaidNotice title={t.auto.paidTitle}>{t.auto.paidBody}</PaidNotice></div>
         )}
         {tab === 'auto' && can('autoTab') && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
         <div className="space-y-2 px-1">
-          <button type="button" title="Preview an offline suggested recipe and check its quality before applying" disabled={sourceState !== 'ready' || autoAnalysing}
+          <button type="button" title={t.auto.suggestTitle} disabled={sourceState !== 'ready' || autoAnalysing}
             className={`${button} inline-flex w-full items-center justify-center gap-2 border border-white/10 font-semibold`}
             onClick={() => void previewAutoSuggestion()}>
-            <Lightbulb className="h-4 w-4 stroke-[1.75]" aria-hidden="true" />{autoAnalysing ? 'Analysing…' : 'Suggest a look'}
+            <Lightbulb className="h-4 w-4 stroke-[1.75]" aria-hidden="true" />{autoAnalysing ? t.auto.analysingButton : t.auto.suggest}
           </button>
-          <p className="text-xs text-zinc-400">Kestrel checks the whole picture and, where reliable, the subject separately. Preview before applying; your original stays untouched.</p>
+          <p className="text-xs text-zinc-400">{t.auto.intro}</p>
           {pendingAuto && (
-            <div role="group" aria-label="Suggested edit preview" className="space-y-2 rounded-lg border border-white/15 bg-white/5 p-3">
-              <p role="status" className="text-sm text-zinc-100">Previewing your suggested edit</p>
+            <div role="group" aria-label={t.auto.previewGroup} className="space-y-2 rounded-lg border border-white/15 bg-white/5 p-3">
+              <p role="status" className="text-sm text-zinc-100">{t.auto.previewing}</p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" aria-pressed={displayCompare} className={`${button} border border-white/15 aria-pressed:bg-sky-300/15`}
-                  onClick={() => setCompare((current) => !current)}>{displayCompare ? 'Hide comparison' : 'Compare before / after'}</button>
+                  onClick={() => setCompare((current) => !current)}>{displayCompare ? t.auto.hideComparison : t.auto.compare}</button>
                 <button type="button" className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
                   onClick={() => {
                     if (savedEdit !== pendingAuto.base || cropKey !== pendingAuto.cropKey || sourceImage.current !== pendingAuto.source) {
-                      setAutoNotes(['The photo changed while previewing. Run Suggest a look again.']);
+                      setAutoNotes([t.auto.photoChanged]);
                     } else {
                       onEdit(pendingAuto.edit);
-                      setAutoNotes(['Suggested look applied. You can undo it from Edit history.']);
+                      setAutoNotes([t.auto.applied]);
                     }
                     autoRun.current += 1;
                     setPendingAuto(null);
                     setPreviewRecipe(null);
-                  }}>Apply suggested edit</button>
+                  }}>{t.auto.apply}</button>
                 <button type="button" className={`${button} border border-white/15`} onClick={() => {
                   autoRun.current += 1;
                   setAutoAnalysing(false);
                   setPendingAuto(null);
                   setPreviewRecipe(null);
                   setOpinions(null);
-                  setAutoNotes(['Suggestion dismissed. Your edit is unchanged.']);
-                }}>Keep current edit</button>
+                  setAutoNotes([t.auto.dismissed]);
+                }}>{t.auto.keepCurrent}</button>
               </div>
             </div>
           )}
@@ -1307,25 +1336,28 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           {autoNotes.length > 0 && <ul role="status" className="list-disc space-y-0.5 pl-4 pt-1 text-xs text-zinc-300">
             {autoNotes.map((note) => <li key={note}>{note}</li>)}
           </ul>}
-          {autoNotes.length > 0 && !pendingAuto && <p className="px-1 text-xs text-zinc-400">You can save an edit you like as a reusable recipe in Recipes below.</p>}
+          {autoNotes.length > 0 && !pendingAuto && <p className="px-1 text-xs text-zinc-400">{t.auto.saveAsRecipe}</p>}
           {opinions && (
-            <section aria-label="Quality checks for this look" className="space-y-2 rounded-md border border-white/10 p-2">
-              {opinions.length === 0 && <p role="status" className="text-sm text-zinc-300">No obvious warning from this small preview. Check fine detail at 100% before exporting.</p>}
-              {opinions.map((opinion) => (
+            <section aria-label={t.critique.region} className="space-y-2 rounded-md border border-white/10 p-2">
+              {opinions.length === 0 && <p role="status" className="text-sm text-zinc-300">{t.critique.none}</p>}
+              {opinions.map((opinion) => {
+                const words = opinionWords(opinion);
+                return (
                 <div key={opinion.id} className="space-y-1 text-sm">
-                  <p className="font-semibold text-zinc-100">{opinion.severity === 'warning' ? 'Watch out: ' : 'Tip: '}{opinion.title}</p>
-                  <p className="text-xs text-zinc-300">{opinion.detail}</p>
+                  <p className="font-semibold text-zinc-100">{opinion.severity === 'warning' ? t.critique.warning(words.title) : t.critique.tip(words.title)}</p>
+                  <p className="text-xs text-zinc-300">{words.detail}</p>
                   {opinion.fix && !pendingAuto && (
                     <button type="button" className={`${button} border border-white/15 text-xs`}
-                      onClick={() => onEdit(applyFix(edit, opinion.fix!))}>{opinion.fixLabel ?? 'Apply'}</button>
+                      onClick={() => onEdit(applyFix(edit, opinion.fix!))}>{words.fix}</button>
                   )}
                 </div>
-              ))}
-              <button type="button" className="min-h-9 text-xs text-zinc-400 underline hover:text-white" onClick={() => setOpinions(null)}>Hide opinion</button>
+                );
+              })}
+              <button type="button" className="min-h-9 text-xs text-zinc-400 underline hover:text-white" onClick={() => setOpinions(null)}>{t.critique.hide}</button>
             </section>
           )}
-        <section aria-label="Photo recipes" className="space-y-1 border-t border-white/10 pt-2">
-          <h3 className="text-sm font-medium text-zinc-100">Recipes</h3>
+        <section aria-label={t.auto.recipesRegion} className="space-y-1 border-t border-white/10 pt-2">
+          <h3 className="text-sm font-medium text-zinc-100">{t.auto.recipes}</h3>
           <PresetPanel edit={edit} disabled={sourceState !== 'ready'} previewSource={lookPreviewSource} onApply={(next) => (onApplyLook ?? onEdit)({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />
         </section>
         <Histogram data={histogram} teach />
@@ -1334,9 +1366,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
         {tab === 'export' && (
           <div role="tabpanel" id="panel-export" aria-labelledby="tab-export" className="space-y-2 px-1 pt-2">
-            <p className="text-sm text-zinc-300">Pick a platform and shape, preview the crop, then save.</p>
+            <p className="text-sm text-zinc-300">{t.exportTab.intro}</p>
             <button type="button" disabled={sourceState !== 'ready'} className={`${button} w-full border border-white/10 font-semibold`} onClick={openExport}>
-              Choose formats and export…
+              {t.exportTab.choose}
             </button>
           </div>
         )}
@@ -1344,7 +1376,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           <div role="tabpanel" id="panel-edit" aria-labelledby="tab-edit" className="space-y-2">
         {isPhone && (allControls ? (
           <button type="button" className="mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-white/12 px-3 text-xs text-zinc-200 hover:bg-white/10" onClick={() => setAllControls(false)}>
-            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />Back to quick adjust
+            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />{t.edit.backToQuick}
           </button>
         ) : (
           <QuickAdjust edit={edit} disabled={sourceState !== 'ready'} onEdit={onEdit}
@@ -1353,18 +1385,18 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         ))}
         <div className={isPhone && !allControls ? 'hidden' : 'space-y-2'}>
         <div className="space-y-2 px-1 py-2">
-          {EDIT_CHOICES.map(({ key, label, options }, index) => (
+          {EDIT_CHOICES.map(({ key }, index) => (
             <fieldset key={key} disabled={sourceState !== 'ready'} className="min-w-0 disabled:opacity-45">
-              <AdjustmentSlider label={label} value={edit[key]}
+              <AdjustmentSlider label={t.controls[key]} value={edit[key]}
                 min={key === 'exposure' ? -12.5 : -2} max={key === 'exposure' ? 12.5 : 2} step={0.1}
                 disabled={sourceState !== 'ready'} onFocus={() => setDial(index)}
-                hint={dialUsed && dial === index ? 'Dial' : undefined}
+                hint={dialUsed && dial === index ? t.slider.dial : undefined}
                 displayValue={key === 'exposure' ? `${signedAdjustment(edit[key] * 0.4)} EV`
-                  : key === 'colour' && edit.colour === -2 ? 'Monochrome'
+                  : key === 'colour' && edit.colour === -2 ? t.slider.monochrome
                   : `${signedAdjustment(Math.round(edit[key] * (key === 'warmth' ? 8 : 20)), 0)}%`}
                 onChange={(value) => onEdit({ ...edit, [key]: value })} />
               {quickChoices && <div className="flex gap-1">
-                {options.map((name, index) => (
+                {CHOICE_WORDS[key].map((name, index) => (
                   <button type="button" key={name} aria-pressed={edit[key] === index - 1}
                     onClick={() => onEdit({ ...edit, [key]: index - 1 })}
                     className="min-h-11 rounded px-2 text-xs hover:bg-white/8 aria-pressed:bg-sky-300/15 desk:min-h-7">{name}</button>
@@ -1373,62 +1405,62 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             </fieldset>
           ))}
           <button type="button" aria-expanded={quickChoices} onClick={() => setQuickChoices(!quickChoices)}
-            className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white desk:min-h-7">Quick choices</button>
+            className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white desk:min-h-7">{t.edit.quickChoices}</button>
         </div>
         <ColourCheckPanel edit={edit} readPreview={colourPreview} version={[edit, framing, source]} onEdit={onEdit} disabled={sourceState !== 'ready'} readJpeg={reviewJpeg} />
         <details open className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
-            Tone <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            {t.edit.tone} <ChevronDown className="h-4 w-4" aria-hidden="true" />
           </summary>
           <div className="space-y-1 px-1 pb-2">
-            {TONE_CONTROLS.map(({ key, label }) => (
-              <AdjustmentSlider key={key} label={label} value={edit[key] ?? 0}
+            {TONE_CONTROLS.map(({ key }) => (
+              <AdjustmentSlider key={key} label={t.controls[key]} value={edit[key] ?? 0}
                 min={-2} max={2} step={0.05} disabled={sourceState !== 'ready'}
-                hint={dialUsed && DIAL_KEYS[dial] === key ? 'Dial' : undefined}
-                title={key === 'brightness' ? 'Adjust midtone brightness while preserving pure black and white; use Exposure for overall light' : undefined}
+                hint={dialUsed && DIAL_KEYS[dial] === key ? t.slider.dial : undefined}
+                title={key === 'brightness' ? t.edit.brightnessTitle : undefined}
                 onChange={(value) => onEdit({ ...edit, [key]: value })} />
             ))}
           </div>
         </details>
         <details open className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
-            Detail <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            {t.edit.detail} <ChevronDown className="h-4 w-4" aria-hidden="true" />
           </summary>
           <div className="space-y-1 px-1 pb-2">
-            {DETAIL_CONTROLS.map(({ key, label }) => (
-              <AdjustmentSlider key={key} label={label} value={edit[key] ?? 0}
+            {DETAIL_CONTROLS.map(({ key }) => (
+              <AdjustmentSlider key={key} label={t.controls[key]} value={edit[key] ?? 0}
                 min={key === 'sharpen' ? 0 : -2} max={2} step={0.05}
-                disabled={sourceState !== 'ready'} hint={dialUsed && DIAL_KEYS[dial] === key ? 'Dial' : undefined}
+                disabled={sourceState !== 'ready'} hint={dialUsed && DIAL_KEYS[dial] === key ? t.slider.dial : undefined}
                 onChange={(value) => onEdit({ ...edit, [key]: value })} />
             ))}
             <div className="space-y-0.5">
-              <AdjustmentSlider label={NOISE_CONTROL.label} value={edit.denoise ?? 0}
+              <AdjustmentSlider label={t.controls[NOISE_CONTROL.key]} value={edit.denoise ?? 0}
                 min={0} max={2} step={0.05} disabled={sourceState !== 'ready'}
                 describedBy="denoise-help"
-                title="Smooths coloured speckle in high-ISO photos; not a claim of AI detail restoration"
+                title={t.edit.denoiseTitle}
                 onChange={(value) => onEdit({ ...edit, denoise: value })} />
-              <p id="denoise-help" className="text-xs text-zinc-400">Smooths colour speckle only. Edges and fine texture stay as they are.</p>
+              <p id="denoise-help" className="text-xs text-zinc-400">{t.edit.denoiseHelp}</p>
             </div>
           </div>
         </details>
         <details className="border-b border-white/10 pb-1">
-          <summary className="min-h-11 cursor-pointer py-3 text-sm">Export focus</summary>
+          <summary className="min-h-11 cursor-pointer py-3 text-sm">{t.edit.exportFocus}</summary>
           <button type="button" className={button} disabled={!position || guide} aria-pressed={markFocus} onClick={() => {
             setCompare(false);
             setTransform(FIT_VIEW);
             setMarkFocus(!markFocus);
-          }}>{markFocus ? 'Cancel placement' : frame.focusPoint ? 'Move focus point' : 'Mark focus point'}</button>
-          {frame.focusPoint && <button type="button" className={button} onClick={() => onFocusPoint(undefined)}>Clear</button>}
-          <p className="px-1 pb-2 text-xs text-zinc-400">{markFocus ? 'Tap the subject. Press Enter on the photo to use the centre.' :
-            'Used when cropping exports. Re-mark after changing the crop.'}</p>
+          }}>{markFocus ? t.edit.cancelPlacement : frame.focusPoint ? t.edit.moveFocus : t.edit.markFocus}</button>
+          {frame.focusPoint && <button type="button" className={button} onClick={() => onFocusPoint(undefined)}>{t.edit.clear}</button>}
+          <p className="px-1 pb-2 text-xs text-zinc-400">{markFocus ? t.edit.placeHelp :
+            t.edit.focusHelp}</p>
         </details>
         {isRaw && (
           <div className="border-t border-white/10 pt-2">
             <p role={developing ? 'status' : undefined} className="px-1 text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey)
               ? sensorModeLabel(sensorMode)
-                ? `Developed from the RAW sensor data (${sensorModeLabel(sensorMode)}) as an 8-bit JPEG. Edits use that JPEG; the original RAW is unchanged.`
-                : 'Developed from the RAW file as an 8-bit JPEG. Edits use that JPEG; the original RAW is unchanged.'
-              : developing ? 'Getting the full quality from the RAW file…' : "You're editing the quick preview stored inside the RAW file."}</p>
+                ? t.raw.developedWithMode(sensorModeLabel(sensorMode)!)
+                : t.raw.developed
+              : developing ? t.raw.gettingFullQuality : t.raw.quickPreview}</p>
             {/* Always visible, not tucked behind the disclosure: when the automatic attempt fails the person needs
                 to see why without first hunting through RAW options. */}
             {developNote && <p role="status" className="px-1 text-xs text-amber-200">{developNote}</p>}
@@ -1440,7 +1472,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             )}
             {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
               <button type="button" className={`${button} w-full border border-white/10`} disabled={developing || sourceState !== 'ready'} onClick={() => void developFromRaw()}>
-                {developing ? 'Developing…' : 'Develop from RAW'}
+                {developing ? t.raw.developing : t.raw.develop}
               </button>
             )}
             {/* Offered once the RAW has developed: a file the decoder cannot read has no sensor data to export. */}
@@ -1448,17 +1480,17 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               <div className="space-y-1 border-t border-white/10 pt-2">
                 {provider.isDeveloped(frame.stableKey) && <button type="button" className={button + ' w-full border border-white/15'}
                   disabled={masterBusy || sourceState !== 'ready'} onClick={() => void exportHighPrecisionMaster()}>
-                  {masterBusy ? 'Making 16-bit TIFF…' : 'Export 16-bit TIFF'}
+                  {masterBusy ? t.raw.masterBusy : t.raw.master}
                 </button>}
-                {provider.isDeveloped(frame.stableKey) && <p className="text-xs text-zinc-400">Made from the RAW sensor data, not the screen's JPEG, with the same edit, crop and turns. Masks, straightening and Noise reduction aren't included yet; you're told before anything is saved.</p>}
+                {provider.isDeveloped(frame.stableKey) && <p className="text-xs text-zinc-400">{t.raw.masterHelp}</p>}
                 {masterNote && <p role="status" className="text-xs text-zinc-300">{masterNote}</p>}
                 {canExportRawMaster() && sensorMode !== 'other' && (
                   <>
                     <button type="button" className={button + ' w-full border border-white/15'}
                       disabled={dngBusy} onClick={() => void saveDngCopy()}>
-                      {dngBusy ? 'Making DNG copy…' : 'Save a DNG copy'}
+                      {dngBusy ? t.raw.dngBusy : t.raw.dng}
                     </button>
-                    <p className="text-xs text-zinc-400">For Nikon High Efficiency files, so other apps can open the sensor data too.</p>
+                    <p className="text-xs text-zinc-400">{t.raw.dngHelp}</p>
                     {dngNote && <p role="status" className="text-xs text-zinc-300">{dngNote}</p>}
                   </>
                 )}
@@ -1468,47 +1500,47 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
         <details className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
-            Edit options <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            {t.edit.options} <ChevronDown className="h-4 w-4" aria-hidden="true" />
           </summary>
           <div className="flex flex-wrap gap-1">
             <button type="button" disabled={isEmptyEdit(edit)} className={button} onClick={() => {
               onEdit(DEFAULT_EDIT);
 
-              setEditNotice('Adjustments reset');
-            }}>Reset edits</button>
+              setEditNotice(t.edit.resetNotice);
+            }}>{t.edit.reset}</button>
           </div>
           <div className="flex flex-wrap gap-1 border-t border-white/10 pt-1">
             <button type="button" disabled={keeperCount < 2 || isNeutralEdit(edit) || sourceState !== 'ready'}
               className={button} aria-expanded={confirmApply} onClick={() => setConfirmApply(!confirmApply)}>
-              Apply to {keeperCount} keepers
+              {t.edit.applyToKeepers(keeperCount)}
             </button>
             {onUndoKeeperEdits && <button type="button" className={button} onClick={() => {
               onUndoKeeperEdits();
-              setEditNotice('Batch adjustments undone');
-            }}>Undo last batch</button>}
+              setEditNotice(t.edit.batchUndone);
+            }}>{t.edit.undoBatch}</button>}
           </div>
           {confirmApply && !isNeutralEdit(edit) && sourceState === 'ready' && (
             <div className="rounded-md bg-black/25 p-2 text-sm">
-              <p>Replace the adjustments on all {keeperCount} keepers with this photo’s settings?</p>
-              <button type="button" className={button} onClick={() => setConfirmApply(false)}>Cancel</button>
+              <p>{t.edit.confirmApply(keeperCount)}</p>
+              <button type="button" className={button} onClick={() => setConfirmApply(false)}>{t.common.cancel}</button>
               <button type="button" className={`${button} font-semibold`} onClick={() => {
                 onApplyToKeepers(edit);
                 setConfirmApply(false);
   
-                setEditNotice(`Updated ${keeperCount} keepers`);
-              }}>Apply adjustments</button>
+                setEditNotice(t.edit.updated(keeperCount));
+              }}>{t.edit.applyAdjustments}</button>
             </div>
           )}
           <p role="status" className="text-xs text-zinc-400">{editNotice}</p>
           <div className="flex flex-wrap gap-1 border-t border-white/10 pt-1">
-            <button type="button" className={button} onClick={() => onCreateVirtualCopy()}>Create virtual copy</button>
-            {onRemoveVirtualCopy && <button type="button" className={button} aria-expanded={confirmRemove} onClick={() => setConfirmRemove(!confirmRemove)}>Remove virtual copy</button>}
+            <button type="button" className={button} onClick={() => onCreateVirtualCopy()}>{t.edit.createCopy}</button>
+            {onRemoveVirtualCopy && <button type="button" className={button} aria-expanded={confirmRemove} onClick={() => setConfirmRemove(!confirmRemove)}>{t.edit.removeCopy}</button>}
           </div>
           {confirmRemove && onRemoveVirtualCopy && (
             <div className="rounded-md bg-black/25 p-2 text-sm">
-              <p>Remove this version and its edits? The original file stays in the shoot.</p>
-              <button type="button" className={button} onClick={() => setConfirmRemove(false)}>Cancel</button>
-              <button type="button" className={button} onClick={onRemoveVirtualCopy}>Remove copy</button>
+              <p>{t.edit.confirmRemove}</p>
+              <button type="button" className={button} onClick={() => setConfirmRemove(false)}>{t.common.cancel}</button>
+              <button type="button" className={button} onClick={onRemoveVirtualCopy}>{t.edit.removeCopyButton}</button>
             </div>
           )}
 
@@ -1516,8 +1548,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             onClick={async () => {
               const original = await provider.ensureOriginal(frame.stableKey);
               if (original) downloadExport(original, original instanceof File ? original.name : frame.filename);
-            }}>Download original</button>}
-          {outputSize && <p className="mt-2 text-xs text-zinc-400">Output {outputSize.width.toLocaleString()} × {outputSize.height.toLocaleString()} px</p>}
+            }}>{t.edit.downloadOriginal}</button>}
+          {outputSize && <p className="mt-2 text-xs text-zinc-400">{t.edit.output(outputSize.width.toLocaleString(), outputSize.height.toLocaleString())}</p>}
         </details>
         </div>
           </div>
@@ -1526,30 +1558,30 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           <div role="tabpanel" id="panel-crop" aria-labelledby="tab-crop" className="space-y-2">
             <div className="flex flex-wrap gap-2">
               <button type="button" disabled={sourceState !== 'ready'} className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
-                onClick={() => setTab('edit')}>Apply crop</button>
+                onClick={() => setTab('edit')}>{t.crop.apply}</button>
               <button type="button" disabled={sourceState !== 'ready'} className={`${button} border border-white/15`}
-                onClick={() => { if (cropEntry.current) onFramingChange(cropEntry.current); setTab('edit'); }}>Cancel</button>
+                onClick={() => { if (cropEntry.current) onFramingChange(cropEntry.current); setTab('edit'); }}>{t.common.cancel}</button>
             </div>
-            <p className="px-1 text-xs text-zinc-400">Drag across the photo to draw a crop, or drag its corners, edges or middle. Pick a shape below to keep it while you drag. Changes are saved as you go. Apply returns to the editing view with the crop in place, and Cancel puts back the crop you started with.</p>
+            <p className="px-1 text-xs text-zinc-400">{t.crop.help}</p>
           <fieldset disabled={sourceState !== 'ready'} className="space-y-2">
             <div className="flex flex-wrap">
               <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={createCropCopy}>
-                <Copy className="h-4 w-4" aria-hidden="true" />Auto crop copy</button>
+                <Copy className="h-4 w-4" aria-hidden="true" />{t.crop.autoCopy}</button>
               <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={() => onFramingChange({
                 ...framing, turns: (framing.turns + 1) % 4, x: 1 - framing.y, y: framing.x,
               })}>
-                <RotateCw className="h-4 w-4" aria-hidden="true" />Rotate 90°</button>
+                <RotateCw className="h-4 w-4" aria-hidden="true" />{t.crop.rotate}</button>
               <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={autoLevel}>
-                <Wand2 className="h-4 w-4" aria-hidden="true" />Auto-level</button>
+                <Wand2 className="h-4 w-4" aria-hidden="true" />{t.crop.autoLevel}</button>
               <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={() => { onFramingChange(DEFAULT_FRAMING); setCropNotice(''); }}>
-                <RotateCcw className="h-4 w-4" aria-hidden="true" />Reset</button>
+                <RotateCcw className="h-4 w-4" aria-hidden="true" />{t.crop.reset}</button>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <button type="button" className={button} aria-pressed={previewCrop} onClick={() => {
                 setPreviewCrop(!previewCrop);
                 setTransform(FIT_VIEW);
-              }}>{previewCrop ? 'Edit crop' : 'Preview crop'}</button>
-              <label className="flex min-h-10 items-center gap-2"><input type="checkbox" checked={gridLines} onChange={(event) => setGridLines(event.target.checked)} />Gridlines</label>
+              }}>{previewCrop ? t.crop.editCrop : t.crop.previewCrop}</button>
+              <label className="flex min-h-10 items-center gap-2"><input type="checkbox" checked={gridLines} onChange={(event) => setGridLines(event.target.checked)} />{t.crop.gridlines}</label>
             </div>
             {cropNotice && <p role="status" className="text-xs text-zinc-300">{cropNotice}</p>}
             <label className="flex min-h-11 items-center justify-between gap-2 text-sm">
@@ -1558,10 +1590,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   : framing.ratio === 1 ? <Square className="h-4 w-4 text-zinc-400" aria-hidden="true" />
                   : framing.ratio > 1 ? <RectangleHorizontal className="h-4 w-4 text-zinc-400" aria-hidden="true" />
                   : <RectangleVertical className="h-4 w-4 text-zinc-400" aria-hidden="true" />}
-                Aspect ratio
+                {t.crop.aspectRatio}
               </span>
               <span className="relative inline-flex min-w-0 max-w-[60%] shrink-0 items-center">
-                <select aria-label="Crop aspect ratio" value={framing.ratio === null ? '' : fixedShape(framing) ? String(framing.ratio) : 'free'}
+                <select aria-label={t.crop.aspectRatioLabel} value={framing.ratio === null ? '' : fixedShape(framing) ? String(framing.ratio) : 'free'}
                   onChange={(event) => {
                     const { free: _free, ...rest } = framing;
                     const value = event.target.value;
@@ -1569,13 +1601,32 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                     else onFramingChange({ ...rest, ratio: Number(value) || null });
                   }}
                   className="min-h-11 w-full min-w-0 appearance-none truncate rounded-md border border-white/10 bg-[#252830] py-2 pl-3 pr-10 text-sm text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
-                  <option value="">Original</option>
-                  <option value="free">Free</option>
-                  {CROP_RATIOS.map((choice) => <option key={choice.label} value={String(choice.ratio)}>{choice.label}</option>)}
+                  <option value="">{t.common.original}</option>
+                  <option value="free">{t.crop.free}</option>
+                  {CROP_RATIOS.map((choice) => <option key={choice.label} value={String(choice.ratio)}>{choice.label === 'Square' ? t.crop.square : choice.label}</option>)}
                 </select>
                 <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 h-4 w-4 shrink-0 stroke-[1.75] text-zinc-300" />
               </span>
             </label>
+            <label className="block px-1 pb-1">
+              <span className="flex items-center justify-between text-xs text-zinc-300"><span>{t.crop.size}</span>
+                <output className="tabular-nums text-zinc-400">{Math.round((framing.size ?? 1) * 100)}%</output></span>
+              <input type="range" min={MIN_CROP_SIZE} max={1} step={0.01} value={framing.size ?? 1} aria-label={t.crop.size}
+                onChange={(event) => size && onFramingChange({ ...framing, ratio: framing.ratio ?? size.width / size.height, size: event.target.valueAsNumber })}
+                onDoubleClick={() => onFramingChange({ ...framing, size: undefined })}
+                className="block min-h-9 w-full accent-sky-300 desk:min-h-7" />
+            </label>
+            <label className="block text-xs">{t.crop.straighten} <output>{framing.straighten.toFixed(1)}°</output>
+              <input type="range" min={-12} max={12} step={0.1} value={framing.straighten}
+                onChange={(event) => onFramingChange({ ...framing, straighten: event.target.valueAsNumber })}
+                className="block min-h-10 w-full accent-sky-300" />
+            </label>
+            {framing.ratio && (['x', 'y'] as const).map((axis) => (
+              <label key={axis} className="block text-xs">{axis === 'x' ? t.crop.horizontal : t.crop.vertical}
+                <input type="range" min={0} max={1} step={0.01} value={framing[axis]}
+                  onChange={(event) => onFramingChange({ ...framing, [axis]: event.target.valueAsNumber })}
+                  className="block min-h-10 w-full accent-sky-300" />
+              </label>
             <AdjustmentSlider label="Crop size" min={MIN_CROP_SIZE} max={1} step={0.01}
               value={framing.size ?? 1} neutral={1} displayValue={`${Math.round((framing.size ?? 1) * 100)}%`}
               disabled={!size} onChange={(value) => size && onFramingChange({
@@ -1596,7 +1647,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           </div>
         )}
         {tab === 'masks' && !can('masks') && (
-          <div role="tabpanel" id="panel-masks" aria-labelledby="tab-masks"><PaidNotice title="Masks and subject detection">Brush, gradient and subject masks, and selecting an area, are here.</PaidNotice></div>
+          <div role="tabpanel" id="panel-masks" aria-labelledby="tab-masks"><PaidNotice title={t.masks.paidTitle}>{t.masks.paidBody}</PaidNotice></div>
         )}
         {tab === 'masks' && can('masks') && (
           <div role="tabpanel" id="panel-masks" aria-labelledby="tab-masks">
@@ -1611,10 +1662,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
         {tab === 'history' && (
           <div role="tabpanel" id="panel-history" aria-labelledby="tab-history">
-            <div className="space-y-2" aria-label="Edit history">
-              <p className="px-1 text-xs text-zinc-400">Hover or focus a step to preview it. Press it to restore the photo to that point. Later steps stay available to redo.</p>
+            <div className="space-y-2" aria-label={m.editHistory}>
+              <p className="px-1 text-xs text-zinc-400">{t.history.help}</p>
               <ol className="space-y-1">
-                {[{ label: 'Original', at: 0 }, ...(frame.editHistory?.steps ?? []).map((step) => ({ label: m.historyStep[step.kind], at: step.at }))].map((entry, index) => {
+                {[{ label: t.common.original, at: 0 }, ...(frame.editHistory?.steps ?? []).map((step) => ({ label: m.historyStep[step.kind], at: step.at }))].map((entry, index) => {
                   const cursor = frame.editHistory?.cursor ?? 0;
                   const history = frame.editHistory;
                   const current = index === cursor;
@@ -1627,8 +1678,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                         onFocus={() => history && !current && setPreviewRecipe(recipeAt(history, index) ?? null)}
                         onBlur={() => setPreviewRecipe(null)}
                         className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-2 text-left text-sm hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 aria-[current=step]:bg-sky-300/15 aria-[current=step]:font-semibold ${index > cursor ? 'text-zinc-500' : 'text-zinc-200'}`}>
-                        <span>{current ? '● ' : ''}{entry.label}{index > cursor ? ' (undone)' : ''}</span>
-                        <time className="tabular-nums text-xs text-zinc-400" dateTime={entry.at ? new Date(entry.at).toISOString() : undefined}>{entry.at ? formatClock(entry.at) : 'start'}</time>
+                        <span>{current ? '● ' : ''}{index > cursor ? t.history.undone(entry.label) : entry.label}</span>
+                        <time className="tabular-nums text-xs text-zinc-400" dateTime={entry.at ? new Date(entry.at).toISOString() : undefined}>{entry.at ? formatClock(entry.at) : t.history.start}</time>
                       </button>
                     </li>
                   );
@@ -1654,7 +1705,7 @@ function PanelResizer({ width, side, onChange }: { width: number; side: 'left' |
     try { localStorage.setItem(PANEL_KEY, String(clamped)); } catch { /* the width still applies for this session */ }
   };
   return (
-    <div role="separator" aria-orientation="vertical" aria-label="Resize adjustments panel" aria-valuenow={width} tabIndex={0}
+    <div role="separator" aria-orientation="vertical" aria-label={t.editor.resizePanel} aria-valuenow={width} tabIndex={0}
       className={`${side === 'left' ? 'workspace:order-[-1]' : ''} hidden w-2 shrink-0 cursor-col-resize bg-white/5 hover:bg-sky-300/30 focus-visible:outline-2 focus-visible:outline-sky-300 workspace:block`}
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId);

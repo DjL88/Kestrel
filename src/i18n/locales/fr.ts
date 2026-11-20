@@ -58,6 +58,14 @@ export const fr: Translation = {
     licence: 'Licence et réglages',
     version: (version) => `Version ${version}`,
   },
+  setup: {
+    welcome: 'Bienvenue dans Kestrel',
+    question: 'Quelle langue souhaitez-vous utiliser ?',
+    detected: (name) => `Votre appareil est réglé en ${name}.`,
+    continueIn: (name) => `Continuer en ${name}`,
+    keepSource: 'Garder l’anglais (Royaume-Uni)',
+    later: 'Vous pourrez la changer à tout moment dans les réglages.',
+  },
   settings: {
     title: 'Apparence et disposition',
     done: 'Terminé',

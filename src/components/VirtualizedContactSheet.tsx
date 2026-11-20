@@ -11,6 +11,8 @@ import { speciesShown } from '../core/autoTags';
 import { FrameImage } from './FrameImage';
 import { jumpTarget, type JumpRequest } from '../core/jumpNavigation';
 import { openPhotoMenuFromKeyboard } from './PhotoContextMenu';
+import { messages as m } from '../i18n/messages';
+import { libraryText as t } from '../i18n/areas/library';
 
 interface VirtualizedContactSheetProps {
   frames: PhotoFrame[];
@@ -133,8 +135,8 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
     const target = jumpTarget(frames, request);
     if (!target) {
       setJumpError(request.kind === 'last-edited'
-        ? 'No recorded edits in this view.'
-        : request.kind === 'captured-at' ? 'No usable capture dates in this view.' : 'Frame not in this view.');
+        ? t.sheet.noRecordedEdits
+        : request.kind === 'captured-at' ? t.sheet.noCaptureDates : t.sheet.frameNotInView);
       return;
     }
     const index = frames.findIndex((frame) => frame.id === target.id);
@@ -165,9 +167,9 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   if (frames.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-kestrel-stage text-zinc-400 p-8 text-center">
-        <p className="text-sm font-medium text-zinc-300">No frames match this filter</p>
+        <p className="text-sm font-medium text-zinc-300">{t.sheet.noMatch}</p>
         <p className="text-xs text-zinc-400 mt-1">
-          Clear the search or pick All to see the full contact sheet.
+          {t.sheet.noMatchHint}
         </p>
       </div>
     );
@@ -182,49 +184,49 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   const jumpControl = (
         <div className="relative">
             <button type="button" onClick={() => { setJumpOpen((value) => !value); setJumpError(''); }}
-              aria-label="Jump to a photo" aria-controls="kestrel-grid-jump" aria-expanded={jumpOpen}
+              aria-label={t.sheet.jumpToPhoto} aria-controls="kestrel-grid-jump" aria-expanded={jumpOpen}
               className="min-h-10 rounded-lg border border-white/20 bg-kestrel-panel/95 px-3 py-2 text-xs font-medium text-zinc-100 shadow-lg hover:bg-kestrel-raised focus-visible:outline-2 focus-visible:outline-sky-300">
-              Jump…
+              {t.sheet.jump}
             </button>
             {jumpOpen && (
-              <div id="kestrel-grid-jump" role="group" aria-label="Jump within this view"
+              <div id="kestrel-grid-jump" role="group" aria-label={t.sheet.jumpWithin}
                 className="absolute right-0 top-11 w-[min(19rem,calc(100vw-2.5rem))] space-y-3 rounded-xl border border-white/20 bg-kestrel-raised p-3 shadow-2xl">
                 <div className="flex gap-2">
                   <button type="button" onClick={() => jumpTo({ kind: 'first' })}
-                    className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">First</button>
+                    className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">{t.sheet.first}</button>
                   <button type="button" onClick={() => jumpTo({ kind: 'last' })}
-                    className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">Last</button>
+                    className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">{t.sheet.last}</button>
                   <button type="button" onClick={() => jumpTo({ kind: 'last-edited' })}
-                    className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">Last edited</button>
+                    className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">{t.sheet.lastEdited}</button>
                 </div>
                 <form onSubmit={(event) => {
                   event.preventDefault();
                   jumpTo({ kind: 'frame', number: Number(jumpFrame) });
                 }}>
-                  <label htmlFor="kestrel-jump-frame" className="block text-xs text-zinc-300">Frame number</label>
+                  <label htmlFor="kestrel-jump-frame" className="block text-xs text-zinc-300">{t.sheet.frameNumber}</label>
                   <div className="mt-1 flex gap-2">
                     <input id="kestrel-jump-frame" type="number" min="1" step="1" value={jumpFrame}
-                      onChange={(event) => setJumpFrame(event.target.value)} placeholder="e.g. 1695"
+                      onChange={(event) => setJumpFrame(event.target.value)} placeholder={t.sheet.frameExample}
                       className="min-w-0 flex-1 rounded-md border border-white/15 bg-kestrel-panel px-2 py-2 text-sm text-zinc-100" />
                     <button type="submit" disabled={!jumpFrame.trim()}
-                      className="min-h-10 rounded-md border border-white/15 px-3 text-xs text-zinc-100 disabled:opacity-50">Go</button>
+                      className="min-h-10 rounded-md border border-white/15 px-3 text-xs text-zinc-100 disabled:opacity-50">{t.sheet.go}</button>
                   </div>
                 </form>
                 <form onSubmit={(event) => {
                   event.preventDefault();
                   jumpTo({ kind: 'captured-at', timestamp: jumpCaptured ? new Date(jumpCaptured).getTime() : NaN });
                 }}>
-                  <label htmlFor="kestrel-jump-captured" className="block text-xs text-zinc-300">Nearest capture date and time</label>
+                  <label htmlFor="kestrel-jump-captured" className="block text-xs text-zinc-300">{t.sheet.nearestCapture}</label>
                   <div className="mt-1 flex gap-2">
                     <input id="kestrel-jump-captured" type="datetime-local" value={jumpCaptured}
                       onChange={(event) => setJumpCaptured(event.target.value)}
                       className="min-w-0 flex-1 rounded-md border border-white/15 bg-kestrel-panel px-2 py-2 text-xs text-zinc-100" />
                     <button type="submit" disabled={!jumpCaptured}
-                      className="min-h-10 rounded-md border border-white/15 px-3 text-xs text-zinc-100 disabled:opacity-50">Go</button>
+                      className="min-h-10 rounded-md border border-white/15 px-3 text-xs text-zinc-100 disabled:opacity-50">{t.sheet.go}</button>
                   </div>
                 </form>
                 {jumpError && <p role="status" className="text-xs text-orange-200">{jumpError}</p>}
-                <p className="text-[11px] text-zinc-400">Only photos matching your current filter are included. No intervening thumbnails are loaded.</p>
+                <p className="text-[11px] text-zinc-400">{t.sheet.jumpNote}</p>
               </div>
             )}
         </div>
@@ -270,7 +272,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                   <div
                     key={frame.id}
                     role="article"
-                    aria-label={`Frame ${frame.filename}`}
+                    aria-label={t.sheet.frame(frame.filename)}
                     onContextMenu={(event) => {
                       if (event.defaultPrevented) return;
                       event.preventDefault();
@@ -335,7 +337,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                       aria-haspopup={onPhotoMenu ? "menu" : undefined}
                       aria-keyshortcuts={onPhotoMenu ? "Shift+F10 ContextMenu" : undefined}
                       aria-pressed={isSelected}
-                      aria-label={`${multiSelect ? 'Select' : 'View'} ${frame.filename}`} title={`${multiSelect ? 'Select' : 'View'} ${frame.filename}`}
+                      aria-label={multiSelect ? t.sheet.select(frame.filename) : t.sheet.view(frame.filename)} title={multiSelect ? t.sheet.select(frame.filename) : t.sheet.view(frame.filename)}
                       className="relative flex-1 w-full overflow-hidden focus-visible:outline-2 focus-visible:outline-sky-400 text-left"
                     >
                       <FrameImage
@@ -377,32 +379,32 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                               ? <SquareCheck data-testid="tile-selected" className="h-3.5 w-3.5 shrink-0 text-sky-200" aria-hidden="true" />
                               : <Square className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />)}
                             <span className="truncate">{frame.filename}</span>
-                            {frame.decision === 'unreviewed' && <span className="sr-only">, To review</span>}
+                            {frame.decision === 'unreviewed' && <span className="sr-only">, {m.review}</span>}
                           </div>
                           <div className="flex min-w-0 items-center gap-1.5 text-[10px] text-zinc-500">
                             {/* The decision in words and a shape, so it never depends on telling blue from orange. */}
                             {isKeep && <span data-testid="tile-decision" className="inline-flex shrink-0 items-center gap-0.5 rounded bg-sky-400/15 px-1 font-semibold text-sky-100">
-                              <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />Kept</span>}
+                              <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />{t.sheet.kept}</span>}
                             {isReject && <span data-testid="tile-decision" className="inline-flex shrink-0 items-center gap-0.5 rounded border border-dashed border-orange-300/60 px-1 font-semibold text-orange-100">
-                              <X className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />Rejected</span>}
+                              <X className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />{t.sheet.rejected}</span>}
                             <span className="shrink-0 font-mono tabular-nums">#{String(frame.sequenceIndex).padStart(4, '0')}</span>
                             {Boolean(frame.rating ?? frame.exif.rating) && <span className="inline-flex shrink-0 items-center gap-0.5 text-zinc-300">
                               <Star className="h-2.5 w-2.5" aria-hidden="true" />{frame.rating ?? frame.exif.rating}</span>}
-                            {frame.burstGroupId && <span className="shrink-0 font-mono tabular-nums text-zinc-300">Burst {frame.burstIndex}/{frame.burstCount}</span>}
-                            {isEdited(frame) && <span role="img" aria-label="Edited" title="Edited" className="shrink-0 text-sky-200"><SlidersHorizontal className="h-3 w-3" aria-hidden="true" /></span>}
+                            {frame.burstGroupId && <span className="shrink-0 font-mono tabular-nums text-zinc-300">{t.sheet.burst(frame.burstIndex, frame.burstCount)}</span>}
+                            {isEdited(frame) && <span role="img" aria-label={t.sheet.edited} title={t.sheet.edited} className="shrink-0 text-sky-200"><SlidersHorizontal className="h-3 w-3" aria-hidden="true" /></span>}
                             {(() => {
                               const species = speciesShown(frame);
                               return species ? (
                                 <span data-testid="species-label" className="flex min-w-0 items-center gap-1 text-zinc-200">
-                                  <span className="truncate">Species: {species.name}</span>
-                                  {species.auto && <span className="shrink-0 rounded bg-sky-300/25 px-1 text-[9px] font-medium uppercase tracking-wide text-sky-100" title="Named automatically. Open the photo info to keep or change it.">Auto</span>}
+                                  <span className="truncate">{t.sheet.species(species.name)}</span>
+                                  {species.auto && <span className="shrink-0 rounded bg-sky-300/25 px-1 text-[9px] font-medium uppercase tracking-wide text-sky-100" title={t.sheet.autoNamedTitle}>{t.sheet.auto}</span>}
                                 </span>
                               ) : null;
                             })()}
                           </div>
                         </div>
                         <button type="button" data-info-button onClick={(event) => onInfo(frame.id, event.currentTarget)}
-                          aria-label={`Photo info and rating for ${frame.filename}`} title={`Photo info and rating for ${frame.filename}`}
+                          aria-label={t.sheet.photoInfoFor(frame.filename)} title={t.sheet.photoInfoFor(frame.filename)}
                           className={`grid shrink-0 place-items-center rounded-md text-zinc-300 hover:bg-white/8 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-sky-300 ${stacked ? 'h-9 w-9' : 'h-7 w-7'}`}>
                           <Info className="h-4 w-4" aria-hidden="true" />
                         </button>

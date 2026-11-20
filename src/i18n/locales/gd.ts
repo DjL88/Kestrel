@@ -58,6 +58,14 @@ export const gd: Translation = {
     licence: 'Ceadachas is roghainnean',
     version: (version) => `Tionndadh ${version}`,
   },
+  setup: {
+    welcome: 'Fàilte gu Kestrel',
+    question: 'Dè an cànan a bu toil leat?',
+    detected: (name) => `Tha an t-uidheam agad air a shuidheachadh gu ${name}.`,
+    continueIn: (name) => `Lean air adhart ann an ${name}`,
+    keepSource: 'Cùm a’ Bheurla (RA)',
+    later: '’S urrainn dhut seo atharrachadh uair sam bith sna roghainnean.',
+  },
   settings: {
     title: 'Coltas is co-dhealbhachd',
     done: 'Deiseil',

@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
 import type { GuidedStep } from '../core/guidedProgress';
-import { formatCount } from '../i18n/messages';
+import { libraryText as t } from '../i18n/areas/library';
 
 interface Props {
   step: GuidedStep;
@@ -35,36 +35,36 @@ export function GuidedBanner({ step, unreviewed, keepers, scanned, uneditedKeepe
         // A cull pass already ran and decided the rest: these are the ones it wasn't confident enough to call,
         // left for a person on purpose. Saying so plainly avoids sounding like it's suggesting the same pass again.
         return scanned ? {
-          heading: unreviewed === 1 ? '1 photo still needs a decision' : `${formatCount.format(unreviewed)} photos still need a decision`,
-          body: "Kestrel wasn't confident enough to call these on its own, so it left them for you. You can let it take another look, or decide yourself.",
-          primaryLabel: 'Let Kestrel try these too',
+          heading: t.guided.stillNeedDecision(unreviewed),
+          body: t.guided.scannedBody,
+          primaryLabel: t.guided.tryThese,
           onPrimary: onFindBestPhotos,
-          secondaryLabel: "I'll look through them myself",
+          secondaryLabel: t.guided.lookMyself,
           onSecondary: onReviewMyself,
         } : {
-          heading: unreviewed === 1 ? '1 photo to look through' : `${formatCount.format(unreviewed)} photos to look through`,
-          body: 'Kestrel can take a first pass and suggest your best shots, or you can look through them yourself. Either way, nothing is deleted and every decision can be changed.',
-          primaryLabel: 'Find my best photos',
+          heading: t.guided.toLookThrough(unreviewed),
+          body: t.guided.firstPassBody,
+          primaryLabel: t.guided.findBest,
           onPrimary: onFindBestPhotos,
-          secondaryLabel: "I'll look through them myself",
+          secondaryLabel: t.guided.lookMyself,
           onSecondary: onReviewMyself,
         };
       case 'improving':
         return {
-          heading: keepers === 1 ? '1 keeper ready for a look' : `${formatCount.format(keepers)} keepers ready for a look`,
+          heading: t.guided.keepersReady(keepers),
           body: uneditedKeepers === keepers
-            ? 'Kestrel can suggest a recipe for each one. You keep, change or reset every suggestion individually.'
-            : `${formatCount.format(uneditedKeepers)} of those still have no edit. Kestrel can suggest a recipe for them.`,
-          primaryLabel: 'See suggested recipes',
+            ? t.guided.suggestEach
+            : t.guided.stillNoEdit(uneditedKeepers),
+          primaryLabel: t.guided.seeRecipes,
           onPrimary: onSeeSuggestedEdits,
-          secondaryLabel: "I'll edit them myself",
+          secondaryLabel: t.guided.editMyself,
           onSecondary: onEditMyself,
         };
       case 'ready':
         return {
-          heading: keepers === 1 ? 'Your keeper is ready' : `Your ${formatCount.format(keepers)} keepers are ready`,
-          body: 'Every keeper has been looked through and edited. Export when you\'re happy with them.',
-          primaryLabel: 'Export your keepers',
+          heading: t.guided.allReady(keepers),
+          body: t.guided.readyBody,
+          primaryLabel: t.guided.exportKeepers,
           onPrimary: onExportKeepers,
           secondaryLabel: undefined,
           onSecondary: undefined,
@@ -73,7 +73,7 @@ export function GuidedBanner({ step, unreviewed, keepers, scanned, uneditedKeepe
   })();
 
   return (
-    <section aria-label="What's next" className="mb-3 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-sky-300/25 bg-sky-300/8 p-3">
+    <section aria-label={t.guided.whatsNext} className="mb-3 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-sky-300/25 bg-sky-300/8 p-3">
       <div className="min-w-0 flex-1 basis-64">
         <h2 className="text-sm font-semibold text-zinc-100">{content.heading}</h2>
         <p className="mt-0.5 text-sm text-zinc-300">{content.body}</p>
@@ -83,7 +83,7 @@ export function GuidedBanner({ step, unreviewed, keepers, scanned, uneditedKeepe
           <button type="button" className={secondary} onClick={content.onSecondary}>{content.secondaryLabel}</button>
         )}
         <button type="button" className={primary} onClick={content.onPrimary}>{content.primaryLabel}</button>
-        <button type="button" aria-label="Dismiss this suggestion" title="Dismiss" onClick={onDismiss}
+        <button type="button" aria-label={t.guided.dismissSuggestion} title={t.guided.dismiss} onClick={onDismiss}
           className="grid min-h-11 min-w-11 place-items-center rounded-md text-zinc-400 hover:bg-white/8 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-sky-300">
           <X className="h-4 w-4" aria-hidden="true" />
         </button>

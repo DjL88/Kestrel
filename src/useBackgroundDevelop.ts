@@ -5,6 +5,7 @@ import type { PhotoFrame } from './core/types';
 import type { BrowserPreviewProvider } from './providers/browserPreviewProvider';
 import { extractRawPreview } from './core/nefPreview';
 import { canDevelopRaw, developRaw, matchPreviewOrientation } from './providers/rawDevelop';
+import { appText as t } from './i18n/areas/app';
 
 /** How long after the last photo was added before developing begins. */
 const SETTLE_MS = 4000;
@@ -51,7 +52,7 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
         if (await store.developedReview(frame)) continue;
         const original = await store.ensureOriginal(frame.stableKey, 'background');
         if (!original || !stillCurrent()) continue;
-        task ??= tasks.start('Developing RAW files with Kestrel', { total: queue.length, cancel: () => { stoppedFor.current = id; } });
+        task ??= tasks.start(t.tasks.developingRaw, { total: queue.length, cancel: () => { stoppedFor.current = id; } });
         task.progress(done, done + queue.length, frame.filename);
         try {
           const developed = await developRaw(original, /\.([a-z0-9]+)$/i.exec(frame.filename)?.[1] ?? 'nef');
@@ -67,8 +68,8 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
     } finally {
       running.current = false;
       if (task) {
-        if (stoppedFor.current === latest.current.projectId) task.finish('Stopped; the remaining photos keep the camera preview.');
-        else task.finish(`${done} developed`);
+        if (stoppedFor.current === latest.current.projectId) task.finish(t.tasks.developStopped);
+        else task.finish(t.tasks.developed(done));
       }
     }
   }, []);

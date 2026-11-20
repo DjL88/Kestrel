@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, CloudOff, HelpCircle, Plug, RefreshCw, Trash2 } from 'lucide-react';
-import { HEALTH_TEXT, PROVIDERS, type Health, type ProviderKind } from '../core/connections';
+import { PROVIDERS, type Health, type ProviderKind } from '../core/connections';
+import { projectsText as t } from '../i18n/areas/projects';
 import { pickSyncFolder } from '../providers/folderConnector';
 import { ProviderIcon } from './ProviderIcon';
 import { WebDavForm } from './WebDavForm';
@@ -21,6 +22,12 @@ const ICON: Record<Health, { Icon: typeof Plug; colour: string }> = {
   error: { Icon: AlertTriangle, colour: 'text-red-200' },
 };
 
+/** The words for each kind of place, in the session language. Brand names that need no words stay as core gives them. */
+const providerLabel = (provider: (typeof PROVIDERS)[number]) => (t.connections.providerLabel as Partial<Record<ProviderKind, string>>)[provider.kind] ?? provider.label;
+const providerShort = (kind: ProviderKind) => (t.connections.providerShort as Partial<Record<ProviderKind, string>>)[kind] ?? PROVIDERS.find((p) => p.kind === kind)?.short;
+const providerNote = (provider: (typeof PROVIDERS)[number]) => (provider.note ? (t.connections.providerNote as Partial<Record<ProviderKind, string>>)[provider.kind] ?? provider.note : undefined);
+const advice = (health: Health) => (t.connections.advice as Partial<Record<Health, string>>)[health] ?? '';
+
 /** Where this person keeps their work, with a health for each, on the home page. */
 export function ConnectionsPanel() {
   const { list, reports } = useConnections();
@@ -37,11 +44,11 @@ export function ConnectionsPanel() {
     try {
       const picked = await pickSyncFolder();
       if (picked === 'cancelled') return;
-      if (picked === 'unsupported') { setNote('This browser cannot pick a folder. Use the Kestrel desktop app, or Chrome or Edge.'); return; }
+      if (picked === 'unsupported') { setNote(t.common.noFolderPicker); return; }
       const created = addConnection('folder', label || picked.name, picked.name, { handle: picked.handle, path: picked.path });
       setAdding(null); setLabel('');
       await checkConnection(created.id);
-    } catch { setNote('Kestrel could not open that folder. Choose another.'); }
+    } catch { setNote(t.common.couldNotOpenFolder); }
   }
 
   async function reconnect(id: string, kind: ProviderKind) {
@@ -60,17 +67,17 @@ export function ConnectionsPanel() {
   return (
     <section aria-labelledby="connections-title" className="mt-8 rounded-xl border border-white/10 bg-kestrel-raised p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="connections-title" className="text-sm font-medium text-zinc-100">Where my work is kept</h2>
+        <h2 id="connections-title" className="text-sm font-medium text-zinc-100">{t.connections.title}</h2>
         <div className="flex gap-2">
-          {list.length > 0 && <button type="button" className={action} onClick={() => void checkAllConnections()}><RefreshCw className="mr-1.5 inline h-4 w-4" aria-hidden="true" />Check all</button>}
-          <button type="button" className={action} onClick={() => { setAdding(adding ? null : 'folder'); setNote(null); }} aria-expanded={adding !== null}>Add a connection</button>
+          {list.length > 0 && <button type="button" className={action} onClick={() => void checkAllConnections()}><RefreshCw className="mr-1.5 inline h-4 w-4" aria-hidden="true" />{t.connections.checkAll}</button>}
+          <button type="button" className={action} onClick={() => { setAdding(adding ? null : 'folder'); setNote(null); }} aria-expanded={adding !== null}>{t.connections.add}</button>
         </div>
       </div>
-      <p className="mt-1 text-xs text-zinc-400">Connect a folder or your own cloud storage once, then choose for each project where it loads from, saves to and backs up to. Your originals stay where they are.</p>
+      <p className="mt-1 text-xs text-zinc-400">{t.connections.intro}</p>
 
-      {list.length === 0 && !adding && <p className="mt-3 text-sm text-zinc-300">Nothing connected yet. Projects live on this device only.</p>}
+      {list.length === 0 && !adding && <p className="mt-3 text-sm text-zinc-300">{t.connections.nothing}</p>}
 
-      <ul className="mt-3 space-y-2" aria-label="Connections">
+      <ul className="mt-3 space-y-2" aria-label={t.connections.listLabel}>
         {list.map((connection) => {
           const report = reports[connection.id];
           const health = report?.health ?? 'unknown';
@@ -82,18 +89,18 @@ export function ConnectionsPanel() {
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/8 text-zinc-100"><ProviderIcon kind={connection.kind} className="h-5 w-5" /></span>
                   <div className="min-w-0">
                     <p className="truncate font-medium text-zinc-100">{connection.label}</p>
-                    <p className="truncate text-xs text-zinc-400">{PROVIDERS.find((p) => p.kind === connection.kind)?.short} · {connection.detail}</p>
+                    <p className="truncate text-xs text-zinc-400">{providerShort(connection.kind)} · {connection.detail}</p>
                   </div>
                 </div>
-                <span className={`inline-flex items-center gap-1.5 ${colour}`} role="status" aria-label={`${connection.label}: ${HEALTH_TEXT[health].word}`}>
-                  <Icon className="h-4 w-4" aria-hidden="true" />{HEALTH_TEXT[health].word}
+                <span className={`inline-flex items-center gap-1.5 ${colour}`} role="status" aria-label={`${connection.label}: ${t.connections.health[health]}`}>
+                  <Icon className="h-4 w-4" aria-hidden="true" />{t.connections.health[health]}
                 </span>
               </div>
-              {health !== 'ok' && health !== 'unknown' && <p className="mt-1 text-xs text-zinc-300">{report?.message || HEALTH_TEXT[health].advice}</p>}
+              {health !== 'ok' && health !== 'unknown' && <p className="mt-1 text-xs text-zinc-300">{report?.message || advice(health)}</p>}
               <div className="mt-2 flex flex-wrap gap-2">
-                <button type="button" className={action} disabled={busy === connection.id} onClick={async () => { setBusy(connection.id); await checkConnection(connection.id); setBusy(null); }}>Check</button>
-                {(health === 'needs-signin' || health === 'missing') && <button type="button" className={action} onClick={() => void reconnect(connection.id, connection.kind)}>Reconnect</button>}
-                <button type="button" className={action} onClick={() => removeConnection(connection.id)} aria-label={`Remove ${connection.label}`}><Trash2 className="h-4 w-4" aria-hidden="true" /></button>
+                <button type="button" className={action} disabled={busy === connection.id} onClick={async () => { setBusy(connection.id); await checkConnection(connection.id); setBusy(null); }}>{t.connections.check}</button>
+                {(health === 'needs-signin' || health === 'missing') && <button type="button" className={action} onClick={() => void reconnect(connection.id, connection.kind)}>{t.connections.reconnect}</button>}
+                <button type="button" className={action} onClick={() => removeConnection(connection.id)} aria-label={t.connections.remove(connection.label)}><Trash2 className="h-4 w-4" aria-hidden="true" /></button>
               </div>
             </li>
           );
@@ -101,16 +108,16 @@ export function ConnectionsPanel() {
       </ul>
 
       {adding && (
-        <div className="mt-3 space-y-3 rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-zinc-300" role="group" aria-label="Add a connection">
-          <div role="radiogroup" aria-label="Kind of connection" className="space-y-1">
+        <div className="mt-3 space-y-3 rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-zinc-300" role="group" aria-label={t.connections.add}>
+          <div role="radiogroup" aria-label={t.connections.kind} className="space-y-1">
             {PROVIDERS.map((provider) => (
               <label key={provider.kind} className={`flex min-h-11 items-start gap-2 ${provider.available ? '' : 'opacity-60'}`}>
                 <input type="radio" name="provider" className="mt-1" disabled={!provider.available} checked={adding === provider.kind} onChange={() => setAdding(provider.kind)} />
-                <span className="flex items-start gap-2"><ProviderIcon kind={provider.kind} className="mt-0.5 h-4 w-4 shrink-0" /><span>{provider.label}{provider.note && <span className="block text-xs text-zinc-400">{provider.note}</span>}</span></span>
+                <span className="flex items-start gap-2"><ProviderIcon kind={provider.kind} className="mt-0.5 h-4 w-4 shrink-0" /><span>{providerLabel(provider)}{provider.note && <span className="block text-xs text-zinc-400">{providerNote(provider)}</span>}</span></span>
               </label>
             ))}
           </div>
-          <label className="block">Name it (for example “Work shared drive”)
+          <label className="block">{t.connections.nameIt}
             <input className={`${field} mt-1`} value={label} onChange={(event) => setLabel(event.target.value)} />
           </label>
           {adding === 'webdav' && (
@@ -120,7 +127,7 @@ export function ConnectionsPanel() {
               void checkConnection(created.id);
             }} />
           )}
-          {adding === 'folder' && <button type="button" className={action} onClick={() => void addFolder()}>Choose the folder…</button>}
+          {adding === 'folder' && <button type="button" className={action} onClick={() => void addFolder()}>{t.connections.chooseFolder}</button>}
           {adding === 's3' && (
             <CloudStorageForm initial={null} persist={false} onCancel={() => setAdding(null)} onSaved={(settings: S3Settings | null, remember?: boolean) => {
               if (!settings) return;

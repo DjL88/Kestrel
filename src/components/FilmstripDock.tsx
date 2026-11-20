@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { ChevronDown, ChevronUp, Focus, Maximize2, Minimize2, GripHorizontal } from 'lucide-react';
 import { clampFilmstripHeight, FILMSTRIP_SIZE_KEY, parseFilmstripHeight } from '../core/filmstripGeometry';
+import { libraryText as t } from '../i18n/areas/library';
 
 interface FilmstripDockProps {
   expanded: boolean;
@@ -60,11 +61,11 @@ export function FilmstripDock({ expanded, onToggle, onPhotoOnly, children }: Fil
   };
 
   return (
-    <section aria-label="Full-width filmstrip" data-filmstrip-dock
+    <section aria-label={t.filmstripDock.label} data-filmstrip-dock
       className="relative z-10 flex w-full min-w-0 shrink-0 flex-col overflow-hidden border-t border-white/12 bg-[#121418]"
       style={{ height: expanded ? height + 36 : 36 }}>
       <div className="flex h-9 shrink-0 items-center justify-between gap-2 px-2 sm:px-4">
-        <div role="separator" tabIndex={expanded ? 0 : -1} aria-label="Resize filmstrip" aria-orientation="horizontal"
+        <div role="separator" tabIndex={expanded ? 0 : -1} aria-label={t.filmstripDock.resize} aria-orientation="horizontal"
           aria-valuemin={80} aria-valuemax={clampFilmstripHeight(9999, typeof window === 'undefined' ? 800 : window.innerHeight)}
           aria-valuenow={height}
           onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}
@@ -76,29 +77,29 @@ export function FilmstripDock({ expanded, onToggle, onPhotoOnly, children }: Fil
               : event.key === 'ArrowDown' ? value - delta
               : event.key === 'Home' ? 80 : 9999, window.innerHeight));
           }}
-          title="Drag to resize the filmstrip; Up/Down arrows also resize"
+          title={t.filmstripDock.resizeTitle}
           className={`inline-flex h-9 min-w-0 flex-1 items-center gap-2 text-xs text-zinc-300 focus-visible:outline-2 focus-visible:outline-sky-300 ${expanded ? 'cursor-ns-resize touch-none' : ''}`}>
           <GripHorizontal className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden="true"/>
-          <span>Filmstrip</span>
-          {expanded && <span className="hidden text-zinc-500 sm:inline">Drag to resize</span>}
+          <span>{t.filmstripDock.filmstrip}</span>
+          {expanded && <span className="hidden text-zinc-500 sm:inline">{t.filmstripDock.dragToResize}</span>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {onPhotoOnly && (
-            <button type="button" onClick={onPhotoOnly} aria-label="Show photo only" title="Photo only: hide every bar and panel (F). Esc brings them back."
+            <button type="button" onClick={onPhotoOnly} aria-label={t.filmstripDock.showPhotoOnly} title={t.filmstripDock.photoOnlyTitle}
               className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
               <Focus className="h-4 w-4" aria-hidden="true"/>
             </button>
           )}
           {typeof document !== 'undefined' && document.fullscreenEnabled && (
-            <button type="button" aria-pressed={fullscreen} title={fullscreen ? 'Leave full screen (Esc)' : 'Full screen: the photo and tools fill the screen. Keyboard and macro pad keep working.'}
-              aria-label={fullscreen ? 'Leave full screen' : 'Full screen'} onClick={toggleFullscreen}
+            <button type="button" aria-pressed={fullscreen} title={fullscreen ? t.filmstripDock.leaveFullScreenTitle : t.filmstripDock.fullScreenTitle}
+              aria-label={fullscreen ? t.filmstripDock.leaveFullScreen : t.filmstripDock.fullScreen} onClick={toggleFullscreen}
               className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
               {fullscreen ? <Minimize2 className="h-4 w-4" aria-hidden="true"/> : <Maximize2 className="h-4 w-4" aria-hidden="true"/>}
             </button>
           )}
           <button type="button" onClick={onToggle} aria-expanded={expanded}
-            aria-label={expanded ? 'Collapse filmstrip' : 'Expand filmstrip'}
-            title={expanded ? 'Collapse filmstrip' : 'Expand filmstrip'}
+            aria-label={expanded ? t.filmstripDock.collapse : t.filmstripDock.expand}
+            title={expanded ? t.filmstripDock.collapse : t.filmstripDock.expand}
             className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
             {expanded ? <ChevronDown className="h-5 w-5" aria-hidden="true"/> : <ChevronUp className="h-5 w-5" aria-hidden="true"/>}
           </button>

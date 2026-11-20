@@ -58,6 +58,14 @@ export const cy: Translation = {
     licence: 'Trwydded a gosodiadau',
     version: (version) => `Fersiwn ${version}`,
   },
+  setup: {
+    welcome: 'Croeso i Kestrel',
+    question: 'Pa iaith hoffech chi?',
+    detected: (name) => `Mae’ch dyfais wedi’i gosod i ${name}.`,
+    continueIn: (name) => `Parhau yn ${name}`,
+    keepSource: 'Cadw Saesneg (DU)',
+    later: 'Gallwch newid hyn unrhyw bryd yn y Gosodiadau.',
+  },
   settings: {
     title: 'Golwg a chynllun',
     done: 'Wedi gorffen',

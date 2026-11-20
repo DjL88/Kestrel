@@ -150,6 +150,7 @@ export function passesCullSafetyGate(
     evaluation.keeperRecall === 1 - evaluation.falseRejects / evaluation.keeperCount &&
     evaluation.falseRejectRate === evaluation.falseRejects / evaluation.keeperCount &&
     evaluation.falseKeepRate === evaluation.falseKeeps / evaluation.nonKeeperCount &&
+    evaluation.automaticKeeperRecall !== null && evaluation.automaticKeeperRecall <= evaluation.keeperRecall &&
     evaluation.automaticKeeperRecall !== null &&
     evaluation.automaticKeeperRecall <= evaluation.keeperRecall &&
     evaluation.evaluated >= minimumEvaluated &&

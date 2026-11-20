@@ -58,6 +58,14 @@ export const de: Translation = {
     licence: 'Lizenz und Einstellungen',
     version: (version) => `Version ${version}`,
   },
+  setup: {
+    welcome: 'Willkommen bei Kestrel',
+    question: 'Welche Sprache möchten Sie verwenden?',
+    detected: (name) => `Ihr Gerät ist auf ${name} eingestellt.`,
+    continueIn: (name) => `Weiter auf ${name}`,
+    keepSource: 'Bei Englisch (UK) bleiben',
+    later: 'Sie können das jederzeit in den Einstellungen ändern.',
+  },
   settings: {
     title: 'Darstellung und Anordnung',
     done: 'Fertig',

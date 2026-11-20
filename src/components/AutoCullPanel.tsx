@@ -11,6 +11,7 @@ import { scanForCulling } from '../providers/browserAutoCull';
 import { bundledModelUrl } from '../providers/bundledModelAssets';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { WorkProgressBar } from './WorkProgressBar';
+import { libraryText as t } from '../i18n/areas/library';
 
 interface Props {
   frames: PhotoFrame[];
@@ -94,7 +95,7 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
   async function scan() {
     if (running.current) return;
     const controller = new AbortController();
-    const task = tasks.start('Assisted culling', { total: candidates.length, cancel: () => controller.abort() });
+    const task = tasks.start(t.autoCull.taskTitle, { total: candidates.length, cancel: () => controller.abort() });
     running.current = controller;
     taskId.current = task.id;
     setTotal(candidates.length);
@@ -113,9 +114,9 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
       if (autoMove) apply(next.flatMap((result) =>
         result.confidence === 'high' && result.decision ? [{ frameId: result.frameId, decision: result.decision }] : []));
     } catch {
-      if (!controller.signal.aborted) { setFailed(true); task.fail('Could not finish looking at the photos'); }
+      if (!controller.signal.aborted) { setFailed(true); task.fail(t.autoCull.taskFailed); }
     } finally {
-      task.fail('Stopped before it finished'); // does nothing if it finished or was cancelled
+      task.fail(t.autoCull.taskStopped); // does nothing if it finished or was cancelled
       if (running.current === controller) {
         running.current = null;
         taskId.current = null;
@@ -136,9 +137,9 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
       {(!subjectDetectorAvailable || detectorFailed) && (
         <p role="status" className="mt-2 rounded-md border border-white/12 p-2 text-xs text-zinc-300">
           {detectorFailed
-            ? 'Subject detection could not run on this device. Your scan continues without it; Kestrel will not automatically choose keepers from texture alone.'
-            : 'This preview has no subject-detection model. You can still review photos and find exact duplicates; Kestrel will not automatically choose keepers from texture alone.'}
-          {' '}You can still choose your own keepers. Your originals are unchanged.
+            ? t.autoCull.detectorFailed
+            : t.autoCull.noDetector}
+          {' '}{t.autoCull.stillChoose}
         </p>
       )}
       {!results && <div className="mt-3 space-y-2">
@@ -149,15 +150,15 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
           {progress === undefined ? m.scan : m.scanning(formatCount.format(progress), formatCount.format(total))}
         </button>
         {progress !== undefined && onHide && <button type="button" autoFocus className={`${button} border border-white/15 font-medium`}
-          onClick={onHide}>Cull in the background</button>}
-        {progress !== undefined && onHide && <p className="text-xs text-zinc-400">Keep looking, choosing and editing while this runs. Your own choices always win. Progress and Stop are in Tasks.</p>}
+          onClick={onHide}>{t.autoCull.inBackground}</button>}
+        {progress !== undefined && onHide && <p className="text-xs text-zinc-400">{t.autoCull.backgroundHint}</p>}
         {progress !== undefined && (
           <div className="rounded-lg border border-white/12 bg-kestrel-panel px-3 py-2">
             <div className="mb-2 flex items-center justify-between gap-3 text-xs text-zinc-300">
-              <span>Reviewing photos</span>
-              <span className="tabular-nums">{formatCount.format(progress)} of {formatCount.format(total)}</span>
+              <span>{t.autoCull.reviewingPhotos}</span>
+              <span className="tabular-nums">{t.autoCull.progress(progress, total)}</span>
             </div>
-            <WorkProgressBar done={progress} total={total} label="Culling photos" />
+            <WorkProgressBar done={progress} total={total} label={t.autoCull.cullingPhotos} />
           </div>
         )}
         {progress !== undefined && <button type="button" className={button}
@@ -167,61 +168,61 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
       {stopped && <p role="status" className="mt-2 text-sm text-zinc-300">{m.scanStopped}</p>}
       {failed && <p role="alert" className="mt-2 text-sm text-orange-200">{m.scanFailed}</p>}
       {results && <div className="mt-3 space-y-3">
-        {summary && <section aria-label="Auto-cull summary" className="space-y-1 rounded-md border border-white/15 p-3 text-sm">
-          <p className="font-semibold">Scan finished · {formatCount.format(summary.total)} photos</p>
-          <p>{formatCount.format(summary.automaticKeep)} suggested keepers · {formatCount.format(summary.automaticDuplicate)} exact duplicates</p>
-          <p>{formatCount.format(summary.needReview)} still need your review.</p>
-          {summary.needReview > 0 && <p className="text-xs text-zinc-400">A target of {formatCount.format(keeperTarget)} keepers does not mean the other photos are automatically rejected. Uncertain photos stay in To review.</p>}
+        {summary && <section aria-label={t.autoCull.summaryLabel} className="space-y-1 rounded-md border border-white/15 p-3 text-sm">
+          <p className="font-semibold">{t.autoCull.scanFinished(summary.total)}</p>
+          <p>{t.autoCull.suggested(summary.automaticKeep, summary.automaticDuplicate)}</p>
+          <p>{t.autoCull.needReview(summary.needReview)}</p>
+          {summary.needReview > 0 && <p className="text-xs text-zinc-400">{t.autoCull.targetNote(keeperTarget)}</p>}
         </section>}
         {applied ? <div className="flex flex-wrap items-center gap-2">
           <p role="status" className="text-sm">{m.moved(formatCount.format(lastAppliedCount))}</p>
-          <button type="button" className={button} onClick={() => { onUndo(); setApplied(false); }}>{m.undo} last group</button>
+          <button type="button" className={button} onClick={() => { onUndo(); setApplied(false); }}>{t.autoCull.undoLastGroup}</button>
         </div> : high.length > 0 ? <button type="button" className={button} onClick={() => apply(high)}>{m.applyHigh}</button> : null}
         {remaining > 0 && (
-          <section className="space-y-2 rounded-lg border border-white/12 p-3" aria-label="Find more keeper candidates">
-            <h3 className="text-sm font-semibold">Find more keepers</h3>
-            <p className="text-xs text-zinc-300">{formatCount.format(frames.filter((frame) => !frame.removedAt && frame.decision === 'keep').length)} of {formatCount.format(keeperTarget)} target keepers. Wider suggestions help you choose, but Kestrel will not add weak shots to meet the number.</p>
-            <div role="group" aria-label="Keeper suggestion quality" className="grid grid-cols-3 gap-1">
+          <section className="space-y-2 rounded-lg border border-white/12 p-3" aria-label={t.autoCull.findMoreLabel}>
+            <h3 className="text-sm font-semibold">{t.autoCull.findMore}</h3>
+            <p className="text-xs text-zinc-300">{t.autoCull.targetProgress(frames.filter((frame) => !frame.removedAt && frame.decision === 'keep').length, keeperTarget)}</p>
+            <div role="group" aria-label={t.autoCull.qualityLabel} className="grid grid-cols-3 gap-1">
               {(['best', 'better', 'good'] as const).map((level) => (
                 <button key={level} type="button" aria-pressed={keeperTier === level} onClick={() => setKeeperTier(level)}
                   className="min-h-11 rounded-md border border-white/15 px-2 text-sm capitalize aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">
-                  {level === 'best' ? 'Best · strict' : level === 'better' ? 'Better' : 'Good · broader'}
+                  {level === 'best' ? t.autoCull.best : level === 'better' ? t.autoCull.better : t.autoCull.good}
                 </button>
               ))}
             </div>
             <p role="status" className="text-xs text-zinc-300">
-              {tierPlan.length ? `${tierPlan.length} additional ${tierPlan.length === 1 ? 'candidate' : 'candidates'} qualify for this level. Review them before accepting.` : 'No additional candidates qualify. You can review the other photos yourself.'}
+              {tierPlan.length ? t.autoCull.qualify(tierPlan.length) : t.autoCull.noneQualify}
             </p>
             {tierPlan.length > 0 && (
               <>
                 <details className="rounded-md border border-white/10 px-2">
-                  <summary className="min-h-11 cursor-pointer py-2 text-xs text-zinc-300">Review {tierPlan.length} proposed keepers</summary>
+                  <summary className="min-h-11 cursor-pointer py-2 text-xs text-zinc-300">{t.autoCull.reviewProposed(tierPlan.length)}</summary>
                   <ul className="space-y-1 pb-2">
                     {tierPlan.map(({ frameId }) => {
                       const frame = frames.find((entry) => entry.id === frameId);
                       return frame ? <li key={frameId} className="flex items-center justify-between gap-2">
                         <span className="min-w-0 truncate text-xs">{frame.filename}</span>
-                        <button type="button" className={button} onClick={() => onInspect(frame)}>Inspect</button>
+                        <button type="button" className={button} onClick={() => onInspect(frame)}>{t.autoCull.inspect}</button>
                       </li> : null;
                     })}
                   </ul>
                 </details>
                 <button type="button" className={`${button} border border-white/15 font-medium`}
-                  onClick={() => apply(tierPlan)}>Keep {tierPlan.length} suggested {tierPlan.length === 1 ? 'photo' : 'photos'}</button>
+                  onClick={() => apply(tierPlan)}>{t.autoCull.keepSuggested(tierPlan.length)}</button>
               </>
             )}
           </section>
         )}
         {onShowCollection && (
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Where to next">
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t.autoCull.whereNext}>
             <button type="button" autoFocus className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
-              onClick={() => onShowCollection('keep')}>Show my keepers ({formatCount.format(frames.filter((frame) => !frame.removedAt && frame.decision === 'keep').length)})</button>
-            {summary && summary.needReview > 0 && <button type="button" className={button} onClick={() => onShowCollection('unreviewed')}>Review the rest ({formatCount.format(frames.filter((frame) => !frame.removedAt && frame.decision === 'unreviewed').length)})</button>}
+              onClick={() => onShowCollection('keep')}>{t.autoCull.showKeepers(frames.filter((frame) => !frame.removedAt && frame.decision === 'keep').length)}</button>
+            {summary && summary.needReview > 0 && <button type="button" className={button} onClick={() => onShowCollection('unreviewed')}>{t.autoCull.reviewRest(frames.filter((frame) => !frame.removedAt && frame.decision === 'unreviewed').length)}</button>}
           </div>
         )}
         {/* The reasons for each photo, for anyone who wants them. Closed, so the dialog stays short. */}
         <details className="rounded-md border border-white/10 px-2">
-          <summary className="min-h-11 cursor-pointer py-2 text-sm text-zinc-300">Why each photo was chosen</summary>
+          <summary className="min-h-11 cursor-pointer py-2 text-sm text-zinc-300">{t.autoCull.whyChosen}</summary>
           {(['high', 'medium', 'low'] as const).map((level) => {
             const items = results.filter((result) => result.confidence === level);
             if (!items.length) return null;

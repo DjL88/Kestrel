@@ -58,6 +58,14 @@ export const pt: Translation = {
     licence: 'Licença e definições',
     version: (version) => `Versão ${version}`,
   },
+  setup: {
+    welcome: 'Damos-lhe as boas-vindas ao Kestrel',
+    question: 'Que idioma prefere?',
+    detected: (name) => `O seu dispositivo está definido para ${name}.`,
+    continueIn: (name) => `Continuar em ${name}`,
+    keepSource: 'Manter o inglês (Reino Unido)',
+    later: 'Pode alterar isto em qualquer altura nas definições.',
+  },
   settings: {
     title: 'Aspeto e disposição',
     done: 'Concluído',

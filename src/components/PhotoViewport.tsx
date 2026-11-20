@@ -2,6 +2,7 @@ import { useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode
 import { MoveHorizontal } from 'lucide-react';
 
 import { FIT_VIEW, transformViewport, type ViewportPoint as Point } from '../core/viewportTransform';
+import { viewerText as t } from '../i18n/areas/viewer';
 
 interface Props {
   base: ReactNode;
@@ -69,11 +70,11 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
     transform(current.current.zoom, FIT_VIEW.pan, { x, y });
   }
 
-  const zoomAction = zoom > 1 ? 'Fit photo' : 'Zoom in';
+  const zoomAction = zoom > 1 ? t.viewport.fitPhoto : t.viewport.zoomIn;
   const layer = { transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` };
   return (
-    <div ref={view} tabIndex={showZoomButton ? undefined : 0} aria-label={showZoomButton ? undefined : 'Photo'}
-      aria-description={!showZoomButton && zoom > 1 ? 'Use the arrow keys to move around the zoomed photo.' : undefined}
+    <div ref={view} tabIndex={showZoomButton ? undefined : 0} aria-label={showZoomButton ? undefined : t.viewport.photo}
+      aria-description={!showZoomButton && zoom > 1 ? t.viewport.panHint : undefined}
       className={`relative min-h-0 flex-1 touch-none select-none overflow-hidden bg-black ${showZoomButton ? '' : 'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky-300'}`}
       onKeyDown={showZoomButton ? undefined : panWithKeyboard}
       onPointerDown={(event) => {
@@ -101,8 +102,8 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
           </div>
           {overlayMode === 'wipe' && <>
           <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 w-px bg-white shadow" style={{ left: `${wipe}%` }} />
-          <div role="slider" tabIndex={0} aria-label="Comparison wipe" aria-valuemin={0} aria-valuemax={100}
-            aria-valuenow={wipe} aria-valuetext={`${wipe}% ${labels?.[0] ?? 'left image'}`}
+          <div role="slider" tabIndex={0} aria-label={t.viewport.wipe} aria-valuemin={0} aria-valuemax={100}
+            aria-valuenow={wipe} aria-valuetext={t.viewport.wipeValue(wipe, labels?.[0] ?? t.viewport.leftImage)}
             onPointerDown={(event) => {
               event.preventDefault(); // Stops the browser selecting (and blue-highlighting) the photo while the handle is dragged.
               event.stopPropagation();
@@ -139,8 +140,8 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
       )}
       {showZoomButton && (
         <button type="button" onClick={toggleZoom} onKeyDown={panWithKeyboard}
-          aria-description={zoom > 1 ? 'Use the arrow keys to move around the zoomed photo.' : undefined}
-          title={zoom > 1 ? 'Fit photo. Arrow keys pan while focused.' : zoomAction}
+          aria-description={zoom > 1 ? t.viewport.panHint : undefined}
+          title={zoom > 1 ? t.viewport.fitPhotoPan : zoomAction}
           className="absolute right-2 top-2 min-h-11 min-w-11 rounded-md bg-black/70 px-2 text-xs focus-visible:outline-2 focus-visible:outline-sky-300">
           {zoomAction}
         </button>

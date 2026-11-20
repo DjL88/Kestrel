@@ -8,6 +8,8 @@ import type { PhotoFrame } from '../core/types';
 import { drawCropQuickly, renderExportPreview } from '../providers/browserExport';
 import type { OverlayOptions } from '../core/exportOverlay';
 import { SocialIcon } from './SocialIcon';
+import { exportText as t } from '../i18n/areas/export';
+import { formatLabel } from '../i18n/areas/export/labels';
 import { AdjustmentSlider } from './AdjustmentSlider';
 
 interface Props {
@@ -143,22 +145,23 @@ export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, o
   };
 
   const shape = format.width ? shapeLabel(format.width, format.height) : '';
-  const caption = shape && !format.label.includes(shape) ? `${format.label} · ${shape}` : format.label;
-  const hint = !movable ? (format.fit === 'bars' ? 'Whole photo, with borders' : 'Keeps the photo’s own shape') : 'Drag to move, pinch or use the slider to zoom';
+  const label = formatLabel(format);
+  const caption = shape && !label.includes(shape) ? `${label} · ${shape}` : label;
+  const hint = !movable ? (format.fit === 'bars' ? t.tile.hintBars : t.tile.hintKeep) : t.tile.hintMove;
   return (
     <figure className="flex flex-col gap-1">
       <div className="relative">
         <div role={movable ? 'group' : undefined} tabIndex={movable ? 0 : undefined}
-          aria-label={movable ? `Crop position for ${frame.filename} as ${caption}. Arrow keys move it. Plus and minus zoom.` : undefined}
-          title={movable ? 'Drag to move the crop in any direction, double-click to reset' : undefined}
+          aria-label={movable ? t.tile.cropPosition(frame.filename, caption) : undefined}
+          title={movable ? t.tile.dragTitle : undefined}
           onKeyDown={movable ? key : undefined}
           onDoubleClick={movable ? () => { onAnchor({ x: 0.5, y: 0.5 }); onZoom(1); } : undefined}
           onPointerDown={movable ? down : undefined} onPointerMove={movable ? move : undefined}
           onPointerUp={movable ? up : undefined} onPointerCancel={movable ? up : undefined}
           className={`relative grid ${large ? 'h-[min(46dvh,30rem)]' : 'h-48'} touch-none place-items-center overflow-hidden rounded-md bg-zinc-700/50 ${movable ? 'cursor-grab focus-visible:outline-2 focus-visible:outline-sky-300 active:cursor-grabbing' : ''}`}>
-          <canvas ref={canvas} aria-label={`Preview of ${frame.filename} as ${caption}`} role="img" className={`max-h-full max-w-full shadow-[0_0_0_1px_rgba(255,255,255,0.55),0_4px_18px_rgba(0,0,0,0.5)] ${busy ? 'opacity-40' : ''}`} />
-          {busy && !failed && <span className="absolute text-xs text-zinc-300" role="status">Drawing…</span>}
-          {failed && <span className="absolute px-2 text-center text-xs text-orange-200" role="status">Could not draw this preview</span>}
+          <canvas ref={canvas} aria-label={t.tile.previewOf(frame.filename, caption)} role="img" className={`max-h-full max-w-full shadow-[0_0_0_1px_rgba(255,255,255,0.55),0_4px_18px_rgba(0,0,0,0.5)] ${busy ? 'opacity-40' : ''}`} />
+          {busy && !failed && <span className="absolute text-xs text-zinc-300" role="status">{t.tile.drawing}</span>}
+          {failed && <span className="absolute px-2 text-center text-xs text-orange-200" role="status">{t.tile.failed}</span>}
         </div>
         {platform && (
           <span className="pointer-events-none absolute left-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-zinc-100" aria-hidden="true">
@@ -167,13 +170,16 @@ export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, o
         )}
         {onTurn && canTurn(format) && (
           <button type="button" onClick={onTurn} className="absolute right-1.5 top-1.5 inline-flex min-h-11 items-center gap-1 rounded-full bg-black/65 px-3 desk:min-h-9 text-xs text-zinc-100 hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-sky-300"
-            aria-label={`Turn ${caption} on its side`} title="Turn the shape on its side. The photo is not rotated.">
+            aria-label={t.tile.turn(caption)} title={t.tile.turnTitle}>
             <RectangleHorizontal className={`h-4 w-4 ${format.height > format.width ? 'rotate-90' : ''}`} aria-hidden="true" />{shape}
           </button>
         )}
       </div>
       {movable && (
         <div className="flex flex-wrap items-center gap-1">
+          <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 desk:h-9 desk:w-9" aria-label={t.tile.zoomOut} onClick={() => onZoom(clampZoom(zoom - 0.25))}><Minus className="h-4 w-4" aria-hidden="true" /></button>
+          <input type="range" min={1} max={MAX_ZOOM} step={0.05} value={zoom} aria-label={t.tile.zoom(caption)} onChange={(event) => onZoom(clampZoom(event.target.valueAsNumber))} className="min-h-11 min-w-[7rem] flex-1 accent-sky-300 desk:min-h-9" />
+          <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 desk:h-9 desk:w-9" aria-label={t.tile.zoomIn} onClick={() => onZoom(clampZoom(zoom + 0.25))}><Plus className="h-4 w-4" aria-hidden="true" /></button>
           <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 desk:h-9 desk:w-9" aria-label="Zoom out" onClick={() => onZoom(clampZoom(zoom - 0.25))}><Minus className="h-4 w-4" aria-hidden="true" /></button>
           <div className="min-w-[7rem] flex-1">
             <AdjustmentSlider label={`Zoom ${caption}`} min={1} max={MAX_ZOOM} step={0.05} neutral={1}
