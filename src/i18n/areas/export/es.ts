@@ -4,6 +4,11 @@ import type { source } from './source';
 
 /** Spanish (Spain). DRAFT: written without a native speaker's check. */
 export const es: AreaTranslation<typeof source> = {
+  rawTiff: {
+    action: "Exportar TIFF RAW de 16 bits (prototipo)",
+    details: "Acerca del TIFF RAW de 16 bits",
+    help: "TIFF opcional generado a partir de los datos del sensor RAW y los ajustes guardados. No incorpora marcas de agua ni texto y no copia datos GPS o EXIF opcionales. Los colores están etiquetados como sRGB, pero la precisión del color y el rendimiento aún requieren pruebas del prototipo. Si un ajuste no es compatible, no se guarda el archivo.",
+  },
   typeface: "Tipografía",
   sidecar: {
     save: "Guardar archivo XMP",
