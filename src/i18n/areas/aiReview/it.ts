@@ -27,6 +27,7 @@ export const it: AreaTranslation<typeof source> = {
   modelNeeded: 'Scrivi il nome del modello come lo mostra il tuo fornitore.',
   baseUrl: 'Indirizzo dell’IA',
   baseUrlHint: 'Per esempio http://localhost:11434/v1 per Ollama.',
+  invalidBaseUrl: "Usa HTTPS per un’IA remota o http://localhost per un’IA su questo computer. Non inserire chiavi nell’indirizzo.",
   save: 'Salva',
   consentTitle: 'Prima di inviare qualsiasi cosa',
   consentCloud: (host) => `Kestrel invierà a ${host} una copia di questa foto di 1024 pixel sul lato più lungo. Non contiene il luogo, i dati della fotocamera né il nome del file. Il tuo fornitore potrebbe addebitarti un costo per ogni domanda.`,
