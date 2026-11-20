@@ -22,7 +22,8 @@ param(
   [string] $Version,
   [string[]] $Installers,
   [string] $Models,
-  [switch] $Website
+  [switch] $Website,
+  [string] $SiteUrl
 )
 $ErrorActionPreference = 'Stop'
 $downloads = "gs://$Project-kestrel-downloads"
@@ -63,5 +64,22 @@ if ($Models) {
 if ($Website) {
   npm run build:site-editor
   if ($LASTEXITCODE -ne 0) { throw 'Website editor build failed; no site changes published.' }
+  node scripts/site/verify-deployment.mjs
+  if ($LASTEXITCODE -ne 0) { throw 'Website deployment cancelled: actual Kestrel editor or compiled assets are missing.' }
   firebase deploy --only hosting --project $Project
+  if ($LASTEXITCODE -ne 0) { throw 'Firebase deployment failed. Live website was not verified.' }
+  # The known beta site has a custom Hosting site id. Other projects may pass
+  # -SiteUrl explicitly rather than guessing which Hosting target was deployed.
+  $verifyUrl = $SiteUrl
+  if (-not $verifyUrl -and $Project -eq 'kestrel-hosting') {
+    $verifyUrl = 'https://kestrel-hosting-kestrel.web.app'
+  }
+  if ($verifyUrl) {
+    node scripts/site/verify-deployment.mjs "--live-url=$verifyUrl"
+    if ($LASTEXITCODE -ne 0) {
+      throw 'Firebase upload completed, but live editor/homepage verification FAILED. Do not announce a release.'
+    }
+  } else {
+    Write-Warning 'Hosting upload finished; live verification NOT RUN. Pass -SiteUrl https://your-hosting-site to verify.'
+  }
 }
