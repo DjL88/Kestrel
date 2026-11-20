@@ -58,6 +58,13 @@ export class CommerceLedger {
     });
   }
 
+  async ossQuarter(year: number, quarter: number) {
+    const { start, end } = quarterDates(year, quarter);
+    const rows = await this.db.collection(commerceCollections.transactions)
+      .where('supplyDate', '>=', start).where('supplyDate', '<', end).get();
+    return summariseOssSales(rows.docs.map(document => document.data() as TransactionRecord), year, quarter);
+  }
+
   async recordTurnover(asOf: string, forecast?: Parameters<typeof ukTurnoverMetrics>[2]): Promise<RollingTurnoverRecord> {
     const priorYear = String(Number(asOf.slice(0, 4)) - 1);
     // The latest closed month can start its calculation before today's rolling window.
@@ -74,12 +81,17 @@ export class CommerceLedger {
   }
 }
 
-export function summariseOssSales(sales: readonly TransactionRecord[], year: number, quarter: number) {
+function quarterDates(year: number, quarter: number) {
   if (!Number.isInteger(year) || year < 2020 || year > 9998 || ![1, 2, 3, 4].includes(quarter)) {
     throw new Error('Invalid OSS quarter.');
   }
   const start = new Date(Date.UTC(year, (quarter - 1) * 3, 1)).toISOString().slice(0, 10);
   const end = new Date(Date.UTC(year, quarter * 3, 1)).toISOString().slice(0, 10);
+  return { start, end };
+}
+
+export function summariseOssSales(sales: readonly TransactionRecord[], year: number, quarter: number) {
+  const { start, end } = quarterDates(year, quarter);
   const grouped = new Map<string, { country: string; rateBasisPoints: number; netPence: number; taxPence: number }>();
   for (const sale of sales) {
     if (sale.treatment !== 'eu-oss' || sale.supplyDate < start || sale.supplyDate >= end) continue;

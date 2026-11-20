@@ -2,6 +2,10 @@
   "hosting": {
     "public": "site",
     "cleanUrls": true,
+    "rewrites": [
+      { "source": "/v1/auth/session", "run": { "serviceId": "kestrel-control-plane", "region": "europe-west2" } },
+      { "source": "/v1/admin/**", "run": { "serviceId": "kestrel-control-plane", "region": "europe-west2" } }
+    ],
     "headers": [
       {
         "source": "**",

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; base-uri 'none'">
+<meta name="robots" content="noindex,nofollow">
+<title>Kestrel Admin</title>
+<style>
+  :root{color-scheme:dark;background:#14161b;color:#f4efe6;font:16px/1.5 system-ui,sans-serif}
+  body{max-width:800px;margin:36px auto;padding:0 20px}
+  a{color:#9cc3db}h1,h2{line-height:1.2}section,form{margin:24px 0}
+  .panel{padding:20px;border:1px solid #343946;border-radius:12px;background:#1a1d23}
+  label{display:block;margin:12px 0}input,select,button{font:inherit;min-height:44px;padding:4px 10px;border:1px solid #686f7b;border-radius:6px}
+  input[type=checkbox]{min-height:auto;accent-color:#d97840}button{font-weight:700;background:#d97840;color:#14161b;cursor:pointer}
+  button:disabled{cursor:wait;opacity:.65}:focus-visible{outline:3px solid #9cc3db;outline-offset:3px}
+  progress{width:100%;accent-color:#d97840}dd{margin:0 0 12px;color:#c7cfdc}
+</style>
+<script type="module" src="/assets/tax-admin.js"></script>
+</head>
+<body>
+<header><a href="/">Kestrel</a><h1>Admin</h1></header>
+<main>
+<form id="sign-in" class="panel" method="post">
+  <h2>Sign in</h2>
+  <label>Email <input name="email" type="email" autocomplete="username" required></label>
+  <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+  <button>Sign in</button>
+</form>
+<p id="status" role="status" aria-live="polite"></p>
+<div id="dashboard" hidden>
+  <button type="button" id="sign-out">Sign out</button>
+  <section class="panel" aria-labelledby="turnover-title">
+    <h2 id="turnover-title">UK VAT registration</h2>
+    <label for="turnover">UK taxable turnover over the last 12 months</label>
+    <progress id="turnover" max="90000" value="0"></progress>
+    <p id="turnover-value"></p>
+    <p id="turnover-state"></p>
+    <button type="button" id="refresh">Refresh</button>
+  </section>
+  <form id="tax-settings" class="panel">
+    <h2>Tax settings</h2>
+    <label><input type="checkbox" name="ukVatRegistered"> Charge UK VAT</label>
+    <label>HMRC VAT registration number <input name="ukVatNumber" autocomplete="off" maxlength="22"></label>
+    <label>Consumer price
+      <select name="b2cPricing">
+        <option value="exclusive">Add VAT and sales tax to the £29 base</option>
+        <option value="inclusive">Include tax in the £29 total</option>
+      </select>
+    </label>
+    <button>Save settings</button>
+  </form>
+  <form id="oss" class="panel">
+    <h2>EU Non-Union OSS</h2>
+    <label>Year <input type="number" name="year" min="2020" max="9998" required></label>
+    <label>Quarter <select name="quarter"><option value="1">January to March</option><option value="2">April to June</option><option value="3">July to September</option><option value="4">October to December</option></select></label>
+    <button>Download GBP summary</button>
+  </form>
+</div>
+</main>
+</body>
+</html>

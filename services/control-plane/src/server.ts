@@ -1,10 +1,15 @@
 import { createServer } from 'node:http';
 import { createApp, openApi } from './app.ts';
 import { loadConfig } from './config.ts';
-import { openStore } from './openStore.ts';
+import { CommerceLedger } from './commerce/ledger.ts';
+import { FirestoreStore, type FirestoreLike } from './firestoreStore.ts';
+import { openFirestore, openStore } from './openStore.ts';
 
 const config = loadConfig();
-const app = createApp({ config, store: await openStore(config) });
+const firestore = config.store === 'firestore' ? await openFirestore(config) : undefined;
+const store = firestore ? new FirestoreStore(firestore as unknown as FirestoreLike) : await openStore(config);
+const commerce = firestore ? new CommerceLedger(firestore) : undefined;
+const app = createApp({ config, store, commerce });
 
 if (process.argv.includes('--print-openapi')) {
   process.stdout.write(`${JSON.stringify(openApi(app.routes), null, 2)}\n`);
