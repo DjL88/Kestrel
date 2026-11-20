@@ -37,3 +37,11 @@ test('capture time and camera are read from a HEIC photo', async () => {
   assert.equal(exif.formatLabel, 'HEIC');
   assert.equal(exif.isEmbeddedPreviewOnly, false);
 });
+
+test('damaged HEIF metadata does not invent shooting details or mislabel the file as JPEG', async () => {
+  const truncated = FIXTURE.slice(0, 630);
+  const exif = await parseImageExif(new Blob([truncated]), 'damaged.HEIC');
+  assert.equal(exif.formatLabel, 'HEIC');
+  assert.equal(exif.camera, undefined);
+  assert.equal(exif.capturedAtMs, undefined);
+});
