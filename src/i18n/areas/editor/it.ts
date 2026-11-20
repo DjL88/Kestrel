@@ -338,6 +338,7 @@ export const it: AreaTranslation<typeof source> = {
     edgeTitle: 'Trascina per spostare questo bordo del ritaglio',
     apply: 'Applica il ritaglio',
     help: 'Trascina sulla foto per disegnare un ritaglio, oppure trascinane gli angoli, i bordi o il centro. Scegli una forma qui sotto per mantenerla mentre trascini. Le modifiche vengono salvate man mano. Applica torna alla modifica con il ritaglio applicato, e Annulla rimette il ritaglio da cui eri partito.',
+    autoCrop: 'Ritaglia automaticamente',
     autoCopy: 'Copia ritagliata automatica',
     rotate: 'Ruota di 90°',
     autoLevel: 'Raddrizza automaticamente',

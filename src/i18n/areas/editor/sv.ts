@@ -338,6 +338,7 @@ export const sv: AreaTranslation<typeof source> = {
     edgeTitle: 'Dra för att flytta den här kanten av beskärningen',
     apply: 'Använd beskärning',
     help: 'Dra över bilden för att rita en beskärning, eller dra i hörnen, kanterna eller mitten. Välj en form nedan för att behålla den medan du drar. Ändringar sparas löpande. Använd går tillbaka till redigeringen med beskärningen på plats, och Avbryt återställer beskärningen du började med.',
+    autoCrop: 'Beskär automatiskt',
     autoCopy: 'Automatiskt beskuren kopia',
     rotate: 'Rotera 90°',
     autoLevel: 'Räta upp automatiskt',

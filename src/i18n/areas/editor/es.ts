@@ -338,6 +338,7 @@ export const es: AreaTranslation<typeof source> = {
     edgeTitle: 'Arrastre para mover este borde del recorte',
     apply: 'Aplicar recorte',
     help: 'Arrastre sobre la foto para dibujar un recorte, o arrastre sus esquinas, bordes o centro. Elija una forma abajo para mantenerla mientras arrastra. Los cambios se guardan sobre la marcha. Aplicar vuelve a la edición con el recorte puesto, y Cancelar recupera el recorte con el que empezó.',
+    autoCrop: 'Recorte automático',
     autoCopy: 'Copia recortada automática',
     rotate: 'Girar 90°',
     autoLevel: 'Nivelar automáticamente',
