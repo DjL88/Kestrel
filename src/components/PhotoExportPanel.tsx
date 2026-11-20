@@ -215,9 +215,13 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       const original = await provider.ensureOriginal(frame.stableKey);
       if (!original) throw new Error(editorT.raw.masterReconnect);
       const shown = await loadExportSource(frame, provider);
-      const tiff = await exportRaw16Tiff(original, shown, frame.edit ?? DEFAULT_EDIT, frame.framing);
-      // The experimental master has no burned-in text/watermark and copies no
-      // GPS/EXIF silently. Other export destinations keep their own options.
+      const tiff = await exportRaw16Tiff(
+        original, shown, frame.edit ?? DEFAULT_EDIT, frame.framing,
+        metadataForExport(frame, metadata),
+      );
+      // The 16-bit TIFF keeps its sensor-derived pixels. Descriptive XMP is
+      // opt-in using exactly the same form as JPEG/PNG. Source EXIF, camera
+      // identifiers and GPS are never copied implicitly. No burnt-in overlays.
       if (cancelled.current) { task.finish(editorT.raw.cancelledTask); return; }
       const stem = safeExportName(frame.filename.replace(/\\.[^.]+$/, '')).replace(/\\.[^.]+$/, '');
       const name = `${stem}_16bit.tif`;

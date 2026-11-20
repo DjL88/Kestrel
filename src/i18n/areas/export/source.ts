@@ -4,7 +4,7 @@ import { plural } from '../../../core/locale';
 export const source = {
   metadata: {
     title: 'File metadata (optional)',
-    include: 'Include editable metadata in JPEG / PNG',
+    include: 'Include editable metadata in JPEG / PNG / TIFF',
     privacy: 'Off by default. Original EXIF, GPS, camera serial numbers and location are not copied. This writes only the information you choose as XMP.',
     photoTitle: 'Photo title / subject',
     perPhoto: 'Each photo uses its own confirmed subject unless you enter one shared title.',

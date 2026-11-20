@@ -6,7 +6,7 @@ import type { source } from './source';
 export const nb: AreaTranslation<typeof source> = {
   metadata: {
     title: "Filmetadata (valgfritt)",
-    include: "Ta med redigerbare metadata i JPEG / PNG",
+    include: "Ta med redigerbare metadata i JPEG / PNG / TIFF",
     privacy: "Av som standard. Opprinnelig EXIF, GPS, serienummer og stedsdata kopieres ikke. Bare informasjon du velger lagres som XMP.",
     photoTitle: "Fototittel / motiv",
     perPhoto: "Hvert bilde bruker sitt bekreftede motiv med mindre du skriver inn en felles tittel.",

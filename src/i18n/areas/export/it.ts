@@ -6,7 +6,7 @@ import type { source } from './source';
 export const it: AreaTranslation<typeof source> = {
   metadata: {
     title: "Metadati del file (facoltativi)",
-    include: "Includi metadati modificabili in JPEG / PNG",
+    include: "Includi metadati modificabili in JPEG / PNG / TIFF",
     privacy: "Disattivato per impostazione predefinita. EXIF originali, GPS, numeri di serie e posizione non vengono copiati. Solo le informazioni scelte vengono scritte come XMP.",
     photoTitle: "Titolo / soggetto della foto",
     perPhoto: "Ogni foto usa il soggetto confermato, salvo inserimento di un titolo comune.",

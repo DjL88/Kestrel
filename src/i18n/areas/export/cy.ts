@@ -9,7 +9,7 @@ import type { source } from './source';
 export const cy: AreaTranslation<typeof source> = {
   metadata: {
     title: "Metadata'r ffeil (dewisol)",
-    include: "Cynnwys metadata y gellir ei olygu mewn JPEG / PNG",
+    include: "Cynnwys metadata y gellir ei olygu mewn JPEG / PNG / TIFF",
     privacy: "Wedi'i ddiffodd yn ddiofyn. Nid yw EXIF gwreiddiol, GPS, rhifau cyfresol na lleoliadau'n cael eu copïo. Dim ond y wybodaeth a ddewiswch sy'n cael ei chadw fel XMP.",
     photoTitle: "Teitl / pwnc y llun",
     perPhoto: "Mae pob llun yn defnyddio ei bwnc wedi'i gadarnhau oni bai eich bod yn rhoi un teitl cyffredin.",
