@@ -88,3 +88,78 @@ test('unsafe subfolders, filenames and case-insensitive collisions are refused',
   assert.throws(() => queue.enqueue({ title: 'Bad', recipe: {}, items: [photos[0], { ...photos[0], filename: 'ONE.JPG' }] }, adapter), /same filename/);
   assert.throws(() => queue.enqueue({ title: 'Bad', recipe: {}, items: [{ ...photos[0], filename: '../foo.jpg' }] }, adapter), /invalid/);
 });
+
+test('desktop retry saves only remaining files and keeps the original export recipe', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  const calls: string[] = [];
+  const recipe = { title: 'Original' };
+  let connected = false;
+  const adapter = {
+    async render(item: { filename: string }, settings: { title: string }) {
+      calls.push(`render:${item.filename}:${settings.title}`);
+      return item.filename;
+    },
+    async save(item: { filename: string }) {
+      calls.push('save:' + item.filename);
+      if (item.filename === 'two.jpg' && !connected) throw new Error('Drive disconnected');
+    },
+  };
+  const first = queue.enqueue({ title: 'Export', items: photos, recipe, retrySafe: true }, adapter);
+  recipe.title = 'Later edit';
+  assert.equal(await first.done, 'failed');
+  const failed = store.list().find(task => task.state === 'failed')!;
+  assert.equal(failed.done, 1);
+  assert.equal(queue.canRetryTask(failed.id), true);
+  connected = true;
+  const second = queue.retryTask(failed.id);
+  assert.ok(second);
+  assert.equal(queue.retryTask(failed.id), null, 'one failure cannot be retried twice');
+  assert.equal(await second.done, 'completed');
+  assert.equal(store.list().some(task => task.id === failed.id), false, 'resolved failure dismissed, other failures untouched');
+  assert.equal(store.list().find(task => task.state === 'done')?.done, 2);
+  assert.deepEqual(calls, [
+    'render:one.jpg:Original', 'save:one.jpg',
+    'render:two.jpg:Original', 'save:two.jpg',
+    'render:two.jpg:Original', 'save:two.jpg',
+  ], 'earlier completed file is never rewritten, and retry does not use new editor state');
+});
+
+test('non-exclusive destinations never offer retry after ambiguous remote writes', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  const ticket = queue.enqueue({ title: 'Remote', items: photos, recipe: {} }, {
+    async render() { return new Blob(); },
+    async save() { throw new Error('Remote PUT may already have committed'); },
+  });
+  assert.equal(await ticket.done, 'failed');
+  assert.equal(queue.canRetryTask(store.list()[0].id), false);
+  assert.equal(queue.retryTask(store.list()[0].id), null);
+});
+
+test('explicit retries are bounded and cancelled jobs are never retried automatically', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  const failures = { count: 0 };
+  let ticket = queue.enqueue({ title: 'Disk error', items: [photos[0]], recipe: {}, retrySafe: true }, {
+    async render() { return ''; },
+    async save() { failures.count++; throw new Error('Still offline'); },
+  });
+  for (let attempt = 0; attempt < 4; attempt++) {
+    assert.equal(await ticket.done, 'failed');
+    const failed = store.list().find(task => task.state === 'failed')!;
+    if (attempt === 3) {
+      assert.equal(queue.canRetryTask(failed.id), false, 'after three retries the user must start a new deliberate export');
+      break;
+    }
+    assert.equal(queue.canRetryTask(failed.id), true);
+    ticket = queue.retryTask(failed.id)!;
+    assert.ok(ticket);
+  }
+  assert.equal(failures.count, 4);
+  const stopped = queue.enqueue({ title: 'Stop', items: [photos[0]], recipe: {}, retrySafe: true }, {
+    async render() { return ''; }, async save() {},
+  });
+  assert.equal(await stopped.done, 'completed');
+  assert.equal(queue.canRetryTask(store.list().at(-1)!.id), false);
+});
