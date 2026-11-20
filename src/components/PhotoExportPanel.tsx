@@ -1075,7 +1075,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
         {!resultsReady && desktop && !isMobileShell() && (
           <div className="mb-3 flex flex-col gap-1 rounded-lg border border-white/15 bg-black/15 p-3">
-            <button type="button" disabled={!total || progress !== null || blocked || placeBusy}
+            <button type="button" disabled={!total || progress !== null || blocked || placeBusy || saving}
               className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}
               onClick={() => void queueToBackgroundDestination('desktop')}>
               {placeBusy ? t.results.choosingFolder : t.results.desktopBackground(total)}
