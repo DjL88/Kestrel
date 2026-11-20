@@ -77,6 +77,8 @@ export const nl: AreaTranslation<typeof source> = {
     fullSize: 'Volledig formaat',
     customSize: 'Eigen formaat',
     master: 'Volledig formaat · PNG',
+    fullJpeg: "Volledige grootte · JPEG",
+    fullJpegHelp: "JPEG van hoge kwaliteit uit de beschikbare foto. Voor RAW wordt een ontwikkelde afbeelding of cameravoorbeeld gebruikt, niet een geverifieerde 16-bits RAW-master.",
     custom: (width, height) => `Eigen · ${width} × ${height}`,
     post: (shape) => `Bericht · ${shape}`,
     square: (shape) => `Vierkant · ${shape}`,
