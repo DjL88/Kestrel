@@ -68,7 +68,7 @@ export function ExportWizard(props: Props) {
   const [skippedSize, setSkippedSize] = useState(false);
   // Always in the same order as the size list, however the choices were made, with a custom size last.
   const order = (format: ExportFormat) => { const at = EXPORT_FORMATS.findIndex((entry) => entry.id === format.id); return at < 0 ? EXPORT_FORMATS.length : at; };
-  const positionable = selected.filter((format) => format.id !== 'master' && format.id !== 'before-after').sort((a, b) => order(a) - order(b));
+  const positionable = selected.filter((format) => format.id !== 'master' && format.id !== 'full-jpeg' && format.id !== 'before-after').sort((a, b) => order(a) - order(b));
   const current = positionable[Math.min(index, Math.max(0, positionable.length - 1))];
   const frame = frames[Math.min(photo, frames.length - 1)];
   const at = STEPS.findIndex((entry) => entry.id === step);
