@@ -1,4 +1,4 @@
-import { useId, useState, type CSSProperties } from 'react';
+import { useId, useRef, useState, type CSSProperties } from 'react';
 import { adjustmentFill, signedAdjustment } from '../core/adjustmentSlider';
 import { liveSliderValue } from '../core/liveSliderValue';
 import { editorText as t } from '../i18n/areas/editor';
@@ -45,13 +45,22 @@ export function AdjustmentSlider({
   // committed edit value wins immediately: Undo, Reset, photo switches and paste
   // never display the previous edit for the old 350 ms timer.
   const [gesture, setGesture] = useState({ active: false, draft: value });
+  const gestureStart = useRef(value);
   const activeValue = liveSliderValue(value, gesture.draft, gesture.active);
   const change = (next: number) => {
     if (!Number.isFinite(next)) return;
     if (gesture.active) setGesture((previous) => ({ ...previous, draft: next }));
     onChange(next);
   };
-  const startGesture = () => setGesture({ active: true, draft: value });
+  const startGesture = () => {
+    gestureStart.current = value;
+    setGesture({ active: true, draft: value });
+  };
+  const cancelGesture = () => {
+    if (!gesture.active) return;
+    setGesture({ active: false, draft: gestureStart.current });
+    onChange(gestureStart.current);
+  };
   const endGesture = () => setGesture((previous) => ({ ...previous, active: false }));
   const fill = adjustmentFill(activeValue, min, max, neutral);
   const shown = displayValue && !gesture.active ? displayValue : formatValue(activeValue);
@@ -72,6 +81,7 @@ export function AdjustmentSlider({
         <input id={id} type="range" min={min} max={max} step={step} value={activeValue} disabled={disabled}
           aria-label={ariaLabel ?? t.slider.adjustment(label)} aria-valuetext={shown} aria-describedby={describedBy} title={title}
           onFocus={onFocus} onPointerDown={startGesture}
+          onKeyDown={(event) => { if (event.key === 'Escape' && gesture.active) { event.preventDefault(); cancelGesture(); } }}
           onPointerUp={endGesture} onPointerCancel={endGesture}
           onLostPointerCapture={endGesture} onBlur={endGesture}
           onChange={(event) => change(event.target.valueAsNumber)}
