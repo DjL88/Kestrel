@@ -12,6 +12,11 @@ const n = (count: number) => formatCount.format(count);
  */
 export const fi: AreaTranslation<typeof source> = {
   top: {
+    xmpImport: "Tuo arviot ja tunnisteet (XMP)…",
+    xmpImportHelp: "Lue vastaavat XMP-tiedostot tai Kestrel XMP-ZIP vain valittuihin kuviin. Alkuperäisiä tiedostoja ei muuteta.",
+    xmpImported: (count) => `XMP tuotu ${count} valittuun kuvaan.`,
+    xmpImportKeeper: "XMP hylkäisi kuvan, jonka merkitsit säilytettäväksi. Tarkista se erikseen kuvan tiedoissa.",
+    xmpImportFailed: "XMP-tuonti epäonnistui. Tarkista nimet, RAW/JPEG-kaksoiskappaleet ja tiedostojen turvallisuus.",
     xmpSidecars: "Tallenna arviot ja tunnisteet (XMP)…",
     xmpHelp: "Tallenna arviot, Säilytä/Hylkää-valinnat ja vahvistetut tunnisteet erilleen kuvista. Useat tiedostot kootaan ZIP-pakettiin.",
     file: "Tiedosto",
