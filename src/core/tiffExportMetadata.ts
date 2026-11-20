@@ -16,15 +16,17 @@ export interface TiffExportMetadata {
 const MAX_FIELD_CHARS = 4096;
 const MAX_KEYWORDS = 64;
 const MAX_PACKET_BYTES = 64 * 1024;
-const xmlValue = (text: string): string => text
-  // XML 1.0 cannot represent C0 controls (except tab/newline/CR), surrogates
-  // or the noncharacters FFFE/FFFF. Strip instead of producing malformed XML.
-  .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ud800-\udfff\ufffe\uffff]/g, '')
+const xmlValue = (text: string): string => Array.from(text)
+  // Array.from preserves valid Unicode surrogate pairs (including emoji).
+  // Lone surrogates are not valid in XML 1.0 and must be discarded.
+  .filter(char => !(char.length === 1 && char.charCodeAt(0) >= 0xd800 && char.charCodeAt(0) <= 0xdfff))
+  .join('')
+  .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/g, '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
 const field = (value: unknown): string =>
-  typeof value === 'string' ? xmlValue(value.trim().slice(0, MAX_FIELD_CHARS)) : '';
+  typeof value === 'string' ? xmlValue(Array.from(value.trim()).slice(0, MAX_FIELD_CHARS).join('')) : '';
 
 const alt = (name: string, content: string) =>
   `<dc:${name}><rdf:Alt><rdf:li xml:lang="x-default">${content}</rdf:li></rdf:Alt></dc:${name}>`;
