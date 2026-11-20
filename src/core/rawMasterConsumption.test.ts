@@ -83,4 +83,24 @@ describe('verified high-precision master consumption fence', () => {
     expect(await consumeVerifiedMaster(verified, request, f.adapter)).toEqual({ ok: false, reason: 'commit-failed' });
     expect(f.counts.discarded).toBe(1);
   });
+  it('reports a successful atomic publication even if staging cleanup fails', async () => {
+    const f = fixture();
+    f.adapter.discard = async () => { throw new Error('staging cleanup denied'); };
+    expect(await consumeVerifiedMaster(verified, request, f.adapter)).toEqual({ ok: true, cleanupFailed: true });
+    expect(f.counts.commits).toBe(1);
+  });
+  it('preserves a failed commit when staging cleanup also fails', async () => {
+    const f = fixture();
+    f.adapter.commit = async () => { throw new Error('destination full'); };
+    f.adapter.discard = async () => { throw new Error('staging cleanup denied'); };
+    expect(await consumeVerifiedMaster(verified, request, f.adapter)).toEqual({ ok: false, reason: 'commit-failed', cleanupFailed: true });
+    expect(f.counts.commits).toBe(0);
+  });
+  it('never commits after original mismatch even when cleanup fails', async () => {
+    const f = fixture();
+    f.adapter.prepare = async () => { f.setIdentity({ ...identity(), originalSha256: 'b'.repeat(64) }); return { id: 'staged' }; };
+    f.adapter.discard = async () => { throw new Error('staging cleanup denied'); };
+    expect(await consumeVerifiedMaster(verified, request, f.adapter)).toEqual({ ok: false, reason: 'original-changed', cleanupFailed: true });
+    expect(f.counts.commits).toBe(0);
+  });
 });
