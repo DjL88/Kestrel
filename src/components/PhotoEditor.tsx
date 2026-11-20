@@ -636,15 +636,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
 
   // Before/After uses the existing viewport camera; changing comparison must not move it.
 
-  // Auto-develop: get the best available quality without making anyone ask for it. The quick embedded preview shows
-  // immediately so there's nothing to wait on, then this silently swaps in the full sensor decode once it's ready —
-  // "Develop from RAW" in RAW options below is only there to retry or force it again, never required for normal use.
-  useEffect(() => {
-    if (!isRaw || !canDevelopRaw() || !source || developing || provider.isDeveloped(frame.stableKey)) return;
-    void developFromRaw();
-    // Once per photo: developing flips provider.isDeveloped, which this effect re-checks when `source` next changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source]);
+  // Until camera-matched colour and 16-bit RAW-to-view fidelity are verified, do
+  // not silently replace a faithful in-camera preview with a generic RAW look.
+  // A photographer can explicitly develop from the RAW options below; this
+  // never writes or modifies the original file.
 
   /** A quick, conservative category hint. Segmentation still determines the mask, not the filename or tag. */
   function autoSubjectKind(): InsightSubjectKind {
@@ -1397,8 +1392,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             {/* Always visible, not tucked behind the disclosure: when the automatic attempt fails the person needs
                 to see why without first hunting through RAW options. */}
             {developNote && <p role="status" className="px-1 text-xs text-amber-200">{developNote}</p>}
-            {/* Only when the automatic attempt failed: one plain retry, nothing else to puzzle over. */}
-            {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && developNote && (
+            {/* Explicit RAW development while camera-matching remains unverified. */}
+            {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
+              <p className="px-1 text-xs text-zinc-300">
+                You are viewing the camera preview. Developing the sensor data may change colour or contrast while camera-matching is being improved.
+              </p>
+            )}
+            {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
               <button type="button" className={`${button} w-full border border-white/10`} disabled={developing || sourceState !== 'ready'} onClick={() => void developFromRaw()}>
                 {developing ? 'Developing…' : 'Develop from RAW'}
               </button>
