@@ -12,6 +12,8 @@ const forMany = (count: number) => (count > 1 ? ` (${dealbh(count, String(count)
 /** Scottish Gaelic. DRAFT: written without a native speaker's check. Uses "thu", as the common words do. */
 export const gd: AreaTranslation<typeof source> = {
   top: {
+    xmpSidecars: "Sàbhail rangachaidhean is tagaichean (XMP)…",
+    xmpHelp: "Sàbhail rangachaidhean, roghainnean Cùm/Diùlt agus tagaichean dearbhte air leth bho na dealbhan. Thèid iomadh faidhle a chur ann an ZIP.",
     file: "Faidhle",
     viewLayout: "Sealladh · seall no falaich",
     groupBursts: "Cuir sreathan còmhla no sgar iad",

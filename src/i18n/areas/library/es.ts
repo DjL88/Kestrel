@@ -9,6 +9,8 @@ const n = (count: number) => formatCount.format(count);
 /** Spanish (Spain), usted. DRAFT: written without a native speaker's check. */
 export const es: AreaTranslation<typeof source> = {
   top: {
+    xmpSidecars: "Guardar valoraciones y etiquetas (XMP)…",
+    xmpHelp: "Guarda las valoraciones, las decisiones Conservar/Rechazar y las etiquetas confirmadas sin modificar las fotos. Varios archivos se agrupan en un ZIP.",
     file: "Archivo",
     viewLayout: "Ver · mostrar u ocultar",
     groupBursts: "Agrupar o desagrupar ráfagas",

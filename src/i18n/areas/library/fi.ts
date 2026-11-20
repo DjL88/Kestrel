@@ -12,6 +12,8 @@ const n = (count: number) => formatCount.format(count);
  */
 export const fi: AreaTranslation<typeof source> = {
   top: {
+    xmpSidecars: "Tallenna arviot ja tunnisteet (XMP)…",
+    xmpHelp: "Tallenna arviot, Säilytä/Hylkää-valinnat ja vahvistetut tunnisteet erilleen kuvista. Useat tiedostot kootaan ZIP-pakettiin.",
     file: "Tiedosto",
     viewLayout: "Näytä · näytä tai piilota",
     groupBursts: "Ryhmittele tai pura kuvasarjat",

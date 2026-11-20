@@ -17,16 +17,6 @@ export const is: AreaTranslation<typeof source> = {
     keywords: "Lykilorð (aðskilin með kommum; tómt = staðfest merki)",
     help: "Staðfest viðfangsefni geta fyllt út titil og lykilorð. Óstaðfestar AI-ágiskanir eru aldrei fluttar út. Upplýsingarnar eru geymdar í skránni, ekki á myndinni.",
   },
-  originals: {
-    title: "Upprunalegar myndavélarskrár",
-    action: (count: number) => count === 1 ? "Vista upprunalega skrá" : `Vista ${count} upprunalegar skrár`,
-    background: (count: number) => count === 1 ? "Vistar upprunalega myndavélarskrá" : `Vistar ${count} upprunalegar myndavélarskrár`,
-    privacy: "Nákvæmt afrit af upprunalegu skránni, þar með talið snið og EXIF-/GPS-gögn. Breytingar, skurður, vatnsmerki og breytingar á útflutningslýsigögnum eru EKKI notaðar. Upprunaskráin helst óbreytt.",
-    browserLimit: "Þetta val er of stórt fyrir öruggt ZIP í þessum vafra. Notaðu skjáborðsforritið til að vista frumskrár hverja fyrir sig í möppu.",
-    browserLimitHelp: "Fyrir stór RAW-söfn vistar skjáborðsforritið eina skrá í einu án þess að búa til risastórt ZIP í minni.",
-    unavailable: "Sýnishorn hafa enga upprunalega myndavélarskrá til að vista.",
-    sourceMissing: "Upprunalega myndavélarskráin er ekki tiltæk. Tengdu drifið eða upprunaskrána aftur áður en afrit er tekið.",
-  },
   rawTiff: {
     action: "Flytja út 16 bita RAW-TIFF (frumgerð)",
     details: "Um 16 bita RAW-TIFF",
@@ -41,6 +31,7 @@ export const is: AreaTranslation<typeof source> = {
     loadFailed: "Ekki tókst að hlaða XMP. Veldu hliðarskrá þessarar myndar.",
   },
   sidecars: {
+    ready: "XMP-lýsigögn tilbúin. Upprunalegu myndirnar eru óbreyttar.",
     title: "XMP-hliðarskrár",
     save: "Vista XMP-skrár",
     help: "Vistaðu einkunnir, höfnun og staðfest leitarorð í sérskrám. Fleiri skrár vistast í ZIP-skrá. Sýnismyndum og sýndarafritum er sleppt.",

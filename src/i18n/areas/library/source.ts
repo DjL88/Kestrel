@@ -10,6 +10,8 @@ const forMany = (count: number) => (count > 1 ? ` (${count} photos)` : '');
  */
 export const source = {
   top: {
+    xmpSidecars: "Save ratings and tags (XMP)…",
+    xmpHelp: "Save ratings, Keep/Reject choices and confirmed tags separately from your photographs. Multiple files are bundled into a ZIP.",
     file: "File",
     viewLayout: "View · show or hide",
     groupBursts: "Group or ungroup bursts",
