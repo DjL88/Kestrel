@@ -15,7 +15,7 @@ export interface DesktopExportIO {
 
 function safePart(value: string): boolean {
   if (!value || value !== value.trim() || /[. ]$/.test(value) ||
-      /[\u0000-\u001f<>:"/\\|?*]/.test(value) || value === '.' || value === '..') return false;
+      /[\u0000-\u001f<>:"\/\\|?*]/.test(value) || value === '.' || value === '..') return false;
   // Windows treats these device names as reserved even when followed by an extension.
   return !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(value);
 }
