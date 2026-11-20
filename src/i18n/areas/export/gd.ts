@@ -213,6 +213,10 @@ export const gd: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Ro-leasachain ainmean fhaidhlichean agus càileachd JPEG',
   },
   results: {
+    connectedBackground: (count, place) => `Sàbhail ${count} às-phortadh gu ${place} sa chùl-raon`,
+    connectingDestination: "A’ ceangal ris a’ cheann-uidhe…",
+    connectedBackgroundHelp: "Thèid na faidhlichean a shàbhaladh aon às dèidh aon ann am pasgan ùr, air an cruinneachadh a rèir ceann-uidhe. Dùinidh Às-phortadh nuair a thèid gabhail ris an obair; chì thu adhartas is mearachdan sa Mhanaidsear Ghnìomhan.",
+
     backgroundSaving: (count) => `Ag às-phortadh ${count} faidhlichean sa chùlaibh`,
     choosingFolder: "A’ taghadh pasgan…",
     desktopBackground: (count) => `Sàbhail ${count} faidhlichean gu pasgan sa chùlaibh`,
