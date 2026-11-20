@@ -30,9 +30,14 @@ export interface ExportQueueCheckpoint<Recipe> {
   readonly state: 'pending' | 'paused' | 'completed';
 }
 const sha = /^[a-f0-9]{64}$/i;
+// A journal can be reopened on Windows, macOS or a case-insensitive NAS.
+// Reject ambiguous names before any adapter receives a destination path.
+const reserved = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
 const safePart = (s: string) => s.length > 0 && s !== '.' && s !== '..' &&
-  !/[\\/:*?"<>|\u0000-\u001f]/.test(s) && !/[. ]$/.test(s);
+  s.normalize('NFC') === s && !reserved.test(s) &&
+  !/[\\\\/:*?"<>|\u0000-\u001f\u007f]/.test(s) && !/[. ]$/.test(s);
 const pathFor = (item: ExportQueueItem) => item.subfolder ? item.subfolder + '/' + item.filename : item.filename;
+const portablePathKey = (item: ExportQueueItem) => pathFor(item).normalize('NFC').toLowerCase();
 function validate(value: unknown): asserts value is ExportQueueCheckpoint<unknown> {
   if (!value || typeof value !== 'object') throw new Error('Invalid export checkpoint.');
   const v = value as Record<string, unknown>;
@@ -48,7 +53,7 @@ function validate(value: unknown): asserts value is ExportQueueCheckpoint<unknow
         typeof item.filename !== 'string' || !safePart(item.filename) ||
         typeof item.subfolder !== 'string' ||
         (item.subfolder !== '' && !safePart(item.subfolder))) throw new Error('Unsafe export checkpoint item.');
-    const path = pathFor(item).toLowerCase();
+    const path = portablePathKey(item);
     if (paths.has(path)) throw new Error('Export filename collision.');
     paths.add(path);
   }
