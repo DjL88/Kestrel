@@ -147,6 +147,14 @@ resource "google_cloud_run_v2_service" "control_plane" {
         value = google_firestore_database.default.name
       }
       env {
+        name = "KCP_DEMO_PRIVATE_BUCKET"
+        value = google_storage_bucket.demo_drafts.name
+      }
+      env {
+        name = "KCP_DEMO_PUBLIC_BUCKET"
+        value = google_storage_bucket.demo_published.name
+      }
+      env {
         name  = "KCP_SIGNING_KEY_ID"
         value = var.control_plane_signing_key_id
       }
@@ -196,6 +204,8 @@ resource "google_cloud_run_v2_service" "control_plane" {
   depends_on = [
     google_project_service.control_plane,
     google_project_iam_member.control_plane_firestore,
+    google_storage_bucket_iam_member.demo_drafts_service,
+    google_storage_bucket_iam_member.demo_published_service,
     google_secret_manager_secret_iam_member.control_plane,
     google_secret_manager_secret_iam_member.licence_private_key,
   ]
