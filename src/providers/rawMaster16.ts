@@ -1,3 +1,4 @@
+import type { TiffExportMetadata } from '../core/tiffExportMetadata';
 import { editRgb16, encodeTiff16, frameRgb16, master16Blocker, parseRgb16, thumbRgb16 } from '../core/master16';
 import { bestTurn } from '../core/orientMatch';
 import type { PhotoEdit } from '../core/photoEdits';
@@ -22,7 +23,7 @@ async function developRaw16(file: Blob): Promise<ArrayBuffer> {
  * picture the editor frames (the developed RAW, turned to match the camera's preview where that was needed), so the
  * crop lands in the same place. Refuses, in plain words, edits it cannot carry yet; never drops one.
  */
-export async function exportRaw16Tiff(original: Blob, shown: HTMLImageElement, edit: PhotoEdit, framing: PhotoFraming | undefined): Promise<Blob> {
+export async function exportRaw16Tiff(original: Blob, shown: HTMLImageElement, edit: PhotoEdit, framing: PhotoFraming | undefined, metadata?: TiffExportMetadata | null): Promise<Blob> {
   const blocker = master16Blocker(edit, framing);
   if (blocker) throw new Error(blocker);
   // This is a freshly developed RGB working ArrayBuffer, not the original
@@ -46,5 +47,5 @@ export async function exportRaw16Tiff(original: Blob, shown: HTMLImageElement, e
   // A real crop, quarter-turn or straighten still allocates its own result.
   const framed = frameRgb16(picture, framing ?? DEFAULT_FRAMING, turn / 90, true);
   editRgb16(framed, edit);
-  return encodeTiff16(framed);
+  return encodeTiff16(framed, metadata);
 }
