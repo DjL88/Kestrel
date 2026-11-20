@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArchiveRestore, ArrowLeft, Columns2, Download, Ellipsis, Grid3X3, Image as ImageIcon, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Trash2, Undo2 } from 'lucide-react';
 import type { ProjectSettings } from '../core/projectSettings';
-import { AppearanceSettings } from './AppearanceSettings';
 import { isDesktopApp } from '../providers/desktopShell';
 import { messages as m } from '../i18n/messages';
 import type { CullCounts, FilterState, RatingFilter, ShootDescriptor, SortOrder, WorkspaceViewMode } from '../core/types';
@@ -13,6 +12,8 @@ interface TopWorkspaceBarProps {
   status?: ReactNode;
   /** The Settings button, in the far right corner as on every page. */
   settingsButton?: ReactNode;
+  /** Open the single shared Settings dialog from this workspace. */
+  onOpenSettings?: () => void;
   shoot: ShootDescriptor;
   counts: CullCounts;
   filter: FilterState;
@@ -51,6 +52,8 @@ interface TopWorkspaceBarProps {
   onOpenShootModal: () => void;
   onOpenMacroPadModal: () => void;
   onEditPhoto?: () => void;
+  /** Contextual action when editing a marked selection, not just the active photo. */
+  editLabel?: string;
   multiSelect: boolean;
   onToggleMultiSelect?: () => void;
   showFilmstrip: boolean;
@@ -176,9 +179,9 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           <Plus className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">{t.top.add}</span>
         </button>
-        <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto || props.actionsDisabled} aria-label={t.top.edit} title={t.top.editTitle}
+        <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto || props.actionsDisabled} aria-label={props.editLabel ?? t.top.edit} title={props.editLabel ?? t.top.editTitle}
           className={`${actionClass} border border-sky-300/50 text-sky-100 hover:bg-sky-300/15 disabled:opacity-40 max-md:hidden`}>
-          <Pencil className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">{t.top.edit}</span>
+          <Pencil className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">{props.editLabel ?? t.top.edit}</span>
         </button>
         <button type="button" onClick={props.onExport} disabled={!props.onExport || props.actionsDisabled} aria-label={props.exportLabel ?? t.top.export} title={t.top.exportTitle}
           className={`${actionClass} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-40 max-md:hidden`}>
@@ -267,7 +270,10 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                     <input type="checkbox" checked={props.focusMode} onChange={props.onToggleFocusMode} />
                     {t.top.photoOnly}
                   </label>
-                  <AppearanceSettings side={props.editPanelSide} onSideChange={props.onEditPanelSideChange} hand={props.hand} onHandChange={props.onHandChange} />
+                  {props.onOpenSettings && <button type="button" onClick={() => choose(props.onOpenSettings!)}
+                    className="flex min-h-11 w-full items-center gap-2 rounded-md border border-white/15 px-3 text-left text-sm text-zinc-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+                    {m.settings.title}
+                  </button>}
                   {isDesktopApp() && <button type="button" onClick={() => choose(props.onOpenMacroPadModal, false)}
                     className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-zinc-200 hover:bg-white/10">
                     <Keyboard className="h-4 w-4" aria-hidden="true" />{t.top.macroPad}
@@ -305,7 +311,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
     <div role="toolbar" aria-label={t.top.photoActions} className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)] md:hidden">
       {([
         { key: 'add', label: t.top.add, title: t.top.addPhotos, Icon: Plus, onClick: props.onOpenShootModal, disabled: props.actionsDisabled || props.addDisabled },
-        { key: 'edit', label: t.top.edit, title: t.top.editTitle, Icon: Pencil, onClick: onEditPhoto, disabled: !onEditPhoto || props.actionsDisabled },
+        { key: 'edit', label: props.editLabel ?? t.top.edit, title: props.editLabel ?? t.top.editTitle, Icon: Pencil, onClick: onEditPhoto, disabled: !onEditPhoto || props.actionsDisabled },
         { key: 'export', label: props.exportLabel ?? t.top.export, title: t.top.exportTitle, Icon: Download, onClick: props.onExport, disabled: !props.onExport || props.actionsDisabled },
       ] as const).map(({ key, label, title, Icon, onClick, disabled }) => (
         <button key={key} type="button" onClick={onClick} disabled={disabled} title={title} aria-label={key === 'add' ? t.top.addPhotosToProject : label}
