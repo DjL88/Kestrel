@@ -8,6 +8,19 @@ const photos = (count: number) => plural(count, { one: `${count} dealbh`, two: `
 
 /** Scottish Gaelic. DRAFT: written without a native speaker's check. */
 export const gd: AreaTranslation<typeof source> = {
+  metadata: {
+    title: "Meata-dàta an fhaidhle (roghainneil)",
+    include: "Cuir meata-dàta deasaichte ann an JPEG / PNG",
+    privacy: "Dheth gu bunaiteach. Cha tèid EXIF tùsail, GPS, àireamhan sreathach no fiosrachadh àite a chopaigeadh. Cha tèid ach an fhiosrachadh a thaghas tu a sgrìobhadh mar XMP.",
+    photoTitle: "Tiotal / cuspair an deilbh",
+    perPhoto: "Cleachdaidh gach dealbh an cuspair dearbhte aige mura cuir thu a-steach tiotal coitcheann.",
+    caption: "Tuairisgeul no fo-sgrìobhadh",
+    creator: "Dealbhadair / cruthaiche",
+    copyright: "Dlighe-sgrìobhaidh",
+    includeKeywords: "Cuir prìomh fhaclan ann",
+    keywords: "Prìomh fhaclan (le cromagan; falamh = tagaichean dearbhte)",
+    help: "Faodaidh cuspairean dearbhte an tiotal agus na prìomh fhaclan a lìonadh. Cha tèid tomhasan AI nach deach a dhearbhadh às-phortadh. Tha am fiosrachadh san fhaidhle, chan ann air an dealbh.",
+  },
   rawTiff: {
     action: "Às-phortaich TIFF RAW 16-bit (protatàip)",
     details: "Mu TIFF RAW 16-bit",
