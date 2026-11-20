@@ -4,6 +4,17 @@ import { EXPORT_FORMATS, LEGACY_FORMAT_IDS, PLATFORMS, customFormat, formatById,
 import { SOCIAL_ICON_PATHS } from './socialIcons';
 import { exportFilename } from './exportProfiles';
 
+test('comparison export is a distinct authentic JPEG layout with no silent upscaling', () => {
+  const comparison = formatById('before-after')!;
+  assert.equal(comparison.fit, 'keep');
+  assert.equal(comparison.format, 'jpeg');
+  assert.equal(comparison.width, 1920);
+  assert.equal(comparison.height, 1200);
+  const name = exportFilename('dunnock.nef', toProfile(comparison), true);
+  assert.equal(name, 'compare_dunnock-preview_before-after.jpg');
+  assert.equal(toProfile(comparison).allowUpscale, false);
+});
+
 test('every format has a unique id and a usable size', () => {
   assert.equal(new Set(EXPORT_FORMATS.map((f) => f.id)).size, EXPORT_FORMATS.length);
   for (const f of EXPORT_FORMATS) {
