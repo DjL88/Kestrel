@@ -8,6 +8,12 @@ const photos = (count: number) => plural(count, { one: `${count} dealbh`, two: `
 
 /** Scottish Gaelic. DRAFT: written without a native speaker's check. */
 export const gd: AreaTranslation<typeof source> = {
+  sidecars: {
+    title: "Faidhlichean-taoibh XMP",
+    save: "Sàbhail faidhlichean XMP",
+    help: "Sàbhail rangachaidhean, diùltadh agus faclan-luirg dearbhte air leth. Thèid iomadh faidhle a shàbhaladh ann an ZIP. Thèid dealbhan demo agus lethbhreacan mas-fhìor fhàgail às.",
+    duplicate: "Tagh dealbhan aig a bheil ainmean-faidhle dligheach is eadar-dhealaichte.",
+  },
   presets: {
     title: "Ro-shuidheachaidhean às-phortaidh",
     name: "Ainm an ro-shuidheachaidh",

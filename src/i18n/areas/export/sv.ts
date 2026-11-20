@@ -4,6 +4,12 @@ import type { source } from './source';
 
 /** Swedish. DRAFT: written without a native speaker's check. */
 export const sv: AreaTranslation<typeof source> = {
+  sidecars: {
+    title: "XMP-sidofiler",
+    save: "Spara XMP-filer",
+    help: "Spara betyg, avvisningar och bekräftade nyckelord separat. Flera filer sparas som en ZIP. Demofoton och virtuella kopior hoppas över.",
+    duplicate: "Välj foton med olika, giltiga filnamn.",
+  },
   presets: {
     title: "Exportförinställningar",
     name: "Förinställningens namn",

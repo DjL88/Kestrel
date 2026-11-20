@@ -4,6 +4,12 @@ import type { source } from './source';
 
 /** Norwegian Bokmål. DRAFT: written without a native speaker's check. */
 export const nb: AreaTranslation<typeof source> = {
+  sidecars: {
+    title: "XMP-sidefiler",
+    save: "Lagre XMP-filer",
+    help: "Lagre vurderinger, avvisninger og bekreftede nøkkelord separat. Flere filer lagres i en ZIP. Demobilder og virtuelle kopier hoppes over.",
+    duplicate: "Velg bilder med ulike, gyldige filnavn.",
+  },
   presets: {
     title: "Eksportforvalg",
     name: "Navn på forvalg",

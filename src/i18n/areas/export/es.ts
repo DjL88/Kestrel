@@ -4,6 +4,12 @@ import type { source } from './source';
 
 /** Spanish (Spain). DRAFT: written without a native speaker's check. */
 export const es: AreaTranslation<typeof source> = {
+  sidecars: {
+    title: "Archivos auxiliares XMP",
+    save: "Guardar archivos XMP",
+    help: "Guarda las valoraciones, los rechazos y las palabras clave confirmadas por separado. Si hay varios archivos, se guardan en un ZIP. Se omiten las fotos de demostración y las copias virtuales.",
+    duplicate: "Selecciona fotos con nombres de archivo distintos y válidos.",
+  },
   presets: {
     title: "Ajustes preestablecidos de exportación",
     name: "Nombre del ajuste",

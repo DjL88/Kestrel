@@ -4,6 +4,12 @@ import type { source } from './source';
 
 /** German. DRAFT: written without a native speaker's check. */
 export const de: AreaTranslation<typeof source> = {
+  sidecars: {
+    title: "XMP-Begleitdateien",
+    save: "XMP-Dateien speichern",
+    help: "Bewertungen, Ablehnungen und bestätigte Stichwörter werden separat gespeichert. Mehrere Dateien werden als ZIP gespeichert. Demofotos und virtuelle Kopien werden übersprungen.",
+    duplicate: "Wähle Fotos mit unterschiedlichen, gültigen Dateinamen aus.",
+  },
   presets: {
     title: "Exportvorgaben",
     name: "Name der Vorgabe",

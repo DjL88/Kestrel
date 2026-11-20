@@ -4,6 +4,12 @@ import type { source } from './source';
 
 /** Dutch. DRAFT: written without a native speaker's check. */
 export const nl: AreaTranslation<typeof source> = {
+  sidecars: {
+    title: "XMP-nevenbestanden",
+    save: "XMP-bestanden opslaan",
+    help: "Sla beoordelingen, afwijzingen en bevestigde trefwoorden los van de foto’s op. Meerdere bestanden komen in een ZIP. Demofoto’s en virtuele kopieën worden overgeslagen.",
+    duplicate: "Selecteer foto’s met verschillende, geldige bestandsnamen.",
+  },
   presets: {
     title: "Exportvoorinstellingen",
     name: "Naam van voorinstelling",

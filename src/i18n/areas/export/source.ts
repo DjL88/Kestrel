@@ -2,6 +2,12 @@ import { plural } from '../../../core/locale';
 
 /** Export: the export panel, the step-by-step guide, preview tiles, and the recipe dialogs. British English source. */
 export const source = {
+  sidecars: {
+    title: "XMP sidecars",
+    save: "Save XMP sidecars",
+    help: "Save ratings, rejections and confirmed keywords separately from your photos. Multiple sidecars are saved as a ZIP. Demo photos and virtual copies are skipped.",
+    duplicate: "Select photos with distinct filenames that can be saved as sidecars.",
+  },
   presets: {
     title: 'Export presets',
     name: 'Preset name',

@@ -4,6 +4,12 @@ import type { source } from './source';
 
 /** Finnish. DRAFT: written without a native speaker's check. */
 export const fi: AreaTranslation<typeof source> = {
+  sidecars: {
+    title: "XMP-sivutiedostot",
+    save: "Tallenna XMP-tiedostot",
+    help: "Tallenna arviot, hylkäykset ja vahvistetut avainsanat erikseen. Useat tiedostot tallennetaan ZIP-pakettiin. Esimerkkikuvat ja virtuaaliset kopiot ohitetaan.",
+    duplicate: "Valitse kuvia, joiden tiedostonimet ovat erilaisia ja kelvollisia.",
+  },
   presets: {
     title: "Viennin esiasetukset",
     name: "Esiasetuksen nimi",

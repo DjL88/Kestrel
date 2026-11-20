@@ -7,6 +7,12 @@ import type { source } from './source';
  * ("3 llun", "5 ffeil"), so these sentences need only one form.
  */
 export const cy: AreaTranslation<typeof source> = {
+  sidecars: {
+    title: "Ffeiliau ategol XMP",
+    save: "Cadw ffeiliau XMP",
+    help: "Cadwch sgoriau, gwrthodiadau ac allweddeiriau wedi’u cadarnhau ar wahân. Cedwir sawl ffeil mewn ZIP. Hepgorir lluniau demo a chopïau rhithwir.",
+    duplicate: "Dewiswch luniau ag enwau ffeil dilys a gwahanol.",
+  },
   presets: {
     title: "Rhagosodiadau allforio",
     name: "Enw’r rhagosodiad",

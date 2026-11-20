@@ -34,7 +34,7 @@ const bag = (name: string, values: readonly string[]) =>
   `<dc:${name}><rdf:Bag>${values.map(value => `<rdf:li>${value}</rdf:li>`).join('')}</rdf:Bag></dc:${name}>`;
 
 /** null means 'strip all optional metadata', including geolocation. */
-export function tiffXmpPacket(metadata: TiffExportMetadata | null | undefined): Uint8Array | null {
+export function tiffXmpPacket(metadata: TiffExportMetadata | null | undefined, rating?: number): Uint8Array | null {
   if (!metadata) return null;
   const title = field(metadata.title);
   const caption = field(metadata.caption);
@@ -43,7 +43,10 @@ export function tiffXmpPacket(metadata: TiffExportMetadata | null | undefined): 
   const keywords = Array.isArray(metadata.keywords)
     ? [...new Set(metadata.keywords.slice(0, MAX_KEYWORDS).map(field).filter(Boolean))]
     : [];
+  const ratingField = rating !== undefined && Number.isInteger(rating) && rating >= -1 && rating <= 5
+    ? `<xmp:Rating xmlns:xmp="http://ns.adobe.com/xap/1.0/">${rating}</xmp:Rating>` : '';
   const fields = [
+    ratingField,
     title ? alt('title', title) : '',
     caption ? alt('description', caption) : '',
     creator ? bag('creator', [creator]) : '',

@@ -4,6 +4,12 @@ import type { source } from './source';
 
 /** Danish. DRAFT: written without a native speaker's check. */
 export const da: AreaTranslation<typeof source> = {
+  sidecars: {
+    title: "XMP-sidefiler",
+    save: "Gem XMP-filer",
+    help: "Gem bedømmelser, fravalg og bekræftede nøgleord separat. Flere filer gemmes i en ZIP. Demofotos og virtuelle kopier springes over.",
+    duplicate: "Vælg fotos med forskellige, gyldige filnavne.",
+  },
   presets: {
     title: "Eksportforvalg",
     name: "Navn på forvalg",
