@@ -53,3 +53,16 @@ test('duplicate tags cannot replace trusted dimensions', async () => {
   v.setUint16(tag(v, 257), 256, true);
   assert.throws(() => proveTiff16(bytes), /duplicate/);
 });
+
+test('pixel data cannot alias TIFF directory or sample-precision metadata', async () => {
+  const valid = await fixture();
+  for (const offset of [
+    (v: DataView) => v.getUint32(4, true),
+    (v: DataView) => v.getUint32(tag(v, 258) + 8, true),
+  ]) {
+    const bytes = valid.slice(0);
+    const view = new DataView(bytes);
+    view.setUint32(tag(view, 273) + 8, offset(view), true);
+    assert.throws(() => proveTiff16(bytes), /metadata overlaps/);
+  }
+});
