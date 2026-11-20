@@ -46,8 +46,9 @@ export function createTaskStore(now: () => number = Date.now) {
   const trim = () => {
     // Successful work must not evict an unacknowledged export failure. Keep
     // separate bounded histories so a long session cannot grow without limit.
-    const finished = tasks.filter((task) => task.state === 'done' || task.state === 'cancelled');
-    const failed = tasks.filter((task) => task.state === 'failed');
+    const byCompletion = (a: Task, b: Task) => (a.endedAt ?? 0) - (b.endedAt ?? 0) || a.id - b.id;
+    const finished = tasks.filter((task) => task.state === 'done' || task.state === 'cancelled').sort(byCompletion);
+    const failed = tasks.filter((task) => task.state === 'failed').sort(byCompletion);
     const drop = new Set([
       ...finished.slice(0, Math.max(0, finished.length - KEEP_FINISHED)),
       ...failed.slice(0, Math.max(0, failed.length - KEEP_FAILED)),

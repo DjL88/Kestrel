@@ -85,6 +85,21 @@ test('successful and cancelled jobs fade away while active jobs stay visible', (
   assert.equal(tasksNeedAttention(store.list(), 1_000_000), true);
 });
 
+test('a long export failing last is retained even when it started before every other job', () => {
+  let time = 0;
+  const store = createTaskStore(() => time);
+  const slow = store.start('Long background export');
+  for (let i = 0; i < 8; i++) {
+    time += 100;
+    store.start(`Short job ${i}`).fail(`Failure ${i}`);
+  }
+  time += 100;
+  slow.fail('Drive disconnected at the end of the long export.');
+  assert.equal(store.list().filter(task => task.state === 'failed').length, 5);
+  assert.equal(store.list().some(task => task.id === slow.id), true);
+  assert.equal(store.list().some(task => task.detail === 'Failure 3'), false);
+});
+
 test('only the last few finished tasks are kept, and running ones never are dropped', () => {
   const store = createTaskStore();
   const running = store.start('Long job', { cancel: () => {} });
