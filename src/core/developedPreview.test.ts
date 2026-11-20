@@ -325,3 +325,38 @@ test('an offline developed bitmap remains review-only after the original is disc
   assert.equal(provider.isDeveloped(photo.stableKey), false);
   assert.equal(await provider.getFullPreviewUrl(photo), '');
 });
+
+
+test('full RAW developments have a bounded cache with recently used photos retained', async (t) => {
+  const provider = new BrowserPreviewProvider();
+  t.after(() => provider.clear());
+  for (let index = 0; index < 8; index++) {
+    const key = 'bounded-raw-' + index;
+    provider.registerBlob(key, raw());
+    assert.equal(await provider.developFromOriginal(key, async () => new Blob(['sensor-' + index], { type: 'image/jpeg' })), 'ready');
+  }
+  assert.equal(provider.isDeveloped('bounded-raw-0'), true);
+  // The first photo becomes recently used when selected for comparison.
+  assert.ok(await provider.getFullPreviewUrl(frame('recent', 'bounded-raw-0')));
+  provider.registerBlob('bounded-raw-8', raw());
+  assert.equal(await provider.developFromOriginal('bounded-raw-8', async () =>
+    new Blob(['sensor-8'], { type: 'image/jpeg' })), 'ready');
+  assert.equal(provider.isDeveloped('bounded-raw-0'), true, 'recent photo survives eviction');
+  assert.equal(provider.isDeveloped('bounded-raw-1'), false, 'oldest inactive full RAW is evicted');
+  assert.equal(provider.isDeveloped('bounded-raw-8'), true);
+  // Review copies are not RAW masters. If an evicted photo is revisited it
+  // must be developed again rather than falsely reporting a full master.
+  for (let index = 9; index < 24; index++) {
+    const key = 'bounded-raw-' + index;
+    provider.registerBlob(key, raw());
+    assert.equal(await provider.developFromOriginal(key, async () =>
+      new Blob(['sensor-' + index], { type: 'image/jpeg' })), 'ready');
+  }
+  assert.equal(provider.isDeveloped('bounded-raw-8'), false);
+  for (let index = 16; index < 24; index++) {
+    assert.equal(provider.isDeveloped('bounded-raw-' + index), true);
+  }
+  assert.equal(await provider.developFromOriginal('bounded-raw-0', async () =>
+    new Blob(['fresh sensor'], { type: 'image/jpeg' })), 'ready');
+  assert.equal(provider.isDeveloped('bounded-raw-0'), true, 'evicted RAW can be redeveloped on demand');
+});
