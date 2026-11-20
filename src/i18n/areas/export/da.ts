@@ -212,6 +212,10 @@ export const da: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Præfikser til filnavne og JPEG-kvalitet',
   },
   results: {
+    connectedBackground: (count, place) => `Gem ${count} eksporter til ${place} i baggrunden`,
+    connectingDestination: "Opretter forbindelse til destinationen…",
+    connectedBackgroundHelp: "Filerne gemmes én ad gangen i en ny mappe, grupperet efter destination. Eksportvinduet lukkes, når opgaven er godkendt; se fremskridt og fejl i Opgavestyring.",
+
     backgroundSaving: (count) => `Eksporterer ${count} filer i baggrunden`,
     choosingFolder: "Vælger mappe…",
     desktopBackground: (count) => `Gem ${count} filer i en mappe i baggrunden`,
