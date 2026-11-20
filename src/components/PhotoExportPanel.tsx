@@ -21,6 +21,8 @@ import { ExportWizard } from './ExportWizard';
 import { returnFocus } from './focusReturn';
 import { KEEP_NAMES, stemFor, uniqueExportFilename, type NameTemplate } from '../core/exportNaming';
 import { tasks } from '../core/taskStore';
+import { exportBatchQueue } from '../core/exportBatchQueue';
+import { planConnectedExports } from '../core/exportBatchDestinations';
 import { useAccess } from '../providers/useAccess';
 import { FREE_DAILY_EXPORT_LIMIT } from '../core/features';
 import { parseUsage, recordUse, remainingToday } from '../core/dailyAllowance';
@@ -271,6 +273,99 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
   const unlimited = can('unlimitedExport');
   const USAGE_KEY = 'kestrel.exportsToday.v1';
   const readUsage = () => { try { return parseUsage(localStorage.getItem(USAGE_KEY)); } catch { return null; } };
+
+  /**
+   * Connected destinations support genuine background saving: a run folder and connector
+   * are opened before the queue accepts any work. The immutable photo/recipe snapshot
+   * is retained by the app-level queue, not by this dialog's lifetime.
+   *
+   * Ordinary browser downloads and the manual Save/ZIP route remain available below.
+   */
+  async function queueToConnectedPlace() {
+    if (!exportPlace || placeBusy || !total || progress !== null || blocked) return;
+    if (timestamp === 'custom' && !parseCustomExportDate(customDate)) {
+      setError(t.panel.invalidDate); return;
+    }
+    // The normal RAW workflow is still a JPEG development/preview, not a verified
+    // high-bit-depth source-derived master. Never label that as a full-quality RAW export.
+    if (selected.some(format => format.id === 'master') &&
+        frames.some(frame => !frame.isDemo && isRawPreviewFile(frame.filename))) {
+      setError('Full-size RAW export is not yet verified at original sensor quality. Choose a social JPEG format, or use the original file until high-precision RAW export is supported.');
+      return;
+    }
+    if (!unlimited) {
+      const left = remainingToday(readUsage(), new Date(), FREE_DAILY_EXPORT_LIMIT);
+      if (total > left) {
+        setError(left === 0 ? t.panel.limitUsed(FREE_DAILY_EXPORT_LIMIT) : t.panel.limitLeft(FREE_DAILY_EXPORT_LIMIT, left));
+        return;
+      }
+    }
+    setPlaceBusy(true);
+    setError('');
+    try {
+      // An explicit click grants the chosen destination; no implicit upload.
+      const destination = await exportPlace.openBatch();
+      const photographs = structuredClone(frames);
+      const options = {
+        formats: structuredClone(selected), anchors: structuredClone(anchors),
+        zooms: structuredClone(zooms), bars, overlay: structuredClone(overlay),
+        timestamp, customDate, naming: structuredClone(naming), startedAt: Date.now(),
+      };
+      const planned = planConnectedExports(photographs, options.formats, options.naming);
+      if (!planned.length) throw new Error('Choose at least one export format.');
+      const ticket = exportBatchQueue.enqueue({
+        title: `Saving ${planned.length} photo exports to ${exportPlace.label}`,
+        items: planned.map(entry => entry.item),
+        recipe: options,
+      }, {
+        async render(item, recipe, signal) {
+          signal.throwIfAborted();
+          const [frameIndex, formatIndex] = item.sourceId.split(':').map(Number);
+          const frame = photographs[frameIndex];
+          const format = recipe.formats[formatIndex];
+          if (!frame || !format) throw new Error('The photo or export format is no longer available.');
+          const image = source && photographs.length === 1 ? source : await loadExportSource(frame, provider, 'background');
+          signal.throwIfAborted();
+          const stem = stemFor(recipe.naming, frame.filename, frameIndex, photographs.length);
+          const recorded = frame.exif.capturedAtMs ?? provider.originalInfo(frame.stableKey)?.lastModified;
+          const chosenDate = recipe.timestamp === 'custom' ? parseCustomExportDate(recipe.customDate) : null;
+          const date = chosenDate ?? (recipe.timestamp === 'capture' && Number.isFinite(recorded)
+            ? new Date(recorded!) : new Date(recipe.startedAt));
+          const key = `${frame.id}|${format.id}`;
+          return renderExport(image, frame, toProfile(format), date, signal, framingFor(format.fit), undefined, {
+            focus: recipe.anchors[key] ?? frame.focusPoint ?? { x: 0.5, y: 0.5 },
+            bars: recipe.bars, zoom: recipe.zooms[key] ?? 1, stem, overlay: recipe.overlay,
+          });
+        },
+        async save(item, rendered, signal) {
+          // The naming plan is generated before starting, including camera-name collisions.
+          // A render's internal filename cannot replace the independently validated target.
+          const file = rendered.name === item.filename ? rendered
+            : new File([rendered], item.filename, { type: rendered.type, lastModified: rendered.lastModified });
+          await destination.save(file, item.subfolder, signal);
+        },
+      });
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(chosen));
+        localStorage.setItem(EXPORT_PREFERENCES_KEY, JSON.stringify({ fits, overrides, turned, bars }));
+      } catch { /* Export is not dependent on settings storage. */ }
+      // Successful job acceptance, not completion: leave the editor usable now.
+      onClose();
+      void ticket.done.then(result => {
+        if (result !== 'completed') return;
+        if (!unlimited) {
+          try {
+            localStorage.setItem(USAGE_KEY, JSON.stringify(recordUse(readUsage(), new Date(), planned.length)));
+          } catch { /* Noncritical local usage cache. */ }
+        }
+        onDownloadRequested?.(photographs);
+      });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not start saving to that destination.');
+    } finally {
+      setPlaceBusy(false);
+    }
+  }
 
   async function prepare() {
     if (timestamp === 'custom' && !parseCustomExportDate(customDate)) {
@@ -646,6 +741,19 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
           onAnchor={(frame, format, point) => setAnchors(prior => ({ ...prior, [`${frame.id}|${format.id}`]: point }))}
           onZoom={(frame, format, zoom) => setZooms(prior => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))} />}
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+        {!resultsReady && exportPlace && (
+          <div className="mb-3 flex flex-col gap-1 rounded-lg border border-white/15 bg-black/15 p-3">
+            <button type="button" disabled={!total || progress !== null || blocked || placeBusy}
+              className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}
+              onClick={() => void queueToConnectedPlace()}>
+              {placeBusy ? 'Connecting to destination…' : `Save ${total} to ${exportPlace.label} in background`}
+            </button>
+            <p className="text-xs text-zinc-300">
+              Exports are saved one by one into a new folder, grouped by destination (Instagram, Facebook, Master).
+              This window closes after the job is accepted; progress and errors stay in Task Manager.
+            </p>
+          </div>
+        )}
         {!resultsReady && (
           <p className="mt-1 text-center">
             <button type="button" onClick={() => changeView(wizard ? 'list' : 'wizard')} className="min-h-10 px-3 text-xs text-zinc-300 underline underline-offset-4 hover:text-white">

@@ -1,10 +1,18 @@
 import type { ExportFormat } from '../core/exportFormats';
 import { exportPaths } from '../core/exportPlace';
+import { createExportRunSession } from '../core/exportRunSession';
 import { connections, openConnection } from './connectionStore';
 import { getLocations } from './projectLocations';
 
+export interface ExportBatchDestination {
+  folder: string;
+  save(file: File, subfolder: string, signal: AbortSignal): Promise<void>;
+}
+
 export interface ExportPlace {
   label: string;
+  /** A user-granted destination for one app-owned export run. */
+  openBatch(): Promise<ExportBatchDestination>;
   /** Save copies into the "export" folder there, in a new dated folder. Never overwrites, never throws. */
   save: (files: File[], platforms?: readonly ExportFormat['platform'][]) => Promise<{ ok: true; count: number } | { ok: false; message: string }>;
 }
@@ -16,6 +24,11 @@ export function exportPlaceFor(projectId: string): ExportPlace | null {
   if (!id || !connection) return null;
   return {
     label: connection.label,
+    async openBatch() {
+      const opened = await openConnection(id);
+      if ('problem' in opened) throw new Error(opened.message);
+      return createExportRunSession(opened.connector, new Date(), crypto.randomUUID());
+    },
     async save(files, platforms) {
       const opened = await openConnection(id);
       if ('problem' in opened) return { ok: false, message: opened.message };
