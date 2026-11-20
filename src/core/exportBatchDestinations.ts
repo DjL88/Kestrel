@@ -18,6 +18,7 @@ export interface ConnectedExportEntry {
 
 export function platformExportFolder(format: Pick<ExportFormat, 'platform' | 'id'>): string {
   if (format.platform) return format.platform.charAt(0).toUpperCase() + format.platform.slice(1);
+  if (format.id === 'before-after') return 'Before-After';
   return format.id === 'master' ? 'Master' : 'Custom';
 }
 
