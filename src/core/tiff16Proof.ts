@@ -56,6 +56,28 @@ export function proveTiff16(bytes: ArrayBuffer): Tiff16Proof {
   if (v.getUint32(icc.value, false) !== icc.count) return fail('ICC declared size differs from TIFF tag.');
   const ascii = (at: number) => String.fromCharCode(...new Uint8Array(bytes, at, 4));
   if (ascii(icc.value + 36) !== 'acsp' || ascii(icc.value + 16) !== 'RGB ') return fail('ICC is not a valid RGB profile header.');
+  // ICC 'acsp' alone is not sufficient: a forged 128-byte header can
+  // otherwise be labelled as a colour-managed RGB master. Check the bounded
+  // ICC tag directory without attempting to interpret colour transforms.
+  const iccAt = icc.value;
+  const iccVersion = v.getUint8(iccAt + 8);
+  const iccClass = ascii(iccAt + 12);
+  const pcs = ascii(iccAt + 20);
+  if ((iccVersion !== 2 && iccVersion !== 4) ||
+      (iccClass !== 'mntr' && iccClass !== 'prtr') ||
+      (pcs !== 'XYZ ' && pcs !== 'Lab ')) return fail('unsupported ICC RGB output profile header.');
+  if (icc.count < 132) return fail('truncated ICC tag directory.');
+  const iccTags = v.getUint32(iccAt + 128, false);
+  if (iccTags > 1024 || iccTags * 12 > icc.count - 132) return fail('invalid ICC tag directory.');
+  const iccTableEnd = 132 + iccTags * 12;
+  for (let i = 0; i < iccTags; i++) {
+    const entry = iccAt + 132 + i * 12;
+    const offset = v.getUint32(entry + 4, false);
+    const length = v.getUint32(entry + 8, false);
+    if (!length || offset < iccTableEnd || offset > icc.count || length > icc.count - offset) {
+      return fail('invalid ICC tag data range.');
+    }
+  }
   // The TIFF directory and BitsPerSample array are metadata, not image or
   // profile storage. Reject forged offsets that alias those structures.
   const overlaps = (a: number, aLength: number, b: number, bLength: number): boolean =>

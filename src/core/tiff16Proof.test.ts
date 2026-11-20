@@ -66,3 +66,22 @@ test('pixel data cannot alias TIFF directory or sample-precision metadata', asyn
     assert.throws(() => proveTiff16(bytes), /metadata overlaps/);
   }
 });
+
+test('ICC profile must have a supported output class, PCS and valid bounded tag table', async () => {
+  const valid = await fixture();
+  const changes: Array<(view: DataView, icc: number) => void> = [
+    (v, p) => v.setUint8(p + 8, 9), // unsupported major version
+    (v, p) => v.setUint8(p + 12, 's'.charCodeAt(0)), // scanner/input profile
+    (v, p) => v.setUint8(p + 20, 'B'.charCodeAt(0)), // unknown PCS
+    (v, p) => v.setUint32(p + 128, 0xffffffff, false), // forged tag count
+    (v, p) => { v.setUint32(p + 128, 1, false); v.setUint32(p + 136, 128, false); v.setUint32(p + 140, 12, false); },
+    (v, p) => { v.setUint32(p + 128, 1, false); v.setUint32(p + 136, 580, false); v.setUint32(p + 140, 32, false); },
+  ];
+  for (const change of changes) {
+    const bytes = valid.slice(0);
+    const view = new DataView(bytes);
+    const profile = view.getUint32(tag(view, 34675) + 8, true);
+    change(view, profile);
+    assert.throws(() => proveTiff16(bytes), /ICC/, 'forged ICC metadata must fail closed');
+  }
+});
