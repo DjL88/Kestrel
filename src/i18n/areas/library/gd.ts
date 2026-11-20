@@ -12,6 +12,15 @@ const forMany = (count: number) => (count > 1 ? ` (${dealbh(count, String(count)
 /** Scottish Gaelic. DRAFT: written without a native speaker's check. Uses "thu", as the common words do. */
 export const gd: AreaTranslation<typeof source> = {
   top: {
+    file: "Faidhle",
+    viewLayout: "Sealladh · seall no falaich",
+    groupBursts: "Cuir sreathan còmhla no sgar iad",
+    showFilmstrip: "Seall stiall nan dealbhan",
+    panelPosition: "Suidheachadh nam panaichean",
+    panels: "Panaichean",
+    left: "Clì",
+    right: "Deas",
+
     backToProjects: 'Air ais dha na pròiseactan',
     projects: 'Pròiseactan',
     photoCount: (count) => dealbh(count, String(count)),
