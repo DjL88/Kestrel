@@ -7,7 +7,7 @@ import { languageOption } from '../core/locale';
 import { language } from '../i18n/messages';
 import { aiReviewText as t } from '../i18n/areas/aiReview';
 import {
-  AI_PROVIDER_KINDS, AiReviewError, askForReview, consentFor, DEFAULT_AI_MODEL, destinationHost, staysOnThisComputer,
+  AI_PROVIDER_KINDS, AiReviewError, askForReview, consentFor, DEFAULT_AI_MODEL, destinationHost, staysOnThisComputer, normalisedOpenAiBaseUrl,
   type AiProviderKind, type AiProviderSettings,
 } from '../providers/aiProviders';
 import { forgetAiSettings, saveAiSettings, useAiSettings } from '../providers/aiSettings';
@@ -33,10 +33,17 @@ export function AiProviderSetup({ saved, onDone }: { saved: AiProviderSettings |
   const [key, setKey] = useState(saved?.key ?? '');
   const [model, setModel] = useState(saved?.model ?? DEFAULT_AI_MODEL[saved?.kind ?? 'gemini']);
   const [baseUrl, setBaseUrl] = useState(saved?.baseUrl ?? 'http://localhost:11434/v1');
+  const [setupError, setSetupError] = useState(false);
   return (
     <form className="space-y-2" onSubmit={(event) => {
       event.preventDefault();
-      const next: AiProviderSettings = { kind, key: key.trim(), model: model.trim(), ...(kind === 'openai' ? { baseUrl: baseUrl.trim() } : {}), consent: null };
+      // The form refuses unsafe remote HTTP before saving credentials or consent.
+      let checkedUrl = baseUrl.trim();
+      if (kind === 'openai') {
+        try { checkedUrl = normalisedOpenAiBaseUrl(checkedUrl); setSetupError(false); }
+        catch { setSetupError(true); return; }
+      }
+      const next: AiProviderSettings = { kind, key: key.trim(), model: model.trim(), ...(kind === 'openai' ? { baseUrl: checkedUrl } : {}), consent: null };
       // Agreement carries over only to exactly the same destination.
       if (saved && consentFor(AI_REVIEW_CONSENT_VERSION, saved) === consentFor(AI_REVIEW_CONSENT_VERSION, next)) next.consent = saved.consent;
       saveAiSettings(next);
@@ -47,13 +54,17 @@ export function AiProviderSetup({ saved, onDone }: { saved: AiProviderSettings |
         const next = event.target.value as AiProviderKind;
         setKind(next);
         setModel(DEFAULT_AI_MODEL[next]);
+        setSetupError(false);
       }}>
         {AI_PROVIDER_KINDS.map((option) => <option key={option} value={option}>{t.providers[option]}</option>)}
       </select>
       {kind === 'openai' && <>
         <label htmlFor={`${id}-url`} className="block text-xs text-zinc-300">{t.baseUrl}</label>
-        <input id={`${id}-url`} className={field} value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} inputMode="url" autoComplete="off" />
+        <input id={`${id}-url`} type="url" required className={field} value={baseUrl}
+          aria-invalid={setupError} aria-describedby={setupError ? `${id}-url-error` : undefined}
+          onChange={(event) => { setBaseUrl(event.target.value); setSetupError(false); }} inputMode="url" autoComplete="off" />
         <p className="text-xs text-zinc-400">{t.baseUrlHint}</p>
+        {setupError && <p id={`${id}-url-error`} role="alert" className="text-xs text-orange-200">{t.invalidBaseUrl}</p>}
       </>}
       <label htmlFor={`${id}-key`} className="block text-xs text-zinc-300">{kind === 'openai' ? t.keyOptional : t.key}</label>
       <input id={`${id}-key`} type="password" className={field} value={key} onChange={(event) => setKey(event.target.value)} autoComplete="off" spellCheck={false} />

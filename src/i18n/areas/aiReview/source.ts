@@ -24,6 +24,7 @@ export const source = {
   modelNeeded: 'Type the model’s name, as your provider shows it.',
   baseUrl: 'Address of the AI',
   baseUrlHint: 'For example http://localhost:11434/v1 for Ollama.',
+  invalidBaseUrl: 'Use HTTPS for remote AI, or http://localhost for AI on this computer. Do not include keys in the address.',
   save: 'Save',
   consentTitle: 'Before anything is sent',
   consentCloud: (host: string) => `Kestrel will send a copy of this photo, 1,024 pixels on its longest side, to ${host}. It does not include the location, camera details or file name. Your provider may charge you for each question.`,

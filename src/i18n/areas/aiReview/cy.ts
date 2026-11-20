@@ -27,6 +27,7 @@ export const cy: AreaTranslation<typeof source> = {
   modelNeeded: 'Teipiwch enw’r model, fel y mae eich darparwr yn ei ddangos.',
   baseUrl: 'Cyfeiriad yr AI',
   baseUrlHint: 'Er enghraifft http://localhost:11434/v1 ar gyfer Ollama.',
+  invalidBaseUrl: "Defnyddiwch HTTPS ar gyfer AI o bell, neu http://localhost ar gyfer AI ar y cyfrifiadur hwn. Peidiwch â rhoi allweddi yn y cyfeiriad.",
   save: 'Cadw',
   consentTitle: 'Cyn anfon dim',
   consentCloud: (host) => `Bydd Kestrel yn anfon copi o’r llun hwn, 1,024 picsel ar ei ochr hiraf, at ${host}. Nid yw’n cynnwys y lleoliad, manylion y camera nac enw’r ffeil. Efallai y bydd eich darparwr yn codi tâl arnoch am bob cwestiwn.`,

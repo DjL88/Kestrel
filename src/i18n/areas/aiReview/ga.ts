@@ -27,6 +27,7 @@ export const ga: AreaTranslation<typeof source> = {
   modelNeeded: 'Clóscríobh ainm na samhla, mar a thaispeánann do sholáthraí é.',
   baseUrl: 'Seoladh an AI',
   baseUrlHint: 'Mar shampla http://localhost:11434/v1 do Ollama.',
+  invalidBaseUrl: "Úsáid HTTPS le haghaidh AI cianda, nó http://localhost le haghaidh AI ar an ríomhaire seo. Ná cuir eochracha sa seoladh.",
   save: 'Sábháil',
   consentTitle: 'Sula seoltar aon rud',
   consentCloud: (host) => `Seolfaidh Kestrel cóip den ghrianghraf seo, 1,024 picteilín ar an taobh is faide, chuig ${host}. Ní chuimsíonn sí an suíomh, sonraí an cheamara ná ainm an chomhaid. D’fhéadfadh do sholáthraí táille a ghearradh ort as gach ceist.`,

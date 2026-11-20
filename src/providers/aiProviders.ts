@@ -41,24 +41,47 @@ export class AiReviewError extends Error {
   }
 }
 
+/**
+ * Canonical base for an OpenAI-compatible provider. Remote previews and
+ * bearer keys require HTTPS; plain HTTP is permitted only for localhost.
+ * Reject credentials, query strings and fragments in the API base address.
+ */
+export function normalisedOpenAiBaseUrl(raw: string): string {
+  let url: URL;
+  try { url = new URL(raw.trim()); }
+  catch { throw new AiReviewError('setup', 'Enter a complete AI address, such as http://localhost:11434/v1.'); }
+  const local = ['localhost', '127.0.0.1', '[::1]', '::1'].includes(url.hostname);
+  if ((url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) ||
+      url.username || url.password || url.search || url.hash) {
+    throw new AiReviewError('setup', 'Use HTTPS for a remote AI or http://localhost for a model on this computer. Do not put keys in the address.');
+  }
+  return url.href.replace(/\/+$/, '');
+}
+
 /** Where a preview goes, said by host name in the consent text and recorded with the consent. */
 export function destinationHost(settings: Pick<AiProviderSettings, 'kind' | 'baseUrl'>): string {
   if (settings.kind === 'gemini') return 'generativelanguage.googleapis.com';
   if (settings.kind === 'vertex') return 'aiplatform.googleapis.com';
   if (settings.kind === 'anthropic') return 'api.anthropic.com';
-  try { return new URL(settings.baseUrl ?? '').host || 'unknown'; } catch { return 'unknown'; }
+  try { return new URL(normalisedOpenAiBaseUrl(settings.baseUrl ?? '')).host || 'unknown'; } catch { return 'unknown'; }
 }
 
 /** True when the preview never leaves this computer (an OpenAI-compatible model on localhost). */
 export function staysOnThisComputer(settings: Pick<AiProviderSettings, 'kind' | 'baseUrl'>): boolean {
   if (settings.kind !== 'openai') return false;
   try {
-    const host = new URL(settings.baseUrl ?? '').hostname;
+    const host = new URL(normalisedOpenAiBaseUrl(settings.baseUrl ?? '')).hostname;
     return host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1';
   } catch { return false; }
 }
 
 export function consentFor(version: string, settings: Pick<AiProviderSettings, 'kind' | 'baseUrl'>): string {
+  if (settings.kind === 'openai') {
+    // A changed host, API path or transport requires fresh photo-upload consent.
+    // Invalid legacy addresses must not crash the Settings screen.
+    try { return `${version}@${normalisedOpenAiBaseUrl(settings.baseUrl ?? '')}`; }
+    catch { return `${version}@invalid-endpoint`; }
+  }
   return `${version}@${destinationHost(settings)}`;
 }
 
@@ -75,7 +98,7 @@ export function buildAiRequest(settings: AiProviderSettings, prompt: string, jpe
     return { url, init: { method: 'POST', headers: { ...json, 'x-goog-api-key': settings.key }, body: JSON.stringify(body) } };
   }
   if (settings.kind === 'openai') {
-    const base = (settings.baseUrl ?? '').replace(/\/+$/, '');
+    const base = normalisedOpenAiBaseUrl(settings.baseUrl ?? '');
     const body = {
       model: settings.model,
       messages: [{ role: 'user', content: [
@@ -168,7 +191,7 @@ export async function askForReview(settings: AiProviderSettings, consentVersion:
     text = await askClaude(settings, prompt, jpegBase64, signal);
   } else {
     // Gemini picks a suitable model for the key when none is given (the species helper's own choice).
-    const pick = async () => (await import('./onlineHelper')).checkKey(settings.key.trim(), fetcher);
+    const pick = async () => (await import('./onlineHelper')).checkKey(settings.key.trim(), fetcher, signal);
     const resolved = settings.kind === 'gemini' && !settings.model.trim() ? { ...settings, model: (await pick()).model } : settings;
     const { url, init } = buildAiRequest(resolved, prompt, jpegBase64);
     const { status, body } = await send(url, init, signal, fetcher);
