@@ -202,6 +202,7 @@ export const is: AreaTranslation<typeof source> = {
     opening: 'Opnar mynd…',
     reconnect: 'Tengdu upprunalegu skrána aftur til að breyta henni.',
     noPreview: 'Þessi mynd hefur enga forskoðun sem vafrinn getur lesið.',
+    heifUndecodable: 'Kestrel gat ekki afkóðað þessa HEIF-mynd. Frumritið er óbreytt.',
     fold: 'Fella saman vinnsluverkfæri',
     foldTitle: 'Fella saman spjöldin fyrir stærri mynd (Tab)',
     resizePanel: 'Breyta stærð stillingaspjalds',

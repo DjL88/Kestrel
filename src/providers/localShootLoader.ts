@@ -1,4 +1,4 @@
-import { PHOTO_EXTENSIONS } from '../core/rawFormats';
+import { isHeifFile, PHOTO_EXTENSIONS } from '../core/rawFormats';
 import { assignBurstGroups } from '../core/cullingEngine';
 import { spreadPhotoOrder } from '../core/photoProcessingOrder';
 import { completeImportChunk } from '../core/progressiveImportChunk';
@@ -9,7 +9,7 @@ import type { BrowserPreviewProvider } from './browserPreviewProvider';
 import { linkedReader, linkedRangeOpener, pickedFromFile, pickedKey, type PickedPhoto } from './linkedOriginals';
 import { checkOriginalPaths } from './originalPathStatus';
 import { isDesktopApp } from './desktopShell';
-import { headBlob, openLinkedRange, type RangeBlob } from './rangeBlob';
+import { headBlob, materialize, openLinkedRange, type RangeBlob } from './rangeBlob';
 
 const SUPPORTED_EXTENSIONS = new Set(PHOTO_EXTENSIONS);
 
@@ -93,7 +93,8 @@ async function importLinkedWithoutFullRead(
     } catch {
       uncachedPreviewKeys.push(stableKey);
     }
-    exif = await parseImageExif(head, file.name);
+    // A HEIF's EXIF item can sit anywhere in the file, so a HEIC (a few megabytes) is read whole for it.
+    exif = await parseImageExif(isHeifFile(file.name) ? await materialize(source) : head, file.name);
   } finally {
     await range?.close().catch(() => undefined);
   }

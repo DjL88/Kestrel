@@ -198,6 +198,7 @@ export const ga: AreaTranslation<typeof source> = {
     opening: 'Ag oscailt an ghrianghraif…',
     reconnect: 'Athcheangail an bunchomhad chun é a chur in eagar.',
     noPreview: 'Níl réamhamharc ag an ngrianghraf seo is féidir leis an mbrabhsálaí a léamh.',
+    heifUndecodable: 'Níorbh fhéidir le Kestrel an grianghraf HEIF seo a dhíchódú. Níl aon athrú ar an mbunleagan.',
     fold: 'Fill na huirlisí eagarthóireachta',
     foldTitle: 'Fill na painéil as an mbealach chun grianghraf níos mó a fháil (Tab)',
     resizePanel: 'Athraigh méid phainéal na gcoigeartuithe',

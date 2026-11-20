@@ -238,6 +238,7 @@ export const source = {
     opening: 'Opening photo…',
     reconnect: 'Reconnect the original file to edit it.',
     noPreview: 'This photo has no browser-readable preview.',
+    heifUndecodable: 'Kestrel could not decode this HEIF photo. The original is unchanged.',
     fold: 'Fold editing tools',
     foldTitle: 'Fold the panels away for a bigger photo (Tab)',
     resizePanel: 'Resize adjustments panel',

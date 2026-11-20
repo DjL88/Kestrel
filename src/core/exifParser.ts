@@ -203,11 +203,7 @@ export async function parseImageExif(
     // A malformed DateTimeOriginal must not mask a valid CreateDate fallback.
     const capturedAtMs = validExifCaptureTimestamp(parsed.DateTimeOriginal, parsed.CreateDate);
 
-    const exposure = parsed.ExposureTime;
-    const exposureSeconds = ArrayBuffer.isView(exposure) && !(exposure instanceof DataView)
-      ? (exposure as Uint16Array)[0] / (exposure as Uint16Array)[1]
-      : exposure;
-    const shutter = formatShutterSpeed(validExifPositiveNumber(exposureSeconds));
+    const shutter = formatShutterSpeed(validExifPositiveNumber(parsed.ExposureTime));
 
     const width =
       validExifDimension(parsed.ExifImageWidth) ?? validExifDimension(parsed.ImageWidth);

@@ -202,6 +202,7 @@ export const fr: AreaTranslation<typeof source> = {
     opening: 'Ouverture de la photo…',
     reconnect: 'Reconnectez le fichier original pour le retoucher.',
     noPreview: 'Cette photo n’a pas d’aperçu lisible par le navigateur.',
+    heifUndecodable: 'Kestrel n’a pas pu décoder cette photo HEIF. L’original n’est pas modifié.',
     fold: 'Replier les outils de retouche',
     foldTitle: 'Replier les panneaux pour agrandir la photo (Tab)',
     resizePanel: 'Redimensionner le panneau de réglages',

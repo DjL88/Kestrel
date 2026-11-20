@@ -202,6 +202,7 @@ export const nl: AreaTranslation<typeof source> = {
     opening: 'Foto openen…',
     reconnect: 'Koppel het originele bestand opnieuw om het te bewerken.',
     noPreview: 'Deze foto heeft geen voorvertoning die de browser kan lezen.',
+    heifUndecodable: 'Kestrel kon deze HEIF-foto niet decoderen. Het origineel is ongewijzigd.',
     fold: 'Bewerkingshulpmiddelen inklappen',
     foldTitle: 'De panelen inklappen voor een grotere foto (Tab)',
     resizePanel: 'Grootte van het aanpassingspaneel wijzigen',

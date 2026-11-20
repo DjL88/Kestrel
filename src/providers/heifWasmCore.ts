@@ -20,7 +20,7 @@ interface HeifModule {
 }
 export type HeifModuleFactory = (options?: Record<string, unknown>) => Promise<HeifModule> | HeifModule;
 
-export interface HeifPixels { width: number; height: number; data: Uint8ClampedArray }
+export interface HeifPixels { width: number; height: number; data: Uint8ClampedArray<ArrayBuffer> }
 
 /** Larger than any HEIF camera or phone makes today (a 200-megapixel phone frame is 16,320 × 12,240). */
 const MAX_SIDE = 32_768;
