@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Plus } from 'lucide-r
 import { EXPORT_FORMATS, PLATFORMS, formatById, type BarStyle, type ExportFormat, type Fit } from '../core/exportFormats';
 import type { FocusPoint } from '../core/exportFraming';
 import type { PhotoFrame } from '../core/types';
+import { isRawPreviewFile } from '../core/rawFormats';
 import type { OverlayOptions } from '../core/exportOverlay';
 import { ExportPreviewTile } from './ExportPreviewTile';
 import { chooseExportDestination, exportDestinationFormats } from '../core/exportWizardChoice';
@@ -64,6 +65,7 @@ export function ExportWizard(props: Props) {
   const [platform, setPlatform] = useState<string>('');
   const [index, setIndex] = useState(0);
   const [photo, setPhoto] = useState(0);
+  const [skippedSize, setSkippedSize] = useState(false);
   // Always in the same order as the size list, however the choices were made, with a custom size last.
   const order = (format: ExportFormat) => { const at = EXPORT_FORMATS.findIndex((entry) => entry.id === format.id); return at < 0 ? EXPORT_FORMATS.length : at; };
   const positionable = selected.filter((format) => format.id !== 'master' && format.id !== 'before-after').sort((a, b) => order(a) - order(b));
@@ -92,6 +94,7 @@ export function ExportWizard(props: Props) {
   const pickDestination = (id: string) => {
     setPlatform(id);
     const choice = chooseExportDestination(id);
+    setSkippedSize(Boolean(choice.selectedFormat));
     if (choice.selectedFormat) {
       if (!chosen.includes(choice.selectedFormat)) props.onToggle(choice.selectedFormat, true);
       if (choice.page === 'position') {
@@ -113,8 +116,8 @@ export function ExportWizard(props: Props) {
   };
   const back = () => {
     if (step === 'size') return setStep('platform');
-    if (step === 'position') return index > 0 ? setIndex(index - 1) : setStep('size');
-    if (step === 'review') { setIndex(Math.max(0, positionable.length - 1)); return setStep(positionable.length ? 'position' : 'size'); }
+    if (step === 'position') return index > 0 ? setIndex(index - 1) : setStep(skippedSize ? 'platform' : 'size');
+    if (step === 'review') { setIndex(Math.max(0, positionable.length - 1)); return setStep(positionable.length ? 'position' : skippedSize ? 'platform' : 'size'); }
   };
   const canNext = step === 'platform' ? Boolean(platform) : step === 'review' ? props.total > 0 && !props.busy && !props.blocked : props.total > 0 && !props.blocked;
   const nextLabel = step === 'review' ? (props.progress !== null ? t.wizard.preparing(props.progress, props.total) : t.prepare.files(props.total))
@@ -216,6 +219,9 @@ export function ExportWizard(props: Props) {
                 </li>
               ))}
             </ul>
+            {selected.some((format) => format.id === 'full-jpeg') && frames.some((item) => !item.isDemo && isRawPreviewFile(item.filename)) && (
+              <p role="note" className="text-xs text-amber-100">{t.formats.fullJpegHelp}</p>
+            )}
             <button type="button" className={quiet} onClick={() => setStep('platform')}><Plus className="h-4 w-4" aria-hidden="true" />{t.wizard.addPlace}</button>
             {frame && selected[0] && (props.overlay.on || props.overlay.watermark?.on) && (
               <div className="mx-auto max-w-md">
