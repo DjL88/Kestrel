@@ -177,3 +177,30 @@ test('phone editing: one big slider, chips to choose, nudge and reset, and the f
   await page.getByRole('button', { name: 'Back to quick adjust' }).click();
   await expect(quick).toBeVisible();
 });
+
+test('File, Edit and View organise actions; show/hide controls stay together in View', async ({ page }) => {
+  await makeProject(page, 'View menu organisation');
+  const onPhone = page.viewportSize()!.width < 768;
+  await page.getByRole('button', { name: onPhone ? 'More' : 'Workspace options', exact: true }).click();
+  const menu = page.locator('#workspace-options');
+  await expect(menu.getByRole('heading', { name: 'File', exact: true })).toBeVisible();
+  await expect(menu.getByRole('heading', { name: 'Edit', exact: true })).toBeVisible();
+  const view = menu.locator('details').filter({ has: menu.getByText('View · show or hide', { exact: true }) });
+  await expect(view).toHaveCount(1);
+  await view.locator('summary').click();
+  await expect(view.getByRole('checkbox', { name: 'Show filmstrip' })).toBeVisible();
+  await expect(view.getByRole('checkbox', { name: 'Photo info' })).toBeVisible();
+  await expect(view.getByRole('checkbox', { name: 'Photo-only view (F)' })).toBeVisible();
+  await expect(view.getByRole('checkbox', { name: 'Show shortcut guide' })).toBeVisible();
+  await expect(view.getByRole('button', { name: 'Group or ungroup bursts' })).toBeVisible();
+  const info = view.getByRole('checkbox', { name: 'Photo info' });
+  await info.check();
+  await expect(info).toBeChecked();
+  await info.uncheck();
+  await expect(info).not.toBeChecked();
+  // Photo info is a View toggle, not a duplicate action in Photos.
+  await expect(menu.locator('#menu-selection').getByRole('button', { name: 'Photo info' })).toHaveCount(0);
+  await menu.getByText('Culling settings', { exact: true }).click();
+  await expect(menu.locator('details').filter({ has: menu.getByText('Culling settings', { exact: true }) })
+    .getByRole('checkbox', { name: 'Show shortcut guide' })).toHaveCount(0);
+});
