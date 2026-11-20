@@ -5,6 +5,16 @@ import type { source } from './source';
 /** German. DRAFT: written without a native speaker's check. */
 export const de: AreaTranslation<typeof source> = {
   compare: {
+    chooseB: "Wählen Sie ein anderes Foto zum Vergleich mit A.",
+    chooseFirstB: "Nächstes Foto wählen",
+    missingB: "Foto B ist nicht mehr verfügbar. Wählen Sie ein anderes Foto, bevor Sie entscheiden.",
+    chooseAvailableB: "Verfügbares Foto wählen",
+    noOtherPhotos: "Keine weiteren Fotos passen. Versuchen Sie einen anderen Filter oder beenden Sie den Vergleich.",
+    position: (index, total) => `${index} von ${total}`,
+    actualPreview200: "Foto B mit 200 % seiner Vorschaupixel ansehen",
+    previewZoomNotReady: "Der 200-%-Zoom ist verfügbar, sobald Foto B bereit ist",
+    previewAlreadyLarge: "Foto B ist beim Einpassen schon größer als 200 %",
+    twoHundred: "200 %",
     noPhotoSelected: 'Kein Foto ausgewählt',
     region: 'Fotos vergleichen',
     regionHelp: 'Klicken Sie auf ein Foto, um diesen Vergleich zu aktivieren. Links und Rechts wählen Foto B. K behält B, X lehnt B ab, U setzt B zurück. Tab wechselt zwischen den Bedienelementen.',

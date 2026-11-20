@@ -5,6 +5,16 @@ import type { source } from './source';
 /** Dutch. DRAFT: written without a native speaker's check. */
 export const nl: AreaTranslation<typeof source> = {
   compare: {
+    chooseB: "Kies een andere foto om met A te vergelijken.",
+    chooseFirstB: "Volgende foto kiezen",
+    missingB: "Foto B is niet meer beschikbaar. Kies een andere foto voordat u beslist.",
+    chooseAvailableB: "Een beschikbare foto kiezen",
+    noOtherPhotos: "Er passen geen andere foto’s. Probeer een ander filter of rond het vergelijken af.",
+    position: (index, total) => `${index} van ${total}`,
+    actualPreview200: "Foto B bekijken op 200% van de voorbeeldpixels",
+    previewZoomNotReady: "Zoomen naar 200% kan zodra foto B klaar is",
+    previewAlreadyLarge: "Foto B is bij Passend al groter dan 200%",
+    twoHundred: "200%",
     noPhotoSelected: 'Geen foto gekozen',
     region: 'Foto’s vergelijken',
     regionHelp: 'Klik op een foto om deze vergelijking te activeren. Links en Rechts kiezen foto B. K bewaart B, X wijst B af, U wist de keuze voor B. Tab gaat langs de knoppen.',

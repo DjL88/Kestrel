@@ -36,7 +36,7 @@ test('British English is non-empty and every language has safe, correctly shaped
       const translation = area.translations[code];
       assert.deepEqual(unknownKeys(area.source, translation), [],
         `${area.name}/${code}: unknown or wrongly typed translation keys`);
-      const resolved = mergeMessages(area.source, translation);
+      const resolved = mergeMessages(area.source as never, translation as never) as unknown;
       const resolvedLeaves = leaves(resolved);
       assert.deepEqual(resolvedLeaves.map((item) => item.path), sourceLeaves.map((item) => item.path),
         `${area.name}/${code}: fallback changed the message structure`);
