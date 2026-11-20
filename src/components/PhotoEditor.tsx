@@ -267,6 +267,14 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const toggleFloatTab = (id: Tab) => {
     if (!FLOATABLE_TABS.includes(id)) return;
     setToolsUndocked(false);
+    // Undocking an explicitly hidden tab must make it visible immediately.
+    // Keeping it hidden would create an invisible floating panel.
+    setHiddenTabs((previous) => {
+      if (!previous.has(id)) return previous;
+      const next = new Set(previous);
+      next.delete(id);
+      return next;
+    });
     setFloatingTabs((previous) => {
       const next = new Set(previous);
       if (next.has(id)) next.delete(id);
