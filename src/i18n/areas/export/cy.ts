@@ -7,6 +7,11 @@ import type { source } from './source';
  * ("3 llun", "5 ffeil"), so these sentences need only one form.
  */
 export const cy: AreaTranslation<typeof source> = {
+  rawTiff: {
+    action: "Allforio TIFF RAW 16-did (prototeip)",
+    details: "Ynglŷn â TIFF RAW 16-did",
+    help: "TIFF dewisol wedi'i greu o ddata synhwyrydd RAW gyda'ch golygiadau wedi'u cadw. Nid yw'n cynnwys dyfrnodau na thestun wedi'u llosgi i'r ddelwedd, ac nid yw'n copïo GPS nac EXIF dewisol. Mae'r lliwiau wedi'u tagio fel sRGB, ond mae cywirdeb lliw a pherfformiad yn dal i aros am brofion prototeip. Os na ellir cynnwys golygiad, ni chaiff y ffeil ei chadw.",
+  },
   typeface: "Ffont",
   sidecar: {
     save: "Cadw ffeil XMP",
