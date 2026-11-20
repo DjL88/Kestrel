@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Check, CircleHelp, Info, SlidersHorizontal, Square, SquareCheck, Star, X } from 'lucide-react';
 import type { CullDecision, PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
-import { DecisionButtons } from './DecisionButtons';
 import { isEdited } from '../core/editedState';
 import { photoTileMilestones, segmentShape, type PhotoPreviewReadiness } from '../core/photoTileReadiness';
 import type { CullScanStage } from '../core/cullScanProgress';
@@ -31,11 +30,13 @@ interface VirtualizedContactSheetProps {
   /** Double-click with a mouse opens the photo in the editor. */
   onOpenEditor?: (frameId: string) => void;
   onDecideFrame: (frameId: string, decision: CullDecision) => void;
+  onBatchDecision: (frameIds: string[], decision: CullDecision) => void;
+  onExportSelected?: (frameIds: string[]) => void;
   onResetFrame: (frameId: string) => void;
 }
 
 export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = ({
-  frames,
+  frames: allFrames,
   analysisStages,
   selectedFrameId,
   previewProvider,
@@ -48,8 +49,34 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   onOpenEditor,
   onPhotoMenu,
   onDecideFrame,
+  onBatchDecision,
+  onExportSelected,
   onResetFrame,
 }) => {
+  // Collapsing tiles never removes or changes an original. Manual Keep and
+  // ratings determine the representative; uncertain photos are not rejected.
+  const [groupBursts, setGroupBursts] = useState(() => {
+    try { return localStorage.getItem('kestrel-group-bursts-v1') === 'true'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('kestrel-group-bursts-v1', String(groupBursts)); } catch { /* session only */ }
+  }, [groupBursts]);
+  const frames = useMemo(() => {
+    if (!groupBursts) return allFrames;
+    const winners = new Map<string, PhotoFrame>();
+    const score = (frame: PhotoFrame) => (frame.decision === 'keep' ? 100 : 0) +
+      Number(frame.rating ?? frame.exif.rating ?? 0);
+    for (const frame of allFrames) {
+      const group = frame.burstGroupId;
+      if (!group) continue;
+      const previous = winners.get(group);
+      if (!previous || score(frame) > score(previous)) winners.set(group, frame);
+    }
+    return allFrames.filter((frame) => !frame.burstGroupId || winners.get(frame.burstGroupId)?.id === frame.id);
+  }, [allFrames, groupBursts]);
+  const actionFrames = allFrames.filter((frame) => !frame.removedAt &&
+    (multiSelect ? markedIds.has(frame.id) : frame.id === selectedFrameId));
+  const actionIds = actionFrames.map((frame) => frame.id);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: 1120, height: 640 });
   const [scrollTop, setScrollTop] = useState(0);
@@ -176,7 +203,11 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
 
   // Jump lives in a header, never floating over the photos: the desktop top bar when it is showing, else a strip above the grid.
   const jumpControl = (
-        <div className="relative">
+        <div className="relative z-[100] flex items-center gap-2">
+          <label className="inline-flex min-h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-white/15 px-2 text-xs text-zinc-200">
+            <input type="checkbox" checked={groupBursts} onChange={(event) => setGroupBursts(event.target.checked)} />
+            Group bursts{groupBursts ? ` (${allFrames.length - frames.length} hidden)` : ''}
+          </label>
             <button type="button" onClick={() => { setJumpOpen((value) => !value); setJumpError(''); }}
               aria-label={t.sheet.jumpToPhoto} aria-controls="kestrel-grid-jump" aria-expanded={jumpOpen}
               className="min-h-10 rounded-lg border border-white/20 bg-kestrel-panel/95 px-3 py-2 text-xs font-medium text-zinc-100 shadow-lg hover:bg-kestrel-raised focus-visible:outline-2 focus-visible:outline-sky-300">
@@ -184,7 +215,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
             </button>
             {jumpOpen && (
               <div id="kestrel-grid-jump" role="group" aria-label={t.sheet.jumpWithin}
-                className="absolute right-0 top-11 w-[min(19rem,calc(100vw-2.5rem))] space-y-3 rounded-xl border border-white/20 bg-kestrel-raised p-3 shadow-2xl">
+                className="absolute right-0 top-11 z-[120] w-[min(19rem,calc(100vw-2.5rem))] space-y-3 rounded-xl border border-white/20 bg-kestrel-raised p-3 shadow-2xl">
                 <div className="flex gap-2">
                   <button type="button" onClick={() => jumpTo({ kind: 'first' })}
                     className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">{t.sheet.first}</button>
@@ -400,18 +431,10 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                             })()}
                           </div>
                         </div>
-                        <button type="button" data-info-button onClick={(event) => onInfo(frame.id, event.currentTarget)}
-                          aria-label={t.sheet.photoInfoFor(frame.filename)} title={t.sheet.photoInfoFor(frame.filename)}
-                          className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md text-zinc-300 hover:bg-white/8 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-sky-300">
-                          <Info className="h-4 w-4" aria-hidden="true" />
-                        </button>
+
                       </div>
 
-                      <DecisionButtons stretch={stacked} decision={frame.decision} filename={frame.filename} edited={isEdited(frame)}
-                        onKeep={() => onDecideFrame(frame.id, 'keep')}
-                        onBackToReview={() => onDecideFrame(frame.id, 'unreviewed')}
-                        onTrash={() => onDecideFrame(frame.id, 'reject')}
-                        onReset={() => onResetFrame(frame.id)} />
+
                     </div>
                   </div>
                 );
@@ -420,6 +443,27 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
           );
         })}
       </div>
+      {actionIds.length > 0 && (
+        <div role="toolbar" aria-label="Actions for selected photos"
+          className="sticky bottom-2 z-[80] mx-auto mt-2 flex w-fit max-w-[96vw] flex-wrap items-center justify-center gap-1 rounded-xl border border-white/20 bg-kestrel-raised p-1.5 text-sm text-zinc-100 shadow-2xl">
+          <span className="max-w-40 truncate px-2 text-xs text-zinc-300">{multiSelect ? `${actionIds.length} selected` : actionFrames[0]?.filename}</span>
+          {(['keep', 'reject', 'unreviewed'] as const).map((decision) => (
+            <button key={decision} type="button" className="min-h-10 rounded-md px-3 hover:bg-white/10"
+              onClick={() => actionIds.length === 1 ? onDecideFrame(actionIds[0], decision) : onBatchDecision(actionIds, decision)}>
+              {decision === 'keep' ? 'Keep' : decision === 'reject' ? 'Reject' : 'Undecided'}
+            </button>
+          ))}
+          <button type="button" onClick={() => onResetFrame(actionIds[0])}
+            className="min-h-10 rounded-md px-3 hover:bg-white/10">Reset edit</button>
+          <button type="button" title="Photo info" aria-label="Photo info"
+            onClick={(event) => onInfo(actionIds[0], event.currentTarget)}
+            className="grid min-h-10 min-w-10 place-items-center rounded-md hover:bg-white/10"><Info className="h-4 w-4" aria-hidden="true"/></button>
+          {onOpenEditor && <button type="button" onClick={() => onOpenEditor(actionIds[0])}
+            className="min-h-10 rounded-md px-3 hover:bg-white/10">Edit photo</button>}
+          {onExportSelected && <button type="button" onClick={() => onExportSelected(actionIds)}
+            className="min-h-10 rounded-md px-3 hover:bg-white/10">Export</button>}
+        </div>
+      )}
     </div>
   );
 };
