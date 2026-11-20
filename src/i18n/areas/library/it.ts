@@ -336,6 +336,18 @@ export const it: AreaTranslation<typeof source> = {
     eye: 'Occhio',
     eyeBusy: 'Occhio…',
   },
+  floatingPane: {
+    undockTools: "Sgancia strumenti di modifica",
+    undockToolsHelp: "Sposta gli strumenti in una finestra ridimensionabile",
+    undockInfo: "Sgancia informazioni foto",
+    undockInfoHelp: "Sposta le informazioni foto in una finestra ridimensionabile",
+    move: (title) => `Sposta ${title} con i tasti freccia`,
+    drag: (title) => `Trascina per spostare ${title}, oppure usa i tasti freccia`,
+    restore: (title) => `Ripristina dimensioni del pannello ${title}`,
+    maximise: (title) => `Massimizza il pannello ${title}`,
+    pin: (title) => `Mantieni ${title} visibile in modalità Solo foto`,
+    dock: (title) => `Aggancia ${title}`,
+  },
   paneRail: {
     editingTools: 'Strumenti di modifica',
     photoInfo: 'Info della foto',
