@@ -261,24 +261,36 @@ export class BrowserPreviewProvider implements PreviewProvider {
   }
 
   /** Keep a picture developed from the RAW, made small, and tell the tiles showing this original to redraw. */
-  async storeDevelopedPicture(frame: PhotoFrame, picture: Blob): Promise<void> {
+  async storeDevelopedPicture(frame: PhotoFrame, original: Blob, picture: Blob): Promise<boolean> {
+    const stableKey = frame.stableKey;
+    const epoch = this.cacheEpoch;
+    const revision = this.sourceRevisions.get(stableKey);
+    const isCurrent = () => epoch === this.cacheEpoch && revision === this.sourceRevisions.get(stableKey)
+      && this.localBlobs.get(stableKey) === original;
+    if (!isCurrent()) return false;
+
+    const key = this.developedCacheKey(frame);
     const bitmap = await createImageBitmap(picture);
     let pair: OfflinePreviewPair;
     try {
+      if (!isCurrent()) return false;
       const thumbnail = await encodePreview(bitmap, THUMB_MAX_WIDTH);
       pair = { thumbnail, review: await encodePreview(bitmap, REVIEW_MAX_WIDTH, MAX_CACHED_PREVIEW_BYTES - thumbnail.size) };
     } finally {
       bitmap.close();
     }
-    const key = this.developedCacheKey(frame);
+    if (!isCurrent()) return false;
+
     this.developedReviews.set(key, pair);
     await this.offlinePreviewCache.savePreviewPair(key, pair).catch(() => false);
+    if (!isCurrent()) return false;
     for (const [frameId, url] of this.thumbUrlCache) {
-      if (this.thumbFrameKeys.get(frameId) !== frame.stableKey) continue;
+      if (this.thumbFrameKeys.get(frameId) !== stableKey) continue;
       URL.revokeObjectURL(url);
       this.thumbUrlCache.delete(frameId);
     }
-    this.events.dispatchEvent(new CustomEvent('developed', { detail: frame.stableKey }));
+    this.events.dispatchEvent(new CustomEvent('developed', { detail: stableKey }));
+    return true;
   }
 
   /** A changed/reconnected original invalidates all caches, including in-flight thumbnail work. */
