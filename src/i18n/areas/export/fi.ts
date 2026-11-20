@@ -41,6 +41,7 @@ export const fi: AreaTranslation<typeof source> = {
     loadFailed: "XMP-tiedostoa ei voitu ladata. Valitse kuvan sivutiedosto.",
   },
   sidecars: {
+    ready: "XMP-metatiedot valmisteltu. Alkuperäisiä kuvia ei muutettu.",
     title: "XMP-sivutiedostot",
     save: "Tallenna XMP-tiedostot",
     help: "Tallenna arviot, hylkäykset ja vahvistetut avainsanat erikseen. Useat tiedostot tallennetaan ZIP-pakettiin. Esimerkkikuvat ja virtuaaliset kopiot ohitetaan.",

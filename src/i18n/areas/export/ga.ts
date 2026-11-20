@@ -45,6 +45,7 @@ export const ga: AreaTranslation<typeof source> = {
     loadFailed: "Níorbh fhéidir XMP a lódáil. Roghnaigh an comhad a bhaineann leis an ngrianghraf seo.",
   },
   sidecars: {
+    ready: "Ullmhaíodh meiteashonraí XMP. Níor athraíodh na grianghraif bhunaidh.",
     title: "Comhaid tionlacain XMP",
     save: "Sábháil comhaid XMP",
     help: "Sábháil rátálacha, diúltuithe agus eochairfhocail dheimhnithe ar leith. Sábháiltear comhaid iolracha i ZIP. Fágtar grianghraif shamplacha agus cóipeanna fíorúla ar lár.",

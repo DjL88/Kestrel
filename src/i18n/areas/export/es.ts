@@ -41,6 +41,7 @@ export const es: AreaTranslation<typeof source> = {
     loadFailed: "No se pudo cargar el XMP. Elige el archivo correspondiente a esta foto.",
   },
   sidecars: {
+    ready: "Metadatos XMP preparados. Las fotos originales no han cambiado.",
     title: "Archivos auxiliares XMP",
     save: "Guardar archivos XMP",
     help: "Guarda las valoraciones, los rechazos y las palabras clave confirmadas por separado. Si hay varios archivos, se guardan en un ZIP. Se omiten las fotos de demostración y las copias virtuales.",

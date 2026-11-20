@@ -45,6 +45,7 @@ export const gd: AreaTranslation<typeof source> = {
     loadFailed: "Cha b’ urrainn dhuinn XMP a luchdadh. Tagh am faidhle a bhuineas don dealbh seo.",
   },
   sidecars: {
+    ready: "Chaidh meata-dàta XMP ullachadh. Tha na dealbhan tùsail gun atharrachadh.",
     title: "Faidhlichean-taoibh XMP",
     save: "Sàbhail faidhlichean XMP",
     help: "Sàbhail rangachaidhean, diùltadh agus faclan-luirg dearbhte air leth. Thèid iomadh faidhle a shàbhaladh ann an ZIP. Thèid dealbhan demo agus lethbhreacan mas-fhìor fhàgail às.",
