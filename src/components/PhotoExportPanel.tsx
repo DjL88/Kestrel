@@ -1,4 +1,4 @@
-import { EXPORT_PREFERENCES_KEY, readExportPreferences } from '../core/exportPreferences';
+import { EXPORT_PREFERENCES_KEY, EXPORT_PRESETS_KEY, readExportPreferences, readExportPresets, type ExportPreset } from '../core/exportPreferences';
 import { isRawPreviewFile } from '../core/rawFormats';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, X } from 'lucide-react';
@@ -85,6 +85,9 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
   const [placeBusy, setPlaceBusy] = useState(false);
   const [chosen, setChosen] = useState<string[]>(() => loadChosen(readView() === 'wizard'));
   const [preferences] = useState(() => readExportPreferences({ getItem: (key) => localStorage.getItem(key) }));
+  const [presets, setPresets] = useState(() => readExportPresets({ getItem: (key) => localStorage.getItem(key) }));
+  const [presetName, setPresetName] = useState('');
+  const [presetNote, setPresetNote] = useState('');
   const [fits, setFits] = useState(preferences.fits);
   const [overrides, setOverrides] = useState(preferences.overrides);
   const [turned, setTurned] = useState(preferences.turned);
@@ -597,6 +600,16 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
     </>
   );
 
+  function savePresets(next: ExportPreset[], success: string) {
+    try {
+      localStorage.setItem(EXPORT_PRESETS_KEY, JSON.stringify(next));
+      setPresets(next);
+      setPresetNote(success);
+    } catch {
+      setPresetNote('Could not save export presets on this device.');
+    }
+  }
+
   const changeView = (next: 'wizard' | 'list') => { setView(next); try { localStorage.setItem('kestrel.exportView', next); } catch { /* Optional preference. */ } };
   const invalidDate = timestamp === 'custom' && !parseCustomExportDate(customDate);
   const blocked = Boolean(customOn && customResult && 'error' in customResult) || invalidDate;
@@ -621,6 +634,46 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
           onAnchor={(frame, format, point) => setAnchors(prior => ({ ...prior, [`${frame.id}|${format.id}`]: point }))}
           onZoom={(frame, format, zoom) => setZooms(prior => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))} />}
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+        {!resultsReady && progress === null && (
+          <details className="mb-2 rounded-md border border-white/15 px-3 py-2">
+            <summary className="cursor-pointer py-2 text-sm">Export presets</summary>
+            <ul className="space-y-2">
+              {presets.map(preset => (
+                <li key={preset.name} className="flex flex-wrap items-center gap-2">
+                  <button type="button" className={button} onClick={() => {
+                    setChosen(preset.formats);
+                    setFits(preset.fits);
+                    setOverrides(preset.overrides);
+                    setTurned(preset.turned);
+                    setBars(preset.bars);
+                    setCustomOn(false);
+                    setPresetNote(`Applied ${preset.name}.`);
+                  }}>{preset.name}</button>
+                  <button type="button" className={button} aria-label={`Remove preset ${preset.name}`}
+                    onClick={() => savePresets(presets.filter(item => item !== preset), 'Preset removed.')}>
+                    {t.wizard.remove}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-2 flex flex-wrap items-end gap-2">
+              <label className="text-sm">Preset name
+                <input className={field} maxLength={40} value={presetName} onChange={event => setPresetName(event.target.value)} />
+              </label>
+              <button type="button" className={button} disabled={!chosen.length || customOn || !presetName.trim() || presets.length >= 20}
+                onClick={() => {
+                  const name = presetName.trim();
+                  if (presets.some(item => item.name.toLowerCase() === name.toLowerCase())) {
+                    setPresetNote('Use a different name for this preset.');
+                    return;
+                  }
+                  savePresets([...presets, { name, formats: chosen, fits, overrides, turned, bars }], 'Preset saved.');
+                }}>Save preset</button>
+            </div>
+            {customOn && <p className="text-xs text-zinc-400">Presets save standard formats.</p>}
+            <p role="status" className="text-xs text-zinc-300">{presetNote}</p>
+          </details>
+        )}
         {!resultsReady && (
           <p className="mt-1 text-center">
             <button type="button" onClick={() => changeView(wizard ? 'list' : 'wizard')} className="min-h-10 px-3 text-xs text-zinc-300 underline underline-offset-4 hover:text-white">
