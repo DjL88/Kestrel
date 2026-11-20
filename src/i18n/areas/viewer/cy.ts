@@ -16,6 +16,7 @@ export const cy: AreaTranslation<typeof source> = {
     position: (index, total) => `${index} o ${total}`,
     actualPreview200: 'Gweld llun B ar 200% o bicseli’r rhagolwg sydd ar gael',
     previewZoomNotReady: 'Does dim modd chwyddo i 200% nes bod llun B yn barod',
+    previewAlreadyLarge: 'Mae llun B eisoes yn fwy na 200% wrth Ffitio',
     twoHundred: '200%',
     toolbar: 'Rheolyddion cymharu',
     zoomGroup: 'Chwyddo wrth gymharu',
