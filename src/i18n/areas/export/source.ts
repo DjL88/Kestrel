@@ -2,6 +2,18 @@ import { plural } from '../../../core/locale';
 
 /** Export: the export panel, the step-by-step guide, preview tiles, and the recipe dialogs. British English source. */
 export const source = {
+  presets: {
+    title: 'Export presets',
+    name: 'Preset name',
+    save: 'Save preset',
+    applied: (name: string) => `Applied ${name}.`,
+    remove: (name: string) => `Remove preset ${name}`,
+    removed: 'Preset removed.',
+    duplicate: 'Use a different name for this preset.',
+    saved: 'Preset saved.',
+    saveFailed: 'Could not save export presets on this device.',
+    standardOnly: 'Presets save standard formats.',
+  },
   /** How a photo fits a format with a fixed shape. Shared by the list view and the step-by-step guide. */
   fit: {
     fill: 'Crop to fill the shape',
