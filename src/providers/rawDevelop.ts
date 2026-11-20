@@ -1,4 +1,5 @@
 import { THUMB, bestTurn } from '../core/orientMatch';
+import { proveTiff16 } from '../core/tiff16Proof';
 import type { NativeRawMasterRecipe, NativeRawMasterFraming } from '../core/nativeRawMaster';
 import { hasNativeRaw } from './desktopShell';
 import { developRawInBrowser, sensorModeInBrowser, webRawAvailable } from './rawWasm';
@@ -53,6 +54,7 @@ export async function developRawPrecision(file: Blob): Promise<Blob> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   try {
     const result = await invoke<ArrayBuffer>('develop_raw_precision', bytes);
+    proveTiff16(result); // Structural proof only; sensor/colour/rights require separate evidence.
     return new Blob([result], { type: 'image/tiff' });
   } catch (error) {
     throw new Error(typeof error === 'string' ? error : 'A 16-bit TIFF could not be produced for this RAW file.');
@@ -71,6 +73,7 @@ export async function developRawPrecisionEdited(file: Blob, recipe: NativeRawMas
     const result = await invoke<ArrayBuffer>('develop_raw_precision_edited', bytes, {
       headers: { 'x-kestrel-master-edit': JSON.stringify(recipe), 'x-kestrel-master-framing': JSON.stringify(framing) },
     });
+    proveTiff16(result); // Never offer a malformed or 8-bit output as a precision TIFF.
     return new Blob([result], { type: 'image/tiff' });
   } catch (error) {
     throw new Error(typeof error === 'string' ? error : 'Could not produce the edited 16-bit RAW master.');
