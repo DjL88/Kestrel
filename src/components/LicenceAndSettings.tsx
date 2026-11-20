@@ -4,7 +4,7 @@ import { SETTINGS_KEYS } from '../core/settingsTransfer';
 import { downloadExport } from '../providers/browserExport';
 import { removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
-import { BETA_ALL_FEATURES_OPEN } from '../providers/useAccess';
+import { DEV_PRO_PREVIEW_MODE } from '../providers/useAccess';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
 import { LicenceOnlineStatus } from './LicenceOnlineStatus';
 import { messages as m } from '../i18n/messages';
@@ -71,7 +71,7 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
             <h3 id="licence-h" className="font-medium text-zinc-100">{t.licence.licenceKey}</h3>
             {licence.status === 'valid'
               ? <>{licence.access.pro && <p role="status">{t.licence.unlocked}</p>}<LicenceOnlineStatus licence={licence} /></>
-              : <p>{t.licence.notUnlocked(BETA_ALL_FEATURES_OPEN)}</p>}
+              : <p>{t.licence.notUnlocked(DEV_PRO_PREVIEW_MODE)}</p>}
             {licence.status === 'invalid' && <p role="alert" className="text-amber-200">{licence.message}</p>}
             {licence.status !== 'valid' ? (
               <form onSubmit={(event) => void submit(event)} className="space-y-2">
