@@ -7,6 +7,7 @@ import { compareNavigation } from '../core/compareNavigation';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { FrameImage } from './FrameImage';
 import { PhotoViewport } from './PhotoViewport';
+import { viewerText as t } from '../i18n/areas/viewer';
 
 interface Props {
   leftFrame: PhotoFrame | null;
@@ -57,59 +58,59 @@ export function CompareView({
   }
 
   function photo(frame: PhotoFrame | null) {
-    if (!frame) return <div className="grid h-full place-items-center text-sm text-zinc-400">No photo selected</div>;
+    if (!frame) return <div className="grid h-full place-items-center text-sm text-zinc-400">{t.compare.noPhotoSelected}</div>;
     return <FrameImage frame={frame} previewProvider={previewProvider} needsAccess={needsAccess}
       variant="full" className="h-full w-full" imgClassName="object-contain" />;
   }
 
   return (
-    <section ref={surfaceRef} onPointerDownCapture={focusPhotoSurface} aria-label="Compare photos" aria-description="Click a photo to focus this comparison. Left and Right select photo B. K keeps B, X rejects B, U clears B. Tab moves through controls." tabIndex={0} onKeyDown={handleCompareKey} className="flex min-h-0 flex-1 flex-col focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky-300">
-      {!referenceValid && <p role="status" className="px-3 py-2 text-sm text-amber-200">Reference photo A is no longer in this review. Return to Review and select a new reference before comparing or making decisions.</p>}
+    <section ref={surfaceRef} onPointerDownCapture={focusPhotoSurface} aria-label={t.compare.region} aria-description={t.compare.regionHelp} tabIndex={0} onKeyDown={handleCompareKey} className="flex min-h-0 flex-1 flex-col focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky-300">
+      {!referenceValid && <p role="status" className="px-3 py-2 text-sm text-amber-200">{t.compare.referenceGone}</p>}
       <PhotoViewport base={photo(uniqueRight ? rightFrame : null)} overlay={photo(referenceValid ? leftFrame : null)} labels={['A', 'B']}
         zoom={zoomLevel} pan={panOffset} onTransform={onTransform} />
-      <div role="toolbar" aria-label="Compare photo controls" className="flex flex-wrap items-center justify-between gap-x-2 border-t border-white/10 bg-kestrel-panel px-1 sm:px-3">
-        <div role="group" aria-label="Compare zoom" className="flex items-center">
+      <div role="toolbar" aria-label={t.compare.toolbar} className="flex flex-wrap items-center justify-between gap-x-2 border-t border-white/10 bg-kestrel-panel px-1 sm:px-3">
+        <div role="group" aria-label={t.compare.zoomGroup} className="flex items-center">
           <button type="button" className={control} onClick={() => onTransform(1, { x: 0, y: 0 })}
-            aria-label="Fit both photos" title="Fit both photos" aria-pressed={zoomLevel === 1}>
-            <Maximize2 aria-hidden="true" className="h-4 w-4" /><span className="ml-1 text-xs">Fit</span>
+            aria-label={t.compare.fitBoth} title={t.compare.fitBoth} aria-pressed={zoomLevel === 1}>
+            <Maximize2 aria-hidden="true" className="h-4 w-4" /><span className="ml-1 text-xs">{t.compare.fit}</span>
           </button>
           <button type="button" className={control} onClick={() => onTransform(2, { x: 0, y: 0 })}
-            aria-label="Zoom both photos to twice fitted size" title="Zoom both photos to twice fitted size"
+            aria-label={t.compare.zoomBoth} title={t.compare.zoomBoth}
             aria-pressed={zoomLevel === 2}>
             <ZoomIn aria-hidden="true" className="h-4 w-4" /><span className="ml-1 text-xs">2×</span>
           </button>
         </div>
         <div className="flex w-full min-w-0 items-center sm:w-auto sm:flex-1">
-          <span data-testid="compare-photo-a" className="min-w-0 flex-1 truncate px-2 text-xs text-zinc-300" title={referenceValid ? leftFrame?.filename : 'Reference unavailable'}>
-            A · {referenceValid ? leftFrame?.filename : 'Reference unavailable'}
+          <span data-testid="compare-photo-a" className="min-w-0 flex-1 truncate px-2 text-xs text-zinc-300" title={referenceValid ? leftFrame?.filename : t.compare.referenceUnavailable}>
+            A · {referenceValid ? leftFrame?.filename : t.compare.referenceUnavailable}
           </span>
-          <button type="button" className={`${control} disabled:opacity-35`} disabled={!canGoBack} onClick={() => previous && onSelectRight(previous)} aria-label="Previous photo B" title="Previous photo B"><ChevronLeft className="h-4 w-4" /></button>
-          <span data-testid="compare-photo-b" className="min-w-0 flex-1 truncate text-xs text-zinc-300" title={uniqueRight ? rightFrame?.filename : undefined}>B · {uniqueRight ? rightFrame?.filename : 'Select photo'}</span>
-          <button type="button" className={`${control} disabled:opacity-35`} disabled={!canGoForward} onClick={() => next && onSelectRight(next)} aria-label="Next photo B" title="Next photo B"><ChevronRight className="h-4 w-4" /></button>
+          <button type="button" className={`${control} disabled:opacity-35`} disabled={!canGoBack} onClick={() => previous && onSelectRight(previous)} aria-label={t.compare.previousB} title={t.compare.previousB}><ChevronLeft className="h-4 w-4" /></button>
+          <span data-testid="compare-photo-b" className="min-w-0 flex-1 truncate text-xs text-zinc-300" title={uniqueRight ? rightFrame?.filename : undefined}>B · {uniqueRight ? rightFrame?.filename : t.compare.selectPhoto}</span>
+          <button type="button" className={`${control} disabled:opacity-35`} disabled={!canGoForward} onClick={() => next && onSelectRight(next)} aria-label={t.compare.nextB} title={t.compare.nextB}><ChevronRight className="h-4 w-4" /></button>
         </div>
-        <button type="button" className={control} disabled={!uniqueRight} onClick={onSwapPanes} aria-label="Swap photos A and B" title="Swap photos A and B"><ArrowLeftRight className="h-4 w-4" /></button>
+        <button type="button" className={control} disabled={!uniqueRight} onClick={onSwapPanes} aria-label={t.compare.swap} title={t.compare.swap}><ArrowLeftRight className="h-4 w-4" /></button>
         {([['A', leftFrame], ['B', rightFrame]] as const).map(([side, frame]) => (
           frame && (side === 'A' ? referenceValid : uniqueRight) && (
-            <div key={side} role="group" aria-label={`Decisions for photo ${side}`} className="flex items-center">
+            <div key={side} role="group" aria-label={t.compare.decisionsFor(side)} className="flex items-center">
               {(['keep', 'reject'] as const).map((decision) => (
                 <button type="button" key={decision}
                   className={`${control} capitalize aria-pressed:bg-white/15 aria-pressed:font-semibold`}
-                  aria-label={`${decision} photo ${side}`} title={`${decision} photo ${side}`}
+                  aria-label={decision === 'keep' ? t.compare.keepPhoto(side) : t.compare.rejectPhoto(side)} title={decision === 'keep' ? t.compare.keepPhoto(side) : t.compare.rejectPhoto(side)}
                   aria-pressed={frame.decision === decision}
                   onClick={() => onDecideFrame(frame.id, toggleCompareDecision(frame.decision, decision))}>
-                  {frame.decision === decision && <span aria-hidden="true">✓ </span>}{decision} {side}
+                  {frame.decision === decision && <span aria-hidden="true">✓ </span>}{decision === 'keep' ? t.compare.keepSide(side) : t.compare.rejectSide(side)}
                 </button>
               ))}
               <button type="button" className={control} disabled={frame.decision === 'unreviewed'}
-                aria-label={`Clear decision for photo ${side}`}
-                title={`Clear decision for photo ${side}`}
+                aria-label={t.compare.clearDecisionFor(side)}
+                title={t.compare.clearDecisionFor(side)}
                 onClick={() => onDecideFrame(frame.id, 'unreviewed')}>
-                Clear {side}
+                {t.compare.clearSide(side)}
               </button>
             </div>
           )
         ))}
-        <button type="button" className={control} onClick={onExitCompare} aria-label="Finish comparing photos">Done</button>
+        <button type="button" className={control} onClick={onExitCompare} aria-label={t.compare.finish}>{t.compare.done}</button>
       </div>
     </section>
   );

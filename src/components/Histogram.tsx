@@ -1,6 +1,7 @@
 import { ArrowDownToLine, ArrowUpToLine } from 'lucide-react';
 import { histogramBars, type Histogram as HistogramData } from '../core/histogram';
 import { interpretHistogram } from '../core/histogramNotes';
+import { editorText as t } from '../i18n/areas/editor';
 
 const percent = (fraction: number) => (fraction === 0 ? '0%' : fraction < 0.001 ? '<0.1%' : `${(fraction * 100).toFixed(1)}%`);
 
@@ -18,9 +19,9 @@ export function Histogram({ data, teach = false }: { data: HistogramData | null;
   const highlights = data.highlightClip > 0.005;
   const notes = teach ? interpretHistogram(data) : [];
   return (
-    <figure className="px-1 pb-2" aria-label="Histogram">
+    <figure className="px-1 pb-2" aria-label={t.histogram.figure}>
       <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="h-16 w-full rounded bg-black/30" role="img"
-        aria-label={`Brightness histogram. Shadows clipped ${percent(data.shadowClip)}, highlights clipped ${percent(data.highlightClip)}.`}>
+        aria-label={t.histogram.summary(percent(data.shadowClip), percent(data.highlightClip))}>
         {bars.map((value, index) => (
           <rect key={index} x={(index / count) * 100} width={100 / count} y={40 - value * 38} height={value * 38} fill="currentColor" className="text-zinc-400/60" />
         ))}
@@ -29,29 +30,29 @@ export function Histogram({ data, teach = false }: { data: HistogramData | null;
       </svg>
       {teach && (
         <div aria-hidden="true" className="flex justify-between pt-0.5 text-[11px] text-zinc-500">
-          <span>Shadows</span><span>Midtones</span><span>Highlights</span>
+          <span>{t.histogram.shadows}</span><span>{t.histogram.midtones}</span><span>{t.histogram.highlights}</span>
         </div>
       )}
       <figcaption className="flex justify-between pt-1 text-xs text-zinc-400">
         <span className={`inline-flex items-center gap-1 ${shadows ? 'font-semibold text-zinc-100' : ''}`}>
-          <ArrowDownToLine className="h-3 w-3" aria-hidden="true" />Shadows clipped {percent(data.shadowClip)}
+          <ArrowDownToLine className="h-3 w-3" aria-hidden="true" />{t.histogram.shadowsClipped(percent(data.shadowClip))}
         </span>
         <span className={`inline-flex items-center gap-1 ${highlights ? 'font-semibold text-zinc-100' : ''}`}>
-          Highlights clipped {percent(data.highlightClip)}<ArrowUpToLine className="h-3 w-3" aria-hidden="true" />
+          {t.histogram.highlightsClipped(percent(data.highlightClip))}<ArrowUpToLine className="h-3 w-3" aria-hidden="true" />
         </span>
       </figcaption>
       {teach && (
         <>
           <details className="pt-1 text-xs text-zinc-400">
-            <summary className="flex min-h-11 cursor-pointer items-center">How to read this</summary>
-            <p className="pb-1">Left is dark, right is bright. Taller means more of the picture is at that brightness. The dashed lines show red and blue. Anything piled against either edge has lost detail.</p>
+            <summary className="flex min-h-11 cursor-pointer items-center">{t.histogram.howToRead}</summary>
+            <p className="pb-1">{t.histogram.howToReadText}</p>
           </details>
-          <ul className="space-y-2 pt-1" aria-label="What the histogram says">
+          <ul className="space-y-2 pt-1" aria-label={t.histogram.notesLabel}>
             {notes.map((note) => (
-              <li key={note.headline} className="rounded-md bg-black/25 p-2 text-sm">
-                <p className="font-medium text-zinc-100">{note.headline}</p>
-                <p className="text-zinc-300">{note.meaning}</p>
-                <p className="text-zinc-400"><span className="font-medium">Try:</span> {note.tryThis}</p>
+              <li key={note.id} className="rounded-md bg-black/25 p-2 text-sm">
+                <p className="font-medium text-zinc-100">{t.histogram.notes[note.id].headline(note.share ?? '')}</p>
+                <p className="text-zinc-300">{t.histogram.notes[note.id].meaning}</p>
+                <p className="text-zinc-400"><span className="font-medium">{t.histogram.tryLabel}</span> {t.histogram.notes[note.id].tryThis}</p>
               </li>
             ))}
           </ul>

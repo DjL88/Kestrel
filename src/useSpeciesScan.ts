@@ -14,6 +14,7 @@ import { gateAvailable, routePicture } from './providers/categoryGate';
 import { HELPER_GAP_MS, HELPER_SESSION_CAP, failureMessage, helperPatch, helperReady } from './core/onlineHelper';
 import { ONLINE_HELPER_VISIBLE, useHelperSettings } from './providers/helperSettings';
 import { HelperError, geminiTransport, imageForHelper } from './providers/onlineHelper';
+import { appText as t } from './i18n/areas/app';
 
 /** Photos sent to the online helper in this session, across projects. Counted so the cap holds however often it restarts. */
 let helperSent = 0;
@@ -161,7 +162,7 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
       await downloadSpeciesModel(setDownloading);
       setStatus('ready');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The download failed.');
+      setError(reason instanceof Error ? reason.message : t.species.downloadFailed);
     } finally {
       setDownloading(null);
     }

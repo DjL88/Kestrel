@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { libraryText as t } from '../i18n/areas/library';
 
 /** A calm full-window cue while photos are dragged over Kestrel, and a short note if a drop held no photos. */
 export function DropOverlay({ dragging, message, onDismiss }: { dragging: boolean; message: string | null; onDismiss: () => void }) {
@@ -10,7 +11,7 @@ export function DropOverlay({ dragging, message, onDismiss }: { dragging: boolea
   if (dragging) {
     return (
       <div aria-hidden="true" className="pointer-events-none fixed inset-3 z-[60] flex items-center justify-center rounded-2xl border-2 border-dashed border-sky-300/70 bg-kestrel-canvas/80 text-lg font-medium text-sky-100">
-        Drop photos to add them
+        {t.drop.dropPhotos}
       </div>
     );
   }

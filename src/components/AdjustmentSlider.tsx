@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { adjustmentFill, signedAdjustment } from '../core/adjustmentSlider';
+import { editorText as t } from '../i18n/areas/editor';
 
 interface Props {
   label: string;
@@ -77,7 +78,7 @@ export function AdjustmentSlider({
         )}
         <span className="pointer-events-none absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-kestrel-copper" style={progressStyle} aria-hidden="true" />
         <input id={id} type="range" min={min} max={max} step={step} value={localValue} disabled={disabled}
-          aria-label={ariaLabel ?? `${label} adjustment`} aria-valuetext={shown} aria-describedby={describedBy} title={title}
+          aria-label={ariaLabel ?? t.slider.adjustment(label)} aria-valuetext={shown} aria-describedby={describedBy} title={title}
           onFocus={onFocus} onPointerDown={() => { dragging.current = true; }}
           onPointerUp={() => { dragging.current = false; if (lastSent.current === null) setLocalValue(value); }}
           onPointerCancel={() => { dragging.current = false; lastSent.current = null; setLocalValue(value); }}
@@ -86,8 +87,8 @@ export function AdjustmentSlider({
           className="kestrel-adjustment-range relative z-10 h-10 w-full min-w-0 cursor-pointer disabled:cursor-not-allowed" />
       </span>
       {resettable ? (
-        <button type="button" aria-label={`Reset ${label}`} aria-description={`Currently ${shown}; resets to neutral`}
-          title={changed ? `Reset ${label} to neutral` : `${label} is neutral`}
+        <button type="button" aria-label={t.slider.reset(label)} aria-description={t.slider.currently(shown)}
+          title={changed ? t.slider.resetToNeutral(label) : t.slider.isNeutral(label)}
           disabled={disabled || !changed} onClick={(event) => { event.preventDefault(); change(neutral); }}
           className={`min-h-11 min-w-14 justify-self-end rounded-md px-1 text-right font-medium tabular-nums focus-visible:outline-2 focus-visible:outline-sky-300
           ${layout === 'stacked' ? 'col-start-2 row-start-1' : ''} ${changed ? 'text-zinc-100 hover:bg-white/10' : 'cursor-default text-zinc-400'}`}>

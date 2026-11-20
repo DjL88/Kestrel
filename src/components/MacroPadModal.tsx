@@ -14,6 +14,7 @@ import {
   type KnobFunction,
   type PadMode,
 } from '../core/keyboardCommands';
+import { projectsText as t } from '../i18n/areas/projects';
 
 interface MacroPadModalProps {
   open: boolean;
@@ -89,7 +90,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
       if (chord) {
         const list = padTab === 'cull' ? CULL_COMMANDS : EDIT_COMMANDS;
         const match = list.find((command) => (bindings[command.id] ?? DEFAULT_KEY_BINDINGS[command.id]) === chord);
-        setReceived({ chord, label: match ? `${match.label} (${padTab === 'cull' ? 'Cull' : 'Edit'} mode)` : `Not assigned in ${padTab === 'cull' ? 'Cull' : 'Edit'} mode` });
+        setReceived({ chord, label: match ? t.macroPad.commandInMode(match.label, padTab !== 'cull') : t.macroPad.notAssigned(padTab !== 'cull') });
       }
       // Testing the pad must not also move sliders or photos behind the dialog. Its own fields keep their keys.
       if (!(e.target as Element | null)?.closest?.('select, input, textarea, [contenteditable]')) e.stopPropagation();
@@ -124,7 +125,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
         key={cmd.id}
         type="button"
         onClick={() => setCapturingId(isCapturing ? null : cmd.id)}
-        aria-label={`Remap ${cmd.label} (currently ${formatChordLabel(chord)})`} title={`Remap ${cmd.label} (currently ${formatChordLabel(chord)})`}
+        aria-label={t.macroPad.remap(cmd.label, formatChordLabel(chord))} title={t.macroPad.remap(cmd.label, formatChordLabel(chord))}
         className={`flex flex-col justify-between p-3 rounded-lg border text-left transition-colors min-h-[76px] focus-visible:outline-2 focus-visible:outline-sky-400 ${
           isCapturing
             ? 'bg-sky-500/20 border-sky-400 text-sky-100'
@@ -136,7 +137,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
         <div className="flex items-center justify-between gap-2 w-full">
           <span className="text-[10px] font-mono text-zinc-400">{cmd.padSlot}</span>
           <kbd className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded bg-kestrel-stage border border-white/15 text-zinc-100">
-            {isCapturing ? 'Press key…' : formatChordLabel(chord)}
+            {isCapturing ? t.macroPad.pressKey : formatChordLabel(chord)}
           </kbd>
         </div>
         <span className="text-xs font-medium mt-2 truncate">{cmd.label}</span>
@@ -156,16 +157,16 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-4">
           <div>
             <h2 id="macropad-modal-title" className="text-base font-semibold text-zinc-100">
-              SinLoon 6-Key + Knob Keymap
+              {t.macroPad.title}
             </h2>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Click any key or knob direction to assign a keyboard shortcut sent by your pad.
+              {t.macroPad.intro}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close Macro Pad settings" title="Close Macro Pad settings"
+            aria-label={t.macroPad.close} title={t.macroPad.close}
             className="grid min-h-11 min-w-11 place-items-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-white/8"
           >
             <X className="w-4 h-4" aria-hidden="true" />
@@ -178,7 +179,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div
               role="tablist"
-              aria-label="Macro pad mode"
+              aria-label={t.macroPad.modeLabel}
               className="flex items-center bg-kestrel-stage p-0.5 rounded-lg border border-white/10"
             >
               <button
@@ -195,7 +196,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                Cull mode
+                {t.macroPad.cullMode}
               </button>
               <button
                 type="button"
@@ -211,21 +212,21 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                Edit mode
+                {t.macroPad.editMode}
               </button>
             </div>
 
             {padTab === 'cull' && (
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-zinc-400">Knob action:</span>
+                <span className="text-zinc-400">{t.macroPad.knobAction}</span>
                 <select
-                  aria-label="Rotary knob function in Cull mode"
+                  aria-label={t.macroPad.knobLabel}
                   value={knobMode}
                   onChange={(e) => onKnobModeChange(e.target.value as KnobFunction)}
                   className="bg-kestrel-stage border border-white/12 rounded-md min-h-11 px-2.5 text-xs text-zinc-200 focus:border-sky-400 focus:outline-none"
                 >
-                  <option value="navigate">Previous / Next Frame</option>
-                  <option value="zoom">Zoom Out / Zoom In</option>
+                  <option value="navigate">{t.macroPad.knobNavigate}</option>
+                  <option value="zoom">{t.macroPad.knobZoom}</option>
                 </select>
               </div>
             )}
@@ -233,7 +234,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
 
           {padTab === 'edit' && (
             <div className="px-3 py-2 rounded-lg bg-[#1A1D24] border border-white/10 text-xs text-zinc-300">
-              These shortcuts apply in the editor. Changes are saved on this device.
+              {t.macroPad.editNote}
             </div>
           )}
 
@@ -246,7 +247,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
             >
               <AlertTriangle className="w-4 h-4 text-orange-300 shrink-0 mt-0.5" aria-hidden="true" />
               <div>
-                <span className="font-semibold">Shortcut conflict detected:</span>{' '}
+                <span className="font-semibold">{t.macroPad.conflict}</span>{' '}
                 {conflictEntries
                   .map(([chord, ids]) => {
                     const names = ids
@@ -260,18 +261,18 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
           )}
 
           <details className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-zinc-300">
-            <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-zinc-100">How to use a macro pad</summary>
+            <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-zinc-100">{t.macroPad.howTo}</summary>
             <ol className="mt-2 list-decimal space-y-1.5 pl-5">
-              <li>A macro pad sends ordinary keys. In the pad&apos;s own software, set each key and each knob turn to send the shortcut shown below (for example, the sixth key sends Q, and the knob sends - and =). Kestrel cannot see the pad&apos;s own settings.</li>
-              <li>Or change Kestrel to match the pad: click a key below, then press the key on the pad. Clashes are marked in orange.</li>
-              <li><strong>In the editor:</strong> press the Cycle key to choose a slider (its name shows &quot;Dial&quot;), then turn the knob to change it. Reset clears the photo&apos;s edits, and Compare flips between before and after.</li>
-              <li>No pad? Hold <kbd className="rounded bg-white/10 px-1">Alt</kbd> (Option on a Mac) and scroll over the photo to change the chosen slider, and press the Cycle key to move to the next one.</li>
+              <li>{t.macroPad.step1}</li>
+              <li>{t.macroPad.step2}</li>
+              <li><strong>{t.macroPad.step3Lead}</strong> {t.macroPad.step3}</li>
+              <li>{t.macroPad.step4Start} <kbd className="rounded bg-white/10 px-1">Alt</kbd> {t.macroPad.step4End}</li>
             </ol>
             <div role="status" aria-live="polite" className="mt-3 rounded-md border border-white/10 p-2">
-              <div className="text-xs font-semibold text-zinc-100">Test your pad</div>
+              <div className="text-xs font-semibold text-zinc-100">{t.macroPad.testTitle}</div>
               <p className="text-xs">{received
-                ? <>Kestrel received <kbd className="rounded bg-white/10 px-1">{formatChordLabel(received.chord)}</kbd>: {received.label}.</>
-                : 'Press a key or turn the knob. This shows what Kestrel receives. Volume and media keys cannot be seen by a web page, so set the knob to send ordinary keys such as - and =.'}</p>
+                ? <>{t.macroPad.received} <kbd className="rounded bg-white/10 px-1">{formatChordLabel(received.chord)}</kbd>{t.macroPad.receivedCommand(received.label)}</>
+                : t.macroPad.testHint}</p>
             </div>
           </details>
 
@@ -286,7 +287,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
               <div className="w-16 h-16 rounded-full bg-gradient-to-b from-[#2A2E37] to-[#17191E] border-2 border-white/15 flex items-center justify-center shadow-inner">
                 <div className="w-2 h-2 rounded-full bg-sky-400/80 -translate-y-4" />
               </div>
-              <div className="text-[11px] font-medium text-zinc-300">Rotary Knob</div>
+              <div className="text-[11px] font-medium text-zinc-300">{t.macroPad.rotaryKnob}</div>
               <div className="grid grid-cols-2 gap-1.5 w-full">
                 {[knobCcwCmd, knobCwCmd].map((cmd) => {
                   if (!cmd) return null;
@@ -298,7 +299,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
                       key={cmd.id}
                       type="button"
                       onClick={() => setCapturingId(isCapturing ? null : cmd.id)}
-                      aria-label={`Remap ${cmd.label} (knob ${cmd.padSlot === 'KNOB_CCW' ? 'anticlockwise' : 'clockwise'}, currently ${formatChordLabel(chord)})`}
+                      aria-label={t.macroPad.remapKnob(cmd.label, cmd.padSlot === 'KNOB_CCW', formatChordLabel(chord))}
                       aria-pressed={isCapturing}
                       className={`min-h-11 px-2 py-1.5 rounded border text-center transition-colors ${
                         isCapturing
@@ -309,7 +310,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
                       }`}
                     >
                       <div className="text-[9px] text-zinc-400">
-                        {cmd.padSlot === 'KNOB_CCW' ? 'CCW' : 'CW'}
+                        {cmd.padSlot === 'KNOB_CCW' ? t.macroPad.anticlockwiseShort : t.macroPad.clockwiseShort}
                       </div>
                       <div className="font-mono text-[11px] font-semibold">
                         {isCapturing ? '…' : formatChordLabel(chord)}
@@ -324,7 +325,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
           {/* Secondary Commands */}
           {secondaryCommands.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-xs font-semibold text-zinc-300">Additional Keyboard Shortcuts</h3>
+              <h3 className="text-xs font-semibold text-zinc-300">{t.macroPad.additional}</h3>
               <div className="divide-y divide-white/8 border border-white/10 rounded-lg bg-kestrel-stage">
                 {secondaryCommands.map((cmd) => {
                   const isCapturing = capturingId === cmd.id;
@@ -342,7 +343,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setCapturingId(isCapturing ? null : cmd.id)}
-                        aria-label={`Remap ${cmd.label} (currently ${formatChordLabel(chord)})`}
+                        aria-label={t.macroPad.remap(cmd.label, formatChordLabel(chord))}
                         aria-pressed={isCapturing}
                         className={`min-h-11 min-w-11 px-2.5 py-1 rounded border font-mono text-xs shrink-0 ${
                           isCapturing
@@ -352,7 +353,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
                             : 'bg-[#1D2026] border-white/10 text-zinc-200 hover:border-white/30'
                         }`}
                       >
-                        {isCapturing ? 'Press key…' : formatChordLabel(chord)}
+                        {isCapturing ? t.macroPad.pressKey : formatChordLabel(chord)}
                       </button>
                     </div>
                   );
@@ -370,7 +371,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
             className="min-h-11 px-3 text-xs font-medium text-zinc-300 hover:text-zinc-100 bg-[#1D2026] hover:bg-[#262A32] border border-white/10 rounded-lg flex items-center gap-1.5"
           >
             <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Reset Defaults</span>
+            <span>{t.macroPad.reset}</span>
           </button>
 
           <button
@@ -378,7 +379,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
             onClick={onClose}
             className="min-h-11 min-w-11 px-4 text-xs font-semibold text-zinc-950 bg-zinc-100 hover:bg-white rounded-lg"
           >
-            Done
+            {t.common.done}
           </button>
         </div>
       </div>

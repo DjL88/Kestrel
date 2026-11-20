@@ -11,6 +11,7 @@ import { useProjectLocations } from '../providers/projectLocations';
 import type { S3Settings } from '../core/storageConnectors';
 import type { StorageConnector } from '../core/storageConnectors';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
+import { projectsText as t } from '../i18n/areas/projects';
 
 const action = 'min-h-11 rounded-md border border-white/15 px-3 text-sm text-zinc-100 hover:bg-white/8 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-sky-300';
 
@@ -50,13 +51,13 @@ export function SyncFolderDialog({ title, projectId, updatedAt, frames, onApply,
   async function chooseLocation(role: 'send' | 'bring' = 'send'): Promise<PickResult> {
     if (where === 'project') {
       const id = role === 'send' ? locations.saveTo ?? locations.loadFrom : locations.loadFrom ?? locations.saveTo;
-      const opened = id ? await openConnection(id) : { problem: 'missing' as const, message: 'Choose a place for this project first.' };
+      const opened = id ? await openConnection(id) : { problem: 'missing' as const, message: t.sync.choosePlaceFirst };
       if ('problem' in opened) { setNote(opened.message); return 'cancelled'; }
-      return { connector: opened.connector, name: savedConnections.find((connection) => connection.id === id)?.label ?? 'its place' };
+      return { connector: opened.connector, name: savedConnections.find((connection) => connection.id === id)?.label ?? t.sync.itsPlace };
     }
     if (where === 'cloud') {
       const settings = cloud ?? loadCloudSettings();
-      if (!settings) { setEditingCloud(true); setNote('Enter your storage details first.'); return 'cancelled'; }
+      if (!settings) { setEditingCloud(true); setNote(t.sync.enterDetailsFirst); return 'cancelled'; }
       return { connector: s3Connector(settings), name: settings.bucket };
     }
     return pickSyncFolder();
@@ -64,13 +65,13 @@ export function SyncFolderDialog({ title, projectId, updatedAt, frames, onApply,
 
   async function run(job: () => Promise<void>) {
     setBusy(true); setNote(null);
-    try { await job(); } catch { setNote(where === 'cloud' ? 'Something went wrong with your cloud storage. Test the connection in its settings.' : 'Something went wrong with that folder. Choose it again, or try another.'); } finally { setBusy(false); }
+    try { await job(); } catch { setNote(where === 'cloud' ? t.sync.cloudWentWrong : t.sync.folderWentWrong); } finally { setBusy(false); }
   }
 
   const send = () => run(async () => {
     const picked = await chooseLocation();
     if (picked === 'cancelled') return;
-    if (picked === 'unsupported') { setNote('This browser cannot pick a folder. Use the Kestrel desktop app, or Chrome or Edge.'); return; }
+    if (picked === 'unsupported') { setNote(t.common.noFolderPicker); return; }
     const test = await picked.connector.test();
     if (!test.ok) { setNote(test.reason); return; }
     // Two projects with the same title share a file name. Never replace another project's copy without asking.
@@ -83,16 +84,16 @@ export function SyncFolderDialog({ title, projectId, updatedAt, frames, onApply,
   async function save(connector: StorageConnector, folder: string) {
     const snapshot = buildSnapshot(title, frames, new Date(), projectId);
     await connector.put(path, new TextEncoder().encode(JSON.stringify(snapshot)), '');
-    setNote(`Saved ${snapshot.photos.length} photos' decisions and edits to “${folder}”.`);
+    setNote(t.sync.saved(snapshot.photos.length, folder));
   }
 
   const bring = () => run(async () => {
     const picked = await chooseLocation('bring');
     if (picked === 'cancelled') return;
-    if (picked === 'unsupported') { setNote('This browser cannot pick a folder. Use the Kestrel desktop app, or Chrome or Edge.'); return; }
+    if (picked === 'unsupported') { setNote(t.common.noFolderPicker); return; }
     const bytes = await picked.connector.get(path);
     const snapshot = bytes ? parseSnapshot(new TextDecoder().decode(bytes)) : null;
-    if (!snapshot) { setNote(`“${picked.name}” has no saved copy of “${title}”. Send it from your other device first.`); return; }
+    if (!snapshot) { setNote(t.sync.noCopy(picked.name, title)); return; }
     setPending({ snapshot, ...planApply(frames, snapshot), from: picked.name, another: looksLikeAnotherProject(frames, snapshot, projectId), newerHere: isNewerHere(updatedAt, snapshot) });
   });
 
@@ -108,51 +109,51 @@ export function SyncFolderDialog({ title, projectId, updatedAt, frames, onApply,
       }}>
       <div className="flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-white/12 bg-kestrel-panel shadow-2xl">
         <header className="shrink-0 border-b border-white/10 px-5 py-4">
-          <h2 id="sync-title" ref={heading} tabIndex={-1} className="text-base font-semibold text-zinc-100 focus:outline-none">Sync folder or cloud</h2>
+          <h2 id="sync-title" ref={heading} tabIndex={-1} className="text-base font-semibold text-zinc-100 focus:outline-none">{t.sync.title}</h2>
         </header>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 text-sm text-zinc-300">
           {replacing ? (
-            <div className="space-y-3" role="group" aria-label="Confirm replacing a saved copy">
-              <p>“{replacing.from}” already holds a saved copy called “{replacing.existing.title}” that looks like a <strong>different project</strong> ({replacing.existing.photos.length} photos, saved {new Date(replacing.existing.savedAt).toLocaleString('en-GB')}). Sending this project would replace it.</p>
+            <div className="space-y-3" role="group" aria-label={t.sync.confirmReplaceLabel}>
+              <p>{t.sync.replaceStart(replacing.from, replacing.existing.title)}<strong>{t.sync.differentProject}</strong>{t.sync.replaceEnd(replacing.existing.photos.length, new Date(replacing.existing.savedAt).toLocaleString('en-GB'))}</p>
               <div className="flex flex-wrap gap-2">
-                <button type="button" className={action} disabled={busy} onClick={() => void run(async () => { await save(replacing.connector, replacing.from); setReplacing(null); })}>Replace that copy</button>
-                <button type="button" className={action} onClick={() => setReplacing(null)}>Cancel</button>
+                <button type="button" className={action} disabled={busy} onClick={() => void run(async () => { await save(replacing.connector, replacing.from); setReplacing(null); })}>{t.sync.replaceCopy}</button>
+                <button type="button" className={action} onClick={() => setReplacing(null)}>{t.common.cancel}</button>
               </div>
             </div>
           ) : pending ? (
-            <div className="space-y-3" role="group" aria-label="Confirm bringing changes">
-              {pending.another && <p role="alert" className="text-amber-200">This saved copy looks like a <strong>different project</strong>: few of its photos are in this one. Check you chose the right folder.</p>}
-              {pending.newerHere && <p role="alert" className="text-amber-200">You changed this project on this device <strong>after</strong> that copy was saved. Bringing it would undo your newer work here.</p>}
-              <p><strong>{pending.changed}</strong> of the <strong>{pending.matching}</strong> matching photos would change here.</p>
-              <p>This replaces their decisions, ratings, tags and edits on this device with the saved copy from “{pending.from}”. Photos not in it are left alone{pending.missingHere ? `, and ${pending.missingHere} in it are not in this project` : ''}. Use <strong>Back up project</strong> first if you want a way back.</p>
+            <div className="space-y-3" role="group" aria-label={t.sync.confirmBringLabel}>
+              {pending.another && <p role="alert" className="text-amber-200">{t.sync.anotherStart}<strong>{t.sync.differentProject}</strong>{t.sync.anotherEnd}</p>}
+              {pending.newerHere && <p role="alert" className="text-amber-200">{t.sync.newerStart}<strong>{t.sync.newerStrong}</strong>{t.sync.newerEnd}</p>}
+              <p><strong>{pending.changed}</strong>{t.sync.changeOf}<strong>{pending.matching}</strong>{t.sync.changeEnd}</p>
+              <p>{t.sync.replacesStart(pending.from, pending.missingHere)}<strong>{t.sync.backUpProject}</strong>{t.sync.replacesEnd}</p>
               <div className="flex flex-wrap gap-2">
-                <button type="button" className={action} disabled={!pending.changed} onClick={() => { onApply(applySnapshot(frames, pending.snapshot)); setNote(`Brought ${pending.changed} photos up to date.`); setPending(null); }}>{pending.another || pending.newerHere ? 'Replace anyway' : `Replace ${pending.changed} photos`}</button>
-                <button type="button" className={action} onClick={() => setPending(null)}>Cancel</button>
+                <button type="button" className={action} disabled={!pending.changed} onClick={() => { onApply(applySnapshot(frames, pending.snapshot)); setNote(t.sync.broughtUpToDate(pending.changed)); setPending(null); }}>{pending.another || pending.newerHere ? t.sync.replaceAnyway : t.sync.replaceCount(pending.changed)}</button>
+                <button type="button" className={action} onClick={() => setPending(null)}>{t.common.cancel}</button>
               </div>
             </div>
           ) : (
             <>
-              <p role="note" className="rounded-md border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-amber-100"><strong>Experimental.</strong> This is a manual hand-over, not automatic sync, and it has not been tested on every system. Back up the project first.</p>
-              <div role="radiogroup" aria-label="Where to keep the synced file" className="flex flex-wrap gap-2">
-                {([...(projectPlace ? [['project', `This project's place: ${projectPlace.label}`] as const] : []), ['folder', 'A folder'] as const, ['cloud', 'My cloud storage'] as const]).map(([id, label]) => (
+              <p role="note" className="rounded-md border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-amber-100"><strong>{t.sync.experimental}</strong> {t.sync.experimentalBody}</p>
+              <div role="radiogroup" aria-label={t.sync.whereLabel} className="flex flex-wrap gap-2">
+                {([...(projectPlace ? [['project', t.sync.projectPlace(projectPlace.label)] as const] : []), ['folder', t.sync.aFolder] as const, ['cloud', t.sync.myCloud] as const]).map(([id, label]) => (
                   <button key={id} type="button" role="radio" aria-checked={where === id} onClick={() => choose(id)}
                     className={`${action} aria-checked:border-sky-300 aria-checked:bg-sky-300/15`}>{label}</button>
                 ))}
               </div>
               {where === 'cloud' && (editingCloud || !cloud
-                ? <CloudStorageForm initial={cloud} onSaved={(saved) => { setCloud(saved); setEditingCloud(false); setNote(saved ? 'Saved. You can send and bring now.' : 'Forgotten.'); }} onCancel={() => setEditingCloud(false)} />
-                : <p role="status">Using bucket <strong>{cloud.bucket}</strong> at {new URL(cloud.endpoint).host}. <button type="button" className="min-h-11 underline" onClick={() => setEditingCloud(true)}>Change</button></p>)}
-              <p>Keep this project's decisions, ratings, tags and edits in step between your devices through any folder you choose, such as one in iCloud Drive, Dropbox, OneDrive or a shared drive. Only that small file goes into the folder. Your photos are never copied or changed.</p>
+                ? <CloudStorageForm initial={cloud} onSaved={(saved) => { setCloud(saved); setEditingCloud(false); setNote(saved ? t.sync.savedNow : t.sync.forgotten); }} onCancel={() => setEditingCloud(false)} />
+                : <p role="status">{t.sync.usingBucket}<strong>{cloud.bucket}</strong>{t.sync.atHost(new URL(cloud.endpoint).host)}<button type="button" className="min-h-11 underline" onClick={() => setEditingCloud(true)}>{t.sync.change}</button></p>)}
+              <p>{t.sync.explain}</p>
               <div className="flex flex-wrap gap-2">
-                <button type="button" className={action} disabled={busy} onClick={() => void send()}>{where === 'cloud' ? 'Send this project to my cloud storage' : where === 'project' ? 'Send this project' : 'Send this project to a folder'}</button>
-                <button type="button" className={action} disabled={busy} onClick={() => void bring()}>{where === 'cloud' ? 'Bring changes from my cloud storage' : where === 'project' ? 'Bring changes' : 'Bring changes from a folder'}</button>
+                <button type="button" className={action} disabled={busy} onClick={() => void send()}>{where === 'cloud' ? t.sync.sendCloud : where === 'project' ? t.sync.sendProject : t.sync.sendFolder}</button>
+                <button type="button" className={action} disabled={busy} onClick={() => void bring()}>{where === 'cloud' ? t.sync.bringCloud : where === 'project' ? t.sync.bringProject : t.sync.bringFolder}</button>
               </div>
-              <p className="text-xs text-zinc-400">Photos are matched by name, size and date, so it works even if the files are in different places on each device. Devices with a project of the same name find each other's file.</p>
+              <p className="text-xs text-zinc-400">{t.sync.matchNote}</p>
             </>
           )}
           {note && <p role="status">{note}</p>}
         </div>
-        <footer className="shrink-0 border-t border-white/10 px-5 py-3"><button type="button" onClick={onClose} className={`${action} w-full`}>Close</button></footer>
+        <footer className="shrink-0 border-t border-white/10 px-5 py-3"><button type="button" onClick={onClose} className={`${action} w-full`}>{t.common.close}</button></footer>
       </div>
     </div>
   );

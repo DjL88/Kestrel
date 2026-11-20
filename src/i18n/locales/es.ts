@@ -58,6 +58,14 @@ export const es: Translation = {
     licence: 'Licencia y ajustes',
     version: (version) => `Versión ${version}`,
   },
+  setup: {
+    welcome: 'Le damos la bienvenida a Kestrel',
+    question: '¿Qué idioma prefiere?',
+    detected: (name) => `Su dispositivo está configurado en ${name}.`,
+    continueIn: (name) => `Continuar en ${name}`,
+    keepSource: 'Mantener el inglés (Reino Unido)',
+    later: 'Puede cambiarlo cuando quiera en los ajustes.',
+  },
   settings: {
     title: 'Aspecto y disposición',
     done: 'Hecho',

@@ -76,3 +76,38 @@ test('choose Welsh, restart in it, and keep every decision', async ({ page }) =>
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB');
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible({ timeout: 30_000 });
 });
+
+test.describe('a Danish device at first run', () => {
+  test.use({ locale: 'da-DK' });
+
+  test('is offered Danish once, and nothing changes until it is chosen', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB');
+    const welcome = page.locator('section', { has: page.getByRole('combobox') }).filter({ hasText: 'Dansk' }).first();
+    await expect(welcome).toBeVisible();
+    await expect(welcome.getByRole('combobox')).toHaveValue('da');
+    // The button is written in the language on offer, and names it in its own words.
+    await welcome.getByRole('button', { name: /Dansk/ }).click();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'da');
+    // Chosen once: the card does not come back.
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'da');
+    await expect(page.getByRole('button', { name: /Dansk/ })).toHaveCount(0);
+  });
+
+  test('keeping British English hides the card for good', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Keep English (UK)' }).click();
+    await expect(page.getByRole('button', { name: 'Keep English (UK)' })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Keep English (UK)' })).toHaveCount(0);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB');
+  });
+});
+
+test('a British device is not asked: it is already in its language', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Keep English (UK)' })).toHaveCount(0);
+});

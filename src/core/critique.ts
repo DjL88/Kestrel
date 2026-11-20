@@ -7,6 +7,14 @@ export interface Pixels { data: Uint8ClampedArray; width: number; height: number
 /** A change the opinion can make for the user. Values are added to the current slider values. */
 export type Fix = { kind: 'global'; delta: Partial<Record<keyof PhotoEdit, number>> } | { kind: 'mask'; maskId: string; delta: Partial<Record<string, number>> };
 
+/** The numbers in an opinion's sentence, so the interface can word it in any language. Percentages arrive formatted. */
+export interface OpinionFigures {
+  share?: string;
+  before?: string;
+  ratio?: string;
+  points?: number;
+}
+
 export interface Opinion {
   id: string;
   severity: 'warning' | 'tip';
@@ -15,6 +23,7 @@ export interface Opinion {
   fix?: Fix;
   /** Words for the Apply button, such as "Lower sharpening". */
   fixLabel?: string;
+  figures?: OpinionFigures;
 }
 
 const luma = (pixels: Pixels): Float32Array => {
@@ -115,7 +124,7 @@ export function critique({ source, toneOnly, after, edit, subject }: CritiqueInp
     found.push({
       id: 'halos', severity: 'warning', title: 'Sharpening looks heavy',
       detail: `About ${percent(halos)} of the picture has bright or dark halos along edges, which usually means sharpening, clarity or texture is too strong.`,
-      fix: { kind: 'global', delta: { sharpen: -0.4, clarity: -0.3, texture: -0.2 } }, fixLabel: 'Ease off sharpening',
+      fix: { kind: 'global', delta: { sharpen: -0.4, clarity: -0.3, texture: -0.2 } }, fixLabel: 'Ease off sharpening', figures: { share: percent(halos) },
     });
   }
 
@@ -124,6 +133,7 @@ export function critique({ source, toneOnly, after, edit, subject }: CritiqueInp
   if (clip.highlights > 0.015 && clip.highlights > before.highlights + 0.005) {
     found.push({
       id: 'highlights', severity: 'warning', title: 'Pure white areas have increased',
+      figures: { share: percent(clip.highlights), before: percent(before.highlights) },
       detail: `${percent(clip.highlights)} of the preview has all three colour channels at maximum, compared with ${percent(before.highlights)} before editing. Check important highlights at 100%. Darkening the result cannot recover detail that was already clipped.`,
       // Do not offer an unvalidated global fix. On brightly coloured feathers,
       // pulling Highlights and Whites can make the subject dull without restoring data.
@@ -131,6 +141,7 @@ export function critique({ source, toneOnly, after, edit, subject }: CritiqueInp
   } else if (clip.channels > 0.015 && clip.channels > before.channels + 0.005) {
     found.push({
       id: 'colour-channels', severity: 'warning', title: 'Bright colours may be clipping',
+      figures: { share: percent(clip.channels), before: percent(before.channels) },
       detail: `${percent(clip.channels)} of the preview has at least one colour channel at maximum, compared with ${percent(before.channels)} before editing. This does not mean those pixels are pure white. Check saturated feathers, lights and other important colours at 100% before changing global highlights.`,
     });
   }
@@ -138,7 +149,7 @@ export function critique({ source, toneOnly, after, edit, subject }: CritiqueInp
     found.push({
       id: 'shadows', severity: 'warning', title: 'Shadows are crushed',
       detail: `${percent(clip.shadows)} of the picture is pure black, so detail there is lost. It was ${percent(before.shadows)} before your edit.`,
-      fix: { kind: 'global', delta: { shadows: 0.4, blacks: 0.3 } }, fixLabel: 'Lift shadows',
+      fix: { kind: 'global', delta: { shadows: 0.4, blacks: 0.3 } }, fixLabel: 'Lift shadows', figures: { share: percent(clip.shadows), before: percent(before.shadows) },
     });
   }
 
@@ -149,7 +160,7 @@ export function critique({ source, toneOnly, after, edit, subject }: CritiqueInp
     found.push({
       id: 'noise', severity: 'warning', title: 'The edit is amplifying noise',
       detail: `Grain in smooth areas is about ${(noiseAfter / noiseBefore).toFixed(1)} times what it was in the original. Strong shadow lifts, clarity and texture do this.`,
-      fix: { kind: 'global', delta: { shadows: -0.3, clarity: -0.3, texture: -0.3 } }, fixLabel: 'Reduce the noise boost',
+      fix: { kind: 'global', delta: { shadows: -0.3, clarity: -0.3, texture: -0.3 } }, fixLabel: 'Reduce the noise boost', figures: { ratio: (noiseAfter / noiseBefore).toFixed(1) },
     });
   }
 
@@ -174,13 +185,13 @@ export function critique({ source, toneOnly, after, edit, subject }: CritiqueInp
         found.push({
           id: 'subject-dark', severity: 'tip', title: 'Your subject is darker than its surroundings',
           detail: `The subject averages ${Math.round(gap * 100)} points darker than everything around it, so the eye may go to the background first.`,
-          fix: { kind: 'mask', maskId: subject.mask.id, delta: { exposure: 0.5, shadows: 0.2 } }, fixLabel: 'Lift the subject',
+          fix: { kind: 'mask', maskId: subject.mask.id, delta: { exposure: 0.5, shadows: 0.2 } }, fixLabel: 'Lift the subject', figures: { points: Math.round(gap * 100) },
         });
       } else if (gap < -0.25) {
         found.push({
           id: 'subject-bright', severity: 'tip', title: 'Your subject is much brighter than its surroundings',
           detail: `The subject averages ${Math.round(-gap * 100)} points brighter than the background, which can look pasted on.`,
-          fix: { kind: 'mask', maskId: subject.mask.id, delta: { exposure: -0.3 } }, fixLabel: 'Tone the subject down',
+          fix: { kind: 'mask', maskId: subject.mask.id, delta: { exposure: -0.3 } }, fixLabel: 'Tone the subject down', figures: { points: Math.round(-gap * 100) },
         });
       }
     }
@@ -213,7 +224,7 @@ export function critique({ source, toneOnly, after, edit, subject }: CritiqueInp
     found.push({
       id: 'colour', severity: 'tip', title: 'Colours are very strong',
       detail: `${percent(strong / counted)} of the picture is intensely saturated, which can look unnatural and print badly.`,
-      fix: { kind: 'global', delta: { colour: -0.4, vibrance: -0.3 } }, fixLabel: 'Soften colour',
+      fix: { kind: 'global', delta: { colour: -0.4, vibrance: -0.3 } }, fixLabel: 'Soften colour', figures: { share: percent(strong / counted) },
     });
   }
 

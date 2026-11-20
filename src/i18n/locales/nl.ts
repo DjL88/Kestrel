@@ -58,6 +58,14 @@ export const nl: Translation = {
     licence: 'Licentie en instellingen',
     version: (version) => `Versie ${version}`,
   },
+  setup: {
+    welcome: 'Welkom bij Kestrel',
+    question: 'Welke taal wilt u gebruiken?',
+    detected: (name) => `Uw apparaat staat ingesteld op het ${name}.`,
+    continueIn: (name) => `Doorgaan in het ${name}`,
+    keepSource: 'Engels (VK) houden',
+    later: 'U kunt dit altijd wijzigen in de instellingen.',
+  },
   settings: {
     title: 'Weergave en indeling',
     done: 'Klaar',

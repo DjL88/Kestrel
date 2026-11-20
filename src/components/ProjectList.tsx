@@ -15,6 +15,7 @@ import type { ProjectSettings } from '../core/projectSettings';
 import { filterProjects, inboxFirst, sortProjects, splitProjects, type ProjectSort } from '../core/projects';
 import { formatProjectDate } from '../core/formatDate';
 import { messages as m } from '../i18n/messages';
+import { projectsText as t } from '../i18n/areas/projects';
 
 interface Props {
   projects: ShootDescriptor[];
@@ -53,14 +54,14 @@ function SwipeRow({ children, archived, title, onArchive, onDelete, disabled }: 
   return (
     <li className="relative overflow-hidden">
       <div className="absolute inset-y-0 right-0 flex" inert={!open} aria-hidden={!open}>
-        <button type="button" tabIndex={open ? 0 : -1} disabled={disabled} onClick={() => { back(); onArchive(); }} aria-label={`${archived ? 'Restore' : 'Archive'} ${title}`}
+        <button type="button" tabIndex={open ? 0 : -1} disabled={disabled} onClick={() => { back(); onArchive(); }} aria-label={archived ? t.list.restoreNamed(title) : t.list.archiveNamed(title)}
           className="grid w-[76px] place-items-center bg-sky-900 text-xs font-medium text-white">
           {archived ? <ArchiveRestore className="mx-auto h-5 w-5" aria-hidden="true" /> : <Archive className="mx-auto h-5 w-5" aria-hidden="true" />}
-          {archived ? 'Restore' : 'Archive'}
+          {archived ? t.list.restore : t.list.archive}
         </button>
-        <button type="button" tabIndex={offset <= -ACTION * 1.5 ? 0 : -1} disabled={disabled} onClick={() => { back(); onDelete(); }} aria-label={`Delete ${title}`}
+        <button type="button" tabIndex={offset <= -ACTION * 1.5 ? 0 : -1} disabled={disabled} onClick={() => { back(); onDelete(); }} aria-label={t.list.deleteNamed(title)}
           className="grid w-[76px] place-items-center bg-red-900 text-xs font-medium text-white">
-          <Trash2 className="mx-auto h-5 w-5" aria-hidden="true" />Delete
+          <Trash2 className="mx-auto h-5 w-5" aria-hidden="true" />{t.list.delete}
         </button>
       </div>
       <div data-testid="swipe-row" className="relative flex touch-pan-y items-center gap-1 bg-kestrel-raised pr-1"
@@ -121,7 +122,7 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
             event.target.value = '';
             if (files.length) onQuickEdit(files);
           }} />
-          <button type="button" onClick={() => quickInput.current?.click()} disabled={loading} title="Open a photo straight into the editor, without making a project"
+          <button type="button" onClick={() => quickInput.current?.click()} disabled={loading} title={t.list.quickEditHint}
             className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-sky-300/50 px-3 text-sm text-sky-100 hover:bg-sky-300/15 disabled:opacity-50">
             <SquareChevronsRight className="h-4 w-4" aria-hidden="true" /> {m.home.quickEdit}
           </button>
@@ -176,36 +177,36 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
                 className="flex min-w-0 flex-1 items-center gap-3 rounded-md p-3 text-left hover:bg-white/6 disabled:opacity-55">
                 <Folder className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden="true" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{project.title}{project.inbox && <span className="ml-2 rounded bg-sky-300/15 px-1.5 py-0.5 text-xs font-normal text-sky-100">Quick edits</span>}</span>
-                  <span className="block text-xs text-zinc-400">{project.totalFrames} {project.totalFrames === 1 ? 'photo' : 'photos'}{viaPhotos && ' · matches photos inside'}</span>
+                  <span className="block truncate text-sm font-medium">{project.title}{project.inbox && <span className="ml-2 rounded bg-sky-300/15 px-1.5 py-0.5 text-xs font-normal text-sky-100">{t.list.quickEdits}</span>}</span>
+                  <span className="block text-xs text-zinc-400">{t.list.photoCount(project.totalFrames)}{viaPhotos && ` · ${t.list.matchesInside}`}</span>
                   <span className="block text-xs text-zinc-400">
-                    Created <time dateTime={project.createdAt ? new Date(project.createdAt).toISOString() : undefined}>{formatProjectDate(project.createdAt)}</time>
-                    {' · '}Last edited <time dateTime={project.lastUpdatedAt ? new Date(project.lastUpdatedAt).toISOString() : undefined}>{formatProjectDate(project.lastUpdatedAt, true)}</time>
-                    {isArchived && project.archivedAt ? <>{' · '}Archived {formatProjectDate(project.archivedAt)}</> : null}
+                    {t.list.created} <time dateTime={project.createdAt ? new Date(project.createdAt).toISOString() : undefined}>{formatProjectDate(project.createdAt)}</time>
+                    {' · '}{t.list.lastEdited} <time dateTime={project.lastUpdatedAt ? new Date(project.lastUpdatedAt).toISOString() : undefined}>{formatProjectDate(project.lastUpdatedAt, true)}</time>
+                    {isArchived && project.archivedAt ? <>{' · '}{t.list.archivedOn(formatProjectDate(project.archivedAt))}</> : null}
                   </span>
                 </span>
                 <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden="true" />
               </button>
               {isArchived ? (
-                <button type="button" disabled={loading} className={action} aria-label={`Restore ${project.title} from the archive`} title="Restore" onClick={() => onUnarchive(project.id)}>
+                <button type="button" disabled={loading} className={action} aria-label={t.list.restoreFromArchive(project.title)} title={t.list.restore} onClick={() => onUnarchive(project.id)}>
                   <ArchiveRestore className="h-4 w-4" aria-hidden="true" />
                 </button>
               ) : (
-                <button type="button" disabled={loading} className={action} aria-label={`Archive ${project.title}`} title="Archive" onClick={() => onArchive(project)}>
+                <button type="button" disabled={loading} className={action} aria-label={t.list.archiveNamed(project.title)} title={t.list.archive} onClick={() => onArchive(project)}>
                   <Archive className="h-4 w-4" aria-hidden="true" />
                 </button>
               )}
-              <button type="button" disabled={loading} className={action} aria-label={`Delete ${project.title}`} title="Delete" onClick={() => onDelete(project)}>
+              <button type="button" disabled={loading} className={action} aria-label={t.list.deleteNamed(project.title)} title={t.list.delete} onClick={() => onDelete(project)}>
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
               </button>
             </SwipeRow>
           );
           return <>
-            {query.trim() && !active.length && !archived.length && <p role="status" className="rounded-xl border border-white/10 bg-kestrel-raised p-4 text-sm text-zinc-300">No projects or photos match “{query.trim()}”.</p>}
+            {query.trim() && !active.length && !archived.length && <p role="status" className="rounded-xl border border-white/10 bg-kestrel-raised p-4 text-sm text-zinc-300">{t.list.noMatch(query.trim())}</p>}
             {active.length > 0 && <ul className="divide-y divide-white/8 rounded-xl border border-white/10 bg-kestrel-raised">{active.map((hit) => row(hit, false))}</ul>}
             {archived.length > 0 && (
               <details className="mt-4 rounded-xl border border-white/10 bg-kestrel-raised">
-                <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm text-zinc-300">Archived ({archived.length})</summary>
+                <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm text-zinc-300">{t.list.archivedCount(archived.length)}</summary>
                 <ul className="divide-y divide-white/8 border-t border-white/10">{archived.map((hit) => row(hit, true))}</ul>
               </details>
             )}
@@ -213,7 +214,7 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
         })()}
         <ConnectionsPanel />
         {projects.length > 0 && <CatalogueStorage />}
-        <footer aria-label="About Kestrel" className="mt-14 border-t border-white/10 pt-5 pb-4 text-xs leading-relaxed text-zinc-400">
+        <footer aria-label={m.home.aboutTitle} className="mt-14 border-t border-white/10 pt-5 pb-4 text-xs leading-relaxed text-zinc-400">
           <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
             <div className="min-w-0">
               <p className="font-medium text-zinc-300">{m.home.aboutTitle}</p>
@@ -221,7 +222,7 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
             </div>
             <div className="flex shrink-0 items-center gap-3">
               <button type="button" onClick={() => setLicenceOpen(true)} className="min-h-11 rounded-md px-2 text-zinc-300 underline hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">{m.home.licence}</button>
-              <p className="font-mono" aria-label={`Kestrel version ${appVersion}`}>{m.home.version(appVersion)}</p>
+              <p className="font-mono" aria-label={t.list.versionLabel(appVersion)}>{m.home.version(appVersion)}</p>
             </div>
           </div>
         </footer>

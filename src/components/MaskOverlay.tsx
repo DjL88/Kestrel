@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { effectiveAlpha } from '../core/masks';
 import { createBrushStroke, type Mask } from '../core/maskTypes';
+import { viewerText as t } from '../i18n/areas/viewer';
 
 interface Props {
   mask: Mask;
@@ -101,8 +102,8 @@ export function MaskOverlay({ mask, masks, aspect, rect, brushRadius, paintOn = 
       <line x1={x2 - nx} y1={y2 - ny} x2={x2 + nx} y2={y2 + ny} stroke="#fff" strokeWidth="3" strokeDasharray="6 5" />
     </>;
     handles = <>
-      <Handle x={mask.x1} y={mask.y1} label="Gradient start, full effect. Arrow keys move it." onMove={(p) => onChange({ ...mask, x1: p.x, y1: p.y })} />
-      <Handle x={mask.x2} y={mask.y2} label="Gradient end, no effect. Arrow keys move it." onMove={(p) => onChange({ ...mask, x2: p.x, y2: p.y })} />
+      <Handle x={mask.x1} y={mask.y1} label={t.overlay.gradientStart} onMove={(p) => onChange({ ...mask, x1: p.x, y1: p.y })} />
+      <Handle x={mask.x2} y={mask.y2} label={t.overlay.gradientEnd} onMove={(p) => onChange({ ...mask, x2: p.x, y2: p.y })} />
     </>;
   } else if (mask.kind === 'radial') {
     const angle = mask.angle ?? 0;
@@ -118,10 +119,10 @@ export function MaskOverlay({ mask, masks, aspect, rect, brushRadius, paintOn = 
       <ellipse cx={mask.cx * w} cy={mask.cy * h} rx={mask.rx * w} ry={mask.ry * w} transform={rotation} fill="none" stroke="#fff" strokeWidth="2" />
     </>;
     handles = <>
-      <Handle x={mask.cx} y={mask.cy} label="Move oval. Arrow keys move it." onMove={(p) => onChange({ ...mask, cx: p.x, cy: p.y })} />
-      <Handle x={clamp(widthPoint.x)} y={clamp(widthPoint.y)} label="Oval width. Arrow keys resize." onMove={(p) => onChange({ ...mask, rx: Math.max(0.01, Math.abs((p.x - mask.cx) * cosine + (p.y - mask.cy) * aspect * sine)) })} />
-      <Handle x={clamp(heightPoint.x)} y={clamp(heightPoint.y)} label="Oval height. Arrow keys resize." onMove={(p) => onChange({ ...mask, ry: Math.max(0.01, Math.abs(-(p.x - mask.cx) * sine + (p.y - mask.cy) * aspect * cosine)) })} />
-      <Handle x={clamp(anglePoint.x)} y={clamp(anglePoint.y)} label="Rotate oval. Arrow keys move rotation handle." onMove={(p) => onChange({ ...mask, angle: Math.round(Math.atan2((p.y - mask.cy) * aspect, p.x - mask.cx) * 180 / Math.PI) })} />
+      <Handle x={mask.cx} y={mask.cy} label={t.overlay.moveOval} onMove={(p) => onChange({ ...mask, cx: p.x, cy: p.y })} />
+      <Handle x={clamp(widthPoint.x)} y={clamp(widthPoint.y)} label={t.overlay.ovalWidth} onMove={(p) => onChange({ ...mask, rx: Math.max(0.01, Math.abs((p.x - mask.cx) * cosine + (p.y - mask.cy) * aspect * sine)) })} />
+      <Handle x={clamp(heightPoint.x)} y={clamp(heightPoint.y)} label={t.overlay.ovalHeight} onMove={(p) => onChange({ ...mask, ry: Math.max(0.01, Math.abs(-(p.x - mask.cx) * sine + (p.y - mask.cy) * aspect * cosine)) })} />
+      <Handle x={clamp(anglePoint.x)} y={clamp(anglePoint.y)} label={t.overlay.rotateOval} onMove={(p) => onChange({ ...mask, angle: Math.round(Math.atan2((p.y - mask.cy) * aspect, p.x - mask.cx) * 180 / Math.PI) })} />
     </>;
   } else if (live && (mask.kind === 'brush' || mask.kind === 'subject')) {
     const points: string[] = [];
