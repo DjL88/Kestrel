@@ -1,5 +1,5 @@
 import { healthFromFailure } from '../core/connections';
-import { checkWebDavSettings, isInsideSyncRoot, isWritablePath, type StorageConnector, type WebDavSettings } from '../core/storageConnectors';
+import { checkWebDavSettings, isInsideExportRoot, isInsideSyncRoot, isWritablePath, type StorageConnector, type WebDavSettings } from '../core/storageConnectors';
 import { isDesktopApp } from './desktopShell';
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -79,7 +79,14 @@ export function webdavConnector(settings: WebDavSettings, options: { fetchImpl?:
     async put(path, bytes) {
       if (!isWritablePath(path)) throw new DavError('Path is outside the Kestrel folder.');
       await ensureFolders(path);
-      const response = await send('PUT', urlFor(path), { body: bytes, headers: { 'Content-Type': 'application/octet-stream' } });
+      const exportWrite = isInsideExportRoot(path);
+      const response = await send('PUT', urlFor(path), {
+        body: bytes,
+        headers: { 'Content-Type': 'application/octet-stream', ...(exportWrite ? { 'If-None-Match': '*' } : {}) },
+      });
+      if (exportWrite && response.status === 412) {
+        throw new DavError('An export already exists at this destination. The file was not replaced.', response.status);
+      }
       if (!response.ok) throw new DavError(explainDavFailure(response.status), response.status);
     },
     async get(path) {
