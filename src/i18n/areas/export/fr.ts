@@ -10,6 +10,7 @@ export const fr: AreaTranslation<typeof source> = {
     load: "Charger le fichier XMP",
     loaded: "Métadonnées XMP appliquées.",
     loadFailed: "Impossible de charger le XMP. Choisissez le fichier associé à cette photo.",
+  },
   sidecars: {
     title: "Fichiers annexes XMP",
     save: "Enregistrer les fichiers XMP",

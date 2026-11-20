@@ -10,6 +10,7 @@ export const fi: AreaTranslation<typeof source> = {
     load: "Lataa XMP-sivutiedosto",
     loaded: "XMP-metatiedot otettiin käyttöön.",
     loadFailed: "XMP-tiedostoa ei voitu ladata. Valitse kuvan sivutiedosto.",
+  },
   sidecars: {
     title: "XMP-sivutiedostot",
     save: "Tallenna XMP-tiedostot",

@@ -14,6 +14,7 @@ export const gd: AreaTranslation<typeof source> = {
     load: "Luchdaich faidhle XMP",
     loaded: "Chaidh meata-dàta XMP a chur an sàs.",
     loadFailed: "Cha b’ urrainn dhuinn XMP a luchdadh. Tagh am faidhle a bhuineas don dealbh seo.",
+  },
   sidecars: {
     title: "Faidhlichean-taoibh XMP",
     save: "Sàbhail faidhlichean XMP",

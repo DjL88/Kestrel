@@ -10,6 +10,7 @@ export const nb: AreaTranslation<typeof source> = {
     load: "Last inn XMP-sidefil",
     loaded: "XMP-metadata ble brukt.",
     loadFailed: "Kunne ikke laste inn XMP. Velg sidefilen som hører til bildet.",
+  },
   sidecars: {
     title: "XMP-sidefiler",
     save: "Lagre XMP-filer",

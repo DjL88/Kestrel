@@ -13,6 +13,7 @@ export const cy: AreaTranslation<typeof source> = {
     load: "Llwytho ffeil XMP",
     loaded: "Defnyddiwyd metadata XMP.",
     loadFailed: "Doedd dim modd llwytho XMP. Dewiswch y ffeil sy’n cyfateb i’r llun.",
+  },
   sidecars: {
     title: "Ffeiliau ategol XMP",
     save: "Cadw ffeiliau XMP",

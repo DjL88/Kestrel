@@ -10,6 +10,7 @@ export const nl: AreaTranslation<typeof source> = {
     load: "XMP-nevenbestand laden",
     loaded: "XMP-metagegevens toegepast.",
     loadFailed: "XMP kon niet worden geladen. Kies het nevenbestand bij deze foto.",
+  },
   sidecars: {
     title: "XMP-nevenbestanden",
     save: "XMP-bestanden opslaan",

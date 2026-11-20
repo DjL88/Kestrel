@@ -10,6 +10,7 @@ export const sv: AreaTranslation<typeof source> = {
     load: "Läs in XMP-sidofil",
     loaded: "XMP-metadata tillämpades.",
     loadFailed: "Det gick inte att läsa in XMP. Välj sidofilen som hör till fotot.",
+  },
   sidecars: {
     title: "XMP-sidofiler",
     save: "Spara XMP-filer",

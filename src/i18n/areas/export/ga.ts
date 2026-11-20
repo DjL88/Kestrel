@@ -14,6 +14,7 @@ export const ga: AreaTranslation<typeof source> = {
     load: "Lódáil an comhad XMP",
     loaded: "Cuireadh meiteashonraí XMP i bhfeidhm.",
     loadFailed: "Níorbh fhéidir XMP a lódáil. Roghnaigh an comhad a bhaineann leis an ngrianghraf seo.",
+  },
   sidecars: {
     title: "Comhaid tionlacain XMP",
     save: "Sábháil comhaid XMP",

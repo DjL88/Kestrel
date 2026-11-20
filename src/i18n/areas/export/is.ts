@@ -10,6 +10,7 @@ export const is: AreaTranslation<typeof source> = {
     load: "Hlaða inn XMP-hliðarskrá",
     loaded: "XMP-lýsigögn voru notuð.",
     loadFailed: "Ekki tókst að hlaða XMP. Veldu hliðarskrá þessarar myndar.",
+  },
   sidecars: {
     title: "XMP-hliðarskrár",
     save: "Vista XMP-skrár",

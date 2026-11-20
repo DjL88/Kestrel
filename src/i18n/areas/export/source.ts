@@ -8,6 +8,7 @@ export const source = {
     load: "Load XMP sidecar",
     loaded: "XMP metadata applied.",
     loadFailed: "Could not load XMP. Choose the matching sidecar for this photo.",
+  },
   sidecars: {
     title: "XMP sidecars",
     save: "Save XMP sidecars",
