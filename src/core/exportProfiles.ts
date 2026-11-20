@@ -7,6 +7,8 @@ export interface ExportProfile {
   quality: number;
   format: 'png' | 'jpeg';
   maxBytes?: number;
+  /** Only opt-in custom exports may enlarge pixels; never implies new detail. */
+  allowUpscale?: boolean;
   /** Added to the file name, so different formats of one photo never share a name. */
   suffix?: string;
 }
@@ -21,7 +23,8 @@ export const EXPORT_PROFILES: readonly ExportProfile[] = [
 ];
 
 export function exportScale(width: number, height: number, profile: ExportProfile): number {
-  return Math.min(1, (profile.width || width) / width, (profile.height || height) / height);
+  const requested = Math.min((profile.width || width) / width, (profile.height || height) / height);
+  return profile.allowUpscale === true ? requested : Math.min(1, requested);
 }
 
 export function exportFilename(name: string, profile: ExportProfile, isRaw: boolean) {
