@@ -163,7 +163,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
 
   return (
     <>
-    <header className="relative z-20 flex min-w-0 shrink-0 items-center justify-between gap-3 py-1.5 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
+    <header className="relative z-50 flex min-w-0 shrink-0 items-center justify-between gap-3 py-1.5 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
       <button type="button" onClick={props.onBackToProjects} disabled={props.actionsDisabled} className={actionClass} aria-label={t.top.backToProjects} title={t.top.backToProjects}>
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">{t.top.projects}</span>
       </button>
@@ -227,6 +227,15 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   </label>
                 </section>
 
+                <MenuSection id="menu-file" title="File">
+                  <MenuItem wide icon={<Plus className="h-4 w-4" aria-hidden="true" />} disabled={props.actionsDisabled || props.addDisabled} onClick={() => choose(props.onOpenShootModal, false)}>Add photos…</MenuItem>
+                  <MenuItem wide icon={<Download className="h-4 w-4" aria-hidden="true" />} disabled={!props.onExport} onClick={() => choose(() => props.onExport?.(), false)}>Export selected photos…</MenuItem>
+                </MenuSection>
+                <MenuSection id="menu-edit-photo" title="Edit">
+                  <MenuItem wide icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!onEditPhoto} onClick={() => choose(() => onEditPhoto?.(), false)}>Edit photo</MenuItem>
+                  <MenuItem wide icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!props.onAutoAdjustKeepers} onClick={() => choose(() => props.onAutoAdjustKeepers?.(), false)}>Auto-adjust</MenuItem>
+                  <MenuItem wide icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!props.onBatchLook} onClick={() => choose(() => props.onBatchLook?.(), false)}>Apply look</MenuItem>
+                </MenuSection>
                 <MenuSection id="menu-history" title={t.top.undoAndRedo}>
                   <MenuItem wide icon={<Undo2 className="h-4 w-4" aria-hidden="true" />} disabled={!props.onUndo}
                     onClick={() => choose(() => props.onUndo?.())}>{props.undoLabel ? t.top.undoAction(props.undoLabel) : t.top.nothingToUndo}</MenuItem>
@@ -257,7 +266,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                 </MenuSection>
 
                 <details className="border-t border-white/10 pt-1" open>
-                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-zinc-200">{t.top.settingsSummary}</summary>
+                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-zinc-200">View · show, hide and layout</summary>
                   <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
                     <input type="checkbox" checked={props.showFilmstrip} onChange={props.onToggleFilmstrip} />
                     {t.top.pinFilmstrip}
@@ -270,6 +279,11 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                     <input type="checkbox" checked={props.focusMode} onChange={props.onToggleFocusMode} />
                     {t.top.photoOnly}
                   </label>
+                  {props.onHandChange && <div role="group" aria-label="Panel position" className="mb-2 flex flex-wrap items-center gap-2 text-sm text-zinc-200">
+                    <span>Panels</span>
+                    <button type="button" aria-pressed={props.hand === 'left'} onClick={() => props.onHandChange?.('left')} className="rounded-md border border-white/15 px-3 py-2 aria-pressed:bg-sky-300/20">Left</button>
+                    <button type="button" aria-pressed={props.hand !== 'left'} onClick={() => props.onHandChange?.('right')} className="rounded-md border border-white/15 px-3 py-2 aria-pressed:bg-sky-300/20">Right</button>
+                  </div>}
                   {props.onOpenSettings && <button type="button" onClick={() => choose(props.onOpenSettings!)}
                     className="flex min-h-11 w-full items-center gap-2 rounded-md border border-white/15 px-3 text-left text-sm text-zinc-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
                     {m.settings.title}
@@ -325,7 +339,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
         <Ellipsis className="h-5 w-5" aria-hidden="true" /><span>{t.top.more}</span>
       </button>
     </div>
-    <nav aria-label={t.top.photoCollections} className="flex shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
+    <nav aria-label={t.top.photoCollections} className="relative z-50 flex shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
       {shoot.inbox ? (
         <label className="flex min-h-11 shrink-0 items-center gap-2 text-sm text-zinc-300">
           {t.top.show}
