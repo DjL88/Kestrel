@@ -9,6 +9,11 @@ const n = (count: number) => formatCount.format(count);
 /** Welsh. DRAFT: written without a native speaker's check. Uses "chi", as the common words do. */
 export const cy: AreaTranslation<typeof source> = {
   top: {
+    xmpImport: "Mewnforio sgoriau a thagiau (XMP)…",
+    xmpImportHelp: "Darllen XMP neu ZIP XMP Kestrel sy'n cyfateb i luniau a ddewiswyd yn unig. Ni chaiff ffeiliau gwreiddiol eu newid.",
+    xmpImported: (count) => `Mewnforiwyd XMP ar gyfer ${count} llun.`,
+    xmpImportKeeper: "Byddai XMP yn gwrthod llun a farciwyd Cadw. Adolygwch ef yn unigol yn Gwybodaeth y Llun.",
+    xmpImportFailed: "Methu mewnforio XMP. Gwiriwch enwau ffeiliau, dyblygiadau RAW/JPEG a diogelwch y ffeiliau.",
     xmpSidecars: "Cadw sgoriau a thagiau (XMP)…",
     xmpHelp: "Cadw sgoriau, dewisiadau Cadw/Gwrthod a thagiau wedi'u cadarnhau ar wahân i'r lluniau. Mae sawl ffeil yn cael eu rhoi mewn ZIP.",
     file: "Ffeil",
