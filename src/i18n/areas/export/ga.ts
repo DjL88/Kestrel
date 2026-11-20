@@ -8,6 +8,11 @@ const photos = (count: number) => plural(count, { one: `${count} ghrianghraf`, t
 
 /** Irish. DRAFT: written without a native speaker's check. */
 export const ga: AreaTranslation<typeof source> = {
+  rawTiff: {
+    action: "Easpórtáil TIFF RAW 16-ghiotán (fréamhshamhail)",
+    details: "Maidir le TIFF RAW 16-ghiotán",
+    help: "TIFF roghnach déanta as sonraí braiteora RAW leis na heagarthóireachtaí sábháilte. Ní chuirtear comhartha uisce ná téacs ar an íomhá, ná ní chóipeáiltear GPS nó EXIF roghnach. Tá na dathanna marcáilte mar sRGB, ach ní mór cruinneas datha agus feidhmíocht a fhíorú le tástáil fréamhshamhla. Ní shábhálfar an comhad má tá eagarthóireacht gan tacaíocht.",
+  },
   typeface: "Cló",
   sidecar: {
     save: "Sábháil an comhad XMP",
