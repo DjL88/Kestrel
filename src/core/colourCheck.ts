@@ -117,6 +117,8 @@ export function familyOf(L: number, a: number, b: number): ColourFamily {
   const hue = hueOf(a, b);
   if (hue < 15 || hue >= 350) return 'pink';
   if (hue < 40) return 'red';
+  // Soft, mid-tone oranges and yellows are what people call beige, tan or brown, not yellow.
+  if (hue < 105 && chroma < 0.08 && L < 0.78) return 'brown';
   if (hue < 75) return L < 0.6 ? 'brown' : 'orange';
   if (hue < 105) return L < 0.55 ? 'brown' : 'yellow';
   if (hue < 125) return 'lime';

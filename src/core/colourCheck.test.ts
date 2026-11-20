@@ -24,6 +24,8 @@ test('colours are named in plain families, with lightness and strength', () => {
   assert.equal(nameColour(240, 140, 30).family, 'orange');
   assert.equal(nameColour(110, 70, 30).family, 'brown');
   assert.equal(nameColour(240, 220, 40).family, 'yellow');
+  assert.equal(nameColour(150, 130, 100).family, 'brown', 'beige and tan read as brown');
+  assert.equal(nameColour(250, 230, 150).family, 'yellow', 'a pale but clear yellow stays yellow');
   assert.equal(nameColour(40, 160, 60).family, 'green');
   assert.equal(nameColour(30, 90, 200).family, 'blue');
   assert.equal(nameColour(130, 60, 170).family, 'purple');
