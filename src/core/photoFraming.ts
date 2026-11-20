@@ -1,3 +1,5 @@
+import type { CanvasColourSpace } from './canvasColourSpace';
+
 export interface PhotoFraming {
   ratio: number | null;
   turns: number;
@@ -224,7 +226,7 @@ export function estimateLevel(pixels: Uint8ClampedArray, width: number, height: 
 
 export function drawFramedPhoto(
   source: HTMLImageElement, output: HTMLCanvasElement, framing: PhotoFraming,
-  options?: { region?: PixelRect; scale?: number },
+  options?: { region?: PixelRect; scale?: number; colourSpace?: CanvasColourSpace },
 ) {
   const rotated = framing.turns % 2 !== 0;
   const width = rotated ? source.naturalHeight : source.naturalWidth;
@@ -236,7 +238,9 @@ export function drawFramedPhoto(
   const outputHeight = Math.max(1, Math.round(region.height * scale));
   if (output.width !== outputWidth) output.width = outputWidth;
   if (output.height !== outputHeight) output.height = outputHeight;
-  const context = output.getContext('2d', { willReadFrequently: true });
+  // A canvas keeps the colour space it was first given, so screen canvases ask for theirs here, on first use.
+  const context = output.getContext('2d', options?.colourSpace
+    ? { willReadFrequently: true, colorSpace: options.colourSpace } : { willReadFrequently: true });
   if (!context) throw new Error('Canvas unavailable');
   context.resetTransform();
   context.clearRect(0, 0, outputWidth, outputHeight);

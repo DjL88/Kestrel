@@ -1,4 +1,5 @@
 import { canShowNeutralRaster } from '../core/neutralRasterDisplay';
+import { displayCanvasColourSpace } from '../providers/displayColour';
 import { newId } from '../core/ids';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
@@ -590,7 +591,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       const canvas = editedCanvas.current;
       if (!canvas) return;
       const scale = Math.min(1, FIT_PREVIEW_EDGE / Math.max(size.width, size.height));
-      drawFramedPhoto(source, canvas, displayFraming, { scale });
+      drawFramedPhoto(source, canvas, displayFraming, { scale, colourSpace: displayCanvasColourSpace() });
       applyCanvasPhotoEdit(canvas, edit);
       histogramSource = canvas;
       width = canvas.width;
@@ -610,7 +611,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   useEffect(() => {
     if (!displayCompare || showOriginalBefore || !source || !size || !originalCanvas.current) return;
     const scale = Math.min(1, FIT_PREVIEW_EDGE / Math.max(size.width, size.height));
-    drawFramedPhoto(source, originalCanvas.current, displayFraming, { scale });
+    drawFramedPhoto(source, originalCanvas.current, displayFraming, { scale, colourSpace: displayCanvasColourSpace() });
     if (before.edit) applyCanvasPhotoEdit(originalCanvas.current, before.edit);
   }, [source, displayFraming, displayCompare, before.edit, size?.width, size?.height, showOriginalBefore]);
 
@@ -622,14 +623,14 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       const scale = Math.min(1, detail.scale * window.devicePixelRatio, Math.sqrt(5_000_000 / (region.width * region.height)));
       if (scale <= 0) return;
       if (editedDetail.current) {
-        drawFramedPhoto(source, editedDetail.current, displayFraming, { region, scale });
+        drawFramedPhoto(source, editedDetail.current, displayFraming, { region, scale, colourSpace: displayCanvasColourSpace() });
         applyCanvasPhotoEdit(editedDetail.current, edit, Math.max(size!.width, size!.height) * scale, {
           aspect: size!.height / size!.width,
           view: { x: region.x / size!.width, y: region.y / size!.height, w: region.width / size!.width, h: region.height / size!.height },
         });
       }
       if (displayCompare && originalDetail.current) {
-        drawFramedPhoto(source, originalDetail.current, displayFraming, { region, scale });
+        drawFramedPhoto(source, originalDetail.current, displayFraming, { region, scale, colourSpace: displayCanvasColourSpace() });
         if (before.edit) applyCanvasPhotoEdit(originalDetail.current, before.edit, Math.max(size!.width, size!.height) * scale, {
           aspect: size!.height / size!.width,
           view: { x: region.x / size!.width, y: region.y / size!.height, w: region.width / size!.width, h: region.height / size!.height },
