@@ -3,7 +3,14 @@ export type ProofDestination = { id: string; label: string; width: number; heigh
 export type SubjectEvidence = { label: string; source: 'user' | 'verified-local-model'; confidence?: number; verified?: boolean };
 export type ProofPlan = Readonly<{ photoIds: readonly string[]; destinations: readonly ProofDestination[]; selectedPhotoId: string; selectedDestinationId: string; subject: string; metadata: Readonly<Record<string,string>>; showLocation: boolean }>;
 const clean = (v: string, max=240) => v.replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);
-const privateKey = (key: string) => /^(gps|latitude|longitude|location|serial|owner|deviceid|artistaddress|contact)/i.test(key.replace(/[\s_-]/g,''));
+/** Location visibility must never unlock unrelated personal identifiers. */
+function metadataPrivacy(key: string): 'private' | 'location' | 'public' {
+  const normal = key.normalize('NFKC').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!normal) return 'private';
+  if (/(serial|owner|contact|address|email|phone|deviceid|personid|userid|accountid|artistaddress)/.test(normal)) return 'private';
+  if (/^(gps|latitude|longitude|location|geotag|coordinates|altitude)/.test(normal)) return 'location';
+  return 'public';
+}
 export function evidencedSubject(e?: SubjectEvidence): string {
   if (!e) return '';
   if (e.source === 'user') return clean(e.label);
@@ -17,7 +24,17 @@ export function createProofPlan(input: { photoIds: readonly string[]; destinatio
   const photo = input.selectedPhotoId ?? photos[0], destination = input.selectedDestinationId ?? destinations[0].id;
   if (!photos.includes(photo) || !destinations.some(d=>d.id===destination)) throw new Error('Selected proof photo or destination is unavailable.');
   const metadata: Record<string,string> = {};
-  for (const [key,value] of Object.entries(input.metadata ?? {})) if (typeof value==='string' && (!privateKey(key) || input.showLocation)) metadata[clean(key,80)]=clean(value,500);
+  const seenKeys = new Set<string>();
+  for (const [key,value] of Object.entries(input.metadata ?? {})) {
+    if (typeof value !== 'string') continue;
+    const privacy = metadataPrivacy(key);
+    if (privacy === 'private' || (privacy === 'location' && !input.showLocation)) continue;
+    const safeKey = clean(key.normalize('NFKC'),80);
+    const identity = safeKey.toLowerCase().replace(/[^a-z0-9]/g,'');
+    if (!identity || seenKeys.has(identity)) continue;
+    seenKeys.add(identity);
+    metadata[safeKey] = clean(value,500);
+  }
   return Object.freeze({ photoIds:Object.freeze(photos), destinations:Object.freeze(destinations.map(d=>Object.freeze(d))), selectedPhotoId:photo, selectedDestinationId:destination, subject:evidencedSubject(input.evidence), metadata:Object.freeze(metadata), showLocation:input.showLocation===true });
 }
 export function selectProof(plan: ProofPlan, selection: {photoId?: string; destinationId?: string}): ProofPlan {

@@ -39,3 +39,31 @@ test('invalid proof selection and duplicate destinations fail closed',()=>{
 test('control characters are stripped from text',()=>{
  assert.equal(evidencedSubject({source:'user',label:'  Bird\n<script>  '}),'Bird <script>');
 });
+
+test('location consent never reveals personal camera or photographer identifiers',()=>{
+ const metadata={
+  GPSLatitude:'51.0', Location:'Herefordshire', 'GPS Longitude':'-2.7',
+  'Camera Serial Number':'1234', 'Owner Name':'Private', 'Device_ID':'secret',
+  'Contact Email':'private@example.test', 'Artist Address':'Private Street',
+  'Serial Number':'abc', ISO:'800',
+ };
+ const hidden=createProofPlan({photoIds:['a'],destinations,metadata});
+ const shown=createProofPlan({photoIds:['a'],destinations,metadata,showLocation:true});
+ assert.deepEqual(hidden.metadata,{ISO:'800'});
+ assert.deepEqual(shown.metadata,{GPSLatitude:'51.0',Location:'Herefordshire','GPS Longitude':'-2.7',ISO:'800'});
+ assert.equal(metadata['Camera Serial Number'],'1234');
+ assert.deepEqual(selectProof(shown,{destinationId:'master'}).metadata,shown.metadata);
+});
+test('metadata key normalisation cannot bypass redaction or shadow values',()=>{
+ const metadata={
+  'Ｓｅｒｉａｌ Number':'hidden',
+  'GPS-Owner':'hidden',
+  'Contact.Address':'hidden',
+  'ＧＰＳ Latitude':'52',
+  ' ISO ':'800',
+  ISO:'1600',
+  '':'ignored',
+ };
+ const shown=createProofPlan({photoIds:['a'],destinations,metadata,showLocation:true});
+ assert.deepEqual(shown.metadata,{'GPS Latitude':'52','ISO':'800'});
+});
