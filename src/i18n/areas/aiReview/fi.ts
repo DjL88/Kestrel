@@ -27,6 +27,7 @@ export const fi: AreaTranslation<typeof source> = {
   modelNeeded: 'Kirjoita mallin nimi niin kuin palveluntarjoajasi sen näyttää.',
   baseUrl: 'Tekoälyn osoite',
   baseUrlHint: 'Esimerkiksi http://localhost:11434/v1 Ollamaa varten.',
+  invalidBaseUrl: "Käytä etä-AI:lle HTTPS-yhteyttä tai tämän tietokoneen AI:lle osoitetta http://localhost. Älä lisää avaimia osoitteeseen.",
   save: 'Tallenna',
   consentTitle: 'Ennen kuin mitään lähetetään',
   consentCloud: (host) => `Kestrel lähettää kopion tästä kuvasta, pisimmältä sivultaan 1 024 pikseliä, osoitteeseen ${host}. Siinä ei ole sijaintia, kameran tietoja eikä tiedoston nimeä. Palveluntarjoajasi voi veloittaa jokaisesta kysymyksestä.`,
