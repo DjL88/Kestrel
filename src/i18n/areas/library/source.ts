@@ -342,6 +342,18 @@ export const source = {
     eye: 'Eye',
     eyeBusy: 'Eye…',
   },
+  floatingPane: {
+    undockTools: "Undock editing tools",
+    undockToolsHelp: "Move editing tools into a resizable window",
+    undockInfo: "Undock Photo Info",
+    undockInfoHelp: "Move Photo Info into a resizable window",
+    move: (title: string) => `Move ${title}; use arrow keys`,
+    drag: (title: string) => `Drag to move ${title}, or use arrow keys`,
+    restore: (title: string) => `Restore ${title} panel size`,
+    maximise: (title: string) => `Maximise ${title} panel`,
+    pin: (title: string) => `Keep ${title} visible in Photo only`,
+    dock: (title: string) => `Dock ${title}`,
+  },
   paneRail: {
     editingTools: 'Editing tools',
     photoInfo: 'Photo info',

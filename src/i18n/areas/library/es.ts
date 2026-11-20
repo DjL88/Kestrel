@@ -339,6 +339,18 @@ export const es: AreaTranslation<typeof source> = {
     eye: 'Ojo',
     eyeBusy: 'Ojo…',
   },
+  floatingPane: {
+    undockTools: "Desacoplar herramientas de edición",
+    undockToolsHelp: "Mover las herramientas a una ventana de tamaño ajustable",
+    undockInfo: "Desacoplar información de la foto",
+    undockInfoHelp: "Mover la información a una ventana de tamaño ajustable",
+    move: (title) => `Mover ${title} con las teclas de dirección`,
+    drag: (title) => `Arrastra para mover ${title}, o usa las teclas de dirección`,
+    restore: (title) => `Restaurar tamaño del panel ${title}`,
+    maximise: (title) => `Maximizar panel ${title}`,
+    pin: (title) => `Mantener ${title} visible en modo Solo foto`,
+    dock: (title) => `Acoplar ${title}`,
+  },
   paneRail: {
     editingTools: 'Herramientas de edición',
     photoInfo: 'Información de la foto',

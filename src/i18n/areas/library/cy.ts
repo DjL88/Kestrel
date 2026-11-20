@@ -327,6 +327,18 @@ export const cy: AreaTranslation<typeof source> = {
     eye: 'Llygad',
     eyeBusy: 'Llygad…',
   },
+  floatingPane: {
+    undockTools: "Dad-docio offer golygu",
+    undockToolsHelp: "Symud yr offer golygu i ffenestr y gellir newid ei maint",
+    undockInfo: "Dad-docio Gwybodaeth y Llun",
+    undockInfoHelp: "Symud Gwybodaeth y Llun i ffenestr y gellir newid ei maint",
+    move: (title) => `Symud ${title}; defnyddiwch y bysellau saeth`,
+    drag: (title) => `Llusgwch i symud ${title}, neu defnyddiwch y bysellau saeth`,
+    restore: (title) => `Adfer maint panel ${title}`,
+    maximise: (title) => `Ehangu panel ${title}`,
+    pin: (title) => `Cadw ${title} yn weladwy yn y modd Llun yn Unig`,
+    dock: (title) => `Docio ${title}`,
+  },
   paneRail: {
     editingTools: 'Offer golygu',
     photoInfo: 'Gwybodaeth y llun',

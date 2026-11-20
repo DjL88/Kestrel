@@ -339,6 +339,18 @@ export const is: AreaTranslation<typeof source> = {
     eye: 'Auga',
     eyeBusy: 'Auga…',
   },
+  floatingPane: {
+    undockTools: "Aftengja myndvinnsluverkfæri",
+    undockToolsHelp: "Færa verkfærin í glugga sem hægt er að breyta stærð á",
+    undockInfo: "Aftengja myndupplýsingar",
+    undockInfoHelp: "Færa myndupplýsingar í glugga sem hægt er að breyta stærð á",
+    move: (title) => `Færa ${title} með örvatökkunum`,
+    drag: (title) => `Dragðu til að færa ${title}, eða notaðu örvatakkana`,
+    restore: (title) => `Endurheimta stærð spjaldsins ${title}`,
+    maximise: (title) => `Hámarka spjaldið ${title}`,
+    pin: (title) => `Halda ${title} sýnilegu í hamnum Aðeins mynd`,
+    dock: (title) => `Festa ${title}`,
+  },
   paneRail: {
     editingTools: 'Breytingaverkfæri',
     photoInfo: 'Upplýsingar um mynd',

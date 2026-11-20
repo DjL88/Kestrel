@@ -18,6 +18,10 @@ Every status uses exactly one of these labels:
 
 *Last reconciled: 18 November 2026, after the integration pass that merged #353–#361 and #364 and closed #362 and #363.*
 
+### 20 November 2026 — translated, focus-safe floating Editing Tools and Photo Info
+
+**Code authored, visual acceptance NOT RUN.** The existing undock/dock, draggable, resizable, maximisable and pinnable panels are connected to translated British English source and all full language packs: move/arrow-key instructions, restore/maximise, pin in Photo-only mode, dock and undock. The float titles use the translated editing-tools and Photo Info labels. Keyboard focus after docking returns by stable `data-editor-undock` / `data-info-undock` controls instead of English `aria-label` string matching. This removes a known non-English UI gap without changing the resize and drag geometry or saving any photo state. **NOT RUN:** TypeScript, locale rendering, keyboard/SR Playwright, Windows/Mac/tablet installed journey; retain Section F4/F5 acceptance for prototype testing.
+
 ### 20 November 2026 — Review/Edit/Compare true-pixel zoom UI consistency
 
 **Code authored, prototype acceptance NOT RUN.** The common Review and Edit zoom bar now only offers 100% and 200% when the actual loaded image's pixel scale can be achieved; a smaller displayed photo cannot silently clamp an advertised 100% button to Fit. The controls use device pixel ratio, distinguish RAW camera/developed *preview* pixels from full RAW sensor pixels, and give localised reasons when the target cannot be reached. Compare retains its dedicated A/B 100% and 200% controls without a redundant corner zoom toggle. All full-language packs have translated the new tooltips; regression cases cover small images, zoom limits and high-DPI displays. **NOT RUN:** TypeScript, unit, Playwright, installed desktop/mobile or actual Z8/Z5II zoom checks. This is an implementation slice of #418 F2/Q-07, **not** sign-off of the full F2 dock/filmstrip acceptance gate.

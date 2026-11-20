@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Maximize2, Minimize2, PanelRightClose, Pin } from 'lucide-react';
 import { clampPaneRect, FLOATING_PANE_GAP as GAP, type PaneRect } from '../core/floatingPaneGeometry';
 import { FLOATING_PANE_Z } from '../core/photoInfoLayout';
+import { libraryText as t } from '../i18n/areas/library';
 
 interface FloatingPaneProps {
   title: string;
@@ -121,7 +122,7 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
       }}
       onPointerUp={measureResize} onPointerCancel={measureResize}>
       <div className="flex min-h-12 shrink-0 items-center gap-1 border-b border-white/15 bg-kestrel-raised px-2">
-        <div role="button" data-pane-drag-handle tabIndex={0} aria-label={`Move ${title}; use arrow keys`} title={`Drag to move ${title}, or use arrow keys`}
+        <div role="button" data-pane-drag-handle tabIndex={0} aria-label={t.floatingPane.move(title)} title={t.floatingPane.drag(title)}
           className="flex min-h-11 min-w-0 flex-1 touch-none cursor-move items-center px-2 text-sm font-semibold text-zinc-100 focus-visible:outline-2 focus-visible:outline-sky-300"
           onKeyDown={moveKeyboard}
           onPointerDown={(event) => {
@@ -134,12 +135,12 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
           <span className="truncate">{title}</span>
         </div>
         <button type="button" onClick={() => setMaximised((value) => !value)}
-          aria-label={maximised ? `Restore ${title} panel size` : `Maximise ${title} panel`}
+          aria-label={maximised ? t.floatingPane.restore(title) : t.floatingPane.maximise(title)}
           className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
           {maximised ? <Minimize2 className="h-4 w-4" aria-hidden="true"/> : <Maximize2 className="h-4 w-4" aria-hidden="true"/>}
         </button>
         <button type="button" aria-pressed={pinned}
-          aria-label={`Keep ${title} visible in Photo only`} title={`Keep ${title} visible in Photo only`}
+          aria-label={t.floatingPane.pin(title)} title={t.floatingPane.pin(title)}
           onClick={() => {
             setPinned(!pinned);
             try { localStorage.setItem(pinKey, String(!pinned)); } catch { /* Optional preference. */ }
@@ -147,7 +148,7 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
           className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 aria-pressed:bg-white/20 focus-visible:outline-2 focus-visible:outline-sky-300">
           <Pin className={`h-4 w-4 ${pinned ? 'fill-current' : ''}`} aria-hidden="true" />
         </button>
-        <button type="button" onClick={dock} aria-label={`Dock ${title}`}
+        <button type="button" onClick={dock} aria-label={t.floatingPane.dock(title)}
           className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
           <PanelRightClose className="h-4 w-4" aria-hidden="true"/>
         </button>

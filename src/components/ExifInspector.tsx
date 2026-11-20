@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { messages as m } from '../i18n/messages';
+import { libraryText as libraryT } from '../i18n/areas/library';
 import { ChevronLeft, ChevronRight, ClipboardCopy, Download, PanelTopOpen, Star, X } from 'lucide-react';
 import { exportText } from '../i18n/areas/export';
 import { downloadInBrowser } from '../providers/browserExport';
@@ -146,8 +147,8 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">{m.photoInfo.title}</h2>
-        {!floating && <button type="button" onClick={() => detach(true)} title="Undock Photo Info into a movable window"
-          aria-label="Undock Photo Info" className="hidden h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 info-dock:grid">
+        {!floating && <button data-info-undock type="button" onClick={() => detach(true)} title={libraryT.floatingPane.undockInfoHelp}
+          aria-label={libraryT.floatingPane.undockInfo} className="hidden h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 info-dock:grid">
           <PanelTopOpen className="h-4 w-4" aria-hidden="true"/>
         </button>}
         {/* An arrow towards the edge it folds into, as on the editing tools; on small screens, where it floats, a cross. */}
@@ -250,6 +251,6 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
     </aside>
   );
   return floating
-    ? <FloatingPane title={m.photoInfo.title} photoOnly={photoOnly} initialSide={dockedSide} storageKey="kestrel-info-float-rect-v1" dockFocusSelector='[aria-label="Undock Photo Info"]' onDock={() => detach(false)}>{inspector}</FloatingPane>
+    ? <FloatingPane title={m.photoInfo.title} photoOnly={photoOnly} initialSide={dockedSide} storageKey="kestrel-info-float-rect-v1" dockFocusSelector="[data-info-undock]" onDock={() => detach(false)}>{inspector}</FloatingPane>
     : inspector;
 };

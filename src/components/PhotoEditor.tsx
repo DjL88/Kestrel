@@ -5,6 +5,7 @@ import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
 import { editorText as t } from '../i18n/areas/editor';
+import { libraryText as libraryT } from '../i18n/areas/library';
 import { exportText as exportT } from '../i18n/areas/export';
 import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed, Undo2, Wand2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
@@ -1317,7 +1318,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         sliderTimer.current = window.setTimeout(() => setSliderBusy(false), 700);
       }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={floatingTools ? 'h-full min-h-0 w-full space-y-2 overflow-y-auto bg-kestrel-panel p-3' : `${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
         {!isPhone && <div className="sticky top-0 z-20 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
-          {!floatingTools && <button type="button" aria-label="Undock editing tools" title="Move editing tools into a resizable window"
+          {!floatingTools && <button data-editor-undock type="button" aria-label={libraryT.floatingPane.undockTools} title={libraryT.floatingPane.undockToolsHelp}
             onClick={() => setToolsUndocked(true)}
             className="grid h-11 w-11 shrink-0 place-items-center border-b border-white/10 text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
             <Maximize className="h-4 w-4" aria-hidden="true"/>
@@ -1712,7 +1713,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
       </div>
       ); return floatingTools
-        ? <FloatingPane title="Editing tools" photoOnly={focusPhoto} initialSide={panelSide} storageKey="kestrel-tools-float-rect-v1" dockFocusSelector='[aria-label="Undock editing tools"]' onDock={() => setToolsUndocked(false)}>{toolPanel}</FloatingPane>
+        ? <FloatingPane title={libraryT.paneRail.editingTools} photoOnly={focusPhoto} initialSide={panelSide} storageKey="kestrel-tools-float-rect-v1" dockFocusSelector="[data-editor-undock]" onDock={() => setToolsUndocked(false)}>{toolPanel}</FloatingPane>
         : toolPanel; })()}
       {isPhone && !focusPhoto && tabList}
       </div>

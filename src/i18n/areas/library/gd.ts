@@ -330,6 +330,18 @@ export const gd: AreaTranslation<typeof source> = {
     eye: 'Sùil',
     eyeBusy: 'Sùil…',
   },
+  floatingPane: {
+    undockTools: "Thoir innealan deasachaidh às an doca",
+    undockToolsHelp: "Gluais innealan deasachaidh gu uinneag le meud atharraichte",
+    undockInfo: "Thoir Fiosrachadh an Dealbh às an doca",
+    undockInfoHelp: "Gluais Fiosrachadh an Dealbh gu uinneag le meud atharraichte",
+    move: (title) => `Gluais ${title}; cleachd na saighdean`,
+    drag: (title) => `Slaod gus ${title} a ghluasad, no cleachd na saighdean`,
+    restore: (title) => `Aisig meud pana ${title}`,
+    maximise: (title) => `Meudaich pana ${title}`,
+    pin: (title) => `Cùm ${title} ri fhaicinn ann am modh Dealbh a-mhàin`,
+    dock: (title) => `Docaich ${title}`,
+  },
   paneRail: {
     editingTools: 'Innealan deasachaidh',
     photoInfo: 'Fiosrachadh an deilbh',

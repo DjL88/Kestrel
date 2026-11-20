@@ -330,6 +330,18 @@ export const ga: AreaTranslation<typeof source> = {
     eye: 'Súil',
     eyeBusy: 'Súil…',
   },
+  floatingPane: {
+    undockTools: "Dícheangail uirlisí eagarthóireachta",
+    undockToolsHelp: "Bog na huirlisí eagarthóireachta go fuinneog in-athraithe méid",
+    undockInfo: "Dícheangail Eolas an Ghrianghraif",
+    undockInfoHelp: "Bog Eolas an Ghrianghraif go fuinneog in-athraithe méid",
+    move: (title) => `Bog ${title}; úsáid na saigheadeochracha`,
+    drag: (title) => `Tarraing chun ${title} a bhogadh, nó úsáid na saigheadeochracha`,
+    restore: (title) => `Athchóirigh méid phainéal ${title}`,
+    maximise: (title) => `Uasmhéadaigh painéal ${title}`,
+    pin: (title) => `Coinnigh ${title} infheicthe sa mhód Grianghraf amháin`,
+    dock: (title) => `Ceangail ${title}`,
+  },
   paneRail: {
     editingTools: 'Uirlisí eagarthóireachta',
     photoInfo: 'Eolas an ghrianghraif',
