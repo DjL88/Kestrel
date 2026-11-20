@@ -27,3 +27,14 @@ export function parseWatermark(raw: string | null): WatermarkOptions {
     return NO_WATERMARK;
   }
 }
+
+/** Never serialize renderer image bytes or data URLs into local settings/presets.
+ * Historical inline marks are migrated to the local vault before this is called.
+ */
+export function watermarkForStorage(mark: WatermarkOptions): WatermarkOptions {
+  const { imageData: _renderOnly, ...saved } = mark;
+  if (saved.kind === 'image' && !isWatermarkAssetId(saved.imageAssetId)) {
+    throw new Error('Save the image watermark privately on this device before saving its preset.');
+  }
+  return saved;
+}
