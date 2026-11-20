@@ -58,8 +58,7 @@ import { isHeifFile, isRawPreviewFile } from '../core/rawFormats';
 import { tasks } from '../core/taskStore';
 import { canDevelopRaw, canExportRawMaster, developRaw, matchPreviewOrientation, rawDngCopy, rawSensorMode, sensorModeLabel, type RawSensorMode } from '../providers/rawDevelop';
 import { extractRawPreview } from '../core/nefPreview';
-import { exportRaw16Tiff } from '../providers/rawMaster16';
-import { isDesktopApp, saveWithDialog } from '../providers/desktopShell';
+import { saveWithDialog } from '../providers/desktopShell';
 import { PaidNotice } from './PaidNotice';
 import { useAccess } from '../providers/useAccess';
 const PANEL_KEY = 'kestrel-panel-width-v1';
@@ -168,8 +167,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [developedRev, setDevelopedRev] = useState(0);
   const [developing, setDeveloping] = useState(false);
   const [developNote, setDevelopNote] = useState<string | null>(null);
-  const [masterBusy, setMasterBusy] = useState(false);
-  const [masterNote, setMasterNote] = useState<string | null>(null);
   const [dngBusy, setDngBusy] = useState(false);
   /** How each developed RAW's sensor data was stored, by photo, so the label and the DNG option tell the truth. */
   const [sensorModes, setSensorModes] = useState<Record<string, RawSensorMode>>({});
@@ -473,44 +470,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       setDevelopNote(t.raw.developFailedNote(message));
       task.fail(message);
     } finally { setDeveloping(false); }
-  }
-
-
-  /**
-   * MVP proof: export edited RGB16 TIFF directly from the original RAW. No
-   * JPEG/HTML canvas intermediary, and never discard an unsupported adjustment.
-   * This is intentionally an explicit test export, not the default master.
-   */
-  async function exportHighPrecisionMaster() {
-    if (masterBusy) return;
-    setMasterBusy(true);
-    setMasterNote(null);
-    const task = tasks.start(t.raw.masterTask);
-    try {
-      if (previewRecipe || pendingAuto) {
-        throw new Error(t.raw.masterApplyFirst);
-      }
-      if (!source) throw new Error(t.raw.masterWait);
-      const original = await provider.ensureOriginal(frame.stableKey);
-      if (!original) throw new Error(t.raw.masterReconnect);
-      const output = await exportRaw16Tiff(original, source, frame.edit ?? DEFAULT_EDIT, frame.framing);
-      const name = frame.filename.replace(/\.[^.]+$/, '') + '_16bit.tif';
-      // The browser hands the file to its own downloads; the desktop app asks where to save it.
-      const saved = isDesktopApp() ? await saveWithDialog(output, name) : (downloadExport(output, name), true);
-      if (saved) {
-        setMasterNote(t.raw.masterSavedTask);
-        task.finish(t.raw.masterSavedTask);
-      } else {
-        setMasterNote(t.raw.masterCancelled);
-        task.finish(t.raw.cancelledTask);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t.raw.masterFailed;
-      setMasterNote(message);
-      task.fail(message);
-    } finally {
-      setMasterBusy(false);
-    }
   }
 
 
@@ -1338,8 +1297,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             {canDevelopRaw() && (provider.isDeveloped(frame.stableKey) || canExportRawMaster()) && (
               <div className="space-y-1 border-t border-white/10 pt-2">
                 {provider.isDeveloped(frame.stableKey) && <button type="button" className={button + ' w-full border border-white/15'}
-                  disabled={masterBusy || sourceState !== 'ready'} onClick={() => void exportHighPrecisionMaster()}>
-                  {masterBusy ? t.raw.masterBusy : exportT.rawTiff.action}
+                  disabled={sourceState !== 'ready'} onClick={openExport}>
+                  {exportT.rawTiff.action}
                 </button>}
                 {provider.isDeveloped(frame.stableKey) && (
                   <details className="rounded-md border border-white/10 px-3 text-xs text-zinc-300">
@@ -1347,7 +1306,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                     <p className="pb-2">{exportT.rawTiff.help}</p>
                   </details>
                 )}
-                {masterNote && <p role="status" className="text-xs text-zinc-300">{masterNote}</p>}
                 {canExportRawMaster() && sensorMode !== 'other' && (
                   <>
                     <button type="button" className={button + ' w-full border border-white/15'}
