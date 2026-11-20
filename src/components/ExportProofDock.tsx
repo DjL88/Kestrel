@@ -30,25 +30,25 @@ export function ExportProofDock(props: Props) {
   return (
     <aside aria-label={t.proof.title} className="z-10 shrink-0 border-b border-white/15 bg-kestrel-raised px-3 py-2">
       <div className="mx-auto flex max-w-4xl flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <strong className="mr-auto text-sm font-medium text-zinc-100">{t.proof.title}</strong>
-          {props.frames.length > 1 && <label className="flex min-w-0 items-center gap-2">
+        <div className="grid min-w-0 grid-cols-1 items-center gap-2 text-xs sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+          <strong className="min-w-0 text-sm font-medium text-zinc-100">{t.proof.title}</strong>
+          {props.frames.length > 1 && <label className="flex min-w-0 max-w-full items-center gap-2">
             <span className="text-zinc-300">{t.proof.photo}</span>
-            <select aria-label={t.proof.choosePhoto} className="min-h-11 max-w-40 rounded-md border border-white/20 bg-[#15171C] px-2 text-zinc-100"
+            <select aria-label={t.proof.choosePhoto} className="min-h-11 min-w-0 w-full max-w-full sm:max-w-44 rounded-md border border-white/20 bg-[#15171C] px-2 text-zinc-100"
               value={frame?.id ?? ''} onChange={event => props.onChoosePhoto(event.target.value)}>
               {props.frames.map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.filename}</option>)}
             </select>
           </label>}
           {props.formats.length > 0 && <label className="flex min-w-0 items-center gap-2">
             <span className="text-zinc-300">{t.proof.output}</span>
-            <select aria-label={t.proof.chooseOutput} className="min-h-11 max-w-44 rounded-md border border-white/20 bg-[#15171C] px-2 text-zinc-100"
+            <select aria-label={t.proof.chooseOutput} className="min-h-11 min-w-0 w-full max-w-full sm:max-w-48 rounded-md border border-white/20 bg-[#15171C] px-2 text-zinc-100"
               value={format?.id ?? ''} onChange={event => props.onChooseDestination(event.target.value)}>
               {props.formats.map(item => <option key={item.id} value={item.id}>{formatLabel(item)}</option>)}
             </select>
           </label>}
         </div>
         {frame && format && props.sources[frame.id] ? (
-          <div className="mx-auto w-full max-w-[18rem] [&_figure>div:first-child>div]:!h-[min(22dvh,11rem)]">
+          <div className="mx-auto w-full max-w-[min(100%,32rem)] [&_figure>div:first-child>div]:!h-[clamp(9rem,28dvh,17rem)] sm:[&_figure>div:first-child>div]:!h-[clamp(12rem,34dvh,23rem)]">
             <ExportPreviewTile key={frame.id + '|' + format.id} frame={frame} source={props.sources[frame.id]}
               format={format} bars={props.bars} anchor={props.anchorFor(frame, format)}
               onAnchor={point => props.onAnchor(frame, format, point)}
