@@ -143,12 +143,17 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
   const zoomFor = (frame: PhotoFrame, format: ExportFormat) => zooms[`${frame.id}|${format.id}`] ?? 1;
   const anchorFor = (frame: PhotoFrame, format: ExportFormat): FocusPoint => anchors[`${frame.id}|${format.id}`] ?? frame.focusPoint ?? { x: 0.5, y: 0.5 };
 
-  async function deliver(file: Blob, name: string, exported: readonly PhotoFrame[]) {
+  function finishDelivery(exported: readonly PhotoFrame[], complete: boolean) {
+    onDownloadRequested?.(exported);
+    if (complete && !cancelled.current) onClose();
+  }
+
+  async function deliver(file: Blob, name: string, exported: readonly PhotoFrame[], complete = true) {
     if (saveRunning.current) return;
     setError('');
     if (!desktop) {
       downloadExport(file, name);
-      onDownloadRequested?.(exported);
+      finishDelivery(exported, complete);
       return;
     }
 
@@ -157,14 +162,31 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
     setSavedName(null);
     try {
       if (await saveWithDialog(file, name)) {
-        setSavedName(name);
-        onDownloadRequested?.(exported);
+        if (!complete && !cancelled.current) setSavedName(name);
+        finishDelivery(exported, complete);
       }
     } catch {
-      setError(t.panel.saveFailed);
+      if (!cancelled.current) setError(t.panel.saveFailed);
     } finally {
       saveRunning.current = false;
-      setSaving(false);
+      if (!cancelled.current) setSaving(false);
+    }
+  }
+
+  async function deliverToPlace() {
+    if (!exportPlace || saveRunning.current) return;
+    saveRunning.current = true;
+    setPlaceBusy(true);
+    setPlaceNote(null);
+    try {
+      const result = await exportPlace.save(files);
+      if (result.ok) finishDelivery(frames, true);
+      else if (!cancelled.current) setPlaceNote({ ok: false, text: result.message });
+    } catch {
+      if (!cancelled.current) setPlaceNote({ ok: false, text: t.panel.saveFailed });
+    } finally {
+      saveRunning.current = false;
+      if (!cancelled.current) setPlaceBusy(false);
     }
   }
 
@@ -644,12 +666,8 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
                 aria-disabled={saving} onClick={() => void deliver(files[0], files[0].name, frames.slice(0, 1))}>{desktop ? t.results.save : t.results.download}</button>}
               {files.length > 1 && <button type="button" disabled={!zip} aria-disabled={saving || !zip} className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
                 onClick={() => { if (zip) void deliver(zip, 'kestrel-exports.zip', frames); }}>{zip ? (desktop ? t.results.saveZip : t.results.downloadZip) : t.results.packingZip}</button>}
-              {exportPlace && <button type="button" className={button} disabled={placeBusy} onClick={async () => {
-                setPlaceBusy(true); setPlaceNote(null);
-                const result = await exportPlace.save(files);
-                setPlaceNote(result.ok ? { ok: true, text: t.results.savedToPlace(result.count, exportPlace.label) } : { ok: false, text: result.message });
-                setPlaceBusy(false);
-              }}>{placeBusy ? t.results.saving : t.results.alsoSave(exportPlace.label)}</button>}
+              {exportPlace && <button type="button" className={button} disabled={saving || placeBusy}
+                onClick={() => void deliverToPlace()}>{placeBusy ? t.results.saving : t.results.alsoSave(exportPlace.label)}</button>}
               {canShare && <button type="button" className={button} onClick={() => {
                 void navigator.share({ files }).catch((reason) => {
                   if ((reason as Error).name !== 'AbortError') setError(t.results.shareFailed);
@@ -669,7 +687,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
               {files.map((file, index) => <button type="button" className={`${button} block max-w-full truncate`}
                 key={index} aria-disabled={saving} onClick={() => {
                   const frame = frames[Math.floor(index / selected.length)];
-                  void deliver(file, file.name, frame ? [frame] : []);
+                  void deliver(file, file.name, frame ? [frame] : [], false);
                 }}>{file.name}</button>)}
             </details>}
           </div>
