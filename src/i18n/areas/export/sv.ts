@@ -77,6 +77,8 @@ export const sv: AreaTranslation<typeof source> = {
     fullSize: 'Full storlek',
     customSize: 'Egen storlek',
     master: 'Full storlek · PNG',
+    fullJpeg: "Full storlek · JPEG",
+    fullJpegHelp: "JPEG med hög kvalitet från tillgängliga bilddata. För RAW används en framkallad bild eller kamerans förhandsvisning, inte en verifierad 16-bitars RAW-master.",
     custom: (width, height) => `Egen · ${width} × ${height}`,
     post: (shape) => `Inlägg · ${shape}`,
     square: (shape) => `Kvadrat · ${shape}`,
