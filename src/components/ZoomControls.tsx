@@ -1,4 +1,4 @@
-import { percentFor, stepZoom, zoomForPercent } from '../core/zoomControls';
+import { availablePixelZoom, percentFor, stepZoom } from '../core/zoomControls';
 import { adjustmentFill } from '../core/adjustmentSlider';
 import { libraryText as t } from '../i18n/areas/library';
 
@@ -9,6 +9,8 @@ interface ZoomControlsProps {
   fit: number;
   dpr: number;
   maxZoom: number;
+  /** RAW sources may only expose decoded/embedded preview pixels to Review/Edit. */
+  previewPixels?: boolean;
   onZoom: (zoom: number) => void;
   /** The Eye button: one zoom to the eye (editor) or a mode that follows each photo (culling, `pressed`). */
   eye: { onClick: () => void; busy?: boolean; disabled?: boolean; pressed?: boolean; title: string };
@@ -24,10 +26,14 @@ interface ZoomControlsProps {
  * in, a slider, Fit, 100%, 200% and Eye. Every button is a full 44-pixel touch target. Only the view moves; edits and
  * decisions are never touched.
  */
-export function ZoomControls({ zoom, fit, dpr, maxZoom, onZoom, eye, note, compact = false, className = '' }: ZoomControlsProps) {
+export function ZoomControls({ zoom, fit, dpr, maxZoom, onZoom, eye, note, previewPixels = false, compact = false, className = '' }: ZoomControlsProps) {
   const ready = fit > 0;
   const rangeMax = Math.max(1.01, maxZoom);
   const progress = adjustmentFill(zoom, 1, rangeMax, 1);
+  const actual100 = availablePixelZoom(100, fit, dpr, maxZoom);
+  const actual200 = availablePixelZoom(200, fit, dpr, maxZoom);
+  const label100 = previewPixels ? t.zoom.previewActual : t.zoom.actualPixels;
+  const label200 = previewPixels ? t.zoom.previewTwice : t.zoom.twiceActual;
   return (
     <div role="group" aria-label={t.zoom.label} className={`flex shrink-0 items-center gap-0.5 rounded-md border border-white/10 px-1 text-xs text-zinc-100 ${className}`}>
       <button type="button" aria-label={t.zoom.zoomOut} title={t.zoom.zoomOutTitle} disabled={!ready} className="grid h-11 min-w-11 place-items-center rounded hover:bg-white/15 disabled:opacity-40"
@@ -44,10 +50,16 @@ export function ZoomControls({ zoom, fit, dpr, maxZoom, onZoom, eye, note, compa
           className="kestrel-adjustment-range relative z-[1] h-11 w-full min-w-0 cursor-pointer disabled:cursor-not-allowed" />
       </span>
       <button type="button" title={t.zoom.fitTitle} className="h-11 min-w-11 rounded px-1.5 hover:bg-white/15" onClick={() => onZoom(1)}>{t.zoom.fit}</button>
-      <button type="button" title={t.zoom.actualPixels} disabled={!ready} className="h-11 min-w-11 rounded px-1.5 hover:bg-white/15 disabled:opacity-40"
-        onClick={() => onZoom(zoomForPercent(100, fit, dpr))}>100%</button>
-      <button type="button" title={t.zoom.twiceActual} disabled={!ready} className={`h-11 min-w-11 rounded px-1.5 hover:bg-white/15 disabled:opacity-40 ${compact ? 'hidden @6xl:inline-block' : ''}`}
-        onClick={() => onZoom(zoomForPercent(200, fit, dpr))}>200%</button>
+      <button type="button" aria-label={label100}
+        title={actual100 === null && ready ? t.zoom.unavailableAtFit : label100}
+        aria-pressed={actual100 !== null && Math.abs(zoom - actual100) < 0.001}
+        disabled={actual100 === null} className="h-11 min-w-11 rounded px-1.5 hover:bg-white/15 aria-pressed:bg-white/15 disabled:opacity-40"
+        onClick={() => { if (actual100 !== null) onZoom(actual100); }}>100%</button>
+      <button type="button" aria-label={label200}
+        title={actual200 === null && ready ? t.zoom.unavailableAtFit : label200}
+        aria-pressed={actual200 !== null && Math.abs(zoom - actual200) < 0.001}
+        disabled={actual200 === null} className={`h-11 min-w-11 rounded px-1.5 hover:bg-white/15 aria-pressed:bg-white/15 disabled:opacity-40 ${compact ? 'hidden @6xl:inline-block' : ''}`}
+        onClick={() => { if (actual200 !== null) onZoom(actual200); }}>200%</button>
       <button type="button" aria-label={t.zoom.eye} aria-busy={eye.busy || undefined} title={eye.title} aria-pressed={eye.pressed} disabled={eye.disabled}
         className="h-11 min-w-11 rounded px-1.5 hover:bg-white/15 aria-pressed:bg-white/15 disabled:opacity-40" onClick={eye.onClick}>{eye.busy ? t.zoom.eyeBusy : t.zoom.eye}</button>
       {note && <span role="status" className="max-w-56 truncate px-1 text-xs text-zinc-300">{note}</span>}
