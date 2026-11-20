@@ -252,7 +252,7 @@ export function downloadExport(blob: Blob, name: string) {
   downloadInBrowser(blob, name);
 }
 
-function downloadInBrowser(blob: Blob, name: string) {
+export function downloadInBrowser(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

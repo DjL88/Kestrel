@@ -4,6 +4,7 @@ import type { source } from './source';
 
 /** Swedish. DRAFT: written without a native speaker's check. */
 export const sv: AreaTranslation<typeof source> = {
+  sidecar: { save: "Spara XMP-sidofil", saveFailed: "Det gick inte att spara XMP-sidofilen. Välj ett namn som slutar på .xmp." },
   presets: {
     title: "Exportförinställningar",
     name: "Förinställningens namn",

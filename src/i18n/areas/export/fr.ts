@@ -4,6 +4,7 @@ import type { source } from './source';
 
 /** French. DRAFT: written without a native speaker's check. */
 export const fr: AreaTranslation<typeof source> = {
+  sidecar: { save: "Enregistrer le fichier XMP", saveFailed: "Impossible d’enregistrer le fichier XMP. Choisissez un nom se terminant par .xmp." },
   presets: {
     title: "Préréglages d’export",
     name: "Nom du préréglage",

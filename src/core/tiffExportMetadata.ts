@@ -35,7 +35,16 @@ const bag = (name: string, values: readonly string[]) =>
 
 /** null means 'strip all optional metadata', including geolocation. */
 export function tiffXmpPacket(metadata: TiffExportMetadata | null | undefined): Uint8Array | null {
-  if (!metadata) return null;
+  return metadata ? encodeXmp(metadata) : null;
+}
+
+/** Independent stars and culling flag, as used by Adobe's XMP readers. */
+export function sidecarXmpPacket(rating: number, pick: -1 | 0 | 1, keywords: readonly string[]): Uint8Array<ArrayBuffer> {
+  const stars = Number.isInteger(rating) && rating >= 0 && rating <= 5 ? rating : 0;
+  return encodeXmp({ keywords }, { stars, pick })!;
+}
+
+function encodeXmp(metadata: TiffExportMetadata, decision?: { stars: number; pick: -1 | 0 | 1 }): Uint8Array<ArrayBuffer> | null {
   const title = field(metadata.title);
   const caption = field(metadata.caption);
   const creator = field(metadata.creator);
@@ -50,13 +59,16 @@ export function tiffXmpPacket(metadata: TiffExportMetadata | null | undefined): 
     rights ? alt('rights', rights) : '',
     keywords.length ? bag('subject', keywords) : '',
   ].filter(Boolean).join('');
-  if (!fields) return null;
+  if (!fields && !decision) return null;
+  const ratings = decision
+    ? ` xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:xmpDM="http://ns.adobe.com/xmp/1.0/DynamicMedia/" xmp:Rating="${decision.stars}" xmpDM:pick="${decision.pick}"`
+    : '';
   const packet = `<?xpacket begin="\ufeff" id="W5M0MpCehiHzreSzNTczkc9d"?>` +
     `<x:xmpmeta xmlns:x="adobe:ns:meta/">` +
     `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">` +
-    `<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/">` +
+    `<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"${ratings}>` +
     fields + `</rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="w"?>`;
   const bytes = new TextEncoder().encode(packet);
-  if (bytes.length > MAX_PACKET_BYTES) throw new Error('The export metadata is too large for a TIFF.');
+  if (bytes.length > MAX_PACKET_BYTES) throw new Error('The XMP metadata is too large to export.');
   return bytes;
 }
