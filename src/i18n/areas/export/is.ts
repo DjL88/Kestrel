@@ -77,6 +77,8 @@ export const is: AreaTranslation<typeof source> = {
     fullSize: 'Full stærð',
     customSize: 'Sérsniðin stærð',
     master: 'Full stærð · PNG',
+    fullJpeg: "Full stærð · JPEG",
+    fullJpegHelp: "Hágæða JPEG úr tiltækum myndgögnum. Fyrir RAW er notuð framkölluð mynd eða forskoðun myndavélar, ekki staðfest 16-bita RAW-frummynd.",
     custom: (width, height) => `Sérsniðið · ${width} × ${height}`,
     post: (shape) => `Færsla · ${shape}`,
     square: (shape) => `Ferningur · ${shape}`,
