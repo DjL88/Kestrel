@@ -125,6 +125,8 @@ export const fi: AreaTranslation<typeof source> = {
     }),
   },
   custom: {
+    allowUpscale: "Suurenna pieniä kuvia (tavallinen skaalaus)",
+    upscaleNote: "Tämä lisää pikseleitä mutta ei palauta puuttuvia yksityiskohtia. Esikatselu näyttää rajauksen; tarkista yksityiskohdat tallennetusta tiedostosta.",
     width: 'Leveys (px)',
     height: 'Korkeus (px)',
     fit: 'Sovitus',
