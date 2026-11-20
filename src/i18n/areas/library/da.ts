@@ -339,6 +339,18 @@ export const da: AreaTranslation<typeof source> = {
     eye: 'Øje',
     eyeBusy: 'Øje…',
   },
+  floatingPane: {
+    undockTools: "Frigør redigeringsværktøjer",
+    undockToolsHelp: "Flyt værktøjerne til et vindue, der kan ændres i størrelse",
+    undockInfo: "Frigør fotooplysninger",
+    undockInfoHelp: "Flyt fotooplysninger til et vindue, der kan ændres i størrelse",
+    move: (title) => `Flyt ${title} med piletasterne`,
+    drag: (title) => `Træk for at flytte ${title}, eller brug piletasterne`,
+    restore: (title) => `Gendan størrelsen på panelet ${title}`,
+    maximise: (title) => `Maksimér panelet ${title}`,
+    pin: (title) => `Hold ${title} synlig i Kun foto-tilstand`,
+    dock: (title) => `Fastgør ${title}`,
+  },
   paneRail: {
     editingTools: 'Redigeringsværktøjer',
     photoInfo: 'Fotoinfo',
