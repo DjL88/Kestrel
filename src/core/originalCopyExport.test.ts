@@ -11,6 +11,8 @@ test('original naming keeps genuine extensions but safely disambiguates camera c
   assert.equal(originalCopyFilename('../photo.NEF'), 'photo.NEF');
   assert.throws(() => originalCopyFilename('CON.NEF'), /reserved/);
   assert.throws(() => originalCopyFilename(''), /safe/);
+  assert.equal(originalCopyFilename('A'.repeat(180) + '.NEF').endsWith('.NEF'), true);
+  assert.equal(originalCopyFilename('A'.repeat(180) + '.NEF').length <= 150, true);
   assert.ok(BROWSER_ORIGINAL_ZIP_LIMIT < 150_000_000);
 });
 
