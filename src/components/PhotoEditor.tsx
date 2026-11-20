@@ -5,6 +5,7 @@ import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
 import { editorText as t } from '../i18n/areas/editor';
+import { exportText as exportT } from '../i18n/areas/export';
 import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed, Undo2, Wand2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
@@ -424,7 +425,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       // The browser hands the file to its own downloads; the desktop app asks where to save it.
       const saved = isDesktopApp() ? await saveWithDialog(output, name) : (downloadExport(output, name), true);
       if (saved) {
-        setMasterNote(t.raw.masterSaved);
+        setMasterNote(t.raw.masterSavedTask);
         task.finish(t.raw.masterSavedTask);
       } else {
         setMasterNote(t.raw.masterCancelled);
@@ -1514,9 +1515,14 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               <div className="space-y-1 border-t border-white/10 pt-2">
                 {provider.isDeveloped(frame.stableKey) && <button type="button" className={button + ' w-full border border-white/15'}
                   disabled={masterBusy || sourceState !== 'ready'} onClick={() => void exportHighPrecisionMaster()}>
-                  {masterBusy ? t.raw.masterBusy : t.raw.master}
+                  {masterBusy ? t.raw.masterBusy : exportT.rawTiff.action}
                 </button>}
-                {provider.isDeveloped(frame.stableKey) && <p className="text-xs text-zinc-400">{t.raw.masterHelp}</p>}
+                {provider.isDeveloped(frame.stableKey) && (
+                  <details className="rounded-md border border-white/10 px-3 text-xs text-zinc-300">
+                    <summary className="min-h-11 cursor-pointer py-2">{exportT.rawTiff.details}</summary>
+                    <p className="pb-2">{exportT.rawTiff.help}</p>
+                  </details>
+                )}
                 {masterNote && <p role="status" className="text-xs text-zinc-300">{masterNote}</p>}
                 {canExportRawMaster() && sensorMode !== 'other' && (
                   <>
