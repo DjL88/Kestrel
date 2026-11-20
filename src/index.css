@@ -3,7 +3,7 @@
 /* Compact sizing is for a wide screen with a mouse. A phone on its side or an iPad is wide but still touch, so it keeps big targets. */
 @custom-variant desk (@media (min-width: 768px) and (pointer: fine));
 /* Workspace layout depends on usable dimensions, not iPhone/iPad/Android labels. */
-@custom-variant workspace (@media ((min-width: 900px) and (min-height: 550px)) or ((min-width: 840px) and (min-height: 440px) and (max-height: 549px)));
+@custom-variant workspace (@media ((min-width: 800px) and (min-height: 550px)) or ((min-width: 840px) and (min-height: 440px) and (max-height: 549px)));
 /* Photo Info needs more breathing room than Editing Tools; prevent automatic photo occlusion on narrow landscape tablets. Keep in sync with core/photoInfoLayout.ts. */
 @custom-variant info-dock (@media ((min-width: 1024px) and (min-height: 550px)) or ((min-width: 1280px) and (min-height: 440px)));
 @custom-variant hand-left (:root[data-hand="left"] &);
