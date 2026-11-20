@@ -4,27 +4,36 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#14161b">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <meta name="description" content="Kestrel: a calm, privacy-first workspace for importing, culling and editing photographs.">
-  <!-- Set to https://storage.googleapis.com/<project>-kestrel-downloads/latest.json once hosting is live (infra/gcp). -->
-  <meta name="kestrel-downloads" content="">
+  <!-- Kestrel’s own downloads (infra/gcp). Empty means GitHub releases only. -->
+  <meta name="kestrel-downloads" content="https://storage.googleapis.com/kestrel-hosting-kestrel-downloads/latest.json">
   <title>Kestrel — More time behind the camera.</title>
   <style>
-    :root{color-scheme:dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#14161b;color:#f1f3f7}
-    *{box-sizing:border-box}body{margin:0;line-height:1.55}a{color:#9cc3db}a:focus-visible,button:focus-visible{outline:3px solid #9cc3db;outline-offset:4px}
+    @font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(assets/fonts/inter-latin-400-normal.woff2) format("woff2")}
+    @font-face{font-family:Inter;font-weight:600;font-display:swap;src:url(assets/fonts/inter-latin-600-normal.woff2) format("woff2")}
+    @font-face{font-family:Inter;font-weight:700;font-display:swap;src:url(assets/fonts/inter-latin-700-normal.woff2) format("woff2")}
+    @font-face{font-family:"Plus Jakarta Sans";font-weight:800;font-display:swap;src:url(assets/fonts/plus-jakarta-sans-latin-800-normal.woff2) format("woff2")}
+    /* Brand tokens (docs/brand/README.md) */
+    :root{--canvas:#14161b;--panel:#1a1d23;--raised:#1c2027;--ivory:#f4efe6;--copper:#c9652e;--copper-hover:#d97840;--dusk:#4a88b2;--wine:#c54f63;--mist:#8b93a3;
+      color-scheme:dark;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--canvas);color:var(--ivory)}
+    h1,h2,h3,.brand{font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif;font-weight:800;letter-spacing:-.025em}
+    *{box-sizing:border-box}body{margin:0;line-height:1.55}a{color:#9cc3db}a:focus-visible,button:focus-visible{outline:3px solid var(--dusk);outline-offset:4px}
     .wrap{width:min(1060px,calc(100% - 40px));margin:auto}header{border-bottom:1px solid #343946;padding:22px 0}
     .bar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
     .brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;font-size:1.25rem;font-weight:750}
-    .mark{display:grid;place-items:center;width:43px;height:43px;background:#c9652e;color:#14161b;border-radius:12px;font-size:1.5rem;font-weight:900}
+    .mark{display:block;width:46px;height:auto}
     nav{display:flex;gap:20px;flex-wrap:wrap}nav a{color:#d3d9e5;text-decoration:none}
     main{padding:64px 0 80px}.eyebrow{text-transform:uppercase;letter-spacing:.14em;color:#e0a583;font-size:.8rem;font-weight:700}
     h1{font-size:clamp(2.4rem,6.5vw,4.8rem);line-height:1.05;letter-spacing:-.05em;max-width:760px;margin:14px 0 22px}
     h2{font-size:clamp(1.55rem,3vw,2.2rem);letter-spacing:-.025em;margin:0 0 18px}
-    .lead{max-width:690px;font-size:1.18rem;color:#c6cbd5}.cta{display:inline-block;background:#d97840;color:#151515;text-decoration:none;padding:13px 20px;border-radius:9px;font-weight:750}
+    .lead{max-width:690px;font-size:1.18rem;color:#c6cbd5}.cta{display:inline-block;background:var(--copper-hover);color:var(--canvas);text-decoration:none;padding:13px 20px;border-radius:9px;font-weight:750}
     section{margin-top:80px;scroll-margin-top:28px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-    .card{background:#191d26;border:1px solid #394050;border-radius:14px;padding:22px;min-height:170px}
-    .card h3{margin:0 0 8px;font-size:1.15rem}.card p{color:#bfc6d2;margin:0 0 16px}
+    .card{background:var(--panel);border:1px solid #2c313b;border-radius:14px;padding:22px;min-height:170px}
+    .card h3{margin:0 0 8px;font-size:1.15rem}
+    .card.suggested{border:2px solid var(--copper-hover)}.suggest{display:inline-block;margin:0 0 8px;font-size:.85rem;font-weight:700;color:#f4efe6}.card p{color:#bfc6d2;margin:0 0 16px}
     .pill{display:inline-block;border:1px solid #5e6270;color:#d8dbe4;border-radius:100px;padding:3px 10px;font-size:.79rem}
-    .download{display:inline-block;background:#d97840;color:#14161b;font-weight:750;border-radius:8px;padding:8px 12px;text-decoration:none}
+    .download{display:inline-block;background:var(--copper-hover);color:var(--canvas);font-weight:750;border-radius:8px;padding:8px 12px;text-decoration:none}
     .muted{color:#bdc4cf}.steps{padding-left:24px;max-width:740px}.steps li{margin-bottom:12px}
     .note{border-left:3px solid #d97840;padding:10px 17px;background:#191d26;max-width:800px}
     footer{padding:30px 0;border-top:1px solid #343946;color:#bfc6d2}
@@ -33,7 +42,7 @@
 </head>
 <body>
 <header><div class="wrap bar">
-  <a class="brand" href="#top" aria-label="Kestrel home"><span class="mark" aria-hidden="true">K</span>Kestrel</a>
+  <a class="brand" href="#top" aria-label="Kestrel home"><img class="mark" src="assets/kestrel-symbol.svg" alt="" width="46" height="39">Kestrel</a>
   <nav aria-label="Main navigation"><a href="#downloads">Downloads</a><a href="#install">Install</a><a href="#pricing">Pricing</a><a href="#getting-started">Getting started</a><a href="#privacy">Privacy</a><a href="https://github.com/DjL88/Kestrel">Source</a></nav>
 </div></header>
 <main id="top" class="wrap">
@@ -45,10 +54,10 @@
     <h2 id="downloads-title">Get Kestrel</h2>
     <p class="muted">Kestrel is in development. Installers appear here only after a matching application release has been published. Model files and source archives are not app installers.</p>
     <div class="grid">
-      <article class="card"><h3>macOS</h3><p>Desktop editing and local storage.</p><span id="mac" class="pill">Not released yet</span></article>
-      <article class="card"><h3>Windows</h3><p>Desktop editing and local storage.</p><span id="windows" class="pill">Not released yet</span></article>
-      <article class="card"><h3>iPhone &amp; iPad</h3><p>Touch-first culling and editing.</p><span id="ios" class="pill">Not released yet</span></article>
-      <article class="card"><h3>Android</h3><p>Touch-first culling and editing.</p><span id="android" class="pill">Not released yet</span></article>
+      <article class="card" data-platform="mac"><h3>macOS</h3><p>Desktop editing and local storage.</p><span id="mac" class="pill">Coming soon</span></article>
+      <article class="card" data-platform="windows"><h3>Windows</h3><p>Desktop editing and local storage.</p><span id="windows" class="pill">Coming soon</span></article>
+      <article class="card" data-platform="ios"><h3>iPhone &amp; iPad</h3><p>Touch-first culling and editing.</p><span id="ios" class="pill">Coming soon</span></article>
+      <article class="card" data-platform="android"><h3>Android</h3><p>Touch-first culling and editing.</p><span id="android" class="pill">Coming soon</span></article>
     </div>
     <p id="release-status" class="muted" role="status" aria-live="polite">Checking for published app downloads…</p>
     <p><a href="https://github.com/DjL88/Kestrel/releases">View all Kestrel releases</a></p>
@@ -108,6 +117,24 @@
   // Kestrel's own download bucket (Google Cloud), set when hosting is live; empty means GitHub releases only.
   // latest.json is written by scripts/release/publish-gcp.ps1 and lists each file with its size and SHA-256.
   const DOWNLOADS_LATEST = document.querySelector('meta[name="kestrel-downloads"]')?.content || '';
+  // Suggest the download for this device: its card moves first and says so in words (never only a colour).
+  (function suggestPlatform() {
+    const ua = navigator.userAgent || '';
+    const hint = (navigator.userAgentData && navigator.userAgentData.platform) || '';
+    let platform = '';
+    if (/android/i.test(ua) || /android/i.test(hint)) platform = 'android';
+    else if (/iphone|ipad|ipod/i.test(ua) || (/mac/i.test(ua) && navigator.maxTouchPoints > 1)) platform = 'ios';
+    else if (/mac/i.test(hint) || /macintosh|mac os x/i.test(ua)) platform = 'mac';
+    else if (/win/i.test(hint) || /windows/i.test(ua)) platform = 'windows';
+    const card = platform && document.querySelector('[data-platform="' + platform + '"]');
+    if (!card) return;
+    card.classList.add('suggested');
+    const label = document.createElement('p');
+    label.className = 'suggest';
+    label.textContent = '★ Suggested for this device';
+    card.prepend(label);
+    card.parentElement.prepend(card);
+  })();
   // Only expose genuine installable release assets from explicitly versioned app releases.
   // Species model releases and auto-generated source archives are never download links.
   const patterns = {
@@ -129,6 +156,11 @@
     if (DOWNLOADS_LATEST) {
       try {
         const latest = await (await fetch(DOWNLOADS_LATEST, { cache: 'no-store' })).json();
+        // Before the first release, latest.json says so; the cards keep saying "Coming soon".
+        if (latest && latest.status === 'coming-soon') {
+          status.textContent = latest.message || 'Kestrel isn’t released yet. Installers will appear here when the first release is ready.';
+          return;
+        }
         if (latest && Array.isArray(latest.files) && /^\d+\.\d+\.\d+/.test(String(latest.version))) {
           for (const [id, expression] of Object.entries(patterns)) {
             const file = latest.files.find(candidate => expression.test(candidate.name) && /^https:\/\//.test(candidate.url));
