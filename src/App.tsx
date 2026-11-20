@@ -1950,7 +1950,7 @@ export default function App() {
             setInfoFrameId(undefined);
             setWorkspacePanes({ folded: false });
             setShowPhotoInfo((visible) => !visible);
-          }} aria-label={t.top.photoInfo} title={t.top.photoInfo} aria-pressed={showPhotoInfo && !panesCollapsed}
+          }} aria-label={messages.photoInfo.title} title={messages.photoInfo.title} aria-pressed={showPhotoInfo && !panesCollapsed}
             className="grid h-11 w-11 shrink-0 place-items-center rounded-md text-zinc-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 aria-pressed:bg-white/15">
             <Info className="h-5 w-5" aria-hidden="true" />
           </button>
