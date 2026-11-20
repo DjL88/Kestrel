@@ -108,3 +108,21 @@ test('full-size preview replacement refuses stale in-flight original read', asyn
     'an in-flight full-preview request must recover to the replacement original');
   provider.clear();
 });
+
+test('a reopened RAW can use a persisted developed review when its original is offline', async () => {
+  const review = new Blob(['developed review'], { type: 'image/jpeg' });
+  const provider = new BrowserPreviewProvider({
+    async loadPreviewPair(key) { return key.startsWith('developed-v') ? { thumbnail: review, review } : null; },
+    async savePreviewPair() { return true; },
+  });
+  const photo = { ...frame('offline-raw', 'offline-original'), filename: 'bird.nef' };
+  try {
+    const [first, second] = await Promise.all([provider.getFullPreviewUrl(photo), provider.getFullPreviewUrl(photo)]);
+    assert.equal(first, second);
+    assert.equal(await (await fetch(first)).text(), 'developed review');
+    assert.equal(provider.isOfflineFallback(photo.stableKey), true);
+    provider.registerBlob(photo.stableKey, new Blob(['reconnected original']));
+    assert.equal(provider.isOfflineFallback(photo.stableKey), false);
+    await assert.rejects(fetch(first));
+  } finally { provider.clear(); }
+});

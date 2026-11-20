@@ -406,10 +406,14 @@ export class BrowserPreviewProvider implements PreviewProvider {
     if (!blob) {
       // The original drive may be disconnected. Show a cached preview,
       // never imply this is suitable for full-resolution export or RAW editing.
-      const offline = this.developed.get(key) ?? cachedPreviews?.review ?? await loadOfflinePreview(cacheKey);
+      const offline = this.developed.get(key) ?? cachedPreviews?.review
+        ?? (isRawPreviewFile(frame.filename) ? (await this.developedReview(frame))?.review : undefined)
+        ?? await loadOfflinePreview(cacheKey);
       if (!offline) return '';
       if (epoch !== this.cacheEpoch) return '';
       if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.getFullPreviewUrl(frame, priority);
+      const cachedFallback = this.fullUrlCache.get(key);
+      if (cachedFallback) return cachedFallback;
       const fallbackUrl = URL.createObjectURL(offline);
       this.fullUrlCache.set(key, fallbackUrl);
       // Without the linked original, even a previously developed bitmap is only a review fallback.
@@ -436,7 +440,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
         return this.hasBlob(key) ? this.getFullPreviewUrl(frame) : '';
       }
       if (!previewBlob) {
-        previewBlob = cachedPreviews?.review ?? null;
+        previewBlob = cachedPreviews?.review ?? (await this.developedReview(frame))?.review ?? null;
         reviewFallback = Boolean(previewBlob);
       }
     }
