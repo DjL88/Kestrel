@@ -2097,6 +2097,7 @@ export default function App() {
                 <input type="checkbox" checked={prefs.focusMode} onChange={() => setPrefs((prev) => ({ ...prev, focusMode: !prev.focusMode }))} />
                 {libraryT.top.photoOnly}
               </label>
+              <div id="editor-view-tab-actions" className="border-t border-white/10 pt-2" />
             </div>
           </details>
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-300" title={selectedFrame?.filename}>{selectedFrame?.filename ?? t.header.editPhoto}</h1>
