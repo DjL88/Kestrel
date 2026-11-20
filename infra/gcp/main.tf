@@ -10,6 +10,9 @@ locals {
     "firebasehosting.googleapis.com",
     "billingbudgets.googleapis.com",
     "iam.googleapis.com",
+    # Needed to read the project number (budget) on a brand-new project.
+    "cloudresourcemanager.googleapis.com",
+    "serviceusage.googleapis.com",
   ]
 }
 
@@ -91,6 +94,8 @@ resource "google_secret_manager_secret" "manifest_signing_key" {
 resource "google_service_account" "publisher" {
   account_id   = "kestrel-publisher"
   display_name = "Kestrel release publisher"
+  # On a new project the IAM API takes a minute to start after it is switched on.
+  depends_on = [google_project_service.enabled]
 }
 
 resource "google_storage_bucket_iam_member" "publisher_models" {
