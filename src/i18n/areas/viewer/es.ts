@@ -74,6 +74,7 @@ export const es: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Original no disponible: vuelva a conectar su carpeta o unidad',
     previewUnavailable: 'Vista previa no disponible',
+    heifUndecodable: 'Kestrel no ha podido descodificar esta foto HEIF. El original no se ha modificado.',
   },
   info: {
     title: 'Información de la foto',

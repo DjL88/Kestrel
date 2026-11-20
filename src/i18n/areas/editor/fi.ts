@@ -202,6 +202,7 @@ export const fi: AreaTranslation<typeof source> = {
     opening: 'Avataan kuvaa…',
     reconnect: 'Yhdistä alkuperäinen tiedosto uudelleen muokataksesi sitä.',
     noPreview: 'Tällä kuvalla ei ole esikatselua, jota selain voi lukea.',
+    heifUndecodable: 'Kestrel ei pystynyt purkamaan tätä HEIF-kuvaa. Alkuperäinen on ennallaan.',
     fold: 'Taita muokkaustyökalut pois',
     foldTitle: 'Taita paneelit pois isompaa kuvaa varten (Tab)',
     resizePanel: 'Muuta säätöpaneelin kokoa',

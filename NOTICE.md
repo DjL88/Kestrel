@@ -47,6 +47,39 @@ The source of every part is in this repository and the binary is rebuilt with `n
 `nikon-he` codec (`ticoraw`), per the owner decision above, so the web app and the mobile shells decode HE/HE* with the
 same code as the desktop app.
 
+## HEIF/HEIC decoding: `libheif-js` 1.23.5 (LGPL-3.0) — needs a legal decision before release
+
+Opt-in experimental builds (`VITE_EXPERIMENTAL_HEIF_WASM=true`) can decode HEIF photos with
+**libheif** and its HEVC decoder **libde265**, compiled to WebAssembly and
+published on npm as `libheif-js` (pinned to exactly **1.23.5**, published
+4 Oct 2026; source: https://github.com/catdad-experiments/libheif-js, which
+builds https://github.com/strukturag/libheif and
+https://github.com/strukturag/libde265). The package, libheif and libde265 are
+all **LGPL-3.0**. The full licence text ships inside the package
+(`node_modules/libheif-js/LICENSE`) and must ship with Kestrel too.
+
+**This is not a "clean" permissive licence.** LGPL-3.0 allows use in a
+proprietary app, but on conditions: say that the library is used and under which
+licence (this notice), provide the LGPL and GPL texts, make the library's source
+(for the exact version shipped) available, and let the user replace the library
+with a modified version. How the decoder is kept separate:
+
+- It lives only behind Kestrel's HEIF adapter (`src/providers/heifDecode.ts`,
+  `heifWasmWorker.ts`, `heifWasmCore.ts`). Nothing else in the app imports it.
+- Vite emits it as its own file (a worker chunk, `heifWasmWorker-*.js`, with the
+  WebAssembly inlined), built only when the experimental flag is enabled and used only if native decoding fails. Replacing that
+  one file replaces the decoder; Kestrel's own code is not compiled into it.
+- A native decoder (Windows WIC/HEIF extension, macOS ImageIO) could take its
+  place in the adapter without touching the rest of the app, if that is the
+  decision.
+
+Separately, **HEVC (H.265) is covered by patent pools** (Access Advance, Via LA
+and others). The LGPL is a copyright licence, not a patent licence; shipping an
+HEVC decoder in a paid product may need a patent licence in some countries.
+Operating-system decoders avoid that only on systems that already carry one
+(Windows charges for its HEVC extension). **Owner/lawyer decision needed before a
+paid release**; this note records the question and is not legal advice.
+
 ## Rust crates (desktop shell, `src-tauri/Cargo.toml`)
 
 | Crate | License | Role |
@@ -66,6 +99,7 @@ same code as the desktop app.
 | `@tauri-apps/api`, `@tauri-apps/plugin-*` | MIT OR Apache-2.0 | Desktop bridge (JS side) |
 | `exifr` | MIT | EXIF/metadata parsing |
 | `fflate` | MIT | ZIP export |
+| `libheif-js` (libheif + libde265, WebAssembly) | LGPL-3.0 (HEVC patents; see above) | HEIC/HEIF/HIF decoding, behind `src/providers/heifDecode.ts` |
 | `lucide-react` | ISC | Icons |
 | `onnxruntime-web` | MIT | Runs the local, offline ML models (subject/species detection) in the browser/webview — no data leaves the device for this |
 | `@fontsource/inter`, `@fontsource/plus-jakarta-sans`, `@fontsource/atkinson-hyperlegible` | SIL OFL-1.1 | Bundled fonts. Atkinson Hyperlegible is designed by the Braille Institute for readability — keep its attribution if it's ever promoted in marketing as an accessibility feature. |
@@ -92,7 +126,8 @@ build tooling or a plugin SDK separately.
 ## What to do next
 
 1. Run the automated scans above and diff them against this file.
-2. Get the `rawler` LGPL-2.1 static-linking question answered by a lawyer. (The
+2. Get the `rawler` LGPL-2.1 static-linking question and the `libheif-js`
+   LGPL-3.0 / HEVC patent question answered by a lawyer. (The
    TicoRAW patent question for `ticoraw` is an owner-accepted risk; see above.)
 3. Write the missing per-model notice for `u2netp.onnx` / `yolox_tiny.onnx`.
 4. Ship this file (or its generated successor) alongside every installer, the

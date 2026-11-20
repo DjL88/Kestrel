@@ -206,6 +206,7 @@ export const gd: AreaTranslation<typeof source> = {
     opening: 'A’ fosgladh an deilbh…',
     reconnect: 'Ceangail am faidhle tùsail a-rithist gus a dheasachadh.',
     noPreview: 'Chan eil ro-shealladh aig an dealbh seo as urrainn dhan bhrabhsair a leughadh.',
+    heifUndecodable: 'Cha b’ urrainn do Kestrel an dealbh HEIF seo a dhì-chòdachadh. Tha an tùsail gun atharrachadh.',
     fold: 'Paisg na h-innealan deasachaidh',
     foldTitle: 'Paisg na panailean airson dealbh nas motha (Tab)',
     resizePanel: 'Atharraich meud panail nan gleusan',

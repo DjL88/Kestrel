@@ -22,7 +22,7 @@ struct OpenedFiles(std::sync::Mutex<Vec<String>>);
 /// Only picture files Kestrel can read. Anything else handed to the app is ignored.
 #[cfg(desktop)]
 fn is_photo(path: &std::path::Path) -> bool {
-    const KNOWN: [&str; 16] = ["jpg", "jpeg", "png", "webp", "nef", "nrw", "arw", "srf", "sr2", "cr2", "cr3", "raf", "rw2", "orf", "pef", "dng"];
+    const KNOWN: [&str; 19] = ["jpg", "jpeg", "png", "webp", "heic", "heif", "hif", "nef", "nrw", "arw", "srf", "sr2", "cr2", "cr3", "raf", "rw2", "orf", "pef", "dng"];
     path.is_file() && path.extension().and_then(|e| e.to_str()).map(|e| KNOWN.contains(&e.to_ascii_lowercase().as_str())).unwrap_or(false)
 }
 
@@ -225,10 +225,13 @@ mod open_with_tests {
         let dir = std::env::temp_dir().join(format!("kestrel-open-with-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let nef = dir.join("DSC_0001.NEF");
+        let heic = dir.join("IMG_0001.HEIC");
+        let hif = dir.join("R5_0001.hif");
         let text = dir.join("notes.txt");
         let script = dir.join("run.sh");
-        for path in [&nef, &text, &script] { std::fs::write(path, b"x").unwrap(); }
+        for path in [&nef, &heic, &hif, &text, &script] { std::fs::write(path, b"x").unwrap(); }
         assert!(is_photo(&nef), "a RAW file, whatever its letter case");
+        assert!(is_photo(&heic) && is_photo(&hif), "HEIF photos from phones and cameras");
         assert!(!is_photo(&text) && !is_photo(&script), "other file types are ignored");
         assert!(!is_photo(&dir.join("missing.jpg")), "a path that does not exist is ignored");
         assert!(!is_photo(&dir), "a folder is ignored");

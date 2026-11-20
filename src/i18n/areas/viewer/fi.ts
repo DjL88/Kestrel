@@ -74,6 +74,7 @@ export const fi: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Alkuperäinen ei ole saatavilla — yhdistä sen kansio tai asema uudelleen',
     previewUnavailable: 'Esikatselu ei ole saatavilla',
+    heifUndecodable: 'Kestrel ei pystynyt purkamaan tätä HEIF-kuvaa. Alkuperäinen on ennallaan.',
   },
   info: {
     title: 'Kuvan tiedot',

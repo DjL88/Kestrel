@@ -74,6 +74,7 @@ export const is: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Frumrit ekki tiltækt — tengdu möppuna eða drifið aftur',
     previewUnavailable: 'Forskoðun ekki tiltæk',
+    heifUndecodable: 'Kestrel gat ekki afkóðað þessa HEIF-mynd. Frumritið er óbreytt.',
   },
   info: {
     title: 'Upplýsingar um mynd',

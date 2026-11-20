@@ -202,6 +202,7 @@ export const nb: AreaTranslation<typeof source> = {
     opening: 'Åpner bildet…',
     reconnect: 'Koble til originalfilen igjen for å redigere den.',
     noPreview: 'Dette bildet har ingen forhåndsvisning som nettleseren kan lese.',
+    heifUndecodable: 'Kestrel kunne ikke dekode dette HEIF-bildet. Originalen er uendret.',
     fold: 'Fell sammen redigeringsverktøyene',
     foldTitle: 'Fell sammen panelene for et større bilde (Tab)',
     resizePanel: 'Endre størrelse på justeringspanelet',

@@ -51,7 +51,7 @@ import { visiblePhotoDetail } from '../core/visiblePhotoDetail';
 
 const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
-import { isRawPreviewFile } from '../core/rawFormats';
+import { isHeifFile, isRawPreviewFile } from '../core/rawFormats';
 import { tasks } from '../core/taskStore';
 import { canDevelopRaw, canExportRawMaster, developRaw, matchPreviewOrientation, rawDngCopy, rawSensorMode, sensorModeLabel, type RawSensorMode } from '../providers/rawDevelop';
 import { extractRawPreview } from '../core/nefPreview';
@@ -1301,7 +1301,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         />
         {sourceState !== 'ready' && (
           <p role="status" className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-zinc-300">
-            {sourceState === 'loading' ? t.editor.opening : needsAccess ? t.editor.reconnect : t.editor.noPreview}
+            {sourceState === 'loading' ? t.editor.opening : needsAccess ? t.editor.reconnect
+              : isHeifFile(frame.filename) && !frame.isDemo ? t.editor.heifUndecodable : t.editor.noPreview}
           </p>
         )}
       </div>

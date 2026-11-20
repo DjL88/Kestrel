@@ -8,7 +8,8 @@ import {
 } from './offlinePreviewCache';
 import { extractNefPreview } from '../core/nefPreview';
 import { PriorityReadQueue, type ReadPriority } from '../core/priorityReadQueue';
-import { isRawPreviewFile } from '../core/rawFormats';
+import { isHeifFile, isRawPreviewFile, looksLikeHeif } from '../core/rawFormats';
+import { decodeHeifForDisplay } from './heifDecode';
 import { DEVELOP_VERSION } from '../core/backgroundDevelop';
 import {
   NativeRawUnsupportedError,
@@ -177,7 +178,8 @@ export class BrowserPreviewProvider implements PreviewProvider {
   async cacheOfflinePreviews(stableKey: string, filename: string, original: Blob | RangeBlob): Promise<boolean> {
     // The offline cache holds embedded previews only (sensor development happens when a photo is edited): without one there is nothing to cache (the photo stays
     // usable from its original). Reading the whole RAW just to fail in createImageBitmap was the slowest import path.
-    const source = isRawPreviewFile(filename) ? await extractNefPreview(original as Blob) : original;
+    const source = isRawPreviewFile(filename) ? await extractNefPreview(original as Blob)
+      : await isHeifOriginal(filename, original) ? await this.heifPicture(await materialize(original)) : original;
     if (!source) return false;
     // Ranged originals hand back only the preview's bytes; turn just those into a real Blob for decoding.
     const bitmap = await createImageBitmap(await materialize(source, 'image/jpeg'));
@@ -200,6 +202,19 @@ export class BrowserPreviewProvider implements PreviewProvider {
     } finally {
       bitmap.close();
     }
+  }
+
+  /** Decoded HEIF pictures, tied to the original they came from, so each original is decoded once while it is held. */
+  private heifPictures = new WeakMap<Blob, Promise<Blob>>();
+
+  /** A HEIF original that this device can display. Rejects when the file cannot be decoded. */
+  private heifPicture(original: Blob): Promise<Blob> {
+    let picture = this.heifPictures.get(original);
+    if (!picture) {
+      picture = decodeHeifForDisplay(original);
+      this.heifPictures.set(original, picture);
+    }
+    return picture;
   }
 
   async getThumbnailUrl(frame: PhotoFrame, priority: ReadPriority = 'visible'): Promise<string> {
@@ -455,6 +470,9 @@ export class BrowserPreviewProvider implements PreviewProvider {
         previewBlob = cachedPreviews?.review ?? (await this.developedReview(frame))?.review ?? null;
         reviewFallback = Boolean(previewBlob);
       }
+    } else if (blob && await isHeifOriginal(frame.filename, blob)) {
+      // An undecodable HEIF has no picture to show; the interface says so rather than showing anything else.
+      previewBlob = await this.heifPicture(blob).catch(() => null);
     }
     if (!previewBlob) return '';
     if (epoch !== this.cacheEpoch) return '';
@@ -573,6 +591,13 @@ export class BrowserPreviewProvider implements PreviewProvider {
         return this.rememberThumbnailUrl(frame, url, revision, epoch);
       }
       sourceBlob = extracted;
+    } else if (await isHeifOriginal(frame.filename, blob)) {
+      try {
+        sourceBlob = await this.heifPicture(blob);
+      } catch {
+        // Never hand the undecodable original to an <img>: the tile shows that it could not be decoded.
+        return '';
+      }
     }
 
     try {
@@ -636,6 +661,20 @@ export class BrowserPreviewProvider implements PreviewProvider {
       const oldest = this.offlinePreviewOrder.shift();
       if (oldest) this.offlinePreviews.delete(oldest);
     }
+  }
+}
+
+/**
+ * Whether an original needs the HEIF decoder: a .heic/.heif/.hif file, or a photo named as a JPEG, PNG or WebP whose
+ * bytes are HEIF (some phones and transfer tools export HEIC under a .jpg name).
+ */
+async function isHeifOriginal(filename: string, original: Blob | RangeBlob): Promise<boolean> {
+  if (isHeifFile(filename)) return true;
+  if (isRawPreviewFile(filename)) return false;
+  try {
+    return looksLikeHeif(new Uint8Array(await original.slice(0, 64).arrayBuffer()));
+  } catch {
+    return false;
   }
 }
 
