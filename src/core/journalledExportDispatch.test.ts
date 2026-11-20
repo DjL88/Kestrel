@@ -136,4 +136,44 @@ describe('journalled export dispatch', () => {
     await expect(createJournalledExportDispatch(h.storage, h.queue).resume('receipts', h.adapter))
       .rejects.toThrow('Previously exported file');
   });
+  it('serializes overlapping recovery verification before queue acceptance', async () => {
+    const h = harness();
+    h.setFailPublish(true);
+    const first = createJournalledExportDispatch(h.storage, h.queue);
+    expect(await first.submit(plan('race'), h.adapter).done).toBe('failed');
+    await settled();
+
+    const restarted = createJournalledExportDispatch(h.storage, h.queue);
+    let release!: (valid: boolean) => void;
+    const blocked = new Promise<boolean>(resolve => { release = resolve; });
+    let checks = 0;
+    const adapter = {
+      ...h.adapter,
+      verifySource: async () => { checks++; return blocked; },
+    };
+    const firstResume = restarted.resume('race', adapter);
+    // The first call has reserved the ID even while awaiting a slow NAS read.
+    await expect(restarted.resume('race', adapter)).rejects.toThrow('already running');
+    expect(checks).toBe(1);
+    release(true);
+    h.setFailPublish(false);
+    expect(await (await firstResume)?.done).toBe('completed');
+    await settled();
+    expect(h.published).toEqual(['one.jpg', 'two.jpg']);
+    expect(restarted.load('race')?.state).toBe('completed');
+  });
+
+  it('releases a failed recovery reservation so the user can retry explicitly', async () => {
+    const h = harness();
+    h.setFailPublish(true);
+    const dispatch = createJournalledExportDispatch(h.storage, h.queue);
+    expect(await dispatch.submit(plan('retry'), h.adapter).done).toBe('failed');
+    await settled();
+    h.setSource(false);
+    await expect(dispatch.resume('retry', h.adapter)).rejects.toThrow('Original identity');
+    h.setSource(true);
+    h.setFailPublish(false);
+    expect(await (await dispatch.resume('retry', h.adapter))?.done).toBe('completed');
+  });
+
 });
