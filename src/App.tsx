@@ -1,4 +1,7 @@
-import { isDesktopApp } from './providers/desktopShell';
+import { isDesktopApp, isMobileShell, saveWithDialog } from './providers/desktopShell';
+import { downloadInBrowser } from './providers/browserExport';
+import { makeXmpDownload } from './core/xmpSidecars';
+import { exportText as exportT } from './i18n/areas/export';
 import { appText as t } from './i18n/areas/app';
 import { messages } from './i18n/messages';
 import { useOpenedFiles } from './providers/useOpenedFiles';
@@ -852,6 +855,33 @@ export default function App() {
   const showToast = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast((current) => (current === message ? '' : current)), 6000);
+  };
+  const saveSelectedMetadata = async () => {
+    // Ratings, Keep/Reject and confirmed tags are portable XMP, not pixels or
+    // technical camera EXIF. This belongs in File, not the photo Export flow.
+    const output = makeXmpDownload(exportSelection);
+    if (!output) { showToast(exportT.sidecars.duplicate); return; }
+    try {
+      if (isMobileShell()) {
+        const shared = { files: [new File([output.blob], output.name, { type: output.blob.type })] };
+        if (navigator.canShare?.(shared)) {
+          await navigator.share(shared);
+        } else {
+          downloadInBrowser(output.blob, output.name);
+        }
+      } else if (isDesktopApp()) {
+        // Native file-save dialog is exclusive/no-overwrite and can be cancelled.
+        if (!await saveWithDialog(output.blob, output.name, true)) return;
+      } else {
+        // A browser download must start in the originating user gesture.
+        downloadInBrowser(output.blob, output.name);
+      }
+      showToast(exportT.sidecars.ready);
+    } catch (reason) {
+      // Cancelling a phone share does not mean the file or photo was changed.
+      if (reason instanceof Error && reason.name === 'AbortError') return;
+      showToast(exportT.panel.saveFailed);
+    }
   };
 
   async function moveSelectionTo(targetId: string) {
@@ -2136,6 +2166,7 @@ export default function App() {
         undoLabel={undoLabel(cullingState)}
         redoLabel={redoLabel(cullingState)}
         onExport={exportSelection.length ? () => setExportFrames(exportSelection) : undefined}
+        onSaveSidecars={exportSelection.some(frame => !frame.isDemo && !frame.virtualCopy) ? () => void saveSelectedMetadata() : undefined}
         exportLabel={exportSelection.length > 1 ? t.header.exportCount(exportSelection.length) : t.header.export}
         exportCount={exportSelection.length}
         showFilmstrip={prefs.showFilmstrip}

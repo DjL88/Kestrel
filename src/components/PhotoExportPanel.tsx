@@ -1,4 +1,3 @@
-import { makeXmpDownload } from '../core/xmpSidecars';
 import { BROWSER_ORIGINAL_ZIP_LIMIT, copyUnchangedOriginal, planOriginalCopies } from '../core/originalCopyExport';
 import { EXPORT_PREFERENCES_KEY, EXPORT_PRESETS_KEY, readExportPreferences, readExportPresets, type ExportPreset } from '../core/exportPreferences';
 import { isRawPreviewFile } from '../core/rawFormats';
@@ -341,31 +340,6 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
         setOpeningPlace(false);
         setSaving(false);
       }
-    }
-  }
-
-  async function saveSidecars() {
-    if (saveRunning.current) return;
-    setError('');
-    saveRunning.current = true;
-    setSaving(true);
-    try {
-      const result = makeXmpDownload(frames);
-      if (!result) {
-        setError(t.sidecars.duplicate);
-        return;
-      }
-      if (desktop) {
-        if (await saveWithDialog(result.blob, result.name, true) && !cancelled.current) onClose();
-      } else {
-        downloadExport(result.blob, result.name);
-        onClose();
-      }
-    } catch {
-      if (!cancelled.current) setError(t.panel.saveFailed);
-    } finally {
-      saveRunning.current = false;
-      if (!cancelled.current) setSaving(false);
     }
   }
 
@@ -1127,14 +1101,6 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               </details>
             </div>
           </section>
-        )}
-        {!resultsReady && frames.some(frame => !frame.isDemo && !frame.virtualCopy) && (
-          <details className="mb-2 rounded-md border border-white/15 px-3 py-2">
-            <summary className="cursor-pointer py-2 text-sm">{t.sidecars.title}</summary>
-            <p className="text-xs text-zinc-300">{t.sidecars.help}</p>
-            <button type="button" className={button} disabled={saving || placeBusy || progress !== null}
-              onClick={() => void saveSidecars()}>{saving ? t.results.saving : t.sidecars.save}</button>
-          </details>
         )}
         {!resultsReady && progress === null && !placeBusy && (
           <details className="mb-2 rounded-md border border-white/15 px-3 py-2">
