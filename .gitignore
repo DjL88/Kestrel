@@ -27,3 +27,10 @@ kestrel-auto-compare/
 # Local journey runs on the owner's own photos (npm run journey:local). Never commit.
 kestrel-journey-out/
 /crates/*/target/
+
+# Terraform working files (state lives in the GCS state bucket; never commit it)
+infra/gcp/.terraform/
+infra/gcp/*.tfstate
+infra/gcp/*.tfstate.*
+infra/gcp/*.tfvars
+.firebase/

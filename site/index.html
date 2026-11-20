@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#14161b">
   <meta name="description" content="Kestrel: a calm, privacy-first workspace for importing, culling and editing photographs.">
+  <!-- Set to https://storage.googleapis.com/<project>-kestrel-downloads/latest.json once hosting is live (infra/gcp). -->
+  <meta name="kestrel-downloads" content="">
   <title>Kestrel — More time behind the camera.</title>
   <style>
     :root{color-scheme:dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#14161b;color:#f1f3f7}
@@ -103,6 +105,9 @@
 </main>
 <footer><div class="wrap">Kestrel · Pre-release · <a href="https://github.com/DjL88/Kestrel/issues">Report an issue</a></div></footer>
 <script>
+  // Kestrel's own download bucket (Google Cloud), set when hosting is live; empty means GitHub releases only.
+  // latest.json is written by scripts/release/publish-gcp.ps1 and lists each file with its size and SHA-256.
+  const DOWNLOADS_LATEST = document.querySelector('meta[name="kestrel-downloads"]')?.content || '';
   // Only expose genuine installable release assets from explicitly versioned app releases.
   // Species model releases and auto-generated source archives are never download links.
   const patterns = {
@@ -114,13 +119,26 @@
     const target = document.getElementById(id);
     const link = document.createElement('a');
     link.className = 'download';
-    link.href = asset.browser_download_url;
+    link.href = asset.browser_download_url || asset.url;
     link.textContent = 'Download ' + asset.name;
     link.setAttribute('aria-label', 'Download Kestrel ' + asset.name);
     target.replaceWith(link);
   }
   (async () => {
     const status = document.getElementById('release-status');
+    if (DOWNLOADS_LATEST) {
+      try {
+        const latest = await (await fetch(DOWNLOADS_LATEST, { cache: 'no-store' })).json();
+        if (latest && Array.isArray(latest.files) && /^\d+\.\d+\.\d+/.test(String(latest.version))) {
+          for (const [id, expression] of Object.entries(patterns)) {
+            const file = latest.files.find(candidate => expression.test(candidate.name) && /^https:\/\//.test(candidate.url));
+            if (file) showAsset(id, file);
+          }
+          status.textContent = 'Showing Kestrel ' + latest.version + '. Each file’s SHA-256 is in SHA256SUMS.txt beside it.';
+          return;
+        }
+      } catch { /* fall back to GitHub releases below */ }
+    }
     try {
       const response = await fetch('https://api.github.com/repos/DjL88/Kestrel/releases?per_page=25',
         { headers: { Accept: 'application/vnd.github+json' } });
