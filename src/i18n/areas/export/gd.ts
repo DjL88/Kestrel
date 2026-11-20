@@ -21,6 +21,16 @@ export const gd: AreaTranslation<typeof source> = {
     keywords: "Prìomh fhaclan (le cromagan; falamh = tagaichean dearbhte)",
     help: "Faodaidh cuspairean dearbhte an tiotal agus na prìomh fhaclan a lìonadh. Cha tèid tomhasan AI nach deach a dhearbhadh às-phortadh. Tha am fiosrachadh san fhaidhle, chan ann air an dealbh.",
   },
+  originals: {
+    title: "Faidhlichean tùsail a’ chamara",
+    action: (count: number) => count === 1 ? "Sàbhail am faidhle tùsail" : `Sàbhail ${count} faidhlichean tùsail`,
+    background: (count: number) => count === 1 ? "A’ sàbhaladh faidhle tùsail a’ chamara" : `A’ sàbhaladh ${count} faidhlichean tùsail`,
+    privacy: "Lethbhreac dìreach den fhaidhle thùsail, le cruth agus dàta EXIF/GPS. CHA tèid deasachaidhean, bàrr, comharran-uisge no atharraichean meata-dhàta às-phortaidh a chur an sàs. Cha tèid am faidhle tùsail atharrachadh.",
+    browserLimit: "Tha an taghadh seo ro mhòr airson ZIP sàbhailte sa bhrabhsair seo. Cleachd an aplacaid deasg gus faidhlichean tùsail a shàbhaladh aon air aon ann am pasgan.",
+    browserLimitHelp: "Airson tòrr fhaidhlichean RAW, sàbhalaidh an aplacaid deasg aon fhaidhle aig an aon àm gun ZIP mòr a chruthachadh sa chuimhne.",
+    unavailable: "Chan eil faidhle tùsail camara aig dealbhan taisbeanaidh.",
+    sourceMissing: "Chan eil faidhle tùsail a’ chamara ri fhaighinn. Ceangail an draibhear no am faidhle tùsail a-rithist mus dèan thu lethbhreac.",
+  },
   rawTiff: {
     action: "Às-phortaich TIFF RAW 16-bit (protatàip)",
     details: "Mu TIFF RAW 16-bit",
