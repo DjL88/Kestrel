@@ -44,3 +44,14 @@ test('a paid checkout with a different total, currency, merchant or reference is
     await assert.rejects(adapter.verify(order, checkout.id), /does not match/);
   }
 });
+
+test('uses the tax-inclusive local total and currency on a supported merchant checkout', async () => {
+  const eur = { reference: order.reference, totalMinor: 4165, minorUnitDigits: 2, currency: 'EUR' };
+  const adapter = sumupCheckouts(credentials, async (_url, request) => {
+    const payload = JSON.parse(String(request?.body));
+    assert.equal(payload.currency, 'EUR');
+    assert.equal(payload.amount, 41.65);
+    return Response.json({ ...checkout, amount: 41.65, currency: 'EUR' });
+  });
+  assert.equal((await adapter.create(eur, 'https://example.com/complete')).checkoutId, checkout.id);
+});

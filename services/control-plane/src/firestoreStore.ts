@@ -107,6 +107,14 @@ export class FirestoreStore implements Store {
   async addRefreshToken(tokenHash: string, accountId: string, expiresAtMs: number): Promise<void> {
     await this.ref(C.refresh, tokenHash).create({ accountId, expiresAtMs, used: false });
   }
+  async approveDeviceLink(tokenHash: string, accountId: string, expiresAtMs: number): Promise<boolean> {
+    return this.db.runTransaction(async (tx) => {
+      const ref = this.ref(C.refresh, tokenHash);
+      if ((await tx.get(ref)).exists) return false;
+      tx.set(ref, { accountId, expiresAtMs, used: false });
+      return true;
+    });
+  }
   async consumeRefreshToken(tokenHash: string, nowMs: number): Promise<string | undefined> {
     return this.db.runTransaction(async (tx) => {
       const ref = this.ref(C.refresh, tokenHash);
@@ -118,6 +126,15 @@ export class FirestoreStore implements Store {
     });
   }
 
+  async createLicenceIfAbsent(licence: LicenceRecord): Promise<LicenceRecord> {
+    return this.db.runTransaction(async tx => {
+      const ref = this.ref(C.licences, licence.licenceId);
+      const existing = await tx.get(ref);
+      if (existing.exists) return toLicence(existing.data()!);
+      tx.set(ref, licenceDoc(licence, 0));
+      return licence;
+    });
+  }
   async insertLicence(l: LicenceRecord): Promise<void> {
     await this.db.runTransaction(async (tx) => {
       const ref = this.ref(C.licences, l.licenceId);
@@ -133,8 +150,8 @@ export class FirestoreStore implements Store {
     const snap = await this.db.collection(C.licences).where('accountId', '==', accountId).get();
     return snap.docs.map((d) => toLicence(d.data()!)).sort((a, b) => a.licenceId.localeCompare(b.licenceId));
   }
-  async hasActiveManagedAi(accountId: string) {
-    return (await this.listLicencesForAccount(accountId)).some((l) => l.managedAi && l.status === 'active');
+  async hasActiveManagedAi(accountId: string, nowMs: number) {
+    return (await this.listLicencesForAccount(accountId)).some((l) => l.managedAi && l.status === 'active' && licenceIsUsable(l, nowMs));
   }
 
   async activateDevice(r: ActivationRequest): Promise<ActivationOutcome> {

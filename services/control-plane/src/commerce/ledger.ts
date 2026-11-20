@@ -6,6 +6,11 @@ import { ukTurnoverMetrics } from './turnover.ts';
 export class CommerceLedger {
   constructor(private readonly db: Firestore) {}
 
+  async latestPriceReview() {
+    const result = await this.db.collection('pricing_reviews').orderBy('month', 'desc').limit(1).get();
+    return result.docs[0]?.data() ?? null;
+  }
+
   async getTaxSettings(): Promise<TaxSettings> {
     const settings = await this.db.collection(commerceCollections.settings).doc('current').get();
     return settings.exists

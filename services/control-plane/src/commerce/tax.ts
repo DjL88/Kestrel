@@ -38,6 +38,12 @@ export interface LocationEvidence {
 
 export type TaxTreatment = 'uk-vat' | 'uk-unregistered' | 'eu-oss' | 'eu-reverse-charge' | 'local-tax' | 'outside-uk-vat';
 
+export function calculateTaxAmounts(baseMinor: number, rateBasisPoints: number, inclusive: boolean) {
+  const taxMinor = Math.round(baseMinor * rateBasisPoints / (inclusive ? 10000 + rateBasisPoints : 10000));
+  const netMinor = inclusive ? baseMinor - taxMinor : baseMinor;
+  return { netMinor, taxMinor, totalMinor: netMinor + taxMinor };
+}
+
 export function quoteProTax(input: {
   country: string;
   region?: string;
@@ -82,11 +88,10 @@ export function quoteProTax(input: {
   }
 
   const inclusive = customerType === 'B2C' && settings.b2cPricing === 'inclusive';
-  const taxPence = Math.round(PRO_BASE_PENCE * rateBasisPoints / (inclusive ? 10000 + rateBasisPoints : 10000));
-  const netPence = inclusive ? PRO_BASE_PENCE - taxPence : PRO_BASE_PENCE;
+  const { taxMinor: taxPence, netMinor: netPence, totalMinor: totalPence } = calculateTaxAmounts(PRO_BASE_PENCE, rateBasisPoints, inclusive);
   return {
     currency: 'GBP' as const, country, jurisdiction, customerType, treatment, rateBasisPoints,
-    netPence, taxPence, totalPence: netPence + taxPence,
+    netPence, taxPence, totalPence,
     vatNumber: treatment === 'uk-vat' ? settings.ukVatNumber! : null,
     invoiceNotice: treatment === 'eu-reverse-charge' ? 'Reverse charge' : null,
     verification: verified, evidence: [...evidence],

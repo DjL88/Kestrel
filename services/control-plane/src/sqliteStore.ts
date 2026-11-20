@@ -72,6 +72,10 @@ export class SqliteStore implements Store {
   async addRefreshToken(tokenHash: string, accountId: string, expiresAtMs: number): Promise<void> {
     this.run('INSERT INTO refresh_tokens (token_hash, account_id, expires_at_ms) VALUES (?, ?, ?)', tokenHash, accountId, expiresAtMs);
   }
+  async approveDeviceLink(tokenHash: string, accountId: string, expiresAtMs: number): Promise<boolean> {
+    return Number(this.db.prepare('INSERT INTO refresh_tokens (token_hash, account_id, expires_at_ms) VALUES (?, ?, ?) ON CONFLICT (token_hash) DO NOTHING')
+      .run(tokenHash, accountId, expiresAtMs).changes) === 1;
+  }
   async consumeRefreshToken(tokenHash: string, nowMs: number): Promise<string | undefined> {
     return this.transaction(() => {
       const found = this.get<{ account_id: string; expires_at_ms: number; revoked: number }>('SELECT account_id, expires_at_ms, revoked FROM refresh_tokens WHERE token_hash = ?', tokenHash);
@@ -81,10 +85,20 @@ export class SqliteStore implements Store {
     });
   }
 
+  async createLicenceIfAbsent(licence: LicenceRecord): Promise<LicenceRecord> {
+    return this.transaction(() => {
+      const existing = this.readLicence(licence.licenceId);
+      if (existing) return existing;
+      this.writeLicence(licence);
+      return licence;
+    });
+  }
   async insertLicence(l: LicenceRecord): Promise<void> { this.writeLicence(l); }
   async getLicence(licenceId: string) { return this.readLicence(licenceId); }
   async listLicencesForAccount(accountId: string) { return this.all<LicenceRow>('SELECT * FROM licences WHERE account_id = ? ORDER BY licence_id', accountId).map(licence); }
-  async hasActiveManagedAi(accountId: string) { return !!this.get('SELECT 1 FROM licences WHERE account_id = ? AND managed_ai = 1 AND status = \'active\'', accountId); }
+  async hasActiveManagedAi(accountId: string, nowMs: number) {
+    return !!this.get("SELECT 1 FROM licences WHERE account_id = ? AND managed_ai = 1 AND status = 'active' AND (valid_until_ms IS NULL OR valid_until_ms > ?)", accountId, nowMs);
+  }
 
   async activateDevice(r: ActivationRequest): Promise<ActivationOutcome> {
     return this.transaction(() => {

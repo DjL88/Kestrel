@@ -114,3 +114,55 @@ test('CORS is only granted to the app\'s own origins', async () => {
   const foreign = await fetch(`${h.url}/healthz`, { headers: { origin: 'https://evil.example' } });
   assert.equal(foreign.headers.get('access-control-allow-origin'), null);
 });
+
+test('device sign-in requires user approval and the originating device secret, once', async () => {
+  const deviceSecret = crypto.randomBytes(32).toString('base64url');
+  const start = await h.call('POST', '/v1/auth/device/start', { body: { secretHash: device(deviceSecret) } });
+  assert.equal(start.status, 200);
+  const { ticket, confirmationCode } = start.body;
+  const redeem = (secret = deviceSecret) => h.call('POST', '/v1/auth/device/redeem', { body: { ticket, deviceSecret: secret } });
+  const approve = (token: string, code = confirmationCode) => h.call('POST', '/v1/auth/device/approve', { token, body: { ticket, confirmationCode: code } });
+  assert.equal((await redeem()).status, 202);
+  assert.equal((await approve(h.adminToken)).status, 403);
+  assert.equal((await approve(h.user.token, '00000000' === confirmationCode ? 'FFFFFFFF' : '00000000')).status, 400);
+  assert.equal((await approve(h.user.token)).status, 200);
+  assert.equal((await redeem(crypto.randomBytes(32).toString('base64url'))).status, 403);
+  const results = await Promise.all([redeem(), redeem()]);
+  assert.deepEqual(results.map(result => result.status).sort(), [200, 202]);
+  const session = results.find(result => result.status === 200)!.body;
+  assert.equal((await h.call('GET', '/v1/me/entitlements', { token: session.accessToken })).status, 200);
+  assert.equal((await approve(h.user.token)).status, 409);
+  const priorTime = h.clock.now;
+  try {
+    h.clock.now += 300_000;
+    assert.equal((await redeem()).status, 410);
+  } finally { h.clock.now = priorTime; }
+});
+
+test('normalised account email reuses the permanent Pro licence and only the owner can recover it', async () => {
+  const accountId = await h.app.createAccount('pro-owner@example.test', 'pro-password-123', 'user');
+  const { accessToken: token } = await h.app.issueSession(accountId, 'user');
+  const request = { plan: 'paid', accountEmail: 'PRO-OWNER@EXAMPLE.TEST' };
+  const issue = () => h.call('POST', '/v1/admin/licences/issue', { token: h.adminToken, body: request });
+  const [first, second] = await Promise.all([issue(), issue()]);
+  assert.equal((await h.app.store.listLicencesForAccount(accountId)).length, 1);
+  assert.equal(first.status, 200);
+  assert.equal(second.body.licenceId, first.body.licenceId);
+  const path = '/v1/me/licences/' + first.body.licenceId + '/key';
+  assert.equal((await h.call('POST', path, { token: h.adminToken })).status, 404);
+  const owned = await h.call('POST', path, { token });
+  assert.equal(owned.status, 200);
+  assert.equal(owned.body.licenceId, first.body.licenceId);
+});
+
+test('expired managed AI access stops independently of permanent Pro', async () => {
+  const accountId = await h.app.createAccount('expired-ai@example.test', 'separate-password', 'user');
+  await h.app.store.insertLicence({
+    licenceId: 'expired-managed-ai', accountId, plan: 'subscriber', managedAi: true, status: 'active',
+    maxDevices: 3, offlineGraceDays: 0, validUntilMs: h.clock.now, updatedAtMs: h.clock.now,
+  });
+  const { accessToken: token } = await h.app.issueSession(accountId, 'user');
+  const response = await h.call('POST', '/v1/ai/identify', { token, body: { image: image(), userConsent: true } });
+  assert.equal(response.status, 403);
+  assert.equal(response.body.error.code, 'AI_NOT_ENTITLED');
+});

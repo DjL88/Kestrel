@@ -11,9 +11,21 @@ const checkout = z.object({
   transaction_id: z.string().min(1).optional(),
 });
 
-interface Order {
-  reference: string;
-  totalPence: number;
+type Order = { reference: string } & (
+  | { totalPence: number }
+  | { currency: string; totalMinor: number; minorUnitDigits: number }
+);
+
+function tender(order: Order) {
+  if ('totalPence' in order) {
+    if (!Number.isSafeInteger(order.totalPence) || order.totalPence <= 0) throw new Error('Invalid checkout total.');
+    return { currency: 'GBP', amount: order.totalPence / 100 };
+  }
+  if (!/^[A-Z]{3}$/.test(order.currency) || !Number.isSafeInteger(order.totalMinor) || order.totalMinor <= 0
+    || !Number.isInteger(order.minorUnitDigits) || order.minorUnitDigits < 0 || order.minorUnitDigits > 3) {
+    throw new Error('Invalid checkout total.');
+  }
+  return { currency: order.currency, amount: order.totalMinor / 10 ** order.minorUnitDigits };
 }
 
 export function sumupCheckouts(
@@ -31,19 +43,20 @@ export function sumupCheckouts(
   }
 
   function assertMatches(result: z.infer<typeof checkout>, order: Order) {
-    if (result.checkout_reference !== order.reference || result.currency !== 'GBP'
-      || result.amount !== order.totalPence / 100 || result.merchant_code !== credentials.merchantCode) {
+    const { amount, currency } = tender(order);
+    if (result.checkout_reference !== order.reference || result.currency !== currency
+      || result.amount !== amount || result.merchant_code !== credentials.merchantCode) {
       throw new Error('SumUp checkout does not match the recorded order.');
     }
   }
 
   return {
     async create(order: Order, redirectUrl: string) {
-      if (!Number.isSafeInteger(order.totalPence) || order.totalPence <= 0) throw new Error('Invalid checkout total.');
+      const { amount, currency } = tender(order);
       const result = await call('', {
         method: 'POST',
         body: JSON.stringify({
-          checkout_reference: order.reference, currency: 'GBP', amount: order.totalPence / 100,
+          checkout_reference: order.reference, currency, amount,
           merchant_code: credentials.merchantCode, description: 'Kestrel Pro',
           hosted_checkout: { enabled: true }, redirect_url: redirectUrl,
         }),

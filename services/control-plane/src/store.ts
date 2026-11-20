@@ -118,13 +118,15 @@ export interface Store {
   findAccountByEmailHash(emailHash: string): Promise<AccountRecord | undefined>;
   addRefreshToken(tokenHash: string, accountId: string, expiresAtMs: number): Promise<void>;
   /** Single use: marks the token used and returns its account, or undefined when missing, used or expired. */
+  approveDeviceLink(tokenHash: string, accountId: string, expiresAtMs: number): Promise<boolean>;
   consumeRefreshToken(tokenHash: string, nowMs: number): Promise<string | undefined>;
 
   // Licences and devices
+  createLicenceIfAbsent(licence: LicenceRecord): Promise<LicenceRecord>;
   insertLicence(licence: LicenceRecord): Promise<void>;
   getLicence(licenceId: string): Promise<LicenceRecord | undefined>;
   listLicencesForAccount(accountId: string): Promise<LicenceRecord[]>;
-  hasActiveManagedAi(accountId: string): Promise<boolean>;
+  hasActiveManagedAi(accountId: string, nowMs: number): Promise<boolean>;
   /** Atomic: creates the licence row if unknown, checks it is active, reuses this device's slot or takes a free one. */
   activateDevice(request: ActivationRequest): Promise<ActivationOutcome>;
   /** False when there is no such licence. */
