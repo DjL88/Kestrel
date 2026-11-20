@@ -9,7 +9,7 @@
   <!-- Kestrel’s own downloads (infra/gcp). -->
   <meta name="kestrel-downloads" content="https://storage.googleapis.com/kestrel-hosting-kestrel-downloads/latest.json">
   <title>Kestrel — More time behind the camera.</title>
-  <link rel="stylesheet" href="assets/demo.css">
+  
   <style>
     @font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(assets/fonts/inter-latin-400-normal.woff2) format("woff2")}
     @font-face{font-family:Inter;font-weight:600;font-display:swap;src:url(assets/fonts/inter-latin-600-normal.woff2) format("woff2")}
@@ -82,99 +82,12 @@
   <section id="try" aria-labelledby="try-title">
     <h2 id="try-title" data-i18n="tryTitle">Try the editing tools</h2>
     <p class="muted" data-i18n="trySub">Edit a sample photo here in your browser. Nothing is uploaded.</p>
-    <div id="demo" class="demo" data-photos="demo/photos.json" data-tab="light">
-      <p class="demo-disclaimer"><span aria-hidden="true">ⓘ</span><span data-i18n-html="demoDisclaimer"><strong>This is a demo of the tools, not the full app.</strong> It uses small sample images and a simplified preview, not Kestrel’s RAW engine. Denoise and subject selection are shown with pre-made versions of each sample.</span></p>
-      <div class="demo-toolbar" data-tour="compare">
-        <button type="button" id="demo-split" class="demo-btn" aria-pressed="false">Before and after: off</button>
-        <button type="button" id="demo-original" class="demo-btn" aria-pressed="false" data-i18n="demoShowOriginal" data-i18n-attr="title:demoShowOriginalHint" title="Hold to see the original">Show original</button>
-        <button type="button" id="demo-reset" class="demo-btn" data-i18n="demoResetAll">Reset all</button>
-        <span class="spacer"></span>
-        <button type="button" id="demo-walk" class="demo-btn" aria-pressed="false" data-i18n="walkPlay">Play the walkthrough</button>
-        <button type="button" id="demo-tour-start" class="demo-btn primary" data-i18n="demoTour">Guided tour</button>
-      </div>
-      <div class="demo-layout">
-        <div>
-          <div class="demo-stage">
-            <canvas id="demo-canvas" role="img" aria-label="Sample photo" width="1200" height="800"></canvas>
-            <img id="demo-fallback" alt="">
-            <p id="demo-caption" class="demo-caption" data-i18n-attr="aria-label:walkLabel" aria-label="Walkthrough" hidden><span class="count"></span><span class="text"></span></p>
-            <div id="demo-compare" class="demo-compare" hidden>
-              <span class="tag before" data-i18n="demoBefore">Before</span><span class="tag after" data-i18n="demoAfter">After</span>
-              <input id="demo-split-range" type="range" min="0" max="100" step="1" value="50" data-i18n-attr="aria-label:demoDivider" aria-label="Before and after divider: before is on the left">
-              <span class="line" aria-hidden="true"></span>
-            </div>
-          </div>
-          <p id="demo-status" class="demo-status" role="status" aria-live="polite"></p>
-          <ul id="demo-photos" class="demo-photos" data-i18n-attr="aria-label:demoPhotos" aria-label="Sample photos" data-tour="photos"></ul>
-        </div>
-        <div class="demo-panel">
-          <div class="demo-tabs" role="tablist" data-i18n-attr="aria-label:demoTools" aria-label="Editing tools">
-            <button type="button" role="tab" id="tab-light" data-tab="light" aria-controls="panel-light" aria-selected="true" data-tour="light" data-i18n="tabLight">Light</button>
-            <button type="button" role="tab" id="tab-colour" data-tab="colour" aria-controls="panel-colour" aria-selected="false" tabindex="-1" data-tour="colour" data-i18n="tabColour">Colour</button>
-            <button type="button" role="tab" id="tab-detail" data-tab="detail" aria-controls="panel-detail" aria-selected="false" tabindex="-1" data-tour="detail" data-i18n="tabDetail">Detail</button>
-            <button type="button" role="tab" id="tab-mask" data-tab="mask" aria-controls="panel-mask" aria-selected="false" tabindex="-1" data-tour="mask" data-i18n="tabMask">Mask</button>
-            <button type="button" role="tab" id="tab-crop" data-tab="crop" aria-controls="panel-crop" aria-selected="false" tabindex="-1" data-tour="crop" data-i18n="tabCrop">Crop</button>
-          </div>
-          <div class="demo-tabpanel" id="panel-light" role="tabpanel" aria-labelledby="tab-light">
-            <div class="demo-slider"><label for="d-exposure" data-i18n="slider_exposure">Exposure</label><button type="button" class="demo-value" data-reset-for="slider_exposure" aria-label="Reset exposure">0</button><span class="demo-track"><span class="origin"></span><input id="d-exposure" type="range" data-key="exposure" min="-3" max="3" step="0.05" value="0"></span></div>
-            <div class="demo-slider"><label for="d-contrast" data-i18n="slider_contrast">Contrast</label><button type="button" class="demo-value" data-reset-for="slider_contrast" aria-label="Reset contrast">0</button><span class="demo-track"><span class="origin"></span><input id="d-contrast" type="range" data-key="contrast" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-highlights" data-i18n="slider_highlights">Highlights</label><button type="button" class="demo-value" data-reset-for="slider_highlights" aria-label="Reset highlights">0</button><span class="demo-track"><span class="origin"></span><input id="d-highlights" type="range" data-key="highlights" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-shadows" data-i18n="slider_shadows">Shadows</label><button type="button" class="demo-value" data-reset-for="slider_shadows" aria-label="Reset shadows">0</button><span class="demo-track"><span class="origin"></span><input id="d-shadows" type="range" data-key="shadows" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-whites" data-i18n="slider_whites">Whites</label><button type="button" class="demo-value" data-reset-for="slider_whites" aria-label="Reset whites">0</button><span class="demo-track"><span class="origin"></span><input id="d-whites" type="range" data-key="whites" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-blacks" data-i18n="slider_blacks">Blacks</label><button type="button" class="demo-value" data-reset-for="slider_blacks" aria-label="Reset blacks">0</button><span class="demo-track"><span class="origin"></span><input id="d-blacks" type="range" data-key="blacks" min="-100" max="100" step="1" value="0"></span></div>
-          </div>
-          <div class="demo-tabpanel" id="panel-colour" role="tabpanel" aria-labelledby="tab-colour" hidden>
-            <div class="demo-slider"><label for="d-temperature" data-i18n="slider_temperature">Temperature</label><button type="button" class="demo-value" data-reset-for="slider_temperature" aria-label="Reset temperature">0</button><span class="demo-track"><span class="origin"></span><input id="d-temperature" type="range" data-key="temperature" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-tint" data-i18n="slider_tint">Tint</label><button type="button" class="demo-value" data-reset-for="slider_tint" aria-label="Reset tint">0</button><span class="demo-track"><span class="origin"></span><input id="d-tint" type="range" data-key="tint" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-vibrance" data-i18n="slider_vibrance">Vibrance</label><button type="button" class="demo-value" data-reset-for="slider_vibrance" aria-label="Reset vibrance">0</button><span class="demo-track"><span class="origin"></span><input id="d-vibrance" type="range" data-key="vibrance" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-saturation" data-i18n="slider_saturation">Saturation</label><button type="button" class="demo-value" data-reset-for="slider_saturation" aria-label="Reset saturation">0</button><span class="demo-track"><span class="origin"></span><input id="d-saturation" type="range" data-key="saturation" min="-100" max="100" step="1" value="0"></span></div>
-          </div>
-          <div class="demo-tabpanel" id="panel-detail" role="tabpanel" aria-labelledby="tab-detail" hidden>
-            <div class="demo-slider"><label for="d-clarity" data-i18n="slider_clarity">Clarity</label><button type="button" class="demo-value" data-reset-for="slider_clarity" aria-label="Reset clarity">0</button><span class="demo-track"><span class="origin"></span><input id="d-clarity" type="range" data-key="clarity" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-denoise" data-i18n="slider_denoise">Denoise</label><button type="button" class="demo-value" data-reset-for="slider_denoise" aria-label="Reset denoise">0</button><span class="demo-track"><span class="origin"></span><input id="d-denoise" type="range" data-key="denoise" min="0" max="100" step="1" value="0"></span></div>
-            <p id="demo-denoise-note" class="demo-note"></p>
-          </div>
-          <div class="demo-tabpanel" id="panel-mask" role="tabpanel" aria-labelledby="tab-mask" hidden>
-            <button type="button" id="demo-select-subject" class="demo-btn" aria-pressed="false" data-i18n="demoSelectSubject">Select subject</button>
-            <p id="demo-mask-note" class="demo-note" aria-live="polite"></p>
-            <div id="demo-mask-controls" hidden>
-              <fieldset class="demo-choice"><legend data-i18n="demoMaskEdit">Edit</legend>
-                <label><input type="radio" name="demo-mask-target" value="subject" checked><span data-i18n="demoSubjectOnly">Subject only</span></label>
-                <label><input type="radio" name="demo-mask-target" value="background"><span data-i18n="demoBackgroundOnly">Background only</span></label>
-              </fieldset>
-              <label class="demo-check"><input type="checkbox" id="demo-overlay" checked><span data-i18n="demoOverlay">Show mask as a striped overlay</span></label>
-            <div class="demo-slider"><label for="d-maskExposure" data-i18n="slider_maskExposure">Mask exposure</label><button type="button" class="demo-value" data-reset-for="slider_maskExposure" aria-label="Reset mask exposure">0</button><span class="demo-track"><span class="origin"></span><input id="d-maskExposure" type="range" data-key="maskExposure" min="-2" max="2" step="0.05" value="0"></span></div>
-            <div class="demo-slider"><label for="d-maskSaturation" data-i18n="slider_maskSaturation">Mask saturation</label><button type="button" class="demo-value" data-reset-for="slider_maskSaturation" aria-label="Reset mask saturation">0</button><span class="demo-track"><span class="origin"></span><input id="d-maskSaturation" type="range" data-key="maskSaturation" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-maskWarmth" data-i18n="slider_maskWarmth">Mask warmth</label><button type="button" class="demo-value" data-reset-for="slider_maskWarmth" aria-label="Reset mask warmth">0</button><span class="demo-track"><span class="origin"></span><input id="d-maskWarmth" type="range" data-key="maskWarmth" min="-100" max="100" step="1" value="0"></span></div>
-            </div>
-          </div>
-          <div class="demo-tabpanel" id="panel-crop" role="tabpanel" aria-labelledby="tab-crop" hidden>
-            <fieldset class="demo-choice"><legend data-i18n="demoShape">Shape</legend>
-              <label><input type="radio" name="demo-aspect" value="original" checked><span data-i18n="demoShapeOriginal">Original</span></label>
-              <label><input type="radio" name="demo-aspect" value="1:1">1:1</label>
-              <label><input type="radio" name="demo-aspect" value="4:5">4:5</label>
-              <label><input type="radio" name="demo-aspect" value="3:2">3:2</label>
-              <label><input type="radio" name="demo-aspect" value="16:9">16:9</label>
-            </fieldset>
-            <div class="demo-slider"><label for="d-angle" data-i18n="slider_angle">Straighten</label><button type="button" class="demo-value" data-reset-for="slider_angle" aria-label="Reset straighten">0</button><span class="demo-track"><span class="origin"></span><input id="d-angle" type="range" data-key="angle" min="-10" max="10" step="0.1" value="0"></span></div>
-            <p class="demo-note" data-i18n="demoCropNote">The crop zooms in just enough to avoid empty corners when you straighten.</p>
-          </div>
-        </div>
-      </div>
-      <div id="demo-tour" class="demo-tour" role="dialog" aria-labelledby="demo-tour-title" aria-describedby="demo-tour-body" hidden>
-        <button type="button" id="demo-tour-close" class="close" data-i18n-attr="aria-label:tourClose" aria-label="Close the guided tour">×</button>
-        <p id="demo-tour-count" class="count"></p>
-        <h3 id="demo-tour-title"></h3>
-        <p id="demo-tour-body"></p>
-        <div class="actions">
-          <button type="button" id="demo-tour-back" class="demo-btn" data-i18n="tourBack">Back</button>
-          <button type="button" id="demo-tour-next" class="demo-btn primary" data-i18n="tourNext">Next</button>
-          <button type="button" id="demo-tour-done" class="demo-btn primary" data-i18n="tourFinish" hidden>Finish</button>
-        </div>
-      </div>
-      <p class="demo-credit" data-i18n="demoCredit">Sample photos are computer-drawn for this demo. Press Escape to close the tour.</p>
-      <noscript><p class="muted">Turn on JavaScript to try the editing tools.</p></noscript>
+    <p class="muted" data-i18n="realEditorScope">This is the actual Kestrel editor with a fixed selection of approved photographs. Adjust, crop and compare them; importing or exporting files is not available in the demonstration. Your changes are temporary.</p>
+    <div style="border:1px solid #343946;border-radius:12px;overflow:hidden;background:#111318">
+      <iframe src="editor/demo-editor.html" title="The Kestrel editor using approved example photographs"
+        loading="lazy" style="display:block;width:100%;height:min(790px,85vh);min-height:520px;border:0" allow="fullscreen"></iframe>
     </div>
+    <p class="muted" style="font-size:.82rem" data-i18n="realEditorTruth">The approved examples are JPEG images. This experience does not claim that they were developed from Nikon RAW files by Kestrel.</p>
   </section>
   <section id="downloads" aria-labelledby="downloads-title">
     <h2 id="downloads-title" data-i18n="downloadsTitle">Get Kestrel</h2>
@@ -318,6 +231,6 @@
   })();
 </script>
 <script src="assets/contact.js" defer></script>
-<script src="assets/demo.js" defer></script>
+
 </body>
 </html>

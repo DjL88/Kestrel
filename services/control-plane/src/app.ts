@@ -9,6 +9,7 @@ import { inspectJpeg } from '../../../src/core/jpegInspect.ts';
 import type { Config } from './config.ts';
 import { hashPassword, randomId, sha256Hex, signEnvelope, signSession, uuid, verifyPassword, verifySession, verifyWebhook, type SessionClaims } from './crypto.ts';
 import { SqliteStore } from './sqliteStore.ts';
+import { MemoryDemoStudio, publicExamples, adminExamples, type DemoStudioStore, type ExampleFields } from './demoStudio.ts';
 import { licenceIsUsable, newLicence, type AuditRecord, type Store } from './store.ts';
 import { geminiProvider, identify, suggest, type AiProvider } from './gateway.ts';
 import type { CommerceLedger } from './commerce/ledger.ts';
@@ -35,6 +36,8 @@ export interface AppOptions {
   /** Injected for tests. Defaults to Gemini when a server key is configured, otherwise none. */
   provider?: AiProvider | null;
   now?: () => number;
+  /** Backend-only demo image store; Cloud Run supplies GCS+Firestore, local tests use memory. */
+  demoStudio?: DemoStudioStore;
 }
 
 // ---- Schemas: the contract, also published as OpenAPI ------------------------
@@ -60,7 +63,45 @@ const AdminTaxSettings = z.object({
 });
 const SignedEnvelopeSchema = z.object({ payload: z.unknown(), signature: z.string(), keyId: z.string() });
 
+const DemoDetails = z.object({
+  title: z.string().trim().min(1).max(80),
+  subject: z.string().trim().max(120),
+  credit: z.string().trim().max(200),
+  alt: z.string().trim().min(1).max(220),
+}).strict();
+const DemoEdit = z.object({
+  exposure: z.number().finite().min(-2).max(2),
+  warmth: z.number().finite().min(-2).max(2),
+  colour: z.number().finite().min(-2).max(2),
+  brightness: z.number().finite().min(-2).max(2).optional(),
+  contrast: z.number().finite().min(-2).max(2).optional(),
+  highlights: z.number().finite().min(-2).max(2).optional(),
+  shadows: z.number().finite().min(-2).max(2).optional(),
+  whites: z.number().finite().min(-2).max(2).optional(),
+  blacks: z.number().finite().min(-2).max(2).optional(),
+  vibrance: z.number().finite().min(-2).max(2).optional(),
+  texture: z.number().finite().min(-2).max(2).optional(),
+  clarity: z.number().finite().min(-2).max(2).optional(),
+  sharpen: z.number().finite().min(-2).max(2).optional(),
+  denoise: z.number().finite().min(0).max(2).optional(),
+  // Real PhotoEditor masks are shaped by its own editing model. Save only
+  // a bounded, owner-authenticated JSON recipe; request limit is 128 KiB.
+  masks: z.array(z.unknown()).max(8).optional(),
+}).strict();
+const DemoFraming = z.object({
+  ratio: z.number().finite().min(0.1).max(10).nullable(),
+  turns: z.number().int().min(-360).max(360),
+  straighten: z.number().finite().min(-45).max(45),
+  x: z.number().finite().min(0).max(1),
+  y: z.number().finite().min(0).max(1),
+  size: z.number().finite().min(0.08).max(1).optional(),
+  free: z.boolean().optional(),
+}).strict();
 export const Schemas = {
+  DemoCreate: DemoDetails.extend({ jpegBase64: z.string().min(128).max(2_200_000).regex(/^[A-Za-z0-9+/]+={0,2}$/) }).strict(),
+  DemoSave: DemoDetails.extend({ revision: z.number().int().positive(), edit: DemoEdit, framing: DemoFraming }).strict(),
+  DemoRevision: z.object({ revision: z.number().int().positive() }).strict(),
+  DemoPublish: z.object({ revision: z.number().int().positive(), published: z.boolean() }).strict(),
   SessionRequest: z.object({ email: z.string().email().max(254), password: z.string().min(8).max(200) }).strict(),
   RefreshRequest: z.object({ refreshToken: z.string().min(20).max(200) }).strict(),
   SessionResponse: z.object({ accessToken: z.string(), refreshToken: z.string(), expiresIn: z.number() }),
@@ -147,6 +188,7 @@ export function createApp(options: AppOptions) {
   const { config, commerce } = options;
   if (!options.store && config.store !== 'sqlite') throw new Error('Open the Firestore store with openStore() and pass it in.');
   const store: Store = options.store ?? new SqliteStore(config.databasePath);
+  const demoStudio: DemoStudioStore | null = options.demoStudio ?? (config.devMode ? new MemoryDemoStudio() : null);
   const now = options.now ?? Date.now;
   const provider: AiProvider | null = options.provider !== undefined
     ? options.provider
@@ -245,6 +287,72 @@ export function createApp(options: AppOptions) {
 
   const routes: Route[] = [
     { method: 'GET', path: '/healthz', summary: 'Liveness', auth: 'none', handler: () => ({ status: 200, body: { ok: true } }) },
+
+
+    // ---- Owner-approved, fixed photographs for the real website editor
+    {
+      method: 'GET', path: '/v1/demo/photos', summary: 'Read published photographs and exact approved edit recipes only', auth: 'none',
+      handler: async () => ({
+        status: 200, body: { photos: demoStudio ? publicExamples(await demoStudio.list(), (photo) => demoStudio.imageUrl(photo)) : [] },
+      }),
+    },
+    {
+      method: 'GET', path: '/v1/admin/demo/photos', summary: 'Private list of all staged and published demonstration photographs', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'demo.list');
+        if (!demoStudio) throw new ApiError(503, 'DEMO_NOT_CONFIGURED', 'Photo storage is not set up on this server.');
+        return adminDone(claims, 'demo.list', 'listed', { photos: adminExamples(await demoStudio.list(), (photo) => demoStudio.imageUrl(photo)) });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/demo/photos/:id/image', summary: 'Read a private draft preview with owner authentication', auth: 'admin',
+      handler: async (req, params) => {
+        const claims = await admin(req, 'demo.image');
+        if (!demoStudio) throw new ApiError(503, 'DEMO_NOT_CONFIGURED', 'Photo storage is not set up on this server.');
+        const jpeg = await demoStudio.image(params.id);
+        return adminDone(claims, 'demo.image', params.id, { jpegBase64: jpeg.toString('base64') });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/demo/photos', summary: 'Add a stripped JPEG example as a private draft', auth: 'admin', body: Schemas.DemoCreate,
+      handler: async (req) => {
+        const claims = await admin(req, 'demo.create');
+        if (!demoStudio) throw new ApiError(503, 'DEMO_NOT_CONFIGURED', 'Photo storage is not set up on this server.');
+        const { jpegBase64, ...fields } = parseJson(Schemas.DemoCreate, req.rawBody);
+        const photo = await demoStudio.create(Buffer.from(jpegBase64, 'base64'), fields, now());
+        return adminDone(claims, 'demo.create', photo.id, { photo: { id: photo.id, revision: photo.revision } });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/demo/photos/:id/save', summary: 'Save draft subject, metadata, exact editor recipe and crop; not public until approved', auth: 'admin', body: Schemas.DemoSave,
+      handler: async (req, params) => {
+        const claims = await admin(req, 'demo.save');
+        if (!demoStudio) throw new ApiError(503, 'DEMO_NOT_CONFIGURED', 'Photo storage is not set up on this server.');
+        const { revision, ...changes } = parseJson(Schemas.DemoSave, req.rawBody);
+        const photo = await demoStudio.save(params.id, revision, changes as unknown as ExampleFields, now());
+        return adminDone(claims, 'demo.save', photo.id + ' revision=' + photo.revision, { revision: photo.revision });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/demo/photos/:id/publish', summary: 'Explicitly publish or unpublish a photo snapshot', auth: 'admin', body: Schemas.DemoPublish,
+      handler: async (req, params) => {
+        const claims = await admin(req, 'demo.publish');
+        if (!demoStudio) throw new ApiError(503, 'DEMO_NOT_CONFIGURED', 'Photo storage is not set up on this server.');
+        const { revision, published } = parseJson(Schemas.DemoPublish, req.rawBody);
+        const photo = await demoStudio.publish(params.id, revision, published, now());
+        return adminDone(claims, 'demo.publish', photo.id + ' published=' + published, { published: photo.published, revision: photo.revision });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/demo/photos/:id/delete', summary: 'Delete a draft and revoke its publication', auth: 'admin', body: Schemas.DemoRevision,
+      handler: async (req, params) => {
+        const claims = await admin(req, 'demo.delete');
+        if (!demoStudio) throw new ApiError(503, 'DEMO_NOT_CONFIGURED', 'Photo storage is not set up on this server.');
+        const { revision } = parseJson(Schemas.DemoRevision, req.rawBody);
+        await demoStudio.remove(params.id, revision);
+        return adminDone(claims, 'demo.delete', params.id, { deleted: true });
+      },
+    },
 
     // ---- Identity & licensing
     {
@@ -711,7 +819,7 @@ export function createApp(options: AppOptions) {
     },
   ];
 
-  const bodyLimit = (path: string) => (path.startsWith('/v1/ai/') ? 800 * 1024 : 64 * 1024);
+  const bodyLimit = (path: string) => path === '/v1/admin/demo/photos' ? 2_300_000 : path.includes('/v1/admin/demo/photos/') ? 850 * 1024 : path.startsWith('/v1/ai/') ? 800 * 1024 : 64 * 1024;
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = new URL(req.url ?? '/', 'http://control-plane.invalid');
