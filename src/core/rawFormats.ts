@@ -26,11 +26,7 @@ export const isRawPreviewFile = (filename: string) => BY_EXT.has(extensionOf(fil
 /** "CR3 Embedded Preview", for the info panel. */
 export const rawPreviewLabel = (filename: string) => `${extensionOf(filename).toUpperCase()} Embedded Preview`;
 
-/**
- * HEIF photos: HEIC from iPhones and many Android phones, HEIF, and HIF from Canon and Sony cameras. They are decoded by
- * Kestrel's own bundled decoder (libheif compiled to WebAssembly, src/providers/heifDecode.ts) on every platform, so a
- * HEIC looks the same on Windows, macOS and the web. The original file is only read, never rewritten.
- */
+/** HEIF types detected by the catalogue and metadata reader. Pixel decoding depends on the platform. */
 export const HEIF_EXTENSIONS = ['heic', 'heif', 'hif'];
 /** What browsers and operating systems call HEIF files. Some report none at all, so the extension decides. */
 export const HEIF_MIME_TYPES = ['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence'];

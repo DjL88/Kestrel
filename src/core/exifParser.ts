@@ -1,6 +1,7 @@
 import exifr from 'exifr';
 import type { ExifMetadata } from './types';
-import { isRawPreviewFile, rawPreviewLabel } from './rawFormats';
+import { heifFormatLabel, isHeifFile, isRawPreviewFile, rawPreviewLabel } from './rawFormats';
+import { readHeifExif } from './heifExif';
 
 /** Nikon TIFF-based RAW formats supported by the embedded-JPEG preview adapter. */
 export function isNikonEmbeddedPreviewFile(filename: string): boolean {
@@ -189,18 +190,24 @@ export async function parseImageExif(
 ): Promise<ExifMetadata> {
   const lower = filename.toLowerCase();
   const isNikonRaw = isRawPreviewFile(filename);
+  const isHeif = isHeifFile(filename);
+  const formatLabel = isNikonRaw ? rawPreviewLabel(filename) : isHeif ? heifFormatLabel(filename) : undefined;
 
   try {
-    const segments = await exifr.parse(file, { xmp: true, mergeOutput: false, gps: false, interop: false });
+    const metadata = isHeif ? await readHeifExif(file) : file;
+    if (!metadata) return { formatLabel, isEmbeddedPreviewOnly: false };
+    const segments = await exifr.parse(metadata, { xmp: true, mergeOutput: false, gps: false, interop: false });
     const parsed = { ...segments?.ifd0, ...segments?.exif };
     const rating = readEmbeddedRating(segments?.xmp?.Rating, parsed.Rating);
 
     // A malformed DateTimeOriginal must not mask a valid CreateDate fallback.
     const capturedAtMs = validExifCaptureTimestamp(parsed.DateTimeOriginal, parsed.CreateDate);
 
-    const shutter = formatShutterSpeed(
-      typeof parsed.ExposureTime === 'number' ? parsed.ExposureTime : undefined
-    );
+    const exposure = parsed.ExposureTime;
+    const exposureSeconds = ArrayBuffer.isView(exposure) && !(exposure instanceof DataView)
+      ? (exposure as Uint16Array)[0] / (exposure as Uint16Array)[1]
+      : exposure;
+    const shutter = formatShutterSpeed(validExifPositiveNumber(exposureSeconds));
 
     const width =
       validExifDimension(parsed.ExifImageWidth) ?? validExifDimension(parsed.ImageWidth);
@@ -220,12 +227,12 @@ export async function parseImageExif(
       capturedAtMs,
       width,
       height,
-      formatLabel: isNikonRaw ? rawPreviewLabel(filename) : lower.endsWith('.png') ? 'PNG' : lower.endsWith('.webp') ? 'WebP' : 'JPEG',
+      formatLabel: formatLabel ?? (lower.endsWith('.png') ? 'PNG' : lower.endsWith('.webp') ? 'WebP' : 'JPEG'),
       isEmbeddedPreviewOnly: isNikonRaw,
     };
   } catch {
     return {
-      formatLabel: isNikonRaw ? rawPreviewLabel(filename) : undefined,
+      formatLabel,
       isEmbeddedPreviewOnly: isNikonRaw,
     };
   }
