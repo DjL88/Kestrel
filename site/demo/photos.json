@@ -1,0 +1,65 @@
+{
+  "note": "Sample photos for the website editing demo. See site/demo/README.md. Up to 5 entries; paths may be relative to this file or full https:// URLs.",
+  "photos": [
+    {
+      "id": "kestrel-dusk",
+      "title": "Bird at dusk",
+      "alt": "A small bird of prey perched on a fence post against an orange dusk sky, dark and grainy before editing",
+      "src": "photos/kestrel-dusk.webp",
+      "denoised": "photos/kestrel-dusk-denoised.webp",
+      "mask": "photos/kestrel-dusk-mask.png",
+      "thumb": "photos/kestrel-dusk-thumb.webp",
+      "subject": "bird",
+      "credit": "Synthetic image drawn by scripts/site/generate-demo-photos.mjs",
+      "licence": "Kestrel project asset"
+    },
+    {
+      "id": "highland-loch",
+      "title": "Tilted loch",
+      "alt": "A sailing boat on a loch below grey mountains, with a tilted horizon and a cool, flat look before editing",
+      "src": "photos/highland-loch.webp",
+      "denoised": "photos/highland-loch-denoised.webp",
+      "mask": "photos/highland-loch-mask.png",
+      "thumb": "photos/highland-loch-thumb.webp",
+      "subject": "boat",
+      "credit": "Synthetic image drawn by scripts/site/generate-demo-photos.mjs",
+      "licence": "Kestrel project asset"
+    },
+    {
+      "id": "lighthouse-coast",
+      "title": "Lighthouse",
+      "alt": "A striped lighthouse on a grassy cliff above a grey sea under an overcast sky",
+      "src": "photos/lighthouse-coast.webp",
+      "denoised": "photos/lighthouse-coast-denoised.webp",
+      "mask": "photos/lighthouse-coast-mask.png",
+      "thumb": "photos/lighthouse-coast-thumb.webp",
+      "subject": "lighthouse",
+      "credit": "Synthetic image drawn by scripts/site/generate-demo-photos.mjs",
+      "licence": "Kestrel project asset"
+    },
+    {
+      "id": "night-street",
+      "title": "Night street",
+      "alt": "A cyclist passing under a street lamp at night, with heavy grain and out-of-focus city lights",
+      "src": "photos/night-street.webp",
+      "denoised": "photos/night-street-denoised.webp",
+      "mask": "photos/night-street-mask.png",
+      "thumb": "photos/night-street-thumb.webp",
+      "subject": "lamp post and cyclist",
+      "credit": "Synthetic image drawn by scripts/site/generate-demo-photos.mjs",
+      "licence": "Kestrel project asset"
+    },
+    {
+      "id": "garden-flower",
+      "title": "Garden flower",
+      "alt": "A pink flower with a yellow centre in front of a soft green background, slightly warm and dim",
+      "src": "photos/garden-flower.webp",
+      "denoised": "photos/garden-flower-denoised.webp",
+      "mask": "photos/garden-flower-mask.png",
+      "thumb": "photos/garden-flower-thumb.webp",
+      "subject": "flower",
+      "credit": "Synthetic image drawn by scripts/site/generate-demo-photos.mjs",
+      "licence": "Kestrel project asset"
+    }
+  ]
+}

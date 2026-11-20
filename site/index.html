@@ -6,9 +6,10 @@
   <meta name="theme-color" content="#14161b">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <meta name="description" content="Kestrel: a calm, privacy-first workspace for importing, culling and editing photographs.">
-  <!-- Kestrel’s own downloads (infra/gcp). Empty means GitHub releases only. -->
+  <!-- Kestrel’s own downloads (infra/gcp). -->
   <meta name="kestrel-downloads" content="https://storage.googleapis.com/kestrel-hosting-kestrel-downloads/latest.json">
   <title>Kestrel — More time behind the camera.</title>
+  <link rel="stylesheet" href="assets/demo.css">
   <style>
     @font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(assets/fonts/inter-latin-400-normal.woff2) format("woff2")}
     @font-face{font-family:Inter;font-weight:600;font-display:swap;src:url(assets/fonts/inter-latin-600-normal.woff2) format("woff2")}
@@ -36,13 +37,6 @@
     .download{display:inline-block;background:var(--copper-hover);color:var(--canvas);font-weight:750;border-radius:8px;padding:8px 12px;text-decoration:none}
     .muted{color:#bdc4cf}.steps{padding-left:24px;max-width:740px}.steps li{margin-bottom:12px}
     .note{border-left:3px solid #d97840;padding:10px 17px;background:#191d26;max-width:800px}
-    .compare{max-width:560px;margin:28px 0 0;background:var(--panel);border:1px solid #343946;border-radius:14px;padding:16px}
-    .compare legend{font-weight:700;padding:0 6px}.compare input{accent-color:var(--copper-hover);margin-right:6px}
-    .compare label{display:inline-flex;align-items:center;min-height:44px;margin-right:16px;color:#d3d9e5;cursor:pointer}
-    .compare input:focus-visible{outline:2px solid #9cc3db;outline-offset:3px}
-    .compare-frame{display:grid;background:var(--canvas);border-radius:8px;overflow:hidden}
-    .compare-frame img{grid-area:1/1;width:100%;height:auto;visibility:hidden}
-    #edit-before:checked~.compare-frame .before,#edit-after:checked~.compare-frame .after{visibility:visible}
     .contact-form{display:grid;gap:14px;max-width:560px}
     .contact-field{display:grid;gap:5px;font-weight:600}
     .contact-field input,.contact-field textarea{width:100%;padding:10px 12px;border:1px solid #5e6270;border-radius:8px;background:var(--panel);color:inherit;font:inherit}
@@ -61,23 +55,119 @@
 <body>
 <header><div class="wrap bar">
   <a class="brand" href="#top" aria-label="Kestrel home"><img class="mark" src="assets/kestrel-symbol.svg" alt="" width="46" height="39">Kestrel</a>
-  <nav aria-label="Main navigation"><a href="#downloads">Downloads</a><a href="#install">Install</a><a href="#pricing">Pricing</a><a href="#getting-started">Getting started</a><a href="#privacy">Privacy</a><a href="#contact">Contact</a><a href="https://github.com/DjL88/Kestrel">Source</a></nav>
+  <nav aria-label="Main navigation"><a href="#downloads">Downloads</a><a href="#install">Install</a><a href="#try">Try it</a><a href="#pricing">Pricing</a><a href="#getting-started">Getting started</a><a href="#privacy">Privacy</a><a href="#contact">Contact</a></nav>
 </div></header>
 <main id="top" class="wrap">
   <h1>More time behind the camera.</h1>
-  <p class="lead">I love taking photos. Editing them is where I get stuck. I can spend ages moving sliders, especially when I’m working on colour, and still wonder whether I’ve made the photo any better.</p>
-  <p class="lead">I built Kestrel to make that part easier. Find the keepers, make a few edits you understand, and export. Machine learning can help reduce noise, find a subject or suggest a mask. Every edit is yours to adjust, and Kestrel never generates new detail.</p>
-  <p class="lead">It works offline, with photos on your device or in storage you choose. I’m building it with colour-blind photographers in mind, and I’d rather sell it once than ask you to pay every month.</p>
-  <p><a class="cta" href="#downloads">Explore downloads</a> <a href="#pricing">See pricing</a></p>
-  <fieldset class="compare">
-    <legend>Compare a wildlife edit</legend>
-    <input type="radio" name="wildlife-edit" id="edit-before" checked><label for="edit-before">Before</label>
-    <input type="radio" name="wildlife-edit" id="edit-after"><label for="edit-after">After</label>
-    <div class="compare-frame">
-      <img class="before" src="assets/wildlife-before.webp" width="720" height="720" alt="Original photograph of a small brown bird perched on a branch">
-      <img class="after" src="assets/wildlife-after.webp" width="720" height="720" alt="Edited photograph of the same bird after noise reduction, masking and clarity adjustments">
+  <p class="lead">Kestrel is a photo workspace for importing, culling, editing and exporting. It sets out to make editing quicker and easier to understand: find the keepers, make a few edits you can follow, and export.</p>
+  <p><a class="cta" href="#try">Try the editing tools</a> <a href="#downloads">Explore downloads</a> · <a href="#pricing">See pricing</a></p>
+  <section id="aims" aria-labelledby="aims-title">
+    <h2 id="aims-title">What Kestrel sets out to do</h2>
+    <div class="grid">
+      <article class="card"><h3>Work offline</h3><p>Import, cull, edit and export without an internet connection or an account. Your photos stay on your device or in storage you choose.</p></article>
+      <article class="card"><h3>Never change your originals</h3><p>Kestrel does not change, move or replace an original file. Edits are saved as steps you can change or undo at any time.</p></article>
+      <article class="card"><h3>Stay calm and accessible</h3><p>A quiet screen, plain words, full keyboard access and reduced motion. Nothing relies on colour alone. It is designed with colour-blind, ADHD and autistic photographers in mind.</p></article>
+      <article class="card"><h3>Be honest about what it knows</h3><p>When Kestrel is unsure, it says so. It tells you when it shows a RAW file’s built-in preview, never invents detail, and keeps uncertain photos for you to review instead of rejecting them.</p></article>
+      <article class="card"><h3>Help without taking over</h3><p>Machine learning can help reduce noise, find a subject or suggest a mask. Every suggestion is yours to check and adjust.</p></article>
+      <article class="card"><h3>Work the same everywhere</h3><p>The same tools and the same way of working on Windows, macOS and the web, with iPhone, iPad and Android to follow.</p></article>
+      <article class="card"><h3>Pay once</h3><p>A free beta now. Pro is planned as a one-off licence that works offline, not a subscription.</p></article>
     </div>
-  </fieldset>
+  </section>
+  <section id="try" aria-labelledby="try-title">
+    <h2 id="try-title">Try the editing tools</h2>
+    <p class="muted">Edit a sample photo here in your browser. Nothing is uploaded.</p>
+    <div id="demo" class="demo" data-photos="demo/photos.json" data-tab="light">
+      <p class="demo-disclaimer"><span aria-hidden="true">ⓘ</span><span><strong>This is a demo of the tools, not the full app.</strong> It uses small sample images and a simplified preview, not Kestrel’s RAW engine. Denoise and subject selection are shown with pre-made versions of each sample.</span></p>
+      <div class="demo-toolbar" data-tour="compare">
+        <button type="button" id="demo-split" class="demo-btn" aria-pressed="false">Before and after: off</button>
+        <button type="button" id="demo-original" class="demo-btn" aria-pressed="false" title="Hold to see the original">Show original</button>
+        <button type="button" id="demo-reset" class="demo-btn">Reset all</button>
+        <span class="spacer"></span>
+        <button type="button" id="demo-tour-start" class="demo-btn primary">Guided tour</button>
+      </div>
+      <div class="demo-layout">
+        <div>
+          <div class="demo-stage">
+            <canvas id="demo-canvas" role="img" aria-label="Sample photo" width="1200" height="800"></canvas>
+            <img id="demo-fallback" alt="">
+            <div id="demo-compare" class="demo-compare" hidden>
+              <span class="tag before">Before</span><span class="tag after">After</span>
+              <input id="demo-split-range" type="range" min="0" max="100" step="1" value="50" aria-label="Before and after divider: before is on the left">
+              <span class="line" aria-hidden="true"></span>
+            </div>
+          </div>
+          <p id="demo-status" class="demo-status" role="status" aria-live="polite"></p>
+          <ul id="demo-photos" class="demo-photos" aria-label="Sample photos" data-tour="photos"></ul>
+        </div>
+        <div class="demo-panel">
+          <div class="demo-tabs" role="tablist" aria-label="Editing tools">
+            <button type="button" role="tab" id="tab-light" data-tab="light" aria-controls="panel-light" aria-selected="true" data-tour="light">Light</button>
+            <button type="button" role="tab" id="tab-colour" data-tab="colour" aria-controls="panel-colour" aria-selected="false" tabindex="-1" data-tour="colour">Colour</button>
+            <button type="button" role="tab" id="tab-detail" data-tab="detail" aria-controls="panel-detail" aria-selected="false" tabindex="-1" data-tour="detail">Detail</button>
+            <button type="button" role="tab" id="tab-mask" data-tab="mask" aria-controls="panel-mask" aria-selected="false" tabindex="-1" data-tour="mask">Mask</button>
+            <button type="button" role="tab" id="tab-crop" data-tab="crop" aria-controls="panel-crop" aria-selected="false" tabindex="-1" data-tour="crop">Crop</button>
+          </div>
+          <div class="demo-tabpanel" id="panel-light" role="tabpanel" aria-labelledby="tab-light">
+            <div class="demo-slider"><label for="d-exposure">Exposure</label><button type="button" class="demo-value" aria-label="Reset exposure">0</button><span class="demo-track"><span class="origin"></span><input id="d-exposure" type="range" data-key="exposure" min="-3" max="3" step="0.05" value="0"></span></div>
+            <div class="demo-slider"><label for="d-contrast">Contrast</label><button type="button" class="demo-value" aria-label="Reset contrast">0</button><span class="demo-track"><span class="origin"></span><input id="d-contrast" type="range" data-key="contrast" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-highlights">Highlights</label><button type="button" class="demo-value" aria-label="Reset highlights">0</button><span class="demo-track"><span class="origin"></span><input id="d-highlights" type="range" data-key="highlights" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-shadows">Shadows</label><button type="button" class="demo-value" aria-label="Reset shadows">0</button><span class="demo-track"><span class="origin"></span><input id="d-shadows" type="range" data-key="shadows" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-whites">Whites</label><button type="button" class="demo-value" aria-label="Reset whites">0</button><span class="demo-track"><span class="origin"></span><input id="d-whites" type="range" data-key="whites" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-blacks">Blacks</label><button type="button" class="demo-value" aria-label="Reset blacks">0</button><span class="demo-track"><span class="origin"></span><input id="d-blacks" type="range" data-key="blacks" min="-100" max="100" step="1" value="0"></span></div>
+          </div>
+          <div class="demo-tabpanel" id="panel-colour" role="tabpanel" aria-labelledby="tab-colour" hidden>
+            <div class="demo-slider"><label for="d-temperature">Temperature</label><button type="button" class="demo-value" aria-label="Reset temperature">0</button><span class="demo-track"><span class="origin"></span><input id="d-temperature" type="range" data-key="temperature" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-tint">Tint</label><button type="button" class="demo-value" aria-label="Reset tint">0</button><span class="demo-track"><span class="origin"></span><input id="d-tint" type="range" data-key="tint" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-vibrance">Vibrance</label><button type="button" class="demo-value" aria-label="Reset vibrance">0</button><span class="demo-track"><span class="origin"></span><input id="d-vibrance" type="range" data-key="vibrance" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-saturation">Saturation</label><button type="button" class="demo-value" aria-label="Reset saturation">0</button><span class="demo-track"><span class="origin"></span><input id="d-saturation" type="range" data-key="saturation" min="-100" max="100" step="1" value="0"></span></div>
+          </div>
+          <div class="demo-tabpanel" id="panel-detail" role="tabpanel" aria-labelledby="tab-detail" hidden>
+            <div class="demo-slider"><label for="d-clarity">Clarity</label><button type="button" class="demo-value" aria-label="Reset clarity">0</button><span class="demo-track"><span class="origin"></span><input id="d-clarity" type="range" data-key="clarity" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-denoise">Denoise</label><button type="button" class="demo-value" aria-label="Reset denoise">0</button><span class="demo-track"><span class="origin"></span><input id="d-denoise" type="range" data-key="denoise" min="0" max="100" step="1" value="0"></span></div>
+            <p id="demo-denoise-note" class="demo-note"></p>
+          </div>
+          <div class="demo-tabpanel" id="panel-mask" role="tabpanel" aria-labelledby="tab-mask" hidden>
+            <button type="button" id="demo-select-subject" class="demo-btn" aria-pressed="false">Select subject</button>
+            <p id="demo-mask-note" class="demo-note" aria-live="polite"></p>
+            <div id="demo-mask-controls" hidden>
+              <fieldset class="demo-choice"><legend>Edit</legend>
+                <label><input type="radio" name="demo-mask-target" value="subject" checked>Subject only</label>
+                <label><input type="radio" name="demo-mask-target" value="background">Background only</label>
+              </fieldset>
+              <label class="demo-check"><input type="checkbox" id="demo-overlay" checked>Show mask as a striped overlay</label>
+            <div class="demo-slider"><label for="d-maskExposure">Mask exposure</label><button type="button" class="demo-value" aria-label="Reset mask exposure">0</button><span class="demo-track"><span class="origin"></span><input id="d-maskExposure" type="range" data-key="maskExposure" min="-2" max="2" step="0.05" value="0"></span></div>
+            <div class="demo-slider"><label for="d-maskSaturation">Mask saturation</label><button type="button" class="demo-value" aria-label="Reset mask saturation">0</button><span class="demo-track"><span class="origin"></span><input id="d-maskSaturation" type="range" data-key="maskSaturation" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-maskWarmth">Mask warmth</label><button type="button" class="demo-value" aria-label="Reset mask warmth">0</button><span class="demo-track"><span class="origin"></span><input id="d-maskWarmth" type="range" data-key="maskWarmth" min="-100" max="100" step="1" value="0"></span></div>
+            </div>
+          </div>
+          <div class="demo-tabpanel" id="panel-crop" role="tabpanel" aria-labelledby="tab-crop" hidden>
+            <fieldset class="demo-choice"><legend>Shape</legend>
+              <label><input type="radio" name="demo-aspect" value="original" checked>Original</label>
+              <label><input type="radio" name="demo-aspect" value="1:1">1:1</label>
+              <label><input type="radio" name="demo-aspect" value="4:5">4:5</label>
+              <label><input type="radio" name="demo-aspect" value="3:2">3:2</label>
+              <label><input type="radio" name="demo-aspect" value="16:9">16:9</label>
+            </fieldset>
+            <div class="demo-slider"><label for="d-angle">Straighten</label><button type="button" class="demo-value" aria-label="Reset straighten">0</button><span class="demo-track"><span class="origin"></span><input id="d-angle" type="range" data-key="angle" min="-10" max="10" step="0.1" value="0"></span></div>
+            <p class="demo-note">The crop zooms in just enough to avoid empty corners when you straighten.</p>
+          </div>
+        </div>
+      </div>
+      <div id="demo-tour" class="demo-tour" role="dialog" aria-labelledby="demo-tour-title" aria-describedby="demo-tour-body" hidden>
+        <button type="button" id="demo-tour-close" class="close" aria-label="Close the guided tour">×</button>
+        <p id="demo-tour-count" class="count"></p>
+        <h3 id="demo-tour-title"></h3>
+        <p id="demo-tour-body"></p>
+        <div class="actions">
+          <button type="button" id="demo-tour-back" class="demo-btn">Back</button>
+          <button type="button" id="demo-tour-next" class="demo-btn primary">Next</button>
+          <button type="button" id="demo-tour-done" class="demo-btn primary" hidden>Finish</button>
+        </div>
+      </div>
+      <p class="demo-credit">Sample photos are computer-drawn for this demo. Press Escape to close the tour.</p>
+      <noscript><p class="muted">Turn on JavaScript to try the editing tools.</p></noscript>
+    </div>
+  </section>
   <section id="downloads" aria-labelledby="downloads-title">
     <h2 id="downloads-title">Get Kestrel</h2>
     <p class="muted">Kestrel is in development. Installers appear here only after a matching application release has been published. Model files and source archives are not app installers.</p>
@@ -88,11 +178,10 @@
       <article class="card" data-platform="android"><h3>Android</h3><p>Touch-first culling and editing.</p><span id="android" class="pill">Coming soon</span></article>
     </div>
     <p id="release-status" class="muted" role="status" aria-live="polite">Checking for published app downloads…</p>
-    <p><a href="https://github.com/DjL88/Kestrel/releases">View all Kestrel releases</a></p>
   </section>
   <section id="install" aria-labelledby="install-title">
     <h2 id="install-title">Installing the beta</h2>
-    <p class="muted">Beta builds are not yet signed by Apple or Microsoft, so each system asks you to confirm before the first launch. Download only from this page or the Kestrel releases page.</p>
+    <p class="muted">Beta builds are not yet signed by Apple or Microsoft, so each system asks you to confirm before the first launch. Download only from this page.</p>
     <div class="grid">
       <article class="card"><h3>macOS</h3><p>Open the downloaded disk image and drag Kestrel to Applications. The first time, right-click Kestrel, choose <strong>Open</strong>, then <strong>Open</strong> again.</p></article>
       <article class="card"><h3>Windows</h3><p>Run the installer. If Windows says it protected your PC, choose <strong>More info</strong>, then <strong>Run anyway</strong>.</p></article>
@@ -137,7 +226,6 @@
   <section id="privacy" aria-labelledby="privacy-title">
     <h2 id="privacy-title">Your photographs remain yours</h2>
     <p class="lead">Kestrel is local-first. Import, cull and edit without an account. Optional online analysis or future cloud features must be turned on deliberately. Your originals are not silently uploaded.</p>
-    <p><a href="https://github.com/DjL88/Kestrel/blob/main/README.md">Read the project documentation</a></p>
   </section>
   <section id="contact" aria-labelledby="contact-title">
     <h2 id="contact-title">Contact Kestrel</h2>
@@ -153,9 +241,9 @@
     <noscript><p class="muted">Enable JavaScript to send a message.</p></noscript>
   </section>
 </main>
-<footer><div class="wrap">Kestrel · Pre-release · <a href="https://github.com/DjL88/Kestrel/issues">Report an issue</a></div></footer>
+<footer><div class="wrap">Kestrel · Pre-release · <a href="#contact">Report a problem</a></div></footer>
 <script>
-  // Kestrel's own download bucket (Google Cloud), set when hosting is live; empty means GitHub releases only.
+  // Kestrel's own download bucket (Google Cloud). The page links only to installers listed there.
   // latest.json is written by scripts/release/publish-gcp.ps1 and lists each file with its size and SHA-256.
   const DOWNLOADS_LATEST = document.querySelector('meta[name="kestrel-downloads"]')?.content || '';
   // Suggest the download for this device: its card moves first and says so in words (never only a colour).
@@ -210,28 +298,14 @@
           status.textContent = 'Showing Kestrel ' + latest.version + '. Each file’s SHA-256 is in SHA256SUMS.txt beside it.';
           return;
         }
-      } catch { /* fall back to GitHub releases below */ }
+      } catch { /* reported below */ }
     }
-    try {
-      const response = await fetch('https://api.github.com/repos/DjL88/Kestrel/releases?per_page=25',
-        { headers: { Accept: 'application/vnd.github+json' } });
-      if (!response.ok) throw new Error('Release lookup unavailable');
-      const releases = await response.json();
-      if (!Array.isArray(releases)) throw new Error('Unexpected release response');
-      const app = releases.find(release => !release.draft && !release.prerelease &&
-        /^v\d+\.\d+\.\d+(?:[-+].*)?$/.test(release.tag_name) && Array.isArray(release.assets));
-      if (!app) { status.textContent = 'No installable Kestrel application release has been published yet.'; return; }
-      for (const [id, expression] of Object.entries(patterns)) {
-        const asset = app.assets.find(candidate => expression.test(candidate.name) && candidate.browser_download_url);
-        if (asset) showAsset(id, asset);
-      }
-      // iOS requires a signed store/TestFlight distribution; never invent a downloadable IPA link.
-      status.textContent = 'Showing available installers from app release ' + app.tag_name + '. iOS distribution will be linked once approved.';
-    } catch {
-      status.textContent = 'Downloads could not be checked. View GitHub releases for the latest verified files.';
-    }
+    status.textContent = DOWNLOADS_LATEST
+      ? 'Downloads could not be checked just now. Please try again later.'
+      : 'Installers will appear here when the first release is ready.';
   })();
 </script>
 <script src="assets/contact.js" defer></script>
+<script src="assets/demo.js" defer></script>
 </body>
 </html>
