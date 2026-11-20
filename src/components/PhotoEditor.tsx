@@ -7,7 +7,7 @@ import { messages as m } from '../i18n/messages';
 import { editorText as t } from '../i18n/areas/editor';
 import { libraryText as libraryT } from '../i18n/areas/library';
 import { exportText as exportT } from '../i18n/areas/export';
-import { ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed, Undo2, Wand2 } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed, Undo2, Wand2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { CROP_RATIOS, DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawCrop, drawFramedPhoto, estimateLevel, fixedShape, framedSize, resizeCrop, resizeCropEdge, thirdsCropAnchor, type CropCorner, type CropEdge, type PhotoFraming } from '../core/photoFraming';
@@ -621,9 +621,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     return () => window.clearTimeout(timer);
   }, [eyeNote]);
 
-  // The bottom bar (App) holds a place for the zoom controls, so they sit where culling has them.
-  const [zoomSlot, setZoomSlot] = useState<HTMLElement | null>(null);
-  useEffect(() => { setZoomSlot(document.getElementById('viewer-zoom-slot')); }, []);
+  // Zoom is rendered in the photograph's own top row. The second row
+  // remains available for filmstrip navigation, decisions and selection.
   // The top row (App) holds a place for Export. Photo-only view removes the row, so look again when that changes.
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
   useEffect(() => { setHeaderSlot(document.getElementById('editor-header-actions')); }, [focusPhoto]);
@@ -1541,16 +1540,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     </>
   );
   return (
-    <section aria-label={t.editor.region} className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden bg-kestrel-stage">
+    <section aria-label={t.editor.region} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties}
+      className="relative flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden bg-kestrel-stage">
       {/* On a phone, Quick adjust has Undo, Redo and Before/After within thumb reach, so this row would only repeat them. */}
-      {!focusPhoto && !(isPhone && tab === 'edit' && sheetOpen && !allControls && !(canLockOrientation && fullscreen)) && <div role="toolbar" aria-label={t.editor.toolbar} className="mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center justify-between gap-2 overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 pt-0.5 sm:px-4">
+      {!focusPhoto && !(isPhone && tab === 'edit' && sheetOpen && !allControls && !(canLockOrientation && fullscreen)) && <div role="toolbar" aria-label={t.editor.toolbar}
+        className={`mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center justify-between gap-2 overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 pt-0.5 sm:px-4 workspace:absolute workspace:top-0 workspace:z-30 workspace:h-12 ${(!toolsHidden && !floatingTools) ? (panelSide === 'left' ? 'workspace:left-[var(--panel-w)] workspace:right-0' : 'workspace:left-0 workspace:right-[var(--panel-w)]') : 'workspace:left-0 workspace:right-0'}`}>
         <div className="flex items-center gap-1">
-          <button type="button" className={`${button} inline-flex items-center`} aria-label={m.undo} title={t.editor.undoTitle(MOD)} disabled={!frame.editHistory?.cursor} onClick={() => onHistoryStep(-1)}>
-            <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">{m.undo}</span>
-          </button>
-          <button type="button" className={`${button} inline-flex items-center`} aria-label={m.redo} title={t.editor.redoTitle(MOD)} disabled={!frame.editHistory || frame.editHistory.cursor >= frame.editHistory.steps.length} onClick={() => onHistoryStep(1)}>
-            <Redo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">{m.redo}</span>
-          </button>
+          {/* Undo and Redo remain in Edit, History and keyboard shortcuts. */}
           {displayCompare && (
             <label className="min-w-0">
               <span className="sr-only">{t.editor.beforeStage}</span>
@@ -1570,12 +1566,24 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           )}
         </div>
         <div className="flex items-center gap-1">
-        {/* Zoom lives in the bottom bar with the photo navigation, in the same place as in culling (ZoomControls). */}
+        {/* Responsive zoom and quality-first controls stay with the photograph. */}
         {fit > 0 && (() => {
           const controls = <ZoomControls previewPixels={isRaw} zoom={transform.zoom} fit={fit} dpr={dpr} maxZoom={maxZoom} onZoom={zoomTo} note={eyeNote}
             eye={{ onClick: () => void zoomToEye(), busy: findingEye, disabled: findingEye || sourceState !== 'ready', title: t.editor.eyeTitle }} />;
-          return zoomSlot ? createPortal(controls, zoomSlot) : controls;
+          return controls;
         })()}
+        <button type="button" aria-label={t.editor.beforeAfter} title={t.editor.compareTitle}
+          aria-pressed={displayCompare} disabled={sourceState !== 'ready' || guide}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-white/15 text-zinc-200 hover:bg-white/10 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/20"
+          onClick={() => setCompare((value) => !value)}>
+          <Columns2 className="h-4 w-4" aria-hidden="true"/>
+        </button>
+        <button type="button" aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
+          title={fullscreen ? 'Exit full screen' : 'Full screen'} disabled={!canFullscreen}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-white/15 text-zinc-200 hover:bg-white/10 disabled:opacity-40"
+          onClick={toggleFullscreen}>
+          {fullscreen ? <Minimize className="h-4 w-4" aria-hidden="true"/> : <Maximize className="h-4 w-4" aria-hidden="true"/>}
+        </button>
         {/* Settings is in the top right corner of every page (App). */}
         {canLockOrientation && fullscreen && (
           <button type="button" className={`${button} inline-flex items-center border border-white/15`}
@@ -1601,7 +1609,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         </div>
       </div>}
       <div data-testid="editor-responsive-layout" className="kestrel-editor-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden workspace:flex-row">
-      <div ref={stage} data-photo-stage tabIndex={0} aria-label={t.editor.canvas} className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black focus-visible:outline-2 focus-visible:outline-sky-300">
+      <div ref={stage} data-photo-stage tabIndex={0} aria-label={t.editor.canvas} className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black workspace:mt-12 focus-visible:outline-2 focus-visible:outline-sky-300">
         <PhotoViewport zoom={transform.zoom} pan={transform.pan} maxZoom={maxZoom} showZoomButton={false}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
           overlayMode={displayCompare ? 'wipe' : 'hidden'}
