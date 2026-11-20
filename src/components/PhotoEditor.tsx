@@ -39,7 +39,7 @@ import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, DETAIL_CONTROLS, NOISE_CONTR
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 
-import { FIT_VIEW } from '../core/viewportTransform';
+import { FIT_VIEW, type ViewportTransform } from '../core/viewportTransform';
 import { beforeSnapshot, type ComparisonStage } from '../core/compareStages';
 import { resolveKeyboardCommand, type KeyBindingsMap } from '../core/keyboardCommands';
 import { visiblePhotoDetail } from '../core/visiblePhotoDetail';
@@ -76,6 +76,9 @@ interface Props {
   /** Suggest colour and tone the first time a photo is opened, when the project asked for it. */
   autoEdit?: boolean;
   frame: PhotoFrame;
+  /** App-wide camera shared by Review, Compare and Edit: opening tools never moves the photo. */
+  viewportTransform?: ViewportTransform;
+  onViewportTransform?: (next: ViewportTransform) => void;
   provider: BrowserPreviewProvider;
   needsAccess: boolean;
   bindings: KeyBindingsMap;
@@ -115,7 +118,7 @@ interface Props {
 }
 
 export function PhotoEditor({ autoEdit, onOpenMacroPad,
-  frame, provider, needsAccess, bindings, onEdit, initialTab, onTabChange, onApplyLook, onExport, exportCount = 1, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
+  frame, viewportTransform, onViewportTransform, provider, needsAccess, bindings, onEdit, initialTab, onTabChange, onApplyLook, onExport, exportCount = 1, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, hand, onHandChange,
   toolsCollapsed = false, focusPhoto = false, onExpandTools, onFoldTools,
@@ -257,7 +260,15 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const cropDraw = useRef<{ start: { x: number; y: number }; client: { x: number; y: number }; moved: boolean } | null>(null);
   const edgeDrag = useRef<{ edge: CropEdge; x: number; y: number; point: { x: number; y: number } } | null>(null);
   const [markFocus, setMarkFocus] = useState(false);
-  const [transform, setTransform] = useState({ zoom: 1, pan: { x: 0, y: 0 } });
+  // Standalone editor keeps a local camera; the project workspace supplies the
+  // shared camera so Review → Edit → Compare retains precisely the same view.
+  const [localTransform, setLocalTransform] = useState<ViewportTransform>(FIT_VIEW);
+  const transform = viewportTransform ?? localTransform;
+  const setTransform = (next: ViewportTransform | ((current: ViewportTransform) => ViewportTransform)) => {
+    const updated = typeof next === 'function' ? next(transform) : next;
+    if (onViewportTransform) onViewportTransform(updated);
+    else setLocalTransform(updated);
+  };
   const [eyeNote, setEyeNote] = useState<string | null>(null);
   const [findingEye, setFindingEye] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
