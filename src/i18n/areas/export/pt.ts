@@ -212,6 +212,10 @@ export const pt: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Prefixos dos nomes de ficheiro e qualidade JPEG',
   },
   results: {
+    connectedBackground: (count, place) => `Guardar ${count} exportações em ${place} em segundo plano`,
+    connectingDestination: "A ligar ao destino…",
+    connectedBackgroundHelp: "Os ficheiros são guardados um de cada vez numa nova pasta, agrupados por destino. A janela Exportar fecha após a tarefa ser aceite; veja o progresso e os erros no Gestor de Tarefas.",
+
     backgroundSaving: (count) => `A exportar ${count} ficheiros em segundo plano`,
     choosingFolder: "A escolher pasta…",
     desktopBackground: (count) => `Guardar ${count} ficheiros numa pasta em segundo plano`,

@@ -213,6 +213,10 @@ export const source = {
     prefixesAndQuality: 'Filename prefixes and JPEG quality',
   },
   results: {
+    connectedBackground: (count: number, place: string) => `Save ${count} exports to ${place} in background`,
+    connectingDestination: "Connecting to destination…",
+    connectedBackgroundHelp: "Files are saved one by one into a new folder, grouped by export destination. Export closes when the background task is accepted; see progress or errors in Task Manager.",
+
     backgroundSaving: (count: number) => `Exporting ${count} files in background`,
     choosingFolder: 'Choosing folder…',
     desktopBackground: (count: number) => `Save ${count} files to a folder in background`,

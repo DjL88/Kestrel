@@ -212,6 +212,10 @@ export const nl: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Voorvoegsels van bestandsnamen en JPEG-kwaliteit',
   },
   results: {
+    connectedBackground: (count, place) => `${count} exports op de achtergrond naar ${place} opslaan`,
+    connectingDestination: "Verbinding maken met bestemming…",
+    connectedBackgroundHelp: "Bestanden worden één voor één in een nieuwe map opgeslagen, gegroepeerd per bestemming. Exporteren sluit zodra de taak is aangenomen; de voortgang en fouten blijven zichtbaar in Taakbeheer.",
+
     backgroundSaving: (count) => `${count} bestanden exporteren op de achtergrond`,
     choosingFolder: "Map kiezen…",
     desktopBackground: (count) => `${count} bestanden op de achtergrond in een map opslaan`,

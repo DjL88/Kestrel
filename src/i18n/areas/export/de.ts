@@ -212,6 +212,10 @@ export const de: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Dateinamen-Präfixe und JPEG-Qualität',
   },
   results: {
+    connectedBackground: (count, place) => `${count} Exporte im Hintergrund nach ${place} speichern`,
+    connectingDestination: "Verbindung zum Ziel wird hergestellt…",
+    connectedBackgroundHelp: "Dateien werden einzeln in einem neuen Ordner nach Exportziel sortiert gespeichert. Das Exportfenster schliesst nach Annahme des Auftrags; Fortschritt und Fehler bleiben im Task-Manager sichtbar.",
+
     backgroundSaving: (count) => `${count} Dateien werden im Hintergrund exportiert`,
     choosingFolder: "Ordner wird ausgewählt…",
     desktopBackground: (count) => `${count} Dateien im Hintergrund in einem Ordner speichern`,

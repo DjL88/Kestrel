@@ -982,12 +982,11 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             <button type="button" disabled={!total || progress !== null || blocked || placeBusy}
               className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}
               onClick={() => void queueToBackgroundDestination('connected')}>
-              {placeBusy ? 'Connecting to destination…' : `Save ${total} to ${exportPlace.label} in background`}
+              {openingPlace ? t.results.connectingDestination
+                : placeTaskId !== null ? t.results.backgroundSaving(total)
+                  : t.results.connectedBackground(total, exportPlace.label)}
             </button>
-            <p className="text-xs text-zinc-300">
-              Exports are saved one by one into a new folder, grouped by destination (Instagram, Facebook, Master).
-              This window closes after the job is accepted; progress and errors stay in Task Manager.
-            </p>
+            <p className="text-xs text-zinc-300">{t.results.connectedBackgroundHelp}</p>
           </div>
         )}
         {!resultsReady && frames.length === 1 && !frames[0].isDemo &&

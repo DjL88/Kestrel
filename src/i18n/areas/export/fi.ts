@@ -212,6 +212,10 @@ export const fi: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Tiedostonimien etuliitteet ja JPEG-laatu',
   },
   results: {
+    connectedBackground: (count, place) => `Tallenna ${count} vientiä kohteeseen ${place} taustalla`,
+    connectingDestination: "Yhdistetään kohteeseen…",
+    connectedBackgroundHelp: "Tiedostot tallennetaan yksi kerrallaan uuteen kansioon kohteen mukaan ryhmiteltyinä. Vienti sulkeutuu, kun tehtävä hyväksytään; edistyminen ja virheet näkyvät tehtävienhallinnassa.",
+
     backgroundSaving: (count) => `Viedään ${count} tiedostoa taustalla`,
     choosingFolder: "Valitaan kansiota…",
     desktopBackground: (count) => `Tallenna ${count} tiedostoa kansioon taustalla`,

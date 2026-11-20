@@ -212,6 +212,10 @@ export const es: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Prefijos de nombre de archivo y calidad JPEG',
   },
   results: {
+    connectedBackground: (count, place) => `Guardar ${count} exportaciones en ${place} en segundo plano`,
+    connectingDestination: "Conectando con el destino…",
+    connectedBackgroundHelp: "Los archivos se guardan uno a uno en una carpeta nueva, agrupados por destino. La ventana Exportar se cierra cuando se acepta la tarea; el progreso y los errores siguen en el gestor de tareas.",
+
     backgroundSaving: (count) => `Exportando ${count} archivos en segundo plano`,
     choosingFolder: "Seleccionando carpeta…",
     desktopBackground: (count) => `Guardar ${count} archivos en una carpeta en segundo plano`,
