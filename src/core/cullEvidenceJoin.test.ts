@@ -76,7 +76,7 @@ describe('independent cull evidence joined by immutable original bytes', () => {
   });
   it('rejects missing predictions rather than silently shrinking the denominator', () => {
     const batch = fixture(500);
-    batch.predictions.pop();
+    batch.predictions = batch.predictions.slice(0, -1);
     expect(evaluateCullEvidence(batch).accepted).toBe(false);
   });
   it('does not accept a synthetic five-frame sample as a 500-photo release gate', () => {
