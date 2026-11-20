@@ -217,7 +217,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [previewRecipe, setPreviewRecipe] = useState<{ edit?: PhotoEdit; framing?: PhotoFraming } | null>(null);
   const cropEntry = useRef<PhotoFraming | null>(null);
   const panelScroll = useRef<HTMLDivElement>(null);
-  const isPhone = useMediaQuery('(max-width: 899px), (max-height: 549px)');
+  // Keep in sync with the workspace variant in index.css.
+  const isPhone = !useMediaQuery('(min-width: 900px) and (min-height: 550px), (orientation: landscape) and (min-width: 840px) and (min-height: 440px)');
   // On a phone the tools open as a sheet above the bar. Tapping the open tab again folds it away for a full-height photo.
   const [sheetOpen, setSheetOpen] = useState(() => {
     try { return localStorage.getItem(SHEET_KEY) !== 'closed'; } catch { return true; }
