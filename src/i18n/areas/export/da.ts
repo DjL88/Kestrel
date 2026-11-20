@@ -48,6 +48,7 @@ export const da: AreaTranslation<typeof source> = {
     saveFailed: "Eksportforvalg kunne ikke gemmes på denne enhed.",
     standardOnly: "Forvalg gemmer standardformater.",
   },
+  comparison: { before: "Før", after: "Efter" },
   proof: {
     title: "Eksportprøve",
     photo: "Foto",
@@ -72,6 +73,7 @@ export const da: AreaTranslation<typeof source> = {
     blur: 'En sløret kopi af billedet',
   },
   formats: {
+    beforeAfter: "Før og efter · side om side",
     fullSize: 'Fuld størrelse',
     customSize: 'Egen størrelse',
     master: 'Fuld størrelse · PNG',
