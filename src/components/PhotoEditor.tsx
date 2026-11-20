@@ -488,9 +488,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const guide = cropOpen && !previewCrop;
   const displayFraming = useMemo(() => displayFramingFor(framing, guide), [framing, guide]);
   const displayCompare = compare && !guide && sourceState === 'ready';
-  const showOriginalRaster = !!source && !isRaw && !displayCompare && !guide
-    && !provider.isOfflineFallback(frame.stableKey) && canShowNeutralRaster(edit, displayFraming);
+  const canShowOriginal = !!source && !isRaw && !guide && !provider.isOfflineFallback(frame.stableKey);
+  const showOriginalRaster = canShowOriginal && canShowNeutralRaster(edit, displayFraming);
   const before = beforeSnapshot(frame, beforeStage);
+  const showOriginalBefore = displayCompare && canShowOriginal && canShowNeutralRaster(before.edit, displayFraming);
   const beforeLabel = stageLabel(before.label);
   const outputSize = source ? framedSize(source.naturalWidth, source.naturalHeight, framing) : null;
   const size = source ? framedSize(source.naturalWidth, source.naturalHeight, displayFraming) : null;
@@ -608,25 +609,26 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   }, [source, displayFraming, edit, size?.width, size?.height, showOriginalRaster]);
 
   useEffect(() => {
-    if (!displayCompare || !source || !size || !originalCanvas.current) return;
+    if (!displayCompare || showOriginalBefore || !source || !size || !originalCanvas.current) return;
     const scale = Math.min(1, FIT_PREVIEW_EDGE / Math.max(size.width, size.height));
     drawFramedPhoto(source, originalCanvas.current, displayFraming, { scale });
     if (before.edit) applyCanvasPhotoEdit(originalCanvas.current, before.edit);
-  }, [source, displayFraming, displayCompare, before.edit, size?.width, size?.height]);
+  }, [source, displayFraming, displayCompare, before.edit, size?.width, size?.height, showOriginalBefore]);
 
   useEffect(() => {
     setShowDetail(false);
-    if (!source || !detail || showOriginalRaster) return;
+    if (!source || !detail || (showOriginalRaster && (!displayCompare || showOriginalBefore))) return;
     const timer = window.setTimeout(() => {
-      if (!editedDetail.current) return;
       const { region } = detail;
       const scale = Math.min(1, detail.scale * window.devicePixelRatio, Math.sqrt(5_000_000 / (region.width * region.height)));
       if (scale <= 0) return;
-      drawFramedPhoto(source, editedDetail.current, displayFraming, { region, scale });
-      applyCanvasPhotoEdit(editedDetail.current, edit, Math.max(size!.width, size!.height) * scale, {
-        aspect: size!.height / size!.width,
-        view: { x: region.x / size!.width, y: region.y / size!.height, w: region.width / size!.width, h: region.height / size!.height },
-      });
+      if (editedDetail.current) {
+        drawFramedPhoto(source, editedDetail.current, displayFraming, { region, scale });
+        applyCanvasPhotoEdit(editedDetail.current, edit, Math.max(size!.width, size!.height) * scale, {
+          aspect: size!.height / size!.width,
+          view: { x: region.x / size!.width, y: region.y / size!.height, w: region.width / size!.width, h: region.height / size!.height },
+        });
+      }
       if (displayCompare && originalDetail.current) {
         drawFramedPhoto(source, originalDetail.current, displayFraming, { region, scale });
         if (before.edit) applyCanvasPhotoEdit(originalDetail.current, before.edit, Math.max(size!.width, size!.height) * scale, {
@@ -637,7 +639,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       setShowDetail(true);
     }, 110);
     return () => window.clearTimeout(timer);
-  }, [source, displayFraming, edit, before.edit, displayCompare, transform, viewport, showOriginalRaster]);
+  }, [source, displayFraming, edit, before.edit, displayCompare, transform, viewport, showOriginalRaster, showOriginalBefore]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -1288,9 +1290,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             </div>}
           </>}
           overlay={<>
-            <canvas ref={originalCanvas} aria-label={t.editor.beforePhoto(beforeLabel)} role="img"
-              className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />
-            {detail && displayCompare && <canvas ref={originalDetail} aria-hidden="true" hidden={!showDetail}
+            {showOriginalBefore && source
+              ? <img src={source.src} alt={t.editor.beforePhoto(beforeLabel)} draggable={false}
+                  className={position ? 'absolute' : 'absolute inset-0 h-full w-full object-contain'} style={position} />
+              : <canvas ref={originalCanvas} aria-label={t.editor.beforePhoto(beforeLabel)} role="img"
+                  className={position ? 'absolute' : 'absolute inset-0 h-full w-full object-contain'} style={position} />}
+            {detail && displayCompare && !showOriginalBefore && <canvas ref={originalDetail} aria-hidden="true" hidden={!showDetail}
               className="absolute" style={detail.style} />}
           </>}
         />
