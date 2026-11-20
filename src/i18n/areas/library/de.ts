@@ -9,8 +9,6 @@ const n = (count: number) => formatCount.format(count);
 /** German. DRAFT: written without a native speaker's check. */
 export const de: AreaTranslation<typeof source> = {
   top: {
-    xmpSidecars: "Bewertungen und Tags speichern (XMP)…",
-    xmpHelp: "Bewertungen, Behalten/Ablehnen-Entscheidungen und bestätigte Tags getrennt von den Fotos speichern. Mehrere Dateien werden als ZIP gebündelt.",
     file: "Datei",
     viewLayout: "Ansicht · ein- oder ausblenden",
     groupBursts: "Bildserien gruppieren oder trennen",

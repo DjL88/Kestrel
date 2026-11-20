@@ -9,8 +9,6 @@ const n = (count: number) => formatCount.format(count);
 /** Welsh. DRAFT: written without a native speaker's check. Uses "chi", as the common words do. */
 export const cy: AreaTranslation<typeof source> = {
   top: {
-    xmpSidecars: "Cadw sgoriau a thagiau (XMP)…",
-    xmpHelp: "Cadw sgoriau, dewisiadau Cadw/Gwrthod a thagiau wedi'u cadarnhau ar wahân i'r lluniau. Mae sawl ffeil yn cael eu rhoi mewn ZIP.",
     file: "Ffeil",
     viewLayout: "Gweld · dangos neu guddio",
     groupBursts: "Grwpio neu ddadgrwpio cyfresi",

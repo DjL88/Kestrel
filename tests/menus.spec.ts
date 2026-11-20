@@ -204,31 +204,3 @@ test('File, Edit and View organise actions; show/hide controls stay together in 
   await expect(menu.locator('details').filter({ hasText: 'Culling settings' })
     .getByRole('checkbox', { name: 'Show shortcut guide' })).toHaveCount(0);
 });
-
-test('File menu saves selected ratings/tags as XMP without the photo Export dialog', async ({ page }) => {
-  await makeProject(page, 'Portable photo metadata');
-  const phone = page.viewportSize()!.width < 768;
-  const openMenu = async () => {
-    await page.getByRole('button', { name: phone ? 'More' : 'Workspace options', exact: true }).click();
-    return page.locator('#workspace-options');
-  };
-  let menu = await openMenu();
-  const fileItem = menu.getByRole('button', { name: 'Save ratings and tags (XMP)…' });
-  await expect(fileItem).toBeDisabled();
-  await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Add photos', exact: true }).click();
-  await page.getByTestId('local-file-input').setInputFiles({
-    name: 'bird.png', mimeType: 'image/png',
-    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
-  });
-  await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: /To review 1/ })).toBeVisible({ timeout: 30_000 });
-  menu = await openMenu();
-  const action = menu.getByRole('button', { name: 'Save ratings and tags (XMP)…' });
-  await expect(action).toBeEnabled();
-  await expect(action).toHaveAttribute('title', /original|separately|apart/i);
-  const download = page.waitForEvent('download');
-  await action.click();
-  expect((await download).suggestedFilename()).toBe('bird.xmp');
-  // The image Export dialog is not needed to save just portable culling metadata.
-  await expect(page.getByText('XMP sidecars', { exact: true })).toHaveCount(0);
-});

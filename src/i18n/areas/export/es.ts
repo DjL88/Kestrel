@@ -17,6 +17,16 @@ export const es: AreaTranslation<typeof source> = {
     keywords: "Palabras clave (separadas por comas; vacío = etiquetas confirmadas)",
     help: "Los sujetos confirmados pueden rellenar el título y las etiquetas. Las suposiciones de IA no confirmadas nunca se exportan. Esta información queda en el archivo, no sobre la imagen.",
   },
+  originals: {
+    title: "Archivos originales de cámara",
+    action: (count: number) => count === 1 ? "Guardar archivo original" : `Guardar ${count} archivos originales`,
+    background: (count: number) => count === 1 ? "Guardando el original de cámara" : `Guardando ${count} originales de cámara`,
+    privacy: "Copia exacta del archivo original, incluidos formato y datos EXIF/GPS. NO se aplican ediciones, recortes, marcas de agua ni cambios de metadatos de exportación. El archivo de origen no cambia.",
+    browserLimit: "Esta selección es demasiado grande para crear un ZIP de forma segura en este navegador. Usa la aplicación de escritorio para guardar los originales uno a uno en una carpeta.",
+    browserLimitHelp: "Para lotes RAW grandes, la aplicación de escritorio guarda los archivos uno a uno sin crear un ZIP enorme en memoria.",
+    unavailable: "Las fotos de demostración no tienen un archivo original de cámara.",
+    sourceMissing: "El archivo original de cámara no está disponible. Vuelve a conectar la unidad o el archivo de origen antes de copiar.",
+  },
   rawTiff: {
     action: "Exportar TIFF RAW de 16 bits (prototipo)",
     details: "Acerca del TIFF RAW de 16 bits",
@@ -31,7 +41,6 @@ export const es: AreaTranslation<typeof source> = {
     loadFailed: "No se pudo cargar el XMP. Elige el archivo correspondiente a esta foto.",
   },
   sidecars: {
-    ready: "Metadatos XMP preparados. Las fotos originales no han cambiado.",
     title: "Archivos auxiliares XMP",
     save: "Guardar archivos XMP",
     help: "Guarda las valoraciones, los rechazos y las palabras clave confirmadas por separado. Si hay varios archivos, se guardan en un ZIP. Se omiten las fotos de demostración y las copias virtuales.",

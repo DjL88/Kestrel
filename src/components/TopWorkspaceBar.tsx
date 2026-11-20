@@ -66,8 +66,6 @@ interface TopWorkspaceBarProps {
   onMoveToProject?: () => void;
   /** Exports what is selected: the selected photos, else the current photo. */
   onExport?: () => void;
-  /** Export ratings, decisions and confirmed tags as separate XMP files. */
-  onSaveSidecars?: () => void;
   exportLabel?: string;
   /** How many photos Export would export, for the number-only label on small screens (shown only when more than one). */
   exportCount?: number;
@@ -111,11 +109,11 @@ function MenuSection({ id, title, children }: { id: string; title: string; child
   );
 }
 
-function MenuItem({ icon, children, onClick, disabled, pressed, wide, title }: {
-  icon: React.ReactNode; children: React.ReactNode; onClick: () => void; disabled?: boolean; pressed?: boolean; wide?: boolean; title?: string;
+function MenuItem({ icon, children, onClick, disabled, pressed, wide }: {
+  icon: React.ReactNode; children: React.ReactNode; onClick: () => void; disabled?: boolean; pressed?: boolean; wide?: boolean;
 }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} aria-pressed={pressed} title={title}
+    <button type="button" onClick={onClick} disabled={disabled} aria-pressed={pressed}
       className={`flex min-h-10 min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:text-zinc-500 disabled:hover:bg-transparent aria-pressed:bg-sky-300/15 ${wide ? 'col-span-2' : ''}`}>
       <span className="shrink-0 text-zinc-400">{icon}</span>
       <span className="min-w-0 truncate">{children}</span>
@@ -232,8 +230,6 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                 <MenuSection id="menu-file" title={t.top.file}>
                   <MenuItem wide icon={<Plus className="h-4 w-4" aria-hidden="true" />} disabled={props.actionsDisabled || props.addDisabled} onClick={() => choose(props.onOpenShootModal, false)}>{t.top.addPhotos}…</MenuItem>
                   <MenuItem wide icon={<Download className="h-4 w-4" aria-hidden="true" />} disabled={!props.onExport} onClick={() => choose(() => props.onExport?.(), false)}>{t.top.exportTitle}…</MenuItem>
-                  <MenuItem wide icon={<FileDown className="h-4 w-4" aria-hidden="true" />} title={t.top.xmpHelp}
-                    disabled={!props.onSaveSidecars} onClick={() => choose(() => props.onSaveSidecars?.(), false)}>{t.top.xmpSidecars}</MenuItem>
                 </MenuSection>
                 <MenuSection id="menu-edit-photo" title={t.top.edit}>
                   <MenuItem wide icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!onEditPhoto} onClick={() => choose(() => onEditPhoto?.(), false)}>{t.top.edit}</MenuItem>

@@ -15,6 +15,16 @@ export const source = {
     keywords: 'Keywords (comma separated; leave empty for confirmed tags)',
     help: 'Confirmed subjects can fill the title and keywords. Unconfirmed AI guesses are never exported. This information is stored in the file, not printed on the photo.',
   },
+  originals: {
+    title: 'Camera originals',
+    action: (count: number) => count === 1 ? 'Save original file' : `Save ${count} original files`,
+    background: (count: number) => count === 1 ? 'Saving camera original' : `Saving ${count} camera originals`,
+    privacy: 'An exact copy of the original file, including its format and embedded EXIF/location data. Edits, crops, watermarks and export metadata changes are NOT applied. Your source file is never changed.',
+    browserLimit: 'This selection is too large to package safely in this browser. Use the desktop app to save originals individually to one folder.',
+    browserLimitHelp: 'For large RAW selections, the desktop app saves one file at a time without building a huge ZIP in memory.',
+    unavailable: 'Demo photographs do not contain a camera original to save.',
+    sourceMissing: 'The camera original is unavailable. Reconnect the drive or source file before copying.',
+  },
   rawTiff: {
     action: "Export 16-bit RAW TIFF (prototype)",
     details: "About 16-bit RAW TIFF",
@@ -29,7 +39,6 @@ export const source = {
     loadFailed: "Could not load XMP. Choose the matching sidecar for this photo.",
   },
   sidecars: {
-    ready: "XMP metadata prepared. The original photographs are unchanged.",
     title: "XMP sidecars",
     save: "Save XMP sidecars",
     help: "Save ratings, rejections and confirmed keywords separately from your photos. Multiple sidecars are saved as a ZIP. Demo photos and virtual copies are skipped.",

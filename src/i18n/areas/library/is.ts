@@ -9,8 +9,6 @@ const n = (count: number) => formatCount.format(count);
 /** Icelandic. DRAFT: written without a native speaker's check. File names sit after a colon so they need no case endings. */
 export const is: AreaTranslation<typeof source> = {
   top: {
-    xmpSidecars: "Vista einkunnir og merki (XMP)…",
-    xmpHelp: "Vista einkunnir, Halda/Hafna-val og staðfest merki aðskilin frá myndunum. Margar skrár eru settar í ZIP.",
     file: "Skrá",
     viewLayout: "Skoða · sýna eða fela",
     groupBursts: "Flokka eða taka í sundur myndaraðir",

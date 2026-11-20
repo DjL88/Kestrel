@@ -17,6 +17,16 @@ export const sv: AreaTranslation<typeof source> = {
     keywords: "Nyckelord (kommaseparerade; tomt = bekräftade taggar)",
     help: "Bekräftade motiv kan fylla i titel och nyckelord. Obekräftade AI-gissningar exporteras aldrig. Informationen sparas i filen, inte på fotot.",
   },
+  originals: {
+    title: "Kamerans originalfiler",
+    action: (count: number) => count === 1 ? "Spara originalfil" : `Spara ${count} originalfiler`,
+    background: (count: number) => count === 1 ? "Sparar kameraoriginal" : `Sparar ${count} kameraoriginal`,
+    privacy: "En exakt kopia av originalfilen, inklusive format och EXIF-/GPS-data. Redigeringar, beskärningar, vattenstämplar och ändringar av exportmetadata tillämpas INTE. Källfilen ändras inte.",
+    browserLimit: "Urvalet är för stort för en säker ZIP i den här webbläsaren. Använd datorappen för att spara originalen ett i taget till en mapp.",
+    browserLimitHelp: "För stora RAW-urval sparar datorappen en fil i taget utan att bygga en enorm ZIP i minnet.",
+    unavailable: "Demofoton har ingen kameroriginalfil att spara.",
+    sourceMissing: "Kamerans originalfil är inte tillgänglig. Anslut enheten eller källfilen på nytt innan du kopierar.",
+  },
   rawTiff: {
     action: "Exportera 16-bitars RAW-TIFF (prototyp)",
     details: "Om 16-bitars RAW-TIFF",
@@ -31,7 +41,6 @@ export const sv: AreaTranslation<typeof source> = {
     loadFailed: "Det gick inte att läsa in XMP. Välj sidofilen som hör till fotot.",
   },
   sidecars: {
-    ready: "XMP-metadata förberedd. Originalfotona har inte ändrats.",
     title: "XMP-sidofiler",
     save: "Spara XMP-filer",
     help: "Spara betyg, avvisningar och bekräftade nyckelord separat. Flera filer sparas som en ZIP. Demofoton och virtuella kopior hoppas över.",
