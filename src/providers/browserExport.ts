@@ -1,4 +1,6 @@
 import { isRawPreviewFile } from '../core/rawFormats';
+import { beforeAfterCanvasSize, beforeAfterPanelProfile } from '../core/beforeAfterPlan';
+import { exportText as exportCopy } from '../i18n/areas/export';
 import { embedRasterXmp } from '../core/rasterXmp';
 import type { TiffExportMetadata } from '../core/tiffExportMetadata';
 import { canDevelopRaw, developRaw } from './rawDevelop';
@@ -256,11 +258,94 @@ export function drawCropQuickly(source: HTMLImageElement, frame: PhotoFrame, pro
   drawFramedPhoto(source, target, framing, { scale: plan.scale * shrink, region: plan.region });
 }
 
+/**
+ * Compose authentic before/after panels from the SAME photographic source.
+ * Both halves use Kestrel's ordinary crop and tone/mask renderer. The left
+ * half has neutral edits, the right has the saved reversible adjustments.
+ * The photo's framing is identical, so the photographer compares like for like.
+ * Text and watermarks are composited on the pair once, after the image pixels.
+ */
+async function composeBeforeAfter(
+  source: HTMLImageElement, frame: PhotoFrame, profile: ExportProfile,
+  signal: AbortSignal | undefined, extras: ExportExtras,
+) {
+  signal?.throwIfAborted();
+  const panelProfile = beforeAfterPanelProfile(profile);
+  // Preview size caps the whole composite, not each half independently.
+  const panelExtras: ExportExtras = {
+    ...extras, overlay: undefined,
+    previewEdge: extras.previewEdge ? Math.max(1, Math.floor(extras.previewEdge / 2)) : undefined,
+  };
+  const beforeFrame: PhotoFrame = { ...frame, edit: DEFAULT_EDIT };
+  const before = await composeExport(source, beforeFrame, panelProfile, signal, 'fit', undefined, panelExtras);
+  let after: Awaited<ReturnType<typeof composeExport>> | null = null;
+  try {
+    after = await composeExport(source, frame, panelProfile, signal, 'fit', undefined, panelExtras);
+    signal?.throwIfAborted();
+    if (before.output.width !== after.output.width || before.output.height !== after.output.height) {
+      throw new Error('Before and after were rendered at different dimensions. No export was made.');
+    }
+    const limit = maxCanvasPixels({
+      userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints,
+    });
+    const { width, height } = beforeAfterCanvasSize(before.output.width, before.output.height, limit);
+    const output = document.createElement('canvas');
+    output.width = width;
+    output.height = height;
+    const context = output.getContext('2d');
+    if (!context) throw new Error('This device cannot draw the before-and-after export.');
+    context.drawImage(before.output, 0, 0);
+    context.drawImage(after.output, before.output.width, 0);
+    // These labels describe the real neutral/edited halves; they are not a
+    // generative content change to either photographic region.
+    const fontSize = Math.max(10, Math.round(Math.min(width / 2, height) * 0.034));
+    const pad = Math.max(7, Math.round(fontSize * 0.55));
+    context.font = `600 ${fontSize}px ${watermarkFont('inter')}`;
+    context.textBaseline = 'top';
+    for (const [text, startX] of [
+      [exportCopy.comparison.before, 0], [exportCopy.comparison.after, before.output.width],
+    ] as const) {
+      const labelWidth = Math.ceil(context.measureText(text).width) + pad * 2;
+      context.fillStyle = 'rgba(0,0,0,0.65)';
+      context.fillRect(startX, 0, labelWidth, fontSize + pad * 2);
+      context.fillStyle = '#ffffff';
+      context.fillText(text, startX + pad, pad);
+    }
+    if (extras.overlay?.on) {
+      const lines = photoOverlayLines(frame, extras.overlay);
+      if (lines.length) {
+        const font = extras.overlay.font;
+        const family = watermarkFont(font);
+        const weights = font === 'jakarta' ? [400, 600] : font === 'atkinson' ? [400, 700] : [400, 500];
+        await Promise.all(weights.map(weight => document.fonts?.load(`${weight} 16px ${family}`).catch(() => [])));
+        signal?.throwIfAborted();
+        drawOverlay(output, lines, extras.overlay, weights[1]);
+      }
+    }
+    const mark = extras.overlay?.watermark;
+    if (mark && hasWatermark(mark)) {
+      signal?.throwIfAborted();
+      await drawWatermark(output, mark);
+    }
+    signal?.throwIfAborted();
+    return { canvas: output, output, bordered: false };
+  } finally {
+    before.canvas.width = 0; before.canvas.height = 0;
+    if (before.bordered) { before.output.width = 0; before.output.height = 0; }
+    if (after) {
+      after.canvas.width = 0; after.canvas.height = 0;
+      if (after.bordered) { after.output.width = 0; after.output.height = 0; }
+    }
+  }
+}
+
 /** A small picture of what an export will look like, as a canvas the caller can draw. */
 export async function renderExportPreview(
   source: HTMLImageElement, frame: PhotoFrame, profile: ExportProfile, mode: ExportFraming, extras: ExportExtras = {}, signal?: AbortSignal,
 ): Promise<HTMLCanvasElement> {
-  const { canvas, output, bordered } = await composeExport(source, frame, profile, signal, mode, undefined, { previewEdge: 240, ...extras });
+  const { canvas, output, bordered } = profile.id === 'before-after'
+    ? await composeBeforeAfter(source, frame, profile, signal, { previewEdge: 240, ...extras })
+    : await composeExport(source, frame, profile, signal, mode, undefined, { previewEdge: 240, ...extras });
   if (bordered) { canvas.width = 0; canvas.height = 0; }
   return output;
 }
@@ -270,7 +355,9 @@ export async function renderExport(
   mode: ExportFraming = 'fit', longEdge?: number, extras: ExportExtras = {},
 ) {
   const mime = profile.format === 'png' ? 'image/png' : 'image/jpeg';
-  const { canvas, output, bordered } = await composeExport(source, frame, profile, signal, mode, longEdge, { ...extras, previewEdge: undefined });
+  const { canvas, output, bordered } = profile.id === 'before-after'
+    ? await composeBeforeAfter(source, frame, profile, signal, { ...extras, previewEdge: undefined })
+    : await composeExport(source, frame, profile, signal, mode, longEdge, { ...extras, previewEdge: undefined });
   try {
     const raw = !frame.isDemo && isRawPreviewFile(frame.filename);
     const name = exportFilename(extras.stem ? `${extras.stem}.${profile.format}` : frame.filename, profile, raw);
