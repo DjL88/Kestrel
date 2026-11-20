@@ -4,7 +4,13 @@ import type { source } from './source';
 
 /** German. DRAFT: written without a native speaker's check. */
 export const de: AreaTranslation<typeof source> = {
-  sidecar: { save: "XMP-Begleitdatei speichern", saveFailed: "Die XMP-Begleitdatei konnte nicht gespeichert werden. Wähle einen Dateinamen mit .xmp." },
+  sidecar: {
+    save: "XMP-Begleitdatei speichern",
+    saveFailed: "Die XMP-Begleitdatei konnte nicht gespeichert werden. Wähle einen Dateinamen mit .xmp.",
+    load: "XMP-Begleitdatei laden",
+    loaded: "XMP-Metadaten angewendet.",
+    loadFailed: "XMP konnte nicht geladen werden. Wähle die Begleitdatei für dieses Foto.",
+  },
   presets: {
     title: "Exportvorgaben",
     name: "Name der Vorgabe",

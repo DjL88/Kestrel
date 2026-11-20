@@ -8,7 +8,13 @@ const photos = (count: number) => plural(count, { one: `${count} ghrianghraf`, t
 
 /** Irish. DRAFT: written without a native speaker's check. */
 export const ga: AreaTranslation<typeof source> = {
-  sidecar: { save: "Sábháil an comhad XMP", saveFailed: "Níorbh fhéidir an comhad XMP a shábháil. Roghnaigh ainm a chríochnaíonn le .xmp." },
+  sidecar: {
+    save: "Sábháil an comhad XMP",
+    saveFailed: "Níorbh fhéidir an comhad XMP a shábháil. Roghnaigh ainm a chríochnaíonn le .xmp.",
+    load: "Lódáil an comhad XMP",
+    loaded: "Cuireadh meiteashonraí XMP i bhfeidhm.",
+    loadFailed: "Níorbh fhéidir XMP a lódáil. Roghnaigh an comhad a bhaineann leis an ngrianghraf seo.",
+  },
   presets: {
     title: "Réamhshocruithe easpórtála",
     name: "Ainm an réamhshocraithe",

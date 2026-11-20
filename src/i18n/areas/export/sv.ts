@@ -4,7 +4,13 @@ import type { source } from './source';
 
 /** Swedish. DRAFT: written without a native speaker's check. */
 export const sv: AreaTranslation<typeof source> = {
-  sidecar: { save: "Spara XMP-sidofil", saveFailed: "Det gick inte att spara XMP-sidofilen. Välj ett namn som slutar på .xmp." },
+  sidecar: {
+    save: "Spara XMP-sidofil",
+    saveFailed: "Det gick inte att spara XMP-sidofilen. Välj ett namn som slutar på .xmp.",
+    load: "Läs in XMP-sidofil",
+    loaded: "XMP-metadata tillämpades.",
+    loadFailed: "Det gick inte att läsa in XMP. Välj sidofilen som hör till fotot.",
+  },
   presets: {
     title: "Exportförinställningar",
     name: "Förinställningens namn",

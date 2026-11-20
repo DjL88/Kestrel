@@ -4,7 +4,13 @@ import type { source } from './source';
 
 /** Danish. DRAFT: written without a native speaker's check. */
 export const da: AreaTranslation<typeof source> = {
-  sidecar: { save: "Gem XMP-sidefil", saveFailed: "XMP-sidefilen kunne ikke gemmes. Vælg et navn, der ender på .xmp." },
+  sidecar: {
+    save: "Gem XMP-sidefil",
+    saveFailed: "XMP-sidefilen kunne ikke gemmes. Vælg et navn, der ender på .xmp.",
+    load: "Indlæs XMP-sidefil",
+    loaded: "XMP-metadata blev anvendt.",
+    loadFailed: "Kunne ikke indlæse XMP. Vælg den sidefil, der hører til billedet.",
+  },
   presets: {
     title: "Eksportforvalg",
     name: "Navn på forvalg",
