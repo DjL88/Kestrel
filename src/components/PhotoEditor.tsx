@@ -7,7 +7,7 @@ import { messages as m } from '../i18n/messages';
 import { editorText as t } from '../i18n/areas/editor';
 import { libraryText as libraryT } from '../i18n/areas/library';
 import { exportText as exportT } from '../i18n/areas/export';
-import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed, Undo2, Wand2 } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed, Wand2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { CROP_RATIOS, DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawCrop, drawFramedPhoto, estimateLevel, fixedShape, framedSize, resizeCrop, resizeCropEdge, thirdsCropAnchor, type CropCorner, type CropEdge, type PhotoFraming } from '../core/photoFraming';
@@ -78,9 +78,6 @@ const TABS: { id: Tab; label: string; Icon: typeof Crop }[] = [
 const FLOATABLE_TABS: Tab[] = ['auto', 'crop', 'edit', 'masks', 'history'];
 const FLOAT_TABS_KEY = 'kestrel-independent-floating-tabs-v1';
 const HIDDEN_TABS_KEY = 'kestrel-independent-hidden-tabs-v1';
-
-/** The modifier key people expect on this device, for shortcut hints in tooltips. */
-const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
 
 /** The quick choices under Exposure, Warmth and Colour, in the order of EDIT_CHOICES' options (-1, 0, +1). */
 const CHOICE_WORDS: Record<(typeof EDIT_CHOICES)[number]['key'], readonly string[]> = {
