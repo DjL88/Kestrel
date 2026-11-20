@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { acceptedAutoChanges, visibleAutoChanges } from './autoSuggestionSummary';
+import { acceptedAutoChanges } from './autoSuggestionSummary';
 import type { PhotoEdit } from './photoEdits';
 
 const original: PhotoEdit = { exposure: 0, warmth: 0, colour: 0 };
@@ -31,9 +31,9 @@ test('existing manual edits are described relative to the current edit, not neut
 
 test('mask explanation appears only when a real subject mask survived the quality gate', () => {
   assert.deepEqual(acceptedAutoChanges(original, original, true), [{ key: 'subjectMask' }]);
-  assert.deepEqual(visibleAutoChanges(acceptedAutoChanges(original, {
+  assert.deepEqual(acceptedAutoChanges(original, {
     ...original, exposure: 0.2, highlights: -0.1, shadows: 0.1,
-  }, true)), [{ key: 'exposure', direction: 'up' }, { key: 'highlights', direction: 'down' }]);
+  }, true).slice(0, 2), [{ key: 'exposure', direction: 'up' }, { key: 'highlights', direction: 'down' }]);
 });
 
 test('invalid/stale numeric values do not create nonsense advice', () => {
