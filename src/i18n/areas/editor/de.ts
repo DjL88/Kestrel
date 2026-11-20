@@ -209,6 +209,11 @@ export const de: AreaTranslation<typeof source> = {
     adjustmentsCopied: 'Einstellungen kopiert',
   },
   auto: {
+    howItWorks: "So funktionieren Vorschläge",
+    moreChanges: "Weitere Anpassungen",
+    subjectMaskAdded: "Für das Motiv ist eine eigene Anpassung vorgesehen.",
+    adjustUp: (label) => `${label} leicht erhöhen.`,
+    adjustDown: (label) => `${label} leicht verringern.`,
     paidTitle: 'Der Tab Auto',
     paidBody: 'Hier finden Sie automatische Farb- und Tonanpassungen sowie lokale Bearbeitungstipps.',
     suggestTitle: 'Ein offline vorgeschlagenes Rezept ansehen und seine Qualität prüfen, bevor Sie es anwenden',

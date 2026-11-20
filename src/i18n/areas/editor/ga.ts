@@ -205,6 +205,11 @@ export const ga: AreaTranslation<typeof source> = {
     adjustmentsCopied: 'Cóipeáladh na coigeartuithe',
   },
   auto: {
+    howItWorks: "Conas a oibríonn moltaí",
+    moreChanges: "Coigeartuithe eile",
+    subjectMaskAdded: "Tá coigeartú ar leith don ábhar san áireamh.",
+    adjustUp: (label) => `Méadaigh ${label.toLowerCase()} beagán.`,
+    adjustDown: (label) => `Laghdaigh ${label.toLowerCase()} beagán.`,
     paidTitle: 'An cluaisín Uathoibríoch',
     paidBody: 'Tá coigeartuithe uathoibríocha datha agus toin agus comhairle eagarthóireachta áitiúil anseo.',
     suggestTitle: 'Réamhamharc ar oideas molta as líne agus seiceáil a cháilíocht sula gcuirfear i bhfeidhm é',

@@ -205,6 +205,11 @@ export const cy: AreaTranslation<typeof source> = {
     adjustmentsCopied: 'Addasiadau wedi’u copïo',
   },
   auto: {
+    howItWorks: "Sut mae awgrymiadau'n gweithio",
+    moreChanges: "Addasiadau eraill",
+    subjectMaskAdded: "Mae addasiad ar wahân wedi'i gynnwys ar gyfer y gwrthrych.",
+    adjustUp: (label) => `Cynyddu ${label.toLowerCase()} ychydig.`,
+    adjustDown: (label) => `Lleihau ${label.toLowerCase()} ychydig.`,
     paidTitle: 'Y tab Awto',
     paidBody: 'Mae addasiadau lliw a thôn awtomatig a chyngor golygu lleol yma.',
     suggestTitle: 'Rhagweld rysáit a awgrymir all-lein a gwirio’i ansawdd cyn ei defnyddio',

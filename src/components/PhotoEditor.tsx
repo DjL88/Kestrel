@@ -9,6 +9,7 @@ import { libraryText as libraryT } from '../i18n/areas/library';
 import { exportText as exportT } from '../i18n/areas/export';
 import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed, Wand2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
+import { acceptedAutoChanges } from '../core/autoSuggestionSummary';
 import { formatClock } from '../core/formatDate';
 import { CROP_RATIOS, DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawCrop, drawFramedPhoto, estimateLevel, fixedShape, framedSize, resizeCrop, resizeCropEdge, thirdsCropAnchor, type CropCorner, type CropEdge, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
@@ -783,7 +784,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       const analysis = analysisContext.getImageData(0, 0, analysisCanvas.width, analysisCanvas.height);
       const category = autoSubjectKind();
       let segmentation: { grid: SubjectGrid; confidence: 'high' | 'medium' | 'low'; detail?: SubjectDetail | null } | null = null;
-      let subjectNote = '';
       if (category !== 'landscape') {
         try {
           let detection = subjectCache.current?.source === originalSource && subjectCache.current?.cropKey === cropKey
@@ -808,13 +808,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           }
           if (!stillCurrent()) return;
           if (detection.assessment.usable) segmentation = { grid: detection.grid, confidence: detection.assessment.confidence, detail: detection.detail };
-          else subjectNote = t.auto.subjectUncertain;
         } catch {
           if (!stillCurrent()) return;
-          subjectNote = t.auto.subjectUnavailable;
         }
-      } else {
-        subjectNote = t.auto.atmosphere;
       }
       const natural = naturalAuto({
         pixels: analysis.data, width: analysis.width, height: analysis.height, segmentation, iso: frame.exif?.iso,
@@ -832,24 +828,27 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         });
         proposal = local.edit;
         usedMask = local.usedMask;
-        subjectNote = local.usedMask ? local.reason : t.auto.noLocalAdjustment(local.reason);
       }
       // Render and check before offering: full strength, then gentler, then nothing.
       const staged = stageNaturalRecipe(analysis.data, analysis.width, analysis.height, savedEdit, proposal, segmentation);
       if (!stillCurrent()) return;
       const changed = staged.outcome === 'full' || staged.outcome === 'gentler';
-      const keptMask = changed && (staged.edit.masks?.length ?? 0) > (savedEdit.masks?.length ?? 0);
+      const keptMask = changed && usedMask && (staged.edit.masks?.length ?? 0) > (savedEdit.masks?.length ?? 0);
       setPendingAuto(changed ? { base: savedEdit, edit: staged.edit, cropKey, source: originalSource } : null);
       setPreviewRecipe(changed ? { edit: staged.edit, framing: frame.framing } : null);
       // Only describe adjustments that are actually offered. A rejected or neutral
       // proposal must not list hypothetical exposure, colour or mask changes.
+      // Report only the slider/mask changes that survived the safety gate.
+      // Natural Auto's analysis prose can mention hypothetical moves later
+      // declined by quality checks; never show it to photographers as a result.
+      const changes = changed ? acceptedAutoChanges(savedEdit, staged.edit, keptMask) : [];
+      const notes = changes.map(change => change.key === 'subjectMask'
+        ? t.auto.subjectMaskAdded
+        : change.direction === 'up'
+          ? t.auto.adjustUp(t.controls[change.key])
+          : t.auto.adjustDown(t.controls[change.key]));
       setAutoNotes(changed
-        ? [
-            keptMask ? t.auto.previewingWithMask : t.auto.previewingLook,
-            ...natural.notes.filter((note) => !note.includes('already works') &&
-              !note.startsWith('No clear neutral areas') && !note.startsWith('Warm feather colours')),
-            ...(usedMask && subjectNote ? [subjectNote] : []),
-          ]
+        ? (notes.length ? notes : [t.auto.previewingLook])
         : [staged.outcome === 'declined' ? t.auto.declined : t.auto.alreadyWorks]);
     } catch {
       if (stillCurrent()) setAutoNotes([t.auto.failed]);
@@ -1122,7 +1121,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             onClick={() => void previewAutoSuggestion()}>
             <Lightbulb className="h-4 w-4 stroke-[1.75]" aria-hidden="true" />{autoAnalysing ? t.auto.analysingButton : t.auto.suggest}
           </button>
-          <p className="text-xs text-zinc-400">{t.auto.intro}</p>
+          <details className="text-xs text-zinc-400">
+            <summary className="min-h-10 cursor-pointer py-2">{t.auto.howItWorks}</summary>
+            <p className="pb-2">{t.auto.intro}</p>
+          </details>
           {pendingAuto && (
             <div role="group" aria-label={t.auto.previewGroup} className="space-y-2 rounded-lg border border-white/15 bg-white/5 p-3">
               <p role="status" className="text-sm text-zinc-100">{t.auto.previewing}</p>
@@ -1153,10 +1155,17 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             </div>
           )}
         </div>
-          {autoNotes.length > 0 && <ul role="status" className="list-disc space-y-0.5 pl-4 pt-1 text-xs text-zinc-300">
-            {autoNotes.map((note) => <li key={note}>{note}</li>)}
-          </ul>}
-          {autoNotes.length > 0 && !pendingAuto && <p className="px-1 text-xs text-zinc-400">{t.auto.saveAsRecipe}</p>}
+          {autoNotes.length > 0 && <div role="status" className="px-1 py-1 text-xs text-zinc-300">
+            <p>{autoNotes[0]}</p>
+            {autoNotes.length > 1 && <details className="mt-1">
+              <summary className="min-h-10 cursor-pointer py-2">{t.auto.moreChanges}</summary>
+              <ul className="list-disc space-y-1 pl-4">
+                {autoNotes.slice(1).map((note, index) => <li key={index}>{note}</li>)}
+              </ul>
+            </details>}
+          </div>}
+          {autoNotes[0] === t.auto.applied && !pendingAuto &&
+            <p className="px-1 text-xs text-zinc-400">{t.auto.saveAsRecipe}</p>}
           {opinions && (
             <section aria-label={t.critique.region} className="space-y-2 rounded-md border border-white/10 p-2">
               {opinions.length === 0 && <p role="status" className="text-sm text-zinc-300">{t.critique.none}</p>}

@@ -209,6 +209,11 @@ export const fi: AreaTranslation<typeof source> = {
     adjustmentsCopied: 'Säädöt kopioitu',
   },
   auto: {
+    howItWorks: "Näin ehdotukset toimivat",
+    moreChanges: "Muut säädöt",
+    subjectMaskAdded: "Kohteelle on mukana erillinen säätö.",
+    adjustUp: (label) => `Lisää hieman ${label.toLowerCase()}.`,
+    adjustDown: (label) => `Vähennä hieman ${label.toLowerCase()}.`,
     paidTitle: 'Auto-välilehti',
     paidBody: 'Täällä ovat automaattiset väri- ja sävysäädöt sekä paikalliset muokkausneuvot.',
     suggestTitle: 'Esikatsele ehdotettua reseptiä offline-tilassa ja tarkista sen laatu ennen käyttöä',

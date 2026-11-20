@@ -209,6 +209,11 @@ export const nb: AreaTranslation<typeof source> = {
     adjustmentsCopied: 'Justeringer kopiert',
   },
   auto: {
+    howItWorks: "Slik fungerer forslagene",
+    moreChanges: "Andre justeringer",
+    subjectMaskAdded: "Det er lagt til en egen justering av motivet.",
+    adjustUp: (label) => `Øk ${label.toLowerCase()} litt.`,
+    adjustDown: (label) => `Reduser ${label.toLowerCase()} litt.`,
     paidTitle: 'Fanen Auto',
     paidBody: 'Her finner du automatiske farge- og tonejusteringer og lokale redigeringsråd.',
     suggestTitle: 'Forhåndsvis en foreslått oppskrift uten nett og sjekk kvaliteten før du bruker den',

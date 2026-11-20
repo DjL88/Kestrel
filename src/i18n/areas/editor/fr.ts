@@ -209,6 +209,11 @@ export const fr: AreaTranslation<typeof source> = {
     adjustmentsCopied: 'Réglages copiés',
   },
   auto: {
+    howItWorks: "Comment fonctionnent les suggestions",
+    moreChanges: "Autres réglages",
+    subjectMaskAdded: "Un réglage distinct est prévu pour le sujet.",
+    adjustUp: (label) => `Augmenter légèrement ${label.toLowerCase()}.`,
+    adjustDown: (label) => `Réduire légèrement ${label.toLowerCase()}.`,
     paidTitle: 'L’onglet Auto',
     paidBody: 'Les réglages automatiques de couleur et de tons et les conseils de retouche locaux se trouvent ici.',
     suggestTitle: 'Prévisualiser une recette suggérée hors ligne et vérifier sa qualité avant de l’appliquer',

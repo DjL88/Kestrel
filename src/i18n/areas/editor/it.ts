@@ -209,6 +209,11 @@ export const it: AreaTranslation<typeof source> = {
     adjustmentsCopied: 'Regolazioni copiate',
   },
   auto: {
+    howItWorks: "Come funzionano i suggerimenti",
+    moreChanges: "Altre regolazioni",
+    subjectMaskAdded: "È inclusa una regolazione separata per il soggetto.",
+    adjustUp: (label) => `Aumenta leggermente ${label.toLowerCase()}.`,
+    adjustDown: (label) => `Riduci leggermente ${label.toLowerCase()}.`,
     paidTitle: 'La scheda Auto',
     paidBody: 'Qui trovi le regolazioni automatiche di colore e tono e i consigli per le modifiche locali.',
     suggestTitle: 'Guarda in anteprima una ricetta suggerita offline e controllane la qualità prima di applicarla',

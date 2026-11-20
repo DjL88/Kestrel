@@ -209,6 +209,11 @@ export const es: AreaTranslation<typeof source> = {
     adjustmentsCopied: 'Ajustes copiados',
   },
   auto: {
+    howItWorks: "Cómo funcionan las sugerencias",
+    moreChanges: "Otros ajustes",
+    subjectMaskAdded: "Se incluye un ajuste independiente del sujeto.",
+    adjustUp: (label) => `Aumentar un poco ${label.toLowerCase()}.`,
+    adjustDown: (label) => `Reducir un poco ${label.toLowerCase()}.`,
     paidTitle: 'La pestaña Auto',
     paidBody: 'Aquí están los ajustes automáticos de color y tono y los consejos de edición local.',
     suggestTitle: 'Ver una receta sugerida sin conexión y comprobar su calidad antes de aplicarla',

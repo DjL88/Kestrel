@@ -94,6 +94,10 @@ On desktop one picked destination leads to Task Manager processing originals seq
 
 **Unit and UI checks authored but NOT RUN:** exact-byte original preservation, duplicate/case-insensitive camera filenames, unsafe name rejection, missing/truncated demo sources, early cancellation. Full TypeScript/lint/test/build/Playwright, installed Mac/Windows and browser/mobile, real Z8/Z5II 500-photo batch, source hash evidence, local NAS disconnect and 128 MB memory behaviour remain pending. Other implementation gaps persist, so the full roadmap is not yet legitimately testing-only.
 
+### 20 November 2026 — Natural Auto advice is short, accurate and translated
+
+**Implementation authored; executable and device tests NOT RUN.** The editor's **Suggest a look** result now describes only edits retained by the quality gate. The previous long English-only model analysis could mention hypothetical exposure, warmth, mask or feather changes that the gate later declined, and could repeat "already works" multiple times. One clear, localised accepted slider adjustment is shown initially; any further accepted adjustments are behind an expandable **Other adjustments** detail. An optional **How suggestions work** disclosure holds the long static explanation instead of permanently taking screen space. A separate subject-only adjustment is mentioned only when a validated mask survived the safety gate. No-change and declined outcomes now show one short localised result, without the unrelated suggestion to save a recipe when nothing changed. British English plus 14 complete locale files supply the new prose; the underlying Natural Auto, pixel editing, model, and safety gates are untouched. Added pure regression checks for final-recipe differences and a browser UI check for compact disclosure, **NOT RUN**.
+
 ## 1. Where Kestrel is today
 
 | Area | Status | Evidence and gaps |

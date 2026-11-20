@@ -209,6 +209,11 @@ export const sv: AreaTranslation<typeof source> = {
     adjustmentsCopied: 'Justeringar kopierade',
   },
   auto: {
+    howItWorks: "Så fungerar förslagen",
+    moreChanges: "Andra justeringar",
+    subjectMaskAdded: "En separat justering av motivet ingår.",
+    adjustUp: (label) => `Öka ${label.toLowerCase()} lite.`,
+    adjustDown: (label) => `Minska ${label.toLowerCase()} lite.`,
     paidTitle: 'Fliken Auto',
     paidBody: 'Här finns automatiska färg- och tonjusteringar och lokala redigeringsråd.',
     suggestTitle: 'Förhandsgranska ett föreslaget recept offline och kontrollera kvaliteten innan du använder det',

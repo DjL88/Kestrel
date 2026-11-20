@@ -213,6 +213,11 @@ export const gd: AreaTranslation<typeof source> = {
     adjustmentsCopied: 'Chaidh na gleusan a chopaigeadh',
   },
   auto: {
+    howItWorks: "Mar a dh'obraicheas molaidhean",
+    moreChanges: "Gleusan eile",
+    subjectMaskAdded: "Tha gleus air leth ann airson a' chuspair.",
+    adjustUp: (label) => `Meudaich ${label.toLowerCase()} beagan.`,
+    adjustDown: (label) => `Lùghdaich ${label.toLowerCase()} beagan.`,
     paidTitle: 'An taba Fèin-obrachail',
     paidBody: 'Gheibh thu gleusan dath is tòna fèin-obrachail agus comhairle deasachaidh ionadail an seo.',
     suggestTitle: 'Ro-sheall reasabaidh a mholar far loidhne agus thoir sùil air a chàileachd mus cuir thu an sàs e',

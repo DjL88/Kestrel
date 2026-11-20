@@ -209,6 +209,11 @@ export const is: AreaTranslation<typeof source> = {
     adjustmentsCopied: 'Stillingar afritaðar',
   },
   auto: {
+    howItWorks: "Svona virka tillögur",
+    moreChanges: "Aðrar stillingar",
+    subjectMaskAdded: "Sérstök stilling fyrir myndefnið er innifalin.",
+    adjustUp: (label) => `Auka ${label.toLowerCase()} lítillega.`,
+    adjustDown: (label) => `Minnka ${label.toLowerCase()} lítillega.`,
     paidTitle: 'Flipinn Sjálfvirkt',
     paidBody: 'Hér eru sjálfvirkar lita- og tónastillingar og ráð um staðbundnar breytingar.',
     suggestTitle: 'Forskoða tillögu að uppskrift án nettengingar og athuga gæðin áður en hún er notuð',
