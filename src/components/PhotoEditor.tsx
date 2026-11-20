@@ -267,6 +267,14 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const toggleFloatTab = (id: Tab) => {
     if (!FLOATABLE_TABS.includes(id)) return;
     setToolsUndocked(false);
+    // Undocking an explicitly hidden tab must make it visible immediately.
+    // Keeping it hidden would create an invisible floating panel.
+    setHiddenTabs((previous) => {
+      if (!previous.has(id)) return previous;
+      const next = new Set(previous);
+      next.delete(id);
+      return next;
+    });
     setFloatingTabs((previous) => {
       const next = new Set(previous);
       if (next.has(id)) next.delete(id);
@@ -582,7 +590,11 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   // remains available for filmstrip navigation, decisions and selection.
   // The top row (App) holds a place for Export. Photo-only view removes the row, so look again when that changes.
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
-  useEffect(() => { setHeaderSlot(document.getElementById('editor-header-actions')); }, [focusPhoto]);
+  const [viewTabsSlot, setViewTabsSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setHeaderSlot(document.getElementById('editor-header-actions'));
+    setViewTabsSlot(document.getElementById('editor-view-tab-actions'));
+  }, [focusPhoto]);
 
   // Holding Shift shows the thirds grid, wherever the pointer is. Letting go, or leaving the window, hides it again.
   const [showGrid, setShowGrid] = useState(false);
@@ -1117,6 +1129,44 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   );
 
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
+  // One set of independent panel controls serves both the View menu and the
+  // desktop tab's right-click menu. Both read the same device-local state.
+  const tabLayoutControls = (inContextMenu: boolean) => (
+    <div role={inContextMenu ? undefined : 'group'} aria-label={inContextMenu ? undefined : libraryT.floatingPane.tabOptions}>
+      <p className="px-2 py-1 text-xs font-semibold text-zinc-300">{libraryT.floatingPane.tabGuide}</p>
+      {FLOATABLE_TABS.map((id) => {
+        const label = TABS.find((entry) => entry.id === id)?.label ?? id;
+        return (
+          <div key={id} className="flex items-center justify-between gap-1 rounded-md px-2 py-1 hover:bg-white/5">
+            <span className="min-w-0 flex-1 truncate text-xs">{label}</span>
+            <button type="button" role={inContextMenu ? 'menuitem' : undefined}
+              className="min-h-9 rounded-md px-2 text-xs hover:bg-white/10"
+              aria-label={`${hiddenTabs.has(id) ? libraryT.floatingPane.showTab : libraryT.floatingPane.hideTab} ${label}`}
+              disabled={!hiddenTabs.has(id) && FLOATABLE_TABS.filter((candidate) => !hiddenTabs.has(candidate)).length <= 1}
+              onClick={() => { toggleHideTab(id); if (inContextMenu) setTabMenu(null); }}>
+              {hiddenTabs.has(id) ? libraryT.floatingPane.showTab : libraryT.floatingPane.hideTab}
+            </button>
+            <button type="button" role={inContextMenu ? 'menuitem' : undefined}
+              className="min-h-9 rounded-md px-2 text-xs hover:bg-white/10"
+              aria-label={floatingTabs.has(id) ? libraryT.floatingPane.dock(label) : libraryT.floatingPane.undockTab(label)}
+              onClick={() => { toggleFloatTab(id); if (inContextMenu) setTabMenu(null); }}>
+              {floatingTabs.has(id) ? libraryT.floatingPane.dockLabel : libraryT.floatingPane.undockLabel}
+            </button>
+          </div>
+        );
+      })}
+      <button type="button" role={inContextMenu ? 'menuitem' : undefined}
+        className="mt-1 min-h-10 w-full rounded-md border-t border-white/15 px-2 text-left text-xs hover:bg-white/10"
+        onClick={() => {
+          setFloatingTabs(new Set());
+          setHiddenTabs(new Set());
+          setToolsUndocked(false);
+          if (inContextMenu) setTabMenu(null);
+        }}>
+        {libraryT.floatingPane.restoreTabs}
+      </button>
+    </div>
+  );
   const renderTabBody = (panelTab: Tab) => (
     <>
 {panelTab === 'auto' && !can('autoTab') && (
@@ -1772,8 +1822,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={floatingTools ? 'h-full min-h-0 w-full space-y-2 overflow-y-auto bg-kestrel-panel p-3' : `${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
         {!isPhone && <div className="sticky top-0 z-20 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
           {!floatingTools && !isPhone && <button data-editor-undock type="button"
-            aria-label={`Undock ${TABS.find((entry) => entry.id === tab)?.label ?? tab}`}
-            title="Open this tab in a separate, movable and resizable panel"
+            aria-label={libraryT.floatingPane.undockTab(TABS.find((entry) => entry.id === tab)?.label ?? tab)}
+            title={libraryT.floatingPane.undockTabHelp}
             onClick={() => toggleFloatTab(tab)}
             className="grid h-11 w-11 shrink-0 place-items-center border-b border-white/10 text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
             <Maximize className="h-4 w-4" aria-hidden="true"/>
@@ -1785,7 +1835,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           <div className="min-w-0 flex-1 [&>[role=tablist]]:mx-0 [&>[role=tablist]]:static">{tabList}</div>
         </div>}
         {!isPhone && floatingTabs.has(tab) ? (
-          <p className="px-3 py-5 text-sm text-zinc-400">This tool is open in its own panel. Right-click a tab to dock it again.</p>
+          <p className="px-3 py-5 text-sm text-zinc-400">{libraryT.floatingPane.detachedHelp}</p>
         ) : renderTabBody(tab)}
       </div>
       ); return (
@@ -1800,32 +1850,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               <div className="h-full overflow-y-auto bg-kestrel-panel p-3">{renderTabBody(id)}</div>
             </FloatingPane>
           ))}
+          {viewTabsSlot && !isPhone && createPortal(tabLayoutControls(false), viewTabsSlot)}
           {tabMenu && createPortal(
-            <div role="menu" aria-label="Editor tab and panel options"
+            <div role="menu" aria-label={libraryT.floatingPane.tabOptions}
               data-testid="tab-context-menu" onPointerDown={(event) => event.stopPropagation()}
               style={{ left: Math.max(8, Math.min(tabMenu.x, window.innerWidth - 330)), top: Math.max(8, Math.min(tabMenu.y, window.innerHeight - 380)) }}
               className="fixed z-[160] max-h-[85vh] w-[min(20rem,calc(100vw-16px))] overflow-y-auto rounded-xl border border-white/25 bg-kestrel-raised p-2 text-zinc-100 shadow-2xl">
-              <p className="px-2 py-1 text-xs font-semibold text-zinc-300">Show, hide, dock or undock</p>
-              {FLOATABLE_TABS.map((id) => (
-                <div key={id} className="flex items-center justify-between gap-1 rounded-md px-2 py-1 hover:bg-white/5">
-                  <span className="min-w-0 flex-1 truncate text-xs">{TABS.find((entry) => entry.id === id)?.label ?? id}</span>
-                  <button type="button" role="menuitem" className="min-h-9 rounded-md px-2 text-xs hover:bg-white/10"
-                    aria-label={hiddenTabs.has(id) ? `Show ${id}` : `Hide ${id}`}
-                    disabled={!hiddenTabs.has(id) && FLOATABLE_TABS.filter((candidate) => !hiddenTabs.has(candidate)).length <= 1}
-                    onClick={() => { toggleHideTab(id); setTabMenu(null); }}>
-                    {hiddenTabs.has(id) ? 'Show' : 'Hide'}
-                  </button>
-                  <button type="button" role="menuitem" className="min-h-9 rounded-md px-2 text-xs hover:bg-white/10"
-                    aria-label={floatingTabs.has(id) ? `Dock ${id}` : `Undock ${id}`}
-                    onClick={() => { toggleFloatTab(id); setTabMenu(null); }}>
-                    {floatingTabs.has(id) ? 'Dock' : 'Undock'}
-                  </button>
-                </div>
-              ))}
-              <button type="button" role="menuitem" className="mt-1 min-h-10 w-full rounded-md border-t border-white/15 px-2 text-left text-xs hover:bg-white/10"
-                onClick={() => { setFloatingTabs(new Set()); setHiddenTabs(new Set()); setToolsUndocked(false); setTabMenu(null); }}>
-                Restore default layout
-              </button>
+              {tabLayoutControls(true)}
             </div>, document.body,
           )}
         </>
