@@ -67,3 +67,19 @@ test('rolling turnover excludes overseas and older revenue and distinguishes the
   const forward = ukTurnoverMetrics([], '2026-11-20', { recognisedOn: '2026-11-20', next30DaysPence: 9_000_001 });
   assert.deepEqual(forward.forward, { notificationDue: '2026-12-20', effectiveDate: '2026-11-20' });
 });
+
+test('local pricing rounds before tax and keeps the GBP bases unchanged', async () => {
+  const { quoteLocalPrice } = await import('../src/commerce/localPrice.ts');
+  const now = Date.parse(date);
+  const currencies = new Set(['GBP', 'EUR', 'USD', 'JPY']);
+  const rate = { currency: 'EUR', partsPerMillion: 1_200_000, retrievedAt: date, source: 'test rate' };
+  const eu = quoteLocalPrice('pro', 'EUR', rate, currencies, location('DE'), defaults, now);
+  assert.deepEqual([eu.roundedBaseMinor, eu.taxMinor, eu.totalMinor], [3500, 665, 4165]);
+  const monthly = quoteLocalPrice('geminiMonthly', 'EUR', rate, currencies, location('DE'), defaults, now);
+  assert.deepEqual([monthly.roundedBaseMinor, monthly.taxMinor, monthly.totalMinor], [125, 24, 149]);
+  assert.equal(quoteLocalPrice('geminiMonthly', 'GBP', undefined, currencies, location('GB'), defaults, now).totalMinor, 99);
+  const yen = quoteLocalPrice('pro', 'JPY', { ...rate, currency: 'JPY', partsPerMillion: 200_000_000 }, currencies, location('JP'), defaults, now);
+  assert.deepEqual([yen.minorUnitDigits, yen.totalMinor], [0, 5800]);
+  assert.throws(() => quoteLocalPrice('pro', 'EUR', rate, currencies, location('DE'), defaults, now + 8 * 86_400_000), /current exchange rate/);
+  assert.throws(() => quoteLocalPrice('pro', 'CAD', rate, currencies, location('CA'), defaults, now), /unavailable/);
+});

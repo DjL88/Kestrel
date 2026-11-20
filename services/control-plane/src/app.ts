@@ -20,6 +20,9 @@ export const MAX_IMAGE_EDGE = 1024;
 const DAY_MS = 86_400_000;
 const QUOTA_PERIOD_MS = 30 * DAY_MS;
 const REFRESH_TTL_MS = 30 * DAY_MS;
+const DEVICE_LINK_TTL_SECONDS = 300;
+const DeviceLink = z.string().min(20).max(1024);
+const DeviceSecret = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 
 export interface AppOptions {
   config: Config;
@@ -75,7 +78,7 @@ export const Schemas = {
     data: z.object({ licenceId: z.string().min(1).max(64), plan: z.enum(['paid', 'subscriber']).optional(), validUntilMs: z.number().int().optional(), managedAi: z.boolean().optional() }).strict(),
   }).strict(),
   AdminAccount: z.object({ email: z.string().email(), password: z.string().min(12).max(200), role: z.enum(['user', 'admin']) }).strict(),
-  AdminIssue: z.object({ plan: z.enum(['paid', 'subscriber']), managedAi: z.boolean().default(false), accountId: z.string().optional(), maxDevices: z.number().int().min(1).max(20).default(3) }).strict(),
+  AdminIssue: z.object({ plan: z.enum(['paid', 'subscriber']), managedAi: z.boolean().default(false), accountId: z.string().optional(), accountEmail: z.string().email().max(254).optional(), maxDevices: z.number().int().min(1).max(20).default(3) }).strict(),
   AdminExtend: z.object({ days: z.number().int().min(1).max(365) }).strict(),
   AdminKillSwitch: z.object({ aiDisabled: z.boolean() }).strict(),
   AdminQuota: z.object({ accountId: z.string(), requestsLimit: z.number().int().min(0).max(1_000_000) }).strict(),
@@ -124,6 +127,10 @@ export function createApp(options: AppOptions) {
   const provider: AiProvider | null = options.provider !== undefined
     ? options.provider
     : config.geminiApiKey ? geminiProvider(config.geminiApiKey, config.geminiModel) : null;
+  const linkSigningKey = crypto.createHmac('sha256', config.sessionSecret).update('kestrel-device-link-v1').digest();
+  const linkTokenHash = (ticket: string) => sha256Hex('kestrel-device-approval:' + ticket);
+  const linkCode = (ticket: string) => sha256Hex(ticket).slice(0, 8).toUpperCase();
+  const linkLimiter = new RateLimiter(60, 60_000);
   const authLimiter = new RateLimiter(10, 60_000);
   const activateLimiter = new RateLimiter(20, 60_000);
 
@@ -170,7 +177,7 @@ export function createApp(options: AppOptions) {
     decodeImage(body.image);
     if ((await store.getSetting('ai_disabled')) === '1') throw new ApiError(503, 'AI_DISABLED', 'The online helper is switched off for now.', true);
     if (!provider) throw new ApiError(503, 'AI_NOT_CONFIGURED', 'The online helper is not set up on this server.');
-    if (!(await store.hasActiveManagedAi(claims.sub))) throw new ApiError(403, 'AI_NOT_ENTITLED', 'The online helper is not part of this plan.');
+    if (!(await store.hasActiveManagedAi(claims.sub, now()))) throw new ApiError(403, 'AI_NOT_ENTITLED', 'The online helper is not part of this plan.');
     const refund = await reserveQuota(claims.sub);
     try {
       return await work(provider, body.image);
@@ -204,6 +211,18 @@ export function createApp(options: AppOptions) {
     return manifest;
   }
 
+  function checkDeviceLink(ticket: string) {
+    const check = verifySession(ticket, linkSigningKey, now());
+    if (!check.ok) throw new ApiError(410, 'DEVICE_LINK_EXPIRED', 'Start a new sign-in on the other device.');
+    return check.claims;
+  }
+
+  function licenceKey(id: string): string {
+    if (!config.licencePrivateKey) throw new ApiError(503, 'LICENCE_SIGNING_UNAVAILABLE', 'This server cannot issue licence keys.');
+    const details = Buffer.from(JSON.stringify({ v: 1, plan: 'paid', id, issuedAt: now() }));
+    return `KESTREL1.${details.toString('base64url')}.${crypto.sign(null, details, config.licencePrivateKey).toString('base64url')}`;
+  }
+
   const routes: Route[] = [
     { method: 'GET', path: '/healthz', summary: 'Liveness', auth: 'none', handler: () => ({ status: 200, body: { ok: true } }) },
 
@@ -231,6 +250,59 @@ export function createApp(options: AppOptions) {
         const account = await store.getAccount(accountId);
         if (!account || account.status !== 'active') throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'Sign in to use this.');
         return { status: 200, body: await issueSession(accountId, account.role === 'admin' ? 'admin' : 'user') };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/auth/device/start', summary: 'Start a five-minute sign-in from a new device', auth: 'none',
+      body: z.object({ secretHash: Hex64 }).strict(),
+      handler: (req) => {
+        if (!authLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Wait a minute before starting another sign-in.', true);
+        const { secretHash } = parseJson(z.object({ secretHash: Hex64 }).strict(), req.rawBody);
+        const ticket = signSession(secretHash, 'user', linkSigningKey, now(), DEVICE_LINK_TTL_SECONDS);
+        return { status: 200, body: { ticket, confirmationCode: linkCode(ticket), expiresIn: DEVICE_LINK_TTL_SECONDS } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/auth/device/approve', summary: 'Approve sign-in from an already signed-in device', auth: 'user',
+      body: z.object({ ticket: DeviceLink, confirmationCode: z.string().regex(/^[A-F0-9]{8}$/) }).strict(),
+      handler: async (req) => {
+        const account = await bearer(req);
+        if (account.role !== 'user') throw new ApiError(403, 'DEVICE_LINK_NOT_ALLOWED', 'Use your password for administrator sign-in.');
+        const { ticket, confirmationCode } = parseJson(z.object({ ticket: DeviceLink, confirmationCode: z.string().regex(/^[A-F0-9]{8}$/) }).strict(), req.rawBody);
+        const link = checkDeviceLink(ticket);
+        if (confirmationCode !== linkCode(ticket)) throw new ApiError(400, 'DEVICE_LINK_CODE_MISMATCH', 'The codes on the two devices must match.');
+        if (await store.approveDeviceLink(linkTokenHash(ticket), account.sub, link.exp * 1000)) {
+          return { status: 200, body: { approved: true } };
+        }
+        throw new ApiError(409, 'DEVICE_LINK_ALREADY_APPROVED', 'This sign-in has already been approved.');
+      },
+    },
+    {
+      method: 'POST', path: '/v1/auth/device/redeem', summary: 'Exchange a device approval from the original device only', auth: 'none',
+      body: z.object({ ticket: DeviceLink, deviceSecret: DeviceSecret }).strict(),
+      handler: async (req) => {
+        if (!linkLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Wait a minute before checking for approval again.', true);
+        const { ticket, deviceSecret } = parseJson(z.object({ ticket: DeviceLink, deviceSecret: DeviceSecret }).strict(), req.rawBody);
+        const link = checkDeviceLink(ticket);
+        if (sha256Hex(deviceSecret) !== link.sub) throw new ApiError(403, 'DEVICE_LINK_WRONG_DEVICE', 'Return to the device that started this sign-in.');
+        const accountId = await store.consumeRefreshToken(linkTokenHash(ticket), now());
+        if (!accountId) return { status: 202, body: { approved: false } };
+        const account = await store.getAccount(accountId);
+        if (!account || account.status !== 'active' || account.role !== 'user') {
+          throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'Sign in with your account again.');
+        }
+        return { status: 200, body: await issueSession(accountId, 'user') };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/me/licences/:id/key', summary: 'Recover the existing offline Pro key for this account', auth: 'user',
+      handler: async (req, { id }) => {
+        const claims = await bearer(req);
+        const licence = await store.getLicence(id);
+        if (!licence || licence.accountId !== claims.sub || licence.plan !== 'paid' || licence.validUntilMs !== null || licence.status !== 'active') {
+          throw new ApiError(404, 'LICENCE_NOT_FOUND', 'There is no permanent Pro licence with that reference on your account.');
+        }
+        return { status: 200, body: { licenceId: licence.licenceId, licenceKey: licenceKey(licence.licenceId) } };
       },
     },
     {
@@ -399,11 +471,30 @@ export function createApp(options: AppOptions) {
         const claims = await admin(req, 'licence.issue');
         const body = parseJson(Schemas.AdminIssue, req.rawBody);
         if (!config.licencePrivateKey) throw new ApiError(503, 'LICENCE_SIGNING_UNAVAILABLE', 'This server cannot issue licence keys.');
-        if (body.accountId && !(await store.getAccount(body.accountId))) throw new ApiError(404, 'NOT_FOUND', 'No such account.');
+        if (body.accountEmail && body.accountId) throw new ApiError(400, 'ACCOUNT_AMBIGUOUS', 'Choose the account by email or account ID.');
+        const account = body.accountEmail
+          ? await store.findAccountByEmailHash(sha256Hex(body.accountEmail.trim().toLowerCase()))
+          : body.accountId ? await store.getAccount(body.accountId) : undefined;
+        if ((body.accountEmail || body.accountId) && (!account || account.status !== 'active')) {
+          throw new ApiError(404, 'NOT_FOUND', 'No such active account.');
+        }
+        if (account && body.plan === 'paid' && !body.managedAi) {
+          const existing = (await store.listLicencesForAccount(account.accountId))
+            .find(licence => licence.plan === 'paid' && licence.status === 'active' && licence.validUntilMs === null);
+          const id = 'pro_' + sha256Hex(account.accountId).slice(0, 32);
+          const permanent = existing ?? await store.createLicenceIfAbsent(newLicence(id, 'paid', now(), {
+            accountId: account.accountId, maxDevices: body.maxDevices,
+          }));
+          if (permanent.accountId !== account.accountId || permanent.status !== 'active' || permanent.validUntilMs !== null) {
+            throw new ApiError(409, 'LICENCE_NOT_ACTIVE', 'Review the existing Pro licence for this account.');
+          }
+          return adminDone(claims, 'licence.issue', permanent.licenceId + ' account-bound Pro', {
+            licenceId: permanent.licenceId, licenceKey: licenceKey(permanent.licenceId),
+          });
+        }
         const id = randomId(12);
-        const details = Buffer.from(JSON.stringify({ v: 1, plan: 'paid', id, issuedAt: now() }));
-        const key = `KESTREL1.${details.toString('base64url')}.${crypto.sign(null, details, config.licencePrivateKey).toString('base64url')}`;
-        await store.insertLicence(newLicence(id, body.plan, now(), { accountId: body.accountId ?? null, managedAi: body.managedAi, maxDevices: body.maxDevices }));
+        const key = licenceKey(id);
+        await store.insertLicence(newLicence(id, body.plan, now(), { accountId: account?.accountId ?? null, managedAi: body.managedAi, maxDevices: body.maxDevices }));
         return adminDone(claims, 'licence.issue', `${id} plan=${body.plan}`, { licenceId: id, licenceKey: key });
       },
     },
