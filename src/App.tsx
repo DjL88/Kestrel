@@ -34,6 +34,7 @@ import { loadImage } from './providers/loadImage';
 import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
 import { ArrowLeft, ChevronLeft, ChevronRight, Copy, ClipboardPaste, Info, PanelLeftClose, PanelLeftOpen, Maximize2 } from 'lucide-react';
 import { WorkspacePaneRail } from './components/WorkspacePaneRail';
+import { PHOTO_INFO_DOCK_QUERY } from './core/photoInfoLayout';
 import { PhotoJump } from './components/PhotoJump';
 import { SettingsButton } from './components/SettingsButton';
 import { AppearanceDialog } from './components/AppearanceDialog';
@@ -183,7 +184,7 @@ export default function App() {
   /** The guided "what's next" banner, dismissed for one project at a time. Resets on reload or when a different project opens. */
   const [guidedDismissedFor, setGuidedDismissedFor] = useState<string | null>(null);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
-  const [showPhotoInfo, setShowPhotoInfo] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 900px) and (min-height: 550px)').matches);
+  const [showPhotoInfo, setShowPhotoInfo] = useState(() => typeof window !== 'undefined' && window.matchMedia(PHOTO_INFO_DOCK_QUERY).matches);
   // Settings (display, preferred hand, keyboard and macro pad): one dialog, opened from the top right of every page.
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Section F: a workspace layout belongs to the device, not to each photo,
@@ -324,7 +325,7 @@ export default function App() {
     });
     setEditing(false);
     setInfoFrameId(undefined);
-    setShowPhotoInfo(window.matchMedia('(min-width: 900px) and (min-height: 550px)').matches);
+    setShowPhotoInfo(window.matchMedia(PHOTO_INFO_DOCK_QUERY).matches);
     setMultiSelect(false);
     setSelectedIds(new Set());
     setBatchUndo(null);
