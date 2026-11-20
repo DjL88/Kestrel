@@ -1457,9 +1457,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         {isRaw && (
           <div className="border-t border-white/10 pt-2">
             <p role={developing ? 'status' : undefined} className="px-1 text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey)
-              ? sensorModeLabel(sensorMode)
-                ? t.raw.developedWithMode(sensorModeLabel(sensorMode)!)
-                : t.raw.developed
+              ? t.raw.developed
               : developing ? t.raw.gettingFullQuality : t.raw.quickPreview}</p>
             {/* Always visible, not tucked behind the disclosure: when the automatic attempt fails the person needs
                 to see why without first hunting through RAW options. */}
