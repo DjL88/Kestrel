@@ -269,6 +269,8 @@ export const cy: AreaTranslation<typeof source> = {
     dismiss: 'Diystyru',
   },
   licence: {
+    viewProPricing: "Gweld pris Pro",
+    pricingUnavailable: "Agorwch wefan Kestrel yn eich porwr i weld pris Pro.",
     thanks: 'Diolch. Mae Kestrel Pro wedi’i ddatgloi ar y ddyfais hon.',
     settingsSaved: 'Wedi cadw. Rhowch y ffeil rywle y gall eich dyfeisiau eraill ei chyrraedd, fel iCloud Drive.',
     noSettings: 'Does dim gosodiadau wedi’u newid i’w cadw eto.',

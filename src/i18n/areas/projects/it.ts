@@ -269,6 +269,8 @@ export const it: AreaTranslation<typeof source> = {
     dismiss: 'Chiudi avviso',
   },
   licence: {
+    viewProPricing: "Vedi il prezzo di Pro",
+    pricingUnavailable: "Apri il sito di Kestrel nel browser per vedere il prezzo di Pro.",
     thanks: 'Grazie. Kestrel Pro è sbloccato su questo dispositivo.',
     settingsSaved: 'Salvato. Metti il file dove possono raggiungerlo gli altri tuoi dispositivi, per esempio iCloud Drive.',
     noSettings: 'Non ci sono ancora impostazioni modificate da salvare.',

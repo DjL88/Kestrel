@@ -269,6 +269,8 @@ export const sv: AreaTranslation<typeof source> = {
     dismiss: 'Stäng',
   },
   licence: {
+    viewProPricing: "Se priset för Pro",
+    pricingUnavailable: "Öppna Kestrels webbplats i webbläsaren för att se priset för Pro.",
     thanks: 'Tack. Kestrel Pro är upplåst på den här enheten.',
     settingsSaved: 'Sparat. Lägg filen någonstans dina andra enheter når, till exempel iCloud Drive.',
     noSettings: 'Det finns inga ändrade inställningar att spara än.',

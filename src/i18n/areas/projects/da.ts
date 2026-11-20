@@ -269,6 +269,8 @@ export const da: AreaTranslation<typeof source> = {
     dismiss: 'Luk',
   },
   licence: {
+    viewProPricing: "Se prisen for Pro",
+    pricingUnavailable: "Åbn Kestrels websted i din browser for at se prisen for Pro.",
     thanks: 'Tak. Kestrel Pro er låst op på denne enhed.',
     settingsSaved: 'Gemt. Læg filen et sted, dine andre enheder kan nå, for eksempel iCloud Drive.',
     noSettings: 'Der er endnu ingen ændrede indstillinger at gemme.',

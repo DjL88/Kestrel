@@ -11,6 +11,8 @@ import { hashPassword, randomId, sha256Hex, signEnvelope, signSession, uuid, ver
 import { SqliteStore } from './sqliteStore.ts';
 import { newLicence, type AuditRecord, type Store } from './store.ts';
 import { geminiProvider, identify, suggest, type AiProvider } from './gateway.ts';
+import type { CommerceLedger } from './commerce/ledger.ts';
+import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnover.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
 
 export const MAX_IMAGE_BYTES = 512 * 1024;
@@ -22,6 +24,7 @@ const REFRESH_TTL_MS = 30 * DAY_MS;
 export interface AppOptions {
   config: Config;
   store?: Store;
+  commerce?: Pick<CommerceLedger, 'getTaxSettings' | 'updateTaxSettings' | 'recordTurnover' | 'ossQuarter'>;
   /** Injected for tests. Defaults to Gemini when a server key is configured, otherwise none. */
   provider?: AiProvider | null;
   now?: () => number;
@@ -36,6 +39,18 @@ const ImageBody = z.object({
   image: z.string().min(4).max(Math.ceil(MAX_IMAGE_BYTES / 3) * 4 + 8).describe('Base64 JPEG, redrawn so it carries no camera metadata'),
   userConsent: z.boolean().describe('Must be true: the person agreed to send this photo'),
 }).strict();
+const AdminTaxSettings = z.object({
+  ukVatRegistered: z.boolean(),
+  ukVatNumber: z.string().max(22).optional(),
+  b2cPricing: z.enum(['exclusive', 'inclusive']),
+  localTaxes: z.record(z.string().regex(/^[A-Z]{2}(?:-[A-Z0-9]{1,8})?$/), z.object({
+    enabled: z.boolean(), rateBasisPoints: z.number().int().min(0).max(10000),
+  }).strict()),
+}).strict().refine(settings => !settings.ukVatRegistered ||
+  /^(?:GB)?\d{9}(?:\d{3})?$/.test(settings.ukVatNumber?.replace(/\s/g, '').toUpperCase() ?? ''), {
+  message: 'Enter the HMRC VAT registration number before turning on UK VAT.',
+  path: ['ukVatNumber'],
+});
 const SignedEnvelopeSchema = z.object({ payload: z.unknown(), signature: z.string(), keyId: z.string() });
 
 export const Schemas = {
@@ -102,7 +117,7 @@ function decodeImage(base64: string): Buffer {
 // ---- The application -----------------------------------------------------------
 
 export function createApp(options: AppOptions) {
-  const { config } = options;
+  const { config, commerce } = options;
   if (!options.store && config.store !== 'sqlite') throw new Error('Open the Firestore store with openStore() and pass it in.');
   const store: Store = options.store ?? new SqliteStore(config.databasePath);
   const now = options.now ?? Date.now;
@@ -314,6 +329,41 @@ export function createApp(options: AppOptions) {
     },
 
     // ---- Admin (every call, allowed or denied, is audited)
+    {
+      method: 'GET', path: '/v1/admin/tax', summary: 'Read UK VAT settings and rolling turnover', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'tax.read');
+        if (!commerce) throw new ApiError(503, 'TAX_STORE_UNAVAILABLE', 'Tax reporting needs the Firestore commerce ledger.');
+        const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/London' }).format(now());
+        const [settings, turnover] = await Promise.all([commerce.getTaxSettings(), commerce.recordTurnover(today)]);
+        return adminDone(claims, 'tax.read', '', {
+          settings, turnover, thresholdPence: UK_VAT_THRESHOLD_PENCE, warningPence: UK_VAT_WARNING_PENCE,
+        });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/tax/settings', summary: 'Save UK VAT and local tax settings', auth: 'admin', body: AdminTaxSettings,
+      handler: async (req) => {
+        const claims = await admin(req, 'tax.settings');
+        if (!commerce) throw new ApiError(503, 'TAX_STORE_UNAVAILABLE', 'Tax settings need the Firestore commerce ledger.');
+        const body = parseJson(AdminTaxSettings, req.rawBody);
+        await commerce.updateTaxSettings(body, claims.sub);
+        return adminDone(claims, 'tax.settings', 'ukVatRegistered=' + body.ukVatRegistered, { saved: true });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/tax/oss', summary: 'Export a quarterly Non-Union OSS summary in GBP pence', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'tax.oss');
+        if (!commerce) throw new ApiError(503, 'TAX_STORE_UNAVAILABLE', 'Tax reporting needs the Firestore commerce ledger.');
+        const year = Number(req.query.get('year'));
+        const quarter = Number(req.query.get('quarter'));
+        if (!Number.isInteger(year) || year < 2020 || year > 9998 || ![1, 2, 3, 4].includes(quarter)) {
+          throw new ApiError(400, 'BAD_QUARTER', 'Choose a valid year and quarter.');
+        }
+        return adminDone(claims, 'tax.oss', year + '-Q' + quarter, { year, quarter, rows: await commerce.ossQuarter(year, quarter) });
+      },
+    },
     {
       method: 'GET', path: '/v1/admin/overview', summary: 'Counts for the admin console', auth: 'admin',
       handler: async (req) => {
