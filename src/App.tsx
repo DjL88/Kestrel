@@ -591,6 +591,7 @@ export default function App() {
       }),
       on('view-info', () => setShowPhotoInfo((value) => !value)),
       on('view-tools', () => setWorkspacePanes((value) => ({ ...value, folded: !value.folded }))),
+      on('view-bursts', () => window.dispatchEvent(new Event('kestrel:toggle-burst-group'))),
       on('view-left', () => setPrefs((prev) => ({ ...prev, hand: 'left', editPanelSide: 'left' }))),
       on('view-right', () => setPrefs((prev) => ({ ...prev, hand: 'right', editPanelSide: 'right' }))),
       on('settings-ai', () => { setSettingsSection('ai'); setSettingsOpen(true); }),
