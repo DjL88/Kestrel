@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore, useState, useRef } from 'react';
-import { AlertTriangle, CheckCircle2, Clock, Loader2, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, Loader2, RotateCcw, X } from 'lucide-react';
+import { exportBatchQueue } from '../core/exportBatchQueue';
 import { taskHealth, tasks, tasksNeedAttention, type Health, type Task } from '../core/taskStore';
 import { libraryText as t } from '../i18n/areas/library';
 
