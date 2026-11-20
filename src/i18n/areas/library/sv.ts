@@ -217,6 +217,8 @@ export const sv: AreaTranslation<typeof source> = {
     dismiss: 'Stäng',
   },
   tasks: {
+    retry: "Försök igen",
+    retryRemaining: "Försök igen med återstående filer i den här sessionen",
     tasks: 'Uppgifter',
     working: 'Arbetar',
     busy: 'Upptagen',
