@@ -15,6 +15,12 @@ export interface TaxSettings {
   localTaxes: Readonly<Record<string, { enabled: boolean; rateBasisPoints: number }>>;
 }
 
+export function validateUkVatSettings(settings: Pick<TaxSettings, 'ukVatRegistered' | 'ukVatNumber'>): void {
+  if (settings.ukVatRegistered && !/^(?:GB)?\d{9}(?:\d{3})?$/.test(settings.ukVatNumber ?? '')) {
+    throw new Error('UK VAT registration requires a VAT number.');
+  }
+}
+
 // Constructed by the server from the verification response.
 export interface VerifiedVatId {
   country: string;
@@ -56,9 +62,7 @@ export function quoteProTax(input: {
   let jurisdiction = country;
   let rateBasisPoints = 0;
   if (country === 'GB') {
-    if (settings.ukVatRegistered && !/^(?:GB)?\d{9}(?:\d{3})?$/.test(settings.ukVatNumber ?? '')) {
-      throw new Error('UK VAT registration requires a VAT number.');
-    }
+    validateUkVatSettings(settings);
     treatment = settings.ukVatRegistered ? 'uk-vat' : 'uk-unregistered';
     rateBasisPoints = settings.ukVatRegistered ? 2000 : 0;
   } else if (euRate !== undefined) {
