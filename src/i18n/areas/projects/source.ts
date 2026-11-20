@@ -271,6 +271,8 @@ export const source = {
     dismiss: 'Dismiss',
   },
   licence: {
+    viewProPricing: "View Pro pricing",
+    pricingUnavailable: "Open the Kestrel website in your browser to see Pro pricing.",
     thanks: 'Thank you. Kestrel Pro is unlocked on this device.',
     settingsSaved: 'Saved. Put the file somewhere your other devices can reach, such as iCloud Drive.',
     noSettings: 'There are no changed settings to save yet.',
