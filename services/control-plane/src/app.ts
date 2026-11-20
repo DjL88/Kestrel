@@ -819,7 +819,7 @@ export function createApp(options: AppOptions) {
     },
   ];
 
-  const bodyLimit = (path: string) => path === '/v1/admin/demo/photos' ? 2_300_000 : path.includes('/v1/admin/demo/photos/') ? 128 * 1024 : path.startsWith('/v1/ai/') ? 800 * 1024 : 64 * 1024;
+  const bodyLimit = (path: string) => path === '/v1/admin/demo/photos' ? 2_300_000 : path.includes('/v1/admin/demo/photos/') ? 850 * 1024 : path.startsWith('/v1/ai/') ? 800 * 1024 : 64 * 1024;
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = new URL(req.url ?? '/', 'http://control-plane.invalid');

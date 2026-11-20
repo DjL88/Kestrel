@@ -31,6 +31,8 @@ window.KESTREL_STRINGS = {
     "aimSameBody": "The same tools and the same way of working on Windows, macOS and the web, with iPhone, iPad and Android to follow.",
     "aimOnceTitle": "Pay once",
     "aimOnceBody": "Free while Kestrel is being tested. Pro is planned as a one-off licence that works offline, not a subscription.",
+    "realEditorScope": "This is the actual Kestrel editor with a fixed selection of approved photographs. Adjust, crop and compare them; importing or exporting files is not available in the demonstration. Your changes are temporary.",
+    "realEditorTruth": "The approved examples are JPEG images. This experience does not claim that they were developed from Nikon RAW files by Kestrel.",
     "tryTitle": "Try the editing tools",
     "trySub": "Edit a sample photo here in your browser. Nothing is uploaded.",
     "demoShowOriginal": "Show original",
