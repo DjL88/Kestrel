@@ -4,6 +4,16 @@ import type { source } from './source';
 /** Scottish Gaelic. DRAFT: written without a native speaker's check. Counts are written "Dealbhan: 3" to avoid number mutations. */
 export const gd: AreaTranslation<typeof source> = {
   compare: {
+    chooseB: "Tagh dealbh eile airson coimeas ri A.",
+    chooseFirstB: "Tagh an ath dhealbh",
+    missingB: "Chan eil dealbh B ri fhaighinn tuilleadh. Tagh dealbh eile mus dèan thu co-dhùnadh.",
+    chooseAvailableB: "Tagh dealbh a tha ri fhaighinn",
+    noOtherPhotos: "Chan eil dealbh eile a’ freagairt. Feuch criathrag eile no crìochnaich an coimeas.",
+    position: (index, total) => `${index} à ${total}`,
+    actualPreview200: "Seall dealbh B aig 200% de phiogsailean an ro-sheallaidh",
+    previewZoomNotReady: "Bidh sùm 200% ri fhaighinn nuair a bhios dealbh B deiseil",
+    previewAlreadyLarge: "Tha dealbh B nas motha na 200% mu thràth nuair a tha e air a fhreagarrachadh",
+    twoHundred: "200%",
     noPhotoSelected: 'Cha deach dealbh a thaghadh',
     region: 'Dèan coimeas eadar dealbhan',
     regionHelp: 'Briog air dealbh airson fòcas a chur air a’ choimeas seo. Taghaidh Clì is Deas dealbh B. Cumaidh K B, diùltaidh X B, glanaidh U B. Gluaisidh Tab tro na h-uidheaman-smachd.',

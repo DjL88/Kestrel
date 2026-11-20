@@ -25,6 +25,8 @@ test('a RAW opened in the web app is developed from its sensor data, and says so
   await page.getByRole('tab', { name: 'Edit' }).click({ timeout: 20000 });
   const all = page.getByRole('button', { name: 'All controls' });
   if (await all.isVisible()) await all.click();
+  // Since #504 the camera preview stays until the person asks for the sensor data to be developed.
+  await page.getByRole('button', { name: 'Develop from RAW' }).click({ timeout: 20000 });
   await expect(page.getByText('Developed from the RAW file', { exact: false })).toBeVisible({ timeout: 90_000 });
   await expect(page.getByText('keeps using the preview stored in the file', { exact: false })).toHaveCount(0);
   // The DNG copy is a desktop extra; the 16-bit TIFF is made in the browser too.

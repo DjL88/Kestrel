@@ -5,6 +5,16 @@ import type { source } from './source';
 /** Icelandic. DRAFT: written without a native speaker's check. Icelandic uses the singular after 21, 31 and so on. */
 export const is: AreaTranslation<typeof source> = {
   compare: {
+    chooseB: "Veldu aðra mynd til að bera saman við A.",
+    chooseFirstB: "Velja næstu mynd",
+    missingB: "Mynd B er ekki lengur tiltæk. Veldu aðra mynd áður en þú ákveður.",
+    chooseAvailableB: "Velja tiltæka mynd",
+    noOtherPhotos: "Engar aðrar myndir passa. Prófaðu aðra síu eða ljúktu samanburðinum.",
+    position: (index, total) => `${index} af ${total}`,
+    actualPreview200: "Skoða mynd B í 200% af forskoðunardílum",
+    previewZoomNotReady: "200% aðdráttur verður í boði þegar mynd B er tilbúin",
+    previewAlreadyLarge: "Mynd B er nú þegar stærri en 200% við Passa",
+    twoHundred: "200%",
     noPhotoSelected: 'Engin mynd valin',
     region: 'Bera saman myndir',
     regionHelp: 'Smelltu á mynd til að virkja samanburðinn. Vinstri og Hægri velja mynd B. K heldur B, X hafnar B, U hreinsar B. Tab færir á milli hnappa.',

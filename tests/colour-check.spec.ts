@@ -63,11 +63,16 @@ test('a second opinion from your own AI: set up, agree to the destination, ask, 
     }) } }] } });
   });
   const panel = await openInEditor(page, JSON.stringify([['rgb(150,130,100)', 0, 0, 400, 300], ['rgb(255,0,30)', 0, 0, 400, 150]]));
+  // The AI is set up once, in Settings (#513); until then the editor shows no AI controls.
+  await expect(panel.getByTestId('ai-review')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
+  const settings = page.getByRole('region', { name: 'Your AI settings' });
+  await settings.getByRole('button', { name: 'Set up' }).click();
+  await settings.getByLabel('Which AI?').selectOption('openai');
+  await settings.getByLabel('Model', { exact: true }).fill('llava');
+  await settings.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Done' }).click();
   const ai = panel.getByTestId('ai-review');
-  await ai.getByRole('button', { name: 'Set up your own AI' }).click();
-  await ai.getByLabel('Which AI?').selectOption('openai');
-  await ai.getByLabel('Model', { exact: true }).fill('llava');
-  await ai.getByRole('button', { name: 'Save' }).click();
   // Nothing is sent before agreeing; the destination is named, and a local model says nothing leaves the computer.
   await expect(ai.getByRole('group', { name: 'Before anything is sent' })).toContainText('Nothing leaves your computer');
   expect(asked).toHaveLength(0);

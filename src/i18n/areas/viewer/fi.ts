@@ -5,6 +5,16 @@ import type { source } from './source';
 /** Finnish. DRAFT: written without a native speaker's check. */
 export const fi: AreaTranslation<typeof source> = {
   compare: {
+    chooseB: "Valitse toinen kuva verrattavaksi kuvaan A.",
+    chooseFirstB: "Valitse seuraava kuva",
+    missingB: "Kuva B ei ole enää käytettävissä. Valitse toinen kuva ennen päätöstä.",
+    chooseAvailableB: "Valitse käytettävissä oleva kuva",
+    noOtherPhotos: "Muita sopivia kuvia ei ole. Kokeile toista suodatinta tai lopeta vertailu.",
+    position: (index, total) => `${index}/${total}`,
+    actualPreview200: "Näytä kuva B 200 %:n koossa esikatselun pikseleistä",
+    previewZoomNotReady: "200 %:n zoom on käytettävissä, kun kuva B on valmis",
+    previewAlreadyLarge: "Kuva B on jo yli 200 % Sovita-tilassa",
+    twoHundred: "200 %",
     noPhotoSelected: 'Kuvaa ei ole valittu',
     region: 'Vertaa kuvia',
     regionHelp: 'Napsauta kuvaa ottaaksesi tämän vertailun käyttöön. Vasen ja Oikea valitsevat kuvan B. K säilyttää B:n, X hylkää B:n, U tyhjentää B:n valinnan. Tab siirtyy painikkeesta toiseen.',

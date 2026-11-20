@@ -4,6 +4,16 @@ import type { source } from './source';
 /** Irish. DRAFT: written without a native speaker's check. Counts are written "Grianghraif: 3" to avoid number mutations. */
 export const ga: AreaTranslation<typeof source> = {
   compare: {
+    chooseB: "Roghnaigh grianghraf eile le cur i gcomparáid le A.",
+    chooseFirstB: "Roghnaigh an chéad ghrianghraf eile",
+    missingB: "Níl grianghraf B ar fáil a thuilleadh. Roghnaigh grianghraf eile sula ndéanann tú cinneadh.",
+    chooseAvailableB: "Roghnaigh grianghraf atá ar fáil",
+    noOtherPhotos: "Níl grianghraf eile a oireann. Bain triail as scagaire eile nó críochnaigh an chomparáid.",
+    position: (index, total) => `${index} as ${total}`,
+    actualPreview200: "Féach ar ghrianghraf B ag 200% de phicteilíní a réamhamhairc",
+    previewZoomNotReady: "Beidh súmáil 200% ar fáil nuair a bheidh grianghraf B réidh",
+    previewAlreadyLarge: "Tá grianghraf B níos mó ná 200% cheana nuair a oiriúnaítear é",
+    twoHundred: "200%",
     noPhotoSelected: 'Níor roghnaíodh grianghraf',
     region: 'Cuir grianghraif i gcomparáid',
     regionHelp: 'Cliceáil ar ghrianghraf chun fócas a chur ar an gcomparáid seo. Roghnaíonn Clé agus Deas grianghraf B. Coinníonn K B, diúltaíonn X B, glanann U B. Bogann Tab trí na rialuithe.',

@@ -18,8 +18,6 @@ import { Histogram } from './Histogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
 import { applyFix, critique, toneOnlyEdit, type Opinion, type OpinionFigures } from '../core/critique';
-import { fullContext } from '../core/masks';
-import { applyFix, critique, toneOnlyEdit, type Opinion } from '../core/critique';
 import { fullContext, maskAlpha } from '../core/masks';
 import { ColourCheckPanel, type ColourPreview } from './ColourCheckPanel';
 import { MaskOverlay } from './MaskOverlay';

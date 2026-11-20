@@ -5,6 +5,16 @@ import type { source } from './source';
 /** Swedish. DRAFT: written without a native speaker's check. */
 export const sv: AreaTranslation<typeof source> = {
   compare: {
+    chooseB: "Välj ett annat foto att jämföra med A.",
+    chooseFirstB: "Välj nästa foto",
+    missingB: "Foto B finns inte längre. Välj ett annat foto innan du bestämmer dig.",
+    chooseAvailableB: "Välj ett tillgängligt foto",
+    noOtherPhotos: "Inga andra foton matchar. Prova ett annat filter eller avsluta jämförelsen.",
+    position: (index, total) => `${index} av ${total}`,
+    actualPreview200: "Visa foto B i 200 % av förhandsvisningens pixlar",
+    previewZoomNotReady: "Zoom till 200 % går när foto B är klart",
+    previewAlreadyLarge: "Foto B är redan större än 200 % vid Anpassa",
+    twoHundred: "200 %",
     noPhotoSelected: 'Inget foto valt',
     region: 'Jämför foton',
     regionHelp: 'Klicka på ett foto för att aktivera jämförelsen. Vänster och Höger väljer foto B. K behåller B, X avvisar B, U rensar B. Tab flyttar mellan knapparna.',

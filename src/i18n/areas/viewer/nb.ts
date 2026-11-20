@@ -5,6 +5,16 @@ import type { source } from './source';
 /** Norwegian (Bokmål). DRAFT: written without a native speaker's check. */
 export const nb: AreaTranslation<typeof source> = {
   compare: {
+    chooseB: "Velg et annet bilde å sammenligne med A.",
+    chooseFirstB: "Velg neste bilde",
+    missingB: "Bilde B er ikke lenger tilgjengelig. Velg et annet bilde før du bestemmer deg.",
+    chooseAvailableB: "Velg et tilgjengelig bilde",
+    noOtherPhotos: "Ingen andre bilder passer. Prøv et annet filter, eller avslutt sammenligningen.",
+    position: (index, total) => `${index} av ${total}`,
+    actualPreview200: "Vis bilde B i 200 % av forhåndsvisningens piksler",
+    previewZoomNotReady: "Zoom til 200 % er mulig når bilde B er klart",
+    previewAlreadyLarge: "Bilde B er allerede større enn 200 % ved Tilpass",
+    twoHundred: "200 %",
     noPhotoSelected: 'Ingen bilder valgt',
     region: 'Sammenlign bilder',
     regionHelp: 'Klikk på et bilde for å aktivere denne sammenligningen. Venstre og Høyre velger bilde B. K beholder B, X avviser B, U fjerner valget for B. Tab flytter mellom knappene.',
