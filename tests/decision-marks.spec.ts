@@ -31,6 +31,10 @@ test('kept, rejected and selected photos are marked with words and shapes, not j
   await expect(tile('mark-3.png').getByTestId('tile-decision')).toHaveText('Undecided');
   await expect(tile('mark-2.png').getByRole('button', { name: 'mark-2.png is already rejected' })).toBeDisabled();
   await expect(tile('mark-2.png').getByRole('button', { name: /Remove .* from the library/ })).toHaveCount(0);
+  // A rejected photo is not deleted; the culling decision can be changed back.
+  await tile('mark-2.png').getByRole('button', { name: 'Move mark-2.png back to review (Undecided)' }).click();
+  await expect(tile('mark-2.png').getByTestId('tile-decision')).toHaveText('Undecided');
+  await expect(tile('mark-2.png').getByRole('button', { name: 'Keep mark-2.png' })).toBeEnabled();
   // Each mark carries an icon as well as its word.
   await expect(tile('mark-1.png').getByTestId('tile-decision').locator('svg')).toHaveCount(1);
   await expect(tile('mark-2.png').getByTestId('tile-decision').locator('svg')).toHaveCount(1);
