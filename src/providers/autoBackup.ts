@@ -128,7 +128,13 @@ function saveSnapshot(state: CullingState, target: string): Promise<BackupStatus
   const savedChangeAt = state.shoot.lastUpdatedAt ?? 0;
   const task = Promise.resolve().then(async () => {
     setStatus(projectId, { ...statuses.get(projectId), state: 'working' });
-    const result = await backUpNow(state, target);
+    // A malformed snapshot or unexpected storage failure must never reject an
+    // unattended save and interrupt the photographer's editing session.
+    const result: BackupStatus = await backUpNow(state, target).catch(() => ({
+      state: 'failed' as const,
+      at: Date.now(),
+      message: 'Automatic recovery could not be saved. Your project changes are still stored in Kestrel.',
+    }));
     // Read the latest clock, not the one from before the asynchronous write.
     const next = afterAttempt(clockFor(projectId), Date.now(), result.state === 'ok', savedChangeAt);
     clocks.set(projectId, next);
