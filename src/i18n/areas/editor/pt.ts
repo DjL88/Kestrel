@@ -209,6 +209,11 @@ export const pt: AreaTranslation<typeof source> = {
     adjustmentsCopied: 'Ajustes copiados',
   },
   auto: {
+    howItWorks: "Como funcionam as sugestões",
+    moreChanges: "Outros ajustes",
+    subjectMaskAdded: "Está incluído um ajuste separado para o motivo.",
+    adjustUp: (label) => `Aumentar ligeiramente ${label.toLowerCase()}.`,
+    adjustDown: (label) => `Reduzir ligeiramente ${label.toLowerCase()}.`,
     paidTitle: 'O separador Auto',
     paidBody: 'Aqui estão os ajustes automáticos de cor e tom e os conselhos de edição local.',
     suggestTitle: 'Pré-visualizar uma receita sugerida offline e verificar a qualidade antes de aplicar',
