@@ -1,3 +1,4 @@
+import { tiffXmpPacket, type TiffExportMetadata } from './tiffExportMetadata';
 import { applyDetailRgb16, applyPhotoEditLinear, detailParams, hasDetail, isNeutralTone, type PhotoEdit } from './photoEdits';
 import { cropRectangle, rotationCoverage, type PhotoFraming } from './photoFraming';
 import { THUMB, type Thumb } from './orientMatch';
@@ -333,7 +334,7 @@ const SRGB_ICC_BASE64 = 'AAACTGxjbXMEQAAAbW50clJHQiBYWVogB+oACwATAA4ADAAeYWNzcEF
 const SRGB_ICC_PROFILE = Uint8Array.from(atob(SRGB_ICC_BASE64), (char) => char.charCodeAt(0));
 
 /** A baseline uncompressed 16-bit RGB TIFF, tagged with the actual output sRGB ICC profile. */
-export function encodeTiff16(image: Rgb16Image): Blob {
+export function encodeTiff16(image: Rgb16Image, metadata?: TiffExportMetadata | null): Blob {
   const { width, height } = image;
   // TIFF strip offsets/counts below use 32-bit fields. Refuse corrupt or
   // impossible buffers rather than writing a plausible-looking damaged master.
@@ -348,20 +349,24 @@ export function encodeTiff16(image: Rgb16Image): Blob {
   const entries: Array<[tag: number, type: number, count: number, value: number]> = [];
   const SHORT = 3, LONG = 4, RATIONAL = 5, ASCII = 2, UNDEFINED = 7;
   const software = 'Kestrel\0';
-  const entryCount = 15;
+  const xmp = tiffXmpPacket(metadata);
+  const entryCount = xmp ? 16 : 15;
   const ifdOffset = 8;
   const extra = ifdOffset + 2 + entryCount * 12 + 4;
   const bitsOffset = extra;
   const resolutionOffset = bitsOffset + 6;
   const softwareOffset = resolutionOffset + 16;
   const profileOffset = softwareOffset + software.length + (software.length % 2);
-  const dataOffset = profileOffset + SRGB_ICC_PROFILE.length + (SRGB_ICC_PROFILE.length % 2);
+  const xmpOffset = profileOffset + SRGB_ICC_PROFILE.length + (SRGB_ICC_PROFILE.length % 2);
+  const dataOffset = xmpOffset + (xmp ? xmp.length + (xmp.length % 2) : 0);
   const byteCount = width * height * 6;
   entries.push(
     [256, LONG, 1, width], [257, LONG, 1, height], [258, SHORT, 3, bitsOffset], [259, SHORT, 1, 1], [262, SHORT, 1, 2],
     [273, LONG, 1, dataOffset], [277, SHORT, 1, 3], [278, LONG, 1, height], [279, LONG, 1, byteCount],
     [282, RATIONAL, 1, resolutionOffset], [283, RATIONAL, 1, resolutionOffset + 8], [284, SHORT, 1, 1], [296, SHORT, 1, 2],
-    [305, ASCII, software.length, softwareOffset], [34675, UNDEFINED, SRGB_ICC_PROFILE.length, profileOffset],
+    [305, ASCII, software.length, softwareOffset],
+    ...(xmp ? [[700, 1, xmp.length, xmpOffset] as [number, number, number, number]] : []),
+    [34675, UNDEFINED, SRGB_ICC_PROFILE.length, profileOffset],
   );
   const header = new ArrayBuffer(dataOffset);
   const view = new DataView(header);
@@ -382,6 +387,7 @@ export function encodeTiff16(image: Rgb16Image): Blob {
   for (const at of [resolutionOffset, resolutionOffset + 8]) { view.setUint32(at, 300, true); view.setUint32(at + 4, 1, true); }
   for (let i = 0; i < software.length; i += 1) view.setUint8(softwareOffset + i, software.charCodeAt(i));
   new Uint8Array(header, profileOffset, SRGB_ICC_PROFILE.length).set(SRGB_ICC_PROFILE);
+  if (xmp) new Uint8Array(header, xmpOffset, xmp.length).set(xmp);
   let samples = image.data;
   if (new Uint8Array(new Uint16Array([1]).buffer)[0] !== 1) {
     samples = new Uint16Array(image.data.length);
