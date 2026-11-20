@@ -4,6 +4,11 @@ import type { source } from './source';
 
 /** Icelandic. DRAFT: written without a native speaker's check. */
 export const is: AreaTranslation<typeof source> = {
+  rawTiff: {
+    action: "Flytja út 16 bita RAW-TIFF (frumgerð)",
+    details: "Um 16 bita RAW-TIFF",
+    help: "Valfrjáls TIFF-skrá úr RAW-skynjaragögnum með vistuðum breytingum. Vatnsmerki og texti eru ekki brennd inn í myndina og valfrjáls GPS- eða EXIF-gögn eru ekki afrituð. Litir eru merktir sem sRGB en enn þarf að prófa litnákvæmni og afköst í frumgerðinni. Óstuddar breytingar stöðva vistun.",
+  },
   typeface: "Leturgerð",
   sidecar: {
     save: "Vista XMP-hliðarskrá",
