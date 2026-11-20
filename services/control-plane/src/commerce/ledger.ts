@@ -1,9 +1,39 @@
 import type { Firestore } from '@google-cloud/firestore';
-import { commerceCollections, type RollingTurnoverRecord, type TransactionRecord } from './records.ts';
+import { commerceCollections, type RollingTurnoverRecord, type TaxSettingsRecord, type TransactionRecord } from './records.ts';
+import { validateUkVatSettings, type TaxSettings } from './tax.ts';
 import { ukTurnoverMetrics } from './turnover.ts';
 
 export class CommerceLedger {
   constructor(private readonly db: Firestore) {}
+
+  async getTaxSettings(): Promise<TaxSettings> {
+    const settings = await this.db.collection(commerceCollections.settings).doc('current').get();
+    return settings.exists
+      ? settings.data() as TaxSettingsRecord
+      : { ukVatRegistered: false, b2cPricing: 'exclusive', localTaxes: {} };
+  }
+
+  /** The authenticated admin's identity comes from the validated server session. */
+  async updateTaxSettings(settings: TaxSettings, adminAccountId: string): Promise<void> {
+    const updatedAt = new Date().toISOString();
+    const ukVatNumber = settings.ukVatNumber?.replace(/\s/g, '').toUpperCase();
+    const record: TaxSettingsRecord = {
+      ukVatRegistered: settings.ukVatRegistered,
+      b2cPricing: settings.b2cPricing,
+      localTaxes: settings.localTaxes,
+      ...(ukVatNumber ? { ukVatNumber } : {}),
+      updatedAt,
+      updatedBy: adminAccountId,
+    };
+    validateUkVatSettings(record);
+    for (const [jurisdiction, rate] of Object.entries(record.localTaxes)) {
+      if (!/^[A-Z]{2}(?:-[A-Z0-9]{1,8})?$/.test(jurisdiction)
+        || !Number.isInteger(rate.rateBasisPoints) || rate.rateBasisPoints < 0 || rate.rateBasisPoints > 10000) {
+        throw new Error('Invalid local tax setting.');
+      }
+    }
+    await this.db.collection(commerceCollections.settings).doc('current').set(record);
+  }
 
   /**
    * Called only after the server retrieves and matches the paid checkout from SumUp.
@@ -32,11 +62,11 @@ export class CommerceLedger {
     const priorYear = String(Number(asOf.slice(0, 4)) - 1);
     // The latest closed month can start its calculation before today's rolling window.
     const rows = await this.db.collection(commerceCollections.transactions)
-      .where('country', '==', 'GB')
       .where('supplyDate', '>=', priorYear + '-01-01')
       .where('supplyDate', '<=', asOf)
       .get();
     const entries = rows.docs.map(document => document.data() as TransactionRecord)
+      .filter(record => record.country === 'GB')
       .map(record => ({ country: record.country, supplyDate: record.supplyDate, netPence: record.netPence }));
     const result = { ...ukTurnoverMetrics(entries, asOf, forecast), updatedAt: new Date().toISOString() };
     await this.db.collection(commerceCollections.turnover).doc(asOf).set(result);
