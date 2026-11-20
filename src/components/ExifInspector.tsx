@@ -15,6 +15,7 @@ import type { CullDecision, PhotoFrame } from '../core/types';
 interface ExifInspectorProps {
   frame: PhotoFrame | null;
   /** The dock sits opposite the photographer's preferred tool hand. */
+  photoOnly?: boolean;
   dockedSide?: 'left' | 'right';
   onClose: () => void;
   batchCount: number;
@@ -32,7 +33,7 @@ interface ExifInspectorProps {
   onAutoTag?: (frame: PhotoFrame, name: string, kind: SubjectKind | undefined) => void;
 }
 
-export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide = 'right', batchCount, onClose, onRate, onFlag, onSubjects, onKeepTag, loadPicture, mates = [], onTagPhotos, onAutoTag }) => {
+export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide = 'right', photoOnly = false, batchCount, onClose, onRate, onFlag, onSubjects, onKeepTag, loadPicture, mates = [], onTagPhotos, onAutoTag }) => {
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'subject'>('info');
   const [detached, setDetached] = useState(() => {
@@ -60,7 +61,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frameId, loadPicture]);
-  if (!frame) return null;
+  if (!frame || (photoOnly && !floating)) return null;
 
   const { exif } = frame;
   const selectedFrame = frame;
@@ -187,6 +188,6 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
     </aside>
   );
   return floating
-    ? <FloatingPane title={m.photoInfo.title} initialSide={dockedSide} storageKey="kestrel-info-float-rect-v1" dockFocusSelector='[aria-label="Undock Photo Info"]' onDock={() => detach(false)}>{inspector}</FloatingPane>
+    ? <FloatingPane title={m.photoInfo.title} photoOnly={photoOnly} initialSide={dockedSide} storageKey="kestrel-info-float-rect-v1" dockFocusSelector='[aria-label="Undock Photo Info"]' onDock={() => detach(false)}>{inspector}</FloatingPane>
     : inspector;
 };

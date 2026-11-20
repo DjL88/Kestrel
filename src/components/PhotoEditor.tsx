@@ -227,7 +227,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     setUndockedTools(value);
     try { window.localStorage.setItem('kestrel-tools-undocked-v1', String(value)); } catch { /* layout still works */ }
   };
-  const floatingTools = undockedTools && !isPhone && !focusPhoto && !toolsCollapsed;
+  const floatingTools = undockedTools && !isPhone && !toolsCollapsed;
   // On a phone the tools open as a sheet above the bar. Tapping the open tab again folds it away for a full-height photo.
   const [sheetOpen, setSheetOpen] = useState(() => {
     try { return localStorage.getItem(SHEET_KEY) !== 'closed'; } catch { return true; }
@@ -268,7 +268,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     document.addEventListener('fullscreenchange', sync);
     return () => {
       document.removeEventListener('fullscreenchange', sync);
-      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
     };
   }, []);
   const toggleFullscreen = () => {
@@ -1699,7 +1698,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
       </div>
       ); return floatingTools
-        ? <FloatingPane title="Editing tools" initialSide={panelSide} storageKey="kestrel-tools-float-rect-v1" dockFocusSelector='[aria-label="Undock editing tools"]' onDock={() => setToolsUndocked(false)}>{toolPanel}</FloatingPane>
+        ? <FloatingPane title="Editing tools" photoOnly={focusPhoto} initialSide={panelSide} storageKey="kestrel-tools-float-rect-v1" dockFocusSelector='[aria-label="Undock editing tools"]' onDock={() => setToolsUndocked(false)}>{toolPanel}</FloatingPane>
         : toolPanel; })()}
       {isPhone && !focusPhoto && tabList}
       </div>
