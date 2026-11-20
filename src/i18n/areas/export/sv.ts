@@ -48,6 +48,7 @@ export const sv: AreaTranslation<typeof source> = {
     saveFailed: "Det gick inte att spara exportförinställningar på den här enheten.",
     standardOnly: "Förinställningar sparar standardformat.",
   },
+  comparison: { before: "Före", after: "Efter" },
   proof: {
     title: "Exportprov",
     photo: "Foto",
@@ -72,6 +73,7 @@ export const sv: AreaTranslation<typeof source> = {
     blur: 'En suddig kopia av bilden',
   },
   formats: {
+    beforeAfter: "Före och efter · sida vid sida",
     fullSize: 'Full storlek',
     customSize: 'Egen storlek',
     master: 'Full storlek · PNG',
