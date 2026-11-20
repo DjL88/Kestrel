@@ -18,6 +18,12 @@ Every status uses exactly one of these labels:
 
 *Last reconciled: 18 November 2026, after the integration pass that merged #353–#361 and #364 and closed #362 and #363.*
 
+### 20 November 2026 — partial desktop background export retry (same session only)
+
+**Code authored, tests NOT RUN.** If a desktop-folder Export Flight fails after one or more files, Task Manager now offers an explicit **Retry** for the remaining files in the **same running application session**. The submitted per-photo formats, filenames, crops, metadata, overlays and watermark choices stay frozen; successful earlier files are skipped, and the new Task Manager entry continues progress from the known number completed. Each desktop write is exclusive `createNew` and cannot silently replace a file. Retries are opt-in, capped at three, and only retained for five failed jobs to bound source/connection memory. Cancelled/completed tasks and remote cloud/NAS exports are **not** retryable: remote PUTs may have committed despite an error and are not yet guaranteed no-overwrite. A successful retry dismisses only the original resolved failure, not other task errors. The new Task Manager action is localised in all full language packs.
+
+**Not yet implemented:** durable restart recovery, independent SHA-256 verification of source and output identities, atomic fsync/rename receipts, and resuming a remote destination after permissions are reacquired. The existing `exportQueueJournal`/`journalledExportDispatch` is a library abstraction, not yet a verified active cross-process workflow. This work must **not** be represented as crash-safe export. **NOT RUN:** TypeScript, regression tests, build, installed filesystem/NAS/device checks.
+
 ### 20 November 2026 — connected background export language parity
 
 **Code authored, acceptance NOT RUN.** The connected cloud/NAS export batch action now uses the same language catalogue as the desktop Export Flight. Its destination-specific button, connecting/busy state and instructions for the new destination-grouped folder, closing the dialog after acceptance, and tracking progress/errors in Task Manager use British English source and translations in all full language packs. Earlier hard-coded English text has been removed. This does **not** imply cloud/NAS credentials, permissions, network availability, persistence after app restart or offline/online transitions have been verified. **NOT RUN:** linter, translation completeness build, UI screen-reader/RTL inspection, connected NAS/cloud provider end-to-end or physical prototype checks.
