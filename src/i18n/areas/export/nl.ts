@@ -48,6 +48,7 @@ export const nl: AreaTranslation<typeof source> = {
     saveFailed: "Exportvoorinstellingen konden niet worden opgeslagen op dit apparaat.",
     standardOnly: "Voorinstellingen slaan standaardformaten op.",
   },
+  comparison: { before: "Voor", after: "Na" },
   proof: {
     title: "Exportproef",
     photo: "Foto",
@@ -72,6 +73,7 @@ export const nl: AreaTranslation<typeof source> = {
     blur: 'Een vervaagde kopie van de foto',
   },
   formats: {
+    beforeAfter: "Voor en na · naast elkaar",
     fullSize: 'Volledig formaat',
     customSize: 'Eigen formaat',
     master: 'Volledig formaat · PNG',
