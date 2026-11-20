@@ -61,5 +61,7 @@ if ($Models) {
 }
 
 if ($Website) {
+  npm run build:site-editor
+  if ($LASTEXITCODE -ne 0) { throw 'Website editor build failed; no site changes published.' }
   firebase deploy --only hosting --project $Project
 }

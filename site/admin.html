@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self'; frame-src https://accounts.google.com/gsi/; connect-src 'self' https://accounts.google.com/gsi/; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; img-src 'self'; frame-src 'self' https://accounts.google.com/gsi/; connect-src 'self' https://accounts.google.com/gsi/; form-action 'none'; base-uri 'none'">
 <meta name="robots" content="noindex,nofollow">
 <meta name="referrer" content="no-referrer">
 <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
@@ -38,7 +38,7 @@
 <div id="console" hidden>
   <nav class="tabs" aria-label="Console sections">
     <a href="#overview">Overview</a><a href="#licensees">Licensees and devices</a><a href="#issue">Issue a key</a>
-    <a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
+    <a href="#demo-studio">Demo Studio</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
   </nav>
 
   <section id="overview" class="panel" aria-labelledby="overview-title">
@@ -154,6 +154,12 @@
     </div>
   </section>
 
+  <section id="demo-studio" class="panel" aria-labelledby="demo-studio-title">
+    <h2 id="demo-studio-title">Demo Studio</h2>
+    <p class="muted">Add approved JPEG examples, edit them using the same tools visitors see, enter a subject label, and choose Publish. Drafts stay private and are never shown to visitors.</p>
+    <iframe id="demo-editor-frame" title="Private Kestrel Demo Studio" src="/editor/demo-editor.html?admin=1"
+      style="display:block;width:100%;min-height:790px;border:1px solid #343946;border-radius:8px;background:#121418" loading="lazy"></iframe>
+  </section>
   <section id="audit" class="panel" aria-labelledby="audit-title">
     <h2 id="audit-title">Audit log</h2>
     <p class="muted">The 200 most recent entries, allowed and refused. Nothing can edit or delete them.</p>

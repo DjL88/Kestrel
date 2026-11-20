@@ -20,7 +20,8 @@
     "mcp": "tsx tools/mcp/kestrel-mcp.ts",
     "compare:auto": "tsx scripts/natural-auto-compare.ts",
     "journey:local": "tsx scripts/journey-local.ts",
-    "raw:wasm": "node scripts/build-raw-wasm.mjs"
+    "raw:wasm": "node scripts/build-raw-wasm.mjs",
+    "build:site-editor": "vite build --config vite.demo.config.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.6.0",
