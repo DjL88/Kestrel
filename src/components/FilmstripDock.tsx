@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
-import { ChevronDown, ChevronUp, Focus, Maximize2, Minimize2, GripHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronUp, Focus, Maximize2, Minimize2, GripHorizontal, Columns2 } from 'lucide-react';
 import { clampFilmstripHeight, FILMSTRIP_SIZE_KEY, parseFilmstripHeight } from '../core/filmstripGeometry';
 import { libraryText as t } from '../i18n/areas/library';
 
 interface FilmstripDockProps {
   expanded: boolean;
   onToggle: () => void;
+  onBeforeAfter?: () => void;
   /** Photo only: hide every bar and pane (F). Beside full screen, its companion. */
   onPhotoOnly?: () => void;
   children: React.ReactNode;
@@ -16,7 +17,7 @@ interface FilmstripDockProps {
  * Drag its top grip to resize. Resize never overlays the photograph.
  * Arrow toggles the strip. Height belongs only to the local device.
  */
-export function FilmstripDock({ expanded, onToggle, onPhotoOnly, children }: FilmstripDockProps) {
+export function FilmstripDock({ expanded, onToggle, onPhotoOnly, onBeforeAfter, children }: FilmstripDockProps) {
   const [height, setHeight] = useState(() => {
     try { return parseFilmstripHeight(window.localStorage.getItem(FILMSTRIP_SIZE_KEY), window.innerHeight); }
     catch { return parseFilmstripHeight(null, typeof window === 'undefined' ? 800 : window.innerHeight); }
@@ -90,6 +91,12 @@ export function FilmstripDock({ expanded, onToggle, onPhotoOnly, children }: Fil
           {expanded && <span className="hidden text-zinc-500 sm:inline">{t.filmstripDock.dragToResize}</span>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {onBeforeAfter && (
+            <button type="button" onClick={onBeforeAfter} aria-label="Before and after" title="Compare before and after"
+              className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+              <Columns2 className="h-4 w-4" aria-hidden="true"/>
+            </button>
+          )}
           {onPhotoOnly && (
             <button type="button" onClick={onPhotoOnly} aria-label={t.filmstripDock.showPhotoOnly} title={t.filmstripDock.photoOnlyTitle}
               className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
