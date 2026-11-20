@@ -26,7 +26,8 @@ export function linkedPathIdentity(path: string): string {
   // Keep UNC's two leading slashes; never mistake it for a POSIX path.
   const leading = value.startsWith('//') ? '//' : value.startsWith('/') ? '/' : '';
   const body = value.slice(leading.length).replace(/\/+/g, '/');
-  return prefix + (leading + body).replace(/\/$/, '').normalize('NFC').toLocaleLowerCase(isWindows ? 'en-US' : 'und');
+  const lexical = (leading + body).replace(/\/$/, '').normalize('NFC');
+  return prefix + (isWindows ? lexical.toLowerCase() : lexical);
 }
 
 export function originalSourceKey(photo: OriginalKeySource): string {
