@@ -80,6 +80,8 @@ export const cy: AreaTranslation<typeof source> = {
     fullSize: 'Maint llawn',
     customSize: 'Maint personol',
     master: 'Maint llawn · PNG',
+    fullJpeg: "Maint llawn · JPEG",
+    fullJpegHelp: "JPEG o ansawdd uchel o'r ddelwedd sydd ar gael. Ar gyfer RAW defnyddir delwedd wedi'i datblygu neu ragolwg y camera, nid prif ffeil RAW 16-did wedi'i gwirio.",
     custom: (width, height) => `Personol · ${width} × ${height}`,
     post: (shape) => `Postiad · ${shape}`,
     square: (shape) => `Sgwâr · ${shape}`,
