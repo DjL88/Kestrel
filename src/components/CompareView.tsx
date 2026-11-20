@@ -34,13 +34,15 @@ export function CompareView({
 }: Props) {
   const surfaceRef = useRef<HTMLElement>(null);
   const photoStageRef = useRef<HTMLDivElement>(null);
-  const [previewFit, setPreviewFit] = useState(0);
+  const [measuredPreview, setMeasuredPreview] = useState<{ photoId: string; fit: number }>({ photoId: '', fit: 0 });
   const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
   const { previous, next, currentValid, referenceValid } = compareNavigation(candidates, leftFrame?.id ?? null, rightFrame?.id ?? null);
   const uniqueRight = !!rightFrame && !!leftFrame && referenceValid && rightFrame.id !== leftFrame.id && currentValid;
   const queue = compareQueueState(candidates, leftFrame?.id ?? null, rightFrame?.id ?? null);
   const canGoBack = previous !== null;
   const canGoForward = next !== null;
+  // A measurement from photo B must never be used for a newly selected photo.
+  const previewFit = uniqueRight && measuredPreview.photoId === rightFrame?.id ? measuredPreview.fit : 0;
   // The zoom control is based on photo B's *loaded preview*, not 2× Fit.
   // Never label a reduced RAW preview as full-resolution sensor pixels.
   useEffect(() => {
@@ -49,8 +51,9 @@ export function CompareView({
     const measure = () => {
       const img = stage.querySelector<HTMLImageElement>('[data-compare-main] img');
       const bounds = stage.getBoundingClientRect();
-      setPreviewFit(img?.complete && img.naturalWidth > 0 && img.naturalHeight > 0 && bounds.width > 0 && bounds.height > 0
-        ? Math.min(bounds.width / img.naturalWidth, bounds.height / img.naturalHeight) : 0);
+      const fit = img?.complete && img.naturalWidth > 0 && img.naturalHeight > 0 && bounds.width > 0 && bounds.height > 0
+        ? Math.min(bounds.width / img.naturalWidth, bounds.height / img.naturalHeight) : 0;
+      setMeasuredPreview({ photoId: uniqueRight ? rightFrame?.id ?? '' : '', fit });
     };
     measure();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
@@ -101,7 +104,8 @@ export function CompareView({
         const img = stage?.querySelector<HTMLImageElement>('[data-compare-main] img');
         const bounds = stage?.getBoundingClientRect();
         if (img && bounds?.width && bounds.height && img.naturalWidth > 0 && img.naturalHeight > 0) {
-          setPreviewFit(Math.min(bounds.width / img.naturalWidth, bounds.height / img.naturalHeight));
+          setMeasuredPreview({ photoId: uniqueRight ? rightFrame?.id ?? '' : '',
+            fit: Math.min(bounds.width / img.naturalWidth, bounds.height / img.naturalHeight) });
         }
       }}>
         <PhotoViewport base={<div data-compare-main className="h-full w-full">{photo(uniqueRight ? rightFrame : null)}</div>}
