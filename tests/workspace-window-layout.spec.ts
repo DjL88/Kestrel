@@ -74,7 +74,7 @@ test('detached Photo Info and Editing Tools can be focused independently without
   await page.keyboard.press('f');
   await expect(tools).toBeVisible();
   await expect(info).toHaveCount(0);
-  await page.getByRole('button', { name: /Exit Photo only/i }).click();
+  await page.getByRole('button', { name: /Exit photo-only view/i }).click();
   await expect(info).toBeVisible();
   await expect(pin).toHaveAttribute('aria-pressed', 'true');
 
