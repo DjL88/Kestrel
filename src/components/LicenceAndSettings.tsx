@@ -3,6 +3,7 @@ import { buildSettingsFile, parseSettingsFile } from '../core/settingsTransfer';
 import { SETTINGS_KEYS } from '../core/settingsTransfer';
 import { downloadExport } from '../providers/browserExport';
 import { removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
+import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
 import { BETA_ALL_FEATURES_OPEN } from '../providers/useAccess';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
 import { messages as m } from '../i18n/messages';
@@ -80,6 +81,18 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
               </form>
             ) : (
               <button type="button" className={action} onClick={() => { removeLicence(); setNote(null); }}>{t.licence.removeKey}</button>
+            )}
+            {licence.status !== 'valid' && !isMobileShell() && (
+              <a href="https://kestrel-hosting-kestrel.web.app/#pricing" target="_blank" rel="noopener noreferrer"
+                className={`${action} inline-flex items-center`}
+                onClick={(event) => {
+                  if (!isDesktopApp()) return;
+                  event.preventDefault();
+                  const url = event.currentTarget.href;
+                  void import('@tauri-apps/plugin-opener')
+                    .then(({ openUrl }) => openUrl(url))
+                    .catch(() => setNote({ text: t.licence.pricingUnavailable, good: false }));
+                }}>{t.licence.viewProPricing}</a>
             )}
             {note && <p role={note.good ? 'status' : 'alert'} className={note.good ? 'text-emerald-200' : 'text-amber-200'}>{note.text}</p>}
             <p className="text-xs text-zinc-400">{t.licence.noAccount}</p>
