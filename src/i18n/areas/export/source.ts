@@ -2,6 +2,11 @@ import { plural } from '../../../core/locale';
 
 /** Export: the export panel, the step-by-step guide, preview tiles, and the recipe dialogs. British English source. */
 export const source = {
+  rawTiff: {
+    action: "Export 16-bit RAW TIFF (prototype)",
+    details: "About 16-bit RAW TIFF",
+    help: "Optional TIFF made from RAW sensor data with your saved edits. It does not burn in text or watermarks and does not copy optional GPS or EXIF. The colours are tagged sRGB, but camera colour fidelity and performance still need prototype testing. Unsupported edits stop the save.",
+  },
   typeface: "Font",
   sidecar: {
     save: "Save XMP sidecar",
