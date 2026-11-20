@@ -24,6 +24,8 @@ import type { LinkedRange } from './linkedOriginals';
 export interface LinkedInfo { read: () => Promise<Blob>; size: number; lastModified: number; openRange?: () => Promise<LinkedRange> }
 
 const MAX_FULL_PREVIEW_CACHE = 24;
+// Full-sensor JPEGs can be tens of MB each; a 500-photo session must not pin them all.
+const MAX_DEVELOPED_FULL_CACHE = 8;
 const MAX_OFFLINE_PREVIEW_MEMORY = 24;
 const THUMB_MAX_WIDTH = 400;
 const REVIEW_MAX_WIDTH = 2200;
@@ -344,8 +346,17 @@ export class BrowserPreviewProvider implements PreviewProvider {
       if (!original) return 'missing';
       const picture = await develop(original);
       if (this.developing.get(stableKey) !== request) return 'superseded';
+      this.developed.delete(stableKey);
       this.developed.set(stableKey, picture);
       this.invalidateFullPreview(stableKey);
+      // Keep several full-sized RAWs for rapid edit/compare, but release older
+      // ones. Small disk-backed review thumbnails are held separately.
+      while (this.developed.size > MAX_DEVELOPED_FULL_CACHE) {
+        const oldest = this.developed.keys().next().value;
+        if (!oldest) break;
+        this.developed.delete(oldest);
+        this.invalidateFullPreview(oldest);
+      }
       return 'ready';
     } catch (error) {
       if (this.developing.get(stableKey) !== request) return 'superseded';
@@ -409,6 +420,13 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
     // Virtual copies have different edit recipes but share the same unedited source.
     const key = frame.stableKey;
+    // A recently viewed full RAW stays in the bounded cache; older photos
+    // are redeveloped only when revisited, never silently exported from a thumbnail.
+    const live = this.developed.get(key);
+    if (live) {
+      this.developed.delete(key);
+      this.developed.set(key, live);
+    }
     const revision = this.sourceRevisions.get(key) ?? 0;
     const epoch = this.cacheEpoch;
     this.fullFrameKeys.set(frame.id, key);
