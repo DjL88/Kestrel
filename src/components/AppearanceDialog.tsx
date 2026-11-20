@@ -1,5 +1,8 @@
 import { AppearanceSettings } from './AppearanceSettings';
 import { Keyboard } from 'lucide-react';
+import { useState } from 'react';
+import { AiProviderSetup } from './AiReviewPanel';
+import { useAiSettings } from '../providers/aiSettings';
 import { isDesktopApp } from '../providers/desktopShell';
 import { messages as m } from '../i18n/messages';
 
@@ -14,6 +17,8 @@ interface Props {
 
 /** One bounded, touch-friendly settings sheet from Home, Library or Editor. */
 export function AppearanceDialog({ side, onSideChange, hand, onHandChange, onClose, onOpenMacroPad }: Props) {
+  const aiSettings = useAiSettings();
+  const [aiSetupOpen, setAiSetupOpen] = useState(false);
   return (
     <div role="presentation" className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] workspace:items-center"
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
@@ -33,6 +38,14 @@ export function AppearanceDialog({ side, onSideChange, hand, onHandChange, onClo
           <button type="button" autoFocus className="min-h-11 rounded-md px-3 text-sm hover:bg-white/10" onClick={onClose}>{m.settings.done}</button>
         </div>
         <AppearanceSettings side={side} onSideChange={onSideChange} hand={hand} onHandChange={onHandChange} />
+        <section className="mt-4 space-y-2 border-t border-white/15 pt-3" aria-label="Your AI settings">
+          <div className="flex items-center justify-between gap-3">
+            <div><h3 className="text-sm font-semibold text-zinc-100">Your AI (optional)</h3>
+              <p className="text-xs text-zinc-400">{aiSettings ? 'Configured on this device. The editor can now offer a second opinion.' : 'Set up your own provider here to enable a second opinion in the editor.'}</p></div>
+            <button type="button" className="min-h-11 shrink-0 rounded-md border border-white/15 px-3 text-sm text-zinc-100" onClick={() => setAiSetupOpen((open) => !open)} aria-expanded={aiSetupOpen}>{aiSetupOpen ? 'Hide' : aiSettings ? 'Change' : 'Set up'}</button>
+          </div>
+          {aiSetupOpen && <AiProviderSetup saved={aiSettings} onDone={() => setAiSetupOpen(false)} />}
+        </section>
         {onOpenMacroPad && isDesktopApp() && (
           <button type="button" onClick={() => { onClose(); onOpenMacroPad(); }}
             className="flex min-h-11 w-full items-center gap-2 rounded-md border border-white/15 px-3 text-sm text-zinc-200 hover:bg-white/10">

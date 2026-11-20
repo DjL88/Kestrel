@@ -6,7 +6,7 @@ import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFrami
 import { exportFilename, type ExportProfile } from '../core/exportProfiles';
 import { planExportFraming, type ExportFraming, type FocusPoint } from '../core/exportFraming';
 import type { BarStyle } from '../core/exportFormats';
-import { hasWatermark, watermarkSpots } from '../core/watermark';
+import { hasWatermark, watermarkSpots, watermarkFont, watermarkToneForPixels } from '../core/watermark';
 import { overlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { datedExport } from '../core/exportTimestamp';
 import type { WatermarkOptions } from '../core/watermark';
@@ -132,15 +132,27 @@ async function drawWatermark(target: HTMLCanvasElement, mark: WatermarkOptions) 
     paint = (x, y) => context.drawImage(image, x, y, markWidth, markHeight);
   } else {
     const size = Math.max(10, Math.round(Math.min(width, height) * mark.size));
-    context.font = `600 ${size}px Inter, system-ui, -apple-system, "Segoe UI", sans-serif`;
+    context.font = `600 ${size}px ${watermarkFont(mark.font)}`;
     context.textBaseline = 'top';
     markWidth = Math.ceil(context.measureText(mark.text).width);
     markHeight = Math.ceil(size * 1.2);
-    context.fillStyle = mark.tone === 'dark' ? '#111111' : '#ffffff';
-    // A soft shadow keeps white text readable on bright skies and dark text readable on shadows.
-    context.shadowColor = mark.tone === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
-    context.shadowBlur = size / 6;
-    paint = (x, y) => context.fillText(mark.text, x, y);
+    paint = (x, y) => {
+      // Each tile/batch image uses its own pixels. A local sample works for bright skies,
+      // dark backgrounds and repeated watermarks without manual per-photo placement.
+      let tone = mark.tone;
+      if (tone === 'auto') {
+        const px = Math.max(0, Math.floor(x - size * 0.15));
+        const py = Math.max(0, Math.floor(y - size * 0.15));
+        const pw = Math.min(width - px, Math.max(1, Math.ceil(markWidth + size * 0.3)));
+        const ph = Math.min(height - py, Math.max(1, Math.ceil(markHeight + size * 0.3)));
+        try { tone = watermarkToneForPixels(context.getImageData(px, py, pw, ph).data, pw, ph); }
+        catch { tone = 'light'; }
+      }
+      context.fillStyle = tone === 'dark' ? '#111111' : '#ffffff';
+      context.shadowColor = tone === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)';
+      context.shadowBlur = size / 6;
+      context.fillText(mark.text, x, y);
+    };
   }
   for (const spot of watermarkSpots(width, height, markWidth, markHeight, mark.position)) paint(Math.round(spot.x), Math.round(spot.y));
   context.restore();

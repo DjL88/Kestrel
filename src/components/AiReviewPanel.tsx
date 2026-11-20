@@ -27,7 +27,7 @@ const button = 'min-h-9 rounded-md border border-white/15 px-2 text-xs text-zinc
 const signed = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(2).replace(/0$/, '')}`;
 
 /** Set up the person's own provider: which one, key, model and (for OpenAI-compatible) its address. */
-function Setup({ saved, onDone }: { saved: AiProviderSettings | null; onDone: () => void }) {
+export function AiProviderSetup({ saved, onDone }: { saved: AiProviderSettings | null; onDone: () => void }) {
   const id = useId();
   const [kind, setKind] = useState<AiProviderKind>(saved?.kind ?? 'gemini');
   const [key, setKey] = useState(saved?.key ?? '');
@@ -76,7 +76,7 @@ function Setup({ saved, onDone }: { saved: AiProviderSettings | null; onDone: ()
  */
 export function AiReviewPanel({ edit, onEdit, readJpeg, localFindings, disabled }: Props) {
   const settings = useAiSettings();
-  const [mode, setMode] = useState<'idle' | 'setup' | 'asking'>('idle');
+  const [mode, setMode] = useState<'idle' | 'asking'>('idle');
   const [review, setReview] = useState<AiReview | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
@@ -98,28 +98,28 @@ export function AiReviewPanel({ edit, onEdit, readJpeg, localFindings, disabled 
     }
   }
 
+  // A provider is configured in Settings. No integration controls are shown until then.
+  if (!settings) return null;
+
   const suggestion = review ? Object.entries(review.suggestion) as [keyof typeof t.slider, number][] : [];
   return (
     <section aria-label={t.title} className="space-y-2 border-t border-white/10 pt-2" data-testid="ai-review">
       <h4 className="flex items-center gap-1.5 text-xs font-medium text-zinc-200"><MessageSquareText className="h-3.5 w-3.5" aria-hidden="true" />{t.title}</h4>
       <p className="text-xs text-zinc-400">{t.intro}</p>
-      {mode === 'setup' && <Setup saved={settings} onDone={() => { setMode('idle'); setMessage(null); }} />}
-      {mode !== 'setup' && !settings && <button type="button" className={button} disabled={disabled} onClick={() => setMode('setup')}>{t.setUp}</button>}
-      {mode !== 'setup' && settings && !agreed && (
+      {!agreed && (
         <div className="space-y-1 rounded-md border border-white/15 p-2" role="group" aria-label={t.consentTitle}>
           <p className="text-xs font-semibold text-zinc-200">{t.consentTitle}</p>
           <p className="text-xs text-zinc-300">{staysOnThisComputer(settings) ? t.consentLocal(destinationHost(settings)) : t.consentCloud(destinationHost(settings))}</p>
           <div className="flex flex-wrap gap-2">
             <button type="button" className={button} onClick={() => saveAiSettings({ ...settings, consent: consentFor(AI_REVIEW_CONSENT_VERSION, settings) })}>{t.agree}</button>
-            <button type="button" className={button} onClick={() => setMode('setup')}>{t.change}</button>
           </div>
         </div>
       )}
-      {mode !== 'setup' && settings && agreed && (
+      {agreed && (
         <div className="flex flex-wrap gap-2">
           {mode === 'asking'
             ? <><span role="status" className="self-center text-xs text-zinc-300">{t.asking}</span><button type="button" className={button} onClick={() => abort.current?.abort()}>{t.cancel}</button></>
-            : <><button type="button" className={button} disabled={disabled} onClick={() => void ask()}>{t.ask}</button><button type="button" className={button} onClick={() => setMode('setup')}>{t.change}</button></>}
+            : <button type="button" className={button} disabled={disabled} onClick={() => void ask()}>{t.ask}</button>}
         </div>
       )}
       {message && <p role="status" className="flex gap-1.5 text-xs text-zinc-300"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />{message}</p>}
