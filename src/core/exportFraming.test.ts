@@ -37,3 +37,17 @@ test('zoom shrinks the crop without changing its shape, and the anchor is kept i
   assert.equal(Math.round(clampAnchor(1, 6000, 3200) * 1000), 733);
   assert.equal(clampAnchor(0.9, 4000, 4000), 0.5, 'a crop as big as the photo has nothing to move');
 });
+
+
+test('opt-in enlargement goes through the same crop/fit planner as export proof', () => {
+  const upscaled = { id: 'custom', label: 'Custom', prefix: '', width: 3200, height: 2400,
+    quality: 1, format: 'png' as const, allowUpscale: true };
+  const standard = { ...upscaled, allowUpscale: false };
+  const focus = planExportFraming(800, 600, upscaled, 'focus');
+  assert.equal(focus.scale, 4);
+  assert.deepEqual(focus.region, { x: 0, y: 0, width: 800, height: 600 });
+  assert.equal(planExportFraming(800, 600, standard, 'focus').scale, 1);
+  assert.equal(planExportFraming(800, 600, upscaled, 'fit').scale, 4);
+  assert.equal(planExportFraming(800, 600, upscaled, 'long', undefined, 3200).scale, 1,
+    'ordinary long-edge resizing remains a non-upscaling path');
+});
