@@ -39,6 +39,7 @@ export const source = {
     loadFailed: "Could not load XMP. Choose the matching sidecar for this photo.",
   },
   sidecars: {
+    ready: "XMP metadata prepared. The original photographs are unchanged.",
     title: "XMP sidecars",
     save: "Save XMP sidecars",
     help: "Save ratings, rejections and confirmed keywords separately from your photos. Multiple sidecars are saved as a ZIP. Demo photos and virtual copies are skipped.",
