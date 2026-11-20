@@ -34,9 +34,17 @@ describe('independent cull ground truth', () => {
     const result = evaluateCullGroundTruth(samples);
     expect(result.automaticKeeperRecall).toBe(0.5);
     expect(result.keeperRecall).toBe(1);
+    expect(result.falseRejects).toBe(0);
     expect(result.falseKeeps).toBe(0);
     expect(result.nonKeeperCount).toBe(2);
     expect(result.falseKeepRate).toBe(0);
+  });
+  it('does not count a safe review abstention as a false rejection', () => {
+    const result = evaluateCullGroundTruth(samples);
+    expect(result.falseRejects).toBe(0);
+    expect(result.falseRejectRate).toBe(0);
+    expect(result.abstained).toBe(2);
+    expect(result.automaticKeeperRecall).toBe(0.5);
   });
   it('fails when an aircraft is automatically kept even without a bird misclassification', () => {
     const changed = samples.map(frame => frame.id === 'helicopter-1'
@@ -51,6 +59,9 @@ describe('independent cull ground truth', () => {
     expect(passesCullSafetyGate({ ...valid, total: valid.total + 1 }, 4)).toBe(false);
     expect(passesCullSafetyGate({ ...valid, falseKeeps: 1 }, 4)).toBe(false);
     expect(passesCullSafetyGate({ ...valid, automaticKeeperRecall: null }, 4)).toBe(false);
+    expect(passesCullSafetyGate({ ...valid, proposedKeep: valid.proposedKeep + 1 }, 4)).toBe(false);
+    expect(passesCullSafetyGate({ ...valid, keeperRecall: 0.25 }, 4)).toBe(false);
+    expect(passesCullSafetyGate({ ...valid, errors: ['hidden invalid row'] }, 4)).toBe(false);
   });
   it('evaluates 500 deterministic synthetic frames without duplicate identity', () => {
     const frames: LabelledCullFrame[] = Array.from({ length: 500 }, (_, i) => ({
