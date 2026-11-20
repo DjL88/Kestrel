@@ -4,6 +4,19 @@ import type { source } from './source';
 
 /** Swedish. DRAFT: written without a native speaker's check. */
 export const sv: AreaTranslation<typeof source> = {
+  metadata: {
+    title: "Filmetadata (valfritt)",
+    include: "Inkludera redigerbara metadata i JPEG / PNG",
+    privacy: "Avstängt som standard. Ursprungliga EXIF-, GPS-, serienummer- och platsuppgifter kopieras inte. Bara information du väljer skrivs som XMP.",
+    photoTitle: "Fototitel / motiv",
+    perPhoto: "Varje foto använder sitt bekräftade motiv om du inte anger en gemensam titel.",
+    caption: "Beskrivning eller bildtext",
+    creator: "Fotograf / skapare",
+    copyright: "Upphovsrätt",
+    includeKeywords: "Inkludera nyckelord",
+    keywords: "Nyckelord (kommaseparerade; tomt = bekräftade taggar)",
+    help: "Bekräftade motiv kan fylla i titel och nyckelord. Obekräftade AI-gissningar exporteras aldrig. Informationen sparas i filen, inte på fotot.",
+  },
   rawTiff: {
     action: "Exportera 16-bitars RAW-TIFF (prototyp)",
     details: "Om 16-bitars RAW-TIFF",
