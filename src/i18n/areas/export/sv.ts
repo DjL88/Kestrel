@@ -212,6 +212,10 @@ export const sv: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Prefix för filnamn och JPEG-kvalitet',
   },
   results: {
+    connectedBackground: (count, place) => `Spara ${count} exporter till ${place} i bakgrunden`,
+    connectingDestination: "Ansluter till målet…",
+    connectedBackgroundHelp: "Filerna sparas en i taget i en ny mapp, grupperade efter destination. Exportfönstret stängs när jobbet har godkänts; se framsteg och fel i Aktivitetshanteraren.",
+
     backgroundSaving: (count) => `Exporterar ${count} filer i bakgrunden`,
     choosingFolder: "Väljer mapp…",
     desktopBackground: (count) => `Spara ${count} filer i en mapp i bakgrunden`,
