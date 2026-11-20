@@ -98,9 +98,15 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
   await page.setViewportSize({ width: 320, height: 568 });
   await checkViewport('Editor small phone');
+  await page.setViewportSize({ width: 799, height: 700 });
+  await checkViewport('Foldable narrow window stays compact');
+  await expect.poll(editLayout).toBe('column');
+  await page.setViewportSize({ width: 800, height: 700 });
+  await checkViewport('Foldable unfolded tablet-width editor');
+  await expect.poll(editLayout).toBe('row');
   await page.setViewportSize({ width: 850, height: 700 });
-  await checkViewport('Foldable unfolded narrow workspace');
-  expect(await editLayout()).toBe('column');
+  await checkViewport('Foldable unfolded workspace');
+  await expect.poll(editLayout).toBe('row');
   await page.setViewportSize({ width: 320, height: 568 });
   const essentialTabs = page.getByRole('tablist', { name: 'Editing tools' });
   // The cover-screen icon rail must preserve meaningful accessible names.
