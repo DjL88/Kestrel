@@ -4,6 +4,11 @@ import type { source } from './source';
 
 /** Dutch. DRAFT: written without a native speaker's check. */
 export const nl: AreaTranslation<typeof source> = {
+  rawTiff: {
+    action: "16-bits RAW-TIFF exporteren (prototype)",
+    details: "Over 16-bits RAW-TIFF",
+    help: "Optionele TIFF op basis van RAW-sensorgegevens met je opgeslagen bewerkingen. Watermerken en tekst worden niet ingebrand; optionele GPS- of EXIF-gegevens worden niet gekopieerd. De kleuren zijn als sRGB gemarkeerd, maar kleurnauwkeurigheid en prestaties moeten nog met het prototype worden getest. Bij een niet-ondersteunde bewerking wordt het bestand niet opgeslagen.",
+  },
   typeface: "Lettertype",
   sidecar: {
     save: "XMP-nevenbestand opslaan",
