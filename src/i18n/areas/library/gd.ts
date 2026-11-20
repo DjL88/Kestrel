@@ -211,6 +211,8 @@ export const gd: AreaTranslation<typeof source> = {
     dismiss: 'Leig seachad',
   },
   tasks: {
+    retry: "Feuch a-rithist",
+    retryRemaining: "Feuch ris na faidhlichean a tha air fhàgail san t-seisean seo",
     tasks: 'Saothraichean',
     working: 'Ag obair',
     busy: 'Trang',
