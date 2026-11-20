@@ -20,6 +20,9 @@ import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 import { isDesktopApp, saveWithDialog } from './desktopShell';
 
+/** Share an in-flight development between rapid slider redraws and export proofs. */
+const pendingSensorDevelopments = new WeakMap<object, Map<string, Promise<void>>>();
+
 /** Choose the source for an export. A review-cache image is never silently
  * treated as the original. If a RAW has no usable camera JPEG, Kestrel may
  * develop its own source bytes on demand rather than require a second app.
@@ -29,7 +32,7 @@ import { isDesktopApp, saveWithDialog } from './desktopShell';
 export async function loadExportSource(
   frame: PhotoFrame,
   provider: Pick<BrowserPreviewProvider, 'getFullPreviewUrl' | 'hasBlob'>
-    & Partial<Pick<BrowserPreviewProvider, 'isOfflineFallback' | 'ensureOriginal' | 'isDeveloped' | 'getOriginal'>>,
+    & Partial<Pick<BrowserPreviewProvider, 'isOfflineFallback' | 'ensureOriginal' | 'isDeveloped' | 'getOriginal' | 'developFromOriginal'>>,
   priority: 'background' | 'visible' | 'selected' = 'selected',
   rawDecoder: ((original: Blob, extension: string) => Promise<Blob>) | null = canDevelopRaw() ? developRaw : null,
 ) {
@@ -45,6 +48,50 @@ export async function loadExportSource(
   const needsSensorDevelopment = !frame.isDemo && isRawPreviewFile(frame.filename)
     && provider.hasBlob(frame.stableKey) && rawDecoder && provider.ensureOriginal
     && (!url || cachedReviewOnly || provider.isDeveloped?.(frame.stableKey) === false);
+  if (needsSensorDevelopment && provider.developFromOriginal && rawDecoder) {
+    const key = frame.stableKey;
+    let byOriginal = pendingSensorDevelopments.get(provider);
+    if (!byOriginal) {
+      byOriginal = new Map();
+      pendingSensorDevelopments.set(provider, byOriginal);
+    }
+    let pending = byOriginal.get(key);
+    if (!pending) {
+      const develop = provider.developFromOriginal.bind(provider);
+      const extension = frame.filename.split('.').at(-1)?.toLowerCase() ?? '';
+      const decoder = rawDecoder;
+      pending = (async () => {
+        const state = await develop(key, async original => {
+          const picture = await decoder(original, extension);
+          if (picture.type !== 'image/jpeg' || !picture.size) {
+            throw new Error('The RAW decoder returned no usable picture.');
+          }
+          return picture;
+        });
+        if (state !== 'ready') {
+          throw new Error(`Reconnect ${frame.filename} before exporting: the original RAW changed or became unavailable.`);
+        }
+      })();
+      byOriginal.set(key, pending);
+      // Clean up both resolution and rejection. All concurrent viewers await
+      // the same promise; none sees a separate 45MP decode per slider update.
+      const thisRun = pending;
+      void thisRun.finally(() => {
+        if (byOriginal?.get(key) === thisRun) byOriginal.delete(key);
+      }).catch(() => {});
+    }
+    try {
+      await pending;
+    } catch (reason) {
+      const detail = reason instanceof Error ? reason.message : 'Unknown RAW decoder failure.';
+      throw new Error(`Kestrel could not develop ${frame.filename} from RAW sensor data: ${detail} The original is unchanged.`);
+    }
+    const developedUrl = await provider.getFullPreviewUrl(frame, priority);
+    if (!developedUrl || provider.isOfflineFallback?.(key)) {
+      throw new Error(`Reconnect ${frame.filename} before exporting. Full RAW development is unavailable.`);
+    }
+    return loadImage(developedUrl);
+  }
   if (needsSensorDevelopment) {
     const original = await provider.ensureOriginal(frame.stableKey, priority);
     if (!original) throw new Error(`Reconnect ${frame.filename} before exporting. The original RAW file is not available.`);
