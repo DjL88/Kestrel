@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { exportPaths, exportRunFolder, safeExportName } from './exportPlace.ts';
+import { exportPaths, exportRunFolder, safeExportName, writeExportFiles } from './exportPlace.ts';
 import { isWritablePath } from './storageConnectors.ts';
 
 const when = new Date(2026, 10, 16, 14, 5);
@@ -53,4 +53,19 @@ test('groups social outputs into destination folders and resolves collisions wit
     'export/2026-11-16 14-05/kite.jpg',
   ]);
   assert.ok(paths.every(isWritablePath));
+});
+
+test('stop lets the current write finish and never starts the next file', async () => {
+  const controller = new AbortController();
+  const written: string[] = [];
+  const progress: number[] = [];
+  const files = [new Blob(['one']), new Blob(['two'])];
+  const result = await writeExportFiles(files, ['one.jpg', 'two.jpg'], async path => {
+    controller.abort();
+    await Promise.resolve();
+    written.push(path);
+  }, { signal: controller.signal, onProgress: count => progress.push(count) });
+  assert.deepEqual(written, ['one.jpg']);
+  assert.deepEqual(progress, [1]);
+  assert.deepEqual(result, { count: 1, stopped: true });
 });
