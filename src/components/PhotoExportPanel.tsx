@@ -36,7 +36,8 @@ import { FREE_DAILY_EXPORT_LIMIT } from '../core/features';
 import { createDailyAllowance, parseUsage } from '../core/dailyAllowance';
 import { parseCustomExportDate } from '../core/exportDateInput';
 import { exportMayContinue } from '../core/exportCancellation';
-import { parseWatermark } from '../core/watermarkStore';
+import { parseWatermark, watermarkForStorage } from '../core/watermarkStore';
+import { legacyWatermarkBlob, loadLocalWatermarkAsset, saveLocalWatermarkAsset, watermarkBlobDataUrl } from '../core/watermarkAssetVault';
 import { metadataForExport, NO_EXPORT_METADATA, type ExportMetadataOptions } from '../core/exportMetadataOptions';
 import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, WATERMARK_FONTS, type WatermarkOptions } from '../core/watermark';
 import { NO_OVERLAY, exportOverlayTitle, photoOverlayLines, type OverlayOptions } from '../core/exportOverlay';
@@ -122,6 +123,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     try { return { ...NO_OVERLAY, watermark: parseWatermark(localStorage.getItem('kestrel.watermark.v1')) }; } catch { return NO_OVERLAY; }
   });
   const [markNote, setMarkNote] = useState<string | null>(null);
+  const markSelection = useRef(0);
   const [metadata, setMetadata] = useState<ExportMetadataOptions>({ ...NO_EXPORT_METADATA });
   const [sources, setSources] = useState<Record<string, HTMLImageElement>>({});
   const [proofChoice, setProofChoice] = useState<ProofChoice | null>(null);
@@ -708,20 +710,55 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   );
   const mark = overlay.watermark ?? NO_WATERMARK;
   useEffect(() => {
-    // The watermark is remembered for next time. A picture too big for storage is simply not remembered.
-    try { localStorage.setItem('kestrel.watermark.v1', JSON.stringify(mark)); } catch { /* storage full or blocked */ }
+    // Persist the *reference* only, not the watermark's picture bytes.
+    // Keep historic inline data intact until a successful migration.
+    if (mark.kind === 'image' && !mark.imageAssetId) return;
+    try { localStorage.setItem('kestrel.watermark.v1', JSON.stringify(watermarkForStorage(mark))); }
+    catch { /* The live photo/edit must never depend on preference storage. */ }
   }, [mark]);
+  useEffect(() => {
+    if (mark.kind !== 'image' || !mark.imageAssetId || mark.imageData) return;
+    let active = true;
+    void loadLocalWatermarkAsset(mark.imageAssetId).then(async blob => {
+      if (!blob) throw new Error('Watermark image not found.');
+      const imageData = await watermarkBlobDataUrl(blob);
+      if (active) setOverlay(previous => {
+        if (previous.watermark?.imageAssetId !== mark.imageAssetId || previous.watermark.imageData) return previous;
+        return { ...previous, watermark: { ...previous.watermark, imageData } };
+      });
+    }).catch(() => { if (active) setMarkNote(t.watermark.pictureMissing); });
+    return () => { active = false; };
+  }, [mark.kind, mark.imageAssetId, mark.imageData]);
+  useEffect(() => {
+    // One-time migration from old inline watermark preferences, offline only.
+    if (mark.kind !== 'image' || !mark.imageData || mark.imageAssetId) return;
+    let active = true;
+    void saveLocalWatermarkAsset(legacyWatermarkBlob(mark.imageData)).then(imageAssetId => {
+      if (active) setOverlay(previous => {
+        if (previous.watermark?.imageData !== mark.imageData || previous.watermark.imageAssetId) return previous;
+        return { ...previous, watermark: { ...previous.watermark, imageAssetId } };
+      });
+    }).catch(() => { if (active) setMarkNote(t.watermark.storageFailed); });
+    return () => { active = false; };
+  }, [mark.kind, mark.imageAssetId, mark.imageData]);
   const setMark = (change: Partial<WatermarkOptions>) => setOverlay((prior) => ({ ...prior, watermark: { ...(prior.watermark ?? NO_WATERMARK), ...change } }));
-  function chooseMarkPicture(file: File | undefined) {
+  async function chooseMarkPicture(file: File | undefined) {
     if (!file) return;
-    // Embedded SVG and arbitrary image MIME types are not safe portable watermark assets.
-    // Use decoded raster formats only until the private local asset vault is implemented.
+    const choice = ++markSelection.current;
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 3_000_000) {
       setMarkNote(t.watermark.pictureTooBig); return;
     }
-    const reader = new FileReader();
-    reader.onload = () => { setMarkNote(null); setMark({ kind: 'image', imageData: String(reader.result), on: true }); };
-    reader.readAsDataURL(file);
+    try {
+      // Save locally first; if permission/storage fails, keep the prior mark.
+      const [imageAssetId, imageData] = await Promise.all([
+        saveLocalWatermarkAsset(file), watermarkBlobDataUrl(file),
+      ]);
+      if (choice !== markSelection.current || cancelled.current) return;
+      setMarkNote(null);
+      setMark({ kind: 'image', imageAssetId, imageData, on: true });
+    } catch {
+      if (choice === markSelection.current && !cancelled.current) setMarkNote(t.watermark.storageFailed);
+    }
   }
   const watermarkBlock = (
     <fieldset className="space-y-2 rounded-lg border border-white/10 p-3">
@@ -890,7 +927,8 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
 
   const changeView = (next: 'wizard' | 'list') => { setView(next); try { localStorage.setItem('kestrel.exportView', next); } catch { /* Optional preference. */ } };
   const invalidDate = timestamp === 'custom' && !parseCustomExportDate(customDate);
-  const blocked = Boolean(customOn && customResult && 'error' in customResult) || invalidDate;
+  const blocked = Boolean(customOn && customResult && 'error' in customResult) || invalidDate ||
+    Boolean(mark.on && mark.kind === 'image' && !mark.imageData);
   const canShare = files.length > 0 && navigator.canShare?.({ files });
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-3 max-md:p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
