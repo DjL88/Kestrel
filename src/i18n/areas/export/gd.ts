@@ -183,6 +183,9 @@ export const gd: AreaTranslation<typeof source> = {
     placeholder: '© An t-ainm agad',
     pictureChosen: 'Dealbh air a thaghadh. Tagh fear eile airson a chur na àite.',
     pictureTooBig: 'Tagh dealbh nas lugha na 3 MB, PNG le cùlaibh follaiseach ma ghabhas.',
+    pictureMissing: "Chan eil an dealbh comharra-uisge seo ri fhaighinn air an inneal seo. Tagh a-rithist e mus às-phortaich thu.",
+    storageFailed: "Cha b’ urrainn dhuinn an dealbh seo a shàbhaladh gu prìobhaideach air an inneal. Cha deach an comharra-uisge roimhe atharrachadh.",
+    localOnly: "Tha dealbhan comharra-uisge air an cumail air an inneal seo. Cha ghlèidh ro-shuidheachadh ach iomradh ionadail.",
     position: 'Ionad',
     positions: {
       topLeft: 'Gu h-àrd air an taobh chlì',
