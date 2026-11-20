@@ -30,6 +30,42 @@ describe('independent cull ground truth', () => {
     expect(result.evaluated).toBe(3);
     expect(passesCullSafetyGate(result, 3)).toBe(false);
   });
+  it('separates explicit keeper recommendations from safe abstention', () => {
+    const result = evaluateCullGroundTruth(samples);
+    expect(result.automaticKeeperRecall).toBe(0.5);
+    expect(result.keeperRecall).toBe(1);
+    expect(result.falseKeeps).toBe(0);
+    expect(result.nonKeeperCount).toBe(2);
+    expect(result.falseKeepRate).toBe(0);
+  });
+  it('fails when an aircraft is automatically kept even without a bird misclassification', () => {
+    const changed = samples.map(frame => frame.id === 'helicopter-1'
+      ? { ...frame, suggestion: 'keep' as const } : frame);
+    const result = evaluateCullGroundTruth(changed);
+    expect(result.falseKeeps).toBe(1);
+    expect(result.aircraftLabelledBird).toBe(0);
+    expect(passesCullSafetyGate(result, 4)).toBe(false);
+  });
+  it('fails closed when an evaluation summary has missing or inconsistent counts', () => {
+    const valid = evaluateCullGroundTruth(samples);
+    expect(passesCullSafetyGate({ ...valid, total: valid.total + 1 }, 4)).toBe(false);
+    expect(passesCullSafetyGate({ ...valid, falseKeeps: 1 }, 4)).toBe(false);
+    expect(passesCullSafetyGate({ ...valid, automaticKeeperRecall: null }, 4)).toBe(false);
+  });
+  it('evaluates 500 deterministic synthetic frames without duplicate identity', () => {
+    const frames: LabelledCullFrame[] = Array.from({ length: 500 }, (_, i) => ({
+      id: `synthetic-${i}`,
+      truth: i % 5 === 0 ? 'keep' : 'reject',
+      subject: i % 5 === 0 ? 'bird' : i % 5 === 1 ? 'aircraft' : 'other',
+      predictedSubject: i % 5 === 0 ? 'bird' : i % 5 === 1 ? 'aircraft' : 'other',
+      suggestion: i % 5 === 0 ? 'review' : 'reject',
+    }));
+    const result = evaluateCullGroundTruth(frames);
+    expect(result).toMatchObject({ total: 500, evaluated: 500, keeperCount: 100, aircraftCount: 100, falseRejects: 0, falseKeeps: 0 });
+    expect(result.automaticKeeperRecall).toBe(0);
+    expect(passesCullSafetyGate(result, 500)).toBe(true);
+    expect(passesCullSafetyGate(evaluateCullGroundTruth([...frames, { ...frames[0] }]), 500)).toBe(false);
+  });
   it('rejects corrupt fixtures and empty denominators', () => {
     const result = evaluateCullGroundTruth([{ ...samples[0], id: '' }, { ...samples[0], suggestion: 'maybe' as never }]);
     expect(result.invalid).toBe(2);
