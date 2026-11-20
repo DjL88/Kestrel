@@ -1072,6 +1072,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             <fieldset disabled={progress !== null} className="min-w-0 space-y-3">
               <legend className="mb-1 text-sm font-medium text-zinc-100">{t.list.chooseFormats}</legend>
               {formatRow(formatById('master')!)}
+              {formatRow(formatById('before-after')!)}
               {PLATFORMS.map((platform) => {
                 const formats = EXPORT_FORMATS.filter((format) => format.platform === platform.id);
                 const count = formats.filter((format) => chosen.includes(format.id)).length;
