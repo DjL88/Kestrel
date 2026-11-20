@@ -216,6 +216,8 @@ export const source = {
     dragTitle: 'Drag to move the crop in any direction, double-click to reset',
     previewOf: (file: string, format: string) => `Preview of ${file} as ${format}`,
     drawing: 'Drawing…',
+    updating: 'Updating proof…',
+    waitingForPhoto: 'Loading the photo…',
     failed: 'Could not draw this preview',
     turn: (format: string) => `Turn ${format} on its side`,
     turnTitle: 'Turn the shape on its side. The photo is not rotated.',
