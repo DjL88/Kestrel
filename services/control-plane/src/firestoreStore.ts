@@ -199,6 +199,10 @@ export class FirestoreStore implements Store {
     const snap = await this.db.collection(C.activations).orderBy('lastSeenMs', 'desc').limit(limit).get();
     return snap.docs.map((d) => d.data() as unknown as ActivationRecord);
   }
+  async listActivationsForLicence(licenceId: string) {
+    const snap = await this.db.collection(C.activations).where('licenceId', '==', licenceId).get();
+    return snap.docs.map((d) => d.data() as unknown as ActivationRecord).sort((a, b) => b.lastSeenMs - a.lastSeenMs);
+  }
   async deactivateDevice(activationId: string): Promise<boolean> {
     return this.db.runTransaction(async (tx) => {
       const found = await tx.get(this.db.collection(C.activations).where('activationId', '==', activationId));

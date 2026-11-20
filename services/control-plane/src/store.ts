@@ -151,6 +151,8 @@ export interface Store {
   listLicences(limit: number): Promise<LicenceRecord[]>;
   /** Most recently seen first. */
   listActivations(limit: number): Promise<ActivationRecord[]>;
+  /** One licence's devices, most recently seen first. */
+  listActivationsForLicence(licenceId: string): Promise<ActivationRecord[]>;
   /** Frees the device's slot. False when there is no such activation. */
   deactivateDevice(activationId: string): Promise<boolean>;
 

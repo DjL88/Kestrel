@@ -6,6 +6,7 @@ import { removeLicence, saveLicence, useLicence } from '../providers/licenceStor
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
 import { BETA_ALL_FEATURES_OPEN } from '../providers/useAccess';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
+import { LicenceOnlineStatus } from './LicenceOnlineStatus';
 import { messages as m } from '../i18n/messages';
 import { projectsText as t } from '../i18n/areas/projects';
 
@@ -69,7 +70,7 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
           <section aria-labelledby="licence-h" className="space-y-3">
             <h3 id="licence-h" className="font-medium text-zinc-100">{t.licence.licenceKey}</h3>
             {licence.status === 'valid'
-              ? <p role="status">{t.licence.unlocked}</p>
+              ? <>{licence.access.pro && <p role="status">{t.licence.unlocked}</p>}<LicenceOnlineStatus licence={licence} /></>
               : <p>{t.licence.notUnlocked(BETA_ALL_FEATURES_OPEN)}</p>}
             {licence.status === 'invalid' && <p role="alert" className="text-amber-200">{licence.message}</p>}
             {licence.status !== 'valid' ? (
@@ -80,7 +81,7 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
                 <button type="submit" className={action} disabled={!key.trim()}>{t.licence.unlock}</button>
               </form>
             ) : (
-              <button type="button" className={action} onClick={() => { removeLicence(); setNote(null); }}>{t.licence.removeKey}</button>
+              <button type="button" className={action} onClick={() => { setNote(null); void removeLicence(); }}>{t.licence.removeKey}</button>
             )}
             {licence.status !== 'valid' && !isMobileShell() && (
               <a href="https://kestrel-hosting-kestrel.web.app/#pricing" target="_blank" rel="noopener noreferrer"
