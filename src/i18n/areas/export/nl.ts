@@ -6,7 +6,7 @@ import type { source } from './source';
 export const nl: AreaTranslation<typeof source> = {
   metadata: {
     title: "Bestandsmetadata (optioneel)",
-    include: "Bewerkbare metadata in JPEG / PNG opnemen",
+    include: "Bewerkbare metadata in JPEG / PNG / TIFF opnemen",
     privacy: "Standaard uit. Oorspronkelijke EXIF-, GPS-, serienummer- en locatiegegevens worden niet gekopieerd. Alleen gekozen informatie wordt als XMP opgeslagen.",
     photoTitle: "Fototitel / onderwerp",
     perPhoto: "Elke foto gebruikt het bevestigde onderwerp, tenzij je één gezamenlijke titel invult.",
