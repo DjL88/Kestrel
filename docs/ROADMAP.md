@@ -18,6 +18,10 @@ Every status uses exactly one of these labels:
 
 *Last reconciled: 18 November 2026, after the integration pass that merged #353–#361 and #364 and closed #362 and #363.*
 
+### 20 November 2026 — Review/Edit/Compare true-pixel zoom UI consistency
+
+**Code authored, prototype acceptance NOT RUN.** The common Review and Edit zoom bar now only offers 100% and 200% when the actual loaded image's pixel scale can be achieved; a smaller displayed photo cannot silently clamp an advertised 100% button to Fit. The controls use device pixel ratio, distinguish RAW camera/developed *preview* pixels from full RAW sensor pixels, and give localised reasons when the target cannot be reached. Compare retains its dedicated A/B 100% and 200% controls without a redundant corner zoom toggle. All full-language packs have translated the new tooltips; regression cases cover small images, zoom limits and high-DPI displays. **NOT RUN:** TypeScript, unit, Playwright, installed desktop/mobile or actual Z8/Z5II zoom checks. This is an implementation slice of #418 F2/Q-07, **not** sign-off of the full F2 dock/filmstrip acceptance gate.
+
 ### 20 November 2026 — consistent opt-in metadata for 16-bit TIFF (implementation)
 
 **Code authored, acceptance NOT RUN.** The main Export panel's privacy-first metadata controls from #604 now also feed the existing high-precision RAW-to-TIFF renderer. This reuses one per-photo XMP builder for JPEG, PNG and experimental 16-bit TIFF; metadata is off by default, confirmed subjects are eligible, rejected/unconfirmed AI guesses are omitted, and camera serial numbers, GPS and original EXIF are never silently copied. TIFF metadata writes do not resample 16-bit pixels or alter the embedded ICC data. English and full locale labels mention TIFF accurately. Regression coverage checks opting out and TIFF sample/ICC preservation, but is **NOT RUN** in this session. The older editor-only quick TIFF action remains a separate entry that saves without optional XMP; use the main Export panel when choosing file metadata. This integration does **not** finish colour fidelity, HE/HE* coverage, masked detail equivalence or prototype installation checks.

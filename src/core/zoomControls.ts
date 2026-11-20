@@ -16,6 +16,17 @@ export function maxZoomFor(fit: number, deviceRatio: number): number {
 /** The viewport zoom that shows this share of the photo's actual pixels. */
 export const zoomForPercent = (percent: number, fit: number, deviceRatio: number) => (percent / 100) / (fit * deviceRatio);
 
+/** A labelled pixel zoom must be achievable, never silently clamped to Fit.
+ * This is computed from the pixels of the *loaded image*; RAW camera previews
+ * must be identified as such in the UI rather than called sensor-quality.
+ */
+export function availablePixelZoom(percent: 100 | 200, fit: number, deviceRatio: number, maximum: number): number | null {
+  if (![fit, deviceRatio, maximum].every(Number.isFinite) ||
+      fit <= 0 || deviceRatio <= 0 || maximum < 1) return null;
+  const required = zoomForPercent(percent, fit, deviceRatio);
+  return Number.isFinite(required) && required >= 1 && required <= maximum ? required : null;
+}
+
 /** What share of actual pixels the current zoom shows, as a whole number. */
 export const percentFor = (zoom: number, fit: number, deviceRatio: number) => Math.round(zoom * fit * deviceRatio * 100);
 

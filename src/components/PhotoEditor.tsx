@@ -1100,7 +1100,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         <div className="flex items-center gap-1">
         {/* Zoom lives in the bottom bar with the photo navigation, in the same place as in culling (ZoomControls). */}
         {fit > 0 && (() => {
-          const controls = <ZoomControls zoom={transform.zoom} fit={fit} dpr={dpr} maxZoom={maxZoom} onZoom={zoomTo} note={eyeNote}
+          const controls = <ZoomControls previewPixels={isRaw} zoom={transform.zoom} fit={fit} dpr={dpr} maxZoom={maxZoom} onZoom={zoomTo} note={eyeNote}
             eye={{ onClick: () => void zoomToEye(), busy: findingEye, disabled: findingEye || sourceState !== 'ready', title: t.editor.eyeTitle }} />;
           return zoomSlot ? createPortal(controls, zoomSlot) : controls;
         })()}

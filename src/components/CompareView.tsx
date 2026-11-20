@@ -107,7 +107,7 @@ export function CompareView({
             fit: Math.min(bounds.width / img.naturalWidth, bounds.height / img.naturalHeight) });
         }
       }}>
-        <PhotoViewport base={<div data-compare-main className="h-full w-full">{photo(uniqueRight ? rightFrame : null)}</div>}
+        <PhotoViewport showZoomButton={false} base={<div data-compare-main className="h-full w-full">{photo(uniqueRight ? rightFrame : null)}</div>}
           overlay={photo(referenceValid ? leftFrame : null)} labels={['A', 'B']}
           zoom={zoomLevel} pan={panOffset} maxZoom={maxZoom} onTransform={onTransform} />
       </div>
