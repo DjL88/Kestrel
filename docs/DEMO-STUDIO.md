@@ -48,3 +48,35 @@ npm run build:site-editor and cross-platform Playwright/manual tests.
 Run Firestore emulator and real Cloud Run/GCS IAM/CORS/cleanup tests.
 Nothing above is claimed to have been deployed or executed by the assistant.
 The public photo samples are JPEG illustrations, not verified Kestrel NEF outputs.
+
+
+## Firebase rollout gate (20 November 2026)
+
+A passing source build does **not** mean the public website was updated.
+At the last read-only live check, the homepage was available but the editor
+iframe at \`/editor/demo-editor.html\` returned **404**; the deployed homepage
+did not yet show the new real-editor section. The admin HTML also loaded, which
+does not prove working OAuth, Firestore or Cloud Run authorisation.
+
+From a clean, checked-out commit in the repository root, after logging in to
+Firebase with the owner-authorised account:
+
+\`\`\`powershell
+npm ci
+npm run lint
+npm test
+./scripts/release/publish-gcp.ps1 -Project kestrel-hosting -Website
+\`\`\`
+
+The publishing script now builds the real editor, checks the generated HTML
+and JavaScript assets, deploys Hosting and then verifies the current homepage,
+editor and referenced assets over HTTPS. A missing editor **fails the release**
+rather than announcing success. For an alternative Hosting site pass
+\`-SiteUrl https://your-domain.example\`.
+
+Before calling Demo Studio ready, sign in as the permitted owner and confirm
+draft/save/publish/unpublish/delete against the live Cloud Run and Firestore
+service, using rights-cleared owner samples. The website GET check does not
+establish these authenticated backend operations. Record PASS/FAIL/NOT RUN
+against the same source commit and deployed build. Do not publish photo bytes,
+private paths or API keys through source control.
