@@ -10,7 +10,7 @@ const photos = (count: number) => plural(count, { one: `${count} ghrianghraf`, t
 export const ga: AreaTranslation<typeof source> = {
   metadata: {
     title: "Meiteashonraí comhaid (roghnach)",
-    include: "Cuir meiteashonraí in-eagarthóireachta i JPEG / PNG",
+    include: "Cuir meiteashonraí in-eagarthóireachta i JPEG / PNG / TIFF",
     privacy: "Múchta de réir réamhshocraithe. Ní chóipeáiltear EXIF bunaidh, GPS, sraithuimhreacha ná suíomh. Ní scríobhtar mar XMP ach an fhaisnéis a roghnaíonn tú.",
     photoTitle: "Teideal / ábhar an ghrianghraif",
     perPhoto: "Úsáideann gach grianghraf a ábhar dearbhaithe mura gcuireann tú teideal coiteann isteach.",
