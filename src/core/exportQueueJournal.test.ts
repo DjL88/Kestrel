@@ -72,3 +72,24 @@ test('rejects duplicate or mismatched completion receipts', () => {
   journal.receipt('batch_01', { index: 0, relativePath: 'Master/bird.tif', outputSha256: hash });
   assert.throws(() => journal.receipt('batch_01', { index: 0, relativePath: 'Master/bird.tif', outputSha256: hash }), /already recorded/);
 });
+
+test('rejects reserved Windows device names in either destination component', () => {
+  const { journal } = setup();
+  for (const filename of ['CON', 'con.tif', 'PRN.jpg', 'AUX', 'NUL.txt', 'COM1.tif', 'LPT9.png']) {
+    assert.throws(() => journal.save({ ...plan(), items: [{ ...item, filename }] }), /Unsafe/, filename);
+  }
+  assert.throws(() => journal.save({ ...plan(), items: [{ ...item, subfolder: 'CON' }] }), /Unsafe/);
+  assert.throws(() => journal.save({ ...plan(), items: [{ ...item, subfolder: 'LPT1.exports' }] }), /Unsafe/);
+});
+test('rejects non-normalised Unicode, trailing dot and control characters', () => {
+  const { journal } = setup();
+  for (const filename of ['e\\u0301.tif', 'bird. ', 'bird.', 'bird\\u007f.tif']) {
+    assert.throws(() => journal.save({ ...plan(), items: [{ ...item, filename }] }), /Unsafe/, filename);
+  }
+});
+test('rejects portable case-folded destination aliases before publication', () => {
+  const { journal } = setup();
+  assert.throws(() => journal.save({
+    ...plan(), items: [item, { ...item, sourceId: 'original-2', filename: 'BIRD.TIF', subfolder: 'master' }],
+  }), /collision/);
+});
