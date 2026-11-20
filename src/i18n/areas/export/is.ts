@@ -41,6 +41,7 @@ export const is: AreaTranslation<typeof source> = {
     loadFailed: "Ekki tókst að hlaða XMP. Veldu hliðarskrá þessarar myndar.",
   },
   sidecars: {
+    ready: "XMP-lýsigögn tilbúin. Upprunalegu myndirnar eru óbreyttar.",
     title: "XMP-hliðarskrár",
     save: "Vista XMP-skrár",
     help: "Vistaðu einkunnir, höfnun og staðfest leitarorð í sérskrám. Fleiri skrár vistast í ZIP-skrá. Sýnismyndum og sýndarafritum er sleppt.",

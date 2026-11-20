@@ -44,6 +44,7 @@ export const cy: AreaTranslation<typeof source> = {
     loadFailed: "Doedd dim modd llwytho XMP. Dewiswch y ffeil sy’n cyfateb i’r llun.",
   },
   sidecars: {
+    ready: "Paratowyd metadata XMP. Nid yw'r lluniau gwreiddiol wedi newid.",
     title: "Ffeiliau ategol XMP",
     save: "Cadw ffeiliau XMP",
     help: "Cadwch sgoriau, gwrthodiadau ac allweddeiriau wedi’u cadarnhau ar wahân. Cedwir sawl ffeil mewn ZIP. Hepgorir lluniau demo a chopïau rhithwir.",

@@ -41,6 +41,7 @@ export const da: AreaTranslation<typeof source> = {
     loadFailed: "Kunne ikke indlæse XMP. Vælg den sidefil, der hører til billedet.",
   },
   sidecars: {
+    ready: "XMP-metadata er klar. Originalfotos er uændrede.",
     title: "XMP-sidefiler",
     save: "Gem XMP-filer",
     help: "Gem bedømmelser, fravalg og bekræftede nøgleord separat. Flere filer gemmes i en ZIP. Demofotos og virtuelle kopier springes over.",
