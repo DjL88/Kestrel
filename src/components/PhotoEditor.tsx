@@ -874,7 +874,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       const staged = stageNaturalRecipe(analysis.data, analysis.width, analysis.height, savedEdit, proposal, segmentation);
       if (!stillCurrent()) return;
       const changed = staged.outcome === 'full' || staged.outcome === 'gentler';
-      const keptMask = changed && (staged.edit.masks?.length ?? 0) > (savedEdit.masks?.length ?? 0);
+      const keptMask = changed && usedMask && (staged.edit.masks?.length ?? 0) > (savedEdit.masks?.length ?? 0);
       setPendingAuto(changed ? { base: savedEdit, edit: staged.edit, cropKey, source: originalSource } : null);
       setPreviewRecipe(changed ? { edit: staged.edit, framing: frame.framing } : null);
       // Only describe adjustments that are actually offered. A rejected or neutral
