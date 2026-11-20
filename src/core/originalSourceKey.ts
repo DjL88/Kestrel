@@ -27,7 +27,13 @@ export function linkedPathIdentity(path: string): string {
   const leading = value.startsWith('//') ? '//' : value.startsWith('/') ? '/' : '';
   const body = value.slice(leading.length).replace(/\/+/g, '/');
   const lexical = (leading + body).replace(/\/$/, '').normalize('NFC');
-  return prefix + (isWindows ? lexical.toLowerCase() : lexical);
+  // Never fold directory names to lower case: modern Windows supports
+  // per-directory case sensitivity and a NAS may expose case-sensitive paths.
+  // Two distinct files must not collide merely because their names differ in case.
+  // Normalising slash direction is safe; resolving path aliases requires the OS.
+  return prefix + (isWindows && /^[a-zA-Z]:\//.test(lexical)
+    ? lexical[0].toUpperCase() + lexical.slice(1)
+    : lexical);
 }
 
 export function originalSourceKey(photo: OriginalKeySource): string {
