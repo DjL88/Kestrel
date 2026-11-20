@@ -17,16 +17,6 @@ export const fr: AreaTranslation<typeof source> = {
     keywords: "Mots-clés (séparés par des virgules ; vide = mots-clés confirmés)",
     help: "Les sujets confirmés peuvent remplir le titre et les mots-clés. Les suppositions non confirmées de l’IA ne sont jamais exportées. Ces informations sont dans le fichier, pas sur l’image.",
   },
-  originals: {
-    title: "Fichiers originaux de l’appareil",
-    action: (count: number) => count === 1 ? "Enregistrer le fichier original" : `Enregistrer ${count} fichiers originaux`,
-    background: (count: number) => count === 1 ? "Enregistrement du fichier original" : `Enregistrement de ${count} fichiers originaux`,
-    privacy: "Copie exacte du fichier original, avec son format et ses données EXIF/GPS. Les retouches, recadrages, filigranes et modifications des métadonnées d’export ne sont PAS appliqués. Le fichier source ne change pas.",
-    browserLimit: "Cette sélection est trop volumineuse pour être regroupée en toute sécurité dans ce navigateur. Utilisez l’application de bureau pour enregistrer les originaux un par un dans un dossier.",
-    browserLimitHelp: "Pour de gros lots RAW, l’application de bureau enregistre les fichiers un par un, sans créer un énorme ZIP en mémoire.",
-    unavailable: "Les photos de démonstration n’ont pas de fichier original à enregistrer.",
-    sourceMissing: "Le fichier original de l’appareil est indisponible. Reconnectez le disque ou le fichier source avant de le copier.",
-  },
   rawTiff: {
     action: "Exporter un TIFF RAW 16 bits (prototype)",
     details: "À propos du TIFF RAW 16 bits",
@@ -41,6 +31,7 @@ export const fr: AreaTranslation<typeof source> = {
     loadFailed: "Impossible de charger le XMP. Choisissez le fichier associé à cette photo.",
   },
   sidecars: {
+    ready: "Métadonnées XMP préparées. Les photos d’origine sont inchangées.",
     title: "Fichiers annexes XMP",
     save: "Enregistrer les fichiers XMP",
     help: "Enregistrez les notes, les rejets et les mots-clés confirmés séparément des photos. Plusieurs fichiers sont regroupés dans un ZIP. Les photos de démonstration et les copies virtuelles sont ignorées.",

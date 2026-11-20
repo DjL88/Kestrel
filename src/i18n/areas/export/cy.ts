@@ -20,16 +20,6 @@ export const cy: AreaTranslation<typeof source> = {
     keywords: "Allweddeiriau (wedi'u gwahanu gan gomâu; gwag = tagiau wedi'u cadarnhau)",
     help: "Gall pynciau wedi'u cadarnhau lenwi'r teitl a'r allweddeiriau. Ni chaiff dyfaliadau AI heb eu cadarnhau eu hallforio. Caiff y wybodaeth ei chadw yn y ffeil, nid ar y llun.",
   },
-  originals: {
-    title: "Ffeiliau gwreiddiol y camera",
-    action: (count: number) => count === 1 ? "Cadw'r ffeil wreiddiol" : `Cadw ${count} ffeil wreiddiol`,
-    background: (count: number) => count === 1 ? "Yn cadw ffeil wreiddiol y camera" : `Yn cadw ${count} ffeil wreiddiol y camera`,
-    privacy: "Copi union o'r ffeil wreiddiol, gan gynnwys ei fformat a'i data EXIF/GPS. NI chaiff golygiadau, cnydau, dyfrnodau na newidiadau i fetadata allforio eu cymhwyso. Ni newidir y ffeil ffynhonnell.",
-    browserLimit: "Mae'r dewis hwn yn rhy fawr i greu ZIP diogel yn y porwr hwn. Defnyddiwch yr ap bwrdd gwaith i gadw'r gwreiddiolion fesul un mewn ffolder.",
-    browserLimitHelp: "Ar gyfer nifer fawr o ffeiliau RAW, mae'r ap bwrdd gwaith yn cadw un ffeil ar y tro heb greu ZIP enfawr yn y cof.",
-    unavailable: "Nid oes ffeil camera wreiddiol gan luniau arddangos.",
-    sourceMissing: "Nid yw ffeil wreiddiol y camera ar gael. Ailgysylltwch y gyriant neu'r ffeil ffynhonnell cyn copïo.",
-  },
   rawTiff: {
     action: "Allforio TIFF RAW 16-did (prototeip)",
     details: "Ynglŷn â TIFF RAW 16-did",
@@ -44,6 +34,7 @@ export const cy: AreaTranslation<typeof source> = {
     loadFailed: "Doedd dim modd llwytho XMP. Dewiswch y ffeil sy’n cyfateb i’r llun.",
   },
   sidecars: {
+    ready: "Paratowyd metadata XMP. Nid yw'r lluniau gwreiddiol wedi newid.",
     title: "Ffeiliau ategol XMP",
     save: "Cadw ffeiliau XMP",
     help: "Cadwch sgoriau, gwrthodiadau ac allweddeiriau wedi’u cadarnhau ar wahân. Cedwir sawl ffeil mewn ZIP. Hepgorir lluniau demo a chopïau rhithwir.",

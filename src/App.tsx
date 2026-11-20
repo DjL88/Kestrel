@@ -1,4 +1,7 @@
-import { isDesktopApp } from './providers/desktopShell';
+import { isDesktopApp, isMobileShell, saveWithDialog } from './providers/desktopShell';
+import { downloadInBrowser } from './providers/browserExport';
+import { makeXmpDownload } from './core/xmpSidecars';
+import { exportText as exportT } from './i18n/areas/export';
 import { appText as t } from './i18n/areas/app';
 import { messages } from './i18n/messages';
 import { useOpenedFiles } from './providers/useOpenedFiles';
@@ -853,6 +856,33 @@ export default function App() {
     setToast(message);
     window.setTimeout(() => setToast((current) => (current === message ? '' : current)), 6000);
   };
+  const saveSelectedMetadata = async () => {
+    // Ratings, Keep/Reject and confirmed tags are portable XMP, not pixels or
+    // technical camera EXIF. This belongs in File, not the photo Export flow.
+    const output = makeXmpDownload(exportSelection);
+    if (!output) { showToast(exportT.sidecars.duplicate); return; }
+    try {
+      if (isMobileShell()) {
+        const shared = { files: [new File([output.blob], output.name, { type: output.blob.type })] };
+        if (navigator.canShare?.(shared)) {
+          await navigator.share(shared);
+        } else {
+          downloadInBrowser(output.blob, output.name);
+        }
+      } else if (isDesktopApp()) {
+        // Native file-save dialog is exclusive/no-overwrite and can be cancelled.
+        if (!await saveWithDialog(output.blob, output.name, true)) return;
+      } else {
+        // A browser download must start in the originating user gesture.
+        downloadInBrowser(output.blob, output.name);
+      }
+      showToast(exportT.sidecars.ready);
+    } catch (reason) {
+      // Cancelling a phone share does not mean the file or photo was changed.
+      if (reason instanceof Error && reason.name === 'AbortError') return;
+      showToast(exportT.panel.saveFailed);
+    }
+  };
 
   async function moveSelectionTo(targetId: string) {
     setMoveOpen(false);
@@ -1237,7 +1267,7 @@ export default function App() {
   // camera's JPEG. Continue the queue while reviewing or editing; the selected image has its own priority.
   useBackgroundDevelop({
     projectId: cullingState.shoot.id, frames: cullingState.frames, provider: previewProviderRef.current,
-    active: !loadingProgress, onScreen: cullingState.selectedFrameId,
+    active: !projectsOpen && !loadingProgress, onScreen: cullingState.selectedFrameId,
   });
 
   const jumpPhotoHistory = (frameId: string, cursor: number) => {
@@ -2136,6 +2166,7 @@ export default function App() {
         undoLabel={undoLabel(cullingState)}
         redoLabel={redoLabel(cullingState)}
         onExport={exportSelection.length ? () => setExportFrames(exportSelection) : undefined}
+        onSaveSidecars={exportSelection.some(frame => !frame.isDemo && !frame.virtualCopy) ? () => void saveSelectedMetadata() : undefined}
         exportLabel={exportSelection.length > 1 ? t.header.exportCount(exportSelection.length) : t.header.export}
         exportCount={exportSelection.length}
         showFilmstrip={prefs.showFilmstrip}
@@ -2388,16 +2419,6 @@ export default function App() {
                 const chosen = new Set(ids);
                 setExportFrames(cullingState.frames.filter((frame) => chosen.has(frame.id) && !frame.removedAt));
               }}
-              onAutoAdjustSelected={(ids) => {
-                setSelectedIds(new Set(ids));
-                setMultiSelect(true);
-                setAutoAdjustSelectedOpen(true);
-              }}
-              onApplyLookSelected={(ids) => {
-                setSelectedIds(new Set(ids));
-                setMultiSelect(true);
-                setSelectionLookOpen(true);
-              }}
             />
           )}
 
@@ -2521,7 +2542,7 @@ export default function App() {
                 <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs text-orange-200 hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setPendingAction({ kind: 'trash', frameIds: selectedVisibleFrames.map((frame) => frame.id) })}>{t.editorBar.trash}</button>
               </>}
-
+              <div id="viewer-zoom-slot" className="ml-auto flex shrink-0 items-center" />
             </div>
           )}
 
@@ -2557,6 +2578,7 @@ export default function App() {
       {/* Not in grid view, where every photo is already on screen. */}
       {!prefs.focusMode && visibleFrames.length > 0 && (editing || prefs.viewMode !== 'grid') && (
         <FilmstripDock expanded={prefs.showFilmstrip} onToggle={toggleFilmstrip}
+          onBeforeAfter={editing ? () => window.dispatchEvent(new Event('kestrel:toggle-before-after')) : undefined}
           onPhotoOnly={() => setPrefs((prev) => ({ ...prev, focusMode: true }))}>
             <Filmstrip
               onPhotoMenu={openPhotoMenu}

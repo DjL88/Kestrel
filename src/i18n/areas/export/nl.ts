@@ -17,16 +17,6 @@ export const nl: AreaTranslation<typeof source> = {
     keywords: "Trefwoorden (komma's; leeg = bevestigde tags)",
     help: "Bevestigde onderwerpen kunnen de titel en trefwoorden invullen. Onbevestigde AI-gissingen worden nooit geëxporteerd. Deze informatie staat in het bestand, niet op de foto.",
   },
-  originals: {
-    title: "Originele camerabestanden",
-    action: (count: number) => count === 1 ? "Origineel bestand opslaan" : `${count} originele bestanden opslaan`,
-    background: (count: number) => count === 1 ? "Camera-origineel opslaan" : `${count} camera-originelen opslaan`,
-    privacy: "Een exacte kopie van het originele bestand, inclusief formaat en EXIF-/GPS-gegevens. Bewerkingen, uitsneden, watermerken en exportmetadata worden NIET toegepast. Het bronbestand blijft ongewijzigd.",
-    browserLimit: "Deze selectie is te groot voor een veilige ZIP in deze browser. Gebruik de desktopapp om originelen één voor één in een map op te slaan.",
-    browserLimitHelp: "Voor grote RAW-selecties slaat de desktopapp bestanden één voor één op, zonder een enorme ZIP in het geheugen te maken.",
-    unavailable: "Demofoto’s hebben geen origineel camerabestand.",
-    sourceMissing: "Het originele camerabestand is niet beschikbaar. Sluit de schijf of het bronbestand opnieuw aan.",
-  },
   rawTiff: {
     action: "16-bits RAW-TIFF exporteren (prototype)",
     details: "Over 16-bits RAW-TIFF",
@@ -41,6 +31,7 @@ export const nl: AreaTranslation<typeof source> = {
     loadFailed: "XMP kon niet worden geladen. Kies het nevenbestand bij deze foto.",
   },
   sidecars: {
+    ready: "XMP-metagegevens voorbereid. De originele foto's zijn niet gewijzigd.",
     title: "XMP-nevenbestanden",
     save: "XMP-bestanden opslaan",
     help: "Sla beoordelingen, afwijzingen en bevestigde trefwoorden los van de foto’s op. Meerdere bestanden komen in een ZIP. Demofoto’s en virtuele kopieën worden overgeslagen.",
