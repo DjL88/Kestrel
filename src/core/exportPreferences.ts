@@ -32,3 +32,29 @@ export function readExportPreferences(storage: Pick<Storage, 'getItem'>): Export
   } catch { /* Optional preferences must not prevent opening Export. */ }
   return result;
 }
+
+export const EXPORT_PRESETS_KEY = 'kestrel.exportPresets.v1';
+export interface ExportPreset extends ExportPreferences {
+  name: string;
+  formats: string[];
+}
+
+export function readExportPresets(storage: Pick<Storage, 'getItem'>): ExportPreset[] {
+  try {
+    const saved: unknown = JSON.parse(storage.getItem(EXPORT_PRESETS_KEY) ?? 'null');
+    if (!Array.isArray(saved)) return [];
+    const names = new Set<string>();
+    const presets: ExportPreset[] = [];
+    for (const entry of saved.slice(0, 20)) {
+      if (!entry || typeof entry.name !== 'string' || !Array.isArray(entry.formats)) continue;
+      const name = entry.name.trim().slice(0, 40);
+      const formats = [...new Set<string>(entry.formats.filter((id: unknown) => typeof id === 'string' && formatById(id)))];
+      if (!name || !formats.length || names.has(name.toLowerCase())) continue;
+      names.add(name.toLowerCase());
+      presets.push({ ...readExportPreferences({ getItem: () => JSON.stringify(entry) }), name, formats });
+    }
+    return presets;
+  } catch {
+    return [];
+  }
+}
