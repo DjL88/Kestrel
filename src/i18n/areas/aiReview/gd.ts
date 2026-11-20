@@ -27,6 +27,7 @@ export const gd: AreaTranslation<typeof source> = {
   modelNeeded: 'Sgrìobh ainm a’ mhodail, mar a sheallas an solaraiche agad e.',
   baseUrl: 'Seòladh an AI',
   baseUrlHint: 'Mar eisimpleir http://localhost:11434/v1 airson Ollama.',
+  invalidBaseUrl: "Cleachd HTTPS airson AI iomallach, no http://localhost airson AI air a' choimpiutair seo. Na cuir iuchraichean san t-seòladh.",
   save: 'Sàbhail',
   consentTitle: 'Mus tèid dad a chur',
   consentCloud: (host) => `Cuiridh Kestrel lethbhreac dhen dealbh seo, 1,024 piogsail air an taobh as fhaide, gu ${host}. Chan eil an t-àite, fiosrachadh a’ chamara no ainm an fhaidhle na bhroinn. Dh’fhaodadh gun cuir an solaraiche agad cosgais ort airson gach ceist.`,
