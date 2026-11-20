@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** European Portuguese. DRAFT: written without a native speaker's check. */
 export const pt: AreaTranslation<typeof source> = {
+  presets: {
+    title: "Predefinições de exportação",
+    name: "Nome da predefinição",
+    save: "Guardar predefinição",
+    applied: (name: string) => `Aplicada: ${name}.`,
+    remove: (name: string) => `Remover a predefinição ${name}`,
+    removed: "Predefinição removida.",
+    duplicate: "Escolha outro nome.",
+    saved: "Predefinição guardada.",
+    saveFailed: "Não foi possível guardar as predefinições neste dispositivo.",
+    standardOnly: "As predefinições guardam formatos padrão.",
+  },
   proof: {
     title: "Prova de exportação",
     photo: "Foto",

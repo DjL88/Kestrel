@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** Dutch. DRAFT: written without a native speaker's check. */
 export const nl: AreaTranslation<typeof source> = {
+  presets: {
+    title: "Exportvoorinstellingen",
+    name: "Naam van voorinstelling",
+    save: "Voorinstelling opslaan",
+    applied: (name: string) => `${name} toegepast.`,
+    remove: (name: string) => `Voorinstelling ${name} verwijderen`,
+    removed: "Voorinstelling verwijderd.",
+    duplicate: "Kies een andere naam.",
+    saved: "Voorinstelling opgeslagen.",
+    saveFailed: "Exportvoorinstellingen konden niet worden opgeslagen op dit apparaat.",
+    standardOnly: "Voorinstellingen slaan standaardformaten op.",
+  },
   proof: {
     title: "Exportproef",
     photo: "Foto",

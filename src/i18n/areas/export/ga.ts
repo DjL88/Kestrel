@@ -8,6 +8,18 @@ const photos = (count: number) => plural(count, { one: `${count} ghrianghraf`, t
 
 /** Irish. DRAFT: written without a native speaker's check. */
 export const ga: AreaTranslation<typeof source> = {
+  presets: {
+    title: "Réamhshocruithe easpórtála",
+    name: "Ainm an réamhshocraithe",
+    save: "Sábháil an réamhshocrú",
+    applied: (name: string) => `Cuireadh ${name} i bhfeidhm.`,
+    remove: (name: string) => `Bain an réamhshocrú ${name}`,
+    removed: "Baineadh an réamhshocrú.",
+    duplicate: "Roghnaigh ainm eile.",
+    saved: "Sábháladh an réamhshocrú.",
+    saveFailed: "Níorbh fhéidir réamhshocruithe a shábháil ar an ngléas seo.",
+    standardOnly: "Sábhálann réamhshocruithe formáidí caighdeánacha.",
+  },
   proof: {
     title: "Profa easpórtála",
     photo: "Grianghraf",

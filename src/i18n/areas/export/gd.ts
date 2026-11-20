@@ -8,6 +8,18 @@ const photos = (count: number) => plural(count, { one: `${count} dealbh`, two: `
 
 /** Scottish Gaelic. DRAFT: written without a native speaker's check. */
 export const gd: AreaTranslation<typeof source> = {
+  presets: {
+    title: "Ro-shuidheachaidhean às-phortaidh",
+    name: "Ainm an ro-shuidheachaidh",
+    save: "Sàbhail an ro-shuidheachadh",
+    applied: (name: string) => `Chaidh ${name} a chur an sàs.`,
+    remove: (name: string) => `Thoir air falbh an ro-shuidheachadh ${name}`,
+    removed: "Chaidh an ro-shuidheachadh a thoirt air falbh.",
+    duplicate: "Tagh ainm eile.",
+    saved: "Chaidh an ro-shuidheachadh a shàbhaladh.",
+    saveFailed: "Cha b’ urrainn dhuinn ro-shuidheachaidhean a shàbhaladh air an uidheam seo.",
+    standardOnly: "Sàbhalaidh ro-shuidheachaidhean fòrmatan stannardach.",
+  },
   proof: {
     title: "Dearbhadh às-phortaidh",
     photo: "Dealbh",

@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** Norwegian Bokmål. DRAFT: written without a native speaker's check. */
 export const nb: AreaTranslation<typeof source> = {
+  presets: {
+    title: "Eksportforvalg",
+    name: "Navn på forvalg",
+    save: "Lagre forvalg",
+    applied: (name: string) => `${name} ble brukt.`,
+    remove: (name: string) => `Fjern forvalget ${name}`,
+    removed: "Forvalget ble fjernet.",
+    duplicate: "Velg et annet navn.",
+    saved: "Forvalget ble lagret.",
+    saveFailed: "Kunne ikke lagre eksportforvalg på denne enheten.",
+    standardOnly: "Forvalg lagrer standardformater.",
+  },
   proof: {
     title: "Eksportprøve",
     photo: "Bilde",
