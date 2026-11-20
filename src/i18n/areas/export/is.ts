@@ -125,6 +125,8 @@ export const is: AreaTranslation<typeof source> = {
     }),
   },
   custom: {
+    allowUpscale: "Stækka litlar myndir (hefðbundin stærðarbreyting)",
+    upscaleNote: "Þetta fjölgar pixlum en endurheimtir ekki upplýsingar sem vantar. Forskoðun sýnir skurðinn; skoðaðu smáatriðin í vistuðu skránni.",
     width: 'Breidd (px)',
     height: 'Hæð (px)',
     fit: 'Aðlögun',
