@@ -28,8 +28,8 @@ export interface MasterConsumptionAdapter<T> {
   discard(staged: T): Promise<void>;
 }
 export type ConsumptionResult =
-  | { ok: true }
-  | { ok: false; reason: 'unverified-master' | 'cancelled' | 'original-changed' | 'preparation-failed' | 'commit-failed' };
+  | { ok: true; cleanupFailed?: boolean }
+  | { ok: false; reason: 'unverified-master' | 'cancelled' | 'original-changed' | 'preparation-failed' | 'commit-failed'; cleanupFailed?: boolean };
 
 const SHA = /^[a-f0-9]{64}$/i;
 function matches(actual: OriginalIdentity, request: MasterRequest): boolean {
@@ -66,22 +66,34 @@ export async function consumeVerifiedMaster<T>(
   } catch {
     return { ok: false, reason: cancelled(signal) ? 'cancelled' : 'preparation-failed' };
   }
-  try {
-    if (cancelled(signal)) return { ok: false, reason: 'cancelled' };
+  // Preserve the publication result even when cleanup itself fails. In particular,
+  // a successfully published file must not be reported as a failed commit: a
+  // caller retrying that apparent failure could collide with its own output.
+  let result: ConsumptionResult;
+  if (cancelled(signal)) {
+    result = { ok: false, reason: 'cancelled' };
+  } else {
     try {
-      if (!matches(await adapter.readOriginalIdentity(signal), request)) return { ok: false, reason: 'original-changed' };
+      result = matches(await adapter.readOriginalIdentity(signal), request)
+        ? { ok: true }
+        : { ok: false, reason: 'original-changed' };
     } catch {
-      return { ok: false, reason: cancelled(signal) ? 'cancelled' : 'original-changed' };
+      result = { ok: false, reason: cancelled(signal) ? 'cancelled' : 'original-changed' };
     }
-    if (cancelled(signal)) return { ok: false, reason: 'cancelled' };
-    try {
-      await adapter.commit(staged, signal);
-      return { ok: true };
-    } catch {
-      return { ok: false, reason: 'commit-failed' };
+    if (cancelled(signal)) result = { ok: false, reason: 'cancelled' };
+    if (result.ok) {
+      try {
+        await adapter.commit(staged, signal);
+      } catch {
+        result = { ok: false, reason: 'commit-failed' };
+      }
     }
-  } finally {
-    // Adapter discard is idempotent, including after successful commit.
-    await adapter.discard(staged);
   }
+  try {
+    await adapter.discard(staged);
+  } catch {
+    // A cleanup error needs reporting, but cannot change whether commit ran.
+    return { ...result, cleanupFailed: true };
+  }
+  return result;
 }
