@@ -27,6 +27,7 @@ export const nb: AreaTranslation<typeof source> = {
   modelNeeded: 'Skriv navnet på modellen slik leverandøren din viser det.',
   baseUrl: 'Adressen til KI-en',
   baseUrlHint: 'For eksempel http://localhost:11434/v1 for Ollama.',
+  invalidBaseUrl: "Bruk HTTPS for ekstern KI eller http://localhost for KI på denne datamaskinen. Ikke legg nøkler i adressen.",
   save: 'Lagre',
   consentTitle: 'Før noe blir sendt',
   consentCloud: (host) => `Kestrel sender en kopi av dette bildet, 1 024 piksler på den lengste siden, til ${host}. Den inneholder ikke stedet, kameraopplysninger eller filnavnet. Leverandøren din kan ta betalt for hvert spørsmål.`,
