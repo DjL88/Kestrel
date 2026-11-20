@@ -45,6 +45,7 @@ import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 
 import { FIT_VIEW, type ViewportTransform } from '../core/viewportTransform';
+import { WIDE_WORKSPACE_QUERY } from '../core/workspaceLayout';
 import { beforeSnapshot, type ComparisonStage } from '../core/compareStages';
 import { resolveKeyboardCommand, type KeyBindingsMap } from '../core/keyboardCommands';
 import { visiblePhotoDetail } from '../core/visiblePhotoDetail';
@@ -220,7 +221,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [previewRecipe, setPreviewRecipe] = useState<{ edit?: PhotoEdit; framing?: PhotoFraming } | null>(null);
   const cropEntry = useRef<PhotoFraming | null>(null);
   const panelScroll = useRef<HTMLDivElement>(null);
-  const isPhone = !useMediaQuery('(min-width: 900px) and (min-height: 550px), (min-width: 840px) and (min-height: 440px) and (max-height: 549px)');
+  const isPhone = !useMediaQuery(WIDE_WORKSPACE_QUERY);
   const [undockedTools, setUndockedTools] = useState(() => {
     try { return window.localStorage.getItem('kestrel-tools-undocked-v1') === 'true'; } catch { return false; }
   });
