@@ -20,7 +20,7 @@ import { parseUsage, recordUse, remainingToday } from '../core/dailyAllowance';
 import { parseCustomExportDate } from '../core/exportDateInput';
 import { exportMayContinue } from '../core/exportCancellation';
 import { parseWatermark } from '../core/watermarkStore';
-import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, type WatermarkOptions } from '../core/watermark';
+import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, WATERMARK_FONTS, type WatermarkOptions } from '../core/watermark';
 import { NO_OVERLAY, overlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { exportFilename } from '../core/exportProfiles';
 import { SocialIcon } from './SocialIcon';
@@ -477,8 +477,16 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
             </select>
           </label>
           {mark.kind === 'text' && (
+            <label className="block text-sm text-zinc-300">Watermark font
+              <select className={field} value={mark.font ?? 'inter'} onChange={(event) => setMark({ font: event.target.value as WatermarkOptions['font'] })}>
+                {WATERMARK_FONTS.map((font) => <option key={font.id} value={font.id}>{font.label}</option>)}
+              </select>
+            </label>
+          )}
+          {mark.kind === 'text' && (
             <label className="block text-sm text-zinc-300">{t.watermark.colour}
               <select className={field} value={mark.tone} onChange={(event) => setMark({ tone: event.target.value as WatermarkOptions['tone'] })}>
+                <option value="auto">Automatic · best contrast</option>
                 <option value="light">{t.watermark.white}</option><option value="dark">{t.watermark.black}</option>
               </select>
             </label>
