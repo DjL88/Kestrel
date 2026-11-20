@@ -62,8 +62,6 @@ export function planOriginalRelink(
   const hashedOriginalCount = new Map<string, number>();
   const hashedCandidateCount = new Map<string, number>();
   const hashedCandidateBySignature = new Map<string, CandidateOriginal>();
-  // Files another saved photo also points at, even when that photo's own match is ambiguous.
-  const contested = new Set<string>();
 
   for (const original of originals) {
     idCount.set(original.id, (idCount.get(original.id) ?? 0) + 1);
@@ -128,8 +126,6 @@ export function planOriginalRelink(
       continue;
     }
     if (count !== 1 || originalCount.get(key) !== 1) {
-      const claimed = candidateBySignature.get(key);
-      if (claimed) contested.add(normalizedPath(claimed.path));
       ambiguous.push(original.id);
       continue;
     }
@@ -149,14 +145,9 @@ export function planOriginalRelink(
   }
   const safeMatches: RelinkMatch[] = [];
   for (const match of matches) {
-    const path = normalizedPath(match.path);
-    // Fail closed: a file two saved photos point at is left for the person to choose.
-    if ((pathUses.get(path) ?? 0) > 1 || contested.has(path)) ambiguous.push(match.id);
+    if ((pathUses.get(normalizedPath(match.path)) ?? 0) > 1) ambiguous.push(match.id);
     else safeMatches.push(match);
   }
-  // Report undecided photos in catalogue order, so the list reads the same as the library.
-  const order = new Map(originals.map((original, index) => [original.id, index] as const));
-  ambiguous.sort((x, y) => (order.get(x) ?? 0) - (order.get(y) ?? 0));
   return { matches: safeMatches, unresolved, ambiguous };
 }
 

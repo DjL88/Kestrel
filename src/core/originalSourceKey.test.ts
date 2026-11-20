@@ -29,6 +29,13 @@ test('Windows slash differences and drive-letter case preserve identity without 
   assert.equal(uncA, uncB);
   assert.notEqual(linkedPathIdentity('//NAS/Photos/Bird.NEF'), linkedPathIdentity('//NAS/Photos/bird.NEF'),
     'a case-sensitive NAS may contain distinct originals');
+test('Windows path slash/case changes do not create a duplicate original', () => {
+  const a = originalSourceKey({ ...photo, path: 'D:\\Birds\\_DSC0001.NEF' });
+  const b = originalSourceKey({ ...photo, path: 'd:/birds/_dsc0001.nef' });
+  assert.equal(a, b);
+  const uncA = linkedPathIdentity('\\\\NAS\\Photos\\Birds\\bird.NEF');
+  const uncB = linkedPathIdentity('//nas/photos/birds/bird.nef');
+  assert.equal(uncA, uncB);
 });
 
 test('case-sensitive Unix paths do not silently alias different originals', () => {

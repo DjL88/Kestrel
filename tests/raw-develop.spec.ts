@@ -58,22 +58,14 @@ const openEdit = async (page: import('@playwright/test').Page) => {
   if (await all.isVisible()) await all.click();
 };
 
-/** Since #504 a RAW is never re-rendered behind the person's back: the camera preview stays until they ask. */
-async function develop(page: import('@playwright/test').Page) {
-  await page.getByRole('button', { name: 'Develop from RAW' }).click({ timeout: 20000 });
-}
-
-test('a RAW keeps the camera preview until asked, then develops to full quality', async ({ page }) => {
+test('a RAW file develops to full quality automatically, no click required', async ({ page }) => {
   await asDesktop(page, 'works');
   await openEdit(page);
-  await expect(page.getByText('You are viewing the camera preview', { exact: false })).toBeVisible({ timeout: 20000 });
-  expect(await page.evaluate(() => (window as unknown as { __developCalls: number }).__developCalls)).toBe(0);
-  await develop(page);
   // The embedded preview makes the editor usable immediately - nothing to wait on. Not asserted as a visible
   // state here: a mocked "works" decode can resolve in well under one assertion poll, so the transient text is
   // not reliably observable and isn't what this test is checking anyway (see 'outside the desktop app' below).
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible({ timeout: 20000 });
-  // ...then swaps in the full decode the person asked for.
+  // ...then silently swaps in the full decode, with no "Develop from RAW" click from the person.
   await expect(page.getByText('Developed from the RAW file')).toBeVisible({ timeout: 30000 });
   await expect(page.getByText('Developed from the RAW file')).toContainText('8-bit JPEG');
   expect(await page.evaluate(() => (window as unknown as { __developCalls: number }).__developCalls)).toBe(1);
@@ -93,7 +85,6 @@ test('there is no RAW options menu or experimental TIFF button, and no retry unt
 test('when a RAW cannot be developed automatically, the person is told and can retry by hand', async ({ page }) => {
   await asDesktop(page, 'fails');
   await openEdit(page);
-  await develop(page);
   await expect(page.getByRole('status').filter({ hasText: 'unsupported compression' })).toContainText('keeps using the preview stored in the file', { timeout: 20000 });
   await expect(page.getByText("You're editing the quick preview", { exact: false })).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { __developCalls: number }).__developCalls)).toBe(1);
@@ -107,7 +98,6 @@ test('in the web app a RAW the decoder cannot read behaves as on desktop: honest
   // The web app develops RAW files with the same pipeline compiled to WebAssembly. This test file is only a TIFF
   // wrapper round a JPEG, with no sensor data, so development fails and the embedded preview is kept, as on desktop.
   await openEdit(page);
-  await develop(page);
   await expect(page.getByRole('status').filter({ hasText: 'keeps using the preview stored in the file' })).toBeVisible({ timeout: 60000 });
   await expect(page.getByText("You're editing the quick preview", { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Develop from RAW' })).toBeEnabled();
@@ -118,7 +108,6 @@ test('in the web app a RAW the decoder cannot read behaves as on desktop: honest
 test('unreadable native output never replaces the working RAW preview', async ({ page }) => {
   await asDesktop(page, 'corrupt');
   await openEdit(page);
-  await develop(page);
   await expect(page.getByRole('status').filter({ hasText: 'developed RAW picture could not be opened' })).toContainText('keeps using the preview stored in the file', { timeout: 20000 });
   await expect(page.getByText("You're editing the quick preview", { exact: false })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
@@ -127,7 +116,6 @@ test('unreadable native output never replaces the working RAW preview', async ({
 test('a developed picture that comes out sideways is turned to match the camera preview', async ({ page }) => {
   await asDesktop(page, 'sideways');
   await openEdit(page);
-  await develop(page);
   await expect(page.getByText('Developed from the RAW file')).toBeVisible({ timeout: 30000 });
   const shape = await page.evaluate(async () => {
     const blobs = (window as unknown as { __blobs: Blob[] }).__blobs.filter((b) => b.type === 'image/jpeg');

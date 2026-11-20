@@ -331,10 +331,6 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
   - **Engineering gates:** bounded-memory tiled/overlap implementation suitable for 45 MP Z8 and phones; deterministic seams, cancellation, accurate output dimensions, proper ICC/EXIF treatment, identical photo framing/crop, and full-resolution 16-bit TIFF plus JPEG parity without 8-bit round trips for the TIFF. Confirm originals byte-identical and that no upscale happens implicitly. Test Windows/Mac/web/phone using identical source and recipe before marking VERIFIED.
 
 
-### Hosting on Google Cloud (owner request, 20 Nov; lifted from the P3 freeze for files only)
-- **Phase 1, written, not deployed:** `infra/gcp/` (Terraform): a public models bucket with a signed manifest, a downloads bucket with `latest.json` and SHA-256 sums, the website on Firebase Hosting, Secret Manager for the manifest signing key, a publisher service account and a budget alert. `scripts/release/sign-data-manifest.ts` and `publish-gcp.ps1` publish. The website reads `latest.json` first and falls back to GitHub releases. Verified: a manifest signed by the script is accepted by the app's `openSignedDataManifest` and refused with a wrong key or after a one-byte change. NOT RUN: `terraform validate/plan/apply` (no Terraform or gcloud on the coordinator PC); nothing provisioned, which needs the owner's GCP project and go-ahead.
-- **Next:** the app fetches `manifest/stable.json` from the models bucket (nothing calls `modelDelivery.ts` yet) and pins the public key; then phase 2 (control plane on Cloud Run with Cloud SQL, after the PostgreSQL adapter).
-
 ### P3: Frozen until P1.1 lands (see "Image first" above)
 - A metadata-only serialiser and local sync outbox, with synthetic tests of conflict-safe sync between two devices. (Gates carried over from the closed #363: originals and previews never upload; a licence isn't an account or a key; local writing works with the network off.)
 - Control plane: deployment, app sign-in, choosing the managed transport, storing grants for `useAccess`, a PostgreSQL adapter.
@@ -347,8 +343,6 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
 - Signed installers, real-device acceptance on each platform, licensing, support, and an accessibility audit.
 
 ## 4. Integration log
-
-**One coordinator merges (owner decision, 20 Nov).** The Windows laptop session coordinates integration. Other sessions (Mac, scheduled workers, AI Studio) push their own branch and open a PR, and **do not merge to `main`, push to another session's branch, or switch the main checkout's branch.** Before starting work, pull `main`; push at least after every commit. The coordinator runs the checks, merges, and writes the line below. Why: on 20 Nov two sessions merged the same branches in parallel and left `main` unable to build (#505–#507, repaired in the next PR).
 
 | Date | Merged | Closed | Local evidence |
 | --- | --- | --- | --- |

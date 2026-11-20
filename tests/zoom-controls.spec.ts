@@ -58,13 +58,13 @@ test('the zoom group has a slider and the photo itself has no second, floating z
   await expect(page.getByRole('button', { name: 'Fit photo' })).toHaveCount(0);
 });
 
-test('turning Before/After on keeps the zoom, so detail can be compared where you are looking (owner, K.4)', async ({ page }) => {
+test('turning Before/After on always shows the whole photo, even if it was left zoomed in', async ({ page }) => {
   await project(page);
   await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
   const zoom = page.getByRole('group', { name: 'Zoom' });
   await zoom.getByRole('button', { name: '200%' }).click();
   await expect(zoom.getByLabel('Zoom level')).toHaveText('200%');
   await page.getByRole('button', { name: 'Before / After' }).click();
-  // Before/After compares the same place at the same zoom; it never jumps back to the whole photo.
-  await expect(zoom.getByLabel('Zoom level')).toHaveText('200%');
+  // Comparing should start from the full photo, not wherever the previous zoom happened to be panned to.
+  await expect(zoom.getByLabel('Zoom level')).not.toHaveText('200%');
 });
