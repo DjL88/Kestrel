@@ -5,6 +5,7 @@ import type { FocusPoint } from '../core/exportFraming';
 import type { PhotoFrame } from '../core/types';
 import type { OverlayOptions } from '../core/exportOverlay';
 import { ExportPreviewTile } from './ExportPreviewTile';
+import { chooseExportDestination, exportDestinationFormats } from '../core/exportWizardChoice';
 import { SocialIcon } from './SocialIcon';
 import { exportText as t } from '../i18n/areas/export';
 import { formatLabel, shapeName, sizeName } from '../i18n/areas/export/labels';
@@ -83,10 +84,26 @@ export function ExportWizard(props: Props) {
 
   useEffect(() => { if (step === 'size' && platform === 'custom') props.onCustomOn(true); }, [step, platform]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const countFor = (id: string) => id === 'master' ? Number(chosen.includes('master')) : id === 'before-after' ? Number(chosen.includes('before-after')) : id === 'custom' ? Number(props.customOn)
+  const countFor = (id: string) => id === 'master' ? Number(chosen.includes('master')) : id === 'full-jpeg' ? Number(chosen.includes('full-jpeg')) : id === 'before-after' ? Number(chosen.includes('before-after')) : id === 'custom' ? Number(props.customOn)
     : EXPORT_FORMATS.filter((format) => format.platform === id && chosen.includes(format.id)).length;
-  const choices = platform === 'master' ? [formatById('master')!] : platform === 'before-after' ? [formatById('before-after')!] : EXPORT_FORMATS.filter((format) => format.platform === platform);
-  const platformName = platform === 'master' ? t.formats.fullSize : platform === 'before-after' ? t.formats.beforeAfter : platform === 'custom' ? t.formats.customSize : PLATFORMS.find((entry) => entry.id === platform)?.label ?? '';
+  const choices = exportDestinationFormats(platform);
+  const platformName = platform === 'master' ? t.formats.fullSize : platform === 'full-jpeg' ? t.formats.fullJpeg : platform === 'before-after' ? t.formats.beforeAfter : platform === 'custom' ? t.formats.customSize : PLATFORMS.find((entry) => entry.id === platform)?.label ?? '';
+
+  const pickDestination = (id: string) => {
+    setPlatform(id);
+    const choice = chooseExportDestination(id);
+    if (choice.selectedFormat) {
+      if (!chosen.includes(choice.selectedFormat)) props.onToggle(choice.selectedFormat, true);
+      if (choice.page === 'position') {
+        const nextFormats = [
+          ...positionable.filter((item) => item.id !== choice.selectedFormat),
+          formatById(choice.selectedFormat)!,
+        ].sort((a, b) => order(a) - order(b));
+        setIndex(Math.max(0, nextFormats.findIndex((item) => item.id === choice.selectedFormat)));
+      }
+    }
+    setStep(choice.page);
+  };
 
   const next = () => {
     if (step === 'platform') return setStep('size');
@@ -119,10 +136,10 @@ export function ExportWizard(props: Props) {
           <section aria-label={t.wizard.where} className="space-y-2">
             <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-zinc-100">{t.wizard.where}</h3>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {[{ id: 'master', label: t.formats.fullSize }, { id: 'before-after', label: t.formats.beforeAfter }, ...PLATFORMS, { id: 'custom', label: t.formats.customSize }].map((entry) => (
-                <button key={entry.id} type="button" aria-pressed={platform === entry.id} onClick={() => { setPlatform(entry.id); setStep('size'); }}
+              {[{ id: 'master', label: t.formats.fullSize }, { id: 'full-jpeg', label: t.formats.fullJpeg }, { id: 'before-after', label: t.formats.beforeAfter }, ...PLATFORMS, { id: 'custom', label: t.formats.customSize }].map((entry) => (
+                <button key={entry.id} type="button" aria-pressed={platform === entry.id} onClick={() => pickDestination(entry.id)}
                   className="relative flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg border border-white/12 bg-white/5 px-2 text-sm text-zinc-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 aria-pressed:border-sky-300">
-                  {entry.id === 'master' || entry.id === 'custom' || entry.id === 'before-after' ? <ShapeGlyph width={entry.id === 'master' ? 4 : entry.id === 'before-after' ? 2 : 1} height={entry.id === 'master' ? 3 : 1} /> : <SocialIcon id={entry.id as never} className="h-6 w-6" />}
+                  {entry.id === 'master' || entry.id === 'full-jpeg' || entry.id === 'custom' || entry.id === 'before-after' ? <ShapeGlyph width={entry.id === 'master' ? 4 : entry.id === 'before-after' ? 2 : 1} height={entry.id === 'master' ? 3 : 1} /> : <SocialIcon id={entry.id as never} className="h-6 w-6" />}
                   {entry.label}
                   {countFor(entry.id) > 0 && <span className="absolute right-1.5 top-1.5 rounded-full bg-sky-300/25 px-1.5 text-xs text-sky-100">{countFor(entry.id)}</span>}
                 </button>
