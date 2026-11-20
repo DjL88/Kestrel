@@ -125,6 +125,8 @@ export const source = {
     }),
   },
   custom: {
+    allowUpscale: 'Enlarge small photos (ordinary resizing)',
+    upscaleNote: 'This increases pixel dimensions but cannot restore missing detail. The preview shows the crop; check the saved file for fine detail.',
     width: 'Width (px)',
     height: 'Height (px)',
     fit: 'Fit',
