@@ -29,11 +29,16 @@ test('900px tablet view never covers the photo with default Photo Info; editor r
   await expect(page.locator('aside[aria-label="Photo info"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
   await expect(page.getByRole('region', { name: 'Photo editor' })).toBeVisible();
-  await page.locator('header').getByRole('button', { name: 'Photo info' }).click();
+  // Edit no longer has a duplicate Info button in its header.
+  // All show/hide controls live inside View and closing Photo Info returns focus there.
+  const viewMenu = page.locator('header summary[aria-label="View · show or hide"]');
+  await viewMenu.click();
+  await page.getByRole('checkbox', { name: 'Photo info' }).check();
   await expect(page.locator('aside[aria-label="Photo info"]')).toBeVisible();
   await page.getByRole('button', { name: 'Close photo info' }).click();
   await expect(page.locator('aside[aria-label="Photo info"]')).toHaveCount(0);
-  await expect(page.locator('header').getByRole('button', { name: 'Photo info' })).toBeFocused();
+  await expect(viewMenu).toBeFocused();
+  await expect(page.getByRole('button', { name: /Keep bird-at-window.png/ })).toBeVisible();
 });
 
 test('detached Photo Info and Editing Tools can be focused independently without hiding Settings', async ({ page }) => {
