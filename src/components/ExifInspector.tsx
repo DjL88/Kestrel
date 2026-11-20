@@ -93,8 +93,8 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
         if (!await saveWithDialog(file, filename, true)) return;
       } else if (isMobileShell()) {
         const share = { files: [new File([file], filename, { type: file.type })] };
-        if (!navigator.canShare?.(share)) throw new Error('This device cannot share XMP files.');
-        await navigator.share(share);
+        if (navigator.canShare?.(share)) await navigator.share(share);
+        else downloadInBrowser(file, filename);
       } else {
         downloadInBrowser(file, filename);
       }
@@ -146,7 +146,14 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
         : 'sm:right-2 sm:left-auto info-dock:border-l'}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">{m.photoInfo.title}</h2>
+        <div className="flex min-w-0 items-center gap-1">
+          <h2 className="text-sm font-semibold">{m.photoInfo.title}</h2>
+          <button type="button" onClick={() => void copyInfo()} title={m.photoInfo.copyHint}
+            aria-label={m.photoInfo.copy} data-testid="copy-photo-details"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-md text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+            <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
         {!floating && <button data-info-undock type="button" onClick={() => detach(true)} title={libraryT.floatingPane.undockInfoHelp}
           aria-label={libraryT.floatingPane.undockInfo} className="hidden h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 info-dock:grid">
           <PanelTopOpen className="h-4 w-4" aria-hidden="true"/>
@@ -169,28 +176,6 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
       </div>
       <div id="photo-panel-info" role="tabpanel" aria-labelledby="photo-tab-info" hidden={activeTab !== 'info'}>
       <p className="mt-3 break-words text-sm text-zinc-200">{frame.filename}</p>
-      <button type="button" onClick={() => void copyInfo()} title={m.photoInfo.copyHint}
-        className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-md border border-white/15 px-3 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">
-        <ClipboardCopy className="h-4 w-4" aria-hidden="true" />{m.photoInfo.copy}
-      </button>
-      {!frame.isDemo && (!isMobileShell() || typeof navigator.share === 'function') && (
-        <button type="button" onClick={() => void saveSidecar()} disabled={sidecarBusy}
-          className="ml-2 mt-2 inline-flex min-h-11 items-center gap-2 rounded-md border border-white/15 px-3 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
-          <Download className="h-4 w-4" aria-hidden="true" />{exportText.sidecar.save}
-        </button>
-      )}
-      {!frame.isDemo && <>
-        <input ref={sidecarInput} type="file" accept=".xmp,application/rdf+xml" hidden onChange={event => {
-          const file = event.currentTarget.files?.[0];
-          event.currentTarget.value = '';
-          if (file) void importSidecar(file);
-        }} />
-        <button type="button" onClick={() => sidecarInput.current?.click()} disabled={sidecarBusy}
-          className="ml-2 mt-2 inline-flex min-h-11 items-center rounded-md border border-white/15 px-3 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
-          {exportText.sidecar.load}
-        </button>
-      </>}
-      {sidecarStatus?.id === frame.id && <p role="status" className="mt-1 text-xs text-zinc-300">{sidecarStatus.message}</p>}
       {copyStatus && <p role="status" className="mt-1 text-xs text-zinc-300">{copyStatus}</p>}
       {exif.formatLabel && <p className="mt-1 text-xs text-zinc-400">{exif.formatLabel}</p>}
       {frame.burstGroupId && <p className="mt-1 text-xs text-zinc-400">{m.photoInfo.burst(String(frame.burstIndex ?? 0), String(frame.burstCount ?? 0))}</p>}
@@ -246,6 +231,28 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
           ))}
         </div>
       </div>
+      {!frame.isDemo && (
+        <section aria-label={exportText.sidecar.save} className="mt-3 border-t border-white/10 pt-3">
+          <input ref={sidecarInput} type="file" accept=".xmp,application/rdf+xml" hidden
+            onChange={event => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = '';
+              if (file) void importSidecar(file);
+            }} />
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => void saveSidecar()} disabled={sidecarBusy}
+              className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-md border border-white/15 px-2 py-2 text-center text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
+              <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>{exportText.sidecar.save}</span>
+            </button>
+            <button type="button" onClick={() => sidecarInput.current?.click()} disabled={sidecarBusy}
+              className="inline-flex min-h-11 min-w-0 items-center justify-center rounded-md border border-white/15 px-2 py-2 text-center text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
+              {exportText.sidecar.load}
+            </button>
+          </div>
+          {sidecarStatus?.id === frame.id && <p role="status" className="mt-2 text-xs text-zinc-300">{sidecarStatus.message}</p>}
+        </section>
+      )}
       </div>
 
     </aside>
