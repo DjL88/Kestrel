@@ -60,6 +60,7 @@ export const source = {
   },
   /** Names of the export formats. The shape ("4:5") and sizes are passed in. */
   formats: {
+    beforeAfter: 'Before and after · side by side',
     fullSize: 'Full size',
     customSize: 'Custom size',
     master: 'Full size · PNG',
@@ -76,6 +77,7 @@ export const source = {
     originalSize: 'Original size',
     size: (width: number, height: number) => `${width} × ${height} px`,
   },
+  comparison: { before: 'Before', after: 'After' },
   proof: {
     title: 'Export proof',
     photo: 'Photo',
