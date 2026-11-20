@@ -245,6 +245,11 @@ export const source = {
     adjustmentsCopied: 'Adjustments copied',
   },
   auto: {
+    howItWorks: "How suggestions work",
+    moreChanges: "Other adjustments",
+    subjectMaskAdded: "A separate adjustment is applied to the subject.",
+    adjustUp: (label: string) => `Increase ${label.toLowerCase()} slightly.`,
+    adjustDown: (label: string) => `Reduce ${label.toLowerCase()} slightly.`,
     paidTitle: 'The Auto tab',
     paidBody: 'Automatic colour and tone adjustments and local editing advice are here.',
     suggestTitle: 'Preview an offline suggested recipe and check its quality before applying',
