@@ -38,9 +38,9 @@ export function photoMenuItems(state: PhotoMenuState): PhotoMenuItem[] {
   const items: PhotoMenuItem[] = [
     { action: 'edit', label: 'Edit photo', group: 0, disabled: many },
     { action: 'info', label: 'Photo info', group: 0, disabled: many },
-    { action: 'keep', label: `Keep${plural(state.count)}`, group: 1, disabled: state.decision === 'keep' && !many },
-    { action: 'trash', label: `Move to Trash${plural(state.count)}`, group: 1, disabled: state.decision === 'reject' && !many },
-    { action: 'unreview', label: `Back to review${plural(state.count)}`, group: 1, disabled: state.decision === 'unreviewed' && !many },
+    { action: 'keep', label: `Pick${plural(state.count)}`, group: 1, disabled: state.decision === 'keep' && !many },
+    { action: 'trash', label: `Reject${plural(state.count)}`, group: 1, disabled: state.decision === 'reject' && !many },
+    { action: 'unreview', label: `Unmark${plural(state.count)}`, group: 1, disabled: state.decision === 'unreviewed' && !many },
     ...([1, 2, 3, 4, 5] as const).map((stars) => ({ action: `rate${stars}` as PhotoAction, label: `Rate ${stars} star${stars > 1 ? 's' : ''}${plural(state.count)}`, group: 2, inline: true })),
     { action: 'rate0', label: `Clear rating${plural(state.count)}`, group: 2 },
     { action: 'copy', label: 'Copy adjustments', group: 3, disabled: many || !state.hasEdit },
@@ -50,7 +50,7 @@ export function photoMenuItems(state: PhotoMenuState): PhotoMenuItem[] {
     { action: 'duplicate', label: 'Duplicate (virtual copy)', group: 3, disabled: many },
     { action: 'export', label: `Export${plural(state.count)}…`, group: 4 },
   ];
-  // Removing from the library only applies to photos already in the Trash.
+  // Removing from the library only applies to photos already rejected. Rejecting itself never removes a photo.
   if (state.decision === 'reject') items.push({ action: 'remove', label: `Remove from library${plural(state.count)}`, group: 4 });
   return items;
 }

@@ -30,7 +30,7 @@ export interface PhotoInfoLabels {
 /** British English, the default. */
 export const PHOTO_INFO_LABELS: PhotoInfoLabels = {
   file: 'File', camera: 'Camera', lens: 'Lens', focalLength: 'Focal length', aperture: 'Aperture', shutter: 'Shutter',
-  iso: 'ISO', captured: 'Captured', dimensions: 'Dimensions', rating: 'Rating', decision: 'Decision', keep: 'Keep', reject: 'Reject',
+  iso: 'ISO', captured: 'Captured', dimensions: 'Dimensions', rating: 'Rating', decision: 'Decision', keep: 'Pick', reject: 'Reject',
 };
 
 /** Plain-text camera details only: no GPS, serial numbers, file paths or photos. */

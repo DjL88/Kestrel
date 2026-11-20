@@ -8,7 +8,7 @@ export const source = {
   compare: {
     noPhotoSelected: 'No photo selected',
     region: 'Compare photos',
-    regionHelp: 'Click a photo to focus this comparison. Left and Right select photo B. K keeps B, X rejects B, U clears B. Tab moves through controls.',
+    regionHelp: 'Click a photo to focus this comparison. Left and Right select photo B. K or P picks B, X rejects B, U unmarks B. Tab moves through controls.',
     referenceGone: 'Reference photo A is no longer in this review. Return to Review and select a new reference before comparing or making decisions.',
     chooseB: 'Choose another photo to compare with A.',
     chooseFirstB: 'Choose the next photo',
@@ -32,13 +32,13 @@ export const source = {
     swap: 'Swap photos A and B',
     decisionsFor: (side: string) => `Decisions for photo ${side}`,
     /** Accessible names. Shown on screen with the first letter in capitals. */
-    keepPhoto: (side: string) => `keep photo ${side}`,
+    keepPhoto: (side: string) => `pick photo ${side}`,
     rejectPhoto: (side: string) => `reject photo ${side}`,
     /** Button words. Shown on screen with the first letter in capitals. */
-    keepSide: (side: string) => `keep ${side}`,
+    keepSide: (side: string) => `pick ${side}`,
     rejectSide: (side: string) => `reject ${side}`,
-    clearDecisionFor: (side: string) => `Clear decision for photo ${side}`,
-    clearSide: (side: string) => `Clear ${side}`,
+    clearDecisionFor: (side: string) => `Unmark photo ${side}`,
+    clearSide: (side: string) => `Unmark ${side}`,
     finish: 'Finish comparing photos',
     done: 'Done',
   },
@@ -105,15 +105,15 @@ export const source = {
     },
     speciesNote: 'Species matches are suggestions, not proof of an animal. Choose Wildlife above to allow automatic species tags; aircraft and other subjects will not be given bird names automatically.',
     applyToSelected: (count: number) => plural(count, {
-      one: `Apply ratings and flags to ${count} selected photo`,
-      other: `Apply ratings and flags to ${count} selected photos`,
+      one: `Apply ratings and decisions to ${count} selected photo`,
+      other: `Apply ratings and decisions to ${count} selected photos`,
     }),
     starRating: (rating: number) => `Star rating, ${rating} of 5`,
     rateStars: (star: number) => `Rate ${star} of 5 stars`,
     clearStars: 'Clear stars',
-    photoFlag: 'Photo flag',
+    photoFlag: 'Photo decision',
     /** Shown with the first letter in capitals. */
-    flags: { unreviewed: 'Unflagged', keep: 'keep', reject: 'reject' },
+    flags: { unreviewed: 'Unmarked', keep: 'pick', reject: 'reject' },
     /** The text put on the clipboard by Copy photo details. */
     copyText: {
       file: 'File',
@@ -127,7 +127,7 @@ export const source = {
       dimensions: 'Dimensions',
       rating: 'Rating',
       decision: 'Decision',
-      keep: 'Keep',
+      keep: 'Pick',
       reject: 'Reject',
     },
   },

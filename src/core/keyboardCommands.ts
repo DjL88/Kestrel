@@ -44,9 +44,9 @@ export const CULL_COMMANDS: CommandDefinition[] = [
   {
     id: 'cull.keep',
     mode: 'cull',
-    label: 'Keep',
-    shortLabel: 'Keep',
-    description: 'Mark active frame as Keep',
+    label: 'Pick',
+    shortLabel: 'Pick',
+    description: 'Mark the photo as Pick (also P)',
     padSlot: 'K1',
     allowRepeat: false,
   },
@@ -55,7 +55,7 @@ export const CULL_COMMANDS: CommandDefinition[] = [
     mode: 'cull',
     label: 'Reject',
     shortLabel: 'Reject',
-    description: 'Mark active frame as Reject (reversible)',
+    description: 'Mark the photo as Reject (reversible; never deletes)',
     padSlot: 'K2',
     allowRepeat: false,
   },
@@ -116,9 +116,9 @@ export const CULL_COMMANDS: CommandDefinition[] = [
   {
     id: 'cull.unreviewed',
     mode: 'cull',
-    label: 'Clear Decision',
-    shortLabel: 'Clear',
-    description: 'Reset active frame to Unreviewed',
+    label: 'Unmark',
+    shortLabel: 'Unmark',
+    description: 'Return the photo to Unmarked',
     allowRepeat: false,
   },
   {
@@ -239,6 +239,14 @@ export const DEFAULT_KEY_BINDINGS: KeyBindingsMap = {
   'edit.prevControl': 'KeyQ',
   'edit.knobCcw': 'Minus',
   'edit.knobCw': 'Equal',
+};
+
+/**
+ * Extra keys that also run a command, beside its own binding. P matches the word on the button (Pick) while K keeps
+ * working for people used to it. An alias never overrides a key the person has bound to another command.
+ */
+export const KEY_ALIASES: Partial<Record<CommandId, readonly string[]>> = {
+  'cull.keep': ['KeyP'],
 };
 
 export interface KeyEventLike {
@@ -403,7 +411,10 @@ export function resolveKeyboardCommand({
   const commands = activeMode === 'cull' ? CULL_COMMANDS : EDIT_COMMANDS;
   // A remapped chord shared by two commands is ambiguous: do not silently
   // execute whichever command happens to appear first in the list.
-  const matches = commands.filter((cmd) => bindings[cmd.id] === chord);
+  let matches = commands.filter((cmd) => bindings[cmd.id] === chord);
+  // A built-in alias (P for Pick) only applies while no command in this mode is bound to that chord,
+  // so a remapped key always wins over the alias.
+  if (matches.length === 0) matches = commands.filter((cmd) => KEY_ALIASES[cmd.id]?.includes(chord));
   if (matches.length !== 1) return null;
   const matched = matches[0];
 

@@ -37,18 +37,18 @@ export const source = {
   wizard: {
     projectName: 'Project name',
     summary: (target: number | null, autoCull: boolean, autoEdit: boolean) =>
-      `Keeper target: ${target ?? 'invalid'}. Auto-cull ${autoCull ? 'on' : 'off'}. Auto-edit ${autoEdit ? 'on' : 'off'}.`,
+      `Target number of picks: ${target ?? 'invalid'}. Auto-cull ${autoCull ? 'on' : 'off'}. Auto-edit ${autoEdit ? 'on' : 'off'}.`,
     options: 'Project options',
-    targetIntro: 'Kestrel shows progress toward this number as you choose keepers. You can change it later.',
+    targetIntro: 'Kestrel shows progress toward this number as you choose picks. You can change it later.',
     commonTargets: 'Common targets',
     typeNumber: 'Or type a number',
     targetInvalid: 'Enter a whole number from 1 to 9999.',
     aimFor: (count: number) => plural(count, { one: `Aim for ${count} photo.`, other: `Aim for ${count} photos.` }),
     autoIntro: 'Everything runs on this device. Nothing is deleted, and you can turn these off later in Workspace options.',
     autoCull: 'Auto-cull',
-    autoCullHint: 'After import, a cancellable local task reviews your photos while you browse. High-confidence keepers and exact duplicates are sorted automatically; uncertain photos stay for review. Originals are untouched.',
+    autoCullHint: 'After import, a cancellable local task reviews your photos while you browse. High-confidence picks and exact duplicates are sorted automatically; uncertain photos stay Unmarked for you. Originals are untouched.',
     autoEdit: 'Auto-edit',
-    autoEditHint: 'After culling, untouched keepers receive a conservative starting edit automatically when the preview passes quality checks. Your own edits and crops are never overwritten; more suggestions stay behind Auto → Suggest a look.',
+    autoEditHint: 'After culling, untouched picks receive a conservative starting edit automatically when the preview passes quality checks. Your own edits and crops are never overwritten; more suggestions stay behind Auto → Suggest a look.',
     create: 'Create project',
   },
   addPhotos: {

@@ -32,7 +32,8 @@ export function resolveCompareKey(
   switch (event.key.toLowerCase()) {
     case 'arrowleft': return canPrevious ? { kind: 'previous' } : null;
     case 'arrowright': return canNext ? { kind: 'next' } : null;
-    case 'k': return rightDecision === null ? null : { kind: 'decision', decision: toggleCompareDecision(rightDecision, 'keep') };
+    case 'k':
+    case 'p': return rightDecision === null ? null : { kind: 'decision', decision: toggleCompareDecision(rightDecision, 'keep') };
     case 'x': return rightDecision === null ? null : { kind: 'decision', decision: toggleCompareDecision(rightDecision, 'reject') };
     case 'u': return rightDecision === null ? null : { kind: 'decision', decision: 'unreviewed' };
     default: return null;
