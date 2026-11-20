@@ -12,7 +12,7 @@ export const source = {
   top: {
     xmpImport: "Import ratings and tags (XMP)…",
     xmpImportHelp: "Read matching XMP files or a Kestrel XMP ZIP into selected photos only. Original files are never modified.",
-    xmpImported: (count: number) => `Imported XMP for ${count} selected photos.`,
+    xmpImported: (count: number) => `Imported XMP for ${count} selected ${count === 1 ? 'photo' : 'photos'}.`,
     xmpImportKeeper: "An XMP would reject a photo you marked Keep. Review that photo individually in Photo Info.",
     xmpImportFailed: "Could not import XMP. Check matching filenames, duplicate RAW/JPEG basenames and file safety.",
     xmpSidecars: "Save ratings and tags (XMP)…",
