@@ -344,6 +344,8 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
 
 ## 4. Integration log
 
+**One coordinator merges (owner decision, 20 Nov).** The Windows laptop session coordinates integration. Other sessions (Mac, scheduled workers, AI Studio) push their own branch and open a PR, and **do not merge to `main`, push to another session's branch, or switch the main checkout's branch.** Before starting work, pull `main`; push at least after every commit. The coordinator runs the checks, merges, and writes the line below. Why: on 20 Nov two sessions merged the same branches in parallel and left `main` unable to build (#505–#507, repaired in the next PR).
+
 | Date | Merged | Closed | Local evidence |
 | --- | --- | --- | --- |
 | 19 Nov 2026 (colour-safe decisions) | this PR (✓ Kept / ✕ Rejected in tile footers, tick boxes while selecting, ✓ and bold on chosen flags in Photo info and Compare: J.1, J.2, part of J.3) | | Windows 11: tsc PASS; `npm test` 1039 PASS, 1 skipped; build PASS; Playwright (desktop + phone) 290 PASS, 3 FAIL (the same load-timing three: `task-manager` stop/restart ×2, `auto-cull-500-to-20`; 3/3 PASS alone, 1 skipped by design); new `decision-marks.spec.ts` PASS. Installed app: NOT RUN. |
