@@ -33,7 +33,7 @@ test('review selection survives the complete Edit → Review return journey', as
   await expect(first.getByTestId('tile-selected')).toBeVisible();
   await expect(second.getByTestId('tile-selected')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Edit selected', exact: true }).first().click();
   await expect(page.getByRole('region', { name: 'Photo editor' })).toBeVisible();
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(first.getByTestId('tile-selected')).toBeVisible();
