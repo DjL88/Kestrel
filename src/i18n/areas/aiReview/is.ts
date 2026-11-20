@@ -27,6 +27,7 @@ export const is: AreaTranslation<typeof source> = {
   modelNeeded: 'Sláðu inn heiti líkansins eins og þjónustuaðilinn þinn sýnir það.',
   baseUrl: 'Vistfang gervigreindarinnar',
   baseUrlHint: 'Til dæmis http://localhost:11434/v1 fyrir Ollama.',
+  invalidBaseUrl: "Notaðu HTTPS fyrir fjartengt gervigreindarlíkan eða http://localhost fyrir líkan á þessari tölvu. Ekki setja lykla í vistfangið.",
   save: 'Vista',
   consentTitle: 'Áður en nokkuð er sent',
   consentCloud: (host) => `Kestrel sendir afrit af þessari mynd, 1.024 dílar á lengstu hliðinni, til ${host}. Það inniheldur hvorki staðsetningu, upplýsingar um myndavélina né skráarheitið. Þjónustuaðilinn þinn gæti rukkað þig fyrir hverja spurningu.`,
