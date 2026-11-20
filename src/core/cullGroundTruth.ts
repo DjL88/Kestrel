@@ -25,6 +25,12 @@ export interface CullEvaluation {
   keeperRecall: number | null;
   falseRejects: number;
   falseRejectRate: number | null;
+  /** Keepers explicitly recommended Keep; Review is not counted as an automatic success. */
+  automaticKeeperRecall: number | null;
+  /** Non-keepers incorrectly recommended Keep. */
+  falseKeeps: number;
+  nonKeeperCount: number;
+  falseKeepRate: number | null;
   aircraftLabelledBird: number;
   aircraftCount: number;
   aircraftBirdConfusionRate: number | null;
@@ -46,6 +52,7 @@ export function evaluateCullGroundTruth(frames: readonly LabelledCullFrame[]): C
   let evaluated = 0, invalid = 0, abstained = 0, proposedKeep = 0;
   let proposedReject = 0, keeperCount = 0, keptKeepers = 0;
   let falseRejects = 0, aircraftCount = 0, aircraftLabelledBird = 0;
+  let automaticKeptKeepers = 0, nonKeeperCount = 0, falseKeeps = 0;
   frames.forEach((frame, index) => {
     if (!frame || typeof frame.id !== 'string' || !frame.id.trim() ||
       counts.get(frame.id) !== 1 ||
@@ -61,7 +68,12 @@ export function evaluateCullGroundTruth(frames: readonly LabelledCullFrame[]): C
     if (frame.truth === 'keep') {
       keeperCount++;
       if (frame.suggestion !== 'reject') keptKeepers++;
+      if (frame.suggestion === 'keep') automaticKeptKeepers++;
       else falseRejects++;
+    }
+    if (frame.truth === 'reject') {
+      nonKeeperCount++;
+      if (frame.suggestion === 'keep') falseKeeps++;
     }
     if (frame.suggestion === 'review') abstained++;
     if (frame.suggestion === 'keep') proposedKeep++;
@@ -78,6 +90,9 @@ export function evaluateCullGroundTruth(frames: readonly LabelledCullFrame[]): C
     keeperRecall: keeperCount ? keptKeepers / keeperCount : null,
     falseRejects,
     falseRejectRate: keeperCount ? falseRejects / keeperCount : null,
+    automaticKeeperRecall: keeperCount ? automaticKeptKeepers / keeperCount : null,
+    falseKeeps, nonKeeperCount,
+    falseKeepRate: nonKeeperCount ? falseKeeps / nonKeeperCount : null,
     aircraftLabelledBird, aircraftCount,
     aircraftBirdConfusionRate: aircraftCount ? aircraftLabelledBird / aircraftCount : null,
     errors,
@@ -92,7 +107,12 @@ export function passesCullSafetyGate(
   return Number.isInteger(minimumEvaluated) && minimumEvaluated > 0 &&
     Number.isFinite(maximumFalseRejectRate) &&
     maximumFalseRejectRate >= 0 && maximumFalseRejectRate <= 1 &&
-    evaluation.invalid === 0 && evaluation.evaluated >= minimumEvaluated &&
+    evaluation.invalid === 0 && evaluation.total === evaluation.evaluated &&
+    evaluation.evaluated >= minimumEvaluated &&
+    evaluation.nonKeeperCount > 0 && evaluation.falseKeeps === 0 &&
+    evaluation.falseKeepRate === 0 &&
+    evaluation.automaticKeeperRecall !== null &&
+    evaluation.automaticKeeperRecall >= 0 && evaluation.automaticKeeperRecall <= 1 &&
     evaluation.keeperCount > 0 && evaluation.aircraftCount > 0 &&
     evaluation.falseRejectRate !== null &&
     evaluation.falseRejectRate <= maximumFalseRejectRate &&
