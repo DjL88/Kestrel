@@ -48,7 +48,7 @@ test('zoom and pan survive switching from single-photo review to editing and bac
   await page.mouse.down();
   await page.mouse.move(bounds!.x + bounds!.width / 2 + 45, bounds!.y + bounds!.height / 2 + 28, { steps: 4 });
   await page.mouse.up();
-  await expect.poll(async () => transform.getAttribute('style')).toMatch(/translate\\([^)]*[1-9][0-9]*px/);
+  await expect.poll(async () => transform.getAttribute('style')).toMatch(/translate\([^)]*[1-9][0-9]*px/);
 
   const before = await transform.getAttribute('style');
   await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
