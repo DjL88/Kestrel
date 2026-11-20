@@ -51,6 +51,7 @@ export const cy: AreaTranslation<typeof source> = {
     saveFailed: "Doedd dim modd cadw’r rhagosodiadau ar y ddyfais hon.",
     standardOnly: "Mae rhagosodiadau’n cadw fformatau safonol.",
   },
+  comparison: { before: "Cyn", after: "Ar ôl" },
   proof: {
     title: "Prawf allforio",
     photo: "Llun",
@@ -75,6 +76,7 @@ export const cy: AreaTranslation<typeof source> = {
     blur: 'Copi aneglur o’r llun',
   },
   formats: {
+    beforeAfter: "Cyn ac ar ôl · ochr yn ochr",
     fullSize: 'Maint llawn',
     customSize: 'Maint personol',
     master: 'Maint llawn · PNG',
