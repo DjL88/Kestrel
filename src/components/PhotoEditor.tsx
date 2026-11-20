@@ -836,6 +836,14 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source]);
 
+  // The compact Before/After control sits alongside the filmstrip's full-screen
+  // buttons, never in a second large editing toolbar.
+  useEffect(() => {
+    const toggle = () => setCompare((value) => !value);
+    window.addEventListener('kestrel:toggle-before-after', toggle);
+    return () => window.removeEventListener('kestrel:toggle-before-after', toggle);
+  }, []);
+
   // Alt (Option) + scroll wheel changes the selected dial control, for scroll tools and macro pads.
   const wheelState = useRef({ edit, dial, onEdit });
   wheelState.current = { edit, dial, onEdit };
@@ -1070,13 +1078,6 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           </button>
           <button type="button" className={`${button} inline-flex items-center`} aria-label={m.redo} title={t.editor.redoTitle(MOD)} disabled={!frame.editHistory || frame.editHistory.cursor >= frame.editHistory.steps.length} onClick={() => onHistoryStep(1)}>
             <Redo2 className="h-4 w-4" aria-hidden="true" /><span className="sr-only sm:not-sr-only sm:ml-1.5">{m.redo}</span>
-          </button>
-          <button type="button" aria-pressed={displayCompare} disabled={sourceState !== 'ready' || guide} onClick={() => setCompare(!compare)}
-            title={t.editor.compareTitle}
-            className={`${button} inline-flex items-center gap-1.5 border border-white/15 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/20 aria-pressed:text-sky-100`}>
-            <Columns2 className="h-4 w-4" aria-hidden="true" />
-            <span className="max-[420px]:sr-only">{t.editor.beforeAfter}</span>
-            <span className="rounded bg-black/40 px-1.5 text-xs max-[420px]:sr-only">{displayCompare ? t.editor.on : t.editor.off}</span>
           </button>
           {displayCompare && (
             <label className="min-w-0">
