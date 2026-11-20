@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArchiveRestore, ArrowLeft, Columns2, Download, Ellipsis, Grid3X3, Image as ImageIcon, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Trash2, Undo2 } from 'lucide-react';
+import { ArchiveRestore, ArrowLeft, Columns2, Download, Ellipsis, Grid3X3, Image as ImageIcon, Eraser, FileDown, FolderInput, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Trash2, Undo2 } from 'lucide-react';
 import type { ProjectSettings } from '../core/projectSettings';
 import { isDesktopApp } from '../providers/desktopShell';
 import { messages as m } from '../i18n/messages';
@@ -227,15 +227,55 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   </label>
                 </section>
 
-                <MenuSection id="menu-file" title="File">
-                  <MenuItem wide icon={<Plus className="h-4 w-4" aria-hidden="true" />} disabled={props.actionsDisabled || props.addDisabled} onClick={() => choose(props.onOpenShootModal, false)}>Add photos…</MenuItem>
-                  <MenuItem wide icon={<Download className="h-4 w-4" aria-hidden="true" />} disabled={!props.onExport} onClick={() => choose(() => props.onExport?.(), false)}>Export selected photos…</MenuItem>
+                <MenuSection id="menu-file" title={t.top.file}>
+                  <MenuItem wide icon={<Plus className="h-4 w-4" aria-hidden="true" />} disabled={props.actionsDisabled || props.addDisabled} onClick={() => choose(props.onOpenShootModal, false)}>{t.top.addPhotos}…</MenuItem>
+                  <MenuItem wide icon={<Download className="h-4 w-4" aria-hidden="true" />} disabled={!props.onExport} onClick={() => choose(() => props.onExport?.(), false)}>{t.top.exportTitle}…</MenuItem>
                 </MenuSection>
-                <MenuSection id="menu-edit-photo" title="Edit">
-                  <MenuItem wide icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!onEditPhoto} onClick={() => choose(() => onEditPhoto?.(), false)}>Edit photo</MenuItem>
-                  <MenuItem wide icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!props.onAutoAdjustKeepers} onClick={() => choose(() => props.onAutoAdjustKeepers?.(), false)}>Auto-adjust</MenuItem>
-                  <MenuItem wide icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!props.onBatchLook} onClick={() => choose(() => props.onBatchLook?.(), false)}>Apply look</MenuItem>
+                <MenuSection id="menu-edit-photo" title={t.top.edit}>
+                  <MenuItem wide icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!onEditPhoto} onClick={() => choose(() => onEditPhoto?.(), false)}>{t.top.edit}</MenuItem>
+                  <MenuItem wide icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!props.onAutoAdjustKeepers} onClick={() => choose(() => props.onAutoAdjustKeepers?.(), false)}>{t.top.autoAdjust}</MenuItem>
+                  <MenuItem wide icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!props.onBatchLook} onClick={() => choose(() => props.onBatchLook?.(), false)}>{t.top.applyRecipe}</MenuItem>
                 </MenuSection>
+                <details className="border-t border-white/10 pt-1">
+                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-zinc-200">{t.top.viewLayout}</summary>
+                  <button type="button" onClick={() => choose(() => window.dispatchEvent(new Event('kestrel:toggle-burst-group')))}
+                    className="flex min-h-10 w-full items-center rounded-md px-2 text-left text-sm text-zinc-100 hover:bg-white/10">
+                    {t.top.groupBursts}
+                  </button>
+                  <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
+                    <input type="checkbox" checked={props.showFilmstrip} onChange={props.onToggleFilmstrip} />
+                    {t.top.showFilmstrip}
+                  </label>
+                  <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
+                    <input type="checkbox" checked={showPhotoInfo} onChange={props.onTogglePhotoInfo} />
+                    {t.top.photoInfo}
+                  </label>
+                  {props.onTogglePanes && <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
+                    <input type="checkbox" checked={props.panesCollapsed ?? false} onChange={props.onTogglePanes} />
+                    {t.top.foldPanes}
+                  </label>}
+                  <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
+                    <input type="checkbox" checked={props.focusMode} onChange={props.onToggleFocusMode} />
+                    {t.top.photoOnly}
+                  </label>
+                  <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
+                    <input type="checkbox" checked={showShortcutsOverlay} onChange={props.onToggleShortcutsOverlay} />
+                    {t.top.showShortcutGuide}
+                  </label>
+                  {props.onHandChange && <div role="group" aria-label={t.top.panelPosition} className="mb-2 flex flex-wrap items-center gap-2 text-sm text-zinc-200">
+                    <span>{t.top.panels}</span>
+                    <button type="button" aria-pressed={props.hand === 'left'} onClick={() => props.onHandChange?.('left')} className="rounded-md border border-white/15 px-3 py-2 aria-pressed:bg-sky-300/20">{t.top.left}</button>
+                    <button type="button" aria-pressed={props.hand !== 'left'} onClick={() => props.onHandChange?.('right')} className="rounded-md border border-white/15 px-3 py-2 aria-pressed:bg-sky-300/20">{t.top.right}</button>
+                  </div>}
+                  {props.onOpenSettings && <button type="button" onClick={() => choose(props.onOpenSettings!)}
+                    className="flex min-h-11 w-full items-center gap-2 rounded-md border border-white/15 px-3 text-left text-sm text-zinc-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+                    {m.settings.title}
+                  </button>}
+                  {isDesktopApp() && <button type="button" onClick={() => choose(props.onOpenMacroPadModal, false)}
+                    className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-zinc-200 hover:bg-white/10">
+                    <Keyboard className="h-4 w-4" aria-hidden="true" />{t.top.macroPad}
+                  </button>}
+                </details>
                 <MenuSection id="menu-history" title={t.top.undoAndRedo}>
                   <MenuItem wide icon={<Undo2 className="h-4 w-4" aria-hidden="true" />} disabled={!props.onUndo}
                     onClick={() => choose(() => props.onUndo?.())}>{props.undoLabel ? t.top.undoAction(props.undoLabel) : t.top.nothingToUndo}</MenuItem>
@@ -250,7 +290,6 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   <MenuItem icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} disabled={!props.onMoveToProject} onClick={() => choose(() => props.onMoveToProject?.(), false)}>{t.top.moveToProject}</MenuItem>
                   <MenuItem icon={<Trash2 className="h-4 w-4" aria-hidden="true" />} disabled={!props.onRemoveFromLibrary} onClick={() => choose(() => props.onRemoveFromLibrary?.(), false)}>{t.top.removeFromLibrary}</MenuItem>
                   <MenuItem icon={<ArchiveRestore className="h-4 w-4" aria-hidden="true" />} disabled={!props.onOpenRemoved} onClick={() => choose(() => props.onOpenRemoved?.(), false)}>{t.top.removedPhotos(props.removedCount ?? 0)}</MenuItem>
-                  <MenuItem icon={<Info className="h-4 w-4" aria-hidden="true" />} pressed={showPhotoInfo} onClick={() => choose(props.onTogglePhotoInfo)}>{showPhotoInfo ? t.top.hidePhotoInfo : t.top.photoInfo}</MenuItem>
                 </MenuSection>
 
 
@@ -265,38 +304,6 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   {props.onSyncFolder && <MenuItem icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} onClick={() => choose(props.onSyncFolder!, false)}>{t.top.syncFolder}</MenuItem>}
                 </MenuSection>
 
-                <details className="border-t border-white/10 pt-1" open>
-                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-zinc-200">View · show, hide and layout</summary>
-                  <button type="button" onClick={() => choose(() => window.dispatchEvent(new Event('kestrel:toggle-burst-group')))}
-                    className="flex min-h-10 w-full items-center rounded-md px-2 text-left text-sm text-zinc-100 hover:bg-white/10">
-                    Group or ungroup bursts
-                  </button>
-                  <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
-                    <input type="checkbox" checked={props.showFilmstrip} onChange={props.onToggleFilmstrip} />
-                    {t.top.pinFilmstrip}
-                  </label>
-                  {props.onTogglePanes && <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
-                    <input type="checkbox" checked={props.panesCollapsed ?? false} onChange={props.onTogglePanes} />
-                    {t.top.foldPanes}
-                  </label>}
-                  <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
-                    <input type="checkbox" checked={props.focusMode} onChange={props.onToggleFocusMode} />
-                    {t.top.photoOnly}
-                  </label>
-                  {props.onHandChange && <div role="group" aria-label="Panel position" className="mb-2 flex flex-wrap items-center gap-2 text-sm text-zinc-200">
-                    <span>Panels</span>
-                    <button type="button" aria-pressed={props.hand === 'left'} onClick={() => props.onHandChange?.('left')} className="rounded-md border border-white/15 px-3 py-2 aria-pressed:bg-sky-300/20">Left</button>
-                    <button type="button" aria-pressed={props.hand !== 'left'} onClick={() => props.onHandChange?.('right')} className="rounded-md border border-white/15 px-3 py-2 aria-pressed:bg-sky-300/20">Right</button>
-                  </div>}
-                  {props.onOpenSettings && <button type="button" onClick={() => choose(props.onOpenSettings!)}
-                    className="flex min-h-11 w-full items-center gap-2 rounded-md border border-white/15 px-3 text-left text-sm text-zinc-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-                    {m.settings.title}
-                  </button>}
-                  {isDesktopApp() && <button type="button" onClick={() => choose(props.onOpenMacroPadModal, false)}
-                    className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-zinc-200 hover:bg-white/10">
-                    <Keyboard className="h-4 w-4" aria-hidden="true" />{t.top.macroPad}
-                  </button>}
-                </details>
                 <details className="border-t border-white/10 pt-1">
                   <summary className="min-h-10 cursor-pointer py-2 text-sm text-zinc-300">{t.top.cullingSettings}</summary>
                   <div className="space-y-2 px-1 pb-2 text-sm">
@@ -307,7 +314,6 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                       <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={props.settings.autoEdit}
                         onChange={(event) => props.onSettingsChange?.({ ...props.settings!, autoEdit: event.target.checked })} />{t.top.autoEditOnOpen}</label>
                     </>}
-                    <label className="flex min-h-9 items-center gap-2"><input type="checkbox" checked={showShortcutsOverlay} onChange={props.onToggleShortcutsOverlay} />{t.top.showShortcutGuide}</label>
                     {!shoot.inbox && <label className="flex items-center justify-between gap-2">
                       {t.top.keeperTarget}
                       <input type="number" min={1} max={9999} value={keeperTarget}

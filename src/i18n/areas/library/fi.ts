@@ -12,6 +12,15 @@ const n = (count: number) => formatCount.format(count);
  */
 export const fi: AreaTranslation<typeof source> = {
   top: {
+    file: "Tiedosto",
+    viewLayout: "Näytä · näytä tai piilota",
+    groupBursts: "Ryhmittele tai pura kuvasarjat",
+    showFilmstrip: "Näytä filminauha",
+    panelPosition: "Paneelien sijainti",
+    panels: "Paneelit",
+    left: "Vasen",
+    right: "Oikea",
+
     backToProjects: 'Takaisin projekteihin',
     projects: 'Projektit',
     photoCount: (count) => plural(count, { one: `${count} kuva`, other: `${count} kuvaa` }),

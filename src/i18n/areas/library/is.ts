@@ -9,6 +9,15 @@ const n = (count: number) => formatCount.format(count);
 /** Icelandic. DRAFT: written without a native speaker's check. File names sit after a colon so they need no case endings. */
 export const is: AreaTranslation<typeof source> = {
   top: {
+    file: "Skrá",
+    viewLayout: "Skoða · sýna eða fela",
+    groupBursts: "Flokka eða taka í sundur myndaraðir",
+    showFilmstrip: "Sýna myndræmu",
+    panelPosition: "Staðsetning spjalda",
+    panels: "Spjöld",
+    left: "Vinstri",
+    right: "Hægri",
+
     backToProjects: 'Aftur í verkefni',
     projects: 'Verkefni',
     photoCount: (count) => plural(count, { one: `${count} mynd`, other: `${count} myndir` }),
