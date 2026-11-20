@@ -332,8 +332,12 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
 
 
 ### Hosting on Google Cloud (owner request, 20 Nov; lifted from the P3 freeze for files only)
-- **Phase 1, written, not deployed:** `infra/gcp/` (Terraform): a public models bucket with a signed manifest, a downloads bucket with `latest.json` and SHA-256 sums, the website on Firebase Hosting, Secret Manager for the manifest signing key, a publisher service account and a budget alert. `scripts/release/sign-data-manifest.ts` and `publish-gcp.ps1` publish. The website reads `latest.json` first and falls back to GitHub releases. Verified: a manifest signed by the script is accepted by the app's `openSignedDataManifest` and refused with a wrong key or after a one-byte change. NOT RUN: `terraform validate/plan/apply` (no Terraform or gcloud on the coordinator PC); nothing provisioned, which needs the owner's GCP project and go-ahead.
-- **Next:** the app fetches `manifest/stable.json` from the models bucket (nothing calls `modelDelivery.ts` yet) and pins the public key; then phase 2 (control plane on Cloud Run with Cloud SQL, after the PostgreSQL adapter).
+- **Phase 1: LIVE (20 Nov).** Project `kestrel-hosting` (owner's billing account, GBP), everything in `europe-west2` (London), created with `infra/gcp` from Cloud Shell (19 resources; state in `gs://kestrel-hosting-kestrel-tfstate/hosting/`, private).
+  - **Website:** https://kestrel-hosting-kestrel.web.app (Firebase Hosting): Kestrel symbol and brand type, the visitor's platform suggested first in words, "Coming soon" from `latest.json`. Custom domain: later.
+  - **Downloads:** `https://storage.googleapis.com/kestrel-hosting-kestrel-downloads/latest.json` says `coming-soon`; `releases/<platform>/README.txt` hold the places. No placeholder installers (a fake file could be mistaken for Kestrel).
+  - **Models:** 4 ONNX models (BioCLIP, CLIP gate, U²-Net, YOLOX; 197 MB) and `manifest/stable.json` revision 1, signed with key `kestrel-2026-11` (private key only in Secret Manager `kestrel-manifest-signing-key`; public key `fRgITdAJPfCXpyEJ7DZml8316QBUgNlPsc3TPw07ZUw=`, also at `manifest/public-key.json`). Verified from outside: signature VALID with that key, refused with another, a downloaded model's size and SHA-256 match.
+  - **Budget alert:** £20/month (50/90/100%).
+- **Next:** the app fetches `manifest/stable.json` and pins the key above (nothing calls `modelDelivery.ts` yet); then accounts, licences, payments and the admin console (see the licensing plan); then the control plane on Cloud Run with Cloud SQL.
 
 ### P3: Frozen until P1.1 lands (see "Image first" above)
 - A metadata-only serialiser and local sync outbox, with synthetic tests of conflict-safe sync between two devices. (Gates carried over from the closed #363: originals and previews never upload; a licence isn't an account or a key; local writing works with the network off.)
