@@ -8,6 +8,7 @@ import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { CROP_RATIOS, DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawCrop, drawFramedPhoto, estimateLevel, fixedShape, framedSize, resizeCrop, resizeCropEdge, thirdsCropAnchor, type CropCorner, type CropEdge, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
+import { FloatingPane } from './FloatingPane';
 import { downloadExport } from '../providers/browserExport';
 import { QuickAdjust } from './QuickAdjust';
 import { AdjustmentSlider } from './AdjustmentSlider';
@@ -218,6 +219,14 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const cropEntry = useRef<PhotoFraming | null>(null);
   const panelScroll = useRef<HTMLDivElement>(null);
   const isPhone = useMediaQuery('(max-width: 899px), (max-height: 549px)');
+  const [undockedTools, setUndockedTools] = useState(() => {
+    try { return window.localStorage.getItem('kestrel-tools-undocked-v1') === 'true'; } catch { return false; }
+  });
+  const setToolsUndocked = (value: boolean) => {
+    setUndockedTools(value);
+    try { window.localStorage.setItem('kestrel-tools-undocked-v1', String(value)); } catch { /* layout still works */ }
+  };
+  const floatingTools = undockedTools && !isPhone && !focusPhoto && !toolsCollapsed;
   // On a phone the tools open as a sheet above the bar. Tapping the open tab again folds it away for a full-height photo.
   const [sheetOpen, setSheetOpen] = useState(() => {
     try { return localStorage.getItem(SHEET_KEY) !== 'closed'; } catch { return true; }
@@ -1277,15 +1286,21 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           </p>
         )}
       </div>
-      {!toolsHidden && <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />}
+      {!toolsHidden && !floatingTools && <PanelResizer width={panelWidth} side={panelSide} onChange={setPanelWidth} />}
+      {(() => { const toolPanel = (
       <div ref={panelScroll} onInput={(event) => {
         if (tab !== 'masks' || !(event.target instanceof HTMLInputElement) || event.target.type !== 'range') return;
         setSliderBusy(true);
         window.clearTimeout(sliderTimer.current);
         sliderTimer.current = window.setTimeout(() => setSliderBusy(false), 700);
-      }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
+      }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={floatingTools ? 'h-full min-h-0 w-full space-y-2 overflow-y-auto bg-kestrel-panel p-3' : `${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
         {!isPhone && <div className="sticky top-0 z-20 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
-          {onFoldTools && <button type="button" onClick={onFoldTools} aria-label={t.editor.fold} title={t.editor.foldTitle}
+          {!floatingTools && <button type="button" aria-label="Undock editing tools" title="Move editing tools into a resizable window"
+            onClick={() => setToolsUndocked(true)}
+            className="grid h-11 w-11 shrink-0 place-items-center border-b border-white/10 text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+            <Maximize className="h-4 w-4" aria-hidden="true"/>
+          </button>}
+          {onFoldTools && !floatingTools && <button type="button" onClick={onFoldTools} aria-label={t.editor.fold} title={t.editor.foldTitle}
             className={`grid w-9 shrink-0 place-items-center border-b border-white/10 text-zinc-400 hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 ${panelSide === 'left' ? 'order-last' : ''}`}>
             {panelSide === 'left' ? <ChevronLeft className="h-5 w-5" aria-hidden="true" /> : <ChevronRight className="h-5 w-5" aria-hidden="true" />}
           </button>}
@@ -1669,6 +1684,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           </div>
         )}
       </div>
+      ); return floatingTools
+        ? <FloatingPane title="Editing tools" storageKey="kestrel-tools-float-rect-v1" onDock={() => setToolsUndocked(false)}>{toolPanel}</FloatingPane>
+        : toolPanel; })()}
       {isPhone && !focusPhoto && tabList}
       </div>
       {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}
