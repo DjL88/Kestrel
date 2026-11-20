@@ -4,6 +4,11 @@ import type { source } from './source';
 
 /** French. DRAFT: written without a native speaker's check. */
 export const fr: AreaTranslation<typeof source> = {
+  rawTiff: {
+    action: "Exporter un TIFF RAW 16 bits (prototype)",
+    details: "À propos du TIFF RAW 16 bits",
+    help: "TIFF facultatif produit à partir des données du capteur RAW avec vos retouches enregistrées. Aucun filigrane ni texte n’est incrusté et les données GPS ou EXIF facultatives ne sont pas copiées. Les couleurs portent un profil sRGB, mais la fidélité des couleurs et les performances restent à valider sur le prototype. Une retouche non prise en charge bloque l’enregistrement.",
+  },
   typeface: "Police",
   sidecar: {
     save: "Enregistrer le fichier XMP",
