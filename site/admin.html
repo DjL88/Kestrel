@@ -57,6 +57,12 @@
       <tbody></tbody>
     </table></div>
     <p id="licence-empty" class="muted" hidden>No licences yet.</p>
+    <form id="revoke-key-form">
+      <h3>Revoke a key by pasting it</h3>
+      <p class="muted">For a key that leaked, including one nobody has used yet (such keys are not in the list above). Only its licence id is kept; the key itself is not stored. Devices that check online turn Pro off; their photos and edits are untouched.</p>
+      <label>Licence key <textarea name="licenceKey" rows="2" required autocomplete="off" spellcheck="false" placeholder="KESTREL1.…"></textarea></label>
+      <button class="danger">Revoke this key</button>
+    </form>
   </section>
 
   <section id="issue" class="panel" aria-labelledby="issue-title">
