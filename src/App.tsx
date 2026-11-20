@@ -34,6 +34,7 @@ import { loadImage } from './providers/loadImage';
 import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
 import { ArrowLeft, ChevronLeft, ChevronRight, Copy, ClipboardPaste, Info, PanelLeftClose, PanelLeftOpen, Maximize2 } from 'lucide-react';
 import { WorkspacePaneRail } from './components/WorkspacePaneRail';
+import { PHOTO_INFO_DOCK_QUERY } from './core/photoInfoLayout';
 import { PhotoJump } from './components/PhotoJump';
 import { SettingsButton } from './components/SettingsButton';
 import { AppearanceDialog } from './components/AppearanceDialog';
@@ -183,7 +184,7 @@ export default function App() {
   /** The guided "what's next" banner, dismissed for one project at a time. Resets on reload or when a different project opens. */
   const [guidedDismissedFor, setGuidedDismissedFor] = useState<string | null>(null);
   const [exportFrames, setExportFrames] = useState<PhotoFrame[]>([]);
-  const [showPhotoInfo, setShowPhotoInfo] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 900px) and (min-height: 550px)').matches);
+  const [showPhotoInfo, setShowPhotoInfo] = useState(() => typeof window !== 'undefined' && window.matchMedia(PHOTO_INFO_DOCK_QUERY).matches);
   // Settings (display, preferred hand, keyboard and macro pad): one dialog, opened from the top right of every page.
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Section F: a workspace layout belongs to the device, not to each photo,
@@ -324,7 +325,7 @@ export default function App() {
     });
     setEditing(false);
     setInfoFrameId(undefined);
-    setShowPhotoInfo(window.matchMedia('(min-width: 900px) and (min-height: 550px)').matches);
+    setShowPhotoInfo(window.matchMedia(PHOTO_INFO_DOCK_QUERY).matches);
     setMultiSelect(false);
     setSelectedIds(new Set());
     setBatchUndo(null);
@@ -1945,6 +1946,17 @@ export default function App() {
           <TaskManager inline />
           {/* The same order as the library's top row: work in hand, this page's actions (Export), then Settings. */}
           <div id="editor-header-actions" className="flex shrink-0 items-center gap-2" />
+          <button type="button" ref={infoTriggerRef} onClick={() => {
+            setInfoFrameId(undefined);
+            // A folded panel is hidden even if its previous "open" preference is true.
+            // The first click must reopen it, not toggle that stale preference to false.
+            const currentlyVisible = !panesCollapsed && showPhotoInfo;
+            setWorkspacePanes({ folded: false });
+            setShowPhotoInfo(!currentlyVisible);
+          }} aria-label={messages.photoInfo.title} title={messages.photoInfo.title} aria-pressed={showPhotoInfo && !panesCollapsed}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-md text-zinc-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 aria-pressed:bg-white/15">
+            <Info className="h-5 w-5" aria-hidden="true" />
+          </button>
           <SettingsButton open={settingsOpen} onOpen={() => setSettingsOpen(true)} />
           {multiSelect && selectedVisibleFrames.length > 0 && (
             <span className="shrink-0 text-xs tabular-nums text-zinc-300">{t.header.selected(selectedVisibleFrames.length)}</span>
