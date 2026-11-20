@@ -213,6 +213,10 @@ export const ga: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Réimíreanna ainmneacha comhad agus cáilíocht JPEG',
   },
   results: {
+    connectedBackground: (count, place) => `Sábháil ${count} easpórtáil chuig ${place} sa chúlra`,
+    connectingDestination: "Ag nascadh leis an gceann scríbe…",
+    connectedBackgroundHelp: "Sábháiltear comhaid ceann ar cheann i bhfillteán nua, grúpáilte de réir ceann scríbe. Dúnann Easpórtáil nuair a ghlactar leis an tasc; féach ar dhul chun cinn nó earráidí sa Bhainisteoir Tascanna.",
+
     backgroundSaving: (count) => `Ag easpórtáil ${count} comhad sa chúlra`,
     choosingFolder: "Fillteán á roghnú…",
     desktopBackground: (count) => `Sábháil ${count} comhad i bhfillteán sa chúlra`,
