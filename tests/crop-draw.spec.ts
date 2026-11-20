@@ -71,3 +71,14 @@ test('any edge can be pulled in, and a chosen ratio is kept', async ({ page }) =
   expect(near(kept.width, kept.height), JSON.stringify(kept)).toBe(true);
   expect(near(kept.x + kept.width, square.x + square.width)).toBe(true);
 });
+
+test('auto crop changes this photo in place and keeps the copy action separate', async ({ page }) => {
+  await openCrop(page);
+  const ratio = page.getByRole('combobox', { name: 'Crop aspect ratio' });
+  await expect(ratio).toHaveValue('');
+  await page.getByRole('button', { name: 'Auto crop', exact: true }).click();
+  await expect(ratio).not.toHaveValue('');
+  // Copy remains a separate, deliberate action. Auto crop never calls Create copy.
+  await expect(page.getByRole('button', { name: 'Auto crop copy' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Photo editor' })).toBeVisible();
+});

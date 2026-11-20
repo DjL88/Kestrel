@@ -55,3 +55,13 @@ test('sorting by name reorders the grid without touching the filter', async ({ p
   await page.getByLabel('Sort photos').selectOption('default');
   await expect.poll(frameOrder).toEqual(catalogueOrder);
 });
+
+test('sort control has an icon next to the selected order', async ({ page }) => {
+  await project(page, ['bird.png']);
+  const select = page.getByRole('combobox', { name: 'Sort photos' });
+  await expect(select).toBeVisible();
+  const label = page.locator('label').filter({ has: select });
+  await expect(label.locator('svg')).toHaveCount(1);
+  await select.selectOption('name-asc');
+  await expect(select).toHaveValue('name-asc');
+});
