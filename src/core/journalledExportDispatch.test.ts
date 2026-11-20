@@ -137,6 +137,24 @@ describe('journalled export dispatch', () => {
     await expect(createJournalledExportDispatch(h.storage, h.queue).resume('receipts', h.adapter))
       .rejects.toThrow('Previously exported file');
   });
+  it('finalizes a verified checkpoint interrupted after the last receipt without rewriting files', async () => {
+    const h = harness();
+    const dispatch = createJournalledExportDispatch(h.storage, h.queue);
+    expect(await dispatch.submit(plan('final-receipt'), h.adapter).done).toBe('completed');
+    await settled();
+    const key = 'kestrel.export.v1.final-receipt';
+    const saved = JSON.parse(h.data.get(key)!);
+    h.data.set(key, JSON.stringify({ ...saved, state: 'pending' }));
+    const restarted = createJournalledExportDispatch(h.storage, h.queue);
+    h.setOutput(false);
+    await expect(restarted.resume('final-receipt', h.adapter)).rejects.toThrow('Previously exported file');
+    expect(restarted.load('final-receipt')?.state).toBe('pending');
+    h.setOutput(true);
+    expect(await restarted.resume('final-receipt', h.adapter)).toBeNull();
+    expect(restarted.load('final-receipt')?.state).toBe('completed');
+    expect(h.published).toEqual(['one.jpg', 'two.jpg']);
+  });
+
   it('serializes overlapping recovery verification before queue acceptance', async () => {
     const h = harness();
     h.setFailPublish(true);
