@@ -157,9 +157,11 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
                 // Register before fail() emits, so the Retry button appears
                 // in the same Task Manager update as the error.
                 retryable.set(handle.id, () => begin(savedCount, attempt + 1));
-                pruneRetryHistory();
               }
               handle?.fail(error instanceof Error ? error.message : 'Could not save the export.');
+              // The task must be 'failed' before pruning; otherwise its
+              // just-created retry callback would be mistaken for stale.
+              pruneRetryHistory();
               resolveDone('failed');
             }
           } finally { finished = true; }
