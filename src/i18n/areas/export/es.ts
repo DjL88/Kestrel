@@ -77,6 +77,8 @@ export const es: AreaTranslation<typeof source> = {
     fullSize: 'Tamaño completo',
     customSize: 'Tamaño personalizado',
     master: 'Tamaño completo · PNG',
+    fullJpeg: "Tamaño completo · JPEG",
+    fullJpegHelp: "JPEG de alta calidad a partir de la imagen disponible. Para RAW, se utiliza una imagen revelada o una vista previa de la cámara, no un archivo maestro RAW de 16 bits verificado.",
     custom: (width, height) => `Personalizado · ${width} × ${height}`,
     post: (shape) => `Publicación · ${shape}`,
     square: (shape) => `Cuadrado · ${shape}`,
