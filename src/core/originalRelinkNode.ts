@@ -40,6 +40,7 @@ async function hashRegularFile(path: string, signal?: AbortSignal): Promise<{ by
       count += chunk.length;
       if (!Number.isSafeInteger(count)) throw new Error('unsafe-file-length');
     }
+    if (signal?.aborted) throw new Error('relink-cancelled');
     const after = await handle.stat();
     const afterPath = await lstat(path);
     if (!afterPath.isFile() || afterPath.isSymbolicLink() ||
