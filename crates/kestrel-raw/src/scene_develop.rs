@@ -57,12 +57,47 @@ impl Default for Look {
 /// Bump when the look changes, so cached developments can be told apart from new ones.
 pub const LOOK_VERSION: u32 = 1;
 
-fn wb_normalised(raw: &RawImage) -> [f32; 3] {
-    let wb = raw.wb_coeffs;
-    if wb[0].is_nan() || !(wb[1] > 0.0) {
-        return [1.0, 1.0, 1.0];
+/// A missing as-shot white balance may be rendered neutral, but malformed supplied
+/// coefficients must not silently corrupt the image or produce NaN/Inf pixels.
+fn validated_wb(wb: [f32; 4]) -> Result<[f32; 3], String> {
+    if wb.iter().all(|v| v.is_nan()) {
+        return Ok([1.0, 1.0, 1.0]); // metadata absent: neutral, not a camera-accurate WB claim
     }
-    [wb[0] / wb[1], 1.0, wb[2] / wb[1]]
+    if !wb[..3].iter().all(|v| v.is_finite() && *v > 0.0) {
+        return Err("RAW white balance contains invalid or incomplete coefficients.".into());
+    }
+    let normalised = [wb[0] / wb[1], 1.0, wb[2] / wb[1]];
+    if !normalised.iter().all(|v| v.is_finite() && *v > 0.0) {
+        return Err("RAW white balance is outside the supported numeric range.".into());
+    }
+    Ok(normalised)
+}
+
+fn wb_normalised(raw: &RawImage) -> [f32; 3] {
+    validated_wb(raw.wb_coeffs).expect("colour metadata validated before development")
+}
+
+fn validated_matrix(matrix: &[f32]) -> Result<(), String> {
+    if matrix.len() < 9 || !matrix[..9].iter().all(|v| v.is_finite()) {
+        return Err("RAW camera colour matrix is missing or contains invalid values.".into());
+    }
+    let m = matrix;
+    let det = m[0] * (m[4] * m[8] - m[5] * m[7])
+        - m[1] * (m[3] * m[8] - m[5] * m[6])
+        + m[2] * (m[3] * m[7] - m[4] * m[6]);
+    if !det.is_finite() || det.abs() < 1e-10 {
+        return Err("RAW camera colour matrix is singular or numerically unsafe.".into());
+    }
+    Ok(())
+}
+
+fn validate_colour_metadata(raw: &RawImage) -> Result<(), String> {
+    validated_wb(raw.wb_coeffs)?;
+    let (_, matrix) = raw.color_matrix_find_first([
+        Illuminant::D65, Illuminant::D55, Illuminant::D50, Illuminant::Daylight, Illuminant::D75,
+        Illuminant::A, Illuminant::B, Illuminant::C, Illuminant::Flash,
+    ]).ok_or("RAW camera colour profile is unavailable; accurate colour cannot be established.")?;
+    validated_matrix(&matrix)
 }
 
 fn camera_to_srgb(raw: &RawImage) -> [[f32; 3]; 3] {
@@ -70,9 +105,7 @@ fn camera_to_srgb(raw: &RawImage) -> [[f32; 3]; 3] {
         Illuminant::D65, Illuminant::D55, Illuminant::D50, Illuminant::Daylight, Illuminant::D75,
         Illuminant::A, Illuminant::B, Illuminant::C, Illuminant::Flash,
     ]);
-    let Some((_, matrix)) = found.filter(|(_, m)| m.len() >= 9) else {
-        return [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
-    };
+    let (_, matrix) = found.expect("camera colour profile validated before development");
     let mut xyz2cam = [[0.0f32; 3]; 3];
     for i in 0..3 {
         for j in 0..3 {
@@ -144,6 +177,7 @@ fn contrast(v: f32, amount: f32) -> f32 {
 /// Develop a decoded RAW into display-ready sRGB, 16 bits per channel, before orientation.
 /// Returns `None` for sensors this path doesn't handle yet (monochrome, four-colour CFA); callers fall back.
 pub fn develop_display_rgb16(raw: &RawImage, look: &Look) -> Result<Option<ImageBuffer<Rgb<u16>, Vec<u16>>>, String> {
+    validate_colour_metadata(raw)?;
     match strip_plan(raw) {
         Some(plan) => Ok(Some(develop_in_strips(raw, look, &plan))),
         None => develop_display_rgb16_whole(raw, look),
@@ -153,6 +187,7 @@ pub fn develop_display_rgb16(raw: &RawImage, look: &Look) -> Result<Option<Image
 /// The whole frame at once, through rawler's develop. Used for sensors the strip path doesn't cover (X-Trans, Fuji
 /// rotation, four-colour, monochrome) and, in tests, as the reference the strip path must match exactly.
 pub fn develop_display_rgb16_whole(raw: &RawImage, look: &Look) -> Result<Option<ImageBuffer<Rgb<u16>, Vec<u16>>>, String> {
+    validate_colour_metadata(raw)?;
     let steps = [
         ProcessingStep::Rescale, ProcessingStep::Demosaic, ProcessingStep::FujiRotate,
         ProcessingStep::CropActiveArea, ProcessingStep::CropDefault,
@@ -442,6 +477,38 @@ pub fn develop_display(raw: &RawImage) -> Result<Option<DynamicImage>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn invalid_white_balance_fails_closed_without_nonfinite_pixels() {
+        assert_eq!(validated_wb([f32::NAN; 4]).unwrap(), [1.0; 3]);
+        for wb in [
+            [f32::INFINITY, 1.0, 1.0, 1.0],
+            [1.0, f32::INFINITY, 1.0, 1.0],
+            [1.0, 1.0, f32::NEG_INFINITY, 1.0],
+            [1.0, 0.0, 1.0, 1.0],
+            [f32::NAN, 1.0, 1.0, 1.0],
+            [f32::MAX, f32::MIN_POSITIVE, 1.0, 1.0],
+        ] {
+            assert!(validated_wb(wb).is_err(), "{wb:?}");
+        }
+        assert_eq!(validated_wb([2.0, 1.0, 1.5, 1.0]).unwrap(), [2.0, 1.0, 1.5]);
+    }
+
+    #[test]
+    fn camera_colour_matrix_must_be_finite_and_invertible() {
+        let identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+        assert!(validated_matrix(&identity).is_ok());
+        assert!(validated_matrix(&identity[..8]).is_err());
+        let mut invalid = identity;
+        invalid[2] = f32::INFINITY;
+        assert!(validated_matrix(&invalid).is_err());
+        invalid = identity;
+        invalid[2] = f32::NAN;
+        assert!(validated_matrix(&invalid).is_err());
+        assert!(validated_matrix(&[1.0; 9]).is_err());
+        assert!(validated_matrix(&[0.0; 9]).is_err());
+    }
+
 
     /// A synthetic Bayer frame with texture, a default crop at odd offsets and a portrait orientation, as rawler reads
     /// it from a DNG. Sizes are deliberately not multiples of the strip height.
