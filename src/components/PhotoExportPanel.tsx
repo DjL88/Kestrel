@@ -10,6 +10,10 @@ import type { PhotoFrame } from '../core/types';
 import { archiveExports, downloadExport, loadExportSource, renderExport } from '../providers/browserExport';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { ExportPreviewTile } from './ExportPreviewTile';
+import { AdjustmentSlider } from './AdjustmentSlider';
+
+/** Overlay and watermark sliders show their value as a whole percentage, never as an unexplained decimal. */
+const percent = (value: number) => `${Math.round(value * 100)}%`;
 import { ExportWizard } from './ExportWizard';
 import { returnFocus } from './focusReturn';
 import { KEEP_NAMES, stemFor, uniqueExportFilename, type NameTemplate } from '../core/exportNaming';
@@ -420,14 +424,12 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
             </select>
           </label>
           <div className="grid gap-2 sm:grid-cols-2">
-            <label className="text-xs">{t.overlay.textSize}
-              <input type="range" min={0.75} max={1.75} step={0.05} className="block min-h-11 w-full" value={overlay.scale ?? 1}
-                onChange={(event) => setOverlay((prior) => ({ ...prior, scale: event.target.valueAsNumber }))} />
-            </label>
-            <label className="text-xs">{t.overlay.shade}
-              <input type="range" min={0} max={1} step={0.05} className="block min-h-11 w-full" value={overlay.shade ?? 0.62}
-                onChange={(event) => setOverlay((prior) => ({ ...prior, shade: event.target.valueAsNumber }))} />
-            </label>
+            <AdjustmentSlider label={t.overlay.textSize} ariaLabel={t.overlay.textSize} min={0.75} max={1.75} step={0.05} neutral={1}
+              value={overlay.scale ?? 1} formatValue={percent}
+              onChange={(value) => setOverlay((prior) => ({ ...prior, scale: value }))} />
+            <AdjustmentSlider label={t.overlay.shade} ariaLabel={t.overlay.shade} min={0} max={1} step={0.05} neutral={0.62}
+              value={overlay.shade ?? 0.62} formatValue={percent}
+              onChange={(value) => setOverlay((prior) => ({ ...prior, shade: value }))} />
           </div>
           {frames.every((frame) => overlayLines(frame.exif, overlay).length === 0) && (
             <p role="status" className="text-xs text-zinc-400">{t.overlay.noDetails}</p>
@@ -495,12 +497,10 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
               </select>
             </label>
           )}
-          <label className="block text-sm text-zinc-300">{t.watermark.size}
-            <input type="range" min={0.03} max={mark.kind === 'image' ? 0.5 : 0.2} step={0.01} className="block min-h-11 w-full" value={mark.size} onChange={(event) => setMark({ size: Number(event.target.value) })} />
-          </label>
-          <label className="block text-sm text-zinc-300">{t.watermark.strength}
-            <input type="range" min={0.15} max={1} step={0.05} className="block min-h-11 w-full" value={mark.opacity} onChange={(event) => setMark({ opacity: Number(event.target.value) })} />
-          </label>
+          <AdjustmentSlider label={t.watermark.size} ariaLabel={t.watermark.size} min={0.03} max={mark.kind === 'image' ? 0.5 : 0.2} step={0.01}
+            neutral={NO_WATERMARK.size} value={mark.size} formatValue={percent} onChange={(value) => setMark({ size: value })} />
+          <AdjustmentSlider label={t.watermark.strength} ariaLabel={t.watermark.strength} min={0.15} max={1} step={0.05}
+            neutral={NO_WATERMARK.opacity} value={mark.opacity} formatValue={percent} onChange={(value) => setMark({ opacity: value })} />
           {!hasWatermark(mark) && <p role="status" className="text-xs text-zinc-400">{mark.kind === 'text' ? t.watermark.typeText : t.watermark.choosePicture}</p>}
         </div>
       )}

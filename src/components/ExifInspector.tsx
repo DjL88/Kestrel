@@ -76,7 +76,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
   return (
     <aside
       aria-label={m.photoInfo.title}
-      className={`workspace-popover absolute inset-x-2 top-2 z-10 max-h-[min(calc(100%_-_1rem),calc(100dvh_-_7rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-4 shadow-2xl sm:w-72 lg:static lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-0 lg:shadow-none ${dockedSide === 'left'
+      className={`workspace-popover absolute inset-x-2 top-2 z-40 max-h-[min(calc(100%_-_1rem),calc(100dvh_-_7rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-4 shadow-2xl sm:w-72 lg:static lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-0 lg:shadow-none ${dockedSide === 'left'
         // Only the docked panel (lg and up) changes side. Below that it floats over the photos, at the right edge where
         // it covers the fewest of them (the first photo is at the top left).
         ? 'sm:right-2 sm:left-auto lg:border-r'
