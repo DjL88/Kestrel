@@ -5,7 +5,7 @@ import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFrami
 import { loadImage } from '../providers/loadImage';
 import { loadExportSource } from '../providers/browserExport';
 import React, { useEffect, useRef, useState } from 'react';
-import { ImageOff } from 'lucide-react';
+import { ImageOff, LoaderCircle } from 'lucide-react';
 import type { PhotoFrame } from '../core/types';
 import type { PhotoPreviewReadiness } from '../core/photoTileReadiness';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
@@ -165,7 +165,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     const load = async () => {
       if (edited) {
         // Wait for the edit to settle before redrawing, so dragging a slider does not redraw on every step.
-        await new Promise<void>((resolve) => { timer = window.setTimeout(resolve, hasImage.current ? 200 : 0); });
+        await new Promise<void>((resolve) => { timer = window.setTimeout(resolve, hasImage.current ? 65 : 0); });
         if (cancelled) return;
         await render();
         return;
@@ -240,15 +240,16 @@ export const FrameImage: React.FC<FrameImageProps> = ({
 
   return (
     <div ref={containerRef} className={`relative overflow-hidden bg-kestrel-stage ${className}`}>
-      {(loading || preview.identity !== identity) && (
-        <div
-          className="absolute inset-0 bg-[#181A1E] motion-safe:animate-pulse"
-          aria-hidden="true"
-        />
-      )}
+      {(loading || preview.identity !== identity) && (!src ? (
+        <div className="absolute inset-0 bg-[#181A1E] motion-safe:animate-pulse" aria-hidden="true" />
+      ) : (
+        <div role="status" aria-label="Refreshing image" className="pointer-events-none absolute bottom-3 right-3 z-10 rounded-full bg-black/65 p-2 text-white">
+          <LoaderCircle className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />
+        </div>
+      ))}
       {src && (
         <img
-          key={`${identity}:${src}`}
+          key={src}
           src={src}
           alt={alt ?? frame.demoVariant?.demoSceneLabel ?? frame.filename}
           referrerPolicy="no-referrer"

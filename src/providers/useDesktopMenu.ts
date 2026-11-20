@@ -16,6 +16,14 @@ export function useDesktopMenu() {
         window.dispatchEvent(new Event('kestrel:desktop-export'));
         return;
       }
+      // Native menus dispatch photo commands into React. Do not guess at a
+      // translated button's text or change browser text selections.
+      if (['add', 'edit-photo', 'edit-auto', 'edit-look', 'edit-copy-adjustments',
+        'edit-paste-adjustments', 'view-info', 'view-tools',
+        'view-left', 'view-right', 'settings-ai', 'settings-storage'].includes(payload)) {
+        window.dispatchEvent(new Event('kestrel:menu-' + payload));
+        return;
+      }
       if (payload === 'photos-select-all' || payload === 'photos-deselect-all') {
         // Dispatch a real photo command. Never select arbitrary page text/DOM elements.
         // In a focused text field, Cmd/Ctrl+A must still select that field's text.

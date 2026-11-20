@@ -189,6 +189,7 @@ export default function App() {
   const [showPhotoInfo, setShowPhotoInfo] = useState(() => typeof window !== 'undefined' && window.matchMedia(PHOTO_INFO_DOCK_QUERY).matches);
   // Settings (display, preferred hand, keyboard and macro pad): one dialog, opened from the top right of every page.
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<'general' | 'ai' | 'storage'>('general');
   // Section F: a workspace layout belongs to the device, not to each photo,
   // project, synced catalogue or editor tab. A private-storage failure is safe.
   const [workspacePanes, setWorkspacePanes] = useState(readWorkspacePaneState);
@@ -565,6 +566,38 @@ export default function App() {
       : visibleFrames,
     [cullingState.frames, visibleFrames, editQueueIds]);
   const editorIndex = editorFrames.findIndex((frame) => frame.id === cullingState.selectedFrameId);
+
+  // Native desktop menu commands route to the same actions as the visible controls.
+  // Listeners are registered once; shortcuts never act on arbitrary webview text.
+  useEffect(() => {
+    const on = (id: string, fn: () => void) => {
+      const name = 'kestrel:menu-' + id;
+      window.addEventListener(name, fn);
+      return () => window.removeEventListener(name, fn);
+    };
+    const handlers = [
+      on('add', () => { if (!projectsOpen) { setFolderError(null); setOpenShootModal(true); } }),
+      on('edit-photo', () => { if (!projectsOpen && cullingState.selectedFrameId) { setEditQueueIds(visibleFrames.map((frame) => frame.id)); setEditing(true); } }),
+      on('edit-auto', () => { if (!projectsOpen) setAutoAdjustOpen(true); }),
+      on('edit-look', () => { if (!projectsOpen) setBatchLookOpen(true); }),
+      on('edit-copy-adjustments', () => {
+        const selected = stateRef.current.frames.find((frame) => frame.id === cullingState.selectedFrameId);
+        if (selected) setCopiedEdit(selected.edit ?? DEFAULT_EDIT);
+      }),
+      on('edit-paste-adjustments', () => {
+        if (copiedEdit && cullingState.selectedFrameId) {
+          updateFrame(cullingState.selectedFrameId, { edit: isEmptyEdit(copiedEdit) ? undefined : { ...copiedEdit } });
+        }
+      }),
+      on('view-info', () => setShowPhotoInfo((value) => !value)),
+      on('view-tools', () => setWorkspacePanes((value) => ({ ...value, folded: !value.folded }))),
+      on('view-left', () => setPrefs((prev) => ({ ...prev, hand: 'left', editPanelSide: 'left' }))),
+      on('view-right', () => setPrefs((prev) => ({ ...prev, hand: 'right', editPanelSide: 'right' }))),
+      on('settings-ai', () => { setSettingsSection('ai'); setSettingsOpen(true); }),
+      on('settings-storage', () => { setSettingsSection('storage'); setSettingsOpen(true); }),
+    ];
+    return () => handlers.forEach((off) => off());
+  }, [projectsOpen, cullingState.selectedFrameId, visibleFrames, copiedEdit]);
 
   const selectedFrame: PhotoFrame | null = useMemo(() => {
     if (!cullingState.selectedFrameId) return visibleFrames[0] ?? null;
@@ -1200,10 +1233,10 @@ export default function App() {
   });
 
   // Every RAW is developed from its sensor data in the background, so the library shows Kestrel's develop, not the
-  // camera's JPEG. Paused while a photo is edited (the editor develops its own photo at full size first).
+  // camera's JPEG. Continue the queue while reviewing or editing; the selected image has its own priority.
   useBackgroundDevelop({
     projectId: cullingState.shoot.id, frames: cullingState.frames, provider: previewProviderRef.current,
-    active: !projectsOpen && !editing && !loadingProgress, onScreen: cullingState.selectedFrameId,
+    active: !projectsOpen && !loadingProgress, onScreen: cullingState.selectedFrameId,
   });
 
   const jumpPhotoHistory = (frameId: string, cursor: number) => {
@@ -1971,9 +2004,9 @@ export default function App() {
           </div>
         </div>
       )}
-      {settingsOpen && <AppearanceDialog side={prefs.editPanelSide} onSideChange={(side) => setPrefs((prev) => ({ ...prev, hand: side, editPanelSide: side }))}
+      {settingsOpen && <AppearanceDialog initialSection={settingsSection} side={prefs.editPanelSide} onSideChange={(side) => setPrefs((prev) => ({ ...prev, hand: side, editPanelSide: side }))}
         hand={prefs.hand} onHandChange={(hand) => setPrefs((prev) => ({ ...prev, hand, editPanelSide: hand }))}
-        onClose={() => setSettingsOpen(false)} onOpenMacroPad={() => { setSettingsOpen(false); setMacroPadMode(editing ? 'edit' : 'cull'); setMacroPadModal(true); }} />}
+        onClose={() => { setSettingsOpen(false); setSettingsSection('general'); }} onOpenMacroPad={() => { setSettingsOpen(false); setMacroPadMode(editing ? 'edit' : 'cull'); setMacroPadModal(true); }} />}
       <DropOverlay dragging={drop.dragging} message={drop.message} onDismiss={drop.clearMessage} />
       {prefs.focusMode ? null : editing ? (
         <header className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-kestrel-panel px-3 py-1">
@@ -2300,8 +2333,7 @@ export default function App() {
           )}
           {/* Guidance sits above the grid only: single photo and compare give the photo the room. */}
           {!editing && prefs.viewMode === 'grid' && !cullingState.shoot.inbox && !loadingProgress && guidedDismissedFor !== cullingState.shoot.id &&
-            ((guided === 'reviewing' && cullingState.filter === 'unreviewed') ||
-             ((guided === 'improving' || guided === 'ready') && cullingState.filter === 'keep')) && (
+            ((guided === 'improving' || guided === 'ready') && cullingState.filter === 'keep') && (
             <GuidedBanner step={guided} unreviewed={counts.unreviewed} keepers={counts.keep} scanned={remainingWereScanned(cullingState.frames)} uneditedKeepers={uneditedKeepers}
               onFindBestPhotos={() => {
                 if (!can('smartCulling')) { setPaidDialog(messages.autoCull); return; }
@@ -2343,6 +2375,18 @@ export default function App() {
               onDecideFrame={(frameId, decision) =>
                 handleDecideFrame(frameId, decision, false)
               }
+              onBatchDecision={(ids, decision) => {
+                if (decision === 'reject' && ids.some((id) => cullingState.frames.some((frame) => frame.id === id && frame.decision === 'keep'))) {
+                  setPendingAction({ kind: 'trash', frameIds: ids, allowAdvance: false });
+                  return;
+                }
+                setCullingState((previous) => ids.reduce((state, id) =>
+                  applyDecisionWithHistory(state, id, decision, { allowAdvance: false }), previous));
+              }}
+              onExportSelected={(ids) => {
+                const chosen = new Set(ids);
+                setExportFrames(cullingState.frames.filter((frame) => chosen.has(frame.id) && !frame.removedAt));
+              }}
             />
           )}
 

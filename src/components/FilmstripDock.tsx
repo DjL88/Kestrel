@@ -65,6 +65,12 @@ export function FilmstripDock({ expanded, onToggle, onPhotoOnly, children }: Fil
       className="relative z-10 flex w-full min-w-0 shrink-0 flex-col overflow-hidden border-t border-white/12 bg-[#121418]"
       style={{ height: expanded ? height + 36 : 36 }}>
       <div className="flex h-9 shrink-0 items-center justify-between gap-2 px-2 sm:px-4">
+          <button type="button" onClick={onToggle} aria-expanded={expanded}
+            aria-label={expanded ? t.filmstripDock.collapse : t.filmstripDock.expand}
+            title={expanded ? t.filmstripDock.collapse : t.filmstripDock.expand}
+            className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+            {expanded ? <ChevronDown className="h-5 w-5" aria-hidden="true"/> : <ChevronUp className="h-5 w-5" aria-hidden="true"/>}
+          </button>
         <div role="separator" tabIndex={expanded ? 0 : -1} aria-label={t.filmstripDock.resize} aria-orientation="horizontal"
           aria-valuemin={80} aria-valuemax={clampFilmstripHeight(9999, typeof window === 'undefined' ? 800 : window.innerHeight)}
           aria-valuenow={height}
@@ -97,12 +103,7 @@ export function FilmstripDock({ expanded, onToggle, onPhotoOnly, children }: Fil
               {fullscreen ? <Minimize2 className="h-4 w-4" aria-hidden="true"/> : <Maximize2 className="h-4 w-4" aria-hidden="true"/>}
             </button>
           )}
-          <button type="button" onClick={onToggle} aria-expanded={expanded}
-            aria-label={expanded ? t.filmstripDock.collapse : t.filmstripDock.expand}
-            title={expanded ? t.filmstripDock.collapse : t.filmstripDock.expand}
-            className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-            {expanded ? <ChevronDown className="h-5 w-5" aria-hidden="true"/> : <ChevronUp className="h-5 w-5" aria-hidden="true"/>}
-          </button>
+
         </div>
       </div>
       {expanded && <div className="min-h-0 flex-1 overflow-hidden">{children}</div>}

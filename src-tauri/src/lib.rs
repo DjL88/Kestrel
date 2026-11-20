@@ -169,11 +169,18 @@ pub fn run() {
                 &PredefinedMenuItem::quit(app, None)?,
             ])?;
             let file = Submenu::with_items(app, "File", true, &[
+                &MenuItem::with_id(app, "add", "Add photos…", true, Some("CmdOrCtrl+O"))?,
                 &MenuItem::with_id(app, "export", "Export…", true, Some("CmdOrCtrl+E"))?,
                 &PredefinedMenuItem::separator(app)?,
                 &PredefinedMenuItem::close_window(app, None)?,
             ])?;
             let edit = Submenu::with_items(app, "Edit", true, &[
+                &MenuItem::with_id(app, "edit-photo", "Edit photo", true, None::<&str>)?,
+                &MenuItem::with_id(app, "edit-auto", "Auto-adjust…", true, None::<&str>)?,
+                &MenuItem::with_id(app, "edit-look", "Apply look…", true, None::<&str>)?,
+                &MenuItem::with_id(app, "edit-copy-adjustments", "Copy edits", true, None::<&str>)?,
+                &MenuItem::with_id(app, "edit-paste-adjustments", "Paste edits", true, None::<&str>)?,
+                &PredefinedMenuItem::separator(app)?,
                 &PredefinedMenuItem::undo(app, None)?,
                 &PredefinedMenuItem::redo(app, None)?,
                 &PredefinedMenuItem::separator(app)?,
@@ -186,10 +193,18 @@ pub fn run() {
             ])?;
             let view = Submenu::with_items(app, "View", true, &[
                 &MenuItem::with_id(app, "filmstrip", "Show or hide filmstrip", true, None::<&str>)?,
+                &MenuItem::with_id(app, "view-info", "Show or hide Photo info", true, None::<&str>)?,
+                &MenuItem::with_id(app, "view-tools", "Show or hide editing tools", true, None::<&str>)?,
+                &PredefinedMenuItem::separator(app)?,
+                &MenuItem::with_id(app, "view-left", "Panels on the left", true, None::<&str>)?,
+                &MenuItem::with_id(app, "view-right", "Panels on the right", true, None::<&str>)?,
+                &PredefinedMenuItem::separator(app)?,
                 &PredefinedMenuItem::fullscreen(app, None)?,
             ])?;
             let settings = Submenu::with_items(app, "Settings", true, &[
                 &MenuItem::with_id(app, "appearance", "Appearance and layout…", true, None::<&str>)?,
+                &MenuItem::with_id(app, "settings-ai", "Bring your own AI…", true, None::<&str>)?,
+                &MenuItem::with_id(app, "settings-storage", "Bring your own Storage…", true, None::<&str>)?,
                 &MenuItem::with_id(app, "macro-pad", "Macro pad and shortcuts…", true, Some("CmdOrCtrl+M"))?,
             ])?;
             let window = Submenu::with_items(app, "Window", true, &[

@@ -811,18 +811,16 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       const keptMask = changed && (staged.edit.masks?.length ?? 0) > (savedEdit.masks?.length ?? 0);
       setPendingAuto(changed ? { base: savedEdit, edit: staged.edit, cropKey, source: originalSource } : null);
       setPreviewRecipe(changed ? { edit: staged.edit, framing: frame.framing } : null);
-      setAutoNotes([
-        changed
-          ? keptMask
-            ? t.auto.previewingWithMask
-            : t.auto.previewingLook
-          : staged.outcome === 'declined'
-            ? t.auto.declined
-            : t.auto.alreadyWorks,
-        describeOutcome(staged.outcome, staged.reason),
-        ...natural.notes.filter((note) => !note.includes('already works')),
-        usedMask || subjectNote ? subjectNote : '',
-      ].filter(Boolean));
+      // Only describe adjustments that are actually offered. A rejected or neutral
+      // proposal must not list hypothetical exposure, colour or mask changes.
+      setAutoNotes(changed
+        ? [
+            keptMask ? t.auto.previewingWithMask : t.auto.previewingLook,
+            ...natural.notes.filter((note) => !note.includes('already works') &&
+              !note.startsWith('No clear neutral areas') && !note.startsWith('Warm feather colours')),
+            ...(usedMask && subjectNote ? [subjectNote] : []),
+          ]
+        : [staged.outcome === 'declined' ? t.auto.declined : t.auto.alreadyWorks]);
     } catch {
       if (stillCurrent()) setAutoNotes([t.auto.failed]);
     } finally {
