@@ -113,6 +113,12 @@ export const ga: AreaTranslation<typeof source> = {
     photoInfoFor: (filename) => `Eolas agus rátáil: ${filename}`,
   },
   decision: {
+    undecided: "Gan chinneadh",
+    undecidedPhoto: (filename) => `Bog ${filename} ar ais le hathbhreithniú (Gan chinneadh)`,
+    reject: "Diúltaigh",
+    rejectPhoto: (filename) => `Diúltaigh ${filename}`,
+    rejected: "Diúltaithe",
+    rejectedPhoto: (filename) => `Tá ${filename} diúltaithe cheana`,
     keepPhoto: (filename) => `Coinnigh ${filename}`,
     keep: 'Coinnigh',
     backToReviewPhoto: (filename) => `Cuir ${filename} ar ais le hathbhreithniú`,

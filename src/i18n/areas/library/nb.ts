@@ -110,6 +110,12 @@ export const nb: AreaTranslation<typeof source> = {
     photoInfoFor: (filename) => `Bildeinfo og vurdering for ${filename}`,
   },
   decision: {
+    undecided: "Ikke bestemt",
+    undecidedPhoto: (filename) => `Flytt ${filename} tilbake til gjennomgang (ikke bestemt)`,
+    reject: "Avvis",
+    rejectPhoto: (filename) => `Avvis ${filename}`,
+    rejected: "Avvist",
+    rejectedPhoto: (filename) => `${filename} er allerede avvist`,
     keepPhoto: (filename) => `Behold ${filename}`,
     keep: 'Behold',
     backToReviewPhoto: (filename) => `Flytt ${filename} tilbake til gjennomgang`,

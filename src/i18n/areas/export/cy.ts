@@ -7,6 +7,18 @@ import type { source } from './source';
  * ("3 llun", "5 ffeil"), so these sentences need only one form.
  */
 export const cy: AreaTranslation<typeof source> = {
+  proof: {
+    title: "Prawf allforio",
+    photo: "Llun",
+    choosePhoto: "Llun i’w brofi",
+    output: "Allbwn",
+    chooseOutput: "Allbwn i’w brofi",
+    choose: "Dewiswch allbwn i weld ei brawf.",
+    loading: "Yn llwytho rhagolwg y llun…",
+    loadFailed: "Methu llwytho’r llun hwn i’w brofi. Mae’ch llun gwreiddiol heb ei gyffwrdd.",
+    retry: "Rhoi cynnig arall arni",
+    resolution: "Rhagolwg cydraniad sgrin yn unig. Gwiriwch y ffeil sydd wedi’i chadw am y manylder a’r maint terfynol.",
+  },
   fit: {
     fill: 'Tocio i lenwi’r siâp',
     bars: 'Y llun cyfan, gydag ymylon',
@@ -193,6 +205,8 @@ export const cy: AreaTranslation<typeof source> = {
     preparing: (done, total) => `Wrthi’n paratoi ${done}/${total}…`,
   },
   tile: {
+    updating: "Yn diweddaru’r prawf…",
+    waitingForPhoto: "Yn llwytho’r llun…",
     hintBars: 'Y llun cyfan, gydag ymylon',
     hintKeep: 'Yn cadw siâp y llun ei hun',
     hintMove: 'Llusgwch i symud, pinsiwch neu defnyddiwch y llithrydd i chwyddo',
