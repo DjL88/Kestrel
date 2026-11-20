@@ -96,6 +96,16 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
     () => contactSheetLayout(viewport.width), [viewport.width]
   );
 
+  // Desktop Jump lives in the shared toolbar; phones keep their own sticky control.
+  const [toolsSlot, setToolsSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 768px)');
+    const find = () => setToolsSlot(desktop.matches ? document.getElementById('kestrel-grid-tools') : null);
+    find();
+    desktop.addEventListener('change', find);
+    return () => desktop.removeEventListener('change', find);
+  }, []);
+
   const totalRows = Math.ceil(frames.length / columns);
   const totalHeight = Math.max(0, totalRows * rowStride + PADDING_PX * 2);
 
