@@ -3,7 +3,13 @@ import { loadSigningKey, type SigningKey } from './crypto.ts';
 
 export interface Config {
   port: number;
+  /** 'firestore' on Cloud Run; 'sqlite' (default) for local development and tests. */
+  store: 'sqlite' | 'firestore';
+  /** SQLite file, or ':memory:'. Only used when store is 'sqlite'. */
   databasePath: string;
+  /** Firestore project and database; the client's defaults (the Cloud Run project, '(default)') when absent. */
+  firestoreProjectId?: string;
+  firestoreDatabaseId?: string;
   sessionSecret: Buffer;
   /** Signs offline grants and the data manifest. Clients pin its public half. */
   signingKey: SigningKey;
@@ -31,6 +37,8 @@ const required = (env: NodeJS.ProcessEnv, name: string): string => {
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const devMode = env.KCP_DEV_MODE === '1';
+  const store = env.KCP_STORE === 'firestore' ? 'firestore' : 'sqlite';
+  if (env.KCP_STORE && env.KCP_STORE !== 'firestore' && env.KCP_STORE !== 'sqlite') throw new Error('KCP_STORE must be sqlite or firestore');
   const licenceKeys = devMode && !env.KCP_LICENCE_PUBLIC_KEY ? crypto.generateKeyPairSync('ed25519') : null;
   const licencePrivate = env.KCP_LICENCE_PRIVATE_KEY_PEM
     ? crypto.createPrivateKey(env.KCP_LICENCE_PRIVATE_KEY_PEM)
@@ -39,7 +47,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     (licenceKeys ? Buffer.from((licenceKeys.publicKey.export({ format: 'jwk' }) as { x: string }).x, 'base64url').toString('base64') : required(env, 'KCP_LICENCE_PUBLIC_KEY'));
   return {
     port: Number(env.PORT ?? 8787),
-    databasePath: env.KCP_DATABASE_PATH ?? (devMode ? ':memory:' : required(env, 'KCP_DATABASE_PATH')),
+    store,
+    databasePath: env.KCP_DATABASE_PATH ?? (devMode || store === 'firestore' ? ':memory:' : required(env, 'KCP_DATABASE_PATH')),
+    firestoreProjectId: env.KCP_FIRESTORE_PROJECT || undefined,
+    firestoreDatabaseId: env.KCP_FIRESTORE_DATABASE || undefined,
     sessionSecret: env.KCP_SESSION_SECRET ? Buffer.from(env.KCP_SESSION_SECRET, 'base64') : devMode ? crypto.randomBytes(32) : Buffer.from(required(env, 'KCP_SESSION_SECRET'), 'base64'),
     signingKey: loadSigningKey(env.KCP_SIGNING_KEY_ID ?? (devMode ? 'dev' : required(env, 'KCP_SIGNING_KEY_ID')), env.KCP_SIGNING_KEY_PEM ?? (devMode ? undefined : required(env, 'KCP_SIGNING_KEY_PEM'))),
     licencePublicKey: licencePublic,

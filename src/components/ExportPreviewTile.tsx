@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { Minus, Plus, RectangleHorizontal } from 'lucide-react';
 import { canTurn, framingFor, shapeLabel, toProfile, type BarStyle, type ExportFormat } from '../core/exportFormats';
 import { MAX_ZOOM, clampAnchor, clampZoom, planExportFraming, type FocusPoint } from '../core/exportFraming';
@@ -11,6 +11,7 @@ import { SocialIcon } from './SocialIcon';
 import { exportText as t } from '../i18n/areas/export';
 import { formatLabel } from '../i18n/areas/export/labels';
 import { AdjustmentSlider } from './AdjustmentSlider';
+import { createLatestPreviewRequest } from '../core/latestPreviewRequest';
 
 interface Props {
   frame: PhotoFrame;
@@ -41,6 +42,7 @@ export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, o
   const canvas = useRef<HTMLCanvasElement>(null);
   const [busy, setBusy] = useState(true);
   const [failed, setFailed] = useState(false);
+  const proofRequests = useRef(createLatestPreviewRequest());
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<{ x: number; y: number; anchor: FocusPoint; zoom: number; spread: number } | null>(null);
   const frameRequest = useRef(0);
@@ -54,23 +56,47 @@ export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, o
     return { width, height, region };
   };
 
-  useEffect(() => {
-    if (!source) return;
-    let cancelled = false;
+  // Clear the stale proof *before paint* whenever crop, zoom, source, edit or
+  // overlay changes. The old canvas is not the new recipe and must not look ready.
+  useLayoutEffect(() => {
+    const signal = proofRequests.current.begin();
+    cancelAnimationFrame(frameRequest.current);
+    const surface = canvas.current;
+    if (surface) { surface.width = 0; surface.height = 0; }
+    setBusy(true);
+    setFailed(false);
+    if (!source) return () => proofRequests.current.cancel(signal);
     const timer = window.setTimeout(async () => {
+      let rendered: HTMLCanvasElement | null = null;
       try {
-        const small = await renderExportPreview(source, frame, toProfile(format), framingFor(format.fit), { focus: anchor, bars, zoom, overlay }, undefined);
-        if (cancelled || !canvas.current) return;
-        canvas.current.width = small.width;
-        canvas.current.height = small.height;
-        canvas.current.getContext('2d')!.drawImage(small, 0, 0);
+        rendered = await renderExportPreview(
+          source, frame, toProfile(format), framingFor(format.fit),
+          { focus: anchor, bars, zoom, overlay }, signal,
+        );
+        if (!proofRequests.current.isCurrent(signal) || !canvas.current) return;
+        const target = canvas.current;
+        const context = target.getContext('2d');
+        if (!context) throw new Error('Cannot draw the current export proof.');
+        target.width = rendered.width;
+        target.height = rendered.height;
+        context.drawImage(rendered, 0, 0);
         setFailed(false);
         setBusy(false);
       } catch {
-        if (!cancelled) { setFailed(true); setBusy(false); }
+        if (proofRequests.current.isCurrent(signal)) {
+          setFailed(true);
+          setBusy(false);
+        }
+      } finally {
+        // The screen canvas has its own pixels. Release intermediate canvas
+        // memory promptly, even for cancelled / superseded 500-photo renders.
+        if (rendered) { rendered.width = 0; rendered.height = 0; }
       }
     }, 60);
-    return () => { cancelled = true; window.clearTimeout(timer); };
+    return () => {
+      window.clearTimeout(timer);
+      proofRequests.current.cancel(signal);
+    };
   }, [source, frame, format.id, format.fit, format.width, format.height, bars, zoom, anchor.x, anchor.y, JSON.stringify(overlay)]);
 
   const quickDraw = (next: FocusPoint, nextZoom: number) => {
@@ -149,7 +175,7 @@ export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, o
   const caption = shape && !label.includes(shape) ? `${label} · ${shape}` : label;
   const hint = !movable ? (format.fit === 'bars' ? t.tile.hintBars : t.tile.hintKeep) : t.tile.hintMove;
   return (
-    <figure className="flex flex-col gap-1">
+    <figure aria-busy={busy} className="flex flex-col gap-1">
       <div className="relative">
         <div role={movable ? 'group' : undefined} tabIndex={movable ? 0 : undefined}
           aria-label={movable ? t.tile.cropPosition(frame.filename, caption) : undefined}
@@ -159,8 +185,8 @@ export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, o
           onPointerDown={movable ? down : undefined} onPointerMove={movable ? move : undefined}
           onPointerUp={movable ? up : undefined} onPointerCancel={movable ? up : undefined}
           className={`relative grid ${large ? 'h-[min(46dvh,30rem)]' : 'h-48'} touch-none place-items-center overflow-hidden rounded-md bg-zinc-700/50 ${movable ? 'cursor-grab focus-visible:outline-2 focus-visible:outline-sky-300 active:cursor-grabbing' : ''}`}>
-          <canvas ref={canvas} aria-label={t.tile.previewOf(frame.filename, caption)} role="img" className={`max-h-full max-w-full shadow-[0_0_0_1px_rgba(255,255,255,0.55),0_4px_18px_rgba(0,0,0,0.5)] ${busy ? 'opacity-40' : ''}`} />
-          {busy && !failed && <span className="absolute text-xs text-zinc-300" role="status">{t.tile.drawing}</span>}
+          <canvas ref={canvas} aria-label={t.tile.previewOf(frame.filename, caption)} aria-hidden={busy || failed} role="img" className={`max-h-full max-w-full shadow-[0_0_0_1px_rgba(255,255,255,0.55),0_4px_18px_rgba(0,0,0,0.5)] ${busy ? 'opacity-0' : ''}`} />
+          {busy && !failed && <span className="absolute px-2 text-center text-xs text-zinc-300" role="status">{source ? t.tile.updating : t.tile.waitingForPhoto}</span>}
           {failed && <span className="absolute px-2 text-center text-xs text-orange-200" role="status">{t.tile.failed}</span>}
         </div>
         {platform && (
