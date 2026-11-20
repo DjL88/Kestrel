@@ -82,7 +82,7 @@ export function FilterSortControl(props: Props) {
         <span className="sr-only" role="status">{activeCount > 0 ? t.filter.active(activeCount) : t.filter.noneActive}</span>
         {open && (
           <div ref={popoverRef} id="filter-popover" role="group" aria-label={t.filter.filterPhotos}
-            className="absolute right-0 max-md:left-0 max-md:right-auto top-full z-40 mt-1 w-[min(20rem,calc(100vw-2.5rem))] space-y-3 rounded-xl border border-white/12 bg-kestrel-raised p-3 shadow-2xl">
+            className="absolute right-0 max-md:left-0 max-md:right-auto top-full z-[110] mt-1 w-[min(20rem,calc(100vw-2.5rem))] space-y-3 rounded-xl border border-white/12 bg-kestrel-raised p-3 shadow-2xl">
             <label className="block text-xs font-medium text-zinc-400">
               {t.filter.search}
               <span className="relative mt-1 block">
