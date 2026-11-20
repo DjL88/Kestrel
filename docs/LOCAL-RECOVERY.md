@@ -15,8 +15,10 @@ destination is an *additional* copy and does not replace device/source copies.
 
 Snapshots are identified by project, timestamp and nonce, with up to 10 kept
 per project at each reachable destination. A failed source write does not
-prevent on-device recovery; it is reported and retried. Unavailable separate
-device storage does not prevent saving to a writable source.
+prevent on-device recovery; it shows only a quiet, non-blocking status and is
+retried with backoff. A writable photo source remains usable even if private
+device storage cannot be reached. Normal local catalogue saves never stop due
+to a failed recovery copy.
 
 The file records the RAW processing-cache version but contains **no image data**
 or underlying RAW/JPEG files. Locally cached developed previews are kept in

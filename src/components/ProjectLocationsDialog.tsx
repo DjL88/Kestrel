@@ -81,7 +81,8 @@ export function ProjectLocationsDialog({ state, onClose }: { state: CullingState
             {status.state === 'working' && <p role="status">{t.locations.backingUp(backupLabel)}</p>}
             {status.state === 'ok' && <p role="status">{t.locations.lastBackedUp(ago(status.at ?? now, now), backupLabel)}</p>}
             {status.state === 'ok' && status.message && <p role="status" className="text-amber-200">{status.message}</p>}
-            {status.state === 'failed' && <p role="alert" className="text-amber-200">{t.locations.backupFailed(backupLabel, status.message ?? '')}</p>}
+            {status.state === 'partial' && <p role="status" className="text-zinc-300">{status.message}</p>}
+            {status.state === 'failed' && <p role="status" className="text-zinc-400">{t.locations.backupFailed(backupLabel, status.message ?? '')}</p>}
             {status.state === 'idle' && <p role="status">{t.locations.backupIdle(backupLabel)}</p>}
             <button type="button" className={action} disabled={status.state === 'working'} onClick={() => void backUpProjectNow(state)}>{t.locations.backUpNow}</button>
           </div>

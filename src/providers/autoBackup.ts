@@ -7,7 +7,7 @@ import { openConnection } from './connectionStore';
 import { getLocations } from './projectLocations';
 import { LOCAL_RECOVERY_TARGET, openDeviceRecovery, openSourceRecovery } from './automaticRecovery';
 
-export interface BackupStatus { state: 'idle' | 'working' | 'ok' | 'failed'; at?: number; message?: string; health?: Health; to?: string }
+export interface BackupStatus { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number; message?: string; health?: Health; to?: string }
 
 const CLOCK_KEY = 'kestrel.backupclock.v1';
 const clocks = new Map<string, BackupClock>();
@@ -74,17 +74,21 @@ export async function backUpNow(state: CullingState, connectionId: string, now =
     catch (error) { localError = error instanceof Error ? error.message : 'Device storage is unavailable.'; }
   }
 
-  const source = await openSourceRecovery(state);
-  // A deliberately selected destination is an additional backup; it never
-  // removes the automatic photo-source or local copy.
-  const selected = connectionId === LOCAL_RECOVERY_TARGET ? null : await openConnection(connectionId);
+  // Source and optional connection access are best effort. A missing,
+  // disconnected or read-only folder must never interrupt normal editing.
+  const source = await openSourceRecovery(state).catch(() => null);
+  const failed: string[] = [];
+  let selected: Awaited<ReturnType<typeof openConnection>> | null = null;
+  if (connectionId !== LOCAL_RECOVERY_TARGET) {
+    try { selected = await openConnection(connectionId); }
+    catch { failed.push('Chosen backup location is temporarily unavailable.'); }
+  }
   const extra: Array<{ connector: import('../core/storageConnectors').StorageConnector; to: string }> = [];
   if (source && !('problem' in source)) extra.push(source);
   if (selected && !('problem' in selected)) extra.push({ connector: selected.connector, to: 'Chosen backup location' });
 
   let extraOk = 0;
-  const failed: string[] = [];
-  if (selected && 'problem' in selected) failed.push(`Chosen backup location: ${selected.message}`);
+  if (selected && 'problem' in selected) failed.push('Chosen backup location is temporarily unavailable.');
   for (const target of extra) {
     try { await writeSnapshot(target.connector, projectId, name, payload); extraOk++; }
     catch (error) { failed.push(`${target.to}: ${error instanceof Error ? error.message : 'Not writable'}`); }
@@ -96,15 +100,16 @@ export async function backUpNow(state: CullingState, connectionId: string, now =
   };
   // An unavailable network source must not cancel an otherwise valid local
   // snapshot, but it must remain visible and eligible for another attempt.
-  if (failed.length) return {
-    state: 'failed', at: now.getTime(),
-    to: localOk ? 'On this device' : extra[0]?.to,
-    message: `${localOk ? 'Saved on this device. ' : ''}${failed.join(' ')}`,
+  if (failed.length || !localOk) return {
+    state: 'partial', at: now.getTime(),
+    to: localOk ? 'On this device' : extra.at(-1)?.to,
+    message: localOk
+      ? 'Saved locally. The folder copy could not be updated; Kestrel will retry automatically.'
+      : 'Saved alongside your photographs. Device recovery is unavailable; Kestrel will retry automatically.',
   };
   return {
     state: 'ok', at: now.getTime(),
     to: extraOk ? extra.at(-1)?.to ?? 'Photo folder' : 'On this device',
-    ...(localOk ? {} : { message: `Source backup saved, but a separate on-device copy was unavailable: ${localError}` }),
   };
 }
 
