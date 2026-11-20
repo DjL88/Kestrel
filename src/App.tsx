@@ -2511,7 +2511,7 @@ export default function App() {
                 <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs text-orange-200 hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setPendingAction({ kind: 'trash', frameIds: selectedVisibleFrames.map((frame) => frame.id) })}>{t.editorBar.trash}</button>
               </>}
-              <div id="viewer-zoom-slot" className="ml-auto flex shrink-0 items-center" />
+
             </div>
           )}
 
@@ -2547,7 +2547,6 @@ export default function App() {
       {/* Not in grid view, where every photo is already on screen. */}
       {!prefs.focusMode && visibleFrames.length > 0 && (editing || prefs.viewMode !== 'grid') && (
         <FilmstripDock expanded={prefs.showFilmstrip} onToggle={toggleFilmstrip}
-          onBeforeAfter={editing ? () => window.dispatchEvent(new Event('kestrel:toggle-before-after')) : undefined}
           onPhotoOnly={() => setPrefs((prev) => ({ ...prev, focusMode: true }))}>
             <Filmstrip
               onPhotoMenu={openPhotoMenu}
