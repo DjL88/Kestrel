@@ -2388,6 +2388,16 @@ export default function App() {
                 const chosen = new Set(ids);
                 setExportFrames(cullingState.frames.filter((frame) => chosen.has(frame.id) && !frame.removedAt));
               }}
+              onAutoAdjustSelected={(ids) => {
+                setSelectedIds(new Set(ids));
+                setMultiSelect(true);
+                setAutoAdjustSelectedOpen(true);
+              }}
+              onApplyLookSelected={(ids) => {
+                setSelectedIds(new Set(ids));
+                setMultiSelect(true);
+                setSelectionLookOpen(true);
+              }}
             />
           )}
 
