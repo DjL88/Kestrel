@@ -424,3 +424,31 @@ test('local chroma denoise survives 16-bit export path without touching unmasked
     'outside mask preserves full 16-bit original samples');
   assert.ok(encodeTiff16(image).size > width * height * 6, 'archival TIFF contains the output');
 });
+
+test('RGB16 decoder refuses forged, oversized and trailing frames before allocating pixels', () => {
+  const frame = (width: number, height: number, samples: number[] = []): ArrayBuffer => {
+    const bytes = new ArrayBuffer(8 + samples.length * 2);
+    const view = new DataView(bytes);
+    view.setUint32(0, width, true);
+    view.setUint32(4, height, true);
+    samples.forEach((sample, index) => view.setUint16(8 + index * 2, sample, true));
+    return bytes;
+  };
+  const exact = frame(2, 1, [1, 257, 65535, 32769, 50001, 42]);
+  assert.deepEqual(Array.from(parseRgb16(exact).data), [1, 257, 65535, 32769, 50001, 42],
+    'samples retain precision beyond 8-bit quantisation');
+  assert.deepEqual(Array.from(parseRgb16(exact, true).data), [1, 257, 65535, 32769, 50001, 42]);
+  for (const bad of [
+    new ArrayBuffer(0),
+    new ArrayBuffer(7),
+    frame(0, 1),
+    frame(1, 0),
+    frame(80_000_001, 1),
+    frame(0xffffffff, 0xffffffff),
+    frame(2, 1, [1, 2, 3]),
+    frame(1, 1, [1, 2, 3, 4]),
+  ]) {
+    assert.throws(() => parseRgb16(bad), /empty|invalid dimensions|incomplete pixel data/);
+    assert.throws(() => parseRgb16(bad, true), /empty|invalid dimensions|incomplete pixel data/);
+  }
+});
