@@ -6,11 +6,13 @@ FROM node:22-alpine
 WORKDIR /app
 COPY src/core ./src/core
 COPY services/control-plane/package.json services/control-plane/package-lock.json ./services/control-plane/
-RUN cd services/control-plane && npm ci --omit=optional --no-audit --no-fund
+# tsx needs esbuild's platform binary, which npm installs as an optional dependency.
+RUN cd services/control-plane && npm ci --include=dev --include=optional --no-audit --no-fund
 COPY services/control-plane ./services/control-plane
 WORKDIR /app/services/control-plane
 # Cloud Run sets PORT (8080); 8787 is the local default.
 ENV NODE_ENV=production PORT=8787
 EXPOSE 8787
 USER node
-CMD ["npx", "tsx", "src/server.ts"]
+RUN KCP_DEV_MODE=1 node --import tsx src/server.ts --print-openapi > /dev/null
+CMD ["node", "--import", "tsx", "src/server.ts"]
