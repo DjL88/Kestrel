@@ -8,11 +8,15 @@ export interface SavedOriginal {
   path: string;
   size: number;
   lastModified: number;
+  /** SHA-256 of the entire original file, when independently measured. */
+  sha256?: string;
 }
 export interface CandidateOriginal {
   path: string;
   size: number;
   lastModified: number;
+  /** SHA-256 of the entire candidate file, when independently measured. */
+  sha256?: string;
 }
 export interface RelinkMatch { id: string; path: string }
 export interface RelinkPlan {
@@ -28,6 +32,10 @@ const valid = (file: { path: string; size: number; lastModified: number }) =>
   Boolean(filename(file.path)) &&
   Number.isSafeInteger(file.size) && file.size >= 0 &&
   Number.isFinite(file.lastModified) && file.lastModified >= 0;
+const digest = (value: string | undefined) => value?.toLowerCase();
+const validDigest = (value: string | undefined) => value === undefined || /^[0-9a-f]{64}$/i.test(value);
+const hashedSignature = (file: { size: number; sha256?: string }) =>
+  JSON.stringify([file.size, digest(file.sha256)]);
 const signature = (file: { path: string; size: number; lastModified: number }) =>
   JSON.stringify([filename(file.path), file.size, file.lastModified]);
 
@@ -36,7 +44,9 @@ const signature = (file: { path: string; size: number; lastModified: number }) =
  * candidate signature or candidate path makes the affected records ambiguous.
  * This is deliberately conservative: metadata alone cannot disambiguate two
  * cameras producing the same filename/size/time, or two identical NAS copies.
- * Caller must confirm identity before applying links.
+ * Caller must confirm metadata-only matches before applying links. When a saved
+ * SHA-256 is supplied, only a candidate with the same full-file digest and
+ * byte size is eligible; this planner does not calculate or attest digests.
  */
 export function planOriginalRelink(
   originals: readonly SavedOriginal[],
@@ -49,16 +59,28 @@ export function planOriginalRelink(
   const originalCount = new Map<string, number>();
   const candidateCount = new Map<string, number>();
   const candidatePaths = new Map<string, number>();
+  const hashedOriginalCount = new Map<string, number>();
+  const hashedCandidateCount = new Map<string, number>();
+  const hashedCandidateBySignature = new Map<string, CandidateOriginal>();
 
   for (const original of originals) {
     idCount.set(original.id, (idCount.get(original.id) ?? 0) + 1);
+    if (valid(original) && validDigest(original.sha256) && original.sha256) {
+      const key = hashedSignature(original);
+      hashedOriginalCount.set(key, (hashedOriginalCount.get(key) ?? 0) + 1);
+    }
     if (valid(original)) {
       const key = signature(original);
       originalCount.set(key, (originalCount.get(key) ?? 0) + 1);
     }
   }
   for (const candidate of candidates) {
-    if (!valid(candidate)) continue;
+    if (!valid(candidate) || !validDigest(candidate.sha256)) continue;
+    if (candidate.sha256) {
+      const hashKey = hashedSignature(candidate);
+      hashedCandidateCount.set(hashKey, (hashedCandidateCount.get(hashKey) ?? 0) + 1);
+      hashedCandidateBySignature.set(hashKey, candidate);
+    }
     const key = signature(candidate);
     const path = normalizedPath(candidate.path);
     candidateCount.set(key, (candidateCount.get(key) ?? 0) + 1);
@@ -66,15 +88,31 @@ export function planOriginalRelink(
   }
   const candidateBySignature = new Map<string, CandidateOriginal>();
   for (const candidate of candidates) {
-    if (valid(candidate)) candidateBySignature.set(signature(candidate), candidate);
+    if (valid(candidate) && validDigest(candidate.sha256)) candidateBySignature.set(signature(candidate), candidate);
   }
   for (const original of originals) {
     if (!original.id.trim() || (idCount.get(original.id) ?? 0) > 1) {
       ambiguous.push(original.id);
       continue;
     }
-    if (!valid(original)) {
+    if (!valid(original) || !validDigest(original.sha256)) {
       unresolved.push(original.id);
+      continue;
+    }
+    // When a trusted catalogue digest exists, metadata alone is NEVER enough.
+    // Hash + byte size permits a renamed or re-timestamped original to reconnect.
+    if (original.sha256) {
+      const hashKey = hashedSignature(original);
+      const count = hashedCandidateCount.get(hashKey) ?? 0;
+      if (count === 0) { unresolved.push(original.id); continue; }
+      if (count !== 1 || hashedOriginalCount.get(hashKey) !== 1) {
+        ambiguous.push(original.id); continue;
+      }
+      const candidate = hashedCandidateBySignature.get(hashKey)!;
+      if ((candidatePaths.get(normalizedPath(candidate.path)) ?? 0) !== 1) {
+        ambiguous.push(original.id); continue;
+      }
+      matches.push({ id: original.id, path: candidate.path });
       continue;
     }
     const key = signature(original);
