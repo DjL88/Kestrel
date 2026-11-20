@@ -779,6 +779,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             <label className="block text-sm text-zinc-300">{t.watermark.picture}
               <input type="file" accept="image/png,image/jpeg,image/webp" className="block min-h-11 w-full py-2 text-sm" onChange={(event) => chooseMarkPicture(event.target.files?.[0])} />
               {mark.imageData && <span className="text-xs text-zinc-400">{t.watermark.pictureChosen}</span>}
+              <span className="block text-xs text-zinc-400">{t.watermark.localOnly}</span>
             </label>
           )}
           {markNote && <p role="status" className="text-xs text-amber-200">{markNote}</p>}
