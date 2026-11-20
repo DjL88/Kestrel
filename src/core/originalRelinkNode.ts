@@ -19,7 +19,8 @@ const safeId = (s: unknown): s is string =>
   typeof s === 'string' && s.length > 0 && s.trim() === s &&
   !/[\u0000-\u001f\u007f]/.test(s);
 
-async function hashRegularFile(path: string): Promise<{ byteLength: number; sha256: string; canonicalPath: string; physicalKey: string }> {
+async function hashRegularFile(path: string, signal?: AbortSignal): Promise<{ byteLength: number; sha256: string; canonicalPath: string; physicalKey: string }> {
+  if (signal?.aborted) throw new Error('relink-cancelled');
   const beforePath = await lstat(path);
   if (!beforePath.isFile() || beforePath.isSymbolicLink())
     throw new Error('not-regular-file');
@@ -33,7 +34,8 @@ async function hashRegularFile(path: string): Promise<{ byteLength: number; sha2
       throw new Error('file-changed-during-verification');
     const hash = createHash('sha256');
     let count = 0;
-    for await (const chunk of handle.createReadStream({ autoClose: false })) {
+    for await (const chunk of handle.createReadStream({ autoClose: false, signal })) {
+      if (signal?.aborted) throw new Error('relink-cancelled');
       hash.update(chunk);
       count += chunk.length;
       if (!Number.isSafeInteger(count)) throw new Error('unsafe-file-length');
@@ -66,19 +68,24 @@ async function hashRegularFile(path: string): Promise<{ byteLength: number; sha2
 export async function verifyDesktopRelinkFiles(
   originals: readonly OriginalIdentity[],
   files: readonly FileRelinkCandidate[],
+  signal?: AbortSignal,
 ): Promise<FileRelinkResult> {
   const failures: Array<{ photoId: string; reason: string }> = [];
   const candidates: Array<{ photoId: string; candidateKey: string; byteLength: number; sha256: string }> = [];
   const seenPaths = new Set<string>();
   const seenPhysicalFiles = new Set<string>();
   for (const file of files) {
+    if (signal?.aborted) {
+      failures.push({ photoId: file.photoId, reason: 'relink-cancelled' });
+      break;
+    }
     if (!safeId(file.photoId) || typeof file.path !== 'string' ||
         !file.path.startsWith('/') && !/^[A-Za-z]:[\\/]/.test(file.path)) {
       failures.push({ photoId: String(file.photoId), reason: 'invalid-file-candidate' });
       continue;
     }
     try {
-      const verified = await hashRegularFile(file.path);
+      const verified = await hashRegularFile(file.path, signal);
       if (seenPaths.has(verified.canonicalPath) || seenPhysicalFiles.has(verified.physicalKey))
         failures.push({ photoId: file.photoId, reason: 'duplicate-candidate-path' });
       seenPaths.add(verified.canonicalPath);
@@ -88,7 +95,7 @@ export async function verifyDesktopRelinkFiles(
         byteLength: verified.byteLength, sha256: verified.sha256,
       });
     } catch {
-      failures.push({ photoId: file.photoId, reason: 'candidate-unreadable-or-changed' });
+      failures.push({ photoId: file.photoId, reason: signal?.aborted ? 'relink-cancelled' : 'candidate-unreadable-or-changed' });
     }
   }
   const plan = planVerifiedRelinks(originals, candidates);
