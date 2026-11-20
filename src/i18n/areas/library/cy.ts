@@ -110,6 +110,12 @@ export const cy: AreaTranslation<typeof source> = {
     photoInfoFor: (filename) => `Gwybodaeth a sgôr ${filename}`,
   },
   decision: {
+    undecided: "Heb benderfynu",
+    undecidedPhoto: (filename) => `Symud ${filename} yn ôl i’w adolygu (Heb benderfynu)`,
+    reject: "Gwrthod",
+    rejectPhoto: (filename) => `Gwrthod ${filename}`,
+    rejected: "Wedi’i wrthod",
+    rejectedPhoto: (filename) => `Mae ${filename} eisoes wedi’i wrthod`,
     keepPhoto: (filename) => `Cadw ${filename}`,
     keep: 'Cadw',
     backToReviewPhoto: (filename) => `Symud ${filename} yn ôl i’w adolygu`,

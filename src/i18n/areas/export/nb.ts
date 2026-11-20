@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** Norwegian Bokmål. DRAFT: written without a native speaker's check. */
 export const nb: AreaTranslation<typeof source> = {
+  proof: {
+    title: "Eksportprøve",
+    photo: "Bilde",
+    choosePhoto: "Bilde å kontrollere",
+    output: "Utdata",
+    chooseOutput: "Utdata å kontrollere",
+    choose: "Velg en utdata for å se prøven.",
+    loading: "Laster inn forhåndsvisningen av bildet…",
+    loadFailed: "Bildet kunne ikke lastes inn for prøven. Originalen er urørt.",
+    retry: "Prøv igjen",
+    resolution: "Bare forhåndsvisning i skjermoppløsning. Sjekk den lagrede filen for endelig detalj og størrelse.",
+  },
   fit: {
     fill: 'Beskjær for å fylle formen',
     bars: 'Hele bildet, med kanter',
@@ -196,6 +208,8 @@ export const nb: AreaTranslation<typeof source> = {
     preparing: (done, total) => `Klargjør ${done}/${total}…`,
   },
   tile: {
+    updating: "Oppdaterer prøven…",
+    waitingForPhoto: "Laster inn bildet…",
     hintBars: 'Hele bildet, med kanter',
     hintKeep: 'Beholder bildets egen form',
     hintMove: 'Dra for å flytte, knip eller bruk glidebryteren for å zoome',

@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** Danish. DRAFT: written without a native speaker's check. */
 export const da: AreaTranslation<typeof source> = {
+  proof: {
+    title: "Eksportprøve",
+    photo: "Foto",
+    choosePhoto: "Foto til kontrol",
+    output: "Output",
+    chooseOutput: "Output til kontrol",
+    choose: "Vælg et output for at se dets prøve.",
+    loading: "Indlæser fotoets forhåndsvisning…",
+    loadFailed: "Fotoet kunne ikke indlæses til prøven. Dit original er urørt.",
+    retry: "Prøv igen",
+    resolution: "Kun forhåndsvisning i skærmopløsning. Tjek den gemte fil for endelig detalje og størrelse.",
+  },
   fit: {
     fill: 'Beskær, så formen fyldes',
     bars: 'Hele billedet, med kanter',
@@ -196,6 +208,8 @@ export const da: AreaTranslation<typeof source> = {
     preparing: (done, total) => `Klargør ${done}/${total}…`,
   },
   tile: {
+    updating: "Opdaterer prøven…",
+    waitingForPhoto: "Indlæser fotoet…",
     hintBars: 'Hele billedet, med kanter',
     hintKeep: 'Beholder billedets egen form',
     hintMove: 'Træk for at flytte, knib eller brug skyderen for at zoome',

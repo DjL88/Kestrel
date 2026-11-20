@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** Finnish. DRAFT: written without a native speaker's check. */
 export const fi: AreaTranslation<typeof source> = {
+  proof: {
+    title: "Vientivedos",
+    photo: "Kuva",
+    choosePhoto: "Tarkistettava kuva",
+    output: "Tuloste",
+    chooseOutput: "Tarkistettava tuloste",
+    choose: "Valitse tuloste nähdäksesi sen vedoksen.",
+    loading: "Ladataan kuvan esikatselua…",
+    loadFailed: "Kuvaa ei voitu ladata vedosta varten. Alkuperäiseen ei ole koskettu.",
+    retry: "Yritä uudelleen",
+    resolution: "Vain näytön tarkkuinen esikatselu. Tarkista tallennettu tiedosto lopullisen tarkkuuden ja koon osalta.",
+  },
   fit: {
     fill: 'Rajaa täyttämään muoto',
     bars: 'Koko kuva, reunojen kanssa',
@@ -196,6 +208,8 @@ export const fi: AreaTranslation<typeof source> = {
     preparing: (done, total) => `Valmistellaan ${done}/${total}…`,
   },
   tile: {
+    updating: "Päivitetään vedosta…",
+    waitingForPhoto: "Ladataan kuvaa…",
     hintBars: 'Koko kuva, reunojen kanssa',
     hintKeep: 'Säilyttää kuvan oman muodon',
     hintMove: 'Siirrä vetämällä, zoomaa nipistämällä tai liukusäätimellä',

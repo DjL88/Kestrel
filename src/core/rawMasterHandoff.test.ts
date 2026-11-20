@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe } from 'node:test';
+import { expect, it } from './testExpect';
 import { acceptRawMaster, mayUseMaster, type MasterCandidate, type MasterRequest } from './rawMasterHandoff';
 import type { RawMasterEvidence } from './rawMasterProvenance';
 

@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** Swedish. DRAFT: written without a native speaker's check. */
 export const sv: AreaTranslation<typeof source> = {
+  proof: {
+    title: "Exportprov",
+    photo: "Foto",
+    choosePhoto: "Foto att granska",
+    output: "Utdata",
+    chooseOutput: "Utdata att granska",
+    choose: "Välj en utdata för att se dess prov.",
+    loading: "Läser in förhandsvisningen av fotot…",
+    loadFailed: "Fotot kunde inte läsas in för provet. Originalet är orört.",
+    retry: "Försök igen",
+    resolution: "Endast förhandsvisning i skärmupplösning. Kontrollera den sparade filen för slutlig detalj och storlek.",
+  },
   fit: {
     fill: 'Beskär för att fylla formen',
     bars: 'Hela bilden, med kanter',
@@ -196,6 +208,8 @@ export const sv: AreaTranslation<typeof source> = {
     preparing: (done, total) => `Förbereder ${done}/${total}…`,
   },
   tile: {
+    updating: "Uppdaterar provet…",
+    waitingForPhoto: "Läser in fotot…",
     hintBars: 'Hela bilden, med kanter',
     hintKeep: 'Behåller bildens egen form',
     hintMove: 'Dra för att flytta, nyp eller använd reglaget för att zooma',

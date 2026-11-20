@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** Icelandic. DRAFT: written without a native speaker's check. */
 export const is: AreaTranslation<typeof source> = {
+  proof: {
+    title: "Útflutningsprófun",
+    photo: "Mynd",
+    choosePhoto: "Mynd til yfirferðar",
+    output: "Úttak",
+    chooseOutput: "Úttak til yfirferðar",
+    choose: "Veldu úttak til að sjá prófun þess.",
+    loading: "Hleð forskoðun myndarinnar…",
+    loadFailed: "Ekki tókst að hlaða þessari mynd fyrir prófun. Upprunalega myndin er óbreytt.",
+    retry: "Reyna aftur",
+    resolution: "Aðeins forskoðun í skjáupplausn. Athugaðu vistuðu skrána fyrir endanleg smáatriði og stærð.",
+  },
   fit: {
     fill: 'Skera til að fylla formið',
     bars: 'Öll myndin, með römmum',
@@ -196,6 +208,8 @@ export const is: AreaTranslation<typeof source> = {
     preparing: (done, total) => `Undirbý ${done}/${total}…`,
   },
   tile: {
+    updating: "Uppfæri prófun…",
+    waitingForPhoto: "Hleð myndinni…",
     hintBars: 'Öll myndin, með römmum',
     hintKeep: 'Heldur eigin lögun myndarinnar',
     hintMove: 'Dragðu til að færa, klíptu eða notaðu sleðann til að stækka',

@@ -113,6 +113,12 @@ export const gd: AreaTranslation<typeof source> = {
     photoInfoFor: (filename) => `Fiosrachadh is rangachadh airson ${filename}`,
   },
   decision: {
+    undecided: "Gun cho-dhùnadh",
+    undecidedPhoto: (filename) => `Gluais ${filename} air ais airson sgrùdadh (Gun cho-dhùnadh)`,
+    reject: "Diùlt",
+    rejectPhoto: (filename) => `Diùlt ${filename}`,
+    rejected: "Air a dhiùltadh",
+    rejectedPhoto: (filename) => `Chaidh ${filename} a dhiùltadh mu thràth`,
     keepPhoto: (filename) => `Cùm ${filename}`,
     keep: 'Cùm',
     backToReviewPhoto: (filename) => `Cuir ${filename} air ais ri sgrùdadh`,

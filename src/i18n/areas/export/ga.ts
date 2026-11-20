@@ -8,6 +8,18 @@ const photos = (count: number) => plural(count, { one: `${count} ghrianghraf`, t
 
 /** Irish. DRAFT: written without a native speaker's check. */
 export const ga: AreaTranslation<typeof source> = {
+  proof: {
+    title: "Profa easpórtála",
+    photo: "Grianghraf",
+    choosePhoto: "Grianghraf le profáil",
+    output: "Aschur",
+    chooseOutput: "Aschur le profáil",
+    choose: "Roghnaigh aschur chun a phrofa a fheiceáil.",
+    loading: "Réamhamharc an ghrianghraif á lódáil…",
+    loadFailed: "Níorbh fhéidir an grianghraf seo a lódáil le haghaidh profa. Níor athraíodh do bhunghrianghraf.",
+    retry: "Bain triail eile as",
+    resolution: "Réamhamharc ag taifeach scáileáin amháin. Seiceáil an comhad sábháilte don mhionsonra agus don mhéid deiridh.",
+  },
   fit: {
     fill: 'Bearr chun an cruth a líonadh',
     bars: 'An grianghraf iomlán, le himill',
@@ -194,6 +206,8 @@ export const ga: AreaTranslation<typeof source> = {
     preparing: (done, total) => `Ag ullmhú ${done}/${total}…`,
   },
   tile: {
+    updating: "Profa á nuashonrú…",
+    waitingForPhoto: "An grianghraf á lódáil…",
     hintBars: 'An grianghraf iomlán, le himill',
     hintKeep: 'Coinníonn sé cruth an ghrianghraif féin',
     hintMove: 'Tarraing chun bogadh, fáisc nó úsáid an sleamhnán chun súmáil',

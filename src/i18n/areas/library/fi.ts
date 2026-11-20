@@ -113,6 +113,12 @@ export const fi: AreaTranslation<typeof source> = {
     photoInfoFor: (filename) => `Kuvan tiedot ja arvio: ${filename}`,
   },
   decision: {
+    undecided: "Päättämätön",
+    undecidedPhoto: (filename) => `Palauta ${filename} läpikäytäväksi (päättämätön)`,
+    reject: "Hylkää",
+    rejectPhoto: (filename) => `Hylkää ${filename}`,
+    rejected: "Hylätty",
+    rejectedPhoto: (filename) => `${filename} on jo hylätty`,
     keepPhoto: (filename) => `Säilytä: ${filename}`,
     keep: 'Säilytä',
     backToReviewPhoto: (filename) => `Palauta läpikäytäväksi: ${filename}`,
