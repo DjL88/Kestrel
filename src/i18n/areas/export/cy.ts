@@ -125,6 +125,8 @@ export const cy: AreaTranslation<typeof source> = {
     hiddenTiles: (shown, hidden) => `Yn dangos ${shown} rhagolwg. Mae’r ${hidden} ffeil arall yn cael eu gwneud yn yr un ffordd.`,
   },
   custom: {
+    allowUpscale: "Chwyddo lluniau bach (newid maint arferol)",
+    upscaleNote: "Mae hyn yn cynyddu nifer y picseli ond ni all adfer manylion coll. Mae'r rhagolwg yn dangos y cnwd; gwiriwch y manylion yn y ffeil a gadwyd.",
     width: 'Lled (px)',
     height: 'Uchder (px)',
     fit: 'Ffitio',
