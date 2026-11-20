@@ -27,6 +27,7 @@ export const nl: AreaTranslation<typeof source> = {
   modelNeeded: 'Typ de naam van het model zoals uw aanbieder die toont.',
   baseUrl: 'Adres van de AI',
   baseUrlHint: 'Bijvoorbeeld http://localhost:11434/v1 voor Ollama.',
+  invalidBaseUrl: "Gebruik HTTPS voor externe AI of http://localhost voor AI op deze computer. Zet geen sleutels in het adres.",
   save: 'Opslaan',
   consentTitle: 'Voordat er iets wordt verstuurd',
   consentCloud: (host) => `Kestrel stuurt een kopie van deze foto, 1.024 pixels aan de langste zijde, naar ${host}. Daarin zitten geen locatie, cameragegevens of bestandsnaam. Uw aanbieder kan voor elke vraag kosten rekenen.`,
