@@ -17,6 +17,16 @@ export const it: AreaTranslation<typeof source> = {
     keywords: "Parole chiave (separate da virgole; vuoto = tag confermati)",
     help: "I soggetti confermati possono compilare titolo e parole chiave. Le ipotesi IA non confermate non vengono esportate. I dati sono nel file, non sovrapposti alla foto.",
   },
+  originals: {
+    title: "File originali della fotocamera",
+    action: (count: number) => count === 1 ? "Salva file originale" : `Salva ${count} file originali`,
+    background: (count: number) => count === 1 ? "Salvataggio del file originale" : `Salvataggio di ${count} file originali`,
+    privacy: "Copia esatta del file originale, compresi formato e dati EXIF/GPS. Modifiche, ritagli, filigrane e modifiche ai metadati di esportazione NON vengono applicati. Il file sorgente resta invariato.",
+    browserLimit: "La selezione è troppo grande per creare un archivio ZIP sicuro in questo browser. Usa l’app desktop per salvare gli originali uno per uno in una cartella.",
+    browserLimitHelp: "Per grandi lotti RAW, l’app desktop salva un file alla volta senza creare un enorme ZIP in memoria.",
+    unavailable: "Le foto dimostrative non hanno un file originale della fotocamera.",
+    sourceMissing: "Il file originale non è disponibile. Ricollega l’unità o il file sorgente prima di copiarlo.",
+  },
   rawTiff: {
     action: "Esporta TIFF RAW a 16 bit (prototipo)",
     details: "Informazioni sul TIFF RAW a 16 bit",
