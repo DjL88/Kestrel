@@ -13,11 +13,14 @@ const extensionOf = (name: string) => name.includes('.') ? name.slice(name.lastI
  * Ask where to save with the system's own dialog, then write the file there. Returns false if the person cancelled.
  * The app can write only the place they chose.
  */
-export async function saveWithDialog(blob: Blob, name: string): Promise<boolean> {
+export async function saveWithDialog(blob: Blob, name: string, requireMatchingExtension = false): Promise<boolean> {
   const [{ save }, { writeFile }] = await Promise.all([import('@tauri-apps/plugin-dialog'), import('@tauri-apps/plugin-fs')]);
   const extension = extensionOf(name);
   const path = await save({ defaultPath: name, filters: extension ? [{ name: extension.toUpperCase(), extensions: [extension] }] : undefined });
   if (!path) return false;
+  if (requireMatchingExtension && extensionOf(path.split(/[\\/]/).at(-1) ?? '') !== extension) {
+    throw new Error(`Choose a filename ending in .${extension}.`);
+  }
   await writeFile(path, new Uint8Array(await blob.arrayBuffer()));
   // Show the saved file in Finder or Explorer. Saving has still worked if this fails.
   try {

@@ -4,6 +4,7 @@ import type { source } from './source';
 
 /** German. DRAFT: written without a native speaker's check. */
 export const de: AreaTranslation<typeof source> = {
+  sidecar: { save: "XMP-Begleitdatei speichern", saveFailed: "Die XMP-Begleitdatei konnte nicht gespeichert werden. Wähle einen Dateinamen mit .xmp." },
   presets: {
     title: "Exportvorgaben",
     name: "Name der Vorgabe",
