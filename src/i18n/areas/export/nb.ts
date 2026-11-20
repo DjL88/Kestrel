@@ -182,6 +182,9 @@ export const nb: AreaTranslation<typeof source> = {
     placeholder: '© Ditt navn',
     pictureChosen: 'Bilde valgt. Velg et annet for å bytte det ut.',
     pictureTooBig: 'Velg et bilde under 3 MB, helst en PNG med gjennomsiktig bakgrunn.',
+    pictureMissing: "Dette vannmerkebildet finnes ikke på enheten. Velg det på nytt før eksport.",
+    storageFailed: "Bildet kunne ikke lagres privat på denne enheten. Det forrige vannmerket er uendret.",
+    localOnly: "Bildevannmerker blir på denne enheten. En forhåndsinnstilling lagrer bare en lokal referanse, ikke bildet.",
     position: 'Plassering',
     positions: {
       topLeft: 'Øverst til venstre',
