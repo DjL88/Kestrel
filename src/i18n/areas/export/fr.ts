@@ -125,6 +125,8 @@ export const fr: AreaTranslation<typeof source> = {
     }),
   },
   custom: {
+    allowUpscale: "Agrandir les petites photos (redimensionnement classique)",
+    upscaleNote: "Cela augmente les dimensions en pixels sans retrouver les détails absents. L’aperçu montre le cadrage ; vérifiez les détails du fichier enregistré.",
     width: 'Largeur (px)',
     height: 'Hauteur (px)',
     fit: 'Ajustement',
