@@ -56,6 +56,16 @@ export function proveTiff16(bytes: ArrayBuffer): Tiff16Proof {
   if (v.getUint32(icc.value, false) !== icc.count) return fail('ICC declared size differs from TIFF tag.');
   const ascii = (at: number) => String.fromCharCode(...new Uint8Array(bytes, at, 4));
   if (ascii(icc.value + 36) !== 'acsp' || ascii(icc.value + 16) !== 'RGB ') return fail('ICC is not a valid RGB profile header.');
+  // The TIFF directory and BitsPerSample array are metadata, not image or
+  // profile storage. Reject forged offsets that alias those structures.
+  const overlaps = (a: number, aLength: number, b: number, bLength: number): boolean =>
+    a < b + bLength && b < a + aLength;
+  const reserved: Array<[number, number]> = [[0, 8], [ifd, 2 + count * 12 + 4], [bits.value, 6]];
+  for (const [offset, length] of reserved) {
+    if (overlaps(start, byteCount, offset, length) || overlaps(icc.value, icc.count, offset, length)) {
+      return fail('TIFF metadata overlaps image or ICC data.');
+    }
+  }
   // Disallow the image and ICC profile overlapping: a corrupt offset can
   // otherwise make arbitrary pixels appear to contain profile metadata.
   if (start < icc.value + icc.count && icc.value < start + byteCount) return fail('ICC overlaps pixel data.');
