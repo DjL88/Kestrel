@@ -49,6 +49,56 @@ key held offline, stays possible: run the control plane locally with `KCP_LICENC
 Firestore's free tier covers about 50,000 reads and 20,000 writes a day, far more than licensing needs. Each image is
 a few hundred MB in Artifact Registry; the repository keeps the 10 most recent.
 
+### Beta checklist: the minimum to deploy so leaked keys can be revoked (draft, not applied)
+
+For the closed beta (`docs/BETA-TESTING.md`). Needs #642 (the app's online licence checks) merged first, and the image built from a `main` that includes it. Keys are still issued on the Mac with `tools/licence/issue.mjs`, so the
+service does **not** need the licence-issuing key. Every command is spelled out in the sections below. Each step needs the
+owner's approval.
+
+**Terraform values** (`-var` on every apply; everything else keeps its default):
+
+| Variable | Beta value |
+| --- | --- |
+| `project_id` | `kestrel-hosting` |
+| `billing_account_id` | as in phase 1 |
+| `control_plane_image` | empty on the first apply, then `europe-west2-docker.pkg.dev/kestrel-hosting/kestrel/control-plane:<git sha>` |
+| `google_oauth_client_id` | the `/admin` OAuth web client ID (needed to sign in and revoke) |
+| `licence_issuing_enabled` | `false` (default) |
+| `firestore_location` / `control_plane_signing_key_id` | defaults: `europe-west2` / `kcp-2026-11` |
+
+**Steps**
+1. [ ] `terraform plan`, then `apply` without an image. This creates Firestore, the repository, the service account and
+   five empty secrets. Check the plan adds only the `control-plane.tf` resources and changes nothing from phase 1.
+2. [ ] Add the five secret values (commands in "Set it up" step 2 and "The admin console" step 2):
+   - `kcp-session-secret` and `kcp-webhook-secret`: random.
+   - `kcp-signing-key-pem`: a new Ed25519 key. Before deleting the PEM file, print its base64 public key with the
+     command in phase 1 step 3; that is the grant key the app pins.
+   - `kcp-licence-public-key`: exactly `Wyl4gmifZParQ8SYhc6rjvDRlAf0eii7FwHI8o360gM=`, the `LICENCE_PUBLIC_KEY` in
+     `src/core/licence.ts`. Otherwise the server refuses every tester's key.
+   - `kcp-admin-emails`: the owner's Google address.
+3. [ ] Create the OAuth client for `/admin` ("The admin console" step 1).
+4. [ ] Build the image (`gcloud builds submit …`), then apply with `control_plane_image` and `google_oauth_client_id`.
+5. [ ] Publish the website (`publish-gcp.ps1 -Website`), so Hosting forwards `/v1/admin/**` to the service.
+6. [ ] Smoke test. Each should answer as shown:
+   - `curl <control_plane_url>/healthz` → `{"ok":true}`
+   - `/admin` → Google sign-in works, and the overview says "Records stored in: Firestore".
+   - `curl -X POST <url>/v1/licences/status -H "content-type: application/json" -d '{"licenceKey":"<a tester key>","deviceHash":"<64 hex>"}'` → `"status":"unknown"` before first use.
+7. [ ] Build the beta apps with `VITE_KESTREL_CONTROL_PLANE_URL=<control_plane_url>` and
+   `VITE_KESTREL_GRANT_KEYS=kcp-2026-11=<grant public key from step 2>`. Builds without them still work, offline only,
+   and **cannot** hear about a revoked key.
+
+**Revoking a leaked key.** A key's licence id is inside it:
+`node -e "console.log(JSON.parse(Buffer.from(process.argv[1].split('.')[1],'base64url')).id)" KESTREL1.…`.
+In `/admin` → Licensees, filter by that id and choose Revoke. Devices with a build from step 7 turn Pro off at their next
+check (at start, when they come online, or every 6 hours). Free and local work are untouched.
+
+**Known gap:** the server only knows a key once a device has activated it. A key that has never been used can't be
+revoked in advance yet (Revoke answers "No such licence"); a "revoke by key" admin action is a small follow-up. Keep the
+private list of who got which key (`docs/BETA-TESTING.md`) so a leak can be traced to one key.
+
+**Cost for the beta:** within the free tiers (Cloud Run scales to zero; Firestore's daily free reads and writes far
+exceed 20 testers). The £20 budget alert from phase 1 still applies.
+
 ### Set it up (once; the coordinator does this with the owner's approval)
 
 1. Create the database, repository, account and empty secrets (no service yet):
