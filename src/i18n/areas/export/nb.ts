@@ -17,6 +17,16 @@ export const nb: AreaTranslation<typeof source> = {
     keywords: "Nøkkelord (kommaseparert; tomt = bekreftede tagger)",
     help: "Bekreftede motiver kan fylle ut tittel og nøkkelord. Ubekreftede AI-gjetninger eksporteres aldri. Opplysningene lagres i filen, ikke på bildet.",
   },
+  originals: {
+    title: "Originalfiler fra kameraet",
+    action: (count: number) => count === 1 ? "Lagre originalfil" : `Lagre ${count} originalfiler`,
+    background: (count: number) => count === 1 ? "Lagrer kameraoriginal" : `Lagrer ${count} kameraoriginaler`,
+    privacy: "En nøyaktig kopi av originalfilen, inkludert format og EXIF-/GPS-data. Redigeringer, beskjæringer, vannmerker og endringer i eksportmetadata brukes IKKE. Kildefilen endres ikke.",
+    browserLimit: "Utvalget er for stort for en trygg ZIP i denne nettleseren. Bruk skrivebordsappen til å lagre originalene én etter én i en mappe.",
+    browserLimitHelp: "Ved store RAW-utvalg lagrer skrivebordsappen én fil om gangen uten å lage en enorm ZIP i minnet.",
+    unavailable: "Demobilder har ingen original kamerafil.",
+    sourceMissing: "Den originale kamerafilen er ikke tilgjengelig. Koble til stasjonen eller kildefilen på nytt før kopiering.",
+  },
   rawTiff: {
     action: "Eksporter 16-biters RAW-TIFF (prototype)",
     details: "Om 16-biters RAW-TIFF",
