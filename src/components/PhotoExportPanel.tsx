@@ -10,6 +10,8 @@ import type { PhotoFrame } from '../core/types';
 import { archiveExports, downloadExport, loadExportSource, renderExport } from '../providers/browserExport';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { ExportPreviewTile } from './ExportPreviewTile';
+import { ExportProofDock } from './ExportProofDock';
+import { chooseProof, reconcileProofChoice, type ProofChoice } from '../core/exportProofSelection';
 import { ExportWizard } from './ExportWizard';
 import { returnFocus } from './focusReturn';
 import { KEEP_NAMES, stemFor, uniqueExportFilename, type NameTemplate } from '../core/exportNaming';
@@ -93,6 +95,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
   });
   const [markNote, setMarkNote] = useState<string | null>(null);
   const [sources, setSources] = useState<Record<string, HTMLImageElement>>({});
+  const [proofChoice, setProofChoice] = useState<ProofChoice | null>(null);
   const [timestamp, setTimestamp] = useState<'now' | 'capture' | 'custom'>('now');
   const [customDate, setCustomDate] = useState('');
   const [progress, setProgress] = useState<number | null>(null);
@@ -123,6 +126,11 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
     return customResult && 'format' in customResult ? [...base, customResult.format] : base;
   }, [chosen, fits, overrides, turned, customResult]);
   const total = selected.length * frames.length;
+  const proofPhotoIds = frames.map(frame => frame.id);
+  const proofFormatIds = selected.map(format => format.id);
+  const activeProof = reconcileProofChoice(proofChoice, proofPhotoIds, proofFormatIds);
+  const chooseProofPhoto = (photoId: string) => setProofChoice(previous => chooseProof(previous, { photoId }, proofPhotoIds, proofFormatIds));
+  const chooseProofFormat = (destinationId: string) => setProofChoice(previous => chooseProof(previous, { destinationId }, proofPhotoIds, proofFormatIds));
   const resultsReady = files.length > 0;
   const zoomFor = (frame: PhotoFrame, format: ExportFormat) => zooms[`${frame.id}|${format.id}`] ?? 1;
   const anchorFor = (frame: PhotoFrame, format: ExportFormat): FocusPoint => anchors[`${frame.id}|${format.id}`] ?? frame.focusPoint ?? { x: 0.5, y: 0.5 };
@@ -578,6 +586,11 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
             </button>
           )}
         </header>
+        {!resultsReady && <ExportProofDock frames={frames} formats={selected} sources={sources} choice={activeProof}
+          onChoosePhoto={chooseProofPhoto} onChooseDestination={chooseProofFormat} bars={bars} overlay={overlay}
+          anchorFor={anchorFor} zoomFor={zoomFor}
+          onAnchor={(frame, format, point) => setAnchors(prior => ({ ...prior, [`${frame.id}|${format.id}`]: point }))}
+          onZoom={(frame, format, zoom) => setZooms(prior => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))} />}
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
         {!resultsReady && (
           <p className="mt-1 text-center">
