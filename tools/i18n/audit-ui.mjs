@@ -1,61 +1,83 @@
 #!/usr/bin/env node
 /**
- * Informational translation-migration inventory.
- * Scans user-facing JSX literals and accessibility attributes in .tsx screens.
- * This is not a full parser: dynamic templates, runtime messages, and text in
- * plain .ts data are excluded. A clean report is NOT proof of full translation.
+ * Heuristic localisation migration inventory, NOT a release-quality coverage gate.
+ * Includes JSX text, static accessibility labels and likely runtime UI messages.
+ * It cannot resolve expressions, template interpolation or translation completeness.
  *
- * Run: node tools/i18n/audit-ui.mjs
- * Run: node tools/i18n/audit-ui.mjs --json
+ * node tools/i18n/audit-ui.mjs [--json] [--src /path/to/src]
  */
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 
-const root = resolve(process.cwd(), 'src');
-const entry = [join(root, 'App.tsx'), join(root, 'components')];
-const findings = [];
-
-async function scan(path) {
-  let children;
-  try {
-    children = await readdir(path, { withFileTypes: true });
-  } catch {
-    const source = await readFile(path, 'utf8');
-    if (!path.endsWith('.tsx')) return;
-    const regexes = [
-      { kind: 'visible', regex: />([^<>{}\n]{3,})</g },
-      { kind: 'accessibility', regex: /\b(aria-label|title|placeholder|alt)\s*=\s*["']([^"'\n]{3,})["']/g },
-    ];
-    for (const { kind, regex } of regexes) {
-      for (const match of source.matchAll(regex)) {
-        const label = (kind === 'visible' ? match[1] : match[2]).trim();
-        // Ignore numbers, tags, SVG data, token-only icons and class fragments.
-        if (!/[A-Za-zÀ-ž]/u.test(label) || !/[a-z]{2}/i.test(label)) continue;
-        if (/^(?:http|https|aria-|data-)/i.test(label)) continue;
-        const line = source.slice(0, match.index).split('\n').length;
-        findings.push({ file: relative(process.cwd(), path), line, kind, text: label.slice(0, 160) });
-      }
+export function inventory(source, file) {
+  const findings = [];
+  const patterns = [
+    { kind: 'visible', regex: />([^<>{}\n]{3,})</g, group: 1 },
+    { kind: 'accessibility', regex: /\b(?:aria-label|aria-description|title|placeholder|alt|aria-valuetext)\s*=\s*["']([^"'\n]{3,})["']/g, group: 1 },
+    { kind: 'runtime', regex: /\b(?:throw\s+new\s+Error|(?:setError|setStatus|setMessage|setNotice|alert|confirm)\s*\()\s*\(?\s*["'`]([^"'`\n]{3,})["'`]/g, group: 1 },
+  ];
+  for (const { kind, regex, group } of patterns) {
+    if (kind === 'visible' && !file.endsWith('.tsx')) continue;
+    for (const match of source.matchAll(regex)) {
+      const label = match[group].trim();
+      if (!/[A-Za-zÀ-ž]/u.test(label) || !/[a-z]{2}/i.test(label)) continue;
+      if (/^(?:http|https|aria-|data-)/i.test(label)) continue;
+      const line = source.slice(0, match.index).split('\n').length;
+      findings.push({ file, line, kind, text: label.slice(0, 160) });
     }
-    return;
   }
-  for (const item of children) {
-    const target = join(path, item.name);
-    if (item.isDirectory()) await scan(target);
-    else if (item.isFile() && target.endsWith('.tsx')) await scan(target);
-  }
+  return findings;
 }
-for (const path of entry) await scan(path);
-findings.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
-if (process.argv.includes('--json')) {
-  process.stdout.write(JSON.stringify({ count: findings.length, limitations: 'Heuristic JSX-only inventory, not proof of full coverage', findings }, null, 2) + '\n');
-} else {
-  const grouped = Map.groupBy(findings, (item) => item.file);
-  console.log('Kestrel — probable hard-coded interface text (migration inventory, not a release check)');
-  console.log(`Found ${findings.length} candidates across ${grouped.size} screens.\n`);
-  for (const [file, items] of [...grouped].sort((a, b) => b[1].length - a[1].length)) {
-    console.log(`${file} — ${items.length} candidate(s)`);
-    for (const item of items.slice(0, 8)) console.log(`  ${item.line}: [${item.kind}] ${item.text}`);
+
+export async function audit(srcRoot) {
+  const findings = [];
+  async function scan(path) {
+    let children;
+    try { children = await readdir(path, { withFileTypes: true }); }
+    catch (error) {
+      if (error.code === 'ENOTDIR') {
+        if (!/\.tsx?$/.test(path)) return;
+        const file = relative(srcRoot, path).replaceAll('\\', '/');
+        if (file.startsWith('i18n/')) return; // dictionaries aren't untranslated UI
+        findings.push(...inventory(await readFile(path, 'utf8'), file));
+        return;
+      }
+      throw error; // missing roots must not look like a clean inventory
+    }
+    for (const item of children) {
+      const target = join(path, item.name);
+      if (item.isDirectory() && !['node_modules', 'i18n'].includes(item.name)) await scan(target);
+      else if (item.isFile() && /\.tsx?$/.test(target)) await scan(target);
+    }
   }
-  console.log('\nSome candidates may be false positives. Translate actual visible text, aria-labels, tooltips and errors together.');
-  console.log('Keep British English as the fallback; track native-review status separately.');
+  await scan(srcRoot);
+  findings.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.kind.localeCompare(b.kind));
+  return findings;
+}
+
+const invoked = process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname);
+if (invoked) {
+  const srcIndex = process.argv.indexOf('--src');
+  const root = resolve(srcIndex >= 0 ? process.argv[srcIndex + 1] ?? '' : join(process.cwd(), 'src'));
+  try {
+    const findings = await audit(root);
+    const limitations = 'Heuristic inventory only: dynamic JSX, template expressions, non-standard runtime messages, missing/empty locale keys and native linguistic quality are not verified.';
+    if (process.argv.includes('--json')) {
+      process.stdout.write(JSON.stringify({ count: findings.length, limitations, findings }, null, 2) + '\n');
+    } else {
+      const grouped = new Map();
+      for (const item of findings) grouped.set(item.file, [...(grouped.get(item.file) ?? []), item]);
+      console.log('Kestrel — probable untranslated interface text (not a release check)');
+      console.log(`Found ${findings.length} candidates across ${grouped.size} files.\n`);
+      for (const [file, items] of [...grouped].sort((a, b) => b[1].length - a[1].length)) {
+        console.log(`${file} — ${items.length} candidate(s)`);
+        for (const item of items.slice(0, 8)) console.log(`  ${item.line}: [${item.kind}] ${item.text}`);
+      }
+      console.log('\n' + limitations);
+      console.log('British English fallback is required; translation completeness and native review must be tested separately.');
+    }
+  } catch (error) {
+    console.error('Localisation inventory failed:', error.message);
+    process.exitCode = 1;
+  }
 }
