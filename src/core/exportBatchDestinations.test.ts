@@ -10,6 +10,14 @@ const frame = (name: string, id: string): PhotoFrame => ({
   burstGroupId: null, burstIndex: 0, burstCount: 0, exif: {}, isDemo: false, sourceKind: 'file',
 });
 
+test('before-and-after saves in its own folder without modifying the original', () => {
+  const comparison = EXPORT_FORMATS.find(format => format.id === 'before-after')!;
+  assert.equal(platformExportFolder(comparison), 'Before-After');
+  const planned = planConnectedExports([frame('Bird.NEF', 'source')], [comparison], KEEP_NAMES);
+  assert.deepEqual(planned.map(entry => entry.item.subfolder), ['Before-After']);
+  assert.match(planned[0].item.filename, /before-after\.jpg$/);
+});
+
 test('social destinations create their own subfolders without collisions', () => {
   const ig = EXPORT_FORMATS.find(f => f.id === 'ig-45')!;
   const fb = EXPORT_FORMATS.find(f => f.id === 'fb-45')!;
