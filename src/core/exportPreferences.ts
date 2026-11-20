@@ -61,7 +61,7 @@ function readOverlay(value: unknown): OverlayOptions | undefined {
   if (watermark.imageData && (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(watermark.imageData) ||
       watermark.imageData.length > 4_000_024)) {
     watermark.imageData = undefined;
-    if (watermark.kind === 'image') watermark.on = false;
+    if (watermark.kind === 'image' && !watermark.imageAssetId) watermark.on = false;
   }
   return {
     ...NO_OVERLAY, on: value.on === true,
@@ -83,6 +83,7 @@ function readCustom(value: unknown): CustomSize | undefined {
     width: value.width as number, height: value.height as number, fit: value.fit as Fit,
     format: value.format, quality: value.quality as number,
     prefix: value.prefix.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 24),
+    ...(value.allowUpscale === true ? { allowUpscale: true } : {}),
   };
   return 'format' in customFormat(custom) ? custom : undefined;
 }
