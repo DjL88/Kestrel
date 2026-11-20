@@ -104,6 +104,8 @@ function opinionWords(opinion: Opinion): { title: string; detail: string; fix: s
 }
 
 interface Props {
+  /** Fixed-photo website mode: real editing tools, no import, export or file downloads. */
+  demoOnly?: boolean;
   /** Opens the macro pad settings and how-to, on the Edit tab. */
   onOpenMacroPad?: () => void;
   /** Suggest colour and tone the first time a photo is opened, when the project asked for it. */
@@ -154,7 +156,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   frame, viewportTransform, onViewportTransform, provider, needsAccess, bindings, onEdit, initialTab, onTabChange, onApplyLook, onExport, exportCount = 1, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, hand, onHandChange,
-  toolsCollapsed = false, focusPhoto = false, onExpandTools, onFoldTools,
+  toolsCollapsed = false, focusPhoto = false, onExpandTools, onFoldTools, demoOnly = false,
 }: Props) {
   const originalCanvas = useRef<HTMLCanvasElement>(null);
   const editedCanvas = useRef<HTMLCanvasElement>(null);
@@ -214,7 +216,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   // On a phone the Edit tab opens as one big slider within thumb reach. The full list is one tap away.
   const [allControls, setAllControls] = useState(false);
   const [quickChoices, setQuickChoices] = useState(false);
-  const { can } = useAccess();
+  const { can: licensedCan } = useAccess();
+  // A visitor may try premium controls without acquiring an entitlement in the installed app.
+  const can = (feature: Parameters<typeof licensedCan>[0]) => demoOnly || licensedCan(feature);
   // The editor is remounted for each photo; retain the chosen tab across the filmstrip.
   const [tab, setCurrentTab] = useState<Tab>(() => initialTab === 'auto' && !can('autoTab')
     ? 'edit' : initialTab ?? (can('autoTab') ? 'auto' : 'edit'));
@@ -391,7 +395,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [eyeNote, setEyeNote] = useState<string | null>(null);
   const [findingEye, setFindingEye] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  const openExport = () => { if (onExport) onExport(); else setExportOpen(true); };
+  const openExport = () => { if (demoOnly) return; if (onExport) onExport(); else setExportOpen(true); };
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [confirmApply, setConfirmApply] = useState(false);
   const [editNotice, setEditNotice] = useState('');
@@ -1087,7 +1091,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   /** One tab bar. On a phone it is a bottom toolbar of large icons, and on wider screens the top of the side panel. */
   // On a phone Export is the last tab in the bottom bar. On a wider screen it is a button in the header instead,
   // which leaves the side panel's tabs with room to breathe.
-  const visibleTabs = TABS.filter((entry) => entry.id !== 'export' && (isPhone || !hiddenTabs.has(entry.id)));
+  const visibleTabs = TABS.filter((entry) => (entry.id !== 'export' || (isPhone && !demoOnly)) && (isPhone || !hiddenTabs.has(entry.id)));
   const tabList = (
     <div role="tablist" aria-label={t.editor.tablist}
       className={isPhone
@@ -1252,7 +1256,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
 
           </div>
         )}
-        {panelTab === 'export' && (
+        {!demoOnly && panelTab === 'export' && (
           <div role="tabpanel" id="panel-export" aria-labelledby="tab-export" className="space-y-2 px-1 pt-2">
             <p className="text-sm text-zinc-300">{t.exportTab.intro}</p>
             <button type="button" disabled={sourceState !== 'ready'} className={`${button} w-full border border-white/10 font-semibold`} onClick={openExport}>
@@ -1399,7 +1403,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               setEditNotice(t.edit.resetNotice);
             }}>{t.edit.reset}</button>
           </div>
-          <div className="flex flex-wrap gap-1 border-t border-white/10 pt-1">
+          {!demoOnly && <div className="flex flex-wrap gap-1 border-t border-white/10 pt-1">
             <button type="button" disabled={keeperCount < 2 || isNeutralEdit(edit) || sourceState !== 'ready'}
               className={button} aria-expanded={confirmApply} onClick={() => setConfirmApply(!confirmApply)}>
               {t.edit.applyToKeepers(keeperCount)}
@@ -1408,8 +1412,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               onUndoKeeperEdits();
               setEditNotice(t.edit.batchUndone);
             }}>{t.edit.undoBatch}</button>}
-          </div>
-          {confirmApply && !isNeutralEdit(edit) && sourceState === 'ready' && (
+          </div>}
+          {!demoOnly && confirmApply && !isNeutralEdit(edit) && sourceState === 'ready' && (
             <div className="rounded-md bg-black/25 p-2 text-sm">
               <p>{t.edit.confirmApply(keeperCount)}</p>
               <button type="button" className={button} onClick={() => setConfirmApply(false)}>{t.common.cancel}</button>
@@ -1422,11 +1426,11 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             </div>
           )}
           <p role="status" className="text-xs text-zinc-400">{editNotice}</p>
-          <div className="flex flex-wrap gap-1 border-t border-white/10 pt-1">
+          {!demoOnly && <div className="flex flex-wrap gap-1 border-t border-white/10 pt-1">
             <button type="button" className={button} onClick={() => onCreateVirtualCopy()}>{t.edit.createCopy}</button>
             {onRemoveVirtualCopy && <button type="button" className={button} aria-expanded={confirmRemove} onClick={() => setConfirmRemove(!confirmRemove)}>{t.edit.removeCopy}</button>}
-          </div>
-          {confirmRemove && onRemoveVirtualCopy && (
+          </div>}
+          {!demoOnly && confirmRemove && onRemoveVirtualCopy && (
             <div className="rounded-md bg-black/25 p-2 text-sm">
               <p>{t.edit.confirmRemove}</p>
               <button type="button" className={button} onClick={() => setConfirmRemove(false)}>{t.common.cancel}</button>
@@ -1434,7 +1438,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             </div>
           )}
 
-          {!frame.isDemo && <button type="button" className={button} disabled={!provider.hasBlob(frame.stableKey)}
+          {!demoOnly && !frame.isDemo && <button type="button" className={button} disabled={!provider.hasBlob(frame.stableKey)}
             onClick={async () => {
               const original = await provider.ensureOriginal(frame.stableKey);
               if (original) downloadExport(original, original instanceof File ? original.name : frame.filename);
@@ -1618,7 +1622,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
         {/* Full screen lives in one place, the filmstrip bar (FilmstripDock), in the editor and culling alike. */}
         {/* Export sits in the top row, where the library has it. */}
-        {headerSlot ? createPortal(<>
+        {!demoOnly && (headerSlot ? createPortal(<>
         <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? t.editor.exportSelectedTitle(exportCount) : t.editor.exportTitle}
           className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}>
           <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? t.editor.exportCount(exportCount) : t.editor.export}
@@ -1628,7 +1632,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}>
           <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? t.editor.exportCount(exportCount) : t.editor.export}
         </button>
-        </>}
+        </>)}
 
         </div>
       </div>}
@@ -1864,7 +1868,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       {isPhone && !focusPhoto && tabList}
       </div>
       {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}
-      {exportOpen && !onExport && <PhotoExportPanel frames={[frame]} provider={provider} onClose={() => setExportOpen(false)} onDownloadRequested={onExportRequested} />}
+      {!demoOnly && exportOpen && !onExport && <PhotoExportPanel frames={[frame]} provider={provider} onClose={() => setExportOpen(false)} onDownloadRequested={onExportRequested} />}
     </section>
   );
 }
