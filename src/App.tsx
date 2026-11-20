@@ -1200,10 +1200,10 @@ export default function App() {
   });
 
   // Every RAW is developed from its sensor data in the background, so the library shows Kestrel's develop, not the
-  // camera's JPEG. Paused while a photo is edited (the editor develops its own photo at full size first).
+  // camera's JPEG. Continue the queue while reviewing or editing; the selected image has its own priority.
   useBackgroundDevelop({
     projectId: cullingState.shoot.id, frames: cullingState.frames, provider: previewProviderRef.current,
-    active: !projectsOpen && !editing && !loadingProgress, onScreen: cullingState.selectedFrameId,
+    active: !projectsOpen && !loadingProgress, onScreen: cullingState.selectedFrameId,
   });
 
   const jumpPhotoHistory = (frameId: string, cursor: number) => {
@@ -2300,8 +2300,7 @@ export default function App() {
           )}
           {/* Guidance sits above the grid only: single photo and compare give the photo the room. */}
           {!editing && prefs.viewMode === 'grid' && !cullingState.shoot.inbox && !loadingProgress && guidedDismissedFor !== cullingState.shoot.id &&
-            ((guided === 'reviewing' && cullingState.filter === 'unreviewed') ||
-             ((guided === 'improving' || guided === 'ready') && cullingState.filter === 'keep')) && (
+            ((guided === 'improving' || guided === 'ready') && cullingState.filter === 'keep') && (
             <GuidedBanner step={guided} unreviewed={counts.unreviewed} keepers={counts.keep} scanned={remainingWereScanned(cullingState.frames)} uneditedKeepers={uneditedKeepers}
               onFindBestPhotos={() => {
                 if (!can('smartCulling')) { setPaidDialog(messages.autoCull); return; }
