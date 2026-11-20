@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { evaluateCullGroundTruth, passesCullSafetyGate, type LabelledCullFrame } from './cullGroundTruth';
 
 /** Compare just the expected release evidence fields without a Vitest dependency. */
-function assertContains(actual: Record<string, unknown>, expected: Record<string, unknown>): void {
+function assertContains<T extends object>(actual: T, expected: Partial<T>): void {
   for (const [key, value] of Object.entries(expected)) {
-    assert.deepEqual(actual[key], value, `Unexpected cull evidence field: ${key}`);
+    assert.deepEqual(actual[key as keyof T], value, `Unexpected cull evidence field: ${key}`);
   }
 }
 
