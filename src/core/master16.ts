@@ -30,7 +30,15 @@ export function parseRgb16(buffer: ArrayBuffer, shareFreshDecoderBuffer = false)
   if (buffer.byteLength < 8) throw new Error('The 16-bit picture is empty.');
   const width = view.getUint32(0, true);
   const height = view.getUint32(4, true);
-  if (!width || !height || buffer.byteLength !== 8 + width * height * 6) throw new Error('The 16-bit picture is incomplete.');
+  // Reject corrupt or hostile dimensions before constructing a large typed array.
+  // 80 MP is the same hard ceiling as the 16-bit denoiser; a valid 45 MP Z8
+  // frame remains supported. The byte-length equality also rejects trailing
+  // payloads that could otherwise be mistaken for a different photo.
+  const pixels = width * height;
+  if (!width || !height || !Number.isSafeInteger(pixels) || pixels > 80_000_000 ||
+      buffer.byteLength !== 8 + pixels * 6) {
+    throw new Error('The 16-bit picture has invalid dimensions or incomplete pixel data.');
+  }
   const littleEndian = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
   if (shareFreshDecoderBuffer && littleEndian) {
     return { width, height, data: new Uint16Array(buffer, 8, width * height * 3) };
