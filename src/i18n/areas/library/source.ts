@@ -114,7 +114,7 @@ export const source = {
   decision: {
     /** Cull states, not photo deletion. Untranslated entries fall back to British English. */
     undecided: 'Undecided',
-    undecidedPhoto: (filename: string) => `Mark ${filename} undecided`,
+    undecidedPhoto: (filename: string) => `Move ${filename} back to review (Undecided)`,
     reject: 'Reject',
     rejectPhoto: (filename: string) => `Reject ${filename}`,
     rejected: 'Rejected',
