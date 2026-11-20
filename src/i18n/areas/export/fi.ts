@@ -205,6 +205,10 @@ export const fi: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Tiedostonimien etuliitteet ja JPEG-laatu',
   },
   results: {
+    backgroundSaving: (count) => `Viedään ${count} tiedostoa taustalla`,
+    choosingFolder: "Valitaan kansiota…",
+    desktopBackground: (count) => `Tallenna ${count} tiedostoa kansioon taustalla`,
+    desktopBackgroundHelp: "Valitse kansio kerran. Tiedostot tallennetaan yksitellen uuteen päivättyyn Kestrel Exports -kansioon kohteen mukaan ryhmiteltyinä. Voit jatkaa muokkausta; tehtävienhallinta näyttää edistymisen ja virheet.",
     saving: 'Tallennetaan…',
     saved: (name) => `${name} tallennettu`,
     ready: (count) => plural(count, { one: `${count} tiedosto valmiina`, other: `${count} tiedostoa valmiina` }),
