@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test';
 
 // A source-to-screen regression: changing Review ⇄ Edit must keep the selected
 // photo's camera (zoom and pan), rather than reinitialise a separate viewer.
+test.skip(({ viewport }) => (viewport?.width ?? 1280) < 768, 'desktop layout; mobile uses the compact bottom sheet');
+
 test('zoom and pan survive switching from single-photo review to editing and back', async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto('/');
@@ -33,14 +35,11 @@ test('zoom and pan survive switching from single-photo review to editing and bac
 
   const reviewControls = page.getByRole('group', { name: 'Single photo controls' });
   await expect(reviewControls).toBeVisible();
-  const transform = page.locator('[style*="scale("]').first();
-  // Wheel is a direct user zoom; mouse movement should be retained on the same image.
-  const photo = page.getByRole('group', { name: 'Single photo controls' });
-  const box = await photo.boundingBox();
-  expect(box).not.toBeNull();
-  await page.mouse.move(box!.x + box!.width / 2, box!.y + 70);
-  await page.mouse.wheel(0, -500);
-  await expect.poll(async () => transform.getAttribute('style')).toMatch(/scale\(1\.[0-9]+\)/);
+  const stage = page.getByLabel('Photo canvas');
+  const transform = stage.locator('[style*="scale("]').first();
+  const zoom = reviewControls.getByRole('group', { name: 'Zoom' });
+  await zoom.getByRole('button', { name: 'Zoom in' }).click();
+  await expect.poll(async () => transform.getAttribute('style')).toMatch(/scale\\(1\\.[0-9]+\\)/);
 
   const before = await transform.getAttribute('style');
   await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
