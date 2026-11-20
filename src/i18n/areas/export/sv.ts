@@ -6,7 +6,7 @@ import type { source } from './source';
 export const sv: AreaTranslation<typeof source> = {
   metadata: {
     title: "Filmetadata (valfritt)",
-    include: "Inkludera redigerbara metadata i JPEG / PNG",
+    include: "Inkludera redigerbara metadata i JPEG / PNG / TIFF",
     privacy: "Avstängt som standard. Ursprungliga EXIF-, GPS-, serienummer- och platsuppgifter kopieras inte. Bara information du väljer skrivs som XMP.",
     photoTitle: "Fototitel / motiv",
     perPhoto: "Varje foto använder sitt bekräftade motiv om du inte anger en gemensam titel.",
