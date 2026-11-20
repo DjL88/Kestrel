@@ -9,6 +9,15 @@ const n = (count: number) => formatCount.format(count);
 /** Welsh. DRAFT: written without a native speaker's check. Uses "chi", as the common words do. */
 export const cy: AreaTranslation<typeof source> = {
   top: {
+    file: "Ffeil",
+    viewLayout: "Gweld · dangos neu guddio",
+    groupBursts: "Grwpio neu ddadgrwpio cyfresi",
+    showFilmstrip: "Dangos y stribed ffilm",
+    panelPosition: "Lleoliad y paneli",
+    panels: "Paneli",
+    left: "Chwith",
+    right: "Dde",
+
     backToProjects: 'Yn ôl i’r prosiectau',
     projects: 'Prosiectau',
     photoCount: (count) => `${count} llun`,
