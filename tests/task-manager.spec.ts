@@ -25,8 +25,36 @@ test('an export shows in the task manager, finishes there, and can be cancelled 
   const panel = page.getByRole('region', { name: 'Tasks' });
   await expect(panel).toContainText('Exporting 1 file');
   await expect(panel).toContainText('Finished', { timeout: 30000 });
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+  await expect(pill).toBeFocused();
+  await pill.click();
   await panel.getByRole('button', { name: 'Clear finished' }).click();
   await expect(panel).toHaveCount(0); // with nothing left to show, the whole panel goes
+});
+
+test('a failed export stays visible after eleven seconds until its error is cleared', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
+  await openExportDialog(page);
+  await page.getByRole('button', { name: 'Full size', exact: true }).click();
+  await page.getByRole('checkbox', { name: /Full size · PNG/ }).check();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.evaluate(() => {
+    HTMLCanvasElement.prototype.toBlob = () => { throw new Error('Synthetic export encoder failure'); };
+  });
+  await page.getByRole('button', { name: 'Prepare 1 file', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Synthetic export encoder failure');
+  await page.getByRole('button', { name: 'Close export', exact: true }).click();
+  await page.clock.install();
+  await page.clock.fastForward(11_000);
+  const pill = page.getByRole('button', { name: /Problem/ });
+  await expect(pill).toBeVisible();
+  await pill.click();
+  const panel = page.getByRole('region', { name: 'Tasks' });
+  await expect(panel).toContainText('Synthetic export encoder failure');
+  await panel.getByRole('button', { name: 'Clear finished', exact: true }).click();
+  await expect(pill).toHaveCount(0);
 });
 
 test('adding photos shows in the task manager, and finishes there', async ({ page }) => {

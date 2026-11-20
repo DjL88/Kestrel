@@ -28,6 +28,7 @@ export interface TaskHandle {
 }
 
 const KEEP_FINISHED = 5;
+const KEEP_FAILED = 5;
 
 export function createTaskStore(now: () => number = Date.now) {
   let tasks: Task[] = [];
@@ -38,15 +39,20 @@ export function createTaskStore(now: () => number = Date.now) {
   const emit = () => listeners.forEach((listener) => listener());
   const update = (id: number, change: Partial<Task>) => {
     tasks = tasks.map((task) => (task.id === id ? { ...task, ...change } : task));
+    trim();
     emit();
   };
   const isRunning = (id: number) => tasks.find((task) => task.id === id)?.state === 'running';
   const trim = () => {
-    const finished = tasks.filter((task) => task.state !== 'running');
-    if (finished.length > KEEP_FINISHED) {
-      const drop = new Set(finished.slice(0, finished.length - KEEP_FINISHED).map((task) => task.id));
-      tasks = tasks.filter((task) => !drop.has(task.id));
-    }
+    // Successful work must not evict an unacknowledged export failure. Keep
+    // separate bounded histories so a long session cannot grow without limit.
+    const finished = tasks.filter((task) => task.state === 'done' || task.state === 'cancelled');
+    const failed = tasks.filter((task) => task.state === 'failed');
+    const drop = new Set([
+      ...finished.slice(0, Math.max(0, finished.length - KEEP_FINISHED)),
+      ...failed.slice(0, Math.max(0, failed.length - KEEP_FAILED)),
+    ].map(task => task.id));
+    if (drop.size) tasks = tasks.filter(task => !drop.has(task.id));
   };
 
   return {
@@ -58,8 +64,8 @@ export function createTaskStore(now: () => number = Date.now) {
       return {
         id,
         progress: (done, total, detail) => { if (isRunning(id)) update(id, { done, updatedAt: now(), ...(total !== undefined ? { total } : {}), ...(detail !== undefined ? { detail } : {}) }); },
-        finish: (detail) => { if (isRunning(id)) { cancels.delete(id); update(id, { state: 'done', endedAt: now(), ...(detail ? { detail } : {}) }); trim(); } },
-        fail: (message) => { if (isRunning(id)) { cancels.delete(id); update(id, { state: 'failed', endedAt: now(), detail: message }); trim(); } },
+        finish: (detail) => { if (isRunning(id)) { cancels.delete(id); update(id, { state: 'done', endedAt: now(), ...(detail ? { detail } : {}) }); } },
+        fail: (message) => { if (isRunning(id)) { cancels.delete(id); update(id, { state: 'failed', endedAt: now(), detail: message }); } },
         get cancelled() { return cancelledIds.has(id); },
       };
     },
@@ -71,7 +77,6 @@ export function createTaskStore(now: () => number = Date.now) {
       cancels.delete(id);
       update(id, { state: 'cancelled', endedAt: now() });
       try { stop(); } catch { /* the job is already finishing */ }
-      trim();
       return true;
     },
     clearFinished() { tasks = tasks.filter((task) => task.state === 'running'); emit(); },
@@ -81,6 +86,12 @@ export function createTaskStore(now: () => number = Date.now) {
 }
 
 export const tasks = createTaskStore();
+
+/** Successful jobs fade away; failures stay discoverable until explicitly cleared. */
+export function tasksNeedAttention(list: readonly Task[], at: number, showAfterMs = 10_000): boolean {
+  return list.some(task => task.state === 'running' || task.state === 'failed' ||
+    (task.endedAt !== undefined && at - task.endedAt < showAfterMs));
+}
 
 export type Health = 'idle' | 'ok' | 'busy' | 'stalled' | 'problem';
 

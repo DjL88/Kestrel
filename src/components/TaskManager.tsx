@@ -1,10 +1,7 @@
-import { useEffect, useSyncExternalStore, useState } from 'react';
+import { useEffect, useSyncExternalStore, useState, useRef } from 'react';
 import { AlertTriangle, CheckCircle2, Clock, Loader2, X } from 'lucide-react';
-import { taskHealth, tasks, type Health, type Task } from '../core/taskStore';
+import { taskHealth, tasks, tasksNeedAttention, type Health, type Task } from '../core/taskStore';
 import { libraryText as t } from '../i18n/areas/library';
-
-/** How long the button stays after the last piece of work finishes. */
-const SHOW_AFTER_MS = 10_000;
 
 /** Each level has its own word and icon as well as a colour, so it never depends on telling colours apart. */
 const HEALTH: Record<Health, { word: string; classes: string; Icon: typeof Clock }> = {
@@ -29,9 +26,30 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
   const list = useSyncExternalStore(tasks.subscribe, tasks.list, tasks.list);
   const [open, setOpen] = useState(false);
   const [at, setAt] = useState(() => Date.now());
-  const anyRunning = list.some((task) => task.state === 'running');
+  const root = useRef<HTMLDivElement>(null);
+  const opener = useRef<HTMLButtonElement>(null);
+  useEffect(() => { if (!list.length) setOpen(false); }, [list.length]);
   // Work that finished a moment ago stays in view briefly, then the button goes away so it never sits over other controls.
-  const recent = anyRunning || list.some((task) => task.endedAt !== undefined && at - task.endedAt < SHOW_AFTER_MS);
+  const recent = tasksNeedAttention(list, at);
+  useEffect(() => {
+    if (!open) return;
+    const dismiss = (event: PointerEvent) => {
+      if (event.target instanceof Node && !root.current?.contains(event.target)) setOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+      opener.current?.focus({ preventScroll: true });
+    };
+    document.addEventListener('pointerdown', dismiss);
+    document.addEventListener('keydown', escape, true);
+    return () => {
+      document.removeEventListener('pointerdown', dismiss);
+      document.removeEventListener('keydown', escape, true);
+    };
+  }, [open]);
   // Look again every second, so a task that stops moving is noticed and a finished one is let go.
   useEffect(() => {
     if (!list.length) return;
@@ -46,7 +64,7 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
   const summary = first ? `${first.title}, ${label(first)}` : word;
   const others = running > 1 ? running - 1 : 0;
   const panel = open && (
-    <section aria-label={t.tasks.tasks} className={`absolute right-2 top-full mt-1 w-80 max-w-[calc(100vw-1rem)] rounded-xl border border-white/15 bg-kestrel-raised p-3 text-sm text-zinc-100 shadow-lg ${inline ? 'z-40 right-0' : ''}`}>
+    <section aria-label={t.tasks.tasks} className={`absolute right-2 top-full mt-1 max-h-[65dvh] overflow-y-auto overscroll-contain w-80 max-w-[calc(100vw-1rem)] rounded-xl border border-white/15 bg-kestrel-raised p-3 text-sm text-zinc-100 shadow-lg ${inline ? 'z-40 right-0' : ''}`}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="font-medium">{t.tasks.tasks}</h2>
         <button type="button" onClick={() => tasks.clearFinished()} disabled={running === list.length} className="min-h-11 rounded-md px-2 text-xs text-zinc-300 underline hover:bg-white/8 disabled:opacity-40">{t.tasks.clearFinished}</button>
@@ -62,7 +80,7 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
               )}
             </div>
             {task.state === 'running' && task.total ? <progress aria-label={task.title} className="block w-full" value={task.done} max={task.total} /> : null}
-            <p className="text-xs text-zinc-400">{label(task)}{task.detail ? ` · ${task.detail}` : ''}</p>
+            <p className="break-words text-xs text-zinc-400">{label(task)}{task.detail ? ` · ${task.detail}` : ''}</p>
           </li>
         ))}
       </ul>
@@ -72,8 +90,8 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
     // The work in hand, small: its name, how far it has got as words and as a thin bar, and how many others are running.
     const fraction = first?.total ? Math.min(1, first.done / first.total) : null;
     return (
-      <div className="relative min-w-0">
-        <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}
+      <div ref={root} className="relative min-w-0">
+        <button ref={opener} type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}
           aria-label={t.tasks.summary(summary, others)} title={t.tasks.showEvery}
           className={`flex min-h-11 max-w-full min-w-0 flex-col justify-center gap-1 rounded-md border px-2.5 py-1 text-left text-xs hover:brightness-125 focus-visible:outline-2 focus-visible:outline-sky-300 ${first ? 'w-56 max-sm:w-36' : 'w-auto'} ${classes}`}>
           <span className="flex w-full min-w-0 items-center gap-1.5">
@@ -91,9 +109,9 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
   }
   return (
     // A slim strip at the top of the page, in the flow, so it never sits over a control. The list drops down from it.
-    <div className="relative z-40 flex shrink-0 justify-end border-b border-white/10 bg-kestrel-panel px-2 py-0.5">
+    <div ref={root} className="relative z-40 flex shrink-0 justify-end border-b border-white/10 bg-kestrel-panel px-2 py-0.5">
       {panel}
-      <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}
+      <button ref={opener} type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}
         className={`inline-flex min-h-11 items-center gap-2 rounded-md border px-4 text-sm font-medium hover:brightness-125 focus-visible:outline-2 focus-visible:outline-sky-300 ${classes}`}>
         <Icon className={`h-4 w-4 ${health === 'ok' ? 'motion-safe:animate-spin' : ''}`} aria-hidden="true" />
         {running > 0 ? `${word} · ${t.tasks.running(running)}` : word}
