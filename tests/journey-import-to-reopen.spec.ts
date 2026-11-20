@@ -72,12 +72,10 @@ test('journey: import, cull, Auto, adjust, full-size export, reopen', async ({ p
   const collections = page.getByRole('navigation', { name: 'Photo collections' });
   await expect(collections.getByRole('button', { name: 'To review 4' })).toBeVisible({ timeout: 30_000 });
 
-  // 2. Review and cull: two keepers, one to Trash, one left to review.
+  // 2. Review and cull: two keepers, one rejected, one left to review.
   await page.getByRole('button', { name: 'Keep j-1-dark.png', exact: true }).click();
   await page.getByRole('button', { name: 'Keep j-3-bright.jpg', exact: true }).click();
-  await page.getByRole('button', { name: 'Move j-4-extra.png to Trash', exact: true }).click();
-  const confirmTrash = page.getByRole('alertdialog');
-  if (await confirmTrash.isVisible().catch(() => false)) await confirmTrash.getByRole('button', { name: /Trash|Move/ }).first().click();
+  await page.getByRole('button', { name: 'Reject j-4-extra.png', exact: true }).click();
   await expect(collections.getByRole('button', { name: 'Keepers 2', exact: true })).toBeVisible();
   await expect(collections.getByRole('button', { name: 'To review 1', exact: true })).toBeVisible();
 
