@@ -32,7 +32,8 @@ export function parseWatermark(raw: string | null): WatermarkOptions {
  * Historical inline marks are migrated to the local vault before this is called.
  */
 export function watermarkForStorage(mark: WatermarkOptions): WatermarkOptions {
-  const { imageData: _renderOnly, ...saved } = mark;
+  const saved = { ...mark };
+  delete saved.imageData;
   if (saved.kind === 'image' && !isWatermarkAssetId(saved.imageAssetId)) {
     throw new Error('Save the image watermark privately on this device before saving its preset.');
   }
