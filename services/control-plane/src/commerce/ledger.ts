@@ -58,6 +58,12 @@ export class CommerceLedger {
     });
   }
 
+  /** Newest first, for the admin console. */
+  async listTransactions(limit: number): Promise<TransactionRecord[]> {
+    const rows = await this.db.collection(commerceCollections.transactions).orderBy('paidAt', 'desc').limit(limit).get();
+    return rows.docs.map(document => document.data() as TransactionRecord);
+  }
+
   async ossQuarter(year: number, quarter: number) {
     const { start, end } = quarterDates(year, quarter);
     const rows = await this.db.collection(commerceCollections.transactions)

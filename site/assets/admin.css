@@ -1,0 +1,56 @@
+/* Kestrel admin console. Brand tokens from docs/brand/README.md. */
+@font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(fonts/inter-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:Inter;font-weight:600;font-display:swap;src:url(fonts/inter-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:Inter;font-weight:700;font-display:swap;src:url(fonts/inter-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Plus Jakarta Sans";font-weight:800;font-display:swap;src:url(fonts/plus-jakarta-sans-latin-800-normal.woff2) format("woff2")}
+:root{--canvas:#14161b;--panel:#1a1d23;--raised:#1c2027;--ivory:#f4efe6;--copper:#c9652e;--copper-hover:#d97840;--dusk:#4a88b2;--wine:#c54f63;--mist:#8b93a3;--line:#343946;
+  color-scheme:dark;background:var(--canvas);color:var(--ivory);font:16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+body{margin:0}
+h1,h2,h3,.brand{font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+h1{font-size:1.6rem}h2{font-size:1.35rem;margin:0 0 12px}h3{font-size:1.05rem;margin:20px 0 8px}
+a{color:#9cc3db}
+:focus-visible{outline:3px solid var(--dusk);outline-offset:3px}
+.skip{position:absolute;left:-999px;top:8px}.skip:focus{left:8px;background:var(--raised);padding:8px 12px;z-index:2}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+.brand{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;font-size:1.15rem}
+.title{font-weight:700;color:#e0a583}
+#who{margin-left:auto}
+main:focus{outline:none}
+main{max-width:1180px;margin:0 auto;padding:20px}
+.panel{padding:20px;border:1px solid var(--line);border-radius:12px;background:var(--panel);margin:0 0 20px;scroll-margin-top:16px}
+.muted{color:#bdc4cf}
+#status:not(:empty){padding:10px 14px;border-left:3px solid var(--copper-hover);background:var(--raised);margin:0 0 16px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0 0 16px}
+.tabs a{text-decoration:none;color:#d3d9e5;padding:6px 0;border-bottom:2px solid transparent}
+.tabs a:hover{border-bottom-color:var(--copper-hover)}
+label{display:block;margin:12px 0}label.inline{display:inline-block;margin:0 0 12px}
+label.check{display:flex;gap:10px;align-items:center}
+input,select,textarea,button{font:inherit;color:inherit;background:var(--canvas);min-height:44px;padding:6px 10px;border:1px solid #686f7b;border-radius:6px}
+input,select,textarea{display:block;width:min(100%,420px);margin-top:4px}
+label.check input{width:auto;min-height:auto;margin:0;accent-color:var(--copper-hover)}
+textarea{width:100%;font-family:ui-monospace,Consolas,monospace;font-size:.9rem;word-break:break-all}
+button{font-weight:700;background:var(--copper-hover);color:var(--canvas);border-color:var(--copper-hover);cursor:pointer}
+button.quiet{background:transparent;color:var(--ivory);border-color:#686f7b}
+button.danger{background:transparent;color:#f1b3bd;border-color:var(--wine)}
+button:disabled{cursor:wait;opacity:.65}
+button.small{min-height:36px;padding:4px 10px;font-size:.9rem}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.92rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{color:#d3d9e5;font-weight:600}
+td ul{margin:0;padding-left:18px}td li{margin:0 0 6px}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.88em}
+.badge{display:inline-block;border:1px solid #5e6270;border-radius:100px;padding:1px 9px;font-size:.82rem;white-space:nowrap}
+.badge.bad{border-color:var(--wine)}.badge.good{border-color:var(--dusk)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:0 0 16px}
+.facts div{background:var(--raised);border-radius:8px;padding:12px}
+.facts dt{color:#bdc4cf;font-size:.88rem}.facts dd{margin:4px 0 0;font-size:1.25rem;font-weight:700}
+progress{width:100%;accent-color:var(--copper-hover)}
+.messages{list-style:none;padding:0;margin:0}
+.messages li{border:1px solid var(--line);border-radius:10px;padding:14px;margin:0 0 12px;background:var(--raised)}
+.messages .meta{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:0 0 8px}
+.messages .body{white-space:pre-wrap;margin:0 0 10px;overflow-wrap:anywhere}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+@media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}

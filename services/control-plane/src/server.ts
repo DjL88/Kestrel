@@ -9,7 +9,7 @@ const config = loadConfig();
 const firestore = config.store === 'firestore' ? await openFirestore(config) : undefined;
 const store = firestore ? new FirestoreStore(firestore as unknown as FirestoreLike) : await openStore(config);
 const commerce = firestore ? new CommerceLedger(firestore) : undefined;
-const app = createApp({ config, store, commerce });
+const app = createApp({ config, store, commerce, payments: commerce });
 
 if (process.argv.includes('--print-openapi')) {
   process.stdout.write(`${JSON.stringify(openApi(app.routes), null, 2)}\n`);

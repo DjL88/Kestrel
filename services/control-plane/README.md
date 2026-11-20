@@ -61,7 +61,10 @@ Firestore collections: `accounts`, `account_emails` (keeps email hashes unique),
 | `GET /v1/models/manifest?app=&channel=` | none | Signed `dataUpdateManifest` with live assets for that app version |
 | `GET /v1/desktop/releases?platform=` | none | Latest release for a notice; links allow-listed to `github.com` |
 | `POST /v1/billing/webhook` | HMAC-SHA256 `kestrel-signature: t=..,v1=..` | 5-minute replay window, idempotent on event id (replay → 409) |
-| `/v1/admin/*` | admin bearer | Overview, audit, accounts, issue/revoke/extend licences, AI kill switch and quotas, model register/promote (rollback = promote older), release publish. Every call is written to the append-only `audit_log`, allowed or denied |
+| `POST /v1/contact` | none; per-sender and global rate limits | Website contact form: name, email, message and `consent: true`. A filled-in hidden `website` field (a robot) gets a normal answer and nothing is stored |
+| `GET /v1/admin/config` | none | Tells the admin page whether Google sign-in is set up (the public OAuth client id). No data |
+| `POST /v1/admin/session/google` | Google ID token | Allow-listed (`KCP_ADMIN_EMAILS`), verified Google account for this OAuth client (`KCP_GOOGLE_CLIENT_ID`) → 15-minute admin session, no refresh token |
+| `/v1/admin/*` | admin bearer | Overview, audit, licensees with their devices and AI allowance, free a device, usage, payments (SumUp checkouts from the commerce ledger, plus billing events), contact messages and their status, accounts, issue (with note and expiry)/revoke/extend licences, AI kill switch and quotas, tax, model register/promote (rollback = promote older), release publish. Every call is written to the append-only `audit_log`, allowed or denied. With `KCP_ADMIN_EMAILS` set, an admin role alone is not enough: the account's email must be on the list |
 
 Admin routes accept only bearer tokens in a header. There are no cookies, so a browser holds no ambient credential that a CSRF attack could use. CORS is granted only to the app's own origins (`KCP_ALLOWED_ORIGINS`).
 

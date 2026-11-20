@@ -12,6 +12,8 @@ import { SqliteStore } from './sqliteStore.ts';
 import { newLicence, type AuditRecord, type Store } from './store.ts';
 import { geminiProvider, identify, suggest, type AiProvider } from './gateway.ts';
 import type { CommerceLedger } from './commerce/ledger.ts';
+import type { TransactionRecord } from './commerce/records.ts';
+import { googleKeysFromNetwork, verifyGoogleIdToken, type GoogleKeys } from './googleIdToken.ts';
 import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnover.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
 
@@ -25,6 +27,10 @@ export interface AppOptions {
   config: Config;
   store?: Store;
   commerce?: Pick<CommerceLedger, 'getTaxSettings' | 'updateTaxSettings' | 'recordTurnover' | 'ossQuarter'>;
+  /** Paid checkouts for the admin console's Payments table (the Firestore commerce ledger). */
+  payments?: { listTransactions(limit: number): Promise<TransactionRecord[]> };
+  /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
+  googleKeys?: GoogleKeys;
   /** Injected for tests. Defaults to Gemini when a server key is configured, otherwise none. */
   provider?: AiProvider | null;
   now?: () => number;
@@ -75,7 +81,20 @@ export const Schemas = {
     data: z.object({ licenceId: z.string().min(1).max(64), plan: z.enum(['paid', 'subscriber']).optional(), validUntilMs: z.number().int().optional(), managedAi: z.boolean().optional() }).strict(),
   }).strict(),
   AdminAccount: z.object({ email: z.string().email(), password: z.string().min(12).max(200), role: z.enum(['user', 'admin']) }).strict(),
-  AdminIssue: z.object({ plan: z.enum(['paid', 'subscriber']), managedAi: z.boolean().default(false), accountId: z.string().optional(), maxDevices: z.number().int().min(1).max(20).default(3) }).strict(),
+  AdminIssue: z.object({
+    plan: z.enum(['paid', 'subscriber']), managedAi: z.boolean().default(false), accountId: z.string().optional(), maxDevices: z.number().int().min(1).max(20).default(3),
+    note: z.string().trim().max(200).optional().describe('Who the key is for, e.g. "Gift for the camera club". Admin-only.'),
+    validDays: z.number().int().min(1).max(3650).optional().describe('Server-side expiry: activation and renewal stop after this many days. A key used fully offline is not checked against it.'),
+  }).strict(),
+  AdminGoogleSession: z.object({ credential: z.string().min(20).max(4096) }).strict(),
+  AdminMessageStatus: z.object({ status: z.enum(['new', 'read', 'answered']) }).strict(),
+  ContactRequest: z.object({
+    name: z.string().trim().min(1).max(100),
+    email: z.string().trim().email().max(254),
+    message: z.string().trim().min(1).max(5000),
+    consent: z.literal(true).describe('The sender agreed that Kestrel may store this message to reply to it'),
+    website: z.string().max(200).optional().describe('Leave empty. Hidden from people; filled in by spam robots.'),
+  }).strict(),
   AdminExtend: z.object({ days: z.number().int().min(1).max(365) }).strict(),
   AdminKillSwitch: z.object({ aiDisabled: z.boolean() }).strict(),
   AdminQuota: z.object({ accountId: z.string(), requestsLimit: z.number().int().min(0).max(1_000_000) }).strict(),
@@ -125,6 +144,10 @@ export function createApp(options: AppOptions) {
     ? options.provider
     : config.geminiApiKey ? geminiProvider(config.geminiApiKey, config.geminiModel) : null;
   const authLimiter = new RateLimiter(10, 60_000);
+  const contactLimiter = new RateLimiter(5, 10 * 60_000);
+  const contactGlobalLimiter = new RateLimiter(60, 60 * 60_000);
+  const googleKeys = options.googleKeys ?? googleKeysFromNetwork();
+  const adminEmailHashes = new Set(config.adminEmails.map((email) => sha256Hex(email)));
   const activateLimiter = new RateLimiter(20, 60_000);
 
   const audit = (actor: string, action: string, outcome: AuditRecord['outcome'], detail: string) => store.audit({ atMs: now(), actor, action, outcome, detail });
@@ -186,6 +209,14 @@ export function createApp(options: AppOptions) {
     if (claims.role !== 'admin') {
       await audit(claims.sub, action, 'denied', 'not an admin');
       throw new ApiError(403, 'FORBIDDEN', 'This needs an administrator.');
+    }
+    // With an allow-list configured, it is the final word: an admin role alone is not enough.
+    if (adminEmailHashes.size > 0) {
+      const account = await store.getAccount(claims.sub);
+      if (!account || !adminEmailHashes.has(account.emailHash)) {
+        await audit(claims.sub, action, 'denied', 'not on the admin allow-list');
+        throw new ApiError(403, 'FORBIDDEN', 'This needs an administrator.');
+      }
     }
     return claims;
   }
@@ -365,6 +396,129 @@ export function createApp(options: AppOptions) {
       },
     },
     {
+      method: 'GET', path: '/v1/admin/config', summary: 'How the admin console signs in (public; no data)', auth: 'none',
+      handler: () => ({ status: 200, body: { googleClientId: config.googleClientId ?? null, passwordSignIn: !config.googleClientId } }),
+    },
+    {
+      method: 'POST', path: '/v1/admin/session/google', summary: 'Exchange a Google ID token from an allow-listed account for a 15-minute admin session', auth: 'none',
+      body: Schemas.AdminGoogleSession,
+      handler: async (req) => {
+        if (!authLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+        const body = parseJson(Schemas.AdminGoogleSession, req.rawBody);
+        if (!config.googleClientId || adminEmailHashes.size === 0) {
+          await audit('anonymous', 'admin.signin', 'denied', 'Google sign-in not configured');
+          throw new ApiError(503, 'GOOGLE_SIGNIN_UNAVAILABLE', 'Google sign-in is not set up on this server.');
+        }
+        const check = await verifyGoogleIdToken(body.credential, config.googleClientId, googleKeys, now());
+        if (!check.ok) {
+          await audit('anonymous', 'admin.signin', 'denied', `google token ${check.reason}`);
+          if (check.reason === 'keys_unavailable') throw new ApiError(503, 'GOOGLE_UNAVAILABLE', 'Google could not be reached to check the sign-in. Try again in a minute.', true);
+          throw new ApiError(401, 'AUTH_FAILED', 'That Google sign-in could not be checked. Sign in again.');
+        }
+        const emailHash = sha256Hex(check.email);
+        if (!adminEmailHashes.has(emailHash)) {
+          await audit('anonymous', 'admin.signin', 'denied', `not on the allow-list (${emailHash.slice(0, 12)})`);
+          throw new ApiError(403, 'FORBIDDEN', 'This Google account is not allowed to use the admin console.');
+        }
+        let account = await store.findAccountByEmailHash(emailHash);
+        if (!account) {
+          // No password: this account can only sign in with Google.
+          await store.createAccount({ accountId: `acc_${randomId(12)}`, emailHash, passwordHash: 'google-only', role: 'admin', status: 'active', createdAtMs: now() });
+          account = await store.findAccountByEmailHash(emailHash);
+        } else if (account.role !== 'admin') {
+          await store.setAccountRole(account.accountId, 'admin');
+        }
+        if (!account || account.status !== 'active') throw new ApiError(403, 'FORBIDDEN', 'This account is suspended.');
+        await audit(account.accountId, 'admin.signin', 'allowed', 'google');
+        // Access token only: when it ends, the page asks Google again, so removing an email from the allow-list takes effect within 15 minutes.
+        return { status: 200, body: { accessToken: signSession(account.accountId, 'admin', config.sessionSecret, now()), expiresIn: 900 } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/contact', summary: 'A message from the website contact form (stored only with consent)', auth: 'none', body: Schemas.ContactRequest,
+      handler: async (req) => {
+        // Behind Firebase Hosting every request reaches us from Google's front end, so the forwarded-for chain is the
+        // best per-sender key there is. It can be forged, which is why the global cap below is the real limit.
+        const forwarded = req.headers['x-forwarded-for'];
+        const sender = (typeof forwarded === 'string' ? forwarded : req.ip).slice(0, 200);
+        if (!contactLimiter.take(sender, now()) || !contactGlobalLimiter.take('all', now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many messages just now. Please try again later.', true);
+        const body = parseJson(Schemas.ContactRequest, req.rawBody);
+        // A filled-in hidden field means a robot: answer as if it worked, store nothing.
+        if (body.website) return { status: 200, body: { received: true } };
+        await store.insertContactMessage({ messageId: `msg_${randomId(12)}`, receivedAtMs: now(), name: body.name, email: body.email, message: body.message, status: 'new' });
+        return { status: 200, body: { received: true } };
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/licensees', summary: 'Licences, their devices and each account\'s AI allowance', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'licensees.read');
+        const [licences, activations, quotas] = await Promise.all([store.listLicences(500), store.listActivations(2000), store.listQuotas(500)]);
+        const devices = new Map<string, typeof activations>();
+        for (const a of activations) devices.set(a.licenceId, [...(devices.get(a.licenceId) ?? []), a]);
+        const quotaFor = new Map(quotas.map((q) => [q.accountId, q]));
+        return adminDone(claims, 'licensees.read', `${licences.length} licences`, {
+          licences: licences.map((l) => ({
+            ...l,
+            devices: (devices.get(l.licenceId) ?? []).map((d) => ({ activationId: d.activationId, platform: d.platform, appVersion: d.appVersion, lastSeenMs: d.lastSeenMs, deviceHashPrefix: d.deviceHash.slice(0, 12) })),
+            aiQuota: l.accountId && quotaFor.get(l.accountId) ? { requestsUsed: quotaFor.get(l.accountId)!.requestsUsed, requestsLimit: quotaFor.get(l.accountId)!.requestsLimit, periodEndsMs: quotaFor.get(l.accountId)!.periodStartMs + QUOTA_PERIOD_MS } : null,
+          })),
+        });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/devices/:id/deactivate', summary: 'Free a device\'s slot on its licence (the device keeps working offline until its grant lapses)', auth: 'admin',
+      handler: async (req, params) => {
+        const claims = await admin(req, 'device.deactivate');
+        if (!(await store.deactivateDevice(params.id))) throw new ApiError(404, 'NOT_FOUND', 'No such device.');
+        return adminDone(claims, 'device.deactivate', params.id, { deactivated: true });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/usage', summary: 'AI allowance used per account in the current period', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'usage.read');
+        const quotas = await store.listQuotas(500);
+        return adminDone(claims, 'usage.read', '', {
+          aiDisabled: (await store.getSetting('ai_disabled')) === '1',
+          aiProvider: provider?.name ?? null,
+          accounts: quotas.map((q) => ({ accountId: q.accountId, requestsUsed: q.requestsUsed, requestsLimit: q.requestsLimit, periodEndsMs: q.periodStartMs + QUOTA_PERIOD_MS })),
+        });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/payments', summary: 'Paid checkouts (SumUp) and signed billing events received', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'payments.read');
+        const [transactions, events] = await Promise.all([options.payments ? options.payments.listTransactions(200) : Promise.resolve(null), store.listBillingEvents(200)]);
+        return adminDone(claims, 'payments.read', '', {
+          connected: transactions !== null,
+          transactions: (transactions ?? []).map((t) => ({
+            checkoutReference: t.checkoutReference, invoiceNumber: t.invoiceNumber, paidAt: t.paidAt, status: t.status, country: t.country,
+            currency: t.currency, totalPence: t.totalPence, netPence: t.netPence, taxPence: t.taxPence, accountId: t.accountId,
+          })),
+          billingEvents: events,
+        });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/messages', summary: 'Contact form messages, newest first', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'messages.read');
+        const messages = await store.listContactMessages(200);
+        return adminDone(claims, 'messages.read', `${messages.length} messages`, { messages });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/messages/:id/status', summary: 'Mark a contact message new, read or answered', auth: 'admin', body: Schemas.AdminMessageStatus,
+      handler: async (req, params) => {
+        const claims = await admin(req, 'message.status');
+        const body = parseJson(Schemas.AdminMessageStatus, req.rawBody);
+        if (!(await store.setContactMessageStatus(params.id, body.status))) throw new ApiError(404, 'NOT_FOUND', 'No such message.');
+        return adminDone(claims, 'message.status', `${params.id} ${body.status}`, { status: body.status });
+      },
+    },
+    {
       method: 'GET', path: '/v1/admin/overview', summary: 'Counts for the admin console', auth: 'admin',
       handler: async (req) => {
         const claims = await admin(req, 'overview');
@@ -373,6 +527,8 @@ export function createApp(options: AppOptions) {
           aiDisabled: (await store.getSetting('ai_disabled')) === '1',
           aiProvider: provider?.name ?? null,
           store: store.kind,
+          licenceIssuing: !!config.licencePrivateKey,
+          paymentsConnected: !!options.payments,
         });
       },
     },
@@ -403,8 +559,9 @@ export function createApp(options: AppOptions) {
         const id = randomId(12);
         const details = Buffer.from(JSON.stringify({ v: 1, plan: 'paid', id, issuedAt: now() }));
         const key = `KESTREL1.${details.toString('base64url')}.${crypto.sign(null, details, config.licencePrivateKey).toString('base64url')}`;
-        await store.insertLicence(newLicence(id, body.plan, now(), { accountId: body.accountId ?? null, managedAi: body.managedAi, maxDevices: body.maxDevices }));
-        return adminDone(claims, 'licence.issue', `${id} plan=${body.plan}`, { licenceId: id, licenceKey: key });
+        const validUntilMs = body.validDays ? now() + body.validDays * DAY_MS : null;
+        await store.insertLicence(newLicence(id, body.plan, now(), { accountId: body.accountId ?? null, managedAi: body.managedAi, maxDevices: body.maxDevices, validUntilMs, note: body.note || null }));
+        return adminDone(claims, 'licence.issue', `${id} plan=${body.plan}${validUntilMs ? ` until=${new Date(validUntilMs).toISOString().slice(0, 10)}` : ''}`, { licenceId: id, licenceKey: key, validUntilMs });
       },
     },
     {

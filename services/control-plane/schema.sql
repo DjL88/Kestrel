@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS licences (
   max_devices        INTEGER NOT NULL DEFAULT 3,
   offline_grace_days INTEGER NOT NULL DEFAULT 30,
   valid_until_ms     INTEGER,
-  updated_at_ms      INTEGER NOT NULL
+  updated_at_ms      INTEGER NOT NULL,
+  note               TEXT                       -- admin's note, e.g. who a gift key is for
 );
 
 CREATE TABLE IF NOT EXISTS device_activations (
@@ -96,4 +97,14 @@ CREATE TABLE IF NOT EXISTS audit_log (
   action         TEXT NOT NULL,
   outcome        TEXT NOT NULL,                 -- 'allowed' | 'denied'
   detail         TEXT NOT NULL DEFAULT ''
+);
+
+-- Website contact form. Stored only with the sender's consent; deleted on request.
+CREATE TABLE IF NOT EXISTS contact_messages (
+  message_id     TEXT PRIMARY KEY,
+  received_at_ms INTEGER NOT NULL,
+  name           TEXT NOT NULL,
+  email          TEXT NOT NULL,
+  message        TEXT NOT NULL,
+  status         TEXT NOT NULL DEFAULT 'new'  -- 'new' | 'read' | 'answered'
 );

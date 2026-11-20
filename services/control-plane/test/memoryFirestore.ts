@@ -25,7 +25,7 @@ const copyIn = (data: FsData) => { for (const [k, v] of Object.entries(data)) ch
 
 const snapshot = (id: string, data: FsData | undefined): FsDocSnapshot => ({ exists: data !== undefined, id, data: () => (data === undefined ? undefined : structuredClone(data)) });
 
-type Write = { kind: 'set' | 'create' | 'update'; collection: string; id: string; data: FsData };
+type Write = { kind: 'set' | 'create' | 'update' | 'delete'; collection: string; id: string; data: FsData };
 
 export class MemoryFirestore implements FirestoreLike {
   private readonly collections = new Map<string, Map<string, FsData>>();
@@ -54,9 +54,12 @@ export class MemoryFirestore implements FirestoreLike {
       const existing = current(w);
       if (w.kind === 'create' && existing) throw new FirestoreError(6, `ALREADY_EXISTS: Document already exists: ${w.collection}/${w.id}`);
       if (w.kind === 'update' && !existing) throw new FirestoreError(5, `NOT_FOUND: No document to update: ${w.collection}/${w.id}`);
-      pending.set(key(w), w.kind === 'update' ? { ...existing, ...copyIn(w.data) } : copyIn(w.data));
+      pending.set(key(w), w.kind === 'delete' ? undefined : w.kind === 'update' ? { ...existing, ...copyIn(w.data) } : copyIn(w.data));
     }
-    for (const w of writes) this.table(w.collection).set(w.id, pending.get(key(w))!);
+    for (const w of writes) {
+      const value = pending.get(key(w));
+      if (value === undefined) this.table(w.collection).delete(w.id); else this.table(w.collection).set(w.id, value);
+    }
   }
 
   /** @internal Used by queries made from this database. */
@@ -99,6 +102,7 @@ export class MemoryFirestore implements FirestoreLike {
         set: (ref, data) => { writes.push({ kind: 'set', collection: (ref as MemoryDocRef).collection, id: ref.id, data }); return tx; },
         create: (ref, data) => { writes.push({ kind: 'create', collection: (ref as MemoryDocRef).collection, id: ref.id, data }); return tx; },
         update: (ref, data) => { writes.push({ kind: 'update', collection: (ref as MemoryDocRef).collection, id: ref.id, data }); return tx; },
+        delete: (ref) => { writes.push({ kind: 'delete', collection: (ref as MemoryDocRef).collection, id: ref.id, data: {} }); return tx; },
       };
       const result = await body(tx);
       this.apply(writes);

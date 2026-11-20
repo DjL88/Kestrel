@@ -85,6 +85,41 @@ a few hundred MB in Artifact Registry; the repository keeps the 10 most recent.
 
 To deploy a newer version, repeat step 3 with the new commit. To roll back, apply with the previous image tag.
 
+### The admin console (`/admin` on the website)
+
+The page is `site/admin.html`. Firebase Hosting forwards `/v1/admin/**` (and `/v1/contact`) to the service, so the page
+and the API share one address and no cross-site permissions are needed. Only Google accounts on the allow-list can sign
+in. The list is a secret, so your email address is never in git or in Terraform's state.
+
+1. **OAuth client** (once, in the console): APIs & Services → OAuth consent screen. Choose External, app name
+   "Kestrel admin", your email as the support contact, and no scopes beyond the default. Leave it in Testing and add your
+   own Google account as a test user. Then go to Credentials → Create credentials → OAuth client ID → Web application, and
+   add the authorised JavaScript origin `https://kestrel-hosting-kestrel.web.app` (and your own domain later). No
+   redirect URI is needed. Copy the client ID: it is public, not a secret.
+2. **Allow-list** (your Google email; separate several with commas):
+
+   ```powershell
+   Set-Content -NoNewline -Encoding ascii v.txt "you@example.com"; gcloud secrets versions add kcp-admin-emails --data-file=v.txt; Remove-Item v.txt
+   ```
+
+   The service will not start until this secret has a value, like the other four.
+3. Apply with the client ID, then publish the website:
+
+   ```powershell
+   terraform -chdir=infra/gcp apply -var "project_id=kestrel-hosting" -var "control_plane_image=$image" -var "google_oauth_client_id=CLIENT-ID.apps.googleusercontent.com" -var "licence_issuing_enabled=true"
+   ./scripts/release/publish-gcp.ps1 -Project kestrel-hosting -Website
+   ```
+
+How it signs in: Google gives the page an ID token. The service checks Google's signature, that the token was made
+for this client, that it hasn't expired and that the email is verified, and that the email is on the list. It then
+gives the page a 15-minute session with no refresh token, so taking an email off the list locks it out within 15
+minutes. While a list is set, it is the final word: an account marked admin but not on the list is refused. Every
+sign-in, view and change, allowed or refused, goes into the audit log. Refused emails are recorded only as a
+hash prefix.
+
+Without a client ID (for example a local run with `KCP_DEV_MODE=1`), the page offers email and password sign-in for an
+administrator account instead. That is useful for development and is never shown once Google sign-in is set up.
+
 ## Set it up (once)
 
 You need the Google Cloud CLI (`gcloud`), Terraform 1.6 or later, and the Firebase CLI (`npm i -g firebase-tools`).
