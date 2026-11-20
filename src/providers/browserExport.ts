@@ -1,4 +1,6 @@
 import { isRawPreviewFile } from '../core/rawFormats';
+import { embedRasterXmp } from '../core/rasterXmp';
+import type { TiffExportMetadata } from '../core/tiffExportMetadata';
 import { canDevelopRaw, developRaw } from './rawDevelop';
 import { loadImage } from './loadImage';
 import { applyCanvasExportEdit } from '../core/canvasEdit';
@@ -76,6 +78,8 @@ export interface ExportExtras {
   zoom?: number;
   /** Limit the long edge of the generated preview. */
   previewEdge?: number;
+  /** XMP fields explicitly chosen for the exported file, never copied from original EXIF. */
+  metadata?: TiffExportMetadata | null;
 }
 
 /**
@@ -275,7 +279,11 @@ export async function renderExport(
       const encoded = await new Promise<Blob | null>((resolve) => output.toBlob(resolve, mime, quality));
       signal?.throwIfAborted();
       if (!encoded || encoded.type !== mime || encoded.size === 0) throw new Error(`Could not encode ${name} at ${output.width} × ${output.height} px.`);
-      const file = datedExport(encoded, name, date);
+      // This is a metadata-only byte insertion after canvas encoding, not a
+      // second lossy JPEG compression pass or a copy of private camera EXIF.
+      const annotated = await embedRasterXmp(encoded, profile.format, extras.metadata);
+      signal?.throwIfAborted();
+      const file = datedExport(annotated, name, date);
       if (!profile.maxBytes || file.size <= profile.maxBytes) return file;
     }
     throw new Error(`${name} is above the preset’s file-size limit. Choose smaller export dimensions.`);
