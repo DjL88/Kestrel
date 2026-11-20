@@ -35,6 +35,12 @@ export interface CullEvaluation {
   aircraftCount: number;
   /** Aircraft frames without an explicit prediction cannot certify classification safety. */
   aircraftPredictionsMissing: number;
+  /** Explicit unknown predictions are safe abstentions, not correct aircraft detections. */
+  aircraftAbstained: number;
+  aircraftClassified: number;
+  aircraftClassificationCoverage: number | null;
+  aircraftCorrectlyClassified: number;
+  aircraftConditionalAccuracy: number | null;
   aircraftBirdConfusionRate: number | null;
   errors: string[];
 }
@@ -48,16 +54,17 @@ const decisions: readonly ProposedDecision[] = ['keep', 'reject', 'review'];
 export function evaluateCullGroundTruth(frames: readonly LabelledCullFrame[]): CullEvaluation {
   const counts = new Map<string, number>();
   for (const frame of frames) {
-    if (frame && typeof frame.id === 'string') counts.set(frame.id, (counts.get(frame.id) ?? 0) + 1);
+    if (frame && typeof frame.id === 'string') counts.set(frame.id.trim(), (counts.get(frame.id.trim()) ?? 0) + 1);
   }
   const errors: string[] = [];
   let evaluated = 0, invalid = 0, abstained = 0, proposedKeep = 0;
   let proposedReject = 0, keeperCount = 0, keptKeepers = 0;
   let falseRejects = 0, aircraftCount = 0, aircraftLabelledBird = 0, aircraftPredictionsMissing = 0;
   let automaticKeptKeepers = 0, nonKeeperCount = 0, falseKeeps = 0;
+  let aircraftAbstained = 0, aircraftClassified = 0, aircraftCorrectlyClassified = 0;
   frames.forEach((frame, index) => {
     if (!frame || typeof frame.id !== 'string' || !frame.id.trim() ||
-      counts.get(frame.id) !== 1 ||
+      frame.id !== frame.id.trim() || counts.get(frame.id.trim()) !== 1 ||
       !subjects.includes(frame.subject) ||
       !['keep', 'reject'].includes(frame.truth) ||
       !decisions.includes(frame.suggestion) ||
@@ -84,6 +91,11 @@ export function evaluateCullGroundTruth(frames: readonly LabelledCullFrame[]): C
       aircraftCount++;
       if (frame.predictedSubject == null) aircraftPredictionsMissing++;
       if (frame.predictedSubject === 'bird') aircraftLabelledBird++;
+      if (frame.predictedSubject === 'unknown') aircraftAbstained++;
+      if (frame.predictedSubject != null && frame.predictedSubject !== 'unknown') {
+        aircraftClassified++;
+        if (frame.predictedSubject === 'aircraft') aircraftCorrectlyClassified++;
+      }
     }
   });
   return {
@@ -97,6 +109,9 @@ export function evaluateCullGroundTruth(frames: readonly LabelledCullFrame[]): C
     falseKeeps, nonKeeperCount,
     falseKeepRate: nonKeeperCount ? falseKeeps / nonKeeperCount : null,
     aircraftLabelledBird, aircraftCount, aircraftPredictionsMissing,
+    aircraftAbstained, aircraftClassified, aircraftCorrectlyClassified,
+    aircraftClassificationCoverage: aircraftCount ? aircraftClassified / aircraftCount : null,
+    aircraftConditionalAccuracy: aircraftClassified ? aircraftCorrectlyClassified / aircraftClassified : null,
     aircraftBirdConfusionRate: aircraftCount ? aircraftLabelledBird / aircraftCount : null,
     errors,
   };
@@ -107,12 +122,15 @@ export function passesCullSafetyGate(
   minimumEvaluated: number,
   maximumFalseRejectRate = 0,
   minimumAutomaticKeeperRecall = 0.5,
+  minimumAircraftClassificationCoverage = 0.5,
 ): boolean {
   return Number.isInteger(minimumEvaluated) && minimumEvaluated > 0 &&
     Number.isFinite(maximumFalseRejectRate) &&
     maximumFalseRejectRate >= 0 && maximumFalseRejectRate <= 1 &&
     Number.isFinite(minimumAutomaticKeeperRecall) &&
     minimumAutomaticKeeperRecall > 0 && minimumAutomaticKeeperRecall <= 1 &&
+    Number.isFinite(minimumAircraftClassificationCoverage) &&
+    minimumAircraftClassificationCoverage > 0 && minimumAircraftClassificationCoverage <= 1 &&
     evaluation.invalid === 0 && evaluation.total === evaluation.evaluated &&
     evaluation.errors.length === 0 &&
     evaluation.evaluated === evaluation.keeperCount + evaluation.nonKeeperCount &&
@@ -121,6 +139,13 @@ export function passesCullSafetyGate(
     evaluation.falseKeeps >= 0 && evaluation.falseKeeps <= evaluation.nonKeeperCount &&
     evaluation.aircraftLabelledBird >= 0 && evaluation.aircraftLabelledBird <= evaluation.aircraftCount &&
     evaluation.aircraftPredictionsMissing === 0 &&
+    evaluation.aircraftAbstained >= 0 && evaluation.aircraftClassified >= 0 &&
+    evaluation.aircraftCorrectlyClassified >= 0 &&
+    evaluation.aircraftCorrectlyClassified <= evaluation.aircraftClassified &&
+    evaluation.aircraftClassified + evaluation.aircraftAbstained === evaluation.aircraftCount &&
+    evaluation.aircraftClassificationCoverage === evaluation.aircraftClassified / evaluation.aircraftCount &&
+    evaluation.aircraftClassificationCoverage >= minimumAircraftClassificationCoverage &&
+    evaluation.aircraftConditionalAccuracy === evaluation.aircraftCorrectlyClassified / evaluation.aircraftClassified &&
     evaluation.keeperRecall !== null &&
     evaluation.keeperRecall === 1 - evaluation.falseRejects / evaluation.keeperCount &&
     evaluation.falseRejectRate === evaluation.falseRejects / evaluation.keeperCount &&
