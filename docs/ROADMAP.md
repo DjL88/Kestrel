@@ -171,7 +171,7 @@ A full pass through every page, as a user and a graphic designer: consistent, ti
 8. **Every slider has an ⓘ beside it.** Clicking it opens a small lightbox that says in plain words what the slider does.
 9. **Phone:** the same pass. *Part MERGED 19 Nov:* no repeated Undo/Redo/Before-After while Quick adjust shows them; Copy and Paste in the long-press menu so the bottom bar fits; Settings top right.  Every page consistent, tidy and accessible, with the photo clear to see.
 10. **Plain British English** in every explanation.
-11. **A translation layer.** *Foundation MERGED 19 Nov (owner asked for it now):* Settings → Language lists English (UK, US, Canada), Cymraeg, Gàidhlig, Français, Deutsch, Español, Nederlands, Italiano and Português, each by its own name. Nothing changes until **Restart in …** is pressed; the label keeps the English word "Language" so nobody is stranded. British English is the source (`src/i18n/en-GB.ts`); each language file (`src/i18n/locales/`) is laid over it, so anything untranslated shows in British English, never blank. `<html lang>` follows the choice for screen readers, and dates follow it too. Fixed on the way: Photo info showed the capture time in the *browser's* language ("Nov 19, 2026, 08:46:46 PM"); it is now British by default ("19 Nov 2026, 20:46:46"). Kestrel never switches language on its own. Translated so far: the home page, Settings, the collection names, Auto-cull and edit history (about 75 sentences). **Every non-English language is a draft written without a native speaker, and the app says so in that language.** Still to do, in order: move the remaining ~1,100 hard-coded sentences into `en-GB.ts` screen by screen (editor first), get native-speaker checks (Welsh and Gaelic first), add Irish, Scots and Canadian French if wanted, and offer the language in the P2 first-run welcome.
+11. **A translation layer.** *MERGED 20 Nov (this PR, on top of #495/#497):* 17 languages plus regional English (AU, NZ, Canada) and Canadian French; first run offers the device's language, written in that language. About 1,500 sentences moved into six areas (`src/i18n/areas/{app,editor,export,library,projects,viewer}`), each complete in every full language (a unit test enforces it); regional variants fall back to their parent (fr-CA → fr → British English). British English wording unchanged. **Every non-English language is a draft** (labelled in the app). Not yet: text that comes from `src/core`/providers at run time (error reasons, Undo labels, keyboard command names, tile status lines); switching language without a restart (needs a React context; see K.6); native-speaker checks (Welsh, Gaelic, Irish, Icelandic first). Photo info, Quick adjust and Compare use #497's plain-English common catalogue; their area keys are unused for now.
 
 **J. Screen-by-screen audit, 19 Nov evening (main at `b36413c`; desktop 1280×800 and phone 390×844)**
 
@@ -207,6 +207,47 @@ Seen by running the web build with 12 synthetic photos and reading the source. I
 
 *Picture-quality claims (photographer and brand)*
 19. Kestrel can say "as good as DxO or Lightroom" only with evidence. That needs P1.1 (16-bit screen), P1.10 (real denoise), lens corrections (P2) and blind comparisons on the owner's real RAWs. Until then the brand promise is **"calm, honest and private"**, not "best quality".
+
+**K. Owner feedback, 20 Nov (consolidated; take in this order)**
+
+Frustrations: languages not everywhere, clutter, inconsistent words, culling and editing feel like two apps, views reset, quality before editing. An outside review (pasted by the owner) agreed on most points and is folded in.
+
+*1. Trust in the picture (before any feature)*
+1. **Never worse than the original before editing.** At zero edits, show the colour-managed original itself (JPEG/PNG/WebP) rather than a re-encoded 0.82 JPEG proxy; tag canvases `display-p3` where supported so wide-gamut files aren't clipped. RAW: no visible jump when Kestrel's develop replaces the camera preview (match brightness and white balance of the camera rendering, or keep the camera preview until the user edits); hand the editor 16-bit data (P1.1) instead of an 8-bit q95 JPEG.
+2. **HEIC/HEIF import** (native decode on desktop, WebAssembly on web).
+
+*2. One workspace*
+3. **Culling and editing are one page:** same header, filmstrip and bottom bar; the edit panels appear only in Single and Compare. The photo stage never unmounts (continues F.1).
+4. **Changing view or tab never moves the photo.** One shared view state (zoom, position); reset only when the photo changes or Fit/100% is pressed. Remove the resets on tab change and on Before/After in `PhotoEditor.tsx`.
+5. **Simpler decision words:** *Unmarked / Pick / Reject* everywhere (filters, tiles, Photo info, Quick edits, help), with ⚑/✕ shapes; "Trash" goes (it sounds like deleting files). Saved values stay `unreviewed/keep/reject`. Replaces J.5.
+6. **Split the two big files** (`App.tsx` ~2,600 lines, `PhotoEditor.tsx` ~1,700) into a view-state store, workspace/selection state, edit controller, and one file per editor tab. This is what makes 3–4 reliable and stops each change breaking another. With it, a language context so language switches without a restart.
+
+*3. Less clutter, more consistency*
+7. **Sliders:** every slider in the copper style (crop size, straighten, crop position, export preview zoom are still the old blue); slider inputs no longer paint over sticky headers and menus (remove `z-10` on range inputs; headers z-20, popovers z-40, dialogs z-50).
+8. **Export focus dot** shows only while placing it or in the Export focus section, never permanently on the photo.
+9. **Copy/Paste say what they are:** "Copy edits" / "Paste edits", with a tooltip listing what was copied.
+10. **Multi-select** shows one "3 selected" pill with a *Batch actions* menu, not seven buttons.
+11. **One View button:** Grid / Single / Compare; Before/After (off, split, side by side); overlays (thirds, 4×4, golden ratio); clipping warnings.
+12. **Settings in one place.** The ⚙ dialog holds every app setting (appearance, hand, language, shortcuts, storage accounts, your own AI, licence). The … menu holds only project actions. No interface setting appears twice. (J.7.)
+13. **Storage per project:** storage accounts are set up once in Settings; each project chooses where it syncs or backs up (default: this device only), shown as a one-line badge on the project. Remove "Where my work is kept" from the home screen (J.16).
+14. **Panels that undock:** Photo info, the editing panel and each tab (Auto, Crop, Edit, Masks, History) can dock left/right or float, stay visible in full screen, and are kept on screen when the window changes size; layouts saved per device. Builds on 6. (Supersedes F's "no free-floating windows" rule at the owner's request; floating panels must remain keyboard-reachable.)
+
+*4. Speed*
+15. Slider drags update the picture directly (WebGL uniforms) and commit to the project on release, so the filmstrip and header don't re-render 60 times a second; render WebGL straight to the visible canvas; pre-decode the next and previous photos.
+
+*5. Editing depth (to stand beside Lightroom, DxO and Capture One)*
+16. In order: colour-managed 16-bit pipeline with camera profiles (P1.1/P1.2); colour mixer (hue, saturation, brightness per colour) and point colour; tone curve; spot healing; lens corrections from Lensfun (distortion, fringing, vignetting); RAW denoise (P1.10); dehaze, vignette and colour grading; luminance- and colour-range masks combined with subject masks (P1.4). No parity claim without side-by-side evidence.
+
+*6. Basic and Pro*
+17. Finish the feature matrix in `src/core/features.ts`: automations (auto-cull, auto-edit, batch), on-device models (subject, species, masks), denoise and 16-bit master are Pro; manual culling and editing, export and local backup are always free. One `FeatureGate` pattern: Pro tools shown in place with a Pro label and a one-card explanation, never hidden and never nagging.
+
+*7. Your own AI (no cost to the owner)*
+18. In-app: the person's own Gemini/Vertex, Claude, OpenAI-compatible or local model (built on `feat/colour-check-20261120`, owner moved it to the end of the queue). Keys in the OS credential store on desktop.
+19. Through MCP: `tools/mcp/kestrel-mcp.ts` gains an opt-in `get_photo_preview` (small, no metadata) and `propose_edit` (bounded sliders, written as a proposal Kestrel shows for approval), plus "Copy MCP settings" for Claude Desktop and other apps, so people use their existing subscriptions.
+
+*8. Hosting (owner request, 20 Nov)*
+20. A GCP backend for secrets, signed model files, installers and the website (see `infra/gcp/` when added). The "Image first" freeze on the control plane is lifted for this by the owner; provisioning paid resources still needs the owner's go-ahead per project.
+
 
 **D. Library and projects**
 - Sort by date imported, date captured and date last edited.
@@ -302,6 +343,8 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
 - Signed installers, real-device acceptance on each platform, licensing, support, and an accessibility audit.
 
 ## 4. Integration log
+
+**One coordinator merges (owner decision, 20 Nov).** The Windows laptop session coordinates integration. Other sessions (Mac, scheduled workers, AI Studio) push their own branch and open a PR, and **do not merge to `main`, push to another session's branch, or switch the main checkout's branch.** Before starting work, pull `main`; push at least after every commit. The coordinator runs the checks, merges, and writes the line below. Why: on 20 Nov two sessions merged the same branches in parallel and left `main` unable to build (#505–#507, repaired in the next PR).
 
 | Date | Merged | Closed | Local evidence |
 | --- | --- | --- | --- |
