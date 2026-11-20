@@ -25,9 +25,8 @@ export function createExportRunSession(
       const bytes = new Uint8Array(await file.arrayBuffer());
       signal.throwIfAborted();
       await connector.put(path, bytes, '');
-      // Some remote PUTs cannot be rolled back. If cancellation races with a completed
-      // PUT, Task Manager reports cancelled rather than incorrectly claiming the batch finished.
-      signal.throwIfAborted();
+      // A successful PUT stays saved even if Stop was pressed during it.
+      // The queue checks cancellation before starting another output.
     },
   };
 }

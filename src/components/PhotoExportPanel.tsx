@@ -25,7 +25,7 @@ import { exportBatchQueue } from '../core/exportBatchQueue';
 import { planConnectedExports } from '../core/exportBatchDestinations';
 import { useAccess } from '../providers/useAccess';
 import { FREE_DAILY_EXPORT_LIMIT } from '../core/features';
-import { parseUsage, recordUse, remainingToday } from '../core/dailyAllowance';
+import { createDailyAllowance, parseUsage } from '../core/dailyAllowance';
 import { parseCustomExportDate } from '../core/exportDateInput';
 import { exportMayContinue } from '../core/exportCancellation';
 import { parseWatermark } from '../core/watermarkStore';
@@ -37,6 +37,13 @@ import type { ExportPlace } from '../providers/exportToPlace';
 import { isDesktopApp, saveWithDialog } from '../providers/desktopShell';
 import { exportText as t } from '../i18n/areas/export';
 import { formatLabel, shapeName, sizeName, watermarkPositionLabel } from '../i18n/areas/export/labels';
+
+const USAGE_KEY = 'kestrel.exportsToday.v1';
+const exportAllowance = createDailyAllowance(
+  FREE_DAILY_EXPORT_LIMIT,
+  () => { try { return parseUsage(localStorage.getItem(USAGE_KEY)); } catch { return null; } },
+  (usage) => { try { localStorage.setItem(USAGE_KEY, JSON.stringify(usage)); } catch { /* Optional device storage. */ } },
+);
 
 interface Props {
   frames: PhotoFrame[];
@@ -270,8 +277,9 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
 
   const { can } = useAccess();
   const unlimited = can('unlimitedExport');
-  const USAGE_KEY = 'kestrel.exportsToday.v1';
-  const readUsage = () => { try { return parseUsage(localStorage.getItem(USAGE_KEY)); } catch { return null; } };
+  function allowanceError(left: number) {
+    setError(left === 0 ? t.panel.limitUsed(FREE_DAILY_EXPORT_LIMIT) : t.panel.limitLeft(FREE_DAILY_EXPORT_LIMIT, left));
+  }
 
   /**
    * Connected destinations support genuine background saving: a run folder and connector
@@ -292,18 +300,16 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       setError('Full-size RAW export is not yet verified at original sensor quality. Choose a social JPEG format, or use the original file until high-precision RAW export is supported.');
       return;
     }
-    if (!unlimited) {
-      const left = remainingToday(readUsage(), new Date(), FREE_DAILY_EXPORT_LIMIT);
-      if (total > left) {
-        setError(left === 0 ? t.panel.limitUsed(FREE_DAILY_EXPORT_LIMIT) : t.panel.limitLeft(FREE_DAILY_EXPORT_LIMIT, left));
-        return;
-      }
-    }
+    const reservation = unlimited ? null : exportAllowance.reserve(total);
+    if (reservation && 'left' in reservation) { allowanceError(reservation.left); return; }
+    let queued = false;
+    let saved = 0;
     setPlaceBusy(true);
     setError('');
     try {
       // An explicit click grants the chosen destination; no implicit upload.
       const destination = await exportPlace.openBatch();
+      if (cancelled.current) return;
       const photographs = structuredClone(frames);
       const options = {
         formats: structuredClone(selected), anchors: structuredClone(anchors),
@@ -313,7 +319,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       const planned = planConnectedExports(photographs, options.formats, options.naming);
       if (!planned.length) throw new Error('Choose at least one export format.');
       const ticket = exportBatchQueue.enqueue({
-        title: `Saving ${planned.length} photo exports to ${exportPlace.label}`,
+        title: `Saving ${planned.length} photo exports to ${exportPlace.label} · ${destination.folder}`,
         items: planned.map(entry => entry.item),
         recipe: options,
       }, {
@@ -342,49 +348,39 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
           const file = rendered.name === item.filename ? rendered
             : new File([rendered], item.filename, { type: rendered.type, lastModified: rendered.lastModified });
           await destination.save(file, item.subfolder, signal);
+          saved += 1;
         },
       });
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(chosen));
         localStorage.setItem(EXPORT_PREFERENCES_KEY, JSON.stringify({ fits, overrides, turned, bars }));
       } catch { /* Export is not dependent on settings storage. */ }
-      // Successful job acceptance, not completion: leave the editor usable now.
-      onClose();
+      queued = true;
       void ticket.done.then(result => {
-        if (result !== 'completed') return;
-        if (!unlimited) {
-          try {
-            localStorage.setItem(USAGE_KEY, JSON.stringify(recordUse(readUsage(), new Date(), planned.length)));
-          } catch { /* Noncritical local usage cache. */ }
-        }
-        onDownloadRequested?.(photographs);
+        reservation?.settle(saved);
+        if (result === 'completed') onDownloadRequested?.(photographs);
       });
+      onClose();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not start saving to that destination.');
     } finally {
+      if (!queued) reservation?.settle(0);
       setPlaceBusy(false);
     }
   }
 
   async function prepare() {
+    if (placeBusy || activeExport.current || !total || blocked) return;
     if (timestamp === 'custom' && !parseCustomExportDate(customDate)) {
       setError(t.panel.invalidDate);
       return;
-    }
-    if (!unlimited) {
-      const wanted = frames.length * selected.length;
-      const left = remainingToday(readUsage(), new Date(), FREE_DAILY_EXPORT_LIMIT);
-      if (wanted > left) {
-        setError(left === 0
-          ? t.panel.limitUsed(FREE_DAILY_EXPORT_LIMIT)
-          : t.panel.limitLeft(FREE_DAILY_EXPORT_LIMIT, left));
-        return;
-      }
     }
     if (customOn && customResult && 'error' in customResult) {
       setError(customResult.error);
       return;
     }
+    const reservation = unlimited ? null : exportAllowance.reserve(total);
+    if (reservation && 'left' in reservation) { allowanceError(reservation.left); return; }
     setProgress(0);
     setError('');
     const controller = new AbortController();
@@ -423,7 +419,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       }
       // Stop must never publish partial results or charge the Free allowance.
       if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
-      if (!unlimited && output.length) { try { localStorage.setItem(USAGE_KEY, JSON.stringify(recordUse(readUsage(), new Date(), output.length))); } catch { /* the count is best effort */ } }
+      reservation?.settle(output.length);
       try {
         localStorage.setItem(EXPORT_PREFERENCES_KEY, JSON.stringify({ fits, overrides, turned, bars }));
       } catch { /* Export remains usable when storage is unavailable. */ }
@@ -441,6 +437,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     } catch (reason) {
       if (!controller.signal.aborted && !task.cancelled && !cancelled.current) { const message = reason instanceof Error ? reason.message : t.panel.prepareFailed; setError(message); task.fail(message); }
     } finally {
+      reservation?.settle(0);
       task.fail(t.panel.stopped); // does nothing if the task already finished or was cancelled
       activeExport.current = null;
       if (!cancelled.current) setProgress(null);

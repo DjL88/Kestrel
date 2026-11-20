@@ -44,3 +44,10 @@ test('failed connector write cannot be reported as a successful file', async () 
   const job = createExportRunSession({ put: async () => { throw new Error('Drive disconnected'); } }, when, first);
   await assert.rejects(job.save(file(), 'Instagram', new AbortController().signal), /Drive disconnected/);
 });
+
+test('a write confirmed while stopping still counts as saved', async () => {
+  const controller = new AbortController();
+  const job = createExportRunSession({ put: async () => { controller.abort(); } }, when, first);
+  await job.save(file(), 'Instagram', controller.signal);
+  assert.equal(controller.signal.aborted, true);
+});
