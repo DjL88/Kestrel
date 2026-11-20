@@ -18,6 +18,7 @@ export const source = {
     position: (index: number, total: number) => `${index} of ${total}`,
     actualPreview200: 'View photo B at 200% of its available preview pixels',
     previewZoomNotReady: '200% zoom is unavailable until photo B is ready',
+    previewAlreadyLarge: 'Photo B is already larger than 200% at Fit',
     twoHundred: '200%',
     toolbar: 'Compare photo controls',
     zoomGroup: 'Compare zoom',
