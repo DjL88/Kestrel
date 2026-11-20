@@ -81,6 +81,8 @@ export const ga: AreaTranslation<typeof source> = {
     fullSize: 'Lánmhéid',
     customSize: 'Méid shaincheaptha',
     master: 'Lánmhéid · PNG',
+    fullJpeg: "Méid iomlán · JPEG",
+    fullJpegHelp: "JPEG ardchaighdeáin ón íomhá atá ar fáil. Le RAW úsáidtear íomhá forbartha nó réamhamharc ceamara, ní máistirchomhad RAW 16-ghiotán fíoraithe.",
     custom: (width, height) => `Saincheaptha · ${width} × ${height}`,
     post: (shape) => `Postáil · ${shape}`,
     square: (shape) => `Cearnóg · ${shape}`,
