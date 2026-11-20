@@ -45,8 +45,9 @@ export interface DurableExportQueue {
   ): ExportBatchTicket;
 }
 const HASH = /^[a-f0-9]{64}$/i;
-const relative = (item: ExportQueueItem) => item.subfolder ? item.subfolder + '/' + item.filename : item.filename;
-const key = (item: ExportQueueItem) => relative(item).toLowerCase();
+type ExportDestination = Pick<ExportQueueItem, 'subfolder' | 'filename'>;
+const relative = (item: ExportDestination) => item.subfolder ? item.subfolder + '/' + item.filename : item.filename;
+const key = (item: ExportDestination) => relative(item).toLowerCase();
 const abortIf = (signal: AbortSignal) => {
   if (signal.aborted) throw new Error('Export cancelled.');
 };
