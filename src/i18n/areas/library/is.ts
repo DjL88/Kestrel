@@ -217,6 +217,8 @@ export const is: AreaTranslation<typeof source> = {
     dismiss: 'Loka',
   },
   tasks: {
+    retry: "Reyna aftur",
+    retryRemaining: "Reyna aftur með skrárnar sem eftir eru í þessari lotu",
     tasks: 'Verk',
     working: 'Í gangi',
     busy: 'Upptekið',
