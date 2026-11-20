@@ -194,6 +194,7 @@ pub fn run() {
             let view = Submenu::with_items(app, "View", true, &[
                 &MenuItem::with_id(app, "filmstrip", "Show or hide filmstrip", true, None::<&str>)?,
                 &MenuItem::with_id(app, "view-info", "Show or hide Photo info", true, None::<&str>)?,
+                &MenuItem::with_id(app, "view-bursts", "Group or ungroup bursts", true, None::<&str>)?,
                 &MenuItem::with_id(app, "view-tools", "Show or hide editing tools", true, None::<&str>)?,
                 &PredefinedMenuItem::separator(app)?,
                 &MenuItem::with_id(app, "view-left", "Panels on the left", true, None::<&str>)?,
