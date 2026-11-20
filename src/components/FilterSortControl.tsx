@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ListFilter, Search } from 'lucide-react';
+import { ArrowDownUp, ListFilter, Search } from 'lucide-react';
 import type { RatingFilter, SortOrder } from '../core/types';
 import { RatingFilterControl } from './RatingFilterControl';
 import { libraryText as t } from '../i18n/areas/library';
@@ -122,11 +122,12 @@ export function FilterSortControl(props: Props) {
           </div>
         )}
       </div>
-      <label className="text-xs font-medium text-zinc-400">
+      <label className="relative inline-flex items-center text-xs font-medium text-zinc-400">
         <span className="sr-only">{t.filter.sort}</span>
+        <ArrowDownUp className="pointer-events-none absolute left-2 h-4 w-4 text-zinc-400" aria-hidden="true" />
         <select aria-label={t.filter.sortPhotos} value={props.sortOrder ?? 'default'}
           onChange={(event) => props.onSortOrderChange(event.target.value === 'default' ? undefined : event.target.value as SortOrder)}
-          className="min-h-10 rounded-md border border-white/10 bg-black/20 px-2 text-sm text-zinc-100">
+          className="min-h-10 rounded-md border border-white/10 bg-black/20 pl-8 pr-2 text-sm text-zinc-100">
           {Object.entries(sortLabels).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
         </select>
       </label>

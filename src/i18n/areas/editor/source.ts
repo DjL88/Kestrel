@@ -371,6 +371,7 @@ export const source = {
     edgeTitle: 'Drag to move this edge of the crop',
     apply: 'Apply crop',
     help: 'Drag across the photo to draw a crop, or drag its corners, edges or middle. Pick a shape below to keep it while you drag. Changes are saved as you go. Apply returns to the editing view with the crop in place, and Cancel puts back the crop you started with.',
+    autoCrop: 'Auto crop',
     autoCopy: 'Auto crop copy',
     rotate: 'Rotate 90°',
     autoLevel: 'Auto-level',

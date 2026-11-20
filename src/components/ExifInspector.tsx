@@ -168,29 +168,13 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
         ))}
       </div>
       <div id="photo-panel-info" role="tabpanel" aria-labelledby="photo-tab-info" hidden={activeTab !== 'info'}>
-      <p className="mt-3 break-words text-sm text-zinc-200">{frame.filename}</p>
-      <button type="button" onClick={() => void copyInfo()} title={m.photoInfo.copyHint}
-        className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-md border border-white/15 px-3 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">
-        <ClipboardCopy className="h-4 w-4" aria-hidden="true" />{m.photoInfo.copy}
-      </button>
-      {!frame.isDemo && (!isMobileShell() || typeof navigator.share === 'function') && (
-        <button type="button" onClick={() => void saveSidecar()} disabled={sidecarBusy}
-          className="ml-2 mt-2 inline-flex min-h-11 items-center gap-2 rounded-md border border-white/15 px-3 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
-          <Download className="h-4 w-4" aria-hidden="true" />{exportText.sidecar.save}
+      <div className="mt-3 flex min-w-0 items-center gap-1">
+        <p className="min-w-0 flex-1 break-words text-sm text-zinc-200">{frame.filename}</p>
+        <button type="button" onClick={() => void copyInfo()} title={m.photoInfo.copyHint} aria-label={m.photoInfo.copy}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-md text-zinc-300 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">
+          <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
         </button>
-      )}
-      {!frame.isDemo && <>
-        <input ref={sidecarInput} type="file" accept=".xmp,application/rdf+xml" hidden onChange={event => {
-          const file = event.currentTarget.files?.[0];
-          event.currentTarget.value = '';
-          if (file) void importSidecar(file);
-        }} />
-        <button type="button" onClick={() => sidecarInput.current?.click()} disabled={sidecarBusy}
-          className="ml-2 mt-2 inline-flex min-h-11 items-center rounded-md border border-white/15 px-3 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
-          {exportText.sidecar.load}
-        </button>
-      </>}
-      {sidecarStatus?.id === frame.id && <p role="status" className="mt-1 text-xs text-zinc-300">{sidecarStatus.message}</p>}
+      </div>
       {copyStatus && <p role="status" className="mt-1 text-xs text-zinc-300">{copyStatus}</p>}
       {exif.formatLabel && <p className="mt-1 text-xs text-zinc-400">{exif.formatLabel}</p>}
       {frame.burstGroupId && <p className="mt-1 text-xs text-zinc-400">{m.photoInfo.burst(String(frame.burstIndex ?? 0), String(frame.burstCount ?? 0))}</p>}
@@ -246,6 +230,28 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
           ))}
         </div>
       </div>
+      {!frame.isDemo && (
+        <section className="mt-3 border-t border-white/10 pt-3" aria-label="XMP sidecar">
+          <input ref={sidecarInput} type="file" accept=".xmp,application/rdf+xml" hidden onChange={event => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = '';
+            if (file) void importSidecar(file);
+          }} />
+          <div className="grid grid-cols-2 gap-2">
+            {(!isMobileShell() || typeof navigator.share === 'function') && (
+              <button type="button" onClick={() => void saveSidecar()} disabled={sidecarBusy}
+                className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-md border border-white/15 px-2 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
+                <Download className="h-4 w-4 shrink-0" aria-hidden="true" />{exportText.sidecar.save}
+              </button>
+            )}
+            <button type="button" onClick={() => sidecarInput.current?.click()} disabled={sidecarBusy}
+              className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-md border border-white/15 px-2 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
+              {exportText.sidecar.load}
+            </button>
+          </div>
+          {sidecarStatus?.id === frame.id && <p role="status" className="mt-2 text-xs text-zinc-300">{sidecarStatus.message}</p>}
+        </section>
+      )}
       </div>
 
     </aside>
