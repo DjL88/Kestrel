@@ -1946,6 +1946,14 @@ export default function App() {
           <TaskManager inline />
           {/* The same order as the library's top row: work in hand, this page's actions (Export), then Settings. */}
           <div id="editor-header-actions" className="flex shrink-0 items-center gap-2" />
+          <button type="button" ref={infoTriggerRef} onClick={() => {
+            setInfoFrameId(undefined);
+            setWorkspacePanes({ folded: false });
+            setShowPhotoInfo((visible) => !visible);
+          }} aria-label={t.top.photoInfo} title={t.top.photoInfo} aria-pressed={showPhotoInfo && !panesCollapsed}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-md text-zinc-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 aria-pressed:bg-white/15">
+            <Info className="h-5 w-5" aria-hidden="true" />
+          </button>
           <SettingsButton open={settingsOpen} onOpen={() => setSettingsOpen(true)} />
           {multiSelect && selectedVisibleFrames.length > 0 && (
             <span className="shrink-0 text-xs tabular-nums text-zinc-300">{t.header.selected(selectedVisibleFrames.length)}</span>
