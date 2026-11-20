@@ -183,6 +183,9 @@ export const ga: AreaTranslation<typeof source> = {
     placeholder: '© D’ainm',
     pictureChosen: 'Pictiúr roghnaithe. Roghnaigh ceann eile chun é a athsholáthar.',
     pictureTooBig: 'Roghnaigh pictiúr faoi 3 MB, PNG le cúlra trédhearcach más féidir.',
+    pictureMissing: "Níl an íomhá comhartha uisce seo ar fáil ar an ngléas. Roghnaigh arís í roimh easpórtáil.",
+    storageFailed: "Níorbh fhéidir an íomhá a shábháil go príobháideach ar an ngléas. Níor athraíodh an comhartha uisce roimhe seo.",
+    localOnly: "Fanann íomhánna comhartha uisce ar an ngléas seo. Ní choinníonn réamhshocrú ach tagairt áitiúil, ní an íomhá.",
     position: 'Suíomh',
     positions: {
       topLeft: 'Barr ar chlé',
