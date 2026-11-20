@@ -1,4 +1,4 @@
-import { EXPORT_PREFERENCES_KEY, readExportPreferences } from '../core/exportPreferences';
+import { EXPORT_PREFERENCES_KEY, EXPORT_PRESETS_KEY, readExportPreferences, readExportPresets, type ExportPreset } from '../core/exportPreferences';
 import { isRawPreviewFile } from '../core/rawFormats';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, X } from 'lucide-react';
@@ -95,6 +95,9 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const placeBusy = openingPlace || placeTaskId !== null;
   const [chosen, setChosen] = useState<string[]>(() => loadChosen(readView() === 'wizard'));
   const [preferences] = useState(() => readExportPreferences({ getItem: (key) => localStorage.getItem(key) }));
+  const [presets, setPresets] = useState(() => readExportPresets({ getItem: (key) => localStorage.getItem(key) }));
+  const [presetName, setPresetName] = useState('');
+  const [presetNote, setPresetNote] = useState('');
   const [fits, setFits] = useState(preferences.fits);
   const [overrides, setOverrides] = useState(preferences.overrides);
   const [turned, setTurned] = useState(preferences.turned);
@@ -730,6 +733,16 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     </>
   );
 
+  function savePresets(next: ExportPreset[], success: string) {
+    try {
+      localStorage.setItem(EXPORT_PRESETS_KEY, JSON.stringify(next));
+      setPresets(next);
+      setPresetNote(success);
+    } catch {
+      setPresetNote(t.presets.saveFailed);
+    }
+  }
+
   const changeView = (next: 'wizard' | 'list') => { setView(next); try { localStorage.setItem('kestrel.exportView', next); } catch { /* Optional preference. */ } };
   const invalidDate = timestamp === 'custom' && !parseCustomExportDate(customDate);
   const blocked = Boolean(customOn && customResult && 'error' in customResult) || invalidDate;
@@ -766,6 +779,46 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               This window closes after the job is accepted; progress and errors stay in Task Manager.
             </p>
           </div>
+        )}
+        {!resultsReady && progress === null && !placeBusy && (
+          <details className="mb-2 rounded-md border border-white/15 px-3 py-2">
+            <summary className="cursor-pointer py-2 text-sm">{t.presets.title}</summary>
+            <ul className="space-y-2">
+              {presets.map(preset => (
+                <li key={preset.name} className="flex flex-wrap items-center gap-2">
+                  <button type="button" className={button} onClick={() => {
+                    setChosen(preset.formats);
+                    setFits(preset.fits);
+                    setOverrides(preset.overrides);
+                    setTurned(preset.turned);
+                    setBars(preset.bars);
+                    setCustomOn(false);
+                    setPresetNote(t.presets.applied(preset.name));
+                  }}>{preset.name}</button>
+                  <button type="button" className={button} aria-label={t.presets.remove(preset.name)}
+                    onClick={() => savePresets(presets.filter(item => item !== preset), t.presets.removed)}>
+                    {t.wizard.remove}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-2 flex flex-wrap items-end gap-2">
+              <label className="text-sm">{t.presets.name}
+                <input className={field} maxLength={40} value={presetName} onChange={event => setPresetName(event.target.value)} />
+              </label>
+              <button type="button" className={button} disabled={!chosen.length || customOn || !presetName.trim() || presets.length >= 20}
+                onClick={() => {
+                  const name = presetName.trim();
+                  if (presets.some(item => item.name.toLowerCase() === name.toLowerCase())) {
+                    setPresetNote(t.presets.duplicate);
+                    return;
+                  }
+                  savePresets([...presets, { name, formats: chosen, fits, overrides, turned, bars }], t.presets.saved);
+                }}>{t.presets.save}</button>
+            </div>
+            {customOn && <p className="text-xs text-zinc-400"> {t.presets.standardOnly}</p>}
+            <p role="status" className="text-xs text-zinc-300">{presetNote}</p>
+          </details>
         )}
         {!resultsReady && (
           <p className="mt-1 text-center">
