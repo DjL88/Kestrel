@@ -76,6 +76,11 @@ export function recommendForReview(items: readonly ReviewCandidate[]): ReviewSug
     }
   }
   return items.map((item) => {
+    // An ambiguous catalogue identity cannot safely inherit a manual decision.
+    // Never attribute a Keep or Reject to two different originals sharing an ID.
+    if (typeof item.id !== 'string' || !item.id.trim() || identityCounts.get(item.id) !== 1) {
+      return { id: item.id, suggestion: 'review', reason: 'uncertain-detection' };
+    }
     if (item.manualDecision === 'keep' || item.manualDecision === 'reject') {
       return { id: item.id, suggestion: item.manualDecision, reason: 'manual' };
     }
