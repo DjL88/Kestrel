@@ -41,7 +41,6 @@ import { formatLabel, shapeName, sizeName, watermarkPositionLabel } from '../i18
 interface Props {
   frames: PhotoFrame[];
   provider: BrowserPreviewProvider;
-  source?: HTMLImageElement | null;
   onClose: () => void;
   /** Called after a desktop save succeeds or a browser download is requested. */
   onDownloadRequested?: (frames: readonly PhotoFrame[]) => void;
@@ -82,7 +81,7 @@ function loadChosen(freshStart = false): string[] {
   return freshStart ? [] : ['master'];
 }
 
-export function PhotoExportPanel({ frames, provider, source, onClose, onDownloadRequested, exportPlace }: Props) {
+export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequested, exportPlace }: Props) {
   const [placeNote, setPlaceNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [placeBusy, setPlaceBusy] = useState(false);
   const [chosen, setChosen] = useState<string[]>(() => loadChosen(readView() === 'wizard'));
@@ -216,7 +215,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
       for (const frame of previewFrames) {
         if (!active) return;
         try {
-          const image = source && frames.length === 1 ? source : await loadExportSource(frame, provider);
+          const image = await loadExportSource(frame, provider);
           if (active) setSources((prior) => (prior[frame.id] ? prior : { ...prior, [frame.id]: image }));
         } catch { /* That photo simply has no preview. Exporting reports the problem. */ }
       }
@@ -224,7 +223,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
     return () => { active = false; };
     // The first few photos only change when the selection does.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [frames, provider, source]);
+  }, [frames, provider]);
 
   // The fixed proof can inspect ANY selected photo, not just the first four gallery thumbnails.
   // Only load the current proof photo; switching selection invalidates stale async completions.
@@ -236,7 +235,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
     setProofLoadFailed(null);
     (async () => {
       try {
-        const image = source && frames.length === 1 ? source : await loadExportSource(proofFrame, provider);
+        const image = await loadExportSource(proofFrame, provider);
         if (active) setSources(prior => ({ ...prior, [proofFrame.id]: image }));
       } catch {
         if (active) setProofLoadFailed(proofFrame.id);
@@ -245,7 +244,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
     return () => { active = false; };
     // A retry explicitly re-attempts a failed source; other photo choices cancel stale loads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proofFrame, proofSource, provider, source, frames.length, proofRetry]);
+  }, [proofFrame, proofSource, provider, proofRetry]);
 
   useEffect(() => {
     function close(event: KeyboardEvent) {
@@ -324,7 +323,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
           const frame = photographs[frameIndex];
           const format = recipe.formats[formatIndex];
           if (!frame || !format) throw new Error('The photo or export format is no longer available.');
-          const image = source && photographs.length === 1 ? source : await loadExportSource(frame, provider, 'background');
+          const image = await loadExportSource(frame, provider, 'background');
           signal.throwIfAborted();
           const stem = stemFor(recipe.naming, frame.filename, frameIndex, photographs.length);
           const recorded = frame.exif.capturedAtMs ?? provider.originalInfo(frame.stableKey)?.lastModified;
@@ -400,7 +399,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
       for (const [frameIndex, frame] of frames.entries()) {
         if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
         const stem = stemFor(naming, frame.filename, frameIndex, frames.length);
-        const image = source && frames.length === 1 ? source : await loadExportSource(frame, provider);
+        const image = await loadExportSource(frame, provider);
         const recorded = frame.exif.capturedAtMs ?? provider.originalInfo(frame.stableKey)?.lastModified;
         const date = pickedDate ?? (timestamp === 'capture' && Number.isFinite(recorded) ? new Date(recorded!) : started);
         if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
