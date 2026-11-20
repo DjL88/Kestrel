@@ -78,4 +78,46 @@ export const de: Translation = {
     restartIn: (name) => `Neu starten auf ${name}`,
     draft: 'Vorläufige Übersetzung, noch nicht von Muttersprachlern geprüft. Einige Bildschirme sind noch auf Englisch.',
   },
+  appearance: {
+    dialogLabel: "Anzeige- und Layout-Einstellungen",
+    shortcuts: "Tastatur- und Controller-Kürzel",
+    "position": "Wo sollen die Werkzeuge stehen?",
+    "positionHint": "Wähle die Seite für die Bearbeitungswerkzeuge. Auf dem Handy stehen sie unter dem Foto.",
+    "toolsSide": "Werkzeugseite",
+    "left": "Links",
+    "right": "Rechts"
+  },
+  adjustment: {
+    "exposure": "Belichtung",
+    "warmth": "Wärme",
+    "colour": "Farbe",
+    "brightness": "Helligkeit",
+    "contrast": "Kontrast",
+    "highlights": "Lichter",
+    "shadows": "Schatten",
+    "whites": "Hellste Bereiche",
+    "blacks": "Dunkelste Bereiche",
+    "vibrance": "Dynamik",
+    "texture": "Struktur",
+    "clarity": "Klarheit",
+    "sharpen": "Schärfen",
+    "denoise": "Rauschen reduzieren"
+  },
+  quick: {
+    changed: "(geändert)",
+    "title": "Schnell bearbeiten",
+    "allControls": "Alle Regler",
+    "choose": "Einstellung wählen"
+  },
+  photoInfo: {
+    "title": "Fotoinfo",
+    "tabInfo": "Info",
+    "tabSubject": "Motiv",
+    "copy": "Fotodetails kopieren",
+    "camera": "Kamera",
+    "lens": "Objektiv",
+    "captured": "Aufgenommen",
+    "undecided": "Noch offen",
+    "reject": "Ablehnen"
+  },
 };
