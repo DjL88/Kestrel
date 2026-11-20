@@ -77,6 +77,7 @@ import { CompareView } from './components/CompareView';
 import { ExifInspector } from './components/ExifInspector';
 import { Filmstrip } from './components/Filmstrip';
 import { FilmstripDock } from './components/FilmstripDock';
+import { DecisionButtons } from './components/DecisionButtons';
 import { isEdited } from './core/editedState';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { RemovedPhotosPanel } from './components/RemovedPhotosPanel';
@@ -2368,6 +2369,18 @@ export default function App() {
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
               <button type="button" aria-label={t.editorBar.next} title={t.editorBar.nextTitle} disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) < 0 || (editQueueIds ? editorIndex >= editorFrames.length - 1 : selectedVisibleIndex >= visibleFrames.length - 1)} onClick={() => handleStepFrame(1)}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
+              {/* A photograph remains reviewable while editing. These are the exact same
+                  reversible Keep / Undecided / Reject actions as Library and Compare,
+                  not a second set of flags. Keep the controls ahead of optional tools
+                  so a narrow phone can use them without horizontally scrolling. */}
+              <div role="group" aria-label="Photo decision" className="flex shrink-0 items-center border-x border-white/10 px-1">
+                <DecisionButtons labels decision={selectedFrame.decision} filename={selectedFrame.filename}
+                  edited={false}
+                  onKeep={() => handleDecideFrame(selectedFrame.id, 'keep', false)}
+                  onBackToReview={() => handleDecideFrame(selectedFrame.id, 'unreviewed', false)}
+                  onTrash={() => handleDecideFrame(selectedFrame.id, 'reject', false)}
+                  onReset={() => requestReset([selectedFrame.id])} />
+              </div>
               <PhotoJump index={editorIndex} total={editorFrames.length}
                 onJump={(index) => {
                   const next = editorFrames[index];
