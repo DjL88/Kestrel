@@ -48,6 +48,7 @@ export const it: AreaTranslation<typeof source> = {
     saveFailed: "Impossibile salvare le preimpostazioni su questo dispositivo.",
     standardOnly: "Le preimpostazioni salvano i formati standard.",
   },
+  comparison: { before: "Prima", after: "Dopo" },
   proof: {
     title: "Prova di esportazione",
     photo: "Foto",
@@ -72,6 +73,7 @@ export const it: AreaTranslation<typeof source> = {
     blur: 'Una copia sfocata della foto',
   },
   formats: {
+    beforeAfter: "Prima e dopo · affiancati",
     fullSize: 'Dimensione piena',
     customSize: 'Dimensione personalizzata',
     master: 'Dimensione piena · PNG',

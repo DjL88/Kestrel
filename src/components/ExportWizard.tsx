@@ -65,7 +65,7 @@ export function ExportWizard(props: Props) {
   const [photo, setPhoto] = useState(0);
   // Always in the same order as the size list, however the choices were made, with a custom size last.
   const order = (format: ExportFormat) => { const at = EXPORT_FORMATS.findIndex((entry) => entry.id === format.id); return at < 0 ? EXPORT_FORMATS.length : at; };
-  const positionable = selected.filter((format) => format.id !== 'master').sort((a, b) => order(a) - order(b));
+  const positionable = selected.filter((format) => format.id !== 'master' && format.id !== 'before-after').sort((a, b) => order(a) - order(b));
   const current = positionable[Math.min(index, Math.max(0, positionable.length - 1))];
   const frame = frames[Math.min(photo, frames.length - 1)];
   const at = STEPS.findIndex((entry) => entry.id === step);
@@ -83,10 +83,10 @@ export function ExportWizard(props: Props) {
 
   useEffect(() => { if (step === 'size' && platform === 'custom') props.onCustomOn(true); }, [step, platform]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const countFor = (id: string) => id === 'master' ? Number(chosen.includes('master')) : id === 'custom' ? Number(props.customOn)
+  const countFor = (id: string) => id === 'master' ? Number(chosen.includes('master')) : id === 'before-after' ? Number(chosen.includes('before-after')) : id === 'custom' ? Number(props.customOn)
     : EXPORT_FORMATS.filter((format) => format.platform === id && chosen.includes(format.id)).length;
-  const choices = platform === 'master' ? [formatById('master')!] : EXPORT_FORMATS.filter((format) => format.platform === platform);
-  const platformName = platform === 'master' ? t.formats.fullSize : platform === 'custom' ? t.formats.customSize : PLATFORMS.find((entry) => entry.id === platform)?.label ?? '';
+  const choices = platform === 'master' ? [formatById('master')!] : platform === 'before-after' ? [formatById('before-after')!] : EXPORT_FORMATS.filter((format) => format.platform === platform);
+  const platformName = platform === 'master' ? t.formats.fullSize : platform === 'before-after' ? t.formats.beforeAfter : platform === 'custom' ? t.formats.customSize : PLATFORMS.find((entry) => entry.id === platform)?.label ?? '';
 
   const next = () => {
     if (step === 'platform') return setStep('size');
@@ -119,10 +119,10 @@ export function ExportWizard(props: Props) {
           <section aria-label={t.wizard.where} className="space-y-2">
             <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-zinc-100">{t.wizard.where}</h3>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {[{ id: 'master', label: t.formats.fullSize }, ...PLATFORMS, { id: 'custom', label: t.formats.customSize }].map((entry) => (
+              {[{ id: 'master', label: t.formats.fullSize }, { id: 'before-after', label: t.formats.beforeAfter }, ...PLATFORMS, { id: 'custom', label: t.formats.customSize }].map((entry) => (
                 <button key={entry.id} type="button" aria-pressed={platform === entry.id} onClick={() => { setPlatform(entry.id); setStep('size'); }}
                   className="relative flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg border border-white/12 bg-white/5 px-2 text-sm text-zinc-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 aria-pressed:border-sky-300">
-                  {entry.id === 'master' || entry.id === 'custom' ? <ShapeGlyph width={entry.id === 'master' ? 4 : 1} height={entry.id === 'master' ? 3 : 1} /> : <SocialIcon id={entry.id as never} className="h-6 w-6" />}
+                  {entry.id === 'master' || entry.id === 'custom' || entry.id === 'before-after' ? <ShapeGlyph width={entry.id === 'master' ? 4 : entry.id === 'before-after' ? 2 : 1} height={entry.id === 'master' ? 3 : 1} /> : <SocialIcon id={entry.id as never} className="h-6 w-6" />}
                   {entry.label}
                   {countFor(entry.id) > 0 && <span className="absolute right-1.5 top-1.5 rounded-full bg-sky-300/25 px-1.5 text-xs text-sky-100">{countFor(entry.id)}</span>}
                 </button>

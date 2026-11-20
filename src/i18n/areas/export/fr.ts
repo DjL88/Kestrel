@@ -48,6 +48,7 @@ export const fr: AreaTranslation<typeof source> = {
     saveFailed: "Impossible d’enregistrer les préréglages sur cet appareil.",
     standardOnly: "Les préréglages enregistrent les formats standard.",
   },
+  comparison: { before: "Avant", after: "Après" },
   proof: {
     title: "Épreuve d’export",
     photo: "Photo",
@@ -72,6 +73,7 @@ export const fr: AreaTranslation<typeof source> = {
     blur: 'Une copie floutée de la photo',
   },
   formats: {
+    beforeAfter: "Avant et après · côte à côte",
     fullSize: 'Taille réelle',
     customSize: 'Taille personnalisée',
     master: 'Taille réelle · PNG',

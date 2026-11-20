@@ -48,6 +48,7 @@ export const fi: AreaTranslation<typeof source> = {
     saveFailed: "Viennin esiasetuksia ei voitu tallentaa tälle laitteelle.",
     standardOnly: "Esiasetukset tallentavat vakiomuodot.",
   },
+  comparison: { before: "Ennen", after: "Jälkeen" },
   proof: {
     title: "Vientivedos",
     photo: "Kuva",
@@ -72,6 +73,7 @@ export const fi: AreaTranslation<typeof source> = {
     blur: 'Sumennettu kopio kuvasta',
   },
   formats: {
+    beforeAfter: "Ennen ja jälkeen · rinnakkain",
     fullSize: 'Täysi koko',
     customSize: 'Oma koko',
     master: 'Täysi koko · PNG',

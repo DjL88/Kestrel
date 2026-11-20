@@ -52,6 +52,7 @@ export const gd: AreaTranslation<typeof source> = {
     saveFailed: "Cha b’ urrainn dhuinn ro-shuidheachaidhean a shàbhaladh air an uidheam seo.",
     standardOnly: "Sàbhalaidh ro-shuidheachaidhean fòrmatan stannardach.",
   },
+  comparison: { before: "Ro", after: "Às dèidh" },
   proof: {
     title: "Dearbhadh às-phortaidh",
     photo: "Dealbh",
@@ -76,6 +77,7 @@ export const gd: AreaTranslation<typeof source> = {
     blur: 'Lethbhreac doilleir dhen dealbh',
   },
   formats: {
+    beforeAfter: "Ro agus às dèidh · taobh ri taobh",
     fullSize: 'Làn-mheud',
     customSize: 'Meud gnàthaichte',
     master: 'Làn-mheud · PNG',
