@@ -172,3 +172,28 @@ test('500 synthetic mixed aircraft negatives never auto-reject uncertain frames'
   assert.ok(suggestions.every(s => s.suggestion === 'review'));
   assert.equal(suggestions.filter(s => s.suggestion === 'reject').length, 0);
 });
+
+test('duplicate catalogue IDs never transfer manual Keep or Reject to ambiguous originals', () => {
+  const items: ReviewCandidate[] = [
+    { id: 'collision', subject: 'bird', manualDecision: 'keep', quality: 1, confidence: 1 },
+    { id: 'collision', subject: 'aircraft', manualDecision: 'reject', quality: 1, confidence: 1 },
+    { id: 'distinct', subject: 'bird', manualDecision: 'keep', quality: 0.1, confidence: 0.1 },
+  ];
+  const before = JSON.stringify(items);
+  assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['review', 'review', 'keep']);
+  assert.equal(JSON.stringify(items), before);
+});
+
+test('500 synthetic photos with one duplicate manual identity fail closed only for that identity', () => {
+  const items: ReviewCandidate[] = Array.from({ length: 500 }, (_, i) => ({
+    id: 'p-' + i, subject: 'bird', groupId: 'g-' + i,
+    manualDecision: i === 0 ? 'keep' : null, quality: 0.9, confidence: 0.9,
+  }));
+  items[499] = { ...items[499], id: 'p-0', manualDecision: 'reject' };
+  const results = recommendForReview(items);
+  assert.equal(results.length, 500);
+  assert.equal(results[0].suggestion, 'review');
+  assert.equal(results[499].suggestion, 'review');
+  assert.equal(results.filter(s => s.suggestion === 'reject').length, 0);
+  assert.equal(results.filter(s => s.suggestion === 'keep').length, 498);
+});
