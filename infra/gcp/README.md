@@ -25,13 +25,65 @@ the website fits in Firebase Hosting's free tier. Downloads out of a bucket are 
 Cloud Storage "network egress" price), and they add up: a 300 MB installer downloaded 1,000 times is about 300 GB.
 Set the budget alert before sharing links widely.
 
-## What it doesn't create yet (phase 2)
+## Phase 2: the control plane (`control-plane.tf`; written, not applied yet)
 
-The control plane (`services/control-plane`: licences, signed grants, release notices, optional AI gateway). It keeps
-its records in SQLite, a single file, and Cloud Run doesn't keep files between restarts, so licences would be lost.
-Phase 2 is: a PostgreSQL adapter for the control plane (ROADMAP P3), Cloud SQL, Cloud Run with secrets from Secret
-Manager (`KCP_SESSION_SECRET`, `KCP_SIGNING_KEY_PEM`, `KCP_LICENCE_PUBLIC_KEY`, `KCP_WEBHOOK_SECRET`), and the
-licence-issuing key kept **offline**, never in the cloud.
+The control plane (`services/control-plane`: licences, signed grants, release notices, optional AI gateway, and the
+admin console's routes) runs on Cloud Run and keeps its records in Firestore.
+
+| Piece | What it's for | Who can use it |
+| --- | --- | --- |
+| Firestore `(default)`, native mode, `europe-west2` | Accounts, licences, devices, AI allowances, audit log | The service account below |
+| Artifact Registry repository `kestrel` | Control-plane images | You (push), Cloud Run (pull) |
+| `kestrel-control-plane` service account | The service's identity: Firestore and its own secrets, nothing else | — |
+| Secrets `kcp-session-secret`, `kcp-signing-key-pem`, `kcp-licence-public-key`, `kcp-webhook-secret` | Read by the service as `KCP_SESSION_SECRET`, `KCP_SIGNING_KEY_PEM`, `KCP_LICENCE_PUBLIC_KEY`, `KCP_WEBHOOK_SECRET` | Only you and the service account |
+| Secret `kcp-licence-private-key-pem` | The `KESTREL1` licence-issuing private key | Only you; the service account too **only while** `licence_issuing_enabled = true` |
+| Cloud Run service `kestrel-control-plane` (created once `control_plane_image` is set) | The API at its `run.app` address | Everyone (every route checks its own sign-in, licence key or webhook signature) |
+
+**The licence-issuing key.** Only "issue a free or gift key" in the admin console needs it. It is not given to the
+service by default (`licence_issuing_enabled = false`; issuing then answers "This server cannot issue licence keys").
+Switching it on mounts that one secret into the service and lets only the service account read it; switching it off
+removes both. Keep an offline copy, as for the manifest key. The alternative, issuing keys on your own computer with the
+key held offline, stays possible: run the control plane locally with `KCP_LICENCE_PRIVATE_KEY_PEM` set.
+
+**Cost.** Cloud Run scales to zero (one instance at most, because sign-in rate limits live in its memory), and
+Firestore's free tier covers about 50,000 reads and 20,000 writes a day, far more than licensing needs. Each image is
+a few hundred MB in Artifact Registry; the repository keeps the 10 most recent.
+
+### Set it up (once; the coordinator does this with the owner's approval)
+
+1. Create the database, repository, account and empty secrets (no service yet):
+
+   ```powershell
+   cd infra/gcp
+   terraform apply -var "project_id=kestrel-hosting" -var "billing_account_id=YOUR-BILLING-ACCOUNT"
+   ```
+
+2. Add the secret values. Each `node` line prints a value into a file that is uploaded and deleted at once:
+
+   ```powershell
+   node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64'))" > v.txt; gcloud secrets versions add kcp-session-secret --data-file=v.txt; Remove-Item v.txt
+   node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))" > v.txt; gcloud secrets versions add kcp-webhook-secret --data-file=v.txt; Remove-Item v.txt
+   node -e "const c=require('crypto');process.stdout.write(c.generateKeyPairSync('ed25519').privateKey.export({type:'pkcs8',format:'pem'}))" > v.txt; gcloud secrets versions add kcp-signing-key-pem --data-file=v.txt; Remove-Item v.txt
+   ```
+
+   For `kcp-licence-public-key`, add the base64 public key that `src/core/licence.ts` pins (`LICENCE_PUBLIC_KEY`), so
+   keys issued by the server work in the app offline. Its private half goes in `kcp-licence-private-key-pem` only when
+   you want the admin console to issue keys. The service prints its grant public key in its log on start; that key and
+   the id `kcp-2026-11` are what the app pins for grants.
+
+3. Build the image in Google Cloud (no Docker needed) and start the service:
+
+   ```powershell
+   $tag = git rev-parse --short HEAD
+   $image = "europe-west2-docker.pkg.dev/kestrel-hosting/kestrel/control-plane:$tag"
+   gcloud builds submit --config services/control-plane/cloudbuild.yaml --substitutions "_IMAGE=$image" .
+   terraform -chdir=infra/gcp apply -var "project_id=kestrel-hosting" -var "control_plane_image=$image"
+   ```
+
+   Add `-var "licence_issuing_enabled=true"` to that apply to let the admin console issue keys. The output
+   `control_plane_url` is the service's address; `curl <url>/healthz` answers `{"ok":true}`.
+
+To deploy a newer version, repeat step 3 with the new commit. To roll back, apply with the previous image tag.
 
 ## Set it up (once)
 

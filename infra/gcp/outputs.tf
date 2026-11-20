@@ -24,3 +24,17 @@ output "publisher_service_account" {
 output "tfstate_bucket" {
   value = google_storage_bucket.tfstate.name
 }
+
+output "control_plane_image_repository" {
+  description = "Push control-plane images here (docker tag/push, or gcloud builds submit)."
+  value       = "${google_artifact_registry_repository.images.location}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.images.repository_id}"
+}
+
+output "control_plane_service_account" {
+  value = google_service_account.control_plane.email
+}
+
+output "control_plane_url" {
+  description = "The control plane's address, once control_plane_image is set."
+  value       = var.control_plane_image == "" ? null : google_cloud_run_v2_service.control_plane[0].uri
+}

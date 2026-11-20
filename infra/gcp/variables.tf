@@ -32,3 +32,29 @@ variable "allowed_origins" {
   type        = list(string)
   default     = ["tauri://localhost", "http://tauri.localhost", "https://tauri.localhost", "http://localhost:3000"]
 }
+
+# ---- Phase 2: control plane ----------------------------------------------------------------------------------------
+
+variable "firestore_location" {
+  description = "Where Firestore keeps the control plane's records. London (europe-west2) by default; eur3 is the EU multi-region. Cannot be changed after creation."
+  type        = string
+  default     = "europe-west2"
+}
+
+variable "control_plane_image" {
+  description = "Container image for the control plane, e.g. europe-west2-docker.pkg.dev/<project>/kestrel/control-plane:<git sha>. Empty: the service is not created yet."
+  type        = string
+  default     = ""
+}
+
+variable "control_plane_signing_key_id" {
+  description = "Key id published with grants and the manifest for the key in secret kcp-signing-key-pem (clients pin id and public key)."
+  type        = string
+  default     = "kcp-2026-11"
+}
+
+variable "licence_issuing_enabled" {
+  description = "Give the service the KESTREL1 licence-issuing private key (secret kcp-licence-private-key-pem) so the admin console can issue keys. Off: issuing answers LICENCE_SIGNING_UNAVAILABLE."
+  type        = bool
+  default     = false
+}

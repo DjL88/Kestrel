@@ -67,8 +67,8 @@ test('no provider key, the kill switch, or no AI plan each give a clear refusal'
   assert.equal(off.body.error.code, 'AI_DISABLED');
   await h.call('POST', '/v1/admin/ai/killswitch', { token: h.adminToken, body: { aiDisabled: false } });
 
-  const plainId = h.app.createAccount('free@example.test', 'free-password-123', 'user');
-  const plain = await h.call('POST', '/v1/ai/identify', { token: h.app.issueSession(plainId, 'user').accessToken, body: { image: image(), userConsent: true } });
+  const plainId = await h.app.createAccount('free@example.test', 'free-password-123', 'user');
+  const plain = await h.call('POST', '/v1/ai/identify', { token: (await h.app.issueSession(plainId, 'user')).accessToken, body: { image: image(), userConsent: true } });
   assert.equal(plain.status, 403);
   assert.equal(plain.body.error.code, 'AI_NOT_ENTITLED');
 });
