@@ -12,6 +12,15 @@ const forMany = (count: number) => (count > 1 ? ` (${grianghraf(count, String(co
 /** Irish. DRAFT: written without a native speaker's check. Uses "tú", as the common words do. */
 export const ga: AreaTranslation<typeof source> = {
   top: {
+    file: "Comhad",
+    viewLayout: "Amharc · taispeáin nó folaigh",
+    groupBursts: "Grúpáil nó díghrúpáil sraitheanna",
+    showFilmstrip: "Taispeáin stiall na ngrianghraf",
+    panelPosition: "Suíomh na bpainéal",
+    panels: "Painéil",
+    left: "Clé",
+    right: "Deas",
+
     backToProjects: 'Ar ais chuig na tionscadail',
     projects: 'Tionscadail',
     photoCount: (count) => grianghraf(count, String(count)),
