@@ -139,7 +139,9 @@ test('same-title projects keep independent, restorable backups through renames a
 });
 
 test('a failing optional backup does not interrupt local recovery or lose retry state', async (t) => {
-  const local = folderAt(await mkdtemp(join(tmpdir(), 'kestrel-local-recovery-')));
+  const localRoot = await mkdtemp(join(tmpdir(), 'kestrel-local-recovery-'));
+  t.after(() => rm(localRoot, { recursive: true, force: true }));
+  const local = folderAt(localRoot);
   const failing = {
     async queryPermission() { return 'granted'; },
     async getDirectoryHandle() { throw new Error('Network drive disconnected'); },
@@ -159,5 +161,35 @@ test('a failing optional backup does not interrupt local recovery or lose retry 
   const result = await backUpNow(state, connection.id);
   assert.equal(result.state, 'partial');
   assert.match(result.message ?? '', /Saved locally/);
-  assert.equal((await readdir(join((local as unknown as { root?: string }).root ?? '', 'not-real')).catch(() => [])).length, 0);
+  const names = await readdir(join(localRoot, backupFolder(state.shoot.id)));
+  assert.equal(names.length, 1, 'recovery remains on device after the NAS write failed');
+  const saved = await readFile(join(localRoot, backupFolder(state.shoot.id), names[0]), 'utf8');
+  assert.equal(restoreProjectBackup(saved, 'reopened').frames.length, state.frames.length);
+});
+
+test('mobile with a writable NAS source backs up to the app and the source', async (t) => {
+  const localRoot = await mkdtemp(join(tmpdir(), 'kestrel-phone-recovery-'));
+  const nasRoot = await mkdtemp(join(tmpdir(), 'kestrel-nas-recovery-'));
+  t.after(() => rm(localRoot, { recursive: true, force: true }));
+  t.after(() => rm(nasRoot, { recursive: true, force: true }));
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {
+    storage: { getDirectory: async () => folderAt(localRoot) },
+    userAgent: 'iPhone',
+  } });
+  t.after(() => {
+    if (previous) Object.defineProperty(globalThis, 'navigator', previous);
+    else Reflect.deleteProperty(globalThis, 'navigator');
+  });
+  const source = addConnection('folder', 'NAS photographs', 'Network drive', { handle: folderAt(nasRoot) });
+  t.after(() => removeConnection(source.id));
+  const state = createDemoShootState(1);
+  const { demoVariant: _demo, ...original } = state.frames[0];
+  state.frames[0] = { ...original, sourceKind: 'file', isDemo: false, stableKey: 'remote-raw-1' };
+  setLocations(state.shoot.id, { loadFrom: source.id });
+  const result = await backUpNow(state, '@kestrel-device-or-photo-folder');
+  assert.equal(result.state, 'ok');
+  const relative = backupFolder(state.shoot.id);
+  assert.equal((await readdir(join(localRoot, relative))).length, 1);
+  assert.equal((await readdir(join(nasRoot, relative))).length, 1);
 });
