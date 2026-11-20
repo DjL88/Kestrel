@@ -1042,13 +1042,27 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     return canvas.getContext('2d')?.getImageData(0, 0, canvas.width, canvas.height);
   }
 
-  function createCropCopy() {
+  /** Keep auto-crop's framing identical whether editing in place or copying. */
+  function suggestedCrop(): PhotoFraming | null {
     const sample = sampleOrientedSource();
-    if (!sample) return;
+    if (!sample) return null;
     const detail = detailAnchor(sample.data, sample.width, sample.height);
     const ratio = framing.ratio ?? (sample.height > sample.width ? 4 / 5 : 5 / 4);
     const anchor = thirdsCropAnchor(sample.width, sample.height, ratio, detail);
-    onCreateVirtualCopy({ ...framing, ...anchor, ratio });
+    return { ...framing, ...anchor, ratio };
+  }
+
+  function autoCropInPlace() {
+    const suggested = suggestedCrop();
+    if (suggested) {
+      onFramingChange(suggested);
+      setCropNotice('');
+    }
+  }
+
+  function createCropCopy() {
+    const suggested = suggestedCrop();
+    if (suggested) onCreateVirtualCopy(suggested);
   }
 
   function autoLevel() {
@@ -1396,6 +1410,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             <p className="px-1 text-xs text-zinc-400">{t.crop.help}</p>
           <fieldset disabled={sourceState !== 'ready'} className="space-y-2">
             <div className="flex flex-wrap">
+              <button type="button" className={`${button} inline-flex items-center gap-1.5 border border-white/15`} onClick={autoCropInPlace}>
+                <Crop className="h-4 w-4" aria-hidden="true" />{t.crop.autoCrop}</button>
               <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={createCropCopy}>
                 <Copy className="h-4 w-4" aria-hidden="true" />{t.crop.autoCopy}</button>
               <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={() => onFramingChange({
@@ -1431,7 +1447,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                     if (value === 'free') onFramingChange({ ...rest, ratio: framing.ratio ?? (size ? size.width / size.height : null), free: true });
                     else onFramingChange({ ...rest, ratio: Number(value) || null });
                   }}
-                  className="min-h-11 w-full min-w-0 appearance-none truncate rounded-md border border-white/10 bg-[#252830] py-2 pl-3 pr-10 text-sm text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
+                  style={{ appearance: 'none', backgroundImage: 'none' }}
+                  className="min-h-11 w-full min-w-0 appearance-none bg-none truncate rounded-md border border-white/10 bg-[#252830] py-2 pl-3 pr-10 text-sm text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
                   <option value="">{t.common.original}</option>
                   <option value="free">{t.crop.free}</option>
                   {CROP_RATIOS.map((choice) => <option key={choice.label} value={String(choice.ratio)}>{choice.label === 'Square' ? t.crop.square : choice.label}</option>)}
