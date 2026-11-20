@@ -75,6 +75,10 @@ const TABS: { id: Tab; label: string; Icon: typeof Crop }[] = [
   { id: 'export', label: t.tabs.export, Icon: Download },
 ];
 
+const FLOATABLE_TABS: Tab[] = ['auto', 'crop', 'edit', 'masks', 'history'];
+const FLOAT_TABS_KEY = 'kestrel-independent-floating-tabs-v1';
+const HIDDEN_TABS_KEY = 'kestrel-independent-hidden-tabs-v1';
+
 /** The modifier key people expect on this device, for shortcut hints in tooltips. */
 const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
 
@@ -231,7 +235,65 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     setUndockedTools(value);
     try { window.localStorage.setItem('kestrel-tools-undocked-v1', String(value)); } catch { /* layout still works */ }
   };
-  const floatingTools = undockedTools && !isPhone && !toolsCollapsed;
+  const restoreTabs = (key: string): Set<Tab> => {
+    try {
+      const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? '[]');
+      return new Set(Array.isArray(parsed) ? parsed.filter((id): id is Tab => FLOATABLE_TABS.includes(id as Tab)) : []);
+    } catch { return new Set<Tab>(); }
+  };
+  // Each desktop tool can float independently. Pane positions belong to the local
+  // device, not to any photo or project, and every original stays untouched.
+  const [floatingTabs, setFloatingTabs] = useState<Set<Tab>>(() => restoreTabs(FLOAT_TABS_KEY));
+  const [hiddenTabs, setHiddenTabs] = useState<Set<Tab>>(() => restoreTabs(HIDDEN_TABS_KEY));
+  const [tabMenu, setTabMenu] = useState<{ x: number; y: number; id: Tab } | null>(null);
+  useEffect(() => {
+    try { localStorage.setItem(FLOAT_TABS_KEY, JSON.stringify([...floatingTabs])); } catch { /* private storage */ }
+  }, [floatingTabs]);
+  useEffect(() => {
+    try { localStorage.setItem(HIDDEN_TABS_KEY, JSON.stringify([...hiddenTabs])); } catch { /* private storage */ }
+  }, [hiddenTabs]);
+  useEffect(() => {
+    if (!tabMenu) return;
+    const dismiss = () => setTabMenu(null);
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') dismiss(); };
+    document.addEventListener('pointerdown', dismiss);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', escape); };
+  }, [tabMenu]);
+  useEffect(() => {
+    const restore = () => {
+      setHiddenTabs(new Set());
+      setFloatingTabs(new Set());
+      setToolsUndocked(false);
+    };
+    window.addEventListener('kestrel:menu-view-all-tabs', restore);
+    return () => window.removeEventListener('kestrel:menu-view-all-tabs', restore);
+  }, []);
+  const toggleFloatTab = (id: Tab) => {
+    if (!FLOATABLE_TABS.includes(id)) return;
+    setToolsUndocked(false);
+    setFloatingTabs((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setTab(id);
+  };
+  const toggleHideTab = (id: Tab) => {
+    if (!FLOATABLE_TABS.includes(id)) return;
+    setHiddenTabs((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else if (FLOATABLE_TABS.filter((candidate) => !next.has(candidate)).length > 1) next.add(id);
+      return next;
+    });
+    if (tab === id) {
+      const nextTab = FLOATABLE_TABS.find((candidate) => candidate !== id && !hiddenTabs.has(candidate));
+      if (nextTab) setTab(nextTab);
+    }
+  };
+  const floatingTools = undockedTools && floatingTabs.size === 0 && !isPhone && !toolsCollapsed;
   // On a phone the tools open as a sheet above the bar. Tapping the open tab again folds it away for a full-height photo.
   const [sheetOpen, setSheetOpen] = useState(() => {
     try { return localStorage.getItem(SHEET_KEY) !== 'closed'; } catch { return true; }
@@ -1037,7 +1099,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   /** One tab bar. On a phone it is a bottom toolbar of large icons, and on wider screens the top of the side panel. */
   // On a phone Export is the last tab in the bottom bar. On a wider screen it is a button in the header instead,
   // which leaves the side panel's tabs with room to breathe.
-  const visibleTabs = isPhone ? TABS : TABS.filter((entry) => entry.id !== 'export');
+  const visibleTabs = isPhone ? TABS : TABS.filter((entry) => entry.id !== 'export' && !hiddenTabs.has(entry.id));
   const tabList = (
     <div role="tablist" aria-label={t.editor.tablist}
       className={isPhone
@@ -1056,6 +1118,17 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       {visibleTabs.map(({ id, label, Icon }) => (
         <button key={id} id={`tab-${id}`} role="tab" type="button" aria-label={label} title={label} aria-selected={tab === id} aria-controls={`panel-${id}`} tabIndex={tab === id ? 0 : -1}
           aria-expanded={isPhone ? sheetOpen && tab === id : undefined}
+          onContextMenu={(event) => {
+            if (isPhone || id === 'export') return;
+            event.preventDefault();
+            setTabMenu({ id, x: event.clientX, y: event.clientY });
+          }}
+          onKeyUp={(event) => {
+            if (isPhone || id === 'export' || (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10'))) return;
+            event.preventDefault();
+            const box = event.currentTarget.getBoundingClientRect();
+            setTabMenu({ id, x: box.left + 12, y: box.bottom + 2 });
+          }}
           onClick={() => chooseTab(id)}
           className={isPhone
             ? 'relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 overflow-hidden px-0.5 text-xs text-zinc-300 focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:text-white aria-selected:after:absolute aria-selected:after:top-0 aria-selected:after:h-0.5 aria-selected:after:w-10 aria-selected:after:bg-sky-200'
@@ -1068,6 +1141,392 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   );
 
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
+  const renderTabBody = (panelTab: Tab) => (
+    <>
+{panelTab === 'auto' && !can('autoTab') && (
+          <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto"><PaidNotice title={t.auto.paidTitle}>{t.auto.paidBody}</PaidNotice></div>
+        )}
+        {panelTab === 'auto' && can('autoTab') && (
+          <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
+        <div className="space-y-2 px-1">
+          <button type="button" title={t.auto.suggestTitle} disabled={sourceState !== 'ready' || autoAnalysing}
+            className={`${button} inline-flex w-full items-center justify-center gap-2 border border-white/10 font-semibold`}
+            onClick={() => void previewAutoSuggestion()}>
+            <Lightbulb className="h-4 w-4 stroke-[1.75]" aria-hidden="true" />{autoAnalysing ? t.auto.analysingButton : t.auto.suggest}
+          </button>
+          <p className="text-xs text-zinc-400">{t.auto.intro}</p>
+          {pendingAuto && (
+            <div role="group" aria-label={t.auto.previewGroup} className="space-y-2 rounded-lg border border-white/15 bg-white/5 p-3">
+              <p role="status" className="text-sm text-zinc-100">{t.auto.previewing}</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" aria-pressed={displayCompare} className={`${button} border border-white/15 aria-pressed:bg-sky-300/15`}
+                  onClick={() => setCompare((current) => !current)}>{displayCompare ? t.auto.hideComparison : t.auto.compare}</button>
+                <button type="button" className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
+                  onClick={() => {
+                    if (savedEdit !== pendingAuto.base || cropKey !== pendingAuto.cropKey || sourceImage.current !== pendingAuto.source) {
+                      setAutoNotes([t.auto.photoChanged]);
+                    } else {
+                      onEdit(pendingAuto.edit);
+                      setAutoNotes([t.auto.applied]);
+                    }
+                    autoRun.current += 1;
+                    setPendingAuto(null);
+                    setPreviewRecipe(null);
+                  }}>{t.auto.apply}</button>
+                <button type="button" className={`${button} border border-white/15`} onClick={() => {
+                  autoRun.current += 1;
+                  setAutoAnalysing(false);
+                  setPendingAuto(null);
+                  setPreviewRecipe(null);
+                  setOpinions(null);
+                  setAutoNotes([t.auto.dismissed]);
+                }}>{t.auto.keepCurrent}</button>
+              </div>
+            </div>
+          )}
+        </div>
+          {autoNotes.length > 0 && <ul role="status" className="list-disc space-y-0.5 pl-4 pt-1 text-xs text-zinc-300">
+            {autoNotes.map((note) => <li key={note}>{note}</li>)}
+          </ul>}
+          {autoNotes.length > 0 && !pendingAuto && <p className="px-1 text-xs text-zinc-400">{t.auto.saveAsRecipe}</p>}
+          {opinions && (
+            <section aria-label={t.critique.region} className="space-y-2 rounded-md border border-white/10 p-2">
+              {opinions.length === 0 && <p role="status" className="text-sm text-zinc-300">{t.critique.none}</p>}
+              {opinions.map((opinion) => {
+                const words = opinionWords(opinion);
+                return (
+                <div key={opinion.id} className="space-y-1 text-sm">
+                  <p className="font-semibold text-zinc-100">{opinion.severity === 'warning' ? t.critique.warning(words.title) : t.critique.tip(words.title)}</p>
+                  <p className="text-xs text-zinc-300">{words.detail}</p>
+                  {opinion.fix && !pendingAuto && (
+                    <button type="button" className={`${button} border border-white/15 text-xs`}
+                      onClick={() => onEdit(applyFix(edit, opinion.fix!))}>{words.fix}</button>
+                  )}
+                </div>
+                );
+              })}
+              <button type="button" className="min-h-9 text-xs text-zinc-400 underline hover:text-white" onClick={() => setOpinions(null)}>{t.critique.hide}</button>
+            </section>
+          )}
+        <section aria-label={t.auto.recipesRegion} className="space-y-1 border-t border-white/10 pt-2">
+          <h3 className="text-sm font-medium text-zinc-100">{t.auto.recipes}</h3>
+          <PresetPanel edit={edit} disabled={sourceState !== 'ready'} previewSource={lookPreviewSource} onApply={(next) => (onApplyLook ?? onEdit)({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />
+        </section>
+        <Histogram data={histogram} teach />
+
+          </div>
+        )}
+        {panelTab === 'export' && (
+          <div role="tabpanel" id="panel-export" aria-labelledby="tab-export" className="space-y-2 px-1 pt-2">
+            <p className="text-sm text-zinc-300">{t.exportTab.intro}</p>
+            <button type="button" disabled={sourceState !== 'ready'} className={`${button} w-full border border-white/10 font-semibold`} onClick={openExport}>
+              {t.exportTab.choose}
+            </button>
+          </div>
+        )}
+        {panelTab === 'edit' && (
+          <div role="tabpanel" id="panel-edit" aria-labelledby="tab-edit" className="space-y-2">
+        {isPhone && (allControls ? (
+          <button type="button" className="mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-white/12 px-3 text-xs text-zinc-200 hover:bg-white/10" onClick={() => setAllControls(false)}>
+            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />{t.edit.backToQuick}
+          </button>
+        ) : (
+          <QuickAdjust edit={edit} disabled={sourceState !== 'ready'} onEdit={onEdit}
+            canStepBack={Boolean(frame.editHistory?.cursor)} canStepForward={Boolean(frame.editHistory && frame.editHistory.cursor < frame.editHistory.steps.length)}
+            onStepBack={() => onHistoryStep(-1)} onStepForward={() => onHistoryStep(1)} peeking={displayCompare} onPeek={() => setCompare(!compare)} onShowAll={() => setAllControls(true)} />
+        ))}
+        <div className={isPhone && !allControls ? 'hidden' : 'space-y-2'}>
+        <div className="space-y-2 px-1 py-2">
+          {EDIT_CHOICES.map(({ key }, index) => (
+            <fieldset key={key} disabled={sourceState !== 'ready'} className="min-w-0 disabled:opacity-45">
+              <AdjustmentSlider label={t.controls[key]} value={edit[key]}
+                min={key === 'exposure' ? -12.5 : -2} max={key === 'exposure' ? 12.5 : 2} step={0.1}
+                disabled={sourceState !== 'ready'} onFocus={() => setDial(index)}
+                hint={dialUsed && dial === index ? t.slider.dial : undefined}
+                displayValue={key === 'exposure' ? `${signedAdjustment(edit[key] * 0.4)} EV`
+                  : key === 'colour' && edit.colour === -2 ? t.slider.monochrome
+                  : `${signedAdjustment(Math.round(edit[key] * (key === 'warmth' ? 8 : 20)), 0)}%`}
+                onChange={(value) => onEdit({ ...edit, [key]: value })} />
+              {quickChoices && <div className="flex gap-1">
+                {CHOICE_WORDS[key].map((name, index) => (
+                  <button type="button" key={name} aria-pressed={edit[key] === index - 1}
+                    onClick={() => onEdit({ ...edit, [key]: index - 1 })}
+                    className="min-h-11 rounded px-2 text-xs hover:bg-white/8 aria-pressed:bg-sky-300/15 desk:min-h-7">{name}</button>
+                ))}
+              </div>}
+            </fieldset>
+          ))}
+          <button type="button" aria-expanded={quickChoices} onClick={() => setQuickChoices(!quickChoices)}
+            className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white desk:min-h-7">{t.edit.quickChoices}</button>
+        </div>
+        <ColourCheckPanel edit={edit} readPreview={colourPreview} version={[edit, framing, source]} onEdit={onEdit} disabled={sourceState !== 'ready'} readJpeg={reviewJpeg} />
+        <details open className="border-t border-white/10">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
+            {t.edit.tone} <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </summary>
+          <div className="space-y-1 px-1 pb-2">
+            {TONE_CONTROLS.map(({ key }) => (
+              <AdjustmentSlider key={key} label={t.controls[key]} value={edit[key] ?? 0}
+                min={-2} max={2} step={0.05} disabled={sourceState !== 'ready'}
+                hint={dialUsed && DIAL_KEYS[dial] === key ? t.slider.dial : undefined}
+                title={key === 'brightness' ? t.edit.brightnessTitle : undefined}
+                onChange={(value) => onEdit({ ...edit, [key]: value })} />
+            ))}
+          </div>
+        </details>
+        <details open className="border-t border-white/10">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
+            {t.edit.detail} <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </summary>
+          <div className="space-y-1 px-1 pb-2">
+            {DETAIL_CONTROLS.map(({ key }) => (
+              <AdjustmentSlider key={key} label={t.controls[key]} value={edit[key] ?? 0}
+                min={key === 'sharpen' ? 0 : -2} max={2} step={0.05}
+                disabled={sourceState !== 'ready'} hint={dialUsed && DIAL_KEYS[dial] === key ? t.slider.dial : undefined}
+                onChange={(value) => onEdit({ ...edit, [key]: value })} />
+            ))}
+            <div className="space-y-0.5">
+              <AdjustmentSlider label={t.controls[NOISE_CONTROL.key]} value={edit.denoise ?? 0}
+                min={0} max={2} step={0.05} disabled={sourceState !== 'ready'}
+                describedBy="denoise-help"
+                title={t.edit.denoiseTitle}
+                onChange={(value) => onEdit({ ...edit, denoise: value })} />
+              <p id="denoise-help" className="text-xs text-zinc-400">{t.edit.denoiseHelp}</p>
+            </div>
+          </div>
+        </details>
+        <details className="border-b border-white/10 pb-1" onToggle={(event) => setExportFocusOpen(event.currentTarget.open)}>
+          <summary className="min-h-11 cursor-pointer py-3 text-sm">{t.edit.exportFocus}</summary>
+          <button type="button" className={button} disabled={!position || guide} aria-pressed={markFocus} onClick={() => {
+            setCompare(false);
+            setTransform(FIT_VIEW);
+            setMarkFocus(!markFocus);
+          }}>{markFocus ? t.edit.cancelPlacement : frame.focusPoint ? t.edit.moveFocus : t.edit.markFocus}</button>
+          {frame.focusPoint && <button type="button" className={button} onClick={() => onFocusPoint(undefined)}>{t.edit.clear}</button>}
+          <p className="px-1 pb-2 text-xs text-zinc-400">{markFocus ? t.edit.placeHelp :
+            t.edit.focusHelp}</p>
+        </details>
+        {isRaw && (
+          <div className="border-t border-white/10 pt-2">
+            <p role={developing ? 'status' : undefined} className="px-1 text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey)
+              ? t.raw.developed
+              : developing ? t.raw.gettingFullQuality : t.raw.quickPreview}</p>
+            {/* Always visible, not tucked behind the disclosure: when the automatic attempt fails the person needs
+                to see why without first hunting through RAW options. */}
+            {developNote && <p role="status" className="px-1 text-xs text-amber-200">{developNote}</p>}
+            {/* Explicit RAW development while camera-matching remains unverified. */}
+            {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
+              <p className="px-1 text-xs text-zinc-300">
+                You are viewing the camera preview. Developing the sensor data may change colour or contrast while camera-matching is being improved.
+              </p>
+            )}
+            {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
+              <button type="button" className={`${button} w-full border border-white/10`} disabled={developing || sourceState !== 'ready'} onClick={() => void developFromRaw()}>
+                {developing ? t.raw.developing : t.raw.develop}
+              </button>
+            )}
+            {/* Offered once the RAW has developed: a file the decoder cannot read has no sensor data to export. */}
+            {canDevelopRaw() && (provider.isDeveloped(frame.stableKey) || canExportRawMaster()) && (
+              <div className="space-y-1 border-t border-white/10 pt-2">
+                {provider.isDeveloped(frame.stableKey) && <button type="button" className={button + ' w-full border border-white/15'}
+                  disabled={masterBusy || sourceState !== 'ready'} onClick={() => void exportHighPrecisionMaster()}>
+                  {masterBusy ? t.raw.masterBusy : exportT.rawTiff.action}
+                </button>}
+                {provider.isDeveloped(frame.stableKey) && (
+                  <details className="rounded-md border border-white/10 px-3 text-xs text-zinc-300">
+                    <summary className="min-h-11 cursor-pointer py-2">{exportT.rawTiff.details}</summary>
+                    <p className="pb-2">{exportT.rawTiff.help}</p>
+                  </details>
+                )}
+                {masterNote && <p role="status" className="text-xs text-zinc-300">{masterNote}</p>}
+                {canExportRawMaster() && sensorMode !== 'other' && (
+                  <>
+                    <button type="button" className={button + ' w-full border border-white/15'}
+                      disabled={dngBusy} onClick={() => void saveDngCopy()}>
+                      {dngBusy ? t.raw.dngBusy : t.raw.dng}
+                    </button>
+                    <p className="text-xs text-zinc-400">{t.raw.dngHelp}</p>
+                    {dngNote && <p role="status" className="text-xs text-zinc-300">{dngNote}</p>}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        <details className="border-t border-white/10">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
+            {t.edit.options} <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </summary>
+          <div className="flex flex-wrap gap-1">
+            <button type="button" disabled={isEmptyEdit(edit)} className={button} onClick={() => {
+              onEdit(DEFAULT_EDIT);
+
+              setEditNotice(t.edit.resetNotice);
+            }}>{t.edit.reset}</button>
+          </div>
+          <div className="flex flex-wrap gap-1 border-t border-white/10 pt-1">
+            <button type="button" disabled={keeperCount < 2 || isNeutralEdit(edit) || sourceState !== 'ready'}
+              className={button} aria-expanded={confirmApply} onClick={() => setConfirmApply(!confirmApply)}>
+              {t.edit.applyToKeepers(keeperCount)}
+            </button>
+            {onUndoKeeperEdits && <button type="button" className={button} onClick={() => {
+              onUndoKeeperEdits();
+              setEditNotice(t.edit.batchUndone);
+            }}>{t.edit.undoBatch}</button>}
+          </div>
+          {confirmApply && !isNeutralEdit(edit) && sourceState === 'ready' && (
+            <div className="rounded-md bg-black/25 p-2 text-sm">
+              <p>{t.edit.confirmApply(keeperCount)}</p>
+              <button type="button" className={button} onClick={() => setConfirmApply(false)}>{t.common.cancel}</button>
+              <button type="button" className={`${button} font-semibold`} onClick={() => {
+                onApplyToKeepers(edit);
+                setConfirmApply(false);
+  
+                setEditNotice(t.edit.updated(keeperCount));
+              }}>{t.edit.applyAdjustments}</button>
+            </div>
+          )}
+          <p role="status" className="text-xs text-zinc-400">{editNotice}</p>
+          <div className="flex flex-wrap gap-1 border-t border-white/10 pt-1">
+            <button type="button" className={button} onClick={() => onCreateVirtualCopy()}>{t.edit.createCopy}</button>
+            {onRemoveVirtualCopy && <button type="button" className={button} aria-expanded={confirmRemove} onClick={() => setConfirmRemove(!confirmRemove)}>{t.edit.removeCopy}</button>}
+          </div>
+          {confirmRemove && onRemoveVirtualCopy && (
+            <div className="rounded-md bg-black/25 p-2 text-sm">
+              <p>{t.edit.confirmRemove}</p>
+              <button type="button" className={button} onClick={() => setConfirmRemove(false)}>{t.common.cancel}</button>
+              <button type="button" className={button} onClick={onRemoveVirtualCopy}>{t.edit.removeCopyButton}</button>
+            </div>
+          )}
+
+          {!frame.isDemo && <button type="button" className={button} disabled={!provider.hasBlob(frame.stableKey)}
+            onClick={async () => {
+              const original = await provider.ensureOriginal(frame.stableKey);
+              if (original) downloadExport(original, original instanceof File ? original.name : frame.filename);
+            }}>{t.edit.downloadOriginal}</button>}
+          {outputSize && <p className="mt-2 text-xs text-zinc-400">{t.edit.output(outputSize.width.toLocaleString(), outputSize.height.toLocaleString())}</p>}
+        </details>
+        </div>
+          </div>
+        )}
+        {panelTab === 'crop' && (
+          <div role="tabpanel" id="panel-crop" aria-labelledby="tab-crop" className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={sourceState !== 'ready'} className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
+                onClick={() => setTab('edit')}>{t.crop.apply}</button>
+              <button type="button" disabled={sourceState !== 'ready'} className={`${button} border border-white/15`}
+                onClick={() => { if (cropEntry.current) onFramingChange(cropEntry.current); setTab('edit'); }}>{t.common.cancel}</button>
+            </div>
+            <p className="px-1 text-xs text-zinc-400">{t.crop.help}</p>
+          <fieldset disabled={sourceState !== 'ready'} className="space-y-2">
+            <div className="flex flex-wrap">
+              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={createCropCopy}>
+                <Copy className="h-4 w-4" aria-hidden="true" />{t.crop.autoCopy}</button>
+              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={() => onFramingChange({
+                ...framing, turns: (framing.turns + 1) % 4, x: 1 - framing.y, y: framing.x,
+              })}>
+                <RotateCw className="h-4 w-4" aria-hidden="true" />{t.crop.rotate}</button>
+              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={autoLevel}>
+                <Wand2 className="h-4 w-4" aria-hidden="true" />{t.crop.autoLevel}</button>
+              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={() => { onFramingChange(DEFAULT_FRAMING); setCropNotice(''); }}>
+                <RotateCcw className="h-4 w-4" aria-hidden="true" />{t.crop.reset}</button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <button type="button" className={button} aria-pressed={previewCrop} onClick={() => {
+                setPreviewCrop(!previewCrop);
+                setTransform(FIT_VIEW);
+              }}>{previewCrop ? t.crop.editCrop : t.crop.previewCrop}</button>
+              <label className="flex min-h-10 items-center gap-2"><input type="checkbox" checked={gridLines} onChange={(event) => setGridLines(event.target.checked)} />{t.crop.gridlines}</label>
+            </div>
+            {cropNotice && <p role="status" className="text-xs text-zinc-300">{cropNotice}</p>}
+            <label className="flex min-h-11 items-center justify-between gap-2 text-sm">
+              <span className="inline-flex items-center gap-1.5">
+                {framing.ratio === null ? <Crop className="h-4 w-4 text-zinc-400" aria-hidden="true" />
+                  : framing.ratio === 1 ? <Square className="h-4 w-4 text-zinc-400" aria-hidden="true" />
+                  : framing.ratio > 1 ? <RectangleHorizontal className="h-4 w-4 text-zinc-400" aria-hidden="true" />
+                  : <RectangleVertical className="h-4 w-4 text-zinc-400" aria-hidden="true" />}
+                {t.crop.aspectRatio}
+              </span>
+              <span className="relative inline-flex min-w-0 max-w-[60%] shrink-0 items-center">
+                <select aria-label={t.crop.aspectRatioLabel} value={framing.ratio === null ? '' : fixedShape(framing) ? String(framing.ratio) : 'free'}
+                  onChange={(event) => {
+                    const { free: _free, ...rest } = framing;
+                    const value = event.target.value;
+                    if (value === 'free') onFramingChange({ ...rest, ratio: framing.ratio ?? (size ? size.width / size.height : null), free: true });
+                    else onFramingChange({ ...rest, ratio: Number(value) || null });
+                  }}
+                  className="min-h-11 w-full min-w-0 appearance-none truncate rounded-md border border-white/10 bg-[#252830] py-2 pl-3 pr-10 text-sm text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
+                  <option value="">{t.common.original}</option>
+                  <option value="free">{t.crop.free}</option>
+                  {CROP_RATIOS.map((choice) => <option key={choice.label} value={String(choice.ratio)}>{choice.label === 'Square' ? t.crop.square : choice.label}</option>)}
+                </select>
+                <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 h-4 w-4 shrink-0 stroke-[1.75] text-zinc-300" />
+              </span>
+            </label>
+            <AdjustmentSlider label={t.crop.size} min={MIN_CROP_SIZE} max={1} step={0.01}
+              value={framing.size ?? 1} neutral={1} displayValue={`${Math.round((framing.size ?? 1) * 100)}%`}
+              disabled={!size} onChange={(value) => size && onFramingChange({
+                ...framing, ratio: framing.ratio ?? size.width / size.height, size: value,
+              })} />
+            <AdjustmentSlider label={t.crop.straighten} min={-12} max={12} step={0.1}
+              value={framing.straighten} displayValue={`${framing.straighten.toFixed(1)}°`}
+              onChange={(value) => onFramingChange({ ...framing, straighten: value })} />
+            {framing.ratio && (['x', 'y'] as const).map((axis) => (
+              <AdjustmentSlider key={axis}
+                label={axis === 'x' ? t.crop.horizontal : t.crop.vertical}
+                min={0} max={1} step={0.01} neutral={0.5}
+                value={framing[axis]} displayValue={`${Math.round(framing[axis] * 100)}%`}
+                onChange={(value) => onFramingChange({ ...framing, [axis]: value })} />
+            ))}
+          </fieldset>
+
+          </div>
+        )}
+        {panelTab === 'masks' && !can('masks') && (
+          <div role="tabpanel" id="panel-masks" aria-labelledby="tab-masks"><PaidNotice title={t.masks.paidTitle}>{t.masks.paidBody}</PaidNotice></div>
+        )}
+        {panelTab === 'masks' && can('masks') && (
+          <div role="tabpanel" id="panel-masks" aria-labelledby="tab-masks">
+            <MaskPanel masks={edit.masks ?? []} selectedId={selectedMaskId} disabled={sourceState !== 'ready'}
+              brushRadius={brushRadius} paintOn={paintOn} onPaintOn={setPaintOn} erase={erase} showOverlay={showMaskOverlay}
+              onSelect={setSelectedMaskId} onChange={(masks) => { if (onlyAdjustmentsChanged(edit.masks ?? [], masks)) pauseMaskHighlight(); onEdit({ ...edit, masks }); }}
+              onBrushRadius={setBrushRadius} onErase={setErase} onShowOverlay={setShowMaskOverlay}
+              onFindSubject={(background) => void findSubject(background)} onRefind={(id) => void findSubject(false, id)} selectingArea={selectingArea} onSelectArea={setSelectingArea}
+              detecting={detecting} detectNotice={detectNotice} currentFramingKey={framingKey(framing)} />
+
+          </div>
+        )}
+        {panelTab === 'history' && (
+          <div role="tabpanel" id="panel-history" aria-labelledby="tab-history">
+            <div className="space-y-2" aria-label={m.editHistory}>
+              <p className="px-1 text-xs text-zinc-400">{t.history.help}</p>
+              <ol className="space-y-1">
+                {[{ label: t.common.original, at: 0 }, ...(frame.editHistory?.steps ?? []).map((step) => ({ label: m.historyStep[step.kind], at: step.at }))].map((entry, index) => {
+                  const cursor = frame.editHistory?.cursor ?? 0;
+                  const history = frame.editHistory;
+                  const current = index === cursor;
+                  return (
+                    <li key={index}>
+                      <button type="button" aria-current={current ? 'step' : undefined} disabled={!history}
+                        onClick={() => { onHistoryJump(index); setPreviewRecipe(null); }}
+                        onMouseEnter={() => history && !current && setPreviewRecipe(recipeAt(history, index) ?? null)}
+                        onMouseLeave={() => setPreviewRecipe(null)}
+                        onFocus={() => history && !current && setPreviewRecipe(recipeAt(history, index) ?? null)}
+                        onBlur={() => setPreviewRecipe(null)}
+                        className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-2 text-left text-sm hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 aria-[current=step]:bg-sky-300/15 aria-[current=step]:font-semibold ${index > cursor ? 'text-zinc-500' : 'text-zinc-200'}`}>
+                        <span>{current ? '● ' : ''}{index > cursor ? t.history.undone(entry.label) : entry.label}</span>
+                        <time className="tabular-nums text-xs text-zinc-400" dateTime={entry.at ? new Date(entry.at).toISOString() : undefined}>{entry.at ? formatClock(entry.at) : t.history.start}</time>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+              {!frame.editHistory?.steps.length && <p className="px-1 text-sm text-zinc-400">{m.emptyHistory}</p>}
+            </div>
+          </div>
+        )}
+    </>
+  );
   return (
     <section aria-label={t.editor.region} className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden bg-kestrel-stage">
       {/* On a phone, Quick adjust has Undo, Redo and Before/After within thumb reach, so this row would only repeat them. */}
@@ -1328,392 +1787,52 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           </button>}
           <div className="min-w-0 flex-1 [&>[role=tablist]]:mx-0 [&>[role=tablist]]:static">{tabList}</div>
         </div>}
-        {tab === 'auto' && !can('autoTab') && (
-          <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto"><PaidNotice title={t.auto.paidTitle}>{t.auto.paidBody}</PaidNotice></div>
-        )}
-        {tab === 'auto' && can('autoTab') && (
-          <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
-        <div className="space-y-2 px-1">
-          <button type="button" title={t.auto.suggestTitle} disabled={sourceState !== 'ready' || autoAnalysing}
-            className={`${button} inline-flex w-full items-center justify-center gap-2 border border-white/10 font-semibold`}
-            onClick={() => void previewAutoSuggestion()}>
-            <Lightbulb className="h-4 w-4 stroke-[1.75]" aria-hidden="true" />{autoAnalysing ? t.auto.analysingButton : t.auto.suggest}
-          </button>
-          <p className="text-xs text-zinc-400">{t.auto.intro}</p>
-          {pendingAuto && (
-            <div role="group" aria-label={t.auto.previewGroup} className="space-y-2 rounded-lg border border-white/15 bg-white/5 p-3">
-              <p role="status" className="text-sm text-zinc-100">{t.auto.previewing}</p>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" aria-pressed={displayCompare} className={`${button} border border-white/15 aria-pressed:bg-sky-300/15`}
-                  onClick={() => setCompare((current) => !current)}>{displayCompare ? t.auto.hideComparison : t.auto.compare}</button>
-                <button type="button" className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
-                  onClick={() => {
-                    if (savedEdit !== pendingAuto.base || cropKey !== pendingAuto.cropKey || sourceImage.current !== pendingAuto.source) {
-                      setAutoNotes([t.auto.photoChanged]);
-                    } else {
-                      onEdit(pendingAuto.edit);
-                      setAutoNotes([t.auto.applied]);
-                    }
-                    autoRun.current += 1;
-                    setPendingAuto(null);
-                    setPreviewRecipe(null);
-                  }}>{t.auto.apply}</button>
-                <button type="button" className={`${button} border border-white/15`} onClick={() => {
-                  autoRun.current += 1;
-                  setAutoAnalysing(false);
-                  setPendingAuto(null);
-                  setPreviewRecipe(null);
-                  setOpinions(null);
-                  setAutoNotes([t.auto.dismissed]);
-                }}>{t.auto.keepCurrent}</button>
-              </div>
-            </div>
-          )}
-        </div>
-          {autoNotes.length > 0 && <ul role="status" className="list-disc space-y-0.5 pl-4 pt-1 text-xs text-zinc-300">
-            {autoNotes.map((note) => <li key={note}>{note}</li>)}
-          </ul>}
-          {autoNotes.length > 0 && !pendingAuto && <p className="px-1 text-xs text-zinc-400">{t.auto.saveAsRecipe}</p>}
-          {opinions && (
-            <section aria-label={t.critique.region} className="space-y-2 rounded-md border border-white/10 p-2">
-              {opinions.length === 0 && <p role="status" className="text-sm text-zinc-300">{t.critique.none}</p>}
-              {opinions.map((opinion) => {
-                const words = opinionWords(opinion);
-                return (
-                <div key={opinion.id} className="space-y-1 text-sm">
-                  <p className="font-semibold text-zinc-100">{opinion.severity === 'warning' ? t.critique.warning(words.title) : t.critique.tip(words.title)}</p>
-                  <p className="text-xs text-zinc-300">{words.detail}</p>
-                  {opinion.fix && !pendingAuto && (
-                    <button type="button" className={`${button} border border-white/15 text-xs`}
-                      onClick={() => onEdit(applyFix(edit, opinion.fix!))}>{words.fix}</button>
-                  )}
-                </div>
-                );
-              })}
-              <button type="button" className="min-h-9 text-xs text-zinc-400 underline hover:text-white" onClick={() => setOpinions(null)}>{t.critique.hide}</button>
-            </section>
-          )}
-        <section aria-label={t.auto.recipesRegion} className="space-y-1 border-t border-white/10 pt-2">
-          <h3 className="text-sm font-medium text-zinc-100">{t.auto.recipes}</h3>
-          <PresetPanel edit={edit} disabled={sourceState !== 'ready'} previewSource={lookPreviewSource} onApply={(next) => (onApplyLook ?? onEdit)({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />
-        </section>
-        <Histogram data={histogram} teach />
-
-          </div>
-        )}
-        {tab === 'export' && (
-          <div role="tabpanel" id="panel-export" aria-labelledby="tab-export" className="space-y-2 px-1 pt-2">
-            <p className="text-sm text-zinc-300">{t.exportTab.intro}</p>
-            <button type="button" disabled={sourceState !== 'ready'} className={`${button} w-full border border-white/10 font-semibold`} onClick={openExport}>
-              {t.exportTab.choose}
-            </button>
-          </div>
-        )}
-        {tab === 'edit' && (
-          <div role="tabpanel" id="panel-edit" aria-labelledby="tab-edit" className="space-y-2">
-        {isPhone && (allControls ? (
-          <button type="button" className="mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-white/12 px-3 text-xs text-zinc-200 hover:bg-white/10" onClick={() => setAllControls(false)}>
-            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />{t.edit.backToQuick}
-          </button>
-        ) : (
-          <QuickAdjust edit={edit} disabled={sourceState !== 'ready'} onEdit={onEdit}
-            canStepBack={Boolean(frame.editHistory?.cursor)} canStepForward={Boolean(frame.editHistory && frame.editHistory.cursor < frame.editHistory.steps.length)}
-            onStepBack={() => onHistoryStep(-1)} onStepForward={() => onHistoryStep(1)} peeking={displayCompare} onPeek={() => setCompare(!compare)} onShowAll={() => setAllControls(true)} />
-        ))}
-        <div className={isPhone && !allControls ? 'hidden' : 'space-y-2'}>
-        <div className="space-y-2 px-1 py-2">
-          {EDIT_CHOICES.map(({ key }, index) => (
-            <fieldset key={key} disabled={sourceState !== 'ready'} className="min-w-0 disabled:opacity-45">
-              <AdjustmentSlider label={t.controls[key]} value={edit[key]}
-                min={key === 'exposure' ? -12.5 : -2} max={key === 'exposure' ? 12.5 : 2} step={0.1}
-                disabled={sourceState !== 'ready'} onFocus={() => setDial(index)}
-                hint={dialUsed && dial === index ? t.slider.dial : undefined}
-                displayValue={key === 'exposure' ? `${signedAdjustment(edit[key] * 0.4)} EV`
-                  : key === 'colour' && edit.colour === -2 ? t.slider.monochrome
-                  : `${signedAdjustment(Math.round(edit[key] * (key === 'warmth' ? 8 : 20)), 0)}%`}
-                onChange={(value) => onEdit({ ...edit, [key]: value })} />
-              {quickChoices && <div className="flex gap-1">
-                {CHOICE_WORDS[key].map((name, index) => (
-                  <button type="button" key={name} aria-pressed={edit[key] === index - 1}
-                    onClick={() => onEdit({ ...edit, [key]: index - 1 })}
-                    className="min-h-11 rounded px-2 text-xs hover:bg-white/8 aria-pressed:bg-sky-300/15 desk:min-h-7">{name}</button>
-                ))}
-              </div>}
-            </fieldset>
-          ))}
-          <button type="button" aria-expanded={quickChoices} onClick={() => setQuickChoices(!quickChoices)}
-            className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white desk:min-h-7">{t.edit.quickChoices}</button>
-        </div>
-        <ColourCheckPanel edit={edit} readPreview={colourPreview} version={[edit, framing, source]} onEdit={onEdit} disabled={sourceState !== 'ready'} readJpeg={reviewJpeg} />
-        <details open className="border-t border-white/10">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
-            {t.edit.tone} <ChevronDown className="h-4 w-4" aria-hidden="true" />
-          </summary>
-          <div className="space-y-1 px-1 pb-2">
-            {TONE_CONTROLS.map(({ key }) => (
-              <AdjustmentSlider key={key} label={t.controls[key]} value={edit[key] ?? 0}
-                min={-2} max={2} step={0.05} disabled={sourceState !== 'ready'}
-                hint={dialUsed && DIAL_KEYS[dial] === key ? t.slider.dial : undefined}
-                title={key === 'brightness' ? t.edit.brightnessTitle : undefined}
-                onChange={(value) => onEdit({ ...edit, [key]: value })} />
-            ))}
-          </div>
-        </details>
-        <details open className="border-t border-white/10">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
-            {t.edit.detail} <ChevronDown className="h-4 w-4" aria-hidden="true" />
-          </summary>
-          <div className="space-y-1 px-1 pb-2">
-            {DETAIL_CONTROLS.map(({ key }) => (
-              <AdjustmentSlider key={key} label={t.controls[key]} value={edit[key] ?? 0}
-                min={key === 'sharpen' ? 0 : -2} max={2} step={0.05}
-                disabled={sourceState !== 'ready'} hint={dialUsed && DIAL_KEYS[dial] === key ? t.slider.dial : undefined}
-                onChange={(value) => onEdit({ ...edit, [key]: value })} />
-            ))}
-            <div className="space-y-0.5">
-              <AdjustmentSlider label={t.controls[NOISE_CONTROL.key]} value={edit.denoise ?? 0}
-                min={0} max={2} step={0.05} disabled={sourceState !== 'ready'}
-                describedBy="denoise-help"
-                title={t.edit.denoiseTitle}
-                onChange={(value) => onEdit({ ...edit, denoise: value })} />
-              <p id="denoise-help" className="text-xs text-zinc-400">{t.edit.denoiseHelp}</p>
-            </div>
-          </div>
-        </details>
-        <details className="border-b border-white/10 pb-1" onToggle={(event) => setExportFocusOpen(event.currentTarget.open)}>
-          <summary className="min-h-11 cursor-pointer py-3 text-sm">{t.edit.exportFocus}</summary>
-          <button type="button" className={button} disabled={!position || guide} aria-pressed={markFocus} onClick={() => {
-            setCompare(false);
-            setTransform(FIT_VIEW);
-            setMarkFocus(!markFocus);
-          }}>{markFocus ? t.edit.cancelPlacement : frame.focusPoint ? t.edit.moveFocus : t.edit.markFocus}</button>
-          {frame.focusPoint && <button type="button" className={button} onClick={() => onFocusPoint(undefined)}>{t.edit.clear}</button>}
-          <p className="px-1 pb-2 text-xs text-zinc-400">{markFocus ? t.edit.placeHelp :
-            t.edit.focusHelp}</p>
-        </details>
-        {isRaw && (
-          <div className="border-t border-white/10 pt-2">
-            <p role={developing ? 'status' : undefined} className="px-1 text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey)
-              ? t.raw.developed
-              : developing ? t.raw.gettingFullQuality : t.raw.quickPreview}</p>
-            {/* Always visible, not tucked behind the disclosure: when the automatic attempt fails the person needs
-                to see why without first hunting through RAW options. */}
-            {developNote && <p role="status" className="px-1 text-xs text-amber-200">{developNote}</p>}
-            {/* Explicit RAW development while camera-matching remains unverified. */}
-            {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
-              <p className="px-1 text-xs text-zinc-300">
-                You are viewing the camera preview. Developing the sensor data may change colour or contrast while camera-matching is being improved.
-              </p>
-            )}
-            {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
-              <button type="button" className={`${button} w-full border border-white/10`} disabled={developing || sourceState !== 'ready'} onClick={() => void developFromRaw()}>
-                {developing ? t.raw.developing : t.raw.develop}
-              </button>
-            )}
-            {/* Offered once the RAW has developed: a file the decoder cannot read has no sensor data to export. */}
-            {canDevelopRaw() && (provider.isDeveloped(frame.stableKey) || canExportRawMaster()) && (
-              <div className="space-y-1 border-t border-white/10 pt-2">
-                {provider.isDeveloped(frame.stableKey) && <button type="button" className={button + ' w-full border border-white/15'}
-                  disabled={masterBusy || sourceState !== 'ready'} onClick={() => void exportHighPrecisionMaster()}>
-                  {masterBusy ? t.raw.masterBusy : exportT.rawTiff.action}
-                </button>}
-                {provider.isDeveloped(frame.stableKey) && (
-                  <details className="rounded-md border border-white/10 px-3 text-xs text-zinc-300">
-                    <summary className="min-h-11 cursor-pointer py-2">{exportT.rawTiff.details}</summary>
-                    <p className="pb-2">{exportT.rawTiff.help}</p>
-                  </details>
-                )}
-                {masterNote && <p role="status" className="text-xs text-zinc-300">{masterNote}</p>}
-                {canExportRawMaster() && sensorMode !== 'other' && (
-                  <>
-                    <button type="button" className={button + ' w-full border border-white/15'}
-                      disabled={dngBusy} onClick={() => void saveDngCopy()}>
-                      {dngBusy ? t.raw.dngBusy : t.raw.dng}
-                    </button>
-                    <p className="text-xs text-zinc-400">{t.raw.dngHelp}</p>
-                    {dngNote && <p role="status" className="text-xs text-zinc-300">{dngNote}</p>}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-        <details className="border-t border-white/10">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
-            {t.edit.options} <ChevronDown className="h-4 w-4" aria-hidden="true" />
-          </summary>
-          <div className="flex flex-wrap gap-1">
-            <button type="button" disabled={isEmptyEdit(edit)} className={button} onClick={() => {
-              onEdit(DEFAULT_EDIT);
-
-              setEditNotice(t.edit.resetNotice);
-            }}>{t.edit.reset}</button>
-          </div>
-          <div className="flex flex-wrap gap-1 border-t border-white/10 pt-1">
-            <button type="button" disabled={keeperCount < 2 || isNeutralEdit(edit) || sourceState !== 'ready'}
-              className={button} aria-expanded={confirmApply} onClick={() => setConfirmApply(!confirmApply)}>
-              {t.edit.applyToKeepers(keeperCount)}
-            </button>
-            {onUndoKeeperEdits && <button type="button" className={button} onClick={() => {
-              onUndoKeeperEdits();
-              setEditNotice(t.edit.batchUndone);
-            }}>{t.edit.undoBatch}</button>}
-          </div>
-          {confirmApply && !isNeutralEdit(edit) && sourceState === 'ready' && (
-            <div className="rounded-md bg-black/25 p-2 text-sm">
-              <p>{t.edit.confirmApply(keeperCount)}</p>
-              <button type="button" className={button} onClick={() => setConfirmApply(false)}>{t.common.cancel}</button>
-              <button type="button" className={`${button} font-semibold`} onClick={() => {
-                onApplyToKeepers(edit);
-                setConfirmApply(false);
-  
-                setEditNotice(t.edit.updated(keeperCount));
-              }}>{t.edit.applyAdjustments}</button>
-            </div>
-          )}
-          <p role="status" className="text-xs text-zinc-400">{editNotice}</p>
-          <div className="flex flex-wrap gap-1 border-t border-white/10 pt-1">
-            <button type="button" className={button} onClick={() => onCreateVirtualCopy()}>{t.edit.createCopy}</button>
-            {onRemoveVirtualCopy && <button type="button" className={button} aria-expanded={confirmRemove} onClick={() => setConfirmRemove(!confirmRemove)}>{t.edit.removeCopy}</button>}
-          </div>
-          {confirmRemove && onRemoveVirtualCopy && (
-            <div className="rounded-md bg-black/25 p-2 text-sm">
-              <p>{t.edit.confirmRemove}</p>
-              <button type="button" className={button} onClick={() => setConfirmRemove(false)}>{t.common.cancel}</button>
-              <button type="button" className={button} onClick={onRemoveVirtualCopy}>{t.edit.removeCopyButton}</button>
-            </div>
-          )}
-
-          {!frame.isDemo && <button type="button" className={button} disabled={!provider.hasBlob(frame.stableKey)}
-            onClick={async () => {
-              const original = await provider.ensureOriginal(frame.stableKey);
-              if (original) downloadExport(original, original instanceof File ? original.name : frame.filename);
-            }}>{t.edit.downloadOriginal}</button>}
-          {outputSize && <p className="mt-2 text-xs text-zinc-400">{t.edit.output(outputSize.width.toLocaleString(), outputSize.height.toLocaleString())}</p>}
-        </details>
-        </div>
-          </div>
-        )}
-        {tab === 'crop' && (
-          <div role="tabpanel" id="panel-crop" aria-labelledby="tab-crop" className="space-y-2">
-            <div className="flex flex-wrap gap-2">
-              <button type="button" disabled={sourceState !== 'ready'} className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
-                onClick={() => setTab('edit')}>{t.crop.apply}</button>
-              <button type="button" disabled={sourceState !== 'ready'} className={`${button} border border-white/15`}
-                onClick={() => { if (cropEntry.current) onFramingChange(cropEntry.current); setTab('edit'); }}>{t.common.cancel}</button>
-            </div>
-            <p className="px-1 text-xs text-zinc-400">{t.crop.help}</p>
-          <fieldset disabled={sourceState !== 'ready'} className="space-y-2">
-            <div className="flex flex-wrap">
-              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={createCropCopy}>
-                <Copy className="h-4 w-4" aria-hidden="true" />{t.crop.autoCopy}</button>
-              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={() => onFramingChange({
-                ...framing, turns: (framing.turns + 1) % 4, x: 1 - framing.y, y: framing.x,
-              })}>
-                <RotateCw className="h-4 w-4" aria-hidden="true" />{t.crop.rotate}</button>
-              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={autoLevel}>
-                <Wand2 className="h-4 w-4" aria-hidden="true" />{t.crop.autoLevel}</button>
-              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={() => { onFramingChange(DEFAULT_FRAMING); setCropNotice(''); }}>
-                <RotateCcw className="h-4 w-4" aria-hidden="true" />{t.crop.reset}</button>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <button type="button" className={button} aria-pressed={previewCrop} onClick={() => {
-                setPreviewCrop(!previewCrop);
-                setTransform(FIT_VIEW);
-              }}>{previewCrop ? t.crop.editCrop : t.crop.previewCrop}</button>
-              <label className="flex min-h-10 items-center gap-2"><input type="checkbox" checked={gridLines} onChange={(event) => setGridLines(event.target.checked)} />{t.crop.gridlines}</label>
-            </div>
-            {cropNotice && <p role="status" className="text-xs text-zinc-300">{cropNotice}</p>}
-            <label className="flex min-h-11 items-center justify-between gap-2 text-sm">
-              <span className="inline-flex items-center gap-1.5">
-                {framing.ratio === null ? <Crop className="h-4 w-4 text-zinc-400" aria-hidden="true" />
-                  : framing.ratio === 1 ? <Square className="h-4 w-4 text-zinc-400" aria-hidden="true" />
-                  : framing.ratio > 1 ? <RectangleHorizontal className="h-4 w-4 text-zinc-400" aria-hidden="true" />
-                  : <RectangleVertical className="h-4 w-4 text-zinc-400" aria-hidden="true" />}
-                {t.crop.aspectRatio}
-              </span>
-              <span className="relative inline-flex min-w-0 max-w-[60%] shrink-0 items-center">
-                <select aria-label={t.crop.aspectRatioLabel} value={framing.ratio === null ? '' : fixedShape(framing) ? String(framing.ratio) : 'free'}
-                  onChange={(event) => {
-                    const { free: _free, ...rest } = framing;
-                    const value = event.target.value;
-                    if (value === 'free') onFramingChange({ ...rest, ratio: framing.ratio ?? (size ? size.width / size.height : null), free: true });
-                    else onFramingChange({ ...rest, ratio: Number(value) || null });
-                  }}
-                  className="min-h-11 w-full min-w-0 appearance-none truncate rounded-md border border-white/10 bg-[#252830] py-2 pl-3 pr-10 text-sm text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
-                  <option value="">{t.common.original}</option>
-                  <option value="free">{t.crop.free}</option>
-                  {CROP_RATIOS.map((choice) => <option key={choice.label} value={String(choice.ratio)}>{choice.label === 'Square' ? t.crop.square : choice.label}</option>)}
-                </select>
-                <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 h-4 w-4 shrink-0 stroke-[1.75] text-zinc-300" />
-              </span>
-            </label>
-            <AdjustmentSlider label={t.crop.size} min={MIN_CROP_SIZE} max={1} step={0.01}
-              value={framing.size ?? 1} neutral={1} displayValue={`${Math.round((framing.size ?? 1) * 100)}%`}
-              disabled={!size} onChange={(value) => size && onFramingChange({
-                ...framing, ratio: framing.ratio ?? size.width / size.height, size: value,
-              })} />
-            <AdjustmentSlider label={t.crop.straighten} min={-12} max={12} step={0.1}
-              value={framing.straighten} displayValue={`${framing.straighten.toFixed(1)}°`}
-              onChange={(value) => onFramingChange({ ...framing, straighten: value })} />
-            {framing.ratio && (['x', 'y'] as const).map((axis) => (
-              <AdjustmentSlider key={axis}
-                label={axis === 'x' ? t.crop.horizontal : t.crop.vertical}
-                min={0} max={1} step={0.01} neutral={0.5}
-                value={framing[axis]} displayValue={`${Math.round(framing[axis] * 100)}%`}
-                onChange={(value) => onFramingChange({ ...framing, [axis]: value })} />
-            ))}
-          </fieldset>
-
-          </div>
-        )}
-        {tab === 'masks' && !can('masks') && (
-          <div role="tabpanel" id="panel-masks" aria-labelledby="tab-masks"><PaidNotice title={t.masks.paidTitle}>{t.masks.paidBody}</PaidNotice></div>
-        )}
-        {tab === 'masks' && can('masks') && (
-          <div role="tabpanel" id="panel-masks" aria-labelledby="tab-masks">
-            <MaskPanel masks={edit.masks ?? []} selectedId={selectedMaskId} disabled={sourceState !== 'ready'}
-              brushRadius={brushRadius} paintOn={paintOn} onPaintOn={setPaintOn} erase={erase} showOverlay={showMaskOverlay}
-              onSelect={setSelectedMaskId} onChange={(masks) => { if (onlyAdjustmentsChanged(edit.masks ?? [], masks)) pauseMaskHighlight(); onEdit({ ...edit, masks }); }}
-              onBrushRadius={setBrushRadius} onErase={setErase} onShowOverlay={setShowMaskOverlay}
-              onFindSubject={(background) => void findSubject(background)} onRefind={(id) => void findSubject(false, id)} selectingArea={selectingArea} onSelectArea={setSelectingArea}
-              detecting={detecting} detectNotice={detectNotice} currentFramingKey={framingKey(framing)} />
-
-          </div>
-        )}
-        {tab === 'history' && (
-          <div role="tabpanel" id="panel-history" aria-labelledby="tab-history">
-            <div className="space-y-2" aria-label={m.editHistory}>
-              <p className="px-1 text-xs text-zinc-400">{t.history.help}</p>
-              <ol className="space-y-1">
-                {[{ label: t.common.original, at: 0 }, ...(frame.editHistory?.steps ?? []).map((step) => ({ label: m.historyStep[step.kind], at: step.at }))].map((entry, index) => {
-                  const cursor = frame.editHistory?.cursor ?? 0;
-                  const history = frame.editHistory;
-                  const current = index === cursor;
-                  return (
-                    <li key={index}>
-                      <button type="button" aria-current={current ? 'step' : undefined} disabled={!history}
-                        onClick={() => { onHistoryJump(index); setPreviewRecipe(null); }}
-                        onMouseEnter={() => history && !current && setPreviewRecipe(recipeAt(history, index) ?? null)}
-                        onMouseLeave={() => setPreviewRecipe(null)}
-                        onFocus={() => history && !current && setPreviewRecipe(recipeAt(history, index) ?? null)}
-                        onBlur={() => setPreviewRecipe(null)}
-                        className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-2 text-left text-sm hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 aria-[current=step]:bg-sky-300/15 aria-[current=step]:font-semibold ${index > cursor ? 'text-zinc-500' : 'text-zinc-200'}`}>
-                        <span>{current ? '● ' : ''}{index > cursor ? t.history.undone(entry.label) : entry.label}</span>
-                        <time className="tabular-nums text-xs text-zinc-400" dateTime={entry.at ? new Date(entry.at).toISOString() : undefined}>{entry.at ? formatClock(entry.at) : t.history.start}</time>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
-              {!frame.editHistory?.steps.length && <p className="px-1 text-sm text-zinc-400">{m.emptyHistory}</p>}
-            </div>
-          </div>
-        )}
+        {!isPhone && floatingTabs.has(tab) ? (
+          <p className="px-3 py-5 text-sm text-zinc-400">This tool is open in its own panel. Right-click a tab to dock it again.</p>
+        ) : renderTabBody(tab)}
       </div>
-      ); return floatingTools
-        ? <FloatingPane title={libraryT.paneRail.editingTools} photoOnly={focusPhoto} initialSide={panelSide} storageKey="kestrel-tools-float-rect-v1" dockFocusSelector="[data-editor-undock]" onDock={() => setToolsUndocked(false)}>{toolPanel}</FloatingPane>
-        : toolPanel; })()}
+      ); return (
+        <>
+          {floatingTools
+            ? <FloatingPane title={libraryT.paneRail.editingTools} photoOnly={focusPhoto} initialSide={panelSide} storageKey="kestrel-tools-float-rect-v1" dockFocusSelector="[data-editor-undock]" onDock={() => setToolsUndocked(false)}>{toolPanel}</FloatingPane>
+            : toolPanel}
+          {!isPhone && FLOATABLE_TABS.filter((id) => floatingTabs.has(id) && !hiddenTabs.has(id)).map((id) => (
+            <FloatingPane key={id} title={TABS.find((entry) => entry.id === id)?.label ?? id}
+              photoOnly={focusPhoto} initialSide={panelSide} storageKey={`kestrel-tab-float-${id}-v1`}
+              dockFocusSelector={`#tab-${id}`} onDock={() => toggleFloatTab(id)}>
+              <div className="h-full overflow-y-auto bg-kestrel-panel p-3">{renderTabBody(id)}</div>
+            </FloatingPane>
+          ))}
+          {tabMenu && createPortal(
+            <div role="menu" aria-label="Editor tab and panel options"
+              data-testid="tab-context-menu" onPointerDown={(event) => event.stopPropagation()}
+              style={{ left: Math.max(8, Math.min(tabMenu.x, window.innerWidth - 330)), top: Math.max(8, Math.min(tabMenu.y, window.innerHeight - 380)) }}
+              className="fixed z-[160] max-h-[85vh] w-[min(20rem,calc(100vw-16px))] overflow-y-auto rounded-xl border border-white/25 bg-kestrel-raised p-2 text-zinc-100 shadow-2xl">
+              <p className="px-2 py-1 text-xs font-semibold text-zinc-300">Show, hide, dock or undock</p>
+              {FLOATABLE_TABS.map((id) => (
+                <div key={id} className="flex items-center justify-between gap-1 rounded-md px-2 py-1 hover:bg-white/5">
+                  <span className="min-w-0 flex-1 truncate text-xs">{TABS.find((entry) => entry.id === id)?.label ?? id}</span>
+                  <button type="button" role="menuitem" className="min-h-9 rounded-md px-2 text-xs hover:bg-white/10"
+                    aria-label={hiddenTabs.has(id) ? `Show ${id}` : `Hide ${id}`}
+                    disabled={!hiddenTabs.has(id) && FLOATABLE_TABS.filter((candidate) => !hiddenTabs.has(candidate)).length <= 1}
+                    onClick={() => { toggleHideTab(id); setTabMenu(null); }}>
+                    {hiddenTabs.has(id) ? 'Show' : 'Hide'}
+                  </button>
+                  <button type="button" role="menuitem" className="min-h-9 rounded-md px-2 text-xs hover:bg-white/10"
+                    aria-label={floatingTabs.has(id) ? `Dock ${id}` : `Undock ${id}`}
+                    onClick={() => { toggleFloatTab(id); setTabMenu(null); }}>
+                    {floatingTabs.has(id) ? 'Dock' : 'Undock'}
+                  </button>
+                </div>
+              ))}
+              <button type="button" role="menuitem" className="mt-1 min-h-10 w-full rounded-md border-t border-white/15 px-2 text-left text-xs hover:bg-white/10"
+                onClick={() => { setFloatingTabs(new Set()); setHiddenTabs(new Set()); setToolsUndocked(false); setTabMenu(null); }}>
+                Restore default layout
+              </button>
+            </div>, document.body,
+          )}
+        </>
+      ); })()}
       {isPhone && !focusPhoto && tabList}
       </div>
       {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}
