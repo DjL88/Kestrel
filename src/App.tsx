@@ -1237,7 +1237,7 @@ export default function App() {
   // camera's JPEG. Continue the queue while reviewing or editing; the selected image has its own priority.
   useBackgroundDevelop({
     projectId: cullingState.shoot.id, frames: cullingState.frames, provider: previewProviderRef.current,
-    active: !projectsOpen && !loadingProgress, onScreen: cullingState.selectedFrameId,
+    active: !loadingProgress, onScreen: cullingState.selectedFrameId,
   });
 
   const jumpPhotoHistory = (frameId: string, cursor: number) => {
