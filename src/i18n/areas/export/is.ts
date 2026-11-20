@@ -212,6 +212,10 @@ export const is: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Forskeyti skráarheita og JPEG-gæði',
   },
   results: {
+    connectedBackground: (count, place) => `Vista ${count} útflutninga á ${place} í bakgrunni`,
+    connectingDestination: "Tengist áfangastað…",
+    connectedBackgroundHelp: "Skrár eru vistaðar ein af annarri í nýrri möppu, flokkaðar eftir áfangastað. Útflutningsglugginn lokast þegar verkefnið er samþykkt; framvinda og villur sjást í verkefnastjóra.",
+
     backgroundSaving: (count) => `Flyt út ${count} skrár í bakgrunni`,
     choosingFolder: "Vel möppu…",
     desktopBackground: (count) => `Vista ${count} skrár í möppu í bakgrunni`,
