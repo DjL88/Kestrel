@@ -1,4 +1,5 @@
 (() => {
+  const t = (key, fallback) => (window.KestrelI18n ? window.KestrelI18n.t(key) : fallback);
   const form = document.querySelector('#contact-form');
   const status = document.querySelector('#contact-status');
   const submit = form?.querySelector('button[type="submit"]');
@@ -16,11 +17,11 @@
       consent: fields.has('consent'),
     };
     if (!body.name || !body.email || !body.message || !body.consent) {
-      status.textContent = 'Enter your name, email and message, and tick the permission box.';
+      status.textContent = t('contactMissing', 'Enter your name, email and message, and tick the permission box.');
       return;
     }
     submit.disabled = true;
-    status.textContent = 'Sending your message…';
+    status.textContent = t('contactSending', 'Sending your message…');
     try {
       const response = await fetch(form.action, {
         method: 'POST',
@@ -30,14 +31,14 @@
         signal: AbortSignal.timeout(15000),
       });
       if (response.status === 429) {
-        status.textContent = 'Too many messages just now. Please try again later.';
+        status.textContent = t('contactTooMany', 'Too many messages just now. Please try again later.');
         return;
       }
       if (!response.ok || (await response.json()).received !== true) throw new Error('Message not confirmed');
       form.reset();
-      status.textContent = 'Message received. We’ll reply by email.';
+      status.textContent = t('contactReceived', 'Message received. We’ll reply by email.');
     } catch {
-      status.textContent = 'We couldn’t confirm your message was received. Your message is still here if you’d like to try again.';
+      status.textContent = t('contactFailed', 'We couldn’t confirm your message was received. Your message is still here if you’d like to try again.');
     } finally {
       submit.disabled = false;
     }

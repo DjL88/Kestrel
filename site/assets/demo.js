@@ -7,35 +7,30 @@
   const root = document.getElementById('demo');
   if (!root) return;
 
-  // All visible demo text lives here so translations can be added per language in one place.
-  const TEXT = {
-    'en-GB': {
-      loading: 'Loading sample photo…',
-      noWebgl: 'This browser cannot run the live preview, so the sample photo is shown unedited.',
-      loadFailed: 'The sample photos could not be loaded. Please try again later.',
-      before: 'Before', after: 'After',
-      splitOn: 'Before and after: on', splitOff: 'Before and after: off',
-      denoiseModeClean: 'Demo: switches to a pre-made cleaner version of this photo.',
-      denoiseModeBlur: 'Demo: a simple blur stands in for denoising on this photo.',
-      maskNone: 'No mask yet. Choose “Select subject”.',
-      maskFound: (subject) => `Subject selected: ${subject}. Demo: a pre-made mask, not live detection.`,
-      maskMissing: 'This sample has no subject mask.',
-      photoLabel: (title, n, total) => `${title}, photo ${n} of ${total}`,
-      reset: 'All edits reset.',
-      step: (n, total) => `Step ${n} of ${total}`,
-      tour: [
-        { target: '[data-tour="photos"]', title: 'Pick a sample photo', body: 'Each sample starts dark, flat or grainy, like a straight-from-camera file. Choose one to edit.' },
-        { target: '[data-tour="light"]', tab: 'light', title: 'Light', body: 'Exposure, contrast, highlights, shadows, whites and blacks. Drag a slider or use the arrow keys. Select the number to reset it.' },
-        { target: '[data-tour="colour"]', tab: 'colour', title: 'Colour', body: 'Temperature and tint fix colour casts. Vibrance lifts muted colours first; saturation changes all of them.' },
-        { target: '[data-tour="detail"]', tab: 'detail', title: 'Detail and denoise', body: 'Clarity adds local contrast. Denoise here is a demo that switches to a pre-made cleaner image, not Kestrel’s denoiser.' },
-        { target: '[data-tour="mask"]', tab: 'mask', title: 'Masking', body: 'Select the subject, then edit only the subject or only the background. The mask is pre-made for each sample to show how subject selection works.' },
-        { target: '[data-tour="crop"]', tab: 'crop', title: 'Crop and straighten', body: 'Choose a shape and level the horizon. The tilted loch is a good one to try.' },
-        { target: '[data-tour="compare"]', title: 'Before and after', body: 'Turn on the split and drag the divider, or hold “Show original”. Your edits are a recipe, so the original is never changed.' },
-      ],
-    },
+  // Every visible word comes from the site's one string table (i18n-strings.js) via KestrelI18n.
+  const i18n = window.KestrelI18n;
+  const t = (key, vars) => (i18n ? i18n.t(key, vars) : key);
+  // photos.json text may be a plain string or one entry per language: { "en-GB": "…", "fr": "…" }.
+  const word = (value) => {
+    if (!value || typeof value !== 'object') return value || '';
+    const lang = i18n ? i18n.language : 'en-GB';
+    return value[lang] || value[lang.split('-')[0]] || value['en-GB'] || Object.values(value)[0] || '';
   };
-  const lang = (document.documentElement.lang || 'en-GB');
-  const T = TEXT[lang] || TEXT[lang.split('-')[0]] || TEXT['en-GB'];
+  const TOUR = [
+    { target: '[data-tour="photos"]' }, { target: '[data-tour="light"]', tab: 'light' }, { target: '[data-tour="colour"]', tab: 'colour' },
+    { target: '[data-tour="detail"]', tab: 'detail' }, { target: '[data-tour="mask"]', tab: 'mask' }, { target: '[data-tour="crop"]', tab: 'crop' },
+    { target: '[data-tour="compare"]' },
+  ];
+  const T = {
+    get loading() { return t('demoLoading'); }, get noWebgl() { return t('demoNoWebgl'); }, get loadFailed() { return t('demoLoadFailed'); },
+    get splitOn() { return t('demoSplitOn'); }, get splitOff() { return t('demoSplitOff'); },
+    get denoiseModeClean() { return t('demoDenoiseClean'); }, get denoiseModeBlur() { return t('demoDenoiseBlur'); },
+    get maskNone() { return t('demoMaskNone'); }, get maskMissing() { return t('demoMaskMissing'); }, get reset() { return t('demoResetDone'); },
+    maskFound: (subject) => t('demoMaskFound', { subject }),
+    photoLabel: (title, n, total) => t('demoPhotoLabel', { title, n, total }),
+    step: (n, total) => t('tourStep', { n, total }),
+    get tour() { return TOUR.map((s, i) => ({ ...s, title: t('tour' + (i + 1) + 'Title'), body: t('tour' + (i + 1) + 'Body') })); },
+  };
 
   const $ = (sel, el = root) => el.querySelector(sel);
   const $$ = (sel, el = root) => Array.from(el.querySelectorAll(sel));
@@ -53,6 +48,8 @@
   // ---------- WebGL ----------
   const canvas = $('#demo-canvas');
   const status = $('#demo-status');
+  let statusKey = '';
+  const setStatus = (key) => { statusKey = key; status.textContent = key ? T[key] : ''; };
   const gl = canvas.getContext('webgl', { preserveDrawingBuffer: true, premultipliedAlpha: false, antialias: false });
   const VERT = `attribute vec2 p; varying vec2 v; void main(){ v = vec2((p.x+1.)*.5, (1.-p.y)*.5); gl_Position = vec4(p,0.,1.); }`;
   const FRAG = `precision mediump float;
@@ -206,7 +203,7 @@ void main(){
     const photo = photos[index]; if (!photo) return;
     const token = ++loadToken;
     $$('.demo-thumb').forEach((b, i) => b.setAttribute('aria-pressed', String(i === index)));
-    root.setAttribute('aria-busy', 'true'); status.textContent = T.loading;
+    root.setAttribute('aria-busy', 'true'); setStatus('loading');
     try {
       const [img, clean, mask] = await Promise.all([
         loadImage(resolveUrl(photo.src)),
@@ -215,15 +212,15 @@ void main(){
       ]);
       if (token !== loadToken) return;
       current = { photo, width: img.naturalWidth, height: img.naturalHeight, clean: !!clean, mask: !!mask, img };
-      canvas.setAttribute('aria-label', photo.alt || photo.title);
-      $('#demo-fallback').src = img.src; $('#demo-fallback').alt = photo.alt || photo.title;
+      canvas.setAttribute('aria-label', word(photo.alt) || word(photo.title));
+      $('#demo-fallback').src = img.src; $('#demo-fallback').alt = word(photo.alt) || word(photo.title);
       if (program) { upload('uImg', 0, img); upload('uClean', 1, clean); upload('uMask', 2, mask); }
-      $('#demo-denoise-note').textContent = clean ? T.denoiseModeClean : T.denoiseModeBlur;
+      updateDenoiseNote();
       state.maskOn = false; updateMaskUi();
-      status.textContent = program ? '' : T.noWebgl;
+      setStatus(program ? '' : 'noWebgl');
       draw();
     } catch (error) {
-      console.warn(error); status.textContent = T.loadFailed;
+      console.warn(error); setStatus('loadFailed');
     } finally { if (token === loadToken) root.removeAttribute('aria-busy'); }
   }
 
@@ -233,10 +230,10 @@ void main(){
       const li = document.createElement('li');
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'demo-thumb'; b.setAttribute('aria-pressed', 'false');
-      b.setAttribute('aria-label', T.photoLabel(photo.title, i + 1, photos.length));
+      b.setAttribute('aria-label', T.photoLabel(word(photo.title), i + 1, photos.length));
       const img = document.createElement('img'); img.alt = ''; img.loading = 'lazy'; img.width = 120; img.height = 80;
       img.src = resolveUrl(photo.thumb || photo.src);
-      const span = document.createElement('span'); span.textContent = photo.title;
+      const span = document.createElement('span'); span.className = 'demo-thumb-title'; span.textContent = word(photo.title);
       b.append(img, span); b.addEventListener('click', () => selectPhoto(i));
       li.append(b); list.append(li);
     });
@@ -297,7 +294,7 @@ void main(){
     $('#demo-select-subject').disabled = !has;
     $('#demo-mask-controls').hidden = !state.maskOn;
     $('#demo-select-subject').setAttribute('aria-pressed', String(state.maskOn));
-    note.textContent = !has ? T.maskMissing : state.maskOn ? T.maskFound(current.photo.subject || current.photo.title) : T.maskNone;
+    note.textContent = !has ? T.maskMissing : state.maskOn ? T.maskFound(word(current.photo.subject) || word(current.photo.title)) : T.maskNone;
   }
   $('#demo-select-subject').addEventListener('click', () => { state.maskOn = !state.maskOn; updateMaskUi(); render(); });
   $$('input[name=demo-mask-target]').forEach((r) => r.addEventListener('change', () => { state.maskTarget = r.value; render(); }));
@@ -329,7 +326,7 @@ void main(){
     Object.assign(state, NEUTRAL, { aspect: 'original', maskOn: false });
     $$('input[type=range][data-key]').forEach((input) => { input.value = String(NEUTRAL[input.dataset.key]); syncSlider(input); });
     $('input[name=demo-aspect][value=original]').checked = true;
-    updateMaskUi(); render(); status.textContent = T.reset;
+    updateMaskUi(); render(); setStatus('reset');
   });
 
   // ---------- guided tour ----------
@@ -384,6 +381,25 @@ void main(){
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !tour.hidden) { e.preventDefault(); closeTour(); } });
   window.addEventListener('resize', () => { if (!tour.hidden) placeTour(); });
 
+  function updateDenoiseNote() { if (current) $('#demo-denoise-note').textContent = current.clean ? T.denoiseModeClean : T.denoiseModeBlur; }
+  function labelResets() { $$('[data-reset-for]').forEach((b) => b.setAttribute('aria-label', t('demoResetSlider', { name: t(b.dataset.resetFor) }))); }
+  // A language change re-labels everything this script wrote (the rest of the page is handled by KestrelI18n).
+  i18n?.onChange(() => {
+    labelResets(); updateDenoiseNote(); updateMaskUi(); updateSplit();
+    $$('.demo-thumb').forEach((b, i) => {
+      b.setAttribute('aria-label', T.photoLabel(word(photos[i].title), i + 1, photos.length));
+      b.querySelector('.demo-thumb-title').textContent = word(photos[i].title);
+    });
+    if (current) { canvas.setAttribute('aria-label', word(current.photo.alt) || word(current.photo.title)); }
+    if (statusKey) setStatus(statusKey);
+    if (!tour.hidden) {
+      const s = T.tour[step];
+      $('#demo-tour-count').textContent = T.step(step + 1, T.tour.length);
+      $('#demo-tour-title').textContent = s.title; $('#demo-tour-body').textContent = s.body;
+    }
+  });
+  labelResets();
+
   // ---------- start ----------
   const webgl = setupGl();
   if (!webgl) { root.classList.add('no-webgl'); }
@@ -395,5 +411,5 @@ void main(){
       if (!photos.length) throw new Error('no photos');
       buildPicker(); return selectPhoto(0);
     })
-    .catch((error) => { console.warn(error); status.textContent = T.loadFailed; });
+    .catch((error) => { console.warn(error); setStatus('loadFailed'); });
 })();

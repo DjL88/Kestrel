@@ -48,42 +48,46 @@
     .contact-form button{justify-self:start;border:0;font:inherit;font-weight:700;cursor:pointer}
     .contact-form button:disabled{opacity:.65;cursor:default}
     #contact-status{min-height:1.55em;margin:0;color:#d3d9e5}
+    .picker{display:inline-flex;align-items:center;gap:8px;font-size:.9rem;color:#d3d9e5}.picker select{min-height:40px;padding:6px 10px;border-radius:8px;border:1px solid #5e6270;background:var(--panel);color:inherit;font:inherit}.picker select:focus-visible{outline:3px solid var(--dusk);outline-offset:2px}
+    .price{margin:0 0 4px!important;font-size:1.6rem;color:var(--ivory)!important}.price span{font-size:1rem;color:#bfc6d2}.price-tax{font-size:.88rem}.currency{margin-top:16px}
+    .buy{border:0;font:inherit;font-weight:700}.buy:disabled{opacity:.7;cursor:default}
     footer{padding:30px 0;border-top:1px solid #343946;color:#bfc6d2}
     @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
   </style>
 </head>
 <body>
 <header><div class="wrap bar">
-  <a class="brand" href="#top" aria-label="Kestrel home"><img class="mark" src="assets/kestrel-symbol.svg" alt="" width="46" height="39">Kestrel</a>
-  <nav aria-label="Main navigation"><a href="#downloads">Downloads</a><a href="#install">Install</a><a href="#try">Try it</a><a href="#pricing">Pricing</a><a href="#getting-started">Getting started</a><a href="#privacy">Privacy</a><a href="#contact">Contact</a></nav>
+  <a class="brand" href="#top" data-i18n-attr="aria-label:navHome" aria-label="Kestrel home"><img class="mark" src="assets/kestrel-symbol.svg" alt="" width="46" height="39">Kestrel</a>
+  <nav data-i18n-attr="aria-label:navLabel" aria-label="Main navigation"><a href="#try" data-i18n="navTry">Try it</a><a href="#downloads" data-i18n="navDownloads">Downloads</a><a href="#install" data-i18n="navInstall">Install</a><a href="#pricing" data-i18n="navPricing">Pricing</a><a href="#getting-started" data-i18n="navStart">Getting started</a><a href="#privacy" data-i18n="navPrivacy">Privacy</a><a href="#contact" data-i18n="navContact">Contact</a></nav>
+  <label class="picker"><span data-i18n="languageLabel">Language</span><select id="language-select"></select></label>
 </div></header>
 <main id="top" class="wrap">
-  <h1>More time behind the camera.</h1>
-  <p class="lead">Kestrel is a photo workspace for importing, culling, editing and exporting. It sets out to make editing quicker and easier to understand: find the keepers, make a few edits you can follow, and export.</p>
-  <p><a class="cta" href="#try">Try the editing tools</a> <a href="#downloads">Explore downloads</a> · <a href="#pricing">See pricing</a></p>
+  <h1 data-i18n="heroTitle">More time behind the camera.</h1>
+  <p class="lead" data-i18n="heroLead">Kestrel is a photo workspace for importing, culling, editing and exporting. It sets out to make editing quicker and easier to understand: find the keepers, make a few edits you can follow, and export.</p>
+  <p><a class="cta" href="#try" data-i18n="heroTry">Try the editing tools</a> <a href="#downloads" data-i18n="heroDownloads">Explore downloads</a> · <a href="#pricing" data-i18n="heroPricing">See pricing</a></p>
   <section id="aims" aria-labelledby="aims-title">
-    <h2 id="aims-title">What Kestrel sets out to do</h2>
+    <h2 id="aims-title" data-i18n="aimsTitle">What Kestrel sets out to do</h2>
     <div class="grid">
-      <article class="card"><h3>Work offline</h3><p>Import, cull, edit and export without an internet connection or an account. Your photos stay on your device or in storage you choose.</p></article>
-      <article class="card"><h3>Never change your originals</h3><p>Kestrel does not change, move or replace an original file. Edits are saved as steps you can change or undo at any time.</p></article>
-      <article class="card"><h3>Stay calm and accessible</h3><p>A quiet screen, plain words, full keyboard access and reduced motion. Nothing relies on colour alone. It is designed with colour-blind, ADHD and autistic photographers in mind.</p></article>
-      <article class="card"><h3>Be honest about what it knows</h3><p>When Kestrel is unsure, it says so. It tells you when it shows a RAW file’s built-in preview, never invents detail, and keeps uncertain photos for you to review instead of rejecting them.</p></article>
-      <article class="card"><h3>Help without taking over</h3><p>Machine learning can help reduce noise, find a subject or suggest a mask. Every suggestion is yours to check and adjust.</p></article>
-      <article class="card"><h3>Work the same everywhere</h3><p>The same tools and the same way of working on Windows, macOS and the web, with iPhone, iPad and Android to follow.</p></article>
-      <article class="card"><h3>Pay once</h3><p>A free beta now. Pro is planned as a one-off licence that works offline, not a subscription.</p></article>
+      <article class="card"><h3 data-i18n="aimOfflineTitle">Work offline</h3><p data-i18n="aimOfflineBody">Import, cull, edit and export without an internet connection or an account. Your photos stay on your device or in storage you choose.</p></article>
+      <article class="card"><h3 data-i18n="aimOriginalsTitle">Never change your originals</h3><p data-i18n="aimOriginalsBody">Kestrel does not change, move or replace an original file. Edits are saved as steps you can change or undo at any time.</p></article>
+      <article class="card"><h3 data-i18n="aimCalmTitle">Stay calm and accessible</h3><p data-i18n="aimCalmBody">A quiet screen, plain words, full keyboard access and reduced motion. Nothing relies on colour alone. It is designed with colour-blind, ADHD and autistic photographers in mind.</p></article>
+      <article class="card"><h3 data-i18n="aimHonestTitle">Be honest about what it knows</h3><p data-i18n="aimHonestBody">When Kestrel is unsure, it says so. It tells you when it shows a RAW file’s built-in preview, never invents detail, and keeps uncertain photos for you to review instead of rejecting them.</p></article>
+      <article class="card"><h3 data-i18n="aimHelpTitle">Help without taking over</h3><p data-i18n="aimHelpBody">Machine learning can help reduce noise, find a subject or suggest a mask. Every suggestion is yours to check and adjust.</p></article>
+      <article class="card"><h3 data-i18n="aimSameTitle">Work the same everywhere</h3><p data-i18n="aimSameBody">The same tools and the same way of working on Windows, macOS and the web, with iPhone, iPad and Android to follow.</p></article>
+      <article class="card"><h3 data-i18n="aimOnceTitle">Pay once</h3><p data-i18n="aimOnceBody">Free while Kestrel is being tested. Pro is planned as a one-off licence that works offline, not a subscription.</p></article>
     </div>
   </section>
   <section id="try" aria-labelledby="try-title">
-    <h2 id="try-title">Try the editing tools</h2>
-    <p class="muted">Edit a sample photo here in your browser. Nothing is uploaded.</p>
+    <h2 id="try-title" data-i18n="tryTitle">Try the editing tools</h2>
+    <p class="muted" data-i18n="trySub">Edit a sample photo here in your browser. Nothing is uploaded.</p>
     <div id="demo" class="demo" data-photos="demo/photos.json" data-tab="light">
-      <p class="demo-disclaimer"><span aria-hidden="true">ⓘ</span><span><strong>This is a demo of the tools, not the full app.</strong> It uses small sample images and a simplified preview, not Kestrel’s RAW engine. Denoise and subject selection are shown with pre-made versions of each sample.</span></p>
+      <p class="demo-disclaimer"><span aria-hidden="true">ⓘ</span><span data-i18n-html="demoDisclaimer"><strong>This is a demo of the tools, not the full app.</strong> It uses small sample images and a simplified preview, not Kestrel’s RAW engine. Denoise and subject selection are shown with pre-made versions of each sample.</span></p>
       <div class="demo-toolbar" data-tour="compare">
         <button type="button" id="demo-split" class="demo-btn" aria-pressed="false">Before and after: off</button>
-        <button type="button" id="demo-original" class="demo-btn" aria-pressed="false" title="Hold to see the original">Show original</button>
-        <button type="button" id="demo-reset" class="demo-btn">Reset all</button>
+        <button type="button" id="demo-original" class="demo-btn" aria-pressed="false" data-i18n="demoShowOriginal" data-i18n-attr="title:demoShowOriginalHint" title="Hold to see the original">Show original</button>
+        <button type="button" id="demo-reset" class="demo-btn" data-i18n="demoResetAll">Reset all</button>
         <span class="spacer"></span>
-        <button type="button" id="demo-tour-start" class="demo-btn primary">Guided tour</button>
+        <button type="button" id="demo-tour-start" class="demo-btn primary" data-i18n="demoTour">Guided tour</button>
       </div>
       <div class="demo-layout">
         <div>
@@ -91,158 +95,169 @@
             <canvas id="demo-canvas" role="img" aria-label="Sample photo" width="1200" height="800"></canvas>
             <img id="demo-fallback" alt="">
             <div id="demo-compare" class="demo-compare" hidden>
-              <span class="tag before">Before</span><span class="tag after">After</span>
-              <input id="demo-split-range" type="range" min="0" max="100" step="1" value="50" aria-label="Before and after divider: before is on the left">
+              <span class="tag before" data-i18n="demoBefore">Before</span><span class="tag after" data-i18n="demoAfter">After</span>
+              <input id="demo-split-range" type="range" min="0" max="100" step="1" value="50" data-i18n-attr="aria-label:demoDivider" aria-label="Before and after divider: before is on the left">
               <span class="line" aria-hidden="true"></span>
             </div>
           </div>
           <p id="demo-status" class="demo-status" role="status" aria-live="polite"></p>
-          <ul id="demo-photos" class="demo-photos" aria-label="Sample photos" data-tour="photos"></ul>
+          <ul id="demo-photos" class="demo-photos" data-i18n-attr="aria-label:demoPhotos" aria-label="Sample photos" data-tour="photos"></ul>
         </div>
         <div class="demo-panel">
-          <div class="demo-tabs" role="tablist" aria-label="Editing tools">
-            <button type="button" role="tab" id="tab-light" data-tab="light" aria-controls="panel-light" aria-selected="true" data-tour="light">Light</button>
-            <button type="button" role="tab" id="tab-colour" data-tab="colour" aria-controls="panel-colour" aria-selected="false" tabindex="-1" data-tour="colour">Colour</button>
-            <button type="button" role="tab" id="tab-detail" data-tab="detail" aria-controls="panel-detail" aria-selected="false" tabindex="-1" data-tour="detail">Detail</button>
-            <button type="button" role="tab" id="tab-mask" data-tab="mask" aria-controls="panel-mask" aria-selected="false" tabindex="-1" data-tour="mask">Mask</button>
-            <button type="button" role="tab" id="tab-crop" data-tab="crop" aria-controls="panel-crop" aria-selected="false" tabindex="-1" data-tour="crop">Crop</button>
+          <div class="demo-tabs" role="tablist" data-i18n-attr="aria-label:demoTools" aria-label="Editing tools">
+            <button type="button" role="tab" id="tab-light" data-tab="light" aria-controls="panel-light" aria-selected="true" data-tour="light" data-i18n="tabLight">Light</button>
+            <button type="button" role="tab" id="tab-colour" data-tab="colour" aria-controls="panel-colour" aria-selected="false" tabindex="-1" data-tour="colour" data-i18n="tabColour">Colour</button>
+            <button type="button" role="tab" id="tab-detail" data-tab="detail" aria-controls="panel-detail" aria-selected="false" tabindex="-1" data-tour="detail" data-i18n="tabDetail">Detail</button>
+            <button type="button" role="tab" id="tab-mask" data-tab="mask" aria-controls="panel-mask" aria-selected="false" tabindex="-1" data-tour="mask" data-i18n="tabMask">Mask</button>
+            <button type="button" role="tab" id="tab-crop" data-tab="crop" aria-controls="panel-crop" aria-selected="false" tabindex="-1" data-tour="crop" data-i18n="tabCrop">Crop</button>
           </div>
           <div class="demo-tabpanel" id="panel-light" role="tabpanel" aria-labelledby="tab-light">
-            <div class="demo-slider"><label for="d-exposure">Exposure</label><button type="button" class="demo-value" aria-label="Reset exposure">0</button><span class="demo-track"><span class="origin"></span><input id="d-exposure" type="range" data-key="exposure" min="-3" max="3" step="0.05" value="0"></span></div>
-            <div class="demo-slider"><label for="d-contrast">Contrast</label><button type="button" class="demo-value" aria-label="Reset contrast">0</button><span class="demo-track"><span class="origin"></span><input id="d-contrast" type="range" data-key="contrast" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-highlights">Highlights</label><button type="button" class="demo-value" aria-label="Reset highlights">0</button><span class="demo-track"><span class="origin"></span><input id="d-highlights" type="range" data-key="highlights" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-shadows">Shadows</label><button type="button" class="demo-value" aria-label="Reset shadows">0</button><span class="demo-track"><span class="origin"></span><input id="d-shadows" type="range" data-key="shadows" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-whites">Whites</label><button type="button" class="demo-value" aria-label="Reset whites">0</button><span class="demo-track"><span class="origin"></span><input id="d-whites" type="range" data-key="whites" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-blacks">Blacks</label><button type="button" class="demo-value" aria-label="Reset blacks">0</button><span class="demo-track"><span class="origin"></span><input id="d-blacks" type="range" data-key="blacks" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-exposure" data-i18n="slider_exposure">Exposure</label><button type="button" class="demo-value" data-reset-for="slider_exposure" aria-label="Reset exposure">0</button><span class="demo-track"><span class="origin"></span><input id="d-exposure" type="range" data-key="exposure" min="-3" max="3" step="0.05" value="0"></span></div>
+            <div class="demo-slider"><label for="d-contrast" data-i18n="slider_contrast">Contrast</label><button type="button" class="demo-value" data-reset-for="slider_contrast" aria-label="Reset contrast">0</button><span class="demo-track"><span class="origin"></span><input id="d-contrast" type="range" data-key="contrast" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-highlights" data-i18n="slider_highlights">Highlights</label><button type="button" class="demo-value" data-reset-for="slider_highlights" aria-label="Reset highlights">0</button><span class="demo-track"><span class="origin"></span><input id="d-highlights" type="range" data-key="highlights" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-shadows" data-i18n="slider_shadows">Shadows</label><button type="button" class="demo-value" data-reset-for="slider_shadows" aria-label="Reset shadows">0</button><span class="demo-track"><span class="origin"></span><input id="d-shadows" type="range" data-key="shadows" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-whites" data-i18n="slider_whites">Whites</label><button type="button" class="demo-value" data-reset-for="slider_whites" aria-label="Reset whites">0</button><span class="demo-track"><span class="origin"></span><input id="d-whites" type="range" data-key="whites" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-blacks" data-i18n="slider_blacks">Blacks</label><button type="button" class="demo-value" data-reset-for="slider_blacks" aria-label="Reset blacks">0</button><span class="demo-track"><span class="origin"></span><input id="d-blacks" type="range" data-key="blacks" min="-100" max="100" step="1" value="0"></span></div>
           </div>
           <div class="demo-tabpanel" id="panel-colour" role="tabpanel" aria-labelledby="tab-colour" hidden>
-            <div class="demo-slider"><label for="d-temperature">Temperature</label><button type="button" class="demo-value" aria-label="Reset temperature">0</button><span class="demo-track"><span class="origin"></span><input id="d-temperature" type="range" data-key="temperature" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-tint">Tint</label><button type="button" class="demo-value" aria-label="Reset tint">0</button><span class="demo-track"><span class="origin"></span><input id="d-tint" type="range" data-key="tint" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-vibrance">Vibrance</label><button type="button" class="demo-value" aria-label="Reset vibrance">0</button><span class="demo-track"><span class="origin"></span><input id="d-vibrance" type="range" data-key="vibrance" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-saturation">Saturation</label><button type="button" class="demo-value" aria-label="Reset saturation">0</button><span class="demo-track"><span class="origin"></span><input id="d-saturation" type="range" data-key="saturation" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-temperature" data-i18n="slider_temperature">Temperature</label><button type="button" class="demo-value" data-reset-for="slider_temperature" aria-label="Reset temperature">0</button><span class="demo-track"><span class="origin"></span><input id="d-temperature" type="range" data-key="temperature" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-tint" data-i18n="slider_tint">Tint</label><button type="button" class="demo-value" data-reset-for="slider_tint" aria-label="Reset tint">0</button><span class="demo-track"><span class="origin"></span><input id="d-tint" type="range" data-key="tint" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-vibrance" data-i18n="slider_vibrance">Vibrance</label><button type="button" class="demo-value" data-reset-for="slider_vibrance" aria-label="Reset vibrance">0</button><span class="demo-track"><span class="origin"></span><input id="d-vibrance" type="range" data-key="vibrance" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-saturation" data-i18n="slider_saturation">Saturation</label><button type="button" class="demo-value" data-reset-for="slider_saturation" aria-label="Reset saturation">0</button><span class="demo-track"><span class="origin"></span><input id="d-saturation" type="range" data-key="saturation" min="-100" max="100" step="1" value="0"></span></div>
           </div>
           <div class="demo-tabpanel" id="panel-detail" role="tabpanel" aria-labelledby="tab-detail" hidden>
-            <div class="demo-slider"><label for="d-clarity">Clarity</label><button type="button" class="demo-value" aria-label="Reset clarity">0</button><span class="demo-track"><span class="origin"></span><input id="d-clarity" type="range" data-key="clarity" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-denoise">Denoise</label><button type="button" class="demo-value" aria-label="Reset denoise">0</button><span class="demo-track"><span class="origin"></span><input id="d-denoise" type="range" data-key="denoise" min="0" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-clarity" data-i18n="slider_clarity">Clarity</label><button type="button" class="demo-value" data-reset-for="slider_clarity" aria-label="Reset clarity">0</button><span class="demo-track"><span class="origin"></span><input id="d-clarity" type="range" data-key="clarity" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-denoise" data-i18n="slider_denoise">Denoise</label><button type="button" class="demo-value" data-reset-for="slider_denoise" aria-label="Reset denoise">0</button><span class="demo-track"><span class="origin"></span><input id="d-denoise" type="range" data-key="denoise" min="0" max="100" step="1" value="0"></span></div>
             <p id="demo-denoise-note" class="demo-note"></p>
           </div>
           <div class="demo-tabpanel" id="panel-mask" role="tabpanel" aria-labelledby="tab-mask" hidden>
-            <button type="button" id="demo-select-subject" class="demo-btn" aria-pressed="false">Select subject</button>
+            <button type="button" id="demo-select-subject" class="demo-btn" aria-pressed="false" data-i18n="demoSelectSubject">Select subject</button>
             <p id="demo-mask-note" class="demo-note" aria-live="polite"></p>
             <div id="demo-mask-controls" hidden>
-              <fieldset class="demo-choice"><legend>Edit</legend>
-                <label><input type="radio" name="demo-mask-target" value="subject" checked>Subject only</label>
-                <label><input type="radio" name="demo-mask-target" value="background">Background only</label>
+              <fieldset class="demo-choice"><legend data-i18n="demoMaskEdit">Edit</legend>
+                <label><input type="radio" name="demo-mask-target" value="subject" checked><span data-i18n="demoSubjectOnly">Subject only</span></label>
+                <label><input type="radio" name="demo-mask-target" value="background"><span data-i18n="demoBackgroundOnly">Background only</span></label>
               </fieldset>
-              <label class="demo-check"><input type="checkbox" id="demo-overlay" checked>Show mask as a striped overlay</label>
-            <div class="demo-slider"><label for="d-maskExposure">Mask exposure</label><button type="button" class="demo-value" aria-label="Reset mask exposure">0</button><span class="demo-track"><span class="origin"></span><input id="d-maskExposure" type="range" data-key="maskExposure" min="-2" max="2" step="0.05" value="0"></span></div>
-            <div class="demo-slider"><label for="d-maskSaturation">Mask saturation</label><button type="button" class="demo-value" aria-label="Reset mask saturation">0</button><span class="demo-track"><span class="origin"></span><input id="d-maskSaturation" type="range" data-key="maskSaturation" min="-100" max="100" step="1" value="0"></span></div>
-            <div class="demo-slider"><label for="d-maskWarmth">Mask warmth</label><button type="button" class="demo-value" aria-label="Reset mask warmth">0</button><span class="demo-track"><span class="origin"></span><input id="d-maskWarmth" type="range" data-key="maskWarmth" min="-100" max="100" step="1" value="0"></span></div>
+              <label class="demo-check"><input type="checkbox" id="demo-overlay" checked><span data-i18n="demoOverlay">Show mask as a striped overlay</span></label>
+            <div class="demo-slider"><label for="d-maskExposure" data-i18n="slider_maskExposure">Mask exposure</label><button type="button" class="demo-value" data-reset-for="slider_maskExposure" aria-label="Reset mask exposure">0</button><span class="demo-track"><span class="origin"></span><input id="d-maskExposure" type="range" data-key="maskExposure" min="-2" max="2" step="0.05" value="0"></span></div>
+            <div class="demo-slider"><label for="d-maskSaturation" data-i18n="slider_maskSaturation">Mask saturation</label><button type="button" class="demo-value" data-reset-for="slider_maskSaturation" aria-label="Reset mask saturation">0</button><span class="demo-track"><span class="origin"></span><input id="d-maskSaturation" type="range" data-key="maskSaturation" min="-100" max="100" step="1" value="0"></span></div>
+            <div class="demo-slider"><label for="d-maskWarmth" data-i18n="slider_maskWarmth">Mask warmth</label><button type="button" class="demo-value" data-reset-for="slider_maskWarmth" aria-label="Reset mask warmth">0</button><span class="demo-track"><span class="origin"></span><input id="d-maskWarmth" type="range" data-key="maskWarmth" min="-100" max="100" step="1" value="0"></span></div>
             </div>
           </div>
           <div class="demo-tabpanel" id="panel-crop" role="tabpanel" aria-labelledby="tab-crop" hidden>
-            <fieldset class="demo-choice"><legend>Shape</legend>
-              <label><input type="radio" name="demo-aspect" value="original" checked>Original</label>
+            <fieldset class="demo-choice"><legend data-i18n="demoShape">Shape</legend>
+              <label><input type="radio" name="demo-aspect" value="original" checked><span data-i18n="demoShapeOriginal">Original</span></label>
               <label><input type="radio" name="demo-aspect" value="1:1">1:1</label>
               <label><input type="radio" name="demo-aspect" value="4:5">4:5</label>
               <label><input type="radio" name="demo-aspect" value="3:2">3:2</label>
               <label><input type="radio" name="demo-aspect" value="16:9">16:9</label>
             </fieldset>
-            <div class="demo-slider"><label for="d-angle">Straighten</label><button type="button" class="demo-value" aria-label="Reset straighten">0</button><span class="demo-track"><span class="origin"></span><input id="d-angle" type="range" data-key="angle" min="-10" max="10" step="0.1" value="0"></span></div>
-            <p class="demo-note">The crop zooms in just enough to avoid empty corners when you straighten.</p>
+            <div class="demo-slider"><label for="d-angle" data-i18n="slider_angle">Straighten</label><button type="button" class="demo-value" data-reset-for="slider_angle" aria-label="Reset straighten">0</button><span class="demo-track"><span class="origin"></span><input id="d-angle" type="range" data-key="angle" min="-10" max="10" step="0.1" value="0"></span></div>
+            <p class="demo-note" data-i18n="demoCropNote">The crop zooms in just enough to avoid empty corners when you straighten.</p>
           </div>
         </div>
       </div>
       <div id="demo-tour" class="demo-tour" role="dialog" aria-labelledby="demo-tour-title" aria-describedby="demo-tour-body" hidden>
-        <button type="button" id="demo-tour-close" class="close" aria-label="Close the guided tour">×</button>
+        <button type="button" id="demo-tour-close" class="close" data-i18n-attr="aria-label:tourClose" aria-label="Close the guided tour">×</button>
         <p id="demo-tour-count" class="count"></p>
         <h3 id="demo-tour-title"></h3>
         <p id="demo-tour-body"></p>
         <div class="actions">
-          <button type="button" id="demo-tour-back" class="demo-btn">Back</button>
-          <button type="button" id="demo-tour-next" class="demo-btn primary">Next</button>
-          <button type="button" id="demo-tour-done" class="demo-btn primary" hidden>Finish</button>
+          <button type="button" id="demo-tour-back" class="demo-btn" data-i18n="tourBack">Back</button>
+          <button type="button" id="demo-tour-next" class="demo-btn primary" data-i18n="tourNext">Next</button>
+          <button type="button" id="demo-tour-done" class="demo-btn primary" data-i18n="tourFinish" hidden>Finish</button>
         </div>
       </div>
-      <p class="demo-credit">Sample photos are computer-drawn for this demo. Press Escape to close the tour.</p>
+      <p class="demo-credit" data-i18n="demoCredit">Sample photos are computer-drawn for this demo. Press Escape to close the tour.</p>
       <noscript><p class="muted">Turn on JavaScript to try the editing tools.</p></noscript>
     </div>
   </section>
   <section id="downloads" aria-labelledby="downloads-title">
-    <h2 id="downloads-title">Get Kestrel</h2>
-    <p class="muted">Kestrel is in development. Installers appear here only after a matching application release has been published. Model files and source archives are not app installers.</p>
+    <h2 id="downloads-title" data-i18n="downloadsTitle">Get Kestrel</h2>
+    <p class="muted" data-i18n="downloadsIntro">Kestrel is in development. Installers appear here only after a matching application release has been published. Model files and source archives are not app installers.</p>
     <div class="grid">
-      <article class="card" data-platform="mac"><h3>macOS</h3><p>Desktop editing and local storage.</p><span id="mac" class="pill">Coming soon</span></article>
-      <article class="card" data-platform="windows"><h3>Windows</h3><p>Desktop editing and local storage.</p><span id="windows" class="pill">Coming soon</span></article>
-      <article class="card" data-platform="ios"><h3>iPhone &amp; iPad</h3><p>Touch-first culling and editing.</p><span id="ios" class="pill">Coming soon</span></article>
-      <article class="card" data-platform="android"><h3>Android</h3><p>Touch-first culling and editing.</p><span id="android" class="pill">Coming soon</span></article>
+      <article class="card" data-platform="mac"><h3>macOS</h3><p data-i18n="platformDesktop">Desktop editing and local storage.</p><span id="mac" class="pill" data-i18n="comingSoon">Coming soon</span></article>
+      <article class="card" data-platform="windows"><h3>Windows</h3><p data-i18n="platformDesktop">Desktop editing and local storage.</p><span id="windows" class="pill" data-i18n="comingSoon">Coming soon</span></article>
+      <article class="card" data-platform="ios"><h3 data-i18n="platformIos">iPhone and iPad</h3><p data-i18n="platformTouch">Touch-first culling and editing.</p><span id="ios" class="pill" data-i18n="comingSoon">Coming soon</span></article>
+      <article class="card" data-platform="android"><h3>Android</h3><p data-i18n="platformTouch">Touch-first culling and editing.</p><span id="android" class="pill" data-i18n="comingSoon">Coming soon</span></article>
     </div>
-    <p id="release-status" class="muted" role="status" aria-live="polite">Checking for published app downloads…</p>
+    <p id="release-status" class="muted" role="status" aria-live="polite" data-i18n="releaseChecking">Checking for published app downloads…</p>
   </section>
   <section id="install" aria-labelledby="install-title">
-    <h2 id="install-title">Installing the beta</h2>
-    <p class="muted">Beta builds are not yet signed by Apple or Microsoft, so each system asks you to confirm before the first launch. Download only from this page.</p>
+    <h2 id="install-title" data-i18n="installTitle">Installing Kestrel</h2>
+    <p class="muted" data-i18n="installIntro">Early builds are not yet signed by Apple or Microsoft, so each system asks you to confirm before the first launch. Download only from this page.</p>
     <div class="grid">
-      <article class="card"><h3>macOS</h3><p>Open the downloaded disk image and drag Kestrel to Applications. The first time, right-click Kestrel, choose <strong>Open</strong>, then <strong>Open</strong> again.</p></article>
-      <article class="card"><h3>Windows</h3><p>Run the installer. If Windows says it protected your PC, choose <strong>More info</strong>, then <strong>Run anyway</strong>.</p></article>
+      <article class="card"><h3>macOS</h3><p data-i18n-html="installMac">Open the downloaded disk image and drag Kestrel to Applications. The first time, right-click Kestrel, choose <strong>Open</strong>, then <strong>Open</strong> again.</p></article>
+      <article class="card"><h3>Windows</h3><p data-i18n-html="installWindows">Run the installer. If Windows says it protected your PC, choose <strong>More info</strong>, then <strong>Run anyway</strong>.</p></article>
     </div>
-    <p class="note">Your photographs are never changed or uploaded by installing or using Kestrel. Signed installers will replace these steps in a later release.</p>
+    <p class="note" data-i18n="installNote">Your photographs are never changed or uploaded by installing or using Kestrel. Signed installers will replace these steps in a later release.</p>
   </section>
   <section id="pricing" aria-labelledby="pricing-title">
-    <h2 id="pricing-title">Planned pricing</h2>
-    <p class="muted"><strong>Nothing can be bought yet.</strong> Kestrel is a free beta. These are the plans, and they may change before anything goes on sale. No account or payment details are needed to use the beta.</p>
+    <h2 id="pricing-title" data-i18n="pricingTitle">Planned pricing</h2>
+    <p class="muted" data-i18n-html="pricingIntro"><strong>Nothing can be bought yet.</strong> Kestrel is free while it is being tested. These are the plans, and they may change before anything goes on sale. No account or payment details are needed.</p>
     <div class="grid">
-      <article class="card"><h3>Free beta <span class="pill">Available now</span></h3><p>Import, cull, edit and export on your own computer, offline. During the beta every feature is open.</p></article>
-      <article class="card"><h3>Pro <span class="pill">Planned, not on sale</span></h3><p><strong>£29 one-time base price.</strong> Your total will include any applicable VAT or sales tax before you pay. Pro is planned to include masks, subject detection, species suggestions and assisted culling. The licence works offline.</p></article>
-      <article class="card"><h3>Cloud <span class="pill">Later, not available</span></h3><p>No cloud service exists. You keep your photos wherever you like, and can already copy settings between devices. A paid cloud option may follow if people ask for one.</p></article>
+      <article class="card"><h3><span data-i18n="freeTitle">Free</span> <span class="pill" data-i18n="freePill">While testing</span></h3><p data-i18n="freeBody">Import, cull, edit and export on your own computer, offline. While Kestrel is being tested, every feature is open.</p></article>
+      <article class="card"><h3><span data-i18n="proTitle">Pro</span> <span class="pill" data-i18n="proPill">Planned, not on sale</span></h3>
+        <p class="price"><strong id="pro-price">£29</strong> <span data-i18n="priceOnce">one-off</span></p>
+        <p class="price-tax" data-i18n="priceTax">Before any local tax. VAT and sales tax will be confirmed before anything goes on sale.</p>
+        <p data-i18n="proBody">Pro is planned to include masks, subject detection, species suggestions and assisted culling. The licence works offline.</p>
+        <button type="button" class="cta buy" disabled data-i18n="buySoon">Available soon</button>
+      </article>
+      <article class="card"><h3><span data-i18n="cloudTitle">Cloud</span> <span class="pill" data-i18n="cloudPill">Later, not available</span></h3><p data-i18n="cloudBody">No cloud service exists. You keep your photos wherever you like, and can already copy settings between devices. A paid cloud option may follow if people ask for one.</p></article>
     </div>
+    <p class="picker currency"><label for="currency-select" data-i18n="currencyLabel">Show prices in</label><select id="currency-select"></select></p>
   </section>
   <section id="requirements" aria-labelledby="requirements-title">
-    <h2 id="requirements-title">System requirements</h2>
+    <h2 id="requirements-title" data-i18n="reqTitle">System requirements</h2>
     <ul class="steps">
-      <li><strong>macOS:</strong> to be confirmed once the first beta is tested on real Macs (built for Apple silicon and Intel).</li>
-      <li><strong>Windows:</strong> to be confirmed once the first beta is tested on real PCs.</li>
-      <li><strong>Storage:</strong> room for the optional on-device species model (about 90 MB) and your catalogue. Originals can stay on external drives.</li>
+      <li data-i18n-html="reqMac"><strong>macOS:</strong> to be confirmed once the first build is tested on real Macs (built for Apple silicon and Intel).</li>
+      <li data-i18n-html="reqWindows"><strong>Windows:</strong> to be confirmed once the first build is tested on real PCs.</li>
+      <li data-i18n-html="reqStorage"><strong>Storage:</strong> room for the optional on-device species model (about 90 MB) and your catalogue. Originals can stay on external drives.</li>
     </ul>
   </section>
   <section id="getting-started" aria-labelledby="start-title">
-    <h2 id="start-title">Getting started</h2>
+    <h2 id="start-title" data-i18n="startTitle">Getting started</h2>
     <ol class="steps">
-      <li><strong>Import:</strong> choose photographs or a folder stored on your device. Keep a separate backup of your originals.</li>
-      <li><strong>Cull:</strong> review photographs, mark Keep or Reject, and compare neighbouring frames.</li>
-      <li><strong>Edit:</strong> adjust light, colour and crops. Edits are reversible and do not rewrite the original file.</li>
-      <li><strong>Export:</strong> choose a format and save the rendered photograph.</li>
+      <li data-i18n-html="startImport"><strong>Import:</strong> choose photographs or a folder stored on your device. Keep a separate backup of your originals.</li>
+      <li data-i18n-html="startCull"><strong>Cull:</strong> review photographs, mark Keep or Reject, and compare neighbouring frames.</li>
+      <li data-i18n-html="startEdit"><strong>Edit:</strong> adjust light, colour and crops. Edits are reversible and do not rewrite the original file.</li>
+      <li data-i18n-html="startExport"><strong>Export:</strong> choose a format and save the rendered photograph.</li>
     </ol>
-    <p class="note"><strong>Nikon RAW note:</strong> Browser-based NEF handling currently relies on embedded previews. Full-resolution RAW decoding, including Nikon High Efficiency variants, must be validated in native builds before it is advertised as supported.</p>
+    <p class="note" data-i18n-html="nikonNote"><strong>Nikon RAW note:</strong> Browser-based NEF handling currently relies on embedded previews. Full-resolution RAW decoding, including Nikon High Efficiency variants, must be validated in native builds before it is advertised as supported.</p>
   </section>
   <section id="devices" aria-labelledby="devices-title">
-    <h2 id="devices-title">Your photos, your storage, your devices</h2>
+    <h2 id="devices-title" data-i18n="devicesTitle">Your photos, your storage, your devices</h2>
     <ol class="steps">
-      <li><strong>Unlock Pro:</strong> on the home screen choose <em>Licence and settings</em> and paste the key from your receipt. No account, and it works offline.</li>
-      <li><strong>Keep photos anywhere:</strong> on any drive, a NAS, or a folder that iCloud Drive, Dropbox or OneDrive syncs. Kestrel never moves or changes your originals.</li>
-      <li><strong>Copy settings to another device:</strong> choose <em>Save settings file</em> and save it in iCloud Drive, then choose <em>Load settings file</em> on your other Mac, PC or phone.</li>
+      <li data-i18n-html="devicesUnlock"><strong>Unlock Pro:</strong> on the home screen choose <em>Licence and settings</em> and paste the key from your receipt. No account, and it works offline.</li>
+      <li data-i18n-html="devicesAnywhere"><strong>Keep photos anywhere:</strong> on any drive, a NAS, or a folder that iCloud Drive, Dropbox or OneDrive syncs. Kestrel never moves or changes your originals.</li>
+      <li data-i18n-html="devicesCopy"><strong>Copy settings to another device:</strong> choose <em>Save settings file</em> and save it in iCloud Drive, then choose <em>Load settings file</em> on your other Mac, PC or phone.</li>
     </ol>
   </section>
   <section id="privacy" aria-labelledby="privacy-title">
-    <h2 id="privacy-title">Your photographs remain yours</h2>
-    <p class="lead">Kestrel is local-first. Import, cull and edit without an account. Optional online analysis or future cloud features must be turned on deliberately. Your originals are not silently uploaded.</p>
+    <h2 id="privacy-title" data-i18n="privacyTitle">Your photographs remain yours</h2>
+    <p class="lead" data-i18n="privacyBody">Kestrel is local-first. Import, cull and edit without an account. Optional online analysis or future cloud features must be turned on deliberately. Your originals are not silently uploaded.</p>
   </section>
   <section id="contact" aria-labelledby="contact-title">
-    <h2 id="contact-title">Contact Kestrel</h2>
+    <h2 id="contact-title" data-i18n="contactTitle">Contact Kestrel</h2>
     <form id="contact-form" class="contact-form" action="/v1/contact" method="post">
-      <label class="contact-field">Name<input name="name" autocomplete="name" maxlength="100" required></label>
-      <label class="contact-field">Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
-      <label class="contact-field">Message<textarea name="message" rows="5" maxlength="5000" required></textarea></label>
+      <label class="contact-field"><span data-i18n="contactName">Name</span><input name="name" autocomplete="name" maxlength="100" required></label>
+      <label class="contact-field"><span data-i18n="contactEmail">Email</span><input name="email" type="email" autocomplete="email" maxlength="254" required></label>
+      <label class="contact-field"><span data-i18n="contactMessage">Message</span><textarea name="message" rows="5" maxlength="5000" required></textarea></label>
       <label hidden>Leave this empty<input name="website" maxlength="200" autocomplete="off" tabindex="-1"></label>
-      <label class="contact-consent"><input name="consent" type="checkbox" required>Kestrel may store my email and message to reply.</label>
-      <button class="cta" type="submit" disabled>Send message</button>
+      <label class="contact-consent"><input name="consent" type="checkbox" required><span data-i18n="contactConsent">Kestrel may store my email and message to reply.</span></label>
+      <button class="cta" type="submit" disabled data-i18n="contactSend">Send message</button>
       <p id="contact-status" role="status"></p>
     </form>
     <noscript><p class="muted">Enable JavaScript to send a message.</p></noscript>
   </section>
 </main>
-<footer><div class="wrap">Kestrel · Pre-release · <a href="#contact">Report a problem</a></div></footer>
+<footer><div class="wrap"><span data-i18n="footerText">Kestrel · Pre-release</span> · <a href="#contact" data-i18n="footerReport">Report a problem</a></div></footer>
+
+<script src="assets/i18n-strings.js"></script>
+<script src="assets/i18n.js"></script>
+<script src="assets/prices.js"></script>
 <script>
+  const i18n = window.KestrelI18n;
   // Kestrel's own download bucket (Google Cloud). The page links only to installers listed there.
   // latest.json is written by scripts/release/publish-gcp.ps1 and lists each file with its size and SHA-256.
   const DOWNLOADS_LATEST = document.querySelector('meta[name="kestrel-downloads"]')?.content || '';
@@ -260,12 +275,11 @@
     card.classList.add('suggested');
     const label = document.createElement('p');
     label.className = 'suggest';
-    label.textContent = '★ Suggested for this device';
+    i18n.bind(label, 'suggested');
     card.prepend(label);
     card.parentElement.prepend(card);
   })();
-  // Only expose genuine installable release assets from explicitly versioned app releases.
-  // Species model releases and auto-generated source archives are never download links.
+  // Only expose genuine installable release assets listed in latest.json.
   const patterns = {
     mac: /\.(dmg|pkg)$/i,
     windows: /\.(msi|msix|exe)$/i,
@@ -275,9 +289,8 @@
     const target = document.getElementById(id);
     const link = document.createElement('a');
     link.className = 'download';
-    link.href = asset.browser_download_url || asset.url;
-    link.textContent = 'Download ' + asset.name;
-    link.setAttribute('aria-label', 'Download Kestrel ' + asset.name);
+    link.href = asset.url;
+    i18n.bind(link, 'downloadFile', { name: asset.name });
     target.replaceWith(link);
   }
   (async () => {
@@ -286,23 +299,18 @@
       try {
         const latest = await (await fetch(DOWNLOADS_LATEST, { cache: 'no-store' })).json();
         // Before the first release, latest.json says so; the cards keep saying "Coming soon".
-        if (latest && latest.status === 'coming-soon') {
-          status.textContent = latest.message || 'Kestrel isn’t released yet. Installers will appear here when the first release is ready.';
-          return;
-        }
+        if (latest && latest.status === 'coming-soon') { i18n.bind(status, 'releaseNotYet'); return; }
         if (latest && Array.isArray(latest.files) && /^\d+\.\d+\.\d+/.test(String(latest.version))) {
           for (const [id, expression] of Object.entries(patterns)) {
             const file = latest.files.find(candidate => expression.test(candidate.name) && /^https:\/\//.test(candidate.url));
             if (file) showAsset(id, file);
           }
-          status.textContent = 'Showing Kestrel ' + latest.version + '. Each file’s SHA-256 is in SHA256SUMS.txt beside it.';
+          i18n.bind(status, 'releaseShowing', { version: String(latest.version) });
           return;
         }
       } catch { /* reported below */ }
     }
-    status.textContent = DOWNLOADS_LATEST
-      ? 'Downloads could not be checked just now. Please try again later.'
-      : 'Installers will appear here when the first release is ready.';
+    i18n.bind(status, DOWNLOADS_LATEST ? 'releaseCheckFailed' : 'releaseNotYet');
   })();
 </script>
 <script src="assets/contact.js" defer></script>

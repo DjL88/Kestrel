@@ -12,8 +12,8 @@ Up to **5** entries are used, in order. Each entry:
 | Field | Required | What it is |
 | --- | --- | --- |
 | `id` | yes | Short unique name, e.g. `heron-river`. |
-| `title` | yes | Shown under the thumbnail, e.g. "Heron at the river". |
-| `alt` | yes | A plain description of the unedited photo, for screen readers. |
+| `title` | yes | Shown under the thumbnail, e.g. "Heron at the river". A plain string, or one entry per site language: `{ "en-GB": "Heron at the river", "fr": "Héron au bord de la rivière" }` (missing languages fall back to `en-GB`). |
+| `alt` | yes | A plain description of the unedited photo, for screen readers. String or per-language, as for `title`. |
 | `src` | yes | The photo to edit (see sizes below). |
 | `denoised` | no | The same photo, same size and framing, with noise reduced. The Denoise slider blends towards it. Without it, Denoise falls back to a simple blur and the page says it is a blur. |
 | `mask` | no | Subject mask: white subject on black, same framing (any size, e.g. half resolution). Without it, "Select subject" is turned off for that photo. |

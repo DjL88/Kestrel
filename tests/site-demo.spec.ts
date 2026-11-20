@@ -55,6 +55,47 @@ test('the guided tour can be started and dismissed with the keyboard', async ({ 
   await expect(start).toBeFocused();
 });
 
+test('the page follows the browser language, and the picker changes and remembers it', async ({ browser }) => {
+  const context = await browser.newContext({ locale: 'fr-FR' });
+  const page = await context.newPage();
+  await openDemo(page);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
+  await expect(page.locator('#language-select')).toHaveValue('fr');
+  await expect(page.getByRole('tab', { name: 'Lumière' })).toBeVisible();
+  await expect(page.locator('#pro-price')).toHaveText(/29\s?€/);
+  await page.locator('#language-select').selectOption('de');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+  await expect(page.locator('h1')).not.toHaveText('More time behind the camera.');
+  await page.reload();
+  await expect(page.locator('#language-select')).toHaveValue('de');
+  // Every language in the picker has the full table: no key is shown in place of text.
+  const missing = await page.evaluate(() => {
+    const table = (window as unknown as { KESTREL_STRINGS: Record<string, Record<string, string>> }).KESTREL_STRINGS;
+    const keys = Object.keys(table['en-GB']);
+    return Object.entries(table).flatMap(([lang, strings]) => keys.filter((key) => !strings[key]).map((key) => `${lang}.${key}`));
+  });
+  expect(missing).toEqual([]);
+  expect(await page.locator('#language-select option').count()).toBe(16);
+  await context.close();
+});
+
+test('prices come from the region with a manual override, before tax, and nothing can be bought', async ({ page }) => {
+  await page.goto(`${origin}/#pricing`);
+  await expect(page.locator('#pro-price')).toHaveText('£29');
+  await expect(page.getByText('Before any local tax.', { exact: false })).toBeVisible();
+  const buy = page.getByRole('button', { name: 'Available soon' });
+  await expect(buy).toBeDisabled();
+  await page.locator('#currency-select').selectOption('CAD');
+  await expect(page.locator('#pro-price')).toHaveText('CA$39');
+  await page.locator('#currency-select').selectOption('USD');
+  await expect(page.locator('#pro-price')).toHaveText('$29');
+  await page.reload();
+  await expect(page.locator('#pro-price')).toHaveText('$29');
+  await page.locator('#currency-select').selectOption('auto');
+  await expect(page.locator('#pro-price')).toHaveText('£29');
+  await expect(page.locator('a[href*="github.com"], a[href*="beta"]')).toHaveCount(0);
+});
+
 test('the demo fits a 375px phone screen', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await openDemo(page);
