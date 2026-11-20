@@ -93,3 +93,24 @@ test('a hard link cannot be used to relink a second photo in a 500-file batch', 
   assert.equal(result.ok, false);
   if (!result.ok) assert.ok(result.failures.some(f => f.photoId === 'p499' && f.reason === 'duplicate-candidate-path'));
 }));
+
+test('an already cancelled 500-photo relink returns no partial matches', async () => sandbox(async dir => {
+  const controller = new AbortController();
+  controller.abort();
+  const originals = Array.from({ length: 500 }, (_, i) => identity('p' + i, 'original-' + i));
+  const files = originals.map(o => ({ photoId: o.photoId, path: join(dir, o.photoId + '.nef') }));
+  const result = await verifyDesktopRelinkFiles(originals, files, controller.signal);
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.ok(result.failures.some(f => f.reason === 'relink-cancelled'));
+}));
+
+test('cancellation leaves an existing original unchanged', async () => sandbox(async dir => {
+  const path = join(dir, 'keeper.nef');
+  const bytes = 'original bird bytes';
+  await writeFile(path, bytes);
+  const controller = new AbortController();
+  controller.abort();
+  const result = await verifyDesktopRelinkFiles([identity('keeper', bytes)], [{ photoId: 'keeper', path }], controller.signal);
+  assert.equal(result.ok, false);
+  assert.equal(await (await import('node:fs/promises')).readFile(path, 'utf8'), bytes);
+}));
