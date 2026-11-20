@@ -104,7 +104,7 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
         : { left: rect.x, top: rect.y, width: rect.width, height: rect.height, resize: 'both', maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100dvh - 24px)' }}
       onPointerDownCapture={bringToFront}
       onFocusCapture={bringToFront}
-      onKeyDownCapture={(event) => {
+      onKeyDown={(event) => {
         if (event.key !== 'Escape' || event.defaultPrevented) return;
         if (event.target instanceof Element && event.target.closest('input, textarea, select, [role="dialog"], [role="listbox"], [contenteditable="true"]')) return;
         event.preventDefault();
