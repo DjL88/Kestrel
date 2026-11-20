@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Info, SlidersHorizontal, Square, SquareCheck, Star, X } from 'lucide-react';
+import { Check, CircleHelp, Info, SlidersHorizontal, Square, SquareCheck, Star, X } from 'lucide-react';
 import type { CullDecision, PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { DecisionButtons } from './DecisionButtons';
@@ -11,7 +11,7 @@ import { speciesShown } from '../core/autoTags';
 import { FrameImage } from './FrameImage';
 import { jumpTarget, type JumpRequest } from '../core/jumpNavigation';
 import { openPhotoMenuFromKeyboard } from './PhotoContextMenu';
-import { messages as m } from '../i18n/messages';
+import { contactSheetLayout, SHEET_GAP_PX as GAP_PX, SHEET_PADDING_PX as PADDING_PX } from '../core/contactSheetLayout';
 import { libraryText as t } from '../i18n/areas/library';
 
 interface VirtualizedContactSheetProps {
@@ -33,12 +33,6 @@ interface VirtualizedContactSheetProps {
   onDecideFrame: (frameId: string, decision: CullDecision) => void;
   onResetFrame: (frameId: string) => void;
 }
-
-const GAP_PX = 12;
-const PADDING_PX = 16;
-const FOOTER_HEIGHT = 44;
-// Narrow cards stack the filename above the buttons, so the three touch-sized buttons fit.
-const STACKED_FOOTER_HEIGHT = 84;
 
 export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = ({
   frames,
@@ -96,20 +90,13 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
     return () => ro.disconnect();
   }, []);
 
-  const columns = useMemo(() => {
-    if (viewport.width >= 1280) return 5;
-    if (viewport.width >= 960) return 4;
-    if (viewport.width >= 640) return 3;
-    if (viewport.width >= 420) return 2;
-    return 1;
-  }, [viewport.width]);
+  // Constrain actual card widths, not just the number of columns. Previously a forced
+  // 240px minimum made the 420/640/960px grids overflow and hid action targets.
+  const { columns, cardWidth, stacked, footerHeight, cardHeight, rowStride } = useMemo(
+    () => contactSheetLayout(viewport.width), [viewport.width]
+  );
 
-  const cardWidth = useMemo(() => {
-    const usable = Math.max(240, viewport.width - PADDING_PX * 2 - GAP_PX * (columns - 1));
-    return Math.floor(usable / columns);
-  }, [viewport.width, columns]);
-
-  // 3:2 thumbnail + footer height
+  // Desktop Jump lives in the shared toolbar; phones keep their own sticky control.
   const [toolsSlot, setToolsSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
     const desktop = window.matchMedia('(min-width: 768px)');
@@ -118,12 +105,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
     desktop.addEventListener('change', find);
     return () => desktop.removeEventListener('change', find);
   }, []);
-  // Cards can be narrow even in three- or four-column layouts. Use actual tile width,
-  // not column count, so the info button never competes with cull controls.
-  const stacked = cardWidth < 360;
-  const footerHeight = stacked ? STACKED_FOOTER_HEIGHT : FOOTER_HEIGHT;
-  const cardHeight = Math.round((cardWidth * 2) / 3) + footerHeight;
-  const rowStride = cardHeight + GAP_PX;
+
   const totalRows = Math.ceil(frames.length / columns);
   const totalHeight = Math.max(0, totalRows * rowStride + PADDING_PX * 2);
 
@@ -150,6 +132,15 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
     setJumpError('');
     setJumpOpen(false);
   }
+
+  // A width change can shorten the grid; clamp the virtualised scroll window too.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const next = Math.min(el.scrollTop, Math.max(0, totalHeight - el.clientHeight));
+    if (el.scrollTop !== next) el.scrollTop = next;
+    setScrollTop(previous => previous === next ? previous : next);
+  }, [totalHeight, viewport.height]);
 
   // Scroll selected card into view when navigating via keyboard inside grid
   useEffect(() => {
@@ -382,10 +373,13 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                               ? <SquareCheck data-testid="tile-selected" className="h-3.5 w-3.5 shrink-0 text-sky-200" aria-hidden="true" />
                               : <Square className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />)}
                             <span className="truncate">{frame.filename}</span>
-                            {frame.decision === 'unreviewed' && <span className="sr-only">, {m.review}</span>}
+
                           </div>
                           <div className="flex min-w-0 items-center gap-1.5 text-[10px] text-zinc-500">
                             {/* The decision in words and a shape, so it never depends on telling blue from orange. */}
+                            {frame.decision === 'unreviewed' && <span data-testid="tile-decision"
+                              className="inline-flex shrink-0 items-center gap-0.5 rounded border border-white/20 px-1 font-semibold text-zinc-200">
+                              <CircleHelp className="h-2.5 w-2.5" aria-hidden="true" />{t.decision.undecided}</span>}
                             {isKeep && <span data-testid="tile-decision" className="inline-flex shrink-0 items-center gap-0.5 rounded bg-sky-400/15 px-1 font-semibold text-sky-100">
                               <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />{t.sheet.kept}</span>}
                             {isReject && <span data-testid="tile-decision" className="inline-flex shrink-0 items-center gap-0.5 rounded border border-dashed border-orange-300/60 px-1 font-semibold text-orange-100">
@@ -408,7 +402,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         </div>
                         <button type="button" data-info-button onClick={(event) => onInfo(frame.id, event.currentTarget)}
                           aria-label={t.sheet.photoInfoFor(frame.filename)} title={t.sheet.photoInfoFor(frame.filename)}
-                          className={`grid shrink-0 place-items-center rounded-md text-zinc-300 hover:bg-white/8 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-sky-300 ${stacked ? 'h-9 w-9' : 'h-7 w-7'}`}>
+                          className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md text-zinc-300 hover:bg-white/8 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-sky-300">
                           <Info className="h-4 w-4" aria-hidden="true" />
                         </button>
                       </div>

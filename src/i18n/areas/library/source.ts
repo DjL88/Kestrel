@@ -112,6 +112,13 @@ export const source = {
     photoInfoFor: (filename: string) => `Photo info and rating for ${filename}`,
   },
   decision: {
+    /** Cull states, not photo deletion. Untranslated entries fall back to British English. */
+    undecided: 'Undecided',
+    undecidedPhoto: (filename: string) => `Move ${filename} back to review (Undecided)`,
+    reject: 'Reject',
+    rejectPhoto: (filename: string) => `Reject ${filename}`,
+    rejected: 'Rejected',
+    rejectedPhoto: (filename: string) => `${filename} is already rejected`,
     keepPhoto: (filename: string) => `Keep ${filename}`,
     keep: 'Keep',
     backToReviewPhoto: (filename: string) => `Move ${filename} back to review`,
