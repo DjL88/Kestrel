@@ -69,7 +69,7 @@ export function evaluateCullGroundTruth(frames: readonly LabelledCullFrame[]): C
       keeperCount++;
       if (frame.suggestion !== 'reject') keptKeepers++;
       if (frame.suggestion === 'keep') automaticKeptKeepers++;
-      else falseRejects++;
+      if (frame.suggestion === 'reject') falseRejects++;
     }
     if (frame.truth === 'reject') {
       nonKeeperCount++;
@@ -108,6 +108,17 @@ export function passesCullSafetyGate(
     Number.isFinite(maximumFalseRejectRate) &&
     maximumFalseRejectRate >= 0 && maximumFalseRejectRate <= 1 &&
     evaluation.invalid === 0 && evaluation.total === evaluation.evaluated &&
+    evaluation.errors.length === 0 &&
+    evaluation.evaluated === evaluation.keeperCount + evaluation.nonKeeperCount &&
+    evaluation.evaluated === evaluation.proposedKeep + evaluation.proposedReject + evaluation.abstained &&
+    evaluation.falseRejects >= 0 && evaluation.falseRejects <= evaluation.keeperCount &&
+    evaluation.falseKeeps >= 0 && evaluation.falseKeeps <= evaluation.nonKeeperCount &&
+    evaluation.aircraftLabelledBird >= 0 && evaluation.aircraftLabelledBird <= evaluation.aircraftCount &&
+    evaluation.keeperRecall !== null &&
+    evaluation.keeperRecall === 1 - evaluation.falseRejects / evaluation.keeperCount &&
+    evaluation.falseRejectRate === evaluation.falseRejects / evaluation.keeperCount &&
+    evaluation.falseKeepRate === evaluation.falseKeeps / evaluation.nonKeeperCount &&
+    evaluation.automaticKeeperRecall <= evaluation.keeperRecall &&
     evaluation.evaluated >= minimumEvaluated &&
     evaluation.nonKeeperCount > 0 && evaluation.falseKeeps === 0 &&
     evaluation.falseKeepRate === 0 &&
