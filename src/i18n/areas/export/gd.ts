@@ -126,6 +126,8 @@ export const gd: AreaTranslation<typeof source> = {
     hiddenTiles: (shown, hidden) => `A’ sealltainn ${shown} ro-sheallaidhean. Thèid an ${files(hidden)} eile a dhèanamh san aon dòigh.`,
   },
   custom: {
+    allowUpscale: "Meudaich dealbhan beaga (ath-mheudachadh àbhaisteach)",
+    upscaleNote: "Tha seo a’ meudachadh àireamh nam piogsail ach chan eil e a’ toirt air ais mion-fhiosrachadh a tha a dhìth. Tha an ro-shealladh a’ sealltainn a’ bhàrr; thoir sùil air an fhaidhle a chaidh a shàbhaladh.",
     width: 'Leud (px)',
     height: 'Àirde (px)',
     fit: 'Freagairt',
