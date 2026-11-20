@@ -4,6 +4,19 @@ import type { source } from './source';
 
 /** Dutch. DRAFT: written without a native speaker's check. */
 export const nl: AreaTranslation<typeof source> = {
+  metadata: {
+    title: "Bestandsmetadata (optioneel)",
+    include: "Bewerkbare metadata in JPEG / PNG opnemen",
+    privacy: "Standaard uit. Oorspronkelijke EXIF-, GPS-, serienummer- en locatiegegevens worden niet gekopieerd. Alleen gekozen informatie wordt als XMP opgeslagen.",
+    photoTitle: "Fototitel / onderwerp",
+    perPhoto: "Elke foto gebruikt het bevestigde onderwerp, tenzij je één gezamenlijke titel invult.",
+    caption: "Beschrijving of bijschrift",
+    creator: "Fotograaf / maker",
+    copyright: "Auteursrecht",
+    includeKeywords: "Trefwoorden opnemen",
+    keywords: "Trefwoorden (komma's; leeg = bevestigde tags)",
+    help: "Bevestigde onderwerpen kunnen de titel en trefwoorden invullen. Onbevestigde AI-gissingen worden nooit geëxporteerd. Deze informatie staat in het bestand, niet op de foto.",
+  },
   rawTiff: {
     action: "16-bits RAW-TIFF exporteren (prototype)",
     details: "Over 16-bits RAW-TIFF",
