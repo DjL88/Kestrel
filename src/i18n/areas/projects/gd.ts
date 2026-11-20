@@ -269,6 +269,8 @@ export const gd: AreaTranslation<typeof source> = {
     dismiss: 'Leig seachad',
   },
   licence: {
+    viewProPricing: "Faic prìs Pro",
+    pricingUnavailable: "Fosgail làrach-lìn Kestrel sa bhrabhsair agad gus prìs Pro fhaicinn.",
     thanks: 'Mòran taing. Tha Kestrel Pro neo-ghlaiste air an uidheam seo.',
     settingsSaved: 'Air a shàbhaladh. Cuir am faidhle an àiteigin a ruigeas na h-uidheaman eile agad, mar iCloud Drive.',
     noSettings: 'Chan eil roghainnean atharraichte ann fhathast ri shàbhaladh.',
