@@ -217,6 +217,8 @@ export const fr: AreaTranslation<typeof source> = {
     dismiss: 'Ignorer',
   },
   tasks: {
+    retry: "Réessayer",
+    retryRemaining: "Réessayer les fichiers restants dans cette session",
     tasks: 'Tâches',
     working: 'En cours',
     busy: 'Occupé',

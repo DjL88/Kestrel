@@ -424,6 +424,10 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
         title: `${t.results.backgroundSaving(planned.length)} · ${destination.folder}`,
         items: planned.map(entry => entry.item),
         recipe: options,
+        // Only native desktop folder writes use createNew/exclusive output.
+        // Cloud/NAS connectors may not guarantee no-overwrite, so they must
+        // never be auto-retried after an ambiguous remote PUT.
+        retrySafe: kind === 'desktop',
       }, {
         async render(item, recipe, signal) {
           signal.throwIfAborted();

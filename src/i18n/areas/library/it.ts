@@ -214,6 +214,8 @@ export const it: AreaTranslation<typeof source> = {
     dismiss: 'Chiudi',
   },
   tasks: {
+    retry: "Riprova",
+    retryRemaining: "Riprova i file rimanenti in questa sessione",
     tasks: 'Attività',
     working: 'In corso',
     busy: 'Occupato',

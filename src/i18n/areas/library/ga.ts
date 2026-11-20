@@ -211,6 +211,8 @@ export const ga: AreaTranslation<typeof source> = {
     dismiss: 'Ruaig',
   },
   tasks: {
+    retry: "Atriail",
+    retryRemaining: "Bain triail eile as na comhaid atá fágtha sa seisiún seo",
     tasks: 'Tascanna',
     working: 'Ag obair',
     busy: 'Gnóthach',

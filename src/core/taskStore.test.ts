@@ -156,3 +156,21 @@ test('health: progress keeps a task from being called stalled', () => {
   task.progress(9);
   assert.equal(taskHealth(store.list(), time), 'ok');
 });
+
+test('dismissing a resolved failed export does not hide unrelated failures or running work', () => {
+  const store = createTaskStore();
+  const running = store.start('Culling');
+  const resolved = store.start('Export to local disk');
+  const another = store.start('Other failed export');
+  resolved.fail('Drive disconnected');
+  another.fail('Network error');
+  let notifications = 0;
+  store.subscribe(() => { notifications++; });
+  assert.equal(store.dismissFinished(running.id), false, 'an active task cannot be dismissed');
+  assert.equal(store.dismissFinished(resolved.id), true);
+  assert.equal(store.dismissFinished(resolved.id), false);
+  assert.equal(notifications, 1);
+  assert.deepEqual(store.list().map(t => [t.id, t.state]), [
+    [running.id, 'running'], [another.id, 'failed'],
+  ]);
+});

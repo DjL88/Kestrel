@@ -217,6 +217,8 @@ export const de: AreaTranslation<typeof source> = {
     dismiss: 'Ausblenden',
   },
   tasks: {
+    retry: "Erneut versuchen",
+    retryRemaining: "Verbleibende Dateien in dieser Sitzung erneut speichern",
     tasks: 'Aufgaben',
     working: 'Läuft',
     busy: 'Ausgelastet',

@@ -208,6 +208,8 @@ export const cy: AreaTranslation<typeof source> = {
     dismiss: 'Diystyru',
   },
   tasks: {
+    retry: "Ailgeisio",
+    retryRemaining: "Ailgeisio'r ffeiliau sydd ar ôl yn y sesiwn hon",
     tasks: 'Tasgau',
     working: 'Wrthi',
     busy: 'Prysur',

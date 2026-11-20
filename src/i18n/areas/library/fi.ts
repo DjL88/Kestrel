@@ -220,6 +220,8 @@ export const fi: AreaTranslation<typeof source> = {
     dismiss: 'Sulje',
   },
   tasks: {
+    retry: "Yritä uudelleen",
+    retryRemaining: "Yritä tallentaa jäljellä olevat tiedostot uudelleen tässä istunnossa",
     tasks: 'Tehtävät',
     working: 'Käynnissä',
     busy: 'Kiireinen',

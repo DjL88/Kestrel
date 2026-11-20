@@ -217,6 +217,8 @@ export const nl: AreaTranslation<typeof source> = {
     dismiss: 'Sluiten',
   },
   tasks: {
+    retry: "Opnieuw",
+    retryRemaining: "Probeer de resterende bestanden opnieuw in deze sessie",
     tasks: 'Taken',
     working: 'Bezig',
     busy: 'Druk',

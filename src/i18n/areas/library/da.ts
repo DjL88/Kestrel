@@ -217,6 +217,8 @@ export const da: AreaTranslation<typeof source> = {
     dismiss: 'Afvis',
   },
   tasks: {
+    retry: "Prøv igen",
+    retryRemaining: "Prøv at gemme de resterende filer igen i denne session",
     tasks: 'Opgaver',
     working: 'Arbejder',
     busy: 'Travl',

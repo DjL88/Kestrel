@@ -15,6 +15,9 @@ export interface ExportBatchPlan<Recipe> {
   readonly title: string;
   readonly items: readonly ExportBatchItem[];
   readonly recipe: Recipe;
+  /** Only enable for destinations that atomically reject existing file names.
+   * This is a same-app-session retry, NOT crash/restart resume. */
+  readonly retrySafe?: boolean;
 }
 export interface ExportBatchAdapter<Recipe, Output> {
   render(item: Readonly<ExportBatchItem>, recipe: Readonly<Recipe>, signal: AbortSignal): Promise<Output>;
@@ -26,7 +29,7 @@ export interface ExportBatchTicket {
   readonly done: Promise<ExportBatchResult>;
   cancel(): boolean;
 }
-export type ExportTaskStore = Pick<typeof tasks, 'start' | 'cancel'>;
+export type ExportTaskStore = Pick<typeof tasks, 'start' | 'cancel' | 'list' | 'dismissFinished'>;
 const invalid = /[\\/:*?"<>|\u0000-\u001f]/;
 
 export function exportFolderName(value: string): string {
@@ -53,6 +56,11 @@ export function snapshotExportRecipe<Recipe>(recipe: Recipe): Readonly<Recipe> {
 
 export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
   const pending = new Map<number, () => Promise<void>>();
+  // Never keep user photographs or destination handles indefinitely. Only
+  // failed, explicitly retry-safe jobs are retained, with a bounded history.
+  const retryable = new Map<number, () => ExportBatchTicket>();
+  const MAX_RETRY_JOBS = 5;
+  const MAX_ATTEMPTS = 4; // initial run plus at most three explicit retries
   let running = false;
   let nextId = 0;
   function drain(): void {
@@ -63,6 +71,18 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
     pending.delete(id);
     running = true;
     void run().finally(() => { running = false; drain(); });
+  }
+  const retryPresent = (taskId: number): boolean =>
+    taskStore.list().some(task => task.id === taskId && task.state === 'failed');
+  function pruneRetryHistory(): void {
+    for (const id of retryable.keys()) {
+      if (!retryPresent(id)) retryable.delete(id);
+    }
+    while (retryable.size > MAX_RETRY_JOBS) {
+      const first = retryable.keys().next().value;
+      if (first === undefined) break;
+      retryable.delete(first);
+    }
   }
   return {
     enqueue<Recipe, Output>(plan: ExportBatchPlan<Recipe>, adapter: ExportBatchAdapter<Recipe, Output>): ExportBatchTicket {
@@ -80,55 +100,90 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
         return copy;
       });
       const recipe = snapshotExportRecipe(plan.recipe);
-      const id = ++nextId;
-      const controller = new AbortController();
-      let handle: TaskHandle | null = null;
-      let finished = false;
-      let resolveDone!: (result: ExportBatchResult) => void;
-      const done = new Promise<ExportBatchResult>((resolve) => { resolveDone = resolve; });
-      const cancel = () => {
-        if (finished || controller.signal.aborted) return false;
-        controller.abort();
-        if (handle) taskStore.cancel(handle.id);
-        if (pending.delete(id)) {
-          finished = true;
-          resolveDone('cancelled');
-        }
-        return true;
-      };
-      handle = taskStore.start(plan.title, { total: items.length, cancel });
-      pending.set(id, async () => {
-        if (controller.signal.aborted || handle?.cancelled) {
-          finished = true;
-          handle?.finish();
-          resolveDone('cancelled');
-          return;
-        }
-        try {
-          for (const [index, item] of items.entries()) {
-            if (controller.signal.aborted || handle?.cancelled) break;
-            const rendered = await adapter.render(item, recipe, controller.signal);
-            if (controller.signal.aborted || handle?.cancelled) break;
-            await adapter.save(item, rendered, controller.signal);
-            handle?.progress(index + 1, items.length, `${index + 1} of ${items.length} saved`);
-          }
-          if (controller.signal.aborted || handle?.cancelled) {
-            handle?.fail('Export stopped. Files already saved remain at the destination.');
+      const retrySafe = plan.retrySafe === true;
+      const title = plan.title;
+
+      // Retrying is an explicit fresh task in the SAME app session. The source
+      // recipe and destination remain the submitted snapshot; successfully
+      // saved files are skipped. A destination that cannot promise exclusive
+      // writes must never enable retrySafe.
+      function begin(startIndex: number, attempt: number): ExportBatchTicket {
+        const id = ++nextId;
+        const controller = new AbortController();
+        let handle: TaskHandle | null = null;
+        let finished = false;
+        let savedCount = startIndex;
+        let resolveDone!: (result: ExportBatchResult) => void;
+        const done = new Promise<ExportBatchResult>((resolve) => { resolveDone = resolve; });
+        const cancel = () => {
+          if (finished || controller.signal.aborted) return false;
+          controller.abort();
+          if (handle) taskStore.cancel(handle.id);
+          if (pending.delete(id)) {
+            finished = true;
             resolveDone('cancelled');
-          } else {
-            handle?.finish(`${items.length} files saved`);
-            resolveDone('completed');
           }
-        } catch (error) {
-          if (controller.signal.aborted || handle?.cancelled) resolveDone('cancelled');
-          else {
-            handle?.fail(error instanceof Error ? error.message : 'Could not save the export.');
-            resolveDone('failed');
+          return true;
+        };
+        handle = taskStore.start(title, { total: items.length, cancel });
+        if (startIndex > 0) handle.progress(startIndex, items.length, `${startIndex} already saved`);
+        pending.set(id, async () => {
+          if (controller.signal.aborted || handle?.cancelled) {
+            finished = true;
+            handle?.finish();
+            resolveDone('cancelled');
+            return;
           }
-        } finally { finished = true; }
-      });
-      drain();
-      return Object.freeze({ id, done, cancel });
+          try {
+            for (let index = startIndex; index < items.length; index++) {
+              if (controller.signal.aborted || handle?.cancelled) break;
+              const rendered = await adapter.render(items[index], recipe, controller.signal);
+              if (controller.signal.aborted || handle?.cancelled) break;
+              await adapter.save(items[index], rendered, controller.signal);
+              savedCount = index + 1; // only advance after confirmed write success
+              handle?.progress(savedCount, items.length, `${savedCount} of ${items.length} saved`);
+            }
+            if (controller.signal.aborted || handle?.cancelled) {
+              handle?.fail('Export stopped. Files already saved remain at the destination.');
+              resolveDone('cancelled');
+            } else {
+              handle?.finish(`${items.length} files saved`);
+              resolveDone('completed');
+            }
+          } catch (error) {
+            if (controller.signal.aborted || handle?.cancelled) resolveDone('cancelled');
+            else {
+              if (retrySafe && savedCount < items.length && attempt + 1 < MAX_ATTEMPTS && handle) {
+                // Register before fail() emits, so the Retry button appears
+                // in the same Task Manager update as the error.
+                retryable.set(handle.id, () => begin(savedCount, attempt + 1));
+              }
+              handle?.fail(error instanceof Error ? error.message : 'Could not save the export.');
+              // The task must be 'failed' before pruning; otherwise its
+              // just-created retry callback would be mistaken for stale.
+              pruneRetryHistory();
+              resolveDone('failed');
+            }
+          } finally { finished = true; }
+        });
+        drain();
+        return Object.freeze({ id, done, cancel });
+      }
+      return begin(0, 0);
+    },
+    /** Retry only an explicitly safe failed task; it never runs on restart or
+     * silently retries an unknown storage operation. */
+    canRetryTask(taskId: number): boolean {
+      return retryable.has(taskId) && retryPresent(taskId);
+    },
+    retryTask(taskId: number): ExportBatchTicket | null {
+      const retry = retryable.get(taskId);
+      if (!retry || !retryPresent(taskId)) { retryable.delete(taskId); return null; }
+      const ticket = retry(); // if enqueue fails, keep the original failure
+      retryable.delete(taskId);
+      taskStore.dismissFinished(taskId);
+      pruneRetryHistory();
+      return ticket;
     },
   };
 }

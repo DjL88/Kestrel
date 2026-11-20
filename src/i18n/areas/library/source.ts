@@ -220,6 +220,8 @@ export const source = {
     dismiss: 'Dismiss',
   },
   tasks: {
+    retry: "Retry",
+    retryRemaining: "Retry remaining files in this session",
     tasks: 'Tasks',
     working: 'Working',
     busy: 'Busy',
