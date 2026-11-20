@@ -448,3 +448,25 @@ Kestrel stays free and anonymous offline. An account is needed only to buy Pro o
 | 18 Nov 2026 (macOS check) | none | none | macOS arm64, Python 3.9, on a scratch merge of all twelve PRs and then on `main` (7206899): `tsc` PASS; `npm test` 752/752 PASS; `vite build` PASS; **Rust `cargo test` 24/24 PASS** with real files from eight makers (Canon CR3, Fujifilm RAF, Nikon NEF, OM ORF, Panasonic RW2, Pentax PEF, Sony ARW, DNG), which closes the "Rust NOT RUN" gap in the row above; Python tools PASS; Playwright 229 PASS / 31 FAIL, the same 22 distinct tests that failed on `main` before the twelve PRs. See P0.0. |
 | 18 Nov 2026 (consolidation, #368) | #368: self-removing desktop worker; `scripts/windows/Build-Kestrel.ps1`; Escape fix; online helper may classify unlabelled photos; browser tests updated to #336/#339; denoiser `index_photos` uses `read_lrcat`'s parser | none | Linux, on `main` + #368: `tsc` PASS; `npm test` 756/756 PASS; `vite build` PASS (web ships the caching worker, desktop the self-removing one); `cargo test --release` 19/19 PASS (no sample files here); Python `scripts`, `tools/denoise-training`, `tools/lightroom` PASS; Playwright (Chromium 1243) 325 PASS, 68 skipped, 1 flake. PowerShell scripts: NOT RUN (no Windows). |
 | 18 Nov 2026 (baseline, #392) | #392: TS 7 `flatMap` annotation in `backgroundAutoPolicy.ts`; auto-cull test expects review-only `low` for invalid scores (#375); species spec marks photos Wildlife first (#377) | none | Windows 11, clean `main` + #392: `tsc` PASS; `npm test` 820/820 PASS; `vite build` PASS; desktop `species.spec.ts` PASS. Phone burst tests in `species.spec.ts` time out (already did on `main`). Rust: NOT RUN (low disk). |
+
+
+---
+
+## 20 November 2026 — photo stacking and merging (new future capability)
+
+**Scope:** add an authentic, non-generative stacking/merging workflow after the core prototype's image, interface and performance work. It must not create or replace depicted objects.
+
+- **Burst alignment:** feature/subject-aware alignment, global transform then fine local refinement. Detect moving birds, foliage and subject boundaries; do not ghost the subject. Refuse ambiguous registration, preserve an original fallback.
+- **Focus stacking:** alignment followed by sharp-region selection with feathered transitions; review a preview and confidence/artefact warnings before saving.
+- **Exposure blending / HDR:** fuse real exposures using linear high-bit-depth pixels with natural highlight roll-off, colour management and movement masks; no hallucinated detail.
+- **Noise / astro stacking:** register repeated shots and combine real measurements for detail/noise improvement, with motion-aware rejection and a visible choice of which frames contribute.
+- **Panorama merge:** homography/lens-aware registration, seam finding and cropping; keep source provenance and offer a TIFF master.
+- **Workflow:** group bursts into a representative tile for browsing (reversible UI-only choice); select frames; compare contributors; render a reversible composite with non-destructive sidecars, exact source IDs, original metadata and destination; export 16-bit TIFF when genuinely supported.
+- **Quality gates:** match exact pixel dimensions, luminance/colour precision, edge seams, feather/leg detail, halo/double-image rate, memory caps, CPU/GPU fallback, cancellation/restart and offline execution. Test Nikon RAW/JPEG/HEIC/TIFF mixtures and near-duplicate/low-texture scenes. When measurements are absent, abstain rather than display a fabricated quality score.
+- **Resource control:** bounded background worker queue; chosen photograph remains responsive. Stack state persists across Library/Review/Edit without generating duplicates.
+
+**Design decision:** stacking is optional, not mandatory for the one-photo import-to-export path. All merged pixels must derive from user-owned source photographs; generative additions/removals remain out of scope.
+
+## 20 November 2026 — live workspace feedback / prototype acceptance
+
+The owner's direct feedback requests a single calm two-row photographic workspace, per-tab right-click Dock/Undock/Hide/Show with draggable and resizable floating panes, visible menu ownership, a small Before/After near zoom and full screen, reversible burst grouping, shared selection actions, and no compulsory undecided-photo popups. Background RAW tasks and editing previews must remain responsive when changing screens. Actual installed-app acceptance (Windows/Mac/mobile/tablet, translated locales, real Nikon RAWs) must still be run before claims of full completion.
