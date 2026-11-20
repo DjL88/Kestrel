@@ -4,6 +4,7 @@ import type { source } from './source';
 
 /** Spanish (Spain). DRAFT: written without a native speaker's check. */
 export const es: AreaTranslation<typeof source> = {
+  typeface: "Tipografía",
   sidecar: {
     save: "Guardar archivo XMP",
     saveFailed: "No se pudo guardar el archivo XMP. Elige un nombre que termine en .xmp.",

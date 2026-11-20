@@ -31,7 +31,7 @@ import { parseCustomExportDate } from '../core/exportDateInput';
 import { exportMayContinue } from '../core/exportCancellation';
 import { parseWatermark } from '../core/watermarkStore';
 import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, WATERMARK_FONTS, type WatermarkOptions } from '../core/watermark';
-import { NO_OVERLAY, overlayLines, type OverlayOptions } from '../core/exportOverlay';
+import { NO_OVERLAY, exportOverlayTitle, photoOverlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { exportFilename } from '../core/exportProfiles';
 import { SocialIcon } from './SocialIcon';
 import type { ExportPlace } from '../providers/exportToPlace';
@@ -593,7 +593,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
         <>
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="text-xs">{t.overlay.title}
-              <input className={field} maxLength={100} value={overlay.title ?? ''} onChange={(event) => setOverlay((prior) => ({ ...prior, title: event.target.value }))} />
+              <input className={field} maxLength={100} value={frames.length === 1 ? exportOverlayTitle(frames[0], overlay) : overlay.title ?? ''} onChange={(event) => setOverlay((prior) => ({ ...prior, title: event.target.value }))} />
             </label>
             <label className="text-xs">{t.overlay.location}
               <input className={field} maxLength={100} value={overlay.location ?? ''} onChange={(event) => setOverlay((prior) => ({ ...prior, location: event.target.value }))} />
@@ -629,7 +629,12 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               value={overlay.shade ?? 0.62} formatValue={percent}
               onChange={(value) => setOverlay((prior) => ({ ...prior, shade: value }))} />
           </div>
-          {frames.every((frame) => overlayLines(frame.exif, overlay).length === 0) && (
+          <label className="block text-sm text-zinc-300">{t.typeface}
+            <select className={field} value={overlay.font ?? 'inter'} onChange={event => setOverlay(prior => ({ ...prior, font: event.target.value as OverlayOptions['font'] }))}>
+              {WATERMARK_FONTS.map(font => <option key={font.id} value={font.id}>{font.label}</option>)}
+            </select>
+          </label>
+          {frames.every((frame) => photoOverlayLines(frame, overlay).length === 0) && (
             <p role="status" className="text-xs text-zinc-400">{t.overlay.noDetails}</p>
           )}
         </>
@@ -681,7 +686,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             </select>
           </label>
           {mark.kind === 'text' && (
-            <label className="block text-sm text-zinc-300">Watermark font
+            <label className="block text-sm text-zinc-300">{t.typeface}
               <select className={field} value={mark.font ?? 'inter'} onChange={(event) => setMark({ font: event.target.value as WatermarkOptions['font'] })}>
                 {WATERMARK_FONTS.map((font) => <option key={font.id} value={font.id}>{font.label}</option>)}
               </select>

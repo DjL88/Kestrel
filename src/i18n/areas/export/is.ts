@@ -4,6 +4,7 @@ import type { source } from './source';
 
 /** Icelandic. DRAFT: written without a native speaker's check. */
 export const is: AreaTranslation<typeof source> = {
+  typeface: "Leturgerð",
   sidecar: {
     save: "Vista XMP-hliðarskrá",
     saveFailed: "Ekki tókst að vista XMP-hliðarskrána. Veldu heiti sem endar á .xmp.",

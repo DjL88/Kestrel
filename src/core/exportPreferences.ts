@@ -63,7 +63,8 @@ function readOverlay(value: unknown): OverlayOptions | undefined {
   }
   return {
     ...NO_OVERLAY, on: value.on === true,
-    title: typeof value.title === 'string' ? value.title.slice(0, 100) : '',
+    title: typeof value.title === 'string' ? value.title.slice(0, 100) : undefined,
+    font: value.font === 'jakarta' || value.font === 'atkinson' ? value.font : 'inter',
     location: typeof value.location === 'string' ? value.location.slice(0, 100) : '',
     align: value.align === 'centre' || value.align === 'right' ? value.align : 'left',
     scale: bounded(value.scale, 0.75, 1.75, 1), shade: bounded(value.shade, 0, 1, 0.62),
