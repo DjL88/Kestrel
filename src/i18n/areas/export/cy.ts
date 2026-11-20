@@ -182,6 +182,9 @@ export const cy: AreaTranslation<typeof source> = {
     placeholder: '© Eich enw',
     pictureChosen: 'Delwedd wedi’i dewis. Dewiswch un arall i’w disodli.',
     pictureTooBig: 'Dewiswch ddelwedd o dan 3 MB, PNG gyda chefndir clir os yn bosibl.',
+    pictureMissing: "Nid yw'r ddelwedd ddyfrnod hon ar gael ar y ddyfais hon. Dewiswch hi eto cyn allforio.",
+    storageFailed: "Methu cadw'r ddelwedd hon yn breifat ar y ddyfais. Nid yw'r dyfrnod blaenorol wedi newid.",
+    localOnly: "Mae dyfrnodau delwedd yn aros ar y ddyfais hon. Dim ond cyfeirnod lleol mae rhagosodiad yn ei gadw, nid y ddelwedd.",
     position: 'Safle',
     positions: {
       topLeft: 'Brig chwith',
