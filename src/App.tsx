@@ -2075,7 +2075,7 @@ export default function App() {
               className="flex min-h-11 cursor-pointer list-none items-center rounded-md px-2 text-sm text-zinc-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 [&::-webkit-details-marker]:hidden">
               {libraryT.top.view}
             </summary>
-            <div className="absolute left-0 top-full z-50 mt-1 w-[min(18rem,calc(100vw-1rem))] space-y-1 rounded-xl border border-white/15 bg-kestrel-raised p-3 text-sm text-zinc-100 shadow-2xl">
+            <div className="absolute left-0 top-full z-50 mt-1 w-[min(18rem,calc(100vw-6rem))] space-y-1 rounded-xl border border-white/15 bg-kestrel-raised p-3 text-sm text-zinc-100 shadow-2xl">
               <label className="flex min-h-10 items-center gap-2">
                 <input type="checkbox" checked={showPhotoInfo && !panesCollapsed}
                   onChange={(event) => {
