@@ -125,6 +125,8 @@ export const nb: AreaTranslation<typeof source> = {
     }),
   },
   custom: {
+    allowUpscale: "Forstørr små bilder (vanlig skalering)",
+    upscaleNote: "Dette øker antallet piksler, men gjenoppretter ikke manglende detaljer. Forhåndsvisningen viser utsnittet; sjekk detaljene i den lagrede filen.",
     width: 'Bredde (px)',
     height: 'Høyde (px)',
     fit: 'Tilpasning',

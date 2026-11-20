@@ -125,6 +125,8 @@ export const sv: AreaTranslation<typeof source> = {
     }),
   },
   custom: {
+    allowUpscale: "Förstora små foton (vanlig skalning)",
+    upscaleNote: "Det ökar antalet pixlar men återställer inte saknade detaljer. Förhandsvisningen visar beskärningen; kontrollera detaljerna i den sparade filen.",
     width: 'Bredd (px)',
     height: 'Höjd (px)',
     fit: 'Anpassning',

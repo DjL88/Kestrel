@@ -72,7 +72,7 @@ const PREVIEW_PHOTOS = 4;
 const MAX_TILES = 12;
 
 const FIT_LABELS: Record<Fit, string> = t.fit;
-const DEFAULT_CUSTOM: CustomSize = { width: 1600, height: 1200, fit: 'keep', format: 'jpeg', quality: 90, prefix: 'custom_' };
+const DEFAULT_CUSTOM: CustomSize = { width: 1600, height: 1200, fit: 'keep', format: 'jpeg', quality: 90, prefix: 'custom_', allowUpscale: false };
 
 function readView(): 'wizard' | 'list' {
   try { return localStorage.getItem('kestrel.exportView') === 'list' ? 'list' : 'wizard'; } catch { return 'wizard'; }
@@ -609,12 +609,18 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             <input className={field} type="number" min={50} max={100} disabled={custom.format === 'png'} value={Number.isFinite(custom.quality) ? custom.quality : ''}
               onChange={(event) => setCustom((prior) => ({ ...prior, quality: event.target.valueAsNumber }))} />
           </label>
+          <label className="col-span-2 flex min-h-11 items-center gap-2 text-sm">
+            <input type="checkbox" checked={custom.allowUpscale === true}
+              onChange={(event) => setCustom((prior) => ({ ...prior, allowUpscale: event.target.checked }))} />
+            <span>{t.custom.allowUpscale}</span>
+          </label>
           <label className="col-span-2">{t.custom.filenamePrefix}
             <input className={field} maxLength={24} value={custom.prefix} onChange={(event) => setCustom((prior) => ({ ...prior, prefix: event.target.value }))} />
           </label>
           {customResult && 'error' in customResult
             ? <p role="alert" className="col-span-2 text-xs font-semibold text-orange-200">{customResult.error}</p>
-            : <p className="col-span-2 text-zinc-400">{t.custom.shapeNote(shapeName(custom.width, custom.height))}</p>}
+            : <p className="col-span-2 text-zinc-400">{custom.allowUpscale
+              ? t.custom.upscaleNote : t.custom.shapeNote(shapeName(custom.width, custom.height))}</p>}
         </div>
       )}
     </fieldset>

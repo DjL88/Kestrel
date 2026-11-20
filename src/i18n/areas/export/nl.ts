@@ -125,6 +125,8 @@ export const nl: AreaTranslation<typeof source> = {
     }),
   },
   custom: {
+    allowUpscale: "Kleine foto's vergroten (gewone schaling)",
+    upscaleNote: "Dit verhoogt het aantal pixels, maar herstelt geen ontbrekende details. Het voorbeeld toont de uitsnede; controleer de details in het opgeslagen bestand.",
     width: 'Breedte (px)',
     height: 'Hoogte (px)',
     fit: 'Passen',

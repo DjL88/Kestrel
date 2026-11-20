@@ -100,3 +100,27 @@ test('a picture too large for the device is scaled to fit, and one that fits is 
   const z8 = fitScale(8256, 5504, iphone);
   assert.ok(z8 < 0.62 && Math.round(8256 * z8) * Math.round(5504 * z8) <= iphone, 'a Z8 frame comes down to fit an iPhone');
 });
+
+
+test('custom enlargement is opt-in and never enables it for built-in destinations', async () => {
+  const { exportScale } = await import('./exportProfiles');
+  const custom = customFormat({ width: 3200, height: 2400, fit: 'keep', format: 'png',
+    quality: 95, prefix: '', allowUpscale: true });
+  assert.ok('format' in custom);
+  if ('format' in custom) {
+    const profile = toProfile(custom.format);
+    assert.equal(profile.allowUpscale, true);
+    assert.equal(exportScale(800, 600, profile), 4);
+    assert.equal(exportScale(6400, 4800, profile), 0.5);
+  }
+  const defaultCustom = customFormat({ width: 3200, height: 2400, fit: 'keep',
+    format: 'png', quality: 95, prefix: '' });
+  if ('format' in defaultCustom) {
+    assert.equal(toProfile(defaultCustom.format).allowUpscale, false);
+    assert.equal(exportScale(800, 600, toProfile(defaultCustom.format)), 1);
+  }
+  const social = toProfile(formatById('ig-45')!);
+  assert.equal(social.allowUpscale, false);
+  assert.equal(exportScale(320, 400, social), 1);
+  assert.equal(exportScale(800, 1000, social), 1);
+});

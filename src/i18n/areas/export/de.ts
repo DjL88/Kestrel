@@ -125,6 +125,8 @@ export const de: AreaTranslation<typeof source> = {
     }),
   },
   custom: {
+    allowUpscale: "Kleine Fotos vergrößern (herkömmliche Skalierung)",
+    upscaleNote: "Dies erhöht die Pixelzahl, kann aber keine fehlenden Details wiederherstellen. Die Vorschau zeigt den Ausschnitt; prüfen Sie die Details in der gespeicherten Datei.",
     width: 'Breite (px)',
     height: 'Höhe (px)',
     fit: 'Einpassen',

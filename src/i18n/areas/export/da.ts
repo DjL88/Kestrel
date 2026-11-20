@@ -125,6 +125,8 @@ export const da: AreaTranslation<typeof source> = {
     }),
   },
   custom: {
+    allowUpscale: "Forstør små fotos (almindelig skalering)",
+    upscaleNote: "Det øger antallet af pixels, men genskaber ikke manglende detaljer. Forhåndsvisningen viser beskæringen; kontrollér detaljerne i den gemte fil.",
     width: 'Bredde (px)',
     height: 'Højde (px)',
     fit: 'Tilpasning',
