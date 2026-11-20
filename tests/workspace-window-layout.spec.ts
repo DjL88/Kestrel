@@ -68,6 +68,16 @@ test('detached Photo Info and Editing Tools can be focused independently without
   expect(modalZ).toBeGreaterThan(orderB.tools);
   await settings.getByRole('button', { name: 'Done' }).click();
 
+  const pin = tools.getByRole('button', { name: 'Keep Editing tools visible in Photo only' });
+  await pin.click();
+  await expect(pin).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('f');
+  await expect(tools).toBeVisible();
+  await expect(info).toHaveCount(0);
+  await page.getByRole('button', { name: /Exit photo-only view/i }).click();
+  await expect(info).toBeVisible();
+  await expect(pin).toHaveAttribute('aria-pressed', 'true');
+
   await tools.getByRole('button', { name: /Move Editing tools/ }).focus();
   await page.keyboard.press('Escape');
   await expect(tools).toHaveCount(0);

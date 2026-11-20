@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Maximize2, Minimize2, PanelRightClose } from 'lucide-react';
+import { Maximize2, Minimize2, PanelRightClose, Pin } from 'lucide-react';
 import { clampPaneRect, FLOATING_PANE_GAP as GAP, type PaneRect } from '../core/floatingPaneGeometry';
 import { FLOATING_PANE_Z } from '../core/photoInfoLayout';
 
@@ -11,6 +11,7 @@ interface FloatingPaneProps {
   /** Optional focus return once the docked control is visible again. */
   dockFocusSelector?: string;
   initialSide?: 'left' | 'right';
+  photoOnly?: boolean;
   children: ReactNode;
 }
 
@@ -34,8 +35,13 @@ function initialRect(key: string, initialSide: 'left' | 'right'): PaneRect {
  * dimensions or gets clipped by the Library/Review/Edit flex layout.
  * The calling screen stays responsible for compact phone/tablet sheets.
  */
-export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, initialSide = 'right', children }: FloatingPaneProps) {
+export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, initialSide = 'right', photoOnly = false, children }: FloatingPaneProps) {
   const [rect, setRect] = useState<PaneRect>(() => initialRect(storageKey, initialSide));
+  const pinKey = `${storageKey}-photo-only`;
+  const [pinned, setPinned] = useState(() => {
+    try { return localStorage.getItem(pinKey) === 'true'; } catch { return false; }
+  });
+  const visible = !photoOnly || pinned;
   const [maximised, setMaximised] = useState(false);
   const drag = useRef<{ pointer: number; x: number; y: number; rect: PaneRect } | null>(null);
   const frame = useRef<HTMLElement>(null);
@@ -54,10 +60,11 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
     }
   };
   useEffect(() => {
+    if (!visible) return;
     frame.current?.querySelector<HTMLElement>('[data-pane-drag-handle]')?.focus();
     bringToFront();
     // The frame remains a normal region in the tab order; it is not a focus trap.
-  }, []);
+  }, [visible]);
 
   useEffect(() => {
     const onResize = () => setRect((current) => clampPaneRect(current, { width: window.innerWidth, height: window.innerHeight }));
@@ -96,6 +103,7 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
     setRect((current) => clampPaneRect({ ...current, width: bounds.width, height: bounds.height },
       { width: window.innerWidth, height: window.innerHeight }));
   };
+  if (!visible) return null;
   return createPortal(
     <section ref={frame} aria-label={title} data-floating-pane={storageKey}
       className="fixed z-40 flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/25 bg-kestrel-panel shadow-2xl"
@@ -129,6 +137,15 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
           aria-label={maximised ? `Restore ${title} panel size` : `Maximise ${title} panel`}
           className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
           {maximised ? <Minimize2 className="h-4 w-4" aria-hidden="true"/> : <Maximize2 className="h-4 w-4" aria-hidden="true"/>}
+        </button>
+        <button type="button" aria-pressed={pinned}
+          aria-label={`Keep ${title} visible in Photo only`} title={`Keep ${title} visible in Photo only`}
+          onClick={() => {
+            setPinned(!pinned);
+            try { localStorage.setItem(pinKey, String(!pinned)); } catch { /* Optional preference. */ }
+          }}
+          className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 aria-pressed:bg-white/20 focus-visible:outline-2 focus-visible:outline-sky-300">
+          <Pin className={`h-4 w-4 ${pinned ? 'fill-current' : ''}`} aria-hidden="true" />
         </button>
         <button type="button" onClick={dock} aria-label={`Dock ${title}`}
           className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
