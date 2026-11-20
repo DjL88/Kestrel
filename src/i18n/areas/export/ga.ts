@@ -21,6 +21,16 @@ export const ga: AreaTranslation<typeof source> = {
     keywords: "Eochairfhocail (le camóga; bán = clibeanna dearbhaithe)",
     help: "Féadann ábhair dhearbhaithe teideal agus eochairfhocail a líonadh. Ní easpórtáiltear buille faoi thuairim AI gan dearbhú. Stóráiltear an fhaisnéis sa chomhad, ní ar an ngrianghraf.",
   },
+  originals: {
+    title: "Bunchomhaid cheamara",
+    action: (count: number) => count === 1 ? "Sábháil an bunchomhad" : `Sábháil ${count} bunchomhad`,
+    background: (count: number) => count === 1 ? "Bunchomhad an cheamara á shábháil" : `Tá ${count} bunchomhad ceamara á sábháil`,
+    privacy: "Cóip bheacht den bhunchomhad, lena fhormáid agus sonraí EXIF/GPS. NÍ chuirtear eagarthóireacht, bearradh, comharthaí uisce ná athruithe ar mheiteashonraí easpórtála i bhfeidhm. Ní athraítear an comhad foinse.",
+    browserLimit: "Tá an rogha seo rómhór chun ZIP sábháilte a dhéanamh sa bhrabhsálaí. Úsáid an aip deisce chun na bunchomhaid a shábháil ceann ar cheann i bhfillteán.",
+    browserLimitHelp: "I gcás líon mór comhad RAW, sábhálann an aip deisce comhad amháin ag an am gan ZIP ollmhór a chruthú sa chuimhne.",
+    unavailable: "Níl bunchomhad ceamara ag grianghraif taispeána.",
+    sourceMissing: "Níl bunchomhad an cheamara ar fáil. Athcheangail an tiomántán nó an comhad foinse roimh chóipeáil.",
+  },
   rawTiff: {
     action: "Easpórtáil TIFF RAW 16-ghiotán (fréamhshamhail)",
     details: "Maidir le TIFF RAW 16-ghiotán",
