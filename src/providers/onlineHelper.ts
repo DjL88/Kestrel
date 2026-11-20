@@ -58,6 +58,7 @@ export async function checkKey(key: string, fetcher: Fetcher = fetch, signal?: A
     const query = new URLSearchParams({ pageSize: '200' });
     if (pageToken) query.set('pageToken', pageToken);
     const { status, body } = await call(fetcher, `${GEMINI_BASE}/models?${query}`, key, { method: 'GET', signal });
+    if (signal?.aborted) throw new DOMException('Key check cancelled.', 'AbortError');
     const read = readGeminiResponse(status, body);
     if ('failure' in read && read.failure !== 'other' && read.failure !== 'blocked') throw new HelperError(read.failure);
     if (status < 200 || status >= 300) throw new HelperError('other', 'The online helper could not be reached. Check the key and your connection.');
