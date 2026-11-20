@@ -197,6 +197,17 @@ function renderLicensees() {
 }
 $('licence-filter').addEventListener('input', renderLicensees);
 
+act($('revoke-key-form'), 'submit', async () => {
+  const form = $('revoke-key-form');
+  const licenceKey = form.elements.licenceKey.value.trim();
+  if (!confirm('Revoke this key? Devices using it turn Pro off at their next online check. Nobody loses photos or edits.')) return;
+  // Clear the key from the page whatever happens, so it is not left on screen.
+  form.reset();
+  const result = await api('admin/licences/revoke-by-key', { licenceKey });
+  await Promise.all([loadLicensees(), loadAudit()]);
+  say('Licence ' + result.licenceId + ' revoked' + (result.wasKnown ? '.' : ', before any device used it.'));
+});
+
 act($('issue-form'), 'submit', async () => {
   const f = $('issue-form').elements;
   const body = { plan: 'paid', maxDevices: Number(f.maxDevices.value), managedAi: f.managedAi.checked };

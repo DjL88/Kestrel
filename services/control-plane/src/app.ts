@@ -102,6 +102,7 @@ export const Schemas = {
     consent: z.literal(true).describe('The sender agreed that Kestrel may store this message to reply to it'),
     website: z.string().max(200).optional().describe('Leave empty. Hidden from people; filled in by spam robots.'),
   }).strict(),
+  AdminRevokeKey: z.object({ licenceKey: z.string().min(10).max(2000).describe('The whole key, so its signature can be checked. Only its licence id is kept.') }).strict(),
   AdminExtend: z.object({ days: z.number().int().min(1).max(365) }).strict(),
   AdminKillSwitch: z.object({ aiDisabled: z.boolean() }).strict(),
   AdminQuota: z.object({ accountId: z.string(), requestsLimit: z.number().int().min(0).max(1_000_000) }).strict(),
@@ -620,6 +621,21 @@ export function createApp(options: AppOptions) {
         const claims = await admin(req, 'licence.revoke');
         if (!(await store.setLicenceStatus(params.id, 'revoked', now()))) throw new ApiError(404, 'NOT_FOUND', 'No such licence.');
         return adminDone(claims, 'licence.revoke', params.id, { revoked: true });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/licences/revoke-by-key', summary: 'Revoke a key by pasting it, even one no device has used yet. Keeps only its licence id', auth: 'admin', body: Schemas.AdminRevokeKey,
+      handler: async (req) => {
+        const claims = await admin(req, 'licence.revoke');
+        const body = parseJson(Schemas.AdminRevokeKey, req.rawBody);
+        // The signature check keeps typos and made-up keys out of the list. The key itself is never stored or logged.
+        const check = await verifyLicence(body.licenceKey, config.licencePublicKey);
+        if (!check.ok) throw new ApiError(400, 'LICENCE_INVALID', 'That is not a genuine Kestrel licence key, so there is nothing to revoke. Check it was copied in full.');
+        const id = check.details.id;
+        const existing = await store.getLicence(id);
+        if (existing) await store.setLicenceStatus(id, 'revoked', now());
+        else await store.insertLicence(newLicence(id, check.details.plan, now(), { status: 'revoked', note: 'Revoked before first use' }));
+        return adminDone(claims, 'licence.revoke', `${id} by key${existing ? '' : ' (before first use)'}`, { licenceId: id, revoked: true, wasKnown: !!existing });
       },
     },
     {
