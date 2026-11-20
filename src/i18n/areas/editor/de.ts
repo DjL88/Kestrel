@@ -338,6 +338,7 @@ export const de: AreaTranslation<typeof source> = {
     edgeTitle: 'Ziehen, um diese Kante des Zuschnitts zu verschieben',
     apply: 'Zuschnitt anwenden',
     help: 'Ziehen Sie über das Foto, um einen Zuschnitt zu zeichnen, oder ziehen Sie an seinen Ecken, Kanten oder seiner Mitte. Wählen Sie unten eine Form, damit sie beim Ziehen erhalten bleibt. Änderungen werden laufend gespeichert. Anwenden kehrt mit dem Zuschnitt zur Bearbeitung zurück, und Abbrechen stellt den Zuschnitt vom Anfang wieder her.',
+    autoCrop: 'Automatisch zuschneiden',
     autoCopy: 'Automatisch zugeschnittene Kopie',
     rotate: 'Um 90° drehen',
     autoLevel: 'Automatisch begradigen',

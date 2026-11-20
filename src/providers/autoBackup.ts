@@ -5,8 +5,9 @@ import { encodeProjectBackup } from '../core/projectBackup';
 import type { CullingState } from '../core/types';
 import { openConnection } from './connectionStore';
 import { getLocations } from './projectLocations';
+import { LOCAL_RECOVERY_TARGET, openDeviceRecovery, openSourceRecovery } from './automaticRecovery';
 
-export interface BackupStatus { state: 'idle' | 'working' | 'ok' | 'failed'; at?: number; message?: string; health?: Health; to?: string }
+export interface BackupStatus { state: 'idle' | 'working' | 'ok' | 'partial' | 'failed'; at?: number; message?: string; health?: Health; to?: string }
 
 const CLOCK_KEY = 'kestrel.backupclock.v1';
 const clocks = new Map<string, BackupClock>();
@@ -43,19 +44,73 @@ const listeners = new Set<() => void>();
 let version = 0;
 const setStatus = (projectId: string, status: BackupStatus) => { statuses.set(projectId, status); version += 1; listeners.forEach((listener) => listener()); };
 
-/** Save a backup of the project to a connection now, and tidy old ones. Never throws: the answer says what happened. */
+/** A successful local recovery copy is independent of an optional source copy. */
+async function writeSnapshot(connector: import('../core/storageConnectors').StorageConnector,
+  projectId: string, name: string, payload: Uint8Array): Promise<void> {
+  await connector.put(name, payload, '');
+  // Retention is best effort; never report a valid backup as failed because
+  // an old copy could not be removed from a disconnected drive.
+  try {
+    for (const expired of backupsToDelete(await connector.list(backupFolder(projectId)), projectId))
+      await connector.remove(expired);
+  } catch { /* Older snapshots may remain. */ }
+}
+
+/**
+ * Save on-device *every time*, and also beside the original photo source
+ * (or to the chosen backup location) when writable. This works on phones
+ * connected to a network source just as it does on desktop.
+ */
 export async function backUpNow(state: CullingState, connectionId: string, now = new Date()): Promise<BackupStatus> {
   const projectId = state.shoot.id;
-  try {
-    const opened = await openConnection(connectionId);
-    if ('problem' in opened) return { state: 'failed', message: opened.message, health: opened.problem, at: now.getTime() };
-    await opened.connector.put(backupName(projectId, now), new TextEncoder().encode(encodeProjectBackup(state)), '');
-    // Keep the newest few. A tidy-up that fails is not a failed backup.
-    try { for (const name of backupsToDelete(await opened.connector.list(backupFolder(projectId)), projectId)) await opened.connector.remove(name); } catch { /* old copies stay */ }
-    return { state: 'ok', at: now.getTime() };
-  } catch (error) {
-    return { state: 'failed', message: error instanceof Error ? error.message : 'The backup could not be saved.', at: now.getTime() };
+  const name = backupName(projectId, now);
+  const payload = new TextEncoder().encode(encodeProjectBackup(state));
+  const local = await openDeviceRecovery();
+  let localOk = false;
+  let localError = '';
+  if ('problem' in local) localError = local.message;
+  else {
+    try { await writeSnapshot(local.connector, projectId, name, payload); localOk = true; }
+    catch (error) { localError = error instanceof Error ? error.message : 'Device storage is unavailable.'; }
   }
+
+  // Source and optional connection access are best effort. A missing,
+  // disconnected or read-only folder must never interrupt normal editing.
+  const source = await openSourceRecovery(state).catch(() => null);
+  const failed: string[] = [];
+  let selected: Awaited<ReturnType<typeof openConnection>> | null = null;
+  if (connectionId !== LOCAL_RECOVERY_TARGET) {
+    try { selected = await openConnection(connectionId); }
+    catch { failed.push('Chosen backup location is temporarily unavailable.'); }
+  }
+  const extra: Array<{ connector: import('../core/storageConnectors').StorageConnector; to: string }> = [];
+  if (source && !('problem' in source)) extra.push(source);
+  if (selected && !('problem' in selected)) extra.push({ connector: selected.connector, to: 'Chosen backup location' });
+
+  let extraOk = 0;
+  if (selected && 'problem' in selected) failed.push('Chosen backup location is temporarily unavailable.');
+  for (const target of extra) {
+    try { await writeSnapshot(target.connector, projectId, name, payload); extraOk++; }
+    catch (error) { failed.push(`${target.to}: ${error instanceof Error ? error.message : 'Not writable'}`); }
+  }
+
+  if (!localOk && !extraOk) return {
+    state: 'failed', at: now.getTime(),
+    message: [localError, ...failed].filter(Boolean).join(' ') || 'No recovery file could be written.',
+  };
+  // An unavailable network source must not cancel an otherwise valid local
+  // snapshot, but it must remain visible and eligible for another attempt.
+  if (failed.length || !localOk) return {
+    state: 'partial', at: now.getTime(),
+    to: localOk ? 'On this device' : extra.at(-1)?.to,
+    message: localOk
+      ? 'Saved locally. The folder copy could not be updated; Kestrel will retry automatically.'
+      : 'Saved alongside your photographs. Device recovery is unavailable; Kestrel will retry automatically.',
+  };
+  return {
+    state: 'ok', at: now.getTime(),
+    to: extraOk ? extra.at(-1)?.to ?? 'Photo folder' : 'On this device',
+  };
 }
 
 /** Observe edits even if a previous snapshot is still being written. */
@@ -73,7 +128,13 @@ function saveSnapshot(state: CullingState, target: string): Promise<BackupStatus
   const savedChangeAt = state.shoot.lastUpdatedAt ?? 0;
   const task = Promise.resolve().then(async () => {
     setStatus(projectId, { ...statuses.get(projectId), state: 'working' });
-    const result = await backUpNow(state, target);
+    // A malformed snapshot or unexpected storage failure must never reject an
+    // unattended save and interrupt the photographer's editing session.
+    const result: BackupStatus = await backUpNow(state, target).catch(() => ({
+      state: 'failed' as const,
+      at: Date.now(),
+      message: 'Automatic recovery could not be saved. Your project changes are still stored in Kestrel.',
+    }));
     // Read the latest clock, not the one from before the asynchronous write.
     const next = afterAttempt(clockFor(projectId), Date.now(), result.state === 'ok', savedChangeAt);
     clocks.set(projectId, next);
@@ -88,8 +149,7 @@ function saveSnapshot(state: CullingState, target: string): Promise<BackupStatus
 /** Back up this project if it is due. `leaving` skips the usual gap, because the project is being closed. */
 export async function maybeBackUp(state: CullingState, leaving = false): Promise<void> {
   const projectId = state.shoot.id;
-  const target = getLocations(projectId).backUpTo;
-  if (!target) return;
+  const target = getLocations(projectId).backUpTo ?? LOCAL_RECOVERY_TARGET;
   observeChange(state);
   const pending = inFlight.get(projectId);
   if (pending) {
@@ -103,8 +163,7 @@ export async function maybeBackUp(state: CullingState, leaving = false): Promise
 /** Back up right now, whatever the clock says (the "Back up now" button). */
 export async function backUpProjectNow(state: CullingState): Promise<BackupStatus> {
   const projectId = state.shoot.id;
-  const target = getLocations(projectId).backUpTo;
-  if (!target) { const none: BackupStatus = { state: 'failed', message: 'Choose where to back this project up first.' }; setStatus(projectId, none); return none; }
+  const target = getLocations(projectId).backUpTo ?? LOCAL_RECOVERY_TARGET;
   observeChange(state);
   return saveSnapshot(state, target);
 }

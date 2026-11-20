@@ -338,6 +338,7 @@ export const nl: AreaTranslation<typeof source> = {
     edgeTitle: 'Sleep om deze rand van de uitsnede te verplaatsen',
     apply: 'Uitsnede toepassen',
     help: 'Sleep over de foto om een uitsnede te tekenen, of sleep aan de hoeken, randen of het midden. Kies hieronder een vorm om die vast te houden terwijl u sleept. Wijzigingen worden meteen opgeslagen. Toepassen gaat terug naar het bewerken met de uitsnede op zijn plaats, en Annuleren zet de uitsnede terug waarmee u begon.',
+    autoCrop: 'Automatisch bijsnijden',
     autoCopy: 'Automatisch bijgesneden kopie',
     rotate: '90° draaien',
     autoLevel: 'Automatisch rechtzetten',

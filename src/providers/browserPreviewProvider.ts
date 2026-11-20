@@ -420,6 +420,29 @@ export class BrowserPreviewProvider implements PreviewProvider {
       return cached;
     }
 
+    // A developed review survives restart in IndexedDB. Prefer it to the
+    // camera's embedded JPEG; do not treat it as a sensor-quality RAW master.
+    if (!this.developed.has(key) && isRawPreviewFile(frame.filename)) {
+      const saved = await this.developedReview(frame);
+      if (saved?.review && epoch === this.cacheEpoch && revision === (this.sourceRevisions.get(key) ?? 0)) {
+        const ready = this.fullUrlCache.get(key);
+        if (ready) return ready;
+        const url = URL.createObjectURL(saved.review);
+        this.fullUrlCache.set(key, url);
+        this.offlineFullKeys.add(key);
+        this.fullUrlOrder.push(key);
+        while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
+          const oldest = this.fullUrlOrder.shift();
+          if (!oldest) continue;
+          const stale = this.fullUrlCache.get(oldest);
+          if (stale) URL.revokeObjectURL(stale);
+          this.fullUrlCache.delete(oldest);
+          this.offlineFullKeys.delete(oldest);
+        }
+        return url;
+      }
+    }
+
     const ranged = await this.rangedRawPreview(frame, key);
     if (ranged) return ranged;
 

@@ -338,6 +338,7 @@ export const nb: AreaTranslation<typeof source> = {
     edgeTitle: 'Dra for å flytte denne kanten av beskjæringen',
     apply: 'Bruk beskjæring',
     help: 'Dra over bildet for å tegne en beskjæring, eller dra i hjørnene, kantene eller midten. Velg en form nedenfor for å beholde den mens du drar. Endringer lagres fortløpende. Bruk går tilbake til redigeringen med beskjæringen på plass, og Avbryt setter tilbake beskjæringen du startet med.',
+    autoCrop: 'Beskjær automatisk',
     autoCopy: 'Automatisk beskåret kopi',
     rotate: 'Roter 90°',
     autoLevel: 'Rett opp automatisk',

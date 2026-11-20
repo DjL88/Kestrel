@@ -38,7 +38,7 @@ import { applyAutoTag, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTa
 import { burstMates, tagFrames } from './core/speciesBurst';
 import { loadImage } from './providers/loadImage';
 import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
-import { ArrowLeft, ChevronLeft, ChevronRight, Copy, ClipboardPaste, Info, PanelLeftClose, PanelLeftOpen, Maximize2 } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Copy, ClipboardPaste, PanelLeftClose, PanelLeftOpen, Maximize2 } from 'lucide-react';
 import { WorkspacePaneRail } from './components/WorkspacePaneRail';
 import { PHOTO_INFO_DOCK_QUERY } from './core/photoInfoLayout';
 import { PhotoJump } from './components/PhotoJump';
@@ -84,7 +84,6 @@ import { CompareView } from './components/CompareView';
 import { ExifInspector } from './components/ExifInspector';
 import { Filmstrip } from './components/Filmstrip';
 import { FilmstripDock } from './components/FilmstripDock';
-import { DecisionButtons } from './components/DecisionButtons';
 import { isEdited } from './core/editedState';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { RemovedPhotosPanel } from './components/RemovedPhotosPanel';
@@ -909,20 +908,14 @@ export default function App() {
   const stateRef = useRef(cullingState);
   stateRef.current = cullingState;
   const importSelectedMetadata = async (files: File[]) => {
-    // A deliberate File-menu action, scoped to the photos selected when the
-    // picker closed. Parse and validate every matching sidecar BEFORE applying
-    // any catalogue changes, avoiding half-imported ZIPs.
+    // Validate every matching sidecar before changing any photograph.
     const shootId = cullingState.shoot.id;
     const version = cullingState.shoot.lastUpdatedAt;
     const selected = [...exportSelection];
     try {
       const planned = await planXmpImports(files, selected, cullingState.frames);
-      // If the project or its decisions changed while reading, abandon this
-      // import rather than silently overwrite newer keeper decisions.
-      if (stateRef.current.shoot.id !== shootId ||
-          stateRef.current.shoot.lastUpdatedAt !== version) {
+      if (stateRef.current.shoot.id !== shootId || stateRef.current.shoot.lastUpdatedAt !== version)
         throw new SidecarImportError('unsafe');
-      }
       for (const entry of planned) importPhotoSidecar(entry.frameId, entry.metadata);
       showToast(libraryT.top.xmpImported(planned.length));
     } catch (error) {
@@ -2070,17 +2063,6 @@ export default function App() {
           <TaskManager inline />
           {/* The same order as the library's top row: work in hand, this page's actions (Export), then Settings. */}
           <div id="editor-header-actions" className="flex shrink-0 items-center gap-2" />
-          <button type="button" ref={infoTriggerRef} onClick={() => {
-            setInfoFrameId(undefined);
-            // A folded panel is hidden even if its previous "open" preference is true.
-            // The first click must reopen it, not toggle that stale preference to false.
-            const currentlyVisible = !panesCollapsed && showPhotoInfo;
-            setWorkspacePanes({ folded: false });
-            setShowPhotoInfo(!currentlyVisible);
-          }} aria-label={messages.photoInfo.title} title={messages.photoInfo.title} aria-pressed={showPhotoInfo && !panesCollapsed}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-md text-zinc-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 aria-pressed:bg-white/15">
-            <Info className="h-5 w-5" aria-hidden="true" />
-          </button>
           <SettingsButton open={settingsOpen} onOpen={() => setSettingsOpen(true)} />
           {multiSelect && selectedVisibleFrames.length > 0 && (
             <span className="shrink-0 text-xs tabular-nums text-zinc-300">{t.header.selected(selectedVisibleFrames.length)}</span>
@@ -2527,18 +2509,7 @@ export default function App() {
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
               <button type="button" aria-label={t.editorBar.next} title={t.editorBar.nextTitle} disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) < 0 || (editQueueIds ? editorIndex >= editorFrames.length - 1 : selectedVisibleIndex >= visibleFrames.length - 1)} onClick={() => handleStepFrame(1)}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
-              {/* A photograph remains reviewable while editing. These are the exact same
-                  reversible Keep / Undecided / Reject actions as Library and Compare,
-                  not a second set of flags. Keep the controls ahead of optional tools
-                  so a narrow phone can use them without horizontally scrolling. */}
-              <div role="group" aria-label="Photo decision" className="flex shrink-0 items-center border-x border-white/10 px-1">
-                <DecisionButtons labels decision={selectedFrame.decision} filename={selectedFrame.filename}
-                  edited={false}
-                  onKeep={() => handleDecideFrame(selectedFrame.id, 'keep', false)}
-                  onBackToReview={() => handleDecideFrame(selectedFrame.id, 'unreviewed', false)}
-                  onTrash={() => handleDecideFrame(selectedFrame.id, 'reject', false)}
-                  onReset={() => requestReset([selectedFrame.id])} />
-              </div>
+              {/* Review and Photo Info own the culling controls; the Edit footer stays clean. */}
               <PhotoJump index={editorIndex} total={editorFrames.length}
                 onJump={(index) => {
                   const next = editorFrames[index];

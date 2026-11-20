@@ -344,6 +344,7 @@ export const gd: AreaTranslation<typeof source> = {
     edgeTitle: 'Slaod gus an oir seo dhen bhearradh a ghluasad',
     apply: 'Cuir am bearradh an sàs',
     help: 'Slaod thar an deilbh gus bearradh a tharraing, no slaod na h-oiseanan, na h-oirean no am meadhan aige. Tagh cumadh gu h-ìosal gus a chumail fhad ’s a tha thu a’ slaodadh. Thèid atharraichean a shàbhaladh fhad ’s a tha thu ag obair. Tillidh Cuir an sàs gu sealladh an deasachaidh leis a’ bhearradh na àite, agus cuiridh Sguir dheth air ais am bearradh leis an do thòisich thu.',
+    autoCrop: 'Bearr gu fèin-obrachail',
     autoCopy: 'Lethbhreac air a bhearradh gu fèin-obrachail',
     rotate: 'Cuairtich 90°',
     autoLevel: 'Dìrich gu fèin-obrachail',

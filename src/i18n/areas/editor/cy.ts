@@ -331,6 +331,7 @@ export const cy: AreaTranslation<typeof source> = {
     edgeTitle: 'Llusgwch i symud yr ymyl hon o’r tocio',
     apply: 'Defnyddio’r tocio',
     help: 'Llusgwch ar draws y llun i dynnu tocio, neu lusgo’i gorneli, ei ymylon neu ei ganol. Dewiswch siâp isod i’w gadw wrth i chi lusgo. Mae newidiadau’n cael eu cadw wrth fynd. Mae Defnyddio yn dychwelyd i’r olwg golygu gyda’r tocio yn ei le, ac mae Canslo yn rhoi’n ôl y tocio y dechreuoch chi ag ef.',
+    autoCrop: 'Tocio\'n awtomatig',
     autoCopy: 'Copi wedi’i docio’n awtomatig',
     rotate: 'Cylchdroi 90°',
     autoLevel: 'Gwastadu awtomatig',

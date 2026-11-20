@@ -338,6 +338,7 @@ export const is: AreaTranslation<typeof source> = {
     edgeTitle: 'Dragðu til að færa þessa brún skurðarins',
     apply: 'Nota skurð',
     help: 'Dragðu yfir myndina til að teikna skurð, eða dragðu horn hans, brúnir eða miðju. Veldu lögun hér fyrir neðan til að halda henni á meðan þú dregur. Breytingar vistast jafnóðum. Nota fer aftur í breytingar með skurðinn á sínum stað, og Hætta við setur aftur skurðinn sem þú byrjaðir með.',
+    autoCrop: 'Skera sjálfvirkt',
     autoCopy: 'Sjálfvirkt skorið afrit',
     rotate: 'Snúa 90°',
     autoLevel: 'Rétta sjálfvirkt',

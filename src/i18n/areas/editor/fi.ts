@@ -338,6 +338,7 @@ export const fi: AreaTranslation<typeof source> = {
     edgeTitle: 'Vedä siirtääksesi tätä rajauksen reunaa',
     apply: 'Käytä rajausta',
     help: 'Vedä kuvan yli piirtääksesi rajauksen, tai vedä sen kulmista, reunoista tai keskeltä. Valitse alta muoto pitääksesi sen vetäessäsi. Muutokset tallentuvat sitä mukaa. Käytä palaa muokkaukseen rajaus paikallaan, ja Peruuta palauttaa rajauksen, josta aloitit.',
+    autoCrop: 'Rajaa automaattisesti',
     autoCopy: 'Automaattisesti rajattu kopio',
     rotate: 'Kierrä 90°',
     autoLevel: 'Suorista automaattisesti',

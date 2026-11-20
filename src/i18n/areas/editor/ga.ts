@@ -331,6 +331,7 @@ export const ga: AreaTranslation<typeof source> = {
     edgeTitle: 'Tarraing chun an t-imeall seo den bhearradh a bhogadh',
     apply: 'Cuir an bearradh i bhfeidhm',
     help: 'Tarraing trasna an ghrianghraif chun bearradh a tharraingt, nó tarraing a chúinní, a imill nó a lár. Roghnaigh cruth thíos chun é a choinneáil agus tú ag tarraingt. Sábháiltear athruithe de réir mar a théann tú. Filleann Cuir i bhfeidhm ar an eagarthóireacht leis an mbearradh i bhfeidhm, agus cuireann Cealaigh ar ais an bearradh a bhí agat ar dtús.',
+    autoCrop: 'Bearr go huathoibríoch',
     autoCopy: 'Cóip bhearrtha uathoibríoch',
     rotate: 'Rothlaigh 90°',
     autoLevel: 'Díriú uathoibríoch',

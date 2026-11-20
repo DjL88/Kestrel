@@ -194,14 +194,6 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           className={`${actionClass} border border-sky-300/50 text-sky-100 hover:bg-sky-300/15 disabled:opacity-40 max-md:hidden`}>
           <Pencil className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">{props.editLabel ?? t.top.edit}</span>
         </button>
-        <button type="button" onClick={props.onExport} disabled={!props.onExport || props.actionsDisabled} aria-label={props.exportLabel ?? t.top.export} title={t.top.exportTitle}
-          className={`${actionClass} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-40 max-md:hidden`}>
-          <Download className="h-4 w-4" aria-hidden="true" />
-          <span className="hidden sm:inline">{props.exportLabel ?? t.top.export}</span>
-          <span className="tabular-nums sm:hidden" aria-hidden="true">{props.exportCount !== undefined
-            ? (props.exportCount > 1 ? t.top.exportCountShort(props.exportCount) : '')
-            : props.exportLabel?.replace(t.top.export, '').trim()}</span>
-        </button>
         <div ref={menuRef}>
           <button ref={triggerRef} data-focus-fallback type="button" disabled={props.actionsDisabled} className={`${actionClass} border border-white/15 max-md:hidden`} onClick={() => setMenuOpen(!menuOpen)}
             aria-label={t.top.workspaceOptions} title={t.top.workspaceOptions} aria-expanded={menuOpen} aria-controls="workspace-options">
@@ -344,14 +336,21 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
             </div>
           )}
         </div>
+        <button type="button" onClick={props.onExport} disabled={!props.onExport || props.actionsDisabled} aria-label={props.exportLabel ?? t.top.export} title={t.top.exportTitle}
+          className={`${actionClass} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-40 `}>
+          <Download className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden sm:inline">{t.top.export}</span>
+          <span className="tabular-nums sm:hidden" aria-hidden="true">{props.exportCount !== undefined
+            ? (props.exportCount > 1 ? t.top.exportCountShort(props.exportCount) : '')
+            : props.exportLabel?.replace(t.top.export, '').trim()}</span>
+        </button>
         {props.settingsButton}
       </div>
     </header>
-    <div role="toolbar" aria-label={t.top.photoActions} className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)] md:hidden">
+    <div role="toolbar" aria-label={t.top.photoActions} className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)] md:hidden">
       {([
         { key: 'add', label: t.top.add, title: t.top.addPhotos, Icon: Plus, onClick: props.onOpenShootModal, disabled: props.actionsDisabled || props.addDisabled },
         { key: 'edit', label: props.editLabel ?? t.top.edit, title: props.editLabel ?? t.top.editTitle, Icon: Pencil, onClick: onEditPhoto, disabled: !onEditPhoto || props.actionsDisabled },
-        { key: 'export', label: props.exportLabel ?? t.top.export, title: t.top.exportTitle, Icon: Download, onClick: props.onExport, disabled: !props.onExport || props.actionsDisabled },
       ] as const).map(({ key, label, title, Icon, onClick, disabled }) => (
         <button key={key} type="button" onClick={onClick} disabled={disabled} title={title} aria-label={key === 'add' ? t.top.addPhotosToProject : label}
           className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-40">

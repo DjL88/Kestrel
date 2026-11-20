@@ -2,6 +2,7 @@ import { MAX_EDIT_HISTORY_STEPS, type EditKind } from './editHistory';
 import { parseSettings } from './projectSettings';
 import { validMasks } from './maskTypes';
 import type { CullingState, FilterState, PhotoFrame, ShootDescriptor } from './types';
+import { DEVELOP_VERSION } from './backgroundDevelop';
 
 const FORMAT = 'kestrel-project';
 const decisions = new Set(['unreviewed', 'keep', 'reject']);
@@ -102,6 +103,9 @@ export function encodeProjectBackup(state: CullingState): string {
   return JSON.stringify({
     format: FORMAT,
     version: 1,
+    // Cached RAW review pictures remain on their original device. They are
+    // versioned and rebuilt if needed; never claim a cache is a RAW master.
+    cache: { developVersion: DEVELOP_VERSION, reviewPreviews: 'device-local', imagesIncluded: false },
     project: {
       shoot: state.shoot, frames: state.frames, selectedFrameId: state.selectedFrameId,
       compareRightFrameId: state.compareRightFrameId, filter: state.filter, searchQuery: state.searchQuery,

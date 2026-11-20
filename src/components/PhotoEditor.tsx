@@ -1042,13 +1042,22 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     return canvas.getContext('2d')?.getImageData(0, 0, canvas.width, canvas.height);
   }
 
-  function createCropCopy() {
+  /** The same subject-aware crop suggestion can be applied in place or copied. */
+  function suggestedCrop(): PhotoFraming | null {
     const sample = sampleOrientedSource();
-    if (!sample) return;
+    if (!sample) return null;
     const detail = detailAnchor(sample.data, sample.width, sample.height);
     const ratio = framing.ratio ?? (sample.height > sample.width ? 4 / 5 : 5 / 4);
     const anchor = thirdsCropAnchor(sample.width, sample.height, ratio, detail);
-    onCreateVirtualCopy({ ...framing, ...anchor, ratio });
+    return { ...framing, ...anchor, ratio };
+  }
+  function applyAutoCrop() {
+    const suggested = suggestedCrop();
+    if (suggested) onFramingChange(suggested);
+  }
+  function createCropCopy() {
+    const suggested = suggestedCrop();
+    if (suggested) onCreateVirtualCopy(suggested);
   }
 
   function autoLevel() {
@@ -1066,11 +1075,11 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   /** One tab bar. On a phone it is a bottom toolbar of large icons, and on wider screens the top of the side panel. */
   // On a phone Export is the last tab in the bottom bar. On a wider screen it is a button in the header instead,
   // which leaves the side panel's tabs with room to breathe.
-  const visibleTabs = isPhone ? TABS : TABS.filter((entry) => entry.id !== 'export' && !hiddenTabs.has(entry.id));
+  const visibleTabs = TABS.filter((entry) => entry.id !== 'export' && (isPhone || !hiddenTabs.has(entry.id)));
   const tabList = (
     <div role="tablist" aria-label={t.editor.tablist}
       className={isPhone
-        ? 'grid shrink-0 grid-cols-6 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]'
+        ? 'grid shrink-0 grid-cols-5 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]'
         : 'sticky top-0 z-20 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 workspace:-mx-4 workspace:px-3'}
       onKeyDown={(event) => {
         const order = visibleTabs.map((entry) => entry.id);
@@ -1396,6 +1405,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             <p className="px-1 text-xs text-zinc-400">{t.crop.help}</p>
           <fieldset disabled={sourceState !== 'ready'} className="space-y-2">
             <div className="flex flex-wrap">
+              <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={applyAutoCrop}>
+                <Crop className="h-4 w-4" aria-hidden="true" />{t.crop.autoCrop}</button>
               <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={createCropCopy}>
                 <Copy className="h-4 w-4" aria-hidden="true" />{t.crop.autoCopy}</button>
               <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={() => onFramingChange({
@@ -1431,12 +1442,11 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                     if (value === 'free') onFramingChange({ ...rest, ratio: framing.ratio ?? (size ? size.width / size.height : null), free: true });
                     else onFramingChange({ ...rest, ratio: Number(value) || null });
                   }}
-                  className="min-h-11 w-full min-w-0 appearance-none truncate rounded-md border border-white/10 bg-[#252830] py-2 pl-3 pr-10 text-sm text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
+                  className="min-h-11 w-full min-w-0 truncate rounded-md border border-white/10 bg-[#252830] py-2 pl-3 pr-3 text-sm text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
                   <option value="">{t.common.original}</option>
                   <option value="free">{t.crop.free}</option>
                   {CROP_RATIOS.map((choice) => <option key={choice.label} value={String(choice.ratio)}>{choice.label === 'Square' ? t.crop.square : choice.label}</option>)}
                 </select>
-                <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 h-4 w-4 shrink-0 stroke-[1.75] text-zinc-300" />
               </span>
             </label>
             <AdjustmentSlider label={t.crop.size} min={MIN_CROP_SIZE} max={1} step={0.01}
@@ -1560,12 +1570,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         {/* Export sits in the top row, where the library has it. */}
         {headerSlot ? createPortal(<>
         <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? t.editor.exportSelectedTitle(exportCount) : t.editor.exportTitle}
-          className={`${button} hidden items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover! workspace:inline-flex`}>
+          className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}>
           <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? t.editor.exportCount(exportCount) : t.editor.export}
         </button>
         </>, headerSlot) : <>
         <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? t.editor.exportSelectedTitle(exportCount) : t.editor.exportTitle}
-          className={`${button} hidden items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover! workspace:inline-flex`}>
+          className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}>
           <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? t.editor.exportCount(exportCount) : t.editor.export}
         </button>
         </>}
