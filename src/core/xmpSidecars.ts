@@ -1,6 +1,6 @@
 import { zipSync } from 'fflate';
 import { safeExportName } from './exportPlace';
-import { tiffXmpPacket } from './tiffExportMetadata';
+import { photoSidecar } from './photoSidecar';
 import type { PhotoFrame } from './types';
 
 /** Sidecar names must still match the originals when unpacked by the photographer. */
@@ -15,10 +15,9 @@ export function makeXmpDownload(frames: readonly PhotoFrame[]): { blob: Blob; na
     if (!stem || safeExportName(name) !== name || names.has(key) ||
         /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(stem)) return null;
     names.add(key);
-    const approved = (frame.tags ?? []).filter(tag => !frame.autoTags?.includes(tag));
-    const rating = frame.decision === 'reject' ? -1 : frame.rating ?? 0;
-    const packet = tiffXmpPacket({ keywords: approved }, rating);
-    if (packet) entries[name] = packet;
+    const sidecar = photoSidecar(frame);
+    if (sidecar.filename !== name) return null;
+    entries[name] = sidecar.bytes;
   }
 
   const filenames = Object.keys(entries);

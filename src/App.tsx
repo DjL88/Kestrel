@@ -27,7 +27,8 @@ import { OnlineHelperDialog } from './components/OnlineHelperDialog';
 import { useSpeciesScan } from './useSpeciesScan';
 import { useBackgroundDevelop } from './useBackgroundDevelop';
 import { SpeciesScanBanner } from './components/SpeciesScanBanner';
-import type { SubjectKind } from './core/subjectTags';
+import { addTags, type SubjectKind } from './core/subjectTags';
+import type { ImportedPhotoSidecar } from './core/photoSidecar';
 import { applyAutoTag, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTags';
 import { burstMates, tagFrames } from './core/speciesBurst';
 import { loadImage } from './providers/loadImage';
@@ -652,6 +653,31 @@ export default function App() {
       setCullingState((previous) => [...targets].reduce((state, frameId) =>
         applyDecisionWithHistory(state, frameId, change.flag, { allowAdvance: false }), previous));
     }
+  }
+
+  function importPhotoSidecar(frameId: string, metadata: ImportedPhotoSidecar) {
+    const shootId = cullingState.shoot.id;
+    setCullingState(previous => {
+      if (previous.shoot.id !== shootId) return previous;
+      const matches = previous.frames.filter(frame => frame.id === frameId);
+      if (matches.length !== 1 || matches[0].removedAt != null) return previous;
+      const state = metadata.decision
+        ? applyDecisionWithHistory(previous, frameId, metadata.decision, { allowAdvance: false })
+        : previous;
+      const accepted = new Set(metadata.keywords.map(word => word.toLowerCase()));
+      return {
+        ...state,
+        shoot: { ...state.shoot, lastUpdatedAt: Date.now() },
+        frames: state.frames.map(frame => frame.id !== frameId ? frame : {
+          ...frame,
+          ...(metadata.rating !== undefined ? { rating: metadata.rating } : {}),
+          ...(metadata.keywords.length ? {
+            tags: addTags(frame.tags ?? [], metadata.keywords),
+            autoTags: frame.autoTags?.filter(tag => !accepted.has(tag.toLowerCase())),
+          } : {}),
+        }),
+      };
+    });
   }
 
   const handleStepFrame = useCallback(
@@ -2457,6 +2483,7 @@ export default function App() {
                 updateFrame(frame.id, applyAutoTag(frame, name));
             }} onRate={(id, rating) => rateOrFlagPhotos(id, { rating })}
             onFlag={(id, flag) => rateOrFlagPhotos(id, { flag })}
+            onImportSidecar={importPhotoSidecar}
             batchCount={multiSelect && selectedIds.has(infoFrameId ?? selectedFrame?.id ?? '') ? selectedIds.size : 0}
             frame={infoFrameId ? cullingState.frames.find((frame) => frame.id === infoFrameId) ?? null : selectedFrame}
             onClose={() => {

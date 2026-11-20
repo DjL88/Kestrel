@@ -4,6 +4,12 @@ import type { source } from './source';
 
 /** Norwegian Bokmål. DRAFT: written without a native speaker's check. */
 export const nb: AreaTranslation<typeof source> = {
+  sidecar: {
+    save: "Lagre XMP-sidefil",
+    saveFailed: "Kunne ikke lagre XMP-sidefilen. Velg et navn som slutter på .xmp.",
+    load: "Last inn XMP-sidefil",
+    loaded: "XMP-metadata ble brukt.",
+    loadFailed: "Kunne ikke laste inn XMP. Velg sidefilen som hører til bildet.",
   sidecars: {
     title: "XMP-sidefiler",
     save: "Lagre XMP-filer",

@@ -4,6 +4,12 @@ import type { source } from './source';
 
 /** Dutch. DRAFT: written without a native speaker's check. */
 export const nl: AreaTranslation<typeof source> = {
+  sidecar: {
+    save: "XMP-nevenbestand opslaan",
+    saveFailed: "Het XMP-nevenbestand kon niet worden opgeslagen. Kies een naam die eindigt op .xmp.",
+    load: "XMP-nevenbestand laden",
+    loaded: "XMP-metagegevens toegepast.",
+    loadFailed: "XMP kon niet worden geladen. Kies het nevenbestand bij deze foto.",
   sidecars: {
     title: "XMP-nevenbestanden",
     save: "XMP-bestanden opslaan",

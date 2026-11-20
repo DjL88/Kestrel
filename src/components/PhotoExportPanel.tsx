@@ -200,7 +200,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
         return;
       }
       if (desktop) {
-        if (await saveWithDialog(result.blob, result.name) && !cancelled.current) onClose();
+        if (await saveWithDialog(result.blob, result.name, true) && !cancelled.current) onClose();
       } else {
         downloadExport(result.blob, result.name);
         onClose();

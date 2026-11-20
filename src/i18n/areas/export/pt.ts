@@ -4,6 +4,12 @@ import type { source } from './source';
 
 /** European Portuguese. DRAFT: written without a native speaker's check. */
 export const pt: AreaTranslation<typeof source> = {
+  sidecar: {
+    save: "Guardar ficheiro XMP",
+    saveFailed: "Não foi possível guardar o ficheiro XMP. Escolha um nome que termine em .xmp.",
+    load: "Carregar ficheiro XMP",
+    loaded: "Metadados XMP aplicados.",
+    loadFailed: "Não foi possível carregar o XMP. Escolha o ficheiro associado a esta fotografia.",
   sidecars: {
     title: "Ficheiros auxiliares XMP",
     save: "Guardar ficheiros XMP",
