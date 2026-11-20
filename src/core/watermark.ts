@@ -10,10 +10,13 @@ export interface WatermarkOptions {
   /** Share of the picture's short side, 0.04 to 0.5. For an image this is the width as a share of the long side. */
   size: number;
   opacity: number;
-  tone: 'light' | 'dark';
+  /** Automatic chooses light or dark text from pixels under each watermark. */
+  tone: 'light' | 'dark' | 'auto';
+  /** A bundled/safe font family id; never inject arbitrary font strings into Canvas. */
+  font?: 'inter' | 'jakarta' | 'atkinson';
 }
 
-export const NO_WATERMARK: WatermarkOptions = { on: false, kind: 'text', text: '', position: 'bottom-right', size: 0.06, opacity: 0.7, tone: 'light' };
+export const NO_WATERMARK: WatermarkOptions = { on: false, kind: 'text', text: '', position: 'bottom-right', size: 0.06, opacity: 0.7, tone: 'auto', font: 'inter' };
 
 export const WATERMARK_POSITIONS: { id: WatermarkPosition; label: string }[] = [
   { id: 'top-left', label: 'Top left' }, { id: 'top-right', label: 'Top right' },
@@ -45,4 +48,50 @@ export function watermarkSpots(width: number, height: number, markWidth: number,
       return spots;
     }
   }
+}
+
+/** Only packaged font families can be selected; callers must not inject arbitrary CSS. */
+export const WATERMARK_FONTS = [
+  { id: 'inter', label: 'Inter', css: 'Inter, system-ui, sans-serif' },
+  { id: 'jakarta', label: 'Plus Jakarta Sans', css: '"Plus Jakarta Sans", system-ui, sans-serif' },
+  { id: 'atkinson', label: 'Atkinson Hyperlegible', css: '"Atkinson Hyperlegible", system-ui, sans-serif' },
+] as const;
+
+export const watermarkFont = (font: WatermarkOptions['font']): string =>
+  WATERMARK_FONTS.find((entry) => entry.id === font)?.css ?? WATERMARK_FONTS[0].css;
+
+/** Calculate perceived luminance from sRGB without treating gamma values as linear light. */
+function linearChannel(value: number): number {
+  const x = Math.min(255, Math.max(0, value)) / 255;
+  return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+}
+
+/**
+ * Pick the text tone with the better average contrast over the *actual pixels* behind its footprint.
+ * Sampling is bounded, independent of source dimensions; preview/export invoke exactly this function.
+ * Returns light for unreadable/transparent/empty patches, and never changes image-watermark artwork.
+ */
+export function watermarkToneForPixels(
+  data: Uint8ClampedArray, width: number, height: number, stride = 4,
+): 'light' | 'dark' {
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width <= 0 || height <= 0 ||
+      !Number.isSafeInteger(stride) || stride < 4 || data.length < width * height * stride) return 'light';
+  const step = Math.max(1, Math.ceil(Math.sqrt((width * height) / 1024)));
+  let lightScore = 0;
+  let darkScore = 0;
+  let count = 0;
+  for (let y = 0; y < height; y += step) {
+    for (let x = 0; x < width; x += step) {
+      const index = (y * width + x) * stride;
+      const alpha = data[index + 3] / 255;
+      if (alpha < 0.1) continue;
+      const luminance = 0.2126 * linearChannel(data[index]) +
+        0.7152 * linearChannel(data[index + 1]) + 0.0722 * linearChannel(data[index + 2]);
+      // Contrast ratio against white (L=1) and deep charcoal (L≈0.006).
+      lightScore += (1.05 / (luminance + 0.05)) * alpha;
+      darkScore += ((luminance + 0.05) / (0.006 + 0.05)) * alpha;
+      count += alpha;
+    }
+  }
+  return count > 0 && darkScore > lightScore ? 'dark' : 'light';
 }
