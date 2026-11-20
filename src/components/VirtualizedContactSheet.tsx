@@ -100,7 +100,8 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
     if (viewport.width >= 1280) return 5;
     if (viewport.width >= 960) return 4;
     if (viewport.width >= 640) return 3;
-    return 2;
+    if (viewport.width >= 420) return 2;
+    return 1;
   }, [viewport.width]);
 
   const cardWidth = useMemo(() => {
@@ -117,7 +118,9 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
     desktop.addEventListener('change', find);
     return () => desktop.removeEventListener('change', find);
   }, []);
-  const stacked = columns <= 2;
+  // Cards can be narrow even in three- or four-column layouts. Use actual tile width,
+  // not column count, so the info button never competes with cull controls.
+  const stacked = cardWidth < 360;
   const footerHeight = stacked ? STACKED_FOOTER_HEIGHT : FOOTER_HEIGHT;
   const cardHeight = Math.round((cardWidth * 2) / 3) + footerHeight;
   const rowStride = cardHeight + GAP_PX;
