@@ -269,6 +269,8 @@ export const nl: AreaTranslation<typeof source> = {
     dismiss: 'Sluiten',
   },
   licence: {
+    viewProPricing: "Bekijk de prijs van Pro",
+    pricingUnavailable: "Open de Kestrel-website in je browser om de prijs van Pro te bekijken.",
     thanks: 'Dank u. Kestrel Pro is ontgrendeld op dit apparaat.',
     settingsSaved: 'Opgeslagen. Zet het bestand ergens waar uw andere apparaten erbij kunnen, zoals iCloud Drive.',
     noSettings: 'Er zijn nog geen gewijzigde instellingen om op te slaan.',

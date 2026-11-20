@@ -269,6 +269,8 @@ export const ga: AreaTranslation<typeof source> = {
     dismiss: 'Ruaig',
   },
   licence: {
+    viewProPricing: "Féach praghas Pro",
+    pricingUnavailable: "Oscail suíomh Kestrel i do bhrabhsálaí chun praghas Pro a fheiceáil.",
     thanks: 'Go raibh maith agat. Tá Kestrel Pro díghlasáilte ar an ngléas seo.',
     settingsSaved: 'Sábháilte. Cuir an comhad áit éigin ar féidir le do ghléasanna eile teacht air, mar iCloud Drive.',
     noSettings: 'Níl aon socruithe athraithe le sábháil fós.',

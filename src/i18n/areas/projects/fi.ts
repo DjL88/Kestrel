@@ -269,6 +269,8 @@ export const fi: AreaTranslation<typeof source> = {
     dismiss: 'Ohita',
   },
   licence: {
+    viewProPricing: "Katso Pron hinta",
+    pricingUnavailable: "Avaa Kestrelin verkkosivusto selaimessa nähdäksesi Pron hinnan.",
     thanks: 'Kiitos. Kestrel Pro on avattu tällä laitteella.',
     settingsSaved: 'Tallennettu. Laita tiedosto paikkaan, johon muut laitteesi pääsevät, esimerkiksi iCloud Driveen.',
     noSettings: 'Muutettuja asetuksia ei vielä ole tallennettavaksi.',

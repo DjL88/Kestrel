@@ -269,6 +269,8 @@ export const fr: AreaTranslation<typeof source> = {
     dismiss: 'Ignorer',
   },
   licence: {
+    viewProPricing: "Voir le prix de Pro",
+    pricingUnavailable: "Ouvrez le site de Kestrel dans votre navigateur pour voir le prix de Pro.",
     thanks: 'Merci. Kestrel Pro est débloqué sur cet appareil.',
     settingsSaved: 'Enregistré. Placez le fichier là où vos autres appareils peuvent y accéder, par exemple dans iCloud Drive.',
     noSettings: 'Aucun réglage modifié à enregistrer pour l’instant.',

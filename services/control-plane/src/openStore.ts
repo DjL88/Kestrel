@@ -1,3 +1,4 @@
+import type { Firestore as CommerceFirestore } from '@google-cloud/firestore';
 import type { Config } from './config.ts';
 import { FirestoreStore, type FirestoreLike } from './firestoreStore.ts';
 import { SqliteStore } from './sqliteStore.ts';
@@ -11,11 +12,15 @@ import type { Store } from './store.ts';
  */
 export async function openStore(config: Pick<Config, 'store' | 'databasePath' | 'firestoreProjectId' | 'firestoreDatabaseId'>): Promise<Store> {
   if (config.store === 'sqlite') return new SqliteStore(config.databasePath);
+  const db = await openFirestore(config);
+  return new FirestoreStore(db as unknown as FirestoreLike);
+}
+
+export async function openFirestore(config: Pick<Config, 'firestoreProjectId' | 'firestoreDatabaseId'>): Promise<CommerceFirestore> {
   const moduleName = '@google-cloud/firestore';
-  const { Firestore } = (await import(moduleName)) as { Firestore: new (settings: Record<string, unknown>) => unknown };
-  const db = new Firestore({
+  const { Firestore } = (await import(moduleName)) as { Firestore: new (settings: Record<string, unknown>) => CommerceFirestore };
+  return new Firestore({
     ...(config.firestoreProjectId ? { projectId: config.firestoreProjectId } : {}),
     ...(config.firestoreDatabaseId ? { databaseId: config.firestoreDatabaseId } : {}),
   });
-  return new FirestoreStore(db as FirestoreLike);
 }
