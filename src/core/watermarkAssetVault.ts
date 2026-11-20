@@ -27,7 +27,7 @@ async function validateRaster(blob: Blob): Promise<void> {
   }
 }
 async function sha256(blob: Blob): Promise<string> {
-  if (!crypto?.subtle) throw new Error('Secure local image storage is unavailable on this device.');
+  if (typeof crypto === 'undefined' || !crypto.subtle) throw new Error('Secure local image storage is unavailable on this device.');
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()));
   return [...digest].map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
