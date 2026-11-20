@@ -57,6 +57,8 @@ export function createJournalledExportDispatch(
 ) {
   const journal = createExportQueueJournal(storage);
   const active = new Set<string>();
+  // Includes jobs still verifying source/output receipts before they reach the queue.
+  const resuming = new Set<string>();
 
   function enqueueVerified<Recipe, Output>(
     checkpoint: ExportQueueCheckpoint<Recipe>,
@@ -123,7 +125,7 @@ export function createJournalledExportDispatch(
   return {
     /** Journal the frozen plan before accepting work into the Task Manager. */
     submit<Recipe, Output>(plan: DurableExportPlan<Recipe>, adapter: DurableExportAdapter<Recipe, Output>): ExportBatchTicket {
-      if (active.has(plan.id) || journal.load(plan.id)) throw new Error('Export job ID already exists; resume explicitly.');
+      if (active.has(plan.id) || resuming.has(plan.id) || journal.load(plan.id)) throw new Error('Export job ID already exists; resume explicitly.');
       const checkpoint: ExportQueueCheckpoint<Recipe> = {
         version: 1, id: plan.id, title: plan.title, items: plan.items.map(item => ({ ...item })),
         recipe: snapshotExportRecipe(plan.recipe), receipts: [], state: 'pending',
@@ -138,12 +140,21 @@ export function createJournalledExportDispatch(
     },
     /** Never resume without independently verifying originals and output receipts. */
     async resume<Recipe, Output>(id: string, adapter: DurableExportAdapter<Recipe, Output>): Promise<ExportBatchTicket | null> {
-      if (active.has(id)) throw new Error('This export is already running.');
-      const { checkpoint, pending } = await journal.pendingForExplicitResume<Recipe>(
-        id, adapter.verifySource, adapter.verifyOutput,
-      );
-      if (!pending.length) return null;
-      return enqueueVerified(checkpoint, pending, adapter);
+      if (active.has(id) || resuming.has(id)) throw new Error('This export is already running.');
+      // Acquire synchronously before the first await: two resume calls must never
+      // verify the same checkpoint in parallel and publish the same output twice.
+      resuming.add(id);
+      try {
+        const { checkpoint, pending } = await journal.pendingForExplicitResume<Recipe>(
+          id, adapter.verifySource, adapter.verifyOutput,
+        );
+        if (!pending.length) return null;
+        return enqueueVerified(checkpoint, pending, adapter);
+      } finally {
+        // Once enqueued, active owns the lease until ticket.done settles.
+        // On verification failure the job remains available for explicit retry.
+        resuming.delete(id);
+      }
     },
     load: journal.load,
   };
