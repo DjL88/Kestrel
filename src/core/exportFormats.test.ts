@@ -15,10 +15,25 @@ test('comparison export is a distinct authentic JPEG layout with no silent upsca
   assert.equal(toProfile(comparison).allowUpscale, false);
 });
 
+test('full-size JPEG has no implicit enlargement and is named separately from PNG', () => {
+  const jpeg = formatById('full-jpeg')!;
+  const png = formatById('master')!;
+  assert.ok(jpeg);
+  assert.equal(jpeg.fit, 'keep');
+  assert.equal(jpeg.width, 0);
+  assert.equal(jpeg.height, 0);
+  assert.equal(jpeg.format, 'jpeg');
+  assert.equal(toProfile(jpeg).allowUpscale, false);
+  assert.equal(exportFilename('DSC_0099.NEF', toProfile(jpeg), true), 'DSC_0099-preview_kestrel.jpg');
+  assert.equal(exportFilename('DSC_0099.JPG', toProfile(jpeg), false), 'DSC_0099_kestrel.jpg');
+  assert.notEqual(exportFilename('DSC_0099.JPG', toProfile(png), false),
+    exportFilename('DSC_0099.JPG', toProfile(jpeg), false));
+});
+
 test('every format has a unique id and a usable size', () => {
   assert.equal(new Set(EXPORT_FORMATS.map((f) => f.id)).size, EXPORT_FORMATS.length);
   for (const f of EXPORT_FORMATS) {
-    if (f.id === 'master') { assert.equal(f.width, 0); continue; }
+    if (f.id === 'master' || f.id === 'full-jpeg') { assert.equal(f.width, 0); continue; }
     assert.ok(f.width >= 400 && f.width <= 4096 && f.height >= 400 && f.height <= 4096, f.id);
     assert.ok(f.quality > 0.5 && f.quality <= 1, f.id);
   }
