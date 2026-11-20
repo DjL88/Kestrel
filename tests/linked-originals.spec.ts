@@ -14,15 +14,23 @@ test('desktop: photos stay where they are, nothing is copied into the app, and t
       return new Promise<ArrayBuffer>((resolve) => canvas.toBlob((b) => b!.arrayBuffer().then(resolve), 'image/png'));
     };
     const files: Record<string, number> = { 'C:/shots/a.png': 10, 'C:/shots/b.png': 200 };
+    // Match stat() and read_file() to one stable payload for each source file.
+    // An asynchronous PNG encoder can otherwise return unrelated bytes while
+    // the app correctly checks whether the source size changed during import.
+    const bytes = new Map<string, Promise<ArrayBuffer>>();
+    const bytesFor = (path: string) => {
+      if (!bytes.has(path)) bytes.set(path, png(files[path] ?? 0));
+      return bytes.get(path)!;
+    };
     w.__TAURI_INTERNALS__ = {
       transformCallback: () => 1,
       metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main', windowLabel: 'main' } },
       invoke: async (command: string, args: { path?: string }) => {
         if (command === 'plugin:dialog|open') return Object.keys(files);
         if (command === 'plugin:fs|stat') {
-          return { isFile: true, isDirectory: false, isSymlink: false, size: (await png(files[args.path!] ?? 0)).byteLength, mtime: 1700000000000 + (files[args.path!] ?? 0), atime: null, birthtime: null, readonly: false, fileAttributes: null, dev: 0, ino: null, mode: 0, nlink: null, uid: 0, gid: 0, rdev: 0, blksize: 0, blocks: 0 };
+          return { isFile: true, isDirectory: false, isSymlink: false, size: (await bytesFor(args.path!)).byteLength, mtime: 1700000000000 + (files[args.path!] ?? 0), atime: null, birthtime: null, readonly: false, fileAttributes: null, dev: 0, ino: null, mode: 0, nlink: null, uid: 0, gid: 0, rdev: 0, blksize: 0, blocks: 0 };
         }
-        if (command === 'plugin:fs|read_file') { w.__reads.push(args.path!); return png(files[args.path!] ?? 0); }
+        if (command === 'plugin:fs|read_file') { w.__reads.push(args.path!); return bytesFor(args.path!); }
         return 0;
       },
     };
