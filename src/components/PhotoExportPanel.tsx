@@ -100,6 +100,8 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
   const [markNote, setMarkNote] = useState<string | null>(null);
   const [sources, setSources] = useState<Record<string, HTMLImageElement>>({});
   const [proofChoice, setProofChoice] = useState<ProofChoice | null>(null);
+  const [proofLoadFailed, setProofLoadFailed] = useState<string | null>(null);
+  const [proofRetry, setProofRetry] = useState(0);
   const [timestamp, setTimestamp] = useState<'now' | 'capture' | 'custom'>('now');
   const [customDate, setCustomDate] = useState('');
   const [progress, setProgress] = useState<number | null>(null);
@@ -196,6 +198,27 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
     // The first few photos only change when the selection does.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frames, provider, source]);
+
+  // The fixed proof can inspect ANY selected photo, not just the first four gallery thumbnails.
+  // Only load the current proof photo; switching selection invalidates stale async completions.
+  const proofFrame = frames.find(frame => frame.id === activeProof?.photoId);
+  const proofSource = proofFrame && sources[proofFrame.id];
+  useEffect(() => {
+    if (!proofFrame || proofSource) return;
+    let active = true;
+    setProofLoadFailed(null);
+    (async () => {
+      try {
+        const image = source && frames.length === 1 ? source : await loadExportSource(proofFrame, provider);
+        if (active) setSources(prior => ({ ...prior, [proofFrame.id]: image }));
+      } catch {
+        if (active) setProofLoadFailed(proofFrame.id);
+      }
+    })();
+    return () => { active = false; };
+    // A retry explicitly re-attempts a failed source; other photo choices cancel stale loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proofFrame, proofSource, provider, source, frames.length, proofRetry]);
 
   useEffect(() => {
     function close(event: KeyboardEvent) {
@@ -587,6 +610,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
           )}
         </header>
         {!resultsReady && <ExportProofDock frames={frames} formats={selected} sources={sources} choice={activeProof}
+          failedPhotoId={proofLoadFailed} onRetry={() => setProofRetry(value => value + 1)}
           onChoosePhoto={chooseProofPhoto} onChooseDestination={chooseProofFormat} bars={bars} overlay={overlay}
           anchorFor={anchorFor} zoomFor={zoomFor}
           onAnchor={(frame, format, point) => setAnchors(prior => ({ ...prior, [`${frame.id}|${format.id}`]: point }))}

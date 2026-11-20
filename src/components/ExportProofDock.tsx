@@ -12,6 +12,8 @@ interface Props {
   formats: readonly ExportFormat[];
   sources: Readonly<Record<string, HTMLImageElement>>;
   choice: ProofChoice | null;
+  failedPhotoId: string | null;
+  onRetry: () => void;
   onChoosePhoto: (id: string) => void;
   onChooseDestination: (id: string) => void;
   bars: BarStyle;
@@ -52,6 +54,12 @@ export function ExportProofDock(props: Props) {
               onAnchor={point => props.onAnchor(frame, format, point)}
               zoom={props.zoomFor(frame, format)} onZoom={zoom => props.onZoom(frame, format, zoom)}
               overlay={props.overlay} platform={format.platform} />
+          </div>
+        ) : frame && format && props.failedPhotoId === frame.id ? (
+          <div role="alert" className="flex flex-wrap items-center justify-center gap-2 text-sm text-zinc-200">
+            <span>{t.proof.loadFailed}</span>
+            <button type="button" className="min-h-11 rounded-md border border-white/25 px-3 hover:bg-white/10"
+              onClick={props.onRetry}>{t.proof.retry}</button>
           </div>
         ) : <p role="status" className="text-sm text-zinc-300">{frame && format ? t.proof.loading : t.proof.choose}</p>}
         <p className="text-center text-xs text-zinc-400">{t.proof.resolution}</p>

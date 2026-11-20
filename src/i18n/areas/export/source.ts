@@ -40,6 +40,8 @@ export const source = {
     chooseOutput: 'Proof output',
     choose: 'Choose an output to see its proof.',
     loading: 'Loading the photo preview…',
+    loadFailed: 'Could not load this photo for proof. Your original is untouched.',
+    retry: 'Try again',
     resolution: 'Screen-resolution preview only. Check the saved file for final detail and size.',
   },
   prepare: {
