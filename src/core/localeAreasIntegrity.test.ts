@@ -56,8 +56,11 @@ test('coverage is measurable and draft languages are never mistaken for fully ap
       const missing = missingKeys(area.source, area.translations[code]);
       assert.ok(Array.isArray(missing), `${area.name}/${code}: coverage not measurable`);
       assert.ok(missing.every((key) => typeof key === 'string' && key.length > 0));
-      if (status === 'draft') assert.equal(status, 'draft',
-        `${area.name}/${code}: a draft is not native-language approval`);
+      // Native-language approval is a separate human review gate, not inferred
+      // from a zero missing-key count. Draft status must remain explicit.
+      if (code !== 'en-GB' && status !== 'draft') {
+        assert.ok(status === 'ready', `${code}: unexpected release status`);
+      }
     }
   }
 });
