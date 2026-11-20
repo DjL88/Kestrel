@@ -28,6 +28,14 @@ test('social destinations create their own subfolders without collisions', () =>
   assert.ok(planned.every(p => p.item.filename.endsWith('.jpg')));
 });
 
+test('full-size JPEG uses a clear dedicated batch folder', () => {
+  const jpeg = EXPORT_FORMATS.find(format => format.id === 'full-jpeg')!;
+  const planned = planConnectedExports([frame('DSC_1234.NEF', 'raw')], [jpeg], KEEP_NAMES);
+  assert.equal(platformExportFolder(jpeg), 'JPEG');
+  assert.deepEqual(planned.map(entry => entry.item.subfolder), ['JPEG']);
+  assert.match(planned[0].item.filename, /-preview_kestrel\.jpg$/);
+});
+
 test('full-size files use Master while custom goes to Custom', () => {
   assert.equal(platformExportFolder(EXPORT_FORMATS[0]), 'Master');
   assert.equal(platformExportFolder({ id: 'custom' }), 'Custom');
