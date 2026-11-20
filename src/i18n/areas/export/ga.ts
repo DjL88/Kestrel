@@ -126,6 +126,8 @@ export const ga: AreaTranslation<typeof source> = {
     hiddenTiles: (shown, hidden) => `Ag taispeáint ${shown} réamhamharc. Déantar na ${files(hidden)} eile ar an mbealach céanna.`,
   },
   custom: {
+    allowUpscale: "Méadaigh grianghraif bheaga (gnáth-athrú méide)",
+    upscaleNote: "Méadaíonn sé seo líon na bpicteilíní ach ní chuireann sé sonraí atá ar iarraidh ar ais. Taispeánann an réamhamharc an gearradh; seiceáil an comhad sábháilte.",
     width: 'Leithead (px)',
     height: 'Airde (px)',
     fit: 'Oiriúint',
