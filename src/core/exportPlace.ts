@@ -32,3 +32,22 @@ export function exportPaths(files: readonly { name: string; platform?: ExportFor
     return `${destination}/${candidate}`;
   });
 }
+
+/** Stop at file boundaries so a connector can finish any write already in progress. */
+export async function writeExportFiles(
+  files: readonly Blob[],
+  paths: readonly string[],
+  write: (path: string, bytes: Uint8Array) => Promise<unknown>,
+  options?: { signal?: AbortSignal; onProgress?: (count: number) => void },
+): Promise<{ count: number; stopped: boolean }> {
+  let count = 0;
+  for (const [index, file] of files.entries()) {
+    if (options?.signal?.aborted) return { count, stopped: true };
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (options?.signal?.aborted) return { count, stopped: true };
+    await write(paths[index], bytes);
+    count += 1;
+    options?.onProgress?.(count);
+  }
+  return { count, stopped: false };
+}
