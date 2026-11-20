@@ -71,10 +71,27 @@ vec3 blur(vec2 uv, float r){
   s += texture2D(uImg, uv + uTexel*vec2( r, -r)).rgb * .1; s += texture2D(uImg, uv + uTexel*vec2(-r,  r)).rgb * .1;
   return s;
 }
+// Demo stand-in for denoising when no pre-made cleaner image exists: an edge-preserving (bilateral) blur, which
+// smooths flat areas and keeps edges. It is labelled as a blur on the page; it is not Kestrel's denoiser.
+vec3 smoothed(vec2 uv){
+  vec3 centre = texture2D(uImg, uv).rgb;
+  vec3 sum = centre; float wsum = 1.;
+  for (int y = -2; y <= 2; y++) {
+    for (int x = -2; x <= 2; x++) {
+      if (x == 0 && y == 0) continue;
+      vec2 o = vec2(float(x), float(y)) * 1.6;
+      vec3 c = texture2D(uImg, uv + uTexel * o).rgb;
+      vec3 d = c - centre;
+      float w = exp(-dot(d, d) / .012) * exp(-dot(o, o) / 18.);
+      sum += c * w; wsum += w;
+    }
+  }
+  return sum / wsum;
+}
 vec3 base(vec2 uv){
   vec3 n = texture2D(uImg, uv).rgb;
   if (uDenoise <= 0.) return n;
-  vec3 c = uHasClean > .5 ? texture2D(uClean, uv).rgb : (blur(uv, 1.5) * .5 + blur(uv, 3.) * .5);
+  vec3 c = uHasClean > .5 ? texture2D(uClean, uv).rgb : smoothed(uv);
   return mix(n, c, uDenoise);
 }
 void main(){
@@ -193,6 +210,7 @@ void main(){
   // ---------- loading ----------
   const loadImage = (url) => new Promise((resolve, reject) => {
     const img = new Image(); img.decoding = 'async';
+    img.crossOrigin = 'anonymous'; // photos may come from a storage bucket; WebGL needs CORS-approved pixels
     img.onload = () => resolve(img); img.onerror = () => reject(new Error('image ' + url)); img.src = url;
   });
   const configUrl = new URL(root.dataset.photos || 'demo/photos.json', document.baseURI);
@@ -322,12 +340,15 @@ void main(){
   originalBtn.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); hold(true); } });
   originalBtn.addEventListener('keyup', (e) => { if (e.key === ' ' || e.key === 'Enter') hold(false); });
 
-  $('#demo-reset').addEventListener('click', () => {
-    Object.assign(state, NEUTRAL, { aspect: 'original', maskOn: false });
+  function resetEdits() {
+    Object.assign(state, NEUTRAL, { aspect: 'original', maskOn: false, maskTarget: 'subject', overlay: true, split: false, splitAt: 50 });
     $$('input[type=range][data-key]').forEach((input) => { input.value = String(NEUTRAL[input.dataset.key]); syncSlider(input); });
     $('input[name=demo-aspect][value=original]').checked = true;
-    updateMaskUi(); render(); setStatus('reset');
-  });
+    $('input[name=demo-mask-target][value=subject]').checked = true;
+    $('#demo-overlay').checked = true; splitRange.value = '50';
+    updateMaskUi(); updateSplit(); render();
+  }
+  $('#demo-reset').addEventListener('click', () => { resetEdits(); setStatus('reset'); });
 
   // ---------- guided tour ----------
   const tour = $('#demo-tour');
@@ -400,16 +421,106 @@ void main(){
   });
   labelResets();
 
+  // ---------- walkthrough ----------
+  // An animated run through the tools. It plays once by itself when the demo comes into view (never with reduced
+  // motion), shows what it is doing in words, and stops at once on Stop, Escape or any touch of the controls.
+  const walkBtn = $('#demo-walk');
+  const caption = $('#demo-caption');
+  const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const STOP = Symbol('stop');
+  let walking = null;
+  let interacted = false;
+  const sliderInput = (key) => $(`input[data-key="${key}"]`);
+  function setSlider(key, value) { const input = sliderInput(key); input.value = String(value); input.dispatchEvent(new Event('input')); }
+  function tween(from, to, ms, apply, run) {
+    if (reduced() || ms <= 0) { apply(to); return Promise.resolve(); }
+    return new Promise((resolve) => {
+      const start = performance.now();
+      const tick = (now) => {
+        if (run.stopped) { resolve(); return; }
+        const p = Math.min(1, (now - start) / ms), eased = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+        apply(from + (to - from) * eased);
+        if (p < 1) requestAnimationFrame(tick); else resolve();
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+  async function walkthrough(auto) {
+    if (walking || !current) return;
+    const run = { stopped: false, timers: [] };
+    walking = run;
+    closeTour();
+    root.classList.add('walking');
+    walkBtn.setAttribute('aria-pressed', 'true'); i18n ? i18n.bind(walkBtn, 'walkStop') : (walkBtn.textContent = 'Stop');
+    caption.setAttribute('aria-live', auto ? 'off' : 'polite');
+    caption.hidden = false;
+    const total = 9;
+    const check = () => { if (run.stopped) throw STOP; };
+    const pause = (ms) => new Promise((resolve) => { run.timers.push(setTimeout(resolve, reduced() ? Math.max(ms, 1600) : ms)); }).then(check);
+    const say = (n) => { check(); caption.dataset.step = String(n); $('.text', caption).textContent = t('walk' + n); $('.count', caption).textContent = `${n}/${total}`; };
+    const slide = (key, to, ms) => tween(Number(sliderInput(key).value), to, ms, (v) => setSlider(key, v), run).then(check);
+    try {
+      resetEdits(); selectTab('light');
+      say(1); await slide('exposure', 0.35, 1200); await pause(500);
+      say(2); await slide('shadows', 45, 1000); await slide('highlights', -40, 1000); await pause(500);
+      selectTab('colour'); say(3); await slide('temperature', 12, 900); await slide('vibrance', 30, 900); await pause(500);
+      selectTab('detail'); say(4); await slide('denoise', 80, 1200); await slide('clarity', 25, 900); await pause(600);
+      if (current.mask) {
+        selectTab('mask'); say(5); state.maskOn = true; state.overlay = true; $('#demo-overlay').checked = true; updateMaskUi(); render(); await pause(1500);
+        say(6); state.overlay = false; $('#demo-overlay').checked = false; render(); await slide('maskExposure', 0.5, 1200); await pause(600);
+      }
+      selectTab('crop'); say(7); $('input[name=demo-aspect][value="4:5"]').checked = true; state.aspect = '4:5'; render(); await pause(1700);
+      $('input[name=demo-aspect][value=original]').checked = true; state.aspect = 'original'; render();
+      selectTab('light'); say(8); state.split = true; state.splitAt = 85; updateSplit();
+      const sweep = (to, ms) => tween(state.splitAt, to, ms, (v) => { state.splitAt = v; splitRange.value = String(Math.round(v)); updateSplit(); }, run).then(check);
+      await sweep(15, 1800); await sweep(50, 1000); await pause(600);
+      say(9); await pause(2600);
+      endWalk(false);
+    } catch (error) {
+      if (error !== STOP) { console.warn(error); endWalk(true); }
+    }
+  }
+  function endWalk(stopped) {
+    const run = walking; if (!run) return;
+    run.stopped = true; run.timers.forEach(clearTimeout);
+    walking = null;
+    root.classList.remove('walking');
+    caption.hidden = true;
+    walkBtn.setAttribute('aria-pressed', 'false'); i18n ? i18n.bind(walkBtn, 'walkPlay') : (walkBtn.textContent = 'Play');
+    if (stopped && document.activeElement === document.body) walkBtn.focus();
+  }
+  walkBtn.addEventListener('click', () => { interacted = true; if (walking) endWalk(true); else walkthrough(false); });
+  // Any hand on the controls takes over from the walkthrough.
+  const takeOver = (event) => { if (event.target.closest('#demo-walk')) return; interacted = true; if (walking) endWalk(true); };
+  root.addEventListener('pointerdown', takeOver, true);
+  root.addEventListener('keydown', takeOver, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && walking) endWalk(true); });
+  i18n?.onChange(() => { if (walking && caption.dataset.step) { $('.text', caption).textContent = t('walk' + caption.dataset.step); } });
+  function autoplayWhenSeen() {
+    if (!('IntersectionObserver' in window)) return;
+    const seen = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      seen.disconnect();
+      setTimeout(() => { if (!interacted && !reduced() && document.visibilityState === 'visible' && tour.hidden) walkthrough(true); }, 700);
+    }, { threshold: 0.6 });
+    seen.observe($('.demo-stage'));
+  }
+
   // ---------- start ----------
   const webgl = setupGl();
-  if (!webgl) { root.classList.add('no-webgl'); }
+  if (!webgl) { root.classList.add('no-webgl'); walkBtn.hidden = true; }
   updateSplit();
+  const usable = (list) => (Array.isArray(list) ? list : []).filter((p) => p && p.src).slice(0, 5);
   fetch(configUrl, { cache: 'no-cache' })
     .then((r) => { if (!r.ok) throw new Error('photos.json'); return r.json(); })
-    .then((config) => {
-      photos = (Array.isArray(config.photos) ? config.photos : []).filter((p) => p && p.src).slice(0, 5);
+    .then(async (config) => {
+      photos = usable(config.photos);
+      // If the main photos can't be reached (for example, not uploaded yet), use the fallback list instead.
+      const fallback = usable(config.fallback);
+      if (fallback.length && (!photos.length || !(await loadImage(resolveUrl(photos[0].src)).then(() => true, () => false)))) photos = fallback;
       if (!photos.length) throw new Error('no photos');
-      buildPicker(); return selectPhoto(0);
+      buildPicker(); await selectPhoto(0);
+      if (webgl) autoplayWhenSeen();
     })
     .catch((error) => { console.warn(error); setStatus('loadFailed'); });
 })();

@@ -87,6 +87,7 @@
         <button type="button" id="demo-original" class="demo-btn" aria-pressed="false" data-i18n="demoShowOriginal" data-i18n-attr="title:demoShowOriginalHint" title="Hold to see the original">Show original</button>
         <button type="button" id="demo-reset" class="demo-btn" data-i18n="demoResetAll">Reset all</button>
         <span class="spacer"></span>
+        <button type="button" id="demo-walk" class="demo-btn" aria-pressed="false" data-i18n="walkPlay">Play the walkthrough</button>
         <button type="button" id="demo-tour-start" class="demo-btn primary" data-i18n="demoTour">Guided tour</button>
       </div>
       <div class="demo-layout">
@@ -94,6 +95,7 @@
           <div class="demo-stage">
             <canvas id="demo-canvas" role="img" aria-label="Sample photo" width="1200" height="800"></canvas>
             <img id="demo-fallback" alt="">
+            <p id="demo-caption" class="demo-caption" data-i18n-attr="aria-label:walkLabel" aria-label="Walkthrough" hidden><span class="count"></span><span class="text"></span></p>
             <div id="demo-compare" class="demo-compare" hidden>
               <span class="tag before" data-i18n="demoBefore">Before</span><span class="tag after" data-i18n="demoAfter">After</span>
               <input id="demo-split-range" type="range" min="0" max="100" step="1" value="50" data-i18n-attr="aria-label:demoDivider" aria-label="Before and after divider: before is on the left">
