@@ -5,7 +5,6 @@
  */
 import crypto from 'node:crypto';
 import type { Firestore } from '@google-cloud/firestore';
-import type { Storage } from '@google-cloud/storage';
 import type { PhotoEdit } from '../../../src/core/photoEdits.ts';
 import type { PhotoFraming } from '../../../src/core/photoFraming.ts';
 import { inspectJpeg } from '../../../src/core/jpegInspect.ts';
@@ -107,18 +106,53 @@ export class MemoryDemoStudio implements DemoStudioStore {
   imageUrl(p: Example) { return p.published ? 'data:image/jpeg;base64,'+this.files.get(p.id)?.toString('base64') : null; }
 }
 
-/** Cloud Run uses its IAM service account, not a bucket credential in the browser or repository. */
+/** Signed only by the Cloud Run metadata server's short-lived IAM identity.
+ * REST GCS avoids static JSON keys and introducing a second cloud SDK.
+ * The service account has object access only to the two demo buckets.
+ */
+async function gcsToken(): Promise<string> {
+  const response = await fetch('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
+    { headers: { 'Metadata-Flavor': 'Google' } });
+  if (!response.ok) throw new ApiError(503,'DEMO_STORAGE_UNAVAILABLE','Demo storage authentication is unavailable.');
+  const payload = await response.json() as { access_token?: string };
+  if (!payload.access_token) throw new ApiError(503,'DEMO_STORAGE_UNAVAILABLE','Demo storage authentication is unavailable.');
+  return payload.access_token;
+}
+async function gcs(method: 'GET'|'POST'|'DELETE', path: string, data?: Buffer, allowMissing = false): Promise<Response> {
+  const token = await gcsToken();
+  const response = await fetch('https://storage.googleapis.com'+path, {
+    method,
+    headers: { Authorization:'Bearer '+token, ...(data?{'Content-Type':'image/jpeg'}:{}) },
+    ...(data?{body:new Uint8Array(data)}:{}),
+  });
+  if (allowMissing && response.status === 404) return response;
+  if (!response.ok) throw new ApiError(503,'DEMO_STORAGE_ERROR','The photograph could not be saved in Cloud Storage.');
+  return response;
+}
+const obj = (name: string) => encodeURIComponent(name);
+async function put(bucket: string, name: string, jpeg: Buffer) {
+  await gcs('POST','/upload/storage/v1/b/'+obj(bucket)+'/o?uploadType=media&name='+obj(name),jpeg);
+}
+async function copy(fromBucket: string, from: string, toBucket: string, to: string) {
+  await gcs('POST','/storage/v1/b/'+obj(fromBucket)+'/o/'+obj(from)+'/copyTo/b/'+obj(toBucket)+'/o/'+obj(to));
+}
+async function removeGcs(bucket: string, name: string) {
+  await gcs('DELETE','/storage/v1/b/'+obj(bucket)+'/o/'+obj(name),undefined,true);
+}
+async function getGcs(bucket: string, name: string): Promise<Buffer> {
+  const response = await gcs('GET','/storage/v1/b/'+obj(bucket)+'/o/'+obj(name)+'?alt=media');
+  return Buffer.from(await response.arrayBuffer());
+}
+/** Firestore keeps private drafts and immutable approved edit snapshots; GCS keeps JPEG bytes. */
 export class CloudDemoStudio implements DemoStudioStore {
-  constructor(private readonly firestore: Firestore, private readonly storage: Storage,
+  constructor(private readonly firestore: Firestore,
     private readonly draftsBucket: string, private readonly publicBucket: string) {}
   private doc(id: string) {
     if (!idPattern.test(id)) throw notFound();
     return this.firestore.collection('demo_photos').doc(id);
   }
-  private draft(id: string) { return this.storage.bucket(this.draftsBucket).file('drafts/'+id+'.jpg'); }
-  private published(id: string, hash: string) {
-    return this.storage.bucket(this.publicBucket).file('published/'+id+'/'+hash+'.jpg');
-  }
+  private draft(id: string) { return 'drafts/'+id+'.jpg'; }
+  private publishedPath(id: string, digest: string) { return 'published/'+id+'/'+digest+'.jpg'; }
   async list() {
     const result = await this.firestore.collection('demo_photos').limit(MAX_ITEMS+1).get();
     return result.docs.map((d) => d.data() as Example).sort((a,b) => a.createdAtMs-b.createdAtMs);
@@ -126,17 +160,14 @@ export class CloudDemoStudio implements DemoStudioStore {
   async get(id: string) { const result = await this.doc(id).get(); return result.exists ? result.data() as Example : null; }
   async image(id: string) {
     const photo = await this.get(id); if (!photo) throw notFound();
-    const [bytes] = await this.draft(id).download();
-    return bytes;
+    return getGcs(this.draftsBucket, this.draft(id));
   }
   async create(jpeg: Buffer, fields: Pick<ExampleFields,'title'|'subject'|'credit'|'alt'>, at: number) {
     const photo = build(jpeg,fields,at);
     if ((await this.list()).length >= MAX_ITEMS) throw new ApiError(409,'DEMO_LIMIT','Delete an older photograph before adding more (40 maximum).');
-    const file = this.draft(photo.id);
-    await file.save(jpeg, { resumable: false, contentType: 'image/jpeg', validation: 'crc32c',
-      metadata: { cacheControl:'private, no-store' } });
+    await put(this.draftsBucket,this.draft(photo.id),jpeg);
     try { await this.doc(photo.id).create(photo); }
-    catch (error) { await file.delete({ignoreNotFound:true}).catch(() => {}); throw error; }
+    catch (error) { await removeGcs(this.draftsBucket,this.draft(photo.id)).catch(() => {}); throw error; }
     return photo;
   }
   async save(id: string, revision: number, changes: ExampleFields, at: number) {
@@ -151,13 +182,9 @@ export class CloudDemoStudio implements DemoStudioStore {
   async publish(id: string, revision: number, published: boolean, at: number) {
     const ref=this.doc(id);
     const current=await this.get(id); if(!current)throw notFound(); present(current,revision);
-    const path='published/'+id+'/'+current.sha256+'.jpg';
-    // Content-addressed object, not an unreviewed draft. This copy happens before the public
-    // manifest is updated, so the public never points to a missing file.
-    if (published) {
-      await this.draft(id).copy(this.published(id,current.sha256));
-      await this.published(id,current.sha256).setMetadata({ contentType:'image/jpeg', cacheControl:'public, max-age=300' });
-    }
+    const path=this.publishedPath(id,current.sha256);
+    // Upload the explicitly approved bytes before the Firestore manifest points to them.
+    if (published) await copy(this.draftsBucket,this.draft(id),this.publicBucket,path);
     const result = await this.firestore.runTransaction(async (tx) => {
       const doc=await tx.get(ref); if(!doc.exists)throw notFound();
       const p=doc.data() as Example; present(p,revision);
@@ -166,19 +193,17 @@ export class CloudDemoStudio implements DemoStudioStore {
         publicSnapshot:published?{title:p.title,subject:p.subject,credit:p.credit,alt:p.alt,edit:p.edit,framing:p.framing,revision:revision+1}:null };
       tx.update(ref,updated); return updated;
     });
-    if (!published && current.publicPath) await this.published(id,current.sha256).delete({ignoreNotFound:true}).catch(() => {});
+    if (!published && current.publicPath) await removeGcs(this.publicBucket,current.publicPath).catch(() => {});
     return result;
   }
   async remove(id: string, revision: number) {
     const ref=this.doc(id); const photo=await this.get(id); if(!photo)throw notFound(); present(photo,revision);
-    // Remove the public object before removing the Firestore pointer; a deletion failure
-    // must not silently claim the photograph is private.
-    if (photo.publicPath) await this.published(id,photo.sha256).delete({ignoreNotFound:true});
+    if (photo.publicPath) await removeGcs(this.publicBucket,photo.publicPath);
     await this.firestore.runTransaction(async(tx)=>{
       const doc=await tx.get(ref);if(!doc.exists)throw notFound();
       present(doc.data() as Example,revision);tx.delete(ref);
     });
-    await this.draft(id).delete({ignoreNotFound:true}).catch(() => {});
+    await removeGcs(this.draftsBucket,this.draft(id)).catch(() => {});
   }
   imageUrl(p: Example) {
     return p.published && p.publicPath
