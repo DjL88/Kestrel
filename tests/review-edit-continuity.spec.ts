@@ -50,8 +50,8 @@ test('workspace options route appearance to the one global Settings dialog', asy
   await page.getByRole('button', { name: 'Workspace options' }).click();
   const menu = page.locator('[data-workspace-options]');
   await expect(menu).toBeVisible();
-  await expect(menu.getByRole('button', { name: 'Settings', exact: true })).toBeVisible();
+  await expect(menu.getByRole('button', { name: 'Display and layout', exact: true })).toBeVisible();
   await menu.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(menu).toHaveCount(0);
-  await expect(page.getByRole('dialog', { name: /Settings/i })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: /Display and layout settings/i })).toBeVisible();
 });
