@@ -110,6 +110,12 @@ export const es: AreaTranslation<typeof source> = {
     photoInfoFor: (filename) => `Información y valoración de ${filename}`,
   },
   decision: {
+    undecided: "Sin decidir",
+    undecidedPhoto: (filename) => `Devolver ${filename} a revisión (sin decidir)`,
+    reject: "Rechazar",
+    rejectPhoto: (filename) => `Rechazar ${filename}`,
+    rejected: "Rechazada",
+    rejectedPhoto: (filename) => `${filename} ya está rechazada`,
     keepPhoto: (filename) => `Conservar ${filename}`,
     keep: 'Conservar',
     backToReviewPhoto: (filename) => `Devolver ${filename} a revisar`,

@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** Dutch. DRAFT: written without a native speaker's check. */
 export const nl: AreaTranslation<typeof source> = {
+  proof: {
+    title: "Exportproef",
+    photo: "Foto",
+    choosePhoto: "Foto om te controleren",
+    output: "Uitvoer",
+    chooseOutput: "Uitvoer om te controleren",
+    choose: "Kies een uitvoer om de proef te zien.",
+    loading: "Voorbeeld van de foto laden…",
+    loadFailed: "Deze foto kon niet worden geladen voor de proef. Uw origineel is niet aangeraakt.",
+    retry: "Opnieuw proberen",
+    resolution: "Alleen een voorbeeld op schermresolutie. Controleer het opgeslagen bestand voor het uiteindelijke detail en formaat.",
+  },
   fit: {
     fill: 'Bijsnijden om de vorm te vullen',
     bars: 'Hele foto, met randen',
@@ -196,6 +208,8 @@ export const nl: AreaTranslation<typeof source> = {
     preparing: (done, total) => `Klaarmaken ${done}/${total}…`,
   },
   tile: {
+    updating: "Proef bijwerken…",
+    waitingForPhoto: "Foto laden…",
     hintBars: 'Hele foto, met randen',
     hintKeep: 'Behoudt de eigen vorm van de foto',
     hintMove: 'Sleep om te verplaatsen, knijp of gebruik de schuifregelaar om te zoomen',

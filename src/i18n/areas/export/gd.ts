@@ -8,6 +8,18 @@ const photos = (count: number) => plural(count, { one: `${count} dealbh`, two: `
 
 /** Scottish Gaelic. DRAFT: written without a native speaker's check. */
 export const gd: AreaTranslation<typeof source> = {
+  proof: {
+    title: "Dearbhadh às-phortaidh",
+    photo: "Dealbh",
+    choosePhoto: "Dealbh ri dhearbhadh",
+    output: "Toradh",
+    chooseOutput: "Toradh ri dhearbhadh",
+    choose: "Tagh toradh airson a dhearbhadh fhaicinn.",
+    loading: "A’ luchdadh ro-shealladh an deilbh…",
+    loadFailed: "Cha b’ urrainn dhuinn an dealbh seo a luchdadh airson dearbhadh. Cha deach suathadh ris an dealbh thùsail agad.",
+    retry: "Feuch ris a-rithist",
+    resolution: "Ro-shealladh aig dùmhlachd na sgrìn a-mhàin. Thoir sùil air an fhaidhle air a shàbhaladh airson a’ mhion-fhiosrachaidh is a’ mheud dheireannaich.",
+  },
   fit: {
     fill: 'Bearr gus an cumadh a lìonadh',
     bars: 'An dealbh slàn, le oirean',
@@ -194,6 +206,8 @@ export const gd: AreaTranslation<typeof source> = {
     preparing: (done, total) => `Ag ullachadh ${done}/${total}…`,
   },
   tile: {
+    updating: "Ag ùrachadh an dearbhaidh…",
+    waitingForPhoto: "A’ luchdadh an deilbh…",
     hintBars: 'An dealbh slàn, le oirean',
     hintKeep: 'Cumaidh e cumadh an deilbh fhèin',
     hintMove: 'Slaod airson gluasad, teannaich no cleachd an sleamhnachan airson sùm',

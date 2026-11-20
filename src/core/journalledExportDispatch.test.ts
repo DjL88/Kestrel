@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe } from 'node:test';
+import { expect, it } from './testExpect';
 import { createJournalledExportDispatch, type DurableExportAdapter, type DurableExportQueue } from './journalledExportDispatch';
 import type { ExportBatchTicket } from './exportBatchQueue';
 

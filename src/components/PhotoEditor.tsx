@@ -1,3 +1,4 @@
+import { canShowNeutralRaster } from '../core/neutralRasterDisplay';
 import { newId } from '../core/ids';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
@@ -487,6 +488,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const guide = cropOpen && !previewCrop;
   const displayFraming = useMemo(() => displayFramingFor(framing, guide), [framing, guide]);
   const displayCompare = compare && !guide && sourceState === 'ready';
+  const showOriginalRaster = !!source && !isRaw && !displayCompare && !guide
+    && !provider.isOfflineFallback(frame.stableKey) && canShowNeutralRaster(edit, displayFraming);
   const before = beforeSnapshot(frame, beforeStage);
   const beforeLabel = stageLabel(before.label);
   const outputSize = source ? framedSize(source.naturalWidth, source.naturalHeight, framing) : null;
@@ -579,22 +582,30 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const detail = size ? visiblePhotoDetail(size.width, size.height, viewport.width, viewport.height, transform) : null;
 
   useEffect(() => {
-    const canvas = editedCanvas.current;
-    if (!source || !size || !canvas) return;
-    const scale = Math.min(1, FIT_PREVIEW_EDGE / Math.max(size.width, size.height));
-    drawFramedPhoto(source, canvas, displayFraming, { scale });
-    applyCanvasPhotoEdit(canvas, edit);
-    // A small copy keeps the histogram cheap, and it reads the edited result.
+    if (!source || !size) return;
+    let histogramSource: HTMLImageElement | HTMLCanvasElement = source;
+    let width = source.naturalWidth;
+    let height = source.naturalHeight;
+    if (!showOriginalRaster) {
+      const canvas = editedCanvas.current;
+      if (!canvas) return;
+      const scale = Math.min(1, FIT_PREVIEW_EDGE / Math.max(size.width, size.height));
+      drawFramedPhoto(source, canvas, displayFraming, { scale });
+      applyCanvasPhotoEdit(canvas, edit);
+      histogramSource = canvas;
+      width = canvas.width;
+      height = canvas.height;
+    }
     const small = document.createElement('canvas');
-    const shrink = Math.min(1, 256 / Math.max(canvas.width, canvas.height));
-    small.width = Math.max(1, Math.round(canvas.width * shrink));
-    small.height = Math.max(1, Math.round(canvas.height * shrink));
+    const shrink = Math.min(1, 256 / Math.max(width, height));
+    small.width = Math.max(1, Math.round(width * shrink));
+    small.height = Math.max(1, Math.round(height * shrink));
     const smallContext = small.getContext('2d', { willReadFrequently: true });
     if (smallContext) {
-      smallContext.drawImage(canvas, 0, 0, small.width, small.height);
+      smallContext.drawImage(histogramSource, 0, 0, small.width, small.height);
       setHistogram(computeHistogram(smallContext.getImageData(0, 0, small.width, small.height).data));
     }
-  }, [source, displayFraming, edit, size?.width, size?.height]);
+  }, [source, displayFraming, edit, size?.width, size?.height, showOriginalRaster]);
 
   useEffect(() => {
     if (!displayCompare || !source || !size || !originalCanvas.current) return;
@@ -605,7 +616,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
 
   useEffect(() => {
     setShowDetail(false);
-    if (!source || !detail) return;
+    if (!source || !detail || showOriginalRaster) return;
     const timer = window.setTimeout(() => {
       if (!editedDetail.current) return;
       const { region } = detail;
@@ -626,7 +637,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       setShowDetail(true);
     }, 110);
     return () => window.clearTimeout(timer);
-  }, [source, displayFraming, edit, before.edit, displayCompare, transform, viewport]);
+  }, [source, displayFraming, edit, before.edit, displayCompare, transform, viewport, showOriginalRaster]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -1120,9 +1131,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           overlayMode={displayCompare ? 'wipe' : 'hidden'}
           labels={displayCompare ? [beforeLabel, t.editor.now] : undefined}
           base={<>
-            <canvas ref={editedCanvas} aria-label={t.editor.editedPhoto} role="img"
-              hidden={sourceState !== 'ready'} className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />
-            {detail && <canvas ref={editedDetail} aria-hidden="true" hidden={!showDetail}
+            {showOriginalRaster && source
+              ? <img src={source.src} alt={t.editor.editedPhoto} draggable={false}
+                  className={position ? 'absolute' : 'absolute inset-0 h-full w-full object-contain'} style={position} />
+              : <canvas ref={editedCanvas} aria-label={t.editor.editedPhoto} role="img"
+              hidden={sourceState !== 'ready'} className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />}
+            {detail && !showOriginalRaster && <canvas ref={editedDetail} aria-hidden="true" hidden={!showDetail}
               className="absolute" style={detail.style} />}
             {/* A 3 × 3 thirds grid while the pointer is over the photo (not on touch screens). It follows the Gridlines
                 switch in Crop, stays out of the way of Before/After, takes no clicks, and zooms with the photo. Holding
@@ -1685,7 +1699,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         )}
       </div>
       ); return floatingTools
-        ? <FloatingPane title="Editing tools" initialSide={panelSide} storageKey="kestrel-tools-float-rect-v1" onDock={() => setToolsUndocked(false)}>{toolPanel}</FloatingPane>
+        ? <FloatingPane title="Editing tools" initialSide={panelSide} storageKey="kestrel-tools-float-rect-v1" dockFocusSelector='[aria-label="Undock editing tools"]' onDock={() => setToolsUndocked(false)}>{toolPanel}</FloatingPane>
         : toolPanel; })()}
       {isPhone && !focusPhoto && tabList}
       </div>

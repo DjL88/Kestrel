@@ -110,6 +110,12 @@ export const nl: AreaTranslation<typeof source> = {
     photoInfoFor: (filename) => `Foto-info en waardering van ${filename}`,
   },
   decision: {
+    undecided: "Onbeslist",
+    undecidedPhoto: (filename) => `${filename} terug naar beoordelen (onbeslist)`,
+    reject: "Afwijzen",
+    rejectPhoto: (filename) => `${filename} afwijzen`,
+    rejected: "Afgewezen",
+    rejectedPhoto: (filename) => `${filename} is al afgewezen`,
     keepPhoto: (filename) => `${filename} bewaren`,
     keep: 'Bewaren',
     backToReviewPhoto: (filename) => `${filename} terugzetten naar beoordelen`,

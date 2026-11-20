@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe } from 'node:test';
+import { expect, it } from './testExpect';
 import { acceptRawMaster, type MasterRequest } from './rawMasterHandoff';
 import { consumeVerifiedMaster, type OriginalIdentity, type MasterConsumptionAdapter } from './rawMasterConsumption';
 import type { RawMasterEvidence } from './rawMasterProvenance';

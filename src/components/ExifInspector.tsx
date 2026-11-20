@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { messages as m } from '../i18n/messages';
 import { ChevronLeft, ChevronRight, ClipboardCopy, PanelTopOpen, Star, X } from 'lucide-react';
 import { FloatingPane } from './FloatingPane';
+import { PHOTO_INFO_DOCK_QUERY } from '../core/photoInfoLayout';
 import { formatCaptureDateTime, photoInfoText } from '../core/photoInfoText';
 import { SubjectPanel } from './SubjectPanel';
 import { SpeciesSuggestions } from './SpeciesSuggestions';
@@ -37,9 +38,9 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
   const [detached, setDetached] = useState(() => {
     try { return window.localStorage.getItem('kestrel-info-undocked-v1') === 'true'; } catch { return false; }
   });
-  const [wideScreen, setWideScreen] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
+  const [wideScreen, setWideScreen] = useState(() => typeof window !== 'undefined' && window.matchMedia(PHOTO_INFO_DOCK_QUERY).matches);
   useEffect(() => {
-    const media = window.matchMedia('(min-width: 1024px)');
+    const media = window.matchMedia(PHOTO_INFO_DOCK_QUERY);
     const update = () => setWideScreen(media.matches);
     media.addEventListener('change', update);
     return () => media.removeEventListener('change', update);
@@ -92,22 +93,22 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
   const inspector = (
     <aside
       aria-label={m.photoInfo.title}
-      className={`${floating ? 'h-full w-full min-w-0 overflow-y-auto bg-kestrel-panel p-4' : 'workspace-popover absolute inset-x-2 bottom-[calc(0.5rem+env(safe-area-inset-bottom))] top-auto z-40 max-h-[min(75dvh,calc(100dvh_-_7rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-4 shadow-2xl sm:top-2 sm:bottom-auto sm:w-72 lg:static lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-0 lg:shadow-none'} ${dockedSide === 'left'
+      className={`${floating ? 'h-full w-full min-w-0 overflow-y-auto bg-kestrel-panel p-4' : 'workspace-popover absolute inset-x-2 bottom-2 top-auto z-40 max-h-[min(65dvh,calc(100dvh_-_10rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-4 shadow-2xl sm:w-72 info-dock:static info-dock:max-h-none info-dock:shrink-0 info-dock:rounded-none info-dock:border-0 info-dock:shadow-none'} ${dockedSide === 'left'
         // Only the docked panel (lg and up) changes side. Below that it floats over the photos, at the right edge where
         // it covers the fewest of them (the first photo is at the top left).
-        ? 'sm:right-2 sm:left-auto lg:border-r'
-        : 'sm:right-2 sm:left-auto lg:border-l'}`}
+        ? 'sm:right-2 sm:left-auto info-dock:border-r'
+        : 'sm:right-2 sm:left-auto info-dock:border-l'}`}
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">{m.photoInfo.title}</h2>
         {!floating && <button type="button" onClick={() => detach(true)} title="Undock Photo Info into a movable window"
-          aria-label="Undock Photo Info" className="hidden h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 lg:grid">
+          aria-label="Undock Photo Info" className="hidden h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 info-dock:grid">
           <PanelTopOpen className="h-4 w-4" aria-hidden="true"/>
         </button>}
         {/* An arrow towards the edge it folds into, as on the editing tools; on small screens, where it floats, a cross. */}
         <button type="button" onClick={onClose} aria-label={m.photoInfo.close} title={m.photoInfo.fold} className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-          <X className="h-4 w-4 lg:hidden" aria-hidden="true" />
-          {dockedSide === 'left' ? <ChevronLeft className="hidden h-5 w-5 lg:block" aria-hidden="true" /> : <ChevronRight className="hidden h-5 w-5 lg:block" aria-hidden="true" />}
+          <X className="h-4 w-4 info-dock:hidden" aria-hidden="true" />
+          {dockedSide === 'left' ? <ChevronLeft className="hidden h-5 w-5 info-dock:block" aria-hidden="true" /> : <ChevronRight className="hidden h-5 w-5 info-dock:block" aria-hidden="true" />}
         </button>
       </div>
       <div role="tablist" aria-label={m.photoInfo.details} className="mt-2 grid grid-cols-2 gap-1 rounded-lg bg-black/20 p-1">
@@ -186,6 +187,6 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
     </aside>
   );
   return floating
-    ? <FloatingPane title={m.photoInfo.title} initialSide={dockedSide} storageKey="kestrel-info-float-rect-v1" onDock={() => detach(false)}>{inspector}</FloatingPane>
+    ? <FloatingPane title={m.photoInfo.title} initialSide={dockedSide} storageKey="kestrel-info-float-rect-v1" dockFocusSelector='[aria-label="Undock Photo Info"]' onDock={() => detach(false)}>{inspector}</FloatingPane>
     : inspector;
 };

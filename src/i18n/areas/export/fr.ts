@@ -4,6 +4,18 @@ import type { source } from './source';
 
 /** French. DRAFT: written without a native speaker's check. */
 export const fr: AreaTranslation<typeof source> = {
+  proof: {
+    title: "Épreuve d’export",
+    photo: "Photo",
+    choosePhoto: "Photo à vérifier",
+    output: "Sortie",
+    chooseOutput: "Sortie à vérifier",
+    choose: "Choisissez une sortie pour voir son épreuve.",
+    loading: "Chargement de l’aperçu de la photo…",
+    loadFailed: "Impossible de charger cette photo pour l’épreuve. Votre original n’est pas modifié.",
+    retry: "Réessayer",
+    resolution: "Aperçu à la résolution de l’écran uniquement. Vérifiez le fichier enregistré pour le détail et la taille définitifs.",
+  },
   fit: {
     fill: 'Recadrer pour remplir la forme',
     bars: 'Photo entière, avec bordures',
@@ -196,6 +208,8 @@ export const fr: AreaTranslation<typeof source> = {
     preparing: (done, total) => `Préparation ${done}/${total}…`,
   },
   tile: {
+    updating: "Mise à jour de l’épreuve…",
+    waitingForPhoto: "Chargement de la photo…",
     hintBars: 'Photo entière, avec bordures',
     hintKeep: 'Garde la forme de la photo',
     hintMove: 'Faites glisser pour déplacer, pincez ou utilisez le curseur pour zoomer',

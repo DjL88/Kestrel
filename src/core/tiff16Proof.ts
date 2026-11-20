@@ -69,5 +69,16 @@ export function proveTiff16(bytes: ArrayBuffer): Tiff16Proof {
   // Disallow the image and ICC profile overlapping: a corrupt offset can
   // otherwise make arbitrary pixels appear to contain profile metadata.
   if (start < icc.value + icc.count && icc.value < start + byteCount) return fail('ICC overlaps pixel data.');
+  // Optional photographer-approved XMP packet (TIFF tag 700, BYTE) is
+  // separate from pixel and colour-profile storage. Never accept a forged
+  // pointer into image samples, ICC bytes or TIFF directory metadata.
+  const xmp = tags.get(700);
+  if (xmp) {
+    if (xmp.type !== 1 || xmp.count < 1 || xmp.count > 64 * 1024) return fail('invalid XMP packet length or type.');
+    range(xmp.value, xmp.count);
+    for (const [offset, length] of [...reserved, [start, byteCount], [icc.value, icc.count]] as Array<[number, number]>) {
+      if (overlaps(xmp.value, xmp.count, offset, length)) return fail('XMP overlaps TIFF metadata or pixel data.');
+    }
+  }
   return { width, height, iccBytes: icc.count };
 }
