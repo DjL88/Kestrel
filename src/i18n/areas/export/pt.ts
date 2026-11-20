@@ -125,6 +125,8 @@ export const pt: AreaTranslation<typeof source> = {
     }),
   },
   custom: {
+    allowUpscale: "Ampliar fotografias pequenas (redimensionamento normal)",
+    upscaleNote: "Aumenta as dimensões em píxeis, mas não recupera detalhes em falta. A pré-visualização mostra o recorte; confirme os detalhes no ficheiro guardado.",
     width: 'Largura (px)',
     height: 'Altura (px)',
     fit: 'Ajuste',
