@@ -122,3 +122,34 @@ test('cancellation leaves an existing original unchanged', async () => sandbox(a
   assert.equal(result.ok, false);
   assert.equal(await (await import('node:fs/promises')).readFile(path, 'utf8'), bytes);
 }));
+
+
+test('cancellation at final publication boundary cannot return an empty successful plan', async () => {
+  // Controlled signal observes cancellation after the file loop; this covers
+  // the boundary even when there are no candidate reads to abort.
+  let checks = 0;
+  const signal = { get aborted() { return ++checks > 1; } } as AbortSignal;
+  const result = await verifyDesktopRelinkFiles([], [], signal);
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.ok(result.failures.some(f => f.reason === 'relink-cancelled'));
+});
+
+test('cancellation during final candidate validation cannot return a partial plan', async () => sandbox(async dir => {
+  const path = join(dir, 'bird.nef');
+  await writeFile(path, 'original bird bytes');
+  const controller = new AbortController();
+  let reads = 0;
+  const candidate = {
+    photoId: 'bird',
+    get path() {
+      // Simulate a user cancelling as the final candidate is validated.
+      if (++reads === 2) controller.abort();
+      return path;
+    },
+  };
+  const result = await verifyDesktopRelinkFiles(
+    [identity('bird', 'original bird bytes')], [candidate], controller.signal,
+  );
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.ok(result.failures.some(f => f.reason === 'relink-cancelled'));
+}));
