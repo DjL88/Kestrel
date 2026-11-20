@@ -32,6 +32,8 @@ interface VirtualizedContactSheetProps {
   onDecideFrame: (frameId: string, decision: CullDecision) => void;
   onBatchDecision: (frameIds: string[], decision: CullDecision) => void;
   onExportSelected?: (frameIds: string[]) => void;
+  onAutoAdjustSelected?: (frameIds: string[]) => void;
+  onApplyLookSelected?: (frameIds: string[]) => void;
   onResetFrame: (frameId: string) => void;
 }
 
@@ -51,6 +53,8 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   onDecideFrame,
   onBatchDecision,
   onExportSelected,
+  onAutoAdjustSelected,
+  onApplyLookSelected,
   onResetFrame,
 }) => {
   // Collapsing tiles never removes or changes an original. Manual Keep and
@@ -465,6 +469,10 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
             className="grid min-h-10 min-w-10 place-items-center rounded-md hover:bg-white/10"><Info className="h-4 w-4" aria-hidden="true"/></button>
           {onOpenEditor && <button type="button" onClick={() => onOpenEditor(actionIds[0])}
             className="min-h-10 rounded-md px-3 hover:bg-white/10">Edit photo</button>}
+          {onAutoAdjustSelected && <button type="button" onClick={() => onAutoAdjustSelected(actionIds)}
+            className="min-h-10 rounded-md px-3 hover:bg-white/10">Auto-adjust</button>}
+          {onApplyLookSelected && <button type="button" onClick={() => onApplyLookSelected(actionIds)}
+            className="min-h-10 rounded-md px-3 hover:bg-white/10">Apply look</button>}
           {onExportSelected && <button type="button" onClick={() => onExportSelected(actionIds)}
             className="min-h-10 rounded-md px-3 hover:bg-white/10">Export</button>}
         </div>
