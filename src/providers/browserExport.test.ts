@@ -220,3 +220,56 @@ test('export rejects an empty encoded file rather than saving a corrupt master',
   assert.equal(canvas?.width, 0, 'release allocated canvas on failure');
   assert.equal(canvas?.height, 0);
 });
+
+test('previewless RAW uses Kestrel sensor development for export, without a second photo app', async (t) => {
+  const previousImage = Object.getOwnPropertyDescriptor(globalThis, 'Image');
+  const previousObjectUrl = URL.createObjectURL;
+  const previousRevoke = URL.revokeObjectURL;
+  t.after(() => {
+    if (previousImage) Object.defineProperty(globalThis, 'Image', previousImage);
+    else Reflect.deleteProperty(globalThis, 'Image');
+    URL.createObjectURL = previousObjectUrl;
+    URL.revokeObjectURL = previousRevoke;
+  });
+  const revoked: string[] = [];
+  URL.createObjectURL = () => 'blob:kestrel-raw-export';
+  URL.revokeObjectURL = url => revoked.push(url);
+  class ImageStub {
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    private address = '';
+    get src() { return this.address; }
+    set src(value: string) { this.address = value; queueMicrotask(() => this.onload?.()); }
+  }
+  Object.defineProperty(globalThis, 'Image', { configurable: true, value: ImageStub });
+  const raw = new Blob(['unaltered original'], { type: 'application/octet-stream' });
+  const frame = { ...createDemoShootState(1).frames[0], filename: 'missing-preview.NEF', stableKey: 'raw', isDemo: false };
+  let reads = 0;
+  const result = await loadExportSource(frame, {
+    getFullPreviewUrl: async () => '',
+    hasBlob: () => true,
+    ensureOriginal: async () => { reads++; return raw; },
+  }, 'selected', async (source, extension) => {
+    assert.equal(source, raw);
+    assert.equal(extension, 'nef');
+    return new Blob(['developed'], { type: 'image/jpeg' });
+  });
+  assert.equal((result as HTMLImageElement).src, 'blob:kestrel-raw-export');
+  assert.equal(reads, 1);
+  assert.deepEqual(revoked, ['blob:kestrel-raw-export']);
+});
+
+test('RAW preview cache cannot be exported without original identity even when a decoder exists', async () => {
+  const frame = { ...createDemoShootState(1).frames[0], filename: 'disconnected.NEF', stableKey: 'missing', isDemo: false };
+  let decodes = 0;
+  await assert.rejects(loadExportSource(frame, {
+    getFullPreviewUrl: async () => 'blob:review-cache',
+    hasBlob: () => true,
+    isOfflineFallback: () => true,
+    ensureOriginal: async () => undefined,
+  }, 'selected', async () => {
+    decodes++;
+    return new Blob(['fake'], { type: 'image/jpeg' });
+  }), /Reconnect disconnected.NEF/);
+  assert.equal(decodes, 0, 'never export a stale review thumbnail when the original is absent');
+});
