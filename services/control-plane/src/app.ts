@@ -27,7 +27,7 @@ const DeviceSecret = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 export interface AppOptions {
   config: Config;
   store?: Store;
-  commerce?: Pick<CommerceLedger, 'getTaxSettings' | 'updateTaxSettings' | 'recordTurnover' | 'ossQuarter'>;
+  commerce?: Pick<CommerceLedger, 'getTaxSettings' | 'updateTaxSettings' | 'recordTurnover' | 'ossQuarter'> & Partial<Pick<CommerceLedger, 'latestPriceReview'>>;
   /** Injected for tests. Defaults to Gemini when a server key is configured, otherwise none. */
   provider?: AiProvider | null;
   now?: () => number;
@@ -421,6 +421,14 @@ export function createApp(options: AppOptions) {
         const body = parseJson(AdminTaxSettings, req.rawBody);
         await commerce.updateTaxSettings(body, claims.sub);
         return adminDone(claims, 'tax.settings', 'ukVatRegistered=' + body.ukVatRegistered, { saved: true });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/pricing/review', summary: 'Read the latest scheduled price proposal', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'pricing.review.read');
+        if (!commerce?.latestPriceReview) throw new ApiError(503, 'PRICING_REVIEW_UNAVAILABLE', 'Price reviews need the Firestore commerce ledger.');
+        return adminDone(claims, 'pricing.review.read', '', { review: await commerce.latestPriceReview() });
       },
     },
     {

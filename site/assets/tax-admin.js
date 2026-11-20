@@ -35,6 +35,9 @@ function resetSession() {
   get('turnover').value = 0;
   get('turnover-value').textContent = '';
   get('turnover-state').textContent = '';
+  get('price-review-summary').textContent = '';
+  get('price-review-rows').replaceChildren();
+  get('price-review-table').hidden = true;
   dashboard.hidden = true;
   signIn.hidden = false;
 }
@@ -109,4 +112,36 @@ listen(ossForm, 'submit', async () => {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   status.textContent = 'Quarterly summary downloaded.';
+});
+
+
+listen(get('load-price-review'), 'click', async () => {
+  const { review } = await api('admin/pricing/review');
+  const summary = get('price-review-summary');
+  const rows = get('price-review-rows');
+  rows.replaceChildren();
+  get('price-review-table').hidden = !review;
+  if (!review) {
+    summary.textContent = 'No scheduled price review has been saved yet.';
+    return;
+  }
+  const base = money.format(review.approvedBasePence / 100);
+  const proposed = money.format(review.proposedGbpPence / 100);
+  const inflation = review.inflation && new Intl.NumberFormat('en-GB', {
+    style: 'percent', maximumFractionDigits: 2,
+  }).format(review.inflation.cumulativeInflation);
+  summary.textContent = `${review.month}. Approved GBP base ${base}. Proposed GBP base ${proposed}. ECB rates dated ${review.rateDate}.`
+    + (inflation ? ` UK inflation since the base price was set: ${inflation}.` : '');
+  for (const { currency, ratePerGbp, proposedMajor, status } of review.prices) {
+    const row = document.createElement('tr');
+    const price = status === 'missing-rate' ? 'Rate unavailable' : new Intl.NumberFormat('en-GB', {
+      style: 'currency', currency, currencyDisplay: 'code',
+    }).format(proposedMajor);
+    for (const value of [currency, ratePerGbp?.toFixed(4) ?? '—', price]) {
+      const cell = document.createElement('td');
+      cell.textContent = value;
+      row.append(cell);
+    }
+    rows.append(row);
+  }
 });

@@ -12,12 +12,17 @@ test('only admins can view or activate VAT and export OSS summaries', async () =
     async recordTurnover(asOf) {
       return { ...ukTurnoverMetrics([{ country: 'GB', supplyDate: '2026-11-01', netPence: 7_500_000 }], asOf), updatedAt: asOf };
     },
+    async latestPriceReview() { return { month: '2026-11', proposedGbpPence: 2900 }; },
     async ossQuarter() { return [{ country: 'DE', rateBasisPoints: 1900, netPence: 2900, taxPence: 551 }]; },
   });
   try {
     assert.equal((await h.call('GET', '/v1/admin/tax')).status, 401);
     assert.equal((await h.call('GET', '/v1/admin/tax', { token: h.user.token })).status, 403);
+    assert.equal((await h.call('GET', '/v1/admin/pricing/review', { token: h.user.token })).status, 403);
     const token = h.adminToken;
+    const pricing = await h.call('GET', '/v1/admin/pricing/review', { token });
+    assert.equal(pricing.status, 200);
+    assert.equal(pricing.body.review.month, '2026-11');
     const summary = await h.call('GET', '/v1/admin/tax', { token });
     assert.equal(summary.body.turnover.state, 'warning');
     assert.equal(summary.body.thresholdPence, 9_000_000);
