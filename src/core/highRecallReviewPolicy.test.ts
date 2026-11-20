@@ -126,3 +126,49 @@ test('equal quality scores nominate the same stable ID regardless of input order
     assert.equal(JSON.stringify(ordered), before);
   }
 });
+
+test('bird/aircraft disagreement abstains instead of promoting a helicopter as a bird', () => {
+  const items: ReviewCandidate[] = [
+    { id: 'helicopter', subject: 'bird', groupId: 'burst', quality: 1, confidence: 0.99,
+      competingEvidence: { birdScore: 0.82, aircraftScore: 0.96, modelVersion: 'local-v1' } },
+    { id: 'bird', subject: 'bird', groupId: 'burst', quality: 0.8, confidence: 0.91,
+      competingEvidence: { birdScore: 0.95, aircraftScore: 0.12, modelVersion: 'local-v1' } },
+  ];
+  const before = JSON.stringify(items);
+  assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['review', 'keep']);
+  assert.equal(JSON.stringify(items), before);
+});
+
+test('ambiguous bird and aircraft evidence abstains in either direction', () => {
+  for (const subject of ['bird', 'aircraft'] as const) {
+    const candidate: ReviewCandidate = { id: subject, subject, quality: 1, confidence: 1,
+      competingEvidence: { birdScore: 0.75, aircraftScore: 0.72, modelVersion: 'local-v1' } };
+    assert.equal(recommendForReview([candidate])[0].suggestion, 'review');
+  }
+});
+
+test('invalid model provenance and scores fail closed without changing manual decisions', () => {
+  const items: ReviewCandidate[] = [
+    { id: 'missing-version', subject: 'bird', quality: 1, confidence: 1,
+      competingEvidence: { birdScore: 1, aircraftScore: 0, modelVersion: ' ' } },
+    { id: 'nan', subject: 'bird', quality: 1, confidence: 1,
+      competingEvidence: { birdScore: NaN, aircraftScore: 0, modelVersion: 'local-v1' } },
+    { id: 'manual', subject: 'bird', quality: 1, confidence: 1, manualDecision: 'keep',
+      competingEvidence: { birdScore: 0.5, aircraftScore: 0.9, modelVersion: 'local-v1' } },
+  ];
+  assert.deepEqual(recommendForReview(items).map(s => s.suggestion), ['review', 'review', 'keep']);
+});
+
+test('500 synthetic mixed aircraft negatives never auto-reject uncertain frames', () => {
+  const items: ReviewCandidate[] = Array.from({ length: 500 }, (_, i) => ({
+    id: 'frame-' + i, subject: i % 2 ? 'bird' : 'aircraft',
+    groupId: 'burst-' + Math.floor(i / 5), quality: (i % 10) / 10, confidence: 0.95,
+    competingEvidence: i % 2
+      ? { birdScore: 0.8, aircraftScore: 0.9, modelVersion: 'synthetic-v1' }
+      : { birdScore: 0.9, aircraftScore: 0.8, modelVersion: 'synthetic-v1' },
+  }));
+  const suggestions = recommendForReview(items);
+  assert.equal(suggestions.length, 500);
+  assert.ok(suggestions.every(s => s.suggestion === 'review'));
+  assert.equal(suggestions.filter(s => s.suggestion === 'reject').length, 0);
+});
