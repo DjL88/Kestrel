@@ -30,3 +30,16 @@ For future native app wrappers: choose OS-native orientation policies rather tha
 | Large tablet / desktop | 1280 × 800 | Wide |
 
 Run `tests/mobile-viewport.spec.ts` in the Playwright phone project. Also confirm real-device browser chrome/safe areas, on-screen keyboard, virtual keyboard focus and OS orientation permissions before shipping a native wrapper.
+
+## Foldable and iPhone Duo acceptance (20 November 2026)
+
+Apple's iPhone Duo is an actual 2026 foldable device; support the narrow cover display, unfolded landscape workspace and transitions without relying on model strings. The browser may or may not expose viewport-segment/device-posture APIs. Prefer **usable viewport geometry** as the fallback and use segment CSS features only when supported. A spanning two-segment display must not place the most important interactive control inside a hinge.
+
+- Narrow external/flip-cover displays (roughly 320–420 CSS px): essential photo, cull/review actions and icon-first editor tabs; descriptions remain as accessible names and full text lives inside the opened tool sheet. Hide redundant status badges in the action bar instead of squeezing text.
+- Narrow or short unfolded/split-window views: compact photo-first view and individually scrollable tool sheet; do not infer desktop from touch or diagonal size.
+- Unfolded wide displays at **900 × 550+** usable CSS pixels: same docked editing layout and photo tools as desktop. Landscape tablets should not lose functionality, but keep touch-friendly targets.
+- For a dual-viewport physical hinge, keep the image and active controls out of the hinge; guard with `horizontal-viewport-segments` when exposed and fall back to the standard responsive flow when absent. Never rely solely on `device-posture` because support differs by browser.
+- Keep Photo Info consistent with the **same two-dimensional workspace threshold** used by Editor; width-only `lg`/1024 checks can accidentally force docked elements on short landscape phones.
+- Fold/unfold while importing, culling and editing must preserve selection, original-file links, active recipe, and pending Task Manager operations. Avoid remounting state simply to switch layout.
+
+**Evidence gate:** Playwright at 320×568, 375×812, 390×844, 667×375, 850×700, 1024×768, 1180×820, 1280×800. Repeat with 125/150% text, on-screen keyboard, portrait-to-landscape, touch and reduced motion. Native device QA on iPhone Duo (cover/unfolded), a Samsung Fold, a flip-cover phone and iPad landscape remains **NOT RUN** until actually measured. Don't mark native parity complete from CSS or emulation alone.
