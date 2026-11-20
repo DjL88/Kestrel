@@ -17,7 +17,8 @@ export function parseWatermark(raw: string | null): WatermarkOptions {
       position: POSITIONS.includes(value.position as WatermarkPosition) ? value.position as WatermarkPosition : NO_WATERMARK.position,
       size: clamp(value.size, 0.03, 0.5, NO_WATERMARK.size),
       opacity: clamp(value.opacity, 0.15, 1, NO_WATERMARK.opacity),
-      tone: value.tone === 'dark' ? 'dark' : 'light',
+      tone: value.tone === 'dark' || value.tone === 'light' ? value.tone : 'auto',
+      font: value.font === 'jakarta' || value.font === 'atkinson' ? value.font : 'inter',
     };
   } catch {
     return NO_WATERMARK;
