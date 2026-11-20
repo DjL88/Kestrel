@@ -8,7 +8,7 @@ import type { ExportFormat } from './exportFormats';
  * and background exports; smaller named web/social exports remain available.
  */
 export const RAW_MASTER_EXPORT_ERROR =
-  'Full-size RAW export is not yet verified at original sensor quality. Choose a social JPEG format, or use the original file until high-precision RAW export is supported.';
+  'Full-size RAW export is not yet verified at original sensor quality. Choose Full size JPEG for an 8-bit sharing copy, or keep the original RAW until high-precision master export is supported.';
 
 export function rawMasterExportBlocked(
   formats: readonly Pick<ExportFormat, 'id'>[],
