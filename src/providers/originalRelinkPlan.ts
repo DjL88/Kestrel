@@ -132,7 +132,19 @@ export function planOriginalRelink(
     }
     matches.push({ id: original.id, path: candidate.path });
   }
-  return { matches, unresolved, ambiguous };
+  // Digest-verified and legacy metadata-only records may independently select
+  // the same candidate. Never let the two matching modes double-assign a file.
+  const pathUses = new Map<string, number>();
+  for (const match of matches) {
+    const path = normalizedPath(match.path);
+    pathUses.set(path, (pathUses.get(path) ?? 0) + 1);
+  }
+  const safeMatches: RelinkMatch[] = [];
+  for (const match of matches) {
+    if ((pathUses.get(normalizedPath(match.path)) ?? 0) > 1) ambiguous.push(match.id);
+    else safeMatches.push(match);
+  }
+  return { matches: safeMatches, unresolved, ambiguous };
 }
 
 /** Only reveal a folder as a suggestion; never silently substitute its contents. */
