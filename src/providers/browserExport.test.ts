@@ -273,3 +273,82 @@ test('RAW preview cache cannot be exported without original identity even when a
   }), /Reconnect disconnected.NEF/);
   assert.equal(decodes, 0, 'never export a stale review thumbnail when the original is absent');
 });
+
+
+/** The sensor decoder must outrank a perfectly usable but lower-fidelity embedded JPEG on export. */
+function stubExportImage(t: { after(callback: () => void): void }) {
+  const oldImage = Object.getOwnPropertyDescriptor(globalThis, 'Image');
+  const oldCreate = URL.createObjectURL;
+  const oldRevoke = URL.revokeObjectURL;
+  const revoked: string[] = [];
+  t.after(() => {
+    if (oldImage) Object.defineProperty(globalThis, 'Image', oldImage);
+    else Reflect.deleteProperty(globalThis, 'Image');
+    URL.createObjectURL = oldCreate;
+    URL.revokeObjectURL = oldRevoke;
+  });
+  URL.createObjectURL = () => 'blob:sensor-development';
+  URL.revokeObjectURL = url => { revoked.push(url); };
+  class ImageStub {
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    private address = '';
+    get src() { return this.address; }
+    set src(value: string) { this.address = value; queueMicrotask(() => this.onload?.()); }
+  }
+  Object.defineProperty(globalThis, 'Image', { configurable: true, value: ImageStub });
+  return { revoked };
+}
+
+test('available RAW sensor development outranks an embedded JPEG export preview', async (t) => {
+  const { revoked } = stubExportImage(t);
+  const original = new Blob(['original sensor samples']);
+  const frame = { ...createDemoShootState(1).frames[0], filename: 'Z8.NEF', stableKey: 'camera-z8', isDemo: false };
+  let decodes = 0;
+  const image = await loadExportSource(frame, {
+    getFullPreviewUrl: async () => 'blob:embedded-camera-jpeg',
+    hasBlob: () => true, isOfflineFallback: () => false,
+    isDeveloped: () => false,
+    ensureOriginal: async () => original,
+    getOriginal: () => original,
+  }, 'selected', async (source, extension) => {
+    decodes++;
+    assert.equal(source, original);
+    assert.equal(extension, 'nef');
+    return new Blob(['sensor-derived JPEG'], { type: 'image/jpeg' });
+  });
+  assert.equal(decodes, 1);
+  assert.equal(image.src, 'blob:sensor-development');
+  assert.deepEqual(revoked, ['blob:sensor-development']);
+});
+
+test('an existing current RAW development is reused without decoding again', async (t) => {
+  stubExportImage(t);
+  const frame = { ...createDemoShootState(1).frames[0], filename: 'Z8.NEF', stableKey: 'ready-raw', isDemo: false };
+  const image = await loadExportSource(frame, {
+    getFullPreviewUrl: async () => 'blob:already-developed',
+    hasBlob: () => true, isDeveloped: () => true,
+  }, 'selected', async () => { throw new Error('Must not decode a current source again'); });
+  assert.equal(image.src, 'blob:already-developed');
+});
+
+test('missing or relinked RAW original never falls back to a stale embedded JPEG', async (t) => {
+  stubExportImage(t);
+  const frame = { ...createDemoShootState(1).frames[0], filename: 'Z5II.NEF', stableKey: 'relinked', isDemo: false };
+  const original = new Blob(['first source']);
+  let active = original;
+  const provider = {
+    getFullPreviewUrl: async () => 'blob:old-camera-jpeg',
+    hasBlob: () => true, isDeveloped: () => false,
+    ensureOriginal: async () => original,
+    getOriginal: () => active,
+  };
+  const decode = async () => {
+    active = new Blob(['new original after a drive relink']);
+    return new Blob(['stale development'], { type: 'image/jpeg' });
+  };
+  await assert.rejects(loadExportSource(frame, provider, 'selected', decode), /changed during RAW development/);
+  active = original;
+  await assert.rejects(loadExportSource(frame, { ...provider, ensureOriginal: async () => undefined },
+    'selected', decode), /Reconnect Z5II.NEF/);
+});
