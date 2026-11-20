@@ -77,6 +77,8 @@ export const nb: AreaTranslation<typeof source> = {
     fullSize: 'Full størrelse',
     customSize: 'Egen størrelse',
     master: 'Full størrelse · PNG',
+    fullJpeg: "Full størrelse · JPEG",
+    fullJpegHelp: "JPEG av høy kvalitet fra det tilgjengelige bildet. For RAW brukes et fremkalt bilde eller kameraets forhåndsvisning, ikke en verifisert 16-bits RAW-master.",
     custom: (width, height) => `Egen · ${width} × ${height}`,
     post: (shape) => `Innlegg · ${shape}`,
     square: (shape) => `Kvadrat · ${shape}`,

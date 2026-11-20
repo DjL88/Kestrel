@@ -77,6 +77,8 @@ export const fi: AreaTranslation<typeof source> = {
     fullSize: 'Täysi koko',
     customSize: 'Oma koko',
     master: 'Täysi koko · PNG',
+    fullJpeg: "Täysi koko · JPEG",
+    fullJpegHelp: "Laadukas JPEG käytettävissä olevasta kuvasta. RAW-kuvista käytetään kehitettyä kuvaa tai kameran esikatselua, ei varmennettua 16-bittistä RAW-masteria.",
     custom: (width, height) => `Oma · ${width} × ${height}`,
     post: (shape) => `Julkaisu · ${shape}`,
     square: (shape) => `Neliö · ${shape}`,

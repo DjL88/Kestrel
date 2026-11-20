@@ -25,6 +25,7 @@ export function sizeName(format: Pick<ExportFormat, 'width' | 'height'>): string
 /** A format's name in the session language, following its current shape (a turned 4:5 post reads 5:4). */
 export function formatLabel(format: ExportFormat): string {
   if (format.id === 'master') return t.formats.master;
+  if (format.id === 'full-jpeg') return t.formats.fullJpeg;
   if (format.id === 'before-after') return t.formats.beforeAfter;
   if (format.id === 'custom') return t.formats.custom(format.width, format.height);
   const kind = FORMAT_KINDS[format.id];

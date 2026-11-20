@@ -81,6 +81,8 @@ export const gd: AreaTranslation<typeof source> = {
     fullSize: 'Làn-mheud',
     customSize: 'Meud gnàthaichte',
     master: 'Làn-mheud · PNG',
+    fullJpeg: "Làn-mheud · JPEG",
+    fullJpegHelp: "JPEG àrd-inbhe bhon dealbh a tha ri fhaighinn. Airson RAW bithear a’ cleachdadh dealbh leasaichte no ro-shealladh a’ chamara, chan e maighstir RAW 16-bit dearbhte.",
     custom: (width, height) => `Gnàthaichte · ${width} × ${height}`,
     post: (shape) => `Post · ${shape}`,
     square: (shape) => `Ceàrnag · ${shape}`,

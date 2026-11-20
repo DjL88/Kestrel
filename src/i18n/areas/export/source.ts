@@ -64,6 +64,8 @@ export const source = {
     fullSize: 'Full size',
     customSize: 'Custom size',
     master: 'Full size · PNG',
+    fullJpeg: 'Full size · JPEG',
+    fullJpegHelp: 'High-quality JPEG from the available photo data. RAW pictures use a developed image or camera preview, not a verified 16-bit RAW master.',
     custom: (width: number, height: number) => `Custom · ${width} × ${height}`,
     post: (shape: string) => `Post · ${shape}`,
     square: (shape: string) => `Square · ${shape}`,
