@@ -70,7 +70,7 @@ export function AdjustmentSlider({
       ${layout === 'stacked' ? 'grid grid-cols-[minmax(0,1fr)_auto] -my-1.5' : 'grid grid-cols-[minmax(4.5rem,0.85fr)_minmax(4rem,1.5fr)_minmax(3.5rem,auto)]'}
       ${disabled ? 'opacity-45' : ''}`}>
       <label htmlFor={id} className={`min-w-0 leading-5 ${layout === 'stacked' ? 'col-start-1 font-medium whitespace-normal' : 'truncate'}`}>{label}{hint && <span className="ml-1.5 text-xs font-normal text-kestrel-copper">{hint}</span>}</label>
-      <span className={`relative flex min-w-0 items-center ${layout === 'stacked' ? 'col-span-2 row-start-2 w-full' : ''}`}>
+      <span className={`relative isolate flex min-w-0 items-center ${layout === 'stacked' ? 'col-span-2 row-start-2 w-full' : ''}`}>
         <span className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-white/25" aria-hidden="true" />
         {min < neutral && neutral < max && (
           <span className="pointer-events-none absolute top-1/2 h-2.5 w-px -translate-y-1/2 bg-white/35" style={originStyle} aria-hidden="true" />
@@ -83,7 +83,7 @@ export function AdjustmentSlider({
           onPointerCancel={() => { dragging.current = false; lastSent.current = null; setLocalValue(value); }}
           onChange={(event) => change(event.target.valueAsNumber)}
           onDoubleClick={() => { if (!disabled && resettable) change(neutral); }}
-          className="kestrel-adjustment-range relative z-10 h-10 w-full min-w-0 cursor-pointer disabled:cursor-not-allowed" />
+          className="kestrel-adjustment-range relative z-[1] h-10 w-full min-w-0 cursor-pointer disabled:cursor-not-allowed" />
       </span>
       {resettable ? (
         <button type="button" aria-label={`Reset ${label}`} aria-description={`Currently ${shown}; resets to neutral`}

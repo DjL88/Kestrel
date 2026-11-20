@@ -2106,6 +2106,11 @@ export default function App() {
                 <WorkspacePaneRail kind="tools" side="left" onExpand={() => setWorkspacePanes({ folded: false })} />
               )}
             <PhotoEditor
+              viewportTransform={{ zoom: zoomLevel, pan: panOffset }}
+              onViewportTransform={(next) => {
+                setZoomLevel(next.zoom);
+                setPanOffset(next.pan);
+              }}
               initialTab={editorTab}
               onTabChange={setEditorTab}
               key={selectedFrame.id}

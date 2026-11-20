@@ -34,6 +34,7 @@ export function linkedPathIdentity(path: string): string {
   return prefix + (isWindows && /^[a-zA-Z]:\//.test(lexical)
     ? lexical[0].toUpperCase() + lexical.slice(1)
     : lexical);
+  return prefix + (isWindows ? lexical.toLowerCase() : lexical);
 }
 
 export function originalSourceKey(photo: OriginalKeySource): string {

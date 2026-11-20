@@ -8,6 +8,7 @@ import type { PhotoFrame } from '../core/types';
 import { drawCropQuickly, renderExportPreview } from '../providers/browserExport';
 import type { OverlayOptions } from '../core/exportOverlay';
 import { SocialIcon } from './SocialIcon';
+import { AdjustmentSlider } from './AdjustmentSlider';
 
 interface Props {
   frame: PhotoFrame;
@@ -174,7 +175,11 @@ export function ExportPreviewTile({ frame, source, format, bars, anchor, zoom, o
       {movable && (
         <div className="flex flex-wrap items-center gap-1">
           <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 desk:h-9 desk:w-9" aria-label="Zoom out" onClick={() => onZoom(clampZoom(zoom - 0.25))}><Minus className="h-4 w-4" aria-hidden="true" /></button>
-          <input type="range" min={1} max={MAX_ZOOM} step={0.05} value={zoom} aria-label={`Zoom ${caption}`} onChange={(event) => onZoom(clampZoom(event.target.valueAsNumber))} className="min-h-11 min-w-[7rem] flex-1 accent-sky-300 desk:min-h-9" />
+          <div className="min-w-[7rem] flex-1">
+            <AdjustmentSlider label={`Zoom ${caption}`} min={1} max={MAX_ZOOM} step={0.05} neutral={1}
+              value={zoom} displayValue={`${Math.round(zoom * 100)}%`}
+              onChange={(value) => onZoom(clampZoom(value))} />
+          </div>
           <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 desk:h-9 desk:w-9" aria-label="Zoom in" onClick={() => onZoom(clampZoom(zoom + 0.25))}><Plus className="h-4 w-4" aria-hidden="true" /></button>
         </div>
       )}
