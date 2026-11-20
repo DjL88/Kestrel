@@ -5,7 +5,7 @@
  * Keep this query identical to the Tailwind 'workspace' custom variant.
  */
 export const WIDE_WORKSPACE_QUERY =
-  '((min-width: 800px) and (min-height: 550px)) or ((min-width: 840px) and (min-height: 440px) and (max-height: 549px))';
+  '(min-width: 800px) and (min-height: 550px), (min-width: 840px) and (min-height: 440px) and (max-height: 549px)';
 
 export function canUseWideWorkspace(width: number, height: number): boolean {
   if (!Number.isFinite(width) || !Number.isFinite(height)) return false;
