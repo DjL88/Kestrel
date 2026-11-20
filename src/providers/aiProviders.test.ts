@@ -80,6 +80,6 @@ test('consent is tied to the actual AI endpoint, not just a shared hostname', as
   let fetches = 0;
   const fetcher = (async () => { fetches++; return Response.json({}); }) as typeof fetch;
   await assert.rejects(askForReview(legacy, AI_REVIEW_CONSENT_VERSION, 'Q', 'AAAA', undefined, fetcher));
-  await assert.rejects(askForReview({ ...agreed(allowed), ...changed }, AI_REVIEW_CONSENT_VERSION, 'Q', 'AAAA', undefined, fetcher));
+  await assert.rejects(askForReview({ ...changed, consent: agreed(allowed).consent }, AI_REVIEW_CONSENT_VERSION, 'Q', 'AAAA', undefined, fetcher));
   assert.equal(fetches, 0, 'no preview can be sent under stale consent');
 });
