@@ -17,6 +17,16 @@ export const fi: AreaTranslation<typeof source> = {
     keywords: "Avainsanat (pilkuilla eroteltuina; tyhjä = vahvistetut tunnisteet)",
     help: "Vahvistetut aiheet voivat täyttää otsikon ja avainsanat. Vahvistamattomia tekoälyarvauksia ei viedä. Tiedot tallennetaan tiedostoon, ei kuvaan.",
   },
+  originals: {
+    title: "Kameran alkuperäistiedostot",
+    action: (count: number) => count === 1 ? "Tallenna alkuperäinen tiedosto" : `Tallenna ${count} alkuperäistiedostoa`,
+    background: (count: number) => count === 1 ? "Tallennetaan kameran alkuperäistä" : `Tallennetaan ${count} kameran alkuperäistä`,
+    privacy: "Tarkka kopio alkuperäisestä tiedostosta, mukaan lukien tiedostomuoto ja EXIF-/GPS-tiedot. Muokkauksia, rajauksia, vesileimoja tai vientimetatietojen muutoksia EI sovelleta. Lähdetiedosto pysyy ennallaan.",
+    browserLimit: "Valinta on liian suuri turvalliseen ZIP-tiedostoon tässä selaimessa. Tallenna alkuperäiset yksitellen kansioon työpöytäsovelluksella.",
+    browserLimitHelp: "Suurissa RAW-erissä työpöytäsovellus tallentaa tiedostot yksitellen luomatta valtavaa ZIP-tiedostoa muistiin.",
+    unavailable: "Esittelykuvilla ei ole tallennettavaa kameran alkuperäistiedostoa.",
+    sourceMissing: "Kameran alkuperäinen tiedosto ei ole käytettävissä. Yhdistä asema tai lähdetiedosto uudelleen ennen kopiointia.",
+  },
   rawTiff: {
     action: "Vie 16-bittinen RAW-TIFF (prototyyppi)",
     details: "Tietoa 16-bittisestä RAW-TIFFistä",

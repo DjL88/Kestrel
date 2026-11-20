@@ -17,6 +17,16 @@ export const pt: AreaTranslation<typeof source> = {
     keywords: "Palavras-chave (separadas por vírgulas; vazio = etiquetas confirmadas)",
     help: "Os assuntos confirmados podem preencher o título e as palavras-chave. Suposições não confirmadas da IA nunca são exportadas. Os dados ficam no ficheiro, não sobre a fotografia.",
   },
+  originals: {
+    title: "Ficheiros originais da câmara",
+    action: (count: number) => count === 1 ? "Guardar ficheiro original" : `Guardar ${count} ficheiros originais`,
+    background: (count: number) => count === 1 ? "A guardar o original da câmara" : `A guardar ${count} originais da câmara`,
+    privacy: "Cópia exata do ficheiro original, incluindo formato e dados EXIF/GPS. Edições, cortes, marcas de água e alterações de metadados de exportação NÃO são aplicadas. O ficheiro de origem fica inalterado.",
+    browserLimit: "Esta seleção é demasiado grande para criar um ZIP seguro neste navegador. Use a aplicação de desktop para guardar os originais individualmente numa pasta.",
+    browserLimitHelp: "Para grandes lotes RAW, a aplicação de desktop guarda um ficheiro de cada vez sem criar um ZIP enorme em memória.",
+    unavailable: "As fotografias de demonstração não têm ficheiro original da câmara.",
+    sourceMissing: "O ficheiro original da câmara não está disponível. Volte a ligar o disco ou o ficheiro de origem antes de copiar.",
+  },
   rawTiff: {
     action: "Exportar TIFF RAW de 16 bits (protótipo)",
     details: "Sobre o TIFF RAW de 16 bits",

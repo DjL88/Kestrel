@@ -1,4 +1,5 @@
 import { makeXmpDownload } from '../core/xmpSidecars';
+import { BROWSER_ORIGINAL_ZIP_LIMIT, copyUnchangedOriginal, planOriginalCopies } from '../core/originalCopyExport';
 import { EXPORT_PREFERENCES_KEY, EXPORT_PRESETS_KEY, readExportPreferences, readExportPresets, type ExportPreset } from '../core/exportPreferences';
 import { isRawPreviewFile } from '../core/rawFormats';
 import { master16Blocker } from '../core/master16';
@@ -133,6 +134,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const [customDate, setCustomDate] = useState('');
   const [progress, setProgress] = useState<number | null>(null);
   const [files, setFiles] = useState<File[]>([]);
+  const [originalPrepared, setOriginalPrepared] = useState(false);
   const outputPlatforms = useRef(new WeakMap<File, ExportFormat['platform']>());
   // The ZIP is packed as soon as the files are ready, so Download is an immediate tap. A download started after waiting
   // is ignored by iPhone Safari, which only allows it straight from a tap.
@@ -187,7 +189,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     setSaving(true);
     setSavedName(null);
     try {
-      if (await saveWithDialog(file, name)) {
+      if (await saveWithDialog(file, name, originalPrepared)) {
         if (!complete && !cancelled.current) setSavedName(name);
         finishDelivery(exported, complete);
       }
@@ -242,6 +244,103 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     } finally {
       saveRunning.current = false;
       if (!cancelled.current) setSaving(false);
+    }
+  }
+
+  /**
+   * Save the actual linked source bytes with their real camera extension.
+   * No edit renderer, preview, crop, watermark, EXIF stripping, XMP rewrite
+   * or Free-export allowance participates in this explicit source-copy path.
+   */
+  async function saveUnchangedOriginals() {
+    if (saveRunning.current || activeExport.current || openingPlace || placeTaskId !== null ||
+        frames.length === 0 || progress !== null) return;
+    saveRunning.current = true;
+    setError('');
+    setOriginalPrepared(false);
+    setOpeningPlace(true);
+    try {
+      const sourceFrames = structuredClone(frames);
+      const planned = planOriginalCopies(sourceFrames);
+      if (desktop && !isMobileShell()) {
+        const destination = await chooseDesktopExportFolder();
+        if (!destination || cancelled.current) return;
+        const byId = new Map(sourceFrames.map(frame => [frame.id, frame]));
+        exportBatchQueue.enqueue({
+          title: t.originals.background(sourceFrames.length),
+          items: planned,
+          recipe: { mode: 'original-bytes', startedAt: Date.now() },
+        }, {
+          render: async (item, _recipe, signal) => {
+            const source = byId.get(item.sourceId);
+            if (!source) throw new Error(t.originals.sourceMissing);
+            return copyUnchangedOriginal(source, provider, item.filename, signal);
+          },
+          save: (item, file, signal) => destination.save(file, item.subfolder, signal),
+        });
+        // Job has been accepted by the application Task Manager and is no
+        // longer coupled to this dialog. Files are written one at a time.
+        onClose();
+        return;
+      }
+
+      // Browsers cannot stream an arbitrary collection to an exclusive user-
+      // selected folder on all devices. A bounded in-memory ZIP is offered,
+      // never an unbounded 500-RAW operation that can exhaust a phone.
+      const sizes = sourceFrames.map(frame => provider.originalInfo(frame.stableKey)?.size);
+      if (sourceFrames.length > 1 &&
+          sizes.reduce<number>((sum, size) => sum + (size ?? 0), 0) > BROWSER_ORIGINAL_ZIP_LIMIT) {
+        throw new Error(t.originals.browserLimit);
+      }
+      const controller = new AbortController();
+      activeExport.current = controller;
+      const task = tasks.start(t.originals.background(sourceFrames.length), {
+        total: sourceFrames.length, cancel: () => controller.abort(),
+      });
+      setOpeningPlace(false);
+      setSaving(true);
+      const originals: File[] = [];
+      let totalBytes = 0;
+      try {
+        for (const [index, item] of planned.entries()) {
+          controller.signal.throwIfAborted();
+          const file = await copyUnchangedOriginal(sourceFrames[index], provider, item.filename, controller.signal);
+          totalBytes += file.size;
+          if (sourceFrames.length > 1 && totalBytes > BROWSER_ORIGINAL_ZIP_LIMIT)
+            throw new Error(t.originals.browserLimit);
+          originals.push(file);
+          task.progress(index + 1, sourceFrames.length);
+        }
+        controller.signal.throwIfAborted();
+        if (!cancelled.current) {
+          setOriginalPrepared(true);
+          setFiles(originals);
+          setZip(null);
+          if (originals.length > 1) {
+            packing.current = originals;
+            const expected = originals;
+            void archiveExports(originals).then(packed => {
+              if (!cancelled.current && packing.current === expected) setZip(packed);
+            }).catch(() => {
+              if (!cancelled.current && packing.current === expected) setError(t.panel.zipFailed);
+            });
+          }
+        }
+        task.finish();
+      } catch (error) {
+        task.fail(error instanceof Error ? error.message : t.originals.sourceMissing);
+        throw error;
+      } finally {
+        activeExport.current = null;
+      }
+    } catch (error) {
+      if (!cancelled.current) setError(error instanceof Error ? error.message : t.originals.sourceMissing);
+    } finally {
+      saveRunning.current = false;
+      if (!cancelled.current) {
+        setOpeningPlace(false);
+        setSaving(false);
+      }
     }
   }
 
@@ -976,7 +1075,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
         {!resultsReady && desktop && !isMobileShell() && (
           <div className="mb-3 flex flex-col gap-1 rounded-lg border border-white/15 bg-black/15 p-3">
-            <button type="button" disabled={!total || progress !== null || blocked || placeBusy}
+            <button type="button" disabled={!total || progress !== null || blocked || placeBusy || saving}
               className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}
               onClick={() => void queueToBackgroundDestination('desktop')}>
               {placeBusy ? t.results.choosingFolder : t.results.desktopBackground(total)}
@@ -995,6 +1094,22 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             </button>
             <p className="text-xs text-zinc-300">{t.results.connectedBackgroundHelp}</p>
           </div>
+        )}
+        {!resultsReady && (
+          <section aria-label={t.originals.title} className="mb-3 rounded-lg border border-white/15 bg-black/10 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className={`${button} border border-white/20 font-medium`}
+                disabled={saving || progress !== null || placeBusy || !frames.length || frames.some(frame => frame.isDemo)}
+                onClick={() => void saveUnchangedOriginals()}>
+                {openingPlace ? t.results.choosingFolder : t.originals.action(frames.length)}
+              </button>
+              <span className="text-xs font-medium text-zinc-300">{t.originals.title}</span>
+            </div>
+            <p className="mt-1 text-xs text-zinc-300">{t.originals.privacy}</p>
+            {frames.some(frame => frame.isDemo) && <p role="note" className="mt-1 text-xs text-amber-200">{t.originals.unavailable}</p>}
+            {(!desktop || isMobileShell()) && frames.length > 1 &&
+              <p className="mt-1 text-xs text-zinc-400">{t.originals.browserLimitHelp}</p>}
+          </section>
         )}
         {!resultsReady && frames.length === 1 && !frames[0].isDemo &&
           isRawPreviewFile(frames[0].filename) && canDevelopRaw() && (
@@ -1103,6 +1218,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               <button type="button" className={button} disabled={saving || placeBusy} onClick={() => {
                 packing.current = null;
                 setFiles([]);
+                setOriginalPrepared(false);
                 setZip(null);
                 setError('');
                 setSavedName(null);
@@ -1113,7 +1229,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               <summary className="min-h-11 cursor-pointer py-2 text-sm">{desktop ? t.results.saveEach : t.results.downloadEach}</summary>
               {files.map((file, index) => <button type="button" className={`${button} block max-w-full truncate`}
                 key={index} disabled={saving || placeBusy} onClick={() => {
-                  const frame = frames[Math.floor(index / selected.length)];
+                  const frame = frames[originalPrepared ? index : Math.floor(index / selected.length)];
                   void deliver(file, file.name, frame ? [frame] : [], false);
                 }}>{file.name}</button>)}
             </details>}

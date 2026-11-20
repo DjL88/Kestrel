@@ -80,6 +80,14 @@ Guided Export now **auto-selects the sole format and skips the redundant size st
 
 **Still NOT RUN:** TypeScript/lint, unit suite, Vite/native builds, 500-photo RAW/JPEG/HEIC export journeys, real fixed proof/output pixel comparisons, phone/tablet/foldable layout and Windows/macOS installed tests. This does **not** close the other incomplete roadmap implementation, RAW fidelity or durable restart recovery. No high-bit-depth/raw parity claim.
 
+### 20 November 2026 — explicit camera-original export (code under review)
+
+Export now has a distinct **Save original file(s)** action for real linked photographs. This path reads the **original stored bytes** via `BrowserPreviewProvider.ensureOriginal`; it never opens the edit canvas, demosaics, resamples, masks, adds watermarks, rewrites EXIF/XMP or substitutes a cached embedded/review preview. It wraps the original `Blob` with a collision-safe name matching the camera extension and, where known, the original modification time; the source itself remains untouched. Missing/demo/truncated/changed-size sources fail rather than exporting something claimed to be the original. The person is explicitly warned that **original EXIF, GPS/location, serial data and all other private camera metadata remain present** in the copied file, and edited recipes do not transfer. It is a copy, not an edited export, so it does not consume a Free edited-export allowance.
+
+On desktop one picked destination leads to Task Manager processing originals sequentially into an `Original/` subfolder, using the existing exclusive-create, no-overwrite and incomplete-write cancellation behaviour. On web/mobile a single real original may be saved directly and small batches may be downloaded as a ZIP. Browser batches are capped at 128 MB total for bounded memory; large RAW batches must use a desktop folder destination until a proven browser streaming-directory route is available. If the desktop queue or the app process terminates, the queue still lacks restart-resumable atomic commits; this feature **does not claim durable cross-restart recovery**.
+
+**Unit and UI checks authored but NOT RUN:** exact-byte original preservation, duplicate/case-insensitive camera filenames, unsafe name rejection, missing/truncated demo sources, early cancellation. Full TypeScript/lint/test/build/Playwright, installed Mac/Windows and browser/mobile, real Z8/Z5II 500-photo batch, source hash evidence, local NAS disconnect and 128 MB memory behaviour remain pending. Other implementation gaps persist, so the full roadmap is not yet legitimately testing-only.
+
 ## 1. Where Kestrel is today
 
 | Area | Status | Evidence and gaps |

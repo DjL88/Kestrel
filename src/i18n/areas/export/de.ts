@@ -17,6 +17,16 @@ export const de: AreaTranslation<typeof source> = {
     keywords: "Schlagwörter (durch Kommas getrennt; leer = bestätigte Tags)",
     help: "Bestätigte Motive können Titel und Schlagwörter füllen. Unbestätigte KI-Vermutungen werden nie exportiert. Diese Angaben stehen in der Datei, nicht auf dem Foto.",
   },
+  originals: {
+    title: "Kamera-Originaldateien",
+    action: (count: number) => count === 1 ? "Originaldatei speichern" : `${count} Originaldateien speichern`,
+    background: (count: number) => count === 1 ? "Kamera-Original wird gespeichert" : `${count} Kamera-Originale werden gespeichert`,
+    privacy: "Exakte Kopie der Originaldatei, einschliesslich Dateiformat und EXIF-/Standortdaten. Bearbeitungen, Zuschnitte, Wasserzeichen und Export-Metadaten werden NICHT angewendet. Die Quelldatei bleibt unverändert.",
+    browserLimit: "Diese Auswahl ist zu gross für ein sicheres ZIP im Browser. Verwenden Sie die Desktop-App, um Originale einzeln in einen Ordner zu speichern.",
+    browserLimitHelp: "Bei vielen RAW-Dateien speichert die Desktop-App die Dateien nacheinander, ohne ein riesiges ZIP im Speicher aufzubauen.",
+    unavailable: "Demofotos haben keine Kamera-Originaldatei.",
+    sourceMissing: "Die Originaldatei ist nicht verfügbar. Verbinden Sie das Laufwerk oder die Quelldatei erneut.",
+  },
   rawTiff: {
     action: "16-Bit-RAW-TIFF exportieren (Prototyp)",
     details: "Über 16-Bit-RAW-TIFF",
