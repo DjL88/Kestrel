@@ -7,7 +7,7 @@ import { messages as m } from '../i18n/messages';
 import { editorText as t } from '../i18n/areas/editor';
 import { libraryText as libraryT } from '../i18n/areas/library';
 import { exportText as exportT } from '../i18n/areas/export';
-import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed, Undo2, Wand2 } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, Redo2, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed, Undo2, Wand2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { formatClock } from '../core/formatDate';
 import { CROP_RATIOS, DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawCrop, drawFramedPhoto, estimateLevel, fixedShape, framedSize, resizeCrop, resizeCropEdge, thirdsCropAnchor, type CropCorner, type CropEdge, type PhotoFraming } from '../core/photoFraming';
