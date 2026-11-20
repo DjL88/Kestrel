@@ -1,6 +1,20 @@
+import type { resolveProOffer } from './offers.ts';
 import { calculateTaxAmounts, PRO_BASE_PENCE, quoteProTax } from './tax.ts';
 
 const pricesInGbpPence = { pro: PRO_BASE_PENCE, geminiMonthly: 99 } as const;
+/** April uses the cumulative index change since the last approved price. */
+export function reviewGbpProPrice(basePence: number, baselineCpi: number, latestCpi: number) {
+  if (!Number.isSafeInteger(basePence) || basePence <= 0
+    || !Number.isFinite(baselineCpi) || baselineCpi <= 0
+    || !Number.isFinite(latestCpi) || latestCpi <= 0) {
+    throw new Error('A positive base price and two published UK CPI index values are required.');
+  }
+  const multiplier = latestCpi / baselineCpi;
+  const proposedPence = Math.max(100, Math.round(basePence * multiplier / 100) * 100);
+  if (!Number.isSafeInteger(proposedPence)) throw new Error('The proposed GBP price is outside the supported range.');
+  return { basePence, cumulativeInflation: multiplier - 1, proposedPence };
+}
+
 const MAX_FX_AGE_MS = 7 * 86_400_000;
 
 export interface GbpExchangeRate {
@@ -19,13 +33,17 @@ export function quoteLocalPrice(
   customer: Parameters<typeof quoteProTax>[0],
   settings: Parameters<typeof quoteProTax>[1],
   nowMs: number,
+  approvedProBasePence: number = PRO_BASE_PENCE,
+  offer?: ReturnType<typeof resolveProOffer>,
 ) {
   if (!/^[A-Z]{3}$/.test(currency) || !settlementCurrencies.has(currency)) {
     throw new Error('This currency is unavailable for checkout.');
   }
   const minorUnitDigits = new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions().maximumFractionDigits!;
   const scale = 10 ** minorUnitDigits;
-  const baseGbpPence = pricesInGbpPence[product];
+  if (offer && product !== 'pro') throw new Error('A Pro offer cannot apply to the Gemini plan.');
+  const baseGbpPence = product === 'pro' ? offer?.gbpBasePence ?? approvedProBasePence : pricesInGbpPence.geminiMonthly;
+  if (!Number.isSafeInteger(baseGbpPence) || baseGbpPence <= 0) throw new Error('Invalid GBP base price.');
   const rate = currency === 'GBP' ? null : exchange;
   let roundedBaseMinor: number = baseGbpPence;
   if (currency !== 'GBP') {
@@ -38,17 +56,22 @@ export function quoteLocalPrice(
       throw new Error('A current exchange rate is required.');
     }
     const exactMinor = baseGbpPence * rate.partsPerMillion * scale / 100_000_000;
-    // One-time prices round to a whole unit. Smaller monthly amounts use
-    // quarter-unit steps so, for example, £0.99 can become €1.25.
-    const step = product === 'geminiMonthly' ? Math.max(1, scale / 4) : scale;
+    // Use five-unit steps for higher one-time prices and finer steps for
+    // small monthly amounts.
+    const step = product === 'geminiMonthly'
+      ? Math.max(1, scale / 4)
+      : exactMinor >= 40 * scale ? 5 * scale : scale;
     roundedBaseMinor = Math.max(step, Math.round(exactMinor / step) * step);
     roundedBaseMinor = Math.round(roundedBaseMinor);
   }
   const tax = quoteProTax(customer, settings);
   const inclusive = tax.customerType === 'B2C' && settings.b2cPricing === 'inclusive';
-  const amounts = calculateTaxAmounts(roundedBaseMinor, tax.rateBasisPoints, inclusive);
+  const discountMinor = Math.round(roundedBaseMinor * (offer?.discountBasisPoints ?? 0) / 10000);
+  const saleBaseMinor = Math.max(1, roundedBaseMinor - discountMinor);
+  const amounts = calculateTaxAmounts(saleBaseMinor, tax.rateBasisPoints, inclusive);
   return {
-    product, currency, minorUnitDigits, baseGbpPence, roundedBaseMinor, exchangeRate: rate,
+    product, currency, minorUnitDigits, baseGbpPence, roundedBaseMinor, saleBaseMinor,
+    discountMinor: roundedBaseMinor - saleBaseMinor, offer: offer ?? null, exchangeRate: rate,
     jurisdiction: tax.jurisdiction, treatment: tax.treatment, rateBasisPoints: tax.rateBasisPoints,
     customerType: tax.customerType, vatNumber: tax.vatNumber, invoiceNotice: tax.invoiceNotice,
     verification: tax.verification, evidence: tax.evidence,

@@ -83,3 +83,39 @@ test('local pricing rounds before tax and keeps the GBP bases unchanged', async 
   assert.throws(() => quoteLocalPrice('pro', 'EUR', rate, currencies, location('DE'), defaults, now + 8 * 86_400_000), /current exchange rate/);
   assert.throws(() => quoteLocalPrice('pro', 'CAD', rate, currencies, location('CA'), defaults, now), /unavailable/);
 });
+
+test('April CPI review proposes a rounded GBP base and local FX review uses that proposed base', async () => {
+  const { quoteLocalPrice, reviewGbpProPrice } = await import('../src/commerce/localPrice.ts');
+  const review = reviewGbpProPrice(2900, 125, 137.5);
+  assert.equal(review.proposedPence, 3200);
+  assert.throws(() => reviewGbpProPrice(2900, 0, 137.5), /CPI/);
+  const currencies = new Set(['GBP', 'AUD']);
+  const now = Date.parse(date);
+  const rate = { currency: 'AUD', partsPerMillion: 2_000_000, retrievedAt: date, source: 'test rate' };
+  const australia = quoteLocalPrice('pro', 'AUD', rate, currencies, location('AU'), defaults, now, review.proposedPence);
+  assert.equal(australia.totalMinor, 6500);
+  const uk = quoteLocalPrice('pro', 'GBP', undefined, currencies, location('GB'), defaults, now, review.proposedPence);
+  assert.equal(uk.totalMinor, 3200);
+});
+
+test('previous-version and event offers apply before VAT, without adding the discounts together', async () => {
+  const { resolveProOffer } = await import('../src/commerce/offers.ts');
+  const { quoteLocalPrice } = await import('../src/commerce/localPrice.ts');
+  const previous = { version: '2026', gbpBasePence: 2900, discountBasisPoints: 5000 };
+  const current = { version: '2027', gbpBasePence: 3200 };
+  const coupon = {
+    code: 'BLACK-FRIDAY', versions: ['2026', '2027'], discountBasisPoints: 2000,
+    startsAt: '2026-11-20T00:00:00Z', endsAt: '2026-11-30T00:00:00Z',
+  };
+  const now = Date.parse(date);
+  const currencies = new Set(['GBP']);
+  const older = quoteLocalPrice('pro', 'GBP', undefined, currencies, location('GB'), defaults, now, 3200,
+    resolveProOffer(previous, [coupon], 'black-friday', now));
+  assert.deepEqual([older.roundedBaseMinor, older.discountMinor, older.totalMinor], [2900, 1450, 1450]);
+  const blackFriday = quoteLocalPrice('pro', 'GBP', undefined, currencies, location('GB'),
+    { ...defaults, ukVatRegistered: true, ukVatNumber: 'GB123456789' }, now, 3200,
+    resolveProOffer(current, [coupon], 'BLACK-FRIDAY', now));
+  assert.deepEqual([blackFriday.netMinor, blackFriday.taxMinor, blackFriday.totalMinor], [2560, 512, 3072]);
+  assert.throws(() => resolveProOffer(current, [coupon], coupon.code, Date.parse(coupon.endsAt)), /unavailable/);
+  assert.throws(() => resolveProOffer({ ...current, version: '2028' }, [coupon], coupon.code, now), /unavailable/);
+});
