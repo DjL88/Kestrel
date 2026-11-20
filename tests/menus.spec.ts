@@ -232,3 +232,29 @@ test('File menu saves selected ratings/tags as XMP without the photo Export dial
   // The image Export dialog is not needed to save just portable culling metadata.
   await expect(page.getByText('XMP sidecars', { exact: true })).toHaveCount(0);
 });
+
+test('File menu imports a matching XMP into the selected photo without changing its original file', async ({ page }) => {
+  await makeProject(page, 'Restore photo metadata');
+  await page.getByRole('button', { name: 'Add photos', exact: true }).click();
+  await page.getByTestId('local-file-input').setInputFiles({
+    name: 'bird.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
+  });
+  await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: /To review 1/ })).toBeVisible({ timeout: 30_000 });
+  const phone = page.viewportSize()!.width < 768;
+  await page.getByRole('button', { name: phone ? 'More' : 'Workspace options', exact: true }).click();
+  await expect(page.locator('#workspace-options').getByRole('button', { name: 'Import ratings and tags (XMP)…' })).toBeEnabled();
+  const xmp = `<?xml version="1.0" encoding="UTF-8"?>
+    <x:xmpmeta xmlns:x="adobe:ns:meta/">
+      <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+        <rdf:Description xmlns:xmp="http://ns.adobe.com/xap/1.0/"
+          xmlns:xmpDM="http://ns.adobe.com/xmp/1.0/DynamicMedia/" xmp:Rating="5" xmpDM:pick="1"/>
+      </rdf:RDF>
+    </x:xmpmeta>`;
+  // Upload through the exact File-menu picker; no Photo Info detour.
+  await page.getByTestId('file-menu-xmp-import').setInputFiles({
+    name: 'bird.xmp', mimeType: 'application/rdf+xml', buffer: Buffer.from(xmp),
+  });
+  await expect(page.getByText(/Imported XMP for 1 selected photo/)).toBeVisible();
+  await expect(page.getByText('XMP sidecars', { exact: true })).toHaveCount(0);
+});

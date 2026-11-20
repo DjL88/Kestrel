@@ -9,6 +9,11 @@ const n = (count: number) => formatCount.format(count);
 /** Swedish. DRAFT: written without a native speaker's check. */
 export const sv: AreaTranslation<typeof source> = {
   top: {
+    xmpImport: "Importera betyg och taggar (XMP)…",
+    xmpImportHelp: "Läs matchande XMP-filer eller ett Kestrel XMP-ZIP endast till valda foton. Originalen ändras inte.",
+    xmpImported: (count) => `XMP importerat för ${count} valda foton.`,
+    xmpImportKeeper: "En XMP-fil skulle avvisa ett foto markerat Behåll. Granska det separat i Fotoinformation.",
+    xmpImportFailed: "Det gick inte att importera XMP. Kontrollera filnamn, RAW/JPEG-dubbletter och säkerhet.",
     xmpSidecars: "Spara betyg och taggar (XMP)…",
     xmpHelp: "Spara betyg, Behåll/Avvisa-val och bekräftade taggar separat från fotona. Flera filer samlas i en ZIP.",
     file: "Arkiv",

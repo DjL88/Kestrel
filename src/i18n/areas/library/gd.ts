@@ -12,6 +12,11 @@ const forMany = (count: number) => (count > 1 ? ` (${dealbh(count, String(count)
 /** Scottish Gaelic. DRAFT: written without a native speaker's check. Uses "thu", as the common words do. */
 export const gd: AreaTranslation<typeof source> = {
   top: {
+    xmpImport: "Ion-phortaich rangachaidhean is tagaichean (XMP)…",
+    xmpImportHelp: "Leugh XMP no ZIP XMP Kestrel a fhreagras ris na dealbhan taghte a-mhàin. Cha tèid na faidhlichean tùsail atharrachadh.",
+    xmpImported: (count) => `Chaidh XMP a thoirt a-steach airson ${count} dealbh.`,
+    xmpImportKeeper: "Dhiùltadh XMP dealbh a chomharraich thu ri chumail. Dèan sgrùdadh air leth ann am Fiosrachadh an Dealbh.",
+    xmpImportFailed: "Cha b' urrainn XMP a thoirt a-steach. Thoir sùil air ainmean, dùblaidhean RAW/JPEG agus tèarainteachd nam faidhlichean.",
     xmpSidecars: "Sàbhail rangachaidhean is tagaichean (XMP)…",
     xmpHelp: "Sàbhail rangachaidhean, roghainnean Cùm/Diùlt agus tagaichean dearbhte air leth bho na dealbhan. Thèid iomadh faidhle a chur ann an ZIP.",
     file: "Faidhle",

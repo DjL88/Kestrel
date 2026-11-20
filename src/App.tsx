@@ -1,6 +1,8 @@
 import { isDesktopApp, isMobileShell, saveWithDialog } from './providers/desktopShell';
 import { downloadInBrowser } from './providers/browserExport';
 import { makeXmpDownload } from './core/xmpSidecars';
+import { planXmpImports, SidecarImportError } from './core/xmpImportPlan';
+import { libraryText as libraryT } from './i18n/areas/library';
 import { exportText as exportT } from './i18n/areas/export';
 import { appText as t } from './i18n/areas/app';
 import { messages } from './i18n/messages';
@@ -905,6 +907,22 @@ export default function App() {
   }
   const stateRef = useRef(cullingState);
   stateRef.current = cullingState;
+  const importSelectedMetadata = async (files: File[]) => {
+    // Validate every matching sidecar before changing any photograph.
+    const shootId = cullingState.shoot.id;
+    const version = cullingState.shoot.lastUpdatedAt;
+    const selected = [...exportSelection];
+    try {
+      const planned = await planXmpImports(files, selected, cullingState.frames);
+      if (stateRef.current.shoot.id !== shootId || stateRef.current.shoot.lastUpdatedAt !== version)
+        throw new SidecarImportError('unsafe');
+      for (const entry of planned) importPhotoSidecar(entry.frameId, entry.metadata);
+      showToast(libraryT.top.xmpImported(planned.length));
+    } catch (error) {
+      showToast(error instanceof SidecarImportError && error.reason === 'keeper'
+        ? libraryT.top.xmpImportKeeper : libraryT.top.xmpImportFailed);
+    }
+  };
   const editingRef = useRef(editing);
   editingRef.current = editing;
 
@@ -2155,6 +2173,7 @@ export default function App() {
         redoLabel={redoLabel(cullingState)}
         onExport={exportSelection.length ? () => setExportFrames(exportSelection) : undefined}
         onSaveSidecars={exportSelection.some(frame => !frame.isDemo && !frame.virtualCopy) ? () => void saveSelectedMetadata() : undefined}
+        onImportSidecars={exportSelection.some(frame => !frame.isDemo && !frame.virtualCopy) ? (files) => void importSelectedMetadata(files) : undefined}
         exportLabel={exportSelection.length > 1 ? t.header.exportCount(exportSelection.length) : t.header.export}
         exportCount={exportSelection.length}
         showFilmstrip={prefs.showFilmstrip}

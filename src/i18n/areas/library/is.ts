@@ -9,6 +9,11 @@ const n = (count: number) => formatCount.format(count);
 /** Icelandic. DRAFT: written without a native speaker's check. File names sit after a colon so they need no case endings. */
 export const is: AreaTranslation<typeof source> = {
   top: {
+    xmpImport: "Flytja inn einkunnir og merki (XMP)…",
+    xmpImportHelp: "Lesa samsvarandi XMP-skrár eða Kestrel XMP-ZIP aðeins fyrir valdar myndir. Frumskrám er ekki breytt.",
+    xmpImported: (count) => `XMP flutt inn fyrir ${count} valdar myndir.`,
+    xmpImportKeeper: "XMP myndi hafna mynd sem þú merktir Halda. Skoðaðu hana sérstaklega í myndupplýsingum.",
+    xmpImportFailed: "Ekki tókst að flytja inn XMP. Athugaðu heiti, RAW/JPEG-tvítekningar og öryggi skráa.",
     xmpSidecars: "Vista einkunnir og merki (XMP)…",
     xmpHelp: "Vista einkunnir, Halda/Hafna-val og staðfest merki aðskilin frá myndunum. Margar skrár eru settar í ZIP.",
     file: "Skrá",

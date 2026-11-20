@@ -12,6 +12,11 @@ const forMany = (count: number) => (count > 1 ? ` (${grianghraf(count, String(co
 /** Irish. DRAFT: written without a native speaker's check. Uses "tú", as the common words do. */
 export const ga: AreaTranslation<typeof source> = {
   top: {
+    xmpImport: "Iompórtáil rátálacha agus clibeanna (XMP)…",
+    xmpImportHelp: "Léigh comhaid XMP nó ZIP XMP Kestrel a mheaitseálann na grianghraif roghnaithe amháin. Ní athraítear bunchomhaid.",
+    xmpImported: (count) => `Iompórtáladh XMP do ${count} ghrianghraf.`,
+    xmpImportKeeper: "Dhiúltódh XMP grianghraf a mharcáil tú le Coinnigh. Seiceáil é ina aonar in Eolas an Ghrianghraif.",
+    xmpImportFailed: "Níorbh fhéidir XMP a iompórtáil. Seiceáil ainmneacha, dúbailt RAW/JPEG agus sábháilteacht comhad.",
     xmpSidecars: "Sábháil rátálacha agus clibeanna (XMP)…",
     xmpHelp: "Sábháil rátálacha, roghanna Coinnigh/Diúltaigh agus clibeanna dearbhaithe ar leith ó na grianghraif. Cuirtear comhaid iolracha i ZIP.",
     file: "Comhad",

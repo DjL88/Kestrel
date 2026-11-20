@@ -68,6 +68,8 @@ interface TopWorkspaceBarProps {
   onExport?: () => void;
   /** Export ratings, decisions and confirmed tags as separate XMP files. */
   onSaveSidecars?: () => void;
+  /** Import only matching sidecars for explicitly selected originals. */
+  onImportSidecars?: (files: File[]) => void;
   exportLabel?: string;
   /** How many photos Export would export, for the number-only label on small screens (shown only when more than one). */
   exportCount?: number;
@@ -133,6 +135,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const xmpPicker = useRef<HTMLInputElement>(null);
   const footerMore = useRef<HTMLButtonElement>(null);
   const restoreMenuFocus = () => (footerMore.current?.getClientRects().length ? footerMore.current : triggerRef.current)?.focus();
 
@@ -166,6 +169,12 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
   return (
     <>
     <header className="relative z-50 flex min-w-0 shrink-0 items-center justify-between gap-3 py-1.5 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
+      <input ref={xmpPicker} type="file" hidden multiple accept=".xmp,.zip,application/rdf+xml,application/zip"
+        data-testid="file-menu-xmp-import" onChange={event => {
+          const files = Array.from(event.currentTarget.files ?? []);
+          event.currentTarget.value = '';
+          if (files.length) props.onImportSidecars?.(files);
+        }} />
       <button type="button" onClick={props.onBackToProjects} disabled={props.actionsDisabled} className={actionClass} aria-label={t.top.backToProjects} title={t.top.backToProjects}>
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">{t.top.projects}</span>
       </button>
@@ -226,6 +235,8 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                   <MenuItem wide icon={<Download className="h-4 w-4" aria-hidden="true" />} disabled={!props.onExport} onClick={() => choose(() => props.onExport?.(), false)}>{t.top.exportTitle}…</MenuItem>
                   <MenuItem wide icon={<FileDown className="h-4 w-4" aria-hidden="true" />} title={t.top.xmpHelp}
                     disabled={!props.onSaveSidecars} onClick={() => choose(() => props.onSaveSidecars?.(), false)}>{t.top.xmpSidecars}</MenuItem>
+                  <MenuItem wide icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} title={t.top.xmpImportHelp}
+                    disabled={!props.onImportSidecars} onClick={() => choose(() => xmpPicker.current?.click(), false)}>{t.top.xmpImport}</MenuItem>
                 </MenuSection>
                 <MenuSection id="menu-edit-photo" title={t.top.edit}>
                   <MenuItem wide icon={<Pencil className="h-4 w-4" aria-hidden="true" />} disabled={!onEditPhoto} onClick={() => choose(() => onEditPhoto?.(), false)}>{t.top.edit}</MenuItem>
