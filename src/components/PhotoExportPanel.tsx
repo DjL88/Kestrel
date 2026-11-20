@@ -733,7 +733,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     // One-time migration from old inline watermark preferences, offline only.
     if (mark.kind !== 'image' || !mark.imageData || mark.imageAssetId) return;
     let active = true;
-    void saveLocalWatermarkAsset(legacyWatermarkBlob(mark.imageData)).then(imageAssetId => {
+    void (async () => saveLocalWatermarkAsset(legacyWatermarkBlob(mark.imageData!)))().then(imageAssetId => {
       if (active) setOverlay(previous => {
         if (previous.watermark?.imageData !== mark.imageData || previous.watermark.imageAssetId) return previous;
         return { ...previous, watermark: { ...previous.watermark, imageAssetId } };
@@ -915,10 +915,22 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     </>
   );
 
-  function savePresets(next: ExportPreset[], success: string) {
+  async function savePresets(next: ExportPreset[], success: string) {
     try {
-      localStorage.setItem(EXPORT_PRESETS_KEY, JSON.stringify(next));
-      setPresets(next);
+      // Convert any historic inline picture marks before writing any preset.
+      // Every saved preset contains only a local asset fingerprint.
+      const safe = await Promise.all(next.map(async preset => {
+        const watermark = preset.overlay?.watermark;
+        if (!preset.overlay || !watermark) return preset;
+        let selected = watermark;
+        if (watermark.kind === 'image' && !watermark.imageAssetId && watermark.imageData) {
+          const imageAssetId = await saveLocalWatermarkAsset(legacyWatermarkBlob(watermark.imageData));
+          selected = { ...watermark, imageAssetId };
+        }
+        return { ...preset, overlay: { ...preset.overlay, watermark: watermarkForStorage(selected) } };
+      }));
+      localStorage.setItem(EXPORT_PRESETS_KEY, JSON.stringify(safe));
+      setPresets(safe);
       setPresetNote(success);
     } catch {
       setPresetNote(t.presets.saveFailed);
