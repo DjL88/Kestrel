@@ -269,6 +269,8 @@ export const is: AreaTranslation<typeof source> = {
     dismiss: 'Loka',
   },
   licence: {
+    viewProPricing: "Sjá verð á Pro",
+    pricingUnavailable: "Opnaðu vef Kestrel í vafranum til að sjá verð á Pro.",
     thanks: 'Takk. Kestrel Pro er opið í þessu tæki.',
     settingsSaved: 'Vistað. Settu skrána á stað sem hin tækin þín ná í, til dæmis iCloud Drive.',
     noSettings: 'Engar breyttar stillingar eru til að vista enn.',
