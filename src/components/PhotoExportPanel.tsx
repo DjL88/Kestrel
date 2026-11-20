@@ -1,6 +1,7 @@
 import { makeXmpDownload } from '../core/xmpSidecars';
 import { EXPORT_PREFERENCES_KEY, EXPORT_PRESETS_KEY, readExportPreferences, readExportPresets, type ExportPreset } from '../core/exportPreferences';
 import { isRawPreviewFile } from '../core/rawFormats';
+import { RAW_MASTER_EXPORT_ERROR, rawMasterExportBlocked } from '../core/rawMasterExportGate';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, X } from 'lucide-react';
 import {
@@ -339,9 +340,8 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     }
     // The normal RAW workflow is still a JPEG development/preview, not a verified
     // high-bit-depth source-derived master. Never label that as a full-quality RAW export.
-    if (selected.some(format => format.id === 'master') &&
-        frames.some(frame => !frame.isDemo && isRawPreviewFile(frame.filename))) {
-      setError('Full-size RAW export is not yet verified at original sensor quality. Choose a social JPEG format, or use the original file until high-precision RAW export is supported.');
+    if (rawMasterExportBlocked(selected, frames)) {
+      setError(RAW_MASTER_EXPORT_ERROR);
       return;
     }
     const reservation = unlimited ? null : exportAllowance.reserve(total);
@@ -423,6 +423,12 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     }
     if (customOn && customResult && 'error' in customResult) {
       setError(customResult.error);
+      return;
+    }
+    // Match the connected background route: an 8-bit preview cannot be sold
+    // to the photographer as a verified full-quality RAW master.
+    if (rawMasterExportBlocked(selected, frames)) {
+      setError(RAW_MASTER_EXPORT_ERROR);
       return;
     }
     const reservation = unlimited ? null : exportAllowance.reserve(total);
