@@ -15,13 +15,13 @@ function tag(view: DataView, id: number): number {
   }
   throw new Error('missing fixture tag ' + id);
 }
-test('native RGB16 TIFF with genuine >8-bit samples and RGB ICC passes structural proof', async () => {
+test('synthetic RGB16 TIFF with genuine >8-bit samples and RGB ICC passes structural proof', async () => {
   const buffer = await fixture();
   assert.deepEqual(proveTiff16(buffer), { width: 3, height: 2, iccBytes: 588 });
 });
 test('truncated TIFF, invalid dimensions, sample precision and pixel length fail closed', async () => {
   const valid = await fixture();
-  assert.throws(() => proveTiff16(valid.slice(0, 10)), /truncated/);
+  assert.throws(() => proveTiff16(valid.slice(0, 10)), /out-of-bounds TIFF data/);
   for (const mutate of [
     (v: DataView) => v.setUint32(tag(v, 256) + 8, 80_000_001, true),
     (v: DataView) => v.setUint32(tag(v, 279) + 8, 2, true),
