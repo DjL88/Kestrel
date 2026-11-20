@@ -139,3 +139,19 @@ month, so only when needed).
 ## Removing it
 
 `terraform destroy` removes everything this folder created. Buckets must be empty first; download what you want to keep.
+
+## Monthly price review
+
+Set `pricing_review_enabled = true` after building a control-plane image that includes
+`src/commerce/runPriceReview.ts`. Seed the approved baseline in Firestore document
+`pricing_settings/current` with `gbpProBasePence` (integer), `effectiveDate` (`YYYY-MM-DD`),
+and `currencies` (the merchant's enabled currency codes). When managing the already
+provisioned Kestrel Hosting database with this Terraform, import the existing default
+database into state before applying.
+
+Cloud Scheduler calls a Cloud Run job at 09:00 London time on the 20th of each month.
+The job uses dated ECB reference exchange rates for indicative proposals and the ONS
+all-items CPI index (D7BT) for the April GBP review. It saves one review per month in
+`pricing_reviews/YYYY-MM` for approval. Checkout pricing is separate from these records.
+A missing baseline, missing April CPI observation or stale FX feed fails the job and
+keeps pricing intact. Check the Cloud Run job logs after the first execution.

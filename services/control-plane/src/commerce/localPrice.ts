@@ -15,6 +15,11 @@ export function reviewGbpProPrice(basePence: number, baselineCpi: number, latest
   return { basePence, cumulativeInflation: multiplier - 1, proposedPence };
 }
 
+export function roundLocalProBase(amount: number, majorUnit: number): number {
+  const step = amount >= 40 * majorUnit ? 5 * majorUnit : majorUnit;
+  return Math.max(step, Math.round(amount / step) * step);
+}
+
 const MAX_FX_AGE_MS = 7 * 86_400_000;
 
 export interface GbpExchangeRate {
@@ -56,12 +61,12 @@ export function quoteLocalPrice(
       throw new Error('A current exchange rate is required.');
     }
     const exactMinor = baseGbpPence * rate.partsPerMillion * scale / 100_000_000;
-    // Use five-unit steps for higher one-time prices and finer steps for
-    // small monthly amounts.
-    const step = product === 'geminiMonthly'
-      ? Math.max(1, scale / 4)
-      : exactMinor >= 40 * scale ? 5 * scale : scale;
-    roundedBaseMinor = Math.max(step, Math.round(exactMinor / step) * step);
+    if (product === 'pro') {
+      roundedBaseMinor = roundLocalProBase(exactMinor, scale);
+    } else {
+      const step = Math.max(1, scale / 4);
+      roundedBaseMinor = Math.max(step, Math.round(exactMinor / step) * step);
+    }
     roundedBaseMinor = Math.round(roundedBaseMinor);
   }
   const tax = quoteProTax(customer, settings);
