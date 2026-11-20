@@ -1,4 +1,5 @@
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
+import { frameImageIdentity, framePreviewEncoding, visibleFrameUrl } from '../core/frameImageIdentity';
 import { DEFAULT_EDIT, isNeutralEdit } from '../core/photoEdits';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFraming';
 import { loadImage } from '../providers/loadImage';
@@ -60,7 +61,11 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   zoomScale = 1,
   panOffset = { x: 0, y: 0 },
 }) => {
-  const [src, setSrc] = useState<string>('');
+  // Keep a finished render for same-frame slider updates, never for a different photo.
+  const [sourceRevision, setSourceRevision] = useState(0);
+  const identity = frameImageIdentity(frame, variant, sourceRevision);
+  const [preview, setPreview] = useState<{ identity: string; url: string }>({ identity: '', url: '' });
+  const src = visibleFrameUrl(preview, identity);
   const [loading, setLoading] = useState<boolean>(true);
   const [errored, setErrored] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -89,6 +94,16 @@ export const FrameImage: React.FC<FrameImageProps> = ({
 
   // When the background develop finishes this photo, the card swaps the camera's JPEG for Kestrel's develop.
   const [developedRev, setDevelopedRev] = useState(0);
+  useEffect(() => {
+    const key = frame.stableKey;
+    const onInvalidate = (event: Event) => {
+      if ((event as CustomEvent<string>).detail !== key) return;
+      thumbSources.delete(key);
+      setSourceRevision((revision) => revision + 1);
+    };
+    previewProvider.events.addEventListener('preview-invalidated', onInvalidate);
+    return () => previewProvider.events.removeEventListener('preview-invalidated', onInvalidate);
+  }, [frame.stableKey, previewProvider]);
   useEffect(() => {
     if (variant !== 'thumb') return;
     const key = frame.stableKey;
@@ -120,7 +135,10 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     let cancelled = false;
     let timer: number | undefined;
     // Keep showing the current picture while an edited one is being redrawn.
-    if (!hasImage.current) setLoading(true);
+    if (!hasImage.current) {
+      setPreview({ identity, url: '' });
+      setLoading(true);
+    }
     setErrored(false);
 
     const render = async () => {
@@ -132,12 +150,15 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       const size = framedSize(source.naturalWidth, source.naturalHeight, framing);
       drawFramedPhoto(source, canvas, framing, { scale: Math.min(1, (variant === 'thumb' ? 400 : 2200) / Math.max(size.width, size.height)) });
       applyCanvasPhotoEdit(canvas, frame.edit ?? DEFAULT_EDIT);
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+      // A full-size edited view must not suffer a second lossy JPEG pass.
+      // Thumbnails stay compact JPEGs; full previews use lossless PNG.
+      const { mime, quality } = framePreviewEncoding(variant);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mime, quality));
       if (cancelled) return;
       if (!blob) throw new Error('Preview unavailable');
       const url = URL.createObjectURL(blob);
       replaceRendered(url);
-      setSrc(url);
+      setPreview({ identity, url });
     };
 
     const load = async () => {
@@ -154,7 +175,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           ? await previewProvider.getFullPreviewUrl(frame, 'selected')
           : await previewProvider.getThumbnailUrl(frame, priority ? 'selected' : 'visible');
       if (!cancelled) {
-        setSrc(url);
+        setPreview({ identity, url });
         setLoading(false);
       }
     };
@@ -163,7 +184,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       if (cancelled) return;
       // A failed redraw keeps the last good picture. Only a photo that never had one shows the fallback.
       if (!hasImage.current) {
-        setSrc('');
+        setPreview({ identity, url: '' });
         onPreviewStatus?.(frame.id, 'unavailable');
       }
       setLoading(false);
@@ -172,7 +193,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [frame.id, frame.edit, frame.framing, edited, previewProvider, variant, needsAccess, priority, nearViewport, onPreviewStatus, developedRev]);
+  }, [frame.id, frame.stableKey, identity, frame.edit, frame.framing, edited, previewProvider, variant, needsAccess, priority, nearViewport, onPreviewStatus, developedRev]);
 
   const demoStyle: React.CSSProperties = {};
   if (!edited && frame.isDemo && frame.demoVariant) {
@@ -189,7 +210,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     demoStyle.transform = `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomScale})`;
   }
 
-  if (!src && !loading) {
+  if (!src && !loading && preview.identity === identity) {
     return (
       <div
         className={`flex flex-col items-center justify-center bg-[#17191D] text-zinc-500 p-3 text-center select-none ${className}`}
@@ -205,7 +226,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     );
   }
 
-  if (errored) {
+  if (errored && preview.identity === identity) {
     return (
       <div
         className={`flex flex-col items-center justify-center bg-[#17191D] text-zinc-500 p-3 text-center select-none ${className}`}
@@ -218,7 +239,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
 
   return (
     <div ref={containerRef} className={`relative overflow-hidden bg-kestrel-stage ${className}`}>
-      {loading && (
+      {(loading || preview.identity !== identity) && (
         <div
           className="absolute inset-0 bg-[#181A1E] motion-safe:animate-pulse"
           aria-hidden="true"
@@ -226,6 +247,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
       )}
       {src && (
         <img
+          key={`${identity}:${src}`}
           src={src}
           alt={alt ?? frame.demoVariant?.demoSceneLabel ?? frame.filename}
           referrerPolicy="no-referrer"

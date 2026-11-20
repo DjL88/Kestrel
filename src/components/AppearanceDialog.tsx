@@ -17,7 +17,7 @@ export function AppearanceDialog({ side, onSideChange, hand, onHandChange, onClo
   return (
     <div role="presentation" className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] workspace:items-center"
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section role="dialog" aria-modal="true" aria-label="Appearance and layout settings"
+      <section role="dialog" aria-modal="true" aria-label={m.appearance.dialogLabel}
         onKeyDown={(event) => {
           if (event.key === 'Escape') { event.stopPropagation(); onClose(); return; }
           if (event.key !== 'Tab') return;
@@ -36,7 +36,7 @@ export function AppearanceDialog({ side, onSideChange, hand, onHandChange, onClo
         {onOpenMacroPad && isDesktopApp() && (
           <button type="button" onClick={() => { onClose(); onOpenMacroPad(); }}
             className="flex min-h-11 w-full items-center gap-2 rounded-md border border-white/15 px-3 text-sm text-zinc-200 hover:bg-white/10">
-            <Keyboard className="h-4 w-4" aria-hidden="true" />Macro pad & keyboard shortcuts…
+            <Keyboard className="h-4 w-4" aria-hidden="true" />{m.appearance.shortcuts}
           </button>
         )}
       </section>

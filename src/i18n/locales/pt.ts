@@ -86,4 +86,46 @@ export const pt: Translation = {
     restartIn: (name) => `Reiniciar em ${name}`,
     draft: 'Tradução provisória, ainda não revista por um falante nativo. Alguns ecrãs ainda estão em inglês.',
   },
+  appearance: {
+    dialogLabel: "Definições de visualização e disposição",
+    shortcuts: "Atalhos de teclado e comandos",
+    "position": "De que lado quer as ferramentas?",
+    "positionHint": "Escolha o lado das ferramentas num ecrã grande. No telemóvel, ficam por baixo da fotografia.",
+    "toolsSide": "Lado das ferramentas",
+    "left": "Esquerda",
+    "right": "Direita"
+  },
+  adjustment: {
+    "exposure": "Exposição",
+    "warmth": "Calor",
+    "colour": "Cor",
+    "brightness": "Brilho",
+    "contrast": "Contraste",
+    "highlights": "Realces",
+    "shadows": "Sombras",
+    "whites": "Áreas mais claras",
+    "blacks": "Áreas mais escuras",
+    "vibrance": "Vivacidade",
+    "texture": "Textura",
+    "clarity": "Claridade",
+    "sharpen": "Nitidez",
+    "denoise": "Redução de ruído"
+  },
+  quick: {
+    changed: "(alterado)",
+    "title": "Edição rápida",
+    "allControls": "Todos os controlos",
+    "choose": "Escolher ajuste"
+  },
+  photoInfo: {
+    "title": "Informações da fotografia",
+    "tabInfo": "Informações",
+    "tabSubject": "Assunto",
+    "copy": "Copiar detalhes",
+    "camera": "Câmara",
+    "lens": "Objetiva",
+    "captured": "Capturada",
+    "undecided": "Por decidir",
+    "reject": "Rejeitar"
+  },
 };

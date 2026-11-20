@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { PhotoFrame } from './types';
-import { compareNavigation } from './compareNavigation';
+import { compareNavigation, compareQueueState } from './compareNavigation';
 
 const frame = (id: string, removed = false): PhotoFrame =>
   ({ id, removedAt: removed ? 1 : undefined } as PhotoFrame);
@@ -63,4 +63,44 @@ test('Compare: removed, filtered or absent A disables B navigation and decisions
   assert.equal(recovered.referenceValid, true);
   assert.equal(recovered.currentValid, true);
   assert.equal(recovered.next, 'C');
+});
+
+test('Compare: missing B requires explicit recovery and never assigns a hidden photo', () => {
+  const frames = [frame('A'), frame('B', true), frame('C'), frame('D')];
+  assert.deepEqual(compareQueueState(frames, 'A', 'B'), {
+    position: 0, total: 2, recoveryId: 'C', state: 'missing-comparison',
+  });
+  assert.deepEqual(compareQueueState(frames, 'A', 'C'), {
+    position: 1, total: 2, recoveryId: null, state: 'ready',
+  });
+  assert.deepEqual(compareQueueState(frames, 'A', 'D'), {
+    position: 2, total: 2, recoveryId: null, state: 'ready',
+  });
+});
+
+test('Compare: removed A and empty filtered queues fail closed', () => {
+  assert.deepEqual(compareQueueState([frame('A', true), frame('B')], 'A', 'B'), {
+    position: 0, total: 1, recoveryId: null, state: 'missing-reference',
+  });
+  assert.deepEqual(compareQueueState([frame('A')], 'A', 'B'), {
+    position: 0, total: 0, recoveryId: null, state: 'empty',
+  });
+});
+
+test('Compare: 500-photo live progress is stable across duplicates and filtering', () => {
+  const frames = Array.from({ length: 500 }, (_, i) => frame(String(i)));
+  const doubled = [...frames, ...frames.slice(100, 200)];
+  assert.deepEqual(compareQueueState(doubled, '0', '499'), {
+    position: 499, total: 499, recoveryId: null, state: 'ready',
+  });
+  const filtered = frames.filter((_, i) => i % 2 === 0);
+  assert.deepEqual(compareQueueState(filtered, '0', '499'), {
+    position: 0, total: 249, recoveryId: '2', state: 'missing-comparison',
+  });
+});
+
+test('Compare: an initially unselected B is a prompt, not a missing photograph', () => {
+  assert.deepEqual(compareQueueState([frame('A'), frame('B'), frame('C')], 'A', null), {
+    position: 0, total: 2, recoveryId: 'B', state: 'unselected',
+  });
 });

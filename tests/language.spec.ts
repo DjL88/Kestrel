@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 async function settings(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
-  return page.getByRole('dialog', { name: 'Appearance and layout settings' });
+  return page.getByRole('dialog', { name: 'Display and layout settings' });
 }
 
 test('British English by default, with British dates, whatever the browser says', async ({ page }) => {
@@ -77,37 +77,32 @@ test('choose Welsh, restart in it, and keep every decision', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible({ timeout: 30_000 });
 });
 
-test.describe('a Danish device at first run', () => {
-  test.use({ locale: 'da-DK' });
-
-  test('is offered Danish once, and nothing changes until it is chosen', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB');
-    const welcome = page.locator('section', { has: page.getByRole('combobox') }).filter({ hasText: 'Dansk' }).first();
-    await expect(welcome).toBeVisible();
-    await expect(welcome.getByRole('combobox')).toHaveValue('da');
-    // The button is written in the language on offer, and names it in its own words.
-    await welcome.getByRole('button', { name: /Dansk/ }).click();
-    await expect(page.locator('html')).toHaveAttribute('lang', 'da');
-    // Chosen once: the card does not come back.
-    await page.reload();
-    await expect(page.locator('html')).toHaveAttribute('lang', 'da');
-    await expect(page.getByRole('button', { name: /Dansk/ })).toHaveCount(0);
-  });
-
-  test('keeping British English hides the card for good', async ({ page }) => {
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Keep English (UK)' }).click();
-    await expect(page.getByRole('button', { name: 'Keep English (UK)' })).toHaveCount(0);
-    await page.reload();
-    await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Keep English (UK)' })).toHaveCount(0);
-    await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB');
-  });
+test('first run asks for a language even on an English (UK) system; the choice stays saved', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Welcome to Kestrel' })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB');
+  await page.getByRole('button', { name: 'Continue in English (UK)' }).click();
+  await expect(page.getByRole('heading', { name: 'Welcome to Kestrel' })).toBeHidden();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Welcome to Kestrel' })).toBeHidden();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB');
 });
 
-test('a British device is not asked: it is already in its language', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Keep English (UK)' })).toHaveCount(0);
+test.describe('Canadian French system locale', () => {
+  test.use({ locale: 'fr-CA' });
+
+  test('offers the detected regional language once, then honours the chosen language', async ({ page }) => {
+    await page.goto('/');
+    const welcome = page.getByRole('heading', { name: 'Welcome to Kestrel' });
+    await expect(welcome).toBeVisible();
+    const chooser = page.getByLabel('Which language would you like?');
+    await expect(chooser).toHaveValue('fr-CA');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB'); // the device preference is offered, not applied automatically
+    await page.getByRole('button', { name: 'Continue in Français (Canada)' }).click();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fr-CA');
+    await expect(page.getByRole('heading', { name: 'Projets' })).toBeVisible();
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fr-CA');
+    await expect(welcome).toBeHidden();
+  });
 });

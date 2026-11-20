@@ -18,5 +18,15 @@ export interface AreaEntry {
  * translated separately, and untranslated words always fall back to British English.
  */
 export function localise<Source>(source: Source, translations: AreaTranslations<Source>): Widen<Source> {
-  return mergeMessages<Widen<Source>>(source as Widen<Source>, translations[language]);
+  return localiseFor(source, translations, language);
+}
+
+/**
+ * The words for a given language. A regional language (fr-CA) is laid over its parent (fr), which is laid over British
+ * English, so a Canadian French reader gets French wherever there's no Canadian wording, never English.
+ */
+export function localiseFor<Source>(source: Source, translations: AreaTranslations<Source>, code: LanguageCode): Widen<Source> {
+  const parent = code.includes('-') && !code.startsWith('en') ? code.split('-')[0] as LanguageCode : undefined;
+  const base = parent ? mergeMessages<Widen<Source>>(source as Widen<Source>, translations[parent]) : source as Widen<Source>;
+  return mergeMessages<Widen<Source>>(base, translations[code]);
 }

@@ -86,4 +86,46 @@ export const fr: Translation = {
     restartIn: (name) => `Redémarrer en ${name}`,
     draft: 'Traduction provisoire, pas encore relue par un locuteur natif. Certains écrans sont encore en anglais.',
   },
+  appearance: {
+    dialogLabel: "Paramètres d’affichage et de disposition",
+    shortcuts: "Raccourcis clavier et commandes",
+    "position": "De quel côté placer les outils ?",
+    "positionHint": "Choisissez le côté des outils sur un grand écran. Sur téléphone, ils sont sous la photo.",
+    "toolsSide": "Côté des outils",
+    "left": "Gauche",
+    "right": "Droite"
+  },
+  adjustment: {
+    "exposure": "Exposition",
+    "warmth": "Chaleur",
+    "colour": "Couleur",
+    "brightness": "Luminosité",
+    "contrast": "Contraste",
+    "highlights": "Hautes lumières",
+    "shadows": "Ombres",
+    "whites": "Zones les plus claires",
+    "blacks": "Zones les plus sombres",
+    "vibrance": "Vibrance",
+    "texture": "Texture",
+    "clarity": "Clarté",
+    "sharpen": "Netteté",
+    "denoise": "Réduction du bruit"
+  },
+  quick: {
+    changed: "(modifié)",
+    "title": "Retouche rapide",
+    "allControls": "Tous les réglages",
+    "choose": "Choisir un réglage"
+  },
+  photoInfo: {
+    "title": "Infos de la photo",
+    "tabInfo": "Infos",
+    "tabSubject": "Sujet",
+    "copy": "Copier les détails",
+    "camera": "Appareil photo",
+    "lens": "Objectif",
+    "captured": "Prise le",
+    "undecided": "À décider",
+    "reject": "Rejeter"
+  },
 };

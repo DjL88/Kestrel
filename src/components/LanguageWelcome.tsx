@@ -4,9 +4,9 @@ import { LANGUAGES, isLanguageCode, languageOption, mergeMessages, SOURCE_LANGUA
 import { enGB } from '../i18n/en-GB';
 import { chooseLanguage, deviceLanguage, keepLanguage, language, languageChosen, TRANSLATIONS, type Messages } from '../i18n/messages';
 
-/** Whether to offer the device's language: only at first run, and only if it isn't the language already showing. */
+/** Every first launch offers a choice, including UK English or unsupported device locales. */
 export function shouldOfferLanguage(): boolean {
-  return !languageChosen && Boolean(deviceLanguage) && deviceLanguage !== language;
+  return !languageChosen;
 }
 
 /**
@@ -17,19 +17,19 @@ export function LanguageWelcome() {
   const id = useId();
   const [hidden, setHidden] = useState(false);
   const [pending, setPending] = useState<LanguageCode>(deviceLanguage ?? SOURCE_LANGUAGE);
-  if (hidden || !shouldOfferLanguage() || !deviceLanguage) return null;
-  const device = languageOption(deviceLanguage);
+  if (hidden || !shouldOfferLanguage()) return null;
+  const device = deviceLanguage ? languageOption(deviceLanguage) : null;
   const chosen = languageOption(pending);
   // Written in the language being offered, so its speaker can read the card before choosing.
   const words = mergeMessages<Messages>(enGB, TRANSLATIONS[pending]).setup;
-  const deviceWords = mergeMessages<Messages>(enGB, TRANSLATIONS[deviceLanguage]).setup;
+  const deviceWords = mergeMessages<Messages>(enGB, deviceLanguage ? TRANSLATIONS[deviceLanguage] : {}).setup;
   return (
     <section aria-labelledby={`${id}-title`} lang={chosen.code}
       className="mb-5 rounded-xl border border-kestrel-blue/50 bg-kestrel-raised p-4">
       <h2 id={`${id}-title`} className="flex items-center gap-2 text-base font-semibold text-zinc-100">
         <Languages className="h-5 w-5 text-zinc-300" aria-hidden="true" />{words.welcome}
       </h2>
-      <p className="mt-1 text-sm text-zinc-300">{deviceWords.detected(device.nativeName)}</p>
+      {device && <p className="mt-1 text-sm text-zinc-300">{deviceWords.detected(device.nativeName)}</p>}
       <label htmlFor={id} className="mt-3 block text-sm text-zinc-200">
         {words.question}{words.question !== enGB.setup.question && <span lang="en-GB" className="text-zinc-400"> ({enGB.setup.question})</span>}
       </label>

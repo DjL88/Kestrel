@@ -86,4 +86,46 @@ export const it: Translation = {
     restartIn: (name) => `Riavvia in ${name}`,
     draft: 'Traduzione provvisoria, non ancora verificata da un madrelingua. Alcune schermate sono ancora in inglese.',
   },
+  appearance: {
+    dialogLabel: "Impostazioni di visualizzazione e disposizione",
+    shortcuts: "Scorciatoie da tastiera e controller",
+    "position": "Da che lato vuoi gli strumenti?",
+    "positionHint": "Scegli il lato degli strumenti su uno schermo grande. Sul telefono sono sotto la foto.",
+    "toolsSide": "Lato degli strumenti",
+    "left": "Sinistra",
+    "right": "Destra"
+  },
+  adjustment: {
+    "exposure": "Esposizione",
+    "warmth": "Calore",
+    "colour": "Colore",
+    "brightness": "Luminosità",
+    "contrast": "Contrasto",
+    "highlights": "Alte luci",
+    "shadows": "Ombre",
+    "whites": "Parti più chiare",
+    "blacks": "Parti più scure",
+    "vibrance": "Vividezza",
+    "texture": "Texture",
+    "clarity": "Chiarezza",
+    "sharpen": "Nitidezza",
+    "denoise": "Riduzione del rumore"
+  },
+  quick: {
+    changed: "(modificato)",
+    "title": "Modifica rapida",
+    "allControls": "Tutti i controlli",
+    "choose": "Scegli cosa modificare"
+  },
+  photoInfo: {
+    "title": "Info foto",
+    "tabInfo": "Info",
+    "tabSubject": "Soggetto",
+    "copy": "Copia i dettagli",
+    "camera": "Fotocamera",
+    "lens": "Obiettivo",
+    "captured": "Scattata",
+    "undecided": "Da decidere",
+    "reject": "Rifiuta"
+  },
 };

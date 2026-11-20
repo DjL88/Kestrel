@@ -86,4 +86,46 @@ export const gd: Translation = {
     restartIn: (name) => `Tòisich às ùr ann an ${name}`,
     draft: 'Eadar-theangachadh dreachd, gun sgrùdadh le fileantach fhathast. Tha cuid de sgrìnichean sa Bheurla fhathast.',
   },
+  appearance: {
+    dialogLabel: "Roghainnean taisbeanaidh is cruth",
+    shortcuts: "Ath-ghoiridean meur-chlàir is rianadair",
+    "position": "Dè an taobh airson nan innealan?",
+    "positionHint": "Tagh taobh na sgrìn airson innealan deasachaidh. Air fòn, tha iad fon dealbh.",
+    "toolsSide": "Taobh nan innealan",
+    "left": "Clì",
+    "right": "Deas"
+  },
+  adjustment: {
+    "exposure": "Nochdadh",
+    "warmth": "Blàths",
+    "colour": "Dath",
+    "brightness": "Soilleireachd",
+    "contrast": "Coimeas",
+    "highlights": "Na pàirtean as soilleire",
+    "shadows": "Faileasan",
+    "whites": "Pàirtean geala",
+    "blacks": "Pàirtean dorcha",
+    "vibrance": "Beòthachd dhathan",
+    "texture": "Inneach",
+    "clarity": "Soilleireachd mion-fhiosrachaidh",
+    "sharpen": "Geuraich",
+    "denoise": "Lùghdachadh fuaim"
+  },
+  quick: {
+    changed: "(air atharrachadh)",
+    "title": "Deasachadh luath",
+    "allControls": "A h-uile smachd",
+    "choose": "Tagh atharrachadh"
+  },
+  photoInfo: {
+    "title": "Fiosrachadh dealbh",
+    "tabInfo": "Fiosrachadh",
+    "tabSubject": "Cuspair",
+    "copy": "Dèan lethbhreac de mhion-fhiosrachadh",
+    "camera": "Camara",
+    "lens": "Lionsa",
+    "captured": "Air a thogail",
+    "undecided": "Gun cho-dhùnadh",
+    "reject": "Diùlt"
+  },
 };

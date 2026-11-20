@@ -1,4 +1,5 @@
 import { openLinkedRange, type RangeBlob } from './rangeBlob';
+import { originalSourceKey } from '../core/originalSourceKey';
 import { PHOTO_EXTENSIONS } from '../core/rawFormats';
 import { isDesktopApp } from './desktopShell';
 import { discoverPhotoPaths } from './nativeFolderDiscovery';
@@ -22,8 +23,8 @@ export const pickedFromFile = (file: File): PickedPhoto => ({
 });
 
 /** The same key the app has always used for a photo, so projects made before this change still match. */
-export const pickedKey = (photo: Pick<PickedPhoto, 'name' | 'size' | 'lastModified'>) =>
-  `local-file://${photo.name}::${photo.size}::${photo.lastModified}`;
+export const pickedKey = (photo: Pick<PickedPhoto, 'name' | 'size' | 'lastModified' | 'path'>) =>
+  originalSourceKey(photo);
 
 const extensions = PHOTO_EXTENSIONS.map((entry) => entry.replace(/^\./, ''));
 const baseName = (path: string) => path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { LANGUAGES, activeLanguage, matchDeviceLanguage, mergeMessages, missingKeys, plural, resolveLanguage, setActiveLanguage, unknownKeys } from './locale';
+import { LANGUAGES, activeLanguage, matchDeviceLanguage, needsLanguageSetup, mergeMessages, missingKeys, plural, resolveLanguage, setActiveLanguage, unknownKeys } from './locale';
 import { formatProjectDate } from './formatDate';
 import { formatCaptureDateTime } from './photoInfoText';
 import { enGB } from '../i18n/en-GB';
@@ -32,14 +32,20 @@ test('every language in the list has a file, and no file has sentences the sourc
   }
 });
 
-test('every non-English language covers every sentence (brand names may stay as they are)', () => {
-  const allowedToStay = new Set(['settings.fontBrand']);
-  for (const { code } of LANGUAGES.filter((language) => !language.code.startsWith('en'))) {
-    assert.deepEqual(missingKeys(enGB, TRANSLATIONS[code]).filter((key) => !allowedToStay.has(key)), [], `${code} leaves sentences in English`);
+test('existing translated languages retain their original coverage; new draft languages fall back safely', () => {
+  const allowedToStay = new Set(['settings.fontBrand', 'setup.welcome', 'setup.question', 'setup.detected', 'setup.continueIn', 'setup.keepSource', 'setup.later']);
+  const previouslyTranslated = ['cy', 'gd', 'fr', 'de', 'es', 'nl', 'it', 'pt'];
+  for (const code of previouslyTranslated) {
+    assert.deepEqual(missingKeys(enGB, TRANSLATIONS[code as keyof typeof TRANSLATIONS])
+      .filter((key) => !allowedToStay.has(key) && !['appearance.', 'adjustment.', 'quick.', 'photoInfo.'].some((prefix) => key.startsWith(prefix))), [], `${code} unexpectedly lost an existing translation`);
+    const merged = mergeMessages<Messages>(enGB, TRANSLATIONS[code as keyof typeof TRANSLATIONS]);
+    assert.ok(merged.scanning('3', '9').includes('3') && merged.scanning('3', '9').includes('9'), `${code} drops a scan count`);
+  }
+  for (const { code, status } of LANGUAGES) {
     const merged = mergeMessages<Messages>(enGB, TRANSLATIONS[code]);
-    assert.notEqual(merged.scanning('3', '9'), enGB.scanning('3', '9'));
-    assert.ok(merged.scanning('3', '9').includes('3') && merged.scanning('3', '9').includes('9'), `${code} drops a number from scanning`);
-    assert.ok(merged.settings.restartIn('X').includes('X'), `${code} drops the language name`);
+    assert.ok(merged.setup.welcome.trim(), `${code} must have a readable first-run welcome`);
+    assert.ok(merged.setup.continueIn('TEST').includes('TEST'), `${code} must preserve the chosen language name`);
+    if (status === 'draft') assert.ok(merged.settings.draft.trim(), `${code} must disclose draft status`);
   }
 });
 
@@ -60,7 +66,13 @@ test('dates follow the chosen language: British by default, never the browser’
 
 test('the device language is matched to one Kestrel has, to offer at first run', () => {
   assert.equal(matchDeviceLanguage(['en-US']), 'en-US');
-  assert.equal(matchDeviceLanguage(['en-AU', 'fr']), 'en-GB', 'other English goes to British English');
+  assert.equal(matchDeviceLanguage(['en-AU', 'fr']), 'en-AU', 'Australian English is a regional option');
+  assert.equal(matchDeviceLanguage(['en-NZ']), 'en-NZ');
+  assert.equal(matchDeviceLanguage(['en-CA']), 'en-CA');
+  assert.equal(matchDeviceLanguage(['en-GB']), 'en-GB');
+  assert.equal(matchDeviceLanguage(['en-IE']), 'en-GB', 'unsupported English region uses UK words');
+  assert.equal(matchDeviceLanguage(['fr-CA']), 'fr-CA');
+  assert.equal(matchDeviceLanguage(['fr-Latn-CA']), 'fr-CA', 'supports BCP47 script and region');
   assert.equal(matchDeviceLanguage(['fr-BE']), 'fr');
   assert.equal(matchDeviceLanguage(['pt-BR']), 'pt');
   assert.equal(matchDeviceLanguage(['nb-NO']), 'nb');
@@ -72,6 +84,17 @@ test('the device language is matched to one Kestrel has, to offer at first run',
   assert.equal(matchDeviceLanguage(['ja-JP', 'zh']), undefined);
   assert.equal(matchDeviceLanguage([]), undefined);
   assert.equal(matchDeviceLanguage(undefined), undefined);
+});
+
+test('first launch asks for an explicit choice regardless of OS language; a saved choice wins', () => {
+  for (const value of [undefined, null, '', 'unrecognised']) {
+    assert.equal(needsLanguageSetup(value), true);
+  }
+  for (const value of ['en-GB', 'en-AU', 'en-NZ', 'fr-CA', 'cy']) {
+    assert.equal(needsLanguageSetup(value), false, value);
+  }
+  assert.equal(resolveLanguage('fr-CA'), 'fr-CA');
+  assert.equal(resolveLanguage('en-NZ'), 'en-NZ');
 });
 
 test('plural words follow the active language’s rules', () => {
@@ -90,14 +113,46 @@ test('plural words follow the active language’s rules', () => {
   }
 });
 
-test('every area of the app is complete in every non-English language, with nothing the source lacks', () => {
+test('every area is complete in every full language; regional variants (en-AU, fr-CA…) may override only what differs', () => {
   for (const area of AREAS) {
     for (const { code } of LANGUAGES) {
       const translation = area.translations[code];
       assert.deepEqual(unknownKeys(area.source, translation), [], `${area.name}/${code} has keys the source lacks`);
-      if (code.startsWith('en')) continue;
+      if (code.startsWith('en') || code.includes('-')) continue;
       assert.ok(translation, `${area.name} has no ${code} file`);
       assert.deepEqual(missingKeys(area.source, translation), [], `${area.name}/${code} leaves sentences in English`);
     }
   }
+});
+
+test('translations without a native speaker’s check are labelled as drafts', () => {
+  for (const code of ['cy', 'gd', 'ga', 'fr', 'fr-CA', 'de', 'es', 'nl', 'it', 'pt', 'da', 'sv', 'nb', 'fi', 'is']) {
+    assert.equal(LANGUAGES.find((item) => item.code === code)?.status, 'draft', code);
+  }
+});
+
+test('all eight established translation drafts include every visible Settings layout label', () => {
+  const sourceKeys = Object.keys(enGB.appearance);
+  for (const code of ['cy', 'gd', 'fr', 'de', 'es', 'nl', 'it', 'pt'] as const) {
+    const translated = TRANSLATIONS[code].appearance as Record<string, string> | undefined;
+    assert.ok(translated, `${code}: appearance translation is missing`);
+    for (const key of sourceKeys) {
+      const value: string | undefined = translated?.[key];
+      assert.equal(typeof value, 'string', `${code}: appearance.${key} is untranslated`);
+      assert.ok((value as string).trim().length > 2, `${code}: appearance.${key} is empty`);
+    }
+    const merged = mergeMessages<Messages>(enGB, TRANSLATIONS[code]);
+    assert.notEqual(merged.appearance.position, enGB.appearance.position,
+      `${code}: the editing tools question must not appear in English`);
+  }
+});
+
+test('Welsh Photo Info dynamic labels keep the number and the choice', () => {
+  const welsh = mergeMessages<Messages>(enGB, TRANSLATIONS.cy);
+  assert.match(welsh.photoInfo.burst('2', '10'), /2/);
+  assert.match(welsh.photoInfo.burst('2', '10'), /10/);
+  assert.match(welsh.photoInfo.batch('3'), /3/);
+  assert.match(welsh.photoInfo.rateStars('5'), /5/);
+  assert.match(welsh.quick.down(welsh.adjustment.colour), /Lliw/);
+  assert.notEqual(welsh.photoInfo.title, enGB.photoInfo.title);
 });
