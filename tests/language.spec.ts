@@ -97,7 +97,7 @@ test.describe('Canadian French system locale', () => {
     await expect(welcome).toBeVisible();
     const chooser = page.getByLabel('Which language would you like?');
     await expect(chooser).toHaveValue('fr-CA');
-    await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB', 'device preference is offered, not applied automatically');
+    await expect(page.locator('html'), 'device preference is offered, not applied automatically').toHaveAttribute('lang', 'en-GB');
     await page.getByRole('button', { name: 'Continue in Français (Canada)' }).click();
     await expect(page.locator('html')).toHaveAttribute('lang', 'fr-CA');
     await expect(page.getByRole('heading', { name: 'Projets' })).toBeVisible();

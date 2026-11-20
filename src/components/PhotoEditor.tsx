@@ -39,7 +39,7 @@ import { DEFAULT_EDIT, EDIT_CHOICES, TONE_CONTROLS, DETAIL_CONTROLS, NOISE_CONTR
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 
-import { FIT_VIEW } from '../core/viewportTransform';
+import { FIT_VIEW, type ViewportTransform } from '../core/viewportTransform';
 import { beforeSnapshot, type ComparisonStage } from '../core/compareStages';
 import { resolveKeyboardCommand, type KeyBindingsMap } from '../core/keyboardCommands';
 import { visiblePhotoDetail } from '../core/visiblePhotoDetail';
@@ -76,6 +76,9 @@ interface Props {
   /** Suggest colour and tone the first time a photo is opened, when the project asked for it. */
   autoEdit?: boolean;
   frame: PhotoFrame;
+  /** App-wide camera shared by Review, Compare and Edit: opening tools never moves the photo. */
+  viewportTransform?: ViewportTransform;
+  onViewportTransform?: (next: ViewportTransform) => void;
   provider: BrowserPreviewProvider;
   needsAccess: boolean;
   bindings: KeyBindingsMap;
@@ -115,7 +118,7 @@ interface Props {
 }
 
 export function PhotoEditor({ autoEdit, onOpenMacroPad,
-  frame, provider, needsAccess, bindings, onEdit, initialTab, onTabChange, onApplyLook, onExport, exportCount = 1, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
+  frame, viewportTransform, onViewportTransform, provider, needsAccess, bindings, onEdit, initialTab, onTabChange, onApplyLook, onExport, exportCount = 1, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, hand, onHandChange,
   toolsCollapsed = false, focusPhoto = false, onExpandTools, onFoldTools,
@@ -257,7 +260,15 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const cropDraw = useRef<{ start: { x: number; y: number }; client: { x: number; y: number }; moved: boolean } | null>(null);
   const edgeDrag = useRef<{ edge: CropEdge; x: number; y: number; point: { x: number; y: number } } | null>(null);
   const [markFocus, setMarkFocus] = useState(false);
-  const [transform, setTransform] = useState({ zoom: 1, pan: { x: 0, y: 0 } });
+  // Standalone editor keeps a local camera; the project workspace supplies the
+  // shared camera so Review → Edit → Compare retains precisely the same view.
+  const [localTransform, setLocalTransform] = useState<ViewportTransform>(FIT_VIEW);
+  const transform = viewportTransform ?? localTransform;
+  const setTransform = (next: ViewportTransform | ((current: ViewportTransform) => ViewportTransform)) => {
+    const updated = typeof next === 'function' ? next(transform) : next;
+    if (onViewportTransform) onViewportTransform(updated);
+    else setLocalTransform(updated);
+  };
   const [eyeNote, setEyeNote] = useState<string | null>(null);
   const [findingEye, setFindingEye] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -620,7 +631,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   // Opening the crop tab shows the whole photo with the crop box. Remember the crop so Cancel can put it back.
   useEffect(() => {
     setPreviewCrop(false);
-    setTransform(FIT_VIEW);
+    // Switching tool tabs must not move the photographer away from a detail at 100% or 200%.
     autoRun.current += 1;
     setAutoAnalysing(false);
     setPreviewRecipe(null);
@@ -634,22 +645,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
-  // Turning Before/After on shows the whole photo first, not whatever crop a previous zoom left
-  // behind — otherwise comparing can look like it "selected" a sliver of the image instead of showing it.
-  // Zooming in *during* the comparison (to check detail) is unaffected: this only fires on the off-to-on edge.
-  useEffect(() => {
-    if (compare) setTransform(FIT_VIEW);
-  }, [compare]);
+  // Before/After uses the existing viewport camera; changing comparison must not move it.
 
-  // Auto-develop: get the best available quality without making anyone ask for it. The quick embedded preview shows
-  // immediately so there's nothing to wait on, then this silently swaps in the full sensor decode once it's ready —
-  // "Develop from RAW" in RAW options below is only there to retry or force it again, never required for normal use.
-  useEffect(() => {
-    if (!isRaw || !canDevelopRaw() || !source || developing || provider.isDeveloped(frame.stableKey)) return;
-    void developFromRaw();
-    // Once per photo: developing flips provider.isDeveloped, which this effect re-checks when `source` next changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source]);
+  // Until camera-matched colour and 16-bit RAW-to-view fidelity are verified, do
+  // not silently replace a faithful in-camera preview with a generic RAW look.
+  // A photographer can explicitly develop from the RAW options below; this
+  // never writes or modifies the original file.
 
   /** A quick, conservative category hint. Segmentation still determines the mask, not the filename or tag. */
   function autoSubjectKind(): InsightSubjectKind {
@@ -952,7 +953,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     <div role="tablist" aria-label="Editing tools"
       className={isPhone
         ? 'grid shrink-0 grid-cols-6 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]'
-        : 'sticky top-0 z-10 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 workspace:-mx-4 workspace:px-3'}
+        : 'sticky top-0 z-20 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 workspace:-mx-4 workspace:px-3'}
       onKeyDown={(event) => {
         const order = visibleTabs.map((entry) => entry.id);
         const at = order.indexOf(tab);
@@ -1070,7 +1071,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   y: clamp((event.clientY - bounds.top) / bounds.height) } : { x: 0.5, y: 0.5 });
                 setMarkFocus(false);
               }} />}
-            {!guide && position && frame.focusPoint && <span aria-hidden="true"
+            {!guide && position && markFocus && frame.focusPoint && <span aria-hidden="true"
               className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_#000]"
               style={{ left: position.left + position.width * frame.focusPoint.x, top: position.top + position.height * frame.focusPoint.y }} />}
             {tab === 'masks' && !guide && position && size && showMaskOverlay && !sliderBusy && edit.masks?.find((mask) => mask.id === selectedMaskId) && (
@@ -1226,7 +1227,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         window.clearTimeout(sliderTimer.current);
         sliderTimer.current = window.setTimeout(() => setSliderBusy(false), 700);
       }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
-        {!isPhone && <div className="sticky top-0 z-10 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
+        {!isPhone && <div className="sticky top-0 z-20 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
           {onFoldTools && <button type="button" onClick={onFoldTools} aria-label="Fold editing tools" title="Fold the panels away for a bigger photo (Tab)"
             className={`grid w-9 shrink-0 place-items-center border-b border-white/10 text-zinc-400 hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 ${panelSide === 'left' ? 'order-last' : ''}`}>
             {panelSide === 'left' ? <ChevronLeft className="h-5 w-5" aria-hidden="true" /> : <ChevronRight className="h-5 w-5" aria-hidden="true" />}
@@ -1402,8 +1403,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             {/* Always visible, not tucked behind the disclosure: when the automatic attempt fails the person needs
                 to see why without first hunting through RAW options. */}
             {developNote && <p role="status" className="px-1 text-xs text-amber-200">{developNote}</p>}
-            {/* Only when the automatic attempt failed: one plain retry, nothing else to puzzle over. */}
-            {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && developNote && (
+            {/* Explicit RAW development while camera-matching remains unverified. */}
+            {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
+              <p className="px-1 text-xs text-zinc-300">
+                You are viewing the camera preview. Developing the sensor data may change colour or contrast while camera-matching is being improved.
+              </p>
+            )}
+            {canDevelopRaw() && !provider.isDeveloped(frame.stableKey) && (
               <button type="button" className={`${button} w-full border border-white/10`} disabled={developing || sourceState !== 'ready'} onClick={() => void developFromRaw()}>
                 {developing ? 'Developing…' : 'Develop from RAW'}
               </button>
@@ -1541,25 +1547,20 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                 <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 h-4 w-4 shrink-0 stroke-[1.75] text-zinc-300" />
               </span>
             </label>
-            <label className="block px-1 pb-1">
-              <span className="flex items-center justify-between text-xs text-zinc-300"><span>Crop size</span>
-                <output className="tabular-nums text-zinc-400">{Math.round((framing.size ?? 1) * 100)}%</output></span>
-              <input type="range" min={MIN_CROP_SIZE} max={1} step={0.01} value={framing.size ?? 1} aria-label="Crop size"
-                onChange={(event) => size && onFramingChange({ ...framing, ratio: framing.ratio ?? size.width / size.height, size: event.target.valueAsNumber })}
-                onDoubleClick={() => onFramingChange({ ...framing, size: undefined })}
-                className="block min-h-9 w-full accent-sky-300 desk:min-h-7" />
-            </label>
-            <label className="block text-xs">Straighten <output>{framing.straighten.toFixed(1)}°</output>
-              <input type="range" min={-12} max={12} step={0.1} value={framing.straighten}
-                onChange={(event) => onFramingChange({ ...framing, straighten: event.target.valueAsNumber })}
-                className="block min-h-10 w-full accent-sky-300" />
-            </label>
+            <AdjustmentSlider label="Crop size" min={MIN_CROP_SIZE} max={1} step={0.01}
+              value={framing.size ?? 1} neutral={1} displayValue={`${Math.round((framing.size ?? 1) * 100)}%`}
+              disabled={!size} onChange={(value) => size && onFramingChange({
+                ...framing, ratio: framing.ratio ?? size.width / size.height, size: value,
+              })} />
+            <AdjustmentSlider label="Straighten" min={-12} max={12} step={0.1}
+              value={framing.straighten} displayValue={`${framing.straighten.toFixed(1)}°`}
+              onChange={(value) => onFramingChange({ ...framing, straighten: value })} />
             {framing.ratio && (['x', 'y'] as const).map((axis) => (
-              <label key={axis} className="block text-xs">{axis === 'x' ? 'Horizontal crop position' : 'Vertical crop position'}
-                <input type="range" min={0} max={1} step={0.01} value={framing[axis]}
-                  onChange={(event) => onFramingChange({ ...framing, [axis]: event.target.valueAsNumber })}
-                  className="block min-h-10 w-full accent-sky-300" />
-              </label>
+              <AdjustmentSlider key={axis}
+                label={axis === 'x' ? 'Horizontal crop position' : 'Vertical crop position'}
+                min={0} max={1} step={0.01} neutral={0.5}
+                value={framing[axis]} displayValue={`${Math.round(framing[axis] * 100)}%`}
+                onChange={(value) => onFramingChange({ ...framing, [axis]: value })} />
             ))}
           </fieldset>
 
