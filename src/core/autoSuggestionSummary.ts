@@ -27,10 +27,3 @@ export function acceptedAutoChanges(before: PhotoEdit, after: PhotoEdit, addedSu
   if (addedSubjectMask) changes.push({ key: 'subjectMask' });
   return changes;
 }
-
-/** At most two changes are shown without expanding Help. Never expose
- * English-only ML strings, duplicated 'already works' claims or ignored masks.
- */
-export function visibleAutoChanges(changes: readonly AutoChange[]): readonly AutoChange[] {
-  return changes.slice(0, 2);
-}
