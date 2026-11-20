@@ -7,7 +7,8 @@ import { compareNavigation, compareQueueState } from '../core/compareNavigation'
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { FrameImage } from './FrameImage';
 import { PhotoViewport } from './PhotoViewport';
-import { maxZoomFor, zoomForPercent } from '../core/zoomControls';
+import { maxZoomFor } from '../core/zoomControls';
+import { comparePreviewPixelZoom } from '../core/compareZoom';
 import { viewerText as t } from '../i18n/areas/viewer';
 
 interface Props {
@@ -57,7 +58,7 @@ export function CompareView({
     return () => observer?.disconnect();
   }, [rightFrame?.id, uniqueRight]);
   const maxZoom = maxZoomFor(previewFit, dpr);
-  const actual200 = previewFit > 0 ? Math.max(1, Math.min(maxZoom, zoomForPercent(200, previewFit, dpr))) : null;
+  const actual200 = comparePreviewPixelZoom(previewFit, dpr);
 
   // Clicking a photograph makes the comparison keyboard-ready without requiring
   // the photographer to find a tiny focus target. Never steal focus from a
