@@ -1,9 +1,10 @@
-import type { ExifMetadata } from './types';
+import type { ExifMetadata, PhotoFrame } from './types';
 import type { WatermarkOptions } from './watermark';
 
 export interface OverlayOptions {
   on: boolean;
   title?: string;
+  font?: WatermarkOptions['font'];
   location?: string;
   align?: 'left' | 'centre' | 'right';
   scale?: number;
@@ -43,4 +44,17 @@ export function overlayLines(exif: ExifMetadata, options: OverlayOptions): strin
   const when = exif.capturedAtMs;
   if (options.date && when && Number.isFinite(when)) lines.push(new Date(when).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }));
   return lines;
+}
+
+/** A blank override deliberately suppresses the title. Unconfirmed suggestions stay private. */
+export function exportOverlayTitle(frame: Pick<PhotoFrame, 'subjectNames' | 'autoTags' | 'tags'>, options: OverlayOptions): string {
+  if (options.title !== undefined) return options.title;
+  const automated = new Set(frame.autoTags?.map(tag => tag.trim().toLowerCase()));
+  return [...(frame.subjectNames ?? []), ...(frame.tags ?? [])]
+    .map(tag => tag.trim())
+    .find(tag => tag && !automated.has(tag.toLowerCase()))?.slice(0, 100) ?? '';
+}
+
+export function photoOverlayLines(frame: PhotoFrame, options: OverlayOptions): string[] {
+  return overlayLines(frame.exif, { ...options, title: exportOverlayTitle(frame, options) });
 }

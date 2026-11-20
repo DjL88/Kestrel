@@ -4,6 +4,7 @@ import type { source } from './source';
 
 /** Finnish. DRAFT: written without a native speaker's check. */
 export const fi: AreaTranslation<typeof source> = {
+  typeface: "Kirjasin",
   sidecar: {
     save: "Tallenna XMP-sivutiedosto",
     saveFailed: "XMP-sivutiedostoa ei voitu tallentaa. Valitse nimi, jonka pääte on .xmp.",

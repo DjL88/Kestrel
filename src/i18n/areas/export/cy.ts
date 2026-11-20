@@ -7,6 +7,7 @@ import type { source } from './source';
  * ("3 llun", "5 ffeil"), so these sentences need only one form.
  */
 export const cy: AreaTranslation<typeof source> = {
+  typeface: "Ffont",
   sidecar: {
     save: "Cadw ffeil XMP",
     saveFailed: "Doedd dim modd cadw’r ffeil XMP. Dewiswch enw sy’n gorffen ag .xmp.",

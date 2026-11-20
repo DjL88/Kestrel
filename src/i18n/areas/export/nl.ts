@@ -4,6 +4,7 @@ import type { source } from './source';
 
 /** Dutch. DRAFT: written without a native speaker's check. */
 export const nl: AreaTranslation<typeof source> = {
+  typeface: "Lettertype",
   sidecar: {
     save: "XMP-nevenbestand opslaan",
     saveFailed: "Het XMP-nevenbestand kon niet worden opgeslagen. Kies een naam die eindigt op .xmp.",

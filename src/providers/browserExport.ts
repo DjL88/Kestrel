@@ -7,7 +7,7 @@ import { exportFilename, type ExportProfile } from '../core/exportProfiles';
 import { planExportFraming, type ExportFraming, type FocusPoint } from '../core/exportFraming';
 import type { BarStyle } from '../core/exportFormats';
 import { hasWatermark, watermarkSpots, watermarkFont, watermarkToneForPixels } from '../core/watermark';
-import { overlayLines, type OverlayOptions } from '../core/exportOverlay';
+import { photoOverlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { datedExport } from '../core/exportTimestamp';
 import type { WatermarkOptions } from '../core/watermark';
 import { fitScale, maxCanvasPixels } from '../core/exportLimits';
@@ -106,8 +106,15 @@ async function composeExport(
     context.drawImage(canvas, Math.floor((output.width - canvas.width) / 2), Math.floor((output.height - canvas.height) / 2));
   }
   if (extras.overlay?.on) {
-    const lines = overlayLines(frame.exif, extras.overlay);
-    if (lines.length) drawOverlay(output, lines, extras.overlay);
+    const lines = photoOverlayLines(frame, extras.overlay);
+    if (lines.length) {
+      const font = extras.overlay.font;
+      const family = watermarkFont(font);
+      const weights = font === 'jakarta' ? [400, 600] : font === 'atkinson' ? [400, 700] : [400, 500];
+      await Promise.all(weights.map(weight => document.fonts?.load(`${weight} 16px ${family}`).catch(() => [])));
+      signal?.throwIfAborted();
+      drawOverlay(output, lines, extras.overlay, weights[1]);
+    }
   }
   const mark = extras.overlay?.watermark;
   if (mark && hasWatermark(mark)) await drawWatermark(output, mark);
@@ -159,14 +166,14 @@ async function drawWatermark(target: HTMLCanvasElement, mark: WatermarkOptions) 
 }
 
 /** Print lines of text over the bottom or top of a picture, on a soft fade so they stay readable on any photo. */
-function drawOverlay(target: HTMLCanvasElement, lines: string[], options: OverlayOptions) {
+function drawOverlay(target: HTMLCanvasElement, lines: string[], options: OverlayOptions, titleWeight: number) {
   const context = target.getContext('2d');
   if (!context) return;
   const { width, height } = target;
   let size = Math.max(10, Math.round(Math.min(width, height) * 0.032 * (options.scale ?? 1)));
-  const family = 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif';
+  const family = watermarkFont(options.font);
   // Shrink the text if the longest line would not fit.
-  context.font = `500 ${size}px ${family}`;
+  context.font = `${titleWeight} ${size}px ${family}`;
   const widest = Math.max(...lines.map((line) => context.measureText(line).width));
   if (widest > width * 0.92 - size * 2) size = Math.max(8, Math.floor(size * ((width * 0.92 - size * 2) / widest)));
   const lineHeight = size * 1.4, pad = size * 1.1;
@@ -184,7 +191,7 @@ function drawOverlay(target: HTMLCanvasElement, lines: string[], options: Overla
   context.textAlign = alignment === 'centre' ? 'center' : alignment;
   const x = alignment === 'centre' ? width / 2 : alignment === 'right' ? width - pad : pad;
   lines.forEach((line, index) => {
-    context.font = `${index === 0 ? 600 : 500} ${size}px ${family}`;
+    context.font = `${index === 0 ? titleWeight : 400} ${size}px ${family}`;
     const y = bottom ? height - pad - (lines.length - 1 - index) * lineHeight : pad + size + index * lineHeight;
     context.fillText(line, x, y, width - pad * 2);
   });

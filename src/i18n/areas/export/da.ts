@@ -4,6 +4,7 @@ import type { source } from './source';
 
 /** Danish. DRAFT: written without a native speaker's check. */
 export const da: AreaTranslation<typeof source> = {
+  typeface: "Skrifttype",
   sidecar: {
     save: "Gem XMP-sidefil",
     saveFailed: "XMP-sidefilen kunne ikke gemmes. Vælg et navn, der ender på .xmp.",
