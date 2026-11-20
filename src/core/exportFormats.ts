@@ -47,6 +47,7 @@ const social = (id: string, platform: SocialIconId, label: string, width: number
  */
 export const EXPORT_FORMATS: readonly ExportFormat[] = [
   { id: 'master', label: 'Full size · PNG', width: 0, height: 0, fit: 'keep', quality: 1, format: 'png', prefix: '' },
+  { id: 'full-jpeg', label: 'Full size · JPEG', width: 0, height: 0, fit: 'keep', quality: 0.96, format: 'jpeg', prefix: '', },
   { id: 'before-after', label: 'Before & after · side by side', width: 1920, height: 1200, fit: 'keep', quality: 0.94, format: 'jpeg', prefix: 'compare_' },
   social('ig-45', 'instagram', 'Post · 4:5', 1080, 1350, 'fill'),
   social('ig-34', 'instagram', 'Post · 3:4', 1080, 1440, 'fill'),
@@ -87,6 +88,7 @@ export function toProfile(format: ExportFormat): ExportProfile {
 
 /** What tells one format of a photo from another in a file name: its shape, or its size for custom and keep-shape formats. */
 export function fileSuffix(format: ExportFormat): string | undefined {
+  if (format.id === 'full-jpeg') return 'kestrel';
   if (format.id === 'master' || !(format.width > 0 && format.height > 0)) return undefined;
   if (format.id === 'before-after') return 'before-after';
   if (format.id === 'custom') return `${format.width}x${format.height}`;
