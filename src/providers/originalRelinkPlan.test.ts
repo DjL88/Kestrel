@@ -109,3 +109,44 @@ test('same filename and metadata from two cameras requires manual confirmation',
   assert.deepEqual(result.matches, []);
   assert.deepEqual(result.ambiguous, ['z8', 'second-camera']);
 });
+
+const shaA = 'a'.repeat(64);
+const shaB = 'b'.repeat(64);
+
+test('verified digest reconnects a renamed and re-timestamped original', () => {
+  const saved = { ...original, sha256: shaA };
+  const candidate = { path: '//NAS/new-name.nef', size: 10000, lastModified: 9999, sha256: shaA.toUpperCase() };
+  assert.deepEqual(planOriginalRelink([saved], [candidate]).matches, [{ id: 'z8', path: candidate.path }]);
+});
+
+test('a saved digest fails closed against metadata collision and missing candidate digest', () => {
+  const saved = { ...original, sha256: shaA };
+  const candidate = { path: 'E:/_DSC0001.NEF', size: 10000, lastModified: 1234 };
+  assert.deepEqual(planOriginalRelink([saved], [candidate]).unresolved, ['z8']);
+  assert.deepEqual(planOriginalRelink([saved], [{ ...candidate, sha256: shaB }]).unresolved, ['z8']);
+  assert.deepEqual(planOriginalRelink([saved], [{ ...candidate, sha256: 'not-a-hash' }]).unresolved, ['z8']);
+  assert.deepEqual(planOriginalRelink([{ ...saved, sha256: 'invalid' }], [{ ...candidate, sha256: shaA }]).unresolved, ['z8']);
+});
+
+test('identical digest copies and catalogue digest collisions cannot silently relink', () => {
+  const saved = { ...original, sha256: shaA };
+  const candidate = { path: 'E:/renamed.NEF', size: 10000, lastModified: 1234, sha256: shaA };
+  assert.deepEqual(planOriginalRelink([saved], [candidate, { ...candidate, path: 'F:/copy.NEF' }]).ambiguous, ['z8']);
+  assert.deepEqual(planOriginalRelink([saved, { ...saved, id: 'z5ii' }], [candidate]).ambiguous, ['z8', 'z5ii']);
+});
+
+test('500 SHA-256 verified synthetic relinks tolerate changed names and timestamps', () => {
+  const saved = Array.from({ length: 500 }, (_, i) => ({
+    id: 'frame-' + i, path: 'D:/RAW/' + i + '.NEF', size: 10000 + i,
+    lastModified: 1234, sha256: i.toString(16).padStart(64, '0'),
+  }));
+  const candidates = saved.map((s, i) => ({
+    path: '//NAS/renamed/' + (499 - i) + '.NEF', size: s.size,
+    lastModified: 9999, sha256: s.sha256,
+  })).reverse();
+  const result = planOriginalRelink(saved, candidates);
+  assert.equal(result.matches.length, 500);
+  assert.deepEqual(result.ambiguous, []);
+  assert.deepEqual(result.unresolved, []);
+  for (let i = 0; i < 500; i++) assert.equal(result.matches[i].id, saved[i].id);
+});
