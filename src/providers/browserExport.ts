@@ -1,4 +1,5 @@
 import { isRawPreviewFile } from '../core/rawFormats';
+import { canDevelopRaw, developRaw } from './rawDevelop';
 import { loadImage } from './loadImage';
 import { applyCanvasExportEdit } from '../core/canvasEdit';
 import { DEFAULT_EDIT } from '../core/photoEdits';
@@ -15,13 +16,48 @@ import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 import { isDesktopApp, saveWithDialog } from './desktopShell';
 
-export async function loadExportSource(frame: PhotoFrame, provider: Pick<BrowserPreviewProvider, 'getFullPreviewUrl' | 'hasBlob'> & Partial<Pick<BrowserPreviewProvider, 'isOfflineFallback'>>, priority: 'background' | 'visible' | 'selected' = 'selected') {
+/** Choose the source for an export. A review-cache image is never silently
+ * treated as the original. If a RAW has no usable camera JPEG, Kestrel may
+ * develop its own source bytes on demand rather than require a second app.
+ * The fallback decoder argument is injectable so safety can be unit-tested
+ * without a hardware decoder in Node.
+ */
+export async function loadExportSource(
+  frame: PhotoFrame,
+  provider: Pick<BrowserPreviewProvider, 'getFullPreviewUrl' | 'hasBlob'>
+    & Partial<Pick<BrowserPreviewProvider, 'isOfflineFallback' | 'ensureOriginal'>>,
+  priority: 'background' | 'visible' | 'selected' = 'selected',
+  rawDecoder: ((original: Blob, extension: string) => Promise<Blob>) | null = canDevelopRaw() ? developRaw : null,
+) {
   const url = await provider.getFullPreviewUrl(frame, priority);
-  if (!frame.isDemo && provider.isOfflineFallback?.(frame.stableKey)) {
+  const cachedReviewOnly = !frame.isDemo && Boolean(provider.isOfflineFallback?.(frame.stableKey));
+  // A RAW without an embedded JPEG must not be a dead end. Use the same
+  // Kestrel sensor decoder that develops it in Edit; this is still an 8-bit
+  // rendered picture, not an archival 16-bit sensor master.
+  if ((!url || cachedReviewOnly) && !frame.isDemo && isRawPreviewFile(frame.filename)
+      && provider.hasBlob(frame.stableKey) && rawDecoder && provider.ensureOriginal) {
+    const original = await provider.ensureOriginal(frame.stableKey, priority);
+    if (!original) throw new Error(`Reconnect ${frame.filename} before exporting. The original RAW file is not available.`);
+    const extension = frame.filename.split('.').at(-1)?.toLowerCase() ?? '';
+    let rendered: Blob;
+    try {
+      rendered = await rawDecoder(original, extension);
+    } catch (reason) {
+      const detail = reason instanceof Error ? reason.message : 'Unknown decoder failure.';
+      throw new Error(`Kestrel could not develop ${frame.filename} from its RAW sensor data: ${detail} The original is unchanged.`);
+    }
+    if (rendered.type !== 'image/jpeg' || rendered.size === 0) {
+      throw new Error(`Kestrel's RAW decoder did not return a usable image for ${frame.filename}. The original is unchanged.`);
+    }
+    const objectUrl = URL.createObjectURL(rendered);
+    try { return await loadImage(objectUrl); }
+    finally { URL.revokeObjectURL(objectUrl); }
+  }
+  if (cachedReviewOnly) {
     throw new Error(`Reconnect ${frame.filename} before exporting. The offline review image is not the original photograph.`);
   }
   if (!url && !frame.isDemo && isRawPreviewFile(frame.filename) && provider.hasBlob(frame.stableKey)) {
-    throw new Error(`${frame.filename} has no usable embedded JPEG. Export it from a RAW developer and import the rendered photo.`);
+    throw new Error(`${frame.filename} has no usable embedded JPEG, and this build cannot develop it from RAW sensor data. The original is unchanged.`);
   }
   if (!url) throw new Error(`Reconnect ${frame.filename} to export it.`);
   return loadImage(url);
