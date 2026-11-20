@@ -186,6 +186,6 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
     </aside>
   );
   return floating
-    ? <FloatingPane title={m.photoInfo.title} storageKey="kestrel-info-float-rect-v1" onDock={() => detach(false)}>{inspector}</FloatingPane>
+    ? <FloatingPane title={m.photoInfo.title} initialSide={dockedSide} storageKey="kestrel-info-float-rect-v1" onDock={() => detach(false)}>{inspector}</FloatingPane>
     : inspector;
 };
