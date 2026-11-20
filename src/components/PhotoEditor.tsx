@@ -620,7 +620,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   // Opening the crop tab shows the whole photo with the crop box. Remember the crop so Cancel can put it back.
   useEffect(() => {
     setPreviewCrop(false);
-    setTransform(FIT_VIEW);
+    // Switching tool tabs must not move the photographer away from a detail at 100% or 200%.
     autoRun.current += 1;
     setAutoAnalysing(false);
     setPreviewRecipe(null);
@@ -634,12 +634,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
-  // Turning Before/After on shows the whole photo first, not whatever crop a previous zoom left
-  // behind — otherwise comparing can look like it "selected" a sliver of the image instead of showing it.
-  // Zooming in *during* the comparison (to check detail) is unaffected: this only fires on the off-to-on edge.
-  useEffect(() => {
-    if (compare) setTransform(FIT_VIEW);
-  }, [compare]);
+  // Before/After uses the existing viewport camera; changing comparison must not move it.
 
   // Auto-develop: get the best available quality without making anyone ask for it. The quick embedded preview shows
   // immediately so there's nothing to wait on, then this silently swaps in the full sensor decode once it's ready —
@@ -952,7 +947,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     <div role="tablist" aria-label="Editing tools"
       className={isPhone
         ? 'grid shrink-0 grid-cols-6 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]'
-        : 'sticky top-0 z-10 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 workspace:-mx-4 workspace:px-3'}
+        : 'sticky top-0 z-20 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 workspace:-mx-4 workspace:px-3'}
       onKeyDown={(event) => {
         const order = visibleTabs.map((entry) => entry.id);
         const at = order.indexOf(tab);
@@ -1070,7 +1065,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   y: clamp((event.clientY - bounds.top) / bounds.height) } : { x: 0.5, y: 0.5 });
                 setMarkFocus(false);
               }} />}
-            {!guide && position && frame.focusPoint && <span aria-hidden="true"
+            {!guide && position && markFocus && frame.focusPoint && <span aria-hidden="true"
               className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_#000]"
               style={{ left: position.left + position.width * frame.focusPoint.x, top: position.top + position.height * frame.focusPoint.y }} />}
             {tab === 'masks' && !guide && position && size && showMaskOverlay && !sliderBusy && edit.masks?.find((mask) => mask.id === selectedMaskId) && (
@@ -1226,7 +1221,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         window.clearTimeout(sliderTimer.current);
         sliderTimer.current = window.setTimeout(() => setSliderBusy(false), 700);
       }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
-        {!isPhone && <div className="sticky top-0 z-10 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
+        {!isPhone && <div className="sticky top-0 z-20 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
           {onFoldTools && <button type="button" onClick={onFoldTools} aria-label="Fold editing tools" title="Fold the panels away for a bigger photo (Tab)"
             className={`grid w-9 shrink-0 place-items-center border-b border-white/10 text-zinc-400 hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 ${panelSide === 'left' ? 'order-last' : ''}`}>
             {panelSide === 'left' ? <ChevronLeft className="h-5 w-5" aria-hidden="true" /> : <ChevronRight className="h-5 w-5" aria-hidden="true" />}
