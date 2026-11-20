@@ -34,6 +34,12 @@ The manual Export/ZIP path and the connected-background path now use the same RA
 
 **Not yet release-grade:** This queue lives for the app process only; a restart cannot automatically resume interrupted jobs. There is no durable, crash-safe atomic rename/fsync checkpoint in this route. The code must be checked on actual Windows/macOS permissions, filesystem and NAS drives, with `npm run lint`, `npm test`, `npm run build` and Playwright before being called verified. Mobile/browser retain their existing download/ZIP path; high-fidelity Nikon HE/HE* and true 16-bit master proof remain separate P0 release gates.
 
+### 20 November 2026 — authentic Before/After share export (code under review)
+
+A first-class **Before and after · side by side** destination is available beside Master and social formats in Export. The left and right halves are rendered from **the same original source and matching crop**, using the existing Kestrel renderer with neutral or saved reversible edits; no scene content is generated. The same composition is used for the pinned proof and output file (JPEG, bounded to 1920 × 1200 overall). Text overlay and optional watermark are composed once on the final pair; metadata stays opt-in. It can join the normal presets, individual downloads/ZIP and the Task Manager desktop/connected batch folders (`Before-After/`). All existing RAW provenance checks still apply: this is an 8-bit sharing image, **not** a verified archival RAW master. Standard outputs do not enlarge small originals silently.
+
+**Acceptance still NOT RUN:** exact-commit typecheck/lint/unit/build, actual before/after proof pixel parity, Mac/Windows/iOS/Android browse and export, unknown subject, 500-photo batch, colour/profile and RAW/Nikon image fidelity. One more implementation slice is not evidence that all unrelated roadmap features are complete.
+
 ## 1. Where Kestrel is today
 
 | Area | Status | Evidence and gaps |
