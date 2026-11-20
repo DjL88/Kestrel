@@ -286,6 +286,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const cropDraw = useRef<{ start: { x: number; y: number }; client: { x: number; y: number }; moved: boolean } | null>(null);
   const edgeDrag = useRef<{ edge: CropEdge; x: number; y: number; point: { x: number; y: number } } | null>(null);
   const [markFocus, setMarkFocus] = useState(false);
+  // K.8: the export focus dot shows only while it is being placed or while the Export focus section is open.
+  const [exportFocusOpen, setExportFocusOpen] = useState(false);
   // Standalone editor keeps a local camera; the project workspace supplies the
   // shared camera so Review → Edit → Compare retains precisely the same view.
   const [localTransform, setLocalTransform] = useState<ViewportTransform>(FIT_VIEW);
@@ -668,6 +670,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     panelScroll.current?.scrollTo({ top: 0 });
     if (tab === 'crop') cropEntry.current = frame.framing ?? DEFAULT_FRAMING;
     else setMarkFocus(false);
+    // The Export focus section closes when its tab goes away, so its dot must go too.
+    setExportFocusOpen(false);
     // Only when the tab changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
@@ -1125,7 +1129,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                   y: clamp((event.clientY - bounds.top) / bounds.height) } : { x: 0.5, y: 0.5 });
                 setMarkFocus(false);
               }} />}
-            {!guide && position && markFocus && frame.focusPoint && <span aria-hidden="true"
+            {!guide && position && (markFocus || exportFocusOpen) && frame.focusPoint && <span aria-hidden="true" data-testid="export-focus-dot"
               className="pointer-events-none absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_#000]"
               style={{ left: position.left + position.width * frame.focusPoint.x, top: position.top + position.height * frame.focusPoint.y }} />}
             {tab === 'masks' && !guide && position && size && showMaskOverlay && !sliderBusy && edit.masks?.find((mask) => mask.id === selectedMaskId) && (
@@ -1439,7 +1443,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             </div>
           </div>
         </details>
-        <details className="border-b border-white/10 pb-1">
+        <details className="border-b border-white/10 pb-1" onToggle={(event) => setExportFocusOpen(event.currentTarget.open)}>
           <summary className="min-h-11 cursor-pointer py-3 text-sm">{t.edit.exportFocus}</summary>
           <button type="button" className={button} disabled={!position || guide} aria-pressed={markFocus} onClick={() => {
             setCompare(false);
@@ -1453,9 +1457,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         {isRaw && (
           <div className="border-t border-white/10 pt-2">
             <p role={developing ? 'status' : undefined} className="px-1 text-xs text-zinc-300">{provider.isDeveloped(frame.stableKey)
-              ? sensorModeLabel(sensorMode)
-                ? t.raw.developedWithMode(sensorModeLabel(sensorMode)!)
-                : t.raw.developed
+              ? t.raw.developed
               : developing ? t.raw.gettingFullQuality : t.raw.quickPreview}</p>
             {/* Always visible, not tucked behind the disclosure: when the automatic attempt fails the person needs
                 to see why without first hunting through RAW options. */}

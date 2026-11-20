@@ -2362,11 +2362,11 @@ export default function App() {
                   if (next) handleSelectFrame(next.id);
                 }} />
               {/* On phones, Copy and Paste are in the photo's long-press menu, so this bar fits the screen. */}
-              <button type="button" className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10 max-sm:hidden"
+              <button type="button" title={t.editorBar.copyTitle} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10 max-sm:hidden"
                 onClick={() => { setCopiedEdit(selectedFrame.edit ?? DEFAULT_EDIT); showToast(t.toasts.adjustmentsCopied); }}>
                 <Copy className="h-4 w-4" aria-hidden="true" /> {t.editorBar.copy}
               </button>
-              {!multiSelect && <button type="button" disabled={!copiedEdit} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40 max-sm:hidden"
+              {!multiSelect && <button type="button" disabled={!copiedEdit} title={copiedEdit ? t.editorBar.pasteTitle : t.editorBar.pasteNothingTitle} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10 disabled:opacity-40 max-sm:hidden"
                 onClick={() => { if (copiedEdit) { updateFrame(selectedFrame.id, { edit: isEmptyEdit(copiedEdit) ? undefined : { ...copiedEdit } }); showToast(t.toasts.adjustmentsPasted); } }}>
                 <ClipboardPaste className="h-4 w-4" aria-hidden="true" /> {t.editorBar.paste}
               </button>}

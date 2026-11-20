@@ -32,6 +32,16 @@ export const source = {
     originalSize: 'Original size',
     size: (width: number, height: number) => `${width} × ${height} px`,
   },
+  proof: {
+    title: 'Export proof',
+    photo: 'Photo',
+    choosePhoto: 'Proof photo',
+    output: 'Output',
+    chooseOutput: 'Proof output',
+    choose: 'Choose an output to see its proof.',
+    loading: 'Loading the photo preview…',
+    resolution: 'Screen-resolution preview only. Check the saved file for final detail and size.',
+  },
   prepare: {
     files: (count: number) => plural(count, { one: `Prepare ${count} file`, other: `Prepare ${count} files` }),
   },

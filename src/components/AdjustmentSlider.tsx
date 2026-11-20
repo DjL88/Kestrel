@@ -14,6 +14,8 @@ interface Props {
   disabled?: boolean;
   /** The value to reset to. Normally zero; independent from the range midpoint. */
   neutral?: number;
+  /** Formats the live value (also while dragging), e.g. a percentage. Defaults to the signed slider number. */
+  formatValue?: (value: number) => string;
   /** Existing visible units (e.g. EV or %); the actual edit numbers remain unchanged. */
   displayValue?: string;
   /** Some positioning/size sliders must never reset to a zero outside their range. */
@@ -35,7 +37,7 @@ interface Props {
  */
 export function AdjustmentSlider({
   label, ariaLabel, value, min, max, step, onChange, disabled = false, neutral = 0,
-  displayValue, resettable = true, title, hint, describedBy, onFocus, layout = 'stacked',
+  displayValue, formatValue = signedAdjustment, resettable = true, title, hint, describedBy, onFocus, layout = 'stacked',
 }: Props) {
   const id = useId();
   // The control moves immediately; expensive preview rendering must not hold the thumb back.
@@ -62,7 +64,7 @@ export function AdjustmentSlider({
     onChange(next);
   };
   const fill = adjustmentFill(localValue, min, max, neutral);
-  const shown = displayValue && !dragging.current && lastSent.current === null ? displayValue : signedAdjustment(localValue);
+  const shown = displayValue && !dragging.current && lastSent.current === null ? displayValue : formatValue(localValue);
   const changed = Number.isFinite(localValue) && Math.abs(localValue - neutral) >= step / 2;
   const progressStyle: CSSProperties = { left: `${fill.start}%`, width: `${fill.width}%` };
   const originStyle: CSSProperties = { left: `${fill.neutral}%` };

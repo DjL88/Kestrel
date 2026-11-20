@@ -131,10 +131,10 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
     await page.getByRole('menu').getByRole('menuitem', { name: item }).click();
     if (folded) await page.getByRole('button', { name: 'Collapse filmstrip' }).click();
   };
-  if (narrow) await fromMenu(/^Copy adjustments/); else await bar.getByRole('button', { name: 'Copy', exact: true }).click();
+  if (narrow) await fromMenu(/^Copy adjustments/); else await bar.getByRole('button', { name: 'Copy edits', exact: true }).click();
   await light.press('ArrowLeft');
   await expect(light).toHaveValue('0');
-  if (narrow) await fromMenu(/^Paste adjustments/); else await bar.getByRole('button', { name: 'Paste', exact: true }).click();
+  if (narrow) await fromMenu(/^Paste adjustments/); else await bar.getByRole('button', { name: 'Paste edits', exact: true }).click();
   await expect(light).toHaveValue('0.1');
 
   await page.getByRole('tab', { name: 'Masks' }).click();

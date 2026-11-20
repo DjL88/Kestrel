@@ -74,8 +74,7 @@ test('a RAW keeps the camera preview until asked, then develops to full quality'
   // not reliably observable and isn't what this test is checking anyway (see 'outside the desktop app' below).
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible({ timeout: 20000 });
   // ...then swaps in the full decode the person asked for.
-  await expect(page.getByText('Developed from the RAW file')).toBeVisible({ timeout: 30000 });
-  await expect(page.getByText('Developed from the RAW file')).toContainText('8-bit JPEG');
+  await expect(page.getByText('Made from your RAW file.')).toBeVisible({ timeout: 30000 });
   expect(await page.evaluate(() => (window as unknown as { __developCalls: number }).__developCalls)).toBe(1);
   // The picture handed to the editor after developing is the developed one, not the embedded preview.
   await expect.poll(() => page.evaluate(() => { const w = window as unknown as { __shown: number[]; __developedSize: number }; return w.__shown.includes(w.__developedSize); }), { timeout: 15000 }).toBe(true);
@@ -128,7 +127,7 @@ test('a developed picture that comes out sideways is turned to match the camera 
   await asDesktop(page, 'sideways');
   await openEdit(page);
   await develop(page);
-  await expect(page.getByText('Developed from the RAW file')).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText('Made from your RAW file.')).toBeVisible({ timeout: 30000 });
   const shape = await page.evaluate(async () => {
     const blobs = (window as unknown as { __blobs: Blob[] }).__blobs.filter((b) => b.type === 'image/jpeg');
     const sizes: string[] = [];
