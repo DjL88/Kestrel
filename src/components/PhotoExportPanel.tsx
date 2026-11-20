@@ -792,7 +792,11 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
                     setOverrides(preset.overrides);
                     setTurned(preset.turned);
                     setBars(preset.bars);
-                    setCustomOn(false);
+                    setCustomOn(Boolean(preset.custom));
+                    if (preset.custom) setCustom(structuredClone(preset.custom));
+                    if (preset.overlay) setOverlay(structuredClone(preset.overlay));
+                    if (preset.naming) setNaming({ ...preset.naming });
+                    // Cropping/focus belongs to the current photographs, never a reusable preset.
                     setPresetNote(t.presets.applied(preset.name));
                   }}>{preset.name}</button>
                   <button type="button" className={button} aria-label={t.presets.remove(preset.name)}
@@ -806,17 +810,18 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               <label className="text-sm">{t.presets.name}
                 <input className={field} maxLength={40} value={presetName} onChange={event => setPresetName(event.target.value)} />
               </label>
-              <button type="button" className={button} disabled={!chosen.length || customOn || !presetName.trim() || presets.length >= 20}
+              <button type="button" className={button} disabled={!total || blocked || !presetName.trim() || presets.length >= 20}
                 onClick={() => {
                   const name = presetName.trim();
                   if (presets.some(item => item.name.toLowerCase() === name.toLowerCase())) {
                     setPresetNote(t.presets.duplicate);
                     return;
                   }
-                  savePresets([...presets, { name, formats: chosen, fits, overrides, turned, bars }], t.presets.saved);
+                  savePresets([...presets, structuredClone({ name, formats: chosen, fits, overrides, turned, bars,
+                    overlay, naming, ...(customOn ? { custom } : {}),
+                  })], t.presets.saved);
                 }}>{t.presets.save}</button>
             </div>
-            {customOn && <p className="text-xs text-zinc-400"> {t.presets.standardOnly}</p>}
             <p role="status" className="text-xs text-zinc-300">{presetNote}</p>
           </details>
         )}
