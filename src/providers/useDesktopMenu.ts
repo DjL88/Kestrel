@@ -20,7 +20,7 @@ export function useDesktopMenu() {
       // translated button's text or change browser text selections.
       if (['add', 'edit-photo', 'edit-auto', 'edit-look', 'edit-copy-adjustments',
         'edit-paste-adjustments', 'view-info', 'view-tools',
-        'view-left', 'view-right', 'view-bursts', 'view-all-tabs', 'settings-ai', 'settings-storage'].includes(payload)) {
+        'view-left', 'view-right', 'view-bursts', 'view-all-tabs', 'settings-ai', 'settings-storage'].includes(payload) || payload.startsWith('view-tab-')) {
         window.dispatchEvent(new Event('kestrel:menu-' + payload));
         return;
       }
