@@ -20,7 +20,7 @@ import { parseUsage, recordUse, remainingToday } from '../core/dailyAllowance';
 import { parseCustomExportDate } from '../core/exportDateInput';
 import { exportMayContinue } from '../core/exportCancellation';
 import { parseWatermark } from '../core/watermarkStore';
-import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, type WatermarkOptions } from '../core/watermark';
+import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, WATERMARK_FONTS, type WatermarkOptions } from '../core/watermark';
 import { NO_OVERLAY, overlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { exportFilename } from '../core/exportProfiles';
 import { SocialIcon } from './SocialIcon';
@@ -444,7 +444,11 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
   const setMark = (change: Partial<WatermarkOptions>) => setOverlay((prior) => ({ ...prior, watermark: { ...(prior.watermark ?? NO_WATERMARK), ...change } }));
   function chooseMarkPicture(file: File | undefined) {
     if (!file) return;
-    if (!file.type.startsWith('image/') || file.size > 3_000_000) { setMarkNote(t.watermark.pictureTooBig); return; }
+    // Embedded SVG and arbitrary image MIME types are not safe portable watermark assets.
+    // Use decoded raster formats only until the private local asset vault is implemented.
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 3_000_000) {
+      setMarkNote(t.watermark.pictureTooBig); return;
+    }
     const reader = new FileReader();
     reader.onload = () => { setMarkNote(null); setMark({ kind: 'image', imageData: String(reader.result), on: true }); };
     reader.readAsDataURL(file);
@@ -466,7 +470,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
             </label>
           ) : (
             <label className="block text-sm text-zinc-300">{t.watermark.picture}
-              <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="block min-h-11 w-full py-2 text-sm" onChange={(event) => chooseMarkPicture(event.target.files?.[0])} />
+              <input type="file" accept="image/png,image/jpeg,image/webp" className="block min-h-11 w-full py-2 text-sm" onChange={(event) => chooseMarkPicture(event.target.files?.[0])} />
               {mark.imageData && <span className="text-xs text-zinc-400">{t.watermark.pictureChosen}</span>}
             </label>
           )}
@@ -477,8 +481,16 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
             </select>
           </label>
           {mark.kind === 'text' && (
+            <label className="block text-sm text-zinc-300">Watermark font
+              <select className={field} value={mark.font ?? 'inter'} onChange={(event) => setMark({ font: event.target.value as WatermarkOptions['font'] })}>
+                {WATERMARK_FONTS.map((font) => <option key={font.id} value={font.id}>{font.label}</option>)}
+              </select>
+            </label>
+          )}
+          {mark.kind === 'text' && (
             <label className="block text-sm text-zinc-300">{t.watermark.colour}
               <select className={field} value={mark.tone} onChange={(event) => setMark({ tone: event.target.value as WatermarkOptions['tone'] })}>
+                <option value="auto">Automatic · best contrast</option>
                 <option value="light">{t.watermark.white}</option><option value="dark">{t.watermark.black}</option>
               </select>
             </label>
