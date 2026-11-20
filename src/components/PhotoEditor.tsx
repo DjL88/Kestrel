@@ -821,6 +821,15 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     return { before, after, subject };
   }
 
+  /** The photo as edited, 1,024 pixels on its longest side, as a JPEG drawn from the canvas (so it carries no metadata). */
+  function reviewJpeg(): string | null {
+    if (!source || !outputSize) return null;
+    const canvas = document.createElement('canvas');
+    drawFramedPhoto(source, canvas, framing, { scale: Math.min(1, 1024 / Math.max(outputSize.width, outputSize.height)) });
+    applyCanvasPhotoEdit(canvas, edit);
+    return canvas.toDataURL('image/jpeg', 0.85).split(',')[1] ?? null;
+  }
+
   function updateOpinions() {
     if (!source || !outputSize) return;
     const scale = Math.min(1, 320 / Math.max(outputSize.width, outputSize.height));
@@ -1365,7 +1374,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           <button type="button" aria-expanded={quickChoices} onClick={() => setQuickChoices(!quickChoices)}
             className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white desk:min-h-7">Quick choices</button>
         </div>
-        <ColourCheckPanel edit={edit} readPreview={colourPreview} version={[edit, framing, source]} onEdit={onEdit} disabled={sourceState !== 'ready'} />
+        <ColourCheckPanel edit={edit} readPreview={colourPreview} version={[edit, framing, source]} onEdit={onEdit} disabled={sourceState !== 'ready'} readJpeg={reviewJpeg} />
         <details open className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
             Tone <ChevronDown className="h-4 w-4" aria-hidden="true" />

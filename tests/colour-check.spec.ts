@@ -50,3 +50,41 @@ test('a calm, natural photo gets its colours named and no warnings', async ({ pa
   await expect(panel.locator('[data-finding="strongColour"], [data-finding="clippedColour"], [data-finding="cast"]')).toHaveCount(0);
   await expect(panel.getByTestId('colour-findings')).toContainText('Nothing looks wrong');
 });
+
+test('a second opinion from your own AI: set up, agree to the destination, ask, and apply as one undoable step', async ({ page }) => {
+  const asked: unknown[] = [];
+  // A pretend model "on this computer" (an OpenAI-compatible endpoint, as Ollama or LM Studio provide).
+  await page.route('http://localhost:11434/v1/chat/completions', async (route) => {
+    asked.push(route.request().postDataJSON());
+    await route.fulfill({ json: { choices: [{ message: { content: JSON.stringify({
+      summary: 'The red is stronger than in life, and the grey looks warm.',
+      points: [{ issue: 'tooStrong', detail: 'The red band is very strong.' }],
+      suggestion: { colour: -0.4, warmth: -0.2 },
+    }) } }] } });
+  });
+  const panel = await openInEditor(page, JSON.stringify([['rgb(150,130,100)', 0, 0, 400, 300], ['rgb(255,0,30)', 0, 0, 400, 150]]));
+  const ai = panel.getByTestId('ai-review');
+  await ai.getByRole('button', { name: 'Set up your own AI' }).click();
+  await ai.getByLabel('Which AI?').selectOption('openai');
+  await ai.getByLabel('Model', { exact: true }).fill('llava');
+  await ai.getByRole('button', { name: 'Save' }).click();
+  // Nothing is sent before agreeing; the destination is named, and a local model says nothing leaves the computer.
+  await expect(ai.getByRole('group', { name: 'Before anything is sent' })).toContainText('Nothing leaves your computer');
+  expect(asked).toHaveLength(0);
+  await ai.getByRole('button', { name: 'I agree' }).click();
+  await ai.getByRole('button', { name: 'Ask my own AI' }).click();
+
+  const result = ai.getByTestId('ai-review-result');
+  await expect(result).toContainText('The red is stronger than in life');
+  await expect(result).toContainText('Too strong:');
+  await expect(result).toContainText('Warmth: −0.2');
+  expect(asked).toHaveLength(1);
+  const request = asked[0] as { model: string; messages: { content: { type: string; text?: string; image_url?: { url: string } }[] }[] };
+  expect(request.model).toBe('llava');
+  expect(request.messages[0].content[0].text).toContain('Never describe, identify or name any person');
+  expect(request.messages[0].content[1].image_url?.url.startsWith('data:image/jpeg;base64,')).toBe(true);
+
+  await result.getByRole('button', { name: 'Apply suggestions' }).click();
+  await expect(ai.getByRole('status')).toContainText('Edit history');
+  await expect(page.getByRole('button', { name: /^Undo/ }).first()).toBeEnabled();
+});

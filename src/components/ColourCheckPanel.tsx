@@ -4,6 +4,7 @@ import { checkColour, type ColourFamily, type ColourFinding, type ColourReport, 
 import type { PhotoEdit } from '../core/photoEdits';
 import { applyFix } from '../core/critique';
 import { colourText as t } from '../i18n/areas/colour';
+import { AiReviewPanel } from './AiReviewPanel';
 
 export interface ColourPreview {
   before: Pixels;
@@ -20,6 +21,8 @@ interface Props {
   version: readonly unknown[];
   onEdit: (edit: PhotoEdit) => void;
   disabled?: boolean;
+  /** A 1,024-pixel JPEG of the edited photo, base64, for the optional second opinion from the person's own AI. */
+  readJpeg?: () => string | null;
 }
 
 const names = (families: ColourFamily[]) => families.length > 1 ? t.and(t.family[families[0]], t.family[families[1]]) : t.family[families[0]] ?? '';
@@ -54,7 +57,7 @@ const ICON = { warning: AlertTriangle, tip: Lightbulb, info: Info } as const;
  * Colour check in the editor: the photo's main colours by name, and what may be wrong with them, in words with an icon
  * and a label (never colour alone). Runs on a small preview on this device; nothing is uploaded.
  */
-export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled }: Props) {
+export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled, readJpeg }: Props) {
   const [report, setReport] = useState<ColourReport | null>(null);
   const [failed, setFailed] = useState(false);
   const [applied, setApplied] = useState(false);
@@ -128,6 +131,8 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled 
           </ul>
         )}
         {applied && <p role="status" className="text-xs text-zinc-400">{t.fixApplied}</p>}
+        {readJpeg && <AiReviewPanel edit={edit} onEdit={onEdit} readJpeg={readJpeg} disabled={disabled}
+          localFindings={report?.findings.map((finding) => describe(finding).text) ?? []} />}
       </div>
     </details>
   );
