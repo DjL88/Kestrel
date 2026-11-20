@@ -1,27 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Maximize2, Minimize2, PanelRightClose } from 'lucide-react';
+import { clampPaneRect, FLOATING_PANE_GAP as GAP, type PaneRect } from '../core/floatingPaneGeometry';
 
 interface FloatingPaneProps {
   title: string;
   storageKey: string;
   onDock: () => void;
   children: ReactNode;
-}
-
-export interface PaneRect { x: number; y: number; width: number; height: number }
-const MIN_WIDTH = 280;
-const MIN_HEIGHT = 250;
-const GAP = 12;
-
-export function clampPaneRect(rect: PaneRect, viewport: { width: number; height: number }): PaneRect {
-  const width = Math.min(Math.max(MIN_WIDTH, Number.isFinite(rect.width) ? rect.width : 360), Math.max(MIN_WIDTH, viewport.width - GAP * 2));
-  const height = Math.min(Math.max(MIN_HEIGHT, Number.isFinite(rect.height) ? rect.height : 560), Math.max(MIN_HEIGHT, viewport.height - GAP * 2));
-  return {
-    width, height,
-    x: Math.max(GAP, Math.min(Number.isFinite(rect.x) ? rect.x : GAP, Math.max(GAP, viewport.width - width - GAP))),
-    y: Math.max(GAP, Math.min(Number.isFinite(rect.y) ? rect.y : GAP, Math.max(GAP, viewport.height - height - GAP))),
-  };
 }
 
 function initialRect(key: string): PaneRect {
@@ -74,6 +60,7 @@ export function FloatingPane({ title, storageKey, onDock, children }: FloatingPa
   const moveKeyboard = (event: KeyboardEvent<HTMLElement>) => {
     if (maximised || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return;
     event.preventDefault();
+    event.stopPropagation();
     const amount = event.shiftKey ? 40 : 12;
     setRect((current) => clampPaneRect({ ...current,
       x: current.x + (event.key === 'ArrowLeft' ? -amount : event.key === 'ArrowRight' ? amount : 0),
@@ -99,6 +86,7 @@ export function FloatingPane({ title, storageKey, onDock, children }: FloatingPa
           onKeyDown={moveKeyboard}
           onPointerDown={(event) => {
             if (maximised || event.button !== 0) return;
+            event.currentTarget.focus();
             drag.current = { pointer: event.pointerId, x: event.clientX, y: event.clientY, rect };
             event.currentTarget.setPointerCapture(event.pointerId);
           }}
