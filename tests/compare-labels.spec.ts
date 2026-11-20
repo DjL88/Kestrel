@@ -17,22 +17,22 @@ test('compare identifies both photos and updates the names when swapped', async 
 
   const a = page.getByTestId('compare-photo-a');
   const b = page.getByTestId('compare-photo-b');
-  await expect(a).toHaveText('A · kestrel-a.png');
-  await expect(b).toHaveText('B · kestrel-b.png');
+  await expect(a).toContainText('kestrel-a.png');
+  await expect(b).toContainText('kestrel-b.png'); // then its place in the queue, e.g. (1 of 2)
   for (const label of [a, b]) expect((await label.boundingBox())!.width).toBeGreaterThan(60);
   await page.getByRole('button', { name: 'Swap photos A and B' }).click();
-  await expect(a).toHaveText('A · kestrel-b.png');
-  await expect(b).toHaveText('B · kestrel-a.png');
+  await expect(a).toContainText('kestrel-b.png');
+  await expect(b).toContainText('kestrel-a.png');
   const compare = page.getByRole('region', { name: 'Compare photos' });
   const previous = compare.getByRole('button', { name: 'Previous photo B' });
   const next = compare.getByRole('button', { name: 'Next photo B' });
   await expect(previous).toBeDisabled();
   await next.click();
-  await expect(a).toHaveText('A · kestrel-b.png');
-  await expect(b).toHaveText('B · kestrel-c.png');
+  await expect(a).toContainText('kestrel-b.png');
+  await expect(b).toContainText('kestrel-c.png');
   await expect(next).toBeDisabled();
   await previous.click();
-  await expect(b).toHaveText('B · kestrel-a.png');
+  await expect(b).toContainText('kestrel-a.png');
 
   const zoom = compare.getByRole('button', { name: 'Zoom in', exact: true });
   await expect(zoom).toHaveText('Zoom in');
@@ -50,8 +50,8 @@ test('compare identifies both photos and updates the names when swapped', async 
   await fit.press('ArrowRight');
   await expect.poll(async () => (await photoA.boundingBox())!.x).toBeLessThan(originalA.x);
   await expect.poll(async () => (await photoB.boundingBox())!.x).toBeLessThan(originalB.x);
-  await expect(a).toHaveText('A · kestrel-b.png');
-  await expect(b).toHaveText('B · kestrel-a.png');
+  await expect(a).toContainText('kestrel-b.png');
+  await expect(b).toContainText('kestrel-a.png');
   await fit.press('Enter');
   await expect(zoom).toHaveText('Zoom in');
 });

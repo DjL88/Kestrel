@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 async function settings(page: import('@playwright/test').Page) {
-  await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
-  return page.getByRole('dialog', { name: 'Display and layout settings' });
+  // Settings is announced in the language in use (e.g. Gosodiadau in Welsh); the dialog is the only one open.
+  await page.getByRole('button', { name: /^(Settings|Gosodiadau)$/ }).first().click();
+  return page.getByRole('dialog').first();
 }
 
 test('British English by default, with British dates, whatever the browser says', async ({ page }) => {
@@ -65,7 +66,7 @@ test('choose Welsh, restart in it, and keep every decision', async ({ page }) =>
   await expect(page.locator('html')).toHaveAttribute('lang', 'cy');
   await expect(page.getByRole('heading', { name: 'Prosiectau' })).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: /^Adar/ }).first().click();
-  const welsh = page.getByRole('navigation', { name: 'Photo collections' });
+  const welsh = page.getByRole('navigation', { name: 'Casgliadau lluniau' });
   await expect(welsh.getByRole('button', { name: 'I’w cadw 1' })).toBeVisible({ timeout: 30_000 });
   await expect(welsh.getByRole('button', { name: 'I’w hadolygu 1' })).toBeVisible();
 
@@ -93,12 +94,14 @@ test.describe('Canadian French system locale', () => {
 
   test('offers the detected regional language once, then honours the chosen language', async ({ page }) => {
     await page.goto('/');
-    const welcome = page.getByRole('heading', { name: 'Welcome to Kestrel' });
+    // The welcome is written in the language on offer, so a French speaker can read it before choosing.
+    const welcome = page.getByRole('heading', { name: 'Bienvenue dans Kestrel' });
     await expect(welcome).toBeVisible();
+    // The question keeps the English in brackets, so nobody is stranded.
     const chooser = page.getByLabel('Which language would you like?');
     await expect(chooser).toHaveValue('fr-CA');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB'); // the device preference is offered, not applied automatically
-    await page.getByRole('button', { name: 'Continue in Français (Canada)' }).click();
+    await page.getByRole('button', { name: 'Continuer en Français (Canada)' }).click();
     await expect(page.locator('html')).toHaveAttribute('lang', 'fr-CA');
     await expect(page.getByRole('heading', { name: 'Projets' })).toBeVisible();
     await page.reload();

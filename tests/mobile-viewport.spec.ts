@@ -25,10 +25,10 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await page.goto('/');
   await checkViewport('Projects portrait');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Display and layout settings' })).toBeVisible();
   // A phone must never advertise a physical Macro Pad configuration workflow.
-  await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' }).getByRole('button', { name: /Macro pad/i })).toHaveCount(0);
-  await page.getByRole('dialog', { name: 'Appearance and layout settings' }).getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByRole('dialog', { name: 'Display and layout settings' }).getByRole('button', { name: /Macro pad/i })).toHaveCount(0);
+  await page.getByRole('dialog', { name: 'Display and layout settings' }).getByRole('button', { name: 'Done' }).click();
   await checkViewport('Projects appearance sheet closed');
   await page.getByRole('button', { name: 'New project' }).click();
   await checkViewport('Project wizard portrait');
@@ -66,7 +66,7 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await expect(page.getByRole('toolbar', { name: 'Editor actions' })).toBeVisible();
   await checkViewport('Editor portrait');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const appearance = page.getByRole('dialog', { name: 'Appearance and layout settings' });
+  const appearance = page.getByRole('dialog', { name: 'Display and layout settings' });
   await expect(appearance.getByRole('button', { name: 'Left-handed' })).toHaveAttribute('aria-pressed', 'true');
   await appearance.getByRole('button', { name: 'Right-handed' }).click();
   await expect(appearance.getByRole('button', { name: 'Right-handed' })).toHaveAttribute('aria-pressed', 'true');
@@ -97,6 +97,6 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await checkViewport('Tablet landscape');
   expect(await editLayout()).toBe('row');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' })
+  await expect(page.getByRole('dialog', { name: 'Display and layout settings' })
     .getByRole('button', { name: 'Right-handed' })).toHaveAttribute('aria-pressed', 'true');
 });

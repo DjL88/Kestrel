@@ -60,9 +60,9 @@ test('the chosen flag in Photo info has a tick and bold words', async ({ page })
   await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 1' })).toBeVisible({ timeout: 30_000 });
   // Show every photo, so the photo stays in view once it is kept.
   await page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: /^All photos/ }).click();
-  const flags = page.getByRole('group', { name: 'Photo flag' });
-  await expect(flags.getByRole('button', { name: 'Unflagged' })).toContainText('✓');
+  const flags = page.getByRole('group', { name: 'Photo decision' });
+  await expect(flags.getByRole('button', { name: 'Undecided' })).toContainText('✓');
   await flags.getByRole('button', { name: 'keep' }).click();
   await expect(flags.getByRole('button', { name: 'keep' })).toContainText('✓');
-  await expect(flags.getByRole('button', { name: 'Unflagged' })).not.toContainText('✓');
+  await expect(flags.getByRole('button', { name: 'Undecided' })).not.toContainText('✓');
 });
