@@ -50,3 +50,29 @@ test('closing failure is treated as an incomplete export and cleaned up', async 
   }), async () => { removed = true; }), /close failed/);
   assert.equal(removed, true);
 });
+
+test('cancelled streaming write closes and deletes its own incomplete output', async () => {
+  const controller = new AbortController();
+  let closed = 0;
+  let removed = 0;
+  await assert.rejects(writeExclusiveBlob(new Blob(['photo pixels']), async () => ({
+    async write(bytes) {
+      controller.abort();
+      return bytes.byteLength;
+    },
+    async close() { closed++; },
+  }), async () => { removed++; }, controller.signal), { name: 'AbortError' });
+  assert.equal(closed, 1);
+  assert.equal(removed, 1);
+});
+
+test('cancellation before opening never touches the destination', async () => {
+  const controller = new AbortController();
+  controller.abort();
+  let opened = false;
+  await assert.rejects(writeExclusiveBlob(new Blob(['content']), async () => {
+    opened = true;
+    throw new Error('unexpected open');
+  }, async () => {}, controller.signal), { name: 'AbortError' });
+  assert.equal(opened, false);
+});
