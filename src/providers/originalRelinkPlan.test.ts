@@ -19,11 +19,14 @@ test('duplicate candidates remain unresolved for user confirmation', () => {
   assert.deepEqual(result.ambiguous, ['z8']);
   assert.equal(result.matches.length, 0);
 });
-test('one candidate is never assigned to two catalogue records', () => {
+test('one candidate is never assigned to two catalogue records, regardless of input order', () => {
   const candidate = { path: 'E:/_DSC0001.NEF', size: 10000, lastModified: 1234 };
   const result = planOriginalRelink([original, { ...original, id: 'z5ii' }], [candidate]);
-  assert.equal(result.matches.length, 1);
-  assert.deepEqual(result.unresolved, ['z5ii']);
+  assert.deepEqual(result.matches, []);
+  assert.deepEqual(result.ambiguous, ['z8', 'z5ii']);
+  const reversed = planOriginalRelink([{ ...original, id: 'z5ii' }, original], [candidate]);
+  assert.deepEqual(reversed.matches, []);
+  assert.deepEqual(reversed.ambiguous, ['z5ii', 'z8']);
 });
 test('folder suggestion supports Windows, UNC NAS and POSIX paths', () => {
   assert.equal(parentFolder('D:\\Birds\\_DSC0001.NEF'), 'D:/Birds');
@@ -63,4 +66,117 @@ test('invalid candidates do not block a distinct valid Nikon original match', ()
     { path: 'F:/_DSC0001.NEF', size: 10000, lastModified: 1234 },
   ];
   assert.deepEqual(planOriginalRelink([original], candidates).matches, [{ id: 'z8', path: 'F:/_DSC0001.NEF' }]);
+});
+
+test('duplicate catalogue IDs cannot silently overwrite a relink', () => {
+  const result = planOriginalRelink([original, { ...original, path: 'D:/Other.NEF' }], [
+    { path: 'E:/_DSC0001.NEF', size: 10000, lastModified: 1234 },
+    { path: 'E:/Other.NEF', size: 10000, lastModified: 1234 },
+  ]);
+  assert.deepEqual(result.matches, []);
+  assert.deepEqual(result.ambiguous, ['z8', 'z8']);
+});
+
+test('duplicate NAS candidate entries cannot masquerade as a unique file', () => {
+  const candidate = { path: '//NAS/Photos/_DSC0001.NEF', size: 10000, lastModified: 1234 };
+  const result = planOriginalRelink([original], [candidate, { ...candidate, path: '//nas/photos/_dsc0001.nef' }]);
+  assert.deepEqual(result.matches, []);
+  assert.deepEqual(result.ambiguous, ['z8']);
+});
+
+test('500 distinct originals relink without loss or cross-photo links, independent of ordering', () => {
+  const saved = Array.from({ length: 500 }, (_, i) => ({
+    id: `photo-${i}`, path: `D:/Z8/DSC_${String(i).padStart(5, '0')}.NEF`,
+    size: 100000 + i, lastModified: 1700000000000 + i,
+  }));
+  const candidates = saved.map(photo => ({
+    path: photo.path.replace('D:/Z8/', '//NAS/archive/'),
+    size: photo.size, lastModified: photo.lastModified,
+  })).reverse();
+  const result = planOriginalRelink(saved, candidates);
+  assert.equal(result.matches.length, 500);
+  assert.deepEqual(result.unresolved, []);
+  assert.deepEqual(result.ambiguous, []);
+  for (let i = 0; i < 500; i++) {
+    assert.equal(result.matches[i].id, saved[i].id);
+    assert.equal(result.matches[i].path, saved[i].path.replace('D:/Z8/', '//NAS/archive/'));
+  }
+});
+
+test('same filename and metadata from two cameras requires manual confirmation', () => {
+  const twins = [original, { ...original, id: 'second-camera', path: 'D:/Z5II/_DSC0001.NEF' }];
+  const result = planOriginalRelink(twins, [{ path: 'E:/_DSC0001.NEF', size: 10000, lastModified: 1234 }]);
+  assert.deepEqual(result.matches, []);
+  assert.deepEqual(result.ambiguous, ['z8', 'second-camera']);
+});
+
+const shaA = 'a'.repeat(64);
+const shaB = 'b'.repeat(64);
+
+test('verified digest reconnects a renamed and re-timestamped original', () => {
+  const saved = { ...original, sha256: shaA };
+  const candidate = { path: '//NAS/new-name.nef', size: 10000, lastModified: 9999, sha256: shaA.toUpperCase() };
+  assert.deepEqual(planOriginalRelink([saved], [candidate]).matches, [{ id: 'z8', path: candidate.path }]);
+});
+
+test('a saved digest fails closed against metadata collision and missing candidate digest', () => {
+  const saved = { ...original, sha256: shaA };
+  const candidate = { path: 'E:/_DSC0001.NEF', size: 10000, lastModified: 1234 };
+  assert.deepEqual(planOriginalRelink([saved], [candidate]).unresolved, ['z8']);
+  assert.deepEqual(planOriginalRelink([saved], [{ ...candidate, sha256: shaB }]).unresolved, ['z8']);
+  assert.deepEqual(planOriginalRelink([saved], [{ ...candidate, sha256: 'not-a-hash' }]).unresolved, ['z8']);
+  assert.deepEqual(planOriginalRelink([{ ...saved, sha256: 'invalid' }], [{ ...candidate, sha256: shaA }]).unresolved, ['z8']);
+});
+
+test('identical digest copies and catalogue digest collisions cannot silently relink', () => {
+  const saved = { ...original, sha256: shaA };
+  const candidate = { path: 'E:/renamed.NEF', size: 10000, lastModified: 1234, sha256: shaA };
+  assert.deepEqual(planOriginalRelink([saved], [candidate, { ...candidate, path: 'F:/copy.NEF' }]).ambiguous, ['z8']);
+  assert.deepEqual(planOriginalRelink([saved, { ...saved, id: 'z5ii' }], [candidate]).ambiguous, ['z8', 'z5ii']);
+});
+
+test('500 SHA-256 verified synthetic relinks tolerate changed names and timestamps', () => {
+  const saved = Array.from({ length: 500 }, (_, i) => ({
+    id: 'frame-' + i, path: 'D:/RAW/' + i + '.NEF', size: 10000 + i,
+    lastModified: 1234, sha256: i.toString(16).padStart(64, '0'),
+  }));
+  const candidates = saved.map((s, i) => ({
+    path: '//NAS/renamed/' + (499 - i) + '.NEF', size: s.size,
+    lastModified: 9999, sha256: s.sha256,
+  })).reverse();
+  const result = planOriginalRelink(saved, candidates);
+  assert.equal(result.matches.length, 500);
+  assert.deepEqual(result.ambiguous, []);
+  assert.deepEqual(result.unresolved, []);
+  for (let i = 0; i < 500; i++) assert.equal(result.matches[i].id, saved[i].id);
+});
+
+test('digest and legacy metadata modes cannot assign the same NAS path twice', () => {
+  const candidate = { path: '//NAS/_DSC0001.NEF', size: 10000, lastModified: 1234, sha256: shaA };
+  const records = [{ ...original, sha256: shaA }, { ...original, id: 'legacy' }];
+  const result = planOriginalRelink(records, [candidate]);
+  assert.deepEqual(result.matches, []);
+  assert.deepEqual(result.ambiguous, ['z8', 'legacy']);
+});
+
+test('malformed duplicate NAS paths block digest matches rather than hiding collisions', () => {
+  const saved = { ...original, sha256: shaA };
+  const good = { path: '//NAS/archive/renamed.NEF', size: 10000, lastModified: 9999, sha256: shaA };
+  for (const malformed of [
+    { ...good, size: NaN },
+    { ...good, sha256: 'malformed' },
+    { ...good, lastModified: Infinity },
+  ]) {
+    const result = planOriginalRelink([saved], [good, malformed]);
+    assert.deepEqual(result.matches, []);
+    assert.deepEqual(result.ambiguous, ['z8']);
+  }
+});
+
+test('malformed duplicate NAS paths block legacy metadata matches too', () => {
+  const good = { path: '//NAS/archive/_DSC0001.NEF', size: 10000, lastModified: 1234 };
+  const malformed = { ...good, size: -1, path: '//nas/archive/_dsc0001.nef' };
+  const result = planOriginalRelink([original], [good, malformed]);
+  assert.deepEqual(result.matches, []);
+  assert.deepEqual(result.ambiguous, ['z8']);
 });
