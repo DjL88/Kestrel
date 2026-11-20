@@ -2074,7 +2074,10 @@ export default function App() {
         removedCount={removedFrames(cullingState.frames).length}
         onOpenRemoved={removedFrames(cullingState.frames).length ? () => setRemovedOpen(true) : undefined}
         onRedo={cullingState.redoStack.length ? () => executeCommand('cull.redo') : undefined}
-        onEditPhoto={selectedFrame ? () => { setEditQueueIds(null); setEditing(true); } : undefined}
+        editLabel={multiSelect && selectedVisibleFrames.length > 0 ? t.selection.editSelected : undefined}
+        onEditPhoto={multiSelect && selectedVisibleFrames.length > 0
+          ? startSelectedEditing
+          : selectedFrame ? () => { setEditQueueIds(null); setEditing(true); } : undefined}
       />}
 
       <input ref={relinkInput} type="file" hidden multiple accept={PHOTO_ACCEPT} data-testid="relink-file-input"
