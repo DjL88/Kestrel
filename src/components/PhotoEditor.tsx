@@ -1708,7 +1708,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       {isPhone && !focusPhoto && tabList}
       </div>
       {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}
-      {exportOpen && !onExport && <PhotoExportPanel frames={[frame]} provider={provider} source={source} onClose={() => setExportOpen(false)} onDownloadRequested={onExportRequested} />}
+      {exportOpen && !onExport && <PhotoExportPanel frames={[frame]} provider={provider} onClose={() => setExportOpen(false)} onDownloadRequested={onExportRequested} />}
     </section>
   );
 }
