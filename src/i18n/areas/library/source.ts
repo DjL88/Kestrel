@@ -10,6 +10,15 @@ const forMany = (count: number) => (count > 1 ? ` (${count} photos)` : '');
  */
 export const source = {
   top: {
+    file: "File",
+    viewLayout: "View · show or hide",
+    groupBursts: "Group or ungroup bursts",
+    showFilmstrip: "Show filmstrip",
+    panelPosition: "Panel position",
+    panels: "Panels",
+    left: "Left",
+    right: "Right",
+
     backToProjects: 'Back to projects',
     projects: 'Projects',
     photoCount: (count: number) => plural(count, { one: `${count} photo`, other: `${count} photos` }),
