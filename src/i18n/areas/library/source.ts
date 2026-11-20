@@ -10,6 +10,11 @@ const forMany = (count: number) => (count > 1 ? ` (${count} photos)` : '');
  */
 export const source = {
   top: {
+    xmpImport: "Import ratings and tags (XMP)…",
+    xmpImportHelp: "Read matching XMP files or a Kestrel XMP ZIP into selected photos only. Original files are never modified.",
+    xmpImported: (count: number) => `Imported XMP for ${count} selected ${count === 1 ? 'photo' : 'photos'}.`,
+    xmpImportKeeper: "An XMP would reject a photo you marked Keep. Review that photo individually in Photo Info.",
+    xmpImportFailed: "Could not import XMP. Check matching filenames, duplicate RAW/JPEG basenames and file safety.",
     xmpSidecars: "Save ratings and tags (XMP)…",
     xmpHelp: "Save ratings, Keep/Reject choices and confirmed tags separately from your photographs. Multiple files are bundled into a ZIP.",
     file: "File",
