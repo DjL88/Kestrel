@@ -5,6 +5,7 @@ import { encodeProjectBackup } from '../core/projectBackup';
 import type { CullingState } from '../core/types';
 import { openConnection } from './connectionStore';
 import { getLocations } from './projectLocations';
+import { LOCAL_RECOVERY_TARGET, openLocalRecovery } from './automaticRecovery';
 
 export interface BackupStatus { state: 'idle' | 'working' | 'ok' | 'failed'; at?: number; message?: string; health?: Health; to?: string }
 
@@ -47,12 +48,13 @@ const setStatus = (projectId: string, status: BackupStatus) => { statuses.set(pr
 export async function backUpNow(state: CullingState, connectionId: string, now = new Date()): Promise<BackupStatus> {
   const projectId = state.shoot.id;
   try {
-    const opened = await openConnection(connectionId);
+    const opened = connectionId === LOCAL_RECOVERY_TARGET ? await openLocalRecovery(state) : await openConnection(connectionId);
     if ('problem' in opened) return { state: 'failed', message: opened.message, health: opened.problem, at: now.getTime() };
-    await opened.connector.put(backupName(projectId, now), new TextEncoder().encode(encodeProjectBackup(state)), '');
+    const payload = new TextEncoder().encode(encodeProjectBackup(state));
+    await opened.connector.put(backupName(projectId, now), payload, '');
     // Keep the newest few. A tidy-up that fails is not a failed backup.
     try { for (const name of backupsToDelete(await opened.connector.list(backupFolder(projectId)), projectId)) await opened.connector.remove(name); } catch { /* old copies stay */ }
-    return { state: 'ok', at: now.getTime() };
+    return { state: 'ok', at: now.getTime(), to: 'to' in opened ? opened.to : 'Chosen backup location' };
   } catch (error) {
     return { state: 'failed', message: error instanceof Error ? error.message : 'The backup could not be saved.', at: now.getTime() };
   }
@@ -88,8 +90,7 @@ function saveSnapshot(state: CullingState, target: string): Promise<BackupStatus
 /** Back up this project if it is due. `leaving` skips the usual gap, because the project is being closed. */
 export async function maybeBackUp(state: CullingState, leaving = false): Promise<void> {
   const projectId = state.shoot.id;
-  const target = getLocations(projectId).backUpTo;
-  if (!target) return;
+  const target = getLocations(projectId).backUpTo ?? LOCAL_RECOVERY_TARGET;
   observeChange(state);
   const pending = inFlight.get(projectId);
   if (pending) {
@@ -103,8 +104,7 @@ export async function maybeBackUp(state: CullingState, leaving = false): Promise
 /** Back up right now, whatever the clock says (the "Back up now" button). */
 export async function backUpProjectNow(state: CullingState): Promise<BackupStatus> {
   const projectId = state.shoot.id;
-  const target = getLocations(projectId).backUpTo;
-  if (!target) { const none: BackupStatus = { state: 'failed', message: 'Choose where to back this project up first.' }; setStatus(projectId, none); return none; }
+  const target = getLocations(projectId).backUpTo ?? LOCAL_RECOVERY_TARGET;
   observeChange(state);
   return saveSnapshot(state, target);
 }
