@@ -63,6 +63,7 @@ test('20 imported photographs can be selected, edited and downloaded as a comple
   const download = page.waitForEvent('download');
   await zipButton.click();
   const output = await download;
+  await expect(dialog).toBeHidden();
   expect(output.suggestedFilename()).toBe('kestrel-exports.zip');
   const zipPath = await output.path();
   expect(zipPath).not.toBeNull();

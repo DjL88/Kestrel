@@ -242,7 +242,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   const png = Buffer.concat(chunks);
   expect(png.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([640, 480]);
-  await page.keyboard.press('Escape');
+  await expect(exportHeading).toBeHidden();
   await expect(exportOpener(page)).toBeFocused();
 
   await page.getByRole('button', { name: 'Back', exact: true }).click();
