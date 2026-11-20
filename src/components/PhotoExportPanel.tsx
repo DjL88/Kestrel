@@ -37,6 +37,7 @@ import { createDailyAllowance, parseUsage } from '../core/dailyAllowance';
 import { parseCustomExportDate } from '../core/exportDateInput';
 import { exportMayContinue } from '../core/exportCancellation';
 import { parseWatermark } from '../core/watermarkStore';
+import { metadataForExport, NO_EXPORT_METADATA, type ExportMetadataOptions } from '../core/exportMetadataOptions';
 import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, WATERMARK_FONTS, type WatermarkOptions } from '../core/watermark';
 import { NO_OVERLAY, exportOverlayTitle, photoOverlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { exportFilename } from '../core/exportProfiles';
@@ -121,6 +122,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     try { return { ...NO_OVERLAY, watermark: parseWatermark(localStorage.getItem('kestrel.watermark.v1')) }; } catch { return NO_OVERLAY; }
   });
   const [markNote, setMarkNote] = useState<string | null>(null);
+  const [metadata, setMetadata] = useState<ExportMetadataOptions>({ ...NO_EXPORT_METADATA });
   const [sources, setSources] = useState<Record<string, HTMLImageElement>>({});
   const [proofChoice, setProofChoice] = useState<ProofChoice | null>(null);
   const [proofLoadFailed, setProofLoadFailed] = useState<string | null>(null);
@@ -406,7 +408,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       const photographs = structuredClone(frames);
       const options = {
         formats: structuredClone(selected), anchors: structuredClone(anchors),
-        zooms: structuredClone(zooms), bars, overlay: structuredClone(overlay),
+        zooms: structuredClone(zooms), bars, overlay: structuredClone(overlay), metadata: structuredClone(metadata),
         timestamp, customDate, naming: structuredClone(naming), startedAt: Date.now(),
       };
       const planned = planConnectedExports(photographs, options.formats, options.naming);
@@ -433,6 +435,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
           return renderExport(image, frame, toProfile(format), date, signal, framingFor(format.fit), undefined, {
             focus: recipe.anchors[key] ?? frame.focusPoint ?? { x: 0.5, y: 0.5 },
             bars: recipe.bars, zoom: recipe.zooms[key] ?? 1, stem, overlay: recipe.overlay,
+             metadata: metadataForExport(frame, recipe.metadata),
           });
         },
         async save(item, rendered, signal) {
@@ -505,6 +508,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
           if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
           const rendered = await renderExport(image, frame, toProfile(format), date, controller.signal, framingFor(format.fit), undefined, {
             focus: anchorFor(frame, format), bars, zoom: zoomFor(frame, format), stem, overlay,
+             metadata: metadataForExport(frame, metadata),
           });
           if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
           const uniqueName = uniqueExportFilename(rendered.name, usedExportNames);
@@ -905,6 +909,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
                     setCustomOn(Boolean(preset.custom));
                     if (preset.custom) setCustom(structuredClone(preset.custom));
                     if (preset.overlay) setOverlay(structuredClone(preset.overlay));
+                     setMetadata(preset.metadata ? structuredClone(preset.metadata) : { ...NO_EXPORT_METADATA });
                     if (preset.naming) setNaming({ ...preset.naming });
                     // Cropping/focus belongs to the current photographs, never a reusable preset.
                     setPresetNote(t.presets.applied(preset.name));
@@ -928,7 +933,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
                     return;
                   }
                   savePresets([...presets, structuredClone({ name, formats: chosen, fits, overrides, turned, bars,
-                    overlay, naming, ...(customOn ? { custom } : {}),
+                    overlay, metadata, naming, ...(customOn ? { custom } : {}),
                   })], t.presets.saved);
                 }}>{t.presets.save}</button>
             </div>
