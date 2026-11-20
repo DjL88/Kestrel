@@ -11,6 +11,12 @@ export const de: AreaTranslation<typeof source> = {
     loaded: "XMP-Metadaten angewendet.",
     loadFailed: "XMP konnte nicht geladen werden. Wähle die Begleitdatei für dieses Foto.",
   },
+  sidecars: {
+    title: "XMP-Begleitdateien",
+    save: "XMP-Dateien speichern",
+    help: "Bewertungen, Ablehnungen und bestätigte Stichwörter werden separat gespeichert. Mehrere Dateien werden als ZIP gespeichert. Demofotos und virtuelle Kopien werden übersprungen.",
+    duplicate: "Wähle Fotos mit unterschiedlichen, gültigen Dateinamen aus.",
+  },
   presets: {
     title: "Exportvorgaben",
     name: "Name der Vorgabe",

@@ -9,6 +9,12 @@ export const source = {
     loaded: "XMP metadata applied.",
     loadFailed: "Could not load XMP. Choose the matching sidecar for this photo.",
   },
+  sidecars: {
+    title: "XMP sidecars",
+    save: "Save XMP sidecars",
+    help: "Save ratings, rejections and confirmed keywords separately from your photos. Multiple sidecars are saved as a ZIP. Demo photos and virtual copies are skipped.",
+    duplicate: "Select photos with distinct filenames that can be saved as sidecars.",
+  },
   presets: {
     title: 'Export presets',
     name: 'Preset name',

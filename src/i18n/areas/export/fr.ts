@@ -11,6 +11,12 @@ export const fr: AreaTranslation<typeof source> = {
     loaded: "Métadonnées XMP appliquées.",
     loadFailed: "Impossible de charger le XMP. Choisissez le fichier associé à cette photo.",
   },
+  sidecars: {
+    title: "Fichiers annexes XMP",
+    save: "Enregistrer les fichiers XMP",
+    help: "Enregistrez les notes, les rejets et les mots-clés confirmés séparément des photos. Plusieurs fichiers sont regroupés dans un ZIP. Les photos de démonstration et les copies virtuelles sont ignorées.",
+    duplicate: "Sélectionnez des photos dont les noms de fichiers sont distincts et valides.",
+  },
   presets: {
     title: "Préréglages d’export",
     name: "Nom du préréglage",

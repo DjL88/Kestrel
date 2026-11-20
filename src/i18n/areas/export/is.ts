@@ -11,6 +11,12 @@ export const is: AreaTranslation<typeof source> = {
     loaded: "XMP-lýsigögn voru notuð.",
     loadFailed: "Ekki tókst að hlaða XMP. Veldu hliðarskrá þessarar myndar.",
   },
+  sidecars: {
+    title: "XMP-hliðarskrár",
+    save: "Vista XMP-skrár",
+    help: "Vistaðu einkunnir, höfnun og staðfest leitarorð í sérskrám. Fleiri skrár vistast í ZIP-skrá. Sýnismyndum og sýndarafritum er sleppt.",
+    duplicate: "Veldu myndir með ólík og gild skráarheiti.",
+  },
   presets: {
     title: "Forstillingar útflutnings",
     name: "Heiti forstillingar",

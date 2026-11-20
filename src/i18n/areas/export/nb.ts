@@ -11,6 +11,12 @@ export const nb: AreaTranslation<typeof source> = {
     loaded: "XMP-metadata ble brukt.",
     loadFailed: "Kunne ikke laste inn XMP. Velg sidefilen som hører til bildet.",
   },
+  sidecars: {
+    title: "XMP-sidefiler",
+    save: "Lagre XMP-filer",
+    help: "Lagre vurderinger, avvisninger og bekreftede nøkkelord separat. Flere filer lagres i en ZIP. Demobilder og virtuelle kopier hoppes over.",
+    duplicate: "Velg bilder med ulike, gyldige filnavn.",
+  },
   presets: {
     title: "Eksportforvalg",
     name: "Navn på forvalg",

@@ -11,6 +11,12 @@ export const fi: AreaTranslation<typeof source> = {
     loaded: "XMP-metatiedot otettiin käyttöön.",
     loadFailed: "XMP-tiedostoa ei voitu ladata. Valitse kuvan sivutiedosto.",
   },
+  sidecars: {
+    title: "XMP-sivutiedostot",
+    save: "Tallenna XMP-tiedostot",
+    help: "Tallenna arviot, hylkäykset ja vahvistetut avainsanat erikseen. Useat tiedostot tallennetaan ZIP-pakettiin. Esimerkkikuvat ja virtuaaliset kopiot ohitetaan.",
+    duplicate: "Valitse kuvia, joiden tiedostonimet ovat erilaisia ja kelvollisia.",
+  },
   presets: {
     title: "Viennin esiasetukset",
     name: "Esiasetuksen nimi",

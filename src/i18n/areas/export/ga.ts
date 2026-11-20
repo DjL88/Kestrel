@@ -15,6 +15,12 @@ export const ga: AreaTranslation<typeof source> = {
     loaded: "Cuireadh meiteashonraí XMP i bhfeidhm.",
     loadFailed: "Níorbh fhéidir XMP a lódáil. Roghnaigh an comhad a bhaineann leis an ngrianghraf seo.",
   },
+  sidecars: {
+    title: "Comhaid tionlacain XMP",
+    save: "Sábháil comhaid XMP",
+    help: "Sábháil rátálacha, diúltuithe agus eochairfhocail dheimhnithe ar leith. Sábháiltear comhaid iolracha i ZIP. Fágtar grianghraif shamplacha agus cóipeanna fíorúla ar lár.",
+    duplicate: "Roghnaigh grianghraif a bhfuil ainmneacha comhaid bailí éagsúla orthu.",
+  },
   presets: {
     title: "Réamhshocruithe easpórtála",
     name: "Ainm an réamhshocraithe",

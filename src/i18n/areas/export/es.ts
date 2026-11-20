@@ -11,6 +11,12 @@ export const es: AreaTranslation<typeof source> = {
     loaded: "Metadatos XMP aplicados.",
     loadFailed: "No se pudo cargar el XMP. Elige el archivo correspondiente a esta foto.",
   },
+  sidecars: {
+    title: "Archivos auxiliares XMP",
+    save: "Guardar archivos XMP",
+    help: "Guarda las valoraciones, los rechazos y las palabras clave confirmadas por separado. Si hay varios archivos, se guardan en un ZIP. Se omiten las fotos de demostración y las copias virtuales.",
+    duplicate: "Selecciona fotos con nombres de archivo distintos y válidos.",
+  },
   presets: {
     title: "Ajustes preestablecidos de exportación",
     name: "Nombre del ajuste",

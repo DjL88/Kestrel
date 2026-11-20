@@ -11,6 +11,12 @@ export const sv: AreaTranslation<typeof source> = {
     loaded: "XMP-metadata tillämpades.",
     loadFailed: "Det gick inte att läsa in XMP. Välj sidofilen som hör till fotot.",
   },
+  sidecars: {
+    title: "XMP-sidofiler",
+    save: "Spara XMP-filer",
+    help: "Spara betyg, avvisningar och bekräftade nyckelord separat. Flera filer sparas som en ZIP. Demofoton och virtuella kopior hoppas över.",
+    duplicate: "Välj foton med olika, giltiga filnamn.",
+  },
   presets: {
     title: "Exportförinställningar",
     name: "Förinställningens namn",
