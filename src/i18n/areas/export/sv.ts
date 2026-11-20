@@ -182,6 +182,9 @@ export const sv: AreaTranslation<typeof source> = {
     placeholder: '© Ditt namn',
     pictureChosen: 'Bild vald. Välj en annan för att ersätta den.',
     pictureTooBig: 'Välj en bild under 3 MB, helst en PNG med genomskinlig bakgrund.',
+    pictureMissing: "Den här vattenstämpelbilden finns inte på enheten. Välj den igen innan du exporterar.",
+    storageFailed: "Bilden kunde inte sparas privat på enheten. Din tidigare vattenstämpel är oförändrad.",
+    localOnly: "Vattenstämpelbilder stannar på den här enheten. En förinställning sparar bara en lokal referens, inte bilden.",
     position: 'Placering',
     positions: {
       topLeft: 'Uppe till vänster',
