@@ -1,3 +1,5 @@
+import { PLATFORMS, type ExportFormat } from './exportFormats';
+
 /**
  * Saving a copy of exports into an "export" folder in a place the person chose, for example the drive their originals
  * are on. Each save goes into its own dated folder, so nothing already there is ever overwritten.
@@ -14,17 +16,19 @@ export function safeExportName(name: string): string {
 }
 
 /** Where each file goes. Two files with the same name in one save get a number, so neither replaces the other. */
-export function exportPaths(files: readonly { name: string }[], now: Date, runId?: string): string[] {
+export function exportPaths(files: readonly { name: string; platform?: ExportFormat['platform'] }[], now: Date, runId?: string): string[] {
   const folder = exportRunFolder(now, runId);
   const used = new Set<string>();
   return files.map((file) => {
+    const platform = PLATFORMS.find(({ id }) => id === file.platform)?.id;
+    const destination = platform ? `${folder}/${platform}` : folder;
     const name = safeExportName(file.name);
     const dot = name.lastIndexOf('.');
     const stem = dot > 0 ? name.slice(0, dot) : name;
     const ending = dot > 0 ? name.slice(dot) : '';
     let candidate = name;
-    for (let n = 2; used.has(candidate.toLowerCase()); n += 1) candidate = `${stem}-${n}${ending}`;
-    used.add(candidate.toLowerCase());
-    return `${folder}/${candidate}`;
+    for (let n = 2; used.has(`${destination}/${candidate.toLowerCase()}`); n += 1) candidate = `${stem}-${n}${ending}`;
+    used.add(`${destination}/${candidate.toLowerCase()}`);
+    return `${destination}/${candidate}`;
   });
 }

@@ -108,6 +108,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
   const [customDate, setCustomDate] = useState('');
   const [progress, setProgress] = useState<number | null>(null);
   const [files, setFiles] = useState<File[]>([]);
+  const outputPlatforms = useRef(new WeakMap<File, ExportFormat['platform']>());
   // The ZIP is packed as soon as the files are ready, so Download is an immediate tap. A download started after waiting
   // is ignored by iPhone Safari, which only allows it straight from a tap.
   const [zip, setZip] = useState<Blob | null>(null);
@@ -179,7 +180,7 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
     setPlaceBusy(true);
     setPlaceNote(null);
     try {
-      const result = await exportPlace.save(files);
+      const result = await exportPlace.save(files, files.map(file => outputPlatforms.current.get(file)));
       if (result.ok) finishDelivery(frames, true);
       else if (!cancelled.current) setPlaceNote({ ok: false, text: result.message });
     } catch {
@@ -317,9 +318,11 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
           });
           if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
           const uniqueName = uniqueExportFilename(rendered.name, usedExportNames);
-          output.push(uniqueName === rendered.name
+          const file = uniqueName === rendered.name
             ? rendered
-            : new File([rendered], uniqueName, { type: rendered.type, lastModified: rendered.lastModified }));
+            : new File([rendered], uniqueName, { type: rendered.type, lastModified: rendered.lastModified });
+          outputPlatforms.current.set(file, format.platform);
+          output.push(file);
           setProgress(output.length);
           task.progress(output.length);
         }
