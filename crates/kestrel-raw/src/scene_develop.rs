@@ -81,11 +81,36 @@ fn validated_matrix(matrix: &[f32]) -> Result<(), String> {
     if matrix.len() < 9 || !matrix[..9].iter().all(|v| v.is_finite()) {
         return Err("RAW camera colour matrix is missing or contains invalid values.".into());
     }
-    let m = matrix;
-    let det = m[0] * (m[4] * m[8] - m[5] * m[7])
-        - m[1] * (m[3] * m[8] - m[5] * m[6])
-        + m[2] * (m[3] * m[7] - m[4] * m[6]);
-    if !det.is_finite() || det.abs() < 1e-10 {
+    // Use f64 for the test: f32 cofactors can overflow even when the input
+    // coefficients are finite. A nonzero determinant alone does not establish
+    // that a matrix can be safely inverted for photographic colour conversion.
+    let m: [f64; 9] = std::array::from_fn(|i| matrix[i] as f64);
+    let cofactors = [
+        m[4] * m[8] - m[5] * m[7],
+        m[5] * m[6] - m[3] * m[8],
+        m[3] * m[7] - m[4] * m[6],
+        m[2] * m[7] - m[1] * m[8],
+        m[0] * m[8] - m[2] * m[6],
+        m[1] * m[6] - m[0] * m[7],
+        m[1] * m[5] - m[2] * m[4],
+        m[2] * m[3] - m[0] * m[5],
+        m[0] * m[4] - m[1] * m[3],
+    ];
+    let det = m[0] * cofactors[0] + m[1] * cofactors[1] + m[2] * cofactors[2];
+    let row_norm = (0..3)
+        .map(|r| m[r * 3..r * 3 + 3].iter().map(|v| v.abs()).sum::<f64>())
+        .fold(0.0f64, f64::max);
+    let inverse_row_norm = (0..3)
+        .map(|r| (0..3).map(|c| cofactors[c * 3 + r].abs()).sum::<f64>())
+        .fold(0.0f64, f64::max);
+    let condition = row_norm * inverse_row_norm / det.abs();
+    // A scale-independent bound catches matrices with plausible determinants
+    // but enormous inverse gains. Reject extreme coefficients too: the later
+    // colour transform uses f32 and must not overflow during multiplication.
+    if !condition.is_finite() || condition > 1.0e6
+        || !det.is_finite() || det == 0.0
+        || row_norm > 1.0e6 || row_norm < 1.0e-6
+    {
         return Err("RAW camera colour matrix is singular or numerically unsafe.".into());
     }
     Ok(())
@@ -507,6 +532,12 @@ mod tests {
         assert!(validated_matrix(&invalid).is_err());
         assert!(validated_matrix(&[1.0; 9]).is_err());
         assert!(validated_matrix(&[0.0; 9]).is_err());
+        // Determinant is nonzero and exceeds the former absolute threshold,
+        // but the inverse amplifies small colour errors by many orders.
+        assert!(validated_matrix(&[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0e-8]).is_err());
+        assert!(validated_matrix(&[1.0e20, 0.0, 0.0, 0.0, 1.0e20, 0.0, 0.0, 0.0, 1.0e20]).is_err());
+        assert!(validated_matrix(&[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0e-3]).is_ok());
+
     }
 
 
