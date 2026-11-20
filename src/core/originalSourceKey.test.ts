@@ -20,6 +20,15 @@ test('same camera name, size and time from two folders never share a source key'
   assert.equal(a.split('::').at(-1), String(photo.lastModified));
 });
 
+test('Windows slash differences and drive-letter case preserve identity without case-folding names', () => {
+  const a = originalSourceKey({ ...photo, path: 'D:\\Birds\\_DSC0001.NEF' });
+  const b = originalSourceKey({ ...photo, path: 'd:/Birds/_DSC0001.NEF' });
+  assert.equal(a, b);
+  const uncA = linkedPathIdentity('\\\\NAS\\Photos\\Birds\\bird.NEF');
+  const uncB = linkedPathIdentity('//NAS/Photos/Birds/bird.NEF');
+  assert.equal(uncA, uncB);
+  assert.notEqual(linkedPathIdentity('//NAS/Photos/Bird.NEF'), linkedPathIdentity('//NAS/Photos/bird.NEF'),
+    'a case-sensitive NAS may contain distinct originals');
 test('Windows path slash/case changes do not create a duplicate original', () => {
   const a = originalSourceKey({ ...photo, path: 'D:\\Birds\\_DSC0001.NEF' });
   const b = originalSourceKey({ ...photo, path: 'd:/birds/_dsc0001.nef' });
