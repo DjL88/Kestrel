@@ -72,3 +72,82 @@ test('both sides of a neutral comparison show the full original JPEG', async ({ 
   expect(await shownPicture(before)).toEqual(original);
   expect(await shownPicture(edited)).toEqual(original);
 });
+
+function originalOf(jpeg: Buffer) {
+  return { width: WIDTH, height: HEIGHT, sha256: createHash('sha256').update(jpeg).digest('hex') };
+}
+
+test('an unedited JPEG is the original itself in single-photo view', async ({ page }) => {
+  await page.goto('/');
+  const jpeg = await detailedJpeg(page);
+  await page.getByRole('button', { name: 'New project' }).click();
+  await page.getByRole('textbox', { name: 'Project name' }).fill('Original fidelity');
+  await page.getByText('Project options', { exact: true }).click();
+  await page.getByRole('checkbox', { name: /Auto-cull/ }).uncheck();
+  await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
+  await page.getByRole('button', { name: 'Create project' }).click();
+  await page.getByRole('button', { name: 'Add photos', exact: true }).click();
+  await page.getByTestId('local-file-input').setInputFiles({ name: 'detail.jpg', mimeType: 'image/jpeg', buffer: jpeg });
+  await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 1' })).toBeVisible({ timeout: 30_000 });
+
+  await page.getByRole('button', { name: 'More', exact: true }).or(page.getByRole('button', { name: 'Workspace options', exact: true })).click();
+  await page.getByRole('combobox', { name: 'View', exact: true }).selectOption('loupe');
+  await page.keyboard.press('Escape');
+  const loupe = page.locator('[data-photo-stage] img').first();
+  await expect(loupe).toBeVisible({ timeout: 30_000 });
+  await expect.poll(() => shownPicture(loupe), { timeout: 30_000 }).toEqual(originalOf(jpeg));
+});
+
+test('an edit switches the editor to the rendered preview, and resetting it brings the original back', async ({ page }) => {
+  await page.goto('/');
+  const jpeg = await detailedJpeg(page);
+  await page.getByTestId('quick-edit-input').setInputFiles({ name: 'detail.jpg', mimeType: 'image/jpeg', buffer: jpeg });
+  const photo = page.getByRole('img', { name: 'Edited photo' });
+  await expect(photo).toHaveJSProperty('tagName', 'IMG');
+
+  await page.getByRole('tab', { name: 'Edit', exact: true }).click();
+  const exposure = page.getByRole('slider', { name: 'Exposure adjustment' });
+  await exposure.focus();
+  await exposure.press('ArrowRight');
+  await expect(exposure).toHaveValue('0.1');
+  await expect(photo).toHaveJSProperty('tagName', 'CANVAS');
+
+  await exposure.press('ArrowLeft');
+  await expect(exposure).toHaveValue('0');
+  await expect(photo).toHaveJSProperty('tagName', 'IMG');
+  expect(await shownPicture(photo)).toEqual(originalOf(jpeg));
+});
+
+/** The colour space the editor's drawn preview uses, once an edit makes it a canvas. */
+async function editedCanvasColourSpace(page: Page) {
+  await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
+  await page.getByRole('tab', { name: 'Edit', exact: true }).click();
+  const exposure = page.getByRole('slider', { name: 'Exposure adjustment' });
+  await exposure.focus();
+  await exposure.press('ArrowRight');
+  const photo = page.getByRole('img', { name: 'Edited photo' });
+  await expect(photo).toHaveJSProperty('tagName', 'CANVAS');
+  // Asking an undrawn canvas for its context would create an sRGB one, so wait until the editor has drawn it (the
+  // drawing sets its size and context in one step).
+  await expect.poll(() => photo.evaluate((canvas: HTMLCanvasElement) => canvas.width !== 300 || canvas.height !== 150)).toBe(true);
+  return photo.evaluate((canvas: HTMLCanvasElement) => canvas.getContext('2d')?.getContextAttributes?.().colorSpace ?? 'srgb');
+}
+
+test('on a wide-gamut screen, edited previews draw in Display P3', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'colour-gamut emulation is a Chromium DevTools feature');
+  const session = await page.context().newCDPSession(page);
+  await session.send('Emulation.setEmulatedMedia', { features: [{ name: 'color-gamut', value: 'p3' }] });
+  await page.goto('/');
+  const p3Canvas = await page.evaluate(() => {
+    const context = document.createElement('canvas').getContext('2d', { colorSpace: 'display-p3' });
+    return context?.getContextAttributes?.().colorSpace === 'display-p3';
+  });
+  test.skip(!p3Canvas, 'this browser build cannot draw a Display P3 canvas');
+  expect(await editedCanvasColourSpace(page)).toBe('display-p3');
+});
+
+test('on an sRGB screen, edited previews stay sRGB', async ({ page }) => {
+  await page.goto('/');
+  test.skip(await page.evaluate(() => matchMedia('(color-gamut: p3)').matches), 'this test machine reports a wide-gamut screen');
+  expect(await editedCanvasColourSpace(page)).toBe('srgb');
+});
