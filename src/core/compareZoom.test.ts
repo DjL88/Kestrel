@@ -36,3 +36,11 @@ test('a representative 500-photo Compare sequence has stable zoom across switche
     assert.equal(percentFor(zoom!, fit, 1), 200);
   }
 });
+
+test('100 percent is one device pixel per preview pixel and disables when Fit is larger', () => {
+  const zoom = comparePreviewPixelZoom(0.25, 2, 100);
+  assert.equal(zoom, 2);
+  assert.equal(percentFor(zoom, 0.25, 2), 100);
+  assert.equal(comparePreviewPixelZoom(0.75, 2, 100), null);
+  assert.equal(comparePreviewPixelZoom(0.75, 2, 200), 4 / 3);
+});

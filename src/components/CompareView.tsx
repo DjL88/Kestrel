@@ -61,7 +61,6 @@ export function CompareView({
     return () => observer?.disconnect();
   }, [rightFrame?.id, uniqueRight]);
   const maxZoom = maxZoomFor(previewFit, dpr);
-  const actual200 = comparePreviewPixelZoom(previewFit, dpr);
 
   // Clicking a photograph makes the comparison keyboard-ready without requiring
   // the photographer to find a tiny focus target. Never steal focus from a
@@ -118,13 +117,16 @@ export function CompareView({
             aria-label={t.compare.fitBoth} title={t.compare.fitBoth} aria-pressed={zoomLevel === 1}>
             <Maximize2 aria-hidden="true" className="h-4 w-4" /><span className="ml-1 text-xs">{t.compare.fit}</span>
           </button>
-          <button type="button" className={control} disabled={actual200 === null}
-            onClick={() => actual200 !== null && onTransform(actual200, { x: 0, y: 0 })}
-            aria-label={actual200 === null ? (previewFit > 0 ? t.compare.previewAlreadyLarge : t.compare.previewZoomNotReady) : t.compare.actualPreview200}
-            title={actual200 === null ? (previewFit > 0 ? t.compare.previewAlreadyLarge : t.compare.previewZoomNotReady) : t.compare.actualPreview200}
-            aria-pressed={actual200 !== null && Math.abs(zoomLevel - actual200) < 0.001}>
-            <ZoomIn aria-hidden="true" className="h-4 w-4" /><span className="ml-1 text-xs">{t.compare.twoHundred}</span>
-          </button>
+          {([100, 200] as const).map((percent) => {
+            const actual = comparePreviewPixelZoom(previewFit, dpr, percent);
+            const label = actual !== null ? t.compare.actualPreviewZoom(percent)
+              : previewFit > 0 ? t.compare.previewAlreadyLarge(percent) : t.compare.previewZoomNotReady(percent);
+            return <button key={percent} type="button" className={control} disabled={actual === null}
+              onClick={() => actual !== null && onTransform(actual, { x: 0, y: 0 })}
+              aria-label={label} title={label} aria-pressed={actual !== null && Math.abs(zoomLevel - actual) < 0.001}>
+              <ZoomIn aria-hidden="true" className="h-4 w-4" /><span className="ml-1 text-xs">{percent}%</span>
+            </button>;
+          })}
         </div>
         <div className="flex w-full min-w-0 items-center sm:w-auto sm:flex-1">
           <span data-testid="compare-photo-a" className="min-w-0 flex-1 truncate px-2 text-xs text-zinc-300" title={referenceValid ? leftFrame?.filename : t.compare.referenceUnavailable}>

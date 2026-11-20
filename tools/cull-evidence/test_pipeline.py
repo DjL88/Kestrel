@@ -78,7 +78,7 @@ class EvidencePipelineTests(unittest.TestCase):
         aggregate = evaluator.evaluate(source)
         result = readiness.assess(aggregate)
         self.assertEqual(result["measurement_status"], "insufficient_real_coverage")
-        self.assertEqual(result["real_risk_denominators"]["aircraft"], 0)
+        self.assertEqual(aggregate["real_risk_denominators"]["aircraft"], 0)
         self.assertEqual(result["real_event_uncertainty"]["aircraft_osprey"]["denominator"], 0)
         self.assertIsNone(result["real_event_uncertainty"]["aircraft_osprey"]["wilson_95_upper"])
 
