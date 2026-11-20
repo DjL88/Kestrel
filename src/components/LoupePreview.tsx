@@ -8,6 +8,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { panToCentre } from '../core/eyeFinder';
+import { isRawPreviewFile } from '../core/rawFormats';
 import { maxZoomFor, zoomForPercent } from '../core/zoomControls';
 import { ZoomControls } from './ZoomControls';
 import { PhotoJump } from './PhotoJump';
