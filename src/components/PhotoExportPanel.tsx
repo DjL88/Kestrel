@@ -1,3 +1,4 @@
+import { EXPORT_PREFERENCES_KEY, readExportPreferences } from '../core/exportPreferences';
 import { isRawPreviewFile } from '../core/rawFormats';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, X } from 'lucide-react';
@@ -83,12 +84,13 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
   const [placeNote, setPlaceNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [placeBusy, setPlaceBusy] = useState(false);
   const [chosen, setChosen] = useState<string[]>(() => loadChosen(readView() === 'wizard'));
-  const [fits, setFits] = useState<Record<string, Fit>>({});
-  const [overrides, setOverrides] = useState<Record<string, { prefix?: string; quality?: number }>>({});
-  const [turned, setTurned] = useState<Record<string, boolean>>({});
+  const [preferences] = useState(() => readExportPreferences({ getItem: (key) => localStorage.getItem(key) }));
+  const [fits, setFits] = useState(preferences.fits);
+  const [overrides, setOverrides] = useState(preferences.overrides);
+  const [turned, setTurned] = useState(preferences.turned);
   const [view, setView] = useState<'wizard' | 'list'>(readView);
   const [openPlatforms, setOpenPlatforms] = useState<Record<string, boolean>>({});
-  const [bars, setBars] = useState<BarStyle>('white');
+  const [bars, setBars] = useState<BarStyle>(preferences.bars);
   const [customOn, setCustomOn] = useState(false);
   const [custom, setCustom] = useState<CustomSize>(DEFAULT_CUSTOM);
   const [anchors, setAnchors] = useState<Record<string, FocusPoint>>({});
@@ -303,6 +305,9 @@ export function PhotoExportPanel({ frames, provider, source, onClose, onDownload
       // Stop must never publish partial results or charge the Free allowance.
       if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
       if (!unlimited && output.length) { try { localStorage.setItem(USAGE_KEY, JSON.stringify(recordUse(readUsage(), new Date(), output.length))); } catch { /* the count is best effort */ } }
+      try {
+        localStorage.setItem(EXPORT_PREFERENCES_KEY, JSON.stringify({ fits, overrides, turned, bars }));
+      } catch { /* Export remains usable when storage is unavailable. */ }
       task.finish();
       setFiles(output);
       setZip(null);
