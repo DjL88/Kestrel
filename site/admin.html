@@ -38,7 +38,7 @@
 <div id="console" hidden>
   <nav class="tabs" aria-label="Console sections">
     <a href="#overview">Overview</a><a href="#licensees">Licensees and devices</a><a href="#issue">Issue a key</a>
-    <a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#audit">Audit log</a>
+    <a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
   </nav>
 
   <section id="overview" class="panel" aria-labelledby="overview-title">
@@ -107,6 +107,17 @@
     <p id="messages-empty" class="muted" hidden>No messages.</p>
   </section>
 
+  <section id="price-review" class="panel" aria-labelledby="price-review-title">
+    <h2 id="price-review-title">Price review</h2>
+    <p id="price-review-status" class="muted"></p>
+    <div id="price-review-table" class="scroll" hidden>
+      <table>
+        <caption>Pro base price proposals before tax</caption>
+        <thead><tr><th scope="col">Currency</th><th scope="col">Reference conversion</th><th scope="col">Rounded proposal</th></tr></thead>
+        <tbody id="price-review-rows"></tbody>
+      </table>
+    </div>
+  </section>
   <section id="tax" class="panel" aria-labelledby="tax-title">
     <h2 id="tax-title">Tax</h2>
     <p id="tax-unavailable" class="muted" hidden></p>
