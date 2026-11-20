@@ -48,6 +48,7 @@ export const is: AreaTranslation<typeof source> = {
     saveFailed: "Ekki tókst að vista forstillingar á þessu tæki.",
     standardOnly: "Forstillingar vista stöðluð snið.",
   },
+  comparison: { before: "Fyrir", after: "Eftir" },
   proof: {
     title: "Útflutningsprófun",
     photo: "Mynd",
@@ -72,6 +73,7 @@ export const is: AreaTranslation<typeof source> = {
     blur: 'Óskýrt afrit af myndinni',
   },
   formats: {
+    beforeAfter: "Fyrir og eftir · hlið við hlið",
     fullSize: 'Full stærð',
     customSize: 'Sérsniðin stærð',
     master: 'Full stærð · PNG',
