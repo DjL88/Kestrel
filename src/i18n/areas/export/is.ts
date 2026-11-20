@@ -4,6 +4,19 @@ import type { source } from './source';
 
 /** Icelandic. DRAFT: written without a native speaker's check. */
 export const is: AreaTranslation<typeof source> = {
+  metadata: {
+    title: "Lýsigögn skráar (valfrjálst)",
+    include: "Hafa breytanleg lýsigögn í JPEG / PNG",
+    privacy: "Sjálfgefið slökkt. Upprunaleg EXIF-, GPS-, raðnúmera- og staðsetningargögn eru ekki afrituð. Aðeins valdar upplýsingar eru skrifaðar sem XMP.",
+    photoTitle: "Titill / viðfangsefni myndar",
+    perPhoto: "Hver mynd notar staðfest viðfangsefni nema þú sláir inn sameiginlegan titil.",
+    caption: "Lýsing eða myndatexti",
+    creator: "Ljósmyndari / höfundur",
+    copyright: "Höfundarréttur",
+    includeKeywords: "Hafa lykilorð með",
+    keywords: "Lykilorð (aðskilin með kommum; tómt = staðfest merki)",
+    help: "Staðfest viðfangsefni geta fyllt út titil og lykilorð. Óstaðfestar AI-ágiskanir eru aldrei fluttar út. Upplýsingarnar eru geymdar í skránni, ekki á myndinni.",
+  },
   rawTiff: {
     action: "Flytja út 16 bita RAW-TIFF (frumgerð)",
     details: "Um 16 bita RAW-TIFF",

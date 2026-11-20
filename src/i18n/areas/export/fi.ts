@@ -4,6 +4,19 @@ import type { source } from './source';
 
 /** Finnish. DRAFT: written without a native speaker's check. */
 export const fi: AreaTranslation<typeof source> = {
+  metadata: {
+    title: "Tiedoston metatiedot (valinnainen)",
+    include: "Sisällytä muokattavat metatiedot JPEG- / PNG-tiedostoon",
+    privacy: "Oletusarvoisesti pois päältä. Alkuperäisiä EXIF-, GPS-, sarjanumero- tai sijaintitietoja ei kopioida. Vain valitsemasi tiedot tallennetaan XMP-muodossa.",
+    photoTitle: "Kuvan otsikko / aihe",
+    perPhoto: "Jokaisessa kuvassa käytetään vahvistettua aihetta, ellet anna yhteistä otsikkoa.",
+    caption: "Kuvaus tai kuvateksti",
+    creator: "Valokuvaaja / tekijä",
+    copyright: "Tekijänoikeus",
+    includeKeywords: "Sisällytä avainsanat",
+    keywords: "Avainsanat (pilkuilla eroteltuina; tyhjä = vahvistetut tunnisteet)",
+    help: "Vahvistetut aiheet voivat täyttää otsikon ja avainsanat. Vahvistamattomia tekoälyarvauksia ei viedä. Tiedot tallennetaan tiedostoon, ei kuvaan.",
+  },
   rawTiff: {
     action: "Vie 16-bittinen RAW-TIFF (prototyyppi)",
     details: "Tietoa 16-bittisestä RAW-TIFFistä",

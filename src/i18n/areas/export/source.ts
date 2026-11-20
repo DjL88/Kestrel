@@ -2,6 +2,19 @@ import { plural } from '../../../core/locale';
 
 /** Export: the export panel, the step-by-step guide, preview tiles, and the recipe dialogs. British English source. */
 export const source = {
+  metadata: {
+    title: 'File metadata (optional)',
+    include: 'Include editable metadata in JPEG / PNG',
+    privacy: 'Off by default. Original EXIF, GPS, camera serial numbers and location are not copied. This writes only the information you choose as XMP.',
+    photoTitle: 'Photo title / subject',
+    perPhoto: 'Each photo uses its own confirmed subject unless you enter one shared title.',
+    caption: 'Description or caption',
+    creator: 'Photographer / creator',
+    copyright: 'Copyright',
+    includeKeywords: 'Include keywords',
+    keywords: 'Keywords (comma separated; leave empty for confirmed tags)',
+    help: 'Confirmed subjects can fill the title and keywords. Unconfirmed AI guesses are never exported. This information is stored in the file, not printed on the photo.',
+  },
   rawTiff: {
     action: "Export 16-bit RAW TIFF (prototype)",
     details: "About 16-bit RAW TIFF",

@@ -7,6 +7,19 @@ import type { source } from './source';
  * ("3 llun", "5 ffeil"), so these sentences need only one form.
  */
 export const cy: AreaTranslation<typeof source> = {
+  metadata: {
+    title: "Metadata'r ffeil (dewisol)",
+    include: "Cynnwys metadata y gellir ei olygu mewn JPEG / PNG",
+    privacy: "Wedi'i ddiffodd yn ddiofyn. Nid yw EXIF gwreiddiol, GPS, rhifau cyfresol na lleoliadau'n cael eu copïo. Dim ond y wybodaeth a ddewiswch sy'n cael ei chadw fel XMP.",
+    photoTitle: "Teitl / pwnc y llun",
+    perPhoto: "Mae pob llun yn defnyddio ei bwnc wedi'i gadarnhau oni bai eich bod yn rhoi un teitl cyffredin.",
+    caption: "Disgrifiad neu gapsiwn",
+    creator: "Ffotograffydd / crëwr",
+    copyright: "Hawlfraint",
+    includeKeywords: "Cynnwys allweddeiriau",
+    keywords: "Allweddeiriau (wedi'u gwahanu gan gomâu; gwag = tagiau wedi'u cadarnhau)",
+    help: "Gall pynciau wedi'u cadarnhau lenwi'r teitl a'r allweddeiriau. Ni chaiff dyfaliadau AI heb eu cadarnhau eu hallforio. Caiff y wybodaeth ei chadw yn y ffeil, nid ar y llun.",
+  },
   rawTiff: {
     action: "Allforio TIFF RAW 16-did (prototeip)",
     details: "Ynglŷn â TIFF RAW 16-did",

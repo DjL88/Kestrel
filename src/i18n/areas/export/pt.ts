@@ -4,6 +4,19 @@ import type { source } from './source';
 
 /** European Portuguese. DRAFT: written without a native speaker's check. */
 export const pt: AreaTranslation<typeof source> = {
+  metadata: {
+    title: "Metadados do ficheiro (opcional)",
+    include: "Incluir metadados editáveis no JPEG / PNG",
+    privacy: "Desativado por predefinição. EXIF original, GPS, números de série e localização não são copiados. Apenas os dados escolhidos são gravados como XMP.",
+    photoTitle: "Título / assunto da fotografia",
+    perPhoto: "Cada fotografia usa o assunto confirmado, salvo se escrever um título comum.",
+    caption: "Descrição ou legenda",
+    creator: "Fotógrafo / autor",
+    copyright: "Direitos de autor",
+    includeKeywords: "Incluir palavras-chave",
+    keywords: "Palavras-chave (separadas por vírgulas; vazio = etiquetas confirmadas)",
+    help: "Os assuntos confirmados podem preencher o título e as palavras-chave. Suposições não confirmadas da IA nunca são exportadas. Os dados ficam no ficheiro, não sobre a fotografia.",
+  },
   rawTiff: {
     action: "Exportar TIFF RAW de 16 bits (protótipo)",
     details: "Sobre o TIFF RAW de 16 bits",

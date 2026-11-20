@@ -8,6 +8,19 @@ const photos = (count: number) => plural(count, { one: `${count} ghrianghraf`, t
 
 /** Irish. DRAFT: written without a native speaker's check. */
 export const ga: AreaTranslation<typeof source> = {
+  metadata: {
+    title: "Meiteashonraí comhaid (roghnach)",
+    include: "Cuir meiteashonraí in-eagarthóireachta i JPEG / PNG",
+    privacy: "Múchta de réir réamhshocraithe. Ní chóipeáiltear EXIF bunaidh, GPS, sraithuimhreacha ná suíomh. Ní scríobhtar mar XMP ach an fhaisnéis a roghnaíonn tú.",
+    photoTitle: "Teideal / ábhar an ghrianghraif",
+    perPhoto: "Úsáideann gach grianghraf a ábhar dearbhaithe mura gcuireann tú teideal coiteann isteach.",
+    caption: "Cur síos nó fotheideal",
+    creator: "Grianghrafadóir / cruthaitheoir",
+    copyright: "Cóipcheart",
+    includeKeywords: "Cuir eochairfhocail san áireamh",
+    keywords: "Eochairfhocail (le camóga; bán = clibeanna dearbhaithe)",
+    help: "Féadann ábhair dhearbhaithe teideal agus eochairfhocail a líonadh. Ní easpórtáiltear buille faoi thuairim AI gan dearbhú. Stóráiltear an fhaisnéis sa chomhad, ní ar an ngrianghraf.",
+  },
   rawTiff: {
     action: "Easpórtáil TIFF RAW 16-ghiotán (fréamhshamhail)",
     details: "Maidir le TIFF RAW 16-ghiotán",

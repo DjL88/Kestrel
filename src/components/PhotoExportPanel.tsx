@@ -37,6 +37,7 @@ import { createDailyAllowance, parseUsage } from '../core/dailyAllowance';
 import { parseCustomExportDate } from '../core/exportDateInput';
 import { exportMayContinue } from '../core/exportCancellation';
 import { parseWatermark } from '../core/watermarkStore';
+import { metadataForExport, NO_EXPORT_METADATA, type ExportMetadataOptions } from '../core/exportMetadataOptions';
 import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, WATERMARK_FONTS, type WatermarkOptions } from '../core/watermark';
 import { NO_OVERLAY, exportOverlayTitle, photoOverlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { exportFilename } from '../core/exportProfiles';
@@ -121,6 +122,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     try { return { ...NO_OVERLAY, watermark: parseWatermark(localStorage.getItem('kestrel.watermark.v1')) }; } catch { return NO_OVERLAY; }
   });
   const [markNote, setMarkNote] = useState<string | null>(null);
+  const [metadata, setMetadata] = useState<ExportMetadataOptions>({ ...NO_EXPORT_METADATA });
   const [sources, setSources] = useState<Record<string, HTMLImageElement>>({});
   const [proofChoice, setProofChoice] = useState<ProofChoice | null>(null);
   const [proofLoadFailed, setProofLoadFailed] = useState<string | null>(null);
@@ -406,7 +408,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       const photographs = structuredClone(frames);
       const options = {
         formats: structuredClone(selected), anchors: structuredClone(anchors),
-        zooms: structuredClone(zooms), bars, overlay: structuredClone(overlay),
+        zooms: structuredClone(zooms), bars, overlay: structuredClone(overlay), metadata: structuredClone(metadata),
         timestamp, customDate, naming: structuredClone(naming), startedAt: Date.now(),
       };
       const planned = planConnectedExports(photographs, options.formats, options.naming);
@@ -433,6 +435,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
           return renderExport(image, frame, toProfile(format), date, signal, framingFor(format.fit), undefined, {
             focus: recipe.anchors[key] ?? frame.focusPoint ?? { x: 0.5, y: 0.5 },
             bars: recipe.bars, zoom: recipe.zooms[key] ?? 1, stem, overlay: recipe.overlay,
+             metadata: metadataForExport(frame, recipe.metadata),
           });
         },
         async save(item, rendered, signal) {
@@ -505,6 +508,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
           if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
           const rendered = await renderExport(image, frame, toProfile(format), date, controller.signal, framingFor(format.fit), undefined, {
             focus: anchorFor(frame, format), bars, zoom: zoomFor(frame, format), stem, overlay,
+             metadata: metadataForExport(frame, metadata),
           });
           if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
           const uniqueName = uniqueExportFilename(rendered.name, usedExportNames);
@@ -764,11 +768,60 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     </fieldset>
   );
   const overlayBlock = <>{textOverlayBlock}{watermarkBlock}</>;
+  const metadataBlock = (
+    <details className="rounded-md border border-white/10 px-3 py-2">
+      <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t.metadata.title}</summary>
+      <fieldset disabled={progress !== null || placeBusy} className="space-y-2">
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input type="checkbox" checked={metadata.enabled}
+            onChange={event => setMetadata(previous => ({ ...previous, enabled: event.target.checked }))} />
+          {t.metadata.include}
+        </label>
+        <p className="text-xs text-zinc-400">{t.metadata.privacy}</p>
+        {metadata.enabled && (
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="text-xs sm:col-span-2">{t.metadata.photoTitle}
+              <input className={field} maxLength={200}
+                value={metadata.title === null && frames.length === 1
+                  ? exportOverlayTitle(frames[0], NO_OVERLAY) : metadata.title ?? ''}
+                onChange={event => setMetadata(previous => ({ ...previous, title: event.target.value }))} />
+            </label>
+            {metadata.title === null && frames.length > 1 && (
+              <p className="text-xs text-zinc-400 sm:col-span-2">{t.metadata.perPhoto}</p>
+            )}
+            <label className="text-xs sm:col-span-2">{t.metadata.caption}
+              <textarea rows={2} className={field} maxLength={4096} value={metadata.caption}
+                onChange={event => setMetadata(previous => ({ ...previous, caption: event.target.value }))} />
+            </label>
+            <label className="text-xs">{t.metadata.creator}
+              <input className={field} maxLength={200} value={metadata.creator}
+                onChange={event => setMetadata(previous => ({ ...previous, creator: event.target.value }))} />
+            </label>
+            <label className="text-xs">{t.metadata.copyright}
+              <input className={field} maxLength={300} value={metadata.copyright}
+                onChange={event => setMetadata(previous => ({ ...previous, copyright: event.target.value }))} />
+            </label>
+            <label className="flex min-h-11 items-center gap-2 text-xs sm:col-span-2">
+              <input type="checkbox" checked={metadata.includeKeywords}
+                onChange={event => setMetadata(previous => ({ ...previous, includeKeywords: event.target.checked }))} />
+              {t.metadata.includeKeywords}
+            </label>
+            {metadata.includeKeywords && <label className="text-xs sm:col-span-2">{t.metadata.keywords}
+              <input className={field} maxLength={2048} value={metadata.keywords}
+                onChange={event => setMetadata(previous => ({ ...previous, keywords: event.target.value }))} />
+            </label>}
+            <p className="text-xs text-zinc-400 sm:col-span-2">{t.metadata.help}</p>
+          </div>
+        )}
+      </fieldset>
+    </details>
+  );
   const wizard = view === 'wizard' && !resultsReady;
   const optionsBlock = (
     <>
       {namingBlock}
       {!wizard && overlayBlock}
+      {metadataBlock}
               <fieldset disabled={progress !== null} className="space-y-2">
                 {anyBars && (
                   <label className="block text-sm">{t.borders.label}
@@ -905,6 +958,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
                     setCustomOn(Boolean(preset.custom));
                     if (preset.custom) setCustom(structuredClone(preset.custom));
                     if (preset.overlay) setOverlay(structuredClone(preset.overlay));
+                     setMetadata(preset.metadata ? structuredClone(preset.metadata) : { ...NO_EXPORT_METADATA });
                     if (preset.naming) setNaming({ ...preset.naming });
                     // Cropping/focus belongs to the current photographs, never a reusable preset.
                     setPresetNote(t.presets.applied(preset.name));
@@ -928,7 +982,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
                     return;
                   }
                   savePresets([...presets, structuredClone({ name, formats: chosen, fits, overrides, turned, bars,
-                    overlay, naming, ...(customOn ? { custom } : {}),
+                    overlay, metadata, naming, ...(customOn ? { custom } : {}),
                   })], t.presets.saved);
                 }}>{t.presets.save}</button>
             </div>
