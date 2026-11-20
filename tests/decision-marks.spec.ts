@@ -22,13 +22,15 @@ test('kept, rejected and selected photos are marked with words and shapes, not j
   await expect(collections.getByRole('button', { name: 'To review 3' })).toBeVisible({ timeout: 30_000 });
 
   await page.getByRole('button', { name: 'Keep mark-1.png', exact: true }).click();
-  await page.getByRole('button', { name: 'Move mark-2.png to Trash', exact: true }).click();
+  await page.getByRole('button', { name: 'Reject mark-2.png', exact: true }).click();
   await collections.getByRole('button', { name: /^All photos/ }).click();
 
   const tile = (name: string) => page.getByRole('article', { name: `Frame ${name}` });
   await expect(tile('mark-1.png').getByTestId('tile-decision')).toHaveText('Kept');
   await expect(tile('mark-2.png').getByTestId('tile-decision')).toHaveText('Rejected');
-  await expect(tile('mark-3.png').getByTestId('tile-decision')).toHaveCount(0);
+  await expect(tile('mark-3.png').getByTestId('tile-decision')).toHaveText('Undecided');
+  await expect(tile('mark-2.png').getByRole('button', { name: 'mark-2.png is already rejected' })).toBeDisabled();
+  await expect(tile('mark-2.png').getByRole('button', { name: /Remove .* from the library/ })).toHaveCount(0);
   // Each mark carries an icon as well as its word.
   await expect(tile('mark-1.png').getByTestId('tile-decision').locator('svg')).toHaveCount(1);
   await expect(tile('mark-2.png').getByTestId('tile-decision').locator('svg')).toHaveCount(1);

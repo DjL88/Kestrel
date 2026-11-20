@@ -21,7 +21,7 @@ test('the single-photo bar says what each action is, and More offers reset edit 
   const controls = page.getByRole('group', { name: 'Single photo controls' });
   // Every action in the bar has a visible word, not only an icon.
   await expect(controls.getByRole('button', { name: /^Keep / })).toContainText('Keep');
-  await expect(controls.getByRole('button', { name: /^Move .* to Trash/ })).toContainText('Trash');
+  await expect(controls.getByRole('button', { name: /^Reject / })).toContainText('Reject');
   await expect(controls.getByRole('button', { name: /^Reset .* to original/ })).toContainText('Reset edit');
   await expect(controls.getByRole('button', { name: /^More actions/ })).toContainText('More');
   await page.keyboard.press('k');
