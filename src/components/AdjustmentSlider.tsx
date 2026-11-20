@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import { useId, useState, type CSSProperties } from 'react';
 import { adjustmentFill, signedAdjustment } from '../core/adjustmentSlider';
+import { liveSliderValue } from '../core/liveSliderValue';
 import { editorText as t } from '../i18n/areas/editor';
 
 interface Props {
@@ -40,32 +41,21 @@ export function AdjustmentSlider({
   displayValue, formatValue = signedAdjustment, resettable = true, title, hint, describedBy, onFocus, layout = 'stacked',
 }: Props) {
   const id = useId();
-  // The control moves immediately; expensive preview rendering must not hold the thumb back.
-  const [localValue, setLocalValue] = useState(value);
-  const dragging = useRef(false);
-  const lastSent = useRef<number | null>(null);
-  useEffect(() => {
-    if (dragging.current) return;
-    // Parent renders can arrive out of order during a drag. Keep the thumb
-    // responsive, but never permanently block undo, reset or photo changes.
-    if (lastSent.current !== null && Math.abs(value - lastSent.current) > step / 2) {
-      const reconcile = window.setTimeout(() => {
-        lastSent.current = null;
-        setLocalValue(value);
-      }, 350);
-      return () => window.clearTimeout(reconcile);
-    }
-    lastSent.current = null;
-    setLocalValue(value);
-  }, [value, step]);
+  // Only a live pointer drag owns transient pixels. Outside that gesture, the
+  // committed edit value wins immediately: Undo, Reset, photo switches and paste
+  // never display the previous edit for the old 350 ms timer.
+  const [gesture, setGesture] = useState({ active: false, draft: value });
+  const activeValue = liveSliderValue(value, gesture.draft, gesture.active);
   const change = (next: number) => {
-    setLocalValue(next);
-    lastSent.current = next;
+    if (!Number.isFinite(next)) return;
+    if (gesture.active) setGesture((previous) => ({ ...previous, draft: next }));
     onChange(next);
   };
-  const fill = adjustmentFill(localValue, min, max, neutral);
-  const shown = displayValue && !dragging.current && lastSent.current === null ? displayValue : formatValue(localValue);
-  const changed = Number.isFinite(localValue) && Math.abs(localValue - neutral) >= step / 2;
+  const startGesture = () => setGesture({ active: true, draft: value });
+  const endGesture = () => setGesture((previous) => ({ ...previous, active: false }));
+  const fill = adjustmentFill(activeValue, min, max, neutral);
+  const shown = displayValue && !gesture.active ? displayValue : formatValue(activeValue);
+  const changed = Number.isFinite(activeValue) && Math.abs(activeValue - neutral) >= step / 2;
   const progressStyle: CSSProperties = { left: `${fill.start}%`, width: `${fill.width}%` };
   const originStyle: CSSProperties = { left: `${fill.neutral}%` };
   return (
@@ -79,14 +69,14 @@ export function AdjustmentSlider({
           <span className="pointer-events-none absolute top-1/2 h-2.5 w-px -translate-y-1/2 bg-white/35" style={originStyle} aria-hidden="true" />
         )}
         <span className="pointer-events-none absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-kestrel-copper" style={progressStyle} aria-hidden="true" />
-        <input id={id} type="range" min={min} max={max} step={step} value={localValue} disabled={disabled}
+        <input id={id} type="range" min={min} max={max} step={step} value={activeValue} disabled={disabled}
           aria-label={ariaLabel ?? t.slider.adjustment(label)} aria-valuetext={shown} aria-describedby={describedBy} title={title}
-          onFocus={onFocus} onPointerDown={() => { dragging.current = true; }}
-          onPointerUp={() => { dragging.current = false; if (lastSent.current === null) setLocalValue(value); }}
-          onPointerCancel={() => { dragging.current = false; lastSent.current = null; setLocalValue(value); }}
+          onFocus={onFocus} onPointerDown={startGesture}
+          onPointerUp={endGesture} onPointerCancel={endGesture}
+          onLostPointerCapture={endGesture} onBlur={endGesture}
           onChange={(event) => change(event.target.valueAsNumber)}
           onDoubleClick={() => { if (!disabled && resettable) change(neutral); }}
-          className="kestrel-adjustment-range relative z-[1] h-10 w-full min-w-0 cursor-pointer disabled:cursor-not-allowed" />
+          className="kestrel-adjustment-range relative z-[1] h-11 w-full min-w-0 cursor-pointer disabled:cursor-not-allowed" />
       </span>
       {resettable ? (
         <button type="button" aria-label={t.slider.reset(label)} aria-description={t.slider.currently(shown)}
