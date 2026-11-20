@@ -1,6 +1,7 @@
 import exifr from 'exifr';
 import type { ExifMetadata } from './types';
-import { isRawPreviewFile, rawPreviewLabel } from './rawFormats';
+import { heifFormatLabel, isHeifFile, isRawPreviewFile, rawPreviewLabel } from './rawFormats';
+import { heifExifTiff } from './heifExif';
 
 /** Nikon TIFF-based RAW formats supported by the embedded-JPEG preview adapter. */
 export function isNikonEmbeddedPreviewFile(filename: string): boolean {
@@ -189,9 +190,16 @@ export async function parseImageExif(
 ): Promise<ExifMetadata> {
   const lower = filename.toLowerCase();
   const isNikonRaw = isRawPreviewFile(filename);
+  const isHeif = isHeifFile(filename);
+  const formatLabel = isNikonRaw ? rawPreviewLabel(filename) : isHeif ? heifFormatLabel(filename)
+    : lower.endsWith('.png') ? 'PNG' : lower.endsWith('.webp') ? 'WebP' : 'JPEG';
 
   try {
-    const segments = await exifr.parse(file, { xmp: true, mergeOutput: false, gps: false, interop: false });
+    // HEIF: find the EXIF block ourselves (src/core/heifExif.ts) and read it as TIFF. Its orientation tag is not used:
+    // HEIF records rotation in its own boxes, which the decoder applies.
+    const source = isHeif ? heifExifTiff(new Uint8Array(await file.arrayBuffer())) : file;
+    if (!source) return { formatLabel, isEmbeddedPreviewOnly: false };
+    const segments = await exifr.parse(source, { xmp: true, mergeOutput: false, gps: false, interop: false });
     const parsed = { ...segments?.ifd0, ...segments?.exif };
     const rating = readEmbeddedRating(segments?.xmp?.Rating, parsed.Rating);
 
@@ -220,12 +228,12 @@ export async function parseImageExif(
       capturedAtMs,
       width,
       height,
-      formatLabel: isNikonRaw ? rawPreviewLabel(filename) : lower.endsWith('.png') ? 'PNG' : lower.endsWith('.webp') ? 'WebP' : 'JPEG',
+      formatLabel,
       isEmbeddedPreviewOnly: isNikonRaw,
     };
   } catch {
     return {
-      formatLabel: isNikonRaw ? rawPreviewLabel(filename) : undefined,
+      formatLabel: isNikonRaw || isHeif ? formatLabel : undefined,
       isEmbeddedPreviewOnly: isNikonRaw,
     };
   }

@@ -73,6 +73,7 @@ export const cy: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Y gwreiddiol ddim ar gael — ailgysylltwch ei ffolder neu ei ddisg',
     previewUnavailable: 'Rhagolwg ddim ar gael',
+    heifUndecodable: 'Ni allai Kestrel ddatgodio’r llun HEIF hwn. Mae’r gwreiddiol heb ei newid.',
   },
   info: {
     title: 'Gwybodaeth y llun',

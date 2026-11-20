@@ -198,6 +198,7 @@ export const cy: AreaTranslation<typeof source> = {
     opening: 'Agor y llun…',
     reconnect: 'Ailgysylltwch y ffeil wreiddiol i’w golygu.',
     noPreview: 'Does gan y llun hwn ddim rhagolwg y gall y porwr ei ddarllen.',
+    heifUndecodable: 'Ni allai Kestrel ddatgodio’r llun HEIF hwn. Mae’r gwreiddiol heb ei newid.',
     fold: 'Plygu’r offer golygu',
     foldTitle: 'Plygu’r paneli o’r ffordd i gael llun mwy (Tab)',
     resizePanel: 'Newid maint y panel addasiadau',

@@ -10,6 +10,7 @@ import type { PhotoFrame } from '../core/types';
 import type { PhotoPreviewReadiness } from '../core/photoTileReadiness';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { viewerText as t } from '../i18n/areas/viewer';
+import { isHeifFile } from '../core/rawFormats';
 
 interface FrameImageProps {
   frame: PhotoFrame;
@@ -220,7 +221,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
           {frame.filename}
         </span>
         <span className="text-[11px] text-zinc-400 mt-0.5">
-          {needsAccess ? t.frame.originalUnavailable : t.frame.previewUnavailable}
+          {needsAccess ? t.frame.originalUnavailable : isHeifFile(frame.filename) && !frame.isDemo ? t.frame.heifUndecodable : t.frame.previewUnavailable}
         </span>
       </div>
     );
