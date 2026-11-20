@@ -140,7 +140,7 @@ test('all eight established translation drafts include every visible Settings la
     const translated = TRANSLATIONS[code].appearance as Record<string, string> | undefined;
     assert.ok(translated, `${code}: appearance translation is missing`);
     for (const key of sourceKeys) {
-      const value = translated?.[key];
+      const value: unknown = translated?.[key];
       assert.equal(typeof value, 'string', `${code}: appearance.${key} is untranslated`);
       assert.ok((value as string).trim().length > 2, `${code}: appearance.${key} is empty`);
     }
