@@ -4,6 +4,11 @@ import type { source } from './source';
 
 /** Danish. DRAFT: written without a native speaker's check. */
 export const da: AreaTranslation<typeof source> = {
+  rawTiff: {
+    action: "Eksportér 16-bit RAW-TIFF (prototype)",
+    details: "Om 16-bit RAW-TIFF",
+    help: "Valgfri TIFF fremstillet af RAW-sensordata med dine gemte redigeringer. Der indsættes ikke vandmærker eller tekst, og valgfrie GPS- eller EXIF-data kopieres ikke. Farverne er mærket sRGB, men farvenøjagtighed og ydeevne skal stadig afprøves i prototypen. Redigeringer uden understøttelse stopper lagringen.",
+  },
   typeface: "Skrifttype",
   sidecar: {
     save: "Gem XMP-sidefil",
