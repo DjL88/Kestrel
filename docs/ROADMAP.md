@@ -18,6 +18,10 @@ Every status uses exactly one of these labels:
 
 *Last reconciled: 18 November 2026, after the integration pass that merged #353–#361 and #364 and closed #362 and #363.*
 
+### 20 November 2026 — export-source truthfulness guard (code merged only when reviewed)
+
+The manual Export/ZIP path and the connected-background path now use the same RAW master gate. A full-size PNG made from an 8-bit RAW preview is **not** a validated sensor-quality RAW master, even if the source was developed for display. For real RAW input, the standard *master* choice reports why it is unavailable; smaller named web/social outputs and ordinary raster masters remain available. No file is written and no free export allowance is reserved by the rejected manual request. This closes one inconsistent route, **not** the P0 Nikon HE/HE* ICC/16-bit export acceptance gate. Automated regression tests have been added but **NOT RUN** from this session; installed Mac/Windows/browser/mobile and real-photo fidelity remain **NOT RUN**.
+
 ## 1. Where Kestrel is today
 
 | Area | Status | Evidence and gaps |
