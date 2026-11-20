@@ -6,7 +6,7 @@ import type { source } from './source';
 export const is: AreaTranslation<typeof source> = {
   metadata: {
     title: "Lýsigögn skráar (valfrjálst)",
-    include: "Hafa breytanleg lýsigögn í JPEG / PNG",
+    include: "Hafa breytanleg lýsigögn í JPEG / PNG / TIFF",
     privacy: "Sjálfgefið slökkt. Upprunaleg EXIF-, GPS-, raðnúmera- og staðsetningargögn eru ekki afrituð. Aðeins valdar upplýsingar eru skrifaðar sem XMP.",
     photoTitle: "Titill / viðfangsefni myndar",
     perPhoto: "Hver mynd notar staðfest viðfangsefni nema þú sláir inn sameiginlegan titil.",
