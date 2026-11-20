@@ -2,7 +2,13 @@ import { plural } from '../../../core/locale';
 
 /** Export: the export panel, the step-by-step guide, preview tiles, and the recipe dialogs. British English source. */
 export const source = {
-  sidecar: { save: "Save XMP sidecar", saveFailed: "Could not save the XMP sidecar. Choose a filename ending in .xmp." },
+  sidecar: {
+    save: "Save XMP sidecar",
+    saveFailed: "Could not save the XMP sidecar. Choose a filename ending in .xmp.",
+    load: "Load XMP sidecar",
+    loaded: "XMP metadata applied.",
+    loadFailed: "Could not load XMP. Choose the matching sidecar for this photo.",
+  },
   presets: {
     title: 'Export presets',
     name: 'Preset name',

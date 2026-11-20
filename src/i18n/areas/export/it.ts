@@ -4,7 +4,13 @@ import type { source } from './source';
 
 /** Italian. DRAFT: written without a native speaker's check. */
 export const it: AreaTranslation<typeof source> = {
-  sidecar: { save: "Salva file XMP", saveFailed: "Impossibile salvare il file XMP. Scegli un nome che termini con .xmp." },
+  sidecar: {
+    save: "Salva file XMP",
+    saveFailed: "Impossibile salvare il file XMP. Scegli un nome che termini con .xmp.",
+    load: "Carica file XMP",
+    loaded: "Metadati XMP applicati.",
+    loadFailed: "Impossibile caricare XMP. Scegli il file associato a questa foto.",
+  },
   presets: {
     title: "Preimpostazioni di esportazione",
     name: "Nome della preimpostazione",

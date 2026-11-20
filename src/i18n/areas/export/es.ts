@@ -4,7 +4,13 @@ import type { source } from './source';
 
 /** Spanish (Spain). DRAFT: written without a native speaker's check. */
 export const es: AreaTranslation<typeof source> = {
-  sidecar: { save: "Guardar archivo XMP", saveFailed: "No se pudo guardar el archivo XMP. Elige un nombre que termine en .xmp." },
+  sidecar: {
+    save: "Guardar archivo XMP",
+    saveFailed: "No se pudo guardar el archivo XMP. Elige un nombre que termine en .xmp.",
+    load: "Cargar archivo XMP",
+    loaded: "Metadatos XMP aplicados.",
+    loadFailed: "No se pudo cargar el XMP. Elige el archivo correspondiente a esta foto.",
+  },
   presets: {
     title: "Ajustes preestablecidos de exportación",
     name: "Nombre del ajuste",

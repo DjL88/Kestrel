@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { messages as m } from '../i18n/messages';
 import { ChevronLeft, ChevronRight, ClipboardCopy, Download, PanelTopOpen, Star, X } from 'lucide-react';
 import { exportText } from '../i18n/areas/export';
 import { downloadInBrowser } from '../providers/browserExport';
 import { isDesktopApp, isMobileShell, saveWithDialog } from '../providers/desktopShell';
-import { photoSidecar } from '../core/photoSidecar';
+import { photoSidecar, readPhotoSidecar, type ImportedPhotoSidecar } from '../core/photoSidecar';
 import { FloatingPane } from './FloatingPane';
 import { PHOTO_INFO_DOCK_QUERY } from '../core/photoInfoLayout';
 import { formatCaptureDateTime, photoInfoText } from '../core/photoInfoText';
@@ -25,6 +25,7 @@ interface ExifInspectorProps {
   batchCount: number;
   onRate: (id: string, rating: number) => void;
   onFlag: (id: string, decision: CullDecision) => void;
+  onImportSidecar: (id: string, metadata: ImportedPhotoSidecar) => void;
   /** Change what the photo is of. Species named by the app can be corrected here. */
   onSubjects: (frame: PhotoFrame, tags: string[], kind: SubjectKind | undefined) => void;
   onKeepTag: (frame: PhotoFrame, name: string) => void;
@@ -37,7 +38,8 @@ interface ExifInspectorProps {
   onAutoTag?: (frame: PhotoFrame, name: string, kind: SubjectKind | undefined) => void;
 }
 
-export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide = 'right', photoOnly = false, batchCount, onClose, onRate, onFlag, onSubjects, onKeepTag, loadPicture, mates = [], onTagPhotos, onAutoTag }) => {
+export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide = 'right', photoOnly = false, batchCount, onClose, onRate, onFlag, onImportSidecar, onSubjects, onKeepTag, loadPicture, mates = [], onTagPhotos, onAutoTag }) => {
+  const sidecarInput = useRef<HTMLInputElement>(null);
   const [sidecarBusy, setSidecarBusy] = useState(false);
   const [sidecarStatus, setSidecarStatus] = useState<{ id: string; message: string } | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
@@ -98,6 +100,19 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
       setSidecarStatus({ id: selectedFrame.id, message: exportText.sidecar.saveFailed });
+    } finally {
+      setSidecarBusy(false);
+    }
+  }
+  async function importSidecar(file: File) {
+    setSidecarBusy(true);
+    setSidecarStatus(null);
+    try {
+      const metadata = await readPhotoSidecar(file, selectedFrame);
+      onImportSidecar(selectedFrame.id, metadata);
+      setSidecarStatus({ id: selectedFrame.id, message: exportText.sidecar.loaded });
+    } catch {
+      setSidecarStatus({ id: selectedFrame.id, message: exportText.sidecar.loadFailed });
     } finally {
       setSidecarBusy(false);
     }
@@ -163,6 +178,17 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
           <Download className="h-4 w-4" aria-hidden="true" />{exportText.sidecar.save}
         </button>
       )}
+      {!frame.isDemo && <>
+        <input ref={sidecarInput} type="file" accept=".xmp,application/rdf+xml" hidden onChange={event => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = '';
+          if (file) void importSidecar(file);
+        }} />
+        <button type="button" onClick={() => sidecarInput.current?.click()} disabled={sidecarBusy}
+          className="ml-2 mt-2 inline-flex min-h-11 items-center rounded-md border border-white/15 px-3 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
+          {exportText.sidecar.load}
+        </button>
+      </>}
       {sidecarStatus?.id === frame.id && <p role="status" className="mt-1 text-xs text-zinc-300">{sidecarStatus.message}</p>}
       {copyStatus && <p role="status" className="mt-1 text-xs text-zinc-300">{copyStatus}</p>}
       {exif.formatLabel && <p className="mt-1 text-xs text-zinc-400">{exif.formatLabel}</p>}
