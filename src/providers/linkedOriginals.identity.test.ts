@@ -17,7 +17,7 @@ test('desktop import and duplicate detection share one path-scoped identity', ()
   assert.equal(pickedKey(first), originalSourceKey(first));
   assert.notEqual(pickedKey(first), pickedKey(second),
     'two folders with identical filename, size and modification date must not share a preview');
-  assert.equal(pickedKey(first), pickedKey(linked('d:/wildlife/z8/_DSC0001.nef')));
+  assert.equal(pickedKey(first), pickedKey(linked('d:/Wildlife/Z8/_DSC0001.NEF')));
 });
 
 test('browser File and legacy photo catalogue keys do not change', () => {
