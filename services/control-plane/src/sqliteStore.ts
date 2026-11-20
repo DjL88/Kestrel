@@ -126,6 +126,11 @@ export class SqliteStore implements Store {
       'SELECT * FROM device_activations ORDER BY last_seen_ms DESC, rowid DESC LIMIT ?', limit)
       .map((r) => ({ activationId: r.activation_id, licenceId: r.licence_id, deviceHash: r.device_hash, platform: r.platform, appVersion: r.app_version, lastSeenMs: r.last_seen_ms }));
   }
+  async listActivationsForLicence(licenceId: string): Promise<ActivationRecord[]> {
+    return this.all<{ activation_id: string; licence_id: string; device_hash: string; platform: string; app_version: string; last_seen_ms: number }>(
+      'SELECT * FROM device_activations WHERE licence_id = ? ORDER BY last_seen_ms DESC, rowid DESC', licenceId)
+      .map((r) => ({ activationId: r.activation_id, licenceId: r.licence_id, deviceHash: r.device_hash, platform: r.platform, appVersion: r.app_version, lastSeenMs: r.last_seen_ms }));
+  }
   async deactivateDevice(activationId: string) { return this.run('DELETE FROM device_activations WHERE activation_id = ?', activationId) === 1; }
 
   async reserveQuota(accountId: string, nowMs: number, periodMs: number): Promise<boolean> {

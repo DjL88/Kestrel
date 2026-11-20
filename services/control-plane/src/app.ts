@@ -9,7 +9,7 @@ import { inspectJpeg } from '../../../src/core/jpegInspect.ts';
 import type { Config } from './config.ts';
 import { hashPassword, randomId, sha256Hex, signEnvelope, signSession, uuid, verifyPassword, verifySession, verifyWebhook, type SessionClaims } from './crypto.ts';
 import { SqliteStore } from './sqliteStore.ts';
-import { newLicence, type AuditRecord, type Store } from './store.ts';
+import { licenceIsUsable, newLicence, type AuditRecord, type Store } from './store.ts';
 import { geminiProvider, identify, suggest, type AiProvider } from './gateway.ts';
 import type { CommerceLedger } from './commerce/ledger.ts';
 import type { TransactionRecord } from './commerce/records.ts';
@@ -65,6 +65,12 @@ export const Schemas = {
   RefreshRequest: z.object({ refreshToken: z.string().min(20).max(200) }).strict(),
   SessionResponse: z.object({ accessToken: z.string(), refreshToken: z.string(), expiresIn: z.number() }),
   ActivateRequest: z.object({ licenceKey: z.string().min(10).max(2000), deviceHash: Hex64, platform: Platform, appVersion: Version }).strict(),
+  LicenceStatusRequest: z.object({ licenceKey: z.string().min(10).max(2000), deviceHash: Hex64 }).strict(),
+  LicenceStatusResponse: z.object({
+    status: z.enum(['active', 'revoked', 'expired', 'unknown']), validUntilMs: z.number().nullable(), maxDevices: z.number(),
+    devices: z.array(z.object({ activationId: z.string(), platform: z.string(), appVersion: z.string(), lastSeenMs: z.number(), thisDevice: z.boolean() })),
+  }),
+  DeactivateRequest: z.object({ licenceKey: z.string().min(10).max(2000), activationId: z.string().min(1).max(64) }).strict(),
   ActivateResponse: z.object({ grant: SignedEnvelopeSchema, activationId: z.string() }),
   EntitlementsResponse: z.object({
     plans: z.array(z.object({ licenceId: z.string(), plan: z.string(), status: z.string(), managedAi: z.boolean(), offlineGraceDays: z.number() })),
@@ -286,6 +292,41 @@ export function createApp(options: AppOptions) {
           deviceHash: body.deviceHash, issuedAtMs: t, offlineUntilMs: t + licence.offlineGraceDays * DAY_MS,
         };
         return { status: 200, body: { grant: signEnvelope(grant, config.signingKey), activationId } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/licences/status', summary: 'For whoever holds the key: is it active, and on which devices', auth: 'none',
+      body: Schemas.LicenceStatusRequest, response: Schemas.LicenceStatusResponse,
+      handler: async (req) => {
+        if (!activateLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+        const body = parseJson(Schemas.LicenceStatusRequest, req.rawBody);
+        const check = await verifyLicence(body.licenceKey, config.licencePublicKey);
+        if (!check.ok) throw new ApiError(400, 'LICENCE_INVALID', 'That licence key was not recognised.');
+        const licence = await store.getLicence(check.details.id);
+        if (!licence) return { status: 200, body: { status: 'unknown', validUntilMs: null, maxDevices: 3, devices: [] } };
+        const devices = await store.listActivationsForLicence(licence.licenceId);
+        const status = licence.status === 'revoked' ? 'revoked' : licenceIsUsable(licence, now()) ? 'active' : 'expired';
+        return {
+          status: 200, body: {
+            status, validUntilMs: licence.validUntilMs, maxDevices: licence.maxDevices,
+            devices: devices.map((d) => ({ activationId: d.activationId, platform: d.platform, appVersion: d.appVersion, lastSeenMs: d.lastSeenMs, thisDevice: d.deviceHash === body.deviceHash })),
+          },
+        };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/licences/deactivate', summary: 'For whoever holds the key: free one of its device slots', auth: 'none', body: Schemas.DeactivateRequest,
+      handler: async (req) => {
+        if (!activateLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+        const body = parseJson(Schemas.DeactivateRequest, req.rawBody);
+        const check = await verifyLicence(body.licenceKey, config.licencePublicKey);
+        if (!check.ok) throw new ApiError(400, 'LICENCE_INVALID', 'That licence key was not recognised.');
+        const devices = await store.listActivationsForLicence(check.details.id);
+        if (!devices.some((d) => d.activationId === body.activationId) || !(await store.deactivateDevice(body.activationId))) {
+          throw new ApiError(404, 'NOT_FOUND', 'That device is not using this licence.');
+        }
+        await audit(`licence:${check.details.id}`, 'device.deactivate.self', 'allowed', body.activationId);
+        return { status: 200, body: { deactivated: true } };
       },
     },
     {
