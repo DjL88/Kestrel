@@ -34,7 +34,7 @@ import { panToCentre } from '../core/eyeFinder';
 import { locateEye } from '../providers/eyeLocator';
 import { PresetPanel } from './PresetPanel';
 import { mergeAutoSuggestion } from '../core/autoEnhance';
-import { describeOutcome, naturalAuto, stageNaturalRecipe } from '../core/naturalAuto';
+import { naturalAuto, stageNaturalRecipe } from '../core/naturalAuto';
 import { proposeSubjectAwareAuto, type InsightSubjectKind } from '../core/insightSubjectAuto';
 import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
 import { PhotoViewport } from './PhotoViewport';
