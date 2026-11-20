@@ -94,7 +94,10 @@ describe('independent cull ground truth', () => {
     expect(passesCullSafetyGate(result, 4)).toBe(false);
     const unknown = missing.map(frame => frame.subject === 'aircraft'
       ? { ...frame, predictedSubject: 'unknown' as const } : frame);
-    expect(passesCullSafetyGate(evaluateCullGroundTruth(unknown), 4)).toBe(true);
+    const abstaining = evaluateCullGroundTruth(unknown);
+    expect(abstaining.aircraftClassificationCoverage).toBe(0);
+    expect(abstaining.aircraftConditionalAccuracy).toBeNull();
+    expect(passesCullSafetyGate(abstaining, 4)).toBe(false);
   });
   it('rejects manipulated aircraft rates and unsafe keeper coverage thresholds', () => {
     const valid = evaluateCullGroundTruth(samples);
@@ -103,6 +106,30 @@ describe('independent cull ground truth', () => {
     expect(passesCullSafetyGate(valid, 4, 0, 0)).toBe(false);
     expect(passesCullSafetyGate(valid, 4, 0, 0.75)).toBe(false);
     expect(passesCullSafetyGate(valid, 4, 0, 0.5)).toBe(true);
+  });
+  it('reports aircraft coverage separately from accuracy and rejects all-abstain models', () => {
+    const mixed = evaluateCullGroundTruth([
+      ...samples,
+      { id: 'aircraft-2', truth: 'reject', subject: 'aircraft', predictedSubject: 'unknown', suggestion: 'review' },
+    ]);
+    expect(mixed.aircraftCount).toBe(2);
+    expect(mixed.aircraftClassified).toBe(1);
+    expect(mixed.aircraftAbstained).toBe(1);
+    expect(mixed.aircraftClassificationCoverage).toBe(0.5);
+    expect(mixed.aircraftConditionalAccuracy).toBe(1);
+    expect(passesCullSafetyGate(mixed, 5)).toBe(true);
+    expect(passesCullSafetyGate(mixed, 5, 0, 0.5, 0.75)).toBe(false);
+    expect(passesCullSafetyGate({ ...mixed, aircraftClassificationCoverage: 1 }, 5)).toBe(false);
+    expect(passesCullSafetyGate({ ...mixed, aircraftCorrectlyClassified: 2 }, 5)).toBe(false);
+  });
+  it('rejects whitespace variants and noncanonical IDs before joining labels to predictions', () => {
+    const collision = evaluateCullGroundTruth([
+      ...samples, { ...samples[0], id: ' osprey-1 ' },
+    ]);
+    expect(collision.invalid).toBe(2);
+    expect(passesCullSafetyGate(collision, 3)).toBe(false);
+    const whitespace = evaluateCullGroundTruth([{ ...samples[0], id: ' bird-2 ' }]);
+    expect(whitespace.invalid).toBe(1);
   });
   it('rejects corrupt fixtures and empty denominators', () => {
     const result = evaluateCullGroundTruth([{ ...samples[0], id: '' }, { ...samples[0], suggestion: 'maybe' as never }]);
