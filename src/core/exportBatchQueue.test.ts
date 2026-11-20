@@ -39,8 +39,9 @@ test('multiple exports run sequentially, not concurrently', async () => {
   assert.deepEqual(steps, ['render one.jpg', 'save one.jpg', 'render two.jpg', 'save two.jpg']);
 });
 
-test('cancelled queued export cannot render or write', async () => {
-  const queue = createExportBatchQueue(createTaskStore());
+test('stopping a queued export settles immediately without rendering or writing', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
   let release!: () => void;
   const blocked = new Promise<void>((resolve) => { release = resolve; });
   const first = queue.enqueue({ title: 'First', items: [photos[0]], recipe: {} }, {
@@ -50,10 +51,12 @@ test('cancelled queued export cannot render or write', async () => {
   const second = queue.enqueue({ title: 'Second', items: [photos[1]], recipe: {} }, {
     async render() { touched = true; return 'second'; }, async save() { touched = true; },
   });
-  assert.equal(second.cancel(), true);
-  release();
+  assert.equal(store.cancel(store.list()[1].id), true);
+  try {
+    assert.equal(await Promise.race([second.done, tick()]), 'cancelled');
+    assert.equal(second.cancel(), false);
+  } finally { release(); }
   assert.equal(await first.done, 'completed');
-  assert.equal(await second.done, 'cancelled');
   assert.equal(touched, false);
 });
 
