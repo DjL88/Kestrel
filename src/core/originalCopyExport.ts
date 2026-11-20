@@ -13,7 +13,7 @@ export const BROWSER_ORIGINAL_ZIP_LIMIT = 128_000_000;
 export function originalCopyFilename(filename: string): string {
   if (typeof filename !== 'string' || !filename.trim() || filename === '.' || filename === '..')
     throw new Error('The original has no safe filename.');
-  const name = safeExportName(filename).replace(/[. ]+$/, '');
+  const name = safeExportName(filename).replace(/^[.\-]+/, '').replace(/[. ]+$/, '');
   const dot = name.lastIndexOf('.');
   const stem = dot > 0 ? name.slice(0, dot) : name;
   if (!name || !stem || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(stem))
