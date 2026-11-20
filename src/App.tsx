@@ -700,7 +700,9 @@ export default function App() {
     setSelectedIds(new Set(ids));
     setPrefs((prev) => ({ ...prev, showFilmstrip: true, focusMode: false }));
   };
-  const leaveEditor = () => { flushLinkedEdit(); setEditing(false); setEditQueueIds(null); setEditTogether(false); setMultiSelect(false); setSelectedIds(new Set()); };
+  // Editing is another view onto the same selection, not a destructive navigation.
+  // Keep review marks and selected photo IDs when returning to Library/Review.
+  const leaveEditor = () => { flushLinkedEdit(); setEditing(false); setEditQueueIds(null); setEditTogether(false); };
 
   const pasteToSelection = () => {
     if (!copiedEdit || !selectedVisibleFrames.length) return;
@@ -1378,7 +1380,13 @@ export default function App() {
         }
       }
       if (editing) {
-        if (!isModalOpen && e.key === 'Escape') { setEditing(false); setEditQueueIds(null); setMultiSelect(false); setSelectedIds(new Set()); }
+        if (!isModalOpen && e.key === 'Escape') {
+          flushLinkedEdit();
+          setEditing(false);
+          setEditQueueIds(null);
+          setEditTogether(false);
+          // Keyboard Back and the visible Back button must preserve the same review selection.
+        }
         return;
       }
       const isSuppressed = isModalOpen || isEditableElement(e.target) ||
@@ -1945,6 +1953,7 @@ export default function App() {
       ) : <TopWorkspaceBar
         status={<TaskManager inline />}
         settingsButton={<SettingsButton open={settingsOpen} onOpen={() => setSettingsOpen(true)} />}
+        onOpenSettings={() => setSettingsOpen(true)}
         shoot={cullingState.shoot}
         counts={counts}
         filter={cullingState.filter}
