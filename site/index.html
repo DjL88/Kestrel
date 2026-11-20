@@ -43,6 +43,17 @@
     .compare-frame{display:grid;background:var(--canvas);border-radius:8px;overflow:hidden}
     .compare-frame img{grid-area:1/1;width:100%;height:auto;visibility:hidden}
     #edit-before:checked~.compare-frame .before,#edit-after:checked~.compare-frame .after{visibility:visible}
+    .contact-form{display:grid;gap:14px;max-width:560px}
+    .contact-field{display:grid;gap:5px;font-weight:600}
+    .contact-field input,.contact-field textarea{width:100%;padding:10px 12px;border:1px solid #5e6270;border-radius:8px;background:var(--panel);color:inherit;font:inherit}
+    .contact-field input{min-height:44px}
+    .contact-field textarea{resize:vertical}
+    .contact-form :is(input,textarea):focus-visible{outline:2px solid #9cc3db;outline-offset:3px}
+    .contact-consent{display:flex;align-items:center;min-height:44px;gap:10px}
+    .contact-consent input{flex:none;width:18px;height:18px;accent-color:var(--copper-hover)}
+    .contact-form button{justify-self:start;border:0;font:inherit;font-weight:700;cursor:pointer}
+    .contact-form button:disabled{opacity:.65;cursor:default}
+    #contact-status{min-height:1.55em;margin:0;color:#d3d9e5}
     footer{padding:30px 0;border-top:1px solid #343946;color:#bfc6d2}
     @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
   </style>
@@ -50,7 +61,7 @@
 <body>
 <header><div class="wrap bar">
   <a class="brand" href="#top" aria-label="Kestrel home"><img class="mark" src="assets/kestrel-symbol.svg" alt="" width="46" height="39">Kestrel</a>
-  <nav aria-label="Main navigation"><a href="#downloads">Downloads</a><a href="#install">Install</a><a href="#pricing">Pricing</a><a href="#getting-started">Getting started</a><a href="#privacy">Privacy</a><a href="https://github.com/DjL88/Kestrel">Source</a></nav>
+  <nav aria-label="Main navigation"><a href="#downloads">Downloads</a><a href="#install">Install</a><a href="#pricing">Pricing</a><a href="#getting-started">Getting started</a><a href="#privacy">Privacy</a><a href="#contact">Contact</a><a href="https://github.com/DjL88/Kestrel">Source</a></nav>
 </div></header>
 <main id="top" class="wrap">
   <h1>More time behind the camera.</h1>
@@ -127,6 +138,19 @@
     <h2 id="privacy-title">Your photographs remain yours</h2>
     <p class="lead">Kestrel is local-first. Import, cull and edit without an account. Optional online analysis or future cloud features must be turned on deliberately. Your originals are not silently uploaded.</p>
     <p><a href="https://github.com/DjL88/Kestrel/blob/main/README.md">Read the project documentation</a></p>
+  </section>
+  <section id="contact" aria-labelledby="contact-title">
+    <h2 id="contact-title">Contact Kestrel</h2>
+    <form id="contact-form" class="contact-form" action="/v1/contact" method="post">
+      <label class="contact-field">Name<input name="name" autocomplete="name" maxlength="100" required></label>
+      <label class="contact-field">Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
+      <label class="contact-field">Message<textarea name="message" rows="5" maxlength="5000" required></textarea></label>
+      <label hidden>Leave this empty<input name="website" maxlength="200" autocomplete="off" tabindex="-1"></label>
+      <label class="contact-consent"><input name="consent" type="checkbox" required>Kestrel may store my email and message to reply.</label>
+      <button class="cta" type="submit" disabled>Send message</button>
+      <p id="contact-status" role="status"></p>
+    </form>
+    <noscript><p class="muted">Enable JavaScript to send a message.</p></noscript>
   </section>
 </main>
 <footer><div class="wrap">Kestrel · Pre-release · <a href="https://github.com/DjL88/Kestrel/issues">Report an issue</a></div></footer>
@@ -208,5 +232,6 @@
     }
   })();
 </script>
+<script src="assets/contact.js" defer></script>
 </body>
 </html>
