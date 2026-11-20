@@ -342,6 +342,18 @@ export const fi: AreaTranslation<typeof source> = {
     eye: 'Silmä',
     eyeBusy: 'Silmä…',
   },
+  floatingPane: {
+    undockTools: "Irrota muokkaustyökalut telakasta",
+    undockToolsHelp: "Siirrä työkalut koon mukaan säädettävään ikkunaan",
+    undockInfo: "Irrota kuvan tiedot telakasta",
+    undockInfoHelp: "Siirrä kuvan tiedot koon mukaan säädettävään ikkunaan",
+    move: (title) => `Siirrä ${title} nuolinäppäimillä`,
+    drag: (title) => `Vedä siirtääksesi kohdetta ${title}, tai käytä nuolinäppäimiä`,
+    restore: (title) => `Palauta paneelin ${title} koko`,
+    maximise: (title) => `Suurenna paneeli ${title}`,
+    pin: (title) => `Pidä ${title} näkyvissä Vain kuva -tilassa`,
+    dock: (title) => `Telakoi ${title}`,
+  },
   paneRail: {
     editingTools: 'Muokkaustyökalut',
     photoInfo: 'Kuvan tiedot',
