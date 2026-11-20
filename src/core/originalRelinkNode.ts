@@ -99,7 +99,15 @@ export async function verifyDesktopRelinkFiles(
       failures.push({ photoId: file.photoId, reason: signal?.aborted ? 'relink-cancelled' : 'candidate-unreadable-or-changed' });
     }
   }
+  // Cancellation can arrive after the last streamed file (or while validating
+  // its final path). Never publish a seemingly complete plan after that point.
+  if (signal?.aborted) {
+    return { ok: false, failures: [{ photoId: files.at(-1)?.photoId ?? '', reason: 'relink-cancelled' }] };
+  }
   const plan = planVerifiedRelinks(originals, candidates);
+  if (signal?.aborted) {
+    return { ok: false, failures: [{ photoId: files.at(-1)?.photoId ?? '', reason: 'relink-cancelled' }] };
+  }
   if (!failures.length) return plan;
   return {
     ok: false,
