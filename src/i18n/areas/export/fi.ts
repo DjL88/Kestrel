@@ -6,7 +6,7 @@ import type { source } from './source';
 export const fi: AreaTranslation<typeof source> = {
   metadata: {
     title: "Tiedoston metatiedot (valinnainen)",
-    include: "Sisällytä muokattavat metatiedot JPEG- / PNG-tiedostoon",
+    include: "Sisällytä muokattavat metatiedot JPEG-, PNG- ja TIFF-tiedostoon",
     privacy: "Oletusarvoisesti pois päältä. Alkuperäisiä EXIF-, GPS-, sarjanumero- tai sijaintitietoja ei kopioida. Vain valitsemasi tiedot tallennetaan XMP-muodossa.",
     photoTitle: "Kuvan otsikko / aihe",
     perPhoto: "Jokaisessa kuvassa käytetään vahvistettua aihetta, ellet anna yhteistä otsikkoa.",
