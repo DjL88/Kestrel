@@ -1023,14 +1023,14 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         document.getElementById(`tab-${next}`)?.focus();
       }}>
       {visibleTabs.map(({ id, label, Icon }) => (
-        <button key={id} id={`tab-${id}`} role="tab" type="button" aria-selected={tab === id} aria-controls={`panel-${id}`} tabIndex={tab === id ? 0 : -1}
+        <button key={id} id={`tab-${id}`} role="tab" type="button" aria-label={label} title={label} aria-selected={tab === id} aria-controls={`panel-${id}`} tabIndex={tab === id ? 0 : -1}
           aria-expanded={isPhone ? sheetOpen && tab === id : undefined}
           onClick={() => chooseTab(id)}
           className={isPhone
-            ? 'relative flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs text-zinc-300 focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:text-white aria-selected:after:absolute aria-selected:after:top-0 aria-selected:after:h-0.5 aria-selected:after:w-10 aria-selected:after:bg-sky-200'
+            ? 'relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 overflow-hidden px-0.5 text-xs text-zinc-300 focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:text-white aria-selected:after:absolute aria-selected:after:top-0 aria-selected:after:h-0.5 aria-selected:after:w-10 aria-selected:after:bg-sky-200'
             : 'flex min-h-14 flex-1 shrink-0 flex-col items-center justify-center gap-1 border-b-2 border-transparent px-2 text-xs text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:border-sky-200 aria-selected:text-white'}>
           <Icon className="h-5 w-5" aria-hidden="true" />
-          <span>{label}{id === 'masks' && edit.masks?.length ? <span className="ml-1 text-xs tabular-nums text-zinc-400">{edit.masks.length}</span> : null}</span>
+          <span className="w-full truncate text-center max-[420px]:sr-only">{label}{id === 'masks' && edit.masks?.length ? <span className="ml-1 text-xs tabular-nums text-zinc-400">{edit.masks.length}</span> : null}</span>
         </button>
       ))}
     </div>
@@ -1052,8 +1052,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
             title={t.editor.compareTitle}
             className={`${button} inline-flex items-center gap-1.5 border border-white/15 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/20 aria-pressed:text-sky-100`}>
             <Columns2 className="h-4 w-4" aria-hidden="true" />
-            <span>{t.editor.beforeAfter}</span>
-            <span className="rounded bg-black/40 px-1.5 text-xs">{displayCompare ? t.editor.on : t.editor.off}</span>
+            <span className="max-[420px]:sr-only">{t.editor.beforeAfter}</span>
+            <span className="rounded bg-black/40 px-1.5 text-xs max-[420px]:sr-only">{displayCompare ? t.editor.on : t.editor.off}</span>
           </button>
           {displayCompare && (
             <label className="min-w-0">
@@ -1104,7 +1104,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
 
         </div>
       </div>}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden workspace:flex-row">
+      <div data-testid="editor-responsive-layout" className="kestrel-editor-main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden workspace:flex-row">
       <div ref={stage} data-photo-stage tabIndex={0} aria-label={t.editor.canvas} className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black focus-visible:outline-2 focus-visible:outline-sky-300">
         <PhotoViewport zoom={transform.zoom} pan={transform.pan} maxZoom={maxZoom} showZoomButton={false}
           onTransform={(zoom, pan) => setTransform({ zoom, pan })}
