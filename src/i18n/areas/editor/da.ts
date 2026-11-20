@@ -339,6 +339,7 @@ export const da: AreaTranslation<typeof source> = {
     apply: 'Anvend beskæring',
     help: 'Træk hen over billedet for at tegne en beskæring, eller træk i hjørnerne, kanterne eller midten. Vælg en form nedenfor for at beholde den, mens du trækker. Ændringer gemmes løbende. Anvend vender tilbage til redigeringen med beskæringen på plads, og Annuller sætter den beskæring tilbage, du startede med.',
     autoCopy: 'Automatisk beskåret kopi',
+    autoCrop: "Beskær automatisk",
     rotate: 'Drej 90°',
     autoLevel: 'Ret automatisk op',
     reset: 'Nulstil',

@@ -339,6 +339,7 @@ export const fr: AreaTranslation<typeof source> = {
     apply: 'Appliquer le recadrage',
     help: 'Faites glisser sur la photo pour tracer un recadrage, ou faites glisser ses coins, ses bords ou son centre. Choisissez une forme ci-dessous pour la garder pendant que vous faites glisser. Les changements sont enregistrés au fur et à mesure. Appliquer revient à la retouche avec le recadrage en place, et Annuler remet le recadrage de départ.',
     autoCopy: 'Copie recadrée auto',
+    autoCrop: "Recadrer automatiquement",
     rotate: 'Pivoter de 90°',
     autoLevel: 'Redresser auto',
     reset: 'Réinitialiser',

@@ -339,6 +339,7 @@ export const de: AreaTranslation<typeof source> = {
     apply: 'Zuschnitt anwenden',
     help: 'Ziehen Sie über das Foto, um einen Zuschnitt zu zeichnen, oder ziehen Sie an seinen Ecken, Kanten oder seiner Mitte. Wählen Sie unten eine Form, damit sie beim Ziehen erhalten bleibt. Änderungen werden laufend gespeichert. Anwenden kehrt mit dem Zuschnitt zur Bearbeitung zurück, und Abbrechen stellt den Zuschnitt vom Anfang wieder her.',
     autoCopy: 'Automatisch zugeschnittene Kopie',
+    autoCrop: "Automatisch zuschneiden",
     rotate: 'Um 90° drehen',
     autoLevel: 'Automatisch begradigen',
     reset: 'Zurücksetzen',

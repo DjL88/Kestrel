@@ -339,6 +339,7 @@ export const pt: AreaTranslation<typeof source> = {
     apply: 'Aplicar o recorte',
     help: 'Arraste sobre a fotografia para desenhar um recorte, ou arraste os cantos, as margens ou o centro. Escolha uma forma abaixo para a manter enquanto arrasta. As alterações são guardadas à medida que avança. Aplicar volta à edição com o recorte feito, e Cancelar repõe o recorte com que começou.',
     autoCopy: 'Cópia recortada automática',
+    autoCrop: "Recortar automaticamente",
     rotate: 'Rodar 90°',
     autoLevel: 'Nivelar automaticamente',
     reset: 'Repor',
