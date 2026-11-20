@@ -154,7 +154,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       const format = formatById(id);
       if (!format) return [];
       const edit = overrides[id];
-      const made = { ...format, fit: format.id === 'master' || format.id === 'before-after' ? format.fit : fits[id] ?? format.fit, prefix: edit?.prefix ?? format.prefix, quality: edit?.quality ?? format.quality };
+      const made = { ...format, fit: format.id === 'master' || format.id === 'full-jpeg' || format.id === 'before-after' ? format.fit : fits[id] ?? format.fit, prefix: edit?.prefix ?? format.prefix, quality: edit?.quality ?? format.quality };
       return [turned[id] ? turnFormat(made) : made];
     });
     return customResult && 'format' in customResult ? [...base, customResult.format] : base;
@@ -574,7 +574,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             <span className="block text-xs text-zinc-400">{sizeName(shownFormat)}</span>
           </span>
         </label>
-        {on && format.id !== 'master' && format.id !== 'before-after' && (
+        {on && format.id !== 'master' && format.id !== 'full-jpeg' && format.id !== 'before-after' && (
           <label className="block px-2 pb-2 text-xs text-zinc-300">
             <span className="sr-only">{t.list.howItFits(formatLabel(format))}</span>
             <select className={field} value={current} aria-label={t.list.howItFits(formatLabel(format))}
@@ -1126,6 +1126,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             <fieldset disabled={progress !== null} className="min-w-0 space-y-3">
               <legend className="mb-1 text-sm font-medium text-zinc-100">{t.list.chooseFormats}</legend>
               {formatRow(formatById('master')!)}
+              {formatRow(formatById('full-jpeg')!)}
               {formatRow(formatById('before-after')!)}
               {PLATFORMS.map((platform) => {
                 const formats = EXPORT_FORMATS.filter((format) => format.platform === platform.id);
