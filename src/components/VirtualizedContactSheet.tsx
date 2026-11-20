@@ -242,7 +242,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
       data-testid="virtualized-contact-sheet"
       className="flex-1 overflow-y-auto bg-kestrel-stage relative min-w-0 min-h-0"
     >
-      {!toolsSlot && <div className="sticky top-0 z-20 flex justify-end border-b border-white/6 bg-kestrel-stage/95 px-3 py-1.5">{jumpControl}</div>}
+      {!toolsSlot && <div className="sticky top-0 z-10 flex justify-end border-b border-white/6 bg-kestrel-stage/95 px-3 py-1.5">{jumpControl}</div>}
       {toolsSlot && createPortal(jumpControl, toolsSlot)}
       <div style={{ height: totalHeight, position: 'relative' }}>
         {visibleRows.map((rowIndex) => {
