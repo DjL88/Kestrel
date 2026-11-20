@@ -15,7 +15,7 @@ interface Options {
   frames: PhotoFrame[];
   provider: BrowserPreviewProvider | null;
   /**
-   * True while a project is open and no import is running. Navigating between Library, Review
+   * True while the app has a project and no import is running. Navigating between Home, Library, Review
    * and Edit must not reset a running background job.
    */
   active: boolean;
@@ -75,6 +75,10 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
         }
         processed += 1;
         task.progress(processed, processed + queue.length - 1);
+        // Give zoom, sliders and input a chance to paint between RAW files.
+        // Unlike requestAnimationFrame/idle callbacks, a scheduled task also
+        // continues when the window is hidden or the user opens another page.
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
       }
     } finally {
       running.current = false;
@@ -85,8 +89,8 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
     }
   }, []);
 
-  // New photos give a stopped run another go. Switching between Library, Review and Edit
-  // never stops it; only closing the project, importing or explicitly cancelling does.
+  // New photos give a stopped run another go. Switching between Home, Library, Review and Edit
+  // never stops it; only switching projects, importing or explicitly cancelling does.
   // Import goes first because developing reads the full RAW rather than only its preview.
   const count = frames.length;
   useEffect(() => { stoppedFor.current = null; }, [projectId, count]);

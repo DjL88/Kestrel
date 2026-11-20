@@ -1237,7 +1237,7 @@ export default function App() {
   // camera's JPEG. Continue the queue while reviewing or editing; the selected image has its own priority.
   useBackgroundDevelop({
     projectId: cullingState.shoot.id, frames: cullingState.frames, provider: previewProviderRef.current,
-    active: !projectsOpen && !loadingProgress, onScreen: cullingState.selectedFrameId,
+    active: !loadingProgress, onScreen: cullingState.selectedFrameId,
   });
 
   const jumpPhotoHistory = (frameId: string, cursor: number) => {
@@ -2388,6 +2388,16 @@ export default function App() {
                 const chosen = new Set(ids);
                 setExportFrames(cullingState.frames.filter((frame) => chosen.has(frame.id) && !frame.removedAt));
               }}
+              onAutoAdjustSelected={(ids) => {
+                setSelectedIds(new Set(ids));
+                setMultiSelect(true);
+                setAutoAdjustSelectedOpen(true);
+              }}
+              onApplyLookSelected={(ids) => {
+                setSelectedIds(new Set(ids));
+                setMultiSelect(true);
+                setSelectionLookOpen(true);
+              }}
             />
           )}
 
@@ -2511,7 +2521,7 @@ export default function App() {
                 <button type="button" disabled={!selectedVisibleFrames.length} className="min-h-11 rounded-md px-2 text-xs text-orange-200 hover:bg-white/10 disabled:opacity-40"
                   onClick={() => setPendingAction({ kind: 'trash', frameIds: selectedVisibleFrames.map((frame) => frame.id) })}>{t.editorBar.trash}</button>
               </>}
-              <div id="viewer-zoom-slot" className="ml-auto flex shrink-0 items-center" />
+
             </div>
           )}
 
@@ -2547,7 +2557,6 @@ export default function App() {
       {/* Not in grid view, where every photo is already on screen. */}
       {!prefs.focusMode && visibleFrames.length > 0 && (editing || prefs.viewMode !== 'grid') && (
         <FilmstripDock expanded={prefs.showFilmstrip} onToggle={toggleFilmstrip}
-          onBeforeAfter={editing ? () => window.dispatchEvent(new Event('kestrel:toggle-before-after')) : undefined}
           onPhotoOnly={() => setPrefs((prev) => ({ ...prev, focusMode: true }))}>
             <Filmstrip
               onPhotoMenu={openPhotoMenu}
