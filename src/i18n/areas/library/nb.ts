@@ -9,6 +9,8 @@ const n = (count: number) => formatCount.format(count);
 /** Norwegian Bokmål. DRAFT: written without a native speaker's check. */
 export const nb: AreaTranslation<typeof source> = {
   top: {
+    xmpSidecars: "Lagre vurderinger og tagger (XMP)…",
+    xmpHelp: "Lagre vurderinger, Behold/Avvis-valg og bekreftede tagger separat fra bildene. Flere filer samles i en ZIP.",
     file: "Fil",
     viewLayout: "Vis · vis eller skjul",
     groupBursts: "Grupper eller del opp bildeserier",
