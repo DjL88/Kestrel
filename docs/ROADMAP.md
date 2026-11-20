@@ -18,6 +18,10 @@ Every status uses exactly one of these labels:
 
 *Last reconciled: 18 November 2026, after the integration pass that merged #353–#361 and #364 and closed #362 and #363.*
 
+### 20 November 2026 — consistent opt-in metadata for 16-bit TIFF (implementation)
+
+**Code authored, acceptance NOT RUN.** The main Export panel's privacy-first metadata controls from #604 now also feed the existing high-precision RAW-to-TIFF renderer. This reuses one per-photo XMP builder for JPEG, PNG and experimental 16-bit TIFF; metadata is off by default, confirmed subjects are eligible, rejected/unconfirmed AI guesses are omitted, and camera serial numbers, GPS and original EXIF are never silently copied. TIFF metadata writes do not resample 16-bit pixels or alter the embedded ICC data. English and full locale labels mention TIFF accurately. Regression coverage checks opting out and TIFF sample/ICC preservation, but is **NOT RUN** in this session. The older editor-only quick TIFF action remains a separate entry that saves without optional XMP; use the main Export panel when choosing file metadata. This integration does **not** finish colour fidelity, HE/HE* coverage, masked detail equivalence or prototype installation checks.
+
 ### 20 November 2026 — export-source truthfulness guard (code merged only when reviewed)
 
 The manual Export/ZIP path and the connected-background path now use the same RAW master gate. A full-size PNG made from an 8-bit RAW preview is **not** a validated sensor-quality RAW master, even if the source was developed for display. For real RAW input, the standard *master* choice reports why it is unavailable; smaller named web/social outputs and ordinary raster masters remain available. No file is written and no free export allowance is reserved by the rejected manual request. This closes one inconsistent route, **not** the P0 Nikon HE/HE* ICC/16-bit export acceptance gate. Automated regression tests have been added but **NOT RUN** from this session; installed Mac/Windows/browser/mobile and real-photo fidelity remain **NOT RUN**.
