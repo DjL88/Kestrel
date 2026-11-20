@@ -218,7 +218,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [previewRecipe, setPreviewRecipe] = useState<{ edit?: PhotoEdit; framing?: PhotoFraming } | null>(null);
   const cropEntry = useRef<PhotoFraming | null>(null);
   const panelScroll = useRef<HTMLDivElement>(null);
-  const isPhone = useMediaQuery('(max-width: 899px), (max-height: 549px)');
+  const isPhone = !useMediaQuery('(min-width: 900px) and (min-height: 550px), (min-width: 840px) and (min-height: 440px) and (max-height: 549px)');
   const [undockedTools, setUndockedTools] = useState(() => {
     try { return window.localStorage.getItem('kestrel-tools-undocked-v1') === 'true'; } catch { return false; }
   });

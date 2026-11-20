@@ -87,6 +87,14 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
     return layout ? getComputedStyle(layout).flexDirection : 'missing';
   });
   expect(await editLayout()).toBe('column');
+  await page.setViewportSize({ width: 860, height: 480 });
+  await expect.poll(editLayout).toBe('row');
+  await checkViewport('Wide short landscape editor');
+  await page.setViewportSize({ width: 839, height: 480 });
+  await expect.poll(editLayout).toBe('column');
+  await checkViewport('Narrow short landscape editor');
+  await page.setViewportSize({ width: 667, height: 375 });
+  await expect.poll(editLayout).toBe('column');
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
   await page.setViewportSize({ width: 320, height: 568 });
   await checkViewport('Editor small phone');
