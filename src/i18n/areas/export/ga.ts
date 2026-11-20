@@ -52,6 +52,7 @@ export const ga: AreaTranslation<typeof source> = {
     saveFailed: "Níorbh fhéidir réamhshocruithe a shábháil ar an ngléas seo.",
     standardOnly: "Sábhálann réamhshocruithe formáidí caighdeánacha.",
   },
+  comparison: { before: "Roimh", after: "Ina dhiaidh" },
   proof: {
     title: "Profa easpórtála",
     photo: "Grianghraf",
@@ -76,6 +77,7 @@ export const ga: AreaTranslation<typeof source> = {
     blur: 'Cóip dhoiléir den ghrianghraf',
   },
   formats: {
+    beforeAfter: "Roimh agus ina dhiaidh · taobh le taobh",
     fullSize: 'Lánmhéid',
     customSize: 'Méid shaincheaptha',
     master: 'Lánmhéid · PNG',
