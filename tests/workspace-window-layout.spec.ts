@@ -104,6 +104,8 @@ test('View menu can independently hide, show, undock and dock editing tabs', asy
   await controls.getByRole('button', { name: 'Show Crop' }).click();
   await expect(page.getByRole('tab', { name: 'Crop' })).toBeVisible();
 
+  await controls.getByRole('button', { name: 'Hide Auto' }).click();
+  // Undocking a hidden tab should reopen it rather than creating an invisible pane.
   await controls.getByRole('button', { name: 'Undock Auto' }).click();
   const floating = page.locator('[data-floating-pane="kestrel-tab-float-auto-v1"]');
   await expect(floating).toBeVisible();
