@@ -9,6 +9,15 @@ const n = (count: number) => formatCount.format(count);
 /** European Portuguese. DRAFT: written without a native speaker's check. */
 export const pt: AreaTranslation<typeof source> = {
   top: {
+    file: "Ficheiro",
+    viewLayout: "Ver · mostrar ou ocultar",
+    groupBursts: "Agrupar ou separar sequências",
+    showFilmstrip: "Mostrar tira de fotografias",
+    panelPosition: "Posição dos painéis",
+    panels: "Painéis",
+    left: "Esquerda",
+    right: "Direita",
+
     backToProjects: 'Voltar aos projetos',
     projects: 'Projetos',
     photoCount: (count) => plural(count, { one: `${count} foto`, other: `${count} fotos` }),
