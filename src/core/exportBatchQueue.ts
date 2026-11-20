@@ -26,7 +26,7 @@ export interface ExportBatchTicket {
   readonly done: Promise<ExportBatchResult>;
   cancel(): boolean;
 }
-export type ExportTaskStore = Pick<typeof tasks, 'start'>;
+export type ExportTaskStore = Pick<typeof tasks, 'start' | 'cancel'>;
 const invalid = /[\\/:*?"<>|\u0000-\u001f]/;
 
 export function exportFolderName(value: string): string {
@@ -87,6 +87,7 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
       const cancel = () => {
         if (finished || controller.signal.aborted) return false;
         controller.abort();
+        if (handle) taskStore.cancel(handle.id);
         return true;
       };
       handle = taskStore.start(plan.title, { total: items.length, cancel });
@@ -113,8 +114,11 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
             resolveDone('completed');
           }
         } catch (error) {
-          handle?.fail(error instanceof Error ? error.message : 'Could not save the export.');
-          resolveDone('failed');
+          if (controller.signal.aborted || handle?.cancelled) resolveDone('cancelled');
+          else {
+            handle?.fail(error instanceof Error ? error.message : 'Could not save the export.');
+            resolveDone('failed');
+          }
         } finally { finished = true; }
       }});
       drain();
