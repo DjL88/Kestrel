@@ -13,9 +13,14 @@ export const BROWSER_ORIGINAL_ZIP_LIMIT = 128_000_000;
 export function originalCopyFilename(filename: string): string {
   if (typeof filename !== 'string' || !filename.trim() || filename === '.' || filename === '..')
     throw new Error('The original has no safe filename.');
-  const name = safeExportName(filename).replace(/^[.\-]+/, '').replace(/[. ]+$/, '');
-  const dot = name.lastIndexOf('.');
-  const stem = dot > 0 ? name.slice(0, dot) : name;
+  // Truncate the stem, not the camera extension: a long name must remain an
+  // openable .NEF/.HEIC/.JPG file after it is saved.
+  const dot = filename.lastIndexOf('.');
+  const ext = dot > 0 ? filename.slice(dot).replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-') : '';
+  const sourceStem = dot > 0 ? filename.slice(0, dot) : filename;
+  const stem = safeExportName(sourceStem).replace(/^[.\-]+/, '').replace(/[. ]+$/, '')
+    .slice(0, Math.max(1, 150 - ext.length));
+  const name = stem + ext;
   if (!name || !stem || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(stem))
     throw new Error('The original has a reserved filename. Rename its export copy before saving.');
   return name;
