@@ -1,14 +1,3 @@
-import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-
-// This project runs tests with node:test (see package.json); these are the only matchers the file needs.
-const expect = (actual: unknown) => ({
-  toBe: (expected: unknown) => assert.equal(actual, expected),
-  toBeNull: () => assert.equal(actual, null),
-  toMatchObject: (expected: Record<string, unknown>) => {
-    for (const [key, value] of Object.entries(expected)) assert.deepEqual((actual as Record<string, unknown>)[key], value, key);
-  },
-});
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateCullGroundTruth, passesCullSafetyGate, type LabelledCullFrame } from './cullGroundTruth';

@@ -18,8 +18,6 @@ import { Histogram } from './Histogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
 import { applyFix, critique, toneOnlyEdit, type Opinion, type OpinionFigures } from '../core/critique';
-import { fullContext } from '../core/masks';
-import { applyFix, critique, toneOnlyEdit, type Opinion } from '../core/critique';
 import { fullContext, maskAlpha } from '../core/masks';
 import { ColourCheckPanel, type ColourPreview } from './ColourCheckPanel';
 import { MaskOverlay } from './MaskOverlay';
@@ -1282,10 +1280,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         window.clearTimeout(sliderTimer.current);
         sliderTimer.current = window.setTimeout(() => setSliderBusy(false), 700);
       }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={`${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
-        {!isPhone && <div className="sticky top-0 z-10 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
-          {onFoldTools && <button type="button" onClick={onFoldTools} aria-label={t.editor.fold} title={t.editor.foldTitle}
         {!isPhone && <div className="sticky top-0 z-20 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
-          {onFoldTools && <button type="button" onClick={onFoldTools} aria-label="Fold editing tools" title="Fold the panels away for a bigger photo (Tab)"
+          {onFoldTools && <button type="button" onClick={onFoldTools} aria-label={t.editor.fold} title={t.editor.foldTitle}
             className={`grid w-9 shrink-0 place-items-center border-b border-white/10 text-zinc-400 hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 ${panelSide === 'left' ? 'order-last' : ''}`}>
             {panelSide === 'left' ? <ChevronLeft className="h-5 w-5" aria-hidden="true" /> : <ChevronRight className="h-5 w-5" aria-hidden="true" />}
           </button>}
@@ -1608,36 +1604,17 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
                 <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 h-4 w-4 shrink-0 stroke-[1.75] text-zinc-300" />
               </span>
             </label>
-            <label className="block px-1 pb-1">
-              <span className="flex items-center justify-between text-xs text-zinc-300"><span>{t.crop.size}</span>
-                <output className="tabular-nums text-zinc-400">{Math.round((framing.size ?? 1) * 100)}%</output></span>
-              <input type="range" min={MIN_CROP_SIZE} max={1} step={0.01} value={framing.size ?? 1} aria-label={t.crop.size}
-                onChange={(event) => size && onFramingChange({ ...framing, ratio: framing.ratio ?? size.width / size.height, size: event.target.valueAsNumber })}
-                onDoubleClick={() => onFramingChange({ ...framing, size: undefined })}
-                className="block min-h-9 w-full accent-sky-300 desk:min-h-7" />
-            </label>
-            <label className="block text-xs">{t.crop.straighten} <output>{framing.straighten.toFixed(1)}°</output>
-              <input type="range" min={-12} max={12} step={0.1} value={framing.straighten}
-                onChange={(event) => onFramingChange({ ...framing, straighten: event.target.valueAsNumber })}
-                className="block min-h-10 w-full accent-sky-300" />
-            </label>
-            {framing.ratio && (['x', 'y'] as const).map((axis) => (
-              <label key={axis} className="block text-xs">{axis === 'x' ? t.crop.horizontal : t.crop.vertical}
-                <input type="range" min={0} max={1} step={0.01} value={framing[axis]}
-                  onChange={(event) => onFramingChange({ ...framing, [axis]: event.target.valueAsNumber })}
-                  className="block min-h-10 w-full accent-sky-300" />
-              </label>
-            <AdjustmentSlider label="Crop size" min={MIN_CROP_SIZE} max={1} step={0.01}
+            <AdjustmentSlider label={t.crop.size} min={MIN_CROP_SIZE} max={1} step={0.01}
               value={framing.size ?? 1} neutral={1} displayValue={`${Math.round((framing.size ?? 1) * 100)}%`}
               disabled={!size} onChange={(value) => size && onFramingChange({
                 ...framing, ratio: framing.ratio ?? size.width / size.height, size: value,
               })} />
-            <AdjustmentSlider label="Straighten" min={-12} max={12} step={0.1}
+            <AdjustmentSlider label={t.crop.straighten} min={-12} max={12} step={0.1}
               value={framing.straighten} displayValue={`${framing.straighten.toFixed(1)}°`}
               onChange={(value) => onFramingChange({ ...framing, straighten: value })} />
             {framing.ratio && (['x', 'y'] as const).map((axis) => (
               <AdjustmentSlider key={axis}
-                label={axis === 'x' ? 'Horizontal crop position' : 'Vertical crop position'}
+                label={axis === 'x' ? t.crop.horizontal : t.crop.vertical}
                 min={0} max={1} step={0.01} neutral={0.5}
                 value={framing[axis]} displayValue={`${Math.round(framing[axis] * 100)}%`}
                 onChange={(value) => onFramingChange({ ...framing, [axis]: value })} />
