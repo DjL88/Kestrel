@@ -182,6 +182,9 @@ export const nl: AreaTranslation<typeof source> = {
     placeholder: '© Uw naam',
     pictureChosen: 'Afbeelding gekozen. Kies een andere om deze te vervangen.',
     pictureTooBig: 'Kies een afbeelding kleiner dan 3 MB, liefst een PNG met een doorzichtige achtergrond.',
+    pictureMissing: "Deze watermerkafbeelding staat niet op dit apparaat. Kies de afbeelding opnieuw voordat je exporteert.",
+    storageFailed: "Kon deze afbeelding niet privé opslaan op dit apparaat. Je vorige watermerk is niet gewijzigd.",
+    localOnly: "Afbeeldingswatermerken blijven op dit apparaat. Een voorinstelling bewaart alleen een lokale verwijzing, niet de afbeelding.",
     position: 'Positie',
     positions: {
       topLeft: 'Linksboven',

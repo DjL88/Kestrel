@@ -183,6 +183,9 @@ export const source = {
     placeholder: '© Your name',
     pictureChosen: 'Picture chosen. Choose another to replace it.',
     pictureTooBig: 'Choose a picture under 3 MB, ideally a PNG with a clear background.',
+    pictureMissing: 'This watermark picture is not available on this device. Choose it again before exporting.',
+    storageFailed: 'Could not save this picture privately on this device. Your earlier watermark is unchanged.',
+    localOnly: 'Picture watermarks stay on this device. A preset keeps only a local reference, not the image itself.',
     position: 'Position',
     positions: {
       topLeft: 'Top left',

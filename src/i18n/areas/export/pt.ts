@@ -182,6 +182,9 @@ export const pt: AreaTranslation<typeof source> = {
     placeholder: '© O seu nome',
     pictureChosen: 'Imagem escolhida. Escolha outra para a substituir.',
     pictureTooBig: 'Escolha uma imagem com menos de 3 MB, de preferência um PNG com fundo transparente.',
+    pictureMissing: "Esta imagem de marca de água não está disponível neste dispositivo. Escolha-a novamente antes de exportar.",
+    storageFailed: "Não foi possível guardar esta imagem de forma privada neste dispositivo. A marca de água anterior não foi alterada.",
+    localOnly: "As marcas de água de imagem ficam neste dispositivo. Uma predefinição guarda apenas uma referência local, não a imagem.",
     position: 'Posição',
     positions: {
       topLeft: 'Em cima à esquerda',

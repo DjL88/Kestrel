@@ -136,7 +136,8 @@ export function customFormat(input: CustomSize): { format: ExportFormat } | { er
   if (!Number.isFinite(input.quality) || input.quality < 50 || input.quality > 100) return { error: 'JPEG quality must be between 50 and 100.' };
   return { format: {
     id: 'custom', label: `Custom · ${width} × ${height}`, width, height, fit: input.fit, format: input.format,
-    quality: input.format === 'png' ? 1 : input.quality / 100, allowUpscale: input.allowUpscale === true,
+    quality: input.format === 'png' ? 1 : input.quality / 100,
+    ...(input.allowUpscale === true ? { allowUpscale: true } : {}),
     prefix: input.prefix.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 24),
   } };
 }

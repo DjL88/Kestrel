@@ -48,6 +48,12 @@ A first-class **Before and after · side by side** destination is available besi
 
 **Acceptance still NOT RUN:** exact-commit typecheck/lint/unit/build, actual before/after proof pixel parity, Mac/Windows/iOS/Android browse and export, unknown subject, 500-photo batch, colour/profile and RAW/Nikon image fidelity. One more implementation slice is not evidence that all unrelated roadmap features are complete.
 
+### 20 November 2026 — private local image-watermark asset vault (code under review)
+
+Image watermark originals are stored as validated PNG/JPEG/WebP blobs (up to 3 MB) in a **private device-local IndexedDB asset store**, addressed and checked by SHA-256. Export settings and saved presets retain only the asset fingerprint and presentation controls, not full image bytes. On Export opening or preset recall, Kestrel resolves the asset into a transient, in-memory renderer data URL for the existing live proof and batch export; no cloud API, upload, or project backup is involved. New selections are persisted before activating. Historic inline marks are migrated locally before overwriting the old preference, and legacy inline presets migrate when next saved. Invalid, absent, altered or unavailable saved artwork **blocks export** instead of silently omitting a requested mark. The user is told that device-specific artwork must be chosen again on another device. Encrypted operating-system key storage for third-party API credentials is a separate P0 gap and is **not** supplied by this watermark vault.
+
+**Tests authored, NOT RUN:** content-digest deduplication and read-back integrity, invalid/missing/script sources, legacy data conversion, preset privacy, and stored custom upscale. Release gates still need TypeScript/lint/full suite, export proof/output pixel comparison, browser IndexedDB migration, Tauri WebViews, Windows/Mac/iOS/Android, storage quota/device failures, 500-photo queue and restart. This is not a claim that the wider roadmap has reached testing-only status.
+
 ## 1. Where Kestrel is today
 
 | Area | Status | Evidence and gaps |

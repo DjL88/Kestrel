@@ -4,8 +4,10 @@ export interface WatermarkOptions {
   on: boolean;
   kind: 'text' | 'image';
   text: string;
-  /** A PNG or other picture, kept as a data address so it travels with the settings. */
+  /** Resolved in memory for the preview/export renderer; never persist in presets. */
   imageData?: string;
+  /** Private local asset fingerprint, not a network URL or portable image. */
+  imageAssetId?: string;
   position: WatermarkPosition;
   /** Share of the picture's short side, 0.04 to 0.5. For an image this is the width as a share of the long side. */
   size: number;

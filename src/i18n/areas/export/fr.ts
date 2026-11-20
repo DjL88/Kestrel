@@ -182,6 +182,9 @@ export const fr: AreaTranslation<typeof source> = {
     placeholder: '© Votre nom',
     pictureChosen: 'Image choisie. Choisissez-en une autre pour la remplacer.',
     pictureTooBig: 'Choisissez une image de moins de 3 Mo, idéalement un PNG à fond transparent.',
+    pictureMissing: "Cette image de filigrane est introuvable sur cet appareil. Choisissez-la de nouveau avant d’exporter.",
+    storageFailed: "Impossible d’enregistrer cette image dans le stockage privé de cet appareil. Le filigrane précédent est inchangé.",
+    localOnly: "Les images de filigrane restent sur cet appareil. Un préréglage conserve une référence locale, pas l’image.",
     position: 'Position',
     positions: {
       topLeft: 'En haut à gauche',

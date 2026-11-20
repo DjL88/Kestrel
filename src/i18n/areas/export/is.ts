@@ -182,6 +182,9 @@ export const is: AreaTranslation<typeof source> = {
     placeholder: '© Nafnið þitt',
     pictureChosen: 'Mynd valin. Veldu aðra til að skipta henni út.',
     pictureTooBig: 'Veldu mynd undir 3 MB, helst PNG með gegnsæjum bakgrunni.',
+    pictureMissing: "Þessi vatnsmerkismynd er ekki tiltæk á tækinu. Veldu hana aftur áður en þú flytur út.",
+    storageFailed: "Ekki tókst að vista þessa mynd á öruggan hátt á tækinu. Fyrra vatnsmerkið er óbreytt.",
+    localOnly: "Myndvatnsmerki eru aðeins geymd á þessu tæki. Forstilling geymir staðbundna tilvísun en ekki myndina.",
     position: 'Staðsetning',
     positions: {
       topLeft: 'Efst til vinstri',

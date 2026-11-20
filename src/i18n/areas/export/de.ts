@@ -182,6 +182,9 @@ export const de: AreaTranslation<typeof source> = {
     placeholder: '© Ihr Name',
     pictureChosen: 'Bild gewählt. Wählen Sie ein anderes, um es zu ersetzen.',
     pictureTooBig: 'Wählen Sie ein Bild unter 3 MB, am besten ein PNG mit transparentem Hintergrund.',
+    pictureMissing: "Dieses Wasserzeichenbild ist auf diesem Gerät nicht verfügbar. Wählen Sie es vor dem Export erneut aus.",
+    storageFailed: "Das Bild konnte nicht privat auf diesem Gerät gespeichert werden. Das bisherige Wasserzeichen bleibt unverändert.",
+    localOnly: "Bildwasserzeichen bleiben auf diesem Gerät. Eine Vorgabe speichert nur einen lokalen Verweis, nicht das Bild.",
     position: 'Position',
     positions: {
       topLeft: 'Oben links',

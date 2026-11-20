@@ -182,6 +182,9 @@ export const fi: AreaTranslation<typeof source> = {
     placeholder: '© Nimesi',
     pictureChosen: 'Kuva valittu. Valitse toinen korvataksesi sen.',
     pictureTooBig: 'Valitse alle 3 Mt:n kuva, mieluiten PNG läpinäkyvällä taustalla.',
+    pictureMissing: "Tämä vesileimakuva ei ole saatavilla tällä laitteella. Valitse se uudelleen ennen vientiä.",
+    storageFailed: "Kuvaa ei voitu tallentaa yksityisesti tälle laitteelle. Aiempi vesileima ei muuttunut.",
+    localOnly: "Vesileimakuvat säilyvät tällä laitteella. Esiasetus tallentaa vain paikallisen viitteen, ei kuvaa.",
     position: 'Sijainti',
     positions: {
       topLeft: 'Ylhäällä vasemmalla',

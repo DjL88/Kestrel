@@ -108,3 +108,24 @@ test('restored presentation rejects unsafe artwork, clamps sliders and uses bund
   assert.equal(overlay.watermark!.font, 'inter');
   assert.equal(presets[1].overlay!.watermark!.imageData, 'data:image/png;base64,iVBORw==');
 });
+
+test('private watermark references survive preset restore without embedded artwork', () => {
+  const id = 'f'.repeat(64);
+  const recipe = { name: 'Clean preset', formats: ['before-after'], overlay: {
+    ...NO_OVERLAY, watermark: { ...NO_WATERMARK, kind: 'image', on: true, imageAssetId: id },
+  } };
+  const [preset] = readExportPresets({ getItem: () => JSON.stringify([recipe]) });
+  assert.equal(preset.formats[0], 'before-after');
+  assert.equal(preset.overlay?.watermark?.kind, 'image');
+  assert.equal(preset.overlay?.watermark?.imageAssetId, id);
+  assert.equal(preset.overlay?.watermark?.imageData, undefined);
+});
+
+test('custom enlargement survives a saved preset without changing previous defaults', () => {
+  const custom = { width: 3000, height: 2000, fit: 'keep', format: 'jpeg', quality: 92,
+    prefix: 'large_', allowUpscale: true };
+  const [preset] = readExportPresets({ getItem: () => JSON.stringify([{ name: 'Large', formats: [], custom }]) });
+  assert.equal(preset.custom?.allowUpscale, true);
+  const [previous] = readExportPresets({ getItem: () => JSON.stringify([{ name: 'Old', formats: [], custom: { ...custom, allowUpscale: undefined } }]) });
+  assert.equal(previous.custom?.allowUpscale, undefined);
+});
