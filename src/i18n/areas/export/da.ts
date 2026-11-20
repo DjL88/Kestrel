@@ -182,6 +182,9 @@ export const da: AreaTranslation<typeof source> = {
     placeholder: '© Dit navn',
     pictureChosen: 'Billede valgt. Vælg et andet for at erstatte det.',
     pictureTooBig: 'Vælg et billede under 3 MB, helst en PNG med gennemsigtig baggrund.',
+    pictureMissing: "Dette vandmærkebillede findes ikke på denne enhed. Vælg det igen før eksport.",
+    storageFailed: "Billedet kunne ikke gemmes privat på denne enhed. Det tidligere vandmærke er uændret.",
+    localOnly: "Billedvandmærker bliver på denne enhed. En forudindstilling gemmer kun en lokal reference, ikke billedet.",
     position: 'Placering',
     positions: {
       topLeft: 'Øverst til venstre',
