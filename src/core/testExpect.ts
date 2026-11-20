@@ -26,7 +26,7 @@ function matchers(actual: unknown, negate: boolean) {
     toMatchObject: (expected: Record<string, unknown>) => check(() => {
       for (const [key, value] of Object.entries(expected)) assert.deepEqual((actual as Record<string, unknown>)[key], value, key);
     }),
-    toThrow: () => check(() => assert.throws(actual as () => unknown)),
+    toThrow: (expected?: string | RegExp) => check(() => { let failed = false; try { (actual as () => unknown)(); } catch (error) { failed = true; messageMatches(error, expected); } assert.ok(failed, 'expected the function to throw'); }),
   };
 }
 

@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe } from 'node:test';
+import { expect, it } from './testExpect';
 import { createHash } from 'node:crypto';
 import { planBackupRestore, safeBackupPath, verifyBackupRestore, type BackupManifest } from './backupRestoreProof';
 
@@ -22,7 +23,7 @@ describe('portable backup restore proof', () => {
   });
   it.each(['../escape', '/etc/passwd', 'C:/escape', 'a//b', 'a/./b',
     'a/../b', 'a\\b', 'a/CON', 'a/b.', 'a/b ', 'a:b', 'a/\u0000'])(
-    'rejects unsafe path %s', path => expect(() => safeBackupPath(path)).toThrow('unsafe-backup-path'));
+    'rejects unsafe path %s', (path: string) => expect(() => safeBackupPath(path)).toThrow('unsafe-backup-path'));
   it('rejects case-insensitive aliases and file/directory conflicts', () => {
     expect(() => planBackupRestore(manifest('A/Photo.NEF', 'a/photo.nef'))).toThrow('duplicate-backup-path');
     expect(() => planBackupRestore(manifest('a', 'a/b'))).toThrow('backup-file-directory-collision');

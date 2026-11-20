@@ -807,8 +807,8 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       if (!blob) throw new Error('Watermark image not found.');
       const imageData = await watermarkBlobDataUrl(blob);
       if (active) setOverlay(previous => {
-        if (previous.watermark?.imageAssetId !== mark.imageAssetId || previous.watermark.imageData) return previous;
-        return { ...previous, watermark: { ...previous.watermark, imageData } };
+        if (previous.watermark?.imageAssetId !== mark.imageAssetId || previous.watermark?.imageData) return previous;
+        return { ...previous, watermark: { ...(previous.watermark ?? NO_WATERMARK), imageData } };
       });
     }).catch(() => { if (active) setMarkNote(t.watermark.pictureMissing); });
     return () => { active = false; };
@@ -819,8 +819,8 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     let active = true;
     void (async () => saveLocalWatermarkAsset(legacyWatermarkBlob(mark.imageData!)))().then(imageAssetId => {
       if (active) setOverlay(previous => {
-        if (previous.watermark?.imageData !== mark.imageData || previous.watermark.imageAssetId) return previous;
-        return { ...previous, watermark: { ...previous.watermark, imageAssetId } };
+        if (previous.watermark?.imageData !== mark.imageData || previous.watermark?.imageAssetId) return previous;
+        return { ...previous, watermark: { ...(previous.watermark ?? NO_WATERMARK), imageAssetId } };
       });
     }).catch(() => { if (active) setMarkNote(t.watermark.storageFailed); });
     return () => { active = false; };
