@@ -2,6 +2,7 @@ import { customFormat, formatById, type BarStyle, type Fit, type CustomSize } fr
 import { NO_OVERLAY, type OverlayOptions } from './exportOverlay';
 import type { NameTemplate } from './exportNaming';
 import { parseWatermark } from './watermarkStore';
+import { parseExportMetadataOptions, type ExportMetadataOptions } from './exportMetadataOptions';
 
 export const EXPORT_PREFERENCES_KEY = 'kestrel.exportPreferences.v1';
 
@@ -42,6 +43,7 @@ export interface ExportPreset extends ExportPreferences {
   formats: string[];
   /** Optional for presets saved before complete export recipes were supported. */
   overlay?: OverlayOptions;
+  metadata?: ExportMetadataOptions;
   naming?: NameTemplate;
   custom?: CustomSize;
 }
@@ -99,11 +101,14 @@ export function readExportPresets(storage: Pick<Storage, 'getItem'>): ExportPres
       if (!name || (!formats.length && !custom) || names.has(name.toLowerCase())) continue;
       names.add(name.toLowerCase());
       const overlay = readOverlay(entry.overlay);
+      const metadata = Object.prototype.hasOwnProperty.call(entry, 'metadata')
+        ? parseExportMetadataOptions(entry.metadata) : undefined;
       const naming = object(entry.naming) && typeof entry.naming.name === 'string'
         ? { name: entry.naming.name.slice(0, 60), numbers: entry.naming.numbers === 'sequence' ? 'sequence' as const : 'original' as const }
         : undefined;
       presets.push({ ...readExportPreferences({ getItem: () => JSON.stringify(entry) }), name, formats,
-        ...(overlay ? { overlay } : {}), ...(naming ? { naming } : {}), ...(custom ? { custom } : {}),
+        ...(overlay ? { overlay } : {}), ...(metadata ? { metadata } : {}),
+        ...(naming ? { naming } : {}), ...(custom ? { custom } : {}),
       });
     }
     return presets;
