@@ -4,6 +4,7 @@
  * NOT an atomic filesystem+catalogue transaction or a browser/mobile adapter.
  */
 import { createHash } from 'node:crypto';
+import { constants } from 'node:fs';
 import { lstat, open, realpath } from 'node:fs/promises';
 import { planVerifiedRelinks, type OriginalIdentity, type RelinkResult } from './originalRelinkProof';
 
@@ -18,12 +19,14 @@ const safeId = (s: unknown): s is string =>
   typeof s === 'string' && s.length > 0 && s.trim() === s &&
   !/[\u0000-\u001f\u007f]/.test(s);
 
-async function hashRegularFile(path: string): Promise<{ byteLength: number; sha256: string; canonicalPath: string }> {
+async function hashRegularFile(path: string): Promise<{ byteLength: number; sha256: string; canonicalPath: string; physicalKey: string }> {
   const beforePath = await lstat(path);
   if (!beforePath.isFile() || beforePath.isSymbolicLink())
     throw new Error('not-regular-file');
   const canonicalPath = await realpath(path);
-  const handle = await open(path, 'r');
+  // O_NOFOLLOW rejects a final-component symlink introduced after lstat.
+  // Inode comparison below also rejects a path replaced between lstat and open.
+  const handle = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
   try {
     const before = await handle.stat();
     if (!before.isFile() || before.dev !== beforePath.dev || before.ino !== beforePath.ino)
@@ -46,7 +49,11 @@ async function hashRegularFile(path: string): Promise<{ byteLength: number; sha2
         after.ctimeMs !== afterPath.ctimeMs ||
         canonicalPath !== await realpath(path))
       throw new Error('file-changed-during-verification');
-    return { byteLength: count, sha256: hash.digest('hex'), canonicalPath };
+    return {
+      byteLength: count, sha256: hash.digest('hex'), canonicalPath,
+      // Distinct hard-link paths may name the same physical original.
+      physicalKey: `${after.dev}:${after.ino}`,
+    };
   } finally {
     await handle.close();
   }
@@ -63,6 +70,7 @@ export async function verifyDesktopRelinkFiles(
   const failures: Array<{ photoId: string; reason: string }> = [];
   const candidates: Array<{ photoId: string; candidateKey: string; byteLength: number; sha256: string }> = [];
   const seenPaths = new Set<string>();
+  const seenPhysicalFiles = new Set<string>();
   for (const file of files) {
     if (!safeId(file.photoId) || typeof file.path !== 'string' ||
         !file.path.startsWith('/') && !/^[A-Za-z]:[\\/]/.test(file.path)) {
@@ -71,9 +79,10 @@ export async function verifyDesktopRelinkFiles(
     }
     try {
       const verified = await hashRegularFile(file.path);
-      if (seenPaths.has(verified.canonicalPath))
+      if (seenPaths.has(verified.canonicalPath) || seenPhysicalFiles.has(verified.physicalKey))
         failures.push({ photoId: file.photoId, reason: 'duplicate-candidate-path' });
       seenPaths.add(verified.canonicalPath);
+      seenPhysicalFiles.add(verified.physicalKey);
       candidates.push({
         photoId: file.photoId, candidateKey: verified.canonicalPath,
         byteLength: verified.byteLength, sha256: verified.sha256,
