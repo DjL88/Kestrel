@@ -206,6 +206,10 @@ export const gd: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Ro-leasachain ainmean fhaidhlichean agus càileachd JPEG',
   },
   results: {
+    backgroundSaving: (count) => `Ag às-phortadh ${count} faidhlichean sa chùlaibh`,
+    choosingFolder: "A’ taghadh pasgan…",
+    desktopBackground: (count) => `Sàbhail ${count} faidhlichean gu pasgan sa chùlaibh`,
+    desktopBackgroundHelp: "Tagh pasgan aon turas. Thèid faidhlichean a shàbhaladh aon aig aon àm ann am pasgan ùr Kestrel Exports. Tha adhartas agus mearachdan sa Mhanaidsear Ghnìomhan.",
     saving: 'Ga shàbhaladh…',
     saved: (name) => `Air ${name} a shàbhaladh`,
     ready: (count) => `${files(count)} deiseil`,
