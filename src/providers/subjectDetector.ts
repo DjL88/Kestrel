@@ -89,7 +89,8 @@ export async function detectSubject(preview: HTMLCanvasElement, options: { maxCo
     const map = readSubjectMap(results[session.outputNames[0]]?.data, size);
     const { w, h } = gridSizeFor(preview.height / preview.width);
     return { grid: toGrid(map, size, w, h), assessment: assessSubject(map, options.maxCoverage), engine: 'onnx-u2netp' };
-  } catch {
-    return detectSubjectExperimental(preview, options);
+  } catch (problem) {
+    // An installed model that fails is a fault to report, not something to hide behind a weaker engine.
+    throw problem;
   }
 }

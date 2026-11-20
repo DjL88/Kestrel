@@ -119,18 +119,15 @@ export function AutoCullPanel({ frames, keeperTarget, provider, autoEditEnabled,
         <button type="button" className={button} aria-label={m.closeAutoCull} title={m.closeAutoCull} onClick={onClose}><X className="h-5 w-5" aria-hidden="true" /></button>
       </header>
       <p className="text-sm text-zinc-300">{m.description}</p>
-      {detectorFailed ? (
-        <p role="status" className="mt-2 rounded-md border border-amber-400/25 bg-amber-500/10 p-2 text-xs text-amber-100">
-          Subject detection encountered an error on this device. Your scan continued without automatic keepers. Originals are unchanged.
-        </p>
-      ) : (
-        <p role="status" className="mt-2 rounded-md border border-white/12 bg-black/20 p-2 text-xs text-zinc-300">
-          {onnxAvailable
-            ? 'On-device ONNX + Kestrel Vision engine ready: ranks subject sharpness, burst likeness, and exact duplicates.'
-            : 'Kestrel Offline Vision engine active: detects isolated subjects, measures edge sharpness, deduplicates bursts, and catches exact copies with zero external models.'}
-          {autoEditEnabled ? ' Chosen keepers will also receive an automatic starting edit.' : ''}
+      {(!onnxAvailable || detectorFailed) && (
+        <p role="status" className="mt-2 rounded-md border border-white/12 p-2 text-xs text-zinc-300">
+          {detectorFailed
+            ? 'Subject detection could not run on this device. Your scan continues without it; Kestrel will not automatically choose keepers from texture alone.'
+            : 'This preview has no subject-detection model. You can still review photos and find exact duplicates; Kestrel will not automatically choose keepers from texture alone.'}
+          {' '}You can still choose your own keepers. Your originals are unchanged.
         </p>
       )}
+      {autoEditEnabled && <p className="mt-2 text-xs text-zinc-400">Chosen keepers will also get an automatic starting edit, which you can undo.</p>}
       {!results && <div className="mt-3 space-y-2">
         <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={autoMove}
           disabled={progress !== undefined} onChange={(event) => setAutoMove(event.target.checked)} />{m.autoMove}</label>

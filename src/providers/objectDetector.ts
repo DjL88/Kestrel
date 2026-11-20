@@ -170,9 +170,12 @@ function findSubjectExperimental(source: Source): FoundSubject | null {
   };
   return {
     detection: {
-      label: analysis.label,
+      // A colour/saliency heuristic can find *where* a subject is, never *what* it is. Reporting 'bird' or 'person'
+      // here would open the species gate (permitsUnclassifiedBirdSpecies) on a guess, so it stays class-agnostic and
+      // its score is capped below every automatic-decision threshold.
+      label: 'subject',
       classId: -1,
-      score: analysis.categoryConfidence,
+      score: Math.min(analysis.categoryConfidence, 0.5),
       box,
     },
     sharpness: sharpnessOf(source, box),
@@ -203,8 +206,9 @@ export async function findSubject(source: Source, signal?: AbortSignal): Promise
     const best = mergeDetections(detections).sort((a, b) => b.score * Math.sqrt(b.box.w * b.box.h) - a.score * Math.sqrt(a.box.w * a.box.h))[0];
     if (!best) return null;
     return { detection: best, sharpness: sharpnessOf(source, best.box), coverage: (best.box.w * best.box.h) / (w * h), engine: 'onnx-yolox' };
-  } catch {
-    return findSubjectExperimental(source);
+  } catch (problem) {
+    // An installed model that fails is a fault to report, not something to hide behind a weaker engine.
+    throw problem;
   }
 }
 
