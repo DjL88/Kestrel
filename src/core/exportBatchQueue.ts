@@ -52,15 +52,17 @@ export function snapshotExportRecipe<Recipe>(recipe: Recipe): Readonly<Recipe> {
 }
 
 export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
-  const pending: { run(): Promise<void> }[] = [];
+  const pending = new Map<number, () => Promise<void>>();
   let running = false;
   let nextId = 0;
   function drain(): void {
     if (running) return;
-    const entry = pending.shift();
-    if (!entry) return;
+    const next = pending.entries().next();
+    if (next.done) return;
+    const [id, run] = next.value;
+    pending.delete(id);
     running = true;
-    void entry.run().finally(() => { running = false; drain(); });
+    void run().finally(() => { running = false; drain(); });
   }
   return {
     enqueue<Recipe, Output>(plan: ExportBatchPlan<Recipe>, adapter: ExportBatchAdapter<Recipe, Output>): ExportBatchTicket {
@@ -88,10 +90,14 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
         if (finished || controller.signal.aborted) return false;
         controller.abort();
         if (handle) taskStore.cancel(handle.id);
+        if (pending.delete(id)) {
+          finished = true;
+          resolveDone('cancelled');
+        }
         return true;
       };
       handle = taskStore.start(plan.title, { total: items.length, cancel });
-      pending.push({ run: async () => {
+      pending.set(id, async () => {
         if (controller.signal.aborted || handle?.cancelled) {
           finished = true;
           handle?.finish();
@@ -120,7 +126,7 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
             resolveDone('failed');
           }
         } finally { finished = true; }
-      }});
+      });
       drain();
       return Object.freeze({ id, done, cancel });
     },
