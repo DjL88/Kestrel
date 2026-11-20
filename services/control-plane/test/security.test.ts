@@ -24,7 +24,7 @@ const webhook = (body: object, secret = h.app.config.webhookSecret, at = h.clock
   const raw = JSON.stringify(body);
   return h.call('POST', '/v1/billing/webhook', { raw, headers: { 'content-type': 'application/json', 'kestrel-signature': signWebhook(raw, secret, Math.floor(at / 1000)) } });
 };
-const licencePlan = (id: string) => h.app.store.get<{ plan: string; status: string }>('SELECT plan, status FROM licences WHERE licence_id = ?', id);
+const licencePlan = async (id: string) => { const l = await h.app.store.getLicence(id); return l && { plan: l.plan, status: l.status }; };
 
 test('1. unsigned or wrongly signed billing webhooks are rejected with 401', async () => {
   const event = { id: 'evt_unsigned', type: 'licence.created', data: { licenceId: 'lic_unsigned', plan: 'paid' } };
@@ -35,7 +35,7 @@ test('1. unsigned or wrongly signed billing webhooks are rejected with 401', asy
   assert.equal(wrong.status, 401);
   const stale = await webhook(event, undefined, h.clock.now - 10 * 60_000);
   assert.equal(stale.status, 401, 'outside the 5-minute replay window');
-  assert.equal(licencePlan('lic_unsigned'), undefined, 'nothing was written');
+  assert.equal(await licencePlan('lic_unsigned'), undefined, 'nothing was written');
 });
 
 test('2. a replayed billing event is refused with 409 and changes nothing', async () => {
@@ -44,17 +44,17 @@ test('2. a replayed billing event is refused with 409 and changes nothing', asyn
   const replay = await webhook({ id: 'evt_once', type: 'licence.revoked', data: { licenceId: 'lic_once' } });
   assert.equal(replay.status, 409);
   assert.equal(replay.body.error.code, 'WEBHOOK_REPLAYED');
-  assert.deepEqual({ ...licencePlan('lic_once') }, { plan: 'paid', status: 'active' });
+  assert.deepEqual({ ...(await licencePlan('lic_once')) }, { plan: 'paid', status: 'active' });
 });
 
 test('3. a normal user calling an admin endpoint gets 403 and the attempt is audited', async () => {
   const response = await h.call('GET', '/v1/admin/overview', { token: h.user.token });
   assert.equal(response.status, 403);
-  const entry = h.app.store.get<{ outcome: string }>('SELECT outcome FROM audit_log WHERE actor = ? AND action = ? ORDER BY at_ms DESC', h.user.accountId, 'overview');
+  const entry = (await h.app.store.listAudit(200)).find((e) => e.actor === h.user.accountId && e.action === 'overview');
   assert.equal(entry?.outcome, 'denied');
   const anonymous = await h.call('POST', '/v1/admin/ai/killswitch', { body: { aiDisabled: true } });
   assert.equal(anonymous.status, 401);
-  assert.equal(h.app.store.setting('ai_disabled'), undefined, 'the switch was not touched');
+  assert.equal(await h.app.store.getSetting('ai_disabled'), undefined, 'the switch was not touched');
 });
 
 test('4. an expired session token on /v1/ai/* gets AUTH_TOKEN_EXPIRED', async () => {
@@ -100,8 +100,8 @@ test('7. malformed or out-of-range upstream answers are rejected or clamped, nev
     assert.equal(identifyResponse.status, 502);
     assert.equal(identifyResponse.body.error.code, 'AI_UPSTREAM_MALFORMED');
     assert.equal(identifyResponse.body.error.retryable, true);
-    const used = broken.app.store.get<{ requests_used: number }>('SELECT requests_used FROM ai_usage_quotas WHERE account_id = ?', broken.user.accountId);
-    assert.equal(used?.requests_used, 0, 'a failed answer is refunded');
+    const used = await broken.app.store.getQuota(broken.user.accountId);
+    assert.equal(used?.requestsUsed, 0, 'a failed answer is refunded');
     const suggestResponse = await broken.call('POST', '/v1/ai/suggest', { token: broken.user.token, body: { image: image(), userConsent: true } });
     assert.equal(suggestResponse.status, 200);
     assert.deepEqual(suggestResponse.body.proposal, { exposure: 2, shadows: -2 }, 'clamped to slider ranges; unknown keys and non-numbers dropped');
@@ -220,6 +220,6 @@ test('12. model ids or paths with "..", absolute paths or drive letters are refu
     // The client parser, which runs after signature verification, refuses the same thing.
     assert.equal(parseDataManifest({ schema: 1, revision: 2, assets: [{ id, kind: 'onnx', version: '9.9.9', path, sha256, bytes: 10 }] }), null);
   }
-  const denied = h.app.store.get<{ n: number }>("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'model.register' AND outcome = 'denied'");
-  assert.equal(denied?.n, 6);
+  const denied = (await h.app.store.listAudit(1000)).filter((e) => e.action === 'model.register' && e.outcome === 'denied').length;
+  assert.equal(denied, 6);
 });

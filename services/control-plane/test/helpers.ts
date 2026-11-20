@@ -3,6 +3,11 @@ import type { AddressInfo } from 'node:net';
 import { createApp, type App } from '../src/app.ts';
 import { loadConfig } from '../src/config.ts';
 import type { AiProvider } from '../src/gateway.ts';
+import { FirestoreStore } from '../src/firestoreStore.ts';
+import { openStore } from '../src/openStore.ts';
+import { SqliteStore } from '../src/sqliteStore.ts';
+import type { Store } from '../src/store.ts';
+import { MemoryFirestore } from './memoryFirestore.ts';
 
 export interface Harness {
   app: App;
@@ -26,10 +31,25 @@ export function fakeProvider(overrides: Partial<AiProvider> = {}): AiProvider & 
   return provider;
 }
 
+/**
+ * Which store the tests run against: KCP_TEST_STORE=firestore uses Firestore, through the emulator when
+ * FIRESTORE_EMULATOR_HOST is set (each harness gets its own project, so nothing leaks between tests), otherwise through
+ * the in-memory fake in memoryFirestore.ts. Anything else is SQLite. The *.firestore.test.ts files set it.
+ */
+export const testStoreKind = () => (process.env.KCP_TEST_STORE === 'firestore' ? (process.env.FIRESTORE_EMULATOR_HOST ? 'firestore-emulator' : 'firestore-memory') : 'sqlite');
+
+let harnessCount = 0;
+export async function newTestStore(): Promise<Store> {
+  const kind = testStoreKind();
+  if (kind === 'sqlite') return new SqliteStore(':memory:');
+  if (kind === 'firestore-memory') return new FirestoreStore(new MemoryFirestore());
+  return openStore({ store: 'firestore', databasePath: '', firestoreProjectId: `kestrel-test-${process.pid}-${++harnessCount}` });
+}
+
 export async function startHarness(provider: AiProvider | null = fakeProvider()): Promise<Harness> {
   const clock = { now: Date.UTC(2026, 10, 18, 12) };
   const config = loadConfig({ KCP_DEV_MODE: '1' });
-  const app = createApp({ config, provider, now: () => clock.now });
+  const app = createApp({ config, store: await newTestStore(), provider, now: () => clock.now });
   const server: Server = createServer((req, res) => { void app.handle(req, res); });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -44,16 +64,16 @@ export async function startHarness(provider: AiProvider | null = fakeProvider())
     return { status: response.status, body: text ? JSON.parse(text) : null, headers: response.headers };
   };
 
-  const adminId = app.createAccount('admin@example.test', 'admin-password-123', 'admin');
-  const adminToken = app.issueSession(adminId, 'admin').accessToken;
-  const userId = app.createAccount('user@example.test', 'user-password-123', 'user');
+  const adminId = await app.createAccount('admin@example.test', 'admin-password-123', 'admin');
+  const adminToken = (await app.issueSession(adminId, 'admin')).accessToken;
+  const userId = await app.createAccount('user@example.test', 'user-password-123', 'user');
   const issued = await call('POST', '/v1/admin/licences/issue', { token: adminToken, body: { plan: 'paid', managedAi: true, accountId: userId } });
   if (issued.status !== 200) throw new Error(`issue failed ${issued.status}`);
-  const user = { accountId: userId, token: app.issueSession(userId, 'user').accessToken };
+  const user = { accountId: userId, token: (await app.issueSession(userId, 'user')).accessToken };
 
   return {
     app, url, clock, call, adminToken, user,
-    close: () => new Promise<void>((resolve) => { server.close(() => { app.store.close(); resolve(); }); }),
+    close: () => new Promise<void>((resolve) => { server.close(() => { void app.store.close().then(resolve); }); }),
   };
 }
 

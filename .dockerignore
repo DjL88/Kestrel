@@ -1,0 +1,5 @@
+# Keeps local installs and history out of image builds (services/control-plane/Dockerfile).
+**/node_modules
+.git
+src-tauri/target
+crates/*/target

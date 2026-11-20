@@ -2,7 +2,7 @@
 
 One small, optional service for the parts of Kestrel that need a server: licence activation with offline grants, a managed AI gateway (provider keys stay here), and a signed registry for models and desktop release notices. **Kestrel works fully offline without it.** Nothing here receives originals, catalogues or EXIF.
 
-It is one Node process with one route table (`src/app.ts`). Zod schemas validate every request, and the same schemas generate `/openapi.json`. There are no microservices and no cloud resources. The shared contract lives in `src/core/` and is used by the server and the app alike:
+It is one Node process with one route table (`src/app.ts`). Zod schemas validate every request, and the same schemas generate `/openapi.json`. There are no microservices. The shared contract lives in `src/core/` and is used by the server and the app alike:
 
 | Shared module | Used by the server for | Used by the app for |
 | --- | --- | --- |
@@ -30,6 +30,24 @@ npm --prefix services/control-plane test
 npm --prefix services/control-plane run lint
 ```
 
+Every route scenario runs twice: on SQLite (`api.test.ts`, `security.test.ts`) and on Firestore (`*.firestore.test.ts`). `store.test.ts` checks the storage contract on both. Without an emulator, "Firestore" means the in-memory fake in `test/memoryFirestore.ts`. It refuses what real Firestore refuses: reads after writes in a transaction, `undefined` values, `create` over an existing document, and queries that need a composite index. To run the same tests against the real Firestore emulator (needs Java 11 or later; downloads the Firebase CLI and the emulator once):
+
+```powershell
+npm --prefix services/control-plane install
+npm --prefix services/control-plane run test:emulator
+```
+
+## Storage
+
+Route handlers only use the `Store` interface in `src/store.ts`. Each operation that must be atomic (AI allowance, device slots, single-use refresh tokens, idempotent billing events, model promotion) is one method, so each store makes it atomic in its own way. The rules both share (when a licence is usable, what a billing event does, how an extension is counted) are pure functions in the same file.
+
+| `KCP_STORE` | Where | Used for |
+| --- | --- | --- |
+| `sqlite` (default) | `node:sqlite` at `KCP_DATABASE_PATH` (or `:memory:`) | Local development and tests. Nothing to install. |
+| `firestore` | Google Cloud Firestore, native mode. `KCP_FIRESTORE_PROJECT` and `KCP_FIRESTORE_DATABASE` default to the Cloud Run project and `(default)` | Cloud Run. `FIRESTORE_EMULATOR_HOST` points it at an emulator. |
+
+Firestore collections: `accounts`, `account_emails` (keeps email hashes unique), `refresh_tokens`, `licences` (with a `deviceCount` that the activation transaction reads and updates, so two devices racing for the last slot are handled one after the other), `device_activations` (id `<licence>|<device hash>`), `ai_usage_quotas`, `billing_events`, `model_assets`, `desktop_releases`, `settings` and `audit_log`. Queries use equality filters or a single ordering, so no composite index is needed. The Google client is loaded only when `KCP_STORE=firestore`, so local runs never need it.
+
 ## Endpoints
 
 | Route | Auth | What it does |
@@ -51,6 +69,8 @@ Admin routes accept only bearer tokens in a header. There are no cookies, so a b
 
 `test/security.test.ts` covers the twelve required negative scenarios: unsigned webhook (401), replayed webhook (409, no change), user on admin (403, audited), expired token (`AUTH_TOKEN_EXPIRED`), missing consent or EXIF present, oversized image (413), malformed upstream (rejected or clamped, quota refunded), 10-way quota race (exactly one 200 and nine 429), 15 s hang aborted at exactly 12 s, offline grant continuity, tampered model checksum (old weights kept), and model path traversal. The suite uses `node:test` like the rest of the repository, not Vitest.
 
-## Before deploying anywhere
+## Deploying
 
-These still need the owner's decision, and none is built: the hosting vendor and region, a PostgreSQL `Store` adapter (the schema is portable), a shared rate-limit store for more than one instance, the billing provider's real event names, key custody (signing keys in a secret manager), and a sign-in screen in the app.
+The service runs on Cloud Run in `europe-west2`, with Firestore. `infra/gcp` (Terraform) creates the database, the image repository, the service account, the secrets and the service; the steps are in `infra/gcp/README.md` under "Phase 2". Secrets come from Secret Manager. The owner adds their values with `gcloud`; they are never in Terraform or git. The service is given the licence-issuing private key (`KCP_LICENCE_PRIVATE_KEY_PEM`) only while `licence_issuing_enabled` is on, because only the admin console's "issue a key" needs it.
+
+Still open: a shared rate-limit store before running more than one instance (Terraform caps the service at one), the payment provider's real event names (SumUp, step 4), and sign-in for people (step 3).
