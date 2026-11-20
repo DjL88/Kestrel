@@ -205,6 +205,10 @@ export const de: AreaTranslation<typeof source> = {
     prefixesAndQuality: 'Dateinamen-Präfixe und JPEG-Qualität',
   },
   results: {
+    backgroundSaving: (count) => `${count} Dateien werden im Hintergrund exportiert`,
+    choosingFolder: "Ordner wird ausgewählt…",
+    desktopBackground: (count) => `${count} Dateien im Hintergrund in einem Ordner speichern`,
+    desktopBackgroundHelp: "Wählen Sie einmal einen Ordner. Die Dateien werden einzeln in einem neuen datierten Ordner Kestrel Exports nach Ziel sortiert gespeichert. Fortschritt und Fehler erscheinen im Task-Manager; Sie können weiter bearbeiten.",
     saving: 'Wird gespeichert…',
     saved: (name) => `${name} gespeichert`,
     ready: (count) => plural(count, { one: `${count} Datei bereit`, other: `${count} Dateien bereit` }),
