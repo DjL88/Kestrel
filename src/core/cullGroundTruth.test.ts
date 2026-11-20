@@ -69,13 +69,40 @@ describe('independent cull ground truth', () => {
       truth: i % 5 === 0 ? 'keep' : 'reject',
       subject: i % 5 === 0 ? 'bird' : i % 5 === 1 ? 'aircraft' : 'other',
       predictedSubject: i % 5 === 0 ? 'bird' : i % 5 === 1 ? 'aircraft' : 'other',
-      suggestion: i % 5 === 0 ? 'review' : 'reject',
+      suggestion: i % 5 === 0 ? (i % 10 === 0 ? 'keep' : 'review') : 'reject',
     }));
     const result = evaluateCullGroundTruth(frames);
     expect(result).toMatchObject({ total: 500, evaluated: 500, keeperCount: 100, aircraftCount: 100, falseRejects: 0, falseKeeps: 0 });
-    expect(result.automaticKeeperRecall).toBe(0);
+    expect(result.automaticKeeperRecall).toBe(0.5);
     expect(passesCullSafetyGate(result, 500)).toBe(true);
     expect(passesCullSafetyGate(evaluateCullGroundTruth([...frames, { ...frames[0] }]), 500)).toBe(false);
+  });
+  it('rejects an all-Review keeper policy masquerading as perfect safety', () => {
+    const allReview = samples.map(frame => frame.truth === 'keep'
+      ? { ...frame, suggestion: 'review' as const } : frame);
+    const result = evaluateCullGroundTruth(allReview);
+    expect(result.keeperRecall).toBe(1);
+    expect(result.automaticKeeperRecall).toBe(0);
+    expect(passesCullSafetyGate(result, 4)).toBe(false);
+  });
+  it('requires explicit aircraft predictions, including honest unknown', () => {
+    const missing = samples.map(frame => frame.subject === 'aircraft'
+      ? { ...frame, predictedSubject: undefined } : frame);
+    const result = evaluateCullGroundTruth(missing);
+    expect(result.aircraftPredictionsMissing).toBe(1);
+    expect(result.aircraftLabelledBird).toBe(0);
+    expect(passesCullSafetyGate(result, 4)).toBe(false);
+    const unknown = missing.map(frame => frame.subject === 'aircraft'
+      ? { ...frame, predictedSubject: 'unknown' as const } : frame);
+    expect(passesCullSafetyGate(evaluateCullGroundTruth(unknown), 4)).toBe(true);
+  });
+  it('rejects manipulated aircraft rates and unsafe keeper coverage thresholds', () => {
+    const valid = evaluateCullGroundTruth(samples);
+    expect(passesCullSafetyGate({ ...valid, aircraftBirdConfusionRate: 0.5 }, 4)).toBe(false);
+    expect(passesCullSafetyGate({ ...valid, aircraftPredictionsMissing: 1 }, 4)).toBe(false);
+    expect(passesCullSafetyGate(valid, 4, 0, 0)).toBe(false);
+    expect(passesCullSafetyGate(valid, 4, 0, 0.75)).toBe(false);
+    expect(passesCullSafetyGate(valid, 4, 0, 0.5)).toBe(true);
   });
   it('rejects corrupt fixtures and empty denominators', () => {
     const result = evaluateCullGroundTruth([{ ...samples[0], id: '' }, { ...samples[0], suggestion: 'maybe' as never }]);
