@@ -215,7 +215,8 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       const original = await provider.ensureOriginal(frame.stableKey);
       if (!original) throw new Error(editorT.raw.masterReconnect);
       const shown = await loadExportSource(frame, provider);
-      const tiff = await exportRaw16Tiff(original, shown, frame.edit ?? DEFAULT_EDIT, frame.framing);
+      const tiff = await exportRaw16Tiff(original, shown, frame.edit ?? DEFAULT_EDIT, frame.framing,
+        metadataForExport(frame, metadata));
       // The experimental master has no burned-in text/watermark and copies no
       // GPS/EXIF silently. Other export destinations keep their own options.
       if (cancelled.current) { task.finish(editorT.raw.cancelledTask); return; }
