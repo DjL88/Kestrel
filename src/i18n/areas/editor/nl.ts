@@ -209,6 +209,11 @@ export const nl: AreaTranslation<typeof source> = {
     adjustmentsCopied: 'Aanpassingen gekopieerd',
   },
   auto: {
+    howItWorks: "Hoe suggesties werken",
+    moreChanges: "Andere aanpassingen",
+    subjectMaskAdded: "Er is een aparte aanpassing voor het onderwerp toegevoegd.",
+    adjustUp: (label) => `${label} iets verhogen.`,
+    adjustDown: (label) => `${label} iets verlagen.`,
     paidTitle: 'Het tabblad Auto',
     paidBody: 'Hier vindt u automatische kleur- en toonaanpassingen en lokaal bewerkingsadvies.',
     suggestTitle: 'Een offline voorgesteld recept bekijken en de kwaliteit controleren voordat u het toepast',
