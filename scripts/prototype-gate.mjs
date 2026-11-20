@@ -16,7 +16,7 @@ if (args.includes('--help') || args.includes('-h')) {
 }
 const allowed = args.every(x => x === '--e2e' || x === '--raw' || (x.startsWith('--out=') && x.length > 6));
 if (!allowed) { console.error('Unknown option. Use --help.'); process.exit(2); }
-const output = resolve(args.find(x => x.startsWith('--out='))?.slice(6) ?? 'prototype-evidence.json');
+const output = resolve(args.find(x => x.startsWith('--out='))?.slice(6) ?? '.kestrel-prototype-evidence/prototype-evidence.json');
 const git = parameters => {
   const result = spawnSync('git', parameters, { encoding: 'utf8', timeout: 10_000 });
   return result.status === 0 ? result.stdout.trim() : null;

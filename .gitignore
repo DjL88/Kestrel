@@ -34,3 +34,7 @@ infra/gcp/*.tfstate
 infra/gcp/*.tfstate.*
 infra/gcp/*.tfvars
 .firebase/
+
+# Local prototype evidence may include filenames or test output; keep it private.
+.kestrel-prototype-evidence/
+prototype-evidence.json
