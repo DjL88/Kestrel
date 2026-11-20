@@ -8,15 +8,15 @@ import { canDevelopRaw, developRaw, matchPreviewOrientation } from './providers/
 import { appText as t } from './i18n/areas/app';
 
 /** How long after the last photo was added before developing begins. */
-const SETTLE_MS = 4000;
+const SETTLE_MS = 1500;
 
 interface Options {
   projectId: string;
   frames: PhotoFrame[];
   provider: BrowserPreviewProvider | null;
   /**
-   * True while the library or culling is showing and no photos are being added. Developing pauses while a photo is
-   * edited, so the editor goes first, and while an import runs, so the import goes first.
+   * True while a project is open and no import is running. Navigating between Library, Review
+   * and Edit must not reset a running background job.
    */
   active: boolean;
   /** The photo the person is looking at goes first. */
@@ -25,7 +25,7 @@ interface Options {
 
 /**
  * After photos are added, develop every RAW from its sensor data with Kestrel's own decoder, one at a time, and keep a
- * screen-sized copy, so the library shows Kestrel's develop rather than the camera's JPEG. Shown in Tasks, where it can
+ * screen-sized copy, so the library shows Kestrel's develop rather than the camera's JPEG. Shown in Tasks as a continuous per-project job, where it can
  * be stopped (until the next photos are added). A file that cannot be developed keeps its embedded preview, quietly.
  */
 export function useBackgroundDevelop({ projectId, frames, provider, active, onScreen }: Options) {
@@ -49,12 +49,23 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
         const queue = developQueue(current, (frame) => skipped.current.has(`${id}|${frame.stableKey}`), shown);
         if (!queue.length) break;
         const frame = queue[0];
-        skipped.current.add(`${id}|${frame.stableKey}`);
-        if (await store.developedReview(frame)) continue;
-        const original = await store.ensureOriginal(frame.stableKey, 'background');
-        if (!original || !stillCurrent()) continue;
-        task ??= tasks.start(t.tasks.developingRaw, { total: queue.length, cancel: () => { stoppedFor.current = id; } });
+        task ??= tasks.start(t.tasks.developingRaw, { total: processed + queue.length, cancel: () => { stoppedFor.current = id; } });
         task.progress(processed, processed + queue.length, frame.filename);
+        skipped.current.add(`${id}|${frame.stableKey}`);
+        if (await store.developedReview(frame)) {
+          processed += 1;
+          task.progress(processed, processed + queue.length - 1);
+          continue;
+        }
+        const original = await store.ensureOriginal(frame.stableKey, 'background');
+        if (!original || !stillCurrent()) {
+          // A missing/unlinked original is not a developed image. Make progress visible
+          // without retrying the same unavailable file in a tight loop.
+          processed += 1;
+          task.progress(processed, processed + queue.length - 1);
+          if (!stillCurrent()) break;
+          continue;
+        }
         try {
           const developed = await developRaw(original, /\.([a-z0-9]+)$/i.exec(frame.filename)?.[1] ?? 'nef');
           const turned = await matchPreviewOrientation(developed, await extractRawPreview(original).catch(() => null));
@@ -74,9 +85,9 @@ export function useBackgroundDevelop({ projectId, frames, provider, active, onSc
     }
   }, []);
 
-  // New photos give a stopped run another go; leaving the project or opening the editor pauses it. Adding photos goes
-  // first: developing starts a few seconds after the last photo arrives, so it never slows an import (each RAW is read
-  // in full here, where the import reads only its preview).
+  // New photos give a stopped run another go. Switching between Library, Review and Edit
+  // never stops it; only closing the project, importing or explicitly cancelling does.
+  // Import goes first because developing reads the full RAW rather than only its preview.
   const count = frames.length;
   useEffect(() => { stoppedFor.current = null; }, [projectId, count]);
   useEffect(() => {
