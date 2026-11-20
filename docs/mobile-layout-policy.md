@@ -4,8 +4,8 @@ Kestrel uses **one responsive editor** for its web shell and future iOS / Androi
 
 ## Workspace rules
 
-- **Compact, portrait-first editing** when available CSS viewport width is below 900px **or** height below 550px. This includes small phones rotated to landscape, most folded devices, narrow split-screen windows and tablets with an obstructed or short viewport. Editing tools stay in the folding sheet below the image.
-- **Wide workspace** from 900×550 CSS pixels (both dimensions required). A landscape tablet can show the same left/right tools panel as desktop, even with touch input. Targets stay at least 44 CSS pixels on touch hardware; do not equate desktop layout with mouse-only controls.
+- **Compact, portrait-first editing** when the available CSS viewport is below 800 × 550, or below 840 × 440 in a short landscape window. This includes small phones rotated to landscape, most folded devices, narrow split-screen windows and tablets with an obstructed or short viewport. Editing tools stay in the folding sheet below the image.
+- **Wide workspace** from 800 × 550 CSS pixels, or 840 × 440–549 CSS pixels for short landscape tablets (both dimensions required). A landscape tablet can show the same left/right tools panel as desktop, even with touch input. Targets stay at least 44 CSS pixels on touch hardware; do not equate desktop layout with mouse-only controls.
 - **Handedness** is a saved device preference. Library → More → Appearance & layout and Edit → settings use the same Left/Right value. On a compact phone the control is saved for a wider window; tools remain below the image rather than covering it.
 - The **app/document stays inside the usable viewport**. Use dynamic viewport units and safe area padding, constrain flex children, and scroll long toolbars **within the toolbar**, not the body. Content panels may scroll vertically inside the bounded application.
 - Display theme, text size, readable typeface and calm mode are separate accessibility preferences. Text enlargement must not force the document beyond the device width.
@@ -25,7 +25,8 @@ For future native app wrappers: choose OS-native orientation policies rather tha
 | Small phone portrait | 320 × 568 | Compact |
 | Typical phone portrait | 390 × 844 | Compact |
 | Phone rotated | 667 × 375 | Compact, no clipped controls |
-| Foldable narrow/unfolded small window | 850 × 700 | Compact |
+| Foldable narrow/short window | 768 × 700 | Compact |
+| Foldable unfolded / landscape tablet | 850 × 700 | Wide, desktop-parity editor tools |
 | Tablet landscape | 1024 × 768 | Wide left/right panel |
 | Large tablet / desktop | 1280 × 800 | Wide |
 
@@ -37,9 +38,9 @@ Apple's iPhone Duo is an actual 2026 foldable device; support the narrow cover d
 
 - Narrow external/flip-cover displays (roughly 320–420 CSS px): essential photo, cull/review actions and icon-first editor tabs; descriptions remain as accessible names and full text lives inside the opened tool sheet. Hide redundant status badges in the action bar instead of squeezing text.
 - Narrow or short unfolded/split-window views: compact photo-first view and individually scrollable tool sheet; do not infer desktop from touch or diagonal size.
-- Unfolded wide displays at **900 × 550+** usable CSS pixels: same docked editing layout and photo tools as desktop. Landscape tablets should not lose functionality, but keep touch-friendly targets.
+- Unfolded wide displays at **800 × 550+** usable CSS pixels (or 840 × 440–549 in landscape): same docked editing layout and photo tools as desktop. Landscape tablets should not lose functionality, but keep touch-friendly targets.
 - For a dual-viewport physical hinge, keep the image and active controls out of the hinge; guard with `horizontal-viewport-segments` when exposed and fall back to the standard responsive flow when absent. Never rely solely on `device-posture` because support differs by browser.
-- Keep Photo Info consistent with the **same two-dimensional workspace threshold** used by Editor; width-only `lg`/1024 checks can accidentally force docked elements on short landscape phones.
+- Keep Photo Info on its **separate, more conservative two-dimensional threshold** (1024 × 550 or 1280 × 440): a two-panel editor needs more breathing room before the third Info panel docks. Never use a width-only rule that crowds the photo.
 - Fold/unfold while importing, culling and editing must preserve selection, original-file links, active recipe, and pending Task Manager operations. Avoid remounting state simply to switch layout.
 
 **Evidence gate:** Playwright at 320×568, 375×812, 390×844, 667×375, 850×700, 1024×768, 1180×820, 1280×800. Repeat with 125/150% text, on-screen keyboard, portrait-to-landscape, touch and reduced motion. Native device QA on iPhone Duo (cover/unfolded), a Samsung Fold, a flip-cover phone and iPad landscape remains **NOT RUN** until actually measured. Don't mark native parity complete from CSS or emulation alone.
