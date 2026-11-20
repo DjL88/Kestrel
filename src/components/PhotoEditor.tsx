@@ -1776,8 +1776,10 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         sliderTimer.current = window.setTimeout(() => setSliderBusy(false), 700);
       }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={floatingTools ? 'h-full min-h-0 w-full space-y-2 overflow-y-auto bg-kestrel-panel p-3' : `${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
         {!isPhone && <div className="sticky top-0 z-20 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
-          {!floatingTools && <button data-editor-undock type="button" aria-label={libraryT.floatingPane.undockTools} title={libraryT.floatingPane.undockToolsHelp}
-            onClick={() => setToolsUndocked(true)}
+          {!floatingTools && !isPhone && <button data-editor-undock type="button"
+            aria-label={`Undock ${TABS.find((entry) => entry.id === tab)?.label ?? tab}`}
+            title="Open this tab in a separate, movable and resizable panel"
+            onClick={() => toggleFloatTab(tab)}
             className="grid h-11 w-11 shrink-0 place-items-center border-b border-white/10 text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
             <Maximize className="h-4 w-4" aria-hidden="true"/>
           </button>}
