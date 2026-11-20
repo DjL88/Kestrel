@@ -5,7 +5,7 @@ import { encodeProjectBackup } from '../core/projectBackup';
 import type { CullingState } from '../core/types';
 import { openConnection } from './connectionStore';
 import { getLocations } from './projectLocations';
-import { LOCAL_RECOVERY_TARGET, openLocalRecovery } from './automaticRecovery';
+import { LOCAL_RECOVERY_TARGET, openDeviceRecovery, openSourceRecovery } from './automaticRecovery';
 
 export interface BackupStatus { state: 'idle' | 'working' | 'ok' | 'failed'; at?: number; message?: string; health?: Health; to?: string }
 
@@ -44,20 +44,68 @@ const listeners = new Set<() => void>();
 let version = 0;
 const setStatus = (projectId: string, status: BackupStatus) => { statuses.set(projectId, status); version += 1; listeners.forEach((listener) => listener()); };
 
-/** Save a backup of the project to a connection now, and tidy old ones. Never throws: the answer says what happened. */
+/** A successful local recovery copy is independent of an optional source copy. */
+async function writeSnapshot(connector: import('../core/storageConnectors').StorageConnector,
+  projectId: string, name: string, payload: Uint8Array): Promise<void> {
+  await connector.put(name, payload, '');
+  // Retention is best effort; never report a valid backup as failed because
+  // an old copy could not be removed from a disconnected drive.
+  try {
+    for (const expired of backupsToDelete(await connector.list(backupFolder(projectId)), projectId))
+      await connector.remove(expired);
+  } catch { /* Older snapshots may remain. */ }
+}
+
+/**
+ * Save on-device *every time*, and also beside the original photo source
+ * (or to the chosen backup location) when writable. This works on phones
+ * connected to a network source just as it does on desktop.
+ */
 export async function backUpNow(state: CullingState, connectionId: string, now = new Date()): Promise<BackupStatus> {
   const projectId = state.shoot.id;
-  try {
-    const opened = connectionId === LOCAL_RECOVERY_TARGET ? await openLocalRecovery(state) : await openConnection(connectionId);
-    if ('problem' in opened) return { state: 'failed', message: opened.message, health: opened.problem, at: now.getTime() };
-    const payload = new TextEncoder().encode(encodeProjectBackup(state));
-    await opened.connector.put(backupName(projectId, now), payload, '');
-    // Keep the newest few. A tidy-up that fails is not a failed backup.
-    try { for (const name of backupsToDelete(await opened.connector.list(backupFolder(projectId)), projectId)) await opened.connector.remove(name); } catch { /* old copies stay */ }
-    return { state: 'ok', at: now.getTime(), to: 'to' in opened ? opened.to : 'Chosen backup location' };
-  } catch (error) {
-    return { state: 'failed', message: error instanceof Error ? error.message : 'The backup could not be saved.', at: now.getTime() };
+  const name = backupName(projectId, now);
+  const payload = new TextEncoder().encode(encodeProjectBackup(state));
+  const local = await openDeviceRecovery();
+  let localOk = false;
+  let localError = '';
+  if ('problem' in local) localError = local.message;
+  else {
+    try { await writeSnapshot(local.connector, projectId, name, payload); localOk = true; }
+    catch (error) { localError = error instanceof Error ? error.message : 'Device storage is unavailable.'; }
   }
+
+  const source = await openSourceRecovery(state);
+  // A deliberately selected destination is an additional backup; it never
+  // removes the automatic photo-source or local copy.
+  const selected = connectionId === LOCAL_RECOVERY_TARGET ? null : await openConnection(connectionId);
+  const extra: Array<{ connector: import('../core/storageConnectors').StorageConnector; to: string }> = [];
+  if (source && !('problem' in source)) extra.push(source);
+  if (selected && !('problem' in selected)) extra.push({ connector: selected.connector, to: 'Chosen backup location' });
+
+  let extraOk = 0;
+  const failed: string[] = [];
+  if (selected && 'problem' in selected) failed.push(`Chosen backup location: ${selected.message}`);
+  for (const target of extra) {
+    try { await writeSnapshot(target.connector, projectId, name, payload); extraOk++; }
+    catch (error) { failed.push(`${target.to}: ${error instanceof Error ? error.message : 'Not writable'}`); }
+  }
+
+  if (!localOk && !extraOk) return {
+    state: 'failed', at: now.getTime(),
+    message: [localError, ...failed].filter(Boolean).join(' ') || 'No recovery file could be written.',
+  };
+  // An unavailable network source must not cancel an otherwise valid local
+  // snapshot, but it must remain visible and eligible for another attempt.
+  if (failed.length) return {
+    state: 'failed', at: now.getTime(),
+    to: localOk ? 'On this device' : extra[0]?.to,
+    message: `${localOk ? 'Saved on this device. ' : ''}${failed.join(' ')}`,
+  };
+  return {
+    state: 'ok', at: now.getTime(),
+    to: extraOk ? extra.at(-1)?.to ?? 'Photo folder' : 'On this device',
+    ...(localOk ? {} : { message: `Source backup saved, but a separate on-device copy was unavailable: ${localError}` }),
+  };
 }
 
 /** Observe edits even if a previous snapshot is still being written. */

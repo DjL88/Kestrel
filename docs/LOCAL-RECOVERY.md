@@ -1,33 +1,29 @@
-# Local project recovery
+# Local recovery: both the device and the photograph source
 
-Kestrel saves decisions, captions, edit history and reversible adjustments in its
-local catalogue as they change. A separate, rolling recovery copy is now saved
-automatically even when the user has not configured a cloud or NAS connection.
+Kestrel automatically saves reversible edits, decisions, keywords and project
+metadata to its local catalogue after changes. Independently it writes rolling
+`.kestrel.json` recovery snapshots to Kestrel's own private storage whenever
+available (OPFS). On any device, if the photograph source can be written to,
+Kestrel **also** saves the snapshot in the source's `kestrel/v1/project-backups/`
+subfolder. A connected NAS on a phone is treated exactly like a writable source
+on a desktop computer.
 
-- **Phone / tablet / browser file picker:** the backup stays in the app's
-  private on-device storage (OPFS) when supported, never in the device photo
-  library and never online. Browser/app data deletion may also delete this
-  local recovery copy; for a truly independent backup, export a project backup.
-- **Desktop linked photo folder:** if every original for the project comes
-  from the same folder, a `kestrel/v1/project-backups/` directory is created
-  inside it. At most ten dated `.kestrel.json` snapshots are kept per
-  project. Originals are never overwritten or included.
-- **Browser selected folder:** a recovery file is saved there only when write
-  permission already exists. No automatic permission prompts; otherwise the
-  private local directory is used.
-- **Other devices/mixed source folders:** private device storage is used.
-- **Explicit chosen backup destination:** the existing connected backup
-  location still takes precedence.
+Sources with existing write permission: linked native photo folder, a browser
+folder handle, or a configured 'Load from' connector such as WebDAV/NAS.
+Automatic backup never requests new permission. A user-chosen separate backup
+destination is an *additional* copy and does not replace device/source copies.
 
-The app retries failed writes. A backup is attempted after an edit (with
-a five-minute minimum gap after a successful backup), on a periodic check and
-when leaving the project. Photos, embedded JPEGs, developed previews, model
-weights and other large data are not placed into the small recovery file.
-The file records the RAW develop-cache version; the local thumbnail/developed
-preview cache is checked separately when opening each photo. Export still reads
-the original for full quality. Clearing the app's cache does not touch any
-original or recovery file in a photo folder.
+Snapshots are identified by project, timestamp and nonce, with up to 10 kept
+per project at each reachable destination. A failed source write does not
+prevent on-device recovery; it is reported and retried. Unavailable separate
+device storage does not prevent saving to a writable source.
 
-Restoring a backup validates the project and reconnects photo originals where
-needed. Device-local recovery is *not* disaster-proof when the app itself is
-uninstalled or its data is erased.
+The file records the RAW processing-cache version but contains **no image data**
+or underlying RAW/JPEG files. Locally cached developed previews are kept in
+IndexedDB independently, reused on reopening the project and regenerated
+after a processing version change. Export still reads original data for
+full-resolution quality.
+
+Private app storage is not an independent disaster-recovery backup: if the
+app/browser data is erased or uninstalled, that copy can disappear. Folder
+snapshots survive that operation only if the photo source remains accessible.
