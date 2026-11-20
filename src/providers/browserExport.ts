@@ -87,12 +87,12 @@ export async function loadExportSource(
       throw new Error(`Kestrel could not develop ${frame.filename} from RAW sensor data: ${detail} The original is unchanged.`);
     }
     const developedUrl = await provider.getFullPreviewUrl(frame, priority);
-    if (!developedUrl || provider.isOfflineFallback?.(key)) {
+    if (!developedUrl || provider.isOfflineFallback?.(key) || provider.isDeveloped?.(key) === false) {
       throw new Error(`Reconnect ${frame.filename} before exporting. Full RAW development is unavailable.`);
     }
     return loadImage(developedUrl);
   }
-  if (needsSensorDevelopment) {
+  if (needsSensorDevelopment && rawDecoder && provider.ensureOriginal) {
     const original = await provider.ensureOriginal(frame.stableKey, priority);
     if (!original) throw new Error(`Reconnect ${frame.filename} before exporting. The original RAW file is not available.`);
     const extension = frame.filename.split('.').at(-1)?.toLowerCase() ?? '';
