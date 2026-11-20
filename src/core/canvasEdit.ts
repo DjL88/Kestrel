@@ -11,7 +11,8 @@ function applyCanvasNoiseReduction(canvas: HTMLCanvasElement, edit: PhotoEdit): 
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
   const cleaned = applyNoiseReduction(pixels.data, canvas.width, canvas.height, edit);
   if (cleaned === pixels.data) return;
-  context.putImageData(new ImageData(cleaned as Uint8ClampedArray<ArrayBuffer>, canvas.width, canvas.height), 0, 0);
+  // Keep the canvas's own colour space (Display P3 on wide-gamut screens), or the pixels would be converted again.
+  context.putImageData(new ImageData(cleaned as Uint8ClampedArray<ArrayBuffer>, canvas.width, canvas.height, { colorSpace: pixels.colorSpace }), 0, 0);
 }
 
 function applyCanvasDetail(canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge: number): void {

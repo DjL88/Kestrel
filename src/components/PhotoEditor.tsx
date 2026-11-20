@@ -49,6 +49,8 @@ import { visiblePhotoDetail } from '../core/visiblePhotoDetail';
 const FIT_PREVIEW_EDGE = 2200;
 const DIAL_KEYS = [...EDIT_CHOICES.map(({ key }) => key), ...TONE_CONTROLS.map(({ key }) => key), ...DETAIL_CONTROLS.map(({ key }) => key)] as const;
 import { isRawPreviewFile } from '../core/rawFormats';
+import { showsOriginalPixels } from '../core/displayFidelity';
+import { displayCanvasColourSpace } from '../providers/displayColour';
 import { tasks } from '../core/taskStore';
 import { canDevelopRaw, canExportRawMaster, developRaw, matchPreviewOrientation, rawDngCopy, rawSensorMode, sensorModeLabel, type RawSensorMode } from '../providers/rawDevelop';
 import { extractRawPreview } from '../core/nefPreview';
@@ -158,6 +160,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [showDetail, setShowDetail] = useState(false);
   const [sourceState, setSourceState] = useState<'loading' | 'ready' | 'error'>('loading');
+  // The original's own picture could not be shown again (its address went stale): fall back to the drawn canvas.
+  const [originalShowFailed, setOriginalShowFailed] = useState<string | null>(null);
   const [developedRev, setDevelopedRev] = useState(0);
   const [developing, setDeveloping] = useState(false);
   const [developNote, setDevelopNote] = useState<string | null>(null);
@@ -487,6 +491,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     left: (viewport.width - size.width * fit) / 2, top: (viewport.height - size.height * fit) / 2,
     width: size.width * fit, height: size.height * fit,
   } : undefined;
+  // With nothing changed, show the decoded original itself over the drawn canvas (ROADMAP K.1): full size and colour
+  // managed by the browser, never a smaller sRGB redraw. The canvas underneath still feeds the histogram.
+  const sourceUrl = source ? source.currentSrc || source.src : '';
+  const natural = source ? { width: source.naturalWidth, height: source.naturalHeight } : null;
+  const originalUsable = Boolean(sourceUrl && position && natural) && originalShowFailed !== sourceUrl;
+  const editedShowsOriginal = originalUsable && showsOriginalPixels(edit, displayFraming, natural!);
+  const beforeShowsOriginal = originalUsable && displayCompare && showsOriginalPixels(before.edit, displayFraming, natural!);
   const cropRect = guide && outputSize && position ? {
     left: position.left + outputSize.x * fit, top: position.top + outputSize.y * fit,
     width: outputSize.width * fit, height: outputSize.height * fit,
@@ -573,7 +584,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
     const canvas = editedCanvas.current;
     if (!source || !size || !canvas) return;
     const scale = Math.min(1, FIT_PREVIEW_EDGE / Math.max(size.width, size.height));
-    drawFramedPhoto(source, canvas, displayFraming, { scale });
+    drawFramedPhoto(source, canvas, displayFraming, { scale, colourSpace: displayCanvasColourSpace() });
     applyCanvasPhotoEdit(canvas, edit);
     // A small copy keeps the histogram cheap, and it reads the edited result.
     const small = document.createElement('canvas');
@@ -590,7 +601,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   useEffect(() => {
     if (!displayCompare || !source || !size || !originalCanvas.current) return;
     const scale = Math.min(1, FIT_PREVIEW_EDGE / Math.max(size.width, size.height));
-    drawFramedPhoto(source, originalCanvas.current, displayFraming, { scale });
+    drawFramedPhoto(source, originalCanvas.current, displayFraming, { scale, colourSpace: displayCanvasColourSpace() });
     if (before.edit) applyCanvasPhotoEdit(originalCanvas.current, before.edit);
   }, [source, displayFraming, displayCompare, before.edit, size?.width, size?.height]);
 
@@ -602,13 +613,13 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       const { region } = detail;
       const scale = Math.min(1, detail.scale * window.devicePixelRatio, Math.sqrt(5_000_000 / (region.width * region.height)));
       if (scale <= 0) return;
-      drawFramedPhoto(source, editedDetail.current, displayFraming, { region, scale });
+      drawFramedPhoto(source, editedDetail.current, displayFraming, { region, scale, colourSpace: displayCanvasColourSpace() });
       applyCanvasPhotoEdit(editedDetail.current, edit, Math.max(size!.width, size!.height) * scale, {
         aspect: size!.height / size!.width,
         view: { x: region.x / size!.width, y: region.y / size!.height, w: region.width / size!.width, h: region.height / size!.height },
       });
       if (displayCompare && originalDetail.current) {
-        drawFramedPhoto(source, originalDetail.current, displayFraming, { region, scale });
+        drawFramedPhoto(source, originalDetail.current, displayFraming, { region, scale, colourSpace: displayCanvasColourSpace() });
         if (before.edit) applyCanvasPhotoEdit(originalDetail.current, before.edit, Math.max(size!.width, size!.height) * scale, {
           aspect: size!.height / size!.width,
           view: { x: region.x / size!.width, y: region.y / size!.height, w: region.width / size!.width, h: region.height / size!.height },
@@ -1115,6 +1126,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               hidden={sourceState !== 'ready'} className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />
             {detail && <canvas ref={editedDetail} aria-hidden="true" hidden={!showDetail}
               className="absolute" style={detail.style} />}
+            {editedShowsOriginal && sourceState === 'ready' && <img src={sourceUrl} alt="" aria-hidden="true" draggable={false}
+              data-original-pixels="edited" className="pointer-events-none absolute select-none" style={position}
+              onError={() => setOriginalShowFailed(sourceUrl)} />}
             {/* A 3 × 3 thirds grid while the pointer is over the photo (not on touch screens). It follows the Gridlines
                 switch in Crop, stays out of the way of Before/After, takes no clicks, and zooms with the photo. Holding
                 Shift shows it at any time, Before/After included. */}
@@ -1269,6 +1283,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               className={position ? "absolute" : "absolute inset-0 h-full w-full object-contain"} style={position} />
             {detail && displayCompare && <canvas ref={originalDetail} aria-hidden="true" hidden={!showDetail}
               className="absolute" style={detail.style} />}
+            {beforeShowsOriginal && <img src={sourceUrl} alt="" aria-hidden="true" draggable={false}
+              data-original-pixels="before" className="pointer-events-none absolute select-none" style={position}
+              onError={() => setOriginalShowFailed(sourceUrl)} />}
           </>}
         />
         {sourceState !== 'ready' && (

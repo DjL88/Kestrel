@@ -158,6 +158,12 @@ export function renderEditOnGpu(target: HTMLCanvasElement, edit: PhotoEdit, imag
   const context = target.getContext('2d');
   if (!context) return false;
   try {
+    // Read and write the picture in the target canvas's own colour space, so a Display P3 screen canvas is not
+    // squeezed into sRGB on the way to the GPU and back. Browsers without these settings keep sRGB, as before.
+    const space = context.getContextAttributes?.().colorSpace ?? 'srgb';
+    const colourAware = gl as WebGL2RenderingContext & { drawingBufferColorSpace?: PredefinedColorSpace; unpackColorSpace?: PredefinedColorSpace };
+    if ('drawingBufferColorSpace' in colourAware && colourAware.drawingBufferColorSpace !== space) colourAware.drawingBufferColorSpace = space;
+    if ('unpackColorSpace' in colourAware && colourAware.unpackColorSpace !== space) colourAware.unpackColorSpace = space;
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
