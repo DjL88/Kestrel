@@ -1,7 +1,7 @@
-import { PANEL_MIN, PANEL_MAX, clampPanelWidth } from '../core/panelWidth';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { messages as m } from '../i18n/messages';
-import { ChevronLeft, ChevronRight, ClipboardCopy, Star, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardCopy, PanelTopOpen, Star, X } from 'lucide-react';
+import { FloatingPane } from './FloatingPane';
 import { formatCaptureDateTime, photoInfoText } from '../core/photoInfoText';
 import { SubjectPanel } from './SubjectPanel';
 import { SpeciesSuggestions } from './SpeciesSuggestions';
@@ -32,19 +32,23 @@ interface ExifInspectorProps {
 }
 
 export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide = 'right', batchCount, onClose, onRate, onFlag, onSubjects, onKeepTag, loadPicture, mates = [], onTagPhotos, onAutoTag }) => {
-  const widthKey = 'kestrel.photoInfoWidth';
-  const clampInfoWidth = (value: number) => clampPanelWidth(value, window.innerWidth / 2);
-  const [width, setWidth] = useState(() => {
-    try { return clampInfoWidth(Number(localStorage.getItem(widthKey) ?? 288)); } catch { return 288; }
-  });
-  const drag = useRef({ x: 0, width: 0 });
-  const changeWidth = (next: number) => {
-    const value = clampInfoWidth(next);
-    setWidth(value);
-    try { localStorage.setItem(widthKey, String(value)); } catch { /* Width still applies in this session. */ }
-  };
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'subject'>('info');
+  const [detached, setDetached] = useState(() => {
+    try { return window.localStorage.getItem('kestrel-info-undocked-v1') === 'true'; } catch { return false; }
+  });
+  const [wideScreen, setWideScreen] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1024px)');
+    const update = () => setWideScreen(media.matches);
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  const detach = (value: boolean) => {
+    setDetached(value);
+    try { window.localStorage.setItem('kestrel-info-undocked-v1', String(value)); } catch { /* no persistence required */ }
+  };
+  const floating = detached && wideScreen;
   const [picture, setPicture] = useState<HTMLCanvasElement | null>(null);
   const frameId = frame?.id;
   // The species model looks at a small copy of the photo, made when its details are opened.
@@ -85,38 +89,21 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
     },
   ];
 
-  return (
+  const inspector = (
     <aside
       aria-label={m.photoInfo.title}
-      style={{ '--photo-info-width': `${width}px` } as React.CSSProperties}
-      className={`workspace-popover absolute inset-x-2 top-2 z-40 max-h-[min(calc(100%_-_1rem),calc(100dvh_-_7rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-4 shadow-2xl sm:w-72 lg:relative lg:inset-auto lg:max-h-none lg:w-[var(--photo-info-width)] lg:max-w-[30vw] lg:overflow-hidden lg:p-0 lg:shrink-0 lg:rounded-none lg:border-0 lg:shadow-none ${dockedSide === 'left'
+      className={`${floating ? 'h-full w-full min-w-0 overflow-y-auto bg-kestrel-panel p-4' : 'workspace-popover absolute inset-x-2 bottom-[calc(0.5rem+env(safe-area-inset-bottom))] top-auto z-40 max-h-[min(75dvh,calc(100dvh_-_7rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-4 shadow-2xl sm:top-2 sm:bottom-auto sm:w-72 lg:static lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-0 lg:shadow-none'} ${dockedSide === 'left'
         // Only the docked panel (lg and up) changes side. Below that it floats over the photos, at the right edge where
         // it covers the fewest of them (the first photo is at the top left).
         ? 'sm:right-2 sm:left-auto lg:border-r'
         : 'sm:right-2 sm:left-auto lg:border-l'}`}
     >
-      <div role="separator" tabIndex={0} aria-label={m.photoInfo.title} aria-orientation="vertical"
-        aria-valuemin={PANEL_MIN} aria-valuemax={Math.max(PANEL_MIN, Math.min(PANEL_MAX, Math.floor(window.innerWidth * 0.3)))}
-        aria-valuenow={clampInfoWidth(width)}
-        className={`absolute inset-y-0 z-10 hidden w-2 touch-none cursor-col-resize bg-white/5 hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-sky-300 lg:block ${dockedSide === 'left' ? 'right-0' : 'left-0'}`}
-        onPointerDown={event => {
-          if (event.button !== 0) return;
-          drag.current = { x: event.clientX, width: clampInfoWidth(width) };
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }}
-        onPointerMove={event => {
-          if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-          changeWidth(drag.current.width + (event.clientX - drag.current.x) * (dockedSide === 'left' ? 1 : -1));
-        }}
-        onKeyDown={event => {
-          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-          event.preventDefault();
-          const grow = (event.key === 'ArrowRight') === (dockedSide === 'left');
-          changeWidth(clampInfoWidth(width) + (grow ? 20 : -20));
-        }} />
-      <div className="lg:h-full lg:overflow-y-auto lg:p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">{m.photoInfo.title}</h2>
+        {!floating && <button type="button" onClick={() => detach(true)} title="Undock Photo Info into a movable window"
+          aria-label="Undock Photo Info" className="hidden h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 lg:grid">
+          <PanelTopOpen className="h-4 w-4" aria-hidden="true"/>
+        </button>}
         {/* An arrow towards the edge it folds into, as on the editing tools; on small screens, where it floats, a cross. */}
         <button type="button" onClick={onClose} aria-label={m.photoInfo.close} title={m.photoInfo.fold} className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
           <X className="h-4 w-4 lg:hidden" aria-hidden="true" />
@@ -196,7 +183,9 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
       </div>
       </div>
 
-      </div>
     </aside>
   );
+  return floating
+    ? <FloatingPane title={m.photoInfo.title} initialSide={dockedSide} storageKey="kestrel-info-float-rect-v1" onDock={() => detach(false)}>{inspector}</FloatingPane>
+    : inspector;
 };
