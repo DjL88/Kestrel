@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test.skip(({ viewport }) => (viewport?.width ?? 1280) < 768,
   'Desktop Compare pixel-zoom test; mobile sheet requires a separate measured touch run');
 
-test('Compare uses localised photo recovery and true 200% preview zoom', async ({ page }) => {
+test('Compare uses localised photo recovery and true 100% and 200% preview zoom', async ({ page }) => {
   test.setTimeout(90_000);
   await page.addInitScript(() => localStorage.setItem('kestrel-language', 'en-GB'));
   await page.goto('/');
@@ -39,12 +39,17 @@ test('Compare uses localised photo recovery and true 200% preview zoom', async (
   await expect(compare).toBeVisible();
   const choose = compare.getByRole('button', { name: 'Choose the next photo' });
   if (await choose.isVisible().catch(() => false)) await choose.click();
+  const oneToOne = compare.getByRole('button', { name: 'View photo B at 100% of its available preview pixels' });
+  await expect(oneToOne).toBeEnabled({ timeout: 30_000 });
+  await oneToOne.click();
+  await expect(oneToOne).toHaveAttribute('aria-pressed', 'true');
   const pixelZoom = compare.getByRole('button', {
     name: 'View photo B at 200% of its available preview pixels',
   });
   await expect(pixelZoom).toBeEnabled({ timeout: 30_000 });
   await pixelZoom.click();
   await expect(pixelZoom).toHaveAttribute('aria-pressed', 'true');
+  await expect(oneToOne).toHaveAttribute('aria-pressed', 'false');
 
   // "2× Fit" is deliberately not offered under a misleading 200% name.
   await expect(compare.getByRole('button', { name: 'Zoom both photos to twice fitted size' })).toHaveCount(0);
