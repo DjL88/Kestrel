@@ -7,12 +7,13 @@ interface FloatingPaneProps {
   title: string;
   storageKey: string;
   onDock: () => void;
+  initialSide?: 'left' | 'right';
   children: ReactNode;
 }
 
-function initialRect(key: string): PaneRect {
+function initialRect(key: string, initialSide: 'left' | 'right'): PaneRect {
   const viewport = { width: window.innerWidth, height: window.innerHeight };
-  const fallback = { x: Math.max(GAP, viewport.width - 390), y: 72, width: 360, height: 570 };
+  const fallback = { x: initialSide === 'left' ? GAP : Math.max(GAP, viewport.width - 390), y: 72, width: 360, height: 570 };
   try {
     const stored = window.localStorage.getItem(key);
     if (stored) {
@@ -30,8 +31,8 @@ function initialRect(key: string): PaneRect {
  * dimensions or gets clipped by the Library/Review/Edit flex layout.
  * The calling screen stays responsible for compact phone/tablet sheets.
  */
-export function FloatingPane({ title, storageKey, onDock, children }: FloatingPaneProps) {
-  const [rect, setRect] = useState<PaneRect>(() => initialRect(storageKey));
+export function FloatingPane({ title, storageKey, onDock, initialSide = 'right', children }: FloatingPaneProps) {
+  const [rect, setRect] = useState<PaneRect>(() => initialRect(storageKey, initialSide));
   const [maximised, setMaximised] = useState(false);
   const drag = useRef<{ pointer: number; x: number; y: number; rect: PaneRect } | null>(null);
   const frame = useRef<HTMLElement>(null);
