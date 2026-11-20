@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArchiveRestore, ArrowLeft, Columns2, Download, Ellipsis, Grid3X3, Image as ImageIcon, Eraser, FileDown, FolderInput, Info, Keyboard, ListChecks, Pencil, Plus, Redo2, Save, ScanSearch, Trash2, Undo2 } from 'lucide-react';
 import type { ProjectSettings } from '../core/projectSettings';
-import { AppearanceSettings } from './AppearanceSettings';
 import { isDesktopApp } from '../providers/desktopShell';
 import { messages as m } from '../i18n/messages';
 import type { CullCounts, FilterState, RatingFilter, ShootDescriptor, SortOrder, WorkspaceViewMode } from '../core/types';
@@ -13,6 +12,8 @@ interface TopWorkspaceBarProps {
   status?: ReactNode;
   /** The Settings button, in the far right corner as on every page. */
   settingsButton?: ReactNode;
+  /** Open the single shared Settings dialog from this workspace. */
+  onOpenSettings?: () => void;
   shoot: ShootDescriptor;
   counts: CullCounts;
   filter: FilterState;
@@ -267,7 +268,10 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                     <input type="checkbox" checked={props.focusMode} onChange={props.onToggleFocusMode} />
                     {t.top.photoOnly}
                   </label>
-                  <AppearanceSettings side={props.editPanelSide} onSideChange={props.onEditPanelSideChange} hand={props.hand} onHandChange={props.onHandChange} />
+                  {props.onOpenSettings && <button type="button" onClick={() => choose(props.onOpenSettings!)}
+                    className="flex min-h-11 w-full items-center gap-2 rounded-md border border-white/15 px-3 text-left text-sm text-zinc-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+                    {m.settings.title}
+                  </button>}
                   {isDesktopApp() && <button type="button" onClick={() => choose(props.onOpenMacroPadModal, false)}
                     className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-zinc-200 hover:bg-white/10">
                     <Keyboard className="h-4 w-4" aria-hidden="true" />{t.top.macroPad}
