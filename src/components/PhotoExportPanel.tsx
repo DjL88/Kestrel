@@ -76,7 +76,7 @@ const FIT_LABELS: Record<Fit, string> = t.fit;
 const DEFAULT_CUSTOM: CustomSize = { width: 1600, height: 1200, fit: 'keep', format: 'jpeg', quality: 90, prefix: 'custom_', allowUpscale: false };
 
 function readView(): 'wizard' | 'list' {
-  try { return localStorage.getItem('kestrel.exportView') === 'list' ? 'list' : 'wizard'; } catch { return 'wizard'; }
+  try { return localStorage.getItem('kestrel.exportView') === 'wizard' ? 'wizard' : 'list'; } catch { return 'list'; }
 }
 
 function loadChosen(freshStart = false): string[] {
@@ -103,7 +103,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const [placeTaskId, setPlaceTaskId] = useState<number | null>(null);
   const [openingPlace, setOpeningPlace] = useState(false);
   const placeBusy = openingPlace || placeTaskId !== null;
-  const [chosen, setChosen] = useState<string[]>(() => loadChosen(readView() === 'wizard'));
+  const [chosen, setChosen] = useState<string[]>(() => loadChosen(false));
   const [preferences] = useState(() => readExportPreferences({ getItem: (key) => localStorage.getItem(key) }));
   const [presets, setPresets] = useState(() => readExportPresets({ getItem: (key) => localStorage.getItem(key) }));
   const [presetName, setPresetName] = useState('');
@@ -948,8 +948,8 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     Boolean(mark.on && mark.kind === 'image' && !mark.imageData);
   const canShare = files.length > 0 && navigator.canShare?.({ files });
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-3 max-md:p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
-      <section ref={dialog} className={`workspace-popover flex max-h-[92dvh] w-full ${resultsReady ? 'max-w-xl' : 'max-w-4xl'} flex-col overflow-hidden rounded-xl border border-white/15 bg-kestrel-raised shadow-xl max-md:h-full max-md:max-h-none max-md:rounded-none max-md:border-0`}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
+      <section ref={dialog} className={`workspace-popover flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col overflow-hidden border-0 bg-kestrel-raised shadow-xl`}>
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-raised px-2 py-1">
           <button type="button" onClick={onClose} aria-label={t.panel.close} title={t.panel.close} className={button}><X className="h-5 w-5" aria-hidden="true" /></button>
           <h2 id="export-title" ref={title} tabIndex={-1} className="min-w-0 flex-1 truncate text-center text-base font-semibold">{t.panel.title(frames.length)}</h2>
