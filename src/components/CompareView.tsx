@@ -116,8 +116,8 @@ export function CompareView({
           </button>
           <button type="button" className={control} disabled={actual200 === null}
             onClick={() => actual200 !== null && onTransform(actual200, { x: 0, y: 0 })}
-            aria-label={actual200 === null ? t.compare.previewZoomNotReady : t.compare.actualPreview200}
-            title={actual200 === null ? t.compare.previewZoomNotReady : t.compare.actualPreview200}
+            aria-label={actual200 === null ? (previewFit > 0 ? t.compare.previewAlreadyLarge : t.compare.previewZoomNotReady) : t.compare.actualPreview200}
+            title={actual200 === null ? (previewFit > 0 ? t.compare.previewAlreadyLarge : t.compare.previewZoomNotReady) : t.compare.actualPreview200}
             aria-pressed={actual200 !== null && Math.abs(zoomLevel - actual200) < 0.001}>
             <ZoomIn aria-hidden="true" className="h-4 w-4" /><span className="ml-1 text-xs">{t.compare.twoHundred}</span>
           </button>
