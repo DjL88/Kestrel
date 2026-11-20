@@ -17,6 +17,16 @@ export const da: AreaTranslation<typeof source> = {
     keywords: "Nøgleord (adskilt med komma; tomt = bekræftede tags)",
     help: "Bekræftede motiver kan udfylde titel og nøgleord. Ikke bekræftede AI-gæt eksporteres aldrig. Oplysningerne gemmes i filen, ikke på fotoet.",
   },
+  originals: {
+    title: "Kameraoriginaler",
+    action: (count: number) => count === 1 ? "Gem originalfil" : `Gem ${count} originalfiler`,
+    background: (count: number) => count === 1 ? "Gemmer kameraoriginal" : `Gemmer ${count} kameraoriginaler`,
+    privacy: "En nøjagtig kopi af originalfilen, inklusive filformat og EXIF-/GPS-oplysninger. Redigeringer, beskæringer, vandmærker og ændringer i eksportmetadata anvendes IKKE. Kildefilen ændres ikke.",
+    browserLimit: "Valget er for stort til en sikker ZIP i denne browser. Brug desktopappen til at gemme originalerne én ad gangen i en mappe.",
+    browserLimitHelp: "Ved store RAW-batch gemmer desktopappen én fil ad gangen uden at bygge en enorm ZIP i hukommelsen.",
+    unavailable: "Demofotos har ingen original kamerafil.",
+    sourceMissing: "Den originale kamerafil er ikke tilgængelig. Tilslut drevet eller kildefilen igen før kopiering.",
+  },
   rawTiff: {
     action: "Eksportér 16-bit RAW-TIFF (prototype)",
     details: "Om 16-bit RAW-TIFF",
