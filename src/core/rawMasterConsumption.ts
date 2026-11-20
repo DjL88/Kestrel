@@ -51,7 +51,7 @@ export async function consumeVerifiedMaster<T>(
   adapter: MasterConsumptionAdapter<T>,
   signal?: AbortSignal,
 ): Promise<ConsumptionResult> {
-  if (!mayUseMaster(handoff, request)) return { ok: false, reason: 'unverified-master' };
+  if (handoff.state !== 'verified' || !mayUseMaster(handoff, request)) return { ok: false, reason: 'unverified-master' };
   if (cancelled(signal)) return { ok: false, reason: 'cancelled' };
   try {
     if (!matches(await adapter.readOriginalIdentity(signal), request)) return { ok: false, reason: 'original-changed' };
