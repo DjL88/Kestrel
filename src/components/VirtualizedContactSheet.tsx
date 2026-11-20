@@ -61,6 +61,11 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   useEffect(() => {
     try { localStorage.setItem('kestrel-group-bursts-v1', String(groupBursts)); } catch { /* session only */ }
   }, [groupBursts]);
+  useEffect(() => {
+    const toggle = () => setGroupBursts((value) => !value);
+    window.addEventListener('kestrel:toggle-burst-group', toggle);
+    return () => window.removeEventListener('kestrel:toggle-burst-group', toggle);
+  }, []);
   const frames = useMemo(() => {
     if (!groupBursts) return allFrames;
     const winners = new Map<string, PhotoFrame>();
