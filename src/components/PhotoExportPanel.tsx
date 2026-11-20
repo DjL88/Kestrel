@@ -1095,6 +1095,22 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             <p className="text-xs text-zinc-300">{t.results.connectedBackgroundHelp}</p>
           </div>
         )}
+        {!resultsReady && (
+          <section aria-label={t.originals.title} className="mb-3 rounded-lg border border-white/15 bg-black/10 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className={`${button} border border-white/20 font-medium`}
+                disabled={saving || progress !== null || placeBusy || !frames.length || frames.some(frame => frame.isDemo)}
+                onClick={() => void saveUnchangedOriginals()}>
+                {openingPlace ? t.results.choosingFolder : t.originals.action(frames.length)}
+              </button>
+              <span className="text-xs font-medium text-zinc-300">{t.originals.title}</span>
+            </div>
+            <p className="mt-1 text-xs text-zinc-300">{t.originals.privacy}</p>
+            {frames.some(frame => frame.isDemo) && <p role="note" className="mt-1 text-xs text-amber-200">{t.originals.unavailable}</p>}
+            {(!desktop || isMobileShell()) && frames.length > 1 &&
+              <p className="mt-1 text-xs text-zinc-400">{t.originals.browserLimitHelp}</p>}
+          </section>
+        )}
         {!resultsReady && frames.length === 1 && !frames[0].isDemo &&
           isRawPreviewFile(frames[0].filename) && canDevelopRaw() && (
           <section aria-label={t.rawTiff.action} className="mb-3 rounded-lg border border-white/15 bg-black/15 p-3">
