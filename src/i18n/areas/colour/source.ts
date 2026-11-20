@@ -1,0 +1,42 @@
+import { plural } from '../../../core/locale';
+
+/** Words for the colour check (British English source). Colours are always named; nothing is shown by colour alone. */
+export const source = {
+  title: 'Colour check',
+  intro: 'Kestrel names the colours in this photo and points out anything that may look wrong, in words.',
+  checking: 'Checking colour…',
+  unavailable: 'The colour check isn’t available for this photo yet.',
+  mainColours: 'Main colours',
+  nothingToFix: 'Nothing looks wrong with the colour in this small preview.',
+  watchOut: 'Watch out:',
+  tip: 'Tip:',
+  note: 'Note:',
+  family: {
+    red: 'red', orange: 'orange', brown: 'brown', yellow: 'yellow', lime: 'yellow-green', green: 'green', teal: 'teal',
+    blue: 'blue', purple: 'purple', pink: 'pink', grey: 'grey', black: 'black', white: 'white',
+  },
+  strength: { none: 'no colour', muted: 'soft', moderate: 'medium', strong: 'strong', veryStrong: 'very strong' },
+  share: (percent: number) => (percent >= 45 ? 'about half or more' : percent >= 25 ? 'about a quarter or more' : percent >= 10 ? 'a good part' : 'a little'),
+  paletteItem: (colour: string, strength: string, share: string) => `${colour}, ${strength}: ${share}`,
+  and: (first: string, second: string) => `${first} and ${second}`,
+  strongColour: (colours: string, percent: number) => `Very strong ${colours} covers ${percent}% of the photo. It can look unreal on screen and print badly.`,
+  clippedColour: (colours: string) => `Some ${colours} areas are too strong to show their detail, so they look flat.`,
+  cast: {
+    warm: 'Things that should be grey or white look a little yellow or orange (a warm cast).',
+    cool: 'Things that should be grey or white look a little blue (a cool cast).',
+    green: 'Things that should be grey or white look a little green.',
+    magenta: 'Things that should be grey or white look a little pink or purple.',
+  },
+  castClear: 'The tint is clear enough that most people will notice it.',
+  muted: 'There is hardly any colour in this photo. That is fine if you want it nearly black and white.',
+  redGreen: (first: string, second: string) => `The ${first} and ${second} areas are about equally bright, so many colour-blind people will find them hard to tell apart.`,
+  redGreenHint: 'Making one of them brighter or darker helps everyone see the difference.',
+  subject: (subjectColour: string, strength: string, surroundings: string) => `Your subject is ${strength} ${subjectColour}, against mostly ${surroundings}.`,
+  editStronger: (percent: number) => `Your edit has made the colours ${percent}% stronger than the original.`,
+  editWeaker: (percent: number) => `Your edit has made the colours ${percent}% softer than the original.`,
+  fixSoften: 'Soften colour',
+  fixCooler: 'Make cooler',
+  fixWarmer: 'Make warmer',
+  fixApplied: 'Done. You can undo it from Edit history.',
+  findings: (count: number) => plural(count, { one: '1 thing to look at', other: `${count} things to look at` }),
+} as const;

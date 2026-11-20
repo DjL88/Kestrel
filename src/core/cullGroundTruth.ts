@@ -151,10 +151,11 @@ export function passesCullSafetyGate(
     evaluation.falseRejectRate === evaluation.falseRejects / evaluation.keeperCount &&
     evaluation.falseKeepRate === evaluation.falseKeeps / evaluation.nonKeeperCount &&
     evaluation.automaticKeeperRecall !== null && evaluation.automaticKeeperRecall <= evaluation.keeperRecall &&
+    evaluation.automaticKeeperRecall !== null &&
+    evaluation.automaticKeeperRecall <= evaluation.keeperRecall &&
     evaluation.evaluated >= minimumEvaluated &&
     evaluation.nonKeeperCount > 0 && evaluation.falseKeeps === 0 &&
     evaluation.falseKeepRate === 0 &&
-    evaluation.automaticKeeperRecall !== null &&
     evaluation.automaticKeeperRecall >= minimumAutomaticKeeperRecall && evaluation.automaticKeeperRecall <= 1 &&
     evaluation.keeperCount > 0 && evaluation.aircraftCount > 0 &&
     evaluation.falseRejectRate !== null &&
