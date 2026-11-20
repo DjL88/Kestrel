@@ -59,7 +59,8 @@ export async function copyUnchangedOriginal(
     throw new Error(`Reconnect ${frame.filename} to save its actual original file. A cached preview is not enough.`);
   if (expected && original.size !== expected.size)
     throw new Error(`The original ${frame.filename} changed while being read. Reconnect and check it before copying.`);
-  const lastModified = Number.isFinite(expected?.lastModified) && expected!.lastModified! > 0
-    ? expected!.lastModified! : (original instanceof File ? original.lastModified : Date.now());
+  const stamp = expected?.lastModified;
+  const lastModified = typeof stamp === 'number' && Number.isFinite(stamp) && stamp > 0
+    ? stamp : (original instanceof File ? original.lastModified : Date.now());
   return new File([original], name, { type: original.type, lastModified });
 }
