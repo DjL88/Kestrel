@@ -1,6 +1,12 @@
 import { makeXmpDownload } from '../core/xmpSidecars';
 import { EXPORT_PREFERENCES_KEY, EXPORT_PRESETS_KEY, readExportPreferences, readExportPresets, type ExportPreset } from '../core/exportPreferences';
 import { isRawPreviewFile } from '../core/rawFormats';
+import { master16Blocker } from '../core/master16';
+import { DEFAULT_EDIT } from '../core/photoEdits';
+import { exportRaw16Tiff } from '../providers/rawMaster16';
+import { canDevelopRaw } from '../providers/rawDevelop';
+import { safeExportName } from '../core/exportPlace';
+import { editorText as editorT } from '../i18n/areas/editor';
 import { RAW_MASTER_EXPORT_ERROR, rawMasterExportBlocked } from '../core/rawMasterExportGate';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, X } from 'lucide-react';
@@ -183,6 +189,48 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       }
     } catch {
       if (!cancelled.current) setError(t.panel.saveFailed);
+    } finally {
+      saveRunning.current = false;
+      if (!cancelled.current) setSaving(false);
+    }
+  }
+
+  /** A sensor-derived 16-bit TIFF is an explicit advanced export alongside
+   * ordinary web/social output. It has its own renderer: never imply an 8-bit
+   * browser PNG is the RAW master, and never write pixels to the original. */
+  async function saveRawTiff() {
+    if (frames.length !== 1 || saveRunning.current || progress !== null) return;
+    const frame = frames[0];
+    if (frame.isDemo || !isRawPreviewFile(frame.filename) || !canDevelopRaw()) return;
+    const blocker = master16Blocker(frame.edit ?? DEFAULT_EDIT, frame.framing);
+    if (blocker) { setError(blocker); return; }
+
+    saveRunning.current = true;
+    setSaving(true);
+    setError('');
+    const task = tasks.start(editorT.raw.masterTask);
+    try {
+      const original = await provider.ensureOriginal(frame.stableKey);
+      if (!original) throw new Error(editorT.raw.masterReconnect);
+      const shown = await loadExportSource(frame, provider);
+      const tiff = await exportRaw16Tiff(original, shown, frame.edit ?? DEFAULT_EDIT, frame.framing);
+      // The experimental master has no burned-in text/watermark and copies no
+      // GPS/EXIF silently. Other export destinations keep their own options.
+      if (cancelled.current) { task.finish(editorT.raw.cancelledTask); return; }
+      const stem = safeExportName(frame.filename.replace(/\\.[^.]+$/, '')).replace(/\\.[^.]+$/, '');
+      const name = `${stem}_16bit.tif`;
+      const saved = desktop ? await saveWithDialog(tiff, name, true) : (downloadExport(tiff, name), true);
+      if (saved) {
+        task.finish(editorT.raw.masterSavedTask);
+        onDownloadRequested?.([frame]);
+        if (!cancelled.current) onClose();
+      } else {
+        task.finish(editorT.raw.cancelledTask);
+      }
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : editorT.raw.masterFailed;
+      task.fail(message);
+      if (!cancelled.current) setError(message);
     } finally {
       saveRunning.current = false;
       if (!cancelled.current) setSaving(false);
@@ -816,6 +864,23 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               This window closes after the job is accepted; progress and errors stay in Task Manager.
             </p>
           </div>
+        )}
+        {!resultsReady && frames.length === 1 && !frames[0].isDemo &&
+          isRawPreviewFile(frames[0].filename) && canDevelopRaw() && (
+          <section aria-label={t.rawTiff.action} className="mb-3 rounded-lg border border-white/15 bg-black/15 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className={`${button} border border-white/20 font-medium`}
+                disabled={saving || progress !== null || placeBusy} onClick={() => void saveRawTiff()}>
+                {saving ? editorT.raw.masterBusy : t.rawTiff.action}
+              </button>
+              <details className="min-w-0 flex-1 text-xs text-zinc-300">
+                <summary className="min-h-11 cursor-pointer py-2">{t.rawTiff.details}</summary>
+                <p className="pb-2">
+                  {t.rawTiff.help}
+                </p>
+              </details>
+            </div>
+          </section>
         )}
         {!resultsReady && frames.some(frame => !frame.isDemo && !frame.virtualCopy) && (
           <details className="mb-2 rounded-md border border-white/15 px-3 py-2">

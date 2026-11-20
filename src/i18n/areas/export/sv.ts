@@ -4,6 +4,11 @@ import type { source } from './source';
 
 /** Swedish. DRAFT: written without a native speaker's check. */
 export const sv: AreaTranslation<typeof source> = {
+  rawTiff: {
+    action: "Exportera 16-bitars RAW-TIFF (prototyp)",
+    details: "Om 16-bitars RAW-TIFF",
+    help: "Valfri TIFF skapad från RAW-sensordata med dina sparade redigeringar. Vattenstämplar och text bränns inte in och valfria GPS- eller EXIF-data kopieras inte. Färgerna är märkta som sRGB, men färgprecision och prestanda måste fortfarande verifieras i prototyptester. Redigeringar som inte stöds stoppar sparandet.",
+  },
   typeface: "Typsnitt",
   sidecar: {
     save: "Spara XMP-sidofil",

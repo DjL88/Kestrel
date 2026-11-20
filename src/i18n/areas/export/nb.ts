@@ -4,6 +4,11 @@ import type { source } from './source';
 
 /** Norwegian Bokmål. DRAFT: written without a native speaker's check. */
 export const nb: AreaTranslation<typeof source> = {
+  rawTiff: {
+    action: "Eksporter 16-biters RAW-TIFF (prototype)",
+    details: "Om 16-biters RAW-TIFF",
+    help: "Valgfri TIFF laget fra RAW-sensordata med de lagrede redigeringene dine. Vannmerker eller tekst legges ikke inn, og valgfrie GPS- eller EXIF-data kopieres ikke. Fargene er merket sRGB, men fargenøyaktighet og ytelse må fortsatt kontrolleres i prototypetester. Ustøttede redigeringer stopper lagringen.",
+  },
   typeface: "Skrifttype",
   sidecar: {
     save: "Lagre XMP-sidefil",

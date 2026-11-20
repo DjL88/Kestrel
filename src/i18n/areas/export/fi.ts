@@ -4,6 +4,11 @@ import type { source } from './source';
 
 /** Finnish. DRAFT: written without a native speaker's check. */
 export const fi: AreaTranslation<typeof source> = {
+  rawTiff: {
+    action: "Vie 16-bittinen RAW-TIFF (prototyyppi)",
+    details: "Tietoa 16-bittisestä RAW-TIFFistä",
+    help: "Valinnainen TIFF tehdään RAW-kennodatan ja tallennettujen muokkausten perusteella. Vesileimoja tai tekstiä ei lisätä kuvaan, eikä valinnaisia GPS- tai EXIF-tietoja kopioida. Värit merkitään sRGB:ksi, mutta väritarkkuus ja suorituskyky täytyy vielä varmistaa prototyyppitestauksessa. Tukemattomat muokkaukset estävät tallennuksen.",
+  },
   typeface: "Kirjasin",
   sidecar: {
     save: "Tallenna XMP-sivutiedosto",
