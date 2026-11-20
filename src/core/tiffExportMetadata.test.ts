@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { tiffXmpPacket } from './tiffExportMetadata.ts';
+import { metadataForExport, NO_EXPORT_METADATA } from './exportMetadataOptions.ts';
 import { encodeTiff16, type Rgb16Image } from './master16.ts';
 import { proveTiff16 } from './tiff16Proof.ts';
 
@@ -94,4 +95,26 @@ test('malformed XML characters are stripped and photographer text is not executa
   assert.doesNotMatch(text, /<script>/);
   assert.match(text, /&lt;script&gt;/);
   assert.doesNotMatch(text, /\u0001/);
+});
+
+test('the shared Export form applies the same opt-in metadata to a 16-bit TIFF', async () => {
+  const frame = {
+    subjectNames: ['Dunnock'], tags: ['Bird', 'Helicopter'], autoTags: ['Helicopter'],
+  };
+  const blank = await encodeTiff16(img(), metadataForExport(frame, NO_EXPORT_METADATA)).arrayBuffer();
+  assert.equal(tag(new DataView(blank), 700), null, 'metadata stays absent by default');
+  const selected = metadataForExport(frame, {
+    ...NO_EXPORT_METADATA, enabled: true, includeKeywords: true,
+    creator: 'Wildlife photographer', caption: 'Garden portrait',
+  });
+  const exported = await encodeTiff16(img(), selected).arrayBuffer();
+  const xmpTag = tag(new DataView(exported), 700);
+  assert.ok(xmpTag);
+  const xml = decode(new Uint8Array(exported, xmpTag.offset, xmpTag.count));
+  assert.match(xml, /Dunnock/);
+  assert.match(xml, /Wildlife photographer/);
+  assert.match(xml, /Garden portrait/);
+  assert.doesNotMatch(xml, /Helicopter|GPS|SerialNumber/);
+  assert.deepEqual(pixels(exported), pixels(blank), 'descriptive metadata cannot change 16-bit pixels');
+  assert.deepEqual(proveTiff16(exported), proveTiff16(blank), 'TIFF integrity and colour profile unchanged');
 });
