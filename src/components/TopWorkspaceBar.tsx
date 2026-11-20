@@ -52,6 +52,8 @@ interface TopWorkspaceBarProps {
   onOpenShootModal: () => void;
   onOpenMacroPadModal: () => void;
   onEditPhoto?: () => void;
+  /** Contextual action when editing a marked selection, not just the active photo. */
+  editLabel?: string;
   multiSelect: boolean;
   onToggleMultiSelect?: () => void;
   showFilmstrip: boolean;
@@ -177,9 +179,9 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           <Plus className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">{t.top.add}</span>
         </button>
-        <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto || props.actionsDisabled} aria-label={t.top.edit} title={t.top.editTitle}
+        <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto || props.actionsDisabled} aria-label={props.editLabel ?? t.top.edit} title={props.editLabel ?? t.top.editTitle}
           className={`${actionClass} border border-sky-300/50 text-sky-100 hover:bg-sky-300/15 disabled:opacity-40 max-md:hidden`}>
-          <Pencil className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">{t.top.edit}</span>
+          <Pencil className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">{props.editLabel ?? t.top.edit}</span>
         </button>
         <button type="button" onClick={props.onExport} disabled={!props.onExport || props.actionsDisabled} aria-label={props.exportLabel ?? t.top.export} title={t.top.exportTitle}
           className={`${actionClass} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-40 max-md:hidden`}>
@@ -309,7 +311,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
     <div role="toolbar" aria-label={t.top.photoActions} className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)] md:hidden">
       {([
         { key: 'add', label: t.top.add, title: t.top.addPhotos, Icon: Plus, onClick: props.onOpenShootModal, disabled: props.actionsDisabled || props.addDisabled },
-        { key: 'edit', label: t.top.edit, title: t.top.editTitle, Icon: Pencil, onClick: onEditPhoto, disabled: !onEditPhoto || props.actionsDisabled },
+        { key: 'edit', label: props.editLabel ?? t.top.edit, title: props.editLabel ?? t.top.editTitle, Icon: Pencil, onClick: onEditPhoto, disabled: !onEditPhoto || props.actionsDisabled },
         { key: 'export', label: props.exportLabel ?? t.top.export, title: t.top.exportTitle, Icon: Download, onClick: props.onExport, disabled: !props.onExport || props.actionsDisabled },
       ] as const).map(({ key, label, title, Icon, onClick, disabled }) => (
         <button key={key} type="button" onClick={onClick} disabled={disabled} title={title} aria-label={key === 'add' ? t.top.addPhotosToProject : label}
