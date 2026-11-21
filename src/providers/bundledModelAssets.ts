@@ -11,11 +11,20 @@
  * Detection functions will simply be unavailable until the licensed,
  * checksum-verified original model is present.
  */
-const availableModels = import.meta.glob('../assets/models/*.onnx', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-}) as Record<string, string>;
+// Vite replaces the static glob in desktop/web builds. The plain Node unit
+// runner has no import.meta.glob, so model import must safely fall back to an
+// empty registry there. Never substitute a preview or fetch unverified weights.
+const availableModels: Record<string, string> = (() => {
+  try {
+    return import.meta.glob('../assets/models/*.onnx', {
+      eager: true,
+      query: '?url',
+      import: 'default',
+    }) as Record<string, string>;
+  } catch {
+    return {};
+  }
+})();
 
 type ModelFilename = 'yolox_tiny.onnx' | 'u2netp.onnx';
 
