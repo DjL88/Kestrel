@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Download, Loader2, RefreshCw, X } from 'lucide-react';
+import { Check, Download, Loader2, RefreshCw, X } from './icons/KestrelUIIcons';
 import { SPECIES_MODEL, megabytes } from '../core/speciesModel';
 import { confidenceWord, kindFor, personalBonus, pickSuggestions, rankSpecies, similarPhotos, type Suggestion } from '../core/speciesMatch';
 import { qualifiesForAutoTag } from '../core/autoTags';
