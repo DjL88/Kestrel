@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
 import { acceptSensorRgb16 } from './rawWorkingRaster';
 
 function rgb16(width: number, height: number, samples: number[]): ArrayBuffer {
@@ -9,24 +10,23 @@ function rgb16(width: number, height: number, samples: number[]): ArrayBuffer {
   samples.forEach((value, index) => view.setUint16(8 + index * 2, value, true));
   return buffer;
 }
-describe('sensor working raster safety', () => {
-  it('retains intermediate 16-bit samples without JPEG quantisation', () => {
+
+test('retains intermediate 16-bit samples without JPEG quantisation', () => {
     const out = acceptSensorRgb16(rgb16(2, 1, [1, 256, 32769, 65534, 42, 8193]));
-    expect([...out.image.data]).toEqual([1, 256, 32769, 65534, 42, 8193]);
-    expect(out.allocatedBytes).toBe(20);
-    expect(out.provenance.encoding).toBe('display-srgb');
-    expect(out.provenance.iccVerified).toBe(false);
-    expect(out.provenance.sceneLinear).toBe(false);
-    expect(out.provenance.previewExportParityVerified).toBe(false);
+    assert.deepEqual([...out.image.data], [1, 256, 32769, 65534, 42, 8193]);
+    assert.equal(out.allocatedBytes, 20);
+    assert.equal(out.provenance.encoding, 'display-srgb');
+    assert.equal(out.provenance.iccVerified, false);
+    assert.equal(out.provenance.sceneLinear, false);
+    assert.equal(out.provenance.previewExportParityVerified, false);
   });
-  it('rejects truncated pixels, trailing bytes and hostile dimensions', () => {
-    expect(() => acceptSensorRgb16(rgb16(2, 1, [1, 2, 3]))).toThrow();
-    expect(() => acceptSensorRgb16(rgb16(1, 1, [1, 2, 3, 4]))).toThrow();
-    expect(() => acceptSensorRgb16(rgb16(2, 1, [1, 2, 3, 4, 5, 6]), 1)).toThrow();
+test('rejects truncated pixels, trailing bytes and hostile dimensions', () => {
+    assert.throws(() => acceptSensorRgb16(rgb16(2, 1, [1, 2, 3])));
+    assert.throws(() => acceptSensorRgb16(rgb16(1, 1, [1, 2, 3, 4])));
+    assert.throws(() => acceptSensorRgb16(rgb16(2, 1, [1, 2, 3, 4, 5, 6]), 1));
   });
-  it('rejects invalid memory limits and empty images', () => {
-    expect(() => acceptSensorRgb16(new ArrayBuffer(0))).toThrow();
-    expect(() => acceptSensorRgb16(rgb16(1, 1, [1, 2, 3]), Number.NaN)).toThrow();
-    expect(() => acceptSensorRgb16(rgb16(1, 1, [1, 2, 3]), 100_000_000)).toThrow();
+test('rejects invalid memory limits and empty images', () => {
+    assert.throws(() => acceptSensorRgb16(new ArrayBuffer(0)));
+    assert.throws(() => acceptSensorRgb16(rgb16(1, 1, [1, 2, 3]), Number.NaN));
+    assert.throws(() => acceptSensorRgb16(rgb16(1, 1, [1, 2, 3]), 100_000_000));
   });
-});
