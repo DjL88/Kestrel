@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { scanVerifiedSubjects, type VerifiedSubjectScan } from './verifiedSubjectScan';
+import { scanVerifiedSubjects, scanVerifiedSubjectDetails, type VerifiedSubjectScan } from './verifiedSubjectScan';
 
 const sha = 'a'.repeat(64);
 const identity = { photoId: 'bird-1', sourceSha256: sha, width: 1000, height: 800, modelVersion: 'signed-yolox-v1', burstId: 'folder/burst' };
@@ -148,4 +148,56 @@ test('non-overlapping birds and aircraft retain distinct manual review boxes', a
   });
   assert.deepEqual(rows.map(r => r.evidence.genre), ['bird', 'aircraft']);
   assert.ok(rows.every(r => r.evidence.manualDecision === 'review'));
+});
+
+const detailBase = () => ({
+  ...base(),
+  raster: {
+    photoId: identity.photoId, sourceSha256: sha, width: 1000, height: 800,
+    sourceWidth: 1000, sourceHeight: 800, rgba: new Uint8Array(1000 * 800 * 4),
+  },
+  verifyRaster: async () => true,
+});
+
+test('two detector subjects produce separate exact-pixel review crops', async () => {
+  const details = await scanVerifiedSubjectDetails(detailBase());
+  assert.equal(details.length, 2);
+  assert.deepEqual(details.map(d => d.crop.x), [20, 500]);
+  assert.deepEqual(details.map(d => d.crop.width), [120, 120]);
+  assert.ok(details.every(d => d.candidate.evidence.manualDecision === 'review'));
+  assert.ok(details.every(d => d.crop.rgba.byteLength === 120 * 100 * 4));
+});
+
+test('unverified source raster is never used for Select detail', async () => {
+  let detected = false;
+  const rows = await scanVerifiedSubjectDetails({
+    ...detailBase(), verifyRaster: async () => false,
+    detector: async () => { detected = true; return [bird(20)]; },
+  });
+  assert.deepEqual(rows, []);
+  assert.equal(detected, false);
+});
+
+test('raster replaced after detection returns no stale subject pixels', async () => {
+  let attested = 0;
+  const rows = await scanVerifiedSubjectDetails({
+    ...detailBase(), verifyRaster: async () => ++attested === 1,
+  });
+  assert.deepEqual(rows, []);
+  assert.equal(attested, 2);
+});
+
+test('insufficient shared crop budget abstains rather than silently dropping subjects', async () => {
+  const rows = await scanVerifiedSubjectDetails({ ...detailBase(), maxCropBytes: 120 * 100 * 4 });
+  assert.deepEqual(rows, []);
+});
+
+test('photo switch during raster attestation discards subject crops', async () => {
+  let selected = true;
+  const rows = await scanVerifiedSubjectDetails({
+    ...detailBase(),
+    isCurrent: () => selected,
+    verifyRaster: async () => { selected = false; return true; },
+  });
+  assert.deepEqual(rows, []);
 });
