@@ -163,3 +163,25 @@ test('permission for one route cannot silently authorise a different managed AI 
   assert.equal(await failureOf(transport.ask(clean)), 'blocked');
   assert.deepEqual(seen, ['/v1/ai/identify']);
 });
+
+test('a signed-out attempt consumes permission even before authentication, preventing cross-account reuse', async () => {
+  let session: string | null = null;
+  let ready = true;
+  let permissionsChecked = 0;
+  let sent = 0;
+  const transport = controlPlaneTransport('https://cp.example', () => session, async () => {
+    sent += 1;
+    throw new Error('A blocked request must never send a thumbnail');
+  }, () => {
+    permissionsChecked++;
+    const permission = ready;
+    ready = false;
+    return permission;
+  });
+  assert.equal(await failureOf(transport.ask(clean)), 'auth');
+  assert.equal(permissionsChecked, 1, 'sign-out consumes a pending permission once');
+  session = 'new-account';
+  assert.equal(await failureOf(transport.ask(clean)), 'blocked');
+  assert.equal(permissionsChecked, 2);
+  assert.equal(sent, 0, 'neither the signed-out nor new-account request uploaded pixels');
+});
