@@ -90,10 +90,10 @@ async function idbGet<T>(storeName: string, key: string): Promise<T | null> {
       const request = tx.objectStore(storeName).get(key);
       let value: T | null = null;
       request.onsuccess = () => { value = (request.result as T) ?? null; };
-      request.onerror = () => reject(request.error ?? new Error('Reading Kestrel storage failed.'));
+      request.onerror = () => reject(request.error ?? new Error('Reading Kite44 storage failed.'));
       tx.oncomplete = () => resolve(value);
-      tx.onerror = () => reject(tx.error ?? new Error('Reading Kestrel storage failed.'));
-      tx.onabort = () => reject(tx.error ?? new Error('Reading Kestrel storage was interrupted.'));
+      tx.onerror = () => reject(tx.error ?? new Error('Reading Kite44 storage failed.'));
+      tx.onabort = () => reject(tx.error ?? new Error('Reading Kite44 storage was interrupted.'));
     });
   } finally {
     db.close();

@@ -101,7 +101,7 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
       <div className="mx-auto max-w-3xl py-8 sm:py-14">
         <div className="mb-7 flex items-center gap-2.5">
           <img src={kestrelMark} alt="" className="h-10 w-10" />
-          <span className="text-lg font-semibold tracking-tight text-kestrel-ink">Kestrel</span>
+          <span className="text-lg font-semibold tracking-tight text-kestrel-ink">Kite44</span>
           <div className="ml-auto"><SettingsButton open={appearanceOpen} onOpen={() => setAppearanceOpen(true)} /></div>
         </div>
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">

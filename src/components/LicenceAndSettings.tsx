@@ -44,11 +44,11 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
     if (!token) return;
     const result = await activateFromAccount(token);
     const text: Record<typeof result, string | null> = {
-      pro: 'Kestrel Pro is active on this device through your account.',
-      free: 'Signed in. This account has no Pro licence yet, and signing in does not change what Kestrel can do.',
+      pro: 'Kite44 Pro is active on this device through your account.',
+      free: 'Signed in. This account has no Pro licence yet, and signing in does not change what Kite44 can do.',
       limit: 'This account\'s Pro licence is already on its maximum number of devices. Free one from another device and try again.',
       revoked: 'This account\'s Pro licence is no longer active. Your local work is unaffected.',
-      unreachable: 'Signed in, but the licence service could not be reached or the email is not verified yet. Check your email, then sign in again. Kestrel keeps working.',
+      unreachable: 'Signed in, but the licence service could not be reached or the email is not verified yet. Check your email, then sign in again. Kite44 keeps working.',
       not_set_up: null,
     };
     setAccountNote(text[result]);

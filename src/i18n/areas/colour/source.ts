@@ -3,7 +3,7 @@ import { plural } from '../../../core/locale';
 /** Words for the colour check (British English source). Colours are always named; nothing is shown by colour alone. */
 export const source = {
   title: 'Colour check',
-  intro: 'Kestrel names the colours in this photo and points out anything that may look wrong, in words.',
+  intro: 'Kite44 names the colours in this photo and points out anything that may look wrong, in words.',
   checking: 'Checking colour…',
   unavailable: 'The colour check isn’t available for this photo yet.',
   mainColours: 'Main colours',

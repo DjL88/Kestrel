@@ -74,7 +74,7 @@ export const sv: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Originalet är inte tillgängligt — anslut mappen eller enheten igen',
     previewUnavailable: 'Förhandsvisning inte tillgänglig',
-    heifUndecodable: 'Kestrel kunde inte avkoda den här HEIF-bilden. Originalet är oförändrat.',
+    heifUndecodable: 'Kite44 kunde inte avkoda den här HEIF-bilden. Originalet är oförändrat.',
   },
   info: {
     title: 'Fotoinfo',

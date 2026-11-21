@@ -1,7 +1,7 @@
 import type { WasmSensorMode } from './wasiShim';
 
 /**
- * Kestrel's RAW pipeline in the browser: the same Rust code as the desktop app (crates/kestrel-raw), compiled to
+ * Kite44's RAW pipeline in the browser: the same Rust code as the desktop app (crates/kestrel-raw), compiled to
  * WebAssembly and run in a Web Worker. Like the bundled models, the binary is found with a glob, so a checkout without
  * it (AI Studio may omit large binaries) still builds and simply keeps showing embedded previews.
  */
@@ -39,7 +39,7 @@ function ensureWorker(): Worker {
   started.onerror = (event) => {
     // The worker itself died (for example, out of memory): fail what was waiting and start afresh next time.
     event.preventDefault();
-    for (const pending of waiting.values()) pending.reject(new Error('The RAW decoder ran out of room for this file. Kestrel keeps using the preview stored in the file.'));
+    for (const pending of waiting.values()) pending.reject(new Error('The RAW decoder ran out of room for this file. Kite44 keeps using the preview stored in the file.'));
     waiting.clear();
     started.terminate();
     if (worker === started) worker = null;

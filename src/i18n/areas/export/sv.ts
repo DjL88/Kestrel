@@ -232,7 +232,7 @@ export const sv: AreaTranslation<typeof source> = {
     backgroundSaving: (count) => `Exporterar ${count} filer i bakgrunden`,
     choosingFolder: "Väljer mapp…",
     desktopBackground: (count) => `Spara ${count} filer i en mapp i bakgrunden`,
-    desktopBackgroundHelp: "Välj en mapp en gång. Filerna sparas en i taget i en ny daterad mapp för Kestrel Exports, grupperade efter destination. Du kan fortsätta redigera; aktivitetshanteraren visar förlopp och fel.",
+    desktopBackgroundHelp: "Välj en mapp en gång. Filerna sparas en i taget i en ny daterad mapp för Kite44 Exports, grupperade efter destination. Du kan fortsätta redigera; aktivitetshanteraren visar förlopp och fel.",
     saving: 'Sparar…',
     saved: (name) => `${name} sparad`,
     ready: (count) => plural(count, { one: `${count} fil klar`, other: `${count} filer klara` }),

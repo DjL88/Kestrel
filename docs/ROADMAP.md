@@ -1,4 +1,5 @@
-# Kestrel roadmap
+# Kite44 roadmap
+> **21 NOVEMBER 2026 (owner decision): the product is renamed from Kestrel to Kite44** to avoid a clash with another party using "Kestrel". The existing kite logo stays. This change renames every user-visible string, the desktop product name and window title. **Deliberately unchanged, to avoid breaking saved data, licence keys and updates:** localStorage/IndexedDB keys, `.kestrel.json` backups, `KESTREL1` licence keys, crate and package names, bundle identifiers (`app.kestrel.*`), script names and the GitHub repo URL. Renaming those, the installer file names and the Apple/Firebase registrations is a separate, migrated step. Earlier text below still says Kestrel.
 > **One current task tracker — 21 November 2026:** [GitHub issue #418](https://github.com/DjL88/Kestrel/issues/418) is the **only active working queue** for all five Kestrel workers, implementation handoffs, open blockers and exact-SHA PASS/FAIL/NOT RUN evidence. This roadmap is the longer-term **product plan and historical integration log**, **not a second live checklist**. The older standalone feature issues were consolidated into #418 without marking their work complete. Do not use historical PR numbers or dated PASS rows below as evidence of current installed-app validation; check the latest #418 body, comments and current main first.
 
 

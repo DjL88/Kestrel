@@ -77,7 +77,7 @@ export const source = {
   frame: {
     originalUnavailable: 'Original unavailable — reconnect its folder or drive',
     previewUnavailable: 'Preview unavailable',
-    heifUndecodable: 'Kestrel could not decode this HEIF photo. The original is unchanged.',
+    heifUndecodable: 'Kite44 could not decode this HEIF photo. The original is unchanged.',
   },
   info: {
     title: 'Photo info',

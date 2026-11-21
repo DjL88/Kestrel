@@ -16,7 +16,7 @@ async function readRecipe(page: Page): Promise<PhotoEdit> {
 }
 
 /**
- * Kestrel Next, Slice 2: the whole photographer's journey in one test, on one project.
+ * Kite44 Next, Slice 2: the whole photographer's journey in one test, on one project.
  * Import mixed files → keep / trash → Auto on unedited keepers → a manual adjustment → full-size export at the
  * source's true dimensions → leave, reload, reopen with every decision and edit intact.
  * Synthetic fixtures only. The real-file version of this run is `npm run journey:local` (never committed).

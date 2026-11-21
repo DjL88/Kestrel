@@ -280,7 +280,7 @@ html[data-calm="true"] *, html[data-calm="true"] *::before, html[data-calm="true
   .kestrel-editor-main > [data-photo-stage] { min-height: 0; }
 }
 
-/* Kestrel is an image workspace, not a selectable browser article. Keep
+/* Kite44 is an image workspace, not a selectable browser article. Keep
    ordinary text inputs, accessibility controls and code snippets selectable. */
 #root { -webkit-user-select: none; user-select: none; }
 #root input, #root textarea, #root select, #root [contenteditable="true"],

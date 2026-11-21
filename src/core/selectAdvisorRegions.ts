@@ -1,5 +1,5 @@
 /**
- * Kestrel Select -> offline Photo Advisor: evidence-bound reversible proposals.
+ * Kite44 Select -> offline Photo Advisor: evidence-bound reversible proposals.
  * Values are bounded *edit parameters*, never rendered or generated pixels.
  * No inferred species label and no implicit model training/telemetry.
  */

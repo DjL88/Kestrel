@@ -232,7 +232,7 @@ export const cy: AreaTranslation<typeof source> = {
     backgroundSaving: (count) => `Allforio ${count} o ffeiliau yn y cefndir`,
     choosingFolder: "Dewis ffolder…",
     desktopBackground: (count) => `Cadw ${count} o ffeiliau mewn ffolder yn y cefndir`,
-    desktopBackgroundHelp: "Dewiswch ffolder unwaith. Cedwir ffeiliau fesul un mewn ffolder Kestrel Exports newydd, wedi'u grwpio yn ôl cyrchfan. Mae cynnydd a gwallau i'w gweld yn y Rheolwr Tasgau.",
+    desktopBackgroundHelp: "Dewiswch ffolder unwaith. Cedwir ffeiliau fesul un mewn ffolder Kite44 Exports newydd, wedi'u grwpio yn ôl cyrchfan. Mae cynnydd a gwallau i'w gweld yn y Rheolwr Tasgau.",
     saving: 'Wrthi’n cadw…',
     saved: (name) => `Wedi cadw ${name}`,
     ready: (count) => `${count} ffeil yn barod`,

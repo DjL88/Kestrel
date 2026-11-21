@@ -73,7 +73,7 @@ export const ga: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Níl an bunleagan ar fáil — ceangail a fhillteán nó a thiomántán arís',
     previewUnavailable: 'Níl réamhamharc ar fáil',
-    heifUndecodable: 'Níorbh fhéidir le Kestrel an grianghraf HEIF seo a dhíchódú. Níl aon athrú ar an mbunleagan.',
+    heifUndecodable: 'Níorbh fhéidir le Kite44 an grianghraf HEIF seo a dhíchódú. Níl aon athrú ar an mbunleagan.',
   },
   info: {
     title: 'Eolas an ghrianghraif',

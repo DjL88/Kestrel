@@ -1,5 +1,5 @@
 /**
- * One signing format shared by the Kestrel control plane and every client.
+ * One signing format shared by the Kite44 control plane and every client.
  *
  * The server signs `canonicalJson(payload)` with Ed25519. Clients verify with a
  * PINNED public key (never one supplied by the response) using WebCrypto, which

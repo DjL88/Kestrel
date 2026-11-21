@@ -73,7 +73,7 @@ export const gd: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Chan eil an tùsail ri fhaighinn — ceangail a phasgan no an draibh aige a-rithist',
     previewUnavailable: 'Chan eil ro-shealladh ri fhaighinn',
-    heifUndecodable: 'Cha b’ urrainn do Kestrel an dealbh HEIF seo a dhì-chòdachadh. Tha an tùsail gun atharrachadh.',
+    heifUndecodable: 'Cha b’ urrainn do Kite44 an dealbh HEIF seo a dhì-chòdachadh. Tha an tùsail gun atharrachadh.',
   },
   info: {
     title: 'Fiosrachadh an deilbh',

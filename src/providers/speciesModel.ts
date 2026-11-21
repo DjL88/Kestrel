@@ -37,7 +37,7 @@ export async function speciesStatus(): Promise<SpeciesStatus> {
 
 /** Download the model once, check it, and keep it on this device for offline use. */
 export async function downloadSpeciesModel(onProgress: (fraction: number) => void, signal?: AbortSignal): Promise<void> {
-  if (!SPECIES_MODEL.url) throw new Error('Species suggestions are not set up in this copy of Kestrel.');
+  if (!SPECIES_MODEL.url) throw new Error('Species suggestions are not set up in this copy of Kite44.');
   try {
     // The subject checker first: a browser never has species names without the check that keeps aircraft from them.
     const gateShare = GATE_MODEL.bytes / SPECIES_DOWNLOAD_BYTES;
@@ -98,12 +98,12 @@ function loadSession(): Promise<Loaded> {
       // Native installer ships this asset: resolve it through the app's own
       // local asset protocol. Verify again before executing any model weights.
       const response = await fetch(SPECIES_MODEL.url);
-      if (!response.ok) throw new Error('The packaged species model is missing. Reinstall Kestrel.');
+      if (!response.ok) throw new Error('The packaged species model is missing. Reinstall Kite44.');
       bytes = new Uint8Array(await response.arrayBuffer());
       const hash = new Sha256Stream();
       hash.update(bytes);
       if (bytes.byteLength !== SPECIES_MODEL.bytes || hash.digest() !== SPECIES_MODEL.sha256)
-        throw new Error('The packaged species model failed its integrity check. Reinstall Kestrel.');
+        throw new Error('The packaged species model failed its integrity check. Reinstall Kite44.');
     } else {
       throw new Error('The species model has not been downloaded.');
     }

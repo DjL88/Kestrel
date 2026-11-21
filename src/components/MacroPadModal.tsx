@@ -40,7 +40,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
 }) => {
   const [padTab, setPadTab] = useState<PadMode>('cull');
   const [capturingId, setCapturingId] = useState<CommandId | null>(null);
-  // The last key Kestrel received while the dialog was open, so a pad's real behaviour can be checked.
+  // The last key Kite44 received while the dialog was open, so a pad's real behaviour can be checked.
   const [received, setReceived] = useState<{ chord: string; label: string } | null>(null);
 
   useEffect(() => {

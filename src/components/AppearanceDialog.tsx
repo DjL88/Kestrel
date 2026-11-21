@@ -47,7 +47,7 @@ export function AppearanceDialog({ side, onSideChange, hand, onHandChange, guida
         <section className="mt-4 space-y-2 border-t border-white/15 pt-3" aria-label="Optional second opinion settings">
           <div className="flex items-center justify-between gap-3">
             <div><h3 className="text-sm font-semibold text-zinc-100">Optional second opinion</h3>
-              <p className="text-xs text-zinc-400">{aiSettings ? 'Your selected provider is configured on this device. A second opinion is available when requested.' : 'Add your own provider for an optional second opinion. Kestrel\'s everyday colour checks work offline.'}</p></div>
+              <p className="text-xs text-zinc-400">{aiSettings ? 'Your selected provider is configured on this device. A second opinion is available when requested.' : 'Add your own provider for an optional second opinion. Kite44\'s everyday colour checks work offline.'}</p></div>
             <button type="button" className="min-h-11 shrink-0 rounded-md border border-white/15 px-3 text-sm text-zinc-100" onClick={() => setAiSetupOpen((open) => !open)} aria-expanded={aiSetupOpen}>{aiSetupOpen ? 'Hide' : aiSettings ? 'Change' : 'Set up'}</button>
           </div>
           {aiSetupOpen && <AiProviderSetup saved={aiSettings} onDone={() => setAiSetupOpen(false)} />}
