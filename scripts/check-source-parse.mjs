@@ -7,7 +7,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { resolve, relative, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
+import { transformWithOxc } from 'vite';
 
 const extensions = new Set(['.ts', '.tsx', '.mts', '.cts']);
 const excluded = new Set(['node_modules', 'dist', 'build', 'coverage', 'target', '.git', '.vite', '.cache', '__snapshots__']);
@@ -28,28 +28,34 @@ export function sourceFiles(root) {
 }
 
 /** Parse diagnostics, not type errors or unresolved imports. */
-export function parseFile(path, text) {
-  const kind = extname(path).toLowerCase() === '.tsx' ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
-  const parsed = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, kind);
-  return parsed.parseDiagnostics.map((problem) => {
-    const pos = parsed.getLineAndCharacterOfPosition(problem.start ?? 0);
-    return {
-      path, line: pos.line + 1, column: pos.character + 1, code: problem.code,
-      message: ts.flattenDiagnosticMessageText(problem.messageText, '\n'),
-    };
-  });
+export async function parseFile(path, text) {
+  // TypeScript 7 removed the old JavaScript compiler API (ScriptKind,
+  // createSourceFile, etc.). Use Vite 8's actual OXC TSX transformer instead,
+  // so this check catches the same malformed JSX as Vite's dev overlay.
+  const loader = extname(path).toLowerCase() === '.tsx' ? 'tsx' : 'ts';
+  try {
+    await transformWithOxc(text, path, { loader });
+    return [];
+  } catch (error) {
+    const failure = error && typeof error === 'object' ? error : {};
+    const location = failure.loc ?? {};
+    const line = Number.isInteger(location.line) ? location.line : Number.isInteger(failure.line) ? failure.line : 1;
+    const column = Number.isInteger(location.column) ? location.column + 1 : Number.isInteger(failure.column) ? failure.column + 1 : 1;
+    const message = error instanceof Error ? error.message : String(error);
+    return [{ path, line, column, code: 'OXC_PARSE_ERROR', message }];
+  }
 }
 
-export function inspectSource(root) {
+export async function inspectSource(root) {
   const files = sourceFiles(root);
   const failures = [];
-  for (const file of files) failures.push(...parseFile(file, readFileSync(file, 'utf8')));
+  for (const file of files) failures.push(...await parseFile(file, readFileSync(file, 'utf8')));
   return { files: files.length, failures };
 }
 
-function main() {
+async function main() {
   let result;
-  try { result = inspectSource(resolve(process.cwd(), 'src')); }
+  try { result = await inspectSource(resolve(process.cwd(), 'src')); }
   catch (error) {
     console.error('Source syntax check could not run: ' + (error instanceof Error ? error.message : String(error)));
     process.exitCode = 1;
@@ -57,7 +63,7 @@ function main() {
   }
   for (const problem of result.failures) {
     const path = relative(process.cwd(), problem.path).replaceAll('\\', '/');
-    console.error(path + ':' + problem.line + ':' + problem.column + ' TS' + problem.code + ': ' + problem.message);
+    console.error(path + ':' + problem.line + ':' + problem.column + ' ' + problem.code + ': ' + problem.message);
   }
   if (result.failures.length) {
     console.error('Syntax check FAILED: ' + result.failures.length + ' parsing errors in ' + result.files + ' source files.');
@@ -67,4 +73,9 @@ function main() {
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  void main().catch((error) => {
+    console.error('Source syntax check failed unexpectedly:', error);
+    process.exitCode = 1;
+  });
+}
