@@ -1,6 +1,7 @@
 import { applyDetail, applyPhotoEdit, type PhotoEdit } from './photoEdits';
 import { LOCAL_KEYS, hasActiveMasks, type Mask } from './maskTypes';
 import { applyNoiseReduction } from './noiseReduction';
+import { blendMaskPixelSrgb8 } from './maskBlendSrgb8';
 
 /** Which part of the framed photo a canvas shows. A zoomed region covers a sub-rectangle. */
 export interface MaskContext {
@@ -218,9 +219,10 @@ export function applyMasks(pixels: Uint8ClampedArray, width: number, height: num
       const a = alpha[i];
       if (a <= 0) continue;
       const j = i * 4;
-      pixels[j] += (adjusted[j] - pixels[j]) * a;
-      pixels[j + 1] += (adjusted[j + 1] - pixels[j + 1]) * a;
-      pixels[j + 2] += (adjusted[j + 2] - pixels[j + 2]) * a;
+      // Match the RGB16 archival renderer's linear-light mask transitions.
+      // Mixing encoded 8-bit bytes here used to darken the screen edge while
+      // the 16-bit export correctly kept its brightness and feather colour.
+      blendMaskPixelSrgb8(pixels, adjusted, j, a);
     }
   }
 }
