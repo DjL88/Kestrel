@@ -43,14 +43,14 @@ export function ExportProofDock(props: Props) {
               <ChevronDown aria-hidden="true" className={`h-4 w-4 transition-transform ${mobileOpen ? 'rotate-180' : ''}`} />
             </button>
           </div>
-          {props.frames.length > 1 && <label className="flex min-w-0 max-w-full items-center gap-2">
+          {props.frames.length > 1 && <label className={`flex min-w-0 max-w-full items-center gap-2 ${mobileOpen ? '' : 'max-sm:hidden'}`}>
             <span className="text-zinc-300">{t.proof.photo}</span>
             <select aria-label={t.proof.choosePhoto} className="min-h-11 min-w-0 w-full max-w-full sm:max-w-44 rounded-md border border-white/20 bg-[#15171C] px-2 text-zinc-100"
               value={frame?.id ?? ''} onChange={event => props.onChoosePhoto(event.target.value)}>
               {props.frames.map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.filename}</option>)}
             </select>
           </label>}
-          {props.formats.length > 0 && <label className="flex min-w-0 items-center gap-2">
+          {props.formats.length > 0 && <label className={`flex min-w-0 items-center gap-2 ${mobileOpen ? '' : 'max-sm:hidden'}`}>
             <span className="text-zinc-300">{t.proof.output}</span>
             <select aria-label={t.proof.chooseOutput} className="min-h-11 min-w-0 w-full max-w-full sm:max-w-48 rounded-md border border-white/20 bg-[#15171C] px-2 text-zinc-100"
               value={format?.id ?? ''} onChange={event => props.onChooseDestination(event.target.value)}>
