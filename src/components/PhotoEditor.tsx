@@ -556,7 +556,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
   // Preview evidence is suggestive, not a substitute for full-precision RAW export proof.
   useEffect(() => {
     const mask = edit.masks?.find((candidate) => candidate.id === selectedMaskId);
-    if (guidanceMode === 'solo' || !source || !outputSize || !mask || mask.kind !== 'subject' || mask.invert) {
+    if (guidanceMode === 'solo' || tab !== 'masks' || !source || !outputSize || !mask || mask.kind !== 'subject' || mask.invert) {
       setBoundaryEvidence(null);
       return;
     }
@@ -582,7 +582,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
     }, 550);
     return () => { current = false; window.clearTimeout(timer); };
   // Dimensions are primitive: recompute only after a new photo, framing, edit or mask.
-  }, [selectedMaskId, source, outputSize?.width, outputSize?.height, framing, edit, guidanceMode]);
+  }, [selectedMaskId, source, outputSize?.width, outputSize?.height, framing, edit, guidanceMode, tab]);
   const size = source ? framedSize(source.naturalWidth, source.naturalHeight, displayFraming) : null;
   const fit = size ? Math.min(viewport.width / size.width, viewport.height / size.height) : 0;
   const position = size && fit ? {
