@@ -23,6 +23,8 @@ export interface ExportBatchAdapter<Recipe, Output> {
   render(item: Readonly<ExportBatchItem>, recipe: Readonly<Recipe>, signal: AbortSignal): Promise<Output>;
   /** Resolve only after destination confirms the completed write. */
   save(item: Readonly<ExportBatchItem>, output: Output, signal: AbortSignal): Promise<void>;
+  /** Final durable commit, awaited BEFORE Task Manager displays Completed. */
+  finalize?(recipe: Readonly<Recipe>, signal: AbortSignal): Promise<void>;
 }
 export interface ExportBatchTicket {
   readonly id: number;
@@ -147,8 +149,16 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
               handle?.fail('Export stopped. Files already saved remain at the destination.');
               resolveDone('cancelled');
             } else {
-              handle?.finish(`${items.length} files saved`);
-              resolveDone('completed');
+              // A published file is not a completed batch until its recovery
+              // checkpoint is durable. Failure is surfaced in Task Manager.
+              await adapter.finalize?.(recipe, controller.signal);
+              if (controller.signal.aborted || handle?.cancelled) {
+                handle?.fail('Export stopped after files were saved. Verify the destination before retrying.');
+                resolveDone('cancelled');
+              } else {
+                handle?.finish(`${items.length} files saved`);
+                resolveDone('completed');
+              }
             }
           } catch (error) {
             if (controller.signal.aborted || handle?.cancelled) resolveDone('cancelled');
