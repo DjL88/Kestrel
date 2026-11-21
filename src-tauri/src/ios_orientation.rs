@@ -89,12 +89,18 @@ unsafe impl Encode for Size { const ENCODING: Encoding = Encoding::Struct("CGSiz
 unsafe impl Encode for Rect { const ENCODING: Encoding = Encoding::Struct("CGRect", &[Point::ENCODING, Size::ENCODING]); }
 unsafe impl RefEncode for Rect { const ENCODING_REF: Encoding = Encoding::Pointer(&Rect::ENCODING); }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Insets { top: f64, left: f64, bottom: f64, right: f64 }
+// SAFETY: matches UIEdgeInsets (four f64s) on 64-bit iOS.
+unsafe impl Encode for Insets { const ENCODING: Encoding = Encoding::Struct("UIEdgeInsets", &[Encoding::Double, Encoding::Double, Encoding::Double, Encoding::Double]); }
+
 /// Make the web view cover the whole window.
 ///
-/// The window library sizes the web view down by the top and bottom safe areas but leaves it at the top, so on a phone it
-/// stopped about 96 pt short of the bottom edge (the page measured 778 pt on an 874 pt screen) and the footer floated
-/// above an empty band. The page already pads for the safe areas itself (`env(safe-area-inset-*)`), so the view should
-/// fill the window and follow it when the screen turns.
+/// The web view's frame was already the whole window, but the page inside measured 96 pt short (778 pt on an 874 pt
+/// screen: the two safe areas), so the footer floated above an empty band. Zeroing the scroll view's insets and then
+/// nudging the frame by a point makes the page measure itself again at full height. The page pads for the safe areas
+/// itself (`env(safe-area-inset-*)`).
 ///
 /// # Safety
 /// `web_view` must be the live `WKWebView`, and this must run on the main thread (`with_webview` guarantees both).
@@ -113,4 +119,13 @@ pub unsafe fn fill_window(web_view: *mut AnyObject) {
     // The page does its own safe-area padding, so the scroll view must not add a second inset.
     let scroll_view: *mut AnyObject = msg_send![web_view, scrollView];
     let _: () = msg_send![scroll_view, setContentInsetAdjustmentBehavior: 2isize]; // UIScrollViewContentInsetAdjustmentNever
+    let zero = Insets { top: 0.0, left: 0.0, bottom: 0.0, right: 0.0 };
+    let _: () = msg_send![scroll_view, setContentInset: zero];
+    let _: () = msg_send![scroll_view, setScrollIndicatorInsets: zero];
+    // The page only re-measures when the view's size changes, so nudge it by a point and put it back.
+    let nudged = Rect { origin: bounds.origin, size: Size { width: bounds.size.width, height: bounds.size.height - 1.0 } };
+    let _: () = msg_send![web_view, setFrame: nudged];
+    let _: () = msg_send![web_view, setFrame: bounds];
+    let _: () = msg_send![web_view, layoutIfNeeded];
 }
+
