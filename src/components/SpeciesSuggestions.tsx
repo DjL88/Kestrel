@@ -6,6 +6,7 @@ import { qualifiesForAutoTag } from '../core/autoTags';
 import { gateOutcome, permitsAutomaticSpeciesTag } from '../core/categoryGate';
 import { STRICT_SPECIES_PROBABILITY } from '../core/subjectRouter';
 import { gateAvailable, routePicture } from '../providers/categoryGate';
+import type { SquareCrop } from '../core/subjectCrop';
 import { readAutoTag, readSpeciesCounts, rememberSpecies, saveAutoTag } from '../providers/speciesLearning';
 import { helperReady, failureMessage, type HelperAnswer } from '../core/onlineHelper';
 import { openHelperDialog, useHelperSettings } from '../providers/helperSettings';
@@ -147,7 +148,7 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
         // is an animal: a helicopter could otherwise inherit an Osprey tag.
         if (!(await gateAvailable())) continue;
         if (at !== run.current || latest.current.frameId !== frameId || latest.current.kind !== 'wildlife') return;
-        let crop;
+        let crop: SquareCrop | null = null;
         let allowed = false;
         try {
           const observation = await speciesSubjectCrop(picture);
