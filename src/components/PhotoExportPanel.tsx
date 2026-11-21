@@ -1050,52 +1050,28 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       </div>
     ) : null;
 
-  const canShare = files.length > 0 && navigator.canShare?.({ files });
-  const featuredGroups = SHARED_SOCIAL_SIZES.filter(group => FEATURED_SIZE_IDS.has(group.canonical.id));
-  const otherGroups = SHARED_SOCIAL_SIZES.filter(group => !FEATURED_SIZE_IDS.has(group.canonical.id));
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
-      <section ref={dialog} className={`workspace-popover flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col overflow-hidden border-0 bg-kestrel-raised shadow-xl`}>
-        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-raised px-2 py-1">
-          <button type="button" onClick={onClose} aria-label={t.panel.close} title={t.panel.close} className={button}><X className="h-5 w-5" aria-hidden="true" /></button>
-          <h2 id="export-title" ref={title} tabIndex={-1} className="min-w-0 flex-1 truncate text-center text-base font-semibold">{t.panel.title(frames.length)}</h2>
-          {resultsReady || wizard ? <span className="w-11" /> : (
-            <button type="submit" form="export-form" aria-label={progress !== null ? t.panel.preparingOf(progress, total) : t.prepare.files(total)} disabled={!total || progress !== null || blocked}
-              className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}>
-              {progress !== null ? `${progress}/${total}…` : total > 1 ? t.panel.prepareCount(total) : t.panel.prepare}
-            </button>
-          )}
-        </header>
-        {!resultsReady && <ExportProofDock frames={frames} formats={selected} sources={sources} choice={activeProof}
-          failedPhotoId={proofLoadFailed} onRetry={() => setProofRetry(value => value + 1)}
-          onChoosePhoto={chooseProofPhoto} onChooseDestination={chooseProofFormat} bars={bars} overlay={overlay}
-          anchorFor={anchorFor} zoomFor={zoomFor}
-          onAnchor={(frame, format, point) => setAnchors(prior => ({ ...prior, [`${frame.id}|${format.id}`]: point }))}
-          onZoom={(frame, format, zoom) => setZooms(prior => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))} />}
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
-        {!resultsReady && desktop && !isMobileShell() && (
-          <div className="mb-3 flex flex-col gap-1 rounded-lg border border-white/15 bg-black/15 p-3">
-            <button type="button" disabled={!total || progress !== null || blocked || placeBusy || saving}
-              className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}
-              onClick={() => void queueToBackgroundDestination('desktop')}>
-              {placeBusy ? t.results.choosingFolder : t.results.desktopBackground(total)}
-            </button>
-            <p className="text-xs text-zinc-300">{t.results.desktopBackgroundHelp}</p>
-          </div>
-        )}
-        {!resultsReady && exportPlace && (
-          <div className="mb-3 flex flex-col gap-1 rounded-lg border border-white/15 bg-black/15 p-3">
-            <button type="button" disabled={!total || progress !== null || blocked || placeBusy}
-              className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}
-              onClick={() => void queueToBackgroundDestination('connected')}>
-              {openingPlace ? t.results.connectingDestination
-                : placeTaskId !== null ? t.results.backgroundSaving(total)
-                  : t.results.connectedBackground(total, exportPlace.label)}
-            </button>
-            <p className="text-xs text-zinc-300">{t.results.connectedBackgroundHelp}</p>
-          </div>
-        )}
-        {!resultsReady && progress === null && !placeBusy && (
+  const destinationActions = (
+    <div className="space-y-2">
+      {desktop && !isMobileShell() && (
+        <button type="button" disabled={!total || progress !== null || blocked || placeBusy || saving}
+          className={`${button} w-full border border-white/15 text-left`}
+          onClick={() => void queueToBackgroundDestination('desktop')}>
+          {placeBusy ? t.results.choosingFolder : t.results.desktopBackground(total)}
+        </button>
+      )}
+      {exportPlace && (
+        <button type="button" disabled={!total || progress !== null || blocked || placeBusy}
+          className={`${button} w-full border border-white/15 text-left`}
+          onClick={() => void queueToBackgroundDestination('connected')}>
+          {openingPlace ? t.results.connectingDestination :
+            placeTaskId !== null ? t.results.backgroundSaving(total) :
+              t.results.connectedBackground(total, exportPlace.label)}
+        </button>
+      )}
+    </div>
+  );
+
+  const presetsBlock = progress === null && !placeBusy ? (
           <details className="mb-2 rounded-md border border-white/15 px-3 py-2">
             <summary className="cursor-pointer py-2 text-sm">{t.presets.title}</summary>
             <ul className="space-y-2">
@@ -1140,7 +1116,31 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             </div>
             <p role="status" className="text-xs text-zinc-300">{presetNote}</p>
           </details>
-        )}
+  ) : null;
+
+  const canShare = files.length > 0 && navigator.canShare?.({ files });
+  const featuredGroups = SHARED_SOCIAL_SIZES.filter(group => FEATURED_SIZE_IDS.has(group.canonical.id));
+  const otherGroups = SHARED_SOCIAL_SIZES.filter(group => !FEATURED_SIZE_IDS.has(group.canonical.id));
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
+      <section ref={dialog} className={`workspace-popover flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col overflow-hidden border-0 bg-kestrel-raised shadow-xl`}>
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-raised px-2 py-1">
+          <button type="button" onClick={onClose} aria-label={t.panel.close} title={t.panel.close} className={button}><X className="h-5 w-5" aria-hidden="true" /></button>
+          <h2 id="export-title" ref={title} tabIndex={-1} className="min-w-0 flex-1 truncate text-center text-base font-semibold">{t.panel.title(frames.length)}</h2>
+          {resultsReady || wizard ? <span className="w-11" /> : (
+            <button type="submit" form="export-form" aria-label={progress !== null ? t.panel.preparingOf(progress, total) : t.prepare.files(total)} disabled={!total || progress !== null || blocked}
+              className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}>
+              {progress !== null ? `${progress}/${total}…` : total > 1 ? t.panel.prepareCount(total) : t.panel.prepare}
+            </button>
+          )}
+        </header>
+        {!resultsReady && <ExportProofDock frames={frames} formats={selected} sources={sources} choice={activeProof}
+          failedPhotoId={proofLoadFailed} onRetry={() => setProofRetry(value => value + 1)}
+          onChoosePhoto={chooseProofPhoto} onChooseDestination={chooseProofFormat} bars={bars} overlay={overlay}
+          anchorFor={anchorFor} zoomFor={zoomFor}
+          onAnchor={(frame, format, point) => setAnchors(prior => ({ ...prior, [`${frame.id}|${format.id}`]: point }))}
+          onZoom={(frame, format, zoom) => setZooms(prior => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))} />}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
         {!resultsReady && (
           <p className="mt-1 text-center">
             <button type="button" onClick={() => changeView(wizard ? 'list' : 'wizard')} className="min-h-10 px-3 text-xs text-zinc-300 underline underline-offset-4 hover:text-white">
