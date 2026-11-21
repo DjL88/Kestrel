@@ -1860,9 +1860,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           {floatingTools
             ? <FloatingPane title={libraryT.paneRail.editingTools} photoOnly={focusPhoto} initialSide={panelSide} storageKey="kestrel-tools-float-rect-v1" dockFocusSelector="[data-editor-undock]" onDock={() => setToolsUndocked(false)}>{toolPanel}</FloatingPane>
             : toolPanel}
-          {!isPhone && FLOATABLE_TABS.filter((id) => floatingTabs.has(id) && !hiddenTabs.has(id)).map((id) => (
+          {!isPhone && FLOATABLE_TABS.filter((id) => floatingTabs.has(id) && !hiddenTabs.has(id)).map((id, order) => (
             <FloatingPane key={id} title={TABS.find((entry) => entry.id === id)?.label ?? id}
-              photoOnly={focusPhoto} initialSide={panelSide} storageKey={`kestrel-tab-float-${id}-v1`}
+              photoOnly={focusPhoto} initialSide={panelSide} initialAvoidPx={panelWidth} initialIndex={order} storageKey={`kestrel-tab-float-${id}-v1`}
               dockFocusSelector={`#tab-${id}`} onDock={() => toggleFloatTab(id)}>
               <div className="h-full overflow-y-auto bg-kestrel-panel p-3">{renderTabBody(id)}</div>
             </FloatingPane>

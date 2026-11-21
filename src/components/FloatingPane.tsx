@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Maximize2, Minimize2, PanelRightClose, Pin } from 'lucide-react';
-import { clampPaneRect, FLOATING_PANE_GAP as GAP, type PaneRect } from '../core/floatingPaneGeometry';
+import { clampPaneRect, defaultPaneRect, FLOATING_PANE_GAP as GAP, type PaneRect } from '../core/floatingPaneGeometry';
 import { FLOATING_PANE_Z } from '../core/photoInfoLayout';
 import { libraryText as t } from '../i18n/areas/library';
 
@@ -12,13 +12,18 @@ interface FloatingPaneProps {
   /** Optional focus return once the docked control is visible again. */
   dockFocusSelector?: string;
   initialSide?: 'left' | 'right';
+  /** First-open position only: stay clear of a docked panel this wide, and nudge by this many panels. */
+  initialAvoidPx?: number;
+  initialIndex?: number;
   photoOnly?: boolean;
   children: ReactNode;
 }
 
-function initialRect(key: string, initialSide: 'left' | 'right'): PaneRect {
+function initialRect(key: string, initialSide: 'left' | 'right', avoidPx?: number, index?: number): PaneRect {
   const viewport = { width: window.innerWidth, height: window.innerHeight };
-  const fallback = { x: initialSide === 'left' ? GAP : Math.max(GAP, viewport.width - 390), y: 72, width: 360, height: 570 };
+  const fallback = avoidPx === undefined
+    ? { x: initialSide === 'left' ? GAP : Math.max(GAP, viewport.width - 390), y: 72, width: 360, height: 570 }
+    : defaultPaneRect(viewport, initialSide, { avoidPx, index });
   try {
     const stored = window.localStorage.getItem(key);
     if (stored) {
@@ -36,8 +41,8 @@ function initialRect(key: string, initialSide: 'left' | 'right'): PaneRect {
  * dimensions or gets clipped by the Library/Review/Edit flex layout.
  * The calling screen stays responsible for compact phone/tablet sheets.
  */
-export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, initialSide = 'right', photoOnly = false, children }: FloatingPaneProps) {
-  const [rect, setRect] = useState<PaneRect>(() => initialRect(storageKey, initialSide));
+export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, initialSide = 'right', initialAvoidPx, initialIndex, photoOnly = false, children }: FloatingPaneProps) {
+  const [rect, setRect] = useState<PaneRect>(() => initialRect(storageKey, initialSide, initialAvoidPx, initialIndex));
   const pinKey = `${storageKey}-photo-only`;
   const [pinned, setPinned] = useState(() => {
     try { return localStorage.getItem(pinKey) === 'true'; } catch { return false; }

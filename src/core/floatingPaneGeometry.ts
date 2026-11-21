@@ -16,3 +16,22 @@ export function clampPaneRect(rect: PaneRect, viewport: { width: number; height:
   const y = Math.max(0, Math.min(Number.isFinite(rect.y) ? rect.y : FLOATING_PANE_GAP, vh - height));
   return { x, y, width, height };
 }
+
+/**
+ * Where a panel first opens. It stays clear of the docked panel (so the tab strip it came from is still reachable)
+ * and each further panel is nudged so several undocked tabs do not pile on top of one another.
+ * `side` is the side the docked panel is on; `avoidPx` is that panel's width.
+ */
+export function defaultPaneRect(
+  viewport: { width: number; height: number },
+  side: 'left' | 'right',
+  options: { avoidPx?: number; index?: number } = {},
+): PaneRect {
+  const width = 360, height = 570, step = 32;
+  const avoid = Math.max(0, options.avoidPx ?? 0);
+  const nudge = Math.min(Math.max(0, options.index ?? 0), 5) * step;
+  const x = side === 'right'
+    ? viewport.width - avoid - width - FLOATING_PANE_GAP * 2 - nudge
+    : avoid + FLOATING_PANE_GAP * 2 + nudge;
+  return clampPaneRect({ x, y: 72 + nudge, width, height }, viewport);
+}
