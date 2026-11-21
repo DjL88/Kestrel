@@ -68,5 +68,10 @@ export async function openInfoFor(page: Page, filename: string) {
   const expand = page.getByRole('button', { name: 'Expand photo info' });
   if (await expand.isVisible()) await expand.click();
   // On a phone the panel is not docked: bring it up through the menu.
-  if (!(await page.getByRole('complementary', { name: 'Photo info' }).isVisible())) await openPhotoInfo(page);
+  const panel = page.getByRole('complementary', { name: 'Photo info' });
+  const shown = await panel.waitFor({ state: 'visible', timeout: 1500 }).then(() => true, () => false);
+  if (!shown) {
+    await openPhotoInfo(page);
+    await panel.waitFor({ state: 'visible' });
+  }
 }
