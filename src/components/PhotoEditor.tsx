@@ -2,7 +2,7 @@ import { canShowNeutralRaster } from '../core/neutralRasterDisplay';
 import { displayCanvasColourSpace } from '../providers/displayColour';
 import { newId } from '../core/ids';
 import { mayApplyGuidance, type GuidanceMode } from '../core/guidanceMode';
-import { blendMaskEdges } from '../core/maskBlendAdvice';
+import { blendMaskEdges, inspectMaskBoundary, type MaskBoundaryEvidence } from '../core/maskBlendAdvice';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
@@ -26,7 +26,7 @@ import { Histogram } from './Histogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
 import { applyFix, critique, toneOnlyEdit, type Opinion, type OpinionFigures } from '../core/critique';
-import { fullContext, maskAlpha } from '../core/masks';
+import { effectiveAlpha, fullContext, maskAlpha } from '../core/masks';
 import { ColourCheckPanel, type ColourPreview } from './ColourCheckPanel';
 import { MaskOverlay } from './MaskOverlay';
 import { MaskPanel } from './MaskPanel';
@@ -198,6 +198,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
   const [opinions, setOpinions] = useState<Opinion[] | null>(null);
   const [selectedMaskId, setSelectedMaskId] = useState<string | null>(null);
   const [manualColourCheck, setManualColourCheck] = useState(false);
+  const [boundaryEvidence, setBoundaryEvidence] = useState<MaskBoundaryEvidence | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [detectNotice, setDetectNotice] = useState('');
   const [brushRadius, setBrushRadius] = useState(0.05);
@@ -551,6 +552,37 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
   const showOriginalBefore = displayCompare && canShowOriginal && canShowNeutralRaster(before.edit, displayFraming);
   const beforeLabel = stageLabel(before.label);
   const outputSize = source ? framedSize(source.naturalWidth, source.naturalHeight, framing) : null;
+  // Inspect real changes at a selected subject boundary only after editing settles.
+  // Preview evidence is suggestive, not a substitute for full-precision RAW export proof.
+  useEffect(() => {
+    const mask = edit.masks?.find((candidate) => candidate.id === selectedMaskId);
+    if (guidanceMode === 'solo' || !source || !outputSize || !mask || mask.kind !== 'subject' || mask.invert) {
+      setBoundaryEvidence(null);
+      return;
+    }
+    let current = true;
+    setBoundaryEvidence(null);
+    const timer = window.setTimeout(() => {
+      try {
+        const scale = Math.min(1, 256 / Math.max(outputSize.width, outputSize.height));
+        const base = document.createElement('canvas');
+        const adjusted = document.createElement('canvas');
+        drawFramedPhoto(source, base, framing, { scale });
+        drawFramedPhoto(source, adjusted, framing, { scale });
+        applyCanvasPhotoEdit(base, { ...edit, masks: undefined });
+        applyCanvasPhotoEdit(adjusted, edit);
+        const before = base.getContext('2d', { willReadFrequently: true })?.getImageData(0, 0, base.width, base.height);
+        const after = adjusted.getContext('2d', { willReadFrequently: true })?.getImageData(0, 0, adjusted.width, adjusted.height);
+        if (!before || !after || base.width !== adjusted.width || base.height !== adjusted.height) return;
+        const alpha = effectiveAlpha(mask, edit.masks ?? [], base.width, base.height, fullContext(base.width, base.height));
+        if (current) setBoundaryEvidence(inspectMaskBoundary(before.data, after.data, alpha, base.width, base.height));
+      } catch {
+        if (current) setBoundaryEvidence(null);
+      }
+    }, 550);
+    return () => { current = false; window.clearTimeout(timer); };
+  // Dimensions are primitive: recompute only after a new photo, framing, edit or mask.
+  }, [selectedMaskId, source, outputSize?.width, outputSize?.height, framing, edit, guidanceMode]);
   const size = source ? framedSize(source.naturalWidth, source.naturalHeight, displayFraming) : null;
   const fit = size ? Math.min(viewport.width / size.width, viewport.height / size.height) : 0;
   const position = size && fit ? {
@@ -1550,7 +1582,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
               onBrushRadius={setBrushRadius} onErase={setErase} onShowOverlay={setShowMaskOverlay}
               onFindSubject={(background) => void findSubject(background)} onRefind={(id) => void findSubject(false, id)} selectingArea={selectingArea} onSelectArea={setSelectingArea}
               detecting={detecting} detectNotice={detectNotice} currentFramingKey={framingKey(framing)}
-              guidanceMode={guidanceMode} onBlendEdges={(id) => {
+              guidanceMode={guidanceMode} boundaryEvidence={boundaryEvidence} onBlendEdges={(id) => {
                 const currentMasks = edit.masks ?? [];
                 const selected = currentMasks.find((candidate) => candidate.id === id);
                 if (!selected) return;
