@@ -75,3 +75,55 @@ test('invalid cache budgets fail closed before any write', async ({ page }) => {
   });
   expect(rejected).toBe(true);
 });
+
+
+test('large verified asset is stored as atomic bounded records and survives offline reopen', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto('/');
+  const proof = await page.evaluate(async () => {
+    const { indexedDbAssetSlots } = await import('/src/providers/verifiedAssetIndexedDb.ts');
+    const { readVerifiedActive } = await import('/src/core/verifiedAssetActivation.ts');
+    const store = indexedDbAssetSlots();
+    // Larger than one chunk; avoids putting 137 MiB in a single browser record.
+    const bytes = new Uint8Array(34 * 1024 * 1024 + 17);
+    for (let i = 0; i < bytes.length; i += 1) bytes[i] = (i * 17 + (i >>> 11)) & 255;
+    const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
+      b => b.toString(16).padStart(2, '0')).join('');
+    const slot = 'sha256-' + sha256;
+    const id = 'large-photo-model';
+    const next = { id, version: '1.0.0', sha256, slot };
+    await store.writeImmutable(slot, bytes);
+    const promoted = await store.compareAndSwapActive(id, undefined, next);
+    const reopened = indexedDbAssetSlots();
+    const value = await readVerifiedActive(reopened, id);
+    const intact = !!value && value.byteLength === bytes.byteLength &&
+      value[0] === bytes[0] && value[16 * 1024 * 1024] === bytes[16 * 1024 * 1024] &&
+      value[32 * 1024 * 1024] === bytes[32 * 1024 * 1024] &&
+      value[bytes.length - 1] === bytes[bytes.length - 1];
+    await reopened.writeImmutable(slot, bytes); // exact retries are safe
+    let collisionRejected = false;
+    const changed = bytes.slice();
+    changed[32 * 1024 * 1024] ^= 1;
+    try { await reopened.writeImmutable(slot, changed); } catch { collisionRejected = true; }
+
+    // Missing one part must be refused; it must never look like installed bytes.
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const r = indexedDB.open('kestrel-verified-assets', 1);
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('immutable-by-sha256', 'readwrite');
+      tx.objectStore('immutable-by-sha256').delete(slot + ':part:2');
+      tx.oncomplete = () => resolve();
+      tx.onabort = tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+    const refused = (await readVerifiedActive(reopened, id)) === undefined;
+    const pointerPreserved = (await reopened.active(id))?.sha256 === sha256;
+    return { promoted, intact, collisionRejected, refused, pointerPreserved };
+  });
+  expect(proof).toEqual({
+    promoted: true, intact: true, collisionRejected: true, refused: true, pointerPreserved: true,
+  });
+});
