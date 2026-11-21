@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Star } from 'lucide-react';
+import { Star } from './icons/KestrelUIIcons';
 import type { RatingFilter } from '../core/types';
 import { flipRatingMode, pickRating } from '../core/ratingFilter';
 import { libraryText as t } from '../i18n/areas/library';

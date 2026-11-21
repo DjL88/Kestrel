@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import { verifyModelBytes, verifySignedModelManifest } from './trustedModelDelivery';
 
 async function fixture() {
@@ -17,25 +18,25 @@ describe('trusted model delivery', () => {
   it('accepts a pinned signature and matching bytes', async () => {
     const f = await fixture();
     const verified = await verifySignedModelManifest(await f.sign(f.manifest), f.policy);
-    await expect(verifyModelBytes(verified.models[0], f.bytes)).resolves.toBeUndefined();
+    assert.equal(await verifyModelBytes(verified.models[0], f.bytes), undefined);
   });
   it('rejects altered signed content', async () => {
     const f = await fixture(); const envelope = await f.sign(f.manifest);
     envelope.payload[10] ^= 1;
-    await expect(verifySignedModelManifest(envelope, f.policy)).rejects.toThrow();
+    await assert.rejects(verifySignedModelManifest(envelope, f.policy));
   });
   it('rejects rollback and expired manifests', async () => {
     const f = await fixture();
-    await expect(verifySignedModelManifest(await f.sign({ ...f.manifest, sequence: 6 }), f.policy)).rejects.toThrow();
-    await expect(verifySignedModelManifest(await f.sign({ ...f.manifest, expiresAt: '2020-01-01T00:00:00Z' }), f.policy)).rejects.toThrow();
+    await assert.rejects(verifySignedModelManifest(await f.sign({ ...f.manifest, sequence: 6 }), f.policy));
+    await assert.rejects(verifySignedModelManifest(await f.sign({ ...f.manifest, expiresAt: '2020-01-01T00:00:00Z' }), f.policy));
   });
   it('rejects unsafe paths and duplicate entries', async () => {
     const f = await fixture();
-    await expect(verifySignedModelManifest(await f.sign({ ...f.manifest, models: [{ ...f.manifest.models[0], path: '../bad.onnx' }] }), f.policy)).rejects.toThrow();
-    await expect(verifySignedModelManifest(await f.sign({ ...f.manifest, models: [f.manifest.models[0], f.manifest.models[0]] }), f.policy)).rejects.toThrow();
+    await assert.rejects(verifySignedModelManifest(await f.sign({ ...f.manifest, models: [{ ...f.manifest.models[0], path: '../bad.onnx' }] }), f.policy));
+    await assert.rejects(verifySignedModelManifest(await f.sign({ ...f.manifest, models: [f.manifest.models[0], f.manifest.models[0]] }), f.policy));
   });
   it('rejects altered model bytes', async () => {
     const f = await fixture();
-    await expect(verifyModelBytes(f.manifest.models[0], new Uint8Array(f.bytes.length))).rejects.toThrow();
+    await assert.rejects(verifyModelBytes(f.manifest.models[0], new Uint8Array(f.bytes.length)));
   });
 });

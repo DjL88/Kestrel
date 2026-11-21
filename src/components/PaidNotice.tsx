@@ -1,4 +1,4 @@
-import { Lock } from 'lucide-react';
+import { Lock } from './icons/KestrelUIIcons';
 import { projectsText as t } from '../i18n/areas/projects';
 
 /** A calm, honest note where a Pro tool would be. It says what is free, never nags, and there is nothing to buy yet. */

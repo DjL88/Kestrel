@@ -1,6 +1,7 @@
 import { sha256Hex } from '../core/sha256';
 import { friendlyToolError } from '../core/toolErrors';
 import { bundledModelUrl } from './bundledModelAssets';
+import { installedModel } from './modelUpdater';
 import { DETECTOR_MODEL, boxSharpness, detectorWorkerCount, decodeTile, mergeDetections, tilePlan, tileScale, toInput, type Box, type Detection } from '../core/objectDetection';
 
 type Ort = typeof import('onnxruntime-web/wasm');
@@ -11,6 +12,9 @@ let loading: Promise<Loaded> | null = null;
 let modelBytes: Promise<ArrayBuffer> | null = null;
 function verifiedModel(): Promise<ArrayBuffer> {
   modelBytes ??= (async () => {
+    // A same-contract update installed from the signed manifest (already checked against its signed checksum) comes first.
+    const updated = await installedModel('yolox-tiny');
+    if (updated) return updated.bytes;
     const modelUrl = bundledModelUrl(DETECTOR_MODEL.file);
     if (!modelUrl) throw new Error('The optional subject detector is not installed in this preview. Original photos and manual editing remain available.');
     const response = await fetch(modelUrl);
@@ -175,4 +179,34 @@ function sharpnessOf(source: Source, box: Box): number {
   if (!context) return 0;
   context.drawImage(source, x, y, cw, ch, 0, 0, canvas.width, canvas.height);
   return boxSharpness(context.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+}
+
+/**
+ * All independently detected subjects, not just the dominant box. This is
+ * local YOLOX inference, NOT identity tracking or species identification.
+ * Tile the full image for small/distant birds even if a large bird was found.
+ * Caller must bind results to a verified original SHA and discard on switch.
+ */
+export async function findSubjects(source: Source, signal?: AbortSignal): Promise<FoundSubject[]> {
+  signal?.throwIfAborted();
+  const { w, h } = dims(source);
+  if (!(w > 0 && h > 0)) return [];
+  const plan = tilePlan(w, h);
+  const detections: Detection[] = [];
+  for (const tile of plan) {
+    signal?.throwIfAborted();
+    detections.push(...await lookIn(source, tile));
+    signal?.throwIfAborted();
+  }
+  return mergeDetections(detections)
+    .filter(d => d.score >= 0.5 && Number.isFinite(d.box.x) && Number.isFinite(d.box.y) &&
+      Number.isFinite(d.box.w) && Number.isFinite(d.box.h) && d.box.w > 0 && d.box.h > 0 &&
+      d.box.x >= 0 && d.box.y >= 0 && d.box.x + d.box.w <= w && d.box.y + d.box.h <= h)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 20)
+    .map(detection => ({
+      detection,
+      sharpness: sharpnessOf(source, detection.box),
+      coverage: (detection.box.w * detection.box.h) / (w * h),
+    }));
 }

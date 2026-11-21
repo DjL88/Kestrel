@@ -43,7 +43,9 @@ export const shouldAutoTag = (probability: number) => probability >= AUTO_MINIMU
 export function qualifiesForAutoTag(
   suggested: Suggestion, embedding: Float32Array, labels: readonly SpeciesLabel[], vectors: readonly Float32Array[],
 ): boolean {
-  if (!shouldAutoTag(suggested.probability)) return false;
+  // A softmax over one available label is 100% by definition, even for an
+  // unrelated animal. It may be shown for manual consideration, never applied.
+  if (labels.length < 2 || labels.length !== vectors.length || !shouldAutoTag(suggested.probability)) return false;
   const strongest = rankSpecies(embedding, labels, vectors)[0];
   return strongest?.index === suggested.index && shouldAutoTag(strongest.probability);
 }

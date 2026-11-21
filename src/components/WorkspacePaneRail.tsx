@@ -1,4 +1,4 @@
-import { Info, SlidersHorizontal } from 'lucide-react';
+import { Info, SlidersHorizontal } from './icons/KestrelUIIcons';
 import { libraryText as t } from '../i18n/areas/library';
 
 interface WorkspacePaneRailProps {

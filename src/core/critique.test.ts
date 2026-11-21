@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applyFix, critique, flatNoise, overshoot, type Pixels } from './critique';
+import { applyFix, critique, flatNoise, hasRoom, overshoot, type Pixels } from './critique';
 import { applyDetail, DEFAULT_EDIT, type PhotoEdit } from './photoEdits';
 import { createMask, type Mask } from './maskTypes';
 import { fullContext } from './masks';
@@ -131,4 +131,48 @@ test('true RGB white clipping remains visible, without promising recovered detai
   assert.ok(opinion);
   assert.equal(opinion!.fix, undefined);
   assert.match(opinion!.detail, /cannot recover detail/);
+});
+
+// ---- Dark on purpose (low-key) photos, and fixes that are not offered twice ----
+
+/** A dark scene with a small, clearly lit subject: a bird against a dark wood. */
+const lowKeyScene = (background: number) => make(96, 96, (x, y) => (x > 70 && y > 70 ? [200, 140, 90] : [background, background + 2, background + 1]));
+
+test('a photo that is dark on purpose is not called flat or crushed, and its bright subject is not "pasted on"', () => {
+  const source = lowKeyScene(14);
+  const after = lowKeyScene(0); // the edit took the already dark background to pure black
+  const subjectMask: Mask = { ...createMask('radial', 'subject-test'), kind: 'radial' } as Mask;
+  const ids = critique({ source, toneOnly: after, after, edit: DEFAULT_EDIT, subject: { mask: subjectMask, context: fullContext(96, 96) } }).map((o) => o.id);
+  assert.ok(!ids.includes('shadows'), 'a black background is the mood here');
+  assert.ok(!ids.includes('flat'), 'narrow brightness is the mood here');
+  assert.ok(!ids.includes('subject-bright'), 'the lit subject is the point');
+});
+
+test('the same crushed blacks on an ordinary photo are still reported', () => {
+  const source = make(96, 96, (x) => [60 + x, 60 + x, 60 + x]);
+  const after = make(96, 96, (x) => [x < 40 ? 0 : 60 + x, x < 40 ? 0 : 60 + x, x < 40 ? 0 : 60 + x]);
+  assert.ok(critique({ source, toneOnly: after, after, edit: DEFAULT_EDIT }).some((o) => o.id === 'shadows'));
+});
+
+test('"Add contrast" is not offered once contrast has already been added, or while bright areas are clipping', () => {
+  const narrow = make(96, 96, (x) => [100 + (x % 40), 100 + (x % 40), 100 + (x % 40)]);
+  const offered = (edit: PhotoEdit, picture: Pixels) => critique({ source: picture, toneOnly: picture, after: picture, edit }).some((o) => o.id === 'flat');
+  assert.equal(offered(DEFAULT_EDIT, narrow), true, 'a genuinely flat picture still gets the tip');
+  assert.equal(offered({ ...DEFAULT_EDIT, contrast: 0.3 }, narrow), true, 'some room left');
+  assert.equal(offered({ ...DEFAULT_EDIT, contrast: 1.2 }, narrow), false, 'already added a lot');
+  const clipping = make(96, 96, (x, y) => (y < 3 ? [255, 255, 255] : [100 + (x % 40), 100 + (x % 40), 100 + (x % 40)]));
+  assert.equal(offered(DEFAULT_EDIT, clipping), false, 'more contrast would clip the bright areas further');
+});
+
+test('a fix whose sliders are already well along is dropped, and a warning keeps its message but loses the button', () => {
+  assert.equal(hasRoom({ ...DEFAULT_EDIT }, { kind: 'global', delta: { shadows: 0.4, blacks: 0.3 } }), true);
+  assert.equal(hasRoom({ ...DEFAULT_EDIT, shadows: 1.4, blacks: 1.1 }, { kind: 'global', delta: { shadows: 0.4, blacks: 0.3 } }), false);
+  assert.equal(hasRoom({ ...DEFAULT_EDIT, sharpen: 2 }, { kind: 'global', delta: { sharpen: -0.4 } }), true, 'easing off still has room');
+  assert.equal(hasRoom(DEFAULT_EDIT, { kind: 'global', delta: { sharpen: 0 } }), true, 'a no-op delta never hides anything');
+  const edit: PhotoEdit = { ...DEFAULT_EDIT, shadows: 1.5, blacks: 1.2 };
+  const source = make(96, 96, (x) => [60 + x, 60 + x, 60 + x]);
+  const after = make(96, 96, (x) => [x < 40 ? 0 : 60 + x, x < 40 ? 0 : 60 + x, x < 40 ? 0 : 60 + x]);
+  const warning = critique({ source, toneOnly: after, after, edit }).find((o) => o.id === 'shadows');
+  assert.ok(warning, 'the problem is still reported');
+  assert.equal(warning!.fix, undefined, 'but the same button is not offered a third time');
 });

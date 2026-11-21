@@ -21,6 +21,10 @@ export interface SelectEvidence {
   motionBlur?: number;
   duplicateGroup?: string;
   burstId?: string;
+  /** Visible subjects detected in this frame, not an estimate of species. */
+  subjectCount?: number;
+  /** Source-bound ID established by an actual cross-frame tracker, not a species label. */
+  subjectTrackId?: string;
   subjectBox?: NormalisedBox;
   eyeBox?: NormalisedBox;
   manualDecision?: 'keep' | 'reject' | 'review';
@@ -40,7 +44,7 @@ const box = (b: NormalisedBox | undefined): b is NormalisedBox =>
   !!b && unit(b.x) && unit(b.y) && unit(b.width) && unit(b.height) &&
   b.width > 0 && b.height > 0 && b.x + b.width <= 1.00000001 && b.y + b.height <= 1.00000001;
 const cropAround = (b: NormalisedBox): NormalisedBox => {
-  const side = Math.min(1, Math.max(b.width, b.height) * 2.5, 0.08);
+  const side = Math.min(1, Math.max(0.08, Math.max(b.width, b.height) * 2.5));
   const x = Math.max(0, Math.min(1 - side, b.x + b.width / 2 - side / 2));
   const y = Math.max(0, Math.min(1 - side, b.y + b.height / 2 - side / 2));
   return { x, y, width: side, height: side };
@@ -57,7 +61,11 @@ const evidenceValid = (e: SelectEvidence) =>
   (e.aircraftScore === undefined || unit(e.aircraftScore)) &&
   (!e.subjectBox || box(e.subjectBox)) && (!e.eyeBox || box(e.eyeBox)) &&
   (e.burstId === undefined || !!e.burstId.trim()) &&
-  (e.duplicateGroup === undefined || !!e.duplicateGroup.trim());
+  (e.duplicateGroup === undefined || !!e.duplicateGroup.trim()) &&
+  (e.subjectCount === undefined || (Number.isSafeInteger(e.subjectCount) && e.subjectCount >= 0 && e.subjectCount <= 20)) &&
+  (e.subjectTrackId === undefined ||
+    (/^[a-zA-Z0-9._:-]{1,128}$/.test(e.subjectTrackId) && e.subjectCount !== 0)) &&
+  (e.manualDecision === undefined || ['keep', 'reject', 'review'].includes(e.manualDecision));
 /** Scores require independent validation before use as a confident species label. */
 function contradiction(e: SelectEvidence): boolean {
   if (e.genre !== 'bird' && e.genre !== 'aircraft') return false;
@@ -76,12 +84,34 @@ function score(e: SelectEvidence): number | null {
 }
 export function selectBurstDetails(items: readonly SelectEvidence[]): SelectResult[] {
   const counts = new Map<string, number>();
-  for (const e of items) counts.set(e.photoId, (counts.get(e.photoId) ?? 0) + 1);
+  const multiSubjectBursts = new Set<string>();
+  const burstModelBuilds = new Map<string, Set<string>>();
+  for (const e of items) {
+    counts.set(e.photoId, (counts.get(e.photoId) ?? 0) + 1);
+    // A burst with multiple birds must not silently pretend every crop
+    // belongs to the same individual. Even single-subject frames in that
+    // burst need an explicit track to take part in a comparative ranking.
+    if (e.burstId?.trim()) {
+      const key = JSON.stringify([e.genre, e.burstId]);
+      const builds = burstModelBuilds.get(key) ?? new Set<string>();
+      builds.add(JSON.stringify([e.modelId, e.modelVersion]));
+      burstModelBuilds.set(key, builds);
+      if (e.subjectCount !== undefined && e.subjectCount > 1) multiSubjectBursts.add(key);
+    }
+  }
   const rows = items.map(e => {
     const valid = counts.get(e.photoId) === 1 && evidenceValid(e);
     const conflict = valid && contradiction(e);
     const value = valid && !conflict ? score(e) : null;
-    const group = valid && e.burstId ? JSON.stringify([e.genre, e.burstId]) : null;
+    const burstKey = e.burstId ? JSON.stringify([e.genre, e.burstId]) : null;
+    // Never compare scores from different model builds, nor different birds
+    // whose crops happen to be in the same timestamp-defined scene.
+    const needsTrack = !!burstKey && multiSubjectBursts.has(burstKey);
+    const tracked = !!e.subjectTrackId;
+    const mixedBuilds = !!burstKey && (burstModelBuilds.get(burstKey)?.size ?? 0) > 1;
+    const group = valid && !mixedBuilds && e.subjectCount !== 0 && burstKey && (!needsTrack || tracked)
+      ? JSON.stringify([e.genre, e.burstId, e.modelId, e.modelVersion, e.subjectTrackId ?? null])
+      : null;
     const crop = valid ? (box(e.eyeBox) ? cropAround(e.eyeBox) : box(e.subjectBox) ? cropAround(e.subjectBox) : null) : null;
     return { e, valid, conflict, value, group, crop };
   });

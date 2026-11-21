@@ -1,6 +1,7 @@
 import { Sha256Stream } from '../core/sha256';
 import { isDesktopApp } from './desktopShell';
 import { getModel, hasModel, putModel, removeModel } from './modelStore';
+import { installedModel } from './modelUpdater';
 import { SPECIES_MODEL, centreSquare, preprocessSpecies } from '../core/speciesModel';
 import { decodeVector, normalise, type SpeciesLabel } from '../core/speciesMatch';
 import { friendlyToolError } from '../core/toolErrors';
@@ -85,9 +86,13 @@ export async function removeSpeciesModel(): Promise<void> {
 
 function loadSession(): Promise<Loaded> {
   loading ??= (async () => {
-    const stored = await getModel(SPECIES_MODEL.cache, SPECIES_MODEL.url);
+    // A same-contract update from the signed manifest (already checked against its signed checksum) comes first.
+    const updated = await installedModel('bioclip-image-int8');
+    const stored = updated ? undefined : await getModel(SPECIES_MODEL.cache, SPECIES_MODEL.url);
     let bytes: Uint8Array;
-    if (stored) {
+    if (updated) {
+      bytes = new Uint8Array(updated.bytes);
+    } else if (stored) {
       bytes = new Uint8Array(await stored.arrayBuffer());
     } else if (isDesktopApp() && SPECIES_MODEL.bundled && SPECIES_MODEL.url) {
       // Native installer ships this asset: resolve it through the app's own
@@ -151,14 +156,22 @@ export interface PictureAnalysis {
 }
 
 /**
- * Find the subject, then show the species model a square around it rather than the middle of the frame, so an animal
- * off to one side is not cut out. If no subject is found the centre square is used, exactly as before.
+ * One source-bound crop shared by the general animal/aircraft category gate
+ * and the species embedding. When the local mask model is absent or uncertain,
+ * both models use the same centred square instead of analysing different areas.
+ * A crop is only a model input, never a keeper decision or confirmed species.
  */
-export async function analysePicture(picture: HTMLCanvasElement): Promise<PictureAnalysis> {
+export async function speciesSubjectCrop(picture: HTMLCanvasElement): Promise<{ crop: SquareCrop; grid: SubjectGrid | null }> {
   let grid: SubjectGrid | null = null;
   try {
     const found = await detectSubject(picture);
     if (found.assessment.usable) grid = found.grid;
-  } catch { /* Without a mask the species model simply looks at the centre. */ }
-  return { grid, embedding: await embedPicture(picture, subjectCrop(picture.width, picture.height, grid)) };
+  } catch { /* No reliable subject: both classifiers use the same centre square. */ }
+  return { grid, crop: subjectCrop(picture.width, picture.height, grid) };
+}
+
+/** Find the subject once and classify the same pixels used for manual checks. */
+export async function analysePicture(picture: HTMLCanvasElement): Promise<PictureAnalysis> {
+  const { grid, crop } = await speciesSubjectCrop(picture);
+  return { grid, embedding: await embedPicture(picture, crop) };
 }

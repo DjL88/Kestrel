@@ -13,6 +13,8 @@ import { scanOriginalFolder, matchScannedOriginals } from './providers/nativeOri
 import { splitDropped } from './core/dropSplit';
 import { useAccess } from './providers/useAccess';
 import { loadLicence } from './providers/licenceStore';
+import { startModelUpdates } from './providers/modelUpdater';
+import { setLandscapeAllowed } from './providers/orientationLock';
 import { PaidNotice } from './components/PaidNotice';
 import { SyncFolderDialog } from './components/SyncFolderDialog';
 import { ProjectLocationsDialog } from './components/ProjectLocationsDialog';
@@ -156,7 +158,7 @@ export default function App() {
   const [syncOpen, setSyncOpen] = useState(false);
   const [locationsOpen, setLocationsOpen] = useState(false);
   const [watchOpen, setWatchOpen] = useState(false);
-  useEffect(() => { void loadLicence(); }, []);
+  useEffect(() => { void loadLicence(); startModelUpdates(); }, []);
   const [paidDialog, setPaidDialog] = useState<string | null>(null);
   useDesktopMenu();
   const storeRef = useRef<BrowserCatalogueStore | null>(null);
@@ -168,6 +170,8 @@ export default function App() {
   if (!previewProviderRef.current) previewProviderRef.current = new BrowserPreviewProvider();
 
   const [prefs, setPrefs] = useState<UserPreferences>(() => loadPreferences());
+  // A phone is upright, except while a photo is full screen ("Photo only"), where turning it is allowed.
+  useEffect(() => { void setLandscapeAllowed(prefs.focusMode); }, [prefs.focusMode]);
   // Left- or right-handed use is read by the whole page's styles, so the home page and every dialog follow it too.
   useEffect(() => { document.documentElement.dataset.hand = prefs.hand; }, [prefs.hand]);
   // Hand and editing-panel side are one choice now. Settings saved when they could differ follow the hand.
@@ -2030,7 +2034,7 @@ export default function App() {
   }
 
   return (
-    <div className={`h-dvh max-h-dvh w-full max-w-full min-w-0 flex flex-col pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden ${editing ? '' : 'max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]'}`}>
+    <div className={`h-dvh max-h-dvh w-full max-w-full min-w-0 flex flex-col pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden ${editing ? '' : 'max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]'}`}>
       {photoMenu && (() => {
         const frame = cullingState.frames.find((candidate) => candidate.id === photoMenu.frameId);
         if (!frame) return null;
@@ -2046,7 +2050,7 @@ export default function App() {
       {watchOpen && <WatchFolderDialog onStart={(source, includeExisting) => void watch.start(source, includeExisting)} onClose={() => setWatchOpen(false)} />}
       {watch.status && <p role="status" className="fixed bottom-3 left-3 z-40 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/15 bg-kestrel-raised px-3 py-2 text-xs text-zinc-100 shadow-lg">{watch.status.error ?? t.watch.status(watch.status.folder, watch.status.imported)}</p>}
       {paidDialog && (
-        <div role="dialog" aria-modal="true" aria-label={t.paid.dialogLabel(paidDialog)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+        <div role="dialog" aria-modal="true" aria-label={t.paid.dialogLabel(paidDialog)} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4"
           onKeyDown={(event) => { if (event.key === 'Escape') setPaidDialog(null); }}>
           <div className="w-full max-w-sm space-y-3 rounded-xl border border-white/12 bg-kestrel-panel p-4">
             <PaidNotice title={paidDialog}>{t.paid.autoCullPitch}</PaidNotice>

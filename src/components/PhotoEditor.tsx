@@ -24,6 +24,7 @@ import { AdjustmentSlider } from './AdjustmentSlider';
 import { signedAdjustment } from '../core/adjustmentSlider';
 import { AreaSelector } from './AreaSelector';
 import { sampledRegion, type Region } from '../core/subjectRegion';
+import { PhotoAdvice } from './PhotoAdvice';
 import { Histogram } from './Histogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
@@ -986,6 +987,15 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
     return () => node.removeEventListener('wheel', onWheel, { capture: true });
   }, []);
 
+  /** Display-rendered photo only, never the archive or RAW bytes. Local model inference never uploads it. */
+  function advicePreview(): HTMLCanvasElement | null {
+    if (!source || !outputSize) return null;
+    const canvas = document.createElement('canvas');
+    drawFramedPhoto(source, canvas, framing, { scale: Math.min(1, 512 / Math.max(outputSize.width, outputSize.height)), colourSpace: displayCanvasColourSpace() });
+    applyCanvasPhotoEdit(canvas, edit);
+    return canvas;
+  }
+
   /** A small before/after preview for the colour check, with the subject outline when there is one. */
   function colourPreview(): ColourPreview | null {
     if (!source || !outputSize) return null;
@@ -1379,6 +1389,9 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
             canStepBack={Boolean(frame.editHistory?.cursor)} canStepForward={Boolean(frame.editHistory && frame.editHistory.cursor < frame.editHistory.steps.length)}
             onStepBack={() => onHistoryStep(-1)} onStepForward={() => onHistoryStep(1)} peeking={displayCompare} onPeek={() => setCompare(!compare)} onShowAll={() => setAllControls(true)} />
         ))}
+        <PhotoAdvice histogram={histogram} edit={edit} mode={guidanceMode}
+          photoKey={frame.stableKey} version={framingKey(framing) + ':' + sourceState} sourceVersion={source}
+          disabled={sourceState !== 'ready'} onEdit={onEdit} readPreview={advicePreview} />
         <div className={isPhone && !allControls ? 'hidden' : 'space-y-2'}>
         <div className="space-y-2 px-1 py-2">
           {EDIT_CHOICES.map(({ key }, index) => (

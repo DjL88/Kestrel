@@ -55,3 +55,49 @@ test('500 synthetic frames: deterministic keeper nomination, no automatic reject
     second.filter(r => r.recommendation === 'keep').map(r => r.photoId).sort());
   assert.equal(JSON.stringify(frames), before);
 });
+
+test('a multi-bird scene without source-bound tracks abstains instead of pooling different birds', () => {
+  const evidence = [
+    base('both-birds', { subjectCount: 2, subjectSharpness: 0.95 }),
+    base('bird-alone', { subjectCount: 1, subjectSharpness: 0.8 }),
+  ];
+  const result = selectBurstDetails(evidence);
+  assert.deepEqual(result.map(r => r.recommendation), ['review', 'review']);
+  assert.ok(result.every(r => r.comparisonGroup === null));
+});
+
+test('independently tracked birds can each earn a conservative nomination in the same capture burst', () => {
+  const evidence = [
+    base('red-a', { subjectCount: 2, subjectTrackId: 'red', subjectSharpness: 0.9 }),
+    base('red-b', { subjectCount: 2, subjectTrackId: 'red', subjectSharpness: 0.3 }),
+    base('blue-a', { subjectCount: 2, subjectTrackId: 'blue', subjectSharpness: 0.3 }),
+    base('blue-b', { subjectCount: 2, subjectTrackId: 'blue', subjectSharpness: 0.95 }),
+  ];
+  const result = selectBurstDetails(evidence);
+  assert.deepEqual(result.map(r => r.recommendation), ['keep', 'review', 'review', 'keep']);
+  assert.notEqual(result[0].comparisonGroup, result[3].comparisonGroup);
+  assert.deepEqual(selectBurstDetails([...evidence].reverse()).filter(r => r.recommendation === 'keep')
+    .map(r => r.photoId).sort(), ['blue-b', 'red-a']);
+});
+
+test('mixed model versions, zero subjects and untrusted tracks are review-only, not confident keepers', () => {
+  const evidence = [
+    base('v1', { modelVersion: 'v1' }),
+    base('v2', { modelVersion: 'v2' }),
+    base('none', { burstId: 'another', subjectCount: 0 }),
+    base('bad-track', { burstId: 'third', subjectCount: 2, subjectTrackId: 'red bird' }),
+    base('bad-manual', { burstId: 'fourth', manualDecision: 'force-keep' as 'keep' }),
+  ];
+  const result = selectBurstDetails(evidence);
+  assert.ok(result.every(r => r.recommendation === 'review'));
+  assert.ok(result.every(r => r.comparisonGroup === null));
+  assert.equal(result[4].reason, 'uncertain');
+});
+
+test('manual Keep still takes precedence within a verified multi-bird track', () => {
+  const evidence = [
+    base('manual', { subjectCount: 2, subjectTrackId: 'bird-1', manualDecision: 'keep' }),
+    base('stronger', { subjectCount: 2, subjectTrackId: 'bird-1', eyeSharpness: 1, subjectSharpness: 1 }),
+  ];
+  assert.deepEqual(selectBurstDetails(evidence).map(r => r.recommendation), ['keep', 'review']);
+});

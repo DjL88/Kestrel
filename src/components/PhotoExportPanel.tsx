@@ -1,4 +1,5 @@
 import { BROWSER_ORIGINAL_ZIP_LIMIT, copyUnchangedOriginal, planOriginalCopies } from '../core/originalCopyExport';
+import { useBackToClose } from '../providers/useBackToClose';
 import { EXPORT_PREFERENCES_KEY, EXPORT_PRESETS_KEY, readExportPreferences, readExportPresets, type ExportPreset } from '../core/exportPreferences';
 import { isRawPreviewFile } from '../core/rawFormats';
 import { master16Blocker } from '../core/master16';
@@ -9,16 +10,15 @@ import { safeExportName } from '../core/exportPlace';
 import { editorText as editorT } from '../i18n/areas/editor';
 import { RAW_MASTER_EXPORT_ERROR, rawMasterExportBlocked } from '../core/rawMasterExportGate';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, LoaderCircle, X } from 'lucide-react';
+import { LoaderCircle, X } from 'lucide-react';
 import {
-  EXPORT_FORMATS, LEGACY_FORMAT_IDS, PLATFORMS, customFormat, formatById, framingFor, toProfile, turnFormat,
+  LEGACY_FORMAT_IDS, PLATFORMS, customFormat, formatById, framingFor, toProfile, turnFormat,
   type BarStyle, type CustomSize, type ExportFormat, type Fit,
 } from '../core/exportFormats';
 import type { FocusPoint } from '../core/exportFraming';
 import type { PhotoFrame } from '../core/types';
 import { archiveExports, downloadExport, loadExportSource, renderExport } from '../providers/browserExport';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
-import { ExportPreviewTile } from './ExportPreviewTile';
 import { ExportProofDock } from './ExportProofDock';
 import { chooseProof, reconcileProofChoice, type ProofChoice } from '../core/exportProofSelection';
 import { AdjustmentSlider } from './AdjustmentSlider';
@@ -40,6 +40,8 @@ import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, WATERMARK_FONTS, type 
 import { NO_OVERLAY, exportOverlayTitle, photoOverlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { exportFilename } from '../core/exportProfiles';
 import { SocialIcon } from './SocialIcon';
+import { exportCompactLabels as compact } from '../i18n/exportCompactLabels';
+import { commonSocialSizes, uniqueRenderedSocialFormats, type SocialSizeGroup } from '../core/exportSocialGroups';
 import type { ExportPlace } from '../providers/exportToPlace';
 import { chooseDesktopExportFolder, isDesktopApp, isMobileShell, saveWithDialog } from '../providers/desktopShell';
 import { exportText as t } from '../i18n/areas/export';
@@ -60,7 +62,8 @@ const field = 'min-h-10 w-full rounded-md border border-white/15 bg-[#15171C] px
 const STORAGE_KEY = 'kestrel.lastExport.v2';
 /** Photos drawn in the preview, and the most tiles shown at once, so a big selection stays quick. */
 const PREVIEW_PHOTOS = 4;
-const MAX_TILES = 12;
+const SHARED_SOCIAL_SIZES = commonSocialSizes();
+const FEATURED_SIZE_IDS = new Set(['ig-45', 'ig-story', 'ig-11', 'ig-34']);
 
 const FIT_LABELS: Record<Fit, string> = t.fit;
 const DEFAULT_CUSTOM: CustomSize = { width: 1600, height: 1200, fit: 'keep', format: 'jpeg', quality: 90, prefix: 'custom_', allowUpscale: false };
@@ -85,10 +88,12 @@ function loadChosen(freshStart = false): string[] {
       if (ids.length) return [...new Set(ids)];
     }
   } catch { /* Use the default when storage is unavailable. */ }
-  return freshStart ? [] : ['master'];
+  // A first export is a JPEG: small enough to share and to put in the camera roll. Full-size PNG is one tick away.
+  return freshStart ? [] : ['full-jpeg'];
 }
 
 export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequested, exportPlace }: Props) {
+  useBackToClose(onClose);
   const [placeNote, setPlaceNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [placeTaskId, setPlaceTaskId] = useState<number | null>(null);
   const [openingPlace, setOpeningPlace] = useState(false);
@@ -102,7 +107,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const [overrides, setOverrides] = useState(preferences.overrides);
   const [turned, setTurned] = useState(preferences.turned);
   const [view, setView] = useState<'wizard' | 'list'>(readView);
-  const [openPlatforms, setOpenPlatforms] = useState<Record<string, boolean>>({});
+  const [simpleTab, setSimpleTab] = useState<'export' | 'advanced'>('export');
   const [bars, setBars] = useState<BarStyle>(preferences.bars);
   const [customOn, setCustomOn] = useState(false);
   const [custom, setCustom] = useState<CustomSize>(DEFAULT_CUSTOM);
@@ -148,8 +153,15 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       const made = { ...format, fit: format.id === 'master' || format.id === 'full-jpeg' || format.id === 'before-after' ? format.fit : fits[id] ?? format.fit, prefix: edit?.prefix ?? format.prefix, quality: edit?.quality ?? format.quality };
       return [turned[id] ? turnFormat(made) : made];
     });
-    return customResult && 'format' in customResult ? [...base, customResult.format] : base;
-  }, [chosen, fits, overrides, turned, customResult]);
+    const configured = customResult && 'format' in customResult ? [...base, customResult.format] : base;
+    // Old saved choices can repeat one identical Instagram/Facebook/TikTok
+    // rendering. Different per-photo crop positions must remain separate.
+    return uniqueRenderedSocialFormats(configured, format => frames.map(frame => {
+      const key = `${frame.id}|${format.id}`;
+      const focus = anchors[key] ?? frame.focusPoint ?? { x: 0.5, y: 0.5 };
+      return `${focus.x},${focus.y}:${zooms[key] ?? 1}`;
+    }).join(';'));
+  }, [chosen, fits, overrides, turned, customResult, frames, anchors, zooms]);
   const total = selected.length * frames.length;
   const proofPhotoIds = frames.map(frame => frame.id);
   const proofFormatIds = selected.map(format => format.id);
@@ -607,20 +619,28 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
 
 
   const toggle = (id: string, on: boolean) => setChosen((previous) => on ? (previous.includes(id) ? previous : [...previous, id]) : previous.filter((item) => item !== id));
-  const tiles = previewFrames.flatMap((frame) => selected.map((format) => ({ frame, format }))).slice(0, MAX_TILES);
-  const hiddenTiles = frames.length * selected.length - tiles.length;
+  const toggleSharedSize = (group: SocialSizeGroup, on: boolean) => setChosen(previous => {
+    const withoutAliases = previous.filter(id => !group.ids.includes(id));
+    return on ? [...withoutAliases, group.canonical.id] : withoutAliases;
+  });
   const anyBars = selected.some((format) => format.fit === 'bars' && format.width > 0);
 
-  const formatRow = (format: ExportFormat) => {
-    const on = chosen.includes(format.id);
+  const formatRow = (format: ExportFormat, group?: SocialSizeGroup) => {
+    const on = group ? group.ids.some(id => chosen.includes(id)) : chosen.includes(format.id);
     const current = fits[format.id] ?? format.fit;
     const shownFormat = turned[format.id] ? turnFormat(format) : format;
     return (
       <div key={format.id} className="rounded-md bg-white/5">
         <label className="flex min-h-11 items-center gap-2 px-2 text-sm">
-          <input type="checkbox" checked={on} onChange={(event) => toggle(format.id, event.target.checked)} />
+          <input type="checkbox" checked={on} onChange={(event) => group ? toggleSharedSize(group, event.target.checked) : toggle(format.id, event.target.checked)} />
           <span className="min-w-0 flex-1">
-            <span className="block">{formatLabel(shownFormat)}</span>
+            <span className="flex flex-wrap items-center justify-between gap-2">
+              <span>{formatLabel(shownFormat)}</span>
+              {group && <span className="inline-flex items-center gap-2" title={group.platforms.map(id => PLATFORMS.find(p => p.id === id)?.label ?? id).join(', ')}>
+                {group.platforms.map(id => <SocialIcon key={id} id={id} className="h-4 w-4 shrink-0 text-zinc-300" />)}
+                <span className="sr-only">{compact.suitable} {group.platforms.map(id => PLATFORMS.find(p => p.id === id)?.label ?? id).join(', ')}</span>
+              </span>}
+            </span>
             <span className="block text-xs text-zinc-400">{sizeName(shownFormat)}</span>
           </span>
         </label>
@@ -823,11 +843,15 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       <label className={check}><input type="checkbox" checked={mark.on} onChange={(event) => setMark({ on: event.target.checked })} />{t.watermark.add}</label>
       {mark.on && (
         <div className="space-y-2">
-          <label className="block text-sm text-zinc-300">{t.watermark.type}
-            <select className={field} value={mark.kind} onChange={(event) => setMark({ kind: event.target.value as WatermarkOptions['kind'] })}>
-              <option value="text">{t.watermark.text}</option><option value="image">{t.watermark.picture}</option>
-            </select>
-          </label>
+          {/* Both kinds are visible at once: a drop-down hid the picture (PNG, JPEG or WebP logo) option. */}
+          <div role="group" aria-label={t.watermark.type} className="grid grid-cols-2 gap-1 rounded-md bg-white/5 p-1">
+            {(['text', 'image'] as const).map((kind) => (
+              <button key={kind} type="button" aria-pressed={mark.kind === kind} onClick={() => setMark({ kind })}
+                className="min-h-11 rounded px-3 text-sm text-zinc-200 hover:bg-white/8 aria-pressed:bg-white/15 aria-pressed:font-medium focus-visible:outline-2 focus-visible:outline-sky-300">
+                {kind === 'text' ? t.watermark.text : `${t.watermark.picture} (PNG, JPEG)`}
+              </button>
+            ))}
+          </div>
           {mark.kind === 'text' ? (
             <label className="block text-sm text-zinc-300">{t.watermark.text}
               <input className={field} maxLength={80} placeholder={t.watermark.placeholder} value={mark.text} onChange={(event) => setMark({ text: event.target.value })} />
@@ -922,7 +946,6 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const optionsBlock = (
     <>
       {namingBlock}
-      {!wizard && overlayBlock}
       {metadataBlock}
               <fieldset disabled={progress !== null} className="space-y-2">
                 {anyBars && (
@@ -999,85 +1022,62 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const invalidDate = timestamp === 'custom' && !parseCustomExportDate(customDate);
   const blocked = Boolean(customOn && customResult && 'error' in customResult) || invalidDate ||
     Boolean(mark.on && mark.kind === 'image' && !mark.imageData);
-  const canShare = files.length > 0 && navigator.canShare?.({ files });
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
-      <section ref={dialog} className={`workspace-popover flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col overflow-hidden border-0 bg-kestrel-raised shadow-xl`}>
-        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-raised px-2 py-1">
-          <button type="button" onClick={onClose} aria-label={t.panel.close} title={t.panel.close} className={button}><X className="h-5 w-5" aria-hidden="true" /></button>
-          <h2 id="export-title" ref={title} tabIndex={-1} className="min-w-0 flex-1 truncate text-center text-base font-semibold">{t.panel.title(frames.length)}</h2>
-          {resultsReady || wizard ? <span className="w-11" /> : (
-            <button type="submit" form="export-form" aria-label={progress !== null ? t.panel.preparingOf(progress, total) : t.prepare.files(total)} disabled={!total || progress !== null || blocked}
-              className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}>
-              {progress !== null ? `${progress}/${total}…` : total > 1 ? t.panel.prepareCount(total) : t.panel.prepare}
-            </button>
-          )}
-        </header>
-        {!resultsReady && <ExportProofDock frames={frames} formats={selected} sources={sources} choice={activeProof}
-          failedPhotoId={proofLoadFailed} onRetry={() => setProofRetry(value => value + 1)}
-          onChoosePhoto={chooseProofPhoto} onChooseDestination={chooseProofFormat} bars={bars} overlay={overlay}
-          anchorFor={anchorFor} zoomFor={zoomFor}
-          onAnchor={(frame, format, point) => setAnchors(prior => ({ ...prior, [`${frame.id}|${format.id}`]: point }))}
-          onZoom={(frame, format, zoom) => setZooms(prior => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))} />}
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
-        {!resultsReady && desktop && !isMobileShell() && (
-          <div className="mb-3 flex flex-col gap-1 rounded-lg border border-white/15 bg-black/15 p-3">
-            <button type="button" disabled={!total || progress !== null || blocked || placeBusy || saving}
-              className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}
-              onClick={() => void queueToBackgroundDestination('desktop')}>
-              {placeBusy ? t.results.choosingFolder : t.results.desktopBackground(total)}
-            </button>
-            <p className="text-xs text-zinc-300">{t.results.desktopBackgroundHelp}</p>
-          </div>
-        )}
-        {!resultsReady && exportPlace && (
-          <div className="mb-3 flex flex-col gap-1 rounded-lg border border-white/15 bg-black/15 p-3">
-            <button type="button" disabled={!total || progress !== null || blocked || placeBusy}
-              className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}
-              onClick={() => void queueToBackgroundDestination('connected')}>
-              {openingPlace ? t.results.connectingDestination
-                : placeTaskId !== null ? t.results.backgroundSaving(total)
-                  : t.results.connectedBackground(total, exportPlace.label)}
-            </button>
-            <p className="text-xs text-zinc-300">{t.results.connectedBackgroundHelp}</p>
-          </div>
-        )}
-        {!resultsReady && (
-          <section aria-label={t.originals.title} className="mb-3 rounded-lg border border-white/15 bg-black/10 p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" aria-busy={saving} className={`${button} inline-flex items-center gap-2 border border-white/20 font-medium`}
-                disabled={saving || progress !== null || placeBusy || !frames.length || frames.some(frame => frame.isDemo)}
-                onClick={() => void saveUnchangedOriginals()}>
-                {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
-                {openingPlace ? t.results.choosingFolder : t.originals.action(frames.length)}
-              </button>
-              <span className="text-xs font-medium text-zinc-300">{t.originals.title}</span>
-            </div>
-            <p className="mt-1 text-xs text-zinc-300">{t.originals.privacy}</p>
-            {frames.some(frame => frame.isDemo) && <p role="note" className="mt-1 text-xs text-amber-200">{t.originals.unavailable}</p>}
-            {(!desktop || isMobileShell()) && frames.length > 1 &&
-              <p className="mt-1 text-xs text-zinc-400">{t.originals.browserLimitHelp}</p>}
-          </section>
-        )}
-        {!resultsReady && frames.length === 1 && !frames[0].isDemo &&
-          isRawPreviewFile(frames[0].filename) && canDevelopRaw() && (
-          <section aria-label={t.rawTiff.action} className="mb-3 rounded-lg border border-white/15 bg-black/15 p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" aria-busy={saving} className={`${button} inline-flex items-center gap-2 border border-white/20 font-medium`}
-                disabled={saving || progress !== null || placeBusy} onClick={() => void saveRawTiff()}>
-                {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
-                {saving ? editorT.raw.masterBusy : t.rawTiff.action}
-              </button>
-              <details className="min-w-0 flex-1 text-xs text-zinc-300">
-                <summary className="min-h-11 cursor-pointer py-2">{t.rawTiff.details}</summary>
-                <p className="pb-2">
-                  {t.rawTiff.help}
-                </p>
-              </details>
-            </div>
-          </section>
-        )}
-        {!resultsReady && progress === null && !placeBusy && (
+  // These actions are export choices, not huge independent cards above the
+  // scrolling export page. An original copy is byte-for-byte and never edited.
+  const originalChoice = (
+    <div className="rounded-md border border-white/12 p-2">
+      <button type="button" aria-busy={saving} className={`${button} inline-flex w-full items-center justify-between gap-2 text-left`}
+        disabled={saving || progress !== null || placeBusy || !frames.length || frames.some(frame => frame.isDemo)}
+        onClick={() => void saveUnchangedOriginals()}>
+        <span>{t.originals.action(frames.length)}</span>
+        {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
+      </button>
+      {/* One line by default: the full explanation is a tap away, so the Export tab keeps its room on a phone. */}
+      <details className="px-3 pb-1 text-xs text-zinc-400">
+        <summary className="min-h-9 cursor-pointer py-1.5">{t.originals.title}</summary>
+        <p className="pb-1">{t.originals.privacy}</p>
+      </details>
+      {frames.some(frame => frame.isDemo) && <p role="note" className="px-3 text-xs text-amber-200">{t.originals.unavailable}</p>}
+      {(!desktop || isMobileShell()) && frames.length > 1 && <p className="px-3 text-xs text-zinc-400">{t.originals.browserLimitHelp}</p>}
+    </div>
+  );
+  const rawMasterChoice = frames.length === 1 && !frames[0].isDemo &&
+    isRawPreviewFile(frames[0].filename) && canDevelopRaw() ? (
+      <div className="rounded-md border border-white/12 p-2">
+        <button type="button" aria-busy={saving} className={`${button} inline-flex w-full items-center justify-between gap-2 text-left`}
+          disabled={saving || progress !== null || placeBusy} onClick={() => void saveRawTiff()}>
+          <span>{saving ? editorT.raw.masterBusy : t.rawTiff.action}</span>
+          {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
+        </button>
+        <details className="px-3 pb-1 text-xs text-zinc-300">
+          <summary className="min-h-9 cursor-pointer py-2">{t.rawTiff.details}</summary>
+          <p>{t.rawTiff.help}</p>
+        </details>
+      </div>
+    ) : null;
+
+  const destinationActions = (
+    <div className="space-y-2">
+      {desktop && !isMobileShell() && (
+        <button type="button" disabled={!total || progress !== null || blocked || placeBusy || saving}
+          className={`${button} w-full border border-white/15 text-left`}
+          onClick={() => void queueToBackgroundDestination('desktop')}>
+          {placeBusy ? t.results.choosingFolder : t.results.desktopBackground(total)}
+        </button>
+      )}
+      {exportPlace && (
+        <button type="button" disabled={!total || progress !== null || blocked || placeBusy}
+          className={`${button} w-full border border-white/15 text-left`}
+          onClick={() => void queueToBackgroundDestination('connected')}>
+          {openingPlace ? t.results.connectingDestination :
+            placeTaskId !== null ? t.results.backgroundSaving(total) :
+              t.results.connectedBackground(total, exportPlace.label)}
+        </button>
+      )}
+    </div>
+  );
+
+  const presetsBlock = progress === null && !placeBusy ? (
           <details className="mb-2 rounded-md border border-white/15 px-3 py-2">
             <summary className="cursor-pointer py-2 text-sm">{t.presets.title}</summary>
             <ul className="space-y-2">
@@ -1122,8 +1122,32 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             </div>
             <p role="status" className="text-xs text-zinc-300">{presetNote}</p>
           </details>
-        )}
-        {!resultsReady && (
+  ) : null;
+
+  const canShare = files.length > 0 && navigator.canShare?.({ files });
+  const featuredGroups = SHARED_SOCIAL_SIZES.filter(group => FEATURED_SIZE_IDS.has(group.canonical.id));
+  const otherGroups = SHARED_SOCIAL_SIZES.filter(group => !FEATURED_SIZE_IDS.has(group.canonical.id));
+  return (
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/75 p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
+      <section ref={dialog} className={`workspace-popover flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col overflow-hidden border-0 bg-kestrel-raised shadow-xl`}>
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-raised px-2 py-1 max-sm:pt-[calc(0.25rem+env(safe-area-inset-top))]">
+          <button type="button" onClick={onClose} aria-label={t.panel.close} title={t.panel.close} className={button}><X className="h-5 w-5" aria-hidden="true" /></button>
+          <h2 id="export-title" ref={title} tabIndex={-1} className="min-w-0 flex-1 truncate text-center text-base font-semibold">{t.panel.title(frames.length)}</h2>
+          {resultsReady || wizard ? <span className="w-11" /> : (
+            <button type="submit" form="export-form" aria-label={progress !== null ? t.panel.preparingOf(progress, total) : t.prepare.files(total)} disabled={!total || progress !== null || blocked}
+              className={`${button} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover!`}>
+              {progress !== null ? `${progress}/${total}…` : total > 1 ? t.panel.prepareCount(total) : t.panel.prepare}
+            </button>
+          )}
+        </header>
+        {!resultsReady && <ExportProofDock frames={frames} formats={selected} sources={sources} choice={activeProof}
+          failedPhotoId={proofLoadFailed} onRetry={() => setProofRetry(value => value + 1)}
+          onChoosePhoto={chooseProofPhoto} onChooseDestination={chooseProofFormat} bars={bars} overlay={overlay}
+          anchorFor={anchorFor} zoomFor={zoomFor}
+          onAnchor={(frame, format, point) => setAnchors(prior => ({ ...prior, [`${frame.id}|${format.id}`]: point }))}
+          onZoom={(frame, format, zoom) => setZooms(prior => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))} />}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 max-sm:p-3 max-sm:pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        {!resultsReady && (wizard || simpleTab === 'advanced') && (
           <p className="mt-1 text-center">
             <button type="button" onClick={() => changeView(wizard ? 'list' : 'wizard')} className="min-h-10 px-3 text-xs text-zinc-300 underline underline-offset-4 hover:text-white">
               {wizard ? t.panel.showAll : t.panel.guideMe}
@@ -1136,17 +1160,27 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
         {!resultsReady && frames.some((frame) => !frame.isDemo && isRawPreviewFile(frame.filename) && !provider.isDeveloped(frame.stableKey)) && (
           <p className="mb-2 text-center text-xs text-zinc-300">{t.panel.rawPreview}</p>
         )}
+        {!resultsReady && !wizard && (
+          <div role="tablist" aria-label={compact.tabList} className="sticky top-0 z-10 flex gap-1 border-b border-white/10 bg-kestrel-raised py-2">
+            <button type="button" role="tab" aria-selected={simpleTab === 'export'}
+              className={`${button} flex-1 aria-selected:bg-white/10 aria-selected:text-white`}
+              onClick={() => setSimpleTab('export')}>{compact.exportTab}</button>
+            <button type="button" role="tab" aria-selected={simpleTab === 'advanced'}
+              className={`${button} flex-1 aria-selected:bg-white/10 aria-selected:text-white`}
+              onClick={() => setSimpleTab('advanced')}>{compact.advancedTab}</button>
+          </div>
+        )}
         {resultsReady ? (
           <div className="space-y-3">
             <p role="status" className="text-sm text-zinc-300">
               {saving ? t.results.saving : savedName ? t.results.saved(savedName) : t.results.ready(files.length)}
             </p>
             <div className="flex flex-wrap gap-2">
-              {files.length === 1 && <button type="button" aria-busy={saving} className={`${button} inline-flex items-center gap-2 bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
+              {files.length === 1 && <button type="button" aria-busy={saving} className={`${button} inline-flex items-center gap-2 bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover! max-sm:w-full max-sm:justify-center`}
                 disabled={saving || placeBusy} onClick={() => void deliver(files[0], files[0].name, frames.slice(0, 1))}>
                 {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
                 {saving ? t.results.saving : desktop ? t.results.save : t.results.download}</button>}
-              {files.length > 1 && <button type="button" aria-busy={saving || !zip} disabled={saving || placeBusy || !zip} className={`${button} inline-flex items-center gap-2 bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
+              {files.length > 1 && <button type="button" aria-busy={saving || !zip} disabled={saving || placeBusy || !zip} className={`${button} inline-flex items-center gap-2 bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover! max-sm:w-full max-sm:justify-center`}
                 onClick={() => { if (zip) void deliver(zip, 'kestrel-exports.zip', frames); }}>
                 {(saving || !zip) && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
                 {saving ? t.results.saving : zip ? (desktop ? t.results.saveZip : t.results.downloadZip) : t.results.packingZip}</button>}
@@ -1186,57 +1220,48 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               anchorFor={anchorFor} onAnchor={(frame, format, anchor) => setAnchors((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: anchor }))}
               zoomFor={zoomFor} onZoom={(frame, format, zoom) => setZooms((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))}
               onTurn={(id) => setTurned((prior) => ({ ...prior, [id]: !prior[id] }))} overlay={overlay} overlaySlot={overlayBlock} reviewSlot={optionsBlock}
-              busy={progress !== null} total={total} progress={progress} blocked={blocked} onPrepare={() => void prepare()} />
+              busy={progress !== null} total={total} progress={progress} blocked={blocked} onPrepare={() => void prepare()}
+              onSaveOriginal={() => void saveUnchangedOriginals()} originalUnavailable={saving || placeBusy || frames.some(frame => frame.isDemo)} />
             {progress !== null && <progress aria-label={t.panel.progress} className="mt-2 block w-full" value={progress} max={total} />}
           </>
         ) : (
-          <form id="export-form" className="mt-2 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]" onSubmit={(event) => { event.preventDefault(); void prepare(); }}>
-            <fieldset disabled={progress !== null} className="min-w-0 space-y-3">
-              <legend className="mb-1 text-sm font-medium text-zinc-100">{t.list.chooseFormats}</legend>
-              {formatRow(formatById('master')!)}
-              {formatRow(formatById('full-jpeg')!)}
-              {formatRow(formatById('before-after')!)}
-              {PLATFORMS.map((platform) => {
-                const formats = EXPORT_FORMATS.filter((format) => format.platform === platform.id);
-                const count = formats.filter((format) => chosen.includes(format.id)).length;
-                const open = openPlatforms[platform.id] ?? count > 0;
-                return (
-                  <details key={platform.id} open={open} className="rounded-md border border-white/10"
-                    onToggle={(event) => { const now = event.currentTarget.open; if (now !== open) setOpenPlatforms((prior) => ({ ...prior, [platform.id]: now })); }}>
-                    <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-2 text-sm font-medium text-zinc-100 [&::-webkit-details-marker]:hidden">
-                      <SocialIcon id={platform.id} className="h-4 w-4 text-zinc-200" />
-                      <span className="flex-1">{platform.label}</span>
-                      {count > 0 && <span className="rounded-full bg-sky-300/20 px-2 text-xs text-sky-100">{t.list.chosen(count)}</span>}
-                      <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
-                    </summary>
-                    <div className="space-y-1 p-1">{formats.map(formatRow)}</div>
-                  </details>
-                );
-              })}
-              {customBlock}
-              <p className="text-xs text-zinc-400">{t.list.sizesNote}</p>
-            </fieldset>
-
-            <div className="min-w-0 space-y-3">
-              <section aria-label={t.list.previews}>
-                <h3 className="mb-1 text-sm font-medium text-zinc-100">{t.list.preview}</h3>
-                {tiles.length === 0 ? <p className="text-sm text-zinc-400">{t.list.choosePreview}</p> : (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {tiles.map(({ frame, format }) => (
-                      <ExportPreviewTile key={`${frame.id}|${format.id}`} frame={frame} source={sources[frame.id]} format={format} bars={bars}
-                        anchor={anchorFor(frame, format)} onAnchor={(anchor) => setAnchors((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: anchor }))}
-                        zoom={zoomFor(frame, format)} onZoom={(zoom) => setZooms((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))}
-                        platform={format.platform} overlay={overlay} onTurn={() => setTurned((prior) => ({ ...prior, [format.id]: !prior[format.id] }))} />
-                    ))}
+          <form id="export-form" className="mt-2 min-w-0 space-y-3"
+            onSubmit={event => { event.preventDefault(); void prepare(); }}>
+            {simpleTab === 'export' ? (
+              <fieldset disabled={progress !== null} className="min-w-0 space-y-3">
+                <legend className="mb-1 text-sm font-medium text-zinc-100">{t.list.chooseFormats}</legend>
+                <div className="space-y-1.5">
+                  {formatRow(formatById('master')!)}
+                  {formatRow(formatById('full-jpeg')!)}
+                  {formatRow(formatById('before-after')!)}
+                  {originalChoice}
+                </div>
+                <h3 className="text-sm font-medium text-zinc-100">{compact.popular}</h3>
+                <div className="space-y-1.5">
+                  {featuredGroups.map(group => formatRow(group.canonical, group))}
+                </div>
+                <details key={customOn ? 'custom-size-open' : 'more-sizes'} open={customOn || otherGroups.some(group => group.ids.some(id => chosen.includes(id)))} className="rounded-md border border-white/10 p-2">
+                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-zinc-200">{compact.more}</summary>
+                  <div className="space-y-1.5 pt-2">
+                    {otherGroups.map(group => formatRow(group.canonical, group))}
+                    {customBlock}
                   </div>
-                )}
-                {hiddenTiles > 0 && <p className="mt-1 text-xs text-zinc-400">{t.list.hiddenTiles(tiles.length, hiddenTiles)}</p>}
+                </details>
+                <p className="text-xs text-zinc-400">
+                  {compact.shared}
+                </p>
+                {destinationActions}
+              </fieldset>
+            ) : (
+              <section aria-label="Advanced export settings" className="space-y-3">
+                <h3 className="text-sm font-medium text-zinc-100">{compact.finishing}</h3>
+                {overlayBlock}
+                {optionsBlock}
+                {presetsBlock}
+                {rawMasterChoice}
               </section>
-              {optionsBlock}
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              {progress !== null && <progress aria-label={t.panel.progress} className="block w-full" value={progress} max={total} />}
-            </div>
+            )}
+            {progress !== null && <progress aria-label={t.panel.progress} className="block w-full" value={progress} max={total} />}
           </form>
         )}
         {error && <p role="alert" className="mt-2 text-sm text-orange-200">{error}</p>}

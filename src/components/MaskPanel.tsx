@@ -124,9 +124,14 @@ export function MaskPanel(props: Props) {
           {selected.kind === 'subject' && props.onBlendEdges && (
             <div className="space-y-1 rounded-md border border-white/10 p-2 text-xs text-zinc-300" data-testid="mask-blend">
               {blendAdvice && <p>{props.boundaryEvidence?.possibleHardEdge ? maskBlendLabels.boundary : maskBlendLabels.strong}</p>}
-              <button type="button" className={chip} disabled={disabled || !Object.keys(selected.edit).length}
-                title={maskBlendLabels.explanation} aria-label={maskBlendLabels.action}
+              <button type="button" className={chip}
+                disabled={disabled || selected.framingKey !== props.currentFramingKey || !Object.values(selected.edit).some((value) => typeof value === 'number' && Number.isFinite(value) && value !== 0)}
+                aria-label={maskBlendLabels.action}
                 onClick={() => props.onBlendEdges?.(selected.id)}>{maskBlendLabels.action}</button>
+              <details className="min-w-0 text-xs text-zinc-400">
+                <summary className="min-h-11 cursor-pointer rounded-md py-3 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-sky-300">{maskBlendLabels.why}</summary>
+                <p className="break-words leading-relaxed">{maskBlendLabels.explanation}</p>
+              </details>
             </div>
           )}
           {selected.kind === 'subject' && (

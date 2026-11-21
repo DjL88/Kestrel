@@ -24,12 +24,15 @@ test('a saved custom delivery preset restores artwork, naming and output dimensi
   });
   await page.getByTestId('quick-edit-input').setInputFiles({ name: 'bird.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
   await openExportDialog(page);
+  await page.getByRole('dialog', { name: 'Export photo' }).getByRole('tab', { name: 'Advanced' }).click();
   await page.getByText('Export presets', { exact: true }).click();
   await page.getByRole('button', { name: 'Wildlife web', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue('Bird walk');
   await expect(page.getByRole('textbox', { name: 'Text', exact: true })).toHaveValue('Dave');
+  await page.getByRole('dialog', { name: 'Export photo' }).getByRole('tab', { name: 'Export', exact: true }).click();
   await expect(page.getByRole('spinbutton', { name: 'Width (px)' })).toHaveValue('120');
   await expect(page.getByRole('spinbutton', { name: 'Height (px)' })).toHaveValue('80');
+  await page.getByRole('dialog', { name: 'Export photo' }).getByRole('tab', { name: 'Advanced' }).click();
   await page.getByRole('textbox', { name: 'Preset name', exact: true }).fill('Saved again');
   await page.getByRole('button', { name: 'Save preset', exact: true }).click();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('kestrel.exportPresets.v1')!).find((p: { name: string }) => p.name === 'Saved again'));

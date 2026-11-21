@@ -4,6 +4,7 @@ import { applyDetail, applyDetailRgb16, applyPhotoEdit, applyPhotoEditLinear, DE
 import { editRgb16, applyToneMasksRgb16, encodeTiff16, frameRgb16, master16Blocker, parseRgb16, thumbRgb16, type Rgb16Image } from './master16';
 import { DEFAULT_FRAMING } from './photoFraming';
 import { THUMB } from './orientMatch';
+import { blendSrgb16 } from './linearRgb16';
 import { applyMasks, fullContext, maskAlpha } from './masks';
 import { createMask, type Mask } from './maskTypes';
 
@@ -301,7 +302,7 @@ test('tonal mask bands join exactly at high-resolution row boundaries', () => {
   const edited = sourceTone.data[0];
   for (const y of [0, 1, 254, 255, 256, 257, 510, 511, 512, 519]) {
     const p = y * width + 512;
-    const expected = Math.round(initial * (1 - alpha[p]) + edited * alpha[p]);
+    const expected = blendSrgb16(initial, edited, alpha[p]); // linear-light mix, the shared convention
     assert.ok(Math.abs(frame.data[p * 3] - expected) <= 1, `seam-free mask at row ${y}`);
   }
 });
@@ -324,7 +325,7 @@ test('16-bit local Texture/Clarity/Sharpening agree with a full-frame reference 
   const alpha = maskAlpha(mask, width, height, fullContext(width, height));
   for (let p = 0; p < width * height; p++) for (let c = 0; c < 3; c++) {
     const i = p * 3;
-    const expected = Math.round(original[i + c] * (1 - alpha[p]) + full.data[i + c] * alpha[p]);
+    const expected = blendSrgb16(original[i + c], full.data[i + c], alpha[p]);
     assert.ok(Math.abs(striped.data[i + c] - expected) <= 1,
       `full-frame detail/mask/stripe match at pixel ${p} channel ${c}`);
   }
@@ -355,7 +356,7 @@ test('multiple local detail masks are applied in saved order, with no unmasked b
     expected = before.map((value, i) => {
       const pixel = Math.floor(i / 3);
       const a = alpha[pixel] * (limiter ? limiter[pixel] : 1);
-      return Math.round(value * (1 - a) + reference.data[i] * a);
+      return blendSrgb16(value, reference.data[i], a);
     });
   }
   for (let i = 0; i < expected.length; i++) {

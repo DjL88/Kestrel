@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Search, Settings2, SquareChevronsRight, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Search, Settings2, SquareChevronsRight, Trash2 } from './icons/KestrelUIIcons';
 import kestrelMark from '../assets/kestrel-mark.svg';
 import { version as appVersion } from '../../package.json';
 import { PHOTO_ACCEPT } from '../core/rawFormats';
@@ -97,7 +97,7 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
   const backupInput = useRef<HTMLInputElement>(null);
   const quickInput = useRef<HTMLInputElement>(null);
   return (
-    <main className="h-dvh max-h-dvh w-full max-w-full min-w-0 overflow-x-hidden overflow-y-auto bg-kestrel-canvas px-4 text-zinc-100 sm:px-8">
+    <main className="h-dvh max-h-dvh w-full max-w-full min-w-0 overflow-x-hidden overflow-y-auto bg-kestrel-canvas px-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-zinc-100 sm:px-8">
       <div className="mx-auto max-w-3xl py-8 sm:py-14">
         <div className="mb-7 flex items-center gap-2.5">
           <img src={kestrelMark} alt="" className="h-10 w-10" />

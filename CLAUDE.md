@@ -22,6 +22,16 @@ gh pr list --state open
 - One behaviour on every platform. Platform differences live only in adapters (`src-tauri/`, `src/providers/`). Shared logic stays in `src/core/` (pure, unit-tested) and `src/components/`.
 - Calm and accessible: no colour-only cues, keyboard access, reduced motion, British English.
 
+## Owner-priority override — actual offline photographic intelligence (21 November 2026)
+
+**Read [P0 issue #703](https://github.com/DjL88/Kestrel/issues/703) before any new vision-model, photo-understanding or OCR work.** The owner has explicitly authorised installing **one or more licensed local vision models** in the prototype. The main deliverable is **real on-device inference inside the Kestrel editor**, not another Python experiment, OCR feature, BYO Ollama requirement or cloud deployment. Do not misread "deploy a model" as permission or a requirement to provision Google Cloud.
+
+**Finish one working vertical slice before further research:** import an existing photo → extract a bounded colour-managed preview → actually load/execute a pinned quantised local vision model through an app-supported runtime → validate/calibrate plain-English photographic observations → offer a bounded conventional reversible edit through the existing Colour Confidence/Photo Advisor/mask controls → undo/reopen → prove the same result with networking disabled. Explicitly show model hash/version, load time, RAM and inference latency from a real Kestrel checkout. No model weights in Git; no customer-photo upload; no generation of image pixels.
+
+**Priority order:** photo quality, subject/mask completeness, natural colour plausibility and undoable edits; OCR for aircraft registrations/bird rings **later**. Multiple models are welcome where specialist corroboration improves measured results, but first prove at least one operational small model. Use existing `src/core/colourCheck.ts`, `src/core/aiReview.ts`, `src/providers/modelUpdater.ts`, and #694/#677 signed asset components; reconcile their different packaging/trust contracts rather than inventing another updater or silently exceeding single-model size limits. Claude owns new VLM runtime and model installation; worker 1 owns shared editor integration and must coordinate through #418.
+
+**Do not refuse local model installation because cloud credentials, privacy concerns about optional cloud, or unsigned production distribution are missing.** Use explicit opt-in local package acquisition, lawful checkpoint/weight licences, pinned digests, safe storage/rollback, offline proof and existing fallback. **Do not deploy GCP, use paid services, accept third-party licence terms, upload photos or expose production keys without approval.** The prototype may install authorised rights-cleared local packages without GCP. Report actual executable PASS/FAIL/NOT RUN, not architecture-only progress.
+
 ## How to make a change
 - Take **one** bounded item, the first unblocked one in ROADMAP P0 unless the owner asks otherwise. Check the open PRs for overlap before starting. Make it a small PR on its own branch.
 - **Repair your own open PRs before opening another.** Don't stack drafts nobody will review.

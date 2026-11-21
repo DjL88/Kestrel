@@ -14,6 +14,7 @@ import { copyFileSync, mkdirSync, readdirSync, readFileSync, statSync, writeFile
 import { basename, extname, join } from 'node:path';
 import { parseDataManifest, type DataAsset } from '../../src/core/dataUpdateManifest.ts';
 import { loadSigningKey, signEnvelope } from '../../services/control-plane/src/crypto.ts';
+import { MODEL_SLOTS, isModelSlot } from '../../src/core/modelUpdatePolicy.ts';
 
 function arg(name: string): string {
   const index = process.argv.indexOf(`--${name}`);
@@ -39,7 +40,9 @@ const assets: DataAsset[] = readdirSync(dir).filter((name) => extname(name) === 
   const target = join(out, path);
   mkdirSync(join(target, '..'), { recursive: true });
   copyFileSync(file, target);
-  return { id, kind: 'onnx', version, path, bytes: statSync(file).size, sha256: createHash('sha256').update(bytes).digest('hex') };
+  // The app can only update a model it already has a slot for, and only to one that keeps that slot's contract.
+  if (!isModelSlot(id)) throw new Error(`"${id}" is not a model the app has a slot for (${Object.keys(MODEL_SLOTS).join(', ')}). A new model needs a new app release first.`);
+  return { id, kind: 'onnx', version, path, bytes: statSync(file).size, sha256: createHash('sha256').update(bytes).digest('hex'), contract: MODEL_SLOTS[id].contract };
 });
 if (!assets.length) throw new Error(`No .onnx files in ${dir}`);
 

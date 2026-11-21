@@ -1,7 +1,7 @@
 import { tasks } from '../core/taskStore';
 import { useEffect, useRef, useState } from 'react';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
-import { LoaderCircle, X } from 'lucide-react';
+import { LoaderCircle, X } from './icons/KestrelUIIcons';
 import { yieldToPaint } from '../core/yieldToPaint';
 import type { CullSuggestion } from '../core/autoCull';
 import { planKeeperTier, type KeeperTier } from '../core/keeperTiers';

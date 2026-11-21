@@ -5,7 +5,7 @@ import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../core/photoFrami
 import { loadImage } from '../providers/loadImage';
 import { loadExportSource } from '../providers/browserExport';
 import React, { useEffect, useRef, useState } from 'react';
-import { ImageOff, LoaderCircle } from 'lucide-react';
+import { ImageOff, LoaderCircle } from './icons/KestrelUIIcons';
 import type { PhotoFrame } from '../core/types';
 import type { PhotoPreviewReadiness } from '../core/photoTileReadiness';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';

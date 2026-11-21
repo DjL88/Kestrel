@@ -1,5 +1,5 @@
 import { useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
-import { MoveHorizontal } from 'lucide-react';
+import { MoveHorizontal } from './icons/KestrelUIIcons';
 
 import { FIT_VIEW, transformViewport, type ViewportPoint as Point } from '../core/viewportTransform';
 import { viewerText as t } from '../i18n/areas/viewer';

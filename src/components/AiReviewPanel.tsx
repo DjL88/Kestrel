@@ -3,6 +3,8 @@ import { AlertTriangle, Info, LoaderCircle, MessageSquareText } from 'lucide-rea
 import { AI_REVIEW_CONSENT_VERSION, aiReviewPrompt, type AiReview } from '../core/aiReview';
 import { yieldToPaint } from '../core/yieldToPaint';
 import { applyFix } from '../core/critique';
+import { conservativeReviewTargets } from '../core/photoReviewStep';
+import { capturePhotoReviewScope, samePhotoReviewScope, type PhotoReviewScope } from '../core/photoReviewScope';
 import type { PhotoEdit } from '../core/photoEdits';
 import { languageOption } from '../core/locale';
 import { language } from '../i18n/messages';
@@ -20,6 +22,8 @@ interface Props {
   readJpeg: () => string | null;
   /** The on-device colour check's sentences, so the AI can agree or disagree. */
   localFindings: string[];
+  /** Stable photo/source/framing/recipe tokens; invalidate any older model reply when one changes. */
+  version: readonly unknown[];
   disabled?: boolean;
 }
 
@@ -86,32 +90,57 @@ export function AiProviderSetup({ saved, onDone }: { saved: AiProviderSettings |
  * they set it up and agree, by name, to where a small preview goes. The AI only describes and suggests; any change is
  * applied by the person, as one undoable step.
  */
-export function AiReviewPanel({ edit, onEdit, readJpeg, localFindings, disabled }: Props) {
+export function AiReviewPanel({ edit, onEdit, readJpeg, localFindings, version, disabled }: Props) {
   const settings = useAiSettings();
   const [mode, setMode] = useState<'idle' | 'asking'>('idle');
   const [review, setReview] = useState<AiReview | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
-  useEffect(() => () => { abort.current?.abort(); }, []);
+  // Values are supplied by the live editor, not the review provider. When an
+  // asynchronous model finishes, the same request must still own every part.
+  const currentScope = useRef<PhotoReviewScope>([]);
+  currentScope.current = [edit, settings, disabled, ...version];
+  const shownScope = useRef<PhotoReviewScope | null>(null);
+  useEffect(() => () => {
+    abort.current?.abort();
+    abort.current = null;
+    shownScope.current = null;
+  }, []);
+  useEffect(() => {
+    // An older photo, edit, crop or provider must never leave an apparently
+    // current suggestion on screen or remain able to modify the new frame.
+    abort.current?.abort();
+    abort.current = null;
+    shownScope.current = null;
+    setMode('idle');
+    setReview(null);
+    setMessage(null);
+    // The version tuple has a fixed shape controlled by PhotoEditor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [edit, settings, disabled, ...version]);
   const agreed = settings ? settings.consent === consentFor(AI_REVIEW_CONSENT_VERSION, settings) : false;
 
   async function ask() {
     if (!settings || abort.current) return;
     const controller = new AbortController();
+    const askedFor = capturePhotoReviewScope(currentScope.current);
     abort.current = controller;
+    shownScope.current = null;
     setMessage(null); setReview(null); setMode('asking');
+    const stillCurrent = () => abort.current === controller && !controller.signal.aborted &&
+      samePhotoReviewScope(askedFor, currentScope.current);
     try {
       // Preview encoding can be synchronous. Paint progress before touching
       // the canvas so tapping Ask never appears to do nothing.
       await yieldToPaint();
-      if (controller.signal.aborted) return;
+      if (!stillCurrent()) return;
       const jpeg = readJpeg();
-      if (!jpeg) { if (abort.current === controller) setMessage(t.errors.other); return; }
+      if (!jpeg) { if (stillCurrent()) setMessage(t.errors.other); return; }
       const prompt = aiReviewPrompt(languageOption(language).englishName, localFindings);
       const result = await askForReview(settings, AI_REVIEW_CONSENT_VERSION, prompt, jpeg, controller.signal);
-      if (abort.current === controller && !controller.signal.aborted) setReview(result);
+      if (stillCurrent()) { shownScope.current = askedFor; setReview(result); }
     } catch (error) {
-      if (abort.current === controller && !controller.signal.aborted) {
+      if (stillCurrent()) {
         setMessage(t.errors[error instanceof AiReviewError ? error.reason : 'other']);
       }
     } finally {
@@ -121,13 +150,20 @@ export function AiReviewPanel({ edit, onEdit, readJpeg, localFindings, disabled 
   const cancelAsk = () => {
     abort.current?.abort();
     abort.current = null;
+    shownScope.current = null;
     setMode('idle');
   };
 
   // A provider is configured in Settings. No integration controls are shown until then.
   if (!settings) return null;
 
-  const suggestion = review ? Object.entries(review.suggestion) as [keyof typeof t.slider, number][] : [];
+  // Hide stale results in the same render that changes the photo. React effect
+  // cancellation happens afterwards, so apply-time validation is also needed.
+  const visibleReview = review && samePhotoReviewScope(shownScope.current, currentScope.current) ? review : null;
+  // Limit one model review to a calm, reversible first step. Display exactly
+  // these targets, not the larger raw values returned by the model.
+  const checkedTargets = visibleReview ? conservativeReviewTargets(edit, visibleReview.suggestion) : {};
+  const suggestion = Object.entries(checkedTargets) as [keyof typeof t.slider, number][];
   return (
     <section aria-label={t.title} className="space-y-2 border-t border-white/10 pt-2" data-testid="ai-review">
       <h4 className="flex items-center gap-1.5 text-xs font-medium text-zinc-200"><MessageSquareText className="h-3.5 w-3.5" aria-hidden="true" />{t.title}</h4>
@@ -151,12 +187,12 @@ export function AiReviewPanel({ edit, onEdit, readJpeg, localFindings, disabled 
         </div>
       )}
       {message && <p role="status" className="flex gap-1.5 text-xs text-zinc-300"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />{message}</p>}
-      {review && (
+      {visibleReview && (
         <div className="space-y-1.5 rounded-md border border-white/15 p-2" data-testid="ai-review-result">
           <p className="text-xs font-semibold text-zinc-200">{t.summary}</p>
-          <p className="text-xs text-zinc-200">{review.summary}</p>
-          {review.points.length > 0 && <ul className="space-y-1">
-            {review.points.map((point, index) => (
+          <p className="text-xs text-zinc-200">{visibleReview.summary}</p>
+          {visibleReview.points.length > 0 && <ul className="space-y-1">
+            {visibleReview.points.map((point, index) => (
               <li key={index} className="flex gap-1.5 text-xs text-zinc-200">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" /><span><strong className="font-semibold">{t.issue[point.issue]}:</strong> {point.detail}</span>
               </li>
@@ -169,9 +205,13 @@ export function AiReviewPanel({ edit, onEdit, readJpeg, localFindings, disabled 
           <p className="text-xs text-zinc-400">{t.draftNote}</p>
           <div className="flex flex-wrap gap-2">
             {suggestion.length > 0 && <button type="button" className={button} disabled={disabled} onClick={() => {
+              // The user could change source or settings between painting and
+              // clicking Apply. Never send an old model proposal to that edit.
+              if (!samePhotoReviewScope(shownScope.current, currentScope.current)) return;
               // Suggested values are absolute slider positions; turn them into changes from the current edit.
               const delta = Object.fromEntries(suggestion.map(([slider, value]) => [slider, value - (Number(edit[slider as keyof PhotoEdit]) || 0)]));
               onEdit(applyFix(edit, { kind: 'global', delta }));
+              shownScope.current = null;
               setReview(null);
               setMessage(t.applied);
             }}>{t.apply}</button>}
