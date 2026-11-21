@@ -132,7 +132,7 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
         pending.set(id, async () => {
           if (controller.signal.aborted || handle?.cancelled) {
             finished = true;
-            handle?.finish();
+            handle?.fail('Export cancelled before it started.');
             resolveDone('cancelled');
             return;
           }
@@ -161,8 +161,10 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
               }
             }
           } catch (error) {
-            if (controller.signal.aborted || handle?.cancelled) resolveDone('cancelled');
-            else {
+            if (controller.signal.aborted || handle?.cancelled) {
+              handle?.fail('Export cancelled. Previously saved files may remain at the destination.');
+              resolveDone('cancelled');
+            } else {
               if (retrySafe && savedCount < items.length && attempt + 1 < MAX_ATTEMPTS && handle) {
                 // Register before fail() emits, so the Retry button appears
                 // in the same Task Manager update as the error.
