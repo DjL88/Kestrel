@@ -987,6 +987,15 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
     return () => node.removeEventListener('wheel', onWheel, { capture: true });
   }, []);
 
+  /** The photo as edited and framed, for the on-device photo check (it is stretched to 512 x 512 there). Never leaves the device. */
+  function advicePreview(): HTMLCanvasElement | null {
+    if (!source || !outputSize) return null;
+    const canvas = document.createElement('canvas');
+    drawFramedPhoto(source, canvas, framing, { scale: Math.min(1, 512 / Math.max(outputSize.width, outputSize.height)) });
+    applyCanvasPhotoEdit(canvas, edit);
+    return canvas;
+  }
+
   /** A small before/after preview for the colour check, with the subject outline when there is one. */
   function colourPreview(): ColourPreview | null {
     if (!source || !outputSize) return null;
@@ -1397,7 +1406,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
             className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white desk:min-h-7">{t.edit.quickChoices}</button>
         </div>
         <PhotoAdvice histogram={histogram} edit={edit} mode={guidanceMode} photoKey={frame.stableKey}
-          disabled={sourceState !== 'ready'} onEdit={onEdit} />
+          disabled={sourceState !== 'ready'} onEdit={onEdit} readPreview={advicePreview} />
         {guidanceMode === 'solo' && !manualColourCheck ? (
           <button type="button" className="min-h-10 w-full border-t border-white/10 px-1 text-left text-xs text-zinc-300 hover:text-white"
             disabled={sourceState !== 'ready'} onClick={() => setManualColourCheck(true)}>Check colour</button>

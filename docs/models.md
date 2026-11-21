@@ -125,3 +125,19 @@ Run the Python test harness using `python3 -m unittest discover -s scripts/model
 where its dependencies are installed. See each script's header for model and
 optional dependency requirements. These are developer tools, not a background
 download started by the photographer's app. Large packs require explicit consent.
+
+## On-device photo check: SmolVLM2-256M (installed on request, runs inside the editor)
+
+| | |
+| --- | --- |
+| Model and weights | SmolVLM2-256M-Video-Instruct by Hugging Face (HuggingFaceTB), **Apache-2.0**. Notice: `docs/notices/smolvlm2.txt` |
+| Revision | `9cda5c165b28c68a52e9bb542d2b89f0f6963709` (pinned in `src/core/photoCheckPack.ts`) |
+| Files (8-bit ONNX) | `onnx/vision_encoder_int8.onnx` 94,247,884 B `39f0efae…963d`; `onnx/embed_tokens_int8.onnx` 28,385,824 B `e2cdc3ba…710a`; `onnx/decoder_model_merged_int8.onnx` 137,553,254 B `03304ea9…37c1`; `tokenizer.json` 3,548,256 B `5ece781d…331a` (full digests in the pack file). About 264 MB in all |
+| Runtime | The app's own `onnxruntime-web` (CPU WebAssembly, one thread). No second runtime, no Python, no server |
+| Install | Only when the photographer chooses **Install photo check**; size and "nothing is uploaded" are shown first. Each file is a pinned asset in the existing verified store (`activateApprovedAsset`: digest check, immutable slot, read-back, atomic activation, cancellation). Weights are not in Git |
+
+**What it does.** It writes one short description of the edited preview. Kestrel searches that text for a few fixed keywords (subject kind, golden / low-key / high-key / cool light, sky, foliage) in `src/core/photoCheck.ts`. The description is never shown as advice and never treated as an instruction. The facts can only make the measured advisor *more cautious* (a deliberate silhouette is not "underexposed", golden light is not a "cast"); they never raise confidence or authorise an automatic change. Fly Solo never runs it unasked.
+
+**What did not work (so it is not used).** Scoring fixed answers by next-token probability (exposure, light, subject, "is there a person / sky / animal?") was **not reliable** on this model, with or without option rotation and capitalisation: a pure black frame and a pure white frame were both called "good" exposure, a cat scored as a "person", and a blank frame scored as containing sky. "Is the light backlit?" gave false positives on ordinary portraits. The model also **hallucinates on blank frames** (it described pure black as "a man's face"). Exposure is therefore measured from pixels, not asked. Speed-up by reusing the image prefix failed: this exported decoder only accepts one new token at a time once it has a cache.
+
+**Limits.** 256M is small: descriptions were right for a cat, a portrait and a coffee cup, but nothing here shows it can judge colour accuracy, skin tone or mask edges. Those need measured evidence from Kestrel's own checks, with the model only saying what the picture is. 500M (`smolvlm2-500m`, about 511 MB 8-bit) gave no better closed-answer behaviour in the same tests.

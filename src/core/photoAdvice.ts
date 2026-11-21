@@ -15,8 +15,11 @@ export type AdviceKey = 'exposure' | 'warmth' | 'highlights' | 'shadows' | 'cont
 export type Verdict = 'good' | 'nearly' | 'needs-work' | 'unsure';
 export type Confidence = 'high' | 'medium' | 'low';
 
-/** Optional context from an on-device vision model. Absent means unknown, never "normal". */
-export interface SceneContext { intent?: 'low-key' | 'high-key' | 'normal'; }
+/**
+ * Optional context from an on-device vision model. Absent means unknown, never "normal".
+ * It can only make the advisor more cautious (a deliberate silhouette, golden light); it never adds or upgrades advice.
+ */
+export interface SceneContext { intent?: 'low-key' | 'high-key' | 'normal'; light?: 'golden' | 'cool'; }
 
 export interface Suggestion {
   issue: AdviceIssue;
@@ -51,8 +54,8 @@ export function adviseOnPhoto(h: Histogram, edit: PhotoEdit, context: SceneConte
   else if (s.mean > 0.68 && s.highlights > 0.5 && context.intent !== 'high-key') add('bright', { exposure: -0.3 }, 'medium', s.mean > 0.82);
   else if (s.high - s.low < 0.4 && context.intent !== 'low-key' && context.intent !== 'high-key') add('flat', { contrast: 0.2 }, 'medium', false);
   const cast = s.red - s.blue;
-  if (cast > 0.1) add('warm', { warmth: -0.08 }, 'low', false);
-  else if (cast < -0.1) add('cool', { warmth: 0.08 }, 'low', false);
+  if (cast > 0.1 && context.light !== 'golden') add('warm', { warmth: -0.08 }, 'low', false);
+  else if (cast < -0.1 && context.light !== 'cool') add('cool', { warmth: 0.08 }, 'low', false);
 
   // A warm or cool cast alone is often the light the photographer wanted, so it never lowers the verdict by itself.
   const counting = found.filter(({ s: item }) => item.issue !== 'warm' && item.issue !== 'cool');

@@ -68,3 +68,13 @@ test('mode mapping: Solo is silent unless asked, Glide offers one Try this, Soar
   assert.ok(soar.auto.length >= 1 && soar.auto.every((item) => item.confidence === 'high'));
   assert.equal(adviceAction('soar', advice, { manuallyRefined: true }).auto.length, 0, 'never over the photographer\'s own edits');
 });
+
+test('scene context from the model only ever removes advice: golden light keeps a warm cast, low-key keeps a dark frame', () => {
+  const warm = picture(1000, (i) => { const v = 45 + Math.round((i / 999) * 165); return [v + 40, v, v - 40]; });
+  assert.ok(adviseOnPhoto(warm, DEFAULT_EDIT).issues.includes('warm'));
+  assert.ok(!adviseOnPhoto(warm, DEFAULT_EDIT, { light: 'golden' }).issues.includes('warm'));
+  const clipped = picture(1000, (i) => i < 100 ? [255, 255, 255] : ramp(i));
+  const plain = adviseOnPhoto(clipped, DEFAULT_EDIT), withContext = adviseOnPhoto(clipped, DEFAULT_EDIT, { intent: 'low-key', light: 'golden' });
+  assert.deepEqual(withContext.suggestions.map((item) => item.issue), plain.suggestions.map((item) => item.issue), 'measured clipping is never explained away');
+  assert.deepEqual(withContext.suggestions.map((item) => item.confidence), plain.suggestions.map((item) => item.confidence), 'context never raises confidence');
+});

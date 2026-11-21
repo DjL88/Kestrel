@@ -161,6 +161,19 @@ export const source = {
     sliders: { exposure: 'Exposure', warmth: 'Warmth', highlights: 'Highlights', shadows: 'Shadows', contrast: 'Contrast' } as Record<string, string>,
     /** What the change does, for the button's accessible name. */
     tryLabel: (action: string) => `Try this: ${action}`,
+    /** Why: one short phrase for the most important measured issue. */
+    notes: { whiteClip: 'Highlights are clipped', blackClip: 'Shadows are clipped', dark: 'Looks dark', bright: 'Looks bright', flat: 'Looks flat', warm: 'Warm cast', cool: 'Cool cast' } as Record<string, string>,
+    install: 'Install photo check',
+    installNote: (size: string) => `Runs on this device only, about ${size}. Nothing is uploaded.`,
+    installConfirm: 'Install',
+    notNow: 'Not now',
+    installing: (percent: string) => `Installing ${percent}`,
+    cancel: 'Cancel',
+    checking: 'Checking…',
+    failed: 'The photo check did not finish.',
+    scene: 'Scene',
+    subjects: { person: 'Person', animal: 'Animal', bird: 'Bird', landscape: 'Landscape', object: 'Object' } as Record<string, string>,
+    lights: { 'low-key': 'Low-key', 'high-key': 'High-key', golden: 'Golden light', cool: 'Cool light' } as Record<string, string>,
   },
   /** Quality checks from `critique`, by opinion id. */
   critique: {
