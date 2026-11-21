@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { LICENCE_MESSAGES, verifyLicence } from '../core/licence';
-import { decideAccess, parseControlPlaneUrl, parsePinnedKeys, platformOf, renewalDue, type AccessDecision, type OnlineStanding } from '../core/licenceOnline';
+import { decideAccess, decideAccountAccess, parseControlPlaneUrl, parsePinnedKeys, platformOf, renewalDue, type AccessDecision, type AccountStanding, type OnlineStanding } from '../core/licenceOnline';
 import { version as appVersion } from '../../package.json';
 import { isDesktopApp } from './desktopShell';
 import { LicenceSync, type LicenceStatus } from './licenceSync';
@@ -9,6 +9,7 @@ export type LicenceState =
   | { status: 'none' }
   | { status: 'checking' }
   | { status: 'valid'; online: OnlineStanding; access: AccessDecision }
+  | { status: 'account'; standing: AccountStanding; access: AccessDecision }
   | { status: 'invalid'; message: string };
 
 const KEY = 'kestrel.licence.v1';
@@ -58,10 +59,34 @@ function keepRenewing() {
   window.addEventListener('online', () => { const key = storedKey(); if (key) void renewIfDue(key); });
 }
 
+const accountState = (standing: AccountStanding): LicenceState => ({ status: 'account', standing, access: decideAccountAccess(standing, Date.now()) });
+
+/**
+ * After signing in: ask the control plane for this device's grant using the account. Without a purchase or gift the
+ * account stays Free. A pasted key, if there is one, is untouched and still decides on its own.
+ */
+export async function activateFromAccount(idToken: string): Promise<'pro' | 'free' | 'limit' | 'revoked' | 'unreachable' | 'not_set_up'> {
+  if (!sync.configured) return 'not_set_up';
+  const standing = await sync.activateAccount(idToken);
+  if (!standing) return 'unreachable';
+  if (!storedKey()) set(standing.kind === 'no_licence' ? { status: 'none' } : accountState(standing));
+  return standing.kind === 'active' ? 'pro' : standing.kind === 'no_licence' ? 'free' : standing.kind === 'device_limit' ? 'limit' : 'revoked';
+}
+
+/** Signing out of the account removes its Pro from this device (a pasted key is separate and stays). */
+export function leaveAccount() {
+  sync.forgetAccount();
+  if (state.status === 'account') set({ status: 'none' });
+}
+
 /** Check the key kept on this device. Run once when the app opens. */
 export async function loadLicence() {
   const key = storedKey();
-  if (!key) { set({ status: 'none' }); return; }
+  if (!key) {
+    const stored = await sync.storedAccountStanding();
+    set(stored ? accountState(stored) : { status: 'none' });
+    return;
+  }
   set({ status: 'checking' });
   const result = await verifyLicence(key);
   if (!result.ok) { set({ status: 'invalid', message: LICENCE_MESSAGES[result.reason] }); return; }
