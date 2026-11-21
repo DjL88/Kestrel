@@ -23,6 +23,28 @@ test('the full-precision tone edit is the 8-bit one, only finer', () => {
   }
 });
 
+test('RGB16 global tone encodes once, matching the browser at exact 8-bit source levels', () => {
+  const edit = { ...DEFAULT_EDIT, exposure: 0.35, warmth: 0.2, brightness: 0.45, contrast: 0.2 };
+  const source = [65, 100, 180, 110, 120, 75, 200, 210, 240];
+  const eight = new Uint8ClampedArray(3 * 4);
+  const fine = new Uint16Array(source.length);
+  for (let p = 0; p < 3; p++) {
+    for (let c = 0; c < 3; c++) {
+      eight[p * 4 + c] = source[p * 3 + c];
+      fine[p * 3 + c] = source[p * 3 + c] * 257;
+    }
+    eight[p * 4 + 3] = 255;
+  }
+  applyPhotoEdit(eight, edit);
+  const image: Rgb16Image = { width: 3, height: 1, data: fine };
+  editRgb16(image, edit);
+  for (let p = 0; p < 3; p++) for (let c = 0; c < 3; c++) {
+    const actual = image.data[p * 3 + c] / 257;
+    const expected = eight[p * 4 + c];
+    assert.ok(Math.abs(actual - expected) <= 1, 'double sRGB encoding at pixel ' + p + ' channel ' + c + ': ' + actual + ' vs ' + expected);
+  }
+});
+
 /** A smooth 16-bit ramp through the shadows, where an 8-bit file bands first when they are lifted. */
 function shadowRamp(): Rgb16Image {
   const width = 4096;
