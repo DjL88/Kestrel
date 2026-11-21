@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createSubjectMask, validMasks, type SubjectGrid } from './maskTypes';
-import { refineObservedAnatomy as refineWithAuthority, type AnatomyEvidence } from './anatomyMaskEvidence';
+import { captureAnatomyMaskSnapshot, refineObservedAnatomy as refineWithAuthority, type AnatomyEvidence } from './anatomyMaskEvidence';
 
 // Synthetic fixture authority is TEST-ONLY. Production must use the verified
 // signed model/calibration catalogue, never this fixture approval.
@@ -12,7 +12,10 @@ const refineObservedAnatomy = (
   observed: AnatomyEvidence,
   source: string,
   revision: number,
-) => refineWithAuthority(mask, observed, source, revision, fixtureAuthority);
+) => refineWithAuthority(mask, {
+  ...observed,
+  baseMaskSnapshot: observed.baseMaskSnapshot || captureAnatomyMaskSnapshot(mask),
+}, source, revision, fixtureAuthority);
 
 const sha = 'a'.repeat(64);
 const grid = (paint: Record<number, number> = {}): SubjectGrid => {
@@ -21,7 +24,7 @@ const grid = (paint: Record<number, number> = {}): SubjectGrid => {
   return { w: 8, h: 8, data: btoa(String.fromCharCode(...values)) };
 };
 const evidence = (parts: SubjectGrid, occluders: SubjectGrid, baseGridData: string): AnatomyEvidence => ({
-  sourceSha256: sha, framingKey: 'frame', baseGridData, recipeRevision: 7, modelId: 'local-segmenter',
+  sourceSha256: sha, framingKey: 'frame', baseGridData, baseMaskSnapshot: '', recipeRevision: 7, modelId: 'local-segmenter',
   modelVersion: 'fixture-1', calibration: { modelId: 'local-segmenter', modelVersion: 'fixture-1',
     domain: 'wildlife', datasetDigestSha256: 'b'.repeat(64), calibrationVersion: 'fixture',
     positiveCount: 1, negativeCount: 1, approved: true },
@@ -191,11 +194,47 @@ test('a raw detector score without calibration metadata is not treated as confid
 test('self-asserted approval cannot bypass a missing or rejecting signed calibration authority', () => {
   const mask = createSubjectMask('subject', grid({ 10: 255 }), 'frame', 'high');
   const observed = evidence(grid({ 19: 255 }), grid(), mask.grid.data);
-  assert.deepEqual(refineWithAuthority(mask, observed, sha, 7, () => false),
+  const bound = { ...observed, baseMaskSnapshot: captureAnatomyMaskSnapshot(mask) };
+  assert.deepEqual(refineWithAuthority(mask, bound, sha, 7, () => false),
     { ok: false, reason: 'uncalibrated-evidence' });
-  assert.deepEqual(refineWithAuthority(mask, observed, sha, 7, () => { throw Error('invalid signature'); }),
+  assert.deepEqual(refineWithAuthority(mask, bound, sha, 7, () => { throw Error('invalid signature'); }),
     { ok: false, reason: 'uncalibrated-evidence' });
-  assert.deepEqual(refineWithAuthority(mask, observed, sha, 7, undefined as unknown as typeof fixtureAuthority),
+  assert.deepEqual(refineWithAuthority(mask, bound, sha, 7, undefined as unknown as typeof fixtureAuthority),
     { ok: false, reason: 'uncalibrated-evidence' });
   assert.equal(atob(mask.grid.data).charCodeAt(19), 0);
+});
+
+test('stale manual brush changes are rejected even when caller fails to advance recipe revision', () => {
+  const mask = createSubjectMask('subject', grid({ 10: 255 }), 'frame', 'high');
+  const observed = evidence(grid({ 19: 255 }), grid(), mask.grid.data);
+  observed.baseMaskSnapshot = captureAnatomyMaskSnapshot(mask);
+  mask.strokes.push({ points: [0.3, 0.3], radius: 0.03, erase: true });
+  assert.deepEqual(refineWithAuthority(mask, observed, sha, 7, fixtureAuthority),
+    { ok: false, reason: 'stale-recipe' });
+});
+
+test('changed local edits, feather and mask limits invalidate captured evidence without grid changes', () => {
+  const original = createSubjectMask('subject', grid({ 10: 255 }), 'frame', 'high');
+  const observed = evidence(grid({ 19: 255 }), grid(), original.grid.data);
+  observed.baseMaskSnapshot = captureAnatomyMaskSnapshot(original);
+  for (const mutate of [
+    (mask: typeof original) => { mask.edit.exposure = 0.15; },
+    (mask: typeof original) => { mask.feather = 0.25; },
+    (mask: typeof original) => { mask.limit = { id: 'background', mode: 'subtract' }; },
+  ]) {
+    const mask = structuredClone(original);
+    mutate(mask);
+    assert.deepEqual(refineWithAuthority(mask, observed, sha, 7, fixtureAuthority),
+      { ok: false, reason: 'stale-recipe' });
+  }
+});
+
+test('fresh full-state snapshot accepts a connected observed part with manual brush retained', () => {
+  const mask = createSubjectMask('subject', grid({ 10: 255 }), 'frame', 'high');
+  mask.strokes.push({ points: [0.1, 0.2], radius: 0.02, erase: false });
+  const observed = evidence(grid({ 19: 245 }), grid(), mask.grid.data);
+  observed.baseMaskSnapshot = captureAnatomyMaskSnapshot(mask);
+  const result = refineWithAuthority(mask, observed, sha, 7, fixtureAuthority);
+  assert.equal(result.ok, true);
+  if (result.ok) assert.deepEqual(result.mask.strokes, mask.strokes);
 });
