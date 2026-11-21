@@ -117,3 +117,49 @@ test('a throwing permission callback also refuses before any image leaves this d
   assert.equal(await failureOf(transport.ask(clean)), 'blocked');
   assert.equal(called, false);
 });
+
+test('account-switch session is resolved per request and never reuses a prior bearer token', async () => {
+  let token: string | null = 'account-a';
+  const seen: string[] = [];
+  const fetcher = async (_url: RequestInfo | URL, init?: RequestInit) => {
+    seen.push((init?.headers as Record<string, string>).authorization);
+    return new Response(JSON.stringify({ kind: 'other', species: null, confidence: 'low', tags: [] }), { status: 200 });
+  };
+  let approved = false;
+  const transport = controlPlaneTransport('https://cp.example', () => token, fetcher, () => {
+    const once = approved;
+    approved = false;
+    return once;
+  });
+  approved = true;
+  await transport.ask(clean);
+  token = null;
+  approved = true;
+  assert.equal(await failureOf(transport.ask(clean)), 'auth', 'sign-out refuses before upload');
+  token = 'account-b';
+  assert.equal(await failureOf(transport.ask(clean)), 'blocked', 'account switch cannot reuse a previous approval');
+  approved = true;
+  await transport.ask(clean);
+  assert.deepEqual(seen, ['Bearer account-a', 'Bearer account-b']);
+});
+
+test('permission for one route cannot silently authorise a different managed AI route', async () => {
+  const seen: string[] = [];
+  let approvedRoute: string | null = '/v1/ai/identify';
+  const fetcher = async (url: RequestInfo | URL) => {
+    seen.push(new URL(String(url)).pathname);
+    return new Response(JSON.stringify({ kind: 'other', species: null, confidence: 'low', tags: [] }), { status: 200 });
+  };
+  const transport = controlPlaneTransport('https://cp.example', () => 'token', fetcher, route => {
+    const ok = route === approvedRoute;
+    approvedRoute = null;
+    return ok;
+  });
+  assert.equal(await failureOf(transport.suggest(clean)), 'blocked');
+  assert.equal(await failureOf(transport.verifyColour(clean)), 'blocked');
+  assert.deepEqual(seen, []);
+  approvedRoute = '/v1/ai/identify';
+  await transport.ask(clean);
+  assert.equal(await failureOf(transport.ask(clean)), 'blocked');
+  assert.deepEqual(seen, ['/v1/ai/identify']);
+});
