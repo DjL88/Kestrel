@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
 import { planCuratedAssets, type CuratorCandidate } from './assetCuration';
 const candidate: CuratorCandidate = {
   id: 'lens-notes', version: '1.0.0', kind: 'knowledge', sha256: 'a'.repeat(64), bytes: 120,
@@ -9,16 +10,16 @@ const candidate: CuratorCandidate = {
 };
 describe('curated data only', () => {
   it('requires approved independent rights and quality review', () => {
-    expect(planCuratedAssets([candidate], 200).approved).toHaveLength(1);
-    expect(planCuratedAssets([{ ...candidate, qualityReviewer: 'rights-owner' }], 200).quarantined).toHaveLength(1);
+    assert.equal(planCuratedAssets([candidate], 200).approved.length, 1);
+    assert.equal(planCuratedAssets([{ ...candidate, qualityReviewer: 'rights-owner' }], 200).quarantined.length, 1);
   });
   it('quarantines executable packages and missing rights evidence', () => {
     const result = planCuratedAssets([{ ...candidate, executable: true }, { ...candidate, id: 'bad', evidenceSha256: undefined }], 200);
-    expect(result.approved).toHaveLength(0);
-    expect(result.quarantined).toHaveLength(2);
+    assert.equal(result.approved.length, 0);
+    assert.equal(result.quarantined.length, 2);
   });
   it('caps bytes and duplicate ids', () => {
-    expect(planCuratedAssets([candidate], 100).approved).toHaveLength(0);
-    expect(planCuratedAssets([candidate, candidate], 1000).quarantined).toHaveLength(1);
+    assert.equal(planCuratedAssets([candidate], 100).approved.length, 0);
+    assert.equal(planCuratedAssets([candidate, candidate], 1000).quarantined.length, 1);
   });
 });
