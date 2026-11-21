@@ -75,6 +75,14 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   const generation = useRef(0);
   // Synchronous lock: React state alone cannot stop two clicks before rerender.
   const demandGate = useRef(new ColourCheckDemandGate());
+  const manualFrame = useRef<number | null>(null);
+  const manualTimer = useRef<number | null>(null);
+  const cancelManual = () => {
+    if (manualFrame.current !== null) window.cancelAnimationFrame(manualFrame.current);
+    if (manualTimer.current !== null) window.clearTimeout(manualTimer.current);
+    manualFrame.current = null;
+    manualTimer.current = null;
+  };
   const read = useRef(readPreview);
   read.current = readPreview;
 
@@ -82,6 +90,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
     // Invalidate every pending check when the image, recipe or guidance state changes.
     // A previous photo must never leave apparently current colour advice behind.
     const current = ++generation.current;
+    cancelManual();
     demandGate.current.finish();
     const requested = capturePhotoReviewScope(currentScope.current);
     reportScope.current = null;
@@ -123,6 +132,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
     return () => {
       ++generation.current;
       window.clearTimeout(timer);
+      cancelManual();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [disabled, ...version]);
@@ -131,8 +141,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   // Fly Solo never runs a background check. An explicit press uses the same local
   // renderer preview, and the normal version effect invalidates it on any edit/photo change.
   const checkOnDemand = () => {
-    const now = Date.now();
-    if (!demandGate.current.begin(now)) return;
+    if (!demandGate.current.begin(Date.now())) return;
     const current = ++generation.current;
     const requested = capturePhotoReviewScope(currentScope.current);
     reportScope.current = null;
@@ -141,22 +150,30 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
     setApplied(false);
     setShowAll(false);
     setChecking(true);
-    try {
-      const preview = read.current();
-      if (!preview) { setFailed(true); setChecking(false); return; }
-      const next = checkColour({ after: preview.after, before: preview.before, subject: preview.subject });
-      if (!acceptsColourCheck(current, generation.current, requested, currentScope.current)) {
-        if (current === generation.current) setChecking(false);
-        return;
-      }
-      reportScope.current = requested;
-      setReport(next);
-      setChecking(false);
-    } catch {
-      if (current === generation.current) { setFailed(true); setChecking(false); }
-    } finally {
-      demandGate.current.finish();
-    }
+    // Yield a frame and a task before CPU-bound local analysis. Without this,
+    // synchronous pixel analysis prevents the busy state from ever painting.
+    // The check remains entirely on-device, including in Fly Solo.
+    manualFrame.current = window.requestAnimationFrame(() => {
+      manualFrame.current = null;
+      manualTimer.current = window.setTimeout(() => {
+        manualTimer.current = null;
+        try {
+          if (!acceptsColourCheck(current, generation.current, requested, currentScope.current)) return;
+          const preview = read.current();
+          if (!acceptsColourCheck(current, generation.current, requested, currentScope.current)) return;
+          if (!preview) { setFailed(true); return; }
+          const next = checkColour({ after: preview.after, before: preview.before, subject: preview.subject });
+          if (!acceptsColourCheck(current, generation.current, requested, currentScope.current)) return;
+          reportScope.current = requested;
+          setReport(next);
+        } catch {
+          if (acceptsColourCheck(current, generation.current, requested, currentScope.current)) setFailed(true);
+        } finally {
+          if (current === generation.current) setChecking(false);
+          demandGate.current.finish();
+        }
+      }, 0);
+    });
   };
 
   const problems = report?.findings.filter((finding) => finding.severity !== 'info') ?? [];
