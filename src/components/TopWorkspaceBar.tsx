@@ -186,23 +186,23 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
       </div>
       <div className="flex min-w-0 shrink items-center gap-2">
         {props.status}
-        <button type="button" onClick={props.onOpenShootModal} disabled={props.actionsDisabled || props.addDisabled} className={`${actionClass} border border-white/15 max-md:hidden`} aria-label={t.top.addPhotosToProject} title={t.top.addPhotos}>
+        <button type="button" onClick={props.onOpenShootModal} disabled={props.actionsDisabled || props.addDisabled} className={`${actionClass} border border-white/15 hidden workspace:inline-flex`} aria-label={t.top.addPhotosToProject} title={t.top.addPhotos}>
           <Plus className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">{t.top.add}</span>
         </button>
         <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto || props.actionsDisabled} aria-label={props.editLabel ?? t.top.edit} title={props.editLabel ?? t.top.editTitle}
-          className={`${actionClass} border border-sky-300/50 text-sky-100 hover:bg-sky-300/15 disabled:opacity-40 max-md:hidden`}>
+          className={`${actionClass} border border-sky-300/50 text-sky-100 hover:bg-sky-300/15 disabled:opacity-40 hidden workspace:inline-flex`}>
           <Pencil className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">{props.editLabel ?? t.top.edit}</span>
         </button>
         <div ref={menuRef}>
-          <button ref={triggerRef} data-focus-fallback type="button" disabled={props.actionsDisabled} className={`${actionClass} border border-white/15 max-md:hidden`} onClick={() => setMenuOpen(!menuOpen)}
+          <button ref={triggerRef} data-focus-fallback type="button" disabled={props.actionsDisabled} className={`${actionClass} border border-white/15 hidden workspace:inline-flex`} onClick={() => setMenuOpen(!menuOpen)}
             aria-label={t.top.workspaceOptions} title={t.top.workspaceOptions} aria-expanded={menuOpen} aria-controls="workspace-options">
             <Ellipsis className="h-5 w-5" aria-hidden="true" />
           </button>
           {menuOpen && (
-            <div id="workspace-options" data-workspace-options className="workspace-popover fixed inset-x-2 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 max-h-[70dvh] md:absolute md:inset-x-auto md:bottom-auto md:right-2 md:top-full md:mt-1 md:max-h-[calc(100dvh-8rem)] md:w-[min(26rem,calc(100vw-1rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-3 shadow-2xl sm:right-4">
+            <div id="workspace-options" data-workspace-options className="workspace-popover fixed inset-x-2 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 max-h-[70dvh] workspace:absolute workspace:inset-x-auto workspace:bottom-auto workspace:right-2 workspace:top-full workspace:mt-1 workspace:max-h-[calc(100dvh-8rem)] workspace:w-[min(26rem,calc(100vw-1rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-3 shadow-2xl sm:right-4">
               <div className="space-y-3">
-                <section aria-label={t.top.findPhotos} className="md:hidden">
+                <section aria-label={t.top.findPhotos} className="workspace:hidden">
                   <FilterSortControl searchQuery={searchQuery} onSearchChange={props.onSearchChange}
                     ratingFilter={props.ratingFilter} onRatingFilterChange={props.onRatingFilterChange}
                     cameraFilter={props.cameraFilter} onCameraFilterChange={props.onCameraFilterChange}
@@ -257,7 +257,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                     <input type="checkbox" checked={showPhotoInfo} onChange={props.onTogglePhotoInfo} />
                     {t.top.photoInfo}
                   </label>
-                  {props.onTogglePanes && <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
+                  {props.onTogglePanes && <label data-phone-hidden className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
                     <input type="checkbox" checked={props.panesCollapsed ?? false} onChange={props.onTogglePanes} />
                     {t.top.foldPanes}
                   </label>}
@@ -269,7 +269,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                     <input type="checkbox" checked={showShortcutsOverlay} onChange={props.onToggleShortcutsOverlay} />
                     {t.top.showShortcutGuide}
                   </label>
-                  {props.onHandChange && <div role="group" aria-label={t.top.panelPosition} className="mb-2 flex flex-wrap items-center gap-2 text-sm text-zinc-200">
+                  {props.onHandChange && <div data-phone-hidden role="group" aria-label={t.top.panelPosition} className="mb-2 flex flex-wrap items-center gap-2 text-sm text-zinc-200">
                     <span>{t.top.panels}</span>
                     <button type="button" aria-pressed={props.hand === 'left'} onClick={() => props.onHandChange?.('left')} className="rounded-md border border-white/15 px-3 py-2 aria-pressed:bg-sky-300/20">{t.top.left}</button>
                     <button type="button" aria-pressed={props.hand !== 'left'} onClick={() => props.onHandChange?.('right')} className="rounded-md border border-white/15 px-3 py-2 aria-pressed:bg-sky-300/20">{t.top.right}</button>
@@ -336,8 +336,8 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
             </div>
           )}
         </div>
-        <button type="button" onClick={props.onExport} disabled={!props.onExport || props.actionsDisabled} aria-label={props.exportLabel ?? t.top.export} title={t.top.exportTitle}
-          className={`${actionClass} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-40 `}>
+        <button type="button" data-export-entry onClick={props.onExport} disabled={!props.onExport || props.actionsDisabled} aria-label={props.exportLabel ?? t.top.export} title={t.top.exportTitle}
+          className={`${actionClass} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-40 hidden workspace:inline-flex`}>
           <Download className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">{t.top.export}</span>
           {/* Only when there is a count to show: an empty span still takes a gap and pushed the icon off centre. */}
@@ -351,13 +351,14 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
         {props.settingsButton}
       </div>
     </header>
-    <div role="toolbar" aria-label={t.top.photoActions} className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)] md:hidden">
+    <div role="toolbar" aria-label={t.top.photoActions} className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)] workspace:hidden">
       {([
         { key: 'add', label: t.top.add, title: t.top.addPhotos, Icon: Plus, onClick: props.onOpenShootModal, disabled: props.actionsDisabled || props.addDisabled },
         { key: 'edit', label: props.editLabel ?? t.top.edit, title: props.editLabel ?? t.top.editTitle, Icon: Pencil, onClick: onEditPhoto, disabled: !onEditPhoto || props.actionsDisabled },
+        { key: 'export', label: props.exportCount && props.exportCount > 1 ? `${t.top.export} ${props.exportCount}` : t.top.export, title: t.top.exportTitle, Icon: Download, onClick: props.onExport, disabled: !props.onExport || props.actionsDisabled },
       ] as const).map(({ key, label, title, Icon, onClick, disabled }) => (
-        <button key={key} type="button" onClick={onClick} disabled={disabled} title={title} aria-label={key === 'add' ? t.top.addPhotosToProject : label}
-          className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-40">
+        <button key={key} type="button" data-export-entry={key === 'export' ? '' : undefined} onClick={onClick} disabled={disabled} title={title} aria-label={key === 'add' ? t.top.addPhotosToProject : key === 'export' ? (props.exportLabel ?? t.top.export) : label}
+          className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-xs focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-40 ${key === 'export' ? 'bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover' : 'text-zinc-200 hover:bg-white/8'}`}>
           <Icon className="h-5 w-5" aria-hidden="true" /><span>{label}</span>
         </button>
       ))}

@@ -1,3 +1,4 @@
+import { exportOpener } from './helpers';
 import { expect, test } from '@playwright/test';
 
 test('phone layouts stay inside the device viewport in portrait and landscape', async ({ page }) => {
@@ -38,14 +39,11 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
   await page.getByRole('button', { name: 'Create project' }).click();
   await checkViewport('Empty library portrait');
-  // The Library More menu exposes the same handedness setting used by the Editor: one choice, not a second
-  // "panel side" that looks like the same question.
-  await page.getByRole('button', { name: 'More', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Left-handed' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Left side' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Left-handed' }).click();
-  await expect(page.getByRole('button', { name: 'Left-handed' })).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'More', exact: true }).click();
+  // Configure handedness in Settings and check that the shared choice carries into Edit.
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  const libraryAppearance = page.getByRole('dialog', { name: 'Display and layout settings' });
+  await libraryAppearance.getByRole('button', { name: 'Left-handed' }).click();
+  await libraryAppearance.getByRole('button', { name: 'Done' }).click();
 
   await page.getByRole('button', { name: 'Add photos', exact: true }).click();
   const images = await page.evaluate(() => Array.from({ length: 3 }, (_, i) => {
@@ -61,10 +59,41 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   })));
   await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 3' })).toBeVisible();
   await checkViewport('Imported library portrait');
+  const checkExport = async (placement: 'footer' | 'header') => {
+    const button = exportOpener(page);
+    await expect(button).toHaveCount(1);
+    await expect(button).toBeEnabled();
+    const bounds = (await button.boundingBox())!;
+    const viewport = page.viewportSize()!;
+    expect(bounds.height).toBeGreaterThanOrEqual(44);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height + 1);
+    if (placement === 'footer') expect(bounds.y).toBeGreaterThan(viewport.height - 90);
+    else expect(bounds.y).toBeLessThan(70);
+    await button.focus();
+    await button.click();
+    const dialog = page.getByRole('dialog', { name: /export/i });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Close export' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(button).toBeFocused();
+  };
+  await checkExport('footer');
+  // At 799px Review must still use its compact footer, matching the editor sheet.
+  await page.setViewportSize({ width: 799, height: 700 });
+  await checkViewport('Foldable Review');
+  await checkExport('footer');
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  const foldableFileMenu = page.locator('#workspace-options');
+  await expect(foldableFileMenu).toBeVisible();
+  await expect(foldableFileMenu.getByRole('button', { name: 'Save ratings and tags (XMP)…' })).toBeVisible();
+  await expect(foldableFileMenu.getByRole('button', { name: /Import.*XMP/i })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 390, height: 700 });
 
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(page.getByRole('toolbar', { name: 'Editor actions' })).toBeVisible();
   await checkViewport('Editor portrait');
+  await checkExport('footer');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const appearance = page.getByRole('dialog', { name: 'Display and layout settings' });
   await expect(appearance.getByRole('button', { name: 'Left-handed' })).toHaveAttribute('aria-pressed', 'true');
@@ -81,6 +110,7 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await expect(top).toHaveCSS('overflow-x', 'auto');
   await page.setViewportSize({ width: 667, height: 375 });
   await checkViewport('Editor landscape');
+  await checkExport('footer');
   const editLayout = () => page.evaluate(() => {
     const editor = document.querySelector('section[aria-label="Photo editor"]');
     const layout = [...(editor?.children ?? [])].find((child) => (child as HTMLElement).className.includes('workspace:flex-row'));
@@ -98,8 +128,10 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
   await page.setViewportSize({ width: 320, height: 568 });
   await checkViewport('Editor small phone');
+  await checkExport('footer');
   await page.setViewportSize({ width: 799, height: 700 });
   await checkViewport('Foldable narrow window stays compact');
+  await checkExport('footer');
   await expect.poll(editLayout).toBe('column');
   await page.setViewportSize({ width: 800, height: 700 });
   await checkViewport('Foldable unfolded tablet-width editor');
@@ -117,6 +149,7 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   }
   await page.setViewportSize({ width: 1024, height: 768 });
   await checkViewport('Tablet landscape');
+  await checkExport('header');
   expect(await editLayout()).toBe('row');
   // A landscape tablet must expose the same side-panel editing workspace as desktop.
   await expect(page.getByTestId('editor-responsive-layout')).toHaveCSS('flex-direction', 'row');
