@@ -361,6 +361,9 @@ export const de: AreaTranslation<typeof source> = {
     eyeBusy: 'Auge…',
   },
   floatingPane: {
+    infoOptions: 'Optionen für Fotoinfo',
+    hideInfo: 'Fotoinfo ausblenden',
+    floating: 'Schwebend',
     tabOptions: "Registerkarten- und Paneloptionen",
     tabGuide: "Anzeigen, ausblenden, andocken oder lösen",
     showTab: "Anzeigen",

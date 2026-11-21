@@ -364,6 +364,9 @@ export const source = {
     eyeBusy: 'Eye…',
   },
   floatingPane: {
+    infoOptions: 'Photo info options',
+    hideInfo: 'Hide Photo info',
+    floating: 'Floating',
     tabOptions: "Editor tab and panel options",
     tabGuide: "Show, hide, dock or undock",
     showTab: "Show",

@@ -361,6 +361,9 @@ export const pt: AreaTranslation<typeof source> = {
     eyeBusy: 'Olho…',
   },
   floatingPane: {
+    infoOptions: 'Opções de Informações da foto',
+    hideInfo: 'Ocultar Informações da foto',
+    floating: 'Flutuante',
     tabOptions: "Opções dos separadores e painéis",
     tabGuide: "Mostrar, ocultar, acoplar ou desacoplar",
     showTab: "Mostrar",

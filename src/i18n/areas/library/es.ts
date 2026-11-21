@@ -361,6 +361,9 @@ export const es: AreaTranslation<typeof source> = {
     eyeBusy: 'Ojo…',
   },
   floatingPane: {
+    infoOptions: 'Opciones de Información de la foto',
+    hideInfo: 'Ocultar Información de la foto',
+    floating: 'Flotante',
     tabOptions: "Opciones de pestañas y paneles",
     tabGuide: "Mostrar, ocultar, acoplar o desacoplar",
     showTab: "Mostrar",

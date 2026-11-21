@@ -352,6 +352,9 @@ export const ga: AreaTranslation<typeof source> = {
     eyeBusy: 'Súil…',
   },
   floatingPane: {
+    infoOptions: 'Roghanna Eolas an ghrianghraif',
+    hideInfo: 'Folaigh Eolas an ghrianghraif',
+    floating: 'Ar snámh',
     tabOptions: "Roghanna cluaisíní agus painéal",
     tabGuide: "Taispeáin, folaigh, ceangail nó dícheangail",
     showTab: "Taispeáin",

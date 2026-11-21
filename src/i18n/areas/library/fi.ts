@@ -364,6 +364,9 @@ export const fi: AreaTranslation<typeof source> = {
     eyeBusy: 'Silmä…',
   },
   floatingPane: {
+    infoOptions: 'Kuvatietojen asetukset',
+    hideInfo: 'Piilota kuvatiedot',
+    floating: 'Irrallaan',
     tabOptions: "Välilehtien ja paneelien asetukset",
     tabGuide: "Näytä, piilota, telakoi tai irrota",
     showTab: "Näytä",

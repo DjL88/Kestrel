@@ -361,6 +361,9 @@ export const sv: AreaTranslation<typeof source> = {
     eyeBusy: 'Öga…',
   },
   floatingPane: {
+    infoOptions: 'Alternativ för Bildinfo',
+    hideInfo: 'Dölj Bildinfo',
+    floating: 'Flytande',
     tabOptions: "Flik- och panelalternativ",
     tabGuide: "Visa, dölj, docka eller frigör",
     showTab: "Visa",

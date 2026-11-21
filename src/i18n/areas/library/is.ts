@@ -361,6 +361,9 @@ export const is: AreaTranslation<typeof source> = {
     eyeBusy: 'Auga…',
   },
   floatingPane: {
+    infoOptions: 'Valkostir myndaupplýsinga',
+    hideInfo: 'Fela myndaupplýsingar',
+    floating: 'Fljótandi',
     tabOptions: "Valkostir flipa og spjalda",
     tabGuide: "Sýna, fela, festa eða losa",
     showTab: "Sýna",

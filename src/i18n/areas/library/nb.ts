@@ -361,6 +361,9 @@ export const nb: AreaTranslation<typeof source> = {
     eyeBusy: 'Øye…',
   },
   floatingPane: {
+    infoOptions: 'Valg for Bildeinfo',
+    hideInfo: 'Skjul Bildeinfo',
+    floating: 'Flytende',
     tabOptions: "Valg for faner og paneler",
     tabGuide: "Vis, skjul, dokk eller løsne",
     showTab: "Vis",

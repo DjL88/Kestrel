@@ -361,6 +361,9 @@ export const da: AreaTranslation<typeof source> = {
     eyeBusy: 'Øje…',
   },
   floatingPane: {
+    infoOptions: 'Indstillinger for Fotooplysninger',
+    hideInfo: 'Skjul Fotooplysninger',
+    floating: 'Svævende',
     tabOptions: "Indstillinger for faner og paneler",
     tabGuide: "Vis, skjul, fastgør eller frigør",
     showTab: "Vis",

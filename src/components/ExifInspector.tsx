@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { messages as m } from '../i18n/messages';
 import { libraryText as libraryT } from '../i18n/areas/library';
-import { ChevronLeft, ChevronRight, ClipboardCopy, Download, PanelTopOpen, Star, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardCopy, Download, EyeOff, PanelRight, PanelTopOpen, PictureInPicture2, Star, X } from 'lucide-react';
+import { useLongPress } from './useLongPress';
 import { exportText } from '../i18n/areas/export';
 import { downloadInBrowser } from '../providers/browserExport';
 import { isDesktopApp, isMobileShell, saveWithDialog } from '../providers/desktopShell';
@@ -60,6 +62,19 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
     try { window.localStorage.setItem('kestrel-info-undocked-v1', String(value)); } catch { /* no persistence required */ }
   };
   const floating = detached && wideScreen;
+  // Right-click, the Menu key, or a touch/pen long-press on the title opens the same Dock / Hide choices as the editor tabs.
+  const [infoMenu, setInfoMenu] = useState<{ x: number; y: number } | null>(null);
+  const infoMenuRef = useRef<HTMLDivElement>(null);
+  const infoLongPress = useLongPress(setInfoMenu);
+  useEffect(() => {
+    if (!infoMenu) return;
+    const onPointer = (event: PointerEvent) => { if (!infoMenuRef.current?.contains(event.target as Node)) setInfoMenu(null); };
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopPropagation(); setInfoMenu(null); } };
+    document.addEventListener('pointerdown', onPointer, true);
+    document.addEventListener('keydown', onKey, true);
+    infoMenuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    return () => { document.removeEventListener('pointerdown', onPointer, true); document.removeEventListener('keydown', onKey, true); };
+  }, [infoMenu]);
   const [picture, setPicture] = useState<HTMLCanvasElement | null>(null);
   const frameId = frame?.id;
   // The species model looks at a small copy of the photo, made when its details are opened.
@@ -146,7 +161,14 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
         : 'sm:right-2 sm:left-auto info-dock:border-l'}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">{m.photoInfo.title}</h2>
+        <h2 tabIndex={0} {...infoLongPress} data-info-menu-target
+          onContextMenu={(event) => { event.preventDefault(); setInfoMenu({ x: event.clientX, y: event.clientY }); }}
+          onKeyUp={(event) => {
+            if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+            const box = event.currentTarget.getBoundingClientRect();
+            setInfoMenu({ x: box.left + 12, y: box.bottom + 2 });
+          }}
+          className="flex-1 rounded-sm text-sm font-semibold focus-visible:outline-2 focus-visible:outline-sky-300">{m.photoInfo.title}</h2>
         {!floating && <button data-info-undock type="button" onClick={() => detach(true)} title={libraryT.floatingPane.undockInfoHelp}
           aria-label={libraryT.floatingPane.undockInfo} className="hidden h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 info-dock:grid">
           <PanelTopOpen className="h-4 w-4" aria-hidden="true"/>
@@ -251,7 +273,26 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
         </section>
       )}
       </div>
-
+      {infoMenu && createPortal(
+        <div ref={infoMenuRef} role="menu" aria-label={libraryT.floatingPane.infoOptions} data-testid="info-context-menu"
+          onPointerDown={(event) => event.stopPropagation()}
+          style={{ left: Math.max(8, Math.min(infoMenu.x, window.innerWidth - 248)), top: Math.max(8, Math.min(infoMenu.y, window.innerHeight - 120)) }}
+          className="fixed z-[160] w-60 rounded-xl border border-white/25 bg-kestrel-raised p-1.5 text-zinc-100 shadow-2xl">
+          <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{m.photoInfo.title}</p>
+          {(floating || wideScreen) && (
+            <button type="button" role="menuitem"
+              onClick={() => { detach(!floating); setInfoMenu(null); }}
+              className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+              {floating ? <PanelRight className="h-4 w-4 text-sky-300" aria-hidden="true" /> : <PictureInPicture2 className="h-4 w-4 text-zinc-300" aria-hidden="true" />}
+              {floating ? libraryT.floatingPane.dock(m.photoInfo.title) : libraryT.floatingPane.undockInfo}
+            </button>
+          )}
+          <button type="button" role="menuitem"
+            onClick={() => { setInfoMenu(null); onClose(); }}
+            className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+            <EyeOff className="h-4 w-4 text-zinc-300" aria-hidden="true" />{libraryT.floatingPane.hideInfo}
+          </button>
+        </div>, document.body)}
     </aside>
   );
   return floating

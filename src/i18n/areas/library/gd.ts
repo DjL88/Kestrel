@@ -352,6 +352,9 @@ export const gd: AreaTranslation<typeof source> = {
     eyeBusy: 'Sùil…',
   },
   floatingPane: {
+    infoOptions: 'Roghainnean fiosrachadh an deilbh',
+    hideInfo: 'Falaich fiosrachadh an deilbh',
+    floating: 'Air fhleòdradh',
     tabOptions: "Roghainnean tabaichean is phanailean",
     tabGuide: "Seall, falaich, docaich no dì-dhocaich",
     showTab: "Seall",

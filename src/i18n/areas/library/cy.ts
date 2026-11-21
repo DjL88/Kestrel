@@ -349,6 +349,9 @@ export const cy: AreaTranslation<typeof source> = {
     eyeBusy: 'Llygad…',
   },
   floatingPane: {
+    infoOptions: 'Dewisiadau Gwybodaeth y llun',
+    hideInfo: 'Cuddio Gwybodaeth y llun',
+    floating: 'Fel ffenestr',
     tabOptions: "Dewisiadau tabiau a phaneli",
     tabGuide: "Dangos, cuddio, docio neu ddad-docio",
     showTab: "Dangos",

@@ -361,6 +361,9 @@ export const nl: AreaTranslation<typeof source> = {
     eyeBusy: 'Oog…',
   },
   floatingPane: {
+    infoOptions: 'Opties voor Foto-info',
+    hideInfo: 'Foto-info verbergen',
+    floating: 'Zwevend',
     tabOptions: "Tab- en paneelopties",
     tabGuide: "Tonen, verbergen, vastzetten of losmaken",
     showTab: "Tonen",
