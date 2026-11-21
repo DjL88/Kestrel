@@ -87,5 +87,5 @@ test('stale frame, invalid source digest, removed photo and older scans cannot o
   };
   assert.strictEqual(retainPhotoSearchEvidence(current, { ...receipt, frameId: 'other' }), current);
   assert.strictEqual(retainPhotoSearchEvidence(current, receipt, 'a'.repeat(64)), current);
-  assert.strictEqual(retainPhotoSearchEvidence({ ...current, removedAt: 1 }, receipt), undefined);
+  const removed = { ...current, removedAt: 1 };\n  assert.strictEqual(retainPhotoSearchEvidence(removed, receipt), removed);\n  const indexed = retainPhotoSearchEvidence(current, receipt, checksum);\n  assert.strictEqual(retainPhotoSearchEvidence(indexed, { ...receipt, indexedAt: 9 }, checksum), indexed);
 });
