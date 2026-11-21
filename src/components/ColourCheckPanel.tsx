@@ -4,6 +4,7 @@ import { checkColour, type ColourFamily, type ColourFinding, type ColourReport, 
 import type { PhotoEdit } from '../core/photoEdits';
 import { applyFix } from '../core/critique';
 import { capturePhotoReviewScope, samePhotoReviewScope, type PhotoReviewScope } from '../core/photoReviewScope';
+import { acceptsColourCheck, ColourCheckDemandGate } from '../core/colourCheckDemand';
 import { colourText as t } from '../i18n/areas/colour';
 import { colourControls } from '../i18n/colourControls';
 import { AiReviewPanel } from './AiReviewPanel';
@@ -73,8 +74,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   const [showAll, setShowAll] = useState(false);
   const generation = useRef(0);
   // Synchronous lock: React state alone cannot stop two clicks before rerender.
-  const demandInFlight = useRef(false);
-  const lastDemandAt = useRef(0);
+  const demandGate = useRef(new ColourCheckDemandGate());
   const read = useRef(readPreview);
   read.current = readPreview;
 
@@ -82,7 +82,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
     // Invalidate every pending check when the image, recipe or guidance state changes.
     // A previous photo must never leave apparently current colour advice behind.
     const current = ++generation.current;
-    demandInFlight.current = false;
+    demandGate.current.finish();
     const requested = capturePhotoReviewScope(currentScope.current);
     reportScope.current = null;
     setReport(null);
@@ -126,9 +126,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   // renderer preview, and the normal version effect invalidates it on any edit/photo change.
   const checkOnDemand = () => {
     const now = Date.now();
-    if (demandInFlight.current || now - lastDemandAt.current < 350) return;
-    lastDemandAt.current = now;
-    demandInFlight.current = true;
+    if (!demandGate.current.begin(now)) return;
     const current = ++generation.current;
     const requested = capturePhotoReviewScope(currentScope.current);
     reportScope.current = null;
@@ -141,8 +139,8 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
       const preview = read.current();
       if (!preview) { setFailed(true); setChecking(false); return; }
       const next = checkColour({ after: preview.after, before: preview.before, subject: preview.subject });
-      if (current !== generation.current || !samePhotoReviewScope(requested, currentScope.current)) {
-        setChecking(false);
+      if (!acceptsColourCheck(current, generation.current, requested, currentScope.current)) {
+        if (current === generation.current) setChecking(false);
         return;
       }
       reportScope.current = requested;
@@ -151,7 +149,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
     } catch {
       if (current === generation.current) { setFailed(true); setChecking(false); }
     } finally {
-      demandInFlight.current = false;
+      demandGate.current.finish();
     }
   };
 
