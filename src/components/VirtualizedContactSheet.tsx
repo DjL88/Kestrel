@@ -494,7 +494,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
           className="sticky bottom-2 z-[40] mx-auto mt-2 flex w-fit max-w-[96vw] flex-wrap items-center justify-center gap-1 rounded-xl border border-white/20 bg-kestrel-raised p-1.5 text-sm text-zinc-100 shadow-2xl">
           <span className={`max-w-40 truncate px-2 text-xs text-zinc-300 ${multiSelect ? '' : 'hidden sm:inline'}`}>{multiSelect ? t.sheet.selectedCount(actionIds.length) : actionFrames[0]?.filename}</span>
           {(['keep', 'reject'] as const).map((decision) => (
-            <button key={decision} type="button" className="min-h-10 rounded-md px-3 hover:bg-white/10"
+            <button key={decision} type="button" className="min-h-11 min-w-11 rounded-md px-3 hover:bg-white/10"
               onClick={() => actionIds.length === 1 ? onDecideFrame(actionIds[0], decision) : onBatchDecision(actionIds, decision)}>
               {decision === 'keep' ? t.decision.keep : t.decision.reject}
             </button>
@@ -508,7 +508,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
             className="min-h-10 rounded-md px-3 hover:bg-white/10">{t.top.export}</button>}
           <button type="button" aria-expanded={moreOpen} aria-controls="kestrel-selection-more" title={t.sheet.moreActions}
             onClick={() => setMoreOpen((open) => !open)}
-            className="grid min-h-10 min-w-10 place-items-center rounded-md px-2 hover:bg-white/10"
+            className="grid min-h-11 min-w-11 place-items-center rounded-md px-2 hover:bg-white/10"
             data-selection-more="">
             <Ellipsis className="h-5 w-5" aria-hidden="true" />
             <span className="sr-only">{t.sheet.moreActions}</span>
@@ -523,7 +523,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                 ...(onAutoAdjustSelected ? [[appText.editorBar.autoAdjust, () => onAutoAdjustSelected(actionIds)]] : []),
                 ...(onApplyLookSelected ? [[appText.editorBar.applyLook, () => onApplyLookSelected(actionIds)]] : []),
               ] as Array<[string, (el: HTMLButtonElement) => void]>).map(([label, run]) => (
-                <button key={label} type="button" className="min-h-10 rounded-md px-3 text-left hover:bg-white/10"
+                <button key={label} type="button" className="min-h-11 rounded-md px-3 text-left hover:bg-white/10"
                   onClick={(event) => { setMoreOpen(false); run(event.currentTarget); }}>{label}</button>
               ))}
             </div>
