@@ -77,7 +77,7 @@ export interface SubjectProofPair {
 /** Relative image texture evidence only. No species, eye location, pose or
  * calibrated blur score is inferred. Alpha-transparent pixels are excluded.
  */
-function sourceEdgeEnergy(crop: PixelCrop): number {
+function sourceEdgeEnergy(crop: PixelCrop): number | null {
   const { width: w, height: h, rgba } = crop;
   let sum = 0;
   let count = 0;
@@ -93,7 +93,7 @@ function sourceEdgeEnergy(crop: PixelCrop): number {
       count += 2;
     }
   }
-  return count ? sum / count : 0;
+  return count ? sum / count : null;
 }
 
 /** Build two exact-pixel crops without exceeding a shared memory budget.
@@ -118,6 +118,8 @@ export function exactSubjectProofPair(
   // Without equivalent source-pixel crop geometry, raw edge energy is not
   // directly comparable; do not present an unfair sharpness comparison.
   if (a.width !== b.width || a.height !== b.height || a.width < 2 || a.height < 2) return null;
-  return { left: a, right: b, leftEdgeEnergy: sourceEdgeEnergy(a),
-    rightEdgeEnergy: sourceEdgeEnergy(b), recommendation: 'review' };
+  const leftEdgeEnergy = sourceEdgeEnergy(a);
+  const rightEdgeEnergy = sourceEdgeEnergy(b);
+  if (leftEdgeEnergy === null || rightEdgeEnergy === null) return null;
+  return { left: a, right: b, leftEdgeEnergy, rightEdgeEnergy, recommendation: 'review' };
 }
