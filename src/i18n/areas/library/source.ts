@@ -61,7 +61,7 @@ export const source = {
     photos: 'Photos',
     doneSelecting: 'Done selecting',
     selectPhotos: 'Select photos',
-    clearDecision: 'Clear decision',
+    clearDecision: 'Reset decision',
     moveToProject: 'Move to project…',
     removeFromLibrary: 'Remove from library…',
     removedPhotos: (count: number) => `Removed photos (${count})`,

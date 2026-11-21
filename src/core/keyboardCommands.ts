@@ -116,7 +116,7 @@ export const CULL_COMMANDS: CommandDefinition[] = [
   {
     id: 'cull.unreviewed',
     mode: 'cull',
-    label: 'Clear Decision',
+    label: 'Reset Decision',
     shortLabel: 'Clear',
     description: 'Reset active frame to Unreviewed',
     allowRepeat: false,

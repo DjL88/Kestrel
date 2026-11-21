@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { isMobileShell } from '../providers/desktopShell';
 import { ChevronDown, ChevronUp, Focus, Maximize2, Minimize2, GripHorizontal } from 'lucide-react';
 import { clampFilmstripHeight, FILMSTRIP_SIZE_KEY, parseFilmstripHeight } from '../core/filmstripGeometry';
 import { libraryText as t } from '../i18n/areas/library';
@@ -100,7 +101,7 @@ export function FilmstripDock({ expanded, onToggle, onPhotoOnly, phoneEditHidden
               <Focus className="h-4 w-4" aria-hidden="true"/>
             </button>
           )}
-          {typeof document !== 'undefined' && document.fullscreenEnabled && (
+          {typeof document !== 'undefined' && document.fullscreenEnabled && !isMobileShell() && (
             <button type="button" aria-pressed={fullscreen} title={fullscreen ? t.filmstripDock.leaveFullScreenTitle : t.filmstripDock.fullScreenTitle}
               aria-label={fullscreen ? t.filmstripDock.leaveFullScreen : t.filmstripDock.fullScreen} onClick={toggleFullscreen}
               className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">

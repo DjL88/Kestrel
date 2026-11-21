@@ -201,11 +201,6 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
             className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-md px-1.5 text-sm text-zinc-200 hover:bg-white/8 disabled:invisible sm:gap-1.5 sm:px-2.5">
             <Undo2 className="h-4 w-4" aria-hidden="true" /><span className="hidden min-[360px]:inline">{t.loupe.undo}</span>
           </button>
-          <button type="button" aria-label={t.loupe.eye} aria-pressed={eyeMode} onClick={toggleEyeMode}
-            title={eyeMode ? t.loupe.stopFollowingEye : t.loupe.followEye}
-            className="hidden h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-zinc-200 hover:bg-white/8 aria-pressed:bg-white/15 min-[360px]:max-sm:inline-flex">
-            <Eye className="h-5 w-5" aria-hidden="true" />
-          </button>
           {onOpenMenu && (
             <button type="button" aria-haspopup="menu" aria-label={t.loupe.moreActionsFor(frame.filename)} title={t.loupe.moreTitle}
               onClick={(event) => { const box = event.currentTarget.getBoundingClientRect(); onOpenMenu(box.left, box.top); }}

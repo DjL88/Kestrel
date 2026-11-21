@@ -64,7 +64,7 @@ import { isHeifFile, isRawPreviewFile } from '../core/rawFormats';
 import { tasks } from '../core/taskStore';
 import { canDevelopRaw, canExportRawMaster, developRaw, matchPreviewOrientation, rawDngCopy, rawSensorMode, sensorModeLabel, type RawSensorMode } from '../providers/rawDevelop';
 import { extractRawPreview } from '../core/nefPreview';
-import { saveWithDialog } from '../providers/desktopShell';
+import { isMobileShell, saveWithDialog } from '../providers/desktopShell';
 import { PaidNotice } from './PaidNotice';
 import { useAccess } from '../providers/useAccess';
 const PANEL_KEY = 'kestrel-panel-width-v1';
@@ -370,7 +370,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
     rememberSheet(true);
   };
   // Full screen uses the whole page, so the macro pad and keyboard shortcuts keep working. Not every browser allows it (iPhone Safari does not).
-  const canFullscreen = typeof document !== 'undefined' && Boolean(document.fullscreenEnabled);
+  const canFullscreen = typeof document !== 'undefined' && Boolean(document.fullscreenEnabled) && !isMobileShell();
   const [fullscreen, setFullscreen] = useState(() => typeof document !== 'undefined' && Boolean(document.fullscreenElement));
   const [landscapeLocked, setLandscapeLocked] = useState(false);
   const [orientationNotice, setOrientationNotice] = useState('');
@@ -1993,7 +1993,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
         </>
       ); })()}
       {/* Export is always in the header (phones included): the tab bar keeps only editing tabs. */}
-      {!demoOnly && !focusPhoto && headerSlot && createPortal(exportButton, headerSlot)}
+      {!demoOnly && !focusPhoto && headerSlot && createPortal(<div className="max-md:hidden">{exportButton}</div>, headerSlot)}
       {isPhone && !focusPhoto && tabList}
       </div>
       {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}
