@@ -37,8 +37,8 @@ export const source = {
     /** Button words. Shown on screen with the first letter in capitals. */
     keepSide: (side: string) => `keep ${side}`,
     rejectSide: (side: string) => `reject ${side}`,
-    clearDecisionFor: (side: string) => `Clear decision for photo ${side}`,
-    clearSide: (side: string) => `Clear ${side}`,
+    clearDecisionFor: (side: string) => `Reset decision for photo ${side}`,
+    clearSide: (side: string) => `Reset ${side}`,
     finish: 'Finish comparing photos',
     done: 'Done',
   },
