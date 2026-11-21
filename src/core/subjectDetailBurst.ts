@@ -107,14 +107,13 @@ export function selectBurstDetails(items: readonly SelectEvidence[]): SelectResu
     // Several subjects in one exposure are legitimate. They need distinct,
     // source-bound track IDs; otherwise a repeated photo ID could leak a
     // decision or sharpness score from one animal to another.
-    const sameGenre = siblings.filter(other => other.genre === e.genre);
-    // A detector claiming one visible animal cannot establish two different
-    // tracked animals in the same photograph. Inconsistent counts, including
-    // unknown counts, are not evidence of a reliable multi-subject track.
-    const consistentCount = !multiple || (sameGenre.every(other =>
+    // subjectCount describes ALL visible subjects in this source frame,
+    // not just members of one detector genre. Bird/aircraft disagreement
+    // must never manufacture two independent tracked individuals.
+    const consistentCount = !multiple || siblings.every(other =>
       other.subjectCount !== undefined &&
-      other.subjectCount >= sameGenre.length &&
-      other.subjectCount === e.subjectCount));
+      other.subjectCount >= siblings.length &&
+      other.subjectCount === e.subjectCount);
     // Near-identical boxes with different track IDs are likely duplicate
     // detections, not two independently observed animals. Abstain.
     const overlap = (a: NormalisedBox, b: NormalisedBox): number => {
@@ -124,9 +123,9 @@ export function selectBurstDetails(items: readonly SelectEvidence[]): SelectResu
       return intersection / (a.width * a.height + b.width * b.height - intersection);
     };
     const distinctBoxes = !multiple || siblings.every((other, i) =>
-      siblings.slice(i + 1).every(next => other.genre !== next.genre ||
-        (box(other.subjectBox) && box(next.subjectBox) &&
-         overlap(other.subjectBox, next.subjectBox) < 0.9)));
+      siblings.slice(i + 1).every(next =>
+        box(other.subjectBox) && box(next.subjectBox) &&
+        overlap(other.subjectBox, next.subjectBox) < 0.9));
     const distinctSubjects = consistentCount && distinctBoxes && (!multiple || (siblings.every(other =>
       other.sourceSha256 === e.sourceSha256 && other.modelId === e.modelId &&
       other.modelVersion === e.modelVersion && !!other.subjectTrackId &&
