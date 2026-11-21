@@ -24,3 +24,22 @@ The returned mask is a **proposal**; Glide requires Apply, Fly Solo requires an 
 ## Calibration gate and producer contract (21 November)
 
 The anatomy evidence consumer now requires a domain-matched calibration record: exact model ID/version, approved evaluation-manifest status, versioned rights-cleared dataset digest, and non-zero independent positive and negative counts. It rejects a raw U2NetP/object-detector confidence, missing metadata, model mismatch or wrong genre. **The `approved` field is an assertion from the trusted signed asset-loader, not cryptographic verification here**; never populate it merely because inference succeeded or a synthetic fixture passed. Until a genuinely evaluated, rights-approved part/occluder model is installed and the loader verifies its manifest, leave refinement unavailable and preserve existing manual subject masks. Do not map saliency output to fictitious bird-leg or branch labels. W5 owns signed-manifest verification and legal data provenance; W3 owns independently labelled real positives and negatives; W1 owns current-recipe/source-bound application and undo. The test fixture's 1+1 sample counts are deliberately synthetic and **not evidence of calibration**.
+
+## Mandatory signed calibration verification at application (21 November, 06:31 UTC)
+
+The old `calibration.approved: true` value was caller-controlled and could
+authorise edits without proving a trusted model evaluation. This was a
+fail-open boundary. The consumer now requires the fifth
+`verifyCalibration(calibration, evidence)` argument and **abstains** if the
+authority is absent, rejects, or throws. The callback must be provided by the
+trusted local signed-asset authority (W5), verifying the exact installed model
+ID/version, evaluation dataset digest, independent positive/negative evidence,
+rights approval and signed manifest binding. It must not simply return
+`calibration.approved`. Test fixtures use a test-only callback, not a real
+trust authority. W1 must not enable automatic Soar application until this
+integration and reversible recipe history are wired. No photos or model
+evidence leave the device. No quality or calibration accuracy is claimed.
+
+This update also repairs literal escaped newline tokens that had made the
+TypeScript test fixture syntactically invalid. Source readback is not an
+executable test; exact-head tests and installed checks remain NOT RUN.
