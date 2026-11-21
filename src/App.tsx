@@ -2559,7 +2559,7 @@ export default function App() {
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
               {/* Keep/Review/Reject remain available in Edit without switching screens.
                   These reuse the same decisions and history as Library and Compare. */}
-              <div role="group" aria-label={libraryT.top.photoActions} className="flex shrink-0 items-center border-x border-white/10 px-1">
+              <div role="group" data-hide-on-phone-edit aria-label={libraryT.top.photoActions} className="flex shrink-0 items-center border-x border-white/10 px-1">
                 <DecisionButtons labels decision={selectedFrame.decision} filename={selectedFrame.filename}
                   edited={false}
                   onKeep={() => handleDecideFrame(selectedFrame.id, 'keep', false)}
@@ -2567,11 +2567,11 @@ export default function App() {
                   onTrash={() => handleDecideFrame(selectedFrame.id, 'reject', false)}
                   onReset={() => requestReset([selectedFrame.id])} />
               </div>
-              <PhotoJump index={editorIndex} total={editorFrames.length}
+              <div data-hide-on-phone-edit className="contents"><PhotoJump index={editorIndex} total={editorFrames.length}
                 onJump={(index) => {
                   const next = editorFrames[index];
                   if (next) handleSelectFrame(next.id);
-                }} />
+                }} /></div>
               {/* On phones, Copy and Paste are in the photo's long-press menu, so this bar fits the screen. */}
               <button type="button" title={t.editorBar.copyTitle} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10 max-sm:hidden"
                 onClick={() => { setCopiedEdit(selectedFrame.edit ?? DEFAULT_EDIT); showToast(t.toasts.adjustmentsCopied); }}>
@@ -2581,7 +2581,7 @@ export default function App() {
                 onClick={() => { if (copiedEdit) { updateFrame(selectedFrame.id, { edit: isEmptyEdit(copiedEdit) ? undefined : { ...copiedEdit } }); showToast(t.toasts.adjustmentsPasted); } }}>
                 <ClipboardPaste className="h-4 w-4" aria-hidden="true" /> {t.editorBar.paste}
               </button>}
-              <button type="button" aria-pressed={multiSelect} className="inline-flex min-h-11 items-center rounded-md px-2 text-xs hover:bg-white/10"
+              <button type="button" aria-pressed={multiSelect} {...(multiSelect ? {} : { 'data-hide-on-phone-edit': '' })} className="inline-flex min-h-11 items-center rounded-md px-2 text-xs hover:bg-white/10"
                 onClick={() => {
                   cancelLinkedEdit();
                   flushLinkedEdit();
@@ -2640,7 +2640,7 @@ export default function App() {
       {/* Independent full-width dock: side panels never constrain filmstrip width. */}
       {/* Not in grid view, where every photo is already on screen. */}
       {!prefs.focusMode && visibleFrames.length > 0 && (editing || prefs.viewMode !== 'grid') && (
-        <FilmstripDock expanded={prefs.showFilmstrip} onToggle={toggleFilmstrip}
+        <FilmstripDock phoneEditHidden={editing} expanded={prefs.showFilmstrip} onToggle={toggleFilmstrip}
           onPhotoOnly={() => setPrefs((prev) => ({ ...prev, focusMode: true }))}>
             <Filmstrip
               onPhotoMenu={openPhotoMenu}

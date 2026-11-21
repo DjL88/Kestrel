@@ -7,8 +7,18 @@ let dav: MockDav;
 test.beforeEach(async () => { dav = await startMockDav(); });
 test.afterEach(async () => { await dav?.close().catch(() => {}); });
 
-async function addNas(page: Page, name: string, password = DAV_PASSWORD) {
+/** "Where my work is kept" lives in Settings → Bring your own Storage, not on the Home screen. */
+async function openStoragePanel(page: Page) {
   const panel = page.getByRole('region', { name: 'Where my work is kept' });
+  if (!(await panel.isVisible())) {
+    await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
+    await page.getByRole('button', { name: /Bring your own Storage/ }).click();
+  }
+  return panel;
+}
+
+async function addNas(page: Page, name: string, password = DAV_PASSWORD) {
+  const panel = await openStoragePanel(page);
   await panel.getByRole('button', { name: 'Add a connection' }).click();
   const group = panel.getByRole('group', { name: 'Add a connection' });
   await group.getByRole('radio', { name: /NAS or server over WebDAV/ }).check();
@@ -42,6 +52,7 @@ test('a project backs up to the NAS, creating the folders it needs', async ({ pa
   await page.goto('/');
   const panel = await addNas(page, 'Synology');
   await expect(panel.getByRole('status', { name: 'Synology: Connected' })).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: 'Done', exact: true }).click(); // close Settings; the rest happens in the project
   const pictures = await page.evaluate(() => Array.from({ length: 2 }, (_, i) => {
     const canvas = document.createElement('canvas'); canvas.width = 300; canvas.height = 200;
     const c = canvas.getContext('2d')!; c.fillStyle = `rgb(${70 + i * 50},90,120)`; c.fillRect(0, 0, 300, 200);
@@ -73,6 +84,7 @@ test('exports can also be saved into an export folder on the NAS, in a dated fol
   await page.goto('/');
   const panel = await addNas(page, 'Originals drive');
   await expect(panel.getByRole('status', { name: 'Originals drive: Connected' })).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: 'Done', exact: true }).click(); // close Settings; the rest happens in the project
   const picture = await page.evaluate(() => {
     const canvas = document.createElement('canvas'); canvas.width = 1200; canvas.height = 800;
     const c = canvas.getContext('2d')!; const g = c.createLinearGradient(0, 0, 1200, 800); g.addColorStop(0, '#234'); g.addColorStop(1, '#da6'); c.fillStyle = g; c.fillRect(0, 0, 1200, 800);
