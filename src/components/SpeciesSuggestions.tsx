@@ -3,7 +3,7 @@ import { Check, Download, Loader2, RefreshCw, X } from './icons/KestrelUIIcons';
 import { SPECIES_MODEL, megabytes } from '../core/speciesModel';
 import { confidenceWord, kindFor, personalBonus, pickSuggestions, rankSpecies, similarPhotos, type Suggestion } from '../core/speciesMatch';
 import { qualifiesForAutoTag } from '../core/autoTags';
-import { gateOutcome } from '../core/categoryGate';
+import { gateOutcome, permitsAutomaticSpeciesTag } from '../core/categoryGate';
 import { STRICT_SPECIES_PROBABILITY } from '../core/subjectRouter';
 import { gateAvailable, routePicture } from '../providers/categoryGate';
 import { readAutoTag, readSpeciesCounts, rememberSpecies, saveAutoTag } from '../providers/speciesLearning';
@@ -104,7 +104,7 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
       // A strong match must also lead before personal ranking preferences are applied.
       const best = picked[0];
       const now = latest.current;
-      if (gate === 'allow' && best && now.kind === 'wildlife' && now.frameId === frameId && now.tags.length === 0 && now.autoOn && now.canAutoTag && qualifiesForAutoTag(best, embedding_, labels, vectors) && !now.declined.some((name) => name.toLowerCase() === best.label.common.toLowerCase())) {
+      if (permitsAutomaticSpeciesTag(gate) && best && now.kind === 'wildlife' && now.frameId === frameId && now.tags.length === 0 && now.autoOn && now.canAutoTag && qualifiesForAutoTag(best, embedding_, labels, vectors) && !now.declined.some((name) => name.toLowerCase() === best.label.common.toLowerCase())) {
         now.onAutoTag?.(best.label.common, kindFor(best.label));
         void findSimilar(best.label.common, kindFor(best.label));
       }
