@@ -9,6 +9,20 @@ const forMany = (count: number) => (count > 1 ? ` (${count} photos)` : '');
  * controls around them. British English, the source for every translation.
  */
 export const source = {
+  subjectReview: {
+    find: 'Find subjects',
+    busy: 'Looking for subjects on this device…',
+    unavailable: 'Could not check this photo. Check the original is available and try again.',
+    empty: 'No clear subjects found.',
+    found: 'Open a suggestion to view its crop at 100%.',
+    cropUnavailable: 'Crop too large to display',
+    label: (number: number, kind: string) => `${number}. ${kind}`,
+    bird: 'Possible bird',
+    aircraft: 'Possible aircraft',
+    person: 'Possible person',
+    pet: 'Possible animal',
+    unknown: 'Unclassified subject',
+  },
   top: {
     xmpImport: "Import ratings and tags (XMP)…",
     xmpImportHelp: "Read matching XMP files or a Kite44 XMP ZIP into selected photos only. Original files are never modified.",

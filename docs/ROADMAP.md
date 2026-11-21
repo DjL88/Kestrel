@@ -42,6 +42,10 @@ Every status uses exactly one of these labels:
 
 *Last reconciled: 18 November 2026, after the integration pass that merged #353–#361 and #364 and closed #362 and #363.*
 
+### 21 November 2026 — inspect subject crops from Photo Info
+
+**PARTIAL.** In Review, open **Photo Info → Subject → Find subjects** for an original JPEG or PNG. The local detector suggests broad subject types and shows original-pixel crops at 100% when they fit the memory budget. Leaving the tab or switching photos cancels the scan. The original is checked before and after inference. Candidates are for manual inspection. RAW and HEIF crops, cross-photo identity tracking, eye localisation and per-subject keeper selection still need implementation. Photographic accuracy is for UAT.
+
 ### 20 November 2026 — import selected XMP or ZIP sidecars from File
 
 **Implementation authored; tests and device validation NOT RUN.** File → Import ratings and tags (XMP) now opens a platform file picker, accepts one/multiple matching `.xmp` files or one XMP ZIP from Kestrel's own File-menu export, validates the complete set before updating selected photos, and uses the existing Photo Info importer for ratings, Keep/Review/Reject and confirmed tags. No photos, source metadata or originals are overwritten. Imported names must uniquely identify their original among all current project photos; ambiguous RAW+JPEG pairs with the same basename are refused. Unknown/unselected XMP entries are not applied. A batch trying to change a manually kept photo to Reject is refused and must be reviewed individually. ZIP archive sizes, filenames, path traversal, decompressed size and entry count are bounded before parsing; malformed XML and unsupported XMP fail closed. Appending a batch of metadata changes uses the current project identity and version and aborts if the project changed while reading. All full locales cover the File item, tooltip and feedback. Node and browser regression scenarios added but **NOT RUN**. This closes the normal File-menu XMP save/import discovery detour; cross-application Adobe sidecar/whole-project NAS restore is **not** claimed verified.
