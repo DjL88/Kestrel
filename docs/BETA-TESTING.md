@@ -29,7 +29,7 @@ keytool -genkeypair -v -keystore $HOME\.kestrel-signing\kestrel-upload.jks -keya
 ```
 
 Keep an offline copy of the `.jks` file and its password. Then enrol in **Play App Signing** when you create the app
-in Play Console (package name `app.kestrel.desktop`, as in `src-tauri/gen/android/app/build.gradle.kts`). The
+in Play Console (package name `app.kestrel.photo`, as in `src-tauri/gen/android/app/build.gradle.kts` and `src-tauri/tauri.android.conf.json`). The
 release signing configuration still has to be added to the Gradle build. It will read the keystore path and password
 from environment variables, never from the repository.
 

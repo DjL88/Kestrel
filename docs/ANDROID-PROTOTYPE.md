@@ -49,7 +49,7 @@ Only use the actual deployed server address and pinned verification key. These a
 
 ## Going from prototype APK to Play Store
 
-A Play Store release is **separate** work. Build a release **AAB** with your release keystore kept privately; configure Play App Signing, an application listing, data safety and app access disclosure; then use Play's internal/closed testing track for invited testers. Do not reuse the debug APK/keystore for production. The app package ID is currently `app.kestrel.desktop`; decide a stable production ID before first release because changing it creates a different Android app. Google Play in-app purchase policies must be addressed before offering paid digital Pro features inside a Play-distributed app.
+A Play Store release is **separate** work. Build a release **AAB** with your release keystore kept privately; configure Play App Signing, an application listing, data safety and app access disclosure; then use Play's internal/closed testing track for invited testers. Do not reuse the debug APK/keystore for production. The app package ID is `app.kestrel.photo` (set in `src-tauri/tauri.android.conf.json` and the Gradle files; the earlier prototype used `app.kestrel.desktop`, so a phone with that APK needs it uninstalled, as this is a different Android app). Treat it as permanent once the first Play release is uploaded. Google Play in-app purchase policies must be addressed before offering paid digital Pro features inside a Play-distributed app.
 
 ## Evidence still required (deferred to the final validation phase)
 
