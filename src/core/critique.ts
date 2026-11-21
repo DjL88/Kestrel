@@ -1,3 +1,4 @@
+import { isLowKeyPixels } from './lowKey';
 import { maskAlpha, type MaskContext } from './masks';
 import { LOCAL_DETAIL_KEYS, type Mask } from './maskTypes';
 import { DETAIL_CONTROLS, type PhotoEdit } from './photoEdits';
@@ -106,6 +107,8 @@ export interface CritiqueInput {
 /** Local, rule-based opinions about an edit. No network and no generative model. At most four, most serious first. */
 export function critique({ source, toneOnly, after, edit, subject }: CritiqueInput): Opinion[] {
   const found: Opinion[] = [];
+  // A photo that is dark on purpose is not "flat" or "crushed", and a bright subject on it is the point.
+  const lowKey = isLowKeyPixels(source.data);
   const detailOn = DETAIL_CONTROLS.some(({ key }) => (edit[key] ?? 0) > 0) ||
     !!edit.masks?.some((mask) => LOCAL_DETAIL_KEYS.some((key) => (mask.edit[key] ?? 0) > 0));
 
@@ -134,7 +137,7 @@ export function critique({ source, toneOnly, after, edit, subject }: CritiqueInp
       detail: `${percent(clip.channels)} of the preview has at least one colour channel at maximum, compared with ${percent(before.channels)} before editing. This does not mean those pixels are pure white. Check saturated feathers, lights and other important colours at 100% before changing global highlights.`,
     });
   }
-  if (clip.shadows > 0.02 && clip.shadows > before.shadows + 0.005) {
+  if (!lowKey && clip.shadows > 0.02 && clip.shadows > before.shadows + 0.005) {
     found.push({
       id: 'shadows', severity: 'warning', title: 'Shadows are crushed',
       detail: `${percent(clip.shadows)} of the picture is pure black, so detail there is lost. It was ${percent(before.shadows)} before your edit.`,
@@ -176,7 +179,7 @@ export function critique({ source, toneOnly, after, edit, subject }: CritiqueInp
           detail: `The subject averages ${Math.round(gap * 100)} points darker than everything around it, so the eye may go to the background first.`,
           fix: { kind: 'mask', maskId: subject.mask.id, delta: { exposure: 0.5, shadows: 0.2 } }, fixLabel: 'Lift the subject',
         });
-      } else if (gap < -0.25) {
+      } else if (gap < -0.25 && !lowKey) {
         found.push({
           id: 'subject-bright', severity: 'tip', title: 'Your subject is much brighter than its surroundings',
           detail: `The subject averages ${Math.round(-gap * 100)} points brighter than the background, which can look pasted on.`,
@@ -191,7 +194,8 @@ export function critique({ source, toneOnly, after, edit, subject }: CritiqueInp
   const sorted = Float32Array.from(l).sort();
   const p5 = sorted[Math.floor(sorted.length * 0.05)];
   const p95 = sorted[Math.floor(sorted.length * 0.95)];
-  if (p95 - p5 < 0.4 && found.every((o) => o.id !== 'highlights' && o.id !== 'shadows')) {
+  // More contrast pushes bright areas further: never suggest it while they are already clipping.
+  if (!lowKey && clip.highlights < 0.005 && p95 - p5 < 0.4 && found.every((o) => o.id !== 'highlights' && o.id !== 'shadows')) {
     found.push({
       id: 'flat', severity: 'tip', title: 'Tones are bunched together',
       detail: 'Almost all the picture sits in a narrow band of brightness, so it may look flat.',
@@ -217,8 +221,27 @@ export function critique({ source, toneOnly, after, edit, subject }: CritiqueInp
     });
   }
 
+  // A fix that has already been applied, or whose sliders are already well along, is not offered again. Offering it
+  // again is how repeated clicks used to stack up and blow out the bright areas. A tip with nothing left to do is dropped.
+  const settled = found.flatMap((opinion): Opinion[] => {
+    if (!opinion.fix || hasRoom(edit, opinion.fix)) return [opinion];
+    return opinion.severity === 'tip' ? [] : [{ ...opinion, fix: undefined, fixLabel: undefined }];
+  });
   const rank = (opinion: Opinion) => (opinion.severity === 'warning' ? 0 : 1);
-  return found.sort((a, b) => rank(a) - rank(b)).slice(0, 4);
+  return settled.sort((a, b) => rank(a) - rank(b)).slice(0, 4);
+}
+
+/** How far a slider has already gone before a fix stops being offered: about half its range. */
+const ENOUGH = 1;
+
+/** Can the fix still do its job? False as soon as any slider it would change is already well along in that direction. */
+export function hasRoom(edit: PhotoEdit, fix: Fix): boolean {
+  const current = (key: string): number => {
+    if (fix.kind === 'global') { const value = (edit as unknown as Record<string, unknown>)[key]; return typeof value === 'number' ? value : 0; }
+    const mask = edit.masks?.find((entry) => entry.id === fix.maskId);
+    return (mask?.edit as Record<string, number | undefined> | undefined)?.[key] ?? 0;
+  };
+  return Object.entries(fix.delta).every(([key, change]) => !change || current(key) * Math.sign(change) < ENOUGH);
 }
 
 /** Add a fix to the edit. Sliders stay within their range, and sharpening never goes below zero. */
