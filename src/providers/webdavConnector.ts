@@ -46,7 +46,7 @@ export function webdavConnector(settings: WebDavSettings, options: { fetchImpl?:
     }
   }
 
-  const guard = (path: string) => { if (!isInsideSyncRoot(path.replace(/\/+$/, ''))) throw new DavError('Path is outside the Kestrel folder.'); };
+  const guard = (path: string) => { if (!isInsideSyncRoot(path.replace(/\/+$/, ''))) throw new DavError('Path is outside the Kite44 folder.'); };
 
   /** Make each folder on the way to a file. A folder that already exists answers 405, which is fine. */
   async function ensureFolders(path: string) {
@@ -77,7 +77,7 @@ export function webdavConnector(settings: WebDavSettings, options: { fetchImpl?:
       }
     },
     async put(path, bytes) {
-      if (!isWritablePath(path)) throw new DavError('Path is outside the Kestrel folder.');
+      if (!isWritablePath(path)) throw new DavError('Path is outside the Kite44 folder.');
       await ensureFolders(path);
       const exportWrite = isInsideExportRoot(path);
       const response = await send('PUT', urlFor(path), {

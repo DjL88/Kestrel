@@ -2,7 +2,7 @@
 
 Nothing in it comes from a camera or a real photograph. The picture is 96 x 64 pixels, red on the left half and blue on
 the right, with a green square in the top-left corner so a test can tell whether it was turned or flipped. The EXIF says
-it was taken on 1 June 2026 at 09:30:00 with a made-up "Kestrel Test" camera.
+it was taken on 1 June 2026 at 09:30:00 with a made-up "Kite44 Test" camera.
 
 Needs Pillow and pillow-heif (pip install pillow==11.3.0 pillow-heif==1.1.1); they are only used to write this file
 and are not part of the app. Run from the repository root:
@@ -27,8 +27,8 @@ def picture() -> Image.Image:
 
 def exif() -> bytes:
     data = Image.Exif()
-    data[0x010F] = "Kestrel"  # Make
-    data[0x0110] = "Kestrel Test"  # Model
+    data[0x010F] = "Kite44"  # Make
+    data[0x0110] = "Kite44 Test"  # Model
     ifd = data.get_ifd(0x8769)
     ifd[0x9003] = "2026:06:01 09:30:00"  # DateTimeOriginal
     ifd[0x829A] = (1, 250)  # ExposureTime

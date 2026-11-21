@@ -4,7 +4,7 @@ import type { source } from './source';
 /** German (Sie). DRAFT: written without a native speaker's check. */
 export const de: AreaTranslation<typeof source> = {
   title: 'Zweite Meinung von Ihrer eigenen KI',
-  intro: 'Freiwillig. Nutzen Sie Ihr eigenes KI-Konto oder ein Modell auf diesem Computer, um Farbe und Licht dieses Fotos ansehen zu lassen. Die Farbprüfung von Kestrel oben funktioniert immer auch ohne.',
+  intro: 'Freiwillig. Nutzen Sie Ihr eigenes KI-Konto oder ein Modell auf diesem Computer, um Farbe und Licht dieses Fotos ansehen zu lassen. Die Farbprüfung von Kite44 oben funktioniert immer auch ohne.',
   ask: 'Meine KI fragen',
   asking: 'Ihre KI wird gefragt…',
   cancel: 'Abbrechen',
@@ -30,8 +30,8 @@ export const de: AreaTranslation<typeof source> = {
   invalidBaseUrl: "Verwenden Sie HTTPS für externe KI oder http://localhost für KI auf diesem Computer. Tragen Sie keine Schlüssel in die Adresse ein.",
   save: 'Speichern',
   consentTitle: 'Bevor etwas gesendet wird',
-  consentCloud: (host) => `Kestrel sendet eine Kopie dieses Fotos mit 1.024 Pixeln an der längsten Seite an ${host}. Sie enthält weder den Aufnahmeort noch Kameradaten noch den Dateinamen. Ihr Anbieter berechnet Ihnen eventuell jede Frage.`,
-  consentLocal: (host) => `Kestrel sendet eine Kopie dieses Fotos mit 1.024 Pixeln an der längsten Seite an die KI unter ${host}, die sich auf diesem Computer befindet. Nichts verlässt Ihren Computer.`,
+  consentCloud: (host) => `Kite44 sendet eine Kopie dieses Fotos mit 1.024 Pixeln an der längsten Seite an ${host}. Sie enthält weder den Aufnahmeort noch Kameradaten noch den Dateinamen. Ihr Anbieter berechnet Ihnen eventuell jede Frage.`,
+  consentLocal: (host) => `Kite44 sendet eine Kopie dieses Fotos mit 1.024 Pixeln an der längsten Seite an die KI unter ${host}, die sich auf diesem Computer befindet. Nichts verlässt Ihren Computer.`,
   agree: 'Ich stimme zu',
   summary: 'Was Ihre KI sagt',
   suggested: 'Vorgeschlagene Änderungen',
@@ -52,7 +52,7 @@ export const de: AreaTranslation<typeof source> = {
   errors: {
     setup: 'Ihre KI ist noch nicht eingerichtet, oder die Zustimmung fehlt.',
     key: 'Ihre KI meldet, dass der Schlüssel falsch oder nicht erlaubt ist. Prüfen Sie ihn im Konto Ihres Anbieters.',
-    offline: 'Sie sind offline. Die Farbprüfung von Kestrel funktioniert trotzdem.',
+    offline: 'Sie sind offline. Die Farbprüfung von Kite44 funktioniert trotzdem.',
     timeout: 'Ihre KI hat zu lange für die Antwort gebraucht. Versuchen Sie es gleich noch einmal.',
     refused: 'Ihre KI hat abgelehnt, sich dieses Foto anzusehen.',
     unreadable: 'Die Antwort Ihrer KI konnte nicht gelesen werden, daher wurde nichts geändert.',

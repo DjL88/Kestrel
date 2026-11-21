@@ -74,7 +74,7 @@ export const fi: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Alkuperäinen ei ole saatavilla — yhdistä sen kansio tai asema uudelleen',
     previewUnavailable: 'Esikatselu ei ole saatavilla',
-    heifUndecodable: 'Kestrel ei pystynyt purkamaan tätä HEIF-kuvaa. Alkuperäinen on ennallaan.',
+    heifUndecodable: 'Kite44 ei pystynyt purkamaan tätä HEIF-kuvaa. Alkuperäinen on ennallaan.',
   },
   info: {
     title: 'Kuvan tiedot',
@@ -204,6 +204,7 @@ export const fi: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Merkitse se' : `Merkitse kaikki ${count}`,
     noThanks: 'Ei kiitos',
     autoTag: 'Merkitse vahvat osumat automaattisesti',
+    regionLabel: 'Missä kuvaat',
     checkNote: 'Tarkista ehdotetut ja automaattiset tunnisteet. Varmuus koskee vain nimiä, jotka tämä malli tuntee.',
   },
   scanBanner: {

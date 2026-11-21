@@ -1,4 +1,4 @@
-//! Desktop adapter for RAW development. The development itself (sensor decode, Kestrel's develop, orientation, JPEG) is
+//! Desktop adapter for RAW development. The development itself (sensor decode, Kite44's develop, orientation, JPEG) is
 //! `kestrel_raw::develop_jpeg`, the same code the WebAssembly build runs. This file adds only what is platform-specific:
 //! on a Mac, the system's own decoder as a last fallback. The original file is never changed.
 
@@ -114,7 +114,7 @@ fn develop_with_system(_bytes: &[u8], _extension: &str) -> Result<Vec<u8>, Strin
     Err("No system RAW decoder is available on this computer.".to_string())
 }
 
-/// Develop a RAW file: Kestrel's own decoders first (rawler, and ticoraw for Nikon HE/HE*), then on a Mac the system's.
+/// Develop a RAW file: Kite44's own decoders first (rawler, and ticoraw for Nikon HE/HE*), then on a Mac the system's.
 pub fn develop_any(bytes: &[u8], extension: &str) -> Result<Vec<u8>, String> {
     match develop(bytes) {
         Ok(jpeg) => Ok(jpeg),

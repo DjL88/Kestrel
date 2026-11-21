@@ -5,7 +5,7 @@ import { plural } from '../../../core/locale';
 /** Italian (tu). DRAFT: written without a native speaker's check. Colour names sit in brackets or after "in". */
 export const it: AreaTranslation<typeof source> = {
   title: 'Controllo colore',
-  intro: 'Kestrel indica a parole i colori di questa foto e segnala tutto ciò che potrebbe sembrare sbagliato.',
+  intro: 'Kite44 indica a parole i colori di questa foto e segnala tutto ciò che potrebbe sembrare sbagliato.',
   checking: 'Controllo del colore…',
   unavailable: 'Il controllo colore non è ancora disponibile per questa foto.',
   mainColours: 'Colori principali',

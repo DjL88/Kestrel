@@ -24,7 +24,7 @@ export const enUS: AreaTranslation<typeof source> = {
       ownAdjustments: 'Each selected photo gets its own local light and color adjustments. These are not the same preset applied to everyone.',
     },
     autoAdjustKeepers: {
-      what: 'Kestrel will analyze each unedited keeper locally and adjust its light, color and tone. Already edited photos stay unchanged.',
+      what: 'Kite44 will analyze each unedited keeper locally and adjust its light, color and tone. Already edited photos stay unchanged.',
     },
   },
 };

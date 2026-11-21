@@ -1,10 +1,10 @@
-# Kestrel — Local-First Photo Culling Workspace
+# Kite44 — Local-First Photo Culling Workspace
 
-Kestrel is a local-first culling and editing workspace for wildlife, bird, and pet photography. A shared React/TypeScript interface runs in the browser and a Tauri v2 shell. Desktop packaging and an Android scaffold exist; released native mobile apps and a Chrome extension are not yet established.
+Kite44 is a local-first culling and editing workspace for wildlife, bird, and pet photography. A shared React/TypeScript interface runs in the browser and a Tauri v2 shell. Desktop packaging and an Android scaffold exist; released native mobile apps and a Chrome extension are not yet established.
 
-**Any camera brand.** Kestrel reads RAW from Nikon, Canon, Sony, Fujifilm, Panasonic, OM System, Pentax and Adobe DNG, and nothing in the editing engines is tied to one maker. Where a maker needs special handling (for example Nikon High Efficiency, which needs the system decoder on a Mac) it is handled in the decoder and reported plainly, and support for a maker is only claimed after real files from that camera pass. A small multi-brand set of public RAW samples can be fetched for local decode tests with `node scripts/fetch-raw-samples.mjs` (see the script header for the licence note), then `KESTREL_RAW_SAMPLES=$PWD/../../raw-samples cargo test --release develop::` in `crates/kestrel-raw`. Last run: all 12 samples, across 8 makers, develop to full size. To train the RAW denoiser on your own photos and Lightroom catalogue (Windows one-command script included), see [tools/denoise-training/README.md](tools/denoise-training/README.md).
+**Any camera brand.** Kite44 reads RAW from Nikon, Canon, Sony, Fujifilm, Panasonic, OM System, Pentax and Adobe DNG, and nothing in the editing engines is tied to one maker. Where a maker needs special handling (for example Nikon High Efficiency, which needs the system decoder on a Mac) it is handled in the decoder and reported plainly, and support for a maker is only claimed after real files from that camera pass. A small multi-brand set of public RAW samples can be fetched for local decode tests with `node scripts/fetch-raw-samples.mjs` (see the script header for the licence note), then `KESTREL_RAW_SAMPLES=$PWD/../../raw-samples cargo test --release develop::` in `crates/kestrel-raw`. Last run: all 12 samples, across 8 makers, develop to full size. To train the RAW denoiser on your own photos and Lightroom catalogue (Windows one-command script included), see [tools/denoise-training/README.md](tools/denoise-training/README.md).
 
-**Product direction for every contributor:** [Kestrel product philosophy and contributor charter](docs/PRODUCT-PHILOSOPHY.md) — one authentic, complete camera-to-export workflow, a strong switching baseline, and excellence in wildlife photography. Read before major code or roadmap changes.
+**Product direction for every contributor:** [Kite44 product philosophy and contributor charter](docs/PRODUCT-PHILOSOPHY.md) — one authentic, complete camera-to-export workflow, a strong switching baseline, and excellence in wildlife photography. Read before major code or roadmap changes.
 
 **Current readiness and priorities:** [End-to-end product audit](docs/RELEASE-GAP-AUDIT-2026-11.md). It distinguishes implemented features from planned architecture below. Native RAW development exists but currently passes a developed raster into the editor; this is not yet a 16-bit, colour-managed RAW workflow or verified Lightroom/DxO parity. See [docs/RAW-QUALITY-PLAN.md](docs/RAW-QUALITY-PLAN.md) for the phased plan to close that gap.
 
@@ -93,7 +93,7 @@ Preview and export use the same sRGB render operations. Full-size PNG retains th
 
 Subject names entered in **Edit** are stored in the catalogue and searchable from the culling workspace. Separate names with commas for group photos.
 
-Export never silently reduces the requested output to fit a device's configured canvas safety limit. If it is too large, Kestrel explains the dimensions and asks you to choose a smaller preset or use a desktop. Preview thumbnails remain small. "Full size" means the current decoded source after cropping, not lossless RAW data; use the original-file download to retain the source bytes and metadata.
+Export never silently reduces the requested output to fit a device's configured canvas safety limit. If it is too large, Kite44 explains the dimensions and asks you to choose a smaller preset or use a desktop. Preview thumbnails remain small. "Full size" means the current decoded source after cropping, not lossless RAW data; use the original-file download to retain the source bytes and metadata.
 
 ### Assisted selection design
 
@@ -115,9 +115,9 @@ Create a **virtual copy** from Edit options to try a different look with its own
 
 ### Projects and photo metadata
 
-Kestrel opens on **Projects**. Create a project or open the demo, then use **Add photos** to append files or drag a batch into the import dialog. Projects keep independent catalogues on the current browser. On upgrade, an existing single-shoot catalogue is brought into Projects. Selected files that exceed browser storage can be reconnected when the project is reopened.
+Kite44 opens on **Projects**. Create a project or open the demo, then use **Add photos** to append files or drag a batch into the import dialog. Projects keep independent catalogues on the current browser. On upgrade, an existing single-shoot catalogue is brought into Projects. Selected files that exceed browser storage can be reconnected when the project is reopened.
 
-Use the grid’s **Info** button, right-click, or touch and hold to access ratings, Keep/Reject flags and camera metadata. Shift-click, Ctrl/Cmd-click, or use **Select photos** in Workspace options to rate or flag several photos from the same panel. Embedded XMP ratings, including the XMP reject value, are read where available. New ratings and flags stay in Kestrel’s catalogue and do not rewrite source files.
+Use the grid’s **Info** button, right-click, or touch and hold to access ratings, Keep/Reject flags and camera metadata. Shift-click, Ctrl/Cmd-click, or use **Select photos** in Workspace options to rate or flag several photos from the same panel. Embedded XMP ratings, including the XMP reject value, are read where available. New ratings and flags stay in Kite44’s catalogue and do not rewrite source files.
 
 **Crop & straighten** offers aspect-ratio choices, crop positioning, rotation and fine straightening. **Auto crop copy** uses a small local detail scan to place a 4:5 or 5:4 crop on a virtual copy. The edit preview and export use the same framing. All image operations run on the device. Production deployments cache the application and demo assets after the first successful load when the browser allows service workers. Clearing browser storage removes local project data and the offline cache.
 
@@ -135,9 +135,9 @@ The editor draws a bounded fit preview and increases detail in the visible area 
 
 In a Library, choose **Workspace options → Back up project**. The versioned JSON preserves the project catalogue, decisions, ratings, subject names, crops, adjustment recipes and virtual copies. Chrome can offer a Save As destination when permitted, including a mounted external drive or NAS. Embedded previews use the browser’s download path when the file picker is unavailable. This backup contains catalogue records only, so retain the source photos separately.
 
-On the Projects screen choose **Restore backup**. Kestrel validates the file and opens the restored catalogue as a separate project. If source files are unavailable in this browser, reconnect them from the Library. The restore process does not authenticate with cloud storage or upload anything. A sync provider can use this catalogue boundary later.
+On the Projects screen choose **Restore backup**. Kite44 validates the file and opens the restored catalogue as a separate project. If source files are unavailable in this browser, reconnect them from the Library. The restore process does not authenticate with cloud storage or upload anything. A sync provider can use this catalogue boundary later.
 
-When Kestrel cannot store an imported or reconnected original in browser storage, it warns immediately. You can continue editing, but keep the original file: it may need to be reselected when the project is reopened. A project backup contains catalogue information, not original photos.
+When Kite44 cannot store an imported or reconnected original in browser storage, it warns immediately. You can continue editing, but keep the original file: it may need to be reselected when the project is reopened. A project backup contains catalogue information, not original photos.
 
 ### Test a real photo workflow
 
@@ -154,7 +154,7 @@ Keep edit recipes, catalogue operations and rendering contracts shared. Use per-
 | macOS, Windows and Linux | Desktop application for the full Library and editor, local and mounted-volume folders, and camera/RAW adapters where validated. Verify Nikon SDK runtime availability per OS and CPU before committing to official Nikon rendering on that target. |
 | iOS and Android | Phone layout for culling and quick edits, tablet layout for larger previews and precise controls. Use device photo pickers and save/share sheets with tablet and touch acceptance tests. |
 | Web editor | Offline editing after the app has loaded and cached. The browser remains responsible for filesystem permissions and storage limits. |
-| Browser extension | Explicitly send a user-selected image to a Kestrel workspace. Keep the full catalogue and editor out of the extension and request the minimum site access. |
+| Browser extension | Explicitly send a user-selected image to a Kite44 workspace. Keep the full catalogue and editor out of the extension and request the minimum site access. |
 
 Keep sign-in optional. If a paid tier is added, separate entitlement from file storage. Local projects, original files and offline editing should work independently of any supported account or sync provider. Any future sync should be opt-in, limited to its stated data, and avoid uploading originals by default.
 

@@ -64,7 +64,7 @@ export const is: AreaTranslation<typeof source> = {
     addFailed: 'Ekki tókst að bæta myndunum við.',
     stoppedUnfinished: 'Stöðvað áður en því lauk',
     findingPhotos: 'Leitar að myndum í möppunni',
-    developingRaw: 'Framkallar RAW-skrár með Kestrel',
+    developingRaw: 'Framkallar RAW-skrár með Kite44',
     developStopped: 'Stöðvað; myndirnar sem eftir eru halda forskoðun myndavélarinnar.',
     developed: (count) => `${count} framkallaðar`,
   },
@@ -77,7 +77,7 @@ export const is: AreaTranslation<typeof source> = {
     addFailed: 'Ekki tókst að bæta myndunum við. Prófaðu að velja skrárnar aftur.',
     noSupportedPhotos: 'Í þessari möppu eru engar studdar myndir.',
     folderUnreadable: 'Ekki tókst að lesa þessa möppu.',
-    oneFolderPerProject: 'Hafðu hverja möppu í eigin verkefni svo Kestrel geti tengt hana aftur á öruggan hátt.',
+    oneFolderPerProject: 'Hafðu hverja möppu í eigin verkefni svo Kite44 geti tengt hana aftur á öruggan hátt.',
     folderAddFailed: 'Ekki tókst að bæta möppunni við. Prófaðu að velja hana aftur.',
     folderUnreadableTryFiles: 'Ekki tókst að lesa möppuna. Prófaðu að velja skrár.',
   },
@@ -104,7 +104,7 @@ export const is: AreaTranslation<typeof source> = {
     status: (folder, count) => `Fylgist með „${folder}“ · ${plural(count, { one: `${count} ný mynd bætt við`, other: `${count} nýjar myndir bættust við` })}`,
   },
   paid: {
-    dialogLabel: (feature) => `${feature} er hluti af Kestrel Pro`,
+    dialogLabel: (feature) => `${feature} er hluti af Kite44 Pro`,
     autoCullPitch: 'Aðstoð við að velja bestu myndirnar þínar.',
     close: 'Loka',
   },
@@ -119,8 +119,8 @@ export const is: AreaTranslation<typeof source> = {
   },
   notices: {
     temporaryOriginals: (count) => plural(count, {
-      one: 'Kestrel gat ekki geymt eina upprunalega skrá fyrir næstu opnun. Þú getur notað hana núna. Haltu upprunalegu skránni þinni: þú gætir þurft að velja hana aftur eftir að verkefnið er opnað aftur. Öryggisafrit verkefna innihalda ekki upprunalegu myndirnar.',
-      other: `Kestrel gat ekki geymt ${count} upprunalegar skrár fyrir næstu opnun. Þú getur notað þær núna. Haltu upprunalegu skránum þínum: þú gætir þurft að velja þær aftur eftir að verkefnið er opnað aftur. Öryggisafrit verkefna innihalda ekki upprunalegu myndirnar.`,
+      one: 'Kite44 gat ekki geymt eina upprunalega skrá fyrir næstu opnun. Þú getur notað hana núna. Haltu upprunalegu skránni þinni: þú gætir þurft að velja hana aftur eftir að verkefnið er opnað aftur. Öryggisafrit verkefna innihalda ekki upprunalegu myndirnar.',
+      other: `Kite44 gat ekki geymt ${count} upprunalegar skrár fyrir næstu opnun. Þú getur notað þær núna. Haltu upprunalegu skránum þínum: þú gætir þurft að velja þær aftur eftir að verkefnið er opnað aftur. Öryggisafrit verkefna innihalda ekki upprunalegu myndirnar.`,
     }),
     dismiss: 'Loka',
   },
@@ -193,7 +193,7 @@ export const is: AreaTranslation<typeof source> = {
     remove: {
       title: 'Fjarlægja úr safninu?',
       confirm: 'Fjarlægja úr safninu',
-      disappears: (name) => `${name} hverfur úr sýnum, talningum og útflutningi Kestrel.`,
+      disappears: (name) => `${name} hverfur úr sýnum, talningum og útflutningi Kite44.`,
       thisPhoto: 'Þessi mynd',
       notDeleted: 'Upprunalegu skránni þinni er ekki eytt.',
       bringBack: 'Þú getur sótt hana aftur í Valkostum vinnusvæðis, Fjarlægðum myndum, eða með Afturkalla.',
@@ -201,7 +201,7 @@ export const is: AreaTranslation<typeof source> = {
     autoAdjustKeepers: {
       title: 'Stilla óbreyttar myndir til að halda sjálfkrafa?',
       confirm: 'Stilla myndir til að halda',
-      what: 'Kestrel greinir á þessu tæki hverja óbreytta mynd til að halda og stillir birtu, lit og tóna. Myndir sem þegar hefur verið breytt haldast óbreyttar.',
+      what: 'Kite44 greinir á þessu tæki hverja óbreytta mynd til að halda og stillir birtu, lit og tóna. Myndir sem þegar hefur verið breytt haldast óbreyttar.',
       eligible: (count) => `${photos(count)} til að halda koma til greina. Hægt er að hætta við verkið. Engar breytingar eru gerðar fyrr en greiningunni lýkur.`,
       safe: 'Ekkert er sent á netið eða breytt í upprunalegu skránum þínum. Þú getur afturkallað niðurstöðuna fyrir hverja mynd.',
     },
