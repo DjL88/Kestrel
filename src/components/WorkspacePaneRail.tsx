@@ -19,7 +19,7 @@ export function WorkspacePaneRail({ kind, side, onExpand, open = false, onFold }
   const Icon = kind === 'tools' ? SlidersHorizontal : Info;
   return (
     // A folded pane is a single button, not the panel: not a landmark named like the panel it stands for.
-    <div role="group" aria-label={kind === 'tools' ? t.paneRail.foldedTools : t.paneRail.foldedInfo}
+    <div role="group" aria-label={open ? label : (kind === 'tools' ? t.paneRail.foldedTools : t.paneRail.foldedInfo)}
       className={`hidden w-12 shrink-0 flex-col items-center gap-2 bg-kestrel-panel py-3 ${kind === 'tools' ? 'workspace:flex' : 'info-dock:flex'} ${side === 'left' ? 'border-r border-white/10' : 'border-l border-white/10'}`}>
       <button type="button" onClick={open ? onFold : onExpand} aria-expanded={open}
         aria-label={expand}
