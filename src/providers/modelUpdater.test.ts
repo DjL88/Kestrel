@@ -102,3 +102,50 @@ test('offline, or checked within a day, asks for nothing', async () => {
   assert.deepEqual(await (await env.reload()).check(), { kind: 'not_due' });
   assert.equal(env.calls.length, before);
 });
+
+
+test('a corrupted installed update falls back to the last verified model after restart', async () => {
+  const oldBytes = bytesOf('known good v1'), newBytes = bytesOf('verified v2');
+  const first = entry('u2netp', '1', oldBytes);
+  const env = await setup({ [first.path]: oldBytes }, [first]);
+  await env.updater.check();
+  const second = entry('u2netp', '2', newBytes);
+  env.setFile(second.path, newBytes);
+  env.setManifest(3, [second]);
+  const outcome = await env.updater.check(true);
+  assert.deepEqual(outcome.kind === 'checked' && outcome.installed, ['u2netp']);
+  const afterRestart = await env.reload();
+  assert.equal(Buffer.from((await afterRestart.installed('u2netp'))!.bytes).toString(), 'verified v2');
+  // A crash, disk error or corrupt object cannot erase the last good version.
+  env.blobs.set('u2netp/' + second.sha256, new Blob(['corrupt']));
+  assert.equal(Buffer.from((await (await env.reload()).installed('u2netp'))!.bytes).toString(), 'known good v1');
+  assert.ok(env.blobs.has('u2netp/' + first.sha256), 'the previous bytes remain content-addressed');
+});
+
+test('large model weights require an explicit foreground check, not silent startup download', async () => {
+  const large = new Uint8Array(8 * 1024 * 1024 + 1).fill(17);
+  const candidate = entry('bioclip-image-int8', '1', large);
+  const env = await setup({ [candidate.path]: large }, [candidate]);
+  const background = await env.updater.check();
+  assert.deepEqual(background.kind === 'checked' && background.installed, []);
+  assert.deepEqual(background.kind === 'checked' && background.skipped, [
+    { id: 'bioclip-image-int8', reason: 'manual_approval_required' },
+  ]);
+  assert.equal(env.calls.some((x) => x.startsWith('/data/')), false);
+  const manual = await env.updater.check(true);
+  assert.deepEqual(manual.kind === 'checked' && manual.installed, ['bioclip-image-int8']);
+  assert.ok((await env.updater.installed('bioclip-image-int8'))?.bytes.byteLength === large.byteLength);
+});
+
+test('an interrupted or oversized model transfer leaves a previously downloaded version untouched', async () => {
+  const good = bytesOf('trusted'), oversize = bytesOf('invalid replacement payload');
+  const first = entry('yolox-tiny', '1', good);
+  const env = await setup({ [first.path]: good }, [first]);
+  await env.updater.check();
+  const next = entry('yolox-tiny', '2', good);
+  env.setFile(next.path, oversize);
+  env.setManifest(3, [next]);
+  const result = await env.updater.check(true);
+  assert.equal(result.kind === 'checked' && result.rejected[0]?.reason, 'size_mismatch');
+  assert.equal(Buffer.from((await env.updater.installed('yolox-tiny'))!.bytes).toString(), 'trusted');
+});
