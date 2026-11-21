@@ -67,8 +67,5 @@ test('A/B proof does not invent sharpness from fully transparent source samples'
   const box = { x: 0, y: 0, width: 1, height: 1 };
   const a = { raster: left, photoId: 'p', sourceSha256: sha, box, comparisonGroup: 'g' };
   const b = { raster: right, photoId: 'q', sourceSha256: sha, box, comparisonGroup: 'g' };
-  const proof = exactSubjectProofPair(a, b);
-  assert.ok(proof);
-  assert.equal(proof.leftEdgeEnergy, 0);
-  assert.equal(proof.rightEdgeEnergy, 0);
+  assert.equal(exactSubjectProofPair(a, b), null);
 });
