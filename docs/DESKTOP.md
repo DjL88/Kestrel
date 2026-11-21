@@ -69,8 +69,8 @@ Needs accounts only the owner can create, so none of this is switched on. Do it 
 - External drive and network share: add photos from them, unplug, reopen the project, reconnect.
 - Crash recovery: force-quit during an edit and during an export; reopen and confirm the last saved edit and the catalogue are intact.
 
-## Unsigned beta (current decision)
-First releases are unsigned on both systems. Mac testers right-click, Open on first launch; Windows testers use More info, Run anyway. The website explains this under "Installing the beta". Signing is added later: Apple once the membership is active, Windows when a certificate is bought (or via the Microsoft Store). The signing checklist above still applies.
+## Unsigned prototype installers
+First releases are unsigned on both systems. Mac testers right-click, Open on first launch; Windows testers use More info, Run anyway. The website describes the current unsigned-install prompts without calling the app a Beta tier. Signing is added later: Apple once the membership is active, Windows when a certificate is bought (or via the Microsoft Store). The signing checklist above still applies.
 
 ## Consistent release versions
 
@@ -90,7 +90,13 @@ KESTREL_RELEASE_TAG=v0.1.1 node scripts/check-release-version.mjs
 
 Use the actual intended tag in the last command. Normal CI checks consistency on every PR. The desktop release workflow also rejects a mismatching `vX.Y.Z` tag **before it invokes the installer publishing action**, avoiding a misleading download or auto-update. The updater itself remains disabled until real signed update and rollback validation is complete.
 
-## Android (debug build works)
-`src-tauri/gen/android` is the generated Android Studio project (committed; build output is ignored). To build on a Mac: install JDK 17 and the Android command-line tools (`brew install openjdk@17` and `brew install --cask android-commandlinetools`), then the SDK pieces (`platform-tools`, `platforms;android-34`, `build-tools;34.0.0`, `ndk;27.0.12077973`), add the Rust targets (`rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android`), set `JAVA_HOME`, `ANDROID_HOME` and `NDK_HOME`, and run `npx tauri android build --debug --apk --target aarch64`.
+## Local prototype installation (no paid GitHub Actions)
 
-Menus, the updater, restart and reveal-in-Finder are desktop-only (`capabilities/desktop.json`, `#[cfg(desktop)]`). **Not yet verified:** the app has not been run on a phone or emulator, so touch behaviour, file picking, saving and photo import on Android are untested. Play Store release needs a signing key (a keystore the owner keeps safe), a Play Console app listing and the owner's developer account.
+- **Windows:** `scripts/windows/Build-Kestrel.ps1` builds an NSIS installer from an exact Git revision.
+- **Mac:** `scripts/macos/Build-Kestrel.sh` builds an unsigned universal DMG from the same revision. See [MAC-IOS-PROTOTYPE.md](MAC-IOS-PROTOTYPE.md).
+- **Android:** `scripts/android/Build-Kestrel.ps1` builds an ARM64 APK for personal devices. See [ANDROID-PROTOTYPE.md](ANDROID-PROTOTYPE.md). The committed Android Gradle configuration requires **Android SDK API 37**; older API 34 guidance is obsolete.
+- **iOS:** initialise/build the native Tauri project using Xcode and your own Apple Developer credentials on the Mac. See [MAC-IOS-PROTOTYPE.md](MAC-IOS-PROTOTYPE.md).
+
+The native app is not called Beta. These are prototype distribution artefacts, with testing
+and verification remaining before public release. Signing, notarisation, Store/Play
+submission and paid feature purchases are not enabled merely by having compiled bundles.
