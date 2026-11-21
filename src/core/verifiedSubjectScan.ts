@@ -1,4 +1,5 @@
 import { findSubjects, type FoundSubject } from '../providers/objectDetector';
+import { SUBJECT_CLASSES } from '../core/objectDetection';
 import { multiSubjectSelectEvidence, type MultiSubjectSource, type SubjectCandidate } from './multiSubjectEvidence';
 
 /** Source identity is verified by the original-file reader, not by the detector,
@@ -19,6 +20,28 @@ export interface VerifiedSubjectScan {
 }
 
 const digest = /^[a-f0-9]{64}$/i;
+
+/** COCO labels must agree with the model's class index; contradictory boxes
+ * near the same object cannot be used as bird identification evidence.
+ * Keep the physical boxes for manual Review but classify their genre Unknown.
+ */
+function conservativeDetections(detections: readonly FoundSubject[]): FoundSubject[] | null {
+  if (detections.some(({ detection: d }) => SUBJECT_CLASSES[d.classId] !== d.label)) return null;
+  const overlap = (a: FoundSubject['detection']['box'], b: FoundSubject['detection']['box']) => {
+    const w = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+    const h = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+    const area = w * h;
+    return area / Math.min(a.w * a.h, b.w * b.h);
+  };
+  return detections.map((found, i) => {
+    const d = found.detection;
+    if (d.label !== 'bird' && d.label !== 'aeroplane') return found;
+    const disputed = detections.some((other, j) => j !== i &&
+      (other.detection.label === 'bird' || other.detection.label === 'aeroplane') &&
+      other.detection.label !== d.label && overlap(d.box, other.detection.box) >= 0.5);
+    return disputed ? { ...found, detection: { ...d, label: 'unknown' } } : found;
+  });
+}
 const dimensions = (source: VerifiedSubjectScan['source']) => {
   const image = source as HTMLImageElement;
   return typeof image.naturalWidth === 'number'
@@ -63,7 +86,9 @@ export async function scanVerifiedSubjects(request: VerifiedSubjectScan): Promis
     if (!current() || !decodedAfter || !digest.test(decodedAfter.sourceSha256) ||
         decodedAfter.sourceSha256.toLowerCase() !== verified.toLowerCase() ||
         !sameDimensions(decodedAfter, identity)) return [];
-    return multiSubjectSelectEvidence(identity, detections);
+    const conservative = conservativeDetections(detections);
+    if (!conservative) return [];
+    return multiSubjectSelectEvidence(identity, conservative);
   } catch {
     // Offline/model unavailable and cancellation are safe abstentions.
     return [];
