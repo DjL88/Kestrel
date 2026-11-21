@@ -21,9 +21,24 @@ export async function openSmolVlm(ort: Ort, files: SmolVlmFiles): Promise<SmolVl
   const tokenizer = createTokenizer(files.tokenizer);
   const imageId = tokenizer.special('<image>');
   const options = { executionProviders: ['wasm'], graphOptimizationLevel: 'all' } as const;
-  const [vision, embed, decoder] = await Promise.all([
-    ort.InferenceSession.create(files.vision, options), ort.InferenceSession.create(files.embed, options), ort.InferenceSession.create(files.decoder, options),
-  ]);
+  // Load sequentially: three concurrent WASM graph builds can exceed the
+  // memory ceiling on mobile browsers. A failed later graph must also release
+  // any earlier sessions, rather than leaking hundreds of megabytes.
+  const sessions: import('onnxruntime-web/wasm').InferenceSession[] = [];
+  let vision: import('onnxruntime-web/wasm').InferenceSession;
+  let embed: import('onnxruntime-web/wasm').InferenceSession;
+  let decoder: import('onnxruntime-web/wasm').InferenceSession;
+  try {
+    vision = await ort.InferenceSession.create(files.vision, options);
+    sessions.push(vision);
+    embed = await ort.InferenceSession.create(files.embed, options);
+    sessions.push(embed);
+    decoder = await ort.InferenceSession.create(files.decoder, options);
+    sessions.push(decoder);
+  } catch (error) {
+    await Promise.allSettled(sessions.map(session => session.release()));
+    throw error;
+  }
   const emptyPast = () => {
     const feeds: Record<string, import('onnxruntime-web/wasm').Tensor> = {};
     for (let i = 0; i < LAYERS; i += 1) for (const kind of ['key', 'value']) {
