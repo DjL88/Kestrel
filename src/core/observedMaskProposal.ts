@@ -57,27 +57,34 @@ export function proposeObservedMaskCorrection(
       request.maskSnapshot !== captureAnatomyMaskSnapshot(mask))
     return { ok: false, reason: 'stale' };
   if (!validArea(request.area) || (request.operation !== 'add' && request.operation !== 'subtract') ||
-      observed.w !== mask.grid.w || observed.h !== mask.grid.h)
+      observed.w / observed.h <= 0 || mask.grid.w / mask.grid.h <= 0)
     return { ok: false, reason: 'invalid' };
   const base = decode(mask.grid);
   const detected = decode(observed);
   if (!base || !detected) return { ok: false, reason: 'invalid' };
+  // Both grids describe the same framed image, but the guided detector may
+  // return a finer grid. Sample it in normalized full-frame coordinates.
+  if (Math.abs(observed.w / observed.h - mask.grid.w / mask.grid.h) > 0.12)
+    return { ok: false, reason: 'invalid' };
   const result = new Uint8Array(base);
   let changed = 0;
   let subjectCells = 0;
   for (const value of base) if (value >= 128) subjectCells++;
-  for (let y = 0; y < observed.h; y++) {
-    const cy = (y + 0.5) / observed.h;
+  for (let y = 0; y < mask.grid.h; y++) {
+    const cy = (y + 0.5) / mask.grid.h;
     if (cy < request.area.y || cy > request.area.y + request.area.h) continue;
-    for (let x = 0; x < observed.w; x++) {
-      const cx = (x + 0.5) / observed.w;
+    for (let x = 0; x < mask.grid.w; x++) {
+      const cx = (x + 0.5) / mask.grid.w;
       if (cx < request.area.x || cx > request.area.x + request.area.w) continue;
-      const i = y * observed.w + x;
+      const i = y * mask.grid.w + x;
+      const ox = Math.min(observed.w - 1, Math.floor(cx * observed.w));
+      const oy = Math.min(observed.h - 1, Math.floor(cy * observed.h));
+      const detectedValue = detected[oy * observed.w + ox];
       // A high-confidence segmentation pixel is a candidate, not proof of anatomy.
-      if (detected[i] < 230) continue;
+      if (detectedValue < 230) continue;
       const next = request.operation === 'add'
-        ? Math.max(base[i], detected[i])
-        : Math.round(base[i] * (1 - detected[i] / 255));
+        ? Math.max(base[i], detectedValue)
+        : Math.round(base[i] * (1 - detectedValue / 255));
       if (next !== base[i]) { result[i] = next; changed++; }
     }
   }
