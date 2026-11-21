@@ -380,6 +380,7 @@ export const sv: AreaTranslation<typeof source> = {
     undockInfoHelp: "Flytta fotoinformationen till ett fönster som kan ändra storlek",
     move: (title) => `Flytta ${title} med piltangenterna`,
     drag: (title) => `Dra för att flytta ${title}, eller använd piltangenterna`,
+    resize: (title) => `Ändra storlek på ${title}: dra eller använd piltangenterna`,
     restore: (title) => `Återställ storleken på panelen ${title}`,
     maximise: (title) => `Maximera panelen ${title}`,
     pin: (title) => `Håll ${title} synlig i läget Endast foto`,

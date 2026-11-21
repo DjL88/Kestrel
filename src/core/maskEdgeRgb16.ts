@@ -66,6 +66,8 @@ export function protectedMaskAlphaSrgb16(
   adjusted: Uint16Array,
   adjustedOffset: number,
 ): number {
+  // NaN must not become full mask coverage via the endpoint shortcut.
+  if (!Number.isFinite(alpha)) return 0;
   if (alpha <= 0 || alpha >= 1) return alpha <= 0 ? 0 : 1;
   return protectedMaskAlpha(
     alpha,
@@ -82,6 +84,8 @@ export function protectedMaskAlphaLinear(
   adjusted: Float32Array,
   adjustedOffset: number,
 ): number {
+  // NaN must not become full mask coverage via the endpoint shortcut.
+  if (!Number.isFinite(alpha)) return 0;
   if (alpha <= 0 || alpha >= 1) return alpha <= 0 ? 0 : 1;
   return protectedMaskAlpha(
     alpha,

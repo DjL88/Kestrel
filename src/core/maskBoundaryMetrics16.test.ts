@@ -45,3 +45,18 @@ test('full-resolution fails closed on wrong geometry and invalid mask', () => {
   assert.throws(() => measureFullFrameMaskBoundary16(rgb,rgb,new Float32Array([1,0]),3,1),RangeError);
   assert.throws(() => measureFullFrameMaskBoundary16(rgb,rgb,new Float32Array([NaN,0]),2,1),RangeError);
 });
+
+test('full-resolution feather gradient detects fringe without any hard 0.5 crossing', () => {
+  const before = new Uint16Array([32768,32768,32768,32768,32768,32768]);
+  const after = new Uint16Array([65535,0,0,32768,32768,32768]);
+  const alpha = new Float32Array([0.2,0.4]);
+  const result = measureFullFrameMaskBoundary16(before,after,alpha,2,1);
+  assert.equal(result.samples,1);
+  assert.ok(result.maxExcessChromaJump > 0.2);
+  assert.equal(measureFullFrameMaskBoundary16(before,before,alpha,2,1).largeDiscontinuityFraction,0);
+});
+test('flat soft coverage does not create false feather edge evidence', () => {
+  const rgb = new Uint16Array([0,0,0,65535,65535,65535]);
+  const alpha = new Float32Array([0.3,0.3]);
+  assert.equal(measureFullFrameMaskBoundary16(rgb,rgb,alpha,2,1).samples,0);
+});

@@ -383,6 +383,7 @@ export const source = {
     undockInfoHelp: "Move Photo Info into a resizable window",
     move: (title: string) => `Move ${title}; use arrow keys`,
     drag: (title: string) => `Drag to move ${title}, or use arrow keys`,
+    resize: (title: string) => `Resize ${title}; drag or use arrow keys`,
     restore: (title: string) => `Restore ${title} panel size`,
     maximise: (title: string) => `Maximise ${title} panel`,
     pin: (title: string) => `Keep ${title} visible in Photo only`,

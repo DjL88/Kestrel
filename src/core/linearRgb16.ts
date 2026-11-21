@@ -16,7 +16,8 @@ export function decodeSrgb16(sample: number): number {
   return LINEAR[sample];
 }
 export function encodeSrgb16(linear: number): number {
-  const c = Math.min(1, Math.max(0, Number.isFinite(linear) ? linear : 0));
+  if (!Number.isFinite(linear)) throw new RangeError('Invalid linear colour; cannot encode a 16-bit master.');
+  const c = Math.min(1, Math.max(0, linear));
   return Math.round((c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055) * 65535);
 }
 /** Exact identity for alpha=0/1, and linear-light mixing at intermediate coverage. */

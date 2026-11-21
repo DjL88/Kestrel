@@ -1,4 +1,5 @@
 import { newId } from '../core/ids';
+import { maskBlendLabels } from '../i18n/maskBlendLabels';
 import type { GuidanceMode } from '../core/guidanceMode';
 import { reviewMaskBlend, type MaskBoundaryEvidence } from '../core/maskBlendAdvice';
 import { AdjustmentSlider } from './AdjustmentSlider';
@@ -122,10 +123,10 @@ export function MaskPanel(props: Props) {
           )}
           {selected.kind === 'subject' && props.onBlendEdges && (
             <div className="space-y-1 rounded-md border border-white/10 p-2 text-xs text-zinc-300" data-testid="mask-blend">
-              {blendAdvice && <p role="status">{blendAdvice.reason}</p>}
+              {blendAdvice && <p>{props.boundaryEvidence?.possibleHardEdge ? maskBlendLabels.boundary : maskBlendLabels.strong}</p>}
               <button type="button" className={chip} disabled={disabled || !Object.keys(selected.edit).length}
-                title="Soften the boundary and, where needed, gently reduce a strong local effect. This does not create missing subject detail."
-                onClick={() => props.onBlendEdges?.(selected.id)}>Blend edges</button>
+                title={maskBlendLabels.explanation} aria-label={maskBlendLabels.action}
+                onClick={() => props.onBlendEdges?.(selected.id)}>{maskBlendLabels.action}</button>
             </div>
           )}
           {selected.kind === 'subject' && (

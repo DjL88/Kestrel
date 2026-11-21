@@ -377,6 +377,7 @@ export const it: AreaTranslation<typeof source> = {
     undockInfoHelp: "Sposta le informazioni foto in una finestra ridimensionabile",
     move: (title) => `Sposta ${title} con i tasti freccia`,
     drag: (title) => `Trascina per spostare ${title}, oppure usa i tasti freccia`,
+    resize: (title) => `Ridimensiona ${title}: trascina o usa i tasti freccia`,
     restore: (title) => `Ripristina dimensioni del pannello ${title}`,
     maximise: (title) => `Massimizza il pannello ${title}`,
     pin: (title) => `Mantieni ${title} visibile in modalità Solo foto`,

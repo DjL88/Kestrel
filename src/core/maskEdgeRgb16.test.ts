@@ -68,3 +68,13 @@ test('near-black colour noise does not trigger an unstable hue guard', () => {
   const dst: [number, number, number] = [0.003, 0.002, 0.001];
   assert.equal(protectedMaskAlpha(0.5, src, dst), 0.5);
 });
+
+test('invalid alpha never turns into full strength through RGB16 adapter shortcut', () => {
+  const original = new Uint16Array([12000, 22000, 32000]);
+  const changed = new Uint16Array([50000, 55000, 60000]);
+  const linear = new Float32Array(Array.from(changed, decodeSrgb16));
+  for (const invalid of [NaN, Infinity, -Infinity]) {
+    assert.equal(protectedMaskAlphaSrgb16(invalid, original, 0, changed, 0), 0);
+    assert.equal(protectedMaskAlphaLinear(invalid, original, 0, linear, 0), 0);
+  }
+});
