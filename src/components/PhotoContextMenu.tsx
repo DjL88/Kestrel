@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { photoMenuItems, ratingFor, type PhotoAction, type PhotoMenuItem, type PhotoMenuState } from '../core/photoMenu';
 import { libraryText as t } from '../i18n/areas/library';
+import { ariaShortcutFromHint } from '../core/shortcutHints';
 
 /** An action's words in the session's language; `photoMenuItems` decides which actions show and when. */
 function menuLabel(action: PhotoAction, count: number): string {
@@ -97,7 +98,7 @@ export function PhotoContextMenu({ x, y, state, label, hints, onChoose, onClose 
 
   const groups = items.reduce<PhotoMenuItem[][]>((all, item) => { (all[item.group] ??= []).push(item); return all; }, []).filter(Boolean);
   const button = (item: PhotoMenuItem, compact = false) => (
-    <button key={item.action} type="button" role="menuitem" disabled={item.disabled} aria-label={item.label} aria-keyshortcuts={hints?.[item.action]} title={item.label}
+    <button key={item.action} type="button" role="menuitem" disabled={item.disabled} aria-label={item.label} aria-keyshortcuts={ariaShortcutFromHint(hints?.[item.action])} title={item.label}
       onClick={() => onChoose(item.action)}
       className={`${compact ? 'grid min-h-9 min-w-9 place-items-center' : 'flex min-h-9 w-full items-center'} rounded-md px-3 text-left text-sm text-zinc-100 hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:text-zinc-500 disabled:hover:bg-transparent`}>
       {compact ? `${item.action.slice(-1)}★` : <>
