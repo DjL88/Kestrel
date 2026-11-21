@@ -1119,7 +1119,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
       <section ref={dialog} className={`workspace-popover flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col overflow-hidden border-0 bg-kestrel-raised shadow-xl`}>
-        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-raised px-2 py-1">
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-raised px-2 py-1 max-sm:pt-[calc(0.25rem+env(safe-area-inset-top))]">
           <button type="button" onClick={onClose} aria-label={t.panel.close} title={t.panel.close} className={button}><X className="h-5 w-5" aria-hidden="true" /></button>
           <h2 id="export-title" ref={title} tabIndex={-1} className="min-w-0 flex-1 truncate text-center text-base font-semibold">{t.panel.title(frames.length)}</h2>
           {resultsReady || wizard ? <span className="w-11" /> : (
@@ -1135,8 +1135,8 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
           anchorFor={anchorFor} zoomFor={zoomFor}
           onAnchor={(frame, format, point) => setAnchors(prior => ({ ...prior, [`${frame.id}|${format.id}`]: point }))}
           onZoom={(frame, format, zoom) => setZooms(prior => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))} />}
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
-        {!resultsReady && (
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 max-sm:p-3 max-sm:pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        {!resultsReady && (wizard || simpleTab === 'advanced') && (
           <p className="mt-1 text-center">
             <button type="button" onClick={() => changeView(wizard ? 'list' : 'wizard')} className="min-h-10 px-3 text-xs text-zinc-300 underline underline-offset-4 hover:text-white">
               {wizard ? t.panel.showAll : t.panel.guideMe}
@@ -1165,11 +1165,11 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               {saving ? t.results.saving : savedName ? t.results.saved(savedName) : t.results.ready(files.length)}
             </p>
             <div className="flex flex-wrap gap-2">
-              {files.length === 1 && <button type="button" aria-busy={saving} className={`${button} inline-flex items-center gap-2 bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
+              {files.length === 1 && <button type="button" aria-busy={saving} className={`${button} inline-flex items-center gap-2 bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover! max-sm:w-full max-sm:justify-center`}
                 disabled={saving || placeBusy} onClick={() => void deliver(files[0], files[0].name, frames.slice(0, 1))}>
                 {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
                 {saving ? t.results.saving : desktop ? t.results.save : t.results.download}</button>}
-              {files.length > 1 && <button type="button" aria-busy={saving || !zip} disabled={saving || placeBusy || !zip} className={`${button} inline-flex items-center gap-2 bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
+              {files.length > 1 && <button type="button" aria-busy={saving || !zip} disabled={saving || placeBusy || !zip} className={`${button} inline-flex items-center gap-2 bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover! max-sm:w-full max-sm:justify-center`}
                 onClick={() => { if (zip) void deliver(zip, 'kestrel-exports.zip', frames); }}>
                 {(saving || !zip) && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
                 {saving ? t.results.saving : zip ? (desktop ? t.results.saveZip : t.results.downloadZip) : t.results.packingZip}</button>}
