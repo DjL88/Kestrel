@@ -6,6 +6,8 @@ import { DEFAULT_FRAMING } from './photoFraming';
 import { THUMB } from './orientMatch';
 import { applyMasks, fullContext, maskAlpha } from './masks';
 import { createMask, type Mask } from './maskTypes';
+import { blendSrgb16 } from './linearRgb16';
+import { protectedMaskAlphaSrgb16 } from './maskEdgeRgb16';
 
 const EDIT = { ...DEFAULT_EDIT, exposure: 0.6, warmth: 0.3, colour: 0.4, contrast: 0.5, shadows: 1, highlights: -1, whites: 0.5, blacks: 0.4, vibrance: 0.6, brightness: 0.5 };
 
@@ -232,7 +234,7 @@ test('16-bit master applies chroma noise reduction before tone and masks', () =>
   assert.ok(image.data.some((value) => value % 257 !== 0), 'no 8-bit conversion');
 });
 
-test('tonal feather/subject masks are exported at 16-bit and agree with the visible 8-bit preview', () => {
+test('tonal feather/subject masks are exported at 16-bit and agree with the linear-light visible preview', () => {
   const width = 64, height = 64, initial = 23_000;
   const mask: Mask = {
     ...createMask('radial', 'bird'), kind: 'radial', cx: 0.5, cy: 0.5, rx: 0.24, ry: 0.24,
@@ -248,7 +250,8 @@ test('tonal feather/subject masks are exported at 16-bit and agree with the visi
   assert.ok(at(32, 32) > initial + 1000, 'the bird centre receives the local exposure change');
   assert.equal(at(0, 0), initial, 'unmasked background is untouched');
   for (let p = 0; p < width * height; p++) {
-    // Both paths use the same mask alpha, tone maths and compositing.
+    // Both paths now use guarded linear-light compositing; never compare
+    // gamma-encoded channel interpolation to a correct high-bit export.
     assert.ok(Math.abs(frame.data[p * 3] / 257 - preview[p * 4]) <= 2, `preview/master parity at pixel ${p}`);
   }
 });
@@ -299,10 +302,13 @@ test('tonal mask bands join exactly at high-resolution row boundaries', () => {
   const sourceTone = { width: 1, height: 1, data: new Uint16Array([initial, initial, initial]) };
   editRgb16(sourceTone, { ...DEFAULT_EDIT, exposure: 0.65 });
   const edited = sourceTone.data[0];
+  const sourceRgb = new Uint16Array([initial, initial, initial]);
+  const adjustedRgb = new Uint16Array([edited, edited, edited]);
   for (const y of [0, 1, 254, 255, 256, 257, 510, 511, 512, 519]) {
     const p = y * width + 512;
-    const expected = Math.round(initial * (1 - alpha[p]) + edited * alpha[p]);
-    assert.ok(Math.abs(frame.data[p * 3] - expected) <= 1, `seam-free mask at row ${y}`);
+    const safeAlpha = protectedMaskAlphaSrgb16(alpha[p], sourceRgb, 0, adjustedRgb, 0);
+    const expected = blendSrgb16(initial, edited, safeAlpha);
+    assert.ok(Math.abs(frame.data[p * 3] - expected) <= 2, `linear-light seam-free mask at row ${y}`);
   }
 });
 
@@ -324,7 +330,8 @@ test('16-bit local Texture/Clarity/Sharpening agree with a full-frame reference 
   const alpha = maskAlpha(mask, width, height, fullContext(width, height));
   for (let p = 0; p < width * height; p++) for (let c = 0; c < 3; c++) {
     const i = p * 3;
-    const expected = Math.round(original[i + c] * (1 - alpha[p]) + full.data[i + c] * alpha[p]);
+    const safeAlpha = protectedMaskAlphaSrgb16(alpha[p], original, i, full.data, i);
+    const expected = blendSrgb16(original[i + c], full.data[i + c], safeAlpha);
     assert.ok(Math.abs(striped.data[i + c] - expected) <= 1,
       `full-frame detail/mask/stripe match at pixel ${p} channel ${c}`);
   }
@@ -355,7 +362,9 @@ test('multiple local detail masks are applied in saved order, with no unmasked b
     expected = before.map((value, i) => {
       const pixel = Math.floor(i / 3);
       const a = alpha[pixel] * (limiter ? limiter[pixel] : 1);
-      return Math.round(value * (1 - a) + reference.data[i] * a);
+      const src = pixel * 3;
+      const safeAlpha = protectedMaskAlphaSrgb16(a, before, src, reference.data, src);
+      return blendSrgb16(value, reference.data[i], safeAlpha);
     });
   }
   for (let i = 0; i < expected.length; i++) {
