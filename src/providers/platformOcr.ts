@@ -31,6 +31,7 @@ const REGISTRATION = /^G-[A-Z]{4}$/;
 const RING = /^[A-Z]{1,3}[ -]?[0-9]{4,8}$/;
 /** Conservative: never promote arbitrary scene words or unsupported scripts. */
 export function validatedMark(raw: string): string | null {
+  if (typeof raw !== 'string') return null; // the optional host detector is an untrusted runtime boundary
   const value = raw.toUpperCase().normalize('NFKC').replace(/\s+/g, ' ').trim();
   if (value.length > 16 || value.length < 5) return null;
   return REGISTRATION.test(value) || RING.test(value) ? value : null;
@@ -39,12 +40,23 @@ export function corroborateOcr(
   first: readonly { rawValue: string; confidence?: number }[],
   second: readonly { rawValue: string; confidence?: number }[],
 ): SearchObservation[] {
-  const trusted = (items: readonly { rawValue: string; confidence?: number }[]) =>
-    new Set(items.filter(x => x.confidence === undefined || (Number.isFinite(x.confidence) && x.confidence >= 0.9))
-      .map(x => validatedMark(x.rawValue)).filter((x): x is string => x !== null));
-  const a = trusted(first), b = trusted(second);
-  // Agreement is a suggestion for local search, not an EXIF tag or confirmation.
-  return [...a].filter(x => b.has(x)).slice(0, 4).map(value => ({ value, status: 'agreed' as const }));
+  const observed = (items: readonly { rawValue: string; confidence?: number }[]) => {
+    const marks = new Map<string, boolean>();
+    for (const item of items) {
+      // A reported low/invalid confidence is never evidence. A reader that
+      // omits confidence may still suggest the text, but not call it agreement.
+      if (item.confidence !== undefined && (!Number.isFinite(item.confidence) || item.confidence < 0.9)) continue;
+      const value = validatedMark(item.rawValue);
+      if (value) marks.set(value, (marks.get(value) ?? false) || item.confidence !== undefined);
+    }
+    return marks;
+  };
+  const a = observed(first), b = observed(second);
+  // Two scalings of the same pixels are correlated: both high-confidence
+  // readings may be marked agreed, but missing confidences remain needs-review.
+  // Neither status is a user-confirmed tag or EXIF claim.
+  return [...a].filter(([value]) => b.has(value)).slice(0, 4)
+    .map(([value, high]) => ({ value, status: high && b.get(value) ? 'agreed' as const : 'needs-review' as const }));
 }
 function validRegion(r: OcrRegion, width: number, height: number): boolean {
   return [r.x, r.y, r.width, r.height].every(Number.isFinite) &&
@@ -69,7 +81,9 @@ export async function readLocalRegion(source: CanvasImageSource & { width: numbe
   if (!options.reader?.deviceLocal) return empty('No approved offline OCR reader installed');
   if (options.isBusy?.()) return empty('Editor is busy');
   if (!validRegion(options.region, source.width, source.height)) return empty('Invalid or distant text region');
-  const r = options.region, limit = Math.min(1_048_576, Math.max(4096, options.maxPixels ?? 262_144));
+  const r = options.region, limit = options.maxPixels ?? 262_144;
+  // Reject NaN, fractions and out-of-range caller budgets rather than disabling the size cap.
+  if (!Number.isSafeInteger(limit) || limit < 4096 || limit > 1_048_576) return empty('Invalid text-region memory budget');
   if (r.width * r.height > limit) return empty('Text region exceeds memory budget');
   abort(options.signal);
   const views: Array<{ rawValue: string; confidence?: number }[]> = [];
