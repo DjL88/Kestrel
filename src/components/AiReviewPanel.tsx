@@ -3,6 +3,7 @@ import { AlertTriangle, Info, LoaderCircle, MessageSquareText } from 'lucide-rea
 import { AI_REVIEW_CONSENT_VERSION, aiReviewPrompt, type AiReview } from '../core/aiReview';
 import { yieldToPaint } from '../core/yieldToPaint';
 import { applyFix } from '../core/critique';
+import { conservativeReviewTargets } from '../core/photoReviewStep';
 import { capturePhotoReviewScope, samePhotoReviewScope, type PhotoReviewScope } from '../core/photoReviewScope';
 import type { PhotoEdit } from '../core/photoEdits';
 import { languageOption } from '../core/locale';
@@ -155,7 +156,10 @@ export function AiReviewPanel({ edit, onEdit, readJpeg, localFindings, version, 
   // Hide stale results in the same render that changes the photo. React effect
   // cancellation happens afterwards, so apply-time validation is also needed.
   const visibleReview = review && samePhotoReviewScope(shownScope.current, currentScope.current) ? review : null;
-  const suggestion = visibleReview ? Object.entries(visibleReview.suggestion) as [keyof typeof t.slider, number][] : [];
+  // Limit one model review to a calm, reversible first step. Display exactly
+  // these targets, not the larger raw values returned by the model.
+  const checkedTargets = visibleReview ? conservativeReviewTargets(edit, visibleReview.suggestion) : {};
+  const suggestion = Object.entries(checkedTargets) as [keyof typeof t.slider, number][];
   return (
     <section aria-label={t.title} className="space-y-2 border-t border-white/10 pt-2" data-testid="ai-review">
       <h4 className="flex items-center gap-1.5 text-xs font-medium text-zinc-200"><MessageSquareText className="h-3.5 w-3.5" aria-hidden="true" />{t.title}</h4>
