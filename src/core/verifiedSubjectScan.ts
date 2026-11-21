@@ -1,5 +1,6 @@
 import { findSubjects, type FoundSubject } from '../providers/objectDetector';
 import { SUBJECT_CLASSES } from '../core/objectDetection';
+import { exactSubjectPixelCrop, type SourcePixelRaster, type PixelCrop } from './subjectPixelCrop';
 import { multiSubjectSelectEvidence, type MultiSubjectSource, type SubjectCandidate } from './multiSubjectEvidence';
 
 /** Source identity is verified by the original-file reader, not by the detector,
@@ -91,6 +92,60 @@ export async function scanVerifiedSubjects(request: VerifiedSubjectScan): Promis
     return multiSubjectSelectEvidence(identity, conservative);
   } catch {
     // Offline/model unavailable and cancellation are safe abstentions.
+    return [];
+  }
+}
+
+/** Source-pixel Select candidates, never thumbnail-derived detail or keeper decisions.
+ * The decoder must independently attest the supplied raster against the
+ * original file. Detection may use a scaled preview, but its geometry must
+ * be mapped into the declared full-source coordinate system by the caller.
+ */
+export interface VerifiedSubjectDetailRequest extends VerifiedSubjectScan {
+  raster: SourcePixelRaster;
+  /** Independent decoder proof for the actual raster bytes, not EXIF metadata. */
+  verifyRaster: (raster: SourcePixelRaster, signal?: AbortSignal) => Promise<boolean>;
+  /** Total bounded memory for all returned crops; no partial subject list. */
+  maxCropBytes?: number;
+}
+export interface VerifiedSubjectDetail {
+  candidate: SubjectCandidate;
+  crop: PixelCrop;
+}
+export async function scanVerifiedSubjectDetails(
+  request: VerifiedSubjectDetailRequest,
+): Promise<VerifiedSubjectDetail[]> {
+  const { identity, raster, signal } = request;
+  const current = () => !signal?.aborted && request.isCurrent(identity.photoId, identity.sourceSha256);
+  const maxBytes = request.maxCropBytes ?? 32 * 1024 * 1024;
+  if (!current() || !Number.isSafeInteger(maxBytes) || maxBytes < 4 ||
+      raster.photoId !== identity.photoId ||
+      raster.sourceSha256.toLowerCase() !== identity.sourceSha256.toLowerCase() ||
+      raster.width !== identity.width || raster.height !== identity.height ||
+      raster.sourceWidth !== identity.width || raster.sourceHeight !== identity.height)
+    return [];
+  try {
+    if (!await request.verifyRaster(raster, signal) || !current()) return [];
+    const candidates = await scanVerifiedSubjects(request);
+    if (!current() || candidates.length === 0) return [];
+    const result: VerifiedSubjectDetail[] = [];
+    let remaining = maxBytes;
+    for (const candidate of candidates) {
+      const box = candidate.evidence.subjectBox;
+      if (!box || !current()) return [];
+      const crop = exactSubjectPixelCrop(
+        raster, identity.photoId, identity.sourceSha256, box, remaining, current,
+      );
+      if (!crop) return []; // Never silently omit a small or difficult bird.
+      result.push({ candidate, crop });
+      remaining -= crop.rgba.byteLength;
+    }
+    // A replacement raster or original after inference must not leak old crops.
+    if (!current() || !await request.verifyRaster(raster, signal) || !current()) return [];
+    const finalSha = await request.verifyOriginalSha256(identity.photoId, signal);
+    if (!current() || !finalSha || finalSha.toLowerCase() !== identity.sourceSha256.toLowerCase()) return [];
+    return result;
+  } catch {
     return [];
   }
 }
