@@ -98,7 +98,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const [placeTaskId, setPlaceTaskId] = useState<number | null>(null);
   const [openingPlace, setOpeningPlace] = useState(false);
   const placeBusy = openingPlace || placeTaskId !== null;
-  const [chosen, setChosen] = useState<string[]>(() => loadChosen(false));
+  const [chosen, setChosen] = useState<string[]>(() => loadChosen(readView() === 'wizard'));
   const [preferences] = useState(() => readExportPreferences({ getItem: (key) => localStorage.getItem(key) }));
   const [presets, setPresets] = useState(() => readExportPresets({ getItem: (key) => localStorage.getItem(key) }));
   const [presetName, setPresetName] = useState('');
