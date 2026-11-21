@@ -83,7 +83,11 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
       const result = await runPhotoCheck(preview, controller.signal);
       if (stillCurrent()) { setFound({ key: requestedRecipe, facts: result.facts }); setPhase('idle'); }
     } catch (error) {
-      if (stillCurrent()) { console.warn('Photo check failed:', error); setPhase('failed'); }
+      if (stillCurrent()) {
+        console.warn('Photo check failed:', error);
+        if (error instanceof Error && error.message.includes('not installed')) setInstalled(false);
+        setPhase('failed');
+      }
     } finally {
       if (checkController.current === controller) {
         checkController.current = null;
@@ -151,7 +155,13 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
         <p className="flex items-center gap-2 text-zinc-400" role="status">{t.advice.checking}
           <button type="button" className="min-h-9 underline hover:text-white" onClick={() => { checkController.current?.abort(); setPhase('idle'); }}>{t.advice.cancel}</button></p>
       )}
-      {phase === 'failed' && <p className="text-zinc-400" role="status">{t.advice.failed}</p>}
+      {phase === 'failed' && (
+        <p className="flex items-center gap-2 text-zinc-400" role="status">
+          {t.advice.failed}
+          {installed && <button type="button" className="min-h-9 rounded border border-white/20 px-2 hover:bg-white/10"
+            onClick={() => void check()}>{t.advice.check}</button>}
+        </p>
+      )}
       {phase === 'installing' && (
         <p className="flex items-center gap-2 text-zinc-400" role="status">{t.advice.installing(`${percent}%`)}
           <button type="button" className="min-h-9 underline hover:text-white" onClick={() => abort.current?.abort()}>{t.advice.cancel}</button></p>
