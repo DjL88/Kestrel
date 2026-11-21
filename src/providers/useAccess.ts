@@ -16,7 +16,7 @@ export function currentSnapshot(licensed = false): AccessSnapshot {
 
 export function useAccess(): { capabilities: Capabilities; can: (feature: Feature) => boolean } {
   const licence = useLicence();
-  const licensed = licence.status === 'valid' && licence.access.pro;
+  const licensed = (licence.status === 'valid' || licence.status === 'account') && licence.access.pro;
   return useMemo(() => {
     const capabilities = accessCapabilities(currentSnapshot(licensed));
     return { capabilities, can: (feature: Feature) => featureAvailable(feature, capabilities) };

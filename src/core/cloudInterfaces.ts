@@ -17,6 +17,8 @@ export interface AuthProvider {
   signInWithEmail(email: string, password: string): Promise<Session>;
   createAccount(email: string, password: string): Promise<Session>;
   sendPasswordReset(email: string): Promise<void>;
+  /** A fresh sign-in token for the control plane, or null when signed out. It identifies the account; it grants nothing. */
+  idToken(): Promise<string | null>;
   signOut(): Promise<void>;
   /** The saved session on this device, or null. Never contacts the network when signed out. */
   current(): Promise<Session | null>;
@@ -58,7 +60,7 @@ export interface SyncProvider {
 /** The app's default: no account, no cloud. Every method says so instead of reaching out. */
 const none = () => Promise.reject(new Error('Accounts and cloud storage are not available in this version.'));
 export const OFFLINE_ACCOUNT: { auth: AuthProvider; licence: LicenceProvider; sync: SyncProvider } = {
-  auth: { signIn: none, signInWithEmail: none, createAccount: none, sendPasswordReset: none, signOut: () => Promise.resolve(), current: () => Promise.resolve(null) },
+  auth: { signIn: none, signInWithEmail: none, createAccount: none, sendPasswordReset: none, idToken: () => Promise.resolve(null), signOut: () => Promise.resolve(), current: () => Promise.resolve(null) },
   licence: { activate: none, refresh: none, devices: () => Promise.resolve([]), removeDevice: none },
   sync: { upload: none, download: none, usage: none },
 };

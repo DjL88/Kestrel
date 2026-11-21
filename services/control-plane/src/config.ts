@@ -35,6 +35,8 @@ export interface Config {
   userGoogleClientIds: string[];
   /** Apple Services ID (web) and app bundle ids accepted for Sign in with Apple. Not secrets. Empty: Apple sign-in is off. */
   appleClientIds: string[];
+  /** Firebase project id whose ID tokens (Google, Apple, email sign-in done in the app) are accepted. Public, not a secret. */
+  firebaseProjectId?: string;
 }
 
 const required = (env: NodeJS.ProcessEnv, name: string): string => {
@@ -73,6 +75,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     adminEmails: (env.KCP_ADMIN_EMAILS ?? '').split(/[,\s]+/).map((s) => s.trim().toLowerCase()).filter(Boolean),
     googleClientId: env.KCP_GOOGLE_CLIENT_ID || undefined,
     userGoogleClientIds: (env.KCP_USER_GOOGLE_CLIENT_IDS ?? env.KCP_GOOGLE_CLIENT_ID ?? '').split(/[,\s]+/).map((v) => v.trim()).filter(Boolean),
+    firebaseProjectId: env.KCP_FIREBASE_PROJECT_ID || undefined,
     appleClientIds: (env.KCP_APPLE_CLIENT_IDS ?? '').split(/[,\s]+/).map((v) => v.trim()).filter(Boolean),
   };
 }

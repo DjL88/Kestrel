@@ -98,3 +98,21 @@ export function decideAccess(keyValid: boolean, standing: OnlineStanding, nowMs:
   // requires a verified device grant with a live offline window.
   return { pro: true, managedAi: false, basis: 'key' };
 }
+
+/** What the control plane last said about this device for the signed-in account (there is no key to fall back on). */
+export type AccountStanding =
+  | { kind: 'no_licence' }                 // signed in, nothing bought or granted: Free, and that is fine
+  | { kind: 'active'; grant: EntitlementGrant; activationId: string }
+  | { kind: 'device_limit'; message: string }
+  | { kind: 'revoked'; message: string };
+
+/**
+ * Pro from an account. Unlike a key, an account has nothing to fall back on: only a verified paid grant inside its
+ * offline window counts, so signing in alone never unlocks anything. Free work is never touched either way.
+ */
+export function decideAccountAccess(standing: AccountStanding, nowMs: number): AccessDecision {
+  if (standing.kind !== 'active') return { pro: false, managedAi: false, basis: standing.kind === 'revoked' ? 'revoked' : 'none' };
+  const { grant } = standing;
+  if (grant.plan === 'free' || nowMs > grant.offlineUntilMs) return { pro: false, managedAi: false, basis: 'none' };
+  return { pro: true, managedAi: grant.managedAi, basis: 'grant' };
+}

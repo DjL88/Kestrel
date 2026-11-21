@@ -3,6 +3,61 @@
 Kestrel works fully offline without any of this. Hosting gives people somewhere to download Kestrel, lets the app fetch
 newer models safely, and keeps the keys that sign them out of the code.
 
+## Go-live handover: connecting the app to licences (21 Nov 2026)
+
+Two Google projects are involved, and that is fine: **`kestrel-hosting`** (the website, buckets and, once deployed, the
+control plane and Firestore) and **`kestrel-photo`** (a Firebase project in the owner's personal Google account, used only
+for sign-in with Google, Apple and email). The control plane checks sign-in tokens against `kestrel-photo`'s public
+keys, so nothing needs to be shared between the two projects beyond that project id.
+
+**The rule the code enforces:** signing in only creates an account record. A purchase or an admin grant for the same
+*verified* email is what turns Pro on.
+
+### Where every `VITE_` value comes from
+
+All are build settings, not secrets (they ship inside the app). Put them in `.env.local` for a local build (it is
+git-ignored; Vite reads it for `npm run desktop:build` and `npm run build`) or in the environment of whatever builds the
+release. A build without the Kestrel ones still works fully offline.
+
+| Setting | Where to find it | Status |
+| --- | --- | --- |
+| `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID` | Firebase console → project **kestrel** (`kestrel-photo`) → Project settings → General → Your apps → **Kestrel web** → SDK setup and configuration | Done, in the owner's `.env.local` |
+| `VITE_KESTREL_CONTROL_PLANE_URL` | `terraform -chdir=infra/gcp output control_plane_url` after the control plane is applied with an image (a `https://…run.app` address; no trailing path) | Not yet: control plane not deployed |
+| `VITE_KESTREL_GRANT_KEYS` | `kcp-2026-11=<base64 public key>`. The public half of the secret `kcp-signing-key-pem`. The service prints it in its Cloud Run log on start, or print it from the PEM before deleting the file (command in "Set it up" step 2, and phase 1 step 3) | Not yet |
+| `VITE_KESTREL_BUILD_REVISION`, `VITE_KESTREL_BUILD_TIMESTAMP` | Set by the build scripts | Automatic |
+| `VITE_SPECIES_MODEL_URL` | Only for a development build with a species model in `public/models/` | Optional |
+
+Not `VITE_` and **never** in the app or git: the secrets in Secret Manager (`kcp-session-secret`, `kcp-webhook-secret`,
+`kcp-signing-key-pem`, `kcp-licence-private-key-pem`, `kcp-admin-emails`) and the model-manifest signing key
+`kestrel-manifest-signing-key`. The licence *public* key is already pinned in `src/core/licence.ts`, and the server's
+`kcp-licence-public-key` must be exactly that value.
+
+### Order to make it live
+
+1. Follow the **Beta checklist** below (Terraform, secrets, OAuth client for `/admin`, image, website publish).
+2. Add `-var "firebase_project_id=kestrel-photo"` to the Terraform apply that sets `control_plane_image`. Without it
+   `/v1/auth/firebase` answers 503 "sign-in is not set up".
+3. Check the control plane accepts your app's origins: `KCP_ALLOWED_ORIGINS` defaults to `tauri://localhost`,
+   `http://tauri.localhost`, `https://tauri.localhost`, `http://localhost:3000` plus the Hosting site. A web build served
+   from any other address must be added to Terraform's `allowed_origins`, or the browser will block its calls.
+4. In the Firebase console (project `kestrel-photo`) → Authentication → Settings → **Authorised domains**, add the
+   address the web app is served from. `localhost` and the Firebase domains are already listed. Apple's Services ID
+   (`app.kestrel.photo.web`) must keep the return URL `https://kestrel-photo.firebaseapp.com/__/auth/handler`.
+5. Put the three Kestrel values into the build environment and build the app.
+6. **Smoke test** (about five minutes): in `/admin` give a test email a free `paid` licence; in the app open
+   Settings → Account and sign in with a *verified* account on that email (Google or Apple, or email and password after
+   clicking the verification link). Expected: "Kestrel Pro is active on this device through your account." Then try an
+   account with no licence: expected "no Pro licence yet", and Pro stays off.
+
+### What will trip you up
+
+- An email-and-password account must have clicked its verification email first, or the server refuses it (so nobody can
+  claim a purchase made for someone else's address).
+- Only the desktop-shell and web builds can use Google and Apple pop-up sign-in today; the installed apps' own flows are
+  not built (see `docs/ROADMAP.md`, Sign-in row). Email and password work everywhere.
+- Signing out forgets the grant on that device but does not free its device slot; free it from `/admin`.
+- There are no payment sources yet, so until SumUp and the store purchases are wired, only an admin grant gives Pro.
+
 ## What phase 1 creates (this folder)
 
 | Piece | What it's for | Who can read it |
