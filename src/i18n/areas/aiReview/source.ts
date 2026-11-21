@@ -12,7 +12,6 @@ export const source = {
   provider: 'Which AI?',
   providers: {
     gemini: 'Google Gemini (AI Studio key)',
-    vertex: 'Google Vertex AI (your Google Cloud project key)',
     anthropic: 'Anthropic Claude',
     openai: 'OpenAI-compatible, or a model on this computer (Ollama, LM Studio)',
   },
