@@ -46,6 +46,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, disabled
   const [percent, setPercent] = useState(0);
   const [found, setFound] = useState<{ key: string; facts: SceneFacts } | null>(null);
   const autoDone = useRef(new Set<string>());
+  const cancelledFor = useRef(new Set<string>());
   const checkAbort = useRef<AbortController | null>(null);
   const installAbort = useRef<AbortController | null>(null);
   const requestId = useRef(0);
@@ -68,6 +69,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, disabled
   const action = advice ? adviceAction(mode, advice, { asked, manuallyRefined: !isNeutralEdit(edit) && !autoDone.current.has(photoKey) }) : null;
 
   function cancel() {
+    cancelledFor.current.add(recipeKey);
     requestId.current += 1;
     checkAbort.current?.abort();
     installAbort.current?.abort();
@@ -75,6 +77,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, disabled
   }
   async function check() {
     if (disabled || phase === 'checking') return;
+    cancelledFor.current.delete(recipeKey);
     const preview = readPreview();
     if (!preview) return;
     const controller = new AbortController();
@@ -99,7 +102,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, disabled
   }
   // Glide and Soar: read the scene once the picture and recipe have been still for a moment. Fly Solo: never unprompted.
   useEffect(() => {
-    if (mode === 'solo' || !installed || disabled || !histogram || found?.key === recipeKey || phase !== 'idle') return;
+    if (mode === 'solo' || !installed || disabled || !histogram || found?.key === recipeKey || cancelledFor.current.has(recipeKey) || phase !== 'idle') return;
     const timer = window.setTimeout(() => void check(), IDLE_MS);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -119,7 +122,9 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, disabled
       });
       if (controller.signal.aborted) return;
       setInstalled(true); setConsent(false); setPhase('idle');
-      // Fly Solo stays opt-in: installing a large model never starts analysis.
+      // The photographer already pressed Check my photo before choosing Install.
+      // Do not run this if they changed to another photo during the download.
+      if (mode === 'solo' && asked && scopeRef.current === recipeKey) void check();
     } catch (error) {
       if (!controller.signal.aborted) { console.warn('Photo check install failed:', error); setPhase('failed'); }
     } finally {
@@ -160,8 +165,12 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, disabled
           </button>
         )}
       </div>
-      {facts && (facts.subject || facts.light) && (
-        <p className="text-zinc-400">{t.advice.scene}: {[facts.subject && t.advice.subjects[facts.subject], facts.light && t.advice.lights[facts.light]].filter(Boolean).join(' · ')}</p>
+      {facts && (
+        <p className="text-zinc-400" role="status">{t.advice.scene}: {facts.light ? t.advice.lights[facts.light] : t.advice.verdict.unsure}</p>
+      )}
+      {installed && mode === 'solo' && phase === 'idle' && !facts && (
+        <button type="button" className="min-h-9 text-zinc-300 underline hover:text-white" disabled={disabled}
+          onClick={() => void check()}>{t.advice.check}</button>
       )}
       {phase === 'checking' && (
         <p className="flex items-center gap-2 text-zinc-400" role="status"><LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />{t.advice.checking}
