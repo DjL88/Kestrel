@@ -219,3 +219,56 @@ it('does not claim completed when final checkpoint persistence fails', async () 
   expect(restarted.load('durability')?.state).toBe('completed');
   expect(h.published).toEqual(['one.jpg', 'two.jpg']);
 });
+
+it('refuses to receipt a published file whose bytes cannot be verified', async () => {
+  const h = harness();
+  h.setOutput(false);
+  const dispatch = createJournalledExportDispatch(h.storage, h.queue);
+  expect(await dispatch.submit(plan('wrong-bytes', ['one.jpg']), h.adapter).done).toBe('failed');
+  expect(h.published).toEqual(['one.jpg']);
+  expect(dispatch.load('wrong-bytes')?.receipts).toHaveLength(0);
+  // The destination may now contain an unreceipted file; no silent retry may overwrite it.
+  h.setOutput(true);
+  await expect(createJournalledExportDispatch(h.storage, h.queue)
+    .resume('wrong-bytes', h.adapter).then(ticket => ticket?.done)).resolves.toBe('failed');
+  expect(h.published).toEqual(['one.jpg']);
+});
+
+it('rejects completion when the original changes after publication', async () => {
+  const h = harness();
+  const adapter = {
+    ...h.adapter,
+    publishAtomic: async (...args: Parameters<typeof h.adapter.publishAtomic>) => {
+      const digest = await h.adapter.publishAtomic(...args);
+      h.setSource(false);
+      return digest;
+    },
+  };
+  const dispatch = createJournalledExportDispatch(h.storage, h.queue);
+  expect(await dispatch.submit(plan('changed-at-finish', ['one.jpg']), adapter).done).toBe('failed');
+  expect(dispatch.load('changed-at-finish')?.receipts).toHaveLength(1);
+  expect(dispatch.load('changed-at-finish')?.state).not.toBe('completed');
+  h.setSource(true);
+  expect(await createJournalledExportDispatch(h.storage, h.queue)
+    .resume('changed-at-finish', h.adapter)).toBeNull();
+  expect(dispatch.load('changed-at-finish')?.state).toBe('completed');
+});
+
+it('rejects completion when a previously receipted output changes during the batch', async () => {
+  const h = harness();
+  const adapter = {
+    ...h.adapter,
+    publishAtomic: async (...args: Parameters<typeof h.adapter.publishAtomic>) => {
+      const digest = await h.adapter.publishAtomic(...args);
+      if (args[0].filename === 'two.jpg') h.setOutput(false);
+      return digest;
+    },
+  };
+  const dispatch = createJournalledExportDispatch(h.storage, h.queue);
+  expect(await dispatch.submit(plan('changed-output'), adapter).done).toBe('failed');
+  expect(dispatch.load('changed-output')?.state).not.toBe('completed');
+  h.setOutput(true);
+  expect(await createJournalledExportDispatch(h.storage, h.queue)
+    .resume('changed-output', h.adapter)).toBeNull();
+  expect(dispatch.load('changed-output')?.state).toBe('completed');
+});
