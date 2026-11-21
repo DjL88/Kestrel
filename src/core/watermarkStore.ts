@@ -1,4 +1,4 @@
-import { NO_WATERMARK, type WatermarkOptions, type WatermarkPosition } from './watermark';
+import { NO_WATERMARK, WATERMARK_FONTS, type WatermarkOptions, type WatermarkPosition } from './watermark';
 import { isWatermarkAssetId } from './watermarkAssetVault';
 
 const POSITIONS: WatermarkPosition[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'centre', 'tiled'];
@@ -21,7 +21,7 @@ export function parseWatermark(raw: string | null): WatermarkOptions {
       size: clamp(value.size, 0.03, 0.5, NO_WATERMARK.size),
       opacity: clamp(value.opacity, 0.15, 1, NO_WATERMARK.opacity),
       tone: value.tone === 'dark' || value.tone === 'light' ? value.tone : 'auto',
-      font: value.font === 'jakarta' || value.font === 'atkinson' ? value.font : 'inter',
+      font: WATERMARK_FONTS.some(entry => entry.id === value.font) ? value.font : 'inter',
     };
   } catch {
     return NO_WATERMARK;
