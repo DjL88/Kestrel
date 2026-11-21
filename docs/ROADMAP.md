@@ -147,7 +147,7 @@ On desktop one picked destination leads to Task Manager processing originals seq
 | Mobile | PARTIAL | A responsive interface and an Android shell exist. iOS isn't release-ready. Not tested on physical devices. |
 | Sign-in (Google, Apple, email and password) | PARTIAL | Optional Settings → Account section with a Firebase Auth provider. Google and Apple are **web only**; email and password are wired for every platform but untested outside the browser. Firebase project `kestrel-photo` has all three providers enabled and off unless `VITE_FIREBASE_*` is set. **NOT BUILT:** Firebase project and Google/Apple console setup, the Windows/macOS system-browser flow with a `kestrel://` callback, native iOS and Android sign-in, and any server-side use of the identity. Not run against a real Firebase project. **Console to-do as platforms arrive:** authorised domains (`localhost` and the Firebase domains are present; add the production site domain, and any web preview domain, before shipping); register each app in project `kestrel-photo` (iOS and macOS with bundle ID `app.kestrel.photo`, Android with its package name and the signing SHA-1 and SHA-256, Windows through the system-browser flow); Apple's Services ID return URL must keep matching the Firebase auth domain. |
 | Cloud and sync | PARTIAL | User-owned connectors (folder, S3, WebDAV) and proposals. No managed storage backend, by design for now. |
-| Control plane (optional backend) | PARTIAL | [`services/control-plane`](../services/control-plane/README.md): one Node service for licence activation with Ed25519 offline grants, a managed AI gateway (server-held key, consent, 512 KB/1024 px, no EXIF, 12 s deadline, quotas), a signed model manifest with rollback, desktop release notices, signed idempotent billing webhooks, and audited admin routes. SQLite locally; schema portable to PostgreSQL. Its 12 negative security tests run in `npm test`. The client verifiers live in `src/core/` (`signedEnvelope`, `entitlementGrant`, `modelDelivery`, `jpegInspect`, `recipeProposal`), and so does `controlPlaneTransport` (a `HelperTransport`). **Frozen (P3):** not deployed; no app sign-in screen; transport chosen in Settings; grant stored and read by `useAccess`; manifest fetch on a schedule; PostgreSQL adapter. |
+| Control plane (optional backend) | PARTIAL | [`services/control-plane`](../services/control-plane/README.md): one Node service for licence activation with Ed25519 offline grants, a managed AI gateway (server-held key, consent, 512 KB/1024 px, no EXIF, 12 s deadline, quotas), a signed model manifest with rollback, desktop release notices, signed idempotent billing webhooks, and audited admin routes. SQLite locally; schema portable to PostgreSQL. Its 12 negative security tests run in `npm test`. The client verifiers live in `src/core/` (`signedEnvelope`, `entitlementGrant`, `modelDelivery`, `jpegInspect`, `recipeProposal`), and so does `controlPlaneTransport` (a `HelperTransport`). **Not yet done:** not deployed; no app sign-in screen; transport chosen in Settings; grant stored and read by `useAccess`; manifest fetch on a schedule; PostgreSQL adapter. |
 | AI | PARTIAL | Local detection and an optional Gemini helper. Not built yet: provider abstraction, style learning and consented aggregation. |
 | Denoiser (TrueDetail) | PARTIAL | Training tools in `tools/denoise-training/`. A first CPU-trained model gained +9.1 dB PSNR on held-out *synthetic* noise (18 Nov). Not integrated into the app, and not judged on real high-ISO frames. HE NEFs need DNG conversion before training can use them. |
 
@@ -168,8 +168,6 @@ Platform-specific code lives only in adapters (`src-tauri/`, `src/providers/*`).
 ## 3. The order of work
 
 Work runs P0, then P1, then P2, then P3, then P4. Inside each, take the items in order; inside P0, take the first item that isn't blocked.
-
-**Image first (owner decision, 18 Nov 2026).** Kestrel wins on picture quality and calm speed, not on breadth. Until P1.1 lands (one 16-bit float pipeline that the screen and export share), these areas are **frozen**: no new features in `services/control-plane`, licensing, S3/WebDAV connectors, sync, MCP or new planning documents. Fix bugs and security issues there; build nothing new. The control plane stays merged and tested, but nothing deploys it.
 
 **Our own engine, the same on every device.** Models ship as ONNX and run through onnxruntime (WASM now, WebGPU next) on Windows, macOS, web, iOS and Android alike. The RAW decoder (rawler, Rust) runs natively on desktop and should be compiled to WebAssembly for web and mobile, not replaced per platform. Platform code stays in the adapters (`src-tauri/`, `src/providers/`). Start from proven open work (BioCLIP 2, YOLOX, open lens data, published denoise networks) and learn from other people's published mistakes before making our own. Keep a licence register: anything licensed non-commercial only is marked, so it can't reach a commercial release unnoticed.
 
@@ -360,7 +358,7 @@ Frustrations: languages not everywhere, clutter, inconsistent words, culling and
 19. Through MCP: `tools/mcp/kestrel-mcp.ts` gains an opt-in `get_photo_preview` (small, no metadata) and `propose_edit` (bounded sliders, written as a proposal Kestrel shows for approval), plus "Copy MCP settings" for Claude Desktop and other apps, so people use their existing subscriptions.
 
 *8. Hosting (owner request, 20 Nov)*
-20. A GCP backend for secrets, signed model files, installers and the website (see `infra/gcp/` when added). The "Image first" freeze on the control plane is lifted for this by the owner; provisioning paid resources still needs the owner's go-ahead per project.
+20. A GCP backend for secrets, signed model files, installers and the website (see `infra/gcp/` when added). Provisioning paid resources still needs the owner's go-ahead per project.
 
 
 **D. Library and projects**
@@ -425,7 +423,7 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
 10. **Denoise for real.** A tiled ONNX model on linear RGB (or Bayer) data, judged on real high-ISO frames by eye and with metrics, calibrated per camera. It replaces the 8-bit chroma-only filter.
 
 ### P2: Effortless and reliable
-- **First-run welcome, in the app, not the installer** (owner idea, 19 Nov): the same short setup on Windows, macOS, web and phones: preferred hand, theme, where photos live, and later (P3, while licensing is frozen) entering or buying a Pro key. Installers stay standard and minimal (Windows NSIS, macOS drag-to-Applications); they only carry Kestrel's branding (`src-tauri/icons/installer`, made by `scripts/brand/make-installer-art.mjs`).
+- **First-run welcome, in the app, not the installer** (owner idea, 19 Nov): the same short setup on Windows, macOS, web and phones: preferred hand, theme, where photos live, and later (P3) entering or buying a Pro key. Installers stay standard and minimal (Windows NSIS, macOS drag-to-Applications); they only carry Kestrel's branding (`src-tauri/icons/installer`, made by `scripts/brand/make-installer-art.mjs`).
 - One Settings home. Simpler Quick Edit. Photo info shown by default. Responsive navigation. Macro-pad workflow.
 - Spot healing (clone/patch for sensor dust and twigs; never generative). Lens corrections (distortion, vignetting, chromatic aberration) from an open lens database. Dehaze and post-crop vignette.
 - Confidence-mask integration (continues P1.4), built in this order:
@@ -445,7 +443,7 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
   - **Engineering gates:** bounded-memory tiled/overlap implementation suitable for 45 MP Z8 and phones; deterministic seams, cancellation, accurate output dimensions, proper ICC/EXIF treatment, identical photo framing/crop, and full-resolution 16-bit TIFF plus JPEG parity without 8-bit round trips for the TIFF. Confirm originals byte-identical and that no upscale happens implicitly. Test Windows/Mac/web/phone using identical source and recipe before marking VERIFIED.
 
 
-### Hosting on Google Cloud (owner request, 20 Nov; lifted from the P3 freeze for files only)
+### Hosting on Google Cloud (owner request, 20 Nov)
 - **Phase 1: LIVE (20 Nov).** Project `kestrel-hosting` (owner's billing account, GBP), everything in `europe-west2` (London), created with `infra/gcp` from Cloud Shell (19 resources; state in `gs://kestrel-hosting-kestrel-tfstate/hosting/`, private).
   - **Website:** https://kestrel-hosting-kestrel.web.app (Firebase Hosting): Kestrel symbol and brand type, the visitor's platform suggested first in words, "Coming soon" from `latest.json`. Custom domain: later.
   - **Website demo and aims (PR open, not deployed):** the founder story is replaced by plain statements of what Kestrel sets out to do, and the static before/after by "Try the editing tools": a WebGL demo of the light, colour, detail, denoise (pre-made variant), subject mask (pre-made) and crop/straighten tools with a keyboard-accessible guided tour. Five synthetic sample photos load from `site/demo/photos.json`; the owner's photos replace them by editing that list (`site/demo/README.md`). GitHub links are removed from the page. The site has one string table (`site/assets/i18n-strings.js`, 16 languages; non-English are unchecked drafts) with a language picker that defaults to the browser language, and one Pro price table (`site/assets/prices.js`: £29 / €29 / $29 and tidy local prices, before any local tax) with a currency override; Buy stays disabled ("Available soon") until SumUp is live. Checked by `tests/site-demo.spec.ts`.
@@ -454,7 +452,7 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
   - **Budget alert:** £20/month (50/90/100%).
 - **Next:** the app fetches `manifest/stable.json` and pins the key above (nothing calls `modelDelivery.ts` yet); then accounts, licences, payments and the admin console (see the licensing plan); then the control plane on Cloud Run with Firestore (`infra/gcp/control-plane.tf`, not applied yet).
 
-### Accounts, licences, payments and the admin console (owner decisions, 20 Nov; lifted from the P3 freeze)
+### Accounts, licences, payments and the admin console (owner decisions, 20 Nov)
 Kestrel stays free and anonymous offline. An account is needed only to buy Pro or use it on several devices.
 - **Product:** Pro is a **one-off licence** (no subscriptions). Basic stays free: manual culling and editing, export and local backup are never gated (K.17 decides what is Pro).
 - **Accounts:** Sign in with Apple, Sign in with Google, and email with password, through **Firebase Auth** (owner decision 21 Nov 2026, superseding the earlier email-link, no-passwords decision; see the Sign-in row and `CLOUD-PLAN.md` §4). Apple's rule: the iPhone/iPad app must offer Sign in with Apple if it offers Google. The control plane should accept Firebase ID tokens as the account identity when licences are linked to accounts (step 3 below); that wiring is NOT BUILT.
@@ -474,7 +472,7 @@ Kestrel stays free and anonymous offline. An account is needed only to buy Pro o
 
 - **Pricing review built, deployment pending:** the Cloud Scheduler and Cloud Run job create monthly FX proposals and an April CPI review, visible in the admin console. The approved base price and checkout stay separate. The scheduler and initial baseline need to be configured in the target Cloud project.
 
-### P3: Frozen until P1.1 lands (see "Image first" above)
+### P3: Later work
 - A metadata-only serialiser and local sync outbox, with synthetic tests of conflict-safe sync between two devices. (Gates carried over from the closed #363: originals and previews never upload; a licence isn't an account or a key; local writing works with the network off.)
 - Control plane: deployment, app sign-in, choosing the managed transport, storing grants for `useAccess`, a PostgreSQL adapter.
 - Optional AI Guardian with bring-your-own providers: bounded proposals, preview transfer under the user's control, and spend controls.
