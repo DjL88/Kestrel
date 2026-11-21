@@ -153,3 +153,21 @@ Clean, flat, synthetic text only. Real photos (blur, angle, glare, tiny rings on
 **What the policy does.** Read once in the background; when the person interacts with the photo, read again zoomed on just that text; if the two disagree or the reader is doubtful, a bounded tie-break (at most 6 reads, different crops) and a vote among **format-valid** readings (UK, US N-number, other civil, ring-like). A clear majority is `agreed`; otherwise `needs-review` keeps every candidate and picks none. Nothing is written to metadata until the person confirms, like a confirmed subject tag.
 
 **What is still missing: finding where the text is.** Whole-frame reading fails on small text (the reader sees a 512 to 768 px view), and tiling a whole frame was slow and invented text on blank tiles. Florence-2's `<OCR_WITH_REGION>` located the text well, but SmolVLM2 does not give boxes. Options, in order of preference: restrict the search to the subject's box and the likely area (tail and fuselage for aircraft, legs for birds) with the existing detectors; or keep Florence-2 (about 0.3 GB) only as the locator. Decide after measuring on real photos, because a second model costs storage and memory on every device.
+
+## Photo Check measured on real photos (21 Nov 2026, Claude)
+
+**Executed:** the full browser journey passed (`tests/photo-check.spec.ts`, consented install of the pinned SmolVLM2-256M, real WASM inference in the editor, apply, undo, reopen, repeat offline, no outside requests). First inference after idle 9.6 s including load; Chromium about 2.05 GB across processes; CPU only. Recipe for the fixture photo (CC0 cat, bright but unclipped): `(a ** 0.3) * 245`.
+
+**Why the editor says "Scene: Not sure yet":** `supportedSceneFacts` (src/core/photoCheck.ts) deliberately discards the model's subject, sky and foliage words, because a word in a small model's answer is not independent evidence; only lighting intent with pixel support passes. So today the model's subject reading is never shown.
+
+**How good is that discarded reading?** `tools/vision-lab/photo_check_replica.py` replicates the app's check (same pinned 256M int8 files, letterbox on grey at 512 px, same question and 28-token limit) and `eval_photo_check.py` / `eval_raw_facts.mts` score it. Data: `lakhaniabhi/european-birds-50` test split (declared CC0 by the uploader, provenance unverified, never committed), 100 photos at 2 per species with a fixed seed, plus 12 helicopters and 12 not-helicopters from `dcskycam/helicopter-classification` (CC-BY-4.0), plus 4 scikit-image samples. Mean 0.54 s per photo natively.
+
+| Photos | Model's description names | |
+| --- | --- | --- |
+| 100 European birds | a bird 86, another subject 3, nothing the app's word list knows 11 | ~10 of the 11 are real birds called seagull, goose, puffin or penguin: a vocabulary gap in `SUBJECTS`, not a recognition failure |
+| 12 helicopters | an aircraft 11, a bird **0** | |
+| 100 birds | an aircraft **0** | |
+
+**What this supports:** the model is a useful second witness for "bird or aircraft", which is the roadmap's known failure. **What it does not show:** the photos are clean subject portraits from one dataset; distant, small, in-flight or poor-light field photos, other subjects and any independent benchmark are untested; n is small.
+
+**Proposed next step (not built):** corroborate instead of discard. Show a scene or subject only when the model and the existing detector (YOLOX / category gate) agree; on a bird-versus-aircraft disagreement, abstain and flag the photo for review (never auto-reject). Needs the Photo Check owner, because it touches PhotoAdvice and the detector hand-off. Also extend the subject vocabulary (seagull, goose, puffin and similar) and add an aircraft kind.
