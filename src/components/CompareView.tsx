@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { ArrowLeftRight, ChevronLeft, ChevronRight, Maximize2, ZoomIn } from 'lucide-react';
+import { ArrowLeftRight, ChevronLeft, ChevronRight, Maximize2, ZoomIn } from './icons/KestrelUIIcons';
 import type { CullDecision, PhotoFrame } from '../core/types';
 import { toggleCompareDecision } from '../core/compareDecision';
 import { resolveCompareKey } from '../core/compareKeyboard';
