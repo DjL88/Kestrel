@@ -147,6 +147,21 @@ export const source = {
     nameLabel: 'Recipe name',
     save: 'Save recipe',
   },
+  /** Short offline advice: a verdict word, one Try this or Auto, never prose on the picture. */
+  advice: {
+    region: 'Photo check',
+    verdict: { good: 'Looking good', nearly: 'Nearly there', 'needs-work': 'Needs work', unsure: 'Not sure yet' } as Record<string, string>,
+    tryThis: 'Try this',
+    auto: 'Auto',
+    autoApplied: 'Auto applied',
+    undo: 'Undo',
+    check: 'Check my photo',
+    raise: 'Raise',
+    lower: 'Lower',
+    sliders: { exposure: 'Exposure', warmth: 'Warmth', highlights: 'Highlights', shadows: 'Shadows', contrast: 'Contrast' } as Record<string, string>,
+    /** What the change does, for the button's accessible name. */
+    tryLabel: (action: string) => `Try this: ${action}`,
+  },
   /** Quality checks from `critique`, by opinion id. */
   critique: {
     region: 'Quality checks for this look',

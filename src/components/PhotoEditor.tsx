@@ -24,6 +24,7 @@ import { AdjustmentSlider } from './AdjustmentSlider';
 import { signedAdjustment } from '../core/adjustmentSlider';
 import { AreaSelector } from './AreaSelector';
 import { sampledRegion, type Region } from '../core/subjectRegion';
+import { PhotoAdvice } from './PhotoAdvice';
 import { Histogram } from './Histogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
@@ -1395,6 +1396,8 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
           <button type="button" aria-expanded={quickChoices} onClick={() => setQuickChoices(!quickChoices)}
             className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white desk:min-h-7">{t.edit.quickChoices}</button>
         </div>
+        <PhotoAdvice histogram={histogram} edit={edit} mode={guidanceMode} photoKey={frame.stableKey}
+          disabled={sourceState !== 'ready'} onEdit={onEdit} />
         {guidanceMode === 'solo' && !manualColourCheck ? (
           <button type="button" className="min-h-10 w-full border-t border-white/10 px-1 text-left text-xs text-zinc-300 hover:text-white"
             disabled={sourceState !== 'ready'} onClick={() => setManualColourCheck(true)}>Check colour</button>
