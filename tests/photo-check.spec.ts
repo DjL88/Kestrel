@@ -101,18 +101,24 @@ test('install the on-device model with consent, check a real photo, apply, undo,
   await expect(reopened.getByRole('button', { name: 'Install photo check' })).toHaveCount(0);
   expect(downloads).toEqual([]);
 
-  // Network off: intentionally change the edit AFTER disconnecting. A test
-  // that merely waits for an old "Scene:" line could pass without running the
-  // offline model even once. Changing the recipe invalidates that old result.
-  await context.setOffline(true);
-  outside.length = 0;
+  // A broad scene reading is cached across ordinary slider changes, while
+  // the measured histogram/recipe advice continues to update. Demand a fresh
+  // explicit local model check once the network is disconnected.
+  await expect(reopened).toContainText('Scene:', { timeout: 240_000 });
+  const firstScene = await reopened.innerText();
   const offlineExposure = page.getByRole('slider', { name: 'Exposure' });
   const startingValue = await offlineExposure.inputValue();
   await offlineExposure.focus();
   await offlineExposure.press('ArrowRight');
   await expect(offlineExposure).not.toHaveValue(startingValue);
-  await expect(reopened).not.toContainText('Scene:');
+  await expect(reopened).toContainText('Scene:');
+  expect(await reopened.innerText()).toContain(firstScene.split('Scene:')[1].split('\n')[0].trim());
+
+  await context.setOffline(true);
+  outside.length = 0;
   const offlineStart = Date.now();
+  await reopened.getByRole('button', { name: 'Check my photo' }).click();
+  await expect(reopened).not.toContainText('Scene:');
   await expect(reopened).toContainText('Checking…', { timeout: 30_000 });
   await expect(reopened).toContainText('Scene:', { timeout: 240_000 });
   console.log(`PHOTO-CHECK fresh OFFLINE inference: ${Date.now() - offlineStart} ms`);
