@@ -40,6 +40,8 @@ interface Props {
   state: PhotoMenuState;
   /** What the menu is about, for screen readers. */
   label: string;
+  /** Shortcut shown beside an action, from the person's own bindings. */
+  hints?: Partial<Record<PhotoAction, string>>;
   onChoose: (action: PhotoAction) => void;
   onClose: () => void;
 }
@@ -48,7 +50,7 @@ interface Props {
  * The menu that opens on right-click (or the Menu key) on a photo. Keyboard: Up and Down move, Home and End jump, Enter or
  * Space chooses, Escape closes and puts focus back where it was. It stays inside the window.
  */
-export function PhotoContextMenu({ x, y, state, label, onChoose, onClose }: Props) {
+export function PhotoContextMenu({ x, y, state, label, hints, onChoose, onClose }: Props) {
   const items = photoMenuItems(state).map((item) => ({ ...item, label: menuLabel(item.action, state.count) }));
   const root = useRef<HTMLDivElement>(null);
   const previous = useRef<HTMLElement | null>(document.activeElement as HTMLElement | null);
@@ -95,10 +97,13 @@ export function PhotoContextMenu({ x, y, state, label, onChoose, onClose }: Prop
 
   const groups = items.reduce<PhotoMenuItem[][]>((all, item) => { (all[item.group] ??= []).push(item); return all; }, []).filter(Boolean);
   const button = (item: PhotoMenuItem, compact = false) => (
-    <button key={item.action} type="button" role="menuitem" disabled={item.disabled} aria-label={item.label} title={item.label}
+    <button key={item.action} type="button" role="menuitem" disabled={item.disabled} aria-label={item.label} aria-keyshortcuts={hints?.[item.action]} title={item.label}
       onClick={() => onChoose(item.action)}
       className={`${compact ? 'grid min-h-9 min-w-9 place-items-center' : 'flex min-h-9 w-full items-center'} rounded-md px-3 text-left text-sm text-zinc-100 hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:text-zinc-500 disabled:hover:bg-transparent`}>
-      {compact ? `${item.action.slice(-1)}★` : item.label}
+      {compact ? `${item.action.slice(-1)}★` : <>
+        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+        {hints?.[item.action] && <kbd aria-hidden="true" className="ml-3 shrink-0 font-sans text-xs text-zinc-400">{hints[item.action]}</kbd>}
+      </>}
     </button>
   );
 
