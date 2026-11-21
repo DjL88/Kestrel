@@ -197,3 +197,46 @@ test('500 synthetic photos with one duplicate manual identity fail closed only f
   assert.equal(results.filter(s => s.suggestion === 'reject').length, 0);
   assert.equal(results.filter(s => s.suggestion === 'keep').length, 498);
 });
+
+
+test('evidenced eye and subject detail break equal-quality bird burst ties deterministically', () => {
+  const items: ReviewCandidate[] = [
+    { id: 'a', subject: 'bird', groupId: 'burst', quality: 0.8, confidence: 0.9,
+      birdDetailEvidence: { eyeSharpness: 0.2, subjectSharpness: 0.8, poseQuality: 0.7, modelVersion: 'local-1' } },
+    { id: 'z', subject: 'bird', groupId: 'burst', quality: 0.8, confidence: 0.9,
+      birdDetailEvidence: { eyeSharpness: 0.95, subjectSharpness: 0.8, poseQuality: 0.7, modelVersion: 'local-1' } },
+  ];
+  for (const ordered of [items, [...items].reverse()]) {
+    assert.deepEqual(recommendForReview(ordered).filter(x => x.suggestion === 'keep').map(x => x.id), ['z']);
+    assert.equal(recommendForReview(ordered).filter(x => x.suggestion === 'reject').length, 0);
+  }
+});
+
+test('unverified eye detail or species evidence abstains without altering manual decisions', () => {
+  const items: ReviewCandidate[] = [
+    { id: 'bad-detail', subject: 'bird', quality: 1, confidence: 1,
+      birdDetailEvidence: { eyeSharpness: NaN, subjectSharpness: 1, poseQuality: 1, modelVersion: 'local' } },
+    { id: 'ambiguous-species', subject: 'bird', quality: 1, confidence: 1,
+      speciesEvidence: { label: 'osprey', score: 0.65, runnerUpScore: 0.62, modelVersion: 'local' } },
+    { id: 'manual', subject: 'bird', quality: 1, confidence: 1, manualDecision: 'keep',
+      speciesEvidence: { label: 'osprey', score: 0.65, runnerUpScore: 0.62, modelVersion: '' } },
+  ];
+  assert.deepEqual(recommendForReview(items).map(x => x.suggestion), ['review', 'review', 'keep']);
+});
+
+test('500 synthetic mixed species and detail evidence never auto-rejects or mutates inputs', () => {
+  const items: ReviewCandidate[] = Array.from({ length: 500 }, (_, i) => ({
+    id: 'frame-' + i, subject: 'bird', groupId: 'burst-' + Math.floor(i / 5),
+    quality: 0.8, confidence: 0.9,
+    birdDetailEvidence: { eyeSharpness: (i % 5) / 5, subjectSharpness: 0.8,
+      poseQuality: 0.7, modelVersion: 'synthetic' },
+    speciesEvidence: { label: 'bird', score: 0.8, runnerUpScore: i % 7 === 0 ? 0.79 : 0.2,
+      modelVersion: 'synthetic' },
+  }));
+  const before = JSON.stringify(items);
+  const result = recommendForReview(items);
+  assert.equal(result.length, 500);
+  assert.equal(result.filter(x => x.suggestion === 'reject').length, 0);
+  assert.ok(result.some(x => x.reason === 'uncertain-detection'));
+  assert.equal(JSON.stringify(items), before);
+});
