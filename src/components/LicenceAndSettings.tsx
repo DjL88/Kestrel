@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { buildSettingsFile, parseSettingsFile } from '../core/settingsTransfer';
 import { SETTINGS_KEYS } from '../core/settingsTransfer';
 import { downloadExport } from '../providers/browserExport';
+import type { Session, SignInProvider } from '../core/cloudInterfaces';
+import { signInOptions } from '../core/signInOptions';
+import { firebaseAuth, isSignInConfigured, signInPlatform } from '../providers/firebaseAuth';
 import { removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
 import { BETA_ALL_FEATURES_OPEN } from '../providers/useAccess';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
@@ -15,6 +18,10 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
   const [key, setKey] = useState('');
   const [note, setNote] = useState<{ text: string; good: boolean } | null>(null);
   const [settingsNote, setSettingsNote] = useState<string | null>(null);
+  const [account, setAccount] = useState<Session | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [accountNote, setAccountNote] = useState<string | null>(null);
   const previous = useRef<HTMLElement | null>(focusBeforeOpening());
   const title = useRef<HTMLHeadingElement>(null);
   const picker = useRef<HTMLInputElement>(null);
@@ -26,6 +33,27 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
     document.addEventListener('keydown', close, true);
     return () => { document.removeEventListener('keydown', close, true); returnFocus(keep); };
   }, [onClose]);
+
+  useEffect(() => { void firebaseAuth.current().then(setAccount, () => setAccount(null)); }, []);
+
+  async function chooseSignIn(provider: SignInProvider) {
+    setAccountNote(null);
+    try { setAccount(await firebaseAuth.signIn(provider)); } catch (error) { setAccountNote(error instanceof Error ? error.message : 'Sign-in did not complete.'); }
+  }
+
+  async function emailAction(kind: 'in' | 'create' | 'reset') {
+    setAccountNote(null);
+    try {
+      if (kind === 'reset') { await firebaseAuth.sendPasswordReset(email); setAccountNote('If that email has an account, a reset link is on its way.'); return; }
+      setAccount(await (kind === 'in' ? firebaseAuth.signInWithEmail(email, password) : firebaseAuth.createAccount(email, password)));
+      setPassword('');
+      if (kind === 'create') setAccountNote('Account created. Check your email to verify the address.');
+    } catch (error) { setAccountNote(error instanceof Error ? error.message : 'Sign-in did not complete.'); }
+  }
+
+  async function chooseSignOut() {
+    try { await firebaseAuth.signOut(); } finally { setAccount(null); setAccountNote('Signed out. Your photos and edits on this device are unchanged.'); }
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -81,6 +109,41 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
             )}
             {note && <p role={note.good ? 'status' : 'alert'} className={note.good ? 'text-emerald-200' : 'text-amber-200'}>{note.text}</p>}
             <p className="text-xs text-zinc-400">No account, email or internet connection is needed. Lost your key? Re-send it from your receipt.</p>
+          </section>
+          <section aria-labelledby="account-h" className="space-y-3">
+            <h3 id="account-h" className="font-medium text-zinc-100">Account (optional)</h3>
+            {account ? (
+              <>
+                <p role="status">Signed in with {account.provider === 'apple' ? 'Apple' : account.provider === 'password' ? 'email' : 'Google'}{account.email ? ` as ${account.email}` : ''}.</p>
+                <button type="button" className={action} onClick={() => void chooseSignOut()}>Sign out</button>
+              </>
+            ) : (
+              <>
+                <p>Signing in is only for cloud features that are not available yet. Importing, culling, editing and exporting never need an account.</p>
+                <div className="flex flex-wrap gap-2">
+                  {signInOptions(signInPlatform(), isSignInConfigured()).map((option) => (
+                    <button key={option.provider} type="button" className={`${action} disabled:opacity-60`} disabled={!option.available} aria-describedby={option.reason ? 'account-reason' : undefined} onClick={() => void chooseSignIn(option.provider)}>{option.label}</button>
+                  ))}
+                </div>
+                {isSignInConfigured() && (
+                  <form className="space-y-2" onSubmit={(event) => { event.preventDefault(); void emailAction('in'); }}>
+                    <label className="block">Email
+                      <input className={`${field} mt-1`} type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
+                    </label>
+                    <label className="block">Password
+                      <input className={`${field} mt-1`} type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" />
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="submit" className={action} disabled={!email.trim() || !password}>Sign in</button>
+                      <button type="button" className={action} disabled={!email.trim() || !password} onClick={() => void emailAction('create')}>Create account</button>
+                      <button type="button" className={action} disabled={!email.trim()} onClick={() => void emailAction('reset')}>Reset password</button>
+                    </div>
+                  </form>
+                )}
+                {signInOptions(signInPlatform(), isSignInConfigured())[0]?.reason && <p id="account-reason" className="text-xs text-zinc-400">{signInOptions(signInPlatform(), isSignInConfigured())[0]?.reason}</p>}
+              </>
+            )}
+            {accountNote && <p role="status" className="text-amber-200">{accountNote}</p>}
           </section>
           <section aria-labelledby="settings-h" className="space-y-3">
             <h3 id="settings-h" className="font-medium text-zinc-100">Copy settings to another device</h3>
