@@ -1,6 +1,9 @@
 import { geminiRequest, readGeminiResponse, readModelList, GEMINI_BASE } from '../core/gemini';
-import { failureMessage, pickModel, type HelperAnswer, type HelperFailure } from '../core/onlineHelper';
+import { HelperError, pickModel, type HelperAnswer } from '../core/onlineHelper';
 import { readHelper, saveHelper } from './helperSettings';
+
+// Defined in core so code outside the browser (the control plane, tests) can use it. Existing callers import it from here.
+export { HelperError };
 
 /**
  * Whatever answers questions about a photo. Today that is Google's Gemini, called directly with the user's own key.
@@ -11,9 +14,6 @@ export interface HelperTransport {
   ask(jpegBase64: string, signal?: AbortSignal): Promise<HelperAnswer>;
 }
 
-export class HelperError extends Error {
-  constructor(readonly failure: HelperFailure, message = failureMessage(failure).text) { super(message); }
-}
 
 type Fetcher = typeof fetch;
 
@@ -45,15 +45,32 @@ async function call(fetcher: Fetcher, url: string, key: string, init: RequestIni
   }
 }
 
-/** The models a key can use. Also the simplest way to test a key. */
-export async function checkKey(key: string, fetcher: Fetcher = fetch): Promise<{ model: string }> {
-  const { status, body } = await call(fetcher, `${GEMINI_BASE}/models?pageSize=200`, key, { method: 'GET' });
-  const read = readGeminiResponse(status, body);
-  if ('failure' in read && read.failure !== 'other' && read.failure !== 'blocked') throw new HelperError(read.failure);
-  if (status < 200 || status >= 300) throw new HelperError('other', 'The online helper could not be reached. Check the key and your connection.');
-  const model = pickModel(readModelList(body));
-  if (!model) throw new HelperError('other', 'This key has no suitable model available.');
-  return { model };
+/** The models a key can use. Also the simplest way to test a key.
+ * Search a small bounded number of Google pages, stopping as soon as a suitable
+ * Flash model is found. The cancel signal is shared across all pages so closing
+ * setup does not leave an apparently endless key-check spinner.
+ */
+export async function checkKey(key: string, fetcher: Fetcher = fetch, signal?: AbortSignal): Promise<{ model: string }> {
+  const seen = new Set<string>();
+  let pageToken: string | null = null;
+  for (let page = 0; page < 5; page++) {
+    if (signal?.aborted) throw new DOMException('Key check cancelled.', 'AbortError');
+    const query = new URLSearchParams({ pageSize: '200' });
+    if (pageToken) query.set('pageToken', pageToken);
+    const { status, body } = await call(fetcher, `${GEMINI_BASE}/models?${query}`, key, { method: 'GET', signal });
+    if (signal?.aborted) throw new DOMException('Key check cancelled.', 'AbortError');
+    const read = readGeminiResponse(status, body);
+    if ('failure' in read && read.failure !== 'other' && read.failure !== 'blocked') throw new HelperError(read.failure);
+    if (status < 200 || status >= 300) throw new HelperError('other', 'The online helper could not be reached. Check the key and your connection.');
+    const model = pickModel(readModelList(body));
+    if (model) return { model };
+    const record = body && typeof body === 'object' ? body as Record<string, unknown> : null;
+    const next = record?.nextPageToken;
+    if (typeof next !== 'string' || !next || next.length > 1024 || seen.has(next)) break;
+    seen.add(next);
+    pageToken = next;
+  }
+  throw new HelperError('other', 'This key has no supported Flash model available. Check your model access in Google AI Studio.');
 }
 
 /** Gemini, called straight from the browser with the user's own key. The key only ever goes to Google. */

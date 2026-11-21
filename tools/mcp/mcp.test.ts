@@ -82,7 +82,7 @@ test('the server speaks MCP: read-only by default, and offers proposals only whe
   const folder = await folderWithProject();
   const run = async (extra: string[]) => {
     const client = new Client({ name: 'test', version: '1' });
-    await client.connect(new StdioClientTransport({ command: 'npx', args: ['tsx', 'tools/mcp/kestrel-mcp.ts', folder, ...extra], cwd: process.cwd() }));
+    await client.connect(new StdioClientTransport({ command: process.execPath, args: ['--import', 'tsx', 'tools/mcp/kestrel-mcp.ts', folder, ...extra], cwd: process.cwd() }));
     return client;
   };
   try {

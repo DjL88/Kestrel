@@ -4,10 +4,36 @@ import { EXPORT_FORMATS, LEGACY_FORMAT_IDS, PLATFORMS, customFormat, formatById,
 import { SOCIAL_ICON_PATHS } from './socialIcons';
 import { exportFilename } from './exportProfiles';
 
+test('comparison export is a distinct authentic JPEG layout with no silent upscaling', () => {
+  const comparison = formatById('before-after')!;
+  assert.equal(comparison.fit, 'keep');
+  assert.equal(comparison.format, 'jpeg');
+  assert.equal(comparison.width, 1920);
+  assert.equal(comparison.height, 1200);
+  const name = exportFilename('dunnock.nef', toProfile(comparison), true);
+  assert.equal(name, 'compare_dunnock-preview_before-after.jpg');
+  assert.equal(toProfile(comparison).allowUpscale, false);
+});
+
+test('full-size JPEG has no implicit enlargement and is named separately from PNG', () => {
+  const jpeg = formatById('full-jpeg')!;
+  const png = formatById('master')!;
+  assert.ok(jpeg);
+  assert.equal(jpeg.fit, 'keep');
+  assert.equal(jpeg.width, 0);
+  assert.equal(jpeg.height, 0);
+  assert.equal(jpeg.format, 'jpeg');
+  assert.equal(toProfile(jpeg).allowUpscale, false);
+  assert.equal(exportFilename('DSC_0099.NEF', toProfile(jpeg), true), 'DSC_0099-preview_kestrel.jpg');
+  assert.equal(exportFilename('DSC_0099.JPG', toProfile(jpeg), false), 'DSC_0099_kestrel.jpg');
+  assert.notEqual(exportFilename('DSC_0099.JPG', toProfile(png), false),
+    exportFilename('DSC_0099.JPG', toProfile(jpeg), false));
+});
+
 test('every format has a unique id and a usable size', () => {
   assert.equal(new Set(EXPORT_FORMATS.map((f) => f.id)).size, EXPORT_FORMATS.length);
   for (const f of EXPORT_FORMATS) {
-    if (f.id === 'master') { assert.equal(f.width, 0); continue; }
+    if (f.id === 'master' || f.id === 'full-jpeg') { assert.equal(f.width, 0); continue; }
     assert.ok(f.width >= 400 && f.width <= 4096 && f.height >= 400 && f.height <= 4096, f.id);
     assert.ok(f.quality > 0.5 && f.quality <= 1, f.id);
   }
@@ -99,4 +125,28 @@ test('a picture too large for the device is scaled to fit, and one that fits is 
   assert.equal(fitScale(4000, 3000, iphone), 1);
   const z8 = fitScale(8256, 5504, iphone);
   assert.ok(z8 < 0.62 && Math.round(8256 * z8) * Math.round(5504 * z8) <= iphone, 'a Z8 frame comes down to fit an iPhone');
+});
+
+
+test('custom enlargement is opt-in and never enables it for built-in destinations', async () => {
+  const { exportScale } = await import('./exportProfiles');
+  const custom = customFormat({ width: 3200, height: 2400, fit: 'keep', format: 'png',
+    quality: 95, prefix: '', allowUpscale: true });
+  assert.ok('format' in custom);
+  if ('format' in custom) {
+    const profile = toProfile(custom.format);
+    assert.equal(profile.allowUpscale, true);
+    assert.equal(exportScale(800, 600, profile), 4);
+    assert.equal(exportScale(6400, 4800, profile), 0.5);
+  }
+  const defaultCustom = customFormat({ width: 3200, height: 2400, fit: 'keep',
+    format: 'png', quality: 95, prefix: '' });
+  if ('format' in defaultCustom) {
+    assert.equal(toProfile(defaultCustom.format).allowUpscale, false);
+    assert.equal(exportScale(800, 600, toProfile(defaultCustom.format)), 1);
+  }
+  const social = toProfile(formatById('ig-45')!);
+  assert.equal(social.allowUpscale, false);
+  assert.equal(exportScale(320, 400, social), 1);
+  assert.equal(exportScale(800, 1000, social), 1);
 });

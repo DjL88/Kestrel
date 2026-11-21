@@ -1,16 +1,23 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Info, SlidersHorizontal, Star } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Check, CircleHelp, Ellipsis, Info, SlidersHorizontal, Square, SquareCheck, Star, X } from 'lucide-react';
 import type { CullDecision, PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
-import { DecisionButtons } from './DecisionButtons';
 import { isEdited } from '../core/editedState';
+import { photoTileMilestones, segmentShape, type PhotoPreviewReadiness } from '../core/photoTileReadiness';
+import type { CullScanStage } from '../core/cullScanProgress';
 import { speciesShown } from '../core/autoTags';
 import { FrameImage } from './FrameImage';
 import { jumpTarget, type JumpRequest } from '../core/jumpNavigation';
 import { openPhotoMenuFromKeyboard } from './PhotoContextMenu';
+import { contactSheetLayout, SHEET_GAP_PX as GAP_PX, SHEET_PADDING_PX as PADDING_PX } from '../core/contactSheetLayout';
+import { libraryText as t } from '../i18n/areas/library';
+import { appText } from '../i18n/areas/app';
 
 interface VirtualizedContactSheetProps {
   frames: PhotoFrame[];
+  /** Live local analysis stages, never mistaken for persisted cull decisions. */
+  analysisStages?: Readonly<Record<string, CullScanStage>>;
   selectedFrameId: string | null;
   previewProvider: BrowserPreviewProvider;
   needsAccess: boolean;
@@ -21,18 +28,19 @@ interface VirtualizedContactSheetProps {
   /** Right-click (or the Menu key) on a photo. */
   onPhotoMenu?: (frameId: string, x: number, y: number) => void;
   onOpenLoupe: (frameId: string) => void;
+  /** Double-click with a mouse opens the photo in the editor. */
+  onOpenEditor?: (frameId: string) => void;
   onDecideFrame: (frameId: string, decision: CullDecision) => void;
+  onBatchDecision: (frameIds: string[], decision: CullDecision) => void;
+  onExportSelected?: (frameIds: string[]) => void;
+  onAutoAdjustSelected?: (frameIds: string[]) => void;
+  onApplyLookSelected?: (frameIds: string[]) => void;
   onResetFrame: (frameId: string) => void;
 }
 
-const GAP_PX = 12;
-const PADDING_PX = 16;
-const FOOTER_HEIGHT = 44;
-// Narrow cards stack the filename above the buttons, so the three touch-sized buttons fit.
-const STACKED_FOOTER_HEIGHT = 76;
-
 export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = ({
-  frames,
+  frames: allFrames,
+  analysisStages,
   selectedFrameId,
   previewProvider,
   needsAccess,
@@ -41,17 +49,74 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   multiSelect,
   onInfo,
   onOpenLoupe,
+  onOpenEditor,
   onPhotoMenu,
   onDecideFrame,
+  onBatchDecision,
+  onExportSelected,
+  onAutoAdjustSelected,
+  onApplyLookSelected,
   onResetFrame,
 }) => {
+  // Collapsing tiles never removes or changes an original. Manual Keep and
+  // ratings determine the representative; uncertain photos are not rejected.
+  const [groupBursts, setGroupBursts] = useState(() => {
+    try { return localStorage.getItem('kestrel-group-bursts-v1') === 'true'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('kestrel-group-bursts-v1', String(groupBursts)); } catch { /* session only */ }
+  }, [groupBursts]);
+  useEffect(() => {
+    const toggle = () => setGroupBursts((value) => !value);
+    window.addEventListener('kestrel:toggle-burst-group', toggle);
+    return () => window.removeEventListener('kestrel:toggle-burst-group', toggle);
+  }, []);
+  const frames = useMemo(() => {
+    if (!groupBursts) return allFrames;
+    const winners = new Map<string, PhotoFrame>();
+    const score = (frame: PhotoFrame) => (frame.decision === 'keep' ? 100 : 0) +
+      Number(frame.rating ?? frame.exif.rating ?? 0);
+    for (const frame of allFrames) {
+      const group = frame.burstGroupId;
+      if (!group) continue;
+      const previous = winners.get(group);
+      if (!previous || score(frame) > score(previous)) winners.set(group, frame);
+    }
+    return allFrames.filter((frame) => !frame.burstGroupId || winners.get(frame.burstGroupId)?.id === frame.id);
+  }, [allFrames, groupBursts]);
+  const actionFrames = allFrames.filter((frame) => !frame.removedAt &&
+    (multiSelect ? markedIds.has(frame.id) : frame.id === selectedFrameId));
+  const actionIds = actionFrames.map((frame) => frame.id);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: 1120, height: 640 });
   const [scrollTop, setScrollTop] = useState(0);
   const [jumpOpen, setJumpOpen] = useState(false);
+  // Secondary selection actions live behind one control so the bar stays small, especially on phones.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const selectionBarRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const close = (returnFocus: boolean) => {
+      setMoreOpen(false);
+      if (returnFocus) selectionBarRef.current?.querySelector<HTMLElement>('[data-selection-more]')?.focus();
+    };
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopPropagation(); close(true); } };
+    const onPointer = (event: PointerEvent) => {
+      if (!selectionBarRef.current?.contains(event.target as Node)) close(false);
+    };
+    document.addEventListener('keydown', onKey, true);
+    document.addEventListener('pointerdown', onPointer, true);
+    return () => { document.removeEventListener('keydown', onKey, true); document.removeEventListener('pointerdown', onPointer, true); };
+  }, [moreOpen]);
+  useEffect(() => { if (actionIds.length === 0) setMoreOpen(false); }, [actionIds.length]);
   const [jumpFrame, setJumpFrame] = useState('');
   const [jumpCaptured, setJumpCaptured] = useState('');
   const [jumpError, setJumpError] = useState('');
+  // Status comes from each thumbnail's actual load/error event, never from a guessed queue position.
+  const [previewReadiness, setPreviewReadiness] = useState<Record<string, PhotoPreviewReadiness>>({});
+  const recordPreviewStatus = useCallback((frameId: string, status: PhotoPreviewReadiness) => {
+    setPreviewReadiness((previous) => previous[frameId] === status ? previous : { ...previous, [frameId]: status });
+  }, []);
   const press = useRef<{ x: number; y: number; timer: number } | null>(null);
   const longPressed = useRef(false);
   const touchFrame = useRef<string | null>(null);
@@ -80,23 +145,22 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
     return () => ro.disconnect();
   }, []);
 
-  const columns = useMemo(() => {
-    if (viewport.width >= 1280) return 5;
-    if (viewport.width >= 960) return 4;
-    if (viewport.width >= 640) return 3;
-    return 2;
-  }, [viewport.width]);
+  // Constrain actual card widths, not just the number of columns. Previously a forced
+  // 240px minimum made the 420/640/960px grids overflow and hid action targets.
+  const { columns, cardWidth, stacked, footerHeight, cardHeight, rowStride } = useMemo(
+    () => contactSheetLayout(viewport.width), [viewport.width]
+  );
 
-  const cardWidth = useMemo(() => {
-    const usable = Math.max(240, viewport.width - PADDING_PX * 2 - GAP_PX * (columns - 1));
-    return Math.floor(usable / columns);
-  }, [viewport.width, columns]);
+  // Desktop Jump lives in the shared toolbar; phones keep their own sticky control.
+  const [toolsSlot, setToolsSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 768px)');
+    const find = () => setToolsSlot(desktop.matches ? document.getElementById('kestrel-grid-tools') : null);
+    find();
+    desktop.addEventListener('change', find);
+    return () => desktop.removeEventListener('change', find);
+  }, []);
 
-  // 3:2 thumbnail + footer height
-  const stacked = columns <= 2;
-  const footerHeight = stacked ? STACKED_FOOTER_HEIGHT : FOOTER_HEIGHT;
-  const cardHeight = Math.round((cardWidth * 2) / 3) + footerHeight;
-  const rowStride = cardHeight + GAP_PX;
   const totalRows = Math.ceil(frames.length / columns);
   const totalHeight = Math.max(0, totalRows * rowStride + PADDING_PX * 2);
 
@@ -111,8 +175,8 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
     const target = jumpTarget(frames, request);
     if (!target) {
       setJumpError(request.kind === 'last-edited'
-        ? 'No recorded edits in this view.'
-        : request.kind === 'captured-at' ? 'No usable capture dates in this view.' : 'Frame not in this view.');
+        ? t.sheet.noRecordedEdits
+        : request.kind === 'captured-at' ? t.sheet.noCaptureDates : t.sheet.frameNotInView);
       return;
     }
     const index = frames.findIndex((frame) => frame.id === target.id);
@@ -123,6 +187,15 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
     setJumpError('');
     setJumpOpen(false);
   }
+
+  // A width change can shorten the grid; clamp the virtualised scroll window too.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const next = Math.min(el.scrollTop, Math.max(0, totalHeight - el.clientHeight));
+    if (el.scrollTop !== next) el.scrollTop = next;
+    setScrollTop(previous => previous === next ? previous : next);
+  }, [totalHeight, viewport.height]);
 
   // Scroll selected card into view when navigating via keyboard inside grid
   useEffect(() => {
@@ -143,9 +216,9 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   if (frames.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-kestrel-stage text-zinc-400 p-8 text-center">
-        <p className="text-sm font-medium text-zinc-300">No frames match this filter</p>
+        <p className="text-sm font-medium text-zinc-300">{t.sheet.noMatch}</p>
         <p className="text-xs text-zinc-400 mt-1">
-          Clear the search or pick All to see the full contact sheet.
+          {t.sheet.noMatchHint}
         </p>
       </div>
     );
@@ -156,6 +229,62 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
     visibleRows.push(r);
   }
 
+  // Jump lives in a header, never floating over the photos: the desktop top bar when it is showing, else a strip above the grid.
+  const jumpControl = (
+        <div className="relative z-[100] flex items-center gap-2">
+          <label className="inline-flex min-h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-white/15 px-2 text-xs text-zinc-200">
+            <input type="checkbox" checked={groupBursts} onChange={(event) => setGroupBursts(event.target.checked)} />
+            Group bursts{groupBursts ? ` (${allFrames.length - frames.length} hidden)` : ''}
+          </label>
+            <button type="button" onClick={() => { setJumpOpen((value) => !value); setJumpError(''); }}
+              aria-label={t.sheet.jumpToPhoto} aria-controls="kestrel-grid-jump" aria-expanded={jumpOpen}
+              className="min-h-10 rounded-lg border border-white/20 bg-kestrel-panel/95 px-3 py-2 text-xs font-medium text-zinc-100 shadow-lg hover:bg-kestrel-raised focus-visible:outline-2 focus-visible:outline-sky-300">
+              {t.sheet.jump}
+            </button>
+            {jumpOpen && (
+              <div id="kestrel-grid-jump" role="group" aria-label={t.sheet.jumpWithin}
+                className="absolute right-0 top-11 z-[120] w-[min(19rem,calc(100vw-2.5rem))] space-y-3 rounded-xl border border-white/20 bg-kestrel-raised p-3 shadow-2xl">
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => jumpTo({ kind: 'first' })}
+                    className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">{t.sheet.first}</button>
+                  <button type="button" onClick={() => jumpTo({ kind: 'last' })}
+                    className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">{t.sheet.last}</button>
+                  <button type="button" onClick={() => jumpTo({ kind: 'last-edited' })}
+                    className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">{t.sheet.lastEdited}</button>
+                </div>
+                <form onSubmit={(event) => {
+                  event.preventDefault();
+                  jumpTo({ kind: 'frame', number: Number(jumpFrame) });
+                }}>
+                  <label htmlFor="kestrel-jump-frame" className="block text-xs text-zinc-300">{t.sheet.frameNumber}</label>
+                  <div className="mt-1 flex gap-2">
+                    <input id="kestrel-jump-frame" type="number" min="1" step="1" value={jumpFrame}
+                      onChange={(event) => setJumpFrame(event.target.value)} placeholder={t.sheet.frameExample}
+                      className="min-w-0 flex-1 rounded-md border border-white/15 bg-kestrel-panel px-2 py-2 text-sm text-zinc-100" />
+                    <button type="submit" disabled={!jumpFrame.trim()}
+                      className="min-h-10 rounded-md border border-white/15 px-3 text-xs text-zinc-100 disabled:opacity-50">{t.sheet.go}</button>
+                  </div>
+                </form>
+                <form onSubmit={(event) => {
+                  event.preventDefault();
+                  jumpTo({ kind: 'captured-at', timestamp: jumpCaptured ? new Date(jumpCaptured).getTime() : NaN });
+                }}>
+                  <label htmlFor="kestrel-jump-captured" className="block text-xs text-zinc-300">{t.sheet.nearestCapture}</label>
+                  <div className="mt-1 flex gap-2">
+                    <input id="kestrel-jump-captured" type="datetime-local" value={jumpCaptured}
+                      onChange={(event) => setJumpCaptured(event.target.value)}
+                      className="min-w-0 flex-1 rounded-md border border-white/15 bg-kestrel-panel px-2 py-2 text-xs text-zinc-100" />
+                    <button type="submit" disabled={!jumpCaptured}
+                      className="min-h-10 rounded-md border border-white/15 px-3 text-xs text-zinc-100 disabled:opacity-50">{t.sheet.go}</button>
+                  </div>
+                </form>
+                {jumpError && <p role="status" className="text-xs text-orange-200">{jumpError}</p>}
+                <p className="text-[11px] text-zinc-400">{t.sheet.jumpNote}</p>
+              </div>
+            )}
+        </div>
+  );
+
   return (
     <div
       ref={containerRef}
@@ -163,56 +292,8 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
       data-testid="virtualized-contact-sheet"
       className="flex-1 overflow-y-auto bg-kestrel-stage relative min-w-0 min-h-0"
     >
-      <div className="sticky top-2 z-30 h-0 pointer-events-none">
-        <div className="absolute right-3 top-0 pointer-events-auto">
-          <button type="button" onClick={() => { setJumpOpen((value) => !value); setJumpError(''); }}
-            aria-label="Jump to a photo" aria-controls="kestrel-grid-jump" aria-expanded={jumpOpen}
-            className="min-h-10 rounded-lg border border-white/20 bg-kestrel-panel/95 px-3 py-2 text-xs font-medium text-zinc-100 shadow-lg hover:bg-kestrel-raised focus-visible:outline-2 focus-visible:outline-sky-300">
-            Jump…
-          </button>
-          {jumpOpen && (
-            <div id="kestrel-grid-jump" role="group" aria-label="Jump within this view"
-              className="absolute right-0 top-11 w-[min(19rem,calc(100vw-2.5rem))] space-y-3 rounded-xl border border-white/20 bg-kestrel-raised p-3 shadow-2xl">
-              <div className="flex gap-2">
-                <button type="button" onClick={() => jumpTo({ kind: 'first' })}
-                  className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">First</button>
-                <button type="button" onClick={() => jumpTo({ kind: 'last' })}
-                  className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">Last</button>
-                <button type="button" onClick={() => jumpTo({ kind: 'last-edited' })}
-                  className="min-h-10 flex-1 rounded-md border border-white/15 px-2 text-xs text-zinc-100">Last edited</button>
-              </div>
-              <form onSubmit={(event) => {
-                event.preventDefault();
-                jumpTo({ kind: 'frame', number: Number(jumpFrame) });
-              }}>
-                <label htmlFor="kestrel-jump-frame" className="block text-xs text-zinc-300">Frame number</label>
-                <div className="mt-1 flex gap-2">
-                  <input id="kestrel-jump-frame" type="number" min="1" step="1" value={jumpFrame}
-                    onChange={(event) => setJumpFrame(event.target.value)} placeholder="e.g. 1695"
-                    className="min-w-0 flex-1 rounded-md border border-white/15 bg-kestrel-panel px-2 py-2 text-sm text-zinc-100" />
-                  <button type="submit" disabled={!jumpFrame.trim()}
-                    className="min-h-10 rounded-md border border-white/15 px-3 text-xs text-zinc-100 disabled:opacity-50">Go</button>
-                </div>
-              </form>
-              <form onSubmit={(event) => {
-                event.preventDefault();
-                jumpTo({ kind: 'captured-at', timestamp: jumpCaptured ? new Date(jumpCaptured).getTime() : NaN });
-              }}>
-                <label htmlFor="kestrel-jump-captured" className="block text-xs text-zinc-300">Nearest capture date and time</label>
-                <div className="mt-1 flex gap-2">
-                  <input id="kestrel-jump-captured" type="datetime-local" value={jumpCaptured}
-                    onChange={(event) => setJumpCaptured(event.target.value)}
-                    className="min-w-0 flex-1 rounded-md border border-white/15 bg-kestrel-panel px-2 py-2 text-xs text-zinc-100" />
-                  <button type="submit" disabled={!jumpCaptured}
-                    className="min-h-10 rounded-md border border-white/15 px-3 text-xs text-zinc-100 disabled:opacity-50">Go</button>
-                </div>
-              </form>
-              {jumpError && <p role="status" className="text-xs text-orange-200">{jumpError}</p>}
-              <p className="text-[11px] text-zinc-400">Only photos matching your current filter are included. No intervening thumbnails are loaded.</p>
-            </div>
-          )}
-        </div>
-      </div>
+      {!toolsSlot && <div className="sticky top-0 z-10 flex justify-end border-b border-white/6 bg-kestrel-stage/95 px-3 py-1.5">{jumpControl}</div>}
+      {toolsSlot && createPortal(jumpControl, toolsSlot)}
       <div style={{ height: totalHeight, position: 'relative' }}>
         {visibleRows.map((rowIndex) => {
           const rowStartIdx = rowIndex * columns;
@@ -238,12 +319,13 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                 const isSelected = multiSelect ? isMarked : frame.id === selectedFrameId;
                 const isKeep = frame.decision === 'keep';
                 const isReject = frame.decision === 'reject';
+                const milestones = photoTileMilestones(frame, previewReadiness[frame.id] ?? 'loading', analysisStages?.[frame.id]);
 
                 return (
                   <div
                     key={frame.id}
                     role="article"
-                    aria-label={`Frame ${frame.filename}`}
+                    aria-label={t.sheet.frame(frame.filename)}
                     onContextMenu={(event) => {
                       if (event.defaultPrevented) return;
                       event.preventDefault();
@@ -251,7 +333,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                     }}
                     className={`relative flex flex-col rounded-lg border overflow-hidden motion-safe:transition-colors ${
                       isSelected
-                        ? 'border-sky-400 bg-[#1B1F27] ring-1 ring-sky-400/50'
+                        ? 'border-2 border-sky-300 bg-[#1B1F27] ring-1 ring-sky-400/50'
                         : isKeep
                         ? 'border-sky-400/40 bg-[#15181E] hover:border-sky-400/70'
                         : isReject
@@ -302,13 +384,13 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         if (!event.repeat) onOpenLoupe(frame.id);
                       }}
                       onDoubleClick={(event) => {
-                        if (!multiSelect && !event.shiftKey && !event.ctrlKey && !event.metaKey) onOpenLoupe(frame.id);
+                        if (!multiSelect && !event.shiftKey && !event.ctrlKey && !event.metaKey) (onOpenEditor ?? onOpenLoupe)(frame.id);
                       }}
                       onContextMenu={(event) => { if (!onPhotoMenu) return; event.preventDefault(); onPhotoMenu(frame.id, event.clientX, event.clientY); }}
                       aria-haspopup={onPhotoMenu ? "menu" : undefined}
                       aria-keyshortcuts={onPhotoMenu ? "Shift+F10 ContextMenu" : undefined}
                       aria-pressed={isSelected}
-                      aria-label={`${multiSelect ? 'Select' : 'View'} ${frame.filename}`} title={`${multiSelect ? 'Select' : 'View'} ${frame.filename}`}
+                      aria-label={multiSelect ? t.sheet.select(frame.filename) : t.sheet.view(frame.filename)} title={multiSelect ? t.sheet.select(frame.filename) : t.sheet.view(frame.filename)}
                       className="relative flex-1 w-full overflow-hidden focus-visible:outline-2 focus-visible:outline-sky-400 text-left"
                     >
                       <FrameImage
@@ -317,59 +399,70 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         variant="thumb"
                         priority={isSelected}
                         needsAccess={needsAccess}
+                        onPreviewStatus={recordPreviewStatus}
                         className="w-full h-full"
                         imgClassName="object-cover"
                       />
-                      {(() => {
-                        const species = speciesShown(frame);
-                        return species ? (
-                          <span data-testid="species-label" className="absolute inset-x-0 bottom-0 flex items-center gap-1 truncate bg-black/65 px-2 py-1 text-xs text-zinc-100">
-                            <span className="truncate">Species: {species.name}</span>
-                            {species.auto && <span className="shrink-0 rounded bg-sky-300/25 px-1 text-[10px] font-medium uppercase tracking-wide text-sky-100" title="Named automatically. Open the photo info to keep or change it.">Auto</span>}
-                          </span>
-                        ) : null;
-                      })()}
-                      {isEdited(frame) && (
-                        <span role="img" aria-label="Edited" title="Edited"
-                          className={`absolute left-1.5 ${speciesShown(frame) ? 'bottom-8' : 'bottom-1.5'} grid h-6 w-6 place-items-center rounded-full border border-white/20 bg-kestrel-canvas/85 text-sky-200`}>
-                          <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
-                        </span>
-                      )}
-
-                      {/* Burst Group Indicator Strip */}
-                      {frame.burstGroupId && (
-                        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-kestrel-canvas/80 text-[10px] font-mono tabular-nums text-zinc-200 border border-white/10">
-                          Burst {frame.burstIndex}/
-                          {frame.burstCount}
-                        </div>
-                      )}
-                    </button>
-
-                    <button type="button" data-info-button onClick={(event) => onInfo(frame.id, event.currentTarget)}
-                      aria-label={`Photo info and rating for ${frame.filename}`} title={`Photo info and rating for ${frame.filename}`}
-                      className="absolute top-0 right-0 grid h-11 w-11 place-items-center rounded-md focus-visible:outline-2 focus-visible:outline-sky-300">
-                      <span className="grid h-6 w-6 place-items-center rounded-full bg-black/75"><Info className="h-4 w-4" aria-hidden="true" /></span>
                     </button>
 
                     {/* Card Footer: Number, Filename & Colorblind-safe Decision Control */}
-                    <div style={{ height: footerHeight }} className={`shrink-0 border-t border-white/6 ${stacked ? 'flex flex-col justify-center gap-1 px-1.5' : 'flex items-center justify-between gap-2 px-2.5'}`}>
-                      <div className="min-w-0">
-                        <div className="text-[11px] font-medium text-zinc-200 truncate">
-                          {frame.filename}
-                          <span className="sr-only">, {frame.decision === 'keep' ? 'Keeper' : frame.decision === 'reject' ? 'In Trash' : 'To review'}</span>
+                    <div style={{ height: footerHeight }} className={`relative shrink-0 border-t border-white/6 ${stacked ? 'flex flex-col justify-center gap-1 px-1.5' : 'flex items-center justify-between gap-2 px-2.5'}`}>
+                      {/* Independent facts, NOT a misleading percent-complete AI pipeline. Each state is also in text below. */}
+                      {/* Colour is never the only cue: done is a solid bar, in progress is dotted, analysed but still being compared
+                          across the shoot is dashed, unavailable is hatched, and steps not done yet are a thin line. */}
+                      <div data-testid="photo-tile-readiness" title={milestones.summary}
+                        className="pointer-events-none absolute inset-x-0 top-0 grid h-1 grid-cols-3 items-start gap-px" aria-hidden="true">
+                        {([
+                          [milestones.preview, milestones.preview === 'ready' ? 'bg-emerald-400' : milestones.preview === 'unavailable' ? 'bg-rose-400' : 'bg-amber-400'],
+                          [milestones.analysis, milestones.analysis === 'recorded' ? 'bg-emerald-400' : milestones.analysis === 'analysing' ? 'bg-amber-400' : milestones.analysis === 'analysed' ? 'bg-sky-400' : milestones.analysis === 'unavailable' ? 'bg-rose-400' : 'bg-zinc-500'],
+                          [milestones.edited ? 'done' : 'not-yet', milestones.edited ? 'bg-emerald-400' : 'bg-zinc-500'],
+                        ] as const).map(([state, colour], index) => {
+                          const shape = segmentShape(state);
+                          const busy = state === 'loading' || state === 'analysing';
+                          return <span key={index} data-state={state} className={`${shape.pattern} ${shape.full ? 'h-1' : 'h-px'} ${colour}${busy ? ' motion-safe:animate-pulse' : ''}`} />;
+                        })}
+                      </div>
+                      <span className="sr-only">{milestones.summary}</span>
+                      {/* Everything about the photo lives here, under it: nothing sits on the picture itself. */}
+                      <div className="flex min-w-0 flex-1 items-center gap-1">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 items-center gap-1 text-[11px] font-medium text-zinc-200">
+                            {/* While selecting, a tick box shows which photos are chosen: a shape, not just the border colour. */}
+                            {multiSelect && (isMarked
+                              ? <SquareCheck data-testid="tile-selected" className="h-3.5 w-3.5 shrink-0 text-sky-200" aria-hidden="true" />
+                              : <Square className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />)}
+                            <span className="truncate">{frame.filename}</span>
+
+                          </div>
+                          <div className="flex min-w-0 items-center gap-1.5 text-[10px] text-zinc-500">
+                            {/* The decision in words and a shape, so it never depends on telling blue from orange. */}
+                            {frame.decision === 'unreviewed' && <span data-testid="tile-decision"
+                              className="inline-flex shrink-0 items-center gap-0.5 rounded border border-white/20 px-1 font-semibold text-zinc-200">
+                              <CircleHelp className="h-2.5 w-2.5" aria-hidden="true" />{t.decision.undecided}</span>}
+                            {isKeep && <span data-testid="tile-decision" className="inline-flex shrink-0 items-center gap-0.5 rounded bg-sky-400/15 px-1 font-semibold text-sky-100">
+                              <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />{t.sheet.kept}</span>}
+                            {isReject && <span data-testid="tile-decision" className="inline-flex shrink-0 items-center gap-0.5 rounded border border-dashed border-orange-300/60 px-1 font-semibold text-orange-100">
+                              <X className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />{t.sheet.rejected}</span>}
+                            <span className="shrink-0 font-mono tabular-nums">#{String(frame.sequenceIndex).padStart(4, '0')}</span>
+                            {Boolean(frame.rating ?? frame.exif.rating) && <span className="inline-flex shrink-0 items-center gap-0.5 text-zinc-300">
+                              <Star className="h-2.5 w-2.5" aria-hidden="true" />{frame.rating ?? frame.exif.rating}</span>}
+                            {frame.burstGroupId && <span className="shrink-0 font-mono tabular-nums text-zinc-300">{t.sheet.burst(frame.burstIndex, frame.burstCount)}</span>}
+                            {isEdited(frame) && <span role="img" aria-label={t.sheet.edited} title={t.sheet.edited} className="shrink-0 text-sky-200"><SlidersHorizontal className="h-3 w-3" aria-hidden="true" /></span>}
+                            {(() => {
+                              const species = speciesShown(frame);
+                              return species ? (
+                                <span data-testid="species-label" className="flex min-w-0 items-center gap-1 text-zinc-200">
+                                  <span className="truncate">{t.sheet.species(species.name)}</span>
+                                  {species.auto && <span className="shrink-0 rounded bg-sky-300/25 px-1 text-[9px] font-medium uppercase tracking-wide text-sky-100" title={t.sheet.autoNamedTitle}>{t.sheet.auto}</span>}
+                                </span>
+                              ) : null;
+                            })()}
+                          </div>
                         </div>
-                        <div className="text-[10px] font-mono tabular-nums text-zinc-500">
-                          #{String(frame.sequenceIndex).padStart(4, '0')}
-                          {Boolean(frame.rating ?? frame.exif.rating) && <span className="ml-1 inline-flex items-center gap-0.5 text-zinc-300">
-                            <Star className="h-2.5 w-2.5" aria-hidden="true" />{frame.rating ?? frame.exif.rating}</span>}
-                        </div>
+
                       </div>
 
-                      <DecisionButtons stretch={stacked} decision={frame.decision} filename={frame.filename} edited={isEdited(frame)}
-                        onKeep={() => onDecideFrame(frame.id, 'keep')}
-                        onBackToReview={() => onDecideFrame(frame.id, 'unreviewed')}
-                        onTrash={() => onDecideFrame(frame.id, 'reject')}
-                        onReset={() => onResetFrame(frame.id)} />
+
                     </div>
                   </div>
                 );
@@ -378,6 +471,44 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
           );
         })}
       </div>
+      {actionIds.length > 0 && (
+        <div role="toolbar" aria-label={t.sheet.selectionBar} ref={selectionBarRef}
+          className="sticky bottom-2 z-[80] mx-auto mt-2 flex w-fit max-w-[96vw] flex-wrap items-center justify-center gap-1 rounded-xl border border-white/20 bg-kestrel-raised p-1.5 text-sm text-zinc-100 shadow-2xl">
+          <span className={`max-w-40 truncate px-2 text-xs text-zinc-300 ${multiSelect ? '' : 'hidden sm:inline'}`}>{multiSelect ? t.sheet.selectedCount(actionIds.length) : actionFrames[0]?.filename}</span>
+          {(['keep', 'reject'] as const).map((decision) => (
+            <button key={decision} type="button" className="min-h-10 rounded-md px-3 hover:bg-white/10"
+              onClick={() => actionIds.length === 1 ? onDecideFrame(actionIds[0], decision) : onBatchDecision(actionIds, decision)}>
+              {decision === 'keep' ? t.decision.keep : t.decision.reject}
+            </button>
+          ))}
+          {onOpenEditor && <button type="button" onClick={() => onOpenEditor(actionIds[0])}
+            className="min-h-10 rounded-md px-3 hover:bg-white/10">{t.photoMenu.edit}</button>}
+          {onExportSelected && <button type="button" onClick={() => onExportSelected(actionIds)}
+            className="min-h-10 rounded-md px-3 hover:bg-white/10">{t.top.export}</button>}
+          <button type="button" aria-expanded={moreOpen} aria-controls="kestrel-selection-more" title={t.sheet.moreActions}
+            onClick={() => setMoreOpen((open) => !open)}
+            className="grid min-h-10 min-w-10 place-items-center rounded-md px-2 hover:bg-white/10"
+            data-selection-more="">
+            <Ellipsis className="h-5 w-5" aria-hidden="true" />
+            <span className="sr-only">{t.sheet.moreActions}</span>
+          </button>
+          {moreOpen && (
+            <div id="kestrel-selection-more" role="group" aria-label={t.sheet.moreActions}
+              className="absolute bottom-full right-0 mb-1 flex min-w-48 flex-col gap-0.5 rounded-xl border border-white/20 bg-kestrel-raised p-1.5 shadow-2xl">
+              {([
+                [t.decision.undecided, () => actionIds.length === 1 ? onDecideFrame(actionIds[0], 'unreviewed') : onBatchDecision(actionIds, 'unreviewed')],
+                [t.decision.resetEdit, () => onResetFrame(actionIds[0])],
+                [t.photoMenu.info, (el: HTMLButtonElement) => onInfo(actionIds[0], el)],
+                ...(onAutoAdjustSelected ? [[appText.editorBar.autoAdjust, () => onAutoAdjustSelected(actionIds)]] : []),
+                ...(onApplyLookSelected ? [[appText.editorBar.applyLook, () => onApplyLookSelected(actionIds)]] : []),
+              ] as Array<[string, (el: HTMLButtonElement) => void]>).map(([label, run]) => (
+                <button key={label} type="button" className="min-h-10 rounded-md px-3 text-left hover:bg-white/10"
+                  onClick={(event) => { setMoreOpen(false); run(event.currentTarget); }}>{label}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

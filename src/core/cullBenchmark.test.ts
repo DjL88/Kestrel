@@ -108,3 +108,36 @@ test('automatic Keep precision excludes unknown review candidates and exposes fa
   assert.equal(noAutoKeeps.autoKeepPrecision, null);
   assert.equal(noAutoKeeps.autoKeeps, 0);
 });
+
+test('500-photo synthetic mixed-subject shoot reports unsafe rejects without hiding uncertain or corrupt predictions', () => {
+  // Synthetic acceptance fixture, NOT a measurement of real-shoot subject or eye accuracy.
+  const shoot: CullBenchmarkCase[] = categories.flatMap((category) =>
+    Array.from({ length: 100 }, (_, i) => ({
+      id: `${category}-${i}`,
+      category,
+      favourite: i < 20,
+      unusable: i >= 90,
+    })),
+  );
+  const decisions = shoot.flatMap((photo) => {
+    if (photo.id === 'people-0') return []; // missing prediction: review, not reject
+    if (photo.id === 'aircraft-0') return [prediction(photo.id, 'reject'), prediction(photo.id, 'reject')]; // duplicate: review
+    if (photo.id === 'birds-0') return [{ ...prediction(photo.id, 'reject'), score: Number.NaN }]; // corrupt: review
+    if (photo.id === 'mammals-0') return [prediction(photo.id, 'reject')]; // genuine unsafe rejection
+    if (photo.id === 'landscapes-0') return [prediction(photo.id, null)]; // honest unknown
+    return [prediction(photo.id, photo.favourite ? 'keep' : 'reject')];
+  });
+  const result = evaluateCullBenchmark(shoot, decisions);
+  assert.equal(result.total, 500);
+  assert.equal(result.favourites, 100);
+  assert.equal(result.missedFavourites, 1);
+  assert.equal(result.unsafeRejections, 1);
+  assert.equal(result.recall, 0.99);
+  assert.equal(result.missingPredictions, 3);
+  assert.equal(result.duplicatePredictions, 1);
+  assert.equal(result.invalidPredictions, 1);
+  assert.equal(result.byCategory.mammals.recall, 0.95);
+  for (const category of categories.filter((item) => item !== 'mammals')) {
+    assert.equal(result.byCategory[category].recall, 1, category);
+  }
+});

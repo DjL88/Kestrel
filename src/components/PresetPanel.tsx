@@ -4,6 +4,7 @@ import { Check, Trash2 } from 'lucide-react';
 import { BUILT_IN_PRESETS, addPreset, matchesPresetEdit, removePreset, type Preset } from '../core/presets';
 import { loadPresets, savePresets } from '../providers/browserPresets';
 import { applyDetail, applyPhotoEdit, hasDetail, isNeutralEdit, type PhotoEdit } from '../core/photoEdits';
+import { editorText as t } from '../i18n/areas/editor';
 
 interface Props {
   edit: PhotoEdit;
@@ -38,30 +39,30 @@ export function PresetPanel({ edit, disabled, onApply, previewSource }: Props) {
 
   function update(next: Preset[], message: string) {
     setCustom(next);
-    setNotice(savePresets(next) ? message : 'Could not save on this device. The recipe works until you leave.');
+    setNotice(savePresets(next) ? message : t.recipes.saveFailed);
   }
 
   return (
     <div className="space-y-2 px-1 pb-2">
-      <p className="text-xs text-zinc-400">Tap a recipe to update the sliders. Undo takes you back.</p>
-      <div className="grid grid-cols-3 gap-2" role="group" aria-label="Photo recipes gallery">
+      <p className="text-xs text-zinc-400">{t.recipes.help}</p>
+      <div className="grid grid-cols-3 gap-2" role="group" aria-label={t.recipes.gallery}>
         {[...BUILT_IN_PRESETS, ...custom].map((preset) => {
           const selected = matchesPresetEdit(edit, preset.edit);
           return (
             <div key={preset.id} className="relative min-w-0">
               <button type="button" disabled={disabled} aria-label={preset.name} aria-pressed={selected}
                 className={`w-full overflow-hidden rounded-lg border text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 disabled:opacity-50 ${selected ? 'border-sky-200 ring-2 ring-sky-200' : 'border-white/15 hover:border-white/50'}`}
-                onClick={() => { onApply(preset.edit); setNotice(`Applied ${preset.name}`); }}>
+                onClick={() => { onApply(preset.edit); setNotice(t.recipes.applied(preset.name)); }}>
                 <LookPreview sample={previewSource} preset={preset} />
                 <span className="flex min-h-8 items-center justify-center gap-1 px-1 py-1 text-center text-[10px] leading-tight text-zinc-200 sm:text-[11px]">
                   {selected && <Check className="h-3 w-3 shrink-0" aria-hidden="true" />}
                   <span className="truncate">{preset.name}</span>
                 </span>
-                {selected && <span className="sr-only">Selected</span>}
+                {selected && <span className="sr-only">{t.recipes.selected}</span>}
               </button>
-              {!preset.builtIn && <button type="button" aria-label={`Delete recipe ${preset.name}`} title={`Delete ${preset.name}`}
+              {!preset.builtIn && <button type="button" aria-label={t.recipes.deleteLabel(preset.name)} title={t.recipes.deleteTitle(preset.name)}
                 className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-md bg-black/75 text-white hover:bg-black focus-visible:outline-2 focus-visible:outline-sky-300"
-                onClick={() => update(removePreset(custom, preset.id), `Deleted ${preset.name}`)}>
+                onClick={() => update(removePreset(custom, preset.id), t.recipes.deleted(preset.name))}>
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
               </button>}
             </div>
@@ -71,12 +72,12 @@ export function PresetPanel({ edit, disabled, onApply, previewSource }: Props) {
       <form className="flex gap-1" onSubmit={(event) => {
         event.preventDefault();
         if (!name.trim() || isNeutralEdit(edit)) return;
-        update(addPreset(custom, name, edit, newId()), `Saved ${name.trim()}`);
+        update(addPreset(custom, name, edit, newId()), t.recipes.saved(name.trim()));
         setName('');
       }}>
-        <input value={name} onChange={(event) => setName(event.target.value)} maxLength={40} placeholder="Name this recipe"
-          aria-label="Recipe name" className="min-h-11 min-w-0 flex-1 rounded-md border border-white/15 bg-black/20 px-2 text-base desk:min-h-9 md:text-sm" />
-        <button type="submit" disabled={!name.trim() || isNeutralEdit(edit)} className={`${chip} shrink-0 font-semibold`}>Save recipe</button>
+        <input value={name} onChange={(event) => setName(event.target.value)} maxLength={40} placeholder={t.recipes.namePlaceholder}
+          aria-label={t.recipes.nameLabel} className="min-h-11 min-w-0 flex-1 rounded-md border border-white/15 bg-black/20 px-2 text-base desk:min-h-9 md:text-sm" />
+        <button type="submit" disabled={!name.trim() || isNeutralEdit(edit)} className={`${chip} shrink-0 font-semibold`}>{t.recipes.save}</button>
       </form>
       <p role="status" className="min-h-4 text-xs text-zinc-300">{notice}</p>
     </div>

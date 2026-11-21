@@ -24,6 +24,8 @@ export interface ExportFormat {
   format: 'jpeg' | 'png';
   prefix: string;
   maxBytes?: number;
+  /** Explicit, conventional upsampling for a custom export only. */
+  allowUpscale?: boolean;
 }
 
 export const PLATFORMS: readonly { id: SocialIconId; label: string }[] = [
@@ -45,6 +47,8 @@ const social = (id: string, platform: SocialIconId, label: string, width: number
  */
 export const EXPORT_FORMATS: readonly ExportFormat[] = [
   { id: 'master', label: 'Full size · PNG', width: 0, height: 0, fit: 'keep', quality: 1, format: 'png', prefix: '' },
+  { id: 'full-jpeg', label: 'Full size · JPEG', width: 0, height: 0, fit: 'keep', quality: 0.96, format: 'jpeg', prefix: '', },
+  { id: 'before-after', label: 'Before & after · side by side', width: 1920, height: 1200, fit: 'keep', quality: 0.94, format: 'jpeg', prefix: 'compare_' },
   social('ig-45', 'instagram', 'Post · 4:5', 1080, 1350, 'fill'),
   social('ig-34', 'instagram', 'Post · 3:4', 1080, 1440, 'fill'),
   social('ig-11', 'instagram', 'Square · 1:1', 1080, 1080, 'fill'),
@@ -78,12 +82,15 @@ export function formatById(id: string): ExportFormat | undefined {
 /** The export engine plans and renders from a profile and a framing mode. */
 export function toProfile(format: ExportFormat): ExportProfile {
   return { id: format.id, label: format.label, prefix: format.prefix, width: format.width, height: format.height,
-    quality: format.quality, format: format.format, maxBytes: format.maxBytes, suffix: fileSuffix(format) };
+    quality: format.quality, format: format.format, maxBytes: format.maxBytes, suffix: fileSuffix(format),
+    allowUpscale: format.id === 'custom' && format.allowUpscale === true };
 }
 
 /** What tells one format of a photo from another in a file name: its shape, or its size for custom and keep-shape formats. */
 export function fileSuffix(format: ExportFormat): string | undefined {
+  if (format.id === 'full-jpeg') return 'kestrel';
   if (format.id === 'master' || !(format.width > 0 && format.height > 0)) return undefined;
+  if (format.id === 'before-after') return 'before-after';
   if (format.id === 'custom') return `${format.width}x${format.height}`;
   if (format.fit === 'keep') return `max${Math.max(format.width, format.height)}`;
   return shapeLabel(format.width, format.height).replace(':', 'x');
@@ -115,6 +122,8 @@ export interface CustomSize {
   /** JPEG quality as a whole number from 50 to 100. */
   quality: number;
   prefix: string;
+  /** Never enabled by default: conventional resizing cannot restore lost detail. */
+  allowUpscale?: boolean;
 }
 
 export const MAX_CUSTOM_EDGE = 12000;
@@ -129,7 +138,9 @@ export function customFormat(input: CustomSize): { format: ExportFormat } | { er
   if (!Number.isFinite(input.quality) || input.quality < 50 || input.quality > 100) return { error: 'JPEG quality must be between 50 and 100.' };
   return { format: {
     id: 'custom', label: `Custom · ${width} × ${height}`, width, height, fit: input.fit, format: input.format,
-    quality: input.format === 'png' ? 1 : input.quality / 100, prefix: input.prefix.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 24),
+    quality: input.format === 'png' ? 1 : input.quality / 100,
+    ...(input.allowUpscale === true ? { allowUpscale: true } : {}),
+    prefix: input.prefix.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 24),
   } };
 }
 

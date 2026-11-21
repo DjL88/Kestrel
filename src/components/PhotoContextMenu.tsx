@@ -1,5 +1,26 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { photoMenuItems, type PhotoAction, type PhotoMenuItem, type PhotoMenuState } from '../core/photoMenu';
+import { photoMenuItems, ratingFor, type PhotoAction, type PhotoMenuItem, type PhotoMenuState } from '../core/photoMenu';
+import { libraryText as t } from '../i18n/areas/library';
+
+/** An action's words in the session's language; `photoMenuItems` decides which actions show and when. */
+function menuLabel(action: PhotoAction, count: number): string {
+  const stars = ratingFor(action);
+  if (stars !== null) return stars === 0 ? t.photoMenu.clearRating(count) : t.photoMenu.rate(stars, count);
+  switch (action) {
+    case 'edit': return t.photoMenu.edit;
+    case 'info': return t.photoMenu.info;
+    case 'keep': return t.photoMenu.keep(count);
+    case 'trash': return t.photoMenu.trash(count);
+    case 'unreview': return t.photoMenu.unreview(count);
+    case 'copy': return t.photoMenu.copy;
+    case 'paste': return t.photoMenu.paste(count);
+    case 'reset': return t.photoMenu.reset(count);
+    case 'duplicate': return t.photoMenu.duplicate;
+    case 'export': return t.photoMenu.export(count);
+    case 'remove': return t.photoMenu.remove(count);
+    default: return action;
+  }
+}
 
 /** Open a photo's menu at its focused thumbnail on all keyboard platforms. */
 export function openPhotoMenuFromKeyboard(event: KeyboardEvent<HTMLButtonElement>, open: (x: number, y: number) => void) {
@@ -28,7 +49,7 @@ interface Props {
  * Space chooses, Escape closes and puts focus back where it was. It stays inside the window.
  */
 export function PhotoContextMenu({ x, y, state, label, onChoose, onClose }: Props) {
-  const items = photoMenuItems(state);
+  const items = photoMenuItems(state).map((item) => ({ ...item, label: menuLabel(item.action, state.count) }));
   const root = useRef<HTMLDivElement>(null);
   const previous = useRef<HTMLElement | null>(document.activeElement as HTMLElement | null);
   const [place, setPlace] = useState({ left: x, top: y });
@@ -89,7 +110,7 @@ export function PhotoContextMenu({ x, y, state, label, onChoose, onClose }: Prop
         <div key={index} role="group" className={index > 0 ? 'mt-1 border-t border-white/10 pt-1' : undefined}>
           {group.some((item) => item.inline) ? (
             <>
-              <p className="px-3 pb-0.5 pt-1 text-xs text-zinc-400" aria-hidden="true">Rating</p>
+              <p className="px-3 pb-0.5 pt-1 text-xs text-zinc-400" aria-hidden="true">{t.photoMenu.rating}</p>
               <div className="flex gap-0.5 px-1">{group.filter((item) => item.inline).map((item) => button(item, true))}</div>
               {group.filter((item) => !item.inline).map((item) => button(item))}
             </>

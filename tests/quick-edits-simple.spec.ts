@@ -15,10 +15,11 @@ test('Quick edits opens without culling buckets and provides a simple filter, ph
   await page.getByTestId('quick-edit-input').setInputFiles({
     name: 'quick-bird.png', mimeType: 'image/png', buffer: Buffer.from(data, 'base64'),
   });
-  await expect(page.getByText('Quick edits', { exact: true })).toBeVisible({ timeout: 30_000 });
+  // The photo opens straight in the editor. (The Quick edits page may only flash past on the way, so look for it after Back.)
   const editor = page.getByRole('region', { name: 'Photo editor' });
-  await expect(editor).toBeVisible();
+  await expect(editor).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(page.getByText('Quick edits', { exact: true })).toBeVisible();
 
   const nav = page.getByRole('navigation', { name: 'Photo collections' });
   const show = nav.getByRole('combobox', { name: 'Filter quick edits' });

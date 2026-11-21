@@ -19,6 +19,7 @@ export function applyDisplay(settings: DisplaySettings): void {
   root.dataset.textSize = settings.textSize;
   root.dataset.font = settings.font;
   root.dataset.calm = String(settings.calm);
+  root.dataset.spacing = settings.spacing;
   try {
     localStorage.setItem(DISPLAY_KEY, JSON.stringify(settings));
   } catch {

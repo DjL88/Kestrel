@@ -25,8 +25,36 @@ test('an export shows in the task manager, finishes there, and can be cancelled 
   const panel = page.getByRole('region', { name: 'Tasks' });
   await expect(panel).toContainText('Exporting 1 file');
   await expect(panel).toContainText('Finished', { timeout: 30000 });
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+  await expect(pill).toBeFocused();
+  await pill.click();
   await panel.getByRole('button', { name: 'Clear finished' }).click();
   await expect(panel).toHaveCount(0); // with nothing left to show, the whole panel goes
+});
+
+test('a failed export stays visible after eleven seconds until its error is cleared', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('quick-edit-input').setInputFiles('tests/fixtures/exif-photo.jpg');
+  await openExportDialog(page);
+  await page.getByRole('button', { name: 'Full size', exact: true }).click();
+  await page.getByRole('checkbox', { name: /Full size · PNG/ }).check();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.evaluate(() => {
+    HTMLCanvasElement.prototype.toBlob = () => { throw new Error('Synthetic export encoder failure'); };
+  });
+  await page.getByRole('button', { name: 'Prepare 1 file', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Synthetic export encoder failure');
+  await page.getByRole('button', { name: 'Close export', exact: true }).click();
+  await page.clock.install();
+  await page.clock.fastForward(11_000);
+  const pill = page.getByRole('button', { name: /Problem/ });
+  await expect(pill).toBeVisible();
+  await pill.click();
+  const panel = page.getByRole('region', { name: 'Tasks' });
+  await expect(panel).toContainText('Synthetic export encoder failure');
+  await panel.getByRole('button', { name: 'Clear finished', exact: true }).click();
+  await expect(pill).toHaveCount(0);
 });
 
 test('adding photos shows in the task manager, and finishes there', async ({ page }) => {
@@ -49,20 +77,24 @@ test('adding photos shows in the task manager, and finishes there', async ({ pag
   await expect(panel).toContainText('Finished');
 });
 
-test('auto-cull can be stopped in its dialog and restarted without partial decisions', async ({ page }) => {
+test('auto-cull can be stopped in its dialog and restarted without partial decisions', async ({ page, isMobile }) => {
+  // Each scan hashes the two identical files to prove they are exact duplicates. Holding a hash keeps a scan
+  // part-way through, so it can be stopped at a known point. holdNextCullHash() arms the next hold.
   await page.addInitScript(() => {
+    const w = window as Window & { releaseCullHash?: () => void; holdNextCullHash?: () => void };
     const digest = crypto.subtle.digest.bind(crypto.subtle);
-    let first = true;
+    let hold = true;
+    w.holdNextCullHash = () => { hold = true; };
     crypto.subtle.digest = async (...args: Parameters<SubtleCrypto['digest']>) => {
-      if (first) {
-        first = false;
-        await new Promise<void>((resolve) => {
-          (window as Window & { releaseCullHash?: () => void }).releaseCullHash = resolve;
-        });
+      if (hold) {
+        hold = false;
+        await new Promise<void>((resolve) => { w.releaseCullHash = () => { delete w.releaseCullHash; resolve(); }; });
       }
       return digest(...args);
     };
   });
+  const held = () => page.evaluate(() => typeof (window as Window & { releaseCullHash?: () => void }).releaseCullHash);
+  const release = () => page.evaluate(() => (window as Window & { releaseCullHash?: () => void }).releaseCullHash?.());
   await page.goto('/');
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Stoppable scan');
@@ -73,20 +105,39 @@ test('auto-cull can be stopped in its dialog and restarted without partial decis
     { name: 'one.png', mimeType: 'image/png', buffer },
     { name: 'two.png', mimeType: 'image/png', buffer },
   ]);
+  const collections = page.getByRole('navigation', { name: 'Photo collections' });
+  const pill = page.getByRole('button', { name: /Tasks|Working|Busy|Stuck|Problem/ });
+  const panel = page.getByRole('region', { name: 'Tasks' });
+
+  // Since #376 a new import is reviewed by a background task, not a dialog. It is stopped from the task manager.
+  await expect.poll(held).toBe('function');
+  await pill.click();
+  await panel.getByRole('button', { name: 'Cancel Reviewing imported photographs' }).click();
+  await release();
+  await expect(panel).toContainText('Cancelled');
+  await expect(collections.getByRole('button', { name: 'To review 2', exact: true })).toBeVisible();
+  await pill.click();
+  await expect(panel).toHaveCount(0);
+
+  // The explicit Auto-cull dialog can be stopped too, and leaves no partial decisions behind.
+  await page.evaluate(() => (window as Window & { holdNextCullHash?: () => void }).holdNextCullHash?.());
+  // On a phone the same menu opens from the footer's More button.
+  await page.getByRole('button', { name: isMobile ? 'More' : 'Workspace options', exact: true }).click();
+  await page.locator('#workspace-options').getByRole('button', { name: /Auto-cull/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Auto-cull' });
-  await expect.poll(() => page.evaluate(() => typeof (window as Window & { releaseCullHash?: () => void }).releaseCullHash)).toBe('function');
+  await dialog.getByRole('button', { name: 'Scan photos', exact: true }).click();
+  await expect.poll(held).toBe('function');
   await dialog.getByRole('button', { name: 'Stop scan', exact: true }).click();
-  await page.evaluate(() => (window as Window & { releaseCullHash?: () => void }).releaseCullHash?.());
+  await release();
   await expect(dialog.getByRole('status')).toHaveText('Scan stopped. No results were applied. You can scan again.');
   await expect(dialog.getByRole('button', { name: 'Scan photos', exact: true })).toBeEnabled();
-  const collections = page.getByRole('navigation', { name: 'Photo collections' });
   await expect(collections.getByRole('button', { name: 'To review 2', exact: true })).toBeVisible();
   await dialog.getByRole('checkbox', { name: 'Automatically move High confidence results' }).uncheck();
   await dialog.getByRole('button', { name: 'Scan photos', exact: true }).click();
-  await expect(dialog.getByRole('region', { name: 'Auto-cull summary' })).toContainText('Scan finished');
+  await expect(dialog.getByRole('region', { name: 'Auto-cull summary' })).toContainText('Scan finished', { timeout: 30_000 });
   await dialog.getByRole('button', { name: 'Close auto-cull' }).click();
-  await page.getByRole('button', { name: /Tasks/ }).click();
-  const panel = page.getByRole('region', { name: 'Tasks' });
+  await expect(collections.getByRole('button', { name: 'To review 2', exact: true })).toBeVisible();
+  await pill.click();
   await expect(panel).toContainText('Cancelled');
   await expect(panel).toContainText('Finished');
   await expect(panel).not.toContainText('Stopped by a problem');

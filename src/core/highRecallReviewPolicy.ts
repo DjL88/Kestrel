@@ -12,7 +12,13 @@ export interface ReviewCandidate {
   quality?: number | null;
   confidence?: number | null;
   eyeDetected?: boolean | null;
+  /** Optional local evidence for ranking birds within a burst; scores are NOT calibrated probabilities. */
+  birdDetailEvidence?: { eyeSharpness: number; subjectSharpness: number; poseQuality: number; modelVersion: string } | null;
+  /** Optional species evidence: unverified or competing species require human review. */
+  speciesEvidence?: { label: string; score: number; runnerUpScore: number; modelVersion: string } | null;
   manualDecision?: 'keep' | 'reject' | null;
+  /** Optional raw local-detector evidence; never a calibrated probability. */
+  competingEvidence?: { birdScore: number; aircraftScore: number; modelVersion: string } | null;
 }
 export interface ReviewSuggestion {
   id: string;
@@ -26,14 +32,45 @@ export interface ReviewSuggestion {
  * signal for aircraft, landscapes, or any uncertain detector result.
  */
 export function recommendForReview(items: readonly ReviewCandidate[]): ReviewSuggestion[] {
-  const best = new Map<string, { id: string; quality: number }>();
+  const best = new Map<string, { id: string; quality: number; detail: number | null }>();
+  const validScore = (score: number): boolean => Number.isFinite(score) && score >= 0 && score <= 1;
+  const validVersion = (version: string): boolean => typeof version === 'string' && version.trim().length > 0;
+  const detailScore = (item: ReviewCandidate): number | null => {
+    if (item.subject !== 'bird' || item.birdDetailEvidence == null) return null;
+    const e = item.birdDetailEvidence;
+    if (!validVersion(e.modelVersion) || !validScore(e.eyeSharpness) ||
+        !validScore(e.subjectSharpness) || !validScore(e.poseQuality)) return null;
+    return 0.5 * e.eyeSharpness + 0.35 * e.subjectSharpness + 0.15 * e.poseQuality;
+  };
+  const invalidOptionalEvidence = (item: ReviewCandidate): boolean => {
+    if (item.birdDetailEvidence != null && detailScore(item) === null) return true;
+    const e = item.speciesEvidence;
+    return e != null && (!validVersion(e.modelVersion) || typeof e.label !== 'string' ||
+      !e.label.trim() || !validScore(e.score) || !validScore(e.runnerUpScore) ||
+      e.score < e.runnerUpScore || e.score - e.runnerUpScore < 0.15);
+  };
   const manuallyKeptGroups = new Set<string>();
   const identityCounts = new Map<string, number>();
   for (const item of items) identityCounts.set(item.id, (identityCounts.get(item.id) ?? 0) + 1);
   const validSubjects: readonly ReviewSubject[] = ['bird', 'aircraft', 'person', 'mammal', 'landscape'];
+  // Conservative contradiction gate, NOT a measured accuracy threshold.
+  // Legacy callers without paired detector outputs retain existing behaviour.
+  const conflicts = (item: ReviewCandidate): boolean => {
+    const e = item.competingEvidence;
+    if (e === undefined || e === null) return false;
+    if (typeof e.modelVersion !== 'string' || !e.modelVersion.trim() ||
+        !Number.isFinite(e.birdScore) || !Number.isFinite(e.aircraftScore) ||
+        e.birdScore < 0 || e.birdScore > 1 || e.aircraftScore < 0 || e.aircraftScore > 1)
+      return true;
+    if (item.subject === 'bird' && e.aircraftScore >= 0.55 &&
+        e.aircraftScore >= e.birdScore - 0.15) return true;
+    if (item.subject === 'aircraft' && e.birdScore >= 0.55 &&
+        e.birdScore >= e.aircraftScore - 0.15) return true;
+    return false;
+  };
   const eligible = (item: ReviewCandidate): boolean =>
     typeof item.id === 'string' && item.id.trim().length > 0 &&
-    identityCounts.get(item.id) === 1 && validSubjects.includes(item.subject) &&
+    identityCounts.get(item.id) === 1 && validSubjects.includes(item.subject) && !conflicts(item) && !invalidOptionalEvidence(item) &&
     (item.groupId == null || (typeof item.groupId === 'string' && item.groupId.trim().length > 0)) &&
     Number.isFinite(item.quality) && Number.isFinite(item.confidence) &&
     (item.confidence as number) >= 0.6 && (item.confidence as number) <= 1 &&
@@ -53,12 +90,22 @@ export function recommendForReview(items: readonly ReviewCandidate[]): ReviewSug
     if (item.manualDecision != null || !eligible(item) || manuallyKeptGroups.has(groupKey(item))) continue;
     const key = groupKey(item);
     const previous = best.get(key);
+    const detail = detailScore(item);
+    // A reliable eye/subject score breaks equal-quality ties, but never overrides
+    // a higher established overall-quality score or a manual decision.
     if (!previous || (item.quality as number) > previous.quality ||
-        ((item.quality as number) === previous.quality && item.id < previous.id)) {
-      best.set(key, { id: item.id, quality: item.quality as number });
+        ((item.quality as number) === previous.quality &&
+          ((detail ?? -1) > (previous.detail ?? -1) ||
+            (detail === previous.detail && item.id < previous.id)))) {
+      best.set(key, { id: item.id, quality: item.quality as number, detail });
     }
   }
   return items.map((item) => {
+    // An ambiguous catalogue identity cannot safely inherit a manual decision.
+    // Never attribute a Keep or Reject to two different originals sharing an ID.
+    if (typeof item.id !== 'string' || !item.id.trim() || identityCounts.get(item.id) !== 1) {
+      return { id: item.id, suggestion: 'review', reason: 'uncertain-detection' };
+    }
     if (item.manualDecision === 'keep' || item.manualDecision === 'reject') {
       return { id: item.id, suggestion: item.manualDecision, reason: 'manual' };
     }

@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+// The offline worker caches the model after the first request, and a cached answer bypasses page.route, so the
+// "model unavailable" set-up below would only hold for the first attempt. Keep the worker out of this test.
+test.use({ serviceWorkers: 'block' });
+
 test('Insight explains a failed local detector and never changes an edit before Apply', async ({ page }) => {
   test.setTimeout(90_000);
   // Make the bundled model unavailable to exercise the truthful offline fallback.
@@ -27,8 +31,8 @@ test('Insight explains a failed local detector and never changes an edit before 
   await expect(page.getByRole('navigation', { name: 'Photo collections' })
     .getByRole('button', { name: 'To review 1' })).toBeVisible();
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
-  const toolbar = page.getByRole('toolbar', { name: 'Editor actions' });
-  const undo = toolbar.getByRole('button', { name: 'Undo', exact: true });
+  // Undo is in the editor's toolbar, or on a phone in Quick adjust (Step back) while that is showing.
+  const undo = page.getByRole('button', { name: /^(Undo|Step back)$/ });
   await expect(undo).toBeDisabled();
 
   const panel = page.getByRole('tabpanel', { name: 'Auto' });

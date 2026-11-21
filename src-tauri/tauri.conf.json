@@ -17,7 +17,9 @@
         "height": 860,
         "minWidth": 900,
         "minHeight": 600,
-        "dragDropEnabled": false
+        "theme": "Dark",
+        "dragDropEnabled": false,
+        "maximized": true
       }
     ],
     "security": {
@@ -44,6 +46,9 @@
           "jpeg",
           "png",
           "webp",
+          "heic",
+          "heif",
+          "hif",
           "nef",
           "nrw",
           "arw",
@@ -64,6 +69,8 @@
           "public.jpeg",
           "public.png",
           "org.webmproject.webp",
+          "public.heic",
+          "public.heif",
           "public.camera-raw-image",
           "com.adobe.raw-image",
           "com.nikon.raw-image",
@@ -79,7 +86,16 @@
           "com.pentax.raw-image"
         ]
       }
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "headerImage": "icons/installer/header.bmp",
+        "uninstallerHeaderImage": "icons/installer/header.bmp",
+        "sidebarImage": "icons/installer/sidebar.bmp"
+      }
+    }
   },
   "plugins": {
     "updater": {

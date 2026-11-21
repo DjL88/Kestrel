@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { exportPaths, exportRunFolder, safeExportName } from './exportPlace.ts';
+import { exportPaths, exportRunFolder, safeExportName, writeExportFiles } from './exportPlace.ts';
 import { isWritablePath } from './storageConnectors.ts';
 
 const when = new Date(2026, 10, 16, 14, 5);
@@ -37,4 +37,35 @@ test('separate export runs in the same minute never share destination paths', ()
   assert.match(first[0], /^export\/2026-11-16 14-05-00000000/);
   assert.equal(isWritablePath(first[0]), true);
   assert.equal(isWritablePath(second[0]), true);
+});
+
+test('groups social outputs into destination folders and resolves collisions within each folder', () => {
+  const paths = exportPaths([
+    { name: 'kite.jpg', platform: 'instagram' },
+    { name: 'kite.jpg', platform: 'facebook' },
+    { name: 'KITE.JPG', platform: 'instagram' },
+    { name: 'kite.jpg' },
+  ], when);
+  assert.deepEqual(paths, [
+    'export/2026-11-16 14-05/instagram/kite.jpg',
+    'export/2026-11-16 14-05/facebook/kite.jpg',
+    'export/2026-11-16 14-05/instagram/KITE-2.JPG',
+    'export/2026-11-16 14-05/kite.jpg',
+  ]);
+  assert.ok(paths.every(isWritablePath));
+});
+
+test('stop lets the current write finish and never starts the next file', async () => {
+  const controller = new AbortController();
+  const written: string[] = [];
+  const progress: number[] = [];
+  const files = [new Blob(['one']), new Blob(['two'])];
+  const result = await writeExportFiles(files, ['one.jpg', 'two.jpg'], async path => {
+    controller.abort();
+    await Promise.resolve();
+    written.push(path);
+  }, { signal: controller.signal, onProgress: count => progress.push(count) });
+  assert.deepEqual(written, ['one.jpg']);
+  assert.deepEqual(progress, [1]);
+  assert.deepEqual(result, { count: 1, stopped: true });
 });

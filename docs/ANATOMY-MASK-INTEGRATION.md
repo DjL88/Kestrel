@@ -1,0 +1,66 @@
+# Observed anatomy / occlusion integration contract (W3, 21 November)
+
+This branch supplies a **pure, offline, non-generative** refinement of the existing `Mask.kind === 'subject'` recipe. It is **not** a deployed anatomy detector, not a confidence-calibrated model and not evidence of improved real-photo segmentation.
+
+## End-user path to connect
+
+1. W3/model lead: after existing U²-Net subject segmentation, optionally run a rights-cleared on-device part/foreground-occluder model on the *same framed image*. The model must produce two 8–512 pixel probability grids with matched framing, model ID/version and independently calibrated confidence. Bird legs/feet/wing tips, human hair/hands and pet paws/fur are examples of **observed** parts, not synthetic shapes; perches, branches and foreground objects are potential occluders. Never infer species from this generic detector.
+2. W1/integration: verify the source SHA against the linked immutable original and framing key immediately before proposing a refinement. Call `refineObservedAnatomy` only when the optional model is present and trusted. On `ok:false`, retain the existing mask and show no success claim. On success, pass the returned mask through existing undoable recipe/history; do not mutate source or silently apply while a person is brushing. Preserve manual paint/erase strokes and mask limits. Revalidate the source before commit.
+3. W2/RAW: reuse the same returned mask recipe through existing `effectiveAlpha` and true RGB16 renderer. Check real preview/export edge parity, high-frequency feather/branch halos and whether invalidated fine detail needs a new verified refinement at the updated grid resolution. This source-only patch intentionally clears stale fine detail; otherwise the old detail would override observed changes.
+4. W4/UX: existing Masks tab only, quiet "Refine subject edges" suggestion when a trustworthy local model is installed; no new AI tab or forced wizard. Glide asks before applying; Soar may apply only if high-confidence, no manual mask conflict and undo is available; Fly Solo only on explicit request.
+
+## Safety and validation
+
+Both evidence maps must be calibrated on independent rights-cleared real positive/negative examples, including helicopters/aircraft, birds against branches, dark legs, humans/hair/hands, pets/paws, sports and non-subject landscapes. The current 0.90 confidence and 230/255 per-pixel gates are **conservative provisional engineering thresholds**, not calibrated accuracy. Existing manual strokes are retained, not discarded. No upload, generated pixels, training, commercial model rights or memory/performance claim. The input grids and output mask remain bounded to 512x512 cells.
+
+Executable unit, lint, build, Playwright, Cargo, real Nikon, Mac/Windows/phone and 16-bit ICC/edge comparisons: NOT RUN in connector-only authoring. A real end-to-end improvement is NOT achieved until the existing segmentation producer, editor history and high-bit export are connected and verified. Keep #418 Q-04/Q-09/Q-10 open.
+
+## Asynchronous edit-revision guard (21 November)
+
+The producer must capture `sourceSha256`, `framingKey`, the **exact current** `mask.grid.data` as `baseGridData`, and the editor's monotonically increasing `recipeRevision` **before** starting optional local inference. At acceptance, pass the independently verified original SHA and **current** recipe revision to `refineObservedAnatomy(mask, evidence, sourceSha, currentRevision, verifyCalibration)`. Any crop, mask brush, slider, undo, history restore or photo switch must increment/change the revision or cancel the pending proposal. The function now returns `stale-recipe` when either revision or base grid changed, even if the original photo hash still matches. Never retry by replacing the current revision with the old one; run a fresh analysis after the user explicitly requests it or guidance policy permits.
+
+The returned mask is a **proposal**; Glide requires Apply, Fly Solo requires an explicit request, and Soar requires opt-in plus verified evidence and undo/history. This function does not authorize automatic recipe writes. It still requires a rights-cleared local anatomy/occlusion producer with independent real negative calibration; fixture probabilities are not calibration. W1 owns editor/history integration and W3 owns model evidence. W2 owns true renderer/export parity. No cloud upload or model training is performed here.
+
+## Calibration gate and producer contract (21 November)
+
+The anatomy evidence consumer now requires a domain-matched calibration record: exact model ID/version, approved evaluation-manifest status, versioned rights-cleared dataset digest, and non-zero independent positive and negative counts. It rejects a raw U2NetP/object-detector confidence, missing metadata, model mismatch or wrong genre. **The `approved` field is an assertion from the trusted signed asset-loader, not cryptographic verification here**; never populate it merely because inference succeeded or a synthetic fixture passed. Until a genuinely evaluated, rights-approved part/occluder model is installed and the loader verifies its manifest, leave refinement unavailable and preserve existing manual subject masks. Do not map saliency output to fictitious bird-leg or branch labels. W5 owns signed-manifest verification and legal data provenance; W3 owns independently labelled real positives and negatives; W1 owns current-recipe/source-bound application and undo. The test fixture's 1+1 sample counts are deliberately synthetic and **not evidence of calibration**.
+
+## Mandatory signed calibration verification at application (21 November, 06:31 UTC)
+
+The old `calibration.approved: true` value was caller-controlled and could
+authorise edits without proving a trusted model evaluation. This was a
+fail-open boundary. The consumer now requires the fifth
+`verifyCalibration(calibration, evidence)` argument and **abstains** if the
+authority is absent, rejects, or throws. The callback must be provided by the
+trusted local signed-asset authority (W5), verifying the exact installed model
+ID/version, evaluation dataset digest, independent positive/negative evidence,
+rights approval and signed manifest binding. It must not simply return
+`calibration.approved`. Test fixtures use a test-only callback, not a real
+trust authority. W1 must not enable automatic Soar application until this
+integration and reversible recipe history are wired. No photos or model
+evidence leave the device. No quality or calibration accuracy is claimed.
+
+This update also repairs literal escaped newline tokens that had made the
+TypeScript test fixture syntactically invalid. Source readback is not an
+executable test; exact-head tests and installed checks remain NOT RUN.
+
+## Complete mask-state concurrency guard (21 November, 07:31 UTC)
+
+The existing source digest, grid bytes and recipe revision are necessary but not
+sufficient when an integration misses a revision increment. Before inference,
+set `evidence.baseMaskSnapshot = captureAnatomyMaskSnapshot(mask)` on the
+current validated subject mask. At acceptance the consumer compares the full
+editable mask snapshot (manual strokes, feather, local edit strengths, limits,
+invert, fine detail, identity and grid) as well as source, framing and revision.
+Any mismatch abstains with `stale-recipe`; the caller must reanalyse, never
+rewrite the current snapshot to force a stale result through. The snapshot is
+not a cryptographic source hash and does not replace verifying original bytes.
+The complete snapshot contains mask grid data, so it stays **on-device only**;
+do not log, transmit or persist it as analytics. The result remains a proposal,
+not an automatic write. A missing or mismatched snapshot fails closed.
+
+Three additional synthetic regression cases cover missed brush-revision bumps,
+changed feather/local edits/limits and a valid freshly captured proposal. This
+is not installed-editor or real-photo proof. W1 owns capturing the snapshot at
+the async producer boundary, comparing again at undoable commit, and honoring
+Soar/Glide/Fly Solo; W5 owns independent signed calibration verification.

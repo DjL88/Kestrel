@@ -17,6 +17,7 @@ export function createEmptyProject(
 /** Removal timestamps are optional, not booleans: 0 is a valid removed marker. */
 export function appendProjectPhotos(
   project: CullingState, incoming: PhotoFrame[], importId: string,
+  options: { sequenceBase?: number } = {},
 ): CullingState {
   const seen = new Set(project.frames.filter((frame) => frame.removedAt == null).map((frame) => frame.stableKey));
   // Adding a removed photo again brings it back as a fresh, unreviewed photo instead of silently doing nothing.
@@ -35,16 +36,31 @@ export function appendProjectPhotos(
     added.push({
       ...frame,
       id: `${importId}-${frame.id}`,
-      sequenceIndex: sequenceStart + added.length + 1,
+      // During out-of-order asynchronous imports, preserve the filename/camera
+      // capture position rather than assigning a new number by I/O completion.
+      // Other workflows keep the historical append-based numbering.
+      sequenceIndex: Number.isSafeInteger(options.sequenceBase) &&
+        Number.isSafeInteger(frame.sequenceIndex) && frame.sequenceIndex > 0 &&
+        Number.isSafeInteger(options.sequenceBase! + frame.sequenceIndex)
+        ? options.sequenceBase! + frame.sequenceIndex
+        : sequenceStart + added.length + 1,
       burstGroupId: frame.burstGroupId ? `${frame.burstGroupId}-${importId}` : null,
     });
   }
   if (!added.length && !revived.size) return project;
-  const frames = [...project.frames.map((frame) => {
+  let frames = [...project.frames.map((frame) => {
     if (!revived.has(frame.id)) return frame;
     const { removedAt: _removedAt, ...kept } = frame;
     return { ...kept, decision: 'unreviewed' as const };
   }), ...added];
+  if (options.sequenceBase !== undefined) {
+    // Photos of one import arrive in the order they finish reading, but the library's own order is the order they
+    // were shot: keep this import's photos sorted among themselves, in the places they already hold.
+    const own = (frame: PhotoFrame) => frame.id.startsWith(`${importId}-`);
+    const ordered = frames.filter(own).sort((a, b) => a.sequenceIndex - b.sequenceIndex);
+    let next = 0;
+    frames = frames.map((frame) => own(frame) ? ordered[next++] : frame);
+  }
   return {
     ...project, frames,
     selectedFrameId: project.selectedFrameId ?? added[0]?.id ?? [...revived][0] ?? null,
@@ -167,4 +183,24 @@ export function sortProjects<T extends { title: string; createdAt: number; lastU
     name: (a: T, b: T) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base', numeric: true }),
   }[sort];
   return [...projects].sort(by);
+}
+
+/**
+ * A progressive import appends photos in batches so they can be seen and edited at once. Burst groups are only final
+ * once every photo of the import is known (a burst can straddle two batches), so the final grouping is applied to the
+ * photos of that import at the end. Decisions, ratings, edits and IDs are untouched.
+ */
+export function applyImportBursts(project: CullingState, finalFrames: readonly PhotoFrame[], importId: string): CullingState {
+  const byKey = new Map(finalFrames.map((frame) => [frame.stableKey, frame]));
+  let changed = false;
+  const frames = project.frames.map((frame) => {
+    if (!frame.id.startsWith(`${importId}-`)) return frame;
+    const final = byKey.get(frame.stableKey);
+    if (!final) return frame;
+    const burstGroupId = final.burstGroupId ? `${final.burstGroupId}-${importId}` : null;
+    if (frame.burstGroupId === burstGroupId && frame.burstIndex === final.burstIndex && frame.burstCount === final.burstCount) return frame;
+    changed = true;
+    return { ...frame, burstGroupId, burstIndex: final.burstIndex, burstCount: final.burstCount };
+  });
+  return changed ? { ...project, frames } : project;
 }

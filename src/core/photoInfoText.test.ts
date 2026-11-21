@@ -22,3 +22,14 @@ test('missing metadata is omitted, not displayed as undefined or blank labels', 
   const frame = { filename: 'bird.jpg', decision: 'unreviewed', exif: {} } as PhotoFrame;
   assert.equal(photoInfoText(frame), 'File: bird.jpg');
 });
+
+test('capture metadata includes the full date and time when available', () => {
+  const timestamp = Date.UTC(2026, 10, 18, 12, 34, 56);
+  const frame = {
+    filename: 'robin.NEF', decision: 'keep', exif: { capturedAtMs: timestamp },
+  } as PhotoFrame;
+  const details = photoInfoText(frame);
+  assert.match(details, /Captured:/);
+  assert.match(details, /2026/);
+  assert.ok(details.split('Captured: ')[1]?.trim().length > 12);
+});

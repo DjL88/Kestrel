@@ -36,6 +36,8 @@ export const LOGIT_SCALE = 100;
  * owner's own photos (helicopters, aircraft, cars, birds, scenery) before relying on the wording.
  */
 export const ROUTER_THRESHOLDS = { minimumProbability: 0.45, minimumMargin: 0.15, detectorBonus: 1.5, detectorMinimumScore: 0.5 } as const;
+/** The same thresholds with any values, for calibration and tests. */
+export type RouterThresholds = { [K in keyof typeof ROUTER_THRESHOLDS]: number };
 
 export interface DetectorEvidence { label: string; score: number }
 export interface Ranked { category: SubjectCategory; probability: number }
@@ -55,8 +57,30 @@ export interface RouteResult {
   animalProbability: number;
 }
 
-const dot = (a: ArrayLike<number>, b: ArrayLike<number>) => { let sum = 0; for (let i = 0; i < a.length; i += 1) sum += a[i] * b[i]; return sum; };
-const norm = (v: ArrayLike<number>) => Math.sqrt(dot(v, v)) || 1;
+/**
+ * Cosine similarity without squaring unscaled model outputs. Even entirely finite
+ * embeddings can overflow ordinary dot products/norms (e.g. 1e200 * 1e200),
+ * leaving NaN probabilities that must never become a subject claim.
+ */
+function cosine(a: ArrayLike<number>, b: ArrayLike<number>): number {
+  let aMax = 0;
+  let bMax = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    aMax = Math.max(aMax, Math.abs(a[i]));
+    bMax = Math.max(bMax, Math.abs(b[i]));
+  }
+  let dot = 0;
+  let aSquared = 0;
+  let bSquared = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    const av = a[i] / aMax;
+    const bv = b[i] / bMax;
+    dot += av * bv;
+    aSquared += av * av;
+    bSquared += bv * bv;
+  }
+  return dot / Math.sqrt(aSquared * bSquared);
+}
 
 /**
  * Rank the categories for one picture. `embedding` and each of `vectors` come from the same image-and-text model.
@@ -64,17 +88,19 @@ const norm = (v: ArrayLike<number>) => Math.sqrt(dot(v, v)) || 1;
  */
 export function routeSubject(
   embedding: ArrayLike<number>, vectors: readonly ArrayLike<number>[], categories: readonly SubjectCategory[],
-  detections: readonly DetectorEvidence[] = [], thresholds = ROUTER_THRESHOLDS,
+  detections: readonly DetectorEvidence[] = [], thresholds: RouterThresholds = ROUTER_THRESHOLDS,
 ): RouteResult {
   if (!categories.length || categories.length !== vectors.length) throw new RangeError('There must be exactly one vector per category.');
   if (!vectors.every((vector) => vector.length === embedding.length)) throw new RangeError('The picture and the categories use different vector sizes.');
-  if (![...Array.from(embedding)].every(Number.isFinite)) throw new RangeError('The picture embedding is not a valid vector.');
-  const scale = norm(embedding);
+  if (!Array.from(embedding).every(Number.isFinite) || !Array.from(embedding).some((value) => value !== 0)) throw new RangeError('The picture embedding is not a valid vector.');
+  if (!vectors.every((vector) => Array.from(vector).every(Number.isFinite) && Array.from(vector).some((value) => value !== 0))) {
+    throw new RangeError('Category vectors must be finite and nonzero.');
+  }
   const logits = vectors.map((vector, index) => {
-    let value = LOGIT_SCALE * dot(embedding, vector) / (scale * norm(vector));
+    let value = LOGIT_SCALE * cosine(embedding, vector);
     // The strongest supporting detection for this category counts, scaled by how sure the detector was.
     const support = detections
-      .filter((detection) => detection.score >= thresholds.detectorMinimumScore && categories[index].detector.includes(detection.label))
+      .filter((detection) => Number.isFinite(detection.score) && detection.score >= thresholds.detectorMinimumScore && detection.score <= 1 && categories[index].detector.includes(detection.label))
       .reduce((best, detection) => Math.max(best, detection.score), 0);
     return value + thresholds.detectorBonus * support;
   });
@@ -118,5 +144,7 @@ export const STRICT_SPECIES_PROBABILITY = 0.95;
 /** Words for the user, in the same three steps as the species suggestions. */
 export function routeWording(result: RouteResult): string {
   const percent = result.probability;
-  return `${percent >= 0.8 ? 'Likely' : percent >= 0.45 ? 'Possibly' : 'Unsure'} ${result.best.label.toLowerCase()}`;
+  // A large top score is not enough for a confident claim when the runner-up is close.
+  // Keep the public wording aligned with the margin-aware route decision.
+  return `${result.confident && percent >= 0.8 ? 'Likely' : percent >= 0.45 ? 'Possibly' : 'Unsure'} ${result.best.label.toLowerCase()}`;
 }

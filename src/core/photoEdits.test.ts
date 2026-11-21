@@ -166,3 +166,33 @@ test('raising Brightness does not clip an already-bright saturated feather colou
   assert.ok(after[0] < 255, 'retain at least a little peak-channel headroom');
   assert.equal(after[3], 255);
 });
+
+test('Texture and Clarity do not turn a smooth, noisy background into grain, but still lift real texture', () => {
+  // Left half: a flat out-of-focus background with sensor-like noise. Right half: fine stripes, like feather barbs.
+  const W = 128, H = 64;
+  let seed = 7;
+  const noise = () => { seed = (seed * 1103515245 + 12345) >>> 0; return (seed / 2 ** 32 - 0.5) * 2; };
+  const image = () => {
+    const px = new Uint8ClampedArray(W * H * 4);
+    seed = 7;
+    for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) {
+      const v = x < W / 2 ? 120 + 6 * noise() : (Math.floor(x / 3) % 2 ? 150 : 95);
+      const i = (y * W + x) * 4;
+      px[i] = px[i + 1] = px[i + 2] = v; px[i + 3] = 255;
+    }
+    return px;
+  };
+  const spread = (px: Uint8ClampedArray, x0: number, x1: number) => {
+    const values: number[] = [];
+    for (let y = 8; y < H - 8; y += 1) for (let x = x0; x < x1; x += 1) values.push(px[(y * W + x) * 4]);
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    return Math.sqrt(values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length);
+  };
+  const before = image();
+  const after = image();
+  applyDetail(after, W, H, { ...DEFAULT_EDIT, texture: 0.65, clarity: 1 }, 2200);
+  const noiseBefore = spread(before, 8, W / 2 - 8), noiseAfter = spread(after, 8, W / 2 - 8);
+  const stripesBefore = spread(before, W / 2 + 8, W - 8), stripesAfter = spread(after, W / 2 + 8, W - 8);
+  assert.ok(noiseAfter <= noiseBefore * 1.1, `background noise grew from ${noiseBefore.toFixed(2)} to ${noiseAfter.toFixed(2)}`);
+  assert.ok(stripesAfter > stripesBefore * 1.05, `texture should still lift: ${stripesBefore.toFixed(2)} -> ${stripesAfter.toFixed(2)}`);
+});

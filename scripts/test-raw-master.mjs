@@ -98,7 +98,18 @@ function tiffMetadata(path) {
       const length = elements * bytesPer;
       const bytes = length <= 4 ? e.subarray(8, 8 + length) : read(length, u32(e, 8));
       let values;
-      if (tag === 34675) values = [length];
+      if (tag === 34675) {
+        // The presence of a tag alone is not proof of a valid, colour-managed master.
+        // ICC profiles are big-endian regardless of TIFF byte order.
+        if (length < 128 || bytes.toString('ascii', 36, 40) !== 'acsp') {
+          throw new Error('TIFF has a malformed ICC profile (missing ICC header/signature).');
+        }
+        const declaredSize = bytes.readUInt32BE(0);
+        if (declaredSize < 128 || declaredSize > length || bytes.toString('ascii', 16, 20) !== 'RGB ') {
+          throw new Error('TIFF ICC profile is truncated or does not describe RGB pixels.');
+        }
+        values = [declaredSize];
+      }
       else if (type === 3) values = Array.from({ length: elements }, (_, i) => u16(bytes, i * 2));
       else if (type === 4) values = Array.from({ length: elements }, (_, i) => u32(bytes, i * 4));
       else throw new Error('Unexpected TIFF metadata format');
@@ -146,11 +157,14 @@ run(cargo, ['run', '--release', '--manifest-path', 'src-tauri/Cargo.toml', '--ex
 const after = await hashFile(source);
 if (before !== after) fail('CRITICAL: original RAW checksum changed.');
 if (!existsSync(output)) fail('No TIFF output was created.');
-const result = tiffMetadata(output);
-console.log('\nPASS: Native RAW exported an RGB16 TIFF.');
+let result;
+try { result = tiffMetadata(output); }
+catch (error) { fail('RAW master metadata/colour validation failed: ' + (error instanceof Error ? error.message : String(error))); }
+if (result.iccBytes < 128) fail('RAW master has no valid embedded RGB ICC profile. Colour quality gate BLOCKED.');
+console.log('\nPASS: Native RAW exported an RGB16 TIFF with an embedded RGB ICC profile.');
 console.log('Dimensions:', result.width + ' x ' + result.height);
 console.log('Bits per channel:', result.bits.join('/'));
 console.log('Original unchanged:', before === after);
-console.log('ICC profile embedded:', result.iccBytes > 0 ? 'YES (' + result.iccBytes + ' bytes)' : 'NO — COLOUR QUALITY GATE BLOCKED');
+console.log('Validated RGB ICC profile:', result.iccBytes + ' bytes');
 console.log('TIFF:', output);
 console.log('\nNOT YET PROVEN: camera colour fidelity, supported HE/HE*, preview parity, denoise/feather quality.');

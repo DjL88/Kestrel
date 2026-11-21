@@ -3,12 +3,17 @@ import { Check, Download, Loader2, RefreshCw, X } from 'lucide-react';
 import { SPECIES_MODEL, megabytes } from '../core/speciesModel';
 import { confidenceWord, kindFor, personalBonus, pickSuggestions, rankSpecies, similarPhotos, type Suggestion } from '../core/speciesMatch';
 import { qualifiesForAutoTag } from '../core/autoTags';
+import { gateOutcome } from '../core/categoryGate';
+import { STRICT_SPECIES_PROBABILITY } from '../core/subjectRouter';
+import { subjectCrop } from '../core/subjectCrop';
+import { gateAvailable, routePicture } from '../providers/categoryGate';
 import { readAutoTag, readSpeciesCounts, rememberSpecies, saveAutoTag } from '../providers/speciesLearning';
 import { helperReady, failureMessage, type HelperAnswer } from '../core/onlineHelper';
 import { openHelperDialog, useHelperSettings } from '../providers/helperSettings';
 import { HelperError, geminiTransport, imageForHelper } from '../providers/onlineHelper';
 import type { SubjectKind } from '../core/subjectTags';
-import { downloadSpeciesModel, embedPicture, loadSpeciesLabels, speciesStatus, type SpeciesStatus } from '../providers/speciesModel';
+import { SPECIES_DOWNLOAD_BYTES, downloadSpeciesModel, embedPicture, loadSpeciesLabels, speciesStatus, type SpeciesStatus } from '../providers/speciesModel';
+import { viewerText as t } from '../i18n/areas/viewer';
 
 interface Props {
   frameId: string;
@@ -45,13 +50,14 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
   const [onlineAnswer, setOnlineAnswer] = useState<HelperAnswer | null>(null);
   const [onlineNote, setOnlineNote] = useState('');
   // The latest values, read after the model has finished, since they may have changed while it was thinking.
-  const latest = useRef({ canAutoTag, declined, onAutoTag, autoOn });
-  latest.current = { canAutoTag, declined, onAutoTag, autoOn };
+  const latest = useRef({ canAutoTag, declined, onAutoTag, autoOn, kind, tags, frameId });
+  latest.current = { canAutoTag, declined, onAutoTag, autoOn, kind, tags, frameId };
   const [status, setStatus] = useState<SpeciesStatus | 'checking'>('checking');
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<Suggestion[] | null>(null);
+  const [gateNote, setGateNote] = useState('');
   const [dismissed, setDismissed] = useState<string[]>([]);
   const abort = useRef<AbortController | null>(null);
   const run = useRef(0);
@@ -63,26 +69,43 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
 
   async function analyse() {
     const picture = getPicture();
-    if (!picture) { setError('The photo is not ready to look at yet. Try again in a moment.'); return; }
+    if (!picture) { setError(t.species.notReady); return; }
     const mine = ++run.current;
     setBusy(true);
     setError('');
     try {
-      const [{ labels, vectors }, embedding_] = await Promise.all([loadSpeciesLabels(), embedPicture(picture)]);
+      // A species-only classifier cannot tell a helicopter from an Osprey. Do not
+      // infer a name unless independent on-device category evidence permits it.
+      if (!gateAvailable()) {
+        setResults([]);
+        setGateNote(t.species.needsChecker);
+        return;
+      }
+      const route = await routePicture(picture, subjectCrop(picture.width, picture.height, null));
       if (mine !== run.current) return;
+      const gate = gateOutcome(route, latest.current.kind).species;
+      if (gate === 'block') {
+        setResults([]);
+        setGateNote(t.species.notEnoughEvidence);
+        return;
+      }
+      const [{ labels, vectors }, embedding_] = await Promise.all([loadSpeciesLabels(), embedPicture(picture)]);
+      if (mine !== run.current || latest.current.kind !== 'wildlife' || latest.current.frameId !== frameId) return;
       embedding.current = embedding_;
-      const picked = pickSuggestions(rankSpecies(embedding_, labels, vectors, personalBonus(labels, readSpeciesCounts())));
+      const picked = pickSuggestions(rankSpecies(embedding_, labels, vectors, personalBonus(labels, readSpeciesCounts())))
+        .filter((entry) => gate === 'allow' || entry.probability >= STRICT_SPECIES_PROBABILITY);
       setResults(picked);
+      setGateNote(gate === 'strict' ? t.species.uncertain : '');
       // A strong match must also lead before personal ranking preferences are applied.
       const best = picked[0];
       const now = latest.current;
-      if (best && now.autoOn && now.canAutoTag && qualifiesForAutoTag(best, embedding_, labels, vectors) && !now.declined.some((name) => name.toLowerCase() === best.label.common.toLowerCase())) {
+      if (gate === 'allow' && best && now.kind === 'wildlife' && now.frameId === frameId && now.tags.length === 0 && now.autoOn && now.canAutoTag && qualifiesForAutoTag(best, embedding_, labels, vectors) && !now.declined.some((name) => name.toLowerCase() === best.label.common.toLowerCase())) {
         now.onAutoTag?.(best.label.common, kindFor(best.label));
         void findSimilar(best.label.common, kindFor(best.label));
       }
       setDismissed([]);
-    } catch (reason) {
-      if (mine === run.current) setError(reason instanceof Error ? reason.message : 'Could not look at this photo.');
+    } catch {
+      if (mine === run.current) { setResults([]); setGateNote(t.species.checkerFailed); }
     } finally {
       if (mine === run.current) setBusy(false);
     }
@@ -91,8 +114,10 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
   // Look at each photo once, when it is ready and the model is on this device.
   useEffect(() => {
     setResults(null);
+    setGateNote('');
     setDismissed([]);
     setOffer(null);
+    embedding.current = null;
     setOnlineAnswer(null);
     // The local model knows animal species only. An aircraft would otherwise
     // be forced to its nearest bird, irrespective of the apparent confidence.
@@ -113,11 +138,21 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
       for (const mate of mates.filter((entry) => !entry.has(name)).slice(0, MAX_MATES)) {
         const picture = await mate.load().catch(() => null);
         if (!picture) continue;
+        // Similarity between animal-only embeddings cannot establish that a mate
+        // is an animal: a helicopter could otherwise inherit an Osprey tag.
+        if (!gateAvailable()) continue;
+        let allowed = false;
+        try {
+          const route = await routePicture(picture, subjectCrop(picture.width, picture.height, null));
+          allowed = gateOutcome(route, undefined).species === 'allow';
+        } catch { /* No independent category evidence: leave this mate untagged. */ }
+        if (at !== run.current || latest.current.frameId !== frameId || latest.current.kind !== 'wildlife') return;
+        if (!allowed) continue;
         found.push({ id: mate.id, embedding: await embedPicture(picture) });
-        if (at !== run.current) return;
+        if (at !== run.current || latest.current.frameId !== frameId || latest.current.kind !== 'wildlife') return;
       }
       const ids = similarPhotos(mine, found);
-      if (ids.length) setOffer({ name, kind: chosenKind, ids });
+      if (ids.length && at === run.current && latest.current.frameId === frameId && latest.current.kind === 'wildlife') setOffer({ name, kind: chosenKind, ids });
     } catch { /* The offer is a convenience. Without it the photo is simply tagged on its own. */ } finally {
       setChecking(false);
     }
@@ -131,7 +166,7 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
       await downloadSpeciesModel(setProgress, abort.current.signal);
       setStatus('ready');
     } catch (reason) {
-      if ((reason as Error).name !== 'AbortError') setError(reason instanceof Error ? reason.message : 'The download failed.');
+      if ((reason as Error).name !== 'AbortError') setError(reason instanceof Error ? reason.message : t.species.downloadFailed);
     } finally {
       setProgress(null);
     }
@@ -148,10 +183,10 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
     setOnlineAnswer(null);
     try {
       const answer = await geminiTransport(helper.key).ask(imageForHelper(picture));
-      if (answer.species) setOnlineAnswer(answer); else setOnlineNote('The online helper could not name this one.');
+      if (answer.species) setOnlineAnswer(answer); else setOnlineNote(t.species.helperNoName);
     } catch (failure) {
       const reason = failure instanceof HelperError ? failure.failure : 'other';
-      setOnlineNote(failureMessage(reason).text || 'The online helper could not be reached. Try again later.');
+      setOnlineNote(failureMessage(reason).text || t.species.helperUnreachable);
     } finally {
       setAsking(false);
     }
@@ -161,24 +196,24 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
     <div className="space-y-1.5">
       {helperOn ? (
         <button type="button" disabled={asking || !ready} onClick={() => void askOnline()} className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-white/15 px-3 text-sm font-medium hover:bg-white/10 disabled:opacity-45">
-          {asking ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}{asking ? 'Asking…' : 'Ask the online helper about this photo'}
+          {asking ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}{asking ? t.species.asking : t.species.askHelper}
         </button>
       ) : (
-        <button type="button" onClick={() => openHelperDialog()} className="min-h-10 text-xs text-zinc-300 underline underline-offset-4 hover:text-white">{helper.key ? 'Online helper is off or offline. Open its settings' : 'Or set up the optional online helper'}</button>
+        <button type="button" onClick={() => openHelperDialog()} className="min-h-10 text-xs text-zinc-300 underline underline-offset-4 hover:text-white">{helper.key ? t.species.helperOff : t.species.setUpHelper}</button>
       )}
-      {helperOn && <button type="button" onClick={() => openHelperDialog()} className="block min-h-10 text-xs text-zinc-400 underline underline-offset-4 hover:text-white">Online helper settings</button>}
+      {helperOn && <button type="button" onClick={() => openHelperDialog()} className="block min-h-10 text-xs text-zinc-400 underline underline-offset-4 hover:text-white">{t.species.helperSettings}</button>}
       {onlineNote && <p role="status" className="text-xs text-zinc-400">{onlineNote}</p>}
       {onlineAnswer?.species && onlineAnswer.kind === 'wildlife' && (kind === 'wildlife' || !kind) &&
         !tags.some((tag) => tag.toLowerCase() === onlineAnswer.species!.toLowerCase()) && (
-        <ul aria-label="Online suggestion" className="space-y-1">
+        <ul aria-label={t.species.onlineSuggestion} className="space-y-1">
           <li className="flex items-center gap-1 rounded-lg bg-white/5 pl-3 text-sm">
             <span className="min-w-0 flex-1 py-2">
               <span className="block truncate text-zinc-100">{onlineAnswer.species}</span>
-              <span className="block text-xs text-zinc-400">{onlineAnswer.scientific ? <i>{onlineAnswer.scientific}</i> : 'Named online'} · {onlineAnswer.confidence === 'high' ? 'likely' : onlineAnswer.confidence === 'medium' ? 'possible' : 'unsure'}</span>
+              <span className="block text-xs text-zinc-400">{onlineAnswer.scientific ? <i>{onlineAnswer.scientific}</i> : t.species.namedOnline} · {onlineAnswer.confidence === 'high' ? t.species.confidence.likely : onlineAnswer.confidence === 'medium' ? t.species.confidence.possible : t.species.confidence.unsure}</span>
             </span>
-            <button type="button" aria-label={`Use ${onlineAnswer.species}`} title={`Add the tag ${onlineAnswer.species}`} onClick={() => { onAccept(onlineAnswer.species!, kind ?? onlineAnswer.kind); setOnlineAnswer(null); }}
+            <button type="button" aria-label={t.species.use(onlineAnswer.species)} title={t.species.addTagTitle(onlineAnswer.species)} onClick={() => { onAccept(onlineAnswer.species!, kind ?? onlineAnswer.kind); setOnlineAnswer(null); }}
               className="grid h-11 w-11 place-items-center rounded-md text-emerald-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300"><Check className="h-5 w-5" aria-hidden="true" /></button>
-            <button type="button" aria-label={`Not ${onlineAnswer.species}`} title={`Not ${onlineAnswer.species}`} onClick={() => setOnlineAnswer(null)}
+            <button type="button" aria-label={t.species.not(onlineAnswer.species)} title={t.species.not(onlineAnswer.species)} onClick={() => setOnlineAnswer(null)}
               className="grid h-11 w-11 place-items-center rounded-md text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300"><X className="h-5 w-5" aria-hidden="true" /></button>
           </li>
         </ul>
@@ -187,22 +222,22 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
   );
 
   if (status === 'unavailable') {
-    return <section aria-label="Species suggestions" className="space-y-2 px-1 pb-2"><h3 className="text-sm font-medium text-zinc-100">Suggest what is in your photos</h3>{onlineBlock}</section>;
+    return <section aria-label={t.species.region} className="space-y-2 px-1 pb-2"><h3 className="text-sm font-medium text-zinc-100">{t.species.suggestHeading}</h3>{onlineBlock}</section>;
   }
 
   if (status === 'not-downloaded') {
     return (
-      <section aria-label="Species suggestions" className="space-y-2 px-1 pb-2">
-        <h3 className="text-sm font-medium text-zinc-100">Suggest what is in your photos</h3>
-        <p className="text-xs text-zinc-400">Turn on suggestions for birds and animals. It is a {megabytes(SPECIES_MODEL.bytes)} download, then it works offline and your photos never leave this device.</p>
+      <section aria-label={t.species.region} className="space-y-2 px-1 pb-2">
+        <h3 className="text-sm font-medium text-zinc-100">{t.species.suggestHeading}</h3>
+        <p className="text-xs text-zinc-400">{t.species.downloadOffer(megabytes(SPECIES_DOWNLOAD_BYTES))}</p>
         {progress === null ? (
           <button type="button" onClick={() => void download()} className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-white/15 px-3 text-sm font-medium hover:bg-white/10">
-            <Download className="h-4 w-4" aria-hidden="true" />Download ({megabytes(SPECIES_MODEL.bytes)})
+            <Download className="h-4 w-4" aria-hidden="true" />{t.species.download(megabytes(SPECIES_DOWNLOAD_BYTES))}
           </button>
         ) : (
           <div className="space-y-1">
-            <progress aria-label="Downloading species suggestions" className="block w-full" value={progress} max={1} />
-            <button type="button" onClick={() => abort.current?.abort()} className="min-h-10 text-xs text-zinc-300 underline underline-offset-4 hover:text-white">Cancel download</button>
+            <progress aria-label={t.species.downloading} className="block w-full" value={progress} max={1} />
+            <button type="button" onClick={() => abort.current?.abort()} className="min-h-10 text-xs text-zinc-300 underline underline-offset-4 hover:text-white">{t.species.cancelDownload}</button>
           </div>
         )}
         {error && <p role="alert" className="text-xs text-orange-200">{error}</p>}
@@ -213,12 +248,10 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
 
   if (kind !== 'wildlife') {
     return (
-      <section aria-label="Species suggestions" className="space-y-2 px-1 pb-2">
-        <h3 className="text-sm font-medium text-zinc-100">Species suggestions</h3>
+      <section aria-label={t.species.region} className="space-y-2 px-1 pb-2">
+        <h3 className="text-sm font-medium text-zinc-100">{t.species.heading}</h3>
         <p className="text-xs text-zinc-400">
-          The local model knows birds and mammals, not aircraft or other objects.
-          Choose Wildlife in Photo info before requesting an animal name.
-          An unclassified picture stays unnamed rather than becoming an invented bird.
+          {t.species.localOnly}
         </p>
         {onlineBlock}
       </section>
@@ -226,23 +259,24 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
   }
   const shown = (results ?? []).filter((entry) => !dismissed.includes(entry.label.common) && !tags.some((tag) => tag.toLowerCase() === entry.label.common.toLowerCase()));
   return (
-    <section aria-label="Species suggestions" className="space-y-1.5 px-1 pb-2">
+    <section aria-label={t.species.region} className="space-y-1.5 px-1 pb-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-zinc-100">Looks like</h3>
-        <button type="button" disabled={busy || !ready} onClick={() => void analyse()} aria-label="Look again" title="Look at this photo again"
+        <h3 className="text-sm font-medium text-zinc-100">{t.species.looksLike}</h3>
+        <button type="button" disabled={busy || !ready} onClick={() => void analyse()} aria-label={t.species.lookAgain} title={t.species.lookAgainTitle}
           className="grid h-10 w-10 place-items-center rounded-md hover:bg-white/10 disabled:opacity-45"><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} aria-hidden="true" /></button>
       </div>
-      {busy && <p role="status" className="flex items-center gap-1.5 text-xs text-zinc-400"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />Looking at your photo…</p>}
-      {!busy && results && shown.length === 0 && <p role="status" className="text-xs text-zinc-400">{results.length ? 'Nothing else to suggest.' : 'No clear match. Add a tag yourself, or tap Look again after cropping closer.'}</p>}
+      {busy && <p role="status" className="flex items-center gap-1.5 text-xs text-zinc-400"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />{t.species.looking}</p>}
+      {gateNote && <p role="status" className="text-xs text-zinc-400">{gateNote}</p>}
+      {!busy && results && shown.length === 0 && !gateNote && <p role="status" className="text-xs text-zinc-400">{results.length ? t.species.nothingElse : t.species.noMatch}</p>}
       {shown.length > 0 && (
-        <ul aria-label="Suggested names" className="space-y-1">
+        <ul aria-label={t.species.suggestedNames} className="space-y-1">
           {shown.map((entry) => (
             <li key={entry.label.common} className="flex items-center gap-1 rounded-lg bg-white/5 pl-3 text-sm">
               <span className="min-w-0 flex-1 py-2">
                 <span className="block truncate text-zinc-100">{entry.label.common}</span>
-                <span className="block text-xs text-zinc-400"><i>{entry.label.scientific}</i> · {confidenceWord(entry.probability)}</span>
+                <span className="block text-xs text-zinc-400"><i>{entry.label.scientific}</i> · {t.species.confidence[confidenceWord(entry.probability)]}</span>
               </span>
-              <button type="button" aria-label={`Use ${entry.label.common}`} title={`Add the tag ${entry.label.common}`}
+              <button type="button" aria-label={t.species.use(entry.label.common)} title={t.species.addTagTitle(entry.label.common)}
                 onClick={() => {
                   rememberSpecies(entry.label.common);
                   const chosenKind = kind ?? kindFor(entry.label);
@@ -250,29 +284,29 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
                   void findSimilar(entry.label.common, chosenKind);
                 }}
                 className="grid h-11 w-11 place-items-center rounded-md text-emerald-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300"><Check className="h-5 w-5" aria-hidden="true" /></button>
-              <button type="button" aria-label={`Not ${entry.label.common}`} title={`Not ${entry.label.common}`} onClick={() => setDismissed((prior) => [...prior, entry.label.common])}
+              <button type="button" aria-label={t.species.not(entry.label.common)} title={t.species.not(entry.label.common)} onClick={() => setDismissed((prior) => [...prior, entry.label.common])}
                 className="grid h-11 w-11 place-items-center rounded-md text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300"><X className="h-5 w-5" aria-hidden="true" /></button>
             </li>
           ))}
         </ul>
       )}
-      {checking && <p role="status" className="flex items-center gap-1.5 text-xs text-zinc-400"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />Checking the rest of the burst…</p>}
+      {checking && <p role="status" className="flex items-center gap-1.5 text-xs text-zinc-400"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />{t.species.checkingBurst}</p>}
       {offer && (
-        <div role="group" aria-label="Tag similar photos" className="space-y-1.5 rounded-lg border border-sky-300/40 bg-sky-300/10 p-2">
-          <p className="text-sm text-zinc-100">{offer.ids.length === 1 ? '1 other photo in this burst looks the same.' : `${offer.ids.length} other photos in this burst look the same.`} Tag {offer.ids.length === 1 ? 'it' : 'them'} as {offer.name} too?</p>
+        <div role="group" aria-label={t.species.tagSimilar} className="space-y-1.5 rounded-lg border border-sky-300/40 bg-sky-300/10 p-2">
+          <p className="text-sm text-zinc-100">{t.species.offer(offer.ids.length, offer.name)}</p>
           <div className="flex gap-1">
             <button type="button" className="inline-flex min-h-11 items-center rounded-md bg-sky-300/25 px-3 text-sm font-medium text-white hover:bg-sky-300/35"
-              onClick={() => { onTagMates?.(offer.ids, offer.name, offer.kind); setOffer(null); }}>Tag {offer.ids.length === 1 ? 'it' : `all ${offer.ids.length}`}</button>
-            <button type="button" className="min-h-11 rounded-md px-3 text-sm text-zinc-300 hover:bg-white/10" onClick={() => setOffer(null)}>No thanks</button>
+              onClick={() => { onTagMates?.(offer.ids, offer.name, offer.kind); setOffer(null); }}>{t.species.tagAll(offer.ids.length)}</button>
+            <button type="button" className="min-h-11 rounded-md px-3 text-sm text-zinc-300 hover:bg-white/10" onClick={() => setOffer(null)}>{t.species.noThanks}</button>
           </div>
         </div>
       )}
       {error && <p role="alert" className="text-xs text-orange-200">{error}</p>}
       <label className="flex min-h-10 items-center gap-2 text-xs text-zinc-300">
         <input type="checkbox" checked={autoOn} onChange={(event) => { setAutoOn(event.target.checked); saveAutoTag(event.target.checked); }} />
-        Automatically tag strong matches
+        {t.species.autoTag}
       </label>
-      <p className="text-xs text-zinc-400">Check suggested and automatic tags. Confidence is relative to the names this model knows.</p>
+      <p className="text-xs text-zinc-400">{t.species.checkNote}</p>
     </section>
   );
 }

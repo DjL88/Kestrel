@@ -85,8 +85,9 @@ export function offlineBuild(desktop = isDesktopBuild()): Plugin {
         return;
       }
       const all = Object.keys(bundle).filter((name) => name.startsWith('assets/')).sort();
-      // The WebAssembly runtime is large and only needed for subject detection, so it is cached when first used.
-      const lazy = all.filter((name) => /ort-wasm.*\.wasm$/.test(name));
+      // The WebAssembly runtimes are large and only needed for subject detection and RAW development, so each is cached
+      // when first used.
+      const lazy = all.filter((name) => /(ort-wasm.*|kestrel_raw-[^/]*)\.wasm$/.test(name));
       const files = all.filter((name) => !lazy.includes(name));
       this.emitFile({ type: 'asset', fileName: 'offline.js', source: offlineWorkerSource(files, lazy) });
     },

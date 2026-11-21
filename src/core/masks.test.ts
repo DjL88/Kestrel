@@ -178,3 +178,119 @@ test('local Brightness raises subject midtones without brightening outside a sof
   assert.equal(pixels[(2 * W + 2) * 4], 110);
   assert.equal(pixels[(40 * W + 50) * 4 + 3], 255);
 });
+
+/** A w × h grid, encoded as the recipe stores it, from a function giving 0 to 1 per cell. */
+function encodedGrid(w: number, h: number, value: (x: number, y: number) => number) {
+  let binary = '';
+  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) binary += String.fromCharCode(Math.round(value(x, y) * 255));
+  return { w, h, data: btoa(binary) };
+}
+
+test('a subject\'s fine outline is used inside its region, and the coarse grid outside it', () => {
+  // Coarse: a blurry blob. Fine: a crisp disc in the region x 0.4–0.6, y 0.4–0.6 (of the framed photo).
+  const coarse = encodedGrid(16, 13, (x, y) => Math.max(0, 1 - Math.hypot(x - 8, y - 6.5) / 4));
+  const detail = { region: { x: 0.4, y: 0.4, w: 0.2, h: 0.2 }, grid: encodedGrid(64, 64, (x, y) => Math.hypot(x - 32, y - 32) < 20 ? 1 : 0) };
+  const mask = { ...createSubjectMask('s', coarse, 'k', 'high', detail), feather: 0 };
+  assert.equal(validMasks([mask]), true);
+  const alpha = maskAlpha(mask, W, H, ctx);
+  // Centre of the disc: fully selected. Just outside the disc but inside the region: clear, though the blur says otherwise.
+  assert.ok(at(alpha, 50, 40) > 0.99);
+  const insideRegionOutsideDisc = at(alpha, 59, 47); // nx 0.595, ny 0.594: outside the disc (radius ~0.0625)
+  assert.ok(insideRegionOutsideDisc < 0.01, `${insideRegionOutsideDisc}`);
+  // Without the detail the same point is in the coarse blob.
+  const coarseOnly = maskAlpha({ ...mask, detail: undefined }, W, H, ctx);
+  assert.ok(at(coarseOnly, 50, 40) > 0.99);
+});
+
+test('brush strokes still win over the fine outline where they touch', () => {
+  const coarse = encodedGrid(16, 13, () => 0);
+  const detail = { region: { x: 0.25, y: 0.25, w: 0.5, h: 0.5 }, grid: encodedGrid(32, 32, () => 1) };
+  const base = { ...createSubjectMask('s', coarse, 'k', 'high', detail), feather: 0 };
+  const erased = { ...base, strokes: [createBrushStroke([0.5, 0.5], 0.08, true, false)] };
+  const alpha = maskAlpha(erased, W, H, ctx);
+  assert.ok(at(alpha, 50, 40) < 0.05, 'erased at the stroke centre');
+  assert.ok(at(alpha, 30, 25) > 0.95, 'untouched parts of the region keep the fine outline');
+});
+
+test('damaged subject detail is refused', () => {
+  const coarse = encodedGrid(16, 13, () => 0.5);
+  const good = createSubjectMask('s', coarse, 'k', 'high', { region: { x: 0.1, y: 0.1, w: 0.3, h: 0.3 }, grid: encodedGrid(16, 16, () => 1) });
+  assert.equal(validMasks([good]), true);
+  assert.equal(validMasks([{ ...good, detail: { ...good.detail!, region: { x: 0.9, y: 0.1, w: 0.3, h: 0.3 } } }]), false);
+  assert.equal(validMasks([{ ...good, detail: { ...good.detail!, region: { x: Number.NaN, y: 0, w: 0.3, h: 0.3 } } }]), false);
+  assert.equal(validMasks([{ ...good, detail: { ...good.detail!, grid: { w: 16, h: 16, data: 'short' } } }]), false);
+  assert.equal(validMasks([{ ...good, detail: null }]), false);
+});
+
+test('only slider changes count as adjustments; moving, painting, adding or deleting a mask does not', async () => {
+  const { onlyAdjustmentsChanged } = await import('./maskTypes');
+  const radial: Mask = { ...createMask('radial', 'r'), kind: 'radial', cx: 0.5, cy: 0.5, rx: 0.2, ry: 0.2 };
+  const brush = createMask('brush', 'b');
+  const masks = [radial, brush];
+  assert.equal(onlyAdjustmentsChanged(masks, [{ ...radial, edit: { exposure: 0.3 } }, brush]), true, 'a slider');
+  assert.equal(onlyAdjustmentsChanged(masks, [{ ...radial, feather: 0.9 }, brush]), true, 'edge softness');
+  assert.equal(onlyAdjustmentsChanged(masks, [{ ...radial, cx: 0.6 }, brush]), false, 'moved');
+  assert.equal(onlyAdjustmentsChanged(masks, [radial, { ...brush, strokes: [createBrushStroke([0.1, 0.1], 0.05, false, false)] } as Mask]), false, 'painted');
+  assert.equal(onlyAdjustmentsChanged(masks, [radial]), false, 'deleted');
+  assert.equal(onlyAdjustmentsChanged(masks, masks), false, 'nothing changed');
+  assert.equal(onlyAdjustmentsChanged([], []), false);
+});
+
+test('rotated oval changes orientation without changing its centre or invalidating old recipes', () => {
+  const oldMask = { ...createMask('radial', 'rotation'), kind: 'radial' as const, cx: 0.5, cy: 0.5, rx: 0.35, ry: 0.08, feather: 0.2 };
+  const unrotated = maskAlpha(oldMask, W, H, ctx);
+  const rotated = { ...oldMask, angle: 90 };
+  const turned = maskAlpha(rotated, W, H, ctx);
+  assert.equal(validMasks([oldMask]), true, 'earlier saved masks without angle remain valid');
+  assert.equal(validMasks([rotated]), true);
+  assert.equal(validMasks([{ ...rotated, angle: Number.NaN }]), false);
+  assert.ok(at(unrotated, 75, 40) > 0.9, 'wide oval covers horizontal point');
+  assert.ok(at(turned, 75, 40) < 0.1, 'rotating no longer covers horizontal point');
+  assert.ok(at(turned, 50, 62) > 0.9, 'rotated oval covers vertical point');
+  assert.ok(at(unrotated, 50, 62) < 0.1);
+  assert.ok(at(turned, 50, 40) > 0.95, 'centre stays selected');
+});
+
+test('local noise reduction changes chroma only inside its mask and respects neutral recipes', () => {
+  const width = 64, height = 48;
+  const base = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const noise = ((x * 7 + y * 11) % 5) - 2;
+    const index = (y * width + x) * 4;
+    base.set([112 + noise * 5, 120, 128 - noise * 4, 255], index);
+  }
+  const local = { ...createMask('radial', 'local-denoise'), kind: 'radial' as const,
+    cx: 0.3, cy: 0.5, rx: 0.22, ry: 0.18, feather: 0.1, edit: { denoise: 2 } };
+  assert.equal(validMasks([local]), true, 'local denoise recipe is persisted');
+  assert.equal(validMasks([{ ...local, edit: { denoise: -1 } }]), false, 'invalid negative denoise is rejected');
+  const unchanged = new Uint8ClampedArray(base);
+  applyMasks(unchanged, width, height, [{ ...local, edit: { denoise: 0 } }], fullContext(width, height));
+  assert.deepEqual(unchanged, base, 'neutral mask does not alter pixels');
+
+  const result = new Uint8ClampedArray(base);
+  applyMasks(result, width, height, [local], fullContext(width, height));
+  const inside = (24 * width + 20) * 4;
+  const outside = (24 * width + 61) * 4;
+  assert.notDeepEqual(Array.from(result.slice(inside, inside + 3)), Array.from(base.slice(inside, inside + 3)),
+    'chromatic noise changes within the mask');
+  assert.deepEqual(result.slice(outside, outside + 4), base.slice(outside, outside + 4),
+    'pixels beyond the oval are untouched');
+});
+
+test('intersected local denoise only acts where both masks overlap', () => {
+  const width = 64, height = 48;
+  const base = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const noise = ((x + y * 3) % 5) - 2;
+    base.set([110 + noise * 5, 120, 130 - noise * 4, 255], (y * width + x) * 4);
+  }
+  const left: Mask = { ...createMask('radial', 'left'), kind: 'radial', cx: 0.25, cy: 0.5, rx: 0.24, ry: 0.22, feather: 0.15 };
+  const right: Mask = { ...createMask('radial', 'right'), kind: 'radial', cx: 0.55, cy: 0.5, rx: 0.27, ry: 0.22, feather: 0.15 };
+  const constrained: Mask = { ...left, edit: { denoise: 2 }, limit: { id: right.id, mode: 'intersect' } };
+  const result = new Uint8ClampedArray(base);
+  applyMasks(result, width, height, [constrained, right], fullContext(width, height));
+  const index = (24 * width + 15) * 4;
+  assert.deepEqual(result.slice(index, index + 4), base.slice(index, index + 4),
+    'inside the first oval but outside intersection is unchanged');
+  assert.ok(result.some((value, i) => value !== base[i]), 'the intersecting region is denoised');
+});

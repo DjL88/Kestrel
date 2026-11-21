@@ -9,9 +9,7 @@
 
 use image::codecs::tiff::TiffEncoder;
 use image::{imageops, DynamicImage, ImageBuffer, ImageEncoder, Rgb};
-use rawler::decoders::RawDecodeParams;
 use rawler::imgop::develop::RawDevelop;
-use rawler::rawsource::RawSource;
 
 type Rgb16 = ImageBuffer<Rgb<u16>, Vec<u16>>;
 
@@ -318,13 +316,15 @@ pub fn develop_raw_rgb16_tiff_with_edit_and_framing(
 ) -> Result<Vec<u8>, String> {
     let edit = edit.validate()?;
     let framing = framing.validate()?;
-    let source = RawSource::new_from_slice(bytes);
-    let raw = rawler::decode(&source, &RawDecodeParams { image_index: 0 })
-        .map_err(|error| crate::raw::explain(&error.to_string()))?;
-    let intermediate = RawDevelop::default().develop_intermediate(&raw)
-        .map_err(|error| format!("RAW development failed: {error}"))?
-        .to_dynamic_image()
-        .ok_or_else(|| "RAW development produced no picture.".to_string())?;
+    let (raw, _decoder) = kestrel_raw::nikon_he::decode_sensor(bytes)?;
+    // The same develop the editor's picture uses, so the 16-bit master starts from the pixels the person saw.
+    let intermediate = match kestrel_raw::scene_develop::develop_display(&raw)? {
+        Some(display) => display,
+        None => RawDevelop::default().develop_intermediate(&raw)
+            .map_err(|error| format!("RAW development failed: {error}"))?
+            .to_dynamic_image()
+            .ok_or_else(|| "RAW development produced no picture.".to_string())?,
+    };
     let mut rgb = require_rgb16(intermediate)?;
     edit_rgb16(&mut rgb, edit);
     let oriented = orient_rgb16(rgb, raw.orientation.to_u16());
@@ -487,7 +487,7 @@ mod tests {
     /// going through `raw::explain`, so a Nikon HE*/HE file hit the library's own wording verbatim.
     #[test]
     fn nikon_high_efficiency_is_explained_in_plain_words_here_too() {
-        let message = crate::raw::explain("Failed to decode image, possibly corrupt image: NEF compression Some(HighEfficencyStar) is not supported");
+        let message = kestrel_raw::explain("Failed to decode image, possibly corrupt image: NEF compression Some(HighEfficencyStar) is not supported");
         assert!(message.contains("High Efficiency") && !message.contains("Some("), "{message}");
     }
 

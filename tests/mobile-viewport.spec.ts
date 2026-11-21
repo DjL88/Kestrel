@@ -24,11 +24,11 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
 
   await page.goto('/');
   await checkViewport('Projects portrait');
-  await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
-  await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' })).toBeVisible();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Display and layout settings' })).toBeVisible();
   // A phone must never advertise a physical Macro Pad configuration workflow.
-  await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' }).getByRole('button', { name: /Macro pad/i })).toHaveCount(0);
-  await page.getByRole('dialog', { name: 'Appearance and layout settings' }).getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByRole('dialog', { name: 'Display and layout settings' }).getByRole('button', { name: /Macro pad/i })).toHaveCount(0);
+  await page.getByRole('dialog', { name: 'Display and layout settings' }).getByRole('button', { name: 'Done' }).click();
   await checkViewport('Projects appearance sheet closed');
   await page.getByRole('button', { name: 'New project' }).click();
   await checkViewport('Project wizard portrait');
@@ -38,11 +38,13 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await page.getByRole('checkbox', { name: /Auto-edit/ }).uncheck();
   await page.getByRole('button', { name: 'Create project' }).click();
   await checkViewport('Empty library portrait');
-  // The Library More menu exposes the same handedness setting used by the Editor.
+  // The Library More menu exposes the same handedness setting used by the Editor: one choice, not a second
+  // "panel side" that looks like the same question.
   await page.getByRole('button', { name: 'More', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Left side' })).toBeVisible();
-  await page.getByRole('button', { name: 'Left side' }).click();
-  await expect(page.getByRole('button', { name: 'Left side' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Left-handed' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Left side' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Left-handed' }).click();
+  await expect(page.getByRole('button', { name: 'Left-handed' })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'More', exact: true }).click();
 
   await page.getByRole('button', { name: 'Add photos', exact: true }).click();
@@ -63,11 +65,11 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(page.getByRole('toolbar', { name: 'Editor actions' })).toBeVisible();
   await checkViewport('Editor portrait');
-  await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
-  const appearance = page.getByRole('dialog', { name: 'Appearance and layout settings' });
-  await expect(appearance.getByRole('button', { name: 'Left side' })).toHaveAttribute('aria-pressed', 'true');
-  await appearance.getByRole('button', { name: 'Right side' }).click();
-  await expect(appearance.getByRole('button', { name: 'Right side' })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  const appearance = page.getByRole('dialog', { name: 'Display and layout settings' });
+  await expect(appearance.getByRole('button', { name: 'Left-handed' })).toHaveAttribute('aria-pressed', 'true');
+  await appearance.getByRole('button', { name: 'Right-handed' }).click();
+  await expect(appearance.getByRole('button', { name: 'Right-handed' })).toHaveAttribute('aria-pressed', 'true');
   // The softer dark theme is the default now (#336), so switch to the other dark theme to prove a change applies.
   await appearance.getByRole('radio', { name: 'Classic dark' }).check();
   await appearance.getByRole('button', { name: 'Done' }).click();
@@ -85,16 +87,44 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
     return layout ? getComputedStyle(layout).flexDirection : 'missing';
   });
   expect(await editLayout()).toBe('column');
+  await page.setViewportSize({ width: 860, height: 480 });
+  await expect.poll(editLayout).toBe('row');
+  await checkViewport('Wide short landscape editor');
+  await page.setViewportSize({ width: 839, height: 480 });
+  await expect.poll(editLayout).toBe('column');
+  await checkViewport('Narrow short landscape editor');
+  await page.setViewportSize({ width: 667, height: 375 });
+  await expect.poll(editLayout).toBe('column');
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
   await page.setViewportSize({ width: 320, height: 568 });
   await checkViewport('Editor small phone');
+  await page.setViewportSize({ width: 799, height: 700 });
+  await checkViewport('Foldable narrow window stays compact');
+  await expect.poll(editLayout).toBe('column');
+  await page.setViewportSize({ width: 800, height: 700 });
+  await checkViewport('Foldable unfolded tablet-width editor');
+  await expect.poll(editLayout).toBe('row');
   await page.setViewportSize({ width: 850, height: 700 });
-  await checkViewport('Foldable unfolded narrow workspace');
-  expect(await editLayout()).toBe('column');
+  await checkViewport('Foldable unfolded workspace');
+  await expect.poll(editLayout).toBe('row');
+  await page.setViewportSize({ width: 320, height: 568 });
+  const essentialTabs = page.getByRole('tablist', { name: 'Editing tools' });
+  // The cover-screen icon rail must preserve meaningful accessible names.
+  if (await essentialTabs.count()) {
+    const tabs = essentialTabs.getByRole('tab');
+    expect(await tabs.count()).toBeGreaterThan(3);
+    for (const tab of await tabs.all()) expect(await tab.getAttribute('aria-label')).toBeTruthy();
+  }
   await page.setViewportSize({ width: 1024, height: 768 });
   await checkViewport('Tablet landscape');
   expect(await editLayout()).toBe('row');
-  await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
-  await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' })
-    .getByRole('button', { name: 'Right side' })).toHaveAttribute('aria-pressed', 'true');
+  // A landscape tablet must expose the same side-panel editing workspace as desktop.
+  await expect(page.getByTestId('editor-responsive-layout')).toHaveCSS('flex-direction', 'row');
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await checkViewport('Large unfolded book-style display');
+  await expect(page.getByTestId('editor-responsive-layout')).toHaveCSS('flex-direction', 'row');
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Display and layout settings' })
+    .getByRole('button', { name: 'Right-handed' })).toHaveAttribute('aria-pressed', 'true');
 });

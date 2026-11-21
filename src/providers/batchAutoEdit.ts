@@ -1,19 +1,24 @@
-import { autoEnhance } from '../core/autoEnhance';
-import { assessAutoQuality } from '../core/autoQualityGate';
-import { applyPhotoEdit } from '../core/photoEdits';
+import { naturalAuto, stageNaturalRecipe } from '../core/naturalAuto';
 import { DEFAULT_EDIT, isEmptyEdit, type PhotoEdit } from '../core/photoEdits';
 import { recordEdit } from '../core/editHistory';
 import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 import { loadImage } from './loadImage';
 
-/** Preview-sized local analysis for each keeper, never uploaded or written to the original. */
+/**
+ * Preview-sized local analysis for each keeper, never uploaded or written to the original.
+ * Uses the same Natural Auto engine and staged checks as the editor. Batch does not run subject segmentation, so the
+ * engine measures the in-focus detail instead, and adds no local mask. A recipe that fails its checks at full and at
+ * half strength is not applied; the photo stays exactly as it was.
+ */
 export async function suggestKeeperAutoEdits(
   frames: PhotoFrame[], provider: BrowserPreviewProvider, signal: AbortSignal, onProgress: (done: number) => void,
   targetIds?: ReadonlySet<string>,
+  /** Called immediately when one photo has passed the quality gate; later photos need not be ready. */
+  onPrepared?: (frameId: string, edit: PhotoEdit) => void,
 ): Promise<Map<string, PhotoEdit>> {
   const candidates = frames.filter((frame) =>
-    (targetIds ? targetIds.has(frame.id) : frame.decision === 'keep') && !frame.removedAt && !frame.virtualCopy &&
+    (targetIds ? targetIds.has(frame.id) : frame.decision === 'keep') && frame.removedAt == null && !frame.virtualCopy &&
     !frame.editHistory?.steps.length && (!frame.edit || isEmptyEdit(frame.edit)));
   const edits = new Map<string, PhotoEdit>();
   const canvas = document.createElement('canvas');
@@ -22,31 +27,37 @@ export async function suggestKeeperAutoEdits(
   for (let i = 0; i < candidates.length; i += 1) {
     signal.throwIfAborted();
     const frame = candidates[i];
+    let prepared: PhotoEdit | undefined;
     try {
       const url = await provider.getFullPreviewUrl(frame);
       signal.throwIfAborted();
       if (url) {
         const image = await loadImage(url);
         signal.throwIfAborted();
-        const scale = Math.min(1, 256 / Math.max(image.naturalWidth, image.naturalHeight));
+        const scale = Math.min(1, 384 / Math.max(image.naturalWidth, image.naturalHeight));
         canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
         canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
         ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
         const source = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-        const { edit } = autoEnhance(source);
+        const { edit } = naturalAuto({ pixels: source, width: canvas.width, height: canvas.height, iso: frame.exif?.iso });
         const suggestion = { ...DEFAULT_EDIT, ...edit };
         if (!isEmptyEdit(suggestion)) {
-          // A suggestion is not proof of improvement. Render it locally and refuse
-          // automatic application if it blows highlights or radically shifts colour.
-          // It remains available as a manual preview in Auto > Suggest a look.
-          const proposed = new Uint8ClampedArray(source);
-          applyPhotoEdit(proposed, suggestion);
-          if (assessAutoQuality(source, proposed).safe) edits.set(frame.id, suggestion);
+          // A suggestion is not proof of improvement: render it and check for clipping, colour shift, crunchy
+          // bokeh and grey shadows. It remains available as a manual preview in the editor's Auto.
+          const staged = stageNaturalRecipe(source, canvas.width, canvas.height, DEFAULT_EDIT, suggestion);
+          if (staged.outcome === 'full' || staged.outcome === 'gentler') prepared = staged.edit;
         }
       }
     } catch {
       signal.throwIfAborted();
       // One damaged or unavailable preview must not block the other keepers.
+    }
+    // Never commit a result that arrived after Stop. The caller must also
+    // recheck current project, decision and manual edit before accepting it.
+    signal.throwIfAborted();
+    if (prepared) {
+      edits.set(frame.id, prepared);
+      onPrepared?.(frame.id, prepared);
     }
     onProgress(i + 1);
     // Let the interface repaint and the user cancel between photographs.
@@ -61,7 +72,7 @@ export function applyKeeperAutoEdits(
 ): PhotoFrame[] {
   return frames.map((frame) => {
     const suggested = edits.get(frame.id);
-    if (!suggested || !(targetIds ? targetIds.has(frame.id) : frame.decision === 'keep') || frame.removedAt || frame.virtualCopy ||
+    if (!suggested || !(targetIds ? targetIds.has(frame.id) : frame.decision === 'keep') || frame.removedAt != null || frame.virtualCopy ||
         frame.editHistory?.steps.length || (frame.edit && !isEmptyEdit(frame.edit))) return frame;
     return recordEdit(frame, { edit: suggested }, at);
   });

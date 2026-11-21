@@ -17,7 +17,7 @@ async function expectIconButtonsHaveTooltips(page: Page, where: string) {
 }
 
 test('import ten photos, keep and edit a frame, export it and reopen offline', async ({ page, context }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000); // on-device subject detection is slow when many browsers run at once
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
   await expect(page.getByText('Create a project to import photos, or restore a Kestrel backup.')).toBeVisible();
@@ -68,14 +68,14 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   const light = page.getByRole('slider', { name: 'Exposure adjustment' });
   await expect(light).toBeEnabled();
   await expectIconButtonsHaveTooltips(page, 'the editor');
-  await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
-  await expect(page.getByRole('dialog', { name: 'Appearance and layout settings' })).toBeVisible();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Display and layout settings' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Macro pad/i })).toHaveCount(0);
   await page.getByRole('button', { name: 'Done' }).click();
   // The desktop-only macro pad is in Appearance & layout. Fake only the shell marker while opening it.
   await page.evaluate(() => { Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true }); });
-  await page.getByRole('button', { name: 'Appearance and layout settings' }).click();
-  await page.getByRole('button', { name: 'Macro pad & keyboard shortcuts…' }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: /Keyboard and controller shortcuts/ }).click();
   // The instructions start folded away, so the keymap is what shows first. Open them to read how it works.
   await page.getByText('How to use a macro pad').click();
   await expect(page.getByText(/A macro pad sends ordinary keys/)).toBeVisible();
@@ -89,10 +89,10 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   if ((page.viewportSize()?.width ?? 0) >= 768) {
     const panelFitsWindow = () => page.evaluate(() => document.querySelector('[role=tablist]')!.parentElement!.getBoundingClientRect().bottom <= window.innerHeight + 1);
     expect(await panelFitsWindow()).toBe(true);
-    const strip = page.getByRole('toolbar', { name: 'Filmstrip controls' });
-    await strip.getByRole('button', { name: 'Hide filmstrip' }).click();
+    const strip = page.getByRole('toolbar', { name: 'Photo navigation and editing actions' });
+    await page.getByRole('button', { name: 'Collapse filmstrip' }).click();
     await expect.poll(panelFitsWindow).toBe(true);
-    await strip.getByRole('button', { name: 'Pin filmstrip' }).click();
+    await page.getByRole('button', { name: 'Expand filmstrip' }).click();
     await expect.poll(panelFitsWindow).toBe(true);
   }
   // Suggest a look always says something and stays on the page, whether or not this particular photo needed
@@ -119,11 +119,22 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');
-  const filmstrip = page.getByRole('toolbar', { name: 'Filmstrip controls' });
-  await filmstrip.getByRole('button', { name: 'Copy', exact: true }).click();
+  // Copy and Paste: in the bottom bar on a larger screen; on a phone, in the photo's own menu (long press or right-click).
+  const narrow = page.viewportSize()!.width < 640;
+  const bar = page.getByRole('toolbar', { name: 'Photo navigation and editing actions' });
+  const fromMenu = async (item: RegExp) => {
+    // Unfold the filmstrip to reach the photo's menu if needed, and leave it as it was.
+    const expand = page.getByRole('button', { name: 'Expand filmstrip' });
+    const folded = await expand.isVisible();
+    if (folded) await expand.click();
+    await page.getByRole('region', { name: 'Full-width filmstrip' }).getByRole('button', { name: /^Jump to frame / }).first().click({ button: 'right' });
+    await page.getByRole('menu').getByRole('menuitem', { name: item }).click();
+    if (folded) await page.getByRole('button', { name: 'Collapse filmstrip' }).click();
+  };
+  if (narrow) await fromMenu(/^Copy adjustments/); else await bar.getByRole('button', { name: 'Copy edits', exact: true }).click();
   await light.press('ArrowLeft');
   await expect(light).toHaveValue('0');
-  await filmstrip.getByRole('button', { name: 'Paste', exact: true }).click();
+  if (narrow) await fromMenu(/^Paste adjustments/); else await bar.getByRole('button', { name: 'Paste edits', exact: true }).click();
   await expect(light).toHaveValue('0.1');
 
   await page.getByRole('tab', { name: 'Masks' }).click();
@@ -141,7 +152,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   await expect(light).toHaveValue('0.2');
   await page.evaluate(() => window.dispatchEvent(new Event('test-resume-model')));
   await page.getByRole('tab', { name: 'Masks' }).click();
-  await expect(page.getByText('Photo edits changed. Find the subject or background again.')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText('Photo edits changed. Find the subject or background again.')).toBeVisible({ timeout: 45_000 });
   await page.getByRole('tab', { name: 'Edit' }).click();
   await expect(light).toHaveValue('0.2');
   await light.press('ArrowLeft');
@@ -231,7 +242,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   const png = Buffer.concat(chunks);
   expect(png.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([640, 480]);
-  await page.keyboard.press('Escape');
+  await expect(exportHeading).toBeHidden();
   await expect(exportOpener(page)).toBeFocused();
 
   await page.getByRole('button', { name: 'Back', exact: true }).click();
@@ -249,7 +260,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   if (page.viewportSize()!.width < 768) {
     await expect(page.getByRole('button', { name: 'Exposure, adjusted' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Warmth, unchanged' })).toBeVisible();
-    await expect(page.getByText('(adjusted)', { exact: true })).toBeVisible();
+    await expect(page.getByText('(changed)', { exact: true })).toBeVisible();
   }
   await expect(page.getByRole('img', { name: 'Edited photo' })).toBeVisible();
   await page.getByRole('tab', { name: 'Crop' }).click();

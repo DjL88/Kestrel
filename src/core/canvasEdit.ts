@@ -11,7 +11,8 @@ function applyCanvasNoiseReduction(canvas: HTMLCanvasElement, edit: PhotoEdit): 
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
   const cleaned = applyNoiseReduction(pixels.data, canvas.width, canvas.height, edit);
   if (cleaned === pixels.data) return;
-  context.putImageData(new ImageData(cleaned as Uint8ClampedArray<ArrayBuffer>, canvas.width, canvas.height), 0, 0);
+  // Keep the canvas's own colour space (Display P3 on wide-gamut screens), or the pixels would be converted again.
+  context.putImageData(new ImageData(cleaned as Uint8ClampedArray<ArrayBuffer>, canvas.width, canvas.height, { colorSpace: pixels.colorSpace }), 0, 0);
 }
 
 function applyCanvasDetail(canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge: number): void {
@@ -24,7 +25,7 @@ function applyCanvasDetail(canvas: HTMLCanvasElement, edit: PhotoEdit, imageEdge
 }
 
 /** Masks run in bands so a full-size export never holds several whole-image buffers at once. */
-function applyCanvasMasks(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: MaskContext, imageEdge: number): void {
+function* canvasMaskBands(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: MaskContext, imageEdge: number): Generator<void> {
   if (!hasActiveMasks(edit.masks)) return;
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Canvas unavailable');
@@ -38,6 +39,13 @@ function applyCanvasMasks(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: Mask
       view: { x: mask.view.x, y: mask.view.y + mask.view.h * (y / canvas.height), w: mask.view.w, h: mask.view.h * (band / canvas.height) },
     });
     context.putImageData(pixels, 0, y);
+    yield;
+  }
+}
+
+function applyCanvasMasks(canvas: HTMLCanvasElement, edit: PhotoEdit, mask: MaskContext, imageEdge: number): void {
+  for (const _ of canvasMaskBands(canvas, edit, mask, imageEdge)) {
+    // Interactive preview keeps the existing synchronous pixel path.
   }
 }
 
@@ -104,5 +112,13 @@ export async function applyCanvasExportEdit(
     applyCanvasDetail(canvas, edit, edge);
   }
   signal?.throwIfAborted();
-  applyCanvasMasks(canvas, edit, maskContext, edge);
+  // Mask bands preserve the same pixel maths and coordinates as the preview,
+  // but allow cancellation and input events between bands on large exports.
+  let lastMaskYield = performance.now();
+  for (const _ of canvasMaskBands(canvas, edit, maskContext, edge)) {
+    signal?.throwIfAborted();
+    if (performance.now() - lastMaskYield < 16) continue;
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    lastMaskYield = performance.now();
+  }
 }

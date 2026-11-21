@@ -1,6 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { ClipboardCopy, Star, X } from 'lucide-react';
-import { photoInfoText } from '../core/photoInfoText';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { messages as m } from '../i18n/messages';
+import { libraryText as libraryT } from '../i18n/areas/library';
+import { ChevronLeft, ChevronRight, ClipboardCopy, Download, EyeOff, PanelRight, PanelTopOpen, PictureInPicture2, Star, X } from 'lucide-react';
+import { useLongPress } from './useLongPress';
+import { exportText } from '../i18n/areas/export';
+import { downloadInBrowser } from '../providers/browserExport';
+import { isDesktopApp, isMobileShell, saveWithDialog } from '../providers/desktopShell';
+import { photoSidecar, readPhotoSidecar, type ImportedPhotoSidecar } from '../core/photoSidecar';
+import { FloatingPane } from './FloatingPane';
+import { PHOTO_INFO_DOCK_QUERY } from '../core/photoInfoLayout';
+import { formatCaptureDateTime, photoInfoText } from '../core/photoInfoText';
 import { SubjectPanel } from './SubjectPanel';
 import { SpeciesSuggestions } from './SpeciesSuggestions';
 import { mayAutoTag } from '../core/autoTags';
@@ -11,10 +21,14 @@ import type { CullDecision, PhotoFrame } from '../core/types';
 
 interface ExifInspectorProps {
   frame: PhotoFrame | null;
+  /** The dock sits opposite the photographer's preferred tool hand. */
+  photoOnly?: boolean;
+  dockedSide?: 'left' | 'right';
   onClose: () => void;
   batchCount: number;
   onRate: (id: string, rating: number) => void;
   onFlag: (id: string, decision: CullDecision) => void;
+  onImportSidecar: (id: string, metadata: ImportedPhotoSidecar) => void;
   /** Change what the photo is of. Species named by the app can be corrected here. */
   onSubjects: (frame: PhotoFrame, tags: string[], kind: SubjectKind | undefined) => void;
   onKeepTag: (frame: PhotoFrame, name: string) => void;
@@ -27,21 +41,40 @@ interface ExifInspectorProps {
   onAutoTag?: (frame: PhotoFrame, name: string, kind: SubjectKind | undefined) => void;
 }
 
-function formatCaptureTime(ms?: number): string {
-  if (typeof ms !== 'number' || !Number.isFinite(ms)) return '';
-  try {
-    return new Date(ms).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-  } catch {
-    return '';
-  }
-}
-
-export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount, onClose, onRate, onFlag, onSubjects, onKeepTag, loadPicture, mates = [], onTagPhotos, onAutoTag }) => {
+export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide = 'right', photoOnly = false, batchCount, onClose, onRate, onFlag, onImportSidecar, onSubjects, onKeepTag, loadPicture, mates = [], onTagPhotos, onAutoTag }) => {
+  const sidecarInput = useRef<HTMLInputElement>(null);
+  const [sidecarBusy, setSidecarBusy] = useState(false);
+  const [sidecarStatus, setSidecarStatus] = useState<{ id: string; message: string } | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'info' | 'subject'>('info');
+  const [detached, setDetached] = useState(() => {
+    try { return window.localStorage.getItem('kestrel-info-undocked-v1') === 'true'; } catch { return false; }
+  });
+  const [wideScreen, setWideScreen] = useState(() => typeof window !== 'undefined' && window.matchMedia(PHOTO_INFO_DOCK_QUERY).matches);
+  useEffect(() => {
+    const media = window.matchMedia(PHOTO_INFO_DOCK_QUERY);
+    const update = () => setWideScreen(media.matches);
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  const detach = (value: boolean) => {
+    setDetached(value);
+    try { window.localStorage.setItem('kestrel-info-undocked-v1', String(value)); } catch { /* no persistence required */ }
+  };
+  const floating = detached && wideScreen;
+  // Right-click, the Menu key, or a touch/pen long-press on the title opens the same Dock / Hide choices as the editor tabs.
+  const [infoMenu, setInfoMenu] = useState<{ x: number; y: number } | null>(null);
+  const infoMenuRef = useRef<HTMLDivElement>(null);
+  const infoLongPress = useLongPress(setInfoMenu);
+  useEffect(() => {
+    if (!infoMenu) return;
+    const onPointer = (event: PointerEvent) => { if (!infoMenuRef.current?.contains(event.target as Node)) setInfoMenu(null); };
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopPropagation(); setInfoMenu(null); } };
+    document.addEventListener('pointerdown', onPointer, true);
+    document.addEventListener('keydown', onKey, true);
+    infoMenuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    return () => { document.removeEventListener('pointerdown', onPointer, true); document.removeEventListener('keydown', onKey, true); };
+  }, [infoMenu]);
   const [picture, setPicture] = useState<HTMLCanvasElement | null>(null);
   const frameId = frame?.id;
   // The species model looks at a small copy of the photo, made when its details are opened.
@@ -52,29 +85,65 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frameId, loadPicture]);
-  if (!frame) return null;
+  if (!frame || (photoOnly && !floating)) return null;
 
   const { exif } = frame;
   const selectedFrame = frame;
   async function copyInfo() {
     try {
       await navigator.clipboard.writeText(photoInfoText(selectedFrame));
-      setCopyStatus('Photo details copied.');
+      setCopyStatus(m.photoInfo.copied);
     } catch {
-      setCopyStatus('Could not copy. Allow clipboard access or try again.');
+      setCopyStatus(m.photoInfo.copyFailed);
+    }
+  }
+  async function saveSidecar() {
+    if (sidecarBusy) return;
+    setSidecarBusy(true);
+    setSidecarStatus(null);
+    try {
+      const { bytes, filename } = photoSidecar(selectedFrame);
+      const file = new Blob([bytes], { type: 'application/rdf+xml' });
+      if (isDesktopApp() && !isMobileShell()) {
+        if (!await saveWithDialog(file, filename, true)) return;
+      } else if (isMobileShell()) {
+        const share = { files: [new File([file], filename, { type: file.type })] };
+        if (navigator.canShare?.(share)) await navigator.share(share);
+        else downloadInBrowser(file, filename);
+      } else {
+        downloadInBrowser(file, filename);
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setSidecarStatus({ id: selectedFrame.id, message: exportText.sidecar.saveFailed });
+    } finally {
+      setSidecarBusy(false);
+    }
+  }
+  async function importSidecar(file: File) {
+    setSidecarBusy(true);
+    setSidecarStatus(null);
+    try {
+      const metadata = await readPhotoSidecar(file, selectedFrame);
+      onImportSidecar(selectedFrame.id, metadata);
+      setSidecarStatus({ id: selectedFrame.id, message: exportText.sidecar.loaded });
+    } catch {
+      setSidecarStatus({ id: selectedFrame.id, message: exportText.sidecar.loadFailed });
+    } finally {
+      setSidecarBusy(false);
     }
   }
   const rating = frame.rating ?? exif.rating ?? 0;
   const rows: { label: string; value: string }[] = [
-    { label: 'Camera', value: exif.camera ?? '' },
-    { label: 'Lens', value: exif.lens ?? '' },
-    { label: 'Focal Length', value: formatFocalLength(exif.focalLengthMm) },
-    { label: 'Aperture', value: formatAperture(exif.apertureF) },
-    { label: 'Shutter', value: exif.shutterSpeed ?? '' },
+    { label: m.photoInfo.camera, value: exif.camera ?? '' },
+    { label: m.photoInfo.lens, value: exif.lens ?? '' },
+    { label: m.photoInfo.focalLength, value: formatFocalLength(exif.focalLengthMm) },
+    { label: m.photoInfo.aperture, value: formatAperture(exif.apertureF) },
+    { label: m.photoInfo.shutter, value: exif.shutterSpeed ?? '' },
     { label: 'ISO', value: typeof exif.iso === 'number' ? String(exif.iso) : '' },
-    { label: 'Captured', value: formatCaptureTime(exif.capturedAtMs) },
+    { label: m.photoInfo.captured, value: formatCaptureDateTime(exif.capturedAtMs) },
     {
-      label: 'Dimensions',
+      label: m.photoInfo.dimensions,
       value:
         typeof exif.width === 'number' && typeof exif.height === 'number'
           ? `${exif.width} × ${exif.height}`
@@ -82,31 +151,74 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
     },
   ];
 
-  return (
+  const inspector = (
     <aside
-      aria-label="Photo info"
-      className="workspace-popover absolute inset-x-2 top-2 z-10 max-h-[min(calc(100%_-_1rem),calc(100dvh_-_7rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-4 shadow-2xl sm:right-2 sm:left-auto sm:w-72 lg:static lg:max-h-none lg:shrink-0 lg:rounded-none lg:border-0 lg:border-l lg:shadow-none"
+      aria-label={m.photoInfo.title}
+      className={`${floating ? 'h-full w-full min-w-0 overflow-y-auto bg-kestrel-panel p-4' : 'workspace-popover absolute inset-x-2 bottom-2 top-auto z-40 max-h-[min(65dvh,calc(100dvh_-_10rem))] overflow-y-auto rounded-xl border border-white/12 bg-kestrel-raised p-4 shadow-2xl sm:w-72 info-dock:static info-dock:max-h-none info-dock:shrink-0 info-dock:rounded-none info-dock:border-0 info-dock:shadow-none'} ${dockedSide === 'left'
+        // Only the docked panel (lg and up) changes side. Below that it floats over the photos, at the right edge where
+        // it covers the fewest of them (the first photo is at the top left).
+        ? 'sm:right-2 sm:left-auto info-dock:border-r'
+        : 'sm:right-2 sm:left-auto info-dock:border-l'}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">Photo info</h2>
-        <button type="button" onClick={onClose} aria-label="Close photo info" title="Close photo info" className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10">
-          <X className="h-4 w-4" aria-hidden="true" />
+        <h2 tabIndex={0} {...infoLongPress} data-info-menu-target
+          onContextMenu={(event) => { event.preventDefault(); setInfoMenu({ x: event.clientX, y: event.clientY }); }}
+          onKeyUp={(event) => {
+            if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+            const box = event.currentTarget.getBoundingClientRect();
+            setInfoMenu({ x: box.left + 12, y: box.bottom + 2 });
+          }}
+          className="flex-1 rounded-sm text-sm font-semibold focus-visible:outline-2 focus-visible:outline-sky-300">{m.photoInfo.title}</h2>
+        {!floating && <button data-info-undock type="button" onClick={() => detach(true)} title={libraryT.floatingPane.undockInfoHelp}
+          aria-label={libraryT.floatingPane.undockInfo} className="hidden h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 info-dock:grid">
+          <PanelTopOpen className="h-4 w-4" aria-hidden="true"/>
+        </button>}
+        {/* An arrow towards the edge it folds into, as on the editing tools; on small screens, where it floats, a cross. */}
+        <button type="button" onClick={onClose} aria-label={m.photoInfo.close} title={m.photoInfo.fold} className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+          <X className="h-4 w-4 info-dock:hidden" aria-hidden="true" />
+          {dockedSide === 'left' ? <ChevronLeft className="hidden h-5 w-5 info-dock:block" aria-hidden="true" /> : <ChevronRight className="hidden h-5 w-5 info-dock:block" aria-hidden="true" />}
         </button>
       </div>
-      <p className="break-words text-sm text-zinc-200">{frame.filename}</p>
-      <button type="button" onClick={() => void copyInfo()} title="Copy camera details, rating and decision; excludes location and file paths"
-        className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-md border border-white/15 px-3 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">
-        <ClipboardCopy className="h-4 w-4" aria-hidden="true" />Copy photo details
-      </button>
+      <div role="tablist" aria-label={m.photoInfo.details} className="mt-2 grid grid-cols-2 gap-1 rounded-lg bg-black/20 p-1">
+        {(['info', 'subject'] as const).map((tab) => (
+          <button key={tab} type="button" role="tab" id={`photo-tab-${tab}`}
+            aria-selected={activeTab === tab} aria-controls={`photo-panel-${tab}`}
+            onClick={() => setActiveTab(tab)}
+            className={`min-h-11 rounded-md px-2 text-sm focus-visible:outline-2 focus-visible:outline-sky-300 ${activeTab === tab ? 'bg-white/15 text-white' : 'text-zinc-400 hover:bg-white/5'}`}>
+            {tab === 'info' ? m.photoInfo.tabInfo : m.photoInfo.tabSubject}
+          </button>
+        ))}
+      </div>
+      <div id="photo-panel-info" role="tabpanel" aria-labelledby="photo-tab-info" hidden={activeTab !== 'info'}>
+      <div className="mt-3 flex min-w-0 items-center gap-1">
+        <p className="min-w-0 flex-1 break-words text-sm text-zinc-200">{frame.filename}</p>
+        <button type="button" onClick={() => void copyInfo()} title={m.photoInfo.copyHint} aria-label={m.photoInfo.copy}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-md text-zinc-300 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">
+          <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
       {copyStatus && <p role="status" className="mt-1 text-xs text-zinc-300">{copyStatus}</p>}
       {exif.formatLabel && <p className="mt-1 text-xs text-zinc-400">{exif.formatLabel}</p>}
-      {frame.burstGroupId && <p className="mt-1 text-xs text-zinc-400">Burst frame {frame.burstIndex} of {frame.burstCount}</p>}
-      <div className="mt-3 border-t border-white/10 pt-3">
+      {frame.burstGroupId && <p className="mt-1 text-xs text-zinc-400">{m.photoInfo.burst(String(frame.burstIndex ?? 0), String(frame.burstCount ?? 0))}</p>}
+      {exif.isEmbeddedPreviewOnly && <p className="mt-1 text-xs text-zinc-300">{m.photoInfo.embeddedPreview}</p>}
+      <section aria-label={m.photoInfo.cameraCapture} className="mt-3 border-t border-white/10 pt-3">
+        <h3 className="mb-2 text-xs font-semibold text-zinc-200">{m.photoInfo.cameraCapture}</h3>
+        <dl className="space-y-2 text-xs">
+          {rows.filter(({ value }) => value).map(({ label, value }) => (
+            <div key={label} className="grid grid-cols-[auto_1fr] items-baseline gap-2">
+              <dt className="text-zinc-400">{label}</dt>
+              <dd className="min-w-0 break-words text-right text-zinc-200">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+      </div>
+      <div id="photo-panel-subject" role="tabpanel" aria-labelledby="photo-tab-subject" hidden={activeTab !== 'subject'} className="pt-3">
         <SubjectPanel kind={frame.subjectKind} tags={addTags(frame.subjectNames ?? [], frame.tags ?? [])} autoTags={frame.autoTags}
           onChange={(tags, kind) => onSubjects(frame, tags, kind)} onKeep={(name) => onKeepTag(frame, name)} />
         {frame.subjectKind !== 'wildlife' && (
           <p className="mt-2 text-xs text-zinc-400">
-            Species matches are suggestions, not proof of an animal. Choose Wildlife above to allow automatic species tags; aircraft and other subjects will not be given bird names automatically.
+            {m.photoInfo.speciesNotice}
           </p>
         )}
         {loadPicture && (
@@ -118,35 +230,72 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, batchCount,
             onTagMates={onTagPhotos} />
         )}
       </div>
-      {exif.isEmbeddedPreviewOnly && <p className="mt-1 text-xs text-zinc-300">Embedded RAW preview (not full RAW decoding)</p>}
-      {batchCount > 1 && <p className="mt-3 text-xs text-sky-200">Apply ratings and flags to {batchCount} selected photos</p>}
+      <div hidden={activeTab !== 'info'}>
+      {batchCount > 1 && <p className="mt-3 text-xs text-sky-200">{m.photoInfo.batch(String(batchCount))}</p>}
       <div className="mt-3 border-y border-white/10 py-2">
-        <div role="group" aria-label={`Star rating, ${rating} of 5`} className="flex flex-wrap">
+        <div role="group" aria-label={m.photoInfo.starRating(String(rating))} className="flex flex-wrap">
           {[1, 2, 3, 4, 5].map((star) => (
-            <button key={star} type="button" aria-label={`Rate ${star} of 5 stars`} title={`Rate ${star} of 5 stars`} aria-pressed={rating === star}
+            <button key={star} type="button" aria-label={m.photoInfo.rateStars(String(star))} title={m.photoInfo.rateStars(String(star))} aria-pressed={rating === star}
               onClick={() => onRate(frame.id, star)} className="grid h-11 w-10 place-items-center rounded-md hover:bg-white/8">
               <Star className={`h-5 w-5 ${rating >= star ? 'fill-current text-sky-200' : 'text-zinc-400'}`} aria-hidden="true" />
             </button>
           ))}
-          {(rating > 0 || batchCount > 1) && <button type="button" onClick={() => onRate(frame.id, 0)} className="min-h-11 px-2 text-xs text-zinc-300">Clear stars</button>}
+          {(rating > 0 || batchCount > 1) && <button type="button" onClick={() => onRate(frame.id, 0)} className="min-h-11 px-2 text-xs text-zinc-300">{m.photoInfo.clearStars}</button>}
         </div>
-        <div role="group" aria-label="Photo flag" className="flex flex-wrap gap-1">
+        <div role="group" aria-label={m.photoInfo.flag} className="flex flex-wrap gap-1">
           {(['unreviewed', 'keep', 'reject'] as const).map((flag) => (
             <button key={flag} type="button" aria-pressed={frame.decision === flag} onClick={() => onFlag(frame.id, flag)}
-              className="min-h-11 rounded-md px-2 text-xs capitalize text-zinc-300 hover:bg-white/8 aria-pressed:bg-white/15 aria-pressed:text-white">
-              {flag === 'unreviewed' ? 'Unflagged' : flag}
+              className="min-h-11 rounded-md px-2 text-xs capitalize text-zinc-300 hover:bg-white/8 aria-pressed:bg-white/15 aria-pressed:font-semibold aria-pressed:text-white">
+              {/* The chosen flag shows a tick and bold words, not only a lighter background. */}
+              {frame.decision === flag && <span aria-hidden="true">✓ </span>}{flag === 'unreviewed' ? m.photoInfo.undecided : flag === 'keep' ? m.keep : m.photoInfo.reject}
             </button>
           ))}
         </div>
       </div>
-      <dl className="mt-4 space-y-2 text-xs">
-        {rows.filter(({ value }) => value).map(({ label, value }) => (
-          <div key={label} className="grid grid-cols-[auto_1fr] items-baseline gap-2">
-            <dt className="text-zinc-400">{label}</dt>
-            <dd className="min-w-0 break-words text-right text-zinc-200">{value}</dd>
+      {!frame.isDemo && (
+        <section className="mt-3 border-t border-white/10 pt-3" aria-label={exportText.sidecar.save}>
+          <input ref={sidecarInput} type="file" accept=".xmp,application/rdf+xml" hidden onChange={event => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = '';
+            if (file) void importSidecar(file);
+          }} />
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => void saveSidecar()} disabled={sidecarBusy}
+                className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-md border border-white/15 px-2 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
+                <Download className="h-4 w-4 shrink-0" aria-hidden="true" />{exportText.sidecar.save}
+              </button>
+            <button type="button" onClick={() => sidecarInput.current?.click()} disabled={sidecarBusy}
+              className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-md border border-white/15 px-2 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
+              {exportText.sidecar.load}
+            </button>
           </div>
-        ))}
-      </dl>
+          {sidecarStatus?.id === frame.id && <p role="status" className="mt-2 text-xs text-zinc-300">{sidecarStatus.message}</p>}
+        </section>
+      )}
+      </div>
+      {infoMenu && createPortal(
+        <div ref={infoMenuRef} role="menu" aria-label={libraryT.floatingPane.infoOptions} data-testid="info-context-menu"
+          onPointerDown={(event) => event.stopPropagation()}
+          style={{ left: Math.max(8, Math.min(infoMenu.x, window.innerWidth - 248)), top: Math.max(8, Math.min(infoMenu.y, window.innerHeight - 120)) }}
+          className="fixed z-[160] w-60 rounded-xl border border-white/25 bg-kestrel-raised p-1.5 text-zinc-100 shadow-2xl">
+          <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{m.photoInfo.title}</p>
+          {(floating || wideScreen) && (
+            <button type="button" role="menuitem"
+              onClick={() => { detach(!floating); setInfoMenu(null); }}
+              className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+              {floating ? <PanelRight className="h-4 w-4 text-sky-300" aria-hidden="true" /> : <PictureInPicture2 className="h-4 w-4 text-zinc-300" aria-hidden="true" />}
+              {floating ? libraryT.floatingPane.dock(m.photoInfo.title) : libraryT.floatingPane.undockInfo}
+            </button>
+          )}
+          <button type="button" role="menuitem"
+            onClick={() => { setInfoMenu(null); onClose(); }}
+            className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+            <EyeOff className="h-4 w-4 text-zinc-300" aria-hidden="true" />{libraryT.floatingPane.hideInfo}
+          </button>
+        </div>, document.body)}
     </aside>
   );
+  return floating
+    ? <FloatingPane title={m.photoInfo.title} photoOnly={photoOnly} initialSide={dockedSide} storageKey="kestrel-info-float-rect-v1" dockFocusSelector="[data-info-undock]" onDock={() => detach(false)}>{inspector}</FloatingPane>
+    : inspector;
 };

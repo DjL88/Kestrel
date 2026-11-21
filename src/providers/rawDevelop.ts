@@ -1,6 +1,8 @@
 import { THUMB, bestTurn } from '../core/orientMatch';
+import { proveTiff16 } from '../core/tiff16Proof';
 import type { NativeRawMasterRecipe, NativeRawMasterFraming } from '../core/nativeRawMaster';
-import { isDesktopApp } from './desktopShell';
+import { hasNativeRaw } from './desktopShell';
+import { developRawInBrowser, sensorModeInBrowser, webRawAvailable } from './rawWasm';
 
 /** Fail closed before allocating/copying a potentially huge RAW file for native decoding. */
 export function validateRawExtension(extension: string): string {
@@ -13,8 +15,15 @@ export function validateRawExtension(extension: string): string {
   return value;
 }
 
-/** Developing a RAW file's sensor data needs the desktop app's native decoder. */
-export const canDevelopRaw = () => isDesktopApp();
+/**
+ * Developing a RAW file's sensor data. One decoder everywhere (crates/kestrel-raw, Nikon HE/HE* included): linked
+ * natively into the desktop app, and the same Rust code compiled to WebAssembly in the browser and on phones and
+ * tablets. The operating system's own decoder is only a last resort on a Mac, after Kestrel's has failed.
+ */
+export const canDevelopRaw = () => hasNativeRaw() || webRawAvailable();
+
+/** The 16-bit TIFF master and DNG copies are written by the desktop app only, for now. */
+export const canExportRawMaster = () => hasNativeRaw();
 
 /**
  * Send a RAW file to the desktop app's decoder and get back the full-size developed picture as a JPEG. The original file
@@ -24,6 +33,7 @@ export async function developRaw(file: Blob, extension = 'nef'): Promise<Blob> {
   // Do not silently reinterpret unknown formats (or path-like values) as a Nikon NEF or any one maker's format.
   // The native decoder independently validates its extension as a second boundary.
   const normalizedExtension = validateRawExtension(extension);
+  if (!hasNativeRaw()) return developRawInBrowser(file);
   const { invoke } = await import('@tauri-apps/api/core');
   const bytes = new Uint8Array(await file.arrayBuffer());
   try {
@@ -32,6 +42,29 @@ export async function developRaw(file: Blob, extension = 'nef'): Promise<Blob> {
   } catch (error) {
     throw new Error(typeof error === 'string' ? error : 'This RAW file could not be developed.');
   }
+}
+
+/**
+ * Decode the sensor-derived RGB16 working raster, rather than the JPEG used by
+ * the legacy review/editor route. The same Kestrel Rust decoder runs through
+ * Tauri on desktop and WASM on web; platform codec support is NOT guaranteed.
+ * The returned buffer is display-encoded RGB16, not a verified linear camera
+ * master. Consumers must separately verify original hash, colour evidence and
+ * HE/HE* distribution rights before promoting it to an archival master.
+ * Caller owns this scratch buffer; original RAW bytes are never modified.
+ */
+export async function developRawRgb16(file: Blob): Promise<ArrayBuffer> {
+  const { parseRgb16 } = await import('../core/master16');
+  let picture: ArrayBuffer;
+  if (!hasNativeRaw()) {
+    const { developRaw16InBrowser } = await import('./rawWasm');
+    picture = await developRaw16InBrowser(file);
+  } else {
+    const { invoke } = await import('@tauri-apps/api/core');
+    picture = await invoke<ArrayBuffer>('develop_raw_rgb16', new Uint8Array(await file.arrayBuffer()));
+  }
+  parseRgb16(picture); // Fail closed on forged dimensions and truncated decoder output.
+  return picture;
 }
 
 /**
@@ -44,6 +77,7 @@ export async function developRawPrecision(file: Blob): Promise<Blob> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   try {
     const result = await invoke<ArrayBuffer>('develop_raw_precision', bytes);
+    proveTiff16(result); // Structural proof only; sensor/colour/rights require separate evidence.
     return new Blob([result], { type: 'image/tiff' });
   } catch (error) {
     throw new Error(typeof error === 'string' ? error : 'A 16-bit TIFF could not be produced for this RAW file.');
@@ -62,13 +96,69 @@ export async function developRawPrecisionEdited(file: Blob, recipe: NativeRawMas
     const result = await invoke<ArrayBuffer>('develop_raw_precision_edited', bytes, {
       headers: { 'x-kestrel-master-edit': JSON.stringify(recipe), 'x-kestrel-master-framing': JSON.stringify(framing) },
     });
+    proveTiff16(result); // Never offer a malformed or 8-bit output as a precision TIFF.
     return new Blob([result], { type: 'image/tiff' });
   } catch (error) {
     throw new Error(typeof error === 'string' ? error : 'Could not produce the edited 16-bit RAW master.');
   }
 }
 
-async function thumbOf(bitmap: ImageBitmap): Promise<Float32Array> {
+/** How a RAW's sensor data is stored, as far as decoding is concerned. */
+export type RawSensorMode = 'nikon-he' | 'nikon-he-star' | 'other';
+
+/** Enough of the file's start for its headers; the rest of a 60 MB RAW is never read for this. */
+const SENSOR_MODE_PREFIX = 4 * 1024 * 1024;
+/** Never read more than this for the check; the headers of every body tested sit within 8 MiB. */
+const SENSOR_MODE_LIMIT = 64 * 1024 * 1024;
+
+/** Ask with 4 MiB, then twice as much each time the headers run further, up to the limit or the whole file. */
+async function stepwise(file: Blob, ask: (prefixBytes: number) => Promise<string>): Promise<RawSensorMode> {
+  for (let bytes = SENSOR_MODE_PREFIX; ; bytes *= 2) {
+    const mode = await ask(Math.min(bytes, file.size));
+    if (mode === 'nikon-he' || mode === 'nikon-he-star') return mode;
+    if (mode !== 'need-more' || bytes >= file.size || bytes >= SENSOR_MODE_LIMIT) return 'other';
+  }
+}
+
+/**
+ * Whether a NEF is Nikon High Efficiency (HE or HE*), read from the file's headers only (natively on desktop, by the
+ * WebAssembly pipeline in the browser). Anything else, or anything unreadable, is 'other': it only ever adds a label.
+ */
+export async function rawSensorMode(file: Blob, filename: string): Promise<RawSensorMode> {
+  if (!/\.nef$/i.test(filename)) return 'other';
+  if (!hasNativeRaw()) return webRawAvailable() ? stepwise(file, (bytes) => sensorModeInBrowser(file, bytes)) : 'other';
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return await stepwise(file, async (bytes) => invoke<string>('raw_sensor_mode', new Uint8Array(await file.slice(0, bytes).arrayBuffer()),
+      { headers: { 'x-file-length': String(file.size) } }));
+  } catch {
+    return 'other';
+  }
+}
+
+/** Plain words for how a developed picture was made from the sensor data. */
+export function sensorModeLabel(mode: RawSensorMode): string | null {
+  if (mode === 'nikon-he') return 'Nikon High Efficiency';
+  if (mode === 'nikon-he-star') return 'Nikon High Efficiency*';
+  return null;
+}
+
+/**
+ * A lossless DNG of a Nikon High Efficiency NEF's sensor data, made by the desktop app's own decoder. The original is
+ * only read. Rejects in plain words for files that need no copy (other NEF modes and makers already open everywhere).
+ */
+export async function rawDngCopy(file: Blob): Promise<Blob> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  try {
+    const result = await invoke<ArrayBuffer>('raw_dng_copy', bytes);
+    return new Blob([result], { type: 'image/x-adobe-dng' });
+  } catch (error) {
+    throw new Error(typeof error === 'string' ? error : 'A DNG copy could not be made from this RAW file.');
+  }
+}
+
+export async function thumbOf(bitmap: ImageBitmap): Promise<Float32Array> {
   const canvas = document.createElement('canvas');
   canvas.width = THUMB; canvas.height = THUMB;
   const context = canvas.getContext('2d', { willReadFrequently: true })!;

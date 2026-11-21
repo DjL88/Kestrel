@@ -1,0 +1,8 @@
+# Builds the control-plane image in Google Cloud and pushes it to Artifact Registry. Run from the repository root:
+#   gcloud builds submit --config services/control-plane/cloudbuild.yaml --substitutions _IMAGE=europe-west2-docker.pkg.dev/<project>/kestrel/control-plane:<git sha> .
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "services/control-plane/Dockerfile", "-t", "${_IMAGE}", "."]
+images: ["${_IMAGE}"]
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -8,15 +8,24 @@ import {
 } from './offlinePreviewCache';
 import { extractNefPreview } from '../core/nefPreview';
 import { PriorityReadQueue, type ReadPriority } from '../core/priorityReadQueue';
-import { isRawPreviewFile } from '../core/rawFormats';
+import { isHeifFile, isRawPreviewFile, looksLikeHeif } from '../core/rawFormats';
+import { decodeHeifForDisplay } from './heifDecode';
+import { DEVELOP_VERSION } from '../core/backgroundDevelop';
 import {
   NativeRawUnsupportedError,
   type PreviewProvider,
   type RawDecoder,
 } from '../core/platformBoundaries';
 import type { PhotoFrame } from '../core/types';
+import { materialize, type RangeBlob } from './rangeBlob';
+import type { LinkedRange } from './linkedOriginals';
+
+/** A photo that stays on disk. openRange, when given, reads only part of it (a RAW's embedded preview). */
+export interface LinkedInfo { read: () => Promise<Blob>; size: number; lastModified: number; openRange?: () => Promise<LinkedRange> }
 
 const MAX_FULL_PREVIEW_CACHE = 24;
+// Full-sensor JPEGs can be tens of MB each; a 500-photo session must not pin them all.
+const MAX_DEVELOPED_FULL_CACHE = 8;
 const MAX_OFFLINE_PREVIEW_MEMORY = 24;
 const THUMB_MAX_WIDTH = 400;
 const REVIEW_MAX_WIDTH = 2200;
@@ -52,11 +61,17 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
   private localBlobs = new Map<string, Blob>();
   private thumbUrlCache = new Map<string, string>();
+  /** Which original each cached thumbnail shows, so a newly developed picture replaces all of them. */
+  private thumbFrameKeys = new Map<string, string>();
   private fullUrlCache = new Map<string, string>();
   private fullFrameKeys = new Map<string, string>();
   private fullUrlOrder: string[] = [];
   private offlineFullKeys = new Set<string>();
   private pendingThumbs = new Map<string, Promise<string>>();
+  /** In-flight thumbnail results are valid only for their source revision. */
+  private sourceRevisions = new Map<string, number>();
+  /** Incrementing on clear prevents old in-flight work from reviving a deleted project. */
+  private cacheEpoch = 0;
   private offlinePreviews = new Map<string, OfflinePreviewPair>();
   private offlinePreviewOrder: string[] = [];
   private pendingOfflinePreviews = new Map<string, Promise<OfflinePreviewPair | null>>();
@@ -64,16 +79,13 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
   registerBlob(stableKey: string, blob: Blob): void {
     const previous = this.localBlobs.get(stableKey);
-    if (previous !== blob) {
-      this.invalidateDevelopment(stableKey);
-      this.invalidateFullPreview(stableKey);
-    }
+    if (previous !== blob) this.invalidateSourcePreviews(stableKey);
     this.localBlobs.set(stableKey, blob);
     if (this.offlineFullKeys.has(stableKey)) this.invalidateFullPreview(stableKey);
   }
 
   /** Photos that stay on the disk: how to read each one, and what it was like when added. Read only when needed. */
-  private linked = new Map<string, { read: () => Promise<Blob>; size: number; lastModified: number }>();
+  private linked = new Map<string, LinkedInfo>();
   private linkedLoading = new Map<string, Promise<Blob | undefined>>();
   private linkedGeneration = new Map<string, number>();
   private linkedOrder: string[] = [];
@@ -84,14 +96,13 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.reads.promote(stableKey, priority);
   }
 
-  registerLinked(stableKey: string, info: { read: () => Promise<Blob>; size: number; lastModified: number }): void {
+  registerLinked(stableKey: string, info: LinkedInfo): void {
     const previous = this.linked.get(stableKey);
     if (previous && (previous.size !== info.size || previous.lastModified !== info.lastModified)) {
       this.linkedGeneration.set(stableKey, (this.linkedGeneration.get(stableKey) ?? 0) + 1);
       this.linkedLoading.delete(stableKey);
       this.localBlobs.delete(stableKey);
-      this.invalidateDevelopment(stableKey);
-      this.invalidateFullPreview(stableKey);
+      this.invalidateSourcePreviews(stableKey);
     }
     this.linked.set(stableKey, info);
     // A newly accessible original must replace a low-resolution offline fallback.
@@ -104,8 +115,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.linkedGeneration.set(stableKey, (this.linkedGeneration.get(stableKey) ?? 0) + 1);
     this.linkedLoading.delete(stableKey);
     this.localBlobs.delete(stableKey);
-    this.invalidateDevelopment(stableKey);
-    this.invalidateFullPreview(stableKey);
+    this.invalidateSourcePreviews(stableKey);
   }
 
   getOriginal(stableKey: string): Blob | undefined {
@@ -167,11 +177,14 @@ export class BrowserPreviewProvider implements PreviewProvider {
   }
 
   /** Save small, nondestructive source previews for linked originals; never persist the original itself. */
-  async cacheOfflinePreviews(stableKey: string, filename: string, original: Blob): Promise<boolean> {
-    const source = isRawPreviewFile(filename)
-      ? (await extractNefPreview(original)) ?? original
-      : original;
-    const bitmap = await createImageBitmap(source);
+  async cacheOfflinePreviews(stableKey: string, filename: string, original: Blob | RangeBlob): Promise<boolean> {
+    // The offline cache holds embedded previews only (sensor development happens when a photo is edited): without one there is nothing to cache (the photo stays
+    // usable from its original). Reading the whole RAW just to fail in createImageBitmap was the slowest import path.
+    const source = isRawPreviewFile(filename) ? await extractNefPreview(original as Blob)
+      : await isHeifOriginal(filename, original) ? await this.heifPicture(await materialize(original)) : original;
+    if (!source) return false;
+    // Ranged originals hand back only the preview's bytes; turn just those into a real Blob for decoding.
+    const bitmap = await createImageBitmap(await materialize(source, 'image/jpeg'));
     try {
       const thumbnail = await encodePreview(bitmap, THUMB_MAX_WIDTH);
       const previews = {
@@ -193,6 +206,19 @@ export class BrowserPreviewProvider implements PreviewProvider {
     }
   }
 
+  /** Decoded HEIF pictures, tied to the original they came from, so each original is decoded once while it is held. */
+  private heifPictures = new WeakMap<Blob, Promise<Blob>>();
+
+  /** A HEIF original that this device can display. Rejects when the file cannot be decoded. */
+  private heifPicture(original: Blob): Promise<Blob> {
+    let picture = this.heifPictures.get(original);
+    if (!picture) {
+      picture = decodeHeifForDisplay(original);
+      this.heifPictures.set(original, picture);
+    }
+    return picture;
+  }
+
   async getThumbnailUrl(frame: PhotoFrame, priority: ReadPriority = 'visible'): Promise<string> {
     if (frame.isDemo && frame.demoVariant) {
       const { DEMO_ASSET_URLS } = await import('./demoAssets');
@@ -200,7 +226,12 @@ export class BrowserPreviewProvider implements PreviewProvider {
     }
 
     const cached = this.thumbUrlCache.get(frame.id);
-    if (cached) return cached;
+    if (cached && this.thumbFrameKeys.get(frame.id) === frame.stableKey) return cached;
+    if (cached) {
+      if (cached.startsWith('blob:')) URL.revokeObjectURL(cached);
+      this.thumbUrlCache.delete(frame.id);
+      this.pendingThumbs.delete(frame.id);
+    }
 
     const existingPromise = this.pendingThumbs.get(frame.id);
     if (existingPromise) {
@@ -208,8 +239,10 @@ export class BrowserPreviewProvider implements PreviewProvider {
       return existingPromise;
     }
 
-    const task = this.buildLocalThumbnailUrl(frame, priority).finally(() => {
-      this.pendingThumbs.delete(frame.id);
+    const revision = this.sourceRevisions.get(frame.stableKey) ?? 0;
+    const epoch = this.cacheEpoch;
+    const task = this.buildLocalThumbnailUrl(frame, priority, revision, epoch).finally(() => {
+      if (this.pendingThumbs.get(frame.id) === task) this.pendingThumbs.delete(frame.id);
     });
     this.pendingThumbs.set(frame.id, task);
     return task;
@@ -220,6 +253,80 @@ export class BrowserPreviewProvider implements PreviewProvider {
   private developing = new Map<string, symbol>();
 
   isDeveloped(stableKey: string): boolean { return this.developed.has(stableKey); }
+
+  /**
+   * Screen-sized pictures developed in the background from the RAW sensor data (src/core/backgroundDevelop.ts), stored
+   * beside the embedded previews and keyed by the original's identity and the develop's version. Tiles and the first
+   * moments in the editor show these instead of the camera's own JPEG.
+   */
+  private developedReviews = new Map<string, OfflinePreviewPair | null>();
+  /** Fires `developed` (detail: the original's stable key) when a background-developed picture is ready. */
+  readonly events = new EventTarget();
+
+  private developedCacheKey(frame: PhotoFrame): string {
+    return `developed-v${DEVELOP_VERSION}:${this.offlineCacheKey(frame)}`;
+  }
+
+  /** The stored developed picture, or null. Read once per original per session, then remembered. */
+  async developedReview(frame: PhotoFrame): Promise<OfflinePreviewPair | null> {
+    const key = this.developedCacheKey(frame);
+    if (this.developedReviews.has(key)) return this.developedReviews.get(key) ?? null;
+    const pair = await this.offlinePreviewCache.loadPreviewPair(key).catch(() => null);
+    // Another call may have stored a fresh one meanwhile; keep that.
+    if (!this.developedReviews.get(key)) this.developedReviews.set(key, pair);
+    return this.developedReviews.get(key) ?? null;
+  }
+
+  /** Keep a picture developed from the RAW, made small, and tell the tiles showing this original to redraw. */
+  async storeDevelopedPicture(frame: PhotoFrame, original: Blob, picture: Blob): Promise<boolean> {
+    const stableKey = frame.stableKey;
+    const epoch = this.cacheEpoch;
+    const revision = this.sourceRevisions.get(stableKey);
+    const isCurrent = () => epoch === this.cacheEpoch && revision === this.sourceRevisions.get(stableKey)
+      && this.localBlobs.get(stableKey) === original;
+    if (!isCurrent()) return false;
+
+    const key = this.developedCacheKey(frame);
+    const bitmap = await createImageBitmap(picture);
+    let pair: OfflinePreviewPair;
+    try {
+      if (!isCurrent()) return false;
+      const thumbnail = await encodePreview(bitmap, THUMB_MAX_WIDTH);
+      pair = { thumbnail, review: await encodePreview(bitmap, REVIEW_MAX_WIDTH, MAX_CACHED_PREVIEW_BYTES - thumbnail.size) };
+    } finally {
+      bitmap.close();
+    }
+    if (!isCurrent()) return false;
+
+    this.developedReviews.set(key, pair);
+    await this.offlinePreviewCache.savePreviewPair(key, pair).catch(() => false);
+    if (!isCurrent()) return false;
+    for (const [frameId, url] of this.thumbUrlCache) {
+      if (this.thumbFrameKeys.get(frameId) !== stableKey) continue;
+      URL.revokeObjectURL(url);
+      this.thumbUrlCache.delete(frameId);
+    }
+    this.events.dispatchEvent(new CustomEvent('developed', { detail: stableKey }));
+    return true;
+  }
+
+  /** A changed/reconnected original invalidates all caches, including in-flight thumbnail work. */
+  private invalidateSourcePreviews(stableKey: string): void {
+    // A pending disk read must never resurrect bytes from the prior linked original.
+    this.linkedGeneration.set(stableKey, (this.linkedGeneration.get(stableKey) ?? 0) + 1);
+    this.linkedLoading.delete(stableKey);
+    this.sourceRevisions.set(stableKey, (this.sourceRevisions.get(stableKey) ?? 0) + 1);
+    this.invalidateDevelopment(stableKey);
+    this.invalidateFullPreview(stableKey);
+    for (const [frameId, key] of this.thumbFrameKeys) {
+      if (key !== stableKey) continue;
+      const url = this.thumbUrlCache.get(frameId);
+      if (url?.startsWith('blob:')) URL.revokeObjectURL(url);
+      this.thumbUrlCache.delete(frameId);
+      this.pendingThumbs.delete(frameId);
+    }
+    this.events.dispatchEvent(new CustomEvent('preview-invalidated', { detail: stableKey }));
+  }
 
   private invalidateDevelopment(stableKey: string): void {
     this.developed.delete(stableKey);
@@ -239,8 +346,17 @@ export class BrowserPreviewProvider implements PreviewProvider {
       if (!original) return 'missing';
       const picture = await develop(original);
       if (this.developing.get(stableKey) !== request) return 'superseded';
+      this.developed.delete(stableKey);
       this.developed.set(stableKey, picture);
       this.invalidateFullPreview(stableKey);
+      // Keep several full-sized RAWs for rapid edit/compare, but release older
+      // ones. Small disk-backed review thumbnails are held separately.
+      while (this.developed.size > MAX_DEVELOPED_FULL_CACHE) {
+        const oldest = this.developed.keys().next().value;
+        if (!oldest) break;
+        this.developed.delete(oldest);
+        this.invalidateFullPreview(oldest);
+      }
       return 'ready';
     } catch (error) {
       if (this.developing.get(stableKey) !== request) return 'superseded';
@@ -258,6 +374,44 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.fullUrlOrder = this.fullUrlOrder.filter((item) => item !== key);
   }
 
+  /**
+   * A linked RAW shows its embedded preview, so read just that part of the file instead of all of it. Any doubt (no
+   * ranged access, no preview, the file changed or was relinked meanwhile) falls back to the full read below.
+   */
+  private async rangedRawPreview(frame: PhotoFrame, key: string): Promise<string | null> {
+    const linked = this.linked.get(key);
+    if (!linked?.openRange || !isRawPreviewFile(frame.filename) || this.localBlobs.has(key) || this.developed.has(key)) return null;
+    const generation = this.linkedGeneration.get(key) ?? 0;
+    let range: LinkedRange | null = null;
+    try {
+      range = await linked.openRange();
+      const preview = await extractNefPreview(range.blob as unknown as Blob);
+      if (!preview) return null;
+      const bytes = await materialize(preview, 'image/jpeg');
+      if (!await range.verify()) return null;
+      if ((this.linkedGeneration.get(key) ?? 0) !== generation || this.developed.has(key) || this.localBlobs.has(key) || this.linked.get(key) !== linked) return null;
+      const ready = this.fullUrlCache.get(key);
+      if (ready) return ready;
+      const url = URL.createObjectURL(bytes);
+      this.fullUrlCache.set(key, url);
+      this.offlineFullKeys.delete(key);
+      this.fullUrlOrder.push(key);
+      while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
+        const oldest = this.fullUrlOrder.shift();
+        if (!oldest) continue;
+        const stale = this.fullUrlCache.get(oldest);
+        if (stale) URL.revokeObjectURL(stale);
+        this.fullUrlCache.delete(oldest);
+        this.offlineFullKeys.delete(oldest);
+      }
+      return url;
+    } catch {
+      return null;
+    } finally {
+      await range?.close().catch(() => undefined);
+    }
+  }
+
   async getFullPreviewUrl(frame: PhotoFrame, priority: ReadPriority = 'visible'): Promise<string> {
     if (frame.isDemo && frame.demoVariant) {
       const { DEMO_ASSET_URLS } = await import('./demoAssets');
@@ -266,6 +420,15 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
     // Virtual copies have different edit recipes but share the same unedited source.
     const key = frame.stableKey;
+    // A recently viewed full RAW stays in the bounded cache; older photos
+    // are redeveloped only when revisited, never silently exported from a thumbnail.
+    const live = this.developed.get(key);
+    if (live) {
+      this.developed.delete(key);
+      this.developed.set(key, live);
+    }
+    const revision = this.sourceRevisions.get(key) ?? 0;
+    const epoch = this.cacheEpoch;
     this.fullFrameKeys.set(frame.id, key);
     const cached = this.fullUrlCache.get(key);
     if (cached) {
@@ -275,17 +438,54 @@ export class BrowserPreviewProvider implements PreviewProvider {
       return cached;
     }
 
+    // A developed review survives restart in IndexedDB. Prefer it to the
+    // camera's embedded JPEG; do not treat it as a sensor-quality RAW master.
+    if (!this.developed.has(key) && isRawPreviewFile(frame.filename)) {
+      const saved = await this.developedReview(frame);
+      if (saved?.review && epoch === this.cacheEpoch && revision === (this.sourceRevisions.get(key) ?? 0)) {
+        const ready = this.fullUrlCache.get(key);
+        if (ready) return ready;
+        const url = URL.createObjectURL(saved.review);
+        this.fullUrlCache.set(key, url);
+        this.offlineFullKeys.add(key);
+        this.fullUrlOrder.push(key);
+        while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
+          const oldest = this.fullUrlOrder.shift();
+          if (!oldest) continue;
+          const stale = this.fullUrlCache.get(oldest);
+          if (stale) URL.revokeObjectURL(stale);
+          this.fullUrlCache.delete(oldest);
+          this.offlineFullKeys.delete(oldest);
+        }
+        return url;
+      }
+    }
+
+    const ranged = await this.rangedRawPreview(frame, key);
+    if (ranged) return ranged;
+
     const blob = await this.ensureOriginal(key, priority);
     const cacheKey = this.offlineCacheKey(frame);
     const cachedPreviews = await this.loadOfflinePreviews(cacheKey);
+    // A relink or replacement may land while a slow original/offline read runs.
+    // Never install a URL for the superseded source revision.
+    if (epoch !== this.cacheEpoch) return '';
+    if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.getFullPreviewUrl(frame, priority);
     if (!blob) {
       // The original drive may be disconnected. Show a cached preview,
       // never imply this is suitable for full-resolution export or RAW editing.
-      const offline = this.developed.get(key) ?? cachedPreviews?.review ?? await loadOfflinePreview(cacheKey);
+      const offline = this.developed.get(key) ?? cachedPreviews?.review
+        ?? (isRawPreviewFile(frame.filename) ? (await this.developedReview(frame))?.review : undefined)
+        ?? await loadOfflinePreview(cacheKey);
       if (!offline) return '';
+      if (epoch !== this.cacheEpoch) return '';
+      if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.getFullPreviewUrl(frame, priority);
+      const cachedFallback = this.fullUrlCache.get(key);
+      if (cachedFallback) return cachedFallback;
       const fallbackUrl = URL.createObjectURL(offline);
       this.fullUrlCache.set(key, fallbackUrl);
-      if (offline !== this.developed.get(key)) this.offlineFullKeys.add(key);
+      // Without the linked original, even a previously developed bitmap is only a review fallback.
+      this.offlineFullKeys.add(key);
       this.fullUrlOrder.push(key);
       while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
         const oldest = this.fullUrlOrder.shift();
@@ -300,22 +500,32 @@ export class BrowserPreviewProvider implements PreviewProvider {
 
     const developed = this.developed.get(key);
     let previewBlob: Blob | null = developed ?? blob;
+    let reviewFallback = false;
     if (blob && !developed && isRawPreviewFile(frame.filename)) {
       previewBlob = await extractNefPreview(blob);
       // Development, relinking or a project switch may finish while extraction is in flight.
       if (this.localBlobs.get(key) !== blob || this.developed.get(key) !== developed) {
         return this.hasBlob(key) ? this.getFullPreviewUrl(frame) : '';
       }
-      if (!previewBlob) previewBlob = cachedPreviews?.review ?? null;
+      if (!previewBlob) {
+        previewBlob = cachedPreviews?.review ?? (await this.developedReview(frame))?.review ?? null;
+        reviewFallback = Boolean(previewBlob);
+      }
+    } else if (blob && await isHeifOriginal(frame.filename, blob)) {
+      // An undecodable HEIF has no picture to show; the interface says so rather than showing anything else.
+      previewBlob = await this.heifPicture(blob).catch(() => null);
     }
     if (!previewBlob) return '';
+    if (epoch !== this.cacheEpoch) return '';
+    if (revision !== (this.sourceRevisions.get(key) ?? 0)) return this.getFullPreviewUrl(frame, priority);
     // A concurrent request for a virtual copy may already have cached this source.
     const ready = this.fullUrlCache.get(key);
     if (ready) return ready;
 
     const objectUrl = URL.createObjectURL(previewBlob);
     this.fullUrlCache.set(key, objectUrl);
-    this.offlineFullKeys.delete(key);
+    if (reviewFallback) this.offlineFullKeys.add(key);
+    else this.offlineFullKeys.delete(key);
     this.fullUrlOrder.push(key);
 
     while (this.fullUrlOrder.length > MAX_FULL_PREVIEW_CACHE) {
@@ -350,6 +560,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
   }
 
   clear(): void {
+    this.cacheEpoch += 1;
     this.offlinePreviewEpoch += 1;
     for (const url of this.thumbUrlCache.values()) {
       if (url.startsWith('blob:')) URL.revokeObjectURL(url);
@@ -369,27 +580,46 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.linkedOrder = [];
     this.developed.clear();
     this.developing.clear();
+    this.developedReviews.clear();
+    this.thumbFrameKeys.clear();
     this.pendingThumbs.clear();
+    this.sourceRevisions.clear();
     this.offlinePreviews.clear();
     this.offlinePreviewOrder = [];
     this.pendingOfflinePreviews.clear();
   }
 
-  private async buildLocalThumbnailUrl(frame: PhotoFrame, priority: ReadPriority): Promise<string> {
+  private rememberThumbnailUrl(frame: PhotoFrame, url: string, revision: number, epoch: number): string {
+    if (epoch !== this.cacheEpoch || revision !== (this.sourceRevisions.get(frame.stableKey) ?? 0) ||
+        this.thumbFrameKeys.get(frame.id) !== frame.stableKey) {
+      if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      return '';
+    }
+    this.thumbUrlCache.set(frame.id, url);
+    return url;
+  }
+
+  private async buildLocalThumbnailUrl(frame: PhotoFrame, priority: ReadPriority, revision: number, epoch: number): Promise<string> {
+    this.thumbFrameKeys.set(frame.id, frame.stableKey);
+    if (isRawPreviewFile(frame.filename)) {
+      const developed = await this.developedReview(frame);
+      if (developed) {
+        const url = URL.createObjectURL(developed.thumbnail);
+        return this.rememberThumbnailUrl(frame, url, revision, epoch);
+      }
+    }
     const cacheKey = this.offlineCacheKey(frame);
     const offline = await loadOfflinePreview(cacheKey);
     if (offline) {
       const url = URL.createObjectURL(offline);
-      this.thumbUrlCache.set(frame.id, url);
-      return url;
+      return this.rememberThumbnailUrl(frame, url, revision, epoch);
     }
     const blob = await this.ensureOriginal(frame.stableKey, priority);
     if (!blob) {
       const cached = await this.loadOfflinePreviews(cacheKey);
       if (!cached) return '';
       const url = URL.createObjectURL(cached.thumbnail);
-      this.thumbUrlCache.set(frame.id, url);
-      return url;
+      return this.rememberThumbnailUrl(frame, url, revision, epoch);
     }
 
     let sourceBlob: Blob = blob;
@@ -399,10 +629,16 @@ export class BrowserPreviewProvider implements PreviewProvider {
         const cached = await this.loadOfflinePreviews(cacheKey);
         if (!cached) return '';
         const url = URL.createObjectURL(cached.thumbnail);
-        this.thumbUrlCache.set(frame.id, url);
-        return url;
+        return this.rememberThumbnailUrl(frame, url, revision, epoch);
       }
       sourceBlob = extracted;
+    } else if (await isHeifOriginal(frame.filename, blob)) {
+      try {
+        sourceBlob = await this.heifPicture(blob);
+      } catch {
+        // Never hand the undecodable original to an <img>: the tile shows that it could not be decoded.
+        return '';
+      }
     }
 
     try {
@@ -418,8 +654,7 @@ export class BrowserPreviewProvider implements PreviewProvider {
       if (!ctx) {
         bitmap.close();
         const fallbackUrl = URL.createObjectURL(sourceBlob);
-        this.thumbUrlCache.set(frame.id, fallbackUrl);
-        return fallbackUrl;
+        return this.rememberThumbnailUrl(frame, fallbackUrl, revision, epoch);
       }
 
       ctx.drawImage(bitmap, 0, 0, targetW, targetH);
@@ -428,14 +663,12 @@ export class BrowserPreviewProvider implements PreviewProvider {
       const thumbBlob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, 'image/jpeg', 0.82)
       );
-      if (thumbBlob) void saveOfflinePreview(cacheKey, thumbBlob);
+      if (thumbBlob && epoch === this.cacheEpoch && revision === (this.sourceRevisions.get(frame.stableKey) ?? 0)) void saveOfflinePreview(cacheKey, thumbBlob);
       const url = URL.createObjectURL(thumbBlob ?? sourceBlob);
-      this.thumbUrlCache.set(frame.id, url);
-      return url;
+      return this.rememberThumbnailUrl(frame, url, revision, epoch);
     } catch {
       const url = URL.createObjectURL(sourceBlob);
-      this.thumbUrlCache.set(frame.id, url);
-      return url;
+      return this.rememberThumbnailUrl(frame, url, revision, epoch);
     }
   }
 
@@ -469,6 +702,20 @@ export class BrowserPreviewProvider implements PreviewProvider {
       const oldest = this.offlinePreviewOrder.shift();
       if (oldest) this.offlinePreviews.delete(oldest);
     }
+  }
+}
+
+/**
+ * Whether an original needs the HEIF decoder: a .heic/.heif/.hif file, or a photo named as a JPEG, PNG or WebP whose
+ * bytes are HEIF (some phones and transfer tools export HEIC under a .jpg name).
+ */
+async function isHeifOriginal(filename: string, original: Blob | RangeBlob): Promise<boolean> {
+  if (isHeifFile(filename)) return true;
+  if (isRawPreviewFile(filename)) return false;
+  try {
+    return looksLikeHeif(new Uint8Array(await original.slice(0, 64).arrayBuffer()));
+  } catch {
+    return false;
   }
 }
 

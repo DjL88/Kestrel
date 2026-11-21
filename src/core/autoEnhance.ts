@@ -28,6 +28,9 @@ const clamp = (value: number, low: number, high: number) => Math.min(high, Math.
 const round = (value: number) => Math.round(value * 20) / 20;
 
 /**
+ * LEGACY BASELINE. The app uses `naturalAuto` (./naturalAuto.ts) instead; this full-frame version is kept only so
+ * `npm run compare:auto` and the tests can show what changed. Do not call it from the app.
+ *
  * Local, rule-based suggestions from a small preview of the unedited photo. No network, no generative AI.
  * Colour balance uses only near-neutral midtones, so a green forest or orange bird does not read as a colour cast.
  */

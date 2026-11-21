@@ -1,4 +1,4 @@
-import { openPhotoInfo } from './helpers';
+import { openPhotoInfo, subjectTab } from './helpers';
 import { expect, test } from '@playwright/test';
 
 async function makeProject(page: import('@playwright/test').Page, name: string) {
@@ -118,11 +118,13 @@ test('subject panel: pick a kind, add tags by typing and with quick words, remov
   // The subject and tag controls are in Photo info, in the library. Wait for the editor to open, then go there.
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   await openPhotoInfo(page);
+  await subjectTab(page);
   const panel = page.getByRole('region', { name: 'What is in this photo' });
   await expect(panel.getByRole('button', { name: 'Bird' })).toHaveCount(0); // quick tags wait for a kind
   await panel.getByRole('button', { name: 'Wildlife' }).click();
   await expect(panel.getByRole('button', { name: 'Wildlife' })).toHaveAttribute('aria-pressed', 'true');
   await panel.getByRole('button', { name: /Bird of prey/ }).click();
+  await subjectTab(page);
   await panel.getByLabel('Add a tag').fill('Red Kite, red kite, Moorland');
   await page.keyboard.press('Enter');
   const tags = panel.getByRole('list', { name: 'Tags' }).getByRole('listitem');
@@ -133,6 +135,7 @@ test('subject panel: pick a kind, add tags by typing and with quick words, remov
   // The kind and tags survive closing and reopening Photo info.
   await page.getByRole('button', { name: 'Close photo info' }).click();
   await openPhotoInfo(page);
+  await subjectTab(page);
   await expect(page.getByRole('region', { name: 'What is in this photo' }).getByRole('button', { name: 'Wildlife' })).toHaveAttribute('aria-pressed', 'true');
   await expect(tags).toHaveText(['Bird of prey', 'Moorland']);
 });
@@ -150,16 +153,16 @@ test('phone editing: one big slider, chips to choose, nudge and reset, and the f
   // Exposure is first. The slider, its buttons and the chips are all big enough for a thumb.
   const slider = quick.getByRole('slider', { name: 'Exposure adjustment' });
   await expect(slider).toBeVisible();
-  for (const name of ['Exposure down', 'Exposure up', 'Reset Exposure', 'Step back', 'Step forward']) {
+  for (const name of ['Lower Exposure', 'Raise Exposure', 'Reset Exposure', 'Step back', 'Step forward']) {
     const box = (await quick.getByRole('button', { name, exact: true }).boundingBox())!;
     expect(box.height, `${name} is thumb sized`).toBeGreaterThanOrEqual(44);
   }
-  await quick.getByRole('button', { name: 'Exposure up' }).click();
+  await quick.getByRole('button', { name: 'Raise Exposure' }).click();
   await expect(slider).toHaveValue('0.1');
   await expect(quick.getByText('0.04 EV')).toBeVisible();
   // Choose another adjustment from the chips, nudge it, and the first one shows it has been changed.
   await quick.getByRole('button', { name: 'Contrast, unchanged', exact: true }).click();
-  await quick.getByRole('button', { name: 'Contrast up' }).click();
+  await quick.getByRole('button', { name: 'Raise Contrast' }).click();
   await expect(quick.getByRole('slider', { name: 'Contrast adjustment' })).toHaveValue('0.05');
   await expect(quick.getByRole('button', { name: 'Exposure, adjusted' }).getByLabel('Adjusted')).toBeVisible();
   await expect(quick.getByRole('button', { name: 'Contrast, adjusted' })).toBeVisible();
@@ -173,4 +176,85 @@ test('phone editing: one big slider, chips to choose, nudge and reset, and the f
   await expect(page.getByRole('slider', { name: 'Texture adjustment' })).toBeVisible();
   await page.getByRole('button', { name: 'Back to quick adjust' }).click();
   await expect(quick).toBeVisible();
+});
+
+test('File, Edit and View organise actions; show/hide controls stay together in View', async ({ page }) => {
+  await makeProject(page, 'View menu organisation');
+  const onPhone = page.viewportSize()!.width < 768;
+  await page.getByRole('button', { name: onPhone ? 'More' : 'Workspace options', exact: true }).click();
+  const menu = page.locator('#workspace-options');
+  await expect(menu.getByRole('heading', { name: 'File', exact: true })).toBeVisible();
+  await expect(menu.getByRole('heading', { name: 'Edit', exact: true })).toBeVisible();
+  const view = menu.locator('details').filter({ hasText: 'View · show or hide' });
+  await expect(view).toHaveCount(1);
+  await view.locator('summary').click();
+  await expect(view.getByRole('checkbox', { name: 'Show filmstrip' })).toBeVisible();
+  await expect(view.getByRole('checkbox', { name: 'Photo info' })).toBeVisible();
+  await expect(view.getByRole('checkbox', { name: 'Photo-only view (F)' })).toBeVisible();
+  await expect(view.getByRole('checkbox', { name: 'Show shortcut guide' })).toBeVisible();
+  await expect(view.getByRole('button', { name: 'Group or ungroup bursts' })).toBeVisible();
+  const info = view.getByRole('checkbox', { name: 'Photo info' });
+  await info.check();
+  await expect(info).toBeChecked();
+  await info.uncheck();
+  await expect(info).not.toBeChecked();
+  // Photo info is a View toggle, not a duplicate action in Photos.
+  await expect(menu.locator('#menu-selection').getByRole('button', { name: 'Photo info' })).toHaveCount(0);
+  await menu.getByText('Culling settings', { exact: true }).click();
+  await expect(menu.locator('details').filter({ hasText: 'Culling settings' })
+    .getByRole('checkbox', { name: 'Show shortcut guide' })).toHaveCount(0);
+});
+
+test('File menu saves selected ratings/tags as XMP without the photo Export dialog', async ({ page }) => {
+  await makeProject(page, 'Portable photo metadata');
+  const phone = page.viewportSize()!.width < 768;
+  const openMenu = async () => {
+    await page.getByRole('button', { name: phone ? 'More' : 'Workspace options', exact: true }).click();
+    return page.locator('#workspace-options');
+  };
+  let menu = await openMenu();
+  const fileItem = menu.getByRole('button', { name: 'Save ratings and tags (XMP)…' });
+  await expect(fileItem).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Add photos', exact: true }).click();
+  await page.getByTestId('local-file-input').setInputFiles({
+    name: 'bird.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
+  });
+  await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: /To review 1/ })).toBeVisible({ timeout: 30_000 });
+  menu = await openMenu();
+  const action = menu.getByRole('button', { name: 'Save ratings and tags (XMP)…' });
+  await expect(action).toBeEnabled();
+  await expect(action).toHaveAttribute('title', /original|separately|apart/i);
+  const download = page.waitForEvent('download');
+  await action.click();
+  expect((await download).suggestedFilename()).toBe('bird.xmp');
+  // The image Export dialog is not needed to save just portable culling metadata.
+  await expect(page.getByText('XMP sidecars', { exact: true })).toHaveCount(0);
+});
+
+test('File menu imports a matching XMP into the selected photo without changing its original file', async ({ page }) => {
+  await makeProject(page, 'Restore photo metadata');
+  await page.getByRole('button', { name: 'Add photos', exact: true }).click();
+  await page.getByTestId('local-file-input').setInputFiles({
+    name: 'bird.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
+  });
+  await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: /To review 1/ })).toBeVisible({ timeout: 30_000 });
+  const phone = page.viewportSize()!.width < 768;
+  await page.getByRole('button', { name: phone ? 'More' : 'Workspace options', exact: true }).click();
+  await expect(page.locator('#workspace-options').getByRole('button', { name: 'Import ratings and tags (XMP)…' })).toBeEnabled();
+  const xmp = `<?xml version="1.0" encoding="UTF-8"?>
+    <x:xmpmeta xmlns:x="adobe:ns:meta/">
+      <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+        <rdf:Description xmlns:xmp="http://ns.adobe.com/xap/1.0/"
+          xmlns:xmpDM="http://ns.adobe.com/xmp/1.0/DynamicMedia/" xmp:Rating="5" xmpDM:pick="1"/>
+      </rdf:RDF>
+    </x:xmpmeta>`;
+  // Upload through the exact File-menu picker; no Photo Info detour.
+  await page.getByTestId('file-menu-xmp-import').setInputFiles({
+    name: 'bird.xmp', mimeType: 'application/rdf+xml', buffer: Buffer.from(xmp),
+  });
+  await expect(page.getByText(/Imported XMP for 1 selected photo/)).toBeVisible();
+  await expect(page.getByText('XMP sidecars', { exact: true })).toHaveCount(0);
 });

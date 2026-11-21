@@ -6,25 +6,22 @@ test.skip(process.env.KESTREL_PLAN_PREVIEW !== 'free', 'needs the Free-plan buil
 
 const photo = () => ({ name: 'free.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64') });
 
-test('Free: editing opens on Edit, and the Auto and Masks tabs say they are part of Paid', async ({ page }) => {
+test('Free: natural Auto and basic Masks are available without Pro', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles(photo());
   await expect(page.getByRole('tab', { name: 'Edit' })).toHaveAttribute('aria-selected', 'true', { timeout: 15000 });
   await page.getByRole('tab', { name: 'Auto' }).click();
-  await expect(page.getByRole('heading', { name: 'The Auto tab is part of Kestrel Pro' })).toBeVisible();
-  await expect(page.getByText('Identify birds and animals')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'The Auto tab is part of Kestrel Pro' })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Masks' }).click();
-  await expect(page.getByRole('heading', { name: 'Masks and subject detection is part of Kestrel Pro' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Masks and subject detection is part of Kestrel Pro' })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Edit' }).click();
   await expect(page.getByRole('slider').first()).toBeVisible();
 });
 
-test('Free: the tenth export of the day is allowed, and after that exporting says why and when it resets', async ({ page }) => {
+test('Free: legacy daily quota history cannot prevent another valid export', async ({ page }) => {
   await page.goto('/');
-  const now = new Date();
   const day = await page.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
   await page.evaluate((today) => localStorage.setItem('kestrel.exportsToday.v1', JSON.stringify({ day: today, count: 10 })), day);
-  expect(now.getFullYear()).toBeGreaterThan(2000);
   await page.getByTestId('quick-edit-input').setInputFiles(photo());
   await openExportDialog(page);
   await page.getByRole('button', { name: 'Instagram' }).click();
@@ -32,5 +29,5 @@ test('Free: the tenth export of the day is allowed, and after that exporting say
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   await page.getByRole('button', { name: /^Prepare 1 file/ }).click();
-  await expect(page.getByText(/used today's 10 free exports/)).toBeVisible();
+  await expect(page.getByText(/used today's 10 free exports/)).toHaveCount(0);
 });

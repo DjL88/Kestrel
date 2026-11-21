@@ -1,0 +1,27 @@
+[package]
+name = "kestrel-raw-wasm"
+version = "26.11.2"
+description = "Kestrel's RAW pipeline (crates/kestrel-raw) as WebAssembly (WASI), for the web app"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+# Nikon High Efficiency decoding is in every Kestrel build, web and mobile included (owner decision, 19 Nov 2026; see
+# NOTICE.md). `npm run raw:wasm -- --without-nikon-he` builds a binary without it.
+default = ["nikon-he"]
+nikon-he = ["kestrel-raw/nikon-he"]
+
+[dependencies]
+# Single-threaded: the browser build has no threads without cross-origin isolation, which Kestrel doesn't require.
+kestrel-raw = { path = "../kestrel-raw", default-features = false }
+
+[profile.release]
+# A decoder panic becomes a trap the worker catches; it then starts a fresh instance.
+panic = "abort"
+opt-level = 3
+lto = true
+codegen-units = 1

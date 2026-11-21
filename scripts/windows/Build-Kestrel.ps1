@@ -69,8 +69,21 @@ npm ci --no-audit --no-fund
 if ($LASTEXITCODE -ne 0) { throw "npm ci failed" }
 
 Step "Building the release app and installer (10-20 minutes the first time)"
+# Each parallel compile job can need 2-3 GB at the end of an optimised build, so a laptop with 8-16 GB can run out of
+# memory ("rustc-LLVM ERROR: out of memory", exit 0xc0000409). Run as many jobs as the memory allows, not one per core.
+if (-not $env:CARGO_BUILD_JOBS) {
+  $memoryGb = [math]::Floor((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
+  $env:CARGO_BUILD_JOBS = [string][math]::Max(1, [math]::Min([Environment]::ProcessorCount, [math]::Floor($memoryGb / 4)))
+}
+Write-Host "Compiling with $env:CARGO_BUILD_JOBS parallel jobs"
 npm run desktop:build
-if ($LASTEXITCODE -ne 0) { throw "the desktop build failed; the messages above say where" }
+if ($LASTEXITCODE -ne 0 -and $env:CARGO_BUILD_JOBS -ne "1") {
+  # Usually memory. What was compiled is kept, so a retry with one job only redoes the last part.
+  Write-Host "The build stopped; trying once more with one job at a time, which needs the least memory." -ForegroundColor Yellow
+  $env:CARGO_BUILD_JOBS = "1"
+  npm run desktop:build
+}
+if ($LASTEXITCODE -ne 0) { throw "the desktop build failed; the messages above say where. If they say 'out of memory', close other apps and run this again." }
 
 $bundle = Join-Path $Root "src-tauri\target\release\bundle"
 $installer = Get-ChildItem -Path (Join-Path $bundle "nsis") -Filter "*-setup.exe" -ErrorAction SilentlyContinue |

@@ -40,19 +40,29 @@ test('desktop backup waits for the native write and saves a restorable edit reci
   let writeStarted!: () => void;
   const started = new Promise<void>((resolve) => { writeStarted = resolve; });
   const pendingWrite = new Promise<void>((resolve) => { completeWrite = resolve; });
-  let bytes: Uint8Array | undefined;
-  desktopWindow(t, async (command, args, options) => {
+  const chunks: Uint8Array[] = [];
+  const commands: string[] = [];
+  let openOptions: { createNew?: boolean } | undefined;
+  desktopWindow(t, async (command, args) => {
+    commands.push(command);
     if (command === 'plugin:dialog|save') {
       assert.equal((args as { options: { defaultPath: string } }).options.defaultPath, 'A_B_ edited project.kestrel.json');
       return path;
     }
-    if (command === 'plugin:fs|write_file') {
-      assert.equal(decodeURIComponent(options!.headers!.path), path);
-      bytes = args as Uint8Array;
+    if (command === 'plugin:fs|open') {
+      // Desktop saves must never replace an existing file.
+      openOptions = (args as { options: { createNew?: boolean } }).options;
+      assert.equal((args as { path: string }).path, path);
+      return 7;
+    }
+    if (command === 'plugin:fs|write') {
+      const data = (args as { data: Uint8Array }).data;
+      chunks.push(new Uint8Array(data));
       writeStarted();
       await pendingWrite;
-      return;
+      return data.byteLength;
     }
+    if (command === 'plugin:fs|close' || command === 'plugin:resources|close') return;
     assert.equal(command, 'plugin:opener|reveal_item_in_dir');
   });
   let settled = false;
@@ -61,6 +71,11 @@ test('desktop backup waits for the native write and saves a restorable edit reci
   assert.equal(settled, false, 'must not report success while the filesystem write is pending');
   completeWrite();
   assert.equal(await saving, 'saved');
+  assert.equal(openOptions?.createNew, true, 'an existing file is never overwritten');
+  assert.ok(commands.lastIndexOf('plugin:resources|close') > commands.indexOf('plugin:fs|write'), 'the file is closed after writing');
+  const bytes = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
   const restored = restoreProjectBackup(new TextDecoder().decode(bytes), 'restored');
   assert.deepEqual(restored.frames, JSON.parse(JSON.stringify(state.frames)));
   assert.deepEqual(state, before, 'saving must not mutate catalogue decisions or edit history');
@@ -73,19 +88,21 @@ test('cancelling the native picker returns cancelled without writing or download
   assert.deepEqual(commands, ['plugin:dialog|save']);
 });
 
-for (const failingCommand of ['plugin:dialog|save', 'plugin:fs|write_file']) {
+for (const failingCommand of ['plugin:dialog|save', 'plugin:fs|write']) {
   test(`desktop backup propagates ${failingCommand} failure without a browser fallback`, async (t) => {
     const failure = new Error('Destination is unavailable');
     const commands: string[] = [];
     desktopWindow(t, async (command) => {
       commands.push(command);
       if (command === failingCommand) throw failure;
-      assert.equal(command, 'plugin:dialog|save');
-      return '/mounted/test-volume/project.kestrel.json';
+      if (command === 'plugin:dialog|save') return '/mounted/test-volume/project.kestrel.json';
+      if (command === 'plugin:fs|open') return 7;
+      assert.ok(['plugin:fs|close', 'plugin:resources|close', 'plugin:fs|remove'].includes(command), `unexpected ${command}`);
     });
     await assert.rejects(saveProjectBackupFile(fixture()), (reason) => reason === failure);
-    assert.deepEqual(commands, failingCommand === 'plugin:dialog|save'
-      ? ['plugin:dialog|save'] : ['plugin:dialog|save', 'plugin:fs|write_file']);
+    assert.equal(commands.includes('plugin:opener|reveal_item_in_dir'), false);
+    if (failingCommand === 'plugin:dialog|save') assert.deepEqual(commands, ['plugin:dialog|save']);
+    else assert.ok(commands.includes('plugin:fs|remove'), 'the incomplete file is removed after a failed write');
   });
 }
 

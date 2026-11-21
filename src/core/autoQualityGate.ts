@@ -47,10 +47,21 @@ export function assessAutoQuality(before: Uint8ClampedArray, after: Uint8Clamped
     const nr = after[i], ng = after[i + 1], nb = after[i + 2];
     const nh = Math.max(nr, ng, nb), nl = Math.min(nr, ng, nb);
     // Unattended Auto should not radically re-colour vivid feathers, flowers or clothes.
-    if (nh - nl < 25 || nh < 60) continue;
+    // A vivid feather can be ruined by desaturation or strong darkening
+    // without clipping a channel or changing hue. Those must count as
+    // colour failures too, not be silently skipped from the denominator.
+    const afterChroma = nh - nl;
+    if (nh < 60 || afterChroma < Math.max(25, (high - low) * 0.3)) {
+      altered++;
+      continue;
+    }
     const difference = Math.abs(hue(r, g, bl) - hue(nr, ng, nb));
     if (Math.min(difference, 360 - difference) > 30) altered++;
   }
-  if (vivid > count * 0.03 && altered > vivid * 0.1) return blocked('Saturated colours shifted too far');
+  // A distant kingfisher may occupy <3% of the frame. Protect even a small
+  // meaningful patch, provided enough sampled pixels corroborate the change.
+  if (vivid >= Math.max(12, Math.ceil(count * 0.001)) && altered > vivid * 0.1) {
+    return blocked('Vivid feathers or other saturated colours changed too far');
+  }
   return safe();
 }

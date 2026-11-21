@@ -4,107 +4,198 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#14161b">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <meta name="description" content="Kestrel: a calm, privacy-first workspace for importing, culling and editing photographs.">
+  <!-- Kestrel’s own downloads (infra/gcp). -->
+  <meta name="kestrel-downloads" content="https://storage.googleapis.com/kestrel-hosting-kestrel-downloads/latest.json">
   <title>Kestrel — More time behind the camera.</title>
+  
   <style>
-    :root{color-scheme:dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#14161b;color:#f1f3f7}
-    *{box-sizing:border-box}body{margin:0;line-height:1.55}a{color:#9cc3db}a:focus-visible,button:focus-visible{outline:3px solid #9cc3db;outline-offset:4px}
+    @font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(assets/fonts/inter-latin-400-normal.woff2) format("woff2")}
+    @font-face{font-family:Inter;font-weight:600;font-display:swap;src:url(assets/fonts/inter-latin-600-normal.woff2) format("woff2")}
+    @font-face{font-family:Inter;font-weight:700;font-display:swap;src:url(assets/fonts/inter-latin-700-normal.woff2) format("woff2")}
+    @font-face{font-family:"Plus Jakarta Sans";font-weight:800;font-display:swap;src:url(assets/fonts/plus-jakarta-sans-latin-800-normal.woff2) format("woff2")}
+    /* Brand tokens (docs/brand/README.md) */
+    :root{--canvas:#14161b;--panel:#1a1d23;--raised:#1c2027;--ivory:#f4efe6;--copper:#c9652e;--copper-hover:#d97840;--dusk:#4a88b2;--wine:#c54f63;--mist:#8b93a3;
+      color-scheme:dark;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--canvas);color:var(--ivory)}
+    h1,h2,h3,.brand{font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif;font-weight:800;letter-spacing:-.025em}
+    *{box-sizing:border-box}body{margin:0;line-height:1.55}a{color:#9cc3db}a:focus-visible,button:focus-visible{outline:3px solid var(--dusk);outline-offset:4px}
     .wrap{width:min(1060px,calc(100% - 40px));margin:auto}header{border-bottom:1px solid #343946;padding:22px 0}
     .bar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
     .brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;font-size:1.25rem;font-weight:750}
-    .mark{display:grid;place-items:center;width:43px;height:43px;background:#c9652e;color:#14161b;border-radius:12px;font-size:1.5rem;font-weight:900}
+    .mark{display:block;width:46px;height:auto}
     nav{display:flex;gap:20px;flex-wrap:wrap}nav a{color:#d3d9e5;text-decoration:none}
     main{padding:64px 0 80px}.eyebrow{text-transform:uppercase;letter-spacing:.14em;color:#e0a583;font-size:.8rem;font-weight:700}
     h1{font-size:clamp(2.4rem,6.5vw,4.8rem);line-height:1.05;letter-spacing:-.05em;max-width:760px;margin:14px 0 22px}
     h2{font-size:clamp(1.55rem,3vw,2.2rem);letter-spacing:-.025em;margin:0 0 18px}
-    .lead{max-width:690px;font-size:1.18rem;color:#c6cbd5}.cta{display:inline-block;background:#d97840;color:#151515;text-decoration:none;padding:13px 20px;border-radius:9px;font-weight:750}
+    .lead{max-width:690px;font-size:1.18rem;color:#c6cbd5}.cta{display:inline-block;background:var(--copper-hover);color:var(--canvas);text-decoration:none;padding:13px 20px;border-radius:9px;font-weight:750}
     section{margin-top:80px;scroll-margin-top:28px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-    .card{background:#191d26;border:1px solid #394050;border-radius:14px;padding:22px;min-height:170px}
-    .card h3{margin:0 0 8px;font-size:1.15rem}.card p{color:#bfc6d2;margin:0 0 16px}
+    .card{background:var(--panel);border:1px solid #2c313b;border-radius:14px;padding:22px;min-height:170px}
+    .card h3{margin:0 0 8px;font-size:1.15rem}
+    .platform-mark{width:44px;height:44px;display:flex;align-items:center;justify-content:center;margin:0 0 12px;border:1px solid #55433e;border-radius:12px;background:#26201e;color:#e39b6b}
+    .platform-mark svg{display:block;width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
+    .card.suggested{border:2px solid var(--copper-hover)}.suggest{display:inline-block;margin:0 0 8px;font-size:.85rem;font-weight:700;color:#f4efe6}.card p{color:#bfc6d2;margin:0 0 16px}
     .pill{display:inline-block;border:1px solid #5e6270;color:#d8dbe4;border-radius:100px;padding:3px 10px;font-size:.79rem}
-    .download{display:inline-block;background:#d97840;color:#14161b;font-weight:750;border-radius:8px;padding:8px 12px;text-decoration:none}
+    .download{display:inline-block;background:var(--copper-hover);color:var(--canvas);font-weight:750;border-radius:8px;padding:8px 12px;text-decoration:none}
     .muted{color:#bdc4cf}.steps{padding-left:24px;max-width:740px}.steps li{margin-bottom:12px}
     .note{border-left:3px solid #d97840;padding:10px 17px;background:#191d26;max-width:800px}
+    .contact-form{display:grid;gap:14px;max-width:560px}
+    .contact-field{display:grid;gap:5px;font-weight:600}
+    .contact-field input,.contact-field textarea{width:100%;padding:10px 12px;border:1px solid #5e6270;border-radius:8px;background:var(--panel);color:inherit;font:inherit}
+    .contact-field input{min-height:44px}
+    .contact-field textarea{resize:vertical}
+    .contact-form :is(input,textarea):focus-visible{outline:2px solid #9cc3db;outline-offset:3px}
+    .contact-consent{display:flex;align-items:center;min-height:44px;gap:10px}
+    .contact-consent input{flex:none;width:18px;height:18px;accent-color:var(--copper-hover)}
+    .contact-form button{justify-self:start;border:0;font:inherit;font-weight:700;cursor:pointer}
+    .contact-form button:disabled{opacity:.65;cursor:default}
+    #contact-status{min-height:1.55em;margin:0;color:#d3d9e5}
+    .picker{display:inline-flex;align-items:center;gap:8px;font-size:.9rem;color:#d3d9e5}.picker select{min-height:40px;padding:6px 10px;border-radius:8px;border:1px solid #5e6270;background:var(--panel);color:inherit;font:inherit}.picker select:focus-visible{outline:3px solid var(--dusk);outline-offset:2px}
+    .price{margin:0 0 4px!important;font-size:1.6rem;color:var(--ivory)!important}.price span{font-size:1rem;color:#bfc6d2}.price-tax{font-size:.88rem}.currency{margin-top:16px}
+    .buy{border:0;font:inherit;font-weight:700}.buy:disabled{opacity:.7;cursor:default}
     footer{padding:30px 0;border-top:1px solid #343946;color:#bfc6d2}
     @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
   </style>
 </head>
 <body>
 <header><div class="wrap bar">
-  <a class="brand" href="#top" aria-label="Kestrel home"><span class="mark" aria-hidden="true">K</span>Kestrel</a>
-  <nav aria-label="Main navigation"><a href="#downloads">Downloads</a><a href="#install">Install</a><a href="#pricing">Pricing</a><a href="#getting-started">Getting started</a><a href="#privacy">Privacy</a><a href="https://github.com/DjL88/Kestrel">Source</a></nav>
+  <a class="brand" href="#top" data-i18n-attr="aria-label:navHome" aria-label="Kestrel home"><img class="mark" src="assets/kestrel-symbol.svg" alt="" width="46" height="39">Kestrel</a>
+  <nav data-i18n-attr="aria-label:navLabel" aria-label="Main navigation"><a href="#try" data-i18n="navTry">Try it</a><a href="#downloads" data-i18n="navDownloads">Downloads</a><a href="#install" data-i18n="navInstall">Install</a><a href="#pricing" data-i18n="navPricing">Pricing</a><a href="#getting-started" data-i18n="navStart">Getting started</a><a href="#privacy" data-i18n="navPrivacy">Privacy</a><a href="#contact" data-i18n="navContact">Contact</a></nav>
+  <label class="picker"><span data-i18n="languageLabel">Language</span><select id="language-select"></select></label>
 </div></header>
 <main id="top" class="wrap">
-  <p class="eyebrow">An easier way to find your best frame</p>
-  <h1>More time behind the camera.</h1>
-  <p class="lead">Import a shoot, find the keepers, make considered edits, and export. Kestrel is designed to be calm, quick and useful without an account or connection.</p>
-  <p><a class="cta" href="#downloads">Explore downloads</a></p>
-  <section id="downloads" aria-labelledby="downloads-title">
-    <h2 id="downloads-title">Get Kestrel</h2>
-    <p class="muted">Kestrel is in development. Installers appear here only after a matching application release has been published. Model files and source archives are not app installers.</p>
+  <h1 data-i18n="heroTitle">More time behind the camera.</h1>
+  <p class="lead" data-i18n="heroLead">Kestrel is a photo workspace for importing, culling, editing and exporting. It sets out to make editing quicker and easier to understand: find the keepers, make a few edits you can follow, and export.</p>
+  <p><a class="cta" href="#try" data-i18n="heroTry">Try the editing tools</a> <a href="#downloads" data-i18n="heroDownloads">Explore downloads</a> · <a href="#pricing" data-i18n="heroPricing">See pricing</a></p>
+  <section id="aims" aria-labelledby="aims-title">
+    <h2 id="aims-title" data-i18n="aimsTitle">What Kestrel sets out to do</h2>
     <div class="grid">
-      <article class="card"><h3>macOS</h3><p>Desktop editing and local storage.</p><span id="mac" class="pill">Not released yet</span></article>
-      <article class="card"><h3>Windows</h3><p>Desktop editing and local storage.</p><span id="windows" class="pill">Not released yet</span></article>
-      <article class="card"><h3>iPhone &amp; iPad</h3><p>Touch-first culling and editing.</p><span id="ios" class="pill">Not released yet</span></article>
-      <article class="card"><h3>Android</h3><p>Touch-first culling and editing.</p><span id="android" class="pill">Not released yet</span></article>
+      <article class="card"><h3 data-i18n="aimOfflineTitle">Work offline</h3><p data-i18n="aimOfflineBody">Import, cull, edit and export without an internet connection or an account. Your photos stay on your device or in storage you choose.</p></article>
+      <article class="card"><h3 data-i18n="aimOriginalsTitle">Never change your originals</h3><p data-i18n="aimOriginalsBody">Kestrel does not change, move or replace an original file. Edits are saved as steps you can change or undo at any time.</p></article>
+      <article class="card"><h3 data-i18n="aimCalmTitle">Stay calm and accessible</h3><p data-i18n="aimCalmBody">A quiet screen, plain words, full keyboard access and reduced motion. Nothing relies on colour alone. It is designed with colour-blind, ADHD and autistic photographers in mind.</p></article>
+      <article class="card"><h3 data-i18n="aimHonestTitle">Be honest about what it knows</h3><p data-i18n="aimHonestBody">When Kestrel is unsure, it says so. It tells you when it shows a RAW file’s built-in preview, never invents detail, and keeps uncertain photos for you to review instead of rejecting them.</p></article>
+      <article class="card"><h3 data-i18n="aimHelpTitle">Help without taking over</h3><p data-i18n="aimHelpBody">Machine learning can help reduce noise, find a subject or suggest a mask. Every suggestion is yours to check and adjust.</p></article>
+      <article class="card"><h3 data-i18n="aimSameTitle">Work the same everywhere</h3><p data-i18n="aimSameBody">The same tools and the same way of working on Windows, macOS and the web, with iPhone, iPad and Android to follow.</p></article>
+      <article class="card"><h3 data-i18n="aimOnceTitle">Pay once</h3><p data-i18n="aimOnceBody">Basic stays free. Pro is a one-off licence that works offline, not a subscription. Invited testers can receive Pro at no charge.</p></article>
     </div>
-    <p id="release-status" class="muted" role="status" aria-live="polite">Checking for published app downloads…</p>
-    <p><a href="https://github.com/DjL88/Kestrel/releases">View all Kestrel releases</a></p>
+  </section>
+  <section id="try" aria-labelledby="try-title">
+    <h2 id="try-title" data-i18n="tryTitle">Try the editing tools</h2>
+    <p class="muted" data-i18n="trySub">Edit a sample photo here in your browser. Nothing is uploaded.</p>
+    <p class="muted" data-i18n="realEditorScope">This is the actual Kestrel editor with a fixed selection of approved photographs. Adjust, crop and compare them; importing or exporting files is not available in the demonstration. Your changes are temporary.</p>
+    <div style="border:1px solid #343946;border-radius:12px;overflow:hidden;background:#111318">
+      <iframe src="editor/demo-editor.html" title="The Kestrel editor using approved example photographs"
+        loading="lazy" style="display:block;width:100%;height:min(790px,85vh);min-height:520px;border:0" allow="fullscreen"></iframe>
+    </div>
+    <p class="muted" style="font-size:.82rem" data-i18n="realEditorTruth">The approved examples are JPEG images. This experience does not claim that they were developed from Nikon RAW files by Kestrel.</p>
+  </section>
+  <section id="downloads" aria-labelledby="downloads-title">
+    <h2 id="downloads-title" data-i18n="downloadsTitle">Get Kestrel</h2>
+    <p class="muted" data-i18n="downloadsIntro">Kestrel is in development. Installers appear here only after a matching application release has been published. Model files and source archives are not app installers.</p>
+    <div class="grid">
+      <article class="card" data-platform="mac"><span class="platform-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="1.6"/><path d="M1.8 20h20.4M9 17v3m6-3v3"/></svg></span><h3>macOS</h3><p data-i18n="platformDesktop">Desktop editing and local storage.</p><span id="mac" class="pill" data-i18n="comingSoon">Coming soon</span></article>
+      <article class="card" data-platform="windows"><span class="platform-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M2 5.5 11 4v7H2zm11-1.8L22 2v9h-9zM2 13h9v7l-9-1.5zm11 0h9v9l-9-1.5z"/></svg></span><h3>Windows</h3><p data-i18n="platformDesktop">Desktop editing and local storage.</p><span id="windows" class="pill" data-i18n="comingSoon">Coming soon</span></article>
+      <article class="card" data-platform="ios"><span class="platform-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M10 5h4M11 19h2"/></svg></span><h3 data-i18n="platformIos">iPhone and iPad</h3><p data-i18n="platformTouch">Touch-first culling and editing.</p><span id="ios" class="pill" data-i18n="comingSoon">Coming soon</span></article>
+      <article class="card" data-platform="android"><span class="platform-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 10a7 7 0 0 1 14 0M6 10h12v7H6zM4 11v5m16-5v5M8 17v3m8-3v3M7 3 5.5 1m11 2L18 1"/><circle cx="9" cy="7.5" r=".5" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r=".5" fill="currentColor" stroke="none"/></svg></span><h3>Android</h3><p data-i18n="platformTouch">Touch-first culling and editing.</p><span id="android" class="pill" data-i18n="comingSoon">Coming soon</span></article>
+    </div>
+    <p id="release-status" class="muted" role="status" aria-live="polite" data-i18n="releaseChecking">Checking for published app downloads…</p>
   </section>
   <section id="install" aria-labelledby="install-title">
-    <h2 id="install-title">Installing the beta</h2>
-    <p class="muted">Beta builds are not yet signed by Apple or Microsoft, so each system asks you to confirm before the first launch. Download only from this page or the Kestrel releases page.</p>
+    <h2 id="install-title" data-i18n="installTitle">Installing Kestrel</h2>
+    <p class="muted" data-i18n="installIntro">Early builds are not yet signed by Apple or Microsoft, so each system asks you to confirm before the first launch. Download only from this page.</p>
     <div class="grid">
-      <article class="card"><h3>macOS</h3><p>Open the downloaded disk image and drag Kestrel to Applications. The first time, right-click Kestrel, choose <strong>Open</strong>, then <strong>Open</strong> again.</p></article>
-      <article class="card"><h3>Windows</h3><p>Run the installer. If Windows says it protected your PC, choose <strong>More info</strong>, then <strong>Run anyway</strong>.</p></article>
+      <article class="card"><h3>macOS</h3><p data-i18n-html="installMac">Open the downloaded disk image and drag Kestrel to Applications. The first time, right-click Kestrel, choose <strong>Open</strong>, then <strong>Open</strong> again.</p></article>
+      <article class="card"><h3>Windows</h3><p data-i18n-html="installWindows">Run the installer. If Windows says it protected your PC, choose <strong>More info</strong>, then <strong>Run anyway</strong>.</p></article>
     </div>
-    <p class="note">Your photographs are never changed or uploaded by installing or using Kestrel. Signed installers will replace these steps in a later release.</p>
+    <p class="note" data-i18n="installNote">Your photographs are never changed or uploaded by installing or using Kestrel. Signed installers will replace these steps in a later release.</p>
   </section>
   <section id="pricing" aria-labelledby="pricing-title">
-    <h2 id="pricing-title">Planned pricing</h2>
-    <p class="muted"><strong>Nothing can be bought yet.</strong> Kestrel is a free beta. These are the plans, and they may change before anything goes on sale. No account or payment details are needed to use the beta.</p>
+    <h2 id="pricing-title" data-i18n="pricingTitle">Planned pricing</h2>
+    <p class="muted" data-i18n-html="pricingIntro"><strong>Purchases are not open yet.</strong> Basic will remain free. Pro is a one-off licence; invited testers can receive Pro at no charge. This website does not take payments yet.</p>
     <div class="grid">
-      <article class="card"><h3>Free beta <span class="pill">Available now</span></h3><p>Import, cull, edit and export on your own computer, offline. During the beta every feature is open.</p></article>
-      <article class="card"><h3>Pro <span class="pill">Planned, not on sale</span></h3><p>Planned at <strong>£29 once</strong>, kept offline for good with a licence key and no account. It would keep masks, subject detection, species suggestions and assisted culling; Free would keep import, editing and export.</p></article>
-      <article class="card"><h3>Cloud <span class="pill">Later, not available</span></h3><p>No cloud service exists. You keep your photos wherever you like, and can already copy settings between devices. A paid cloud option may follow if people ask for one.</p></article>
+      <article class="card"><h3><span data-i18n="freeTitle">Basic</span></h3><p data-i18n="freeBody">Import, cull, edit and export on your own device, offline. Pro tools require an activated Pro licence.</p></article>
+      <article class="card"><h3><span data-i18n="proTitle">Pro</span> <span class="pill" data-i18n="proPill">Planned, not on sale</span></h3>
+        <p class="price"><strong id="pro-price">£29</strong> <span data-i18n="priceOnce">one-off</span></p>
+        <p class="price-tax" data-i18n="priceTax">Before any local tax. VAT and sales tax will be confirmed before anything goes on sale.</p>
+        <p data-i18n="proBody">Pro is planned to include masks, subject detection, species suggestions and assisted culling. The licence works offline.</p>
+        <button type="button" class="cta buy" disabled data-i18n="buySoon">Available soon</button>
+      </article>
     </div>
+    <p class="picker currency"><label for="currency-select" data-i18n="currencyLabel">Show prices in</label><select id="currency-select"></select></p>
   </section>
   <section id="requirements" aria-labelledby="requirements-title">
-    <h2 id="requirements-title">System requirements</h2>
+    <h2 id="requirements-title" data-i18n="reqTitle">System requirements</h2>
     <ul class="steps">
-      <li><strong>macOS:</strong> to be confirmed once the first beta is tested on real Macs (built for Apple silicon and Intel).</li>
-      <li><strong>Windows:</strong> to be confirmed once the first beta is tested on real PCs.</li>
-      <li><strong>Storage:</strong> room for the optional on-device species model (about 90 MB) and your catalogue. Originals can stay on external drives.</li>
+      <li data-i18n-html="reqMac"><strong>macOS:</strong> to be confirmed once the first build is tested on real Macs (built for Apple silicon and Intel).</li>
+      <li data-i18n-html="reqWindows"><strong>Windows:</strong> to be confirmed once the first build is tested on real PCs.</li>
+      <li data-i18n-html="reqStorage"><strong>Storage:</strong> room for the optional on-device species model (about 90 MB) and your catalogue. Originals can stay on external drives.</li>
     </ul>
   </section>
   <section id="getting-started" aria-labelledby="start-title">
-    <h2 id="start-title">Getting started</h2>
+    <h2 id="start-title" data-i18n="startTitle">Getting started</h2>
     <ol class="steps">
-      <li><strong>Import:</strong> choose photographs or a folder stored on your device. Keep a separate backup of your originals.</li>
-      <li><strong>Cull:</strong> review photographs, mark Keep or Reject, and compare neighbouring frames.</li>
-      <li><strong>Edit:</strong> adjust light, colour and crops. Edits are reversible and do not rewrite the original file.</li>
-      <li><strong>Export:</strong> choose a format and save the rendered photograph.</li>
+      <li data-i18n-html="startImport"><strong>Import:</strong> choose photographs or a folder stored on your device. Keep a separate backup of your originals.</li>
+      <li data-i18n-html="startCull"><strong>Cull:</strong> review photographs, mark Keep or Reject, and compare neighbouring frames.</li>
+      <li data-i18n-html="startEdit"><strong>Edit:</strong> adjust light, colour and crops. Edits are reversible and do not rewrite the original file.</li>
+      <li data-i18n-html="startExport"><strong>Export:</strong> choose a format and save the rendered photograph.</li>
     </ol>
-    <p class="note"><strong>Nikon RAW note:</strong> Browser-based NEF handling currently relies on embedded previews. Full-resolution RAW decoding, including Nikon High Efficiency variants, must be validated in native builds before it is advertised as supported.</p>
+    <p class="note" data-i18n-html="nikonNote"><strong>Nikon RAW note:</strong> Browser-based NEF handling currently relies on embedded previews. Full-resolution RAW decoding, including Nikon High Efficiency variants, must be validated in native builds before it is advertised as supported.</p>
   </section>
   <section id="devices" aria-labelledby="devices-title">
-    <h2 id="devices-title">Your photos, your storage, your devices</h2>
+    <h2 id="devices-title" data-i18n="devicesTitle">Your photos, your storage, your devices</h2>
     <ol class="steps">
-      <li><strong>Unlock Pro:</strong> on the home screen choose <em>Licence and settings</em> and paste the key from your receipt. No account, and it works offline.</li>
-      <li><strong>Keep photos anywhere:</strong> on any drive, a NAS, or a folder that iCloud Drive, Dropbox or OneDrive syncs. Kestrel never moves or changes your originals.</li>
-      <li><strong>Copy settings to another device:</strong> choose <em>Save settings file</em> and save it in iCloud Drive, then choose <em>Load settings file</em> on your other Mac, PC or phone.</li>
+      <li data-i18n-html="devicesUnlock"><strong>Unlock Pro:</strong> on the home screen choose <em>Licence and settings</em> and paste the key from your receipt. No account, and it works offline.</li>
+      <li data-i18n-html="devicesAnywhere"><strong>Keep photos anywhere:</strong> on any drive, a NAS, or a folder that iCloud Drive, Dropbox or OneDrive syncs. Kestrel never moves or changes your originals.</li>
+      <li data-i18n-html="devicesCopy"><strong>Copy settings to another device:</strong> choose <em>Save settings file</em> and save it in iCloud Drive, then choose <em>Load settings file</em> on your other Mac, PC or phone.</li>
     </ol>
   </section>
   <section id="privacy" aria-labelledby="privacy-title">
-    <h2 id="privacy-title">Your photographs remain yours</h2>
-    <p class="lead">Kestrel is local-first. Import, cull and edit without an account. Optional online analysis or future cloud features must be turned on deliberately. Your originals are not silently uploaded.</p>
-    <p><a href="https://github.com/DjL88/Kestrel/blob/main/README.md">Read the project documentation</a></p>
+    <h2 id="privacy-title" data-i18n="privacyTitle">Your photographs remain yours</h2>
+    <p class="lead" data-i18n="privacyBody">Kestrel is local-first. Import, cull and edit without an account. Optional online analysis or future cloud features must be turned on deliberately. Your originals are not silently uploaded.</p>
+  </section>
+  <section id="contact" aria-labelledby="contact-title">
+    <h2 id="contact-title" data-i18n="contactTitle">Contact Kestrel</h2>
+    <form id="contact-form" class="contact-form" action="/v1/contact" method="post">
+      <label class="contact-field"><span data-i18n="contactName">Name</span><input name="name" autocomplete="name" maxlength="100" required></label>
+      <label class="contact-field"><span data-i18n="contactEmail">Email</span><input name="email" type="email" autocomplete="email" maxlength="254" required></label>
+      <label class="contact-field"><span data-i18n="contactMessage">Message</span><textarea name="message" rows="5" maxlength="5000" required></textarea></label>
+      <label hidden>Leave this empty<input name="website" maxlength="200" autocomplete="off" tabindex="-1"></label>
+      <label class="contact-consent"><input name="consent" type="checkbox" required><span data-i18n="contactConsent">Kestrel may store my email and message to reply.</span></label>
+      <button class="cta" type="submit" disabled data-i18n="contactSend">Send message</button>
+      <p id="contact-status" role="status"></p>
+    </form>
+    <noscript><p class="muted">Enable JavaScript to send a message.</p></noscript>
   </section>
 </main>
-<footer><div class="wrap">Kestrel · Pre-release · <a href="https://github.com/DjL88/Kestrel/issues">Report an issue</a></div></footer>
+<footer><div class="wrap"><span data-i18n="footerText">Kestrel · Pre-release</span> · <a href="#contact" data-i18n="footerReport">Report a problem</a></div></footer>
+
+<script src="assets/i18n-strings.js"></script>
+<script src="assets/i18n.js"></script>
+<script src="assets/prices.js"></script>
 <script>
-  // Only expose genuine installable release assets from explicitly versioned app releases.
-  // Species model releases and auto-generated source archives are never download links.
+  const i18n = window.KestrelI18n;
+  // Kestrel's own download bucket (Google Cloud). The page links only to installers listed there.
+  // latest.json is written by scripts/release/publish-gcp.ps1 and lists each file with its size and SHA-256.
+  const DOWNLOADS_LATEST = document.querySelector('meta[name="kestrel-downloads"]')?.content || '';
+  // Suggest the download for this device: its card moves first and says so in words (never only a colour).
+  (function suggestPlatform() {
+    const ua = navigator.userAgent || '';
+    const hint = (navigator.userAgentData && navigator.userAgentData.platform) || '';
+    let platform = '';
+    if (/android/i.test(ua) || /android/i.test(hint)) platform = 'android';
+    else if (/iphone|ipad|ipod/i.test(ua) || (/mac/i.test(ua) && navigator.maxTouchPoints > 1)) platform = 'ios';
+    else if (/mac/i.test(hint) || /macintosh|mac os x/i.test(ua)) platform = 'mac';
+    else if (/win/i.test(hint) || /windows/i.test(ua)) platform = 'windows';
+    const card = platform && document.querySelector('[data-platform="' + platform + '"]');
+    if (!card) return;
+    card.classList.add('suggested');
+    const label = document.createElement('p');
+    label.className = 'suggest';
+    i18n.bind(label, 'suggested');
+    card.prepend(label);
+    card.parentElement.prepend(card);
+  })();
+  // Only expose genuine installable release assets listed in latest.json.
   const patterns = {
     mac: /\.(dmg|pkg)$/i,
     windows: /\.(msi|msix|exe)$/i,
@@ -114,32 +205,31 @@
     const target = document.getElementById(id);
     const link = document.createElement('a');
     link.className = 'download';
-    link.href = asset.browser_download_url;
-    link.textContent = 'Download ' + asset.name;
-    link.setAttribute('aria-label', 'Download Kestrel ' + asset.name);
+    link.href = asset.url;
+    i18n.bind(link, 'downloadFile', { name: asset.name });
     target.replaceWith(link);
   }
   (async () => {
     const status = document.getElementById('release-status');
-    try {
-      const response = await fetch('https://api.github.com/repos/DjL88/Kestrel/releases?per_page=25',
-        { headers: { Accept: 'application/vnd.github+json' } });
-      if (!response.ok) throw new Error('Release lookup unavailable');
-      const releases = await response.json();
-      if (!Array.isArray(releases)) throw new Error('Unexpected release response');
-      const app = releases.find(release => !release.draft && !release.prerelease &&
-        /^v\d+\.\d+\.\d+(?:[-+].*)?$/.test(release.tag_name) && Array.isArray(release.assets));
-      if (!app) { status.textContent = 'No installable Kestrel application release has been published yet.'; return; }
-      for (const [id, expression] of Object.entries(patterns)) {
-        const asset = app.assets.find(candidate => expression.test(candidate.name) && candidate.browser_download_url);
-        if (asset) showAsset(id, asset);
-      }
-      // iOS requires a signed store/TestFlight distribution; never invent a downloadable IPA link.
-      status.textContent = 'Showing available installers from app release ' + app.tag_name + '. iOS distribution will be linked once approved.';
-    } catch {
-      status.textContent = 'Downloads could not be checked. View GitHub releases for the latest verified files.';
+    if (DOWNLOADS_LATEST) {
+      try {
+        const latest = await (await fetch(DOWNLOADS_LATEST, { cache: 'no-store' })).json();
+        // Before the first release, latest.json says so; the cards keep saying "Coming soon".
+        if (latest && latest.status === 'coming-soon') { i18n.bind(status, 'releaseNotYet'); return; }
+        if (latest && Array.isArray(latest.files) && /^\d+\.\d+\.\d+/.test(String(latest.version))) {
+          for (const [id, expression] of Object.entries(patterns)) {
+            const file = latest.files.find(candidate => expression.test(candidate.name) && /^https:\/\//.test(candidate.url));
+            if (file) showAsset(id, file);
+          }
+          i18n.bind(status, 'releaseShowing', { version: String(latest.version) });
+          return;
+        }
+      } catch { /* reported below */ }
     }
+    i18n.bind(status, DOWNLOADS_LATEST ? 'releaseCheckFailed' : 'releaseNotYet');
   })();
 </script>
+<script src="assets/contact.js" defer></script>
+
 </body>
 </html>

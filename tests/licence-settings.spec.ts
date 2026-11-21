@@ -28,6 +28,9 @@ test('a genuine licence key unlocks Paid, is remembered and can be removed', asy
   await dialog.getByRole('textbox', { name: 'Licence key' }).fill(key);
   await dialog.getByRole('button', { name: 'Unlock Kestrel Pro' }).click();
   await expect(dialog.getByRole('status').first()).toContainText('Kestrel Pro is unlocked');
+  // Builds without a control plane say so once, offer nothing that needs a connection, and never nag.
+  await expect(dialog.getByTestId('licence-online')).toContainText('does not register devices online');
+  await expect(dialog.getByRole('button', { name: 'Check now' })).toHaveCount(0);
   await page.reload();
   await page.getByRole('button', { name: 'Licence and settings' }).click();
   dialog = page.getByRole('dialog', { name: 'Licence and settings' });
@@ -75,4 +78,54 @@ test('keyboard focus stays inside the Licence and settings dialog: Tab from the 
   await focusable.last().focus();
   await page.keyboard.press('Tab');
   await expect(focusable.first()).toBeFocused();
+});
+
+test('with a valid key and no control plane in the build, the Licence screen shows offline status, no online actions and no errors', async ({ page }) => {
+  // Test-only: accept any Ed25519 signature, so a well-formed key stands in for the owner's genuine one.
+  await page.addInitScript(() => {
+    const verify = crypto.subtle.verify.bind(crypto.subtle);
+    crypto.subtle.verify = (async (algorithm: AlgorithmIdentifier, key: CryptoKey, signature: BufferSource, data: BufferSource) =>
+      (typeof algorithm === 'object' && algorithm.name === 'Ed25519') || algorithm === 'Ed25519' ? true : verify(algorithm, key, signature, data)) as typeof crypto.subtle.verify;
+  });
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  const details = Buffer.from(JSON.stringify({ v: 1, plan: 'paid', id: 'beta-test-key', issuedAt: Date.UTC(2026, 10, 20) })).toString('base64url');
+  const key = `KESTREL1.${details}.${Buffer.alloc(64, 7).toString('base64url')}`;
+  const dialog = await open(page);
+  await dialog.getByRole('textbox', { name: 'Licence key' }).fill(key);
+  await dialog.getByRole('button', { name: 'Unlock Kestrel Pro' }).click();
+  await expect(dialog.getByRole('status').first()).toContainText('Kestrel Pro is unlocked');
+  await expect(dialog.getByTestId('licence-online')).toContainText('does not register devices online');
+  await expect(dialog.getByRole('button', { name: 'Check now' })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Show devices' })).toHaveCount(0);
+  await page.reload();
+  await page.getByRole('button', { name: 'Licence and settings' }).click();
+  const again = page.getByRole('dialog', { name: 'Licence and settings' });
+  await expect(again.getByTestId('licence-online')).toContainText('does not register devices online');
+  await again.getByRole('button', { name: 'Remove the key from this device' }).click();
+  await expect(again.getByRole('textbox', { name: 'Licence key' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('with a control plane in the build that cannot be reached, a valid key still unlocks Pro, calmly', async ({ page }) => {
+  test.skip(!process.env.VITE_KESTREL_CONTROL_PLANE_URL, 'only for builds made with VITE_KESTREL_CONTROL_PLANE_URL (run with it set to a dead address)');
+  await page.addInitScript(() => {
+    const verify = crypto.subtle.verify.bind(crypto.subtle);
+    crypto.subtle.verify = (async (algorithm: AlgorithmIdentifier, key: CryptoKey, signature: BufferSource, data: BufferSource) =>
+      (typeof algorithm === 'object' && algorithm.name === 'Ed25519') || algorithm === 'Ed25519' ? true : verify(algorithm, key, signature, data)) as typeof crypto.subtle.verify;
+  });
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  const details = Buffer.from(JSON.stringify({ v: 1, plan: 'paid', id: 'beta-test-key-2', issuedAt: Date.UTC(2026, 10, 20) })).toString('base64url');
+  const dialog = await open(page);
+  await dialog.getByRole('textbox', { name: 'Licence key' }).fill(`KESTREL1.${details}.${Buffer.alloc(64, 9).toString('base64url')}`);
+  await dialog.getByRole('button', { name: 'Unlock Kestrel Pro' }).click();
+  await expect(dialog.getByRole('status').first()).toContainText('Kestrel Pro is unlocked');
+  await expect(dialog.getByTestId('licence-online')).toContainText('registers this device the next time it is online');
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Check now' }).click();
+  await expect(dialog.getByRole('status').first()).toContainText('Kestrel Pro is unlocked');
+  await dialog.getByRole('button', { name: 'Show devices' }).click();
+  await expect(dialog.getByText('The device list needs a connection to Kestrel')).toBeVisible();
+  expect(errors).toEqual([]);
 });

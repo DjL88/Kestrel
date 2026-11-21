@@ -7,6 +7,10 @@ Start here. Read only the **Current** documents to decide what to build. The **R
 | --- | --- |
 | [PRODUCT-SPEC.md](PRODUCT-SPEC.md) | What Kestrel must be: vision, principles, the photographer's journey, platforms, AI boundaries, release scenario. |
 | [ROADMAP.md](ROADMAP.md) | Verified status per area and platform, the P0–P3 order of work, and the integration log. |
+| [KESTREL-NEXT.md](KESTREL-NEXT.md) | The rebuild: what is retained, rebuilt and discarded, the shared image architecture, acceptance status and slice order. |
+| [BACKEND-HANDOVER.md](BACKEND-HANDOVER.md) | The online side today: what is live, what is merged but not deployed, what only the owner can do. |
+| [INSTALL-FROM-SOURCE.md](INSTALL-FROM-SOURCE.md) | Build and install the Windows and macOS apps from the latest `main` with git and a terminal. |
+| [BETA-TESTING.md](BETA-TESTING.md) | Closed beta for 10–20 testers: who builds each platform, free licences, Android signing, what testers check. |
 | [../CLAUDE.md](../CLAUDE.md) | How every contributor and agent works: checks, merging, ownership, reporting. |
 
 ## Reference: how a part works

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { regionFromCorners, type Region } from '../core/subjectRegion';
+import { viewerText as t } from '../i18n/areas/viewer';
 
 interface Props {
   /** Where the framed photo sits in its stage, in pixels. */
@@ -18,7 +19,7 @@ export function AreaSelector({ rect, onSelect, onCancel }: Props) {
   };
   const shown = drag ? regionFromCorners(drag.a, drag.b) ?? { x: Math.min(drag.a.x, drag.b.x), y: Math.min(drag.a.y, drag.b.y), w: Math.abs(drag.a.x - drag.b.x), h: Math.abs(drag.a.y - drag.b.y) } : null;
   return (
-    <div ref={root} style={rect} role="application" aria-label="Select area. Drag a box around the part of the photo to look in. Escape cancels."
+    <div ref={root} style={rect} role="application" aria-label={t.area.region}
       tabIndex={0} className="absolute z-10 cursor-crosshair touch-none bg-black/25 outline-offset-2 focus-visible:outline-2 focus-visible:outline-sky-300"
       onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); onCancel(); } }}
       onPointerDown={(event) => {
@@ -39,7 +40,7 @@ export function AreaSelector({ rect, onSelect, onCancel }: Props) {
         <div className="pointer-events-none absolute border-2 border-dashed border-white bg-white/10 shadow-[0_0_0_1px_rgba(0,0,0,0.7)]"
           style={{ left: `${shown.x * 100}%`, top: `${shown.y * 100}%`, width: `${shown.w * 100}%`, height: `${shown.h * 100}%` }} />
       )}
-      {!drag && <p className="pointer-events-none absolute inset-x-0 top-2 text-center text-xs font-medium text-white drop-shadow">Drag a box around the subject</p>}
+      {!drag && <p className="pointer-events-none absolute inset-x-0 top-2 text-center text-xs font-medium text-white drop-shadow">{t.area.hint}</p>}
     </div>
   );
 }

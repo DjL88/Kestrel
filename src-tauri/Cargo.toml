@@ -3,11 +3,17 @@ name = "kestrel"
 version = "26.11.2"
 description = "Kestrel desktop app"
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.85"
 
 [lib]
 name = "kestrel_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+# Nikon High Efficiency (HE/HE*) decoding from the sensor data (crates/kestrel-raw, via ticoraw, MIT OR Apache-2.0). In every
+# build by owner decision (19 Nov 2026; the codec is patented, see NOTICE.md). `--no-default-features` leaves it out.
+default = ["nikon-he"]
+nikon-he = ["kestrel-raw/nikon-he"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -26,4 +32,6 @@ serde_json = "1"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 rawler = "0.8"
+kestrel-raw = { path = "../crates/kestrel-raw", default-features = false, features = ["parallel"] }
+rayon = "1"
 image = { version = "0.25", default-features = false, features = ["jpeg", "tiff"] }

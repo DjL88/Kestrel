@@ -5,11 +5,16 @@ import { kindFor, personalBonus, pickSuggestions, rankSpecies } from './core/spe
 import type { PhotoFrame } from './core/types';
 import type { BrowserPreviewProvider } from './providers/browserPreviewProvider';
 import { pictureForAnalysis } from './providers/pictureForAnalysis';
-import { analysePicture, downloadSpeciesModel, loadSpeciesLabels, speciesStatus, type SpeciesStatus } from './providers/speciesModel';
+import { SPECIES_DOWNLOAD_BYTES, analysePicture, downloadSpeciesModel, loadSpeciesLabels, speciesStatus, type SpeciesStatus } from './providers/speciesModel';
 import { readAutoTag, readSpeciesCounts } from './providers/speciesLearning';
+import { gateOutcome } from './core/categoryGate';
+import { STRICT_SPECIES_PROBABILITY } from './core/subjectRouter';
+import { subjectCrop } from './core/subjectCrop';
+import { gateAvailable, routePicture } from './providers/categoryGate';
 import { HELPER_GAP_MS, HELPER_SESSION_CAP, failureMessage, helperPatch, helperReady } from './core/onlineHelper';
 import { ONLINE_HELPER_VISIBLE, useHelperSettings } from './providers/helperSettings';
 import { HelperError, geminiTransport, imageForHelper } from './providers/onlineHelper';
+import { appText as t } from './i18n/areas/app';
 
 /** Photos sent to the online helper in this session, across projects. Counted so the cap holds however often it restarts. */
 let helperSent = 0;
@@ -68,9 +73,18 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
           !helperHalted.current && helperSent < HELPER_SESSION_CAP;
         if (!available.localReady && !canAsk()) break;
         const frameKey = (id: string) => `${currentId}|${id}`;
-        const frame = scanCandidates(current, { includeUnclassified: canAsk() }).find((candidate) => !skipped.current.has(frameKey(candidate.id)));
+        // With the category gate, the local model may look at unclassified photos too: the gate, not the species list,
+        // decides whether a photo is an animal at all.
+        const gateOn = available.localReady && await gateAvailable();
+        const frame = scanCandidates(current, { includeUnclassified: canAsk() || gateOn }).find((candidate) => !skipped.current.has(frameKey(candidate.id)));
         if (!frame) break;
 
+        // What the person owns about this photo, to notice if they change it while the models are thinking
+        // (carried over from #439). Object identity is not enough: a catalogue reload replaces objects unchanged.
+        const manualState = (item: PhotoFrame) => JSON.stringify([
+          item.removedAt, item.decision, item.rating, item.subjectKind, item.tags, item.subjectNames, item.declinedTags, item.autoTags,
+        ]);
+        const before = manualState(frame);
         const picture = await pictureForAnalysis(store, frame).catch(() => null);
         if (!stillCurrent()) continue;
         if (!picture) { skipped.current.add(frameKey(frame.id)); continue; }
@@ -80,10 +94,22 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
           try {
             // analysePicture locates the subject on-device before comparing it with the saved species vectors.
             const { labels, vectors } = localLabels;
-            const { embedding } = await analysePicture(picture);
+            const { embedding, grid } = await analysePicture(picture);
             const top = pickSuggestions(rankSpecies(embedding, labels, vectors, personalBonus(labels, readSpeciesCounts())))[0];
             const best = top && qualifiesForAutoTag(top, embedding, labels, vectors) ? top : undefined;
-            patch = scanPatch(frame, best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) } : undefined);
+            const named = best ? { name: best.label.common, probability: best.probability, kind: kindFor(best.label) } : undefined;
+            // The gate looks at the same square as the species model. If it fails, nothing is decided for this photo.
+            const outcome = gateOutcome(await routePicture(picture, subjectCrop(picture.width, picture.height, grid)), frame.subjectKind);
+            const kind = frame.subjectKind ?? outcome.kind;
+            if (kind === 'wildlife' && outcome.species !== 'block') {
+              const sureEnough = outcome.species === 'allow' || (named && named.probability >= STRICT_SPECIES_PROBABILITY);
+              patch = scanPatch({ ...frame, subjectKind: kind }, sureEnough ? named : undefined);
+              if (outcome.kind) patch = { ...patch, subjectKind: outcome.kind };
+            } else if (kind) {
+              // Not an animal the list can name (a helicopter, a car): looked at, and no animal name offered.
+              patch = { speciesChecked: true };
+            }
+            // Unclassified and not clearly an animal: unknown stays unknown, and the opted-in helper may still answer.
           } catch { /* A failed local analysis can still use the opted-in fallback. */ }
         }
         if (!stillCurrent() || !readAutoTag()) continue;
@@ -102,6 +128,9 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
           }
         }
         if (!stillCurrent() || !readAutoTag()) continue;
+        // A result worked out from an older state of the photo is not written; the photo is looked at again later.
+        const live = latest.current.frames.find((item) => item.id === frame.id);
+        if (!live || live.removedAt != null || manualState(live) !== before) continue;
         skipped.current.add(frameKey(frame.id));
         if (patch) report(frame.id, patch);
         await new Promise((resolve) => window.setTimeout(resolve, asked ? HELPER_GAP_MS : 30));
@@ -133,11 +162,11 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
       await downloadSpeciesModel(setDownloading);
       setStatus('ready');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The download failed.');
+      setError(reason instanceof Error ? reason.message : t.species.downloadFailed);
     } finally {
       setDownloading(null);
     }
   }
 
-  return { status, helperOn, downloading, download, error, size: SPECIES_MODEL.bytes, pending: waiting };
+  return { status, helperOn, downloading, download, error, size: SPECIES_DOWNLOAD_BYTES, pending: waiting };
 }

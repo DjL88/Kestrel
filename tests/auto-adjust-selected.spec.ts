@@ -24,7 +24,7 @@ test('two selected photos receive independent Auto adjustments, third remains un
     ({ name: `photo-${i + 1}.png`, mimeType: 'image/png', buffer: Buffer.from(data, 'base64') })));
   await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 3' })).toBeVisible();
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
-  const bar = page.getByRole('toolbar', { name: 'Filmstrip controls' });
+  const bar = page.getByRole('toolbar', { name: 'Photo navigation and editing actions' });
   await bar.getByRole('button', { name: 'Select photos' }).click();
   const film = page.locator('[aria-label="Shoot filmstrip"]');
   await film.getByRole('button', { name: 'Select photo-2.png' }).click();

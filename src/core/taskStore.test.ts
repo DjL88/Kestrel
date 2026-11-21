@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createTaskStore, taskHealth, type Task } from './taskStore.ts';
+import { createTaskStore, taskHealth, tasksNeedAttention, type Task } from './taskStore.ts';
 
 test('a task shows progress and finishes', () => {
   const store = createTaskStore(() => 100);
@@ -38,6 +38,66 @@ test('a failed task keeps its message', () => {
   const store = createTaskStore();
   store.start('Export', { cancel: () => {} }).fail('Reconnect photo.jpg to export it.');
   assert.deepEqual([store.list()[0].state, store.list()[0].detail], ['failed', 'Reconnect photo.jpg to export it.']);
+});
+
+test('a failed export remains discoverable after the success timeout and later successful jobs', () => {
+  let time = 0;
+  const store = createTaskStore(() => time);
+  const exportJob = store.start('Saving wildlife shoot');
+  exportJob.progress(2, 20);
+  exportJob.fail('Drive disconnected after 2 of 20 files.');
+  time = 60_000;
+  for (let i = 0; i < 12; i++) store.start(`Later success ${i}`).finish();
+  assert.equal(tasksNeedAttention(store.list(), time + 60_000), true);
+  const failure = store.list().find(task => task.id === exportJob.id)!;
+  assert.equal(failure.detail, 'Drive disconnected after 2 of 20 files.');
+  assert.equal(failure.done, 2);
+  assert.equal(taskHealth(store.list(), time + 60_000), 'problem');
+  store.clearFinished();
+  assert.equal(tasksNeedAttention(store.list(), time + 60_000), false);
+});
+
+test('both histories are bounded independently and subscribers observe the trimmed result', () => {
+  const store = createTaskStore();
+  const running = store.start('Active import');
+  let observed = 0;
+  store.subscribe(() => { observed = store.list().length; });
+  for (let i = 0; i < 12; i++) {
+    store.start(`Failure ${i}`).fail(`Reason ${i}`);
+    store.start(`Success ${i}`).finish();
+  }
+  assert.equal(store.list().length, 11);
+  assert.equal(observed, 11, 'the emitted snapshot already contains the trimmed history');
+  assert.equal(store.list().filter(task => task.state === 'failed').length, 5);
+  assert.equal(store.list().find(task => task.state === 'failed')!.detail, 'Reason 7');
+  assert.equal(store.list().find(task => task.id === running.id)?.state, 'running');
+  store.clearFinished();
+  assert.equal(store.list().length, 1);
+});
+
+test('successful and cancelled jobs fade away while active jobs stay visible', () => {
+  const store = createTaskStore(() => 100);
+  const completed = store.start('Done'); completed.finish();
+  const cancelled = store.start('Stopped', { cancel: () => {} }); store.cancel(cancelled.id);
+  assert.equal(tasksNeedAttention(store.list(), 5_000), true);
+  assert.equal(tasksNeedAttention(store.list(), 11_000), false);
+  store.start('Still working');
+  assert.equal(tasksNeedAttention(store.list(), 1_000_000), true);
+});
+
+test('a long export failing last is retained even when it started before every other job', () => {
+  let time = 0;
+  const store = createTaskStore(() => time);
+  const slow = store.start('Long background export');
+  for (let i = 0; i < 8; i++) {
+    time += 100;
+    store.start(`Short job ${i}`).fail(`Failure ${i}`);
+  }
+  time += 100;
+  slow.fail('Drive disconnected at the end of the long export.');
+  assert.equal(store.list().filter(task => task.state === 'failed').length, 5);
+  assert.equal(store.list().some(task => task.id === slow.id), true);
+  assert.equal(store.list().some(task => task.detail === 'Failure 3'), false);
 });
 
 test('only the last few finished tasks are kept, and running ones never are dropped', () => {
@@ -95,4 +155,22 @@ test('health: progress keeps a task from being called stalled', () => {
   assert.equal(taskHealth(store.list(), time), 'busy');
   task.progress(9);
   assert.equal(taskHealth(store.list(), time), 'ok');
+});
+
+test('dismissing a resolved failed export does not hide unrelated failures or running work', () => {
+  const store = createTaskStore();
+  const running = store.start('Culling');
+  const resolved = store.start('Export to local disk');
+  const another = store.start('Other failed export');
+  resolved.fail('Drive disconnected');
+  another.fail('Network error');
+  let notifications = 0;
+  store.subscribe(() => { notifications++; });
+  assert.equal(store.dismissFinished(running.id), false, 'an active task cannot be dismissed');
+  assert.equal(store.dismissFinished(resolved.id), true);
+  assert.equal(store.dismissFinished(resolved.id), false);
+  assert.equal(notifications, 1);
+  assert.deepEqual(store.list().map(t => [t.id, t.state]), [
+    [running.id, 'running'], [another.id, 'failed'],
+  ]);
 });
