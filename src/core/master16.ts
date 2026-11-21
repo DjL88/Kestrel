@@ -4,6 +4,7 @@ import { cropRectangle, rotationCoverage, type PhotoFraming } from './photoFrami
 import { THUMB, type Thumb } from './orientMatch';
 import { LOCAL_KEYS, validMasks, type Mask } from './maskTypes';
 import { effectiveAlpha } from './masks';
+import { blendSrgb16 } from './linearRgb16';
 import { noiseStrength } from './noiseReduction';
 import { denoiseChromaRgb16 } from './chromaDenoise16';
 
@@ -249,7 +250,7 @@ function applyDetailMaskRgb16(image: Rgb16Image, mask: Mask, masks: readonly Mas
       const original = (from * width + p) * 3;
       const adjusted = ((from - first) * width + p) * 3;
       for (let c = 0; c < 3; c++) {
-        data[original + c] = Math.round(data[original + c] * (1 - a) + source[adjusted + c] * a);
+        data[original + c] = blendSrgb16(data[original + c], source[adjusted + c], a);
       }
     }
   }
@@ -299,13 +300,10 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
         const strength = alpha[p];
         if (strength <= 0) continue;
         const src = (from * width + p) * 3, dst = p * 4;
-        const rest = 1 - strength;
-        // Match Kestrel's current visible 8-bit mask compositing formula,
-        // at 16-bit sample precision. A later scene-linear overhaul must
-        // update the screen and master together, with reference tests.
-        data[src] = Math.round(data[src] * rest + rgba[dst] * 65535 * strength);
-        data[src + 1] = Math.round(data[src + 1] * rest + rgba[dst + 1] * 65535 * strength);
-        data[src + 2] = Math.round(data[src + 2] * rest + rgba[dst + 2] * 65535 * strength);
+        // Linear-light mix, same convention as the 8-bit preview's blendEncoded8. The adjusted value is display-encoded.
+        data[src] = blendSrgb16(data[src], Math.round(rgba[dst] * 65535), strength);
+        data[src + 1] = blendSrgb16(data[src + 1], Math.round(rgba[dst + 1] * 65535), strength);
+        data[src + 2] = blendSrgb16(data[src + 2], Math.round(rgba[dst + 2] * 65535), strength);
       }
     }
   }

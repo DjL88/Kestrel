@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyPhotoEdit, DEFAULT_EDIT, type PhotoEdit } from './photoEdits';
+import { applyPhotoEdit, blendEncoded8, DEFAULT_EDIT, type PhotoEdit } from './photoEdits';
+import { blendSrgb16 } from './linearRgb16';
 import { editRgb16, type Rgb16Image } from './master16';
 import { applyMasks, fullContext } from './masks';
 import { createMask, type Mask } from './maskTypes';
@@ -75,3 +76,15 @@ for (const [name, mask] of Object.entries(MASKS)) {
     assert.ok(sixteen.data.some((v, i) => v !== ramps(width, height).sixteen.data[i]), 'mask changed the ramp');
   });
 }
+
+test('feathered edges blend in linear light: no dark fringe, and the 8-bit and 16-bit blends agree', () => {
+  // Dark source, bright adjusted. An encoded-space mix at half coverage gives about 133 (a dark ring); linear light gives about 188.
+  const mid = blendEncoded8(10, 255, 0.5);
+  assert.ok(mid > 170 && mid < 200, `half mix of 10 and 255 is ${mid}, not the encoded midpoint 133`);
+  for (let a = 0; a <= 1; a += 0.05) for (const [s, t] of [[10, 255], [40, 200], [128, 130], [0, 255]]) {
+    const eight = blendEncoded8(s, t, a), sixteen = blendSrgb16(s * 257, t * 257, a) / 257;
+    assert.ok(Math.abs(eight - sixteen) <= 0.51, `alpha ${a.toFixed(2)} ${s}->${t}: ${eight} vs ${sixteen.toFixed(2)}`);
+  }
+  assert.equal(blendEncoded8(10, 255, 0), 10);
+  assert.equal(blendEncoded8(10, 255, 1), 255);
+});

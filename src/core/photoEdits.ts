@@ -235,6 +235,16 @@ export function encodeLinear(value: number): number {
   const low = Math.floor(at);
   return encodeFine[low] + (encodeFine[low + 1] - encodeFine[low]) * (at - low);
 }
+/**
+ * Mix two display-encoded 8-bit values in LINEAR light (the one mask-compositing convention, shared with the 16-bit
+ * master's blendSrgb16). Mixing encoded values darkens feathered edges between unlike tones (a dark fringe).
+ * Exact at alpha 0 and 1. Result is rounded to 8 bits.
+ */
+export function blendEncoded8(source: number, adjusted: number, alpha: number): number {
+  if (alpha <= 0) return source;
+  if (alpha >= 1) return adjusted;
+  return Math.round(encodeLinear(linear[source] * (1 - alpha) + linear[adjusted] * alpha) * 255);
+}
 /** Display-encoded sRGB (0 to 1) to linear light. */
 export function decodeEncoded(value: number): number {
   return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
