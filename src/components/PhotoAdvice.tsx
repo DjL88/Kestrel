@@ -131,7 +131,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
   const next = action.tryThis ? describe(action.tryThis) : null;
   const reason = advice.issues.find((issue) => t.advice.notes[issue]);
   return (
-    <section aria-label={t.advice.region} className="space-y-1 border-t border-white/10 px-1 py-1 text-xs text-zinc-200">
+    <section aria-label={t.advice.region} data-photo-model-status={facts ? 'checked' : phase} className="space-y-1 border-t border-white/10 px-1 py-1 text-xs text-zinc-200">
       <div className="flex min-h-9 flex-wrap items-center gap-2">
         <span role="status" className="inline-flex items-center gap-1 font-medium"><Icon className="h-3.5 w-3.5" aria-hidden="true" />{t.advice.verdict[advice.verdict]}</span>
         {reason && advice.verdict !== 'good' && <span className="text-zinc-400">{t.advice.notes[reason]}</span>}
@@ -148,8 +148,11 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
           </button>
         )}
       </div>
-      {facts && (facts.subject || facts.light) && (
-        <p className="text-zinc-400">{t.advice.scene}: {[facts.subject && t.advice.subjects[facts.subject], facts.light && t.advice.lights[facts.light]].filter(Boolean).join(' · ')}</p>
+      {facts && (
+        <p className="text-zinc-400">{t.advice.scene}: {
+          [facts.subject && t.advice.subjects[facts.subject], facts.light && t.advice.lights[facts.light]]
+            .filter(Boolean).join(' · ') || t.advice.verdict.unsure
+        }</p>
       )}
       {phase === 'checking' && (
         <p className="flex items-center gap-2 text-zinc-400" role="status">{t.advice.checking}
