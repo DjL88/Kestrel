@@ -100,6 +100,9 @@ export const gd: AreaTranslation<typeof source> = {
     rejected: 'Air an diùltadh',
   },
   sheet: {
+    moreActions: 'Barrachd ghnìomhan',
+    selectionBar: 'Gnìomhan airson nan dealbhan a chaidh a thaghadh',
+    selectedCount: (count) => `${count} air an taghadh`,
     noRecordedEdits: 'Chan eil deasachadh clàraichte san t-sealladh seo.',
     noCaptureDates: 'Chan eil cinn-latha togail feumail san t-sealladh seo.',
     frameNotInView: 'Chan eil an dealbh seo san t-sealladh seo.',

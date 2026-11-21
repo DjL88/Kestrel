@@ -97,6 +97,9 @@ export const da: AreaTranslation<typeof source> = {
     rejected: 'Fravalgt',
   },
   sheet: {
+    moreActions: 'Flere handlinger',
+    selectionBar: 'Handlinger for valgte fotos',
+    selectedCount: (count) => `${count} valgt`,
     noRecordedEdits: 'Ingen gemte redigeringer i denne visning.',
     noCaptureDates: 'Ingen brugbare optagelsesdatoer i denne visning.',
     frameNotInView: 'Fotot er ikke i denne visning.',

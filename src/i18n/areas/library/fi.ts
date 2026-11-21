@@ -100,6 +100,9 @@ export const fi: AreaTranslation<typeof source> = {
     rejected: 'Hylätyt',
   },
   sheet: {
+    moreActions: 'Lisää toimintoja',
+    selectionBar: 'Valittujen kuvien toiminnot',
+    selectedCount: (count) => `${count} valittu`,
     noRecordedEdits: 'Tässä näkymässä ei ole tallennettuja muokkauksia.',
     noCaptureDates: 'Tässä näkymässä ei ole käyttökelpoisia kuvauspäiviä.',
     frameNotInView: 'Kuva ei ole tässä näkymässä.',

@@ -97,6 +97,9 @@ export const pt: AreaTranslation<typeof source> = {
     rejected: 'Rejeitadas',
   },
   sheet: {
+    moreActions: 'Mais ações',
+    selectionBar: 'Ações para as fotos selecionadas',
+    selectedCount: (count) => `${count} selecionadas`,
     noRecordedEdits: 'Não há edições guardadas nesta vista.',
     noCaptureDates: 'Não há datas de captura utilizáveis nesta vista.',
     frameNotInView: 'Esta foto não está nesta vista.',

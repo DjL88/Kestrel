@@ -100,6 +100,9 @@ export const ga: AreaTranslation<typeof source> = {
     rejected: 'Diúltaithe',
   },
   sheet: {
+    moreActions: 'Tuilleadh gníomhartha',
+    selectionBar: 'Gníomhartha do na grianghraif roghnaithe',
+    selectedCount: (count) => `${count} roghnaithe`,
     noRecordedEdits: 'Níl aon eagarthóireacht taifeadta san amharc seo.',
     noCaptureDates: 'Níl aon dátaí tógála inúsáidte san amharc seo.',
     frameNotInView: 'Níl an grianghraf seo san amharc seo.',

@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, CircleHelp, Info, SlidersHorizontal, Square, SquareCheck, Star, X } from 'lucide-react';
+import { Check, CircleHelp, Ellipsis, Info, SlidersHorizontal, Square, SquareCheck, Star, X } from 'lucide-react';
 import type { CullDecision, PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { isEdited } from '../core/editedState';
@@ -12,6 +12,7 @@ import { jumpTarget, type JumpRequest } from '../core/jumpNavigation';
 import { openPhotoMenuFromKeyboard } from './PhotoContextMenu';
 import { contactSheetLayout, SHEET_GAP_PX as GAP_PX, SHEET_PADDING_PX as PADDING_PX } from '../core/contactSheetLayout';
 import { libraryText as t } from '../i18n/areas/library';
+import { appText } from '../i18n/areas/app';
 
 interface VirtualizedContactSheetProps {
   frames: PhotoFrame[];
@@ -90,6 +91,24 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   const [viewport, setViewport] = useState({ width: 1120, height: 640 });
   const [scrollTop, setScrollTop] = useState(0);
   const [jumpOpen, setJumpOpen] = useState(false);
+  // Secondary selection actions live behind one control so the bar stays small, especially on phones.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const selectionBarRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const close = (returnFocus: boolean) => {
+      setMoreOpen(false);
+      if (returnFocus) selectionBarRef.current?.querySelector<HTMLElement>('[data-selection-more]')?.focus();
+    };
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.stopPropagation(); close(true); } };
+    const onPointer = (event: PointerEvent) => {
+      if (!selectionBarRef.current?.contains(event.target as Node)) close(false);
+    };
+    document.addEventListener('keydown', onKey, true);
+    document.addEventListener('pointerdown', onPointer, true);
+    return () => { document.removeEventListener('keydown', onKey, true); document.removeEventListener('pointerdown', onPointer, true); };
+  }, [moreOpen]);
+  useEffect(() => { if (actionIds.length === 0) setMoreOpen(false); }, [actionIds.length]);
   const [jumpFrame, setJumpFrame] = useState('');
   const [jumpCaptured, setJumpCaptured] = useState('');
   const [jumpError, setJumpError] = useState('');
@@ -453,28 +472,41 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
         })}
       </div>
       {actionIds.length > 0 && (
-        <div role="toolbar" aria-label="Actions for selected photos"
+        <div role="toolbar" aria-label={t.sheet.selectionBar} ref={selectionBarRef}
           className="sticky bottom-2 z-[80] mx-auto mt-2 flex w-fit max-w-[96vw] flex-wrap items-center justify-center gap-1 rounded-xl border border-white/20 bg-kestrel-raised p-1.5 text-sm text-zinc-100 shadow-2xl">
-          <span className="max-w-40 truncate px-2 text-xs text-zinc-300">{multiSelect ? `${actionIds.length} selected` : actionFrames[0]?.filename}</span>
-          {(['keep', 'reject', 'unreviewed'] as const).map((decision) => (
+          <span className={`max-w-40 truncate px-2 text-xs text-zinc-300 ${multiSelect ? '' : 'hidden sm:inline'}`}>{multiSelect ? t.sheet.selectedCount(actionIds.length) : actionFrames[0]?.filename}</span>
+          {(['keep', 'reject'] as const).map((decision) => (
             <button key={decision} type="button" className="min-h-10 rounded-md px-3 hover:bg-white/10"
               onClick={() => actionIds.length === 1 ? onDecideFrame(actionIds[0], decision) : onBatchDecision(actionIds, decision)}>
-              {decision === 'keep' ? 'Keep' : decision === 'reject' ? 'Reject' : 'Undecided'}
+              {decision === 'keep' ? t.decision.keep : t.decision.reject}
             </button>
           ))}
-          <button type="button" onClick={() => onResetFrame(actionIds[0])}
-            className="min-h-10 rounded-md px-3 hover:bg-white/10">Reset edit</button>
-          <button type="button" title="Photo info" aria-label="Photo info"
-            onClick={(event) => onInfo(actionIds[0], event.currentTarget)}
-            className="grid min-h-10 min-w-10 place-items-center rounded-md hover:bg-white/10"><Info className="h-4 w-4" aria-hidden="true"/></button>
           {onOpenEditor && <button type="button" onClick={() => onOpenEditor(actionIds[0])}
-            className="min-h-10 rounded-md px-3 hover:bg-white/10">Edit photo</button>}
-          {onAutoAdjustSelected && <button type="button" onClick={() => onAutoAdjustSelected(actionIds)}
-            className="min-h-10 rounded-md px-3 hover:bg-white/10">Auto-adjust</button>}
-          {onApplyLookSelected && <button type="button" onClick={() => onApplyLookSelected(actionIds)}
-            className="min-h-10 rounded-md px-3 hover:bg-white/10">Apply look</button>}
+            className="min-h-10 rounded-md px-3 hover:bg-white/10">{t.photoMenu.edit}</button>}
           {onExportSelected && <button type="button" onClick={() => onExportSelected(actionIds)}
-            className="min-h-10 rounded-md px-3 hover:bg-white/10">Export</button>}
+            className="min-h-10 rounded-md px-3 hover:bg-white/10">{t.top.export}</button>}
+          <button type="button" aria-expanded={moreOpen} aria-controls="kestrel-selection-more" title={t.sheet.moreActions}
+            onClick={() => setMoreOpen((open) => !open)}
+            className="grid min-h-10 min-w-10 place-items-center rounded-md px-2 hover:bg-white/10"
+            data-selection-more="">
+            <Ellipsis className="h-5 w-5" aria-hidden="true" />
+            <span className="sr-only">{t.sheet.moreActions}</span>
+          </button>
+          {moreOpen && (
+            <div id="kestrel-selection-more" role="group" aria-label={t.sheet.moreActions}
+              className="absolute bottom-full right-0 mb-1 flex min-w-48 flex-col gap-0.5 rounded-xl border border-white/20 bg-kestrel-raised p-1.5 shadow-2xl">
+              {([
+                [t.decision.undecided, () => actionIds.length === 1 ? onDecideFrame(actionIds[0], 'unreviewed') : onBatchDecision(actionIds, 'unreviewed')],
+                [t.decision.resetEdit, () => onResetFrame(actionIds[0])],
+                [t.photoMenu.info, (el: HTMLButtonElement) => onInfo(actionIds[0], el)],
+                ...(onAutoAdjustSelected ? [[appText.editorBar.autoAdjust, () => onAutoAdjustSelected(actionIds)]] : []),
+                ...(onApplyLookSelected ? [[appText.editorBar.applyLook, () => onApplyLookSelected(actionIds)]] : []),
+              ] as Array<[string, (el: HTMLButtonElement) => void]>).map(([label, run]) => (
+                <button key={label} type="button" className="min-h-10 rounded-md px-3 text-left hover:bg-white/10"
+                  onClick={(event) => { setMoreOpen(false); run(event.currentTarget); }}>{label}</button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

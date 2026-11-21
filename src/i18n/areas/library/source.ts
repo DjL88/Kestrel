@@ -99,6 +99,9 @@ export const source = {
     rejected: 'Rejected',
   },
   sheet: {
+    moreActions: 'More actions',
+    selectionBar: 'Actions for selected photos',
+    selectedCount: (count: number) => `${count} selected`,
     noRecordedEdits: 'No recorded edits in this view.',
     noCaptureDates: 'No usable capture dates in this view.',
     frameNotInView: 'Frame not in this view.',

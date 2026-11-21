@@ -97,6 +97,9 @@ export const nb: AreaTranslation<typeof source> = {
     rejected: 'Valgt bort',
   },
   sheet: {
+    moreActions: 'Flere handlinger',
+    selectionBar: 'Handlinger for valgte bilder',
+    selectedCount: (count) => `${count} valgt`,
     noRecordedEdits: 'Ingen lagrede redigeringer i denne visningen.',
     noCaptureDates: 'Ingen brukbare opptaksdatoer i denne visningen.',
     frameNotInView: 'Bildet er ikke i denne visningen.',
