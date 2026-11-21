@@ -58,6 +58,39 @@ Not `VITE_` and **never** in the app or git: the secrets in Secret Manager (`kcp
 - Signing out forgets the grant on that device but does not free its device slot; free it from `/admin`.
 - There are no payment sources yet, so until SumUp and the store purchases are wired, only an admin grant gives Pro.
 
+## Publishing signed same-contract model updates
+
+Kestrel always edits photos offline. Where a build explicitly configures **both**
+\`VITE_KESTREL_MODEL_BASE_URL\` and trusted Ed25519 **public** keys in
+\`VITE_KESTREL_MODEL_KEYS\`, the app may check the models bucket's
+\`manifest/stable.json\` at most once a day. It never blocks launch.
+Unconfigured builds do not make requests.
+
+Only one of the four known ONNX slots may be updated, and only with an unchanged
+signed input/output/label **contract**, verified length and SHA-256. The active
+file is content-addressed; the previous verified file remains available after
+an interrupted update, bad disk object or failed readback. Larger than **8 MiB**
+is **not** downloaded automatically; it requires an explicitly user-initiated
+\`ModelUpdater.check(true)\` action. A Settings control for that consent and
+status remains an integration task; do not claim unattended model installation
+or present an optional large model download as automatic.
+
+Publish only approved/licensed weights, with a **higher** manifest revision:
+
+\`\`\`powershell
+npx tsx scripts/release/sign-data-manifest.ts --dir models-to-publish --version 2026.12.1 --revision 2 --out out/models
+./scripts/release/publish-gcp.ps1 -Project kestrel-hosting -Models out/models
+\`\`\`
+
+The signer refuses unknown slots and attaches the app contract; model weights
+and signing **private** keys must never be committed. Verify the output
+manifest, signed-publisher authority and actual Cloud Storage objects before
+deploying. A contract change requires a **signed app release**, not a data
+update. This models-bucket manifest is separate from the control plane's
+\`/v1/models/manifest\`; reconcile those authorities before promising a
+unified production updater. No GCP provisioning/deployment authorised by this
+source code.
+
 ## What phase 1 creates (this folder)
 
 | Piece | What it's for | Who can read it |
