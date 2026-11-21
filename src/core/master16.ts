@@ -4,6 +4,7 @@ import { cropRectangle, rotationCoverage, type PhotoFraming } from './photoFrami
 import { THUMB, type Thumb } from './orientMatch';
 import { LOCAL_KEYS, validMasks, type Mask } from './maskTypes';
 import { effectiveAlpha } from './masks';
+import { blendSrgb16, blendLinearToSrgb16, decodeSrgb16, encodeSrgb16 } from './linearRgb16';
 import { noiseStrength } from './noiseReduction';
 import { denoiseChromaRgb16 } from './chromaDenoise16';
 
@@ -177,11 +178,6 @@ export function frameRgb16(image: Rgb16Image, framing: PhotoFraming, extraTurns 
   return { width: crop.width, height: crop.height, data: out };
 }
 
-const TO_LINEAR = Float32Array.from({ length: 65536 }, (_, i) => {
-  const v = i / 65535;
-  return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-});
-
 /** Apply global or local tone to display-encoded 16-bit samples without
  * collapsing them to 8 bits. Deliberately does not apply detail or masks. */
 function applyToneRgb16(data: Uint16Array, edit: PhotoEdit): void {
@@ -192,16 +188,16 @@ function applyToneRgb16(data: Uint16Array, edit: PhotoEdit): void {
     const count = Math.min(CHUNK, data.length / 3 - start);
     for (let p = 0; p < count; p += 1) {
       const i = (start + p) * 3;
-      floats[p * 4] = TO_LINEAR[data[i]];
-      floats[p * 4 + 1] = TO_LINEAR[data[i + 1]];
-      floats[p * 4 + 2] = TO_LINEAR[data[i + 2]];
+      floats[p * 4] = decodeSrgb16(data[i]);
+      floats[p * 4 + 1] = decodeSrgb16(data[i + 1]);
+      floats[p * 4 + 2] = decodeSrgb16(data[i + 2]);
     }
     applyPhotoEditLinear(floats.subarray(0, count * 4), edit);
     for (let p = 0; p < count; p += 1) {
       const i = (start + p) * 3;
-      data[i] = Math.round(floats[p * 4] * 65535);
-      data[i + 1] = Math.round(floats[p * 4 + 1] * 65535);
-      data[i + 2] = Math.round(floats[p * 4 + 2] * 65535);
+      data[i] = encodeSrgb16(floats[p * 4]);
+      data[i + 1] = encodeSrgb16(floats[p * 4 + 1]);
+      data[i + 2] = encodeSrgb16(floats[p * 4 + 2]);
     }
   }
 }
@@ -249,7 +245,7 @@ function applyDetailMaskRgb16(image: Rgb16Image, mask: Mask, masks: readonly Mas
       const original = (from * width + p) * 3;
       const adjusted = ((from - first) * width + p) * 3;
       for (let c = 0; c < 3; c++) {
-        data[original + c] = Math.round(data[original + c] * (1 - a) + source[adjusted + c] * a);
+        data[original + c] = blendSrgb16(data[original + c], source[adjusted + c], a);
       }
     }
   }
@@ -289,9 +285,9 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
       const rgba = new Float32Array(count * 4);
       for (let p = 0; p < count; p++) {
         const src = (from * width + p) * 3, dst = p * 4;
-        rgba[dst] = TO_LINEAR[data[src]];
-        rgba[dst + 1] = TO_LINEAR[data[src + 1]];
-        rgba[dst + 2] = TO_LINEAR[data[src + 2]];
+        rgba[dst] = decodeSrgb16(data[src]);
+        rgba[dst + 1] = decodeSrgb16(data[src + 1]);
+        rgba[dst + 2] = decodeSrgb16(data[src + 2]);
         rgba[dst + 3] = 1;
       }
       applyPhotoEditLinear(rgba, local);
@@ -299,13 +295,11 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
         const strength = alpha[p];
         if (strength <= 0) continue;
         const src = (from * width + p) * 3, dst = p * 4;
-        const rest = 1 - strength;
-        // Match Kestrel's current visible 8-bit mask compositing formula,
-        // at 16-bit sample precision. A later scene-linear overhaul must
-        // update the screen and master together, with reference tests.
-        data[src] = Math.round(data[src] * rest + rgba[dst] * 65535 * strength);
-        data[src + 1] = Math.round(data[src + 1] * rest + rgba[dst + 1] * 65535 * strength);
-        data[src + 2] = Math.round(data[src + 2] * rest + rgba[dst + 2] * 65535 * strength);
+        // The adjustment renderer returns linear RGB. Blend in linear light
+        // before sRGB16 encoding, never mix encoded source with linear output.
+        data[src] = blendLinearToSrgb16(data[src], rgba[dst], strength);
+        data[src + 1] = blendLinearToSrgb16(data[src + 1], rgba[dst + 1], strength);
+        data[src + 2] = blendLinearToSrgb16(data[src + 2], rgba[dst + 2], strength);
       }
     }
   }
