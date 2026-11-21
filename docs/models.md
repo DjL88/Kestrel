@@ -103,3 +103,25 @@ The app's offline cache does not pre-install this file for every visitor. A pers
 - `make_stand_in.py` makes a tiny stand-in model for tests that always "sees" one species.
 
 **What it learns.** The model never retrains. Names a person accepts are counted on the device and rise a little in the order next time, up to a small cap, so a clear match always wins.
+
+## Offline photographic intelligence: first measurements (21 Nov 2026)
+
+**Status: models installed and running in a Python harness (`tools/vision-lab/`); NOT yet in the editor.** Weights are never in git: `scripts/models/acquire.py` fetches the pinned, hash-verified revisions in `scripts/models/manifest.json` into a local store (`~/kestrel-models`). Licences were read from the model metadata at those revisions (Apache-2.0 and MIT; confirm against the model cards at first install).
+
+| Model | Role | Files (int8) | Measured on 4 CPU cores, no GPU |
+| --- | --- | --- | --- |
+| SmolVLM2-500M-Video-Instruct (Apache-2.0) | Everyday visual check, plain-language answers | 516 MB | load 1.5 s; image encode about 0.4 s; about 30 tokens/s; peak RSS about 1.1 GB |
+| Florence-2-base ONNX (MIT) | Grounding: boxes and labels for what is in the picture | 279 MB | load 1.9 s; about 2.5 s per `<OD>` run; both models together peak about 2.2 GB RSS |
+
+Not chosen yet: Qwen3-VL-4B (no ONNX; 8.9 GB bf16; needs GGUF and llama.cpp), BioCLIP 2 (1.7 GB; BioCLIP v1 already ships). Reuse Kestrel's existing YOLOX, U²-Net-P, CLIP gate and BioCLIP.
+
+### What the first tests showed (`tools/vision-lab/eval_helicopter.py`, 12 helicopters + 12 not, CC-BY-4.0 data, fixed seed; a smoke test, not a benchmark)
+- Both models describe ordinary subjects correctly (cat, cup, astronaut, rocket).
+- **Asked for a specific class, they are weak:** "is this a helicopter?" SmolVLM2 found 6/12, Florence-2 2/12 (it calls most helicopters "airplane").
+- **Asked for the coarse class (aircraft or not), they are strong but each fires on birds:** SmolVLM2 11/12 helicopters but 5/12 non-helicopters flagged (most of the "not" images are flying crows); Florence-2 11/12 but 2/12.
+- **Corroboration helps:** requiring **both** coarse signals to say "aircraft" found 10/12 helicopters and flagged 1/12 of the others, and that one is a real aeroplane, so no bird was called an aircraft. Either-signal gave 12/12 but let birds through. This supports "corroborate, challenge or abstain" over averaging. n is tiny.
+- **Aircraft type is not something these models do:** SmolVLM2 multiple-choice among six helicopter types: **0/12 correct** (below the 17% chance level). A fine-grained aircraft classifier would be needed (none evaluated yet).
+- Caveat: the two models are both trained on web images and may share blind spots; they are not independent proof. The independent signals are the detector box, mask geometry and measured pixels.
+
+### Not done
+Editor integration (a TypeScript runtime over the same ONNX files), WebGPU/WASM and mobile measurements, the optional large tier, species and colour-plausibility checks, a bird evaluation set (needs the owner's photos), and a fine-grained aircraft-type model.
