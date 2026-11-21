@@ -72,8 +72,11 @@ export interface SubjectProofPair {
   left: PixelCrop;
   right: PixelCrop;
   /** Measured average neighbouring luminance difference in unscaled source pixels. */
-  leftEdgeEnergy: number;
-  rightEdgeEnergy: number;
+  /** Null when source-pixel geometry differs: visual A/B remains valid, numerical comparison abstains. */
+  leftEdgeEnergy: number | null;
+  rightEdgeEnergy: number | null;
+  /** Only true for identical source-pixel crop geometry with measurable opaque pixels. */
+  comparableDetail: boolean;
   /** Always review: edge energy is not proof of a focused eye or a better keeper. */
   recommendation: 'review';
 }
@@ -121,11 +124,14 @@ export function exactSubjectProofPair(
   if (!a) return null;
   const b = exactSubjectPixelCrop(right.raster, right.photoId, right.sourceSha256, right.box, maxBytes - a.rgba.byteLength, isCurrent);
   if (!b) return null;
-  // Without equivalent source-pixel crop geometry, raw edge energy is not
-  // directly comparable; do not present an unfair sharpness comparison.
-  if (a.width !== b.width || a.height !== b.height || a.width < 2 || a.height < 2) return null;
-  const leftEdgeEnergy = sourceEdgeEnergy(a);
-  const rightEdgeEnergy = sourceEdgeEnergy(b);
-  if (leftEdgeEnergy === null || rightEdgeEnergy === null || (isCurrent && !isCurrent())) return null;
-  return { left: a, right: b, leftEdgeEnergy, rightEdgeEnergy, recommendation: 'review' };
+  // A moving animal changes apparent size between burst frames. Keep both
+  // exact-pixel crops for manual A/B, but never compare texture scores when
+  // their geometry differs: a rescale would invent pixels and bias ranking.
+  const sameGeometry = a.width === b.width && a.height === b.height && a.width >= 2 && a.height >= 2;
+  const measuredLeft = sameGeometry ? sourceEdgeEnergy(a) : null;
+  const measuredRight = sameGeometry ? sourceEdgeEnergy(b) : null;
+  if (isCurrent && !isCurrent()) return null;
+  const comparableDetail = measuredLeft !== null && measuredRight !== null;
+  return { left: a, right: b, leftEdgeEnergy: comparableDetail ? measuredLeft : null,
+    rightEdgeEnergy: comparableDetail ? measuredRight : null, comparableDetail, recommendation: 'review' };
 }
