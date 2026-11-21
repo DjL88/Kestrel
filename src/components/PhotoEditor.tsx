@@ -9,7 +9,7 @@ import { messages as m } from '../i18n/messages';
 import { editorText as t } from '../i18n/areas/editor';
 import { libraryText as libraryT } from '../i18n/areas/library';
 import { exportText as exportT } from '../i18n/areas/export';
-import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed, Wand2 } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { acceptedAutoChanges } from '../core/autoSuggestionSummary';
 import { formatClock } from '../core/formatDate';
@@ -1517,7 +1517,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
               })}>
                 <RotateCw className="h-4 w-4" aria-hidden="true" />{t.crop.rotate}</button>
               <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={autoLevel}>
-                <Wand2 className="h-4 w-4" aria-hidden="true" />{t.crop.autoLevel}</button>
+                <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />{t.crop.autoLevel}</button>
               <button type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={() => { onFramingChange(DEFAULT_FRAMING); setCropNotice(''); }}>
                 <RotateCcw className="h-4 w-4" aria-hidden="true" />{t.crop.reset}</button>
             </div>
