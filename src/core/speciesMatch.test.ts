@@ -76,3 +76,46 @@ test('a burst is the other shots of the same moment, and tagging one name covers
   assert.equal(tagFrames([{ ...c, subjectKind: 'other' }], [c.id], 'Red kite', 'wildlife')[0].subjectKind, 'other', 'a kind you chose is kept');
   assert.equal(hasName({ subjectNames: ['Red Kite'] }, 'red kite'), true);
 });
+
+test('wrong-dimensional, zero or non-finite cached evidence is unknown, never a fabricated 100% name', () => {
+  assert.deepEqual(rankSpecies(axis(0), labels, vectors.slice(0, 2)), []);
+  assert.deepEqual(rankSpecies(axis(0), labels, vectors.map(() => axis(0, 4))), []);
+  assert.deepEqual(rankSpecies(new Float32Array(8), labels, vectors), []);
+  const broken = axis(0);
+  broken[1] = Number.NaN;
+  assert.deepEqual(rankSpecies(broken, labels, vectors), []);
+  assert.deepEqual(rankSpecies(axis(0), labels, [axis(0), new Float32Array(8), ...vectors.slice(2)]), []);
+  assert.deepEqual(rankSpecies(axis(0), [], []), []);
+  assert.equal(pickSuggestions(rankSpecies(broken, labels, vectors)).length, 0);
+});
+
+test('normalisation remains finite even for huge but valid model values', async () => {
+  const { normalise } = await import('./speciesMatch');
+  const big = Float32Array.from([1e35, 1e35, -1e35, 0]);
+  const unit = normalise(big);
+  assert.ok(unit.every(Number.isFinite));
+  assert.ok(Math.abs(unit[0] - Math.sqrt(1 / 3)) < 1e-6);
+  assert.ok(Math.abs(unit[2] + Math.sqrt(1 / 3)) < 1e-6);
+});
+
+test('invalid stored scales and corrupt prior counts cannot manufacture a high-confidence species', () => {
+  assert.throws(() => decodeVector({ vector: 'AA==', scale: 0 }), RangeError);
+  assert.throws(() => decodeVector({ vector: 'AA==', scale: Number.NaN }), RangeError);
+  const badCounts = { 'Red kite': Number.POSITIVE_INFINITY, 'Black kite': -1, 'Red fox': Number.NaN };
+  assert.deepEqual(personalBonus(labels, badCounts), [0, 0, 0, 0]);
+  assert.equal(recordAccepted(badCounts, 'Red kite')['Red kite'], 1);
+  assert.equal(rankSpecies(axis(0), labels, vectors, [Number.NaN, Number.POSITIVE_INFINITY, -500, 0])[0].label.common, 'Red kite');
+});
+
+test('scene similarity rejects corrupt or dimension-mismatched embeddings instead of borrowing species tags', () => {
+  const picture = axis(0);
+  const other = [
+    { id: 'same', embedding: axis(0) },
+    { id: 'wrong-dimension', embedding: axis(0, 2) },
+    { id: 'zero', embedding: new Float32Array(8) },
+    { id: 'nan', embedding: Float32Array.from([Number.NaN, 1, 0, 0, 0, 0, 0, 0]) },
+  ];
+  assert.deepEqual(similarPhotos(picture, other), ['same']);
+  assert.deepEqual(similarPhotos(picture, other, Number.NaN), []);
+  assert.deepEqual(similarPhotos(new Float32Array(8), other), []);
+});
