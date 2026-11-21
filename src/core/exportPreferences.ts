@@ -57,6 +57,9 @@ const bounded = (value: unknown, min: number, max: number, fallback: number) =>
 function readOverlay(value: unknown): OverlayOptions | undefined {
   if (!object(value)) return undefined;
   const watermark = parseWatermark(JSON.stringify(value.watermark ?? null));
+  // An image mark whose artwork was unusable must not come back as an enabled, empty text mark.
+  const requested = object(value.watermark) ? value.watermark.kind : undefined;
+  if (requested === 'image' && watermark.kind !== 'image') watermark.on = false;
   // Match the upload control: portable raster artwork only, with a bounded local payload.
   if (watermark.imageData && (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(watermark.imageData) ||
       watermark.imageData.length > 4_000_024)) {

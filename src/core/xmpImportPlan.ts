@@ -86,12 +86,17 @@ export async function planXmpImports(
     }
   }
 
+  // Validate the whole set before any file reaches the XMP parser, so an
+  // ambiguous batch is refused without partial work.
   const seen = new Set<string>();
-  const plans: SidecarImport[] = [];
   for (const file of staged) {
     const key = file.name.normalize('NFC').toLowerCase();
     if (seen.has(key)) throw new SidecarImportError('ambiguous');
     seen.add(key);
+  }
+  const plans: SidecarImport[] = [];
+  for (const file of staged) {
+    const key = file.name.normalize('NFC').toLowerCase();
     if (!lookup.has(key)) continue; // unrelated sidecar in a ZIP: never import it
     const frame = lookup.get(key);
     if (!frame) throw new SidecarImportError('ambiguous'); // RAW+JPEG collision

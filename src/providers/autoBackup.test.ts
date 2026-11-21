@@ -10,6 +10,29 @@ import { addConnection, removeConnection } from './connectionStore';
 import { setLocations } from './projectLocations';
 import { backUpNow, backUpProjectNow, maybeBackUp } from './autoBackup';
 
+/** Node 22 (the CI version) has no localStorage or OPFS: give the code under test both, and clean up. */
+async function stubBrowserStorage(t: { after(fn: () => unknown): void }, withDevice: boolean) {
+  const values = new Map<string, string>();
+  const restore: Array<() => void> = [];
+  const define = (name: 'localStorage' | 'navigator', value: unknown) => {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, name);
+    Object.defineProperty(globalThis, name, { configurable: true, value });
+    restore.push(() => { if (previous) Object.defineProperty(globalThis, name, previous); else Reflect.deleteProperty(globalThis, name); });
+  };
+  define('localStorage', {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+  });
+  if (withDevice) {
+    const deviceRoot = await mkdtemp(join(tmpdir(), 'kestrel-device-recovery-'));
+    t.after(() => rm(deviceRoot, { recursive: true, force: true }));
+    define('navigator', { storage: { getDirectory: async () => folderAt(deviceRoot) }, userAgent: 'test' });
+  }
+  t.after(() => { for (const undo of restore.reverse()) undo(); });
+  return values;
+}
+
 function deferred() {
   let resolve!: () => void;
   const promise = new Promise<void>((done) => { resolve = done; });
@@ -17,14 +40,7 @@ function deferred() {
 }
 
 test('edits made during a slow folder backup remain due and restore from the next backup', async (t) => {
-  const values = new Map<string, string>();
-  const previous = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
-  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
-    getItem: (key: string) => values.get(key) ?? null,
-    setItem: (key: string, value: string) => values.set(key, value),
-    removeItem: (key: string) => values.delete(key),
-  } });
-  t.after(() => { if (previous) Object.defineProperty(globalThis, 'localStorage', previous); else Reflect.deleteProperty(globalThis, 'localStorage'); });
+  const values = await stubBrowserStorage(t, true);
   const started = deferred();
   const release = deferred();
   const written: string[] = [];
@@ -92,7 +108,7 @@ function folderAt(path: string): FileSystemDirectoryHandle {
         };
       } };
     },
-    async removeEntry(name: string) { await rm(join(path, name)); },
+    async removeEntry(name: string) { await rm(join(path, name), { recursive: true }); },
     async *entries() {
       for (const entry of await readdir(path, { withFileTypes: true })) {
         yield [entry.name, entry.isDirectory() ? folderAt(join(path, entry.name)) : { kind: 'file' }];
@@ -102,6 +118,7 @@ function folderAt(path: string): FileSystemDirectoryHandle {
 }
 
 test('same-title projects keep independent, restorable backups through renames and retention cleanup', async (t) => {
+  await stubBrowserStorage(t, true);
   const root = await mkdtemp(join(tmpdir(), 'kestrel-backup-test-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const connection = addConnection('folder', 'Synthetic mounted drive', 'Temporary test folder', { handle: folderAt(root) });
@@ -168,6 +185,7 @@ test('a failing optional backup does not interrupt local recovery or lose retry 
 });
 
 test('mobile with a writable NAS source backs up to the app and the source', async (t) => {
+  await stubBrowserStorage(t, false);
   const localRoot = await mkdtemp(join(tmpdir(), 'kestrel-phone-recovery-'));
   const nasRoot = await mkdtemp(join(tmpdir(), 'kestrel-nas-recovery-'));
   t.after(() => rm(localRoot, { recursive: true, force: true }));

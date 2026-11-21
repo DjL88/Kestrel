@@ -40,7 +40,7 @@ test('rejects scripts, wrong signatures, unsupported images and oversized files'
   assert.equal(files.size, 0);
 });
 test('old embedded data URLs can migrate locally, but remote/script URLs cannot', async () => {
-  const blob = legacyWatermarkBlob('data:image/png;base64,iVBORw0KGgoAAAAASUVORKq5CYII=');
+  const blob = legacyWatermarkBlob('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==');
   assert.equal((await harness().repo.save(blob)).length, 64);
   assert.throws(() => legacyWatermarkBlob('javascript:alert(1)'), /not a valid/);
   assert.throws(() => legacyWatermarkBlob('https://example.com/mark.png'), /not a valid/);
