@@ -26,6 +26,8 @@ import { PHOTO_ACCEPT } from './core/rawFormats';
 import { TaskManager } from './components/TaskManager';
 import { PhotoContextMenu } from './components/PhotoContextMenu';
 import { ratingFor, targetsFor, type PhotoAction } from './core/photoMenu';
+import { resolveShortcutAlias, type AliasAction } from './core/shortcutAliases';
+import { photoMenuHints } from './core/shortcutHints';
 import { DropOverlay } from './components/DropOverlay';
 import { useDropPhotos } from './providers/useDropPhotos';
 import { DesktopUpdate } from './components/DesktopUpdate';
@@ -1468,6 +1470,15 @@ export default function App() {
     setBatchUndo(null);
   };
 
+  // Lightroom/DxO-style aliases (P, 0-5, D, Mod+Z, Mod+E ...). Kept in a ref so the key listener never runs stale closures.
+  const runAlias = useRef<(action: AliasAction) => void>(() => {});
+  runAlias.current = (action) => {
+    if (action.kind === 'command') executeCommand(action.id);
+    else if (action.kind === 'rate') { if (selectedFrame) rateOrFlagPhotos(selectedFrame.id, { rating: action.rating }); }
+    else if (action.kind === 'edit') { if (selectedFrame) { setEditQueueIds(visibleFrames.map((frame) => frame.id)); setEditing(true); } }
+    else if (action.kind === 'export') { if (exportSelection.length) setExportFrames(exportSelection); }
+  };
+
   // Global keyboard listener wired through unified resolveKeyboardCommand
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -1534,7 +1545,11 @@ export default function App() {
         isSuppressed,
       });
 
-      if (!cmd) return;
+      if (!cmd) {
+        const alias = resolveShortcutAlias({ event: e, bindings: prefs.bindings, isSuppressed });
+        if (alias) { e.preventDefault(); runAlias.current(alias); }
+        return;
+      }
       e.preventDefault();
       executeCommand(cmd.id);
     };
@@ -2072,7 +2087,7 @@ export default function App() {
         const ids = targetsFor(photoMenu.frameId, selectedIds, multiSelect);
         return <PhotoContextMenu x={photoMenu.x} y={photoMenu.y} label={ids.length > 1 ? t.header.photoCount(ids.length) : frame.filename}
           state={{ decision: frame.decision, count: ids.length, canPaste: Boolean(copiedEdit), hasEdit: Boolean(frame.edit), edited: ids.some((id) => { const target = cullingState.frames.find((candidate) => candidate.id === id); return Boolean(target && isEdited(target)); }) }}
-          onChoose={choosePhotoAction} onClose={() => setPhotoMenu(null)} />;
+          hints={photoMenuHints(prefs.bindings)} onChoose={choosePhotoAction} onClose={() => setPhotoMenu(null)} />;
       })()}
       <DesktopUpdate />
       {locationsOpen && <ProjectLocationsDialog state={cullingState} onClose={() => setLocationsOpen(false)} />}
