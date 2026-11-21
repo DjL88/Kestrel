@@ -123,5 +123,9 @@ Not chosen yet: Qwen3-VL-4B (no ONNX; 8.9 GB bf16; needs GGUF and llama.cpp), Bi
 - **Aircraft type is not something these models do:** SmolVLM2 multiple-choice among six helicopter types: **0/12 correct** (below the 17% chance level). A fine-grained aircraft classifier would be needed (none evaluated yet).
 - Caveat: the two models are both trained on web images and may share blind spots; they are not independent proof. The independent signals are the detector box, mask geometry and measured pixels.
 
+### Reading text in a photo (`tools/vision-lab/try_ocr.py`): registrations, bird rings
+Florence-2 has OCR built in (no extra model). Printed text reads well (a scikit-image page of text: correct apart from lost spaces). On a large frame with a small registration it **fails completely** (the model sees a 768 px view): whole frame gave `O.05` for `G-OKES`. Cropped and enlarged 3x it read `G-OKES` and `EB 74918` exactly and `N738PA` as `N738PPA` (a doubled letter). Synthetic, clean, flat text only: real photos with blur, angle and glare are harder and have not been tested.
+Design consequence: find the subject, crop the likely text area at full resolution, enlarge, then read; treat the result as a **suggestion** to confirm (never written silently), check it against the expected format (registration or ring pattern), and store it only once the person confirms, like confirmed subject tags. Dedicated scene-text OCR models (for example PaddleOCR or RapidOCR, Apache-2.0, ONNX) are likely stronger and have not been evaluated.
+
 ### Not done
 Editor integration (a TypeScript runtime over the same ONNX files), WebGPU/WASM and mobile measurements, the optional large tier, species and colour-plausibility checks, a bird evaluation set (needs the owner's photos), and a fine-grained aircraft-type model.

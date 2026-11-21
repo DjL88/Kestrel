@@ -12,7 +12,7 @@ from PIL import Image
 
 LAYERS, HEADS, HEAD_DIM, SIZE = 6, 12, 64, 768
 MEAN, STD = np.array([0.485, 0.456, 0.406], np.float32), np.array([0.229, 0.224, 0.225], np.float32)
-PROMPTS = {'<OD>': 'Locate the objects with category name in the image.', '<CAPTION>': 'What does the image describe?',
+PROMPTS = {'<OCR>': 'What is the text in the image?', '<OD>': 'Locate the objects with category name in the image.', '<CAPTION>': 'What does the image describe?',
            '<CAPTION_TO_PHRASE_GROUNDING>': 'Locate the phrases in the caption: '}
 
 class Florence:
