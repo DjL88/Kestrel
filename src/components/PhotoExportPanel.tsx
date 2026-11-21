@@ -40,6 +40,7 @@ import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, WATERMARK_FONTS, type 
 import { NO_OVERLAY, exportOverlayTitle, photoOverlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { exportFilename } from '../core/exportProfiles';
 import { SocialIcon } from './SocialIcon';
+import { commonSocialSizes, uniqueRenderedSocialFormats, type SocialSizeGroup } from '../core/exportSocialGroups';
 import type { ExportPlace } from '../providers/exportToPlace';
 import { chooseDesktopExportFolder, isDesktopApp, isMobileShell, saveWithDialog } from '../providers/desktopShell';
 import { exportText as t } from '../i18n/areas/export';
@@ -61,6 +62,8 @@ const STORAGE_KEY = 'kestrel.lastExport.v2';
 /** Photos drawn in the preview, and the most tiles shown at once, so a big selection stays quick. */
 const PREVIEW_PHOTOS = 4;
 const MAX_TILES = 12;
+const SHARED_SOCIAL_SIZES = commonSocialSizes();
+const FEATURED_SIZE_IDS = new Set(['ig-45', 'ig-story', 'ig-11', 'ig-34']);
 
 const FIT_LABELS: Record<Fit, string> = t.fit;
 const DEFAULT_CUSTOM: CustomSize = { width: 1600, height: 1200, fit: 'keep', format: 'jpeg', quality: 90, prefix: 'custom_', allowUpscale: false };
@@ -102,6 +105,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const [overrides, setOverrides] = useState(preferences.overrides);
   const [turned, setTurned] = useState(preferences.turned);
   const [view, setView] = useState<'wizard' | 'list'>(readView);
+  const [simpleTab, setSimpleTab] = useState<'export' | 'advanced'>('export');
   const [openPlatforms, setOpenPlatforms] = useState<Record<string, boolean>>({});
   const [bars, setBars] = useState<BarStyle>(preferences.bars);
   const [customOn, setCustomOn] = useState(false);
@@ -148,8 +152,15 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       const made = { ...format, fit: format.id === 'master' || format.id === 'full-jpeg' || format.id === 'before-after' ? format.fit : fits[id] ?? format.fit, prefix: edit?.prefix ?? format.prefix, quality: edit?.quality ?? format.quality };
       return [turned[id] ? turnFormat(made) : made];
     });
-    return customResult && 'format' in customResult ? [...base, customResult.format] : base;
-  }, [chosen, fits, overrides, turned, customResult]);
+    const configured = customResult && 'format' in customResult ? [...base, customResult.format] : base;
+    // Old saved choices can repeat one identical Instagram/Facebook/TikTok
+    // rendering. Different per-photo crop positions must remain separate.
+    return uniqueRenderedSocialFormats(configured, format => frames.map(frame => {
+      const key = `${frame.id}|${format.id}`;
+      const focus = anchors[key] ?? frame.focusPoint ?? { x: 0.5, y: 0.5 };
+      return `${focus.x},${focus.y}:${zooms[key] ?? 1}`;
+    }).join(';'));
+  }, [chosen, fits, overrides, turned, customResult, frames, anchors, zooms]);
   const total = selected.length * frames.length;
   const proofPhotoIds = frames.map(frame => frame.id);
   const proofFormatIds = selected.map(format => format.id);
@@ -607,20 +618,30 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
 
 
   const toggle = (id: string, on: boolean) => setChosen((previous) => on ? (previous.includes(id) ? previous : [...previous, id]) : previous.filter((item) => item !== id));
+  const toggleSharedSize = (group: SocialSizeGroup, on: boolean) => setChosen(previous => {
+    const withoutAliases = previous.filter(id => !group.ids.includes(id));
+    return on ? [...withoutAliases, group.canonical.id] : withoutAliases;
+  });
   const tiles = previewFrames.flatMap((frame) => selected.map((format) => ({ frame, format }))).slice(0, MAX_TILES);
   const hiddenTiles = frames.length * selected.length - tiles.length;
   const anyBars = selected.some((format) => format.fit === 'bars' && format.width > 0);
 
-  const formatRow = (format: ExportFormat) => {
-    const on = chosen.includes(format.id);
+  const formatRow = (format: ExportFormat, group?: SocialSizeGroup) => {
+    const on = group ? group.ids.some(id => chosen.includes(id)) : chosen.includes(format.id);
     const current = fits[format.id] ?? format.fit;
     const shownFormat = turned[format.id] ? turnFormat(format) : format;
     return (
       <div key={format.id} className="rounded-md bg-white/5">
         <label className="flex min-h-11 items-center gap-2 px-2 text-sm">
-          <input type="checkbox" checked={on} onChange={(event) => toggle(format.id, event.target.checked)} />
+          <input type="checkbox" checked={on} onChange={(event) => group ? toggleSharedSize(group, event.target.checked) : toggle(format.id, event.target.checked)} />
           <span className="min-w-0 flex-1">
-            <span className="block">{formatLabel(shownFormat)}</span>
+            <span className="flex flex-wrap items-center justify-between gap-2">
+              <span>{formatLabel(shownFormat)}</span>
+              {group && <span className="inline-flex items-center gap-2" title={group.platforms.map(id => PLATFORMS.find(p => p.id === id)?.label ?? id).join(', ')}>
+                {group.platforms.map(id => <SocialIcon key={id} id={id} className="h-4 w-4 shrink-0 text-zinc-300" />)}
+                <span className="sr-only">Suitable for {group.platforms.map(id => PLATFORMS.find(p => p.id === id)?.label ?? id).join(', ')}</span>
+              </span>}
+            </span>
             <span className="block text-xs text-zinc-400">{sizeName(shownFormat)}</span>
           </span>
         </label>
@@ -1000,6 +1021,8 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const blocked = Boolean(customOn && customResult && 'error' in customResult) || invalidDate ||
     Boolean(mark.on && mark.kind === 'image' && !mark.imageData);
   const canShare = files.length > 0 && navigator.canShare?.({ files });
+  const featuredGroups = SHARED_SOCIAL_SIZES.filter(group => FEATURED_SIZE_IDS.has(group.canonical.id));
+  const otherGroups = SHARED_SOCIAL_SIZES.filter(group => !FEATURED_SIZE_IDS.has(group.canonical.id));
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
       <section ref={dialog} className={`workspace-popover flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col overflow-hidden border-0 bg-kestrel-raised shadow-xl`}>
