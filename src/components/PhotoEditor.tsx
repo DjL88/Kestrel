@@ -199,7 +199,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
   const [opinions, setOpinions] = useState<Opinion[] | null>(null);
   const [selectedMaskId, setSelectedMaskId] = useState<string | null>(null);
   const [manualColourCheck, setManualColourCheck] = useState(false);
-  const [boundaryEvidence, setBoundaryEvidence] = useState<MaskBoundaryEvidence | null>(null);
+  const [boundaryEvidence, setBoundaryEvidence] = useState<{ maskId: string; recipe: PhotoEdit; value: MaskBoundaryEvidence } | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [detectNotice, setDetectNotice] = useState('');
   const [brushRadius, setBrushRadius] = useState(0.05);
@@ -576,7 +576,10 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
         const after = adjusted.getContext('2d', { willReadFrequently: true })?.getImageData(0, 0, adjusted.width, adjusted.height);
         if (!before || !after || base.width !== adjusted.width || base.height !== adjusted.height) return;
         const alpha = effectiveAlpha(mask, edit.masks ?? [], base.width, base.height, fullContext(base.width, base.height));
-        if (current) setBoundaryEvidence(inspectMaskBoundary(before.data, after.data, alpha, base.width, base.height));
+        if (current) {
+          const value = inspectMaskBoundary(before.data, after.data, alpha, base.width, base.height);
+          setBoundaryEvidence(value ? { maskId: mask.id, recipe: edit, value } : null);
+        }
       } catch {
         if (current) setBoundaryEvidence(null);
       }
@@ -1595,7 +1598,9 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
               onBrushRadius={setBrushRadius} onErase={setErase} onShowOverlay={setShowMaskOverlay}
               onFindSubject={(background) => void findSubject(background)} onRefind={(id) => void findSubject(false, id)} selectingArea={selectingArea} onSelectArea={setSelectingArea}
               detecting={detecting} detectNotice={detectNotice} currentFramingKey={framingKey(framing)}
-              guidanceMode={guidanceMode} boundaryEvidence={boundaryEvidence} onBlendEdges={(id) => {
+              guidanceMode={guidanceMode}
+              boundaryEvidence={boundaryEvidence?.maskId === selectedMaskId && boundaryEvidence.recipe === edit ? boundaryEvidence.value : null}
+              onBlendEdges={(id) => {
                 const currentMasks = edit.masks ?? [];
                 const selected = currentMasks.find((candidate) => candidate.id === id);
                 if (!selected) return;
