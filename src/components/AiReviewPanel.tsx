@@ -101,7 +101,11 @@ export function AiReviewPanel({ edit, onEdit, readJpeg, localFindings, version, 
   const currentScope = useRef<PhotoReviewScope>([]);
   currentScope.current = [edit, settings, disabled, ...version];
   const shownScope = useRef<PhotoReviewScope | null>(null);
-  useEffect(() => () => { abort.current?.abort(); }, []);
+  useEffect(() => () => {
+    abort.current?.abort();
+    abort.current = null;
+    shownScope.current = null;
+  }, []);
   useEffect(() => {
     // An older photo, edit, crop or provider must never leave an apparently
     // current suggestion on screen or remain able to modify the new frame.
