@@ -51,6 +51,6 @@ export async function hasModel(cacheName: string, key: string): Promise<boolean>
 }
 
 export async function removeModel(cacheName: string, key: string): Promise<void> {
-  if (hasCaches()) { try { await caches.delete(cacheName); } catch { /* Nothing stored there. */ } }
+  if (hasCaches()) { try { await (await caches.open(cacheName)).delete(key); } catch { /* Nothing stored there. */ } }
   try { await withStore('readwrite', (store) => store.delete(`${cacheName}|${key}`)); } catch { /* Nothing stored there. */ }
 }
