@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Search, Settings2, SquareChevronsRight, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Search, Settings2, SquareChevronsRight, Trash2 } from './icons/KestrelUIIcons';
 import kestrelMark from '../assets/kestrel-mark.svg';
 import { version as appVersion } from '../../package.json';
 import { PHOTO_ACCEPT } from '../core/rawFormats';
