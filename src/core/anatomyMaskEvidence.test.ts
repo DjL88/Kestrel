@@ -20,11 +20,11 @@ test('observed thin appendage added, foreground branch excluded, brush and edits
   original.strokes.push({ points: [0.2, 0.3, 0.25, 0.35], radius: 0.03, erase: true });
   original.edit = { exposure: 0.2 };
   original.limit = { id: 'foreground', mode: 'subtract' };
-  const result = refineObservedAnatomy(original, evidence(grid({ 12: 245 }), grid({ 11: 255 })), sha);
+  const result = refineObservedAnatomy(original, evidence(grid({ 19: 245 }), grid({ 11: 255 })), sha);
   assert.equal(result.ok, true);
   if (!result.ok) return;
   const bytes = atob(result.mask.grid.data);
-  assert.equal(bytes.charCodeAt(12), 245); // observed foot/wing/hair/paw
+  assert.equal(bytes.charCodeAt(19), 245); // observed foot/wing/hair/paw
   assert.equal(bytes.charCodeAt(11), 0); // observed foreground branch
   assert.equal(bytes.charCodeAt(10), 255);
   assert.deepEqual(result.mask.strokes, original.strokes);
@@ -101,4 +101,28 @@ test('conservative observed part and separate foreground removal remain allowed'
     assert.equal(atob(result.mask.grid.data).charCodeAt(13), 245);
     assert.equal(atob(result.mask.grid.data).charCodeAt(11), 0);
   }
+});
+
+test('isolated high-confidence appendage is not grafted onto the subject', () => {
+  const mask = createSubjectMask('subject', grid({ 10: 255, 11: 255 }), 'frame', 'high');
+  const result = refineObservedAnatomy(mask, evidence(grid({ 55: 255 }), grid()), sha);
+  assert.deepEqual(result, { ok: false, reason: 'detached-anatomy' });
+  assert.equal(atob(mask.grid.data).charCodeAt(55), 0);
+});
+
+test('diagonally attached thin subject detail remains editable', () => {
+  const mask = createSubjectMask('subject', grid({ 10: 255 }), 'frame', 'high');
+  mask.strokes.push({ points: [0.1, 0.1], radius: 0.02, erase: true });
+  const result = refineObservedAnatomy(mask, evidence(grid({ 19: 255, 28: 255 }), grid()), sha);
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(atob(result.mask.grid.data).charCodeAt(28), 255);
+    assert.deepEqual(result.mask.strokes, mask.strokes);
+  }
+});
+
+test('an occluded bridge does not join an otherwise detached false appendage', () => {
+  const mask = createSubjectMask('subject', grid({ 10: 255, 11: 255 }), 'frame', 'high');
+  const result = refineObservedAnatomy(mask, evidence(grid({ 12: 255 }), grid({ 11: 255 })), sha);
+  assert.deepEqual(result, { ok: false, reason: 'detached-anatomy' });
 });
