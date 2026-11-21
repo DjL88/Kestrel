@@ -4,6 +4,8 @@ import type { PhotoFrame } from './types';
 import { parsePhotoSearch, photoSearchableText, retainPhotoSearchEvidence, searchPhotoCollection } from './photoSearch';
 import { filterFrames } from './cullingEngine';
 import { projectSearchText } from './projects';
+import { encodeProjectBackup } from './projectBackup';
+import { createDemoShootState } from './cullingEngine';
 
 const at = (year: number, month: number, day = 15) => Date.UTC(year, month - 1, day, 12);
 function photo(id: string, label: string, capturedAtMs?: number): PhotoFrame {
@@ -119,4 +121,16 @@ test('search phrases parse subject/date and do not mistake modal may for a month
   assert.equal(a.year, 2025);
   assert.equal(parsePhotoSearch('Find photos that may contain a plane').month, undefined);
   assert.equal(parsePhotoSearch('Kingfisher in May only').exactMonthOnly, true);
+});
+
+
+test('local OCR does not leak into portable/cloud project backup by default', () => {
+  const state = createDemoShootState(2);
+  const first = state.frames[0];
+  state.frames[0] = retainPhotoSearchEvidence(first, {
+    frameId: first.id, sourceStableKey: first.stableKey, modelRevision: 'local-reader',
+    indexedAt: 100, ocr: [{ value: 'PRIVATE RING NUMBER 7425', status: 'agreed' }],
+  });
+  assert.match(photoSearchableText(state.frames[0]), /PRIVATE RING/);
+  assert.doesNotMatch(encodeProjectBackup(state), /PRIVATE RING NUMBER 7425/);
 });
