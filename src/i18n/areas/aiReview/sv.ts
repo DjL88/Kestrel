@@ -15,7 +15,6 @@ export const sv: AreaTranslation<typeof source> = {
   provider: 'Vilken AI?',
   providers: {
     gemini: 'Google Gemini (AI Studio-nyckel)',
-    vertex: 'Google Vertex AI (nyckel till ditt Google Cloud-projekt)',
     anthropic: 'Anthropic Claude',
     openai: 'OpenAI-kompatibel, eller en modell på den här datorn (Ollama, LM Studio)',
   },
