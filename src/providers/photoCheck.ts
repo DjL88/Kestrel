@@ -1,17 +1,24 @@
 import { factsFromDescription, type SceneFacts } from '../core/photoCheck';
 import { IMAGE_EDGE } from '../core/smolvlm';
+import { placePhotoInsideSquare } from '../core/photoCheckPlacement';
 import { openSmolVlm } from './smolvlmRuntime';
 import { readPhotoCheckFiles } from './photoCheckStore';
 
 export interface PhotoCheckResult { facts: SceneFacts; description: string; loadMs: number; inferMs: number }
 
-/** The preview, stretched to the 512 x 512 the vision model takes (the same colour-managed pixels the photographer sees). */
+/** Letterbox the displayed preview without distorting subject proportions. Never change source pixels. */
 export function previewPixels(source: CanvasImageSource): Uint8ClampedArray {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = IMAGE_EDGE;
   const context = canvas.getContext('2d', { willReadFrequently: true })!;
   context.imageSmoothingQuality = 'high';
-  context.drawImage(source, 0, 0, IMAGE_EDGE, IMAGE_EDGE);
+  const { width, height } = source as { width?: number; height?: number };
+  const bounds = placePhotoInsideSquare(width ?? 0, height ?? 0, IMAGE_EDGE);
+  // Neutral padding avoids introducing dark/artificial sky or black-band
+  // cues into the model's photographic scene reading.
+  context.fillStyle = '#808080';
+  context.fillRect(0, 0, IMAGE_EDGE, IMAGE_EDGE);
+  context.drawImage(source, bounds.x, bounds.y, bounds.width, bounds.height);
   return context.getImageData(0, 0, IMAGE_EDGE, IMAGE_EDGE).data;
 }
 
