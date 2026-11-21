@@ -113,3 +113,39 @@ test('a mutable canvas resized during inference cannot return boxes for the old 
   });
   assert.deepEqual(rows, []);
 });
+
+test('class index and label disagreement never turns an aircraft into a bird', async () => {
+  const rows = await scanVerifiedSubjects({
+    ...base(),
+    detector: async () => [{
+      ...bird(20), detection: { ...bird(20).detection, classId: 4, label: 'bird' },
+    }],
+  });
+  assert.deepEqual(rows, []);
+});
+
+test('overlapping bird and aircraft boxes abstain on genre but preserve manual review', async () => {
+  const aircraft = {
+    ...bird(20),
+    detection: { ...bird(20).detection, label: 'aeroplane', classId: 4, score: 0.7 },
+  };
+  const rows = await scanVerifiedSubjects({
+    ...base(), detector: async () => [bird(20), aircraft],
+  });
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows.map(r => r.evidence.genre), ['unknown', 'unknown']);
+  assert.deepEqual(rows.map(r => r.evidence.manualDecision), ['review', 'review']);
+  assert.ok(rows.every(r => r.evidence.subjectBox && !r.evidence.subjectTrackId && !r.evidence.eyeBox));
+});
+
+test('non-overlapping birds and aircraft retain distinct manual review boxes', async () => {
+  const aircraft = {
+    ...bird(600),
+    detection: { ...bird(600).detection, label: 'aeroplane', classId: 4 },
+  };
+  const rows = await scanVerifiedSubjects({
+    ...base(), detector: async () => [bird(20), aircraft],
+  });
+  assert.deepEqual(rows.map(r => r.evidence.genre), ['bird', 'aircraft']);
+  assert.ok(rows.every(r => r.evidence.manualDecision === 'review'));
+});
