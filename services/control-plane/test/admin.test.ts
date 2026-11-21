@@ -101,6 +101,7 @@ test('a gift key carries a note and a server-side expiry; devices can be listed 
 });
 
 test('usage shows each account\'s AI allowance; payments say when SumUp is not connected', async () => {
+  await h.app.store.setAiConsent(h.user.accountId, true);
   assert.equal((await h.call('POST', '/v1/ai/identify', { token: h.user.token, body: { image: image(), userConsent: true } })).status, 200);
   const usage = await h.call('GET', '/v1/admin/usage', { token: h.adminToken });
   const mine = usage.body.accounts.find((a: { accountId: string }) => a.accountId === h.user.accountId);
