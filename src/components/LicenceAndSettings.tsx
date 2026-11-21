@@ -5,7 +5,7 @@ import { downloadExport } from '../providers/browserExport';
 import type { Session, SignInProvider } from '../core/cloudInterfaces';
 import { signInOptions } from '../core/signInOptions';
 import { firebaseAuth, isSignInConfigured, signInPlatform } from '../providers/firebaseAuth';
-import { removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
+import { activateFromAccount, leaveAccount, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
 import { DEV_PRO_PREVIEW_MODE } from '../providers/useAccess';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
@@ -38,11 +38,27 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
     return () => { document.removeEventListener('keydown', close, true); returnFocus(keep); };
   }, [onClose]);
 
-  useEffect(() => { void firebaseAuth.current().then(setAccount, () => setAccount(null)); }, []);
+  /** Signing in only creates a record. This asks whether the account has a purchase or gift, and says so plainly either way. */
+  async function linkLicence() {
+    const token = await firebaseAuth.idToken().catch(() => null);
+    if (!token) return;
+    const result = await activateFromAccount(token);
+    const text: Record<typeof result, string | null> = {
+      pro: 'Kestrel Pro is active on this device through your account.',
+      free: 'Signed in. This account has no Pro licence yet, and signing in does not change what Kestrel can do.',
+      limit: 'This account\'s Pro licence is already on its maximum number of devices. Free one from another device and try again.',
+      revoked: 'This account\'s Pro licence is no longer active. Your local work is unaffected.',
+      unreachable: 'Signed in, but the licence service could not be reached or the email is not verified yet. Check your email, then sign in again. Kestrel keeps working.',
+      not_set_up: null,
+    };
+    setAccountNote(text[result]);
+  }
+
+  useEffect(() => { void firebaseAuth.current().then((current) => { setAccount(current); if (current) void linkLicence(); }, () => setAccount(null)); }, []);
 
   async function chooseSignIn(provider: SignInProvider) {
     setAccountNote(null);
-    try { setAccount(await firebaseAuth.signIn(provider)); } catch (error) { setAccountNote(error instanceof Error ? error.message : 'Sign-in did not complete.'); }
+    try { setAccount(await firebaseAuth.signIn(provider)); void linkLicence(); } catch (error) { setAccountNote(error instanceof Error ? error.message : 'Sign-in did not complete.'); }
   }
 
   async function emailAction(kind: 'in' | 'create' | 'reset') {
@@ -51,12 +67,12 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
       if (kind === 'reset') { await firebaseAuth.sendPasswordReset(email); setAccountNote('If that email has an account, a reset link is on its way.'); return; }
       setAccount(await (kind === 'in' ? firebaseAuth.signInWithEmail(email, password) : firebaseAuth.createAccount(email, password)));
       setPassword('');
-      if (kind === 'create') setAccountNote('Account created. Check your email to verify the address.');
+      if (kind === 'create') setAccountNote('Account created. Check your email to verify the address, then sign in again to link any licence.'); else void linkLicence();
     } catch (error) { setAccountNote(error instanceof Error ? error.message : 'Sign-in did not complete.'); }
   }
 
   async function chooseSignOut() {
-    try { await firebaseAuth.signOut(); } finally { setAccount(null); setAccountNote('Signed out. Your photos and edits on this device are unchanged.'); }
+    try { await firebaseAuth.signOut(); } finally { leaveAccount(); setAccount(null); setAccountNote('Signed out. Your photos and edits on this device are unchanged.'); }
   }
 
   async function submit(event: React.FormEvent) {
