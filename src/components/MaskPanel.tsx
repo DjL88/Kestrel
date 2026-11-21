@@ -1,6 +1,6 @@
 import { newId } from '../core/ids';
 import type { GuidanceMode } from '../core/guidanceMode';
-import { reviewMaskBlend } from '../core/maskBlendAdvice';
+import { reviewMaskBlend, type MaskBoundaryEvidence } from '../core/maskBlendAdvice';
 import { AdjustmentSlider } from './AdjustmentSlider';
 import { Eraser, Paintbrush, Plus, Trash2 } from 'lucide-react';
 import { ScanSearch, SquareDashedMousePointer } from 'lucide-react';
@@ -38,13 +38,14 @@ interface Props {
   detectNotice: string;
   currentFramingKey: string;
   guidanceMode?: GuidanceMode;
+  boundaryEvidence?: MaskBoundaryEvidence | null;
   onBlendEdges?: (id: string) => void;
 }
 
 export function MaskPanel(props: Props) {
   const { masks, selectedId, disabled, brushRadius, erase, showOverlay, paintOn } = props;
   const selected = masks.find((mask) => mask.id === selectedId) ?? null;
-  const blendAdvice = selected ? reviewMaskBlend(selected, props.guidanceMode ?? 'glide') : null;
+  const blendAdvice = selected ? reviewMaskBlend(selected, props.guidanceMode ?? 'glide', props.boundaryEvidence) : null;
   const update = (patch: Partial<Mask>) => selected && props.onChange(masks.map((mask) => mask.id === selected.id ? { ...mask, ...patch } as Mask : mask));
   const add = (kind: Exclude<Mask['kind'], 'subject'>) => {
     const mask = createMask(kind, newId());
