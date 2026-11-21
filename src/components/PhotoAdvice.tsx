@@ -45,19 +45,21 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVe
   const [phase, setPhase] = useState<'idle' | 'installing' | 'checking' | 'failed'>('idle');
   const [percent, setPercent] = useState(0);
   const scope = useMemo(() => ({ photoKey, version, sourceVersion, edit }), [photoKey, version, sourceVersion, edit]);
-  const [found, setFound] = useState<{ scope: typeof scope; facts: SceneFacts } | null>(null);
+  // Scene recognition is about the source and framing, not the current value
+  // of a slider. Keep broad conservative context while histogram advice updates.
+  const sceneScope = useMemo(() => ({ photoKey, version, sourceVersion }), [photoKey, version, sourceVersion]);
+  const [found, setFound] = useState<{ sceneScope: typeof sceneScope; facts: SceneFacts } | null>(null);
   const autoDone = useRef(new Set<string>());
   const cancelledFor = useRef<typeof scope | null>(null);
   // A large WASM scene check is not a live slider effect: auto-run at most
   // once for a photo/source/crop while this editor is open.
-  const sceneScope = useMemo(() => ({ photoKey, version, sourceVersion }), [photoKey, version, sourceVersion]);
   const autoAttempted = useRef<typeof sceneScope | null>(null);
   const checkAbort = useRef<AbortController | null>(null);
   const installAbort = useRef<AbortController | null>(null);
   const requestId = useRef(0);
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
-  const facts = found?.scope === scope ? found.facts : null;
+  const facts = found?.sceneScope === sceneScope ? found.facts : null;
 
   useEffect(() => { void photoCheckInstalled().then(setInstalled, () => setInstalled(false)); }, []);
   useEffect(() => { setAsked(false); setUndo(null); setConsent(false); }, [photoKey, mode]);
@@ -89,11 +91,14 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVe
     checkAbort.current?.abort();
     checkAbort.current = controller;
     const request = ++requestId.current;
+    // A deliberate recheck should reveal the new result, not temporarily
+    // leave the previous scene text visible as if it were fresh inference.
+    setFound(null);
     setPhase('checking');
     try {
       const result = await runPhotoCheck(preview, controller.signal);
       if (request === requestId.current && scopeRef.current === scope && !controller.signal.aborted) {
-        setFound({ scope, facts: result.facts });
+        setFound({ sceneScope, facts: result.facts });
         setPhase('idle');
       }
     } catch (error) {
@@ -109,7 +114,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVe
   // Glide and Soar: read the scene once the picture and recipe have been still for a moment. Fly Solo: never unprompted.
   useEffect(() => {
     if (mode === 'solo' || !installed || disabled || !histogram ||
-      found?.scope === scope || cancelledFor.current === scope ||
+      found?.sceneScope === sceneScope || cancelledFor.current === scope ||
       autoAttempted.current === sceneScope || phase !== 'idle') return;
     const timer = window.setTimeout(() => {
       autoAttempted.current = sceneScope; // even a failed or cancelled check needs deliberate retry
@@ -177,9 +182,15 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVe
         )}
       </div>
       {facts && (
-        <p className="text-zinc-400" role="status">{t.advice.scene}: {facts.light ? t.advice.lights[facts.light] : t.advice.verdict.unsure}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-zinc-400" role="status">{t.advice.scene}: {facts.light ? t.advice.lights[facts.light] : t.advice.verdict.unsure}</p>
+          {installed && phase === 'idle' && (
+            <button type="button" className="min-h-9 px-1 text-zinc-300 underline hover:text-white" disabled={disabled}
+              onClick={() => void check()}>{t.advice.check}</button>
+          )}
+        </div>
       )}
-      {installed && (mode === 'solo' || autoAttempted.current === sceneScope) && phase === 'idle' && !facts && (
+      {installed && (mode === 'solo' || autoAttempted.current === sceneScope) && phase !== 'checking' && phase !== 'installing' && !facts && (
         <button type="button" className="min-h-9 text-zinc-300 underline hover:text-white" disabled={disabled}
           onClick={() => void check()}>{t.advice.check}</button>
       )}
