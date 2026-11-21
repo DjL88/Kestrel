@@ -12,6 +12,7 @@ import { parseControlPlaneUrl } from '../core/licenceOnline';
 import { readAccountAiConsent, setAccountAiConsent, type ManagedAiConsentStatus } from '../providers/accountAiConsent';
 import { DEV_PRO_PREVIEW_MODE } from '../providers/useAccess';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
+import { SignInMark } from './SignInMark';
 import { LicenceOnlineStatus } from './LicenceOnlineStatus';
 import { messages as m } from '../i18n/messages';
 import { projectsText as t } from '../i18n/areas/projects';
@@ -222,7 +223,7 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
                 <p>Signing in lets you manage optional account features, including the online AI helper when available. Importing, culling, editing and exporting never need an account.</p>
                 <div className="flex flex-wrap gap-2">
                   {signInOptions(signInPlatform(), isSignInConfigured()).map((option) => (
-                    <button key={option.provider} type="button" className={`${action} disabled:opacity-60`} disabled={!option.available} aria-describedby={option.reason ? 'account-reason' : undefined} onClick={() => void chooseSignIn(option.provider)}>{option.label}</button>
+                    <button key={option.provider} type="button" className={`${action} inline-flex items-center gap-2 disabled:opacity-60`} disabled={!option.available} aria-describedby={option.reason ? 'account-reason' : undefined} onClick={() => void chooseSignIn(option.provider)}><SignInMark provider={option.provider === 'apple' ? 'apple' : 'google'} />{option.label}</button>
                   ))}
                 </div>
                 {isSignInConfigured() && (
