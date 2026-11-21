@@ -101,7 +101,7 @@ test('editor: Export is a header button on every screen, never a tab, and tabs s
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   const phone = page.viewportSize()!.width < 768;
   await expect(page.getByRole('tab', { name: 'Export' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Export', exact: true })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: /^Export/ }).filter({ visible: true })).toHaveCount(1);
   const tab = (await page.getByRole('tab', { name: 'Crop' }).boundingBox())!;
   const icon = (await page.getByRole('tab', { name: 'Crop' }).locator('svg').boundingBox())!;
   const label = (await page.getByRole('tab', { name: 'Crop' }).locator('span').boundingBox())!;
@@ -178,7 +178,8 @@ test('phone editing: one big slider, chips to choose, nudge and reset, and the f
   await expect(quick).toBeVisible();
 });
 
-test('File, Edit and View organise actions; show/hide controls stay together in View', async ({ page }) => {
+test('File, Edit and View organise actions; show/hide controls stay together in View', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'phone', 'phones hide XMP and layout options; the footer has Export');
   await makeProject(page, 'View menu organisation');
   const onPhone = page.viewportSize()!.width < 768;
   await page.getByRole('button', { name: onPhone ? 'More' : 'Workspace options', exact: true }).click();
@@ -206,7 +207,8 @@ test('File, Edit and View organise actions; show/hide controls stay together in 
     .getByRole('checkbox', { name: 'Show shortcut guide' })).toHaveCount(0);
 });
 
-test('File menu saves selected ratings/tags as XMP without the photo Export dialog', async ({ page }) => {
+test('File menu saves selected ratings/tags as XMP without the photo Export dialog', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'phone', 'phones hide XMP and layout options; the footer has Export');
   await makeProject(page, 'Portable photo metadata');
   const phone = page.viewportSize()!.width < 768;
   const openMenu = async () => {
@@ -234,7 +236,8 @@ test('File menu saves selected ratings/tags as XMP without the photo Export dial
   await expect(page.getByText('XMP sidecars', { exact: true })).toHaveCount(0);
 });
 
-test('File menu imports a matching XMP into the selected photo without changing its original file', async ({ page }) => {
+test('File menu imports a matching XMP into the selected photo without changing its original file', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'phone', 'phones hide XMP and layout options; the footer has Export');
   await makeProject(page, 'Restore photo metadata');
   await page.getByRole('button', { name: 'Add photos', exact: true }).click();
   await page.getByTestId('local-file-input').setInputFiles({

@@ -18,7 +18,7 @@ async function makeProject(page: Page, name: string) {
 test('a project opens again after an export and after leaving the library', async ({ page }) => {
   await makeProject(page, 'Export then reopen');
   // Open the export dialog from the header, prepare the default export, then close the dialog.
-  await page.locator('header').getByRole('button', { name: 'Export' }).first().click();
+  await page.getByRole('button', { name: 'Export' }).filter({ visible: true }).first().click();
   const dialog = page.getByRole('dialog', { name: /Export/ });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: /^Prepare/ }).click();
@@ -48,7 +48,7 @@ test('sharing keeps the prepared files on cancellation and closes export after h
     });
   });
   await makeProject(page, 'Share then reopen');
-  await page.locator('header').getByRole('button', { name: 'Export' }).first().click();
+  await page.getByRole('button', { name: 'Export' }).filter({ visible: true }).first().click();
   const dialog = page.getByRole('dialog', { name: /Export/ });
   await dialog.getByRole('checkbox', { name: /^Full size · PNG/ }).check();
   await dialog.getByRole('button', { name: /^Prepare/ }).click();

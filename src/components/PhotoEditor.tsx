@@ -1993,7 +1993,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
         </>
       ); })()}
       {/* Export is always in the header (phones included): the tab bar keeps only editing tabs. */}
-      {!demoOnly && !focusPhoto && headerSlot && createPortal(<div className="max-md:hidden">{exportButton}</div>, headerSlot)}
+      {!demoOnly && !focusPhoto && headerSlot && createPortal(<div className={typeof document !== 'undefined' && document.querySelector('[data-footer-export]') ? 'max-md:hidden' : undefined}>{exportButton}</div>, headerSlot)}
       {isPhone && !focusPhoto && tabList}
       </div>
       {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}

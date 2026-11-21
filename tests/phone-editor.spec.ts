@@ -29,7 +29,8 @@ test('on a phone the edit screen is a pure editor: one footer row of editing tab
   expect(new Set(boxes.map((box) => box.top)).size, 'all tabs share one row').toBe(1);
   const viewport = page.viewportSize()!;
   expect(viewport.height - boxes[0]!.bottom, 'the tabs sit at the very bottom (the safe area aside)').toBeLessThan(40);
-  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
+  // Export lives in the footer on phones.
+  await expect(page.getByRole('button', { name: /^Export/ }).filter({ visible: true }).first()).toBeVisible();
   // With a tool sheet open the photo still has at least two thirds of the editor's height.
   await page.getByRole('tab', { name: 'Edit' }).click();
   const ratio = await page.locator('[data-photo-stage]').evaluate((stage) => stage.getBoundingClientRect().height / (stage.closest('section')?.getBoundingClientRect().height ?? 1));
