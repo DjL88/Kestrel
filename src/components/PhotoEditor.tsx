@@ -1382,7 +1382,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
             onStepBack={() => onHistoryStep(-1)} onStepForward={() => onHistoryStep(1)} peeking={displayCompare} onPeek={() => setCompare(!compare)} onShowAll={() => setAllControls(true)} />
         ))}
         <PhotoAdvice histogram={histogram} edit={edit} mode={guidanceMode}
-          photoKey={frame.stableKey} version={framingKey(framing) + ':' + sourceState}
+          photoKey={frame.stableKey} version={framingKey(framing) + ':' + sourceState} sourceVersion={source}
           disabled={sourceState !== 'ready'} onEdit={onEdit} readPreview={advicePreview} />
         <div className={isPhone && !allControls ? 'hidden' : 'space-y-2'}>
         <div className="space-y-2 px-1 py-2">
