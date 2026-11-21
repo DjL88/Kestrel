@@ -4,7 +4,7 @@ import type { PhotoFrame } from './types';
 import { parsePhotoSearch, photoSearchableText, retainPhotoSearchEvidence, searchPhotoCollection } from './photoSearch';
 import { filterFrames } from './cullingEngine';
 import { projectSearchText } from './projects';
-import { encodeProjectBackup } from './projectBackup';
+import { encodeProjectBackup, restoreProjectBackup } from './projectBackup';
 import { createDemoShootState } from './cullingEngine';
 
 const at = (year: number, month: number, day = 15) => Date.UTC(year, month - 1, day, 12);
@@ -133,4 +133,8 @@ test('local OCR does not leak into portable/cloud project backup by default', ()
   });
   assert.match(photoSearchableText(state.frames[0]), /PRIVATE RING/);
   assert.doesNotMatch(encodeProjectBackup(state), /PRIVATE RING NUMBER 7425/);
+  const crafted = JSON.parse(encodeProjectBackup(state));
+  crafted.project.frames[0].searchEvidence = state.frames[0].searchEvidence;
+  const restored = restoreProjectBackup(JSON.stringify(crafted), 'new-shoot', 1000);
+  assert.equal(restored.frames[0].searchEvidence, undefined);
 });
