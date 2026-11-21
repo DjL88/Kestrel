@@ -75,7 +75,7 @@ test('never contacts arbitrary HTTP sites or authenticates without Firebase logi
 });
 
 test('invalid server answers and mismatched acknowledgement never masquerade as consent success', async () => {
-  const server = (async (input: RequestInfo | URL, init: RequestInit = {}) => {
+  const server = (async (input: RequestInfo | URL) => {
     const path = new URL(String(input)).pathname;
     if (path === '/v1/auth/firebase') return new Response(JSON.stringify({ accessToken: 'token' }), { status: 200 });
     if (path === '/v1/me/entitlements') return new Response(JSON.stringify({ aiConsent: 'true', plans: [] }), { status: 200 });
