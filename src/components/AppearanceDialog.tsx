@@ -26,7 +26,7 @@ export function AppearanceDialog({ side, onSideChange, hand, onHandChange, guida
   const [aiSetupOpen, setAiSetupOpen] = useState(initialSection === 'ai');
   const [storageOpen, setStorageOpen] = useState(initialSection === 'storage');
   return (
-    <div role="presentation" className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] workspace:items-center"
+    <div role="presentation" className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] workspace:items-center"
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section role="dialog" aria-modal="true" aria-label={m.appearance.dialogLabel}
         onKeyDown={(event) => {
@@ -61,7 +61,7 @@ export function AppearanceDialog({ side, onSideChange, hand, onHandChange, guida
           {storageOpen && <ConnectionsPanel />}
         </section>
         {onOpenMacroPad && isDesktopApp() && (
-          <button type="button" onClick={() => { onClose(); onOpenMacroPad(); }}
+          <button type="button" data-phone-hidden onClick={() => { onClose(); onOpenMacroPad(); }}
             className="flex min-h-11 w-full items-center gap-2 rounded-md border border-white/15 px-3 text-sm text-zinc-200 hover:bg-white/10">
             <Keyboard className="h-4 w-4" aria-hidden="true" />{m.appearance.shortcuts}
           </button>

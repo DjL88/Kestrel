@@ -1169,11 +1169,12 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
   /** One tab bar. On a phone it is a bottom toolbar of large icons, and on wider screens the top of the side panel. */
   // On a phone Export is the last tab in the bottom bar. On a wider screen it is a button in the header instead,
   // which leaves the side panel's tabs with room to breathe.
-  const visibleTabs = TABS.filter((entry) => (entry.id !== 'export' || (isPhone && !demoOnly)) && (isPhone || !hiddenTabs.has(entry.id)));
+  // The header's Export button is the way to export on every screen, so the phone's tab bar keeps only editing tabs.
+  const visibleTabs = TABS.filter((entry) => entry.id !== 'export' && (isPhone || !hiddenTabs.has(entry.id)));
   const tabList = (
     <div role="tablist" aria-label={t.editor.tablist}
       className={isPhone
-        ? 'grid shrink-0 grid-cols-5 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]'
+        ? `grid shrink-0 ${visibleTabs.length === 4 ? 'grid-cols-4' : 'grid-cols-5'} border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]`
         : 'sticky top-0 z-20 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 workspace:-mx-4 workspace:px-3'}
       onKeyDown={(event) => {
         const order = visibleTabs.map((entry) => entry.id);
@@ -1209,6 +1210,12 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
   );
 
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
+  const exportButton = (
+    <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? t.editor.exportSelectedTitle(exportCount) : t.editor.exportTitle}
+          className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}>
+          <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? t.editor.exportCount(exportCount) : t.editor.export}
+    </button>
+  );
   // One set of independent panel controls serves both the View menu and the
   // desktop tab's right-click menu. Both read the same device-local state.
   const tabLayoutControls = (inContextMenu: boolean) => (
@@ -1734,17 +1741,8 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
         )}
         {/* Full screen lives in one place, the filmstrip bar (FilmstripDock), in the editor and culling alike. */}
         {/* Export sits in the top row, where the library has it. */}
-        {!demoOnly && (headerSlot ? createPortal(<>
-        <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? t.editor.exportSelectedTitle(exportCount) : t.editor.exportTitle}
-          className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}>
-          <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? t.editor.exportCount(exportCount) : t.editor.export}
-        </button>
-        </>, headerSlot) : <>
-        <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? t.editor.exportSelectedTitle(exportCount) : t.editor.exportTitle}
-          className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}>
-          <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? t.editor.exportCount(exportCount) : t.editor.export}
-        </button>
-        </>)}
+        {/* Without the header slot, Export stays in this row. With it, Export is placed in the header below, so it is there even when this row is hidden. */}
+        {!demoOnly && !headerSlot && exportButton}
 
         </div>
       </div>}
@@ -1935,7 +1933,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
         setSliderBusy(true);
         window.clearTimeout(sliderTimer.current);
         sliderTimer.current = window.setTimeout(() => setSliderBusy(false), 700);
-      }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={floatingTools ? 'h-full min-h-0 w-full space-y-2 overflow-y-auto bg-kestrel-panel p-3' : `${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
+      }} data-tools-panel style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={floatingTools ? 'h-full min-h-0 w-full space-y-2 overflow-y-auto bg-kestrel-panel p-3' : `${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
         {!isPhone && <div className="sticky top-0 z-20 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
           {!floatingTools && !isPhone && <button data-editor-undock type="button"
             aria-label={libraryT.floatingPane.undockTab(TABS.find((entry) => entry.id === tab)?.label ?? tab)}
@@ -1977,6 +1975,8 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
           )}
         </>
       ); })()}
+      {/* Export is always in the header (phones included): the tab bar keeps only editing tabs. */}
+      {!demoOnly && !focusPhoto && headerSlot && createPortal(exportButton, headerSlot)}
       {isPhone && !focusPhoto && tabList}
       </div>
       {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}

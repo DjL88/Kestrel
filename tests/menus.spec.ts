@@ -59,12 +59,12 @@ test('the editor can go full screen and come back', async ({ page }) => {
     buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
   });
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  const full = page.getByRole('button', { name: 'Full screen' });
-  test.skip(!(await full.count()), 'This browser does not allow full screen');
+  const full = page.locator('[data-filmstrip-dock]').getByRole('button', { name: 'Full screen', exact: true });
+  test.skip(!(await full.count()) || page.viewportSize()!.width < 768, 'This browser does not allow full screen, and phones do not offer it');
   await full.click();
   await expect(page.getByRole('button', { name: 'Leave full screen' })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Leave full screen' }).click();
-  await expect(page.getByRole('button', { name: 'Full screen' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('[data-filmstrip-dock]').getByRole('button', { name: 'Full screen', exact: true })).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('rating filter is one row of stars: tap sets, tap again clears, the symbol flips to exactly', async ({ page }) => {
@@ -92,7 +92,7 @@ test('rating filter is one row of stars: tap sets, tap again clears, the symbol 
   await expect(ratingGroup.getByRole('button', { name: 'Exactly 3 stars' })).toHaveAttribute('aria-pressed', 'false');
 });
 
-test('editor: Export is a header button on desktop and a tab on phones, and tabs stack icon over label', async ({ page }) => {
+test('editor: Export is a header button on every screen, never a tab, and tabs stack icon over label', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles({
     name: 'f.png', mimeType: 'image/png',
@@ -100,8 +100,8 @@ test('editor: Export is a header button on desktop and a tab on phones, and tabs
   });
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
   const phone = page.viewportSize()!.width < 768;
-  await expect(page.getByRole('tab', { name: 'Export' })).toHaveCount(phone ? 1 : 0);
-  await expect(page.getByRole('button', { name: 'Export', exact: true })).toHaveCount(phone ? 0 : 1);
+  await expect(page.getByRole('tab', { name: 'Export' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Export', exact: true })).toHaveCount(1);
   const tab = (await page.getByRole('tab', { name: 'Crop' }).boundingBox())!;
   const icon = (await page.getByRole('tab', { name: 'Crop' }).locator('svg').boundingBox())!;
   const label = (await page.getByRole('tab', { name: 'Crop' }).locator('span').boundingBox())!;
@@ -189,11 +189,12 @@ test('File, Edit and View organise actions; show/hide controls stay together in 
   await expect(view).toHaveCount(1);
   await view.locator('summary').click();
   await expect(view.getByRole('checkbox', { name: 'Show filmstrip' })).toBeVisible();
-  await expect(view.getByRole('checkbox', { name: 'Photo info' })).toBeVisible();
+  await expect(view.getByRole('checkbox', { name: 'Photo info', exact: true })).toBeVisible();
   await expect(view.getByRole('checkbox', { name: 'Photo-only view (F)' })).toBeVisible();
-  await expect(view.getByRole('checkbox', { name: 'Show shortcut guide' })).toBeVisible();
+  // The keyboard shortcut guide is not offered on a phone (no keyboard).
+  await expect(view.getByRole('checkbox', { name: 'Show shortcut guide' })).toBeVisible({ visible: !onPhone });
   await expect(view.getByRole('button', { name: 'Group or ungroup bursts' })).toBeVisible();
-  const info = view.getByRole('checkbox', { name: 'Photo info' });
+  const info = view.getByRole('checkbox', { name: 'Photo info', exact: true });
   await info.check();
   await expect(info).toBeChecked();
   await info.uncheck();

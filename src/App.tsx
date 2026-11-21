@@ -2064,7 +2064,7 @@ export default function App() {
         <header className="relative z-40 flex shrink-0 items-center gap-2 border-b border-white/10 bg-kestrel-panel px-2 py-1 sm:gap-3 sm:px-3">
           <button type="button" onClick={leaveEditor} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300" aria-label={t.header.back} title={t.header.backTitle}><ArrowLeft className="h-4 w-4" aria-hidden="true" />{t.header.back}</button>
           {/* The View menu is the only home for show/hide controls in Edit, just as in Review. */}
-          <details className="relative shrink-0" onKeyDown={(event) => {
+          <details data-phone-hidden className="relative shrink-0" onKeyDown={(event) => {
             if (event.key !== 'Escape') return;
             event.preventDefault();
             event.stopPropagation();
@@ -2550,7 +2550,7 @@ export default function App() {
           )}
 
           {editing && selectedFrame && (
-            <div role="toolbar" aria-label={t.editorBar.label}
+            <div role="toolbar" data-hide-on-phone-edit aria-label={t.editorBar.label}
               className={`${prefs.focusMode ? 'hidden ' : ''}mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center gap-1 overflow-x-auto border-t border-white/10 bg-kestrel-panel px-2`}>
               {/* Section F: one footer order across Review and Edit — navigation, actions, then zoom. */}
               <button type="button" aria-label={t.editorBar.previous} title={t.editorBar.previousTitle} disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) <= 0} onClick={() => handleStepFrame(-1)}
