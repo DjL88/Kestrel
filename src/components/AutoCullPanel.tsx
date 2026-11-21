@@ -1,7 +1,7 @@
 import { tasks } from '../core/taskStore';
 import { useEffect, useRef, useState } from 'react';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
-import { X } from 'lucide-react';
+import { X } from './icons/KestrelUIIcons';
 import type { CullSuggestion } from '../core/autoCull';
 import { planKeeperTier, type KeeperTier } from '../core/keeperTiers';
 import { summarizeCullSuggestions } from '../core/autoCullSummary';
