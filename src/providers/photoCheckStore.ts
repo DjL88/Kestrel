@@ -13,6 +13,9 @@ export interface InstallOptions {
   fetchImpl?: typeof fetch;
 }
 const slots = () => indexedDbAssetSlots();
+// Integrity-check the 264 MB pack once per app session, not on every editor mount.
+// Every actual inference still reads and re-verifies each model file.
+let verification: Promise<boolean> | null = null;
 
 async function download(url: string, expected: number, options: InstallOptions, onBytes: (n: number) => void): Promise<Uint8Array> {
   const response = await (options.fetchImpl ?? fetch)(url, { signal: options.signal, credentials: 'omit', cache: 'no-store' });
@@ -34,6 +37,7 @@ async function download(url: string, expected: number, options: InstallOptions, 
 
 /** The photographer has chosen to install: fetch, verify and activate each pinned file. Safe to retry or cancel at any point. */
 export async function installPhotoCheck(options: InstallOptions = {}): Promise<void> {
+  verification = null;
   const base = (options.baseUrl ?? PHOTO_CHECK_BASE_URL).replace(/\/$/, '');
   const store = slots();
   let received = 0;
@@ -52,6 +56,7 @@ export async function installPhotoCheck(options: InstallOptions = {}): Promise<v
       smokeTest: async () => { /* the pinned digest is the check; the model itself is exercised on first use */ },
     });
   }
+  verification = Promise.resolve(true); // each activation verified the exact pinned bytes
 }
 
 /** All four files, each re-verified against its pinned digest as it is read. Null when anything is missing or corrupt. */
@@ -60,18 +65,19 @@ export async function readPhotoCheckFiles(): Promise<SmolVlmFiles | null> {
   const read: Record<string, Uint8Array> = {};
   for (const file of PHOTO_CHECK_PACK.files) {
     const bytes = await readVerifiedActive(store, packAssetId(file));
-    if (!bytes) return null;
+    if (!bytes) { verification = Promise.resolve(false); return null; }
     read[file.key] = bytes;
   }
   return { vision: read.vision, embed: read.embed, decoder: read.decoder, tokenizer: JSON.parse(new TextDecoder().decode(read.tokenizer)) };
 }
-export async function photoCheckInstalled(): Promise<boolean> {
+async function verifyInstalled(): Promise<boolean> {
   const store = slots();
-  // A pointer alone does NOT mean that a 260 MB model is intact.
-  // Missing, truncated or corrupt chunks must show the Install option,
-  // rather than leaving the photographer with a permanently failed Check.
   for (const file of PHOTO_CHECK_PACK.files) {
     if (!(await readVerifiedActive(store, packAssetId(file)))) return false;
   }
   return true;
+}
+export function photoCheckInstalled(): Promise<boolean> {
+  verification ??= verifyInstalled().catch(() => false);
+  return verification;
 }
