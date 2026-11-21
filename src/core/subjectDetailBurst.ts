@@ -40,7 +40,7 @@ const box = (b: NormalisedBox | undefined): b is NormalisedBox =>
   !!b && unit(b.x) && unit(b.y) && unit(b.width) && unit(b.height) &&
   b.width > 0 && b.height > 0 && b.x + b.width <= 1.00000001 && b.y + b.height <= 1.00000001;
 const cropAround = (b: NormalisedBox): NormalisedBox => {
-  const side = Math.min(1, Math.max(b.width, b.height) * 2.5, 0.08);
+  const side = Math.min(1, Math.max(0.08, Math.max(b.width, b.height) * 2.5));
   const x = Math.max(0, Math.min(1 - side, b.x + b.width / 2 - side / 2));
   const y = Math.max(0, Math.min(1 - side, b.y + b.height / 2 - side / 2));
   return { x, y, width: side, height: side };

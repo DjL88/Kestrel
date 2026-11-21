@@ -46,7 +46,7 @@ export async function verifySignedModelManifest(
   const key = policy.keys.get(envelope.keyId);
   if (!key || key.algorithm.name !== 'Ed25519' || key.type !== 'public' ||
       !key.usages.includes('verify') ||
-      !(await crypto.subtle.verify('Ed25519', key, envelope.signature, envelope.payload))) {
+      !(await crypto.subtle.verify('Ed25519', key, envelope.signature as BufferSource, envelope.payload as BufferSource))) {
     throw new Error('Model manifest signature not trusted');
   }
   const raw: unknown = JSON.parse(decoder.decode(envelope.payload));
@@ -81,7 +81,7 @@ export async function verifySignedModelManifest(
 export async function verifyModelBytes(model: TrustedModel, bytes: Uint8Array): Promise<void> {
   if (!(bytes instanceof Uint8Array) || bytes.byteLength !== model.bytes ||
       !HEX.test(model.sha256) || !validPath(model.path)) throw new Error('Model size or path mismatch');
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as BufferSource));
   const hex = Array.from(digest, b => b.toString(16).padStart(2, '0')).join('');
   if (hex !== model.sha256) throw new Error('Model content digest mismatch');
 }
