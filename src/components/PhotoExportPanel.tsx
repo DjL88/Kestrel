@@ -237,7 +237,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       if (!original) throw new Error(editorT.raw.masterReconnect);
       const shown = await loadExportSource(frame, provider);
       const tiff = await exportRaw16Tiff(
-        original, shown, frame.edit ?? DEFAULT_EDIT, frame.framing,
+        original, frame.filename, shown, frame.edit ?? DEFAULT_EDIT, frame.framing,
         metadataForExport(frame, metadata),
       );
       // The 16-bit TIFF keeps its sensor-derived pixels. Descriptive XMP is
