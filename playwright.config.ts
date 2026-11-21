@@ -2,6 +2,9 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
+  // These specs import source modules by URL (`/src/...`), which only the Vite dev server serves, not the built preview
+  // used here. They run against the dev server instead: `npm run test:e2e:dev` (playwright.dev.config.ts).
+  testIgnore: /verified-asset-.*\.spec\.ts/,
   // Many steps wait up to 60s for on-device model work (subject finder, species, auto-cull). Playwright's 30s default
   // cut those waits short whenever several browsers ran at once, so tests failed on load rather than on behaviour.
   timeout: 90_000,

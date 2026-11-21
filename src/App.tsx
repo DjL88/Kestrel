@@ -36,7 +36,7 @@ import { useBackgroundDevelop } from './useBackgroundDevelop';
 import { SpeciesScanBanner } from './components/SpeciesScanBanner';
 import { addTags, type SubjectKind } from './core/subjectTags';
 import type { ImportedPhotoSidecar } from './core/photoSidecar';
-import { applyAutoTag, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTags';
+import { applyAutoTag, disputePatch, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTags';
 import { burstMates, tagFrames } from './core/speciesBurst';
 import { loadImage } from './providers/loadImage';
 import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
@@ -1235,7 +1235,7 @@ export default function App() {
     [selectedFrame, handleDecideFrame, toggleCompareView, prefs.knobMode, handleStepFrame]
   );
 
-  const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames' | 'tags' | 'subjectKind' | 'autoTags' | 'declinedTags' | 'rating' | 'framing' | 'focusPoint'>) => {
+  const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames' | 'tags' | 'subjectKind' | 'autoTags' | 'declinedTags' | 'rating' | 'framing' | 'focusPoint' | 'subjectDisputed'>) => {
     const at = Date.now();
     const isRecipe = 'edit' in patch || 'framing' in patch;
     setCullingState((prev) => ({
@@ -1260,7 +1260,8 @@ export default function App() {
 
   // Tags and kind for any photo, from the editor or from the info pop-up.
   const setSubjects = (frame: PhotoFrame, tags: string[], subjectKind: SubjectKind | undefined) =>
-    updateFrame(frame.id, { tags, subjectNames: [], subjectKind, ...reconcileAuto(frame, tags) });
+    // The person setting the subject themselves settles any dispute between the two readings.
+    updateFrame(frame.id, { tags, subjectNames: [], subjectKind, subjectDisputed: false, ...reconcileAuto(frame, tags) });
   /** A small copy of a photo for the species model, drawn the way the camera held it. Null when the original is not available. */
   const loadSpeciesPicture = useCallback(async (frame: PhotoFrame): Promise<HTMLCanvasElement | null> => {
     const provider = previewProviderRef.current;
@@ -1272,6 +1273,10 @@ export default function App() {
     return canvas;
   }, []);
   const keepTag = (frame: PhotoFrame, name: string) => updateFrame(frame.id, { autoTags: keepAuto(frame, name) });
+  const noteSubjectCheck = (frame: PhotoFrame, outcome: 'agreed' | 'conflict' | 'unverified') => {
+    const patch = disputePatch(frame, outcome);
+    if (patch) updateFrame(frame.id, patch);
+  };
 
   // After photos are added, name the species in the background. The subject flashes up on each card as it is found.
   const scan = useSpeciesScan({
@@ -2289,6 +2294,7 @@ export default function App() {
                 <WorkspacePaneRail kind="tools" side="left" onExpand={() => setWorkspacePanes({ folded: false })} />
               )}
             <PhotoEditor
+              onSubjectCheck={noteSubjectCheck}
               viewportTransform={{ zoom: zoomLevel, pan: panOffset }}
               onViewportTransform={(next) => {
                 setZoomLevel(next.zoom);

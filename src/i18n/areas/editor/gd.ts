@@ -113,6 +113,7 @@ export const gd: AreaTranslation<typeof source> = {
     save: 'Sàbhail an reasabaidh',
   },
   advice: {
+    subjectCheck: 'Chan eil an cuspair soilleir. Thoir sùil air mus cuir thu ainm gnè ris.',
     region: 'Sùil air an dealbh',
     verdict: { good: 'A’ coimhead math', nearly: 'Cha mhòr deiseil', 'needs-work': 'Feumar obair', unsure: 'Chan eil mi cinnteach fhathast' },
     tryThis: 'Feuch seo',
@@ -134,7 +135,7 @@ export const gd: AreaTranslation<typeof source> = {
     checking: 'A’ sgrùdadh…',
     failed: 'Cha do chrìochnaich an sgrùdadh.',
     scene: 'Sealladh',
-    subjects: { person: 'Neach', animal: 'Beathach', bird: 'Eun', landscape: 'Cruth-tìre', object: 'Nì' },
+    subjects: { person: 'Neach', animal: 'Beathach', bird: 'Eun', landscape: 'Cruth-tìre', object: 'Nì', aircraft: 'Itealan', vehicle: 'Carbad' },
     lights: { 'low-key': 'Iosal', 'high-key': 'Àrd', golden: 'Solas òrail', cool: 'Solas fuar' },
   },
   critique: {

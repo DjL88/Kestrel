@@ -25,7 +25,9 @@ export async function saveWithDialog(blob: Blob, name: string, requireMatchingEx
   // Never overwrite an existing photograph or export, even when the save
   // dialog returns an already-used filename. createNew is atomic at open time.
   // Stream large TIFFs instead of allocating another full-size byte array.
-  await writeExclusiveBlob(blob, () => open(path, { write: true, createNew: true }), () => remove(path));
+  // On a phone the system's picker has already made (and the person has already confirmed) an empty file at this path, so
+  // an exclusive create fails there and leaves a zero-byte file with "Could not save file". Write into it instead.
+  await writeExclusiveBlob(blob, () => open(path, isMobileShell() ? { write: true, truncate: true } : { write: true, createNew: true }), () => remove(path));
   // Show the saved file in Finder or Explorer. Saving has still worked if this fails.
   try {
     const { revealItemInDir } = await import('@tauri-apps/plugin-opener');

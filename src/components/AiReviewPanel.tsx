@@ -95,6 +95,8 @@ export function AiReviewPanel({ edit, onEdit, readJpeg, localFindings, version, 
   const [mode, setMode] = useState<'idle' | 'asking'>('idle');
   const [review, setReview] = useState<AiReview | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  // The edit an Apply makes is itself a version change; keep its confirmation across that one change.
+  const keepApplied = useRef(false);
   const abort = useRef<AbortController | null>(null);
   // Values are supplied by the live editor, not the review provider. When an
   // asynchronous model finishes, the same request must still own every part.
@@ -114,7 +116,8 @@ export function AiReviewPanel({ edit, onEdit, readJpeg, localFindings, version, 
     shownScope.current = null;
     setMode('idle');
     setReview(null);
-    setMessage(null);
+    setMessage(keepApplied.current ? t.applied : null);
+    keepApplied.current = false;
     // The version tuple has a fixed shape controlled by PhotoEditor.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [edit, settings, disabled, ...version]);
@@ -212,6 +215,7 @@ export function AiReviewPanel({ edit, onEdit, readJpeg, localFindings, version, 
               const delta = Object.fromEntries(suggestion.map(([slider, value]) => [slider, value - (Number(edit[slider as keyof PhotoEdit]) || 0)]));
               onEdit(applyFix(edit, { kind: 'global', delta }));
               shownScope.current = null;
+              keepApplied.current = true;
               setReview(null);
               setMessage(t.applied);
             }}>{t.apply}</button>}

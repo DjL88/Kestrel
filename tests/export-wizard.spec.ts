@@ -3,6 +3,11 @@ import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
 import { openExportDialog } from './helpers';
 
+// The export panel opens in its compact list view by default (#708); the step-by-step wizard is a stored choice.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => { try { localStorage.setItem('kestrel.exportView', 'wizard'); } catch { /* optional preference */ } });
+});
+
 test('export wizard: platform, size, position, then export', async ({ page }) => {
   await page.goto('/');
   const png = await page.evaluate(() => {
@@ -49,7 +54,7 @@ test('export wizard: platform, size, position, then export', async ({ page }) =>
   // 4. Review, back and forward keep the choices, then export.
   await expect(page.getByRole('heading', { name: 'Ready to export' })).toBeFocused();
   await expect(page.getByRole('region', { name: 'Ready to export' })).toBeVisible();
-  await expect(page.getByText('Post · 5:4').first()).toBeVisible();
+  await expect(page.getByText('Post · 5:4').locator('visible=true').first()).toBeVisible();
   await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Kite44 at dusk');
   await page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.getByRole('heading', { name: /^Position/ })).toBeFocused();

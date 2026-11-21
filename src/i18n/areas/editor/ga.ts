@@ -115,6 +115,7 @@ export const ga: AreaTranslation<typeof source> = {
     save: 'Sábháil an t-oideas',
   },
   advice: {
+    subjectCheck: 'Níl an t-ábhar soiléir. Seiceáil é sula gcuireann tú ainm speicis leis.',
     region: 'Seiceáil grianghraif',
     verdict: { good: 'Breá', nearly: 'Beagnach ann', 'needs-work': 'Tá obair ag teastáil', unsure: 'Gan a bheith cinnte go fóill' },
     tryThis: 'Bain triail as seo',
@@ -136,7 +137,7 @@ export const ga: AreaTranslation<typeof source> = {
     checking: 'Ag seiceáil…',
     failed: 'Níor chríochnaigh an tseiceáil.',
     scene: 'Radharc',
-    subjects: { person: 'Duine', animal: 'Ainmhí', bird: 'Éan', landscape: 'Tírdhreach', object: 'Réad' },
+    subjects: { person: 'Duine', animal: 'Ainmhí', bird: 'Éan', landscape: 'Tírdhreach', object: 'Réad', aircraft: 'Aerárthach', vehicle: 'Feithicil' },
     lights: { 'low-key': 'Eochair íseal', 'high-key': 'Eochair ard', golden: 'Solas órga', cool: 'Solas fuar' },
   },
   critique: {

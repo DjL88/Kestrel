@@ -113,6 +113,7 @@ export const nl: AreaTranslation<typeof source> = {
     save: 'Recept opslaan',
   },
   advice: {
+    subjectCheck: 'Het onderwerp is onduidelijk. Controleer het voordat je een soortnaam toevoegt.',
     region: 'Fotocontrole',
     verdict: { good: 'Ziet er goed uit', nearly: 'Bijna klaar', 'needs-work': 'Kan beter', unsure: 'Nog niet zeker' },
     tryThis: 'Probeer dit',
@@ -134,7 +135,7 @@ export const nl: AreaTranslation<typeof source> = {
     checking: 'Controleren…',
     failed: 'De fotocontrole is niet voltooid.',
     scene: 'Scène',
-    subjects: { person: 'Persoon', animal: 'Dier', bird: 'Vogel', landscape: 'Landschap', object: 'Voorwerp' },
+    subjects: { person: 'Persoon', animal: 'Dier', bird: 'Vogel', landscape: 'Landschap', object: 'Voorwerp', aircraft: 'Vliegtuig', vehicle: 'Voertuig' },
     lights: { 'low-key': 'Low-key', 'high-key': 'High-key', golden: 'Gouden licht', cool: 'Koel licht' },
   },
   critique: {

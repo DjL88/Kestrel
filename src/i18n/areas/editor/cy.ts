@@ -115,6 +115,7 @@ export const cy: AreaTranslation<typeof source> = {
     save: 'Cadw’r rysáit',
   },
   advice: {
+    subjectCheck: 'Mae’r pwnc yn aneglur. Gwiriwch ef cyn ychwanegu enw rhywogaeth.',
     region: 'Gwirio’r llun',
     verdict: { good: 'Yn edrych yn dda', nearly: 'Bron yno', 'needs-work': 'Angen gwaith', unsure: 'Ddim yn siŵr eto' },
     tryThis: 'Rhowch gynnig ar hyn',
@@ -136,7 +137,7 @@ export const cy: AreaTranslation<typeof source> = {
     checking: 'Yn gwirio…',
     failed: 'Wnaeth y gwirio ddim gorffen.',
     scene: 'Golygfa',
-    subjects: { person: 'Person', animal: 'Anifail', bird: 'Aderyn', landscape: 'Tirwedd', object: 'Gwrthrych' },
+    subjects: { person: 'Person', animal: 'Anifail', bird: 'Aderyn', landscape: 'Tirwedd', object: 'Gwrthrych', aircraft: 'Awyren', vehicle: 'Cerbyd' },
     lights: { 'low-key': 'Allwedd isel', 'high-key': 'Allwedd uchel', golden: 'Golau euraidd', cool: 'Golau oer' },
   },
   critique: {

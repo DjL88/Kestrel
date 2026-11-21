@@ -1125,6 +1125,8 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   ) : null;
 
   const canShare = files.length > 0 && navigator.canShare?.({ files });
+  const shareFirst = Boolean(canShare) && isMobileShell();
+  const primaryClass = 'bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!';
   const featuredGroups = SHARED_SOCIAL_SIZES.filter(group => FEATURED_SIZE_IDS.has(group.canonical.id));
   const otherGroups = SHARED_SOCIAL_SIZES.filter(group => !FEATURED_SIZE_IDS.has(group.canonical.id));
   return (
@@ -1176,11 +1178,18 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               {saving ? t.results.saving : savedName ? t.results.saved(savedName) : t.results.ready(files.length)}
             </p>
             <div className="flex flex-wrap gap-2">
-              {files.length === 1 && <button type="button" aria-busy={saving} className={`${button} inline-flex items-center gap-2 bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover! max-sm:w-full max-sm:justify-center`}
+              {/* On a phone the share sheet comes first: it can put the photos straight into the camera roll (Save Image) or send
+                  them to any app, while saving a ZIP or file goes through the Files app. */}
+              {shareFirst && <button type="button" className={`${button} inline-flex items-center gap-2 ${primaryClass} max-sm:w-full max-sm:justify-center`} disabled={saving || placeBusy} onClick={() => {
+                void navigator.share({ files }).catch((reason) => {
+                  if ((reason as Error).name !== 'AbortError') setError(t.results.shareFailed);
+                });
+              }}>{t.results.share}</button>}
+              {files.length === 1 && <button type="button" aria-busy={saving} className={`${button} inline-flex items-center gap-2 ${shareFirst ? 'border border-white/20' : primaryClass} max-sm:w-full max-sm:justify-center`}
                 disabled={saving || placeBusy} onClick={() => void deliver(files[0], files[0].name, frames.slice(0, 1))}>
                 {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
                 {saving ? t.results.saving : desktop ? t.results.save : t.results.download}</button>}
-              {files.length > 1 && <button type="button" aria-busy={saving || !zip} disabled={saving || placeBusy || !zip} className={`${button} inline-flex items-center gap-2 bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover! max-sm:w-full max-sm:justify-center`}
+              {files.length > 1 && <button type="button" aria-busy={saving || !zip} disabled={saving || placeBusy || !zip} className={`${button} inline-flex items-center gap-2 ${shareFirst ? 'border border-white/20' : primaryClass} max-sm:w-full max-sm:justify-center`}
                 onClick={() => { if (zip) void deliver(zip, 'kestrel-exports.zip', frames); }}>
                 {(saving || !zip) && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
                 {saving ? t.results.saving : zip ? (desktop ? t.results.saveZip : t.results.downloadZip) : t.results.packingZip}</button>}
@@ -1189,7 +1198,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               {placeTaskId !== null && <button type="button" className={button} onClick={() => tasks.cancel(placeTaskId)}>
                 {t.looks.cancel}
               </button>}
-              {canShare && <button type="button" className={button} disabled={saving || placeBusy} onClick={() => {
+              {canShare && !shareFirst && <button type="button" className={button} disabled={saving || placeBusy} onClick={() => {
                 void navigator.share({ files }).catch((reason) => {
                   if ((reason as Error).name !== 'AbortError') setError(t.results.shareFailed);
                 });
