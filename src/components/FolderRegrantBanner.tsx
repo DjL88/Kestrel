@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderKey } from 'lucide-react';
+import { FolderKey } from './icons/KestrelUIIcons';
 import { projectsText as t } from '../i18n/areas/projects';
 
 interface FolderRegrantBannerProps {

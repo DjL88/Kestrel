@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { messages as m } from '../i18n/messages';
 import { libraryText as libraryT } from '../i18n/areas/library';
-import { ChevronLeft, ChevronRight, ClipboardCopy, Download, EyeOff, LoaderCircle, PanelRight, PanelTopOpen, PictureInPicture2, Star, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardCopy, Download, EyeOff, LoaderCircle, PanelRight, PanelTopOpen, PictureInPicture2, Star, X } from './icons/KestrelUIIcons';
 import { useLongPress } from './useLongPress';
 import { exportText } from '../i18n/areas/export';
 import { downloadInBrowser } from '../providers/browserExport';

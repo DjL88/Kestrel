@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, SlidersHorizontal, X } from 'lucide-react';
+import { Check, SlidersHorizontal, X } from './icons/KestrelUIIcons';
 import { isEdited } from '../core/editedState';
 import { filmstripTileGeometry } from '../core/filmstripGeometry';
 import type { PhotoFrame } from '../core/types';

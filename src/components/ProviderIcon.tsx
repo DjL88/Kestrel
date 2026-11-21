@@ -1,4 +1,4 @@
-import { Cloud, Folder, HardDrive, Server } from 'lucide-react';
+import { Cloud, Folder, HardDrive, Server } from './icons/KestrelUIIcons';
 import type { ProviderKind } from '../core/connections';
 
 /**

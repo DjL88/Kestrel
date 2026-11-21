@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Languages } from 'lucide-react';
+import { Languages } from './icons/KestrelUIIcons';
 import { LANGUAGES, isLanguageCode, languageOption, mergeMessages, SOURCE_LANGUAGE, type LanguageCode } from '../core/locale';
 import { enGB } from '../i18n/en-GB';
 import { chooseLanguage, deviceLanguage, keepLanguage, language, languageChosen, TRANSLATIONS, type Messages } from '../i18n/messages';

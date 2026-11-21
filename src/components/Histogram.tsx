@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowUpToLine } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpToLine } from './icons/KestrelUIIcons';
 import { histogramBars, type Histogram as HistogramData } from '../core/histogram';
 import { interpretHistogram } from '../core/histogramNotes';
 import { editorText as t } from '../i18n/areas/editor';

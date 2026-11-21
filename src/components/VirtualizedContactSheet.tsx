@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, CircleHelp, Ellipsis, Info, SlidersHorizontal, Square, SquareCheck, Star, X } from 'lucide-react';
+import { Check, CircleHelp, Ellipsis, Info, SlidersHorizontal, Square, SquareCheck, Star, X } from './icons/KestrelUIIcons';
 import type { CullDecision, PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
 import { isEdited } from '../core/editedState';

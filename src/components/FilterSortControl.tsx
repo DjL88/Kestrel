@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDownUp, ListFilter, Search } from 'lucide-react';
+import { ArrowDownUp, ListFilter, Search } from './icons/KestrelUIIcons';
 import type { RatingFilter, SortOrder } from '../core/types';
 import { RatingFilterControl } from './RatingFilterControl';
 import { libraryText as t } from '../i18n/areas/library';

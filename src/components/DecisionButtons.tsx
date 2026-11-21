@@ -1,4 +1,4 @@
-import { Check, CircleHelp, RotateCcw, X } from 'lucide-react';
+import { Check, CircleHelp, RotateCcw, X } from './icons/KestrelUIIcons';
 import type { CullDecision } from '../core/types';
 import { libraryText as t } from '../i18n/areas/library';
 
