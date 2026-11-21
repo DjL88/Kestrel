@@ -1,4 +1,4 @@
-import { searchWords } from './subjectTags';
+import { searchPhotoCollection } from './photoSearch';
 import { sameCaptureCamera, sameCaptureSourceFolder, safeBurstGapMs } from './burstIdentity';
 import { matchesRating } from './ratingFilter';
 import type {
@@ -338,27 +338,18 @@ export function filterFrames(
   cameraFilter?: string | null,
   lensFilter?: string | null
 ): PhotoFrame[] {
-  const query = searchQuery.trim().toLowerCase();
-  return frames.filter((frame) => {
+  const eligible = frames.filter((frame) => {
     if (frame.removedAt != null) return false;
-    if (filter !== 'all' && frame.decision !== filter) {
-      return false;
-    }
+    if (filter !== 'all' && frame.decision !== filter) return false;
     if (!matchesRating(frame, ratingFilter)) return false;
     if (cameraFilter && frame.exif.camera !== cameraFilter) return false;
     if (lensFilter && frame.exif.lens !== lensFilter) return false;
-    if (!query) return true;
-    const haystack = [
-      frame.filename,
-      frame.exif.camera ?? '',
-      frame.exif.lens ?? '',
-      frame.demoVariant?.demoSceneLabel ?? '',
-      ...searchWords(frame),
-    ]
-      .join(' ')
-      .toLowerCase();
-    return haystack.includes(query);
+    return true;
   });
+  // Match natural-language subjects, OCR and EXIF capture month on the same photo.
+  // May matches are listed first; neighbouring months are supplemental only
+  // when there are fewer than three exact matches. UI must label this expansion.
+  return searchPhotoCollection(eligible, searchQuery).matches;
 }
 
 const CONFIDENCE_RANK: Record<'high' | 'medium' | 'low', number> = { high: 2, medium: 1, low: 0 };
