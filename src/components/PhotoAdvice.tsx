@@ -35,9 +35,11 @@ const megabytes = (bytes: number) => `${Math.round(bytes / 1_000_000)} MB`;
  * nothing uploaded) it also reads the scene, which can only stop a deliberate look being "fixed". Fly Solo never runs the
  * model unless asked. Nothing is applied over the photographer's own edits.
  */
-export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVersion, disabled, onEdit, readPreview }: {
+export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVersion, disabled, onEdit, readPreview, onSubjectCheck }: {
   histogram: Histogram | null; edit: PhotoEdit; mode: GuidanceMode; photoKey: string; version: string; sourceVersion: object | null;
   disabled?: boolean; onEdit: (edit: PhotoEdit) => void; readPreview: () => HTMLCanvasElement | null;
+  /** Tells the host whether the two readings of the subject agreed, disagreed or could not both speak. */
+  onSubjectCheck?: (outcome: 'agreed' | 'conflict' | 'unverified') => void;
 }) {
   const [asked, setAsked] = useState(false);
   const [undo, setUndo] = useState<PhotoEdit | null>(null);
@@ -101,6 +103,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVe
       const result = await runPhotoCheck(preview, controller.signal);
       if (request === requestId.current && scopeRef.current === scope && !controller.signal.aborted) {
         setFound({ sceneScope, facts: result.facts, subject: result.subject });
+        onSubjectCheck?.(result.subject.state);
         setPhase('idle');
       }
     } catch (error) {
