@@ -196,3 +196,48 @@ test('durable finalization failure leaves a visible failed Task Manager job', as
   assert.equal(store.list()[0].state, 'failed');
   assert.match(store.list()[0].detail ?? '', /Checkpoint disk full/);
 });
+
+test('cancelling a waiting export never marks its Task Manager entry completed', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let firstStarted = false;
+  const first = queue.enqueue({ title: 'First', items: [photos[0]], recipe: {} }, {
+    async render() { firstStarted = true; await gate; return 'pixels'; },
+    async save() {},
+  });
+  for (let i = 0; i < 10 && !firstStarted; i++) await tick();
+  assert.equal(firstStarted, true);
+  let secondRendered = false;
+  const second = queue.enqueue({ title: 'Waiting', items: [photos[0]], recipe: {} }, {
+    async render() { secondRendered = true; return 'pixels'; },
+    async save() {},
+  });
+  assert.equal(second.cancel(), true);
+  assert.equal(await second.done, 'cancelled');
+  assert.equal(secondRendered, false);
+  assert.notEqual(store.list().find(task => task.title === 'Waiting')?.state, 'done');
+  release();
+  assert.equal(await first.done, 'completed');
+});
+
+test('cancelling while durable finalization throws leaves failed, never completed, Task Manager status', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let finalizing = false;
+  const ticket = queue.enqueue({ title: 'Interrupted commit', items: [photos[0]], recipe: {} }, {
+    async render() { return 'pixels'; },
+    async save() {},
+    async finalize() { finalizing = true; await gate; throw new Error('Interrupted checkpoint'); },
+  });
+  for (let i = 0; i < 10 && !finalizing; i++) await tick();
+  assert.equal(finalizing, true);
+  assert.equal(ticket.cancel(), true);
+  release();
+  assert.equal(await ticket.done, 'cancelled');
+  assert.equal(store.list()[0].state, 'failed');
+  assert.notEqual(store.list()[0].state, 'done');
+});
