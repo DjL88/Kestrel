@@ -380,6 +380,7 @@ export const nb: AreaTranslation<typeof source> = {
     undockInfoHelp: "Flytt bildeinformasjonen til et vindu som kan endre størrelse",
     move: (title) => `Flytt ${title} med piltastene`,
     drag: (title) => `Dra for å flytte ${title}, eller bruk piltastene`,
+    resize: (title) => `Endre størrelsen på ${title}: dra eller bruk piltastene`,
     restore: (title) => `Gjenopprett størrelsen på panelet ${title}`,
     maximise: (title) => `Maksimer panelet ${title}`,
     pin: (title) => `Hold ${title} synlig i Bare bilde-modus`,
