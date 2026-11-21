@@ -5,7 +5,7 @@
 
 ## Live integration update — same day, after worker merges
 
-**DO NOT recreate or overwrite flight guidance while installing local vision models.** Integration is now collected in **[draft PR #684](https://github.com/DjL88/Kestrel/pull/684)**, branch \`integrate/flight-guidance-current-main-20261121\`, which ports original #670 and accessible/translated #675 onto the later main editor/dock changes. Replace references below to #670 as the checkout target with #684. #670 and #675 are older source-only drafts; do not merge them separately. Build/TypeScript/unit/Playwright checks remain **NOT RUN**. PR #679 Colour Confidence is now MERGED, as are RAW foundations #666/#671, photo adviser #668, anatomy evidence #674, model manifest verifier #655, and export queue #678. Merged library code is NOT a proven end-to-end workflow.
+**DO NOT recreate or overwrite flight guidance while installing local vision models.** Integration is **MERGED to main in [PR #684](https://github.com/DjL88/Kestrel/pull/684)** (merge SHA `42e6ba1c81352ff7c22d723f2ab470228aaddad3`). It combines original #670 and translated/accessibility #675 with current dock/editor changes. Both older draft PRs were closed as superseded. Do not apply either again. Build/TypeScript/unit/Playwright checks remain **NOT RUN**. PR #679 Colour Confidence is now MERGED, as are RAW foundations #666/#671, photo adviser #668, anatomy evidence #674, model manifest verifier #655, and export queue #678. Merged library code is NOT a proven end-to-end workflow.
 
 **Claude's exclusive work:** candidate rights-cleared offline VLM(s), reproducible downloads with hash/licences, actual inference installation and benchmarks, and consented optional GCP dry-run. Do not redeploy cloud without approval; do not take over App/PhotoEditor/mode UI already coordinated in #684. Model/renderer changes must integrate through existing photo source hash, reversible recipe, and strict Soar/Glide/Fly Solo permissions. Any connected model must not fake species-specific colour truth or generate image pixels.
 
@@ -19,7 +19,7 @@ Read [Outstanding Programme](OUTSTANDING-PROGRAMME-2026-11-21.md), particularly 
 
 ## Immediately actionable source branch / PR
 
-**Draft [PR #684](https://github.com/DjL88/Kestrel/pull/684)** — branch **integrate/flight-guidance-current-main-20261121** (replaces original unmerged #670 and stacked #675).
+**MERGED [PR #684](https://github.com/DjL88/Kestrel/pull/684)** — source is now on main at `42e6ba1c81352ff7c22d723f2ab470228aaddad3`. Older #670/#675 are closed/superseded.
 
 Implemented source changes:
 - Existing App View menu, Settings and local preferences now share one Soar/Glide/Fly Solo control and persistent setting, with Glide default and legacy preference fallback.
@@ -30,15 +30,15 @@ Implemented source changes:
 - Ordinary icon replaces a magic wand at crop auto-level.
 - Unit tests for guidance policy, mask treatment and preview boundary evidence, and Playwright test for persisted settings/on-demand colour checks are authored.
 
-**No builds or tests have been executed in this session; GitHub Actions billing is paused. Keep PR draft until evidence or competent review supports merge.**
+**This change was manually source-reviewed and merged despite unavailable executable validation, at the owner's established prototype-first direction. Tests/builds/installed-device validation remain NOT RUN, not PASS. Correct discovered failures in a fresh PR and report exact SHA.**
 
 ### Claude first implementation sprint
-1. Fetch main, #670, open PRs and taskboard; keep file ownership clear. Other open work includes #669 (ColourCheckPanel only), #668 (Photo Advisor regional recipes), #667 (subject detail), #666 (RAW 16-bit), #665 (export durability), #663 (storage), #657 (culling) and #655 (signed manifest). Review their current state; do not duplicate.
-2. Check out branch #670 and rebase safely against latest main if required; never overwrite another worker's commits or force-push over active edits.
+1. Fetch CURRENT main, latest open PRs and #418; treat prior #670/#675 as superseded, #679/#668/#667/#666/#671/#674/#655/#678 as already merged source. Coordinate with active architecture #677, RAW #683 and current authentication work. Do not redo existing work.
+2. Do NOT check out obsolete #670. Start from current main in a fresh branch for model work and its integration contracts. Never overwrite another worker's commits or force-push over active edits.
 3. Execute real checks: **npm ci; npm run lint; npm test; npm run build; npm run test:e2e -- tests/flight-guidance.spec.ts tests/colour-check.spec.ts; npm run test:raw-master**. Run applicable Rust/native/device tests too. Fix failures rather than describing them as passed.
 4. Localise new flight guidance and mask terms using existing British English source / all supported locales. Verify View/Settings agree, Fly Solo requests are truly manual, no repeated colour checks or stale halo advice, mask painting/crop/re-find does not lose deliberate refinements. The small-preview halo heuristic is not a substitute for a high-bit mask edge implementation.
 5. Reconcile with #669 (ColourCheckPanel); keep advice unobtrusive and in standard flow. Use screen readers, keyboard, desktop, tablet and phone. Real bird with visible legs and a branch, birds in flight, portrait hair, fur and sky/landscape should be used to evaluate actual mask boundary and anatomy quality.
-6. When tested, update review metadata, reconcile conflicts, mark ready/merge only if safe. Record exact SHA, executed checks and untested installed-device evidence on #418; otherwise leave PR draft with exact blockers and owner.
+6. Run validation against latest main including merged #684; fix issues in new focused PRs. Record exact SHA, executed checks and untested installed-device evidence on #418. Do not falsely change already merged #684 back to draft.
 
 ## Specialized follow-on work Claude can orchestrate
 
