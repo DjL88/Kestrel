@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, CloudOff, HelpCircle, Plug, RefreshCw, Trash2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CloudOff, HelpCircle, Plug, RefreshCw, Trash2 } from './icons/KestrelUIIcons';
 import { PROVIDERS, type Health, type ProviderKind } from '../core/connections';
 import { projectsText as t } from '../i18n/areas/projects';
 import { pickSyncFolder } from '../providers/folderConnector';
