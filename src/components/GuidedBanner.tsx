@@ -6,7 +6,7 @@ interface Props {
   step: GuidedStep;
   unreviewed: number;
   keepers: number;
-  /** Every photo still waiting was looked at by an automatic cull scan (see `remainingWereScanned`). Only then may the banner say Kestrel wasn't confident. */
+  /** Every photo still waiting was looked at by an automatic cull scan (see `remainingWereScanned`). Only then may the banner say Kite44 wasn't confident. */
   scanned: boolean;
   uneditedKeepers: number;
   onFindBestPhotos: () => void;

@@ -47,7 +47,7 @@ export function useDropPhotos(onPhotos: (files: File[]) => void) {
       setDragging(false);
       if (event.defaultPrevented && (event.target as HTMLElement | null)?.closest?.('[data-handles-drop]')) return;
       void photosFromDrop(event.dataTransfer!).then((files) => {
-        if (files.length) { setMessage(null); onPhotos(files); } else setMessage('Those files are not photos Kestrel can open. Drop JPEG, PNG, WebP or camera RAW files.');
+        if (files.length) { setMessage(null); onPhotos(files); } else setMessage('Those files are not photos Kite44 can open. Drop JPEG, PNG, WebP or camera RAW files.');
       });
     };
     window.addEventListener('dragenter', enter); window.addEventListener('dragleave', leave);

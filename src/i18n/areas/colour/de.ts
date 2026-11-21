@@ -5,7 +5,7 @@ import { plural } from '../../../core/locale';
 /** German (Sie). DRAFT: written without a native speaker's check. Colour names are nouns, used in brackets or after "in". */
 export const de: AreaTranslation<typeof source> = {
   title: 'Farbprüfung',
-  intro: 'Kestrel benennt die Farben in diesem Foto und weist in Worten auf alles hin, was falsch aussehen könnte.',
+  intro: 'Kite44 benennt die Farben in diesem Foto und weist in Worten auf alles hin, was falsch aussehen könnte.',
   checking: 'Farbe wird geprüft…',
   unavailable: 'Die Farbprüfung ist für dieses Foto noch nicht verfügbar.',
   mainColours: 'Hauptfarben',

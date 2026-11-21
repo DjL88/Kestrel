@@ -6,7 +6,7 @@
  * iPhones and cameras record orientation in HEIF; the EXIF orientation tag inside a HEIF file must not be applied again.
  */
 
-/** The few libheif-js calls Kestrel uses (libheif-js 1.23.5, libheif-wasm/libheif-bundle.mjs). */
+/** The few libheif-js calls Kite44 uses (libheif-js 1.23.5, libheif-wasm/libheif-bundle.mjs). */
 interface HeifImageHandle {
   get_width(): number;
   get_height(): number;
@@ -60,7 +60,7 @@ export async function decodeHeifPixels(factory: HeifModuleFactory, bytes: Uint8A
     const height = image.get_height();
     if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width <= 0 || height <= 0
         || width > MAX_SIDE || height > MAX_SIDE || width * height > MAX_PIXELS) {
-      throw new HeifUndecodableError('This HEIF photo has a picture size Kestrel cannot open.');
+      throw new HeifUndecodableError('This HEIF photo has a picture size Kite44 cannot open.');
     }
     const target = { data: new Uint8ClampedArray(width * height * 4), width, height };
     const result = await new Promise<unknown>((resolve) => image.display(target, resolve));

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AUTO_MINIMUM, applyAutoTag, keepAuto, mayAutoTag, reconcileAuto, qualifiesForAutoTag, shouldAutoTag } from './autoTags';
+import { AUTO_MINIMUM, applyAutoTag, disputePatch, keepAuto, mayAutoTag, reconcileAuto, qualifiesForAutoTag, shouldAutoTag, speciesShown } from './autoTags';
 import { confidenceWord, rankSpecies, type SpeciesLabel } from './speciesMatch';
 
 test('only a clearly sure result is tagged automatically, and that is exactly what "likely" means', () => {
@@ -99,4 +99,30 @@ test('a closed catalogue with only one choice must not automatically label any a
   assert.equal(best.probability, 1, 'a single-choice softmax is inevitably 100%');
   assert.equal(qualifiesForAutoTag(best, embedding, [single], [embedding]), false,
     'one available class cannot establish the true species');
+});
+
+// A disagreement between the two readings of a photo's subject stops names being asserted, and only those.
+test('a disputed photo is never auto-tagged and hides automatic names', () => {
+  const photo = { tags: [], subjectDisputed: true };
+  assert.equal(mayAutoTag(photo, 'Barn owl'), false);
+  assert.equal(mayAutoTag({ tags: [] }, 'Barn owl'), true, 'an ordinary untagged photo still may be');
+  const auto = { subjectKind: 'wildlife', autoTags: ['Osprey'], tags: ['Osprey'] };
+  assert.deepEqual(speciesShown(auto), { name: 'Osprey', auto: true });
+  assert.equal(speciesShown({ ...auto, subjectDisputed: true }), null, 'a name the app added by itself is hidden');
+});
+
+test('a disputed photo keeps a name the person kept themselves', () => {
+  const kept = { subjectKind: 'wildlife', autoTags: ['Osprey'], tags: ['Osprey', 'Grey heron'], subjectDisputed: true };
+  assert.deepEqual(speciesShown(kept), { name: 'Grey heron', auto: false });
+  assert.equal(speciesShown({ subjectKind: 'people', tags: ['x'], subjectDisputed: true }), null, 'non-wildlife stays hidden as before');
+});
+
+test('a Photo Check outcome sets, clears or leaves the dispute flag', () => {
+  assert.deepEqual(disputePatch({}, 'conflict'), { subjectDisputed: true });
+  assert.equal(disputePatch({ subjectDisputed: true }, 'conflict'), null, 'already set: no change');
+  assert.deepEqual(disputePatch({ subjectDisputed: true }, 'agreed'), { subjectDisputed: false });
+  assert.equal(disputePatch({}, 'agreed'), null);
+  // One witness alone can neither raise nor settle a dispute.
+  assert.equal(disputePatch({}, 'unverified'), null);
+  assert.equal(disputePatch({ subjectDisputed: true }, 'unverified'), null);
 });

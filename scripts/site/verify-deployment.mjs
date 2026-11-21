@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Verify the website contains the compiled REAL Kestrel editor, not merely
+ * Verify the website contains the compiled photo editor, not merely
  * an iframe pointing at a file that has not been deployed.
  *
  * node scripts/site/verify-deployment.mjs [--root=site] [--live-url=https://...]
@@ -29,35 +29,46 @@ function requireText(path) {
   if (!existsSync(path) || !statSync(path).isFile()) throw new Error('Required website file missing: ' + path);
   return readFileSync(path, 'utf8');
 }
+const editorPath = '/editor/demo-editor.html';
+const embedsEditor = html => /<iframe\b[^>]*\ssrc=["']\/?editor\/demo-editor\.html["']/i.test(html);
+
 function builtAssets(html) {
-  return [...html.matchAll(/<(?:script|link)\b[^>]*?\b(?:src|href)=["']([^"']+)["']/gi)]
-    .map(match => match[1].split(/[?#]/)[0])
-    .filter(path => path.startsWith('/editor/assets/') || path.startsWith('assets/') || path.startsWith('./assets/'));
+  const root = [...html.matchAll(/<div\b[^>]*>/gi)].find(([tag]) => /\sid=["']root["']/i.test(tag));
+  if (!root || !/\sdata-demo-editor(?=\s|[=>])/i.test(root[0])) {
+    throw new Error('The compiled editor entry point is missing its demo editor marker.');
+  }
+  if (/\ssrc=["']\/src\/demo\/main\.tsx/.test(html)) {
+    throw new Error('Found a development entry point, not the compiled website editor.');
+  }
+  const references = [...html.matchAll(/<(script|link)\b[^>]*?\s(src|href)=["']([^"']+)["']/gi)]
+    .map(([, tag, attribute, url]) => ({
+      isScript: tag.toLowerCase() === 'script' && attribute.toLowerCase() === 'src',
+      path: url.split(/[?#]/)[0],
+    }))
+    .filter(({ path }) => /^(?:\/editor\/|\.\/)?assets\//.test(path));
+  if (!references.some(({ isScript, path }) => isScript && /\.js$/i.test(path))) {
+    throw new Error('Compiled editor has no JavaScript entry bundle.');
+  }
+  const assets = references.map(({ path }) => path.startsWith('/editor/') ? path : '/editor/' + path.replace(/^\.\//, ''));
+  for (const asset of assets) {
+    if (!/^\/editor\/assets\/[a-z0-9_.\/-]+$/i.test(asset) || asset.includes('..')) {
+      throw new Error('Unsafe compiled editor asset path: ' + asset);
+    }
+  }
+  return [...new Set(assets)].sort();
 }
 async function main() {
   const { root, liveUrl } = options();
   const dir = resolve(root);
   const landing = requireText(join(dir, 'index.html'));
   requireText(join(dir, 'admin.html'));
-  if (!/editor\/demo-editor\.html/.test(landing)) {
-    throw new Error('The homepage does not embed the compiled Kestrel editor.');
+  if (!embedsEditor(landing)) {
+    throw new Error('The homepage does not embed the compiled photo editor.');
   }
   const demo = requireText(join(dir, 'editor', 'demo-editor.html'));
-  if (!/id=["']root["']/.test(demo) || !/Kestrel editor demonstration/.test(demo)) {
-    throw new Error('The compiled editor entry point does not look like the Kestrel editor.');
-  }
-  if (/src=["']\/src\/demo\/main\.tsx/.test(demo)) {
-    throw new Error('Found a development entry point, not the compiled website editor.');
-  }
   const assets = builtAssets(demo);
-  const scripts = assets.filter(path => /\.js$/i.test(path));
-  if (!scripts.length) throw new Error('Compiled editor has no JavaScript entry bundle.');
   for (const asset of assets) {
-    let relative = asset.replace(/^\/editor\//, '').replace(/^\.\//, '');
-    if (!relative.startsWith('assets/') || relative.includes('..') || relative.includes('\\')) {
-      throw new Error('Unsafe compiled editor asset path: ' + asset);
-    }
-    const file = join(dir, 'editor', relative);
+    const file = join(dir, asset.slice(1));
     if (!existsSync(file) || !statSync(file).isFile() || statSync(file).size === 0) {
       throw new Error('Missing or empty compiled editor asset: ' + file);
     }
@@ -69,21 +80,23 @@ async function main() {
   }
   const base = new URL(liveUrl);
   if (base.protocol !== 'https:') throw new Error('Live URL must use HTTPS.');
-  for (const suffix of ['/', '/editor/demo-editor.html', ...assets.map(path =>
-    path.startsWith('/editor/') ? path : '/editor/' + path.replace(/^\.\//, ''))]) {
+  for (const suffix of ['/', editorPath, ...assets]) {
     const uri = new URL(suffix, base);
     uri.searchParams.set('kestrel-health-check', String(Date.now()));
     const response = await fetch(uri, { signal: AbortSignal.timeout(15_000), headers: { accept: 'text/html,application/javascript,text/css,*/*' } });
     if (!response.ok) throw new Error('Live Firebase path failed (' + response.status + '): ' + uri.pathname);
     const data = await response.text();
-    if (!data || data.includes('Page Not Found') || (suffix.endsWith('.js') && /<html/i.test(data))) {
+    if (!data.trim() || data.includes('Page Not Found') || (assets.includes(suffix) && /^\s*(?:<!doctype html|<html)\b/i.test(data))) {
       throw new Error('Live Firebase path returned a missing or wrong asset: ' + uri.pathname);
     }
-    if (suffix === '/' && !data.includes('editor/demo-editor.html')) {
+    if (suffix === '/' && !embedsEditor(data)) {
       throw new Error('Live homepage is stale: no compiled-editor iframe.');
     }
-    if (suffix === '/editor/demo-editor.html' && !data.includes('Kestrel editor demonstration')) {
-      throw new Error('Live editor page is missing or stale.');
+    if (suffix === editorPath) {
+      const liveAssets = builtAssets(data);
+      if (liveAssets.length !== assets.length || assets.some((asset, index) => asset !== liveAssets[index])) {
+        throw new Error('The live editor page refers to a different set of compiled assets.');
+      }
     }
   }
   console.log('Live Firebase PASS: current homepage, actual editor and compiled assets are reachable.');

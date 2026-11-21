@@ -7,6 +7,7 @@ import { gateOutcome, permitsAutomaticSpeciesTag } from '../core/categoryGate';
 import { STRICT_SPECIES_PROBABILITY } from '../core/subjectRouter';
 import { gateAvailable, routePicture } from '../providers/categoryGate';
 import type { SquareCrop } from '../core/subjectCrop';
+import { SPECIES_REGIONS, readSpeciesRegions, writeSpeciesRegions } from '../core/speciesRegions';
 import { readAutoTag, readSpeciesCounts, rememberSpecies, saveAutoTag } from '../providers/speciesLearning';
 import { helperReady, failureMessage, type HelperAnswer } from '../core/onlineHelper';
 import { openHelperDialog, useHelperSettings } from '../providers/helperSettings';
@@ -45,6 +46,7 @@ const MAX_MATES = 30;
  */
 export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onAccept, mates = [], onTagMates, canAutoTag = false, declined = [], onAutoTag }: Props) {
   const [autoOn, setAutoOn] = useState(readAutoTag);
+  const [region, setRegion] = useState(() => readSpeciesRegions()[0]);
   const helper = useHelperSettings();
   const [asking, setAsking] = useState(false);
   const [onlineAnswer, setOnlineAnswer] = useState<HelperAnswer | null>(null);
@@ -316,6 +318,16 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
       <label className="flex min-h-10 items-center gap-2 text-xs text-zinc-300">
         <input type="checkbox" checked={autoOn} onChange={(event) => { setAutoOn(event.target.checked); saveAutoTag(event.target.checked); }} />
         {t.species.autoTag}
+      </label>
+      <label className="flex min-h-10 flex-wrap items-center gap-2 text-xs text-zinc-300">
+        {t.species.regionLabel}
+        <select
+          className="min-h-10 rounded border border-zinc-600 bg-zinc-900 px-2 text-xs text-zinc-100"
+          value={region}
+          onChange={(event) => { setRegion(event.target.value); writeSpeciesRegions([event.target.value]); setResults(null); embedding.current = null; if (status === 'ready' && ready && kind === 'wildlife') void analyse(); }}
+        >
+          {SPECIES_REGIONS.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}
+        </select>
       </label>
       <p className="text-xs text-zinc-400">{t.species.checkNote}</p>
     </section>

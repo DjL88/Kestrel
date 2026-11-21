@@ -5,7 +5,7 @@ import { plural } from '../../../core/locale';
 /** European Portuguese. DRAFT: written without a native speaker's check. Colour names sit in brackets or after "em". */
 export const pt: AreaTranslation<typeof source> = {
   title: 'Verificação de cor',
-  intro: 'O Kestrel indica por palavras as cores desta fotografia e assinala tudo o que possa parecer errado.',
+  intro: 'O Kite44 indica por palavras as cores desta fotografia e assinala tudo o que possa parecer errado.',
   checking: 'A verificar a cor…',
   unavailable: 'A verificação de cor ainda não está disponível para esta fotografia.',
   mainColours: 'Cores principais',

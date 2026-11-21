@@ -4,7 +4,7 @@ import type { source } from './source';
 /** Scottish Gaelic. DRAFT: written without a native speaker's check. */
 export const gd: AreaTranslation<typeof source> = {
   title: 'Dàrna beachd on AI agad fhèin',
-  intro: 'Roghainneil. Cleachd an cunntas AI agad fhèin, no modail air a’ choimpiutair seo, gus sùil a thoirt air dath is solas an deilbh seo. Obraichidh sgrùdadh dhathan Kestrel fhèin gu h-àrd an-còmhnaidh às aonais.',
+  intro: 'Roghainneil. Cleachd an cunntas AI agad fhèin, no modail air a’ choimpiutair seo, gus sùil a thoirt air dath is solas an deilbh seo. Obraichidh sgrùdadh dhathan Kite44 fhèin gu h-àrd an-còmhnaidh às aonais.',
   ask: 'Faighnich dhen AI agam fhèin',
   asking: 'A’ faighneachd dhen AI agad…',
   cancel: 'Sguir dheth',
@@ -30,8 +30,8 @@ export const gd: AreaTranslation<typeof source> = {
   invalidBaseUrl: "Cleachd HTTPS airson AI iomallach, no http://localhost airson AI air a' choimpiutair seo. Na cuir iuchraichean san t-seòladh.",
   save: 'Sàbhail',
   consentTitle: 'Mus tèid dad a chur',
-  consentCloud: (host) => `Cuiridh Kestrel lethbhreac dhen dealbh seo, 1,024 piogsail air an taobh as fhaide, gu ${host}. Chan eil an t-àite, fiosrachadh a’ chamara no ainm an fhaidhle na bhroinn. Dh’fhaodadh gun cuir an solaraiche agad cosgais ort airson gach ceist.`,
-  consentLocal: (host) => `Cuiridh Kestrel lethbhreac dhen dealbh seo, 1,024 piogsail air an taobh as fhaide, gun AI aig ${host}, a tha air a’ choimpiutair seo. Chan fhàg dad an coimpiutair agad.`,
+  consentCloud: (host) => `Cuiridh Kite44 lethbhreac dhen dealbh seo, 1,024 piogsail air an taobh as fhaide, gu ${host}. Chan eil an t-àite, fiosrachadh a’ chamara no ainm an fhaidhle na bhroinn. Dh’fhaodadh gun cuir an solaraiche agad cosgais ort airson gach ceist.`,
+  consentLocal: (host) => `Cuiridh Kite44 lethbhreac dhen dealbh seo, 1,024 piogsail air an taobh as fhaide, gun AI aig ${host}, a tha air a’ choimpiutair seo. Chan fhàg dad an coimpiutair agad.`,
   agree: 'Tha mi ag aontachadh',
   summary: 'Na tha an AI agad ag ràdh',
   suggested: 'Atharraichean a thathar a’ moladh',
@@ -52,7 +52,7 @@ export const gd: AreaTranslation<typeof source> = {
   errors: {
     setup: 'Cha deach an AI agad a shuidheachadh fhathast, no tha an t-aonta a dhìth.',
     key: 'Tha an AI agad ag ràdh gu bheil an iuchair ceàrr no nach eil cead aice. Thoir sùil oirre sa chunntas aig an t-solaraiche agad.',
-    offline: 'Chan eil thu air loidhne. Obraichidh sgrùdadh dhathan Kestrel fhèin fhathast.',
+    offline: 'Chan eil thu air loidhne. Obraichidh sgrùdadh dhathan Kite44 fhèin fhathast.',
     timeout: 'Thug an AI agad ro fhada a’ freagairt. Feuch a-rithist an ceann tiotan.',
     refused: 'Dhiùlt an AI agad sùil a thoirt air an dealbh seo.',
     unreadable: 'Cha b’ urrainn dhuinn freagairt an AI agad a leughadh, mar sin cha deach dad atharrachadh.',

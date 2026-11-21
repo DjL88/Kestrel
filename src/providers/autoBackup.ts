@@ -104,8 +104,8 @@ export async function backUpNow(state: CullingState, connectionId: string, now =
     state: 'partial', at: now.getTime(),
     to: localOk ? 'On this device' : extra.at(-1)?.to,
     message: localOk
-      ? 'Saved locally. The folder copy could not be updated; Kestrel will retry automatically.'
-      : 'Saved alongside your photographs. Device recovery is unavailable; Kestrel will retry automatically.',
+      ? 'Saved locally. The folder copy could not be updated; Kite44 will retry automatically.'
+      : 'Saved alongside your photographs. Device recovery is unavailable; Kite44 will retry automatically.',
   };
   return {
     state: 'ok', at: now.getTime(),
@@ -133,7 +133,7 @@ function saveSnapshot(state: CullingState, target: string): Promise<BackupStatus
     const result: BackupStatus = await backUpNow(state, target).catch(() => ({
       state: 'failed' as const,
       at: Date.now(),
-      message: 'Automatic recovery could not be saved. Your project changes are still stored in Kestrel.',
+      message: 'Automatic recovery could not be saved. Your project changes are still stored in Kite44.',
     }));
     // Read the latest clock, not the one from before the asynchronous write.
     const next = afterAttempt(clockFor(projectId), Date.now(), result.state === 'ok', savedChangeAt);

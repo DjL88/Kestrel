@@ -76,6 +76,10 @@ export interface PhotoFrame {
   tags?: string[];
   /** What the photo is mainly of, chosen by the user. */
   subjectKind?: import('./subjectTags').SubjectKind;
+  /** Set when two independent readings of the photo (scene reading and object detector) disagreed about its subject, for
+   * example a bird against an aircraft. While set, no automatic species name is shown or added. Cleared when a later
+   * check agrees or when the user sets the subject themselves. Never changes a decision, rating or edit. */
+  subjectDisputed?: boolean;
   /** Tags the app added by itself and the user has not yet kept. Always also in `tags`. */
   autoTags?: string[];
   /** Names the user removed from this photo, so the app never adds them to it again. */
