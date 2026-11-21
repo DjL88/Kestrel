@@ -4,6 +4,7 @@ import { checkColour, type ColourFamily, type ColourFinding, type ColourReport, 
 import type { PhotoEdit } from '../core/photoEdits';
 import { applyFix } from '../core/critique';
 import { colourText as t } from '../i18n/areas/colour';
+import { colourControls } from '../i18n/colourControls';
 import { AiReviewPanel } from './AiReviewPanel';
 
 export interface ColourPreview {
@@ -112,10 +113,11 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
         <Palette className="h-4 w-4" aria-hidden="true" />{t.title}
         {problems.length > 0 && <span className="text-xs text-zinc-400">({t.findings(problems.length)})</span>}
       </summary>
-      <div className="space-y-2 px-1 pb-2 text-sm" aria-live="polite">
-        {!disabled && <button type="button" className="min-h-11 rounded-md border border-white/15 px-3 text-xs text-zinc-200 focus-visible:outline-2 focus-visible:outline-sky-300" onClick={() => setCheckRevision((n) => n + 1)} aria-label="Check colours again">Check now</button>}
-        {failed && <p className="text-xs text-zinc-400">{t.unavailable}</p>}
-        {!report && !failed && <p className="text-xs text-zinc-400">{t.checking}</p>}
+      <div className="min-w-0 space-y-2 overflow-x-hidden px-1 pb-2 text-sm">
+        {!disabled && <button type="button" className="min-h-11 rounded-md border border-white/15 px-3 text-xs text-zinc-200 focus-visible:outline-2 focus-visible:outline-sky-300" onClick={() => setCheckRevision((n) => n + 1)} aria-label={colourControls.check}>{colourControls.check}</button>}
+        {disabled && <p className="text-xs text-zinc-400">{colourControls.paused}</p>}
+        {!disabled && failed && <p className="text-xs text-zinc-400">{t.unavailable}</p>}
+        {!disabled && !report && !failed && <p className="text-xs text-zinc-400">{t.checking}</p>}
         {report && report.palette.length > 0 && (
           <div>
             <h4 className="text-xs font-medium text-zinc-300">{t.mainColours}</h4>
@@ -131,7 +133,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
           </div>
         )}
         {report && (
-          <ul className="space-y-2" data-testid="colour-findings">
+          <ul className="min-w-0 space-y-2" aria-label={colourControls.review} data-testid="colour-findings">
             {important.length === 0 && <li className="text-xs text-zinc-300">{t.nothingToFix}</li>}
             {visibleFindings.map((finding) => {
               const said = describe(finding);
@@ -139,7 +141,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
               const label = finding.severity === 'warning' ? t.watchOut : finding.severity === 'tip' ? t.tip : t.note;
               return (
                 <li key={finding.id} data-finding={finding.id} className="space-y-1">
-                  <p className="flex gap-1.5 text-xs text-zinc-200">
+                  <p className="flex min-w-0 gap-1.5 break-words text-xs text-zinc-200">
                     <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                     <span><strong className="font-semibold">{label}</strong> {said.text}{said.extra ? ` ${said.extra}` : ''}</span>
                   </p>
@@ -156,7 +158,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
         )}
         {report && report.findings.length > important.length && (
           <button type="button" className="min-h-11 rounded-md px-2 text-xs text-zinc-300 underline focus-visible:outline-2 focus-visible:outline-sky-300" aria-expanded={showAll} onClick={() => setShowAll((value) => !value)}>
-            {showAll ? 'Show fewer findings' : 'Show all findings'}
+            {showAll ? colourControls.fewer : colourControls.more}
           </button>
         )}
         {applied && <p role="status" className="text-xs text-zinc-400">{t.fixApplied}</p>}
