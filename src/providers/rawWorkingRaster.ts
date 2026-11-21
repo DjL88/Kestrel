@@ -1,7 +1,6 @@
 import { Sha256Stream } from '../core/sha256';
 import { parseRgb16, type Rgb16Image } from '../core/master16';
-import { developRawRgb16, rawSensorMode } from './rawDevelop';
-import { rawPrecisionEvidence } from './rawPrecisionGate';
+import { developRawRgb16, requireVerifiedNikonPrecisionMode } from './rawDevelop';
 
 /** Sensor pixels, NOT a scene-linear or ICC-verified archival master. */
 export interface SensorWorkingRaster {
@@ -63,7 +62,7 @@ export async function openSensorWorkingRaster(
     throw new Error('The expected original SHA-256 is invalid.');
   // The decoder recognises camera bytes independently of the suffix. Keep the
   // HE check even when an original has been renamed with a different extension.
-  rawPrecisionEvidence(await rawSensorMode(original, 'source.nef'));
+  await requireVerifiedNikonPrecisionMode(original);
   // Bind this decode to the exact original selected by the catalogue, if known.
   const sourceBytes = original.size;
   const before = await hashRawSource(original);
