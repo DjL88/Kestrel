@@ -2,6 +2,16 @@
 
 **Owner says Claude is available again from approximately 02:40 UK time.** This is a durable handover, NOT a scheduled Claude task. Read this before using parallel workers or touching production services.
 
+
+## Live integration update — same day, after worker merges
+
+**DO NOT recreate or overwrite flight guidance while installing local vision models.** Integration is now collected in **[draft PR #684](https://github.com/DjL88/Kestrel/pull/684)**, branch \`integrate/flight-guidance-current-main-20261121\`, which ports original #670 and accessible/translated #675 onto the later main editor/dock changes. Replace references below to #670 as the checkout target with #684. #670 and #675 are older source-only drafts; do not merge them separately. Build/TypeScript/unit/Playwright checks remain **NOT RUN**. PR #679 Colour Confidence is now MERGED, as are RAW foundations #666/#671, photo adviser #668, anatomy evidence #674, model manifest verifier #655, and export queue #678. Merged library code is NOT a proven end-to-end workflow.
+
+**Claude's exclusive work:** candidate rights-cleared offline VLM(s), reproducible downloads with hash/licences, actual inference installation and benchmarks, and consented optional GCP dry-run. Do not redeploy cloud without approval; do not take over App/PhotoEditor/mode UI already coordinated in #684. Model/renderer changes must integrate through existing photo source hash, reversible recipe, and strict Soar/Glide/Fly Solo permissions. Any connected model must not fake species-specific colour truth or generate image pixels.
+
+**Immediate handoff:** First inspect live main and PRs before following stale numbered steps below. After local-model development, communicate exact actual runtime/model SHA, OS/architecture, licence, measured RAM/latency, no-network inference result, and integration hook to Workstream 1. Preserve working copy of current code and avoid redundant implementation.
+
+
 ## Authoritative instructions
 Read [Outstanding Programme](OUTSTANDING-PROGRAMME-2026-11-21.md), particularly §4A (signed offline assets and opt-in cloud), §4B (quiet Colour Confidence), §4C (natural masks and flight guidance), [ROADMAP](ROADMAP.md), [product philosophy](PRODUCT-PHILOSOPHY.md), and [taskboard #418](https://github.com/DjL88/Kestrel/issues/418).
 
@@ -9,7 +19,7 @@ Read [Outstanding Programme](OUTSTANDING-PROGRAMME-2026-11-21.md), particularly 
 
 ## Immediately actionable source branch / PR
 
-**Draft [PR #670](https://github.com/DjL88/Kestrel/pull/670)** — branch **feat/flight-guidance-mask-blending-20261121**.
+**Draft [PR #684](https://github.com/DjL88/Kestrel/pull/684)** — branch **integrate/flight-guidance-current-main-20261121** (replaces original unmerged #670 and stacked #675).
 
 Implemented source changes:
 - Existing App View menu, Settings and local preferences now share one Soar/Glide/Fly Solo control and persistent setting, with Glide default and legacy preference fallback.
