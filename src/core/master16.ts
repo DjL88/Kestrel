@@ -5,6 +5,7 @@ import { THUMB, type Thumb } from './orientMatch';
 import { LOCAL_KEYS, validMasks, type Mask } from './maskTypes';
 import { effectiveAlpha } from './masks';
 import { blendSrgb16, blendLinearToSrgb16, decodeSrgb16, encodeSrgb16 } from './linearRgb16';
+import { protectedMaskAlphaLinear, protectedMaskAlphaSrgb16 } from './maskEdgeRgb16';
 import { noiseStrength } from './noiseReduction';
 import { denoiseChromaRgb16 } from './chromaDenoise16';
 
@@ -244,8 +245,9 @@ function applyDetailMaskRgb16(image: Rgb16Image, mask: Mask, masks: readonly Mas
       if (a <= 0) continue;
       const original = (from * width + p) * 3;
       const adjusted = ((from - first) * width + p) * 3;
+      const guardedAlpha = protectedMaskAlphaSrgb16(a, data, original, source, adjusted);
       for (let c = 0; c < 3; c++) {
-        data[original + c] = blendSrgb16(data[original + c], source[adjusted + c], a);
+        data[original + c] = blendSrgb16(data[original + c], source[adjusted + c], guardedAlpha);
       }
     }
   }
@@ -297,9 +299,10 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
         const src = (from * width + p) * 3, dst = p * 4;
         // The adjustment renderer returns linear RGB. Blend in linear light
         // before sRGB16 encoding, never mix encoded source with linear output.
-        data[src] = blendLinearToSrgb16(data[src], rgba[dst], strength);
-        data[src + 1] = blendLinearToSrgb16(data[src + 1], rgba[dst + 1], strength);
-        data[src + 2] = blendLinearToSrgb16(data[src + 2], rgba[dst + 2], strength);
+        const guardedAlpha = protectedMaskAlphaLinear(strength, data, src, rgba, dst);
+        data[src] = blendLinearToSrgb16(data[src], rgba[dst], guardedAlpha);
+        data[src + 1] = blendLinearToSrgb16(data[src + 1], rgba[dst + 1], guardedAlpha);
+        data[src + 2] = blendLinearToSrgb16(data[src + 2], rgba[dst + 2], guardedAlpha);
       }
     }
   }
