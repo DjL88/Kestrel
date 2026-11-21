@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { X } from './icons/KestrelUIIcons';
 import type { GuidedStep } from '../core/guidedProgress';
 import { libraryText as t } from '../i18n/areas/library';
 
