@@ -32,9 +32,9 @@ test('Calm and clear is recognised only when every part of it is on', () => {
   assert.equal(isCalmAndClear({ ...CALM_AND_CLEAR, spacing: 'normal' }), false);
 });
 
-test('density defaults to compact, accepts comfortable, and rejects anything else', () => {
-  assert.equal(parseDisplay({}).density, 'compact');
-  assert.equal(parseDisplay({ density: 'comfortable' }).density, 'comfortable');
-  assert.equal(parseDisplay({ density: 'tiny' }).density, 'compact');
+test('density defaults to comfortable, accepts opt-in compact, and rejects anything else', () => {
+  assert.equal(parseDisplay({}).density, 'comfortable');
+  assert.equal(parseDisplay({ density: 'compact' }).density, 'compact');
+  assert.equal(parseDisplay({ density: 'tiny' }).density, 'comfortable');
   assert.equal(CALM_AND_CLEAR.density, 'comfortable');
 });
