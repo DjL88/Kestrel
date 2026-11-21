@@ -1020,6 +1020,36 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const invalidDate = timestamp === 'custom' && !parseCustomExportDate(customDate);
   const blocked = Boolean(customOn && customResult && 'error' in customResult) || invalidDate ||
     Boolean(mark.on && mark.kind === 'image' && !mark.imageData);
+  // These actions are export choices, not huge independent cards above the
+  // scrolling export page. An original copy is byte-for-byte and never edited.
+  const originalChoice = (
+    <div className="rounded-md border border-white/12 p-2">
+      <button type="button" aria-busy={saving} className={`${button} inline-flex w-full items-center justify-between gap-2 text-left`}
+        disabled={saving || progress !== null || placeBusy || !frames.length || frames.some(frame => frame.isDemo)}
+        onClick={() => void saveUnchangedOriginals()}>
+        <span>{t.originals.action(frames.length)}</span>
+        {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
+      </button>
+      <p className="px-3 pb-1 text-xs text-zinc-400">{t.originals.privacy}</p>
+      {frames.some(frame => frame.isDemo) && <p role="note" className="px-3 text-xs text-amber-200">{t.originals.unavailable}</p>}
+      {(!desktop || isMobileShell()) && frames.length > 1 && <p className="px-3 text-xs text-zinc-400">{t.originals.browserLimitHelp}</p>}
+    </div>
+  );
+  const rawMasterChoice = frames.length === 1 && !frames[0].isDemo &&
+    isRawPreviewFile(frames[0].filename) && canDevelopRaw() ? (
+      <div className="rounded-md border border-white/12 p-2">
+        <button type="button" aria-busy={saving} className={`${button} inline-flex w-full items-center justify-between gap-2 text-left`}
+          disabled={saving || progress !== null || placeBusy} onClick={() => void saveRawTiff()}>
+          <span>{saving ? editorT.raw.masterBusy : t.rawTiff.action}</span>
+          {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
+        </button>
+        <details className="px-3 pb-1 text-xs text-zinc-300">
+          <summary className="min-h-9 cursor-pointer py-2">{t.rawTiff.details}</summary>
+          <p>{t.rawTiff.help}</p>
+        </details>
+      </div>
+    ) : null;
+
   const canShare = files.length > 0 && navigator.canShare?.({ files });
   const featuredGroups = SHARED_SOCIAL_SIZES.filter(group => FEATURED_SIZE_IDS.has(group.canonical.id));
   const otherGroups = SHARED_SOCIAL_SIZES.filter(group => !FEATURED_SIZE_IDS.has(group.canonical.id));
@@ -1064,41 +1094,6 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             </button>
             <p className="text-xs text-zinc-300">{t.results.connectedBackgroundHelp}</p>
           </div>
-        )}
-        {!resultsReady && (
-          <section aria-label={t.originals.title} className="mb-3 rounded-lg border border-white/15 bg-black/10 p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" aria-busy={saving} className={`${button} inline-flex items-center gap-2 border border-white/20 font-medium`}
-                disabled={saving || progress !== null || placeBusy || !frames.length || frames.some(frame => frame.isDemo)}
-                onClick={() => void saveUnchangedOriginals()}>
-                {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
-                {openingPlace ? t.results.choosingFolder : t.originals.action(frames.length)}
-              </button>
-              <span className="text-xs font-medium text-zinc-300">{t.originals.title}</span>
-            </div>
-            <p className="mt-1 text-xs text-zinc-300">{t.originals.privacy}</p>
-            {frames.some(frame => frame.isDemo) && <p role="note" className="mt-1 text-xs text-amber-200">{t.originals.unavailable}</p>}
-            {(!desktop || isMobileShell()) && frames.length > 1 &&
-              <p className="mt-1 text-xs text-zinc-400">{t.originals.browserLimitHelp}</p>}
-          </section>
-        )}
-        {!resultsReady && frames.length === 1 && !frames[0].isDemo &&
-          isRawPreviewFile(frames[0].filename) && canDevelopRaw() && (
-          <section aria-label={t.rawTiff.action} className="mb-3 rounded-lg border border-white/15 bg-black/15 p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" aria-busy={saving} className={`${button} inline-flex items-center gap-2 border border-white/20 font-medium`}
-                disabled={saving || progress !== null || placeBusy} onClick={() => void saveRawTiff()}>
-                {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
-                {saving ? editorT.raw.masterBusy : t.rawTiff.action}
-              </button>
-              <details className="min-w-0 flex-1 text-xs text-zinc-300">
-                <summary className="min-h-11 cursor-pointer py-2">{t.rawTiff.details}</summary>
-                <p className="pb-2">
-                  {t.rawTiff.help}
-                </p>
-              </details>
-            </div>
-          </section>
         )}
         {!resultsReady && progress === null && !placeBusy && (
           <details className="mb-2 rounded-md border border-white/15 px-3 py-2">
