@@ -84,12 +84,30 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
     }
     return allFrames.filter((frame) => !frame.burstGroupId || winners.get(frame.burstGroupId)?.id === frame.id);
   }, [allFrames, groupBursts]);
-  const actionFrames = allFrames.filter((frame) => !frame.removedAt &&
-    (multiSelect ? markedIds.has(frame.id) : frame.id === selectedFrameId));
-  const actionIds = actionFrames.map((frame) => frame.id);
+  // Re-walking every frame on each render stutters once a library reaches the
+  // project's own 500-2000 photo acceptance size; this only needs to change
+  // when the frames, marks or selection actually change.
+  const actionFrames = useMemo(() => allFrames.filter((frame) => !frame.removedAt &&
+    (multiSelect ? markedIds.has(frame.id) : frame.id === selectedFrameId)),
+    [allFrames, multiSelect, markedIds, selectedFrameId]);
+  const actionIds = useMemo(() => actionFrames.map((frame) => frame.id), [actionFrames]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: 1120, height: 640 });
   const [scrollTop, setScrollTop] = useState(0);
+  const scrollFrameRef = useRef<number | null>(null);
+  // A raw scroll/fling fires far faster than the browser repaints; coalesce to one
+  // state update per frame instead of one per native scroll event.
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const next = event.currentTarget.scrollTop;
+    if (scrollFrameRef.current !== null) cancelAnimationFrame(scrollFrameRef.current);
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      scrollFrameRef.current = null;
+      setScrollTop(next);
+    });
+  }, []);
+  useEffect(() => () => {
+    if (scrollFrameRef.current !== null) cancelAnimationFrame(scrollFrameRef.current);
+  }, []);
   const [jumpOpen, setJumpOpen] = useState(false);
   // Secondary selection actions live behind one control so the bar stays small, especially on phones.
   const [moreOpen, setMoreOpen] = useState(false);
@@ -288,7 +306,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   return (
     <div
       ref={containerRef}
-      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      onScroll={handleScroll}
       data-testid="virtualized-contact-sheet"
       className="flex-1 overflow-y-auto bg-kestrel-stage relative min-w-0 min-h-0"
     >
