@@ -69,3 +69,18 @@ test('A/B proof does not invent sharpness from fully transparent source samples'
   const b = { raster: right, photoId: 'q', sourceSha256: sha, box, comparisonGroup: 'g' };
   assert.equal(exactSubjectProofPair(a, b), null);
 });
+
+test('source crop abstains if current photo changes before or during copying', () => {
+  const box = { x: 0, y: 0, width: 1, height: 1 };
+  assert.equal(exactSubjectPixelCrop(raster(), 'p', sha, box, 1024, () => false), null);
+  let checks = 0;
+  assert.equal(exactSubjectPixelCrop(raster(), 'p', sha, box, 1024, () => ++checks === 1), null);
+});
+test('A/B comparison refuses stale scope before work and after measuring', () => {
+  const box = { x: 0, y: 0, width: 1, height: 1 };
+  const a = { raster: raster(), photoId: 'p', sourceSha256: sha, box, comparisonGroup: 'g' };
+  const b = { ...a, raster: { ...raster(), photoId: 'q' }, photoId: 'q' };
+  assert.equal(exactSubjectProofPair(a, b, 1024, () => false), null);
+  let checks = 0;
+  assert.equal(exactSubjectProofPair(a, b, 1024, () => ++checks < 6), null);
+});
