@@ -22,7 +22,7 @@ export interface AnatomyEvidence {
 
 export type AnatomyResult =
   | { ok: true; mask: Extract<Mask, { kind: 'subject' }>; reason: 'observed-refinement' }
-  | { ok: false; reason: 'unverified-source' | 'uncalibrated-evidence' | 'invalid-grid' | 'conflicting-evidence' | 'excessive-change' | 'no-change' };
+  | { ok: false; reason: 'unverified-source' | 'uncalibrated-evidence' | 'invalid-grid' | 'conflicting-evidence' | 'excessive-change' | 'detached-anatomy' | 'no-change' };
 
 const digest = /^[a-f0-9]{64}$/i;
 const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
@@ -97,6 +97,46 @@ export function refineObservedAnatomy(
   const maxChange = Math.max(4, Math.floor(subjectCells / 4));
   if (added > maxChange || removed > maxChange)
     return { ok: false, reason: 'excessive-change' };
+  if (added > 0) {
+    // Only add pixels connected to an existing observed subject. A high
+    // detector score alone must not paste an isolated twig, bird or bystander
+    // into the mask. Eight-neighbour connectivity retains diagonal thin legs.
+    // This traverses at most the bounded 512² mask; no recursive stack.
+    const width = mask.grid.w;
+    const height = mask.grid.h;
+    const seen = new Uint8Array(revised.length);
+    const queue = new Int32Array(revised.length);
+    let head = 0;
+    let tail = 0;
+    for (let i = 0; i < base.length; i++) {
+      if (base[i] >= 128 && revised[i] >= 128) {
+        seen[i] = 1;
+        queue[tail++] = i;
+      }
+    }
+    while (head < tail) {
+      const index = queue[head++];
+      const x = index % width;
+      const y = Math.floor(index / width);
+      for (let dy = -1; dy <= 1; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= height) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx;
+          if (nx < 0 || nx >= width || (dx === 0 && dy === 0)) continue;
+          const nextIndex = ny * width + nx;
+          if (!seen[nextIndex] && revised[nextIndex] >= 128) {
+            seen[nextIndex] = 1;
+            queue[tail++] = nextIndex;
+          }
+        }
+      }
+    }
+    for (let i = 0; i < base.length; i++) {
+      if (base[i] < 128 && revised[i] >= 128 && !seen[i])
+        return { ok: false, reason: 'detached-anatomy' };
+    }
+  }
   return { ok: true, reason: 'observed-refinement',
     mask: { ...mask, grid: { ...mask.grid, data: encode(revised) },
       // Fine detail from the old segmentation is stale after a grid revision.
