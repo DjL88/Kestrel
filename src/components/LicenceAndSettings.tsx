@@ -30,6 +30,7 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [accountNote, setAccountNote] = useState<string | null>(null);
+  const [tab, setTab] = useState<'account' | 'move' | 'about'>('account');
   const [aiStatus, setAiStatus] = useState<ManagedAiConsentStatus | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiNote, setAiNote] = useState<string | null>(null);
@@ -194,38 +195,21 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
         <header className="shrink-0 border-b border-white/10 px-5 py-4">
           <h2 id="licence-title" ref={title} tabIndex={-1} className="text-base font-semibold text-zinc-100 focus:outline-none">{m.home.licence}</h2>
         </header>
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-4 text-sm text-zinc-300">
-          <section aria-labelledby="licence-h" className="space-y-3">
-            <h3 id="licence-h" className="font-medium text-zinc-100">{t.licence.licenceKey}</h3>
-            {licence.status === 'valid'
-              ? <>{licence.access.pro && <p role="status">{t.licence.unlocked}</p>}<LicenceOnlineStatus licence={licence} /></>
-              : <p>{t.licence.notUnlocked(DEV_PRO_PREVIEW_MODE)}</p>}
-            {licence.status === 'invalid' && <p role="alert" className="text-amber-200">{licence.message}</p>}
-            {licence.status !== 'valid' ? (
-              <form onSubmit={(event) => void submit(event)} className="space-y-2">
-                <label className="block">{t.licence.licenceKey}
-                  <input className={`${field} mt-1 font-mono`} value={key} onChange={(event) => setKey(event.target.value)} autoComplete="off" spellCheck={false} placeholder="KESTREL1.…" />
-                </label>
-                <button type="submit" className={action} disabled={!key.trim()}>{t.licence.unlock}</button>
-              </form>
-            ) : (
-              <button type="button" className={action} onClick={() => { setNote(null); void removeLicence(); }}>{t.licence.removeKey}</button>
-            )}
-            {licence.status !== 'valid' && !isMobileShell() && (
-              <a href="https://kestrel-hosting-kestrel.web.app/#pricing" target="_blank" rel="noopener noreferrer"
-                className={`${action} inline-flex items-center`}
-                onClick={(event) => {
-                  if (!isDesktopApp()) return;
-                  event.preventDefault();
-                  const url = event.currentTarget.href;
-                  void import('@tauri-apps/plugin-opener')
-                    .then(({ openUrl }) => openUrl(url))
-                    .catch(() => setNote({ text: t.licence.pricingUnavailable, good: false }));
-                }}>{t.licence.viewProPricing}</a>
-            )}
-            {note && <p role={note.good ? 'status' : 'alert'} className={note.good ? 'text-emerald-200' : 'text-amber-200'}>{note.text}</p>}
-            <p className="text-xs text-zinc-400">{t.licence.noAccount}</p>
-          </section>
+        <div role="tablist" aria-label="Settings sections" className="flex shrink-0 gap-1 border-b border-white/10 px-3 pt-2"
+          onKeyDown={(event) => {
+            const order = ['account', 'move', 'about'] as const;
+            const i = order.indexOf(tab);
+            const next = event.key === 'ArrowRight' ? order[(i + 1) % 3] : event.key === 'ArrowLeft' ? order[(i + 2) % 3] : null;
+            if (next) { event.preventDefault(); event.stopPropagation(); setTab(next); document.getElementById(`settings-tab-${next}`)?.focus(); }
+          }}>
+          {([['account', 'Account and Pro'], ['move', 'Move settings'], ['about', 'About']] as const).map(([id, label]) => (
+            <button key={id} id={`settings-tab-${id}`} type="button" role="tab" aria-selected={tab === id} aria-controls="settings-panel" tabIndex={tab === id ? 0 : -1}
+              onClick={() => setTab(id)}
+              className={`min-h-11 rounded-t-md border-b-2 px-3 text-sm focus-visible:outline-2 focus-visible:outline-sky-300 ${tab === id ? 'border-kestrel-copper text-zinc-100' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}>{label}</button>
+          ))}
+        </div>
+        <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${tab}`} className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-4 text-sm text-zinc-300">
+          {tab === 'account' && <>
           <section aria-labelledby="account-h" className="space-y-3">
             <h3 id="account-h" className="font-medium text-zinc-100">Account (optional)</h3>
             {account ? (
@@ -289,6 +273,39 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
               </div>
             )}
           </section>
+          <section aria-labelledby="licence-h" className="space-y-3">
+            <h3 id="licence-h" className="font-medium text-zinc-100">{t.licence.licenceKey}</h3>
+            {licence.status === 'valid'
+              ? <>{licence.access.pro && <p role="status">{t.licence.unlocked}</p>}<LicenceOnlineStatus licence={licence} /></>
+              : <p>{t.licence.notUnlocked(DEV_PRO_PREVIEW_MODE)}</p>}
+            {licence.status === 'invalid' && <p role="alert" className="text-amber-200">{licence.message}</p>}
+            {licence.status !== 'valid' ? (
+              <form onSubmit={(event) => void submit(event)} className="space-y-2">
+                <label className="block">{t.licence.licenceKey}
+                  <input className={`${field} mt-1 font-mono`} value={key} onChange={(event) => setKey(event.target.value)} autoComplete="off" spellCheck={false} placeholder="KESTREL1.…" />
+                </label>
+                <button type="submit" className={action} disabled={!key.trim()}>{t.licence.unlock}</button>
+              </form>
+            ) : (
+              <button type="button" className={action} onClick={() => { setNote(null); void removeLicence(); }}>{t.licence.removeKey}</button>
+            )}
+            {licence.status !== 'valid' && !isMobileShell() && (
+              <a href="https://kestrel-hosting-kestrel.web.app/#pricing" target="_blank" rel="noopener noreferrer"
+                className={`${action} inline-flex items-center`}
+                onClick={(event) => {
+                  if (!isDesktopApp()) return;
+                  event.preventDefault();
+                  const url = event.currentTarget.href;
+                  void import('@tauri-apps/plugin-opener')
+                    .then(({ openUrl }) => openUrl(url))
+                    .catch(() => setNote({ text: t.licence.pricingUnavailable, good: false }));
+                }}>{t.licence.viewProPricing}</a>
+            )}
+            {note && <p role={note.good ? 'status' : 'alert'} className={note.good ? 'text-emerald-200' : 'text-amber-200'}>{note.text}</p>}
+            <p className="text-xs text-zinc-400">{t.licence.noAccount}</p>
+          </section>
+          </>}
+          {tab === 'move' && <>
           <section aria-labelledby="settings-h" className="space-y-3">
             <h3 id="settings-h" className="font-medium text-zinc-100">{t.licence.copyTitle}</h3>
             <p>{t.licence.copyBody}</p>
@@ -308,6 +325,8 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
               <p className="pb-2">{t.licence.otherWays}</p>
             </details>
           </section>
+          </>}
+          {tab === 'about' && <>
           <section aria-labelledby="build-information-h" className="space-y-2 border-t border-white/10 pt-4">
             <h3 id="build-information-h" className="font-medium text-zinc-100">{t.licence.buildTitle}</h3>
             <p className="text-xs text-zinc-400">{t.licence.buildHint}</p>
@@ -318,6 +337,7 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
               <dd className="select-text break-all font-mono">{import.meta.env.VITE_KESTREL_BUILD_TIMESTAMP || t.licence.unavailable}</dd>
             </dl>
           </section>
+          </>}
         </div>
         <footer className="shrink-0 border-t border-white/10 px-5 py-3">
           <button type="button" onClick={onClose} className={`${action} w-full`}>{t.common.close}</button>
