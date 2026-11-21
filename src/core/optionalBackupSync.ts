@@ -119,7 +119,8 @@ export async function publishBackup(remote: BackupRemote, projectId: string, byt
   const head: BackupHead = { schema: 1, revision, blobKey, sha256, bytes: bytes.byteLength };
   const ok = await remote.compareAndSwap(prefix + '/head.json', current?.etag ?? null,
     encoder.encode(JSON.stringify(head)), signal);
-  ensureActive(signal);
+  // A successful CAS is already a committed remote publication. Cancellation after
+  // that point must not misreport failure and provoke a conflicting retry.
   if (!ok) throw new Error('Concurrent remote backup update; no pointer was published');
   return { revision, sha256 };
 }
