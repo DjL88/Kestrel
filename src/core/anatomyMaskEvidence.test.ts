@@ -63,3 +63,42 @@ test('cross-genre evidence uses identical conservative mask rules, not wildlife 
     assert.equal(result.ok, true, domain);
   }
 });
+
+test('contradictory observed anatomy and foreground evidence abstains without altering manual work', () => {
+  const mask = createSubjectMask('subject', grid({ 10: 255, 11: 255 }), 'frame', 'high');
+  mask.strokes.push({ points: [0.3, 0.4], radius: 0.02, erase: false });
+  const before = structuredClone(mask);
+  assert.deepEqual(
+    refineObservedAnatomy(mask, evidence(grid({ 12: 255 }), grid({ 12: 255 })), sha),
+    { ok: false, reason: 'conflicting-evidence' },
+  );
+  assert.deepEqual(mask, before);
+});
+
+test('a broad false-positive appendage map cannot overwrite a small true subject', () => {
+  const mask = createSubjectMask('subject', grid({ 10: 255, 11: 255 }), 'frame', 'high');
+  const parts: Record<number, number> = {};
+  for (let i = 20; i < 36; i++) parts[i] = 255;
+  assert.deepEqual(refineObservedAnatomy(mask, evidence(grid(parts), grid()), sha),
+    { ok: false, reason: 'excessive-change' });
+  assert.equal(atob(mask.grid.data).charCodeAt(20), 0);
+});
+
+test('foreground occlusion cannot erase the entire original subject', () => {
+  const subject: Record<number, number> = {};
+  for (let i = 8; i < 24; i++) subject[i] = 255;
+  const mask = createSubjectMask('subject', grid(subject), 'frame', 'high');
+  assert.deepEqual(refineObservedAnatomy(mask, evidence(grid(), grid(subject)), sha),
+    { ok: false, reason: 'excessive-change' });
+  assert.equal(atob(mask.grid.data).charCodeAt(8), 255);
+});
+
+test('conservative observed part and separate foreground removal remain allowed', () => {
+  const mask = createSubjectMask('subject', grid({ 10: 255, 11: 255, 12: 255 }), 'frame', 'high');
+  const result = refineObservedAnatomy(mask, evidence(grid({ 13: 245 }), grid({ 11: 255 })), sha);
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(atob(result.mask.grid.data).charCodeAt(13), 245);
+    assert.equal(atob(result.mask.grid.data).charCodeAt(11), 0);
+  }
+});
