@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { AlertTriangle, Info, LoaderCircle, MessageSquareText } from 'lucide-react';
 import { AI_REVIEW_CONSENT_VERSION, aiReviewPrompt, type AiReview } from '../core/aiReview';
+import { yieldToPaint } from '../core/yieldToPaint';
 import { applyFix } from '../core/critique';
 import type { PhotoEdit } from '../core/photoEdits';
 import { languageOption } from '../core/locale';
@@ -102,12 +103,7 @@ export function AiReviewPanel({ edit, onEdit, readJpeg, localFindings, disabled 
     try {
       // Preview encoding can be synchronous. Paint progress before touching
       // the canvas so tapping Ask never appears to do nothing.
-      await new Promise<void>((resolve) => {
-        let settled = false;
-        const finish = () => { if (settled) return; settled = true; window.clearTimeout(fallback); resolve(); };
-        const fallback = window.setTimeout(finish, 80);
-        window.requestAnimationFrame(() => window.setTimeout(finish, 0));
-      });
+      await yieldToPaint();
       if (controller.signal.aborted) return;
       const jpeg = readJpeg();
       if (!jpeg) { if (abort.current === controller) setMessage(t.errors.other); return; }
