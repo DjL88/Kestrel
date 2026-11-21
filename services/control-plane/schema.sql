@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS accounts (
   password_hash  TEXT NOT NULL,                 -- scrypt$N$r$p$salt$hash
   role           TEXT NOT NULL DEFAULT 'user',  -- 'user' | 'admin'
   status         TEXT NOT NULL DEFAULT 'active',-- 'active' | 'suspended'
-  created_at_ms  INTEGER NOT NULL
+  created_at_ms  INTEGER NOT NULL,
+  ai_consent     INTEGER NOT NULL DEFAULT 0     -- standing "use Gemini" preference, separate from per-request consent
 );
 
 CREATE TABLE IF NOT EXISTS refresh_tokens (

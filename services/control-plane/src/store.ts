@@ -26,6 +26,13 @@ export interface AccountRecord {
   role: Role;
   status: 'active' | 'suspended';
   createdAtMs: number;
+  /**
+   * A standing, account-level "use Gemini" preference, set once by the person and kept across
+   * devices - separate from and in addition to the per-request `userConsent` every /v1/ai/* call
+   * still carries. This lets the app stop asking every single time once the person has opted in
+   * once; it never replaces the per-request check.
+   */
+  aiConsent: boolean;
 }
 
 export interface LicenceRecord {
@@ -140,6 +147,8 @@ export interface Store {
   createAccount(account: AccountRecord): Promise<boolean>;
   getAccount(accountId: string): Promise<AccountRecord | undefined>;
   setAccountRole(accountId: string, role: Role): Promise<void>;
+  /** The standing "use Gemini" account preference (see AccountRecord.aiConsent). */
+  setAiConsent(accountId: string, consent: boolean): Promise<void>;
   findAccountByEmailHash(emailHash: string): Promise<AccountRecord | undefined>;
   addRefreshToken(tokenHash: string, accountId: string, expiresAtMs: number): Promise<void>;
   /** Single use: marks the token used and returns its account, or undefined when missing, used or expired. */

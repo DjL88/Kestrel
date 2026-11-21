@@ -45,7 +45,7 @@ test('granting twice creates one entitlement, and it waits for the person to sig
     // Before sign-up nothing is attached to an account.
     assert.equal((await store.getLicence(grant.licenceId))?.accountId, null);
     const accountId = 'acc_ann';
-    assert.equal(await store.createAccount({ accountId, emailHash: emailHashOf('ann@example.com'), passwordHash: 'x', role: 'user', status: 'active', createdAtMs: NOW }), true);
+    assert.equal(await store.createAccount({ accountId, emailHash: emailHashOf('ann@example.com'), passwordHash: 'x', role: 'user', status: 'active', createdAtMs: NOW, aiConsent: false }), true);
     assert.equal(await store.claimLicencesForEmail(emailHashOf('ann@example.com'), accountId), 1);
     assert.equal(await store.claimLicencesForEmail(emailHashOf('ann@example.com'), accountId), 0, 'already claimed');
     const mine = await store.listLicencesForAccount(accountId);
@@ -59,8 +59,8 @@ test('a claim cannot take a licence that already belongs to someone else', async
   try {
     const grant = giftEntitlement({ email: 'ann@example.com', plan: 'paid', majorVersion: 1 }, NOW);
     await store.grantLicence(grant);
-    await store.createAccount({ accountId: 'acc_a', emailHash: emailHashOf('ann@example.com'), passwordHash: 'x', role: 'user', status: 'active', createdAtMs: NOW });
-    await store.createAccount({ accountId: 'acc_b', emailHash: emailHashOf('bob@example.com'), passwordHash: 'x', role: 'user', status: 'active', createdAtMs: NOW });
+    await store.createAccount({ accountId: 'acc_a', emailHash: emailHashOf('ann@example.com'), passwordHash: 'x', role: 'user', status: 'active', createdAtMs: NOW, aiConsent: false });
+    await store.createAccount({ accountId: 'acc_b', emailHash: emailHashOf('bob@example.com'), passwordHash: 'x', role: 'user', status: 'active', createdAtMs: NOW, aiConsent: false });
     assert.equal(await store.claimLicencesForEmail(emailHashOf('bob@example.com'), 'acc_b'), 0, "Bob's email does not match Ann's grant");
     assert.equal(await store.claimLicencesForEmail(emailHashOf('ann@example.com'), 'acc_a'), 1);
     assert.equal(await store.claimLicencesForEmail(emailHashOf('ann@example.com'), 'acc_b'), 0);
