@@ -81,7 +81,7 @@ separately at [ANDROID-PROTOTYPE.md](ANDROID-PROTOTYPE.md).
 
 ## Not yet verified (native setup)
 
-`tauri ios init` has not been run (it needs Xcode selected, above), so there is no iOS project in the repository and nothing has been built for a simulator or device. The Android package rename (`app.kestrel.desktop` to `app.kestrel.photo`) is an edit to the committed Gradle and Kotlin files that has **not been compiled**: build it once with `scripts/android/Build-Kestrel.ps1` on the Windows laptop before merging.
+`tauri ios init` has been run (21 Nov, Xcode 26.1.1, `xcodegen` and CocoaPods from Homebrew) and the project is in `src-tauri/gen/apple` (bundle ID `app.kestrel.photo`, team `G53UPS2B95`, Sign in with Apple entitlement). `npx tauri ios build --debug --target aarch64-sim --ci` produced `Kestrel.app` and it **launched on the iPhone 17 simulator (iOS 26.1)** and showed the Projects screen. Not done: a physical iPhone or iPad, a signed device or TestFlight build, importing, editing or exporting a photo, and a release build. Seen on the simulator: white bands above and below the web view (the safe areas are not filled with the app's dark background). The Android package rename (`app.kestrel.desktop` to `app.kestrel.photo`) is an edit to the committed Gradle and Kotlin files that has **not been compiled**: build it once with `scripts/android/Build-Kestrel.ps1` on the Windows laptop before merging.
 
 ## Deferred to final validation phase
 
