@@ -1,0 +1,76 @@
+{
+  "source": "ocr_two_pass.py, Florence-2-base int8, synthetic 4000x2667 frames",
+  "cases": [
+    {
+      "label": "UK registration",
+      "truth": "G-OKES",
+      "readings": [
+        {
+          "pass1": "G-OKES",
+          "region": [
+            1620,
+            1310,
+            1763,
+            1338
+          ],
+          "zoomCrop": [
+            1583,
+            1303,
+            1798,
+            1345
+          ],
+          "pass2": "G-OKES"
+        }
+      ]
+    },
+    {
+      "label": "US tail number",
+      "truth": "N738PA",
+      "readings": [
+        {
+          "pass1": "N738PA",
+          "region": [
+            1617,
+            1310,
+            1768,
+            1338
+          ],
+          "zoomCrop": [
+            1579,
+            1303,
+            1805,
+            1345
+          ],
+          "pass2": "N73RPA"
+        }
+      ]
+    },
+    {
+      "label": "bird ring",
+      "truth": "EB 74918",
+      "readings": [
+        {
+          "pass1": "EB 74018",
+          "region": [
+            1617,
+            1309,
+            1759,
+            1331
+          ],
+          "zoomCrop": [
+            1581,
+            1303,
+            1794,
+            1336
+          ],
+          "pass2": "E874918"
+        }
+      ]
+    },
+    {
+      "label": "blank sky",
+      "truth": "",
+      "readings": []
+    }
+  ]
+}

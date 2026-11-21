@@ -103,3 +103,25 @@ The app's offline cache does not pre-install this file for every visitor. A pers
 - `make_stand_in.py` makes a tiny stand-in model for tests that always "sees" one species.
 
 **What it learns.** The model never retrains. Names a person accepts are counted on the device and rise a little in the order next time, up to a small cap, so a clear match always wins.
+
+
+## Experimental offline photographic vision lab (not yet in Kestrel's editor)
+
+Reproducible **Python-only** evaluation harnesses live in `tools/vision-lab/`, with pinned
+acquisition and verified checksums in `scripts/models/manifest.json` and
+`scripts/models/acquire.py`. The exact checkpoint licences and revision URLs
+are recorded in the manifest, with notices written beside downloaded weights.
+No model weights, photographs, signing secrets or training datasets are committed.
+
+Candidate roles include SmolVLM2-500M for context and Florence-2 for region
+grounding and text reading. The reported six acquisition tests and checksum-verified
+downloads passed in Claude's development checkout; the actual on-device TypeScript
+runtime, signed activation through the updater, resource limits and calibration
+are **NOT IMPLEMENTED OR VERIFIED** by these files. The preliminary helicopter
+type classifier scored 0/12 and must not be offered as reliable identification.
+OCR/bird-ring observations remain suggestions requiring human confirmation.
+
+Run the Python test harness using `python3 -m unittest discover -s scripts/models`
+where its dependencies are installed. See each script's header for model and
+optional dependency requirements. These are developer tools, not a background
+download started by the photographer's app. Large packs require explicit consent.
