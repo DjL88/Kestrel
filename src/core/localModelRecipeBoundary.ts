@@ -36,7 +36,7 @@ const range = (n: unknown, low: number, high: number): n is number =>
   finite(n) && n >= low && n <= high;
 const plain = (s: unknown, max: number): s is string =>
   typeof s === 'string' && s.trim().length > 0 && s.length <= max &&
-  !/[<>\\u0000-\\u001f]/.test(s);
+  !/[<>\u0000-\u001f]/.test(s);
 function validEdit(edit: LocalEdit): boolean {
   if (!edit || typeof edit !== 'object') return false;
   switch (edit.kind) {

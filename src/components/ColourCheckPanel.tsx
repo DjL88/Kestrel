@@ -4,6 +4,7 @@ import { checkColour, type ColourFamily, type ColourFinding, type ColourReport, 
 import type { PhotoEdit } from '../core/photoEdits';
 import { applyFix } from '../core/critique';
 import { capturePhotoReviewScope, samePhotoReviewScope, type PhotoReviewScope } from '../core/photoReviewScope';
+import { acceptsColourCheck, ColourCheckDemandGate } from '../core/colourCheckDemand';
 import { colourText as t } from '../i18n/areas/colour';
 import { colourControls } from '../i18n/colourControls';
 import { AiReviewPanel } from './AiReviewPanel';
@@ -69,8 +70,11 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   const report = samePhotoReviewScope(reportScope.current, currentScope.current) ? storedReport : null;
   const [failed, setFailed] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const generation = useRef(0);
+  // Synchronous lock: React state alone cannot stop two clicks before rerender.
+  const demandGate = useRef(new ColourCheckDemandGate());
   const read = useRef(readPreview);
   read.current = readPreview;
 
@@ -78,12 +82,14 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
     // Invalidate every pending check when the image, recipe or guidance state changes.
     // A previous photo must never leave apparently current colour advice behind.
     const current = ++generation.current;
+    demandGate.current.finish();
     const requested = capturePhotoReviewScope(currentScope.current);
     reportScope.current = null;
     setReport(null);
     setFailed(false);
     setApplied(false);
     setShowAll(false);
+    setChecking(!disabled);
     if (disabled) return;
     const timer = window.setTimeout(() => {
       if (current !== generation.current) return;
@@ -92,17 +98,26 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
         if (!preview) {
           setReport(null);
           setFailed(true);
+          setChecking(false);
           return;
         }
         const next = checkColour({ after: preview.after, before: preview.before, subject: preview.subject });
-        if (current !== generation.current || !samePhotoReviewScope(requested, currentScope.current)) return;
+        if (current !== generation.current) return;
+        if (!samePhotoReviewScope(requested, currentScope.current)) {
+          // A new photo can render before the dependency effect runs. Do not
+          // publish its predecessor's findings or leave the old check spinning.
+          setChecking(false);
+          return;
+        }
         reportScope.current = requested;
         setReport(next);
         setFailed(false);
+        setChecking(false);
       } catch {
         if (current !== generation.current) return;
         setReport(null);
         setFailed(true);
+        setChecking(false);
       }
     }, 400);
     return () => {
@@ -116,21 +131,32 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   // Fly Solo never runs a background check. An explicit press uses the same local
   // renderer preview, and the normal version effect invalidates it on any edit/photo change.
   const checkOnDemand = () => {
-    ++generation.current;
+    const now = Date.now();
+    if (!demandGate.current.begin(now)) return;
+    const current = ++generation.current;
     const requested = capturePhotoReviewScope(currentScope.current);
     reportScope.current = null;
     setReport(null);
     setFailed(false);
     setApplied(false);
     setShowAll(false);
+    setChecking(true);
     try {
       const preview = read.current();
-      if (!preview) { setFailed(true); return; }
+      if (!preview) { setFailed(true); setChecking(false); return; }
       const next = checkColour({ after: preview.after, before: preview.before, subject: preview.subject });
-      if (!samePhotoReviewScope(requested, currentScope.current)) return;
+      if (!acceptsColourCheck(current, generation.current, requested, currentScope.current)) {
+        if (current === generation.current) setChecking(false);
+        return;
+      }
       reportScope.current = requested;
       setReport(next);
-    } catch { setFailed(true); }
+      setChecking(false);
+    } catch {
+      if (current === generation.current) { setFailed(true); setChecking(false); }
+    } finally {
+      demandGate.current.finish();
+    }
   };
 
   const problems = report?.findings.filter((finding) => finding.severity !== 'info') ?? [];
@@ -142,11 +168,11 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
         <Palette className="h-4 w-4" aria-hidden="true" />{t.title}
         {problems.length > 0 && <span className="text-xs text-zinc-400">({t.findings(problems.length)})</span>}
       </summary>
-      <div className="min-w-0 space-y-2 overflow-x-hidden px-1 pb-2 text-sm">
-        <button type="button" className="min-h-11 rounded-md border border-white/15 px-3 text-xs text-zinc-200 focus-visible:outline-2 focus-visible:outline-sky-300" onClick={checkOnDemand} aria-label={colourControls.check}>{colourControls.check}</button>
+      <div className="min-w-0 space-y-2 overflow-x-hidden px-1 pb-2 text-sm" aria-busy={!disabled && checking}>
+        <button type="button" className="min-h-11 rounded-md border border-white/15 px-3 text-xs text-zinc-200 focus-visible:outline-2 focus-visible:outline-sky-300" onClick={checkOnDemand} aria-label={colourControls.check} aria-disabled={checking}>{colourControls.check}</button>
         {disabled && !report && !failed && <p className="text-xs text-zinc-400">{colourControls.paused}</p>}
-        {failed && <p className="text-xs text-zinc-400">{t.unavailable}</p>}
-        {!disabled && !report && !failed && <p className="text-xs text-zinc-400">{t.checking}</p>}
+        {failed && <p role="status" className="text-xs text-zinc-400">{t.unavailable} {colourControls.retry}</p>}
+        {!disabled && checking && !report && !failed && <p role="status" className="text-xs text-zinc-400">{t.checking}</p>}
         {report && report.palette.length > 0 && (
           <div>
             <h4 className="text-xs font-medium text-zinc-300">{t.mainColours}</h4>
@@ -178,7 +204,12 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
                     <button type="button" className="ml-5 min-h-9 rounded-md border border-white/15 px-2 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300"
                       onClick={() => {
                         if (!samePhotoReviewScope(reportScope.current, currentScope.current)) return;
-                        onEdit(applyFix(edit, { kind: 'global', delta: said.fix!.delta })); setApplied(true);
+                        // Invalidate before notifying the parent: a double click or a slow
+                        // parent render must not apply the same suggestion twice.
+                        reportScope.current = null;
+                        setReport(null);
+                        setApplied(true);
+                        onEdit(applyFix(edit, { kind: 'global', delta: said.fix!.delta }));
                       }}>
                       {said.fix.label}
                     </button>

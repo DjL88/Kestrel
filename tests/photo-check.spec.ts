@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 
 /**
@@ -34,21 +36,34 @@ async function openPhoto(page: Page) {
   if (await all.isVisible()) await all.click();
   return page.getByRole('region', { name: 'Photo check' });
 }
-const chromiumMemoryMb = () => {
-  try { return Number(execSync("ps -eo rss,comm | grep -i chrom | awk '{s+=$1} END {print int(s/1024)}'").toString().trim()); }
-  catch { return -1; } // Windows/macOS build hosts may not have this ps output
-};
+const chromiumMemoryMb = () => Number(execSync("ps -eo rss,comm | grep -i chrom | awk '{s+=$1} END {print int(s/1024)}'").toString().trim());
 
 test('install the on-device model with consent, check a real photo, apply, undo, reopen, then repeat offline', async ({ page, context }) => {
   page.on('console', (message) => { if (/Photo check/.test(message.text())) console.log('BROWSER', message.text()); });
+  const t0 = Date.now();
+  page.on('close', () => console.log('BROWSER page closed at', Date.now() - t0, 'ms'));
+  context.browser()?.on('disconnected', () => console.log('BROWSER browser disconnected at', Date.now() - t0, 'ms'));
+  page.on('crash', () => console.log('BROWSER page crashed'));
+  page.on('pageerror', (error) => console.log('BROWSER pageerror', String(error).slice(0, 300)));
   const outside: string[] = [];
   page.on('request', (request) => { const url = request.url(); if (!/^(data|blob):/.test(url) && !new URL(url).hostname.match(/^(localhost|127\.0\.0\.1)$/)) outside.push(url); });
   // The pinned upstream URLs are answered from local files: the real bytes, the real size and digest checks.
+  // A real local file server (route.fulfill cannot carry a 94 MB body without taking the browser down).
+  const server = http.createServer((request, response) => {
+    const file = path.join(modelDir!, decodeURIComponent(new URL(request.url!, 'http://x').pathname).replace(/^\/+/, ''));
+    if (!file.startsWith(modelDir!) || !fs.existsSync(file)) { response.writeHead(404, { 'access-control-allow-origin': '*' }).end(); return; }
+    response.writeHead(200, { 'access-control-allow-origin': '*', 'content-type': 'application/octet-stream', 'content-length': fs.statSync(file).size });
+    fs.createReadStream(file).pipe(response);
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const local = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  test.info().annotations.push({ type: 'model-server', description: local });
+  // The pinned upstream URLs are redirected to those local files: the real bytes, the real size and digest checks.
   const downloads: string[] = [];
   await page.route('https://huggingface.co/**', async (route) => {
     const rel = new URL(route.request().url()).pathname.split('/resolve/')[1].split('/').slice(1).join('/');
     downloads.push(rel);
-    await route.fulfill({ status: 200, contentType: 'application/octet-stream', body: fs.readFileSync(path.join(modelDir!, rel)) });
+    await route.fulfill({ status: 302, headers: { location: `${local}/${rel}`, 'access-control-allow-origin': '*' } });
   });
 
   const panel = await openPhoto(page);
@@ -63,7 +78,6 @@ test('install the on-device model with consent, check a real photo, apply, undo,
   await panel.getByRole('button', { name: 'Install photo check' }).click();
   await expect(panel).toContainText('Nothing is uploaded');
   await panel.getByRole('button', { name: 'Install', exact: true }).click();
-  for (let i = 0; i < 6 && downloads.length < 4; i += 1) { await page.waitForTimeout(5000); console.log('PROGRESS', downloads.length, JSON.stringify((await panel.innerText()).replace(/\n/g, ' | '))); }
   await expect.poll(() => downloads.length, { timeout: 60_000 }).toBe(4);
   await expect(panel).not.toContainText('Installing', { timeout: 120_000 });
   await expect(panel.getByRole('button', { name: /^Install/ })).toHaveCount(0);
@@ -74,16 +88,17 @@ test('install the on-device model with consent, check a real photo, apply, undo,
   await expect(panel).toContainText('Scene:', { timeout: 240_000 });
   console.log(`PHOTO-CHECK first inference after idle: ${Date.now() - started} ms; ${panel ? await panel.innerText() : ''}`.replace(/\n/g, ' | '));
   console.log(`PHOTO-CHECK chromium memory after inference: ${chromiumMemoryMb()} MB`);
-  // This 256M model was wrong about cats/people in Claude's measured trials.
-  // A completed check may abstain on identity; only corroborated lighting is shown.
-  await expect(panel).toContainText('Scene:');
+  // Smaller local models can abstain. Prove a completed inference, not an
+  // unreliable hardcoded animal label or an OCR research result.
+  await expect(panel).toHaveAttribute('data-photo-model-status', 'checked');
 
   // One suggestion, applied through the ordinary slider, as one undoable edit.
   const exposure = page.getByRole('slider', { name: 'Exposure' });
   await expect(exposure).toHaveValue('0');
-  await panel.getByRole('button', { name: /Try this: Lower Exposure/ }).click();
+  await panel.getByRole('button', { name: /^Try this: Lower Exposure/ }).click();
   expect(Number(await exposure.inputValue())).toBeLessThan(0);
-  await page.getByRole('button', { name: /^Undo/ }).first().click();
+  await page.locator('body').click({ position: { x: 5, y: 5 } }); // focus off any control, then the editor's own undo shortcut
+  await page.keyboard.press('Control+z');
   await expect(exposure).toHaveValue('0');
 
   // Reopen: the verified install survives, so no install prompt and no download.
@@ -101,27 +116,20 @@ test('install the on-device model with consent, check a real photo, apply, undo,
   await expect(reopened.getByRole('button', { name: 'Install photo check' })).toHaveCount(0);
   expect(downloads).toEqual([]);
 
-  // A broad scene reading is cached across ordinary slider changes, while
-  // the measured histogram/recipe advice continues to update. Demand a fresh
-  // explicit local model check once the network is disconnected.
-  await expect(reopened).toContainText('Scene:', { timeout: 240_000 });
-  const firstScene = await reopened.innerText();
-  const offlineExposure = page.getByRole('slider', { name: 'Exposure' });
-  const startingValue = await offlineExposure.inputValue();
-  await offlineExposure.focus();
-  await offlineExposure.press('ArrowRight');
-  await expect(offlineExposure).not.toHaveValue(startingValue);
-  await expect(reopened).toContainText('Scene:');
-  expect(await reopened.innerText()).toContain(firstScene.split('Scene:')[1].split('\n')[0].trim());
-
+  // Network off: the check runs again from the verified local files. Changing the recipe makes the old reading stale.
   await context.setOffline(true);
   outside.length = 0;
-  const offlineStart = Date.now();
-  await reopened.getByRole('button', { name: 'Check my photo' }).click();
-  await expect(reopened).not.toContainText('Scene:');
-  await expect(reopened).toContainText('Checking…', { timeout: 30_000 });
-  await expect(reopened).toContainText('Scene:', { timeout: 240_000 });
-  console.log(`PHOTO-CHECK fresh OFFLINE inference: ${Date.now() - offlineStart} ms`);
+  // Force a NEW inference after the network has gone offline. Merely waiting
+  // for a Scene: label from before disconnecting would be a false-positive.
+  const offlineExposure = page.getByRole('slider', { name: 'Exposure' });
+  const originalValue = await offlineExposure.inputValue();
+  await offlineExposure.focus();
+  await offlineExposure.press('ArrowRight');
+  await expect(offlineExposure).not.toHaveValue(originalValue);
+  await expect(reopened).not.toHaveAttribute('data-photo-model-status', 'checked');
+  await expect(reopened).toHaveAttribute('data-photo-model-status', 'checked', { timeout: 240_000 });
+  await expect(reopened).toContainText('Scene:');
   expect(outside, 'no request left this computer').toEqual([]);
   expect(downloads).toEqual([]);
+  server.close();
 });

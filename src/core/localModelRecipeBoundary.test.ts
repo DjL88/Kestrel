@@ -39,7 +39,7 @@ describe('local model recipe trust boundary', () => {
   });
   it('does not open a model or run classical analysis in unsolicited Fly Solo', async () => {
     let opened = 0; let classical = 0;
-    const advisor = createLocalRecipeAdvisor({ open: async () => { opened++; return { source: 'unavailable' as const }; } });
+    const advisor = createLocalRecipeAdvisor({ open: async () => { opened++; return { bytes: undefined, source: 'unavailable' as const }; } });
     const result = await advisor.suggest({
       mode: 'fly-solo', explicitlyRequested: false, soarOptIn: false,
       model: { id: 'local-bird', rightsApproved: true, backend: 'cpu', estimatedRamBytes: 1024 },

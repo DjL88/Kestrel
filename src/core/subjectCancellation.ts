@@ -12,7 +12,8 @@ export function boundedSubjectGuide<T>(
   budgetMs: number,
   signal?: AbortSignal,
 ): Promise<T | null> {
-  assertSubjectActive(signal);
+  // A function that returns a promise rejects for an already-cancelled photo; it must not throw synchronously.
+  if (signal?.aborted) return Promise.reject(new DOMException('Subject search cancelled', 'AbortError'));
   if (!Number.isFinite(budgetMs) || budgetMs < 1) throw new RangeError('Invalid subject guide budget');
   return new Promise<T | null>((resolve, reject) => {
     let settled = false;

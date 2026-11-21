@@ -3,13 +3,14 @@ import { test, expect } from '@playwright/test';
 test('verified offline cache survives reopen, retains previous, and rejects stale CAS', async ({ page }) => {
   await page.goto('/');
   const outcome = await page.evaluate(async () => {
+    // @ts-ignore browser URL, resolved by the dev server
     const { indexedDbAssetSlots } = await import('/src/providers/verifiedAssetIndexedDb.ts');
     const slots = indexedDbAssetSlots();
     const id = 'playwright-verified-asset-' + Date.now();
     const a = new Uint8Array([1, 2, 3]);
     const b = new Uint8Array([4, 5, 6]);
     const hash = async (bytes: Uint8Array) =>
-      Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
+      Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as BufferSource)),
         x => x.toString(16).padStart(2, '0')).join('');
     const firstHash = await hash(a), secondHash = await hash(b);
     const first = { id, version: '1.0.0', sha256: firstHash, slot: 'sha256-' + firstHash };
@@ -39,12 +40,13 @@ test('verified offline cache survives reopen, retains previous, and rejects stal
 test('bounded cache refuses over-budget writes without losing the active verified asset', async ({ page }) => {
   await page.goto('/');
   const outcome = await page.evaluate(async () => {
+    // @ts-ignore browser URL, resolved by the dev server
     const { indexedDbAssetSlots } = await import('/src/providers/verifiedAssetIndexedDb.ts');
     const slots = indexedDbAssetSlots(5);
     const bytes = new Uint8Array([1, 2, 3]);
     const other = new Uint8Array([4, 5, 6]);
     const hash = async (data: Uint8Array) =>
-      Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', data)),
+      Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', data as BufferSource)),
         x => x.toString(16).padStart(2, '0')).join('');
     const firstHash = await hash(bytes), secondHash = await hash(other);
     const first = { id: 'budget-asset', version: '1.0.0', sha256: firstHash, slot: 'sha256-' + firstHash };
@@ -68,6 +70,7 @@ test('bounded cache refuses over-budget writes without losing the active verifie
 test('invalid cache budgets fail closed before any write', async ({ page }) => {
   await page.goto('/');
   const rejected = await page.evaluate(async () => {
+    // @ts-ignore browser URL, resolved by the dev server
     const { indexedDbAssetSlots } = await import('/src/providers/verifiedAssetIndexedDb.ts');
     return [0, -1, 1.5, Number.NaN].every(budget => {
       try { indexedDbAssetSlots(budget); return false; } catch { return true; }
@@ -81,13 +84,15 @@ test('large verified asset is stored as atomic bounded records and survives offl
   test.setTimeout(90_000);
   await page.goto('/');
   const proof = await page.evaluate(async () => {
+    // @ts-ignore browser URL, resolved by the dev server
     const { indexedDbAssetSlots } = await import('/src/providers/verifiedAssetIndexedDb.ts');
+    // @ts-ignore browser URL, resolved by the dev server
     const { readVerifiedActive } = await import('/src/core/verifiedAssetActivation.ts');
     const store = indexedDbAssetSlots();
     // Larger than one chunk; avoids putting 137 MiB in a single browser record.
     const bytes = new Uint8Array(34 * 1024 * 1024 + 17);
     for (let i = 0; i < bytes.length; i += 1) bytes[i] = (i * 17 + (i >>> 11)) & 255;
-    const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
+    const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as BufferSource)),
       b => b.toString(16).padStart(2, '0')).join('');
     const slot = 'sha256-' + sha256;
     const id = 'large-photo-model';
