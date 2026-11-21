@@ -103,12 +103,21 @@ export class FirestoreStore implements Store {
   }
   async getAccount(accountId: string) {
     const snap = await this.ref(C.accounts, accountId).get();
-    return snap.exists ? (snap.data() as unknown as AccountRecord) : undefined;
+    if (!snap.exists) return undefined;
+    const data = snap.data() as unknown as AccountRecord;
+    // aiConsent defaults to false for accounts written before this field existed.
+    return { ...data, aiConsent: data.aiConsent ?? false };
   }
   async setAccountRole(accountId: string, role: Role): Promise<void> {
     await this.db.runTransaction(async (tx) => {
       const ref = this.ref(C.accounts, accountId);
       if ((await tx.get(ref)).exists) tx.update(ref, { role });
+    });
+  }
+  async setAiConsent(accountId: string, consent: boolean): Promise<void> {
+    await this.db.runTransaction(async (tx) => {
+      const ref = this.ref(C.accounts, accountId);
+      if ((await tx.get(ref)).exists) tx.update(ref, { aiConsent: consent });
     });
   }
   async findAccountByEmailHash(emailHash: string) {

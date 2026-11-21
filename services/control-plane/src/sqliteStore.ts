@@ -10,7 +10,7 @@ import {
 type Value = string | number | null;
 
 interface LicenceRow { licence_id: string; account_id: string | null; plan: LicenceRecord['plan']; managed_ai: number; status: LicenceStatus; max_devices: number; offline_grace_days: number; valid_until_ms: number | null; updated_at_ms: number; note: string | null; major_version: number; paid: number; source: LicenceRecord['source']; email_hash: string | null }
-interface AccountRow { account_id: string; email_hash: string; password_hash: string; role: AccountRecord['role']; status: AccountRecord['status']; created_at_ms: number }
+interface AccountRow { account_id: string; email_hash: string; password_hash: string; role: AccountRecord['role']; status: AccountRecord['status']; created_at_ms: number; ai_consent: number }
 interface AssetRow { asset_id: string; kind: string; version: string; channel: string; path: string; sha256: string; bytes: number; required_app_min: string; status: ModelAssetRecord['status']; created_at_ms: number }
 
 const licence = (r: LicenceRow): LicenceRecord => ({
@@ -18,7 +18,7 @@ const licence = (r: LicenceRow): LicenceRecord => ({
   maxDevices: r.max_devices, offlineGraceDays: r.offline_grace_days, validUntilMs: r.valid_until_ms, updatedAtMs: r.updated_at_ms, note: r.note ?? null,
   majorVersion: r.major_version ?? 1, paid: r.paid === 1, source: r.source ?? 'key', emailHash: r.email_hash ?? null,
 });
-const account = (r: AccountRow): AccountRecord => ({ accountId: r.account_id, emailHash: r.email_hash, passwordHash: r.password_hash, role: r.role, status: r.status, createdAtMs: r.created_at_ms });
+const account = (r: AccountRow): AccountRecord => ({ accountId: r.account_id, emailHash: r.email_hash, passwordHash: r.password_hash, role: r.role, status: r.status, createdAtMs: r.created_at_ms, aiConsent: r.ai_consent === 1 });
 const asset = (r: AssetRow): ModelAssetRecord => ({
   assetId: r.asset_id, kind: r.kind, version: r.version, channel: r.channel, path: r.path, sha256: r.sha256, bytes: r.bytes,
   requiredAppMin: r.required_app_min, status: r.status, createdAtMs: r.created_at_ms,
@@ -47,6 +47,9 @@ export class SqliteStore implements Store {
     if (!columns.includes('paid')) this.db.exec('ALTER TABLE licences ADD COLUMN paid INTEGER NOT NULL DEFAULT 0');
     if (!columns.includes('source')) this.db.exec("ALTER TABLE licences ADD COLUMN source TEXT NOT NULL DEFAULT 'key'");
     if (!columns.includes('email_hash')) this.db.exec('ALTER TABLE licences ADD COLUMN email_hash TEXT');
+    // Databases made before accounts carried a standing "use Gemini" preference.
+    const accountColumns = this.all<{ name: string }>('PRAGMA table_info(accounts)').map((c) => c.name);
+    if (!accountColumns.includes('ai_consent')) this.db.exec('ALTER TABLE accounts ADD COLUMN ai_consent INTEGER NOT NULL DEFAULT 0');
   }
 
   private get<T>(sql: string, ...params: Value[]): T | undefined { return this.db.prepare(sql).get(...params) as T | undefined; }
@@ -72,13 +75,14 @@ export class SqliteStore implements Store {
 
   async createAccount(a: AccountRecord): Promise<boolean> {
     try {
-      this.run('INSERT INTO accounts (account_id, email_hash, password_hash, role, status, created_at_ms) VALUES (?, ?, ?, ?, ?, ?)',
-        a.accountId, a.emailHash, a.passwordHash, a.role, a.status, a.createdAtMs);
+      this.run('INSERT INTO accounts (account_id, email_hash, password_hash, role, status, created_at_ms, ai_consent) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        a.accountId, a.emailHash, a.passwordHash, a.role, a.status, a.createdAtMs, a.aiConsent ? 1 : 0);
       return true;
     } catch (error) { if (isConstraint(error)) return false; throw error; }
   }
   async getAccount(accountId: string) { const r = this.get<AccountRow>('SELECT * FROM accounts WHERE account_id = ?', accountId); return r && account(r); }
   async setAccountRole(accountId: string, role: Role): Promise<void> { this.run('UPDATE accounts SET role = ? WHERE account_id = ?', role, accountId); }
+  async setAiConsent(accountId: string, consent: boolean): Promise<void> { this.run('UPDATE accounts SET ai_consent = ? WHERE account_id = ?', consent ? 1 : 0, accountId); }
   async findAccountByEmailHash(emailHash: string) { const r = this.get<AccountRow>('SELECT * FROM accounts WHERE email_hash = ?', emailHash); return r && account(r); }
 
   async addRefreshToken(tokenHash: string, accountId: string, expiresAtMs: number): Promise<void> {

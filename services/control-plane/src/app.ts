@@ -122,6 +122,12 @@ export const Schemas = {
   EntitlementsResponse: z.object({
     plans: z.array(z.object({ licenceId: z.string(), plan: z.string(), status: z.string(), managedAi: z.boolean(), offlineGraceDays: z.number(), majorVersion: z.number(), paid: z.boolean(), source: z.string() })),
     aiQuota: z.object({ requestsUsed: z.number(), requestsLimit: z.number(), periodEndsMs: z.number() }).nullable(),
+    /**
+     * The account's own standing "use Gemini" choice, set once and kept across devices. Separate from
+     * `managedAi` above (whether the plan includes the online helper at all) and from the per-request
+     * `userConsent` flag every /v1/ai/* call still carries: this is what lets the app stop asking every time.
+     */
+    aiConsent: z.boolean(),
     nextRevalidationMs: z.number(),
   }),
   ImageRequest: ImageBody,
@@ -168,6 +174,7 @@ export const Schemas = {
   }).strict(),
   AdminPromote: z.object({ id: z.string(), version: z.string(), channel: z.enum(['stable', 'beta']).default('stable') }).strict(),
   AdminRelease: z.object({ platform: z.enum(['windows', 'macos']), channel: z.enum(['stable', 'beta']).default('stable'), version: Version, url: z.string().url(), notes: z.string().max(4000).default(''), minSupported: Version.default('0.0.0') }).strict(),
+  AiConsentRequest: z.object({ consent: z.boolean() }).strict(),
 };
 
 // ---- Small helpers -----------------------------------------------------------
@@ -245,7 +252,7 @@ export function createApp(options: AppOptions) {
     const emailHash = sha256Hex(email);
     let account = await store.findAccountByEmailHash(emailHash);
     if (!account) {
-      await store.createAccount({ accountId: `acc_${randomId(12)}`, emailHash, passwordHash: `${provider}-only`, role: 'user', status: 'active', createdAtMs: now() });
+      await store.createAccount({ accountId: `acc_${randomId(12)}`, emailHash, passwordHash: `${provider}-only`, role: 'user', status: 'active', createdAtMs: now(), aiConsent: false });
       account = await store.findAccountByEmailHash(emailHash);
     }
     if (!account || account.status !== 'active') throw new ApiError(403, 'FORBIDDEN', 'This account is suspended.');
@@ -278,7 +285,7 @@ export function createApp(options: AppOptions) {
 
   async function createAccount(email: string, password: string, role: 'user' | 'admin'): Promise<string> {
     const accountId = `acc_${randomId(12)}`;
-    const created = await store.createAccount({ accountId, emailHash: sha256Hex(email.trim().toLowerCase()), passwordHash: hashPassword(password), role, status: 'active', createdAtMs: now() });
+    const created = await store.createAccount({ accountId, emailHash: sha256Hex(email.trim().toLowerCase()), passwordHash: hashPassword(password), role, status: 'active', createdAtMs: now(), aiConsent: false });
     if (!created) throw new ApiError(409, 'ACCOUNT_EXISTS', 'That account already exists.');
     return accountId;
   }
@@ -527,13 +534,26 @@ export function createApp(options: AppOptions) {
         const claims = await bearer(req);
         const plans = await store.listLicencesForAccount(claims.sub);
         const quota = await store.getQuota(claims.sub);
+        const account = await store.getAccount(claims.sub);
         return {
           status: 200, body: {
             plans: plans.map((p) => ({ licenceId: p.licenceId, plan: p.plan, status: p.status, managedAi: p.managedAi, offlineGraceDays: p.offlineGraceDays, majorVersion: p.majorVersion, paid: p.paid, source: p.source })),
             aiQuota: quota ? { requestsUsed: quota.requestsUsed, requestsLimit: quota.requestsLimit, periodEndsMs: quota.periodStartMs + QUOTA_PERIOD_MS } : null,
+            aiConsent: account?.aiConsent ?? false,
             nextRevalidationMs: now() + 7 * DAY_MS,
           },
         };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/me/ai-consent', summary: 'Set or withdraw the standing "use Gemini" preference for this account', auth: 'user',
+      body: Schemas.AiConsentRequest, response: z.object({ aiConsent: z.boolean() }),
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.AiConsentRequest, req.rawBody);
+        await store.setAiConsent(claims.sub, body.consent);
+        await audit(claims.sub, 'ai.consent.set', 'allowed', body.consent ? 'granted' : 'withdrawn');
+        return { status: 200, body: { aiConsent: body.consent } };
       },
     },
 
@@ -668,7 +688,7 @@ export function createApp(options: AppOptions) {
         let account = await store.findAccountByEmailHash(emailHash);
         if (!account) {
           // No password: this account can only sign in with Google.
-          await store.createAccount({ accountId: `acc_${randomId(12)}`, emailHash, passwordHash: 'google-only', role: 'admin', status: 'active', createdAtMs: now() });
+          await store.createAccount({ accountId: `acc_${randomId(12)}`, emailHash, passwordHash: 'google-only', role: 'admin', status: 'active', createdAtMs: now(), aiConsent: false });
           account = await store.findAccountByEmailHash(emailHash);
         } else if (account.role !== 'admin') {
           await store.setAccountRole(account.accountId, 'admin');

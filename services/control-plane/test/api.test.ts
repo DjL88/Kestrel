@@ -18,10 +18,27 @@ test('sign-in returns a session, and a refresh token works exactly once', async 
   const me = await h.call('GET', '/v1/me/entitlements', { token: session.body.accessToken });
   assert.equal(me.status, 200);
   assert.equal(me.body.plans[0].managedAi, true);
+  assert.equal(me.body.aiConsent, false, 'new accounts have not opted into the online helper');
   const refreshed = await h.call('POST', '/v1/auth/refresh', { body: { refreshToken: session.body.refreshToken } });
   assert.equal(refreshed.status, 200);
   const again = await h.call('POST', '/v1/auth/refresh', { body: { refreshToken: session.body.refreshToken } });
   assert.equal(again.status, 401, 'refresh tokens are single use');
+});
+
+test('the standing "use Gemini" preference is set once and kept, separate from per-request consent', async () => {
+  const session = await h.call('POST', '/v1/auth/session', { body: { email: 'user@example.test', password: 'user-password-123' } });
+  assert.equal(session.status, 200);
+  const before = await h.call('GET', '/v1/me/entitlements', { token: session.body.accessToken });
+  assert.equal(before.body.aiConsent, false);
+  const denied = await h.call('POST', '/v1/me/ai-consent', { body: { consent: true } });
+  assert.equal(denied.status, 401, 'setting the preference needs a session');
+  const set = await h.call('POST', '/v1/me/ai-consent', { token: session.body.accessToken, body: { consent: true } });
+  assert.equal(set.status, 200);
+  assert.equal(set.body.aiConsent, true);
+  const after = await h.call('GET', '/v1/me/entitlements', { token: session.body.accessToken });
+  assert.equal(after.body.aiConsent, true, 'the preference is kept on the account, not just returned once');
+  const withdrawn = await h.call('POST', '/v1/me/ai-consent', { token: session.body.accessToken, body: { consent: false } });
+  assert.equal(withdrawn.body.aiConsent, false);
 });
 
 test('activation is idempotent per device, capped per licence, and refused once revoked', async () => {
