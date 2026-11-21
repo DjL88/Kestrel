@@ -74,6 +74,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   const generation = useRef(0);
   // Synchronous lock: React state alone cannot stop two clicks before rerender.
   const demandInFlight = useRef(false);
+  const lastDemandAt = useRef(0);
   const read = useRef(readPreview);
   read.current = readPreview;
 
@@ -124,7 +125,9 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   // Fly Solo never runs a background check. An explicit press uses the same local
   // renderer preview, and the normal version effect invalidates it on any edit/photo change.
   const checkOnDemand = () => {
-    if (demandInFlight.current) return;
+    const now = Date.now();
+    if (demandInFlight.current || now - lastDemandAt.current < 350) return;
+    lastDemandAt.current = now;
     demandInFlight.current = true;
     const current = ++generation.current;
     const requested = capturePhotoReviewScope(currentScope.current);
