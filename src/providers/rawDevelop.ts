@@ -45,6 +45,29 @@ export async function developRaw(file: Blob, extension = 'nef'): Promise<Blob> {
 }
 
 /**
+ * Decode the sensor-derived RGB16 working raster, rather than the JPEG used by
+ * the legacy review/editor route. The same Kestrel Rust decoder runs through
+ * Tauri on desktop and WASM on web; platform codec support is NOT guaranteed.
+ * The returned buffer is display-encoded RGB16, not a verified linear camera
+ * master. Consumers must separately verify original hash, colour evidence and
+ * HE/HE* distribution rights before promoting it to an archival master.
+ * Caller owns this scratch buffer; original RAW bytes are never modified.
+ */
+export async function developRawRgb16(file: Blob): Promise<ArrayBuffer> {
+  const { parseRgb16 } = await import('../core/master16');
+  let picture: ArrayBuffer;
+  if (!hasNativeRaw()) {
+    const { developRaw16InBrowser } = await import('./rawWasm');
+    picture = await developRaw16InBrowser(file);
+  } else {
+    const { invoke } = await import('@tauri-apps/api/core');
+    picture = await invoke<ArrayBuffer>('develop_raw_rgb16', new Uint8Array(await file.arrayBuffer()));
+  }
+  parseRgb16(picture); // Fail closed on forged dimensions and truncated decoder output.
+  return picture;
+}
+
+/**
  * Experimental: decode a RAW file straight to a 16-bit TIFF, with none of the 8-bit JPEG intermediate `developRaw` uses.
  * No colour profile is embedded yet and Nikon High Efficiency files are not covered (no system-decoder fallback here), so
  * this is offered as an extra, clearly-labelled download next to the normal editor path, not a replacement for it.
