@@ -31,7 +31,7 @@ export interface Suggestion {
 export interface Advice { verdict: Verdict; issues: AdviceIssue[]; suggestions: Suggestion[]; }
 
 const MIN_PIXELS = 100;
-const LIMIT = 2; // slider range is -2 to 2
+const limitFor = (key: AdviceKey) => key === 'exposure' ? 12.5 : 2; // match actual editor slider ranges
 const SPENT = 1.5; // a slider this far along is not pushed further the same way
 const round = (v: number) => Math.round(v * 100) / 100;
 
@@ -68,7 +68,8 @@ export function applySuggestion(edit: PhotoEdit, suggestion: Suggestion): PhotoE
   const next: PhotoEdit = { ...edit };
   for (const [key, delta] of Object.entries(suggestion.changes) as Array<[AdviceKey, number]>) {
     const current = (edit[key] as number | undefined) ?? 0;
-    next[key] = round(Math.max(-LIMIT, Math.min(LIMIT, current + delta)));
+    const limit = limitFor(key);
+    next[key] = round(Math.max(-limit, Math.min(limit, current + delta)));
   }
   return next;
 }
