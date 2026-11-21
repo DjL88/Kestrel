@@ -29,7 +29,7 @@ export interface DisplaySettings {
   density: DensityChoice;
 }
 
-export const DEFAULT_DISPLAY: DisplaySettings = { theme: 'night', textSize: '100', font: 'brand', calm: false, spacing: 'normal', density: 'compact' };
+export const DEFAULT_DISPLAY: DisplaySettings = { theme: 'night', textSize: '100', font: 'brand', calm: false, spacing: 'normal', density: 'comfortable' };
 
 /**
  * One tap that turns on the existing comfort options together: the softer theme, the easy-to-read font, larger text,
@@ -50,6 +50,6 @@ export function parseDisplay(value: unknown): DisplaySettings {
     font: FONTS.includes(raw.font as FontChoice) ? (raw.font as FontChoice) : 'brand',
     calm: raw.calm === true,
     spacing: SPACINGS.includes(raw.spacing as SpacingChoice) ? (raw.spacing as SpacingChoice) : 'normal',
-    density: DENSITIES.includes(raw.density as DensityChoice) ? (raw.density as DensityChoice) : 'compact',
+    density: DENSITIES.includes(raw.density as DensityChoice) ? (raw.density as DensityChoice) : 'comfortable',
   };
 }
