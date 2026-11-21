@@ -9,7 +9,7 @@ import type { SensorWorkingRaster } from './rawWorkingRaster';
  * This does not prove camera ICC accuracy, HE/HE* rights or colour calibration.
  */
 export function sensorRasterProof(raster: SensorWorkingRaster): {
-  tiff: Blob; width: number; height: number; iccBytes: number;
+  tiff: Blob; width: number; height: number;
   displayPixel: (x: number, y: number) => readonly [number, number, number];
 } {
   const { image, provenance } = raster;
@@ -31,7 +31,7 @@ export function sensorRasterProof(raster: SensorWorkingRaster): {
   };
   // Structural TIFF+ICC validation is asynchronous because Blob.arrayBuffer is.
   // Call verifySensorTiff before offering this file as a high-bit output.
-  return { tiff, width: image.width, height: image.height, iccBytes: 0, displayPixel };
+  return { tiff, width: image.width, height: image.height, displayPixel };
 }
 
 /** Fail closed on missing/invalid output ICC and changed pixel geometry. */
