@@ -23,6 +23,23 @@ import { ExportProofDock } from './ExportProofDock';
 import { chooseProof, reconcileProofChoice, type ProofChoice } from '../core/exportProofSelection';
 import { AdjustmentSlider } from './AdjustmentSlider';
 
+/** Typeface list where every choice is drawn in its own font, so people see the look before choosing. */
+function FontPicker({ value, label, sample, onChange }: {
+  value: NonNullable<WatermarkOptions['font']>; label: string; sample: string; onChange: (font: NonNullable<WatermarkOptions['font']>) => void;
+}) {
+  return (
+    <div role="group" aria-label={label} className="mt-1 grid max-h-48 gap-1 overflow-y-auto rounded-md bg-white/5 p-1">
+      {WATERMARK_FONTS.map(font => (
+        <button key={font.id} type="button" aria-pressed={value === font.id} onClick={() => onChange(font.id)}
+          className={`flex min-h-11 items-center justify-between gap-3 rounded px-3 text-left text-zinc-100 ${value === font.id ? 'bg-kestrel-copper/25 ring-1 ring-kestrel-copper' : 'hover:bg-white/10'}`}>
+          <span className="truncate text-lg" style={{ fontFamily: font.css }}>{sample.slice(0, 24)}</span>
+          <span className="shrink-0 text-xs text-zinc-400">{font.label}{value === font.id ? ' ✓' : ''}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** Overlay and watermark sliders show their value as a whole percentage, never as an unexplained decimal. */
 const percent = (value: number) => `${Math.round(value * 100)}%`;
 import { ExportWizard } from './ExportWizard';
@@ -790,9 +807,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               onChange={(value) => setOverlay((prior) => ({ ...prior, shade: value }))} />
           </div>
           <label className="block text-sm text-zinc-300">{t.typeface}
-            <select className={field} value={overlay.font ?? 'inter'} onChange={event => setOverlay(prior => ({ ...prior, font: event.target.value as OverlayOptions['font'] }))}>
-              {WATERMARK_FONTS.map(font => <option key={font.id} value={font.id}>{font.label}</option>)}
-            </select>
+            <FontPicker value={overlay.font ?? 'inter'} label={t.typeface} sample={overlay.title || 'Kite44'} onChange={font => setOverlay(prior => ({ ...prior, font }))} />
           </label>
           {frames.every((frame) => photoOverlayLines(frame, overlay).length === 0) && (
             <p role="status" className="text-xs text-zinc-400">{t.overlay.noDetails}</p>
@@ -887,9 +902,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
           </label>
           {mark.kind === 'text' && (
             <label className="block text-sm text-zinc-300">{t.typeface}
-              <select className={field} value={mark.font ?? 'inter'} onChange={(event) => setMark({ font: event.target.value as WatermarkOptions['font'] })}>
-                {WATERMARK_FONTS.map((font) => <option key={font.id} value={font.id}>{font.label}</option>)}
-              </select>
+              <FontPicker value={mark.font ?? 'inter'} label={t.typeface} sample={mark.text || 'Kite44'} onChange={font => setMark({ font })} />
             </label>
           )}
           {mark.kind === 'text' && (
