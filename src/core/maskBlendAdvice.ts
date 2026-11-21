@@ -45,7 +45,8 @@ export function reviewMaskBlend(mask: Mask, mode: GuidanceMode, evidence?: MaskB
 export function blendMaskEdges(mask: Mask): Mask {
   if (mask.kind !== 'subject' && mask.kind !== 'brush') return mask;
   const strength = maskLocalStrength(mask);
-  const feather = Math.min(0.85, Math.max(mask.feather, mask.feather + (strength >= 0.9 ? 0.2 : 0.12)));
+  // Blend should never make an already-soft manual mask sharper. Respect feather > 0.85.
+  const feather = Math.max(mask.feather, Math.min(0.85, mask.feather + (strength >= 0.9 ? 0.2 : 0.12)));
   if (feather === mask.feather && strength < 0.9) return mask;
   const edit: LocalEdit = { ...mask.edit };
   if (strength >= 0.9) {
