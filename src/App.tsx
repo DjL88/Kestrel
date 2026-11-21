@@ -2667,8 +2667,9 @@ export default function App() {
             }}
           />
         )}
-        {!prefs.focusMode && (panesCollapsed || !showPhotoInfo) && visibleFrames.length > 0 && (
+        {!prefs.focusMode && visibleFrames.length > 0 && (
           <WorkspacePaneRail kind="info" side={photoInfoDockSide(prefs.hand)}
+            open={!panesCollapsed && showPhotoInfo} onFold={() => { setInfoFrameId(undefined); setShowPhotoInfo(false); }}
             onExpand={() => { setWorkspacePanes({ folded: false }); setShowPhotoInfo(true); }} />
         )}
       </main>
