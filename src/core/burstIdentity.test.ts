@@ -56,3 +56,49 @@ test('burst grouping preserves original metadata and culling decisions', () => {
   assert.equal(grouped[0].decision, input[0].decision);
   assert.equal(grouped[0].stableKey, input[0].stableKey);
 });
+
+test('the same camera and timestamp in different folders never creates one burst', () => {
+  const input = frames().map((frame, index) => ({
+    ...frame,
+    sourceKind: 'file' as const,
+    sourcePath: `/shoots/${index % 2 ? 'second' : 'first'}/DSC_${index}.NEF`,
+  }));
+  const before = JSON.stringify(input);
+  const grouped = assignBurstGroups(input);
+  assert.ok(grouped.every(frame => frame.burstGroupId === null));
+  assert.equal(JSON.stringify(input), before, 'the original source identities must be immutable');
+});
+
+test('frames within one known source directory still group normally', () => {
+  const input = frames().map((frame, index) => ({
+    ...frame, sourceKind: 'file' as const,
+    sourcePath: `/shoots/first/DSC_${index}.NEF`,
+  }));
+  assert.equal(assignBurstGroups(input)[0].burstCount, 4);
+});
+
+test('linked source identity survives relinking and is compared to a path identity', () => {
+  const linked = (folder: string, name: string) =>
+    `local-linked://${encodeURIComponent('posix:' + folder + '/' + name)}::${name}::200::1000`;
+  const input = frames().slice(0, 2).map((frame, index) => ({
+    ...frame,
+    sourceKind: 'file' as const,
+    sourcePath: index ? undefined : '/shoots/first/DSC_0.NEF',
+    stableKey: index ? linked('/shoots/second', 'DSC_1.NEF') : linked('/shoots/first', 'DSC_0.NEF'),
+  }));
+  assert.equal(assignBurstGroups(input)[0].burstGroupId, null);
+  input[1].stableKey = linked('/shoots/first', 'DSC_1.NEF');
+  assert.equal(assignBurstGroups(input)[0].burstCount, 2);
+});
+
+test('one unknown folder must not silently bridge a known folder; legacy unlinked sources remain compatible', () => {
+  const input = frames().slice(0, 2).map((frame, index) => ({
+    ...frame,
+    sourceKind: 'file' as const,
+    stableKey: `local-file://DSC_${index}.NEF::200::1000`,
+    sourcePath: index ? undefined : '/shoots/first/DSC_0.NEF',
+  }));
+  assert.equal(assignBurstGroups(input)[0].burstGroupId, null);
+  input[0].sourcePath = undefined;
+  assert.equal(assignBurstGroups(input)[0].burstCount, 2);
+});
