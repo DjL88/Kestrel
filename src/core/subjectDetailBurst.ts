@@ -107,12 +107,32 @@ export function selectBurstDetails(items: readonly SelectEvidence[]): SelectResu
     // Several subjects in one exposure are legitimate. They need distinct,
     // source-bound track IDs; otherwise a repeated photo ID could leak a
     // decision or sharpness score from one animal to another.
-    const distinctSubjects = !multiple || (siblings.every(other =>
+    const sameGenre = siblings.filter(other => other.genre === e.genre);
+    // A detector claiming one visible animal cannot establish two different
+    // tracked animals in the same photograph. Inconsistent counts, including
+    // unknown counts, are not evidence of a reliable multi-subject track.
+    const consistentCount = !multiple || (sameGenre.every(other =>
+      other.subjectCount !== undefined &&
+      other.subjectCount >= sameGenre.length &&
+      other.subjectCount === e.subjectCount));
+    // Near-identical boxes with different track IDs are likely duplicate
+    // detections, not two independently observed animals. Abstain.
+    const overlap = (a: NormalisedBox, b: NormalisedBox): number => {
+      const w = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+      const h = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+      const intersection = w * h;
+      return intersection / (a.width * a.height + b.width * b.height - intersection);
+    };
+    const distinctBoxes = !multiple || siblings.every((other, i) =>
+      siblings.slice(i + 1).every(next => other.genre !== next.genre ||
+        (box(other.subjectBox) && box(next.subjectBox) &&
+         overlap(other.subjectBox, next.subjectBox) < 0.9)));
+    const distinctSubjects = consistentCount && distinctBoxes && (!multiple || (siblings.every(other =>
       other.sourceSha256 === e.sourceSha256 && other.modelId === e.modelId &&
       other.modelVersion === e.modelVersion && !!other.subjectTrackId &&
       box(other.subjectBox) && other.manualDecision !== 'keep' &&
       other.manualDecision !== 'reject') &&
-      new Set(siblings.map(other => other.subjectTrackId)).size === siblings.length);
+      new Set(siblings.map(other => other.subjectTrackId)).size === siblings.length));
     const valid = distinctSubjects && evidenceValid(e);
     const conflict = valid && contradiction(e);
     const value = valid && !conflict ? score(e) : null;
