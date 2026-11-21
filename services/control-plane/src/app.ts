@@ -11,7 +11,7 @@ import { hashPassword, randomId, sha256Hex, signEnvelope, signSession, uuid, ver
 import { SqliteStore } from './sqliteStore.ts';
 import { MemoryDemoStudio, publicExamples, adminExamples, type DemoStudioStore, type ExampleFields } from './demoStudio.ts';
 import { licenceIsUsable, newLicence, type AuditRecord, type Store } from './store.ts';
-import { geminiProvider, identify, suggest, type AiProvider } from './gateway.ts';
+import { geminiProvider, identify, suggest, verifyColour, type AiProvider } from './gateway.ts';
 import type { CommerceLedger } from './commerce/ledger.ts';
 import type { TransactionRecord } from './commerce/records.ts';
 import { emailHashOf, giftEntitlement } from './entitlement.ts';
@@ -133,6 +133,11 @@ export const Schemas = {
   ImageRequest: ImageBody,
   IdentifyResponse: z.object({ kind: z.string(), species: z.string().nullable(), scientific: z.string().nullable(), confidence: z.enum(['high', 'medium', 'low']), tags: z.array(z.string()), abstained: z.boolean() }),
   SuggestResponse: z.object({ proposal: z.record(z.string(), z.number()), alreadyBalanced: z.boolean() }),
+  VerifyColourResponse: z.object({
+    plausible: z.boolean(),
+    concerns: z.array(z.enum(['skinTone', 'skyOrFoliage', 'clipping', 'oversaturated', 'flat', 'other'])),
+    note: z.string().nullable(),
+  }),
   ManifestResponse: SignedEnvelopeSchema,
   ReleaseResponse: z.object({ release: z.object({ version: z.string(), url: z.string(), notes: z.string(), minSupported: z.string(), publishedAt: z.string() }).nullable() }),
   WebhookEvent: z.object({
@@ -572,6 +577,15 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         const proposal = await aiCall(req, (p, image) => suggest(p, image, config.aiTimeoutMs));
         return { status: 200, body: { proposal, alreadyBalanced: Object.keys(proposal).length === 0 } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/ai/verify-colour',
+      summary: 'A plain-English second opinion on the colour grade of one consented, already-edited thumbnail. Complements, never overrides, the on-device measured check.',
+      auth: 'user', body: Schemas.ImageRequest, response: Schemas.VerifyColourResponse,
+      handler: async (req) => {
+        const answer = await aiCall(req, (p, image) => verifyColour(p, image, config.aiTimeoutMs));
+        return { status: 200, body: answer };
       },
     },
 

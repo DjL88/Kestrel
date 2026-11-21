@@ -71,6 +71,30 @@ test('identify returns a checked answer and spends one unit; suggest says when a
   } finally { await balanced.close(); }
 });
 
+test('verify-colour gives a bounded second opinion, never more than two concerns and only when implausible', async () => {
+  const plausible = await h.call('POST', '/v1/ai/verify-colour', { token: h.user.token, body: { image: image(), userConsent: true } });
+  assert.equal(plausible.status, 200);
+  assert.deepEqual(plausible.body, { plausible: true, concerns: [], note: null });
+
+  const flagged = await startHarness(fakeProvider({
+    verifyColour: async () => JSON.stringify({ plausible: false, concerns: ['skinTone', 'clipping', 'other'], note: 'Skin tones lean strongly magenta.' }),
+  }));
+  try {
+    const result = await flagged.call('POST', '/v1/ai/verify-colour', { token: flagged.user.token, body: { image: image(), userConsent: true } });
+    assert.equal(result.status, 200);
+    assert.equal(result.body.plausible, false);
+    assert.deepEqual(result.body.concerns, ['skinTone', 'clipping'], 'kept to at most two concerns');
+    assert.equal(result.body.note, 'Skin tones lean strongly magenta.');
+  } finally { await flagged.close(); }
+
+  const malformed = await startHarness(fakeProvider({ verifyColour: async () => 'not json' }));
+  try {
+    const result = await malformed.call('POST', '/v1/ai/verify-colour', { token: malformed.user.token, body: { image: image(), userConsent: true } });
+    assert.equal(result.status, 502);
+    assert.equal(result.body.error.code, 'AI_UPSTREAM_MALFORMED');
+  } finally { await malformed.close(); }
+});
+
 test('no provider key, the kill switch, or no AI plan each give a clear refusal', async () => {
   const bare = await startHarness(null);
   try {
