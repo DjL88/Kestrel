@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, it } from 'node:test';
+import { expect } from './testExpect';
 import { createSignedAssetAuthority, type SequenceFence, type SignedAssetEnvelope } from './signedAssetAuthority';
 
 const enc = new TextEncoder();
