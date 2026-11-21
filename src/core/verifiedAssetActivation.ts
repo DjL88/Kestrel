@@ -36,7 +36,7 @@ const HEX = /^[a-f0-9]{64}$/;
 const VER = /^\d+\.\d+\.\d+$/;
 const inFlight = new Set<string>();
 const digest = async (bytes: Uint8Array): Promise<string> =>
-  Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), x => x.toString(16).padStart(2, '0')).join('');
+  Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as BufferSource)), x => x.toString(16).padStart(2, '0')).join('');
 const versionParts = (v: string) => v.split('.').map(Number);
 const newerOrEqual = (a: string, b: string) => {
   const x = versionParts(a), y = versionParts(b);
