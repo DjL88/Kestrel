@@ -44,7 +44,7 @@ Regions to start: **UK = `europe-west2` (London)**. Next: EU (`europe-west4` or 
 Why not Cloudflare R2 first: cheaper downloads, but its residency choices are an EU or US-government jurisdiction plus best-effort location hints, with no UK guarantee. It stays an option for the EU and US later if costs demand it.
 
 ## 4. Accounts and security
-- Passwords: Argon2id hashing, per-account salt, a server-side pepper in Secret Manager, rate limiting and lockout, breached-password check. We build the login on our own API rather than Firebase Auth, so sign-in rules and residency stay in our control.
+- Passwords: Argon2id hashing, per-account salt, a server-side pepper in Secret Manager, rate limiting and lockout, breached-password check. **Decision 21 Nov 2026: sign-in uses Firebase Auth with Google, Apple and email with password (added the same day).** Email accounts use Firebase's own hashing, verification and reset emails rather than the Argon2id design below. Trade-off accepted by the owner: Firebase Auth user records are not pinned to a London region, so the residency promise applies to stored photos and catalogue data, not to the identity record. Sign-in stays optional and never gates local use.
 - Sessions: short-lived access tokens, rotating refresh tokens, per-device revocation.
 - Email: verification on sign-up; password reset by emailed one-time link; an email-sending service must be chosen (keep it in the same region family where possible).
 - Entitlements: the licence service issues a **signed entitlement** the app verifies with a public key built in and caches for offline use. Entitlements change only from verified Paddle webhooks, never from a browser redirect.

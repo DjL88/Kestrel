@@ -295,3 +295,15 @@ html, body { background-color: #14161b; color-scheme: dark; }
 
 /* No double-tap zoom delay or text inflation on touch devices; the app lays itself out for every size. */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; }
+/* On a phone the edit screen is only an editor. Library work (the filmstrip, Keep and Reject, Jump, selecting photos)
+   stays in the library, so the two do not overlap. A phone is a touch device with a small side: a tablet, or a desktop
+   window that happens to be short, keeps the full workspace. */
+@media (pointer: coarse) and ((max-width: 599px) or (max-height: 500px)) {
+  [data-hide-on-phone-edit], [data-phone-hidden] { display: none !important; }
+}
+
+/* An upright phone: the photo keeps at least two thirds of the editor's height, and the tools scroll in the rest
+   (the tab bar below takes about 3.5rem of that last third). Only here, so other sizes keep their own proportions. */
+@media (pointer: coarse) and (max-width: 599px) and (orientation: portrait) {
+  [data-tools-panel] { max-height: calc(33.333% - 3.5rem); }
+}

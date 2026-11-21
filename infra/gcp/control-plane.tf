@@ -177,6 +177,13 @@ resource "google_cloud_run_v2_service" "control_plane" {
         }
       }
       dynamic "env" {
+        for_each = var.firebase_project_id == "" ? [] : [var.firebase_project_id]
+        content {
+          name  = "KCP_FIREBASE_PROJECT_ID"
+          value = env.value
+        }
+      }
+      dynamic "env" {
         for_each = length(var.apple_client_ids) == 0 ? [] : [join(",", var.apple_client_ids)]
         content {
           name  = "KCP_APPLE_CLIENT_IDS"

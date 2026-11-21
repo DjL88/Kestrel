@@ -1,4 +1,5 @@
 import { newId } from '../core/ids';
+import { maskBlendLabels } from '../i18n/maskBlendLabels';
 import type { GuidanceMode } from '../core/guidanceMode';
 import { reviewMaskBlend, type MaskBoundaryEvidence } from '../core/maskBlendAdvice';
 import { AdjustmentSlider } from './AdjustmentSlider';
@@ -74,7 +75,7 @@ export function MaskPanel(props: Props) {
             <ScanSearch className="h-3.5 w-3.5" aria-hidden="true" />{props.detecting ? t.mask.finding : t.mask.findBackground}
           </button>
         </div>
-        <button type="button" aria-pressed={props.selectingArea} disabled={disabled || props.detecting || masks.length >= MAX_MASKS}
+        <button type="button" data-phone-hidden aria-pressed={props.selectingArea} disabled={disabled || props.detecting || masks.length >= MAX_MASKS}
           className={`${chip} inline-flex w-full items-center justify-center gap-1 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15`} onClick={() => props.onSelectArea(!props.selectingArea)}>
           <SquareDashedMousePointer className="h-3.5 w-3.5" aria-hidden="true" />{props.selectingArea ? t.mask.cancelSelectArea : t.mask.selectArea}
         </button>
@@ -122,10 +123,10 @@ export function MaskPanel(props: Props) {
           )}
           {selected.kind === 'subject' && props.onBlendEdges && (
             <div className="space-y-1 rounded-md border border-white/10 p-2 text-xs text-zinc-300" data-testid="mask-blend">
-              {blendAdvice && <p role="status">{blendAdvice.reason}</p>}
+              {blendAdvice && <p>{props.boundaryEvidence?.possibleHardEdge ? maskBlendLabels.boundary : maskBlendLabels.strong}</p>}
               <button type="button" className={chip} disabled={disabled || !Object.keys(selected.edit).length}
-                title="Soften the boundary and, where needed, gently reduce a strong local effect. This does not create missing subject detail."
-                onClick={() => props.onBlendEdges?.(selected.id)}>Blend edges</button>
+                title={maskBlendLabels.explanation} aria-label={maskBlendLabels.action}
+                onClick={() => props.onBlendEdges?.(selected.id)}>{maskBlendLabels.action}</button>
             </div>
           )}
           {selected.kind === 'subject' && (

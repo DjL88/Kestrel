@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { messages as m } from '../i18n/messages';
 import { libraryText as libraryT } from '../i18n/areas/library';
-import { ChevronLeft, ChevronRight, ClipboardCopy, Download, EyeOff, PanelRight, PanelTopOpen, PictureInPicture2, Star, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardCopy, Download, EyeOff, LoaderCircle, PanelRight, PanelTopOpen, PictureInPicture2, Star, X } from 'lucide-react';
 import { useLongPress } from './useLongPress';
 import { exportText } from '../i18n/areas/export';
 import { downloadInBrowser } from '../providers/browserExport';
@@ -260,13 +260,13 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
             if (file) void importSidecar(file);
           }} />
           <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => void saveSidecar()} disabled={sidecarBusy}
+            <button type="button" onClick={() => void saveSidecar()} disabled={sidecarBusy} aria-busy={sidecarBusy}
                 className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-md border border-white/15 px-2 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
-                <Download className="h-4 w-4 shrink-0" aria-hidden="true" />{exportText.sidecar.save}
+                {sidecarBusy ? <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4 shrink-0" aria-hidden="true" />}{exportText.sidecar.save}
               </button>
-            <button type="button" onClick={() => sidecarInput.current?.click()} disabled={sidecarBusy}
+            <button type="button" onClick={() => sidecarInput.current?.click()} disabled={sidecarBusy} aria-busy={sidecarBusy}
               className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-md border border-white/15 px-2 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
-              {exportText.sidecar.load}
+              {sidecarBusy && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}{exportText.sidecar.load}
             </button>
           </div>
           {sidecarStatus?.id === frame.id && <p role="status" className="mt-2 text-xs text-zinc-300">{sidecarStatus.message}</p>}

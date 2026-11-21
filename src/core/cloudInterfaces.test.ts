@@ -12,8 +12,9 @@ test('countries map to an explicit region, and unknown ones to none', () => {
 });
 
 test('the offline account never reaches out and can always sign out', async () => {
-  await assert.rejects(OFFLINE_ACCOUNT.auth.signIn('a', 'b'), /not available/);
-  await assert.rejects(OFFLINE_ACCOUNT.sync.usage({ accountId: 'x', username: 'a', expiresAtMs: 0 }), /not available/);
+  await assert.rejects(OFFLINE_ACCOUNT.auth.signIn('google'), /not available/);
+  await assert.rejects(OFFLINE_ACCOUNT.sync.usage({ accountId: 'x', provider: 'google', expiresAtMs: 0 }), /not available/);
+  await assert.rejects(OFFLINE_ACCOUNT.auth.signInWithEmail('a@b.c', 'x'), /not available/);
   await OFFLINE_ACCOUNT.auth.signOut();
-  assert.deepEqual(await OFFLINE_ACCOUNT.licence.devices({ accountId: 'x', username: 'a', expiresAtMs: 0 }), []);
+  assert.deepEqual(await OFFLINE_ACCOUNT.licence.devices({ accountId: 'x', provider: 'google', expiresAtMs: 0 }), []);
 });

@@ -380,6 +380,7 @@ export const pt: AreaTranslation<typeof source> = {
     undockInfoHelp: "Mover as informações para uma janela redimensionável",
     move: (title) => `Mover ${title} com as teclas de seta`,
     drag: (title) => `Arraste para mover ${title}, ou use as teclas de seta`,
+    resize: (title) => `Redimensionar ${title}: arraste ou use as teclas de seta`,
     restore: (title) => `Repor tamanho do painel ${title}`,
     maximise: (title) => `Maximizar painel ${title}`,
     pin: (title) => `Manter ${title} visível no modo Só fotografia`,

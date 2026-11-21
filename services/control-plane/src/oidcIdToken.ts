@@ -8,6 +8,8 @@ import crypto from 'node:crypto';
 
 export const APPLE_KEYS_URL = 'https://appleid.apple.com/auth/keys';
 export const APPLE_ISSUER = 'https://appleid.apple.com';
+export const FIREBASE_KEYS_URL = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
+export const firebaseIssuer = (projectId: string) => `https://securetoken.google.com/${projectId}`;
 const SKEW_SECONDS = 60;
 
 export type OidcKeys = () => Promise<JsonWebKey[]>;

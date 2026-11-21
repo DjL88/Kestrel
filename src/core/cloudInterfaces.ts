@@ -4,19 +4,24 @@
  * implements these without changing the offline app. See docs/BACKEND.md.
  */
 
-/** What the person gives to register. Nothing else is asked for. Country is asked only when cloud storage is switched on. */
-export interface Registration { username: string; password: string; country?: string }
+/** Which identity provider the person chose. Sign-in is optional and only ever switches on cloud features. */
+export type SignInProvider = 'google' | 'apple' | 'password';
 
-export interface Session { accountId: string; username: string; expiresAtMs: number }
-
-/** A recovery code is shown once at registration, because no email address is collected. */
-export interface RegistrationResult { session: Session; recoveryCode: string }
+/** Email is whatever the provider shares (Apple may relay it); it is never the authorisation boundary, `accountId` is. */
+export interface Session { accountId: string; provider: SignInProvider; email?: string; displayName?: string; expiresAtMs: number }
 
 export interface AuthProvider {
-  register(details: Registration): Promise<RegistrationResult>;
-  signIn(username: string, password: string): Promise<Session>;
+  /** Opens the provider's own sign-in. Rejects with a plain-language message if cancelled or unavailable. */
+  signIn(provider: SignInProvider): Promise<Session>;
+  /** Email and password. Create sends a verification email; reset sends a one-time link. Nothing else is collected. */
+  signInWithEmail(email: string, password: string): Promise<Session>;
+  createAccount(email: string, password: string): Promise<Session>;
+  sendPasswordReset(email: string): Promise<void>;
+  /** A fresh sign-in token for the control plane, or null when signed out. It identifies the account; it grants nothing. */
+  idToken(): Promise<string | null>;
   signOut(): Promise<void>;
-  recover(username: string, recoveryCode: string, newPassword: string): Promise<{ session: Session; newRecoveryCode: string }>;
+  /** The saved session on this device, or null. Never contacts the network when signed out. */
+  current(): Promise<Session | null>;
 }
 
 /** A signed statement from the licence server, checked against a public key built into the app, then cached for offline use. */
@@ -55,7 +60,7 @@ export interface SyncProvider {
 /** The app's default: no account, no cloud. Every method says so instead of reaching out. */
 const none = () => Promise.reject(new Error('Accounts and cloud storage are not available in this version.'));
 export const OFFLINE_ACCOUNT: { auth: AuthProvider; licence: LicenceProvider; sync: SyncProvider } = {
-  auth: { register: none, signIn: none, signOut: () => Promise.resolve(), recover: none },
+  auth: { signIn: none, signInWithEmail: none, createAccount: none, sendPasswordReset: none, idToken: () => Promise.resolve(null), signOut: () => Promise.resolve(), current: () => Promise.resolve(null) },
   licence: { activate: none, refresh: none, devices: () => Promise.resolve([]), removeDevice: none },
   sync: { upload: none, download: none, usage: none },
 };

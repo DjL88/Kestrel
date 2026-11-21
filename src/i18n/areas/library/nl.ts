@@ -380,6 +380,7 @@ export const nl: AreaTranslation<typeof source> = {
     undockInfoHelp: "Verplaats Fotogegevens naar een schaalbaar venster",
     move: (title) => `Verplaats ${title} met de pijltoetsen`,
     drag: (title) => `Sleep om ${title} te verplaatsen, of gebruik de pijltoetsen`,
+    resize: (title) => `Grootte van ${title} wijzigen: sleep of gebruik de pijltjestoetsen`,
     restore: (title) => `Herstel grootte van paneel ${title}`,
     maximise: (title) => `Maximaliseer paneel ${title}`,
     pin: (title) => `Houd ${title} zichtbaar in de modus Alleen foto`,

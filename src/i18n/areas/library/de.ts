@@ -380,6 +380,7 @@ export const de: AreaTranslation<typeof source> = {
     undockInfoHelp: "Fotoinfos in ein verschiebbares, skalierbares Fenster verschieben",
     move: (title) => `${title} mit den Pfeiltasten verschieben`,
     drag: (title) => `${title} ziehen oder mit den Pfeiltasten verschieben`,
+    resize: (title) => `Größe von ${title} ändern : ziehen oder Pfeiltasten verwenden`,
     restore: (title) => `Grösse des Bereichs ${title} wiederherstellen`,
     maximise: (title) => `Bereich ${title} maximieren`,
     pin: (title) => `${title} im Modus Nur Foto sichtbar halten`,

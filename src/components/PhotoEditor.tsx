@@ -4,12 +4,13 @@ import { newId } from '../core/ids';
 import { mayApplyGuidance, type GuidanceMode } from '../core/guidanceMode';
 import { blendMaskEdges, inspectMaskBoundary, type MaskBoundaryEvidence } from '../core/maskBlendAdvice';
 import { loadImage } from '../providers/loadImage';
+import { yieldToPaint } from '../core/yieldToPaint';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
 import { editorText as t } from '../i18n/areas/editor';
 import { libraryText as libraryT } from '../i18n/areas/library';
 import { exportText as exportT } from '../i18n/areas/export';
-import { Eye, EyeOff, PanelRight, PictureInPicture2, ChevronDown, ChevronLeft, ChevronRight, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed } from 'lucide-react';
+import { Eye, EyeOff, LoaderCircle, PanelRight, PictureInPicture2, ChevronDown, ChevronLeft, ChevronRight, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { acceptedAutoChanges } from '../core/autoSuggestionSummary';
 import { formatClock } from '../core/formatDate';
@@ -191,6 +192,8 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
   // Auto is a reversible visual preview; never save a suggested edit before an explicit Apply.
   const [pendingAuto, setPendingAuto] = useState<{ base: PhotoEdit; edit: PhotoEdit; cropKey: string; source: HTMLImageElement } | null>(null);
   const [autoAnalysing, setAutoAnalysing] = useState(false);
+  // A synchronous guard prevents double taps before React re-renders the disabled button.
+  const autoInFlight = useRef(false);
   // Invalidates slow ONNX results when a proposal is replaced, a tab changes or this editor unmounts.
   const autoRun = useRef(0);
   const subjectCache = useRef<{ source: HTMLImageElement; cropKey: string; result: GuidedSubject } | null>(null);
@@ -276,7 +279,8 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
     return () => window.removeEventListener('kestrel:menu-view-all-tabs', restore);
   }, []);
   const toggleFloatTab = (id: Tab) => {
-    if (!FLOATABLE_TABS.includes(id)) return;
+    if (!FLOATABLE_TABS.includes(id) || isPhone) return;
+    const wasFloating = floatingTabs.has(id);
     setToolsUndocked(false);
     // Undocking an explicitly hidden tab must make it visible immediately.
     // Keeping it hidden would create an invisible floating panel.
@@ -292,7 +296,14 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
       else next.add(id);
       return next;
     });
-    setTab(id);
+    // When undocking the selected tool, keep a useful docked tab in view instead
+    // of replacing its contents with an apparently empty detached placeholder.
+    if (wasFloating) setTab(id);
+    else if (tab === id) {
+      const next = FLOATABLE_TABS.find((candidate) => candidate !== id && !hiddenTabs.has(candidate) && !floatingTabs.has(candidate))
+        ?? FLOATABLE_TABS.find((candidate) => candidate !== id && !hiddenTabs.has(candidate));
+      if (next) setTab(next);
+    }
   };
   const toggleHideTab = (id: Tab) => {
     if (!FLOATABLE_TABS.includes(id)) return;
@@ -302,8 +313,9 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
       else if (FLOATABLE_TABS.filter((candidate) => !next.has(candidate)).length > 1) next.add(id);
       return next;
     });
-    if (tab === id) {
-      const nextTab = FLOATABLE_TABS.find((candidate) => candidate !== id && !hiddenTabs.has(candidate));
+    if (tab === id && !hiddenTabs.has(id)) {
+      const nextTab = FLOATABLE_TABS.find((candidate) => candidate !== id && !hiddenTabs.has(candidate) && !floatingTabs.has(candidate))
+        ?? FLOATABLE_TABS.find((candidate) => candidate !== id && !hiddenTabs.has(candidate));
       if (nextTab) setTab(nextTab);
     }
   };
@@ -320,6 +332,13 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
     disposers.push(() => window.removeEventListener('kestrel:menu-view-tab-float', floatActive));
     return () => disposers.forEach((off) => off());
   }, [tab, hiddenTabs]);
+  // A saved hidden tab must never leave the editor with no visible active tool.
+  useEffect(() => {
+    if (isPhone || !hiddenTabs.has(tab)) return;
+    const next = FLOATABLE_TABS.find((candidate) => !hiddenTabs.has(candidate) && !floatingTabs.has(candidate))
+      ?? FLOATABLE_TABS.find((candidate) => !hiddenTabs.has(candidate));
+    if (next && next !== tab) setTab(next);
+  }, [isPhone, hiddenTabs, floatingTabs, tab]);
   const floatingTools = undockedTools && floatingTabs.size === 0 && !isPhone && !toolsCollapsed;
   // On a phone the tools open as a sheet above the bar. Tapping the open tab again folds it away for a full-height photo.
   const [sheetOpen, setSheetOpen] = useState(() => {
@@ -781,6 +800,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
     // Switching tool tabs must not move the photographer away from a detail at 100% or 200%.
     autoRun.current += 1;
     setAutoAnalysing(false);
+    autoInFlight.current = false;
     setPreviewRecipe(null);
     setPendingAuto(null);
     setOpinions(null);
@@ -818,6 +838,8 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
    * Nothing is saved until the photographer applies it.
    */
   async function previewAutoSuggestion() {
+    if (autoInFlight.current) return;
+    autoInFlight.current = true;
     const run = ++autoRun.current;
     const startedFor = detectionContext.current;
     const originalSource = source;
@@ -829,6 +851,11 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
     const stillCurrent = () => run === autoRun.current && detectionContext.current === startedFor &&
       sourceImage.current === originalSource && Boolean(originalSource);
     try {
+      // Give the browser one paint opportunity to display the busy label and
+      // spinner before any synchronous canvas sampling or model setup begins.
+      // The timeout fallback also works when the page is backgrounded.
+      await yieldToPaint();
+      if (!stillCurrent()) return;
       if (!originalSource || !outputSize || !startedFor) {
         if (run === autoRun.current) setAutoNotes([t.auto.couldNotAnalyse]);
         return;
@@ -915,7 +942,10 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
     } catch {
       if (stillCurrent()) setAutoNotes([t.auto.failed]);
     } finally {
-      if (run === autoRun.current) setAutoAnalysing(false);
+      if (run === autoRun.current) {
+        autoInFlight.current = false;
+        setAutoAnalysing(false);
+      }
     }
   }
 
@@ -1139,11 +1169,12 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
   /** One tab bar. On a phone it is a bottom toolbar of large icons, and on wider screens the top of the side panel. */
   // On a phone Export is the last tab in the bottom bar. On a wider screen it is a button in the header instead,
   // which leaves the side panel's tabs with room to breathe.
-  const visibleTabs = TABS.filter((entry) => (entry.id !== 'export' || (isPhone && !demoOnly)) && (isPhone || !hiddenTabs.has(entry.id)));
+  // The header's Export button is the way to export on every screen, so the phone's tab bar keeps only editing tabs.
+  const visibleTabs = TABS.filter((entry) => entry.id !== 'export' && (isPhone || !hiddenTabs.has(entry.id)));
   const tabList = (
     <div role="tablist" aria-label={t.editor.tablist}
       className={isPhone
-        ? 'grid shrink-0 grid-cols-5 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]'
+        ? `grid shrink-0 ${visibleTabs.length === 4 ? 'grid-cols-4' : 'grid-cols-5'} border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]`
         : 'sticky top-0 z-20 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 workspace:-mx-4 workspace:px-3'}
       onKeyDown={(event) => {
         const order = visibleTabs.map((entry) => entry.id);
@@ -1179,6 +1210,12 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
   );
 
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
+  const exportButton = (
+    <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? t.editor.exportSelectedTitle(exportCount) : t.editor.exportTitle}
+          className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}>
+          <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? t.editor.exportCount(exportCount) : t.editor.export}
+    </button>
+  );
   // One set of independent panel controls serves both the View menu and the
   // desktop tab's right-click menu. Both read the same device-local state.
   const tabLayoutControls = (inContextMenu: boolean) => (
@@ -1186,7 +1223,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
       <p className="flex items-center justify-between px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
         <span>{libraryT.floatingPane.tabGuide}</span>
       </p>
-      {FLOATABLE_TABS.map((id) => {
+      {FLOATABLE_TABS.filter((id) => !inContextMenu || tabMenu?.id === id).map((id) => {
         const label = TABS.find((entry) => entry.id === id)?.label ?? id;
         const hidden = hiddenTabs.has(id);
         const floating = floatingTabs.has(id);
@@ -1240,9 +1277,13 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
         <div className="space-y-2 px-1">
           <button type="button" title={t.auto.suggestTitle} disabled={sourceState !== 'ready' || autoAnalysing}
-            className={`${button} inline-flex w-full items-center justify-center gap-2 border border-white/10 font-semibold`}
+            aria-busy={autoAnalysing} data-testid="suggest-look"
+            className={`${button} inline-flex w-full items-center justify-center gap-2 border border-white/10 font-semibold disabled:cursor-wait`}
             onClick={() => void previewAutoSuggestion()}>
-            <Lightbulb className="h-4 w-4 stroke-[1.75]" aria-hidden="true" />{autoAnalysing ? t.auto.analysingButton : t.auto.suggest}
+            {autoAnalysing
+              ? <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
+              : <Lightbulb className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden="true" />}
+            {autoAnalysing ? t.auto.analysingButton : t.auto.suggest}
           </button>
           <details className="text-xs text-zinc-400">
             <summary className="min-h-10 cursor-pointer py-2">{t.auto.howItWorks}</summary>
@@ -1308,11 +1349,13 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
               <button type="button" className="min-h-9 text-xs text-zinc-400 underline hover:text-white" onClick={() => setOpinions(null)}>{t.critique.hide}</button>
             </section>
           )}
-        <section aria-label={t.auto.recipesRegion} className="space-y-1 border-t border-white/10 pt-2">
-          <h3 className="text-sm font-medium text-zinc-100">{t.auto.recipes}</h3>
-          <PresetPanel edit={edit} disabled={sourceState !== 'ready'} previewSource={lookPreviewSource} onApply={(next) => (onApplyLook ?? onEdit)({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />
-        </section>
-        <Histogram data={histogram} teach />
+        <details className="border-t border-white/10 pt-1">
+          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-zinc-200">{t.auto.recipes}</summary>
+          <div aria-label={t.auto.recipesRegion} className="space-y-2 pb-2">
+            <PresetPanel edit={edit} disabled={sourceState !== 'ready'} previewSource={lookPreviewSource} onApply={(next) => (onApplyLook ?? onEdit)({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />
+            <Histogram data={histogram} teach />
+          </div>
+        </details>
 
           </div>
         )}
@@ -1698,17 +1741,8 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
         )}
         {/* Full screen lives in one place, the filmstrip bar (FilmstripDock), in the editor and culling alike. */}
         {/* Export sits in the top row, where the library has it. */}
-        {!demoOnly && (headerSlot ? createPortal(<>
-        <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? t.editor.exportSelectedTitle(exportCount) : t.editor.exportTitle}
-          className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}>
-          <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? t.editor.exportCount(exportCount) : t.editor.export}
-        </button>
-        </>, headerSlot) : <>
-        <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? t.editor.exportSelectedTitle(exportCount) : t.editor.exportTitle}
-          className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}>
-          <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? t.editor.exportCount(exportCount) : t.editor.export}
-        </button>
-        </>)}
+        {/* Without the header slot, Export stays in this row. With it, Export is placed in the header below, so it is there even when this row is hidden. */}
+        {!demoOnly && !headerSlot && exportButton}
 
         </div>
       </div>}
@@ -1899,7 +1933,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
         setSliderBusy(true);
         window.clearTimeout(sliderTimer.current);
         sliderTimer.current = window.setTimeout(() => setSliderBusy(false), 700);
-      }} style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={floatingTools ? 'h-full min-h-0 w-full space-y-2 overflow-y-auto bg-kestrel-panel p-3' : `${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
+      }} data-tools-panel style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={floatingTools ? 'h-full min-h-0 w-full space-y-2 overflow-y-auto bg-kestrel-panel p-3' : `${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
         {!isPhone && <div className="sticky top-0 z-20 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
           {!floatingTools && !isPhone && <button data-editor-undock type="button"
             aria-label={libraryT.floatingPane.undockTab(TABS.find((entry) => entry.id === tab)?.label ?? tab)}
@@ -1941,6 +1975,8 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
           )}
         </>
       ); })()}
+      {/* Export is always in the header (phones included): the tab bar keeps only editing tabs. */}
+      {!demoOnly && !focusPhoto && headerSlot && createPortal(exportButton, headerSlot)}
       {isPhone && !focusPhoto && tabList}
       </div>
       {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}

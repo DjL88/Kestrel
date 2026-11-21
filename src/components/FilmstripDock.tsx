@@ -8,6 +8,8 @@ interface FilmstripDockProps {
   onToggle: () => void;
   /** Photo only: hide every bar and pane (F). Beside full screen, its companion. */
   onPhotoOnly?: () => void;
+  /** On a phone the editor is only an editor: the strip is hidden there (library work happens in the library). */
+  phoneEditHidden?: boolean;
   children: React.ReactNode;
 }
 
@@ -16,7 +18,7 @@ interface FilmstripDockProps {
  * Drag its top grip to resize. Resize never overlays the photograph.
  * Arrow toggles the strip. Height belongs only to the local device.
  */
-export function FilmstripDock({ expanded, onToggle, onPhotoOnly, children }: FilmstripDockProps) {
+export function FilmstripDock({ expanded, onToggle, onPhotoOnly, phoneEditHidden, children }: FilmstripDockProps) {
   const [height, setHeight] = useState(() => {
     try { return parseFilmstripHeight(window.localStorage.getItem(FILMSTRIP_SIZE_KEY), window.innerHeight); }
     catch { return parseFilmstripHeight(null, typeof window === 'undefined' ? 800 : window.innerHeight); }
@@ -61,7 +63,7 @@ export function FilmstripDock({ expanded, onToggle, onPhotoOnly, children }: Fil
   };
 
   return (
-    <section aria-label={t.filmstripDock.label} data-filmstrip-dock
+    <section aria-label={t.filmstripDock.label} data-filmstrip-dock {...(phoneEditHidden ? { 'data-hide-on-phone-edit': '' } : {})}
       className="relative z-10 flex w-full min-w-0 shrink-0 flex-col overflow-hidden border-t border-white/12 bg-[#121418]"
       style={{ height: expanded ? height + 36 : 36 }}>
       <div className="flex h-9 shrink-0 items-center justify-between gap-2 px-2 sm:px-4">

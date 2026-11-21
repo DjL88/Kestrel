@@ -1,7 +1,8 @@
 import { tasks } from '../core/taskStore';
 import { useEffect, useRef, useState } from 'react';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
-import { X } from 'lucide-react';
+import { LoaderCircle, X } from 'lucide-react';
+import { yieldToPaint } from '../core/yieldToPaint';
 import type { CullSuggestion } from '../core/autoCull';
 import { planKeeperTier, type KeeperTier } from '../core/keeperTiers';
 import { summarizeCullSuggestions } from '../core/autoCullSummary';
@@ -104,6 +105,8 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
     setStopped(false);
     setDetectorFailed(false);
     try {
+      await yieldToPaint();
+      if (controller.signal.aborted) return;
       const next = await scanForCulling(candidates, frames, provider, keeperTarget, controller.signal,
         (count) => { if (!controller.signal.aborted) setProgress(count); task.progress(count); },
         () => { if (!controller.signal.aborted) setDetectorFailed(true); });
@@ -145,8 +148,10 @@ export function AutoCullPanel({ frames, keeperTarget, provider, onApply, onScann
       {!results && <div className="mt-3 space-y-2">
         <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={autoMove}
           disabled={progress !== undefined} onChange={(event) => setAutoMove(event.target.checked)} />{m.autoMove}</label>
-        <button type="button" className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
+        <button type="button" aria-busy={progress !== undefined}
+          className={`${button} inline-flex items-center justify-center gap-2 bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover! disabled:cursor-wait`}
           disabled={!candidates.length || progress !== undefined} onClick={() => void scan()}>
+          {progress !== undefined && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
           {progress === undefined ? m.scan : m.scanning(formatCount.format(progress), formatCount.format(total))}
         </button>
         {progress !== undefined && onHide && <button type="button" autoFocus className={`${button} border border-white/15 font-medium`}
