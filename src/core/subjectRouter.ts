@@ -18,7 +18,7 @@ export interface SubjectCategory {
   id: string;
   label: string;
   group: CategoryGroup;
-  /** The coarse kind Kestrel already uses for a photo. */
+  /** The coarse kind Kite44 already uses for a photo. */
   kind: SubjectKind;
   /** Plain-language descriptions. Their text embeddings are averaged into the category's vector. */
   prompts: string[];

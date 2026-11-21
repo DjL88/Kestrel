@@ -1,4 +1,4 @@
-/** Central Kestrel icon language.
+/** Central Kite44 icon language.
  * Every standard action uses the same Lucide-compatible geometry, round joins,
  * restrained 1.85px optical stroke and inherited colour. Explicit caller
  * strokeWidth overrides remain available for accessibility and density.
@@ -115,7 +115,7 @@ function branded(Icon: SourceIcon, displayName: string) {
   const Component = forwardRef<SVGSVGElement, LucideProps>(({ strokeWidth = 1.85, ...props }, ref) =>
     <Icon ref={ref} strokeWidth={strokeWidth} {...props} />
   );
-  Component.displayName = `Kestrel${displayName}`;
+  Component.displayName = `Kite44${displayName}`;
   return Component;
 }
 export const Lock = branded(LucideLock, 'Lock');

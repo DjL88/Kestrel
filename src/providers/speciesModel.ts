@@ -4,6 +4,7 @@ import { getModel, hasModel, putModel, removeModel } from './modelStore';
 import { installedModel } from './modelUpdater';
 import { SPECIES_MODEL, centreSquare, preprocessSpecies } from '../core/speciesModel';
 import { decodeVector, normalise, type SpeciesLabel } from '../core/speciesMatch';
+import { readSpeciesRegions, worldLabelsForRegions } from '../core/speciesRegions';
 import { friendlyToolError } from '../core/toolErrors';
 import { subjectCrop, type SquareCrop } from '../core/subjectCrop';
 import type { SubjectGrid } from '../core/maskTypes';
@@ -22,6 +23,8 @@ interface Labels { labels: SpeciesLabel[]; vectors: Float32Array[] }
 
 let loading: Promise<Loaded> | null = null;
 let labelsLoading: Promise<Labels> | null = null;
+let labelsKey = '';
+let worldLoading: Promise<SpeciesLabel[]> | null = null;
 
 /** Is the feature set up, and has the model been downloaded to this device? Never throws. */
 export async function speciesStatus(): Promise<SpeciesStatus> {
@@ -37,7 +40,7 @@ export async function speciesStatus(): Promise<SpeciesStatus> {
 
 /** Download the model once, check it, and keep it on this device for offline use. */
 export async function downloadSpeciesModel(onProgress: (fraction: number) => void, signal?: AbortSignal): Promise<void> {
-  if (!SPECIES_MODEL.url) throw new Error('Species suggestions are not set up in this copy of Kestrel.');
+  if (!SPECIES_MODEL.url) throw new Error('Species suggestions are not set up in this copy of Kite44.');
   try {
     // The subject checker first: a browser never has species names without the check that keeps aircraft from them.
     const gateShare = GATE_MODEL.bytes / SPECIES_DOWNLOAD_BYTES;
@@ -98,12 +101,12 @@ function loadSession(): Promise<Loaded> {
       // Native installer ships this asset: resolve it through the app's own
       // local asset protocol. Verify again before executing any model weights.
       const response = await fetch(SPECIES_MODEL.url);
-      if (!response.ok) throw new Error('The packaged species model is missing. Reinstall Kestrel.');
+      if (!response.ok) throw new Error('The packaged species model is missing. Reinstall Kite44.');
       bytes = new Uint8Array(await response.arrayBuffer());
       const hash = new Sha256Stream();
       hash.update(bytes);
       if (bytes.byteLength !== SPECIES_MODEL.bytes || hash.digest() !== SPECIES_MODEL.sha256)
-        throw new Error('The packaged species model failed its integrity check. Reinstall Kestrel.');
+        throw new Error('The packaged species model failed its integrity check. Reinstall Kite44.');
     } else {
       throw new Error('The species model has not been downloaded.');
     }
@@ -123,13 +126,39 @@ function loadSession(): Promise<Loaded> {
   return loading;
 }
 
-/** The names the model can match, with their vectors ready to compare. Loaded on demand, about 0.1 MB. */
+/**
+ * The names the model can match, with their vectors ready to compare. Loaded on demand. The shipped list (UK birds and
+ * mammals, about 0.1 MB) is always used. The world bird list (about 9 MB, fetched once beside the model) adds the birds
+ * that occur in the person's chosen regions. If it is missing the shipped list still works, so this never fails.
+ */
 export function loadSpeciesLabels(): Promise<Labels> {
-  labelsLoading ??= import('../assets/species/uk.json').then((file) => {
-    const labels = file.default.labels as SpeciesLabel[];
+  const regions = readSpeciesRegions();
+  const key = regions.join(',');
+  if (labelsLoading && labelsKey === key) return labelsLoading;
+  labelsKey = key;
+  labelsLoading = (async () => {
+    const shipped = (await import('../assets/species/uk.json')).default.labels as SpeciesLabel[];
+    const labels = [...shipped];
+    try {
+      const world = await loadWorldLabels();
+      labels.push(...worldLabelsForRegions(world, regions, new Set(shipped.map((label) => label.scientific.toLowerCase()))));
+    } catch (error) { console.warn('World species list unavailable; using the shipped list', error); }
     return { labels, vectors: labels.map(decodeVector) };
-  });
+  })();
   return labelsLoading;
+}
+
+function loadWorldLabels(): Promise<SpeciesLabel[]> {
+  worldLoading ??= (async () => {
+    const url = SPECIES_MODEL.url.replace(/[^/]*$/, 'species-world.json');
+    if (!url || url === 'species-world.json') return [];
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`world list ${response.status}`);
+    const file = await response.json() as { dimensions?: number; labels?: SpeciesLabel[] };
+    if (file.dimensions !== 512 || !Array.isArray(file.labels)) throw new Error('world list is not in the expected format');
+    return file.labels;
+  })().catch((error) => { worldLoading = null; throw error; });
+  return worldLoading;
 }
 
 /** What the model "sees" in a picture, as a unit-length vector. Runs on this device. */

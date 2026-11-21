@@ -40,7 +40,10 @@ test('the colour check names the colours and says what is wrong, in words, with 
   await strong.getByRole('button', { name: 'Soften colour' }).click();
   // The fix goes into the normal, undoable edit, and the check runs again on the softened picture.
   await expect(panel.getByRole('status')).toContainText('Edit history');
-  await expect(page.getByRole('button', { name: /^Undo/ }).first()).toBeEnabled();
+  // Real undo, not a button lookup (a /^Undo/ name also matches "Undock …"): the editor's own shortcut brings the finding back.
+  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Control+z');
+  await expect(panel.locator('[data-finding="strongColour"]')).toBeVisible();
 });
 
 test('a calm, natural photo gets its colours named and no warnings', async ({ page }) => {
@@ -94,7 +97,10 @@ test('a second opinion from your own AI: set up, agree to the destination, ask, 
 
   await result.getByRole('button', { name: 'Apply suggestions' }).click();
   await expect(ai.getByRole('status')).toContainText('Edit history');
-  await expect(page.getByRole('button', { name: /^Undo/ }).first()).toBeEnabled();
+  // Real undo, not a button lookup (a /^Undo/ name also matches "Undock …"): the editor's own shortcut brings the finding back.
+  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Control+z');
+  await expect(panel.locator('[data-finding="strongColour"]')).toBeVisible();
 });
 
 

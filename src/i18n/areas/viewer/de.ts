@@ -74,7 +74,7 @@ export const de: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Original nicht verfügbar — verbinden Sie den Ordner oder das Laufwerk erneut',
     previewUnavailable: 'Vorschau nicht verfügbar',
-    heifUndecodable: 'Kestrel konnte dieses HEIF-Foto nicht decodieren. Das Original bleibt unverändert.',
+    heifUndecodable: 'Kite44 konnte dieses HEIF-Foto nicht decodieren. Das Original bleibt unverändert.',
   },
   info: {
     title: 'Fotoinfo',
@@ -204,6 +204,7 @@ export const de: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Verschlagworten' : `Alle ${count} verschlagworten`,
     noThanks: 'Nein, danke',
     autoTag: 'Sichere Treffer automatisch verschlagworten',
+    regionLabel: 'Wo du fotografierst',
     checkNote: 'Prüfen Sie vorgeschlagene und automatische Schlagwörter. Die Sicherheit bezieht sich nur auf die Namen, die dieses Modell kennt.',
   },
   scanBanner: {

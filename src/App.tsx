@@ -36,7 +36,7 @@ import { useBackgroundDevelop } from './useBackgroundDevelop';
 import { SpeciesScanBanner } from './components/SpeciesScanBanner';
 import { addTags, type SubjectKind } from './core/subjectTags';
 import type { ImportedPhotoSidecar } from './core/photoSidecar';
-import { applyAutoTag, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTags';
+import { applyAutoTag, disputePatch, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTags';
 import { burstMates, tagFrames } from './core/speciesBurst';
 import { loadImage } from './providers/loadImage';
 import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
@@ -1235,7 +1235,7 @@ export default function App() {
     [selectedFrame, handleDecideFrame, toggleCompareView, prefs.knobMode, handleStepFrame]
   );
 
-  const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames' | 'tags' | 'subjectKind' | 'autoTags' | 'declinedTags' | 'rating' | 'framing' | 'focusPoint'>) => {
+  const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames' | 'tags' | 'subjectKind' | 'autoTags' | 'declinedTags' | 'rating' | 'framing' | 'focusPoint' | 'subjectDisputed'>) => {
     const at = Date.now();
     const isRecipe = 'edit' in patch || 'framing' in patch;
     setCullingState((prev) => ({
@@ -1260,7 +1260,8 @@ export default function App() {
 
   // Tags and kind for any photo, from the editor or from the info pop-up.
   const setSubjects = (frame: PhotoFrame, tags: string[], subjectKind: SubjectKind | undefined) =>
-    updateFrame(frame.id, { tags, subjectNames: [], subjectKind, ...reconcileAuto(frame, tags) });
+    // The person setting the subject themselves settles any dispute between the two readings.
+    updateFrame(frame.id, { tags, subjectNames: [], subjectKind, subjectDisputed: false, ...reconcileAuto(frame, tags) });
   /** A small copy of a photo for the species model, drawn the way the camera held it. Null when the original is not available. */
   const loadSpeciesPicture = useCallback(async (frame: PhotoFrame): Promise<HTMLCanvasElement | null> => {
     const provider = previewProviderRef.current;
@@ -1272,6 +1273,10 @@ export default function App() {
     return canvas;
   }, []);
   const keepTag = (frame: PhotoFrame, name: string) => updateFrame(frame.id, { autoTags: keepAuto(frame, name) });
+  const noteSubjectCheck = (frame: PhotoFrame, outcome: 'agreed' | 'conflict' | 'unverified') => {
+    const patch = disputePatch(frame, outcome);
+    if (patch) updateFrame(frame.id, patch);
+  };
 
   // After photos are added, name the species in the background. The subject flashes up on each card as it is found.
   const scan = useSpeciesScan({
@@ -1286,7 +1291,7 @@ export default function App() {
     }),
   });
 
-  // Every RAW is developed from its sensor data in the background, so the library shows Kestrel's develop, not the
+  // Every RAW is developed from its sensor data in the background, so the library shows Kite44's develop, not the
   // camera's JPEG. Continue the queue while reviewing or editing; the selected image has its own priority.
   useBackgroundDevelop({
     projectId: cullingState.shoot.id, frames: cullingState.frames, provider: previewProviderRef.current,
@@ -1686,7 +1691,7 @@ export default function App() {
     } catch {
       task?.fail(t.tasks.addFailed);
       setProjectError(t.importing.addFailed);
-      if (options?.watched) throw new Error('Kestrel could not import the watched photos. They will be retried.');
+      if (options?.watched) throw new Error('Kite44 could not import the watched photos. They will be retried.');
     } finally {
       // Only a failed/retired import still owns the optional model observer.
       // A successful import transferred it to background culling for safe drain.
@@ -2289,6 +2294,7 @@ export default function App() {
                 <WorkspacePaneRail kind="tools" side="left" onExpand={() => setWorkspacePanes({ folded: false })} />
               )}
             <PhotoEditor
+              onSubjectCheck={noteSubjectCheck}
               viewportTransform={{ zoom: zoomLevel, pan: panOffset }}
               onViewportTransform={(next) => {
                 setZoomLevel(next.zoom);

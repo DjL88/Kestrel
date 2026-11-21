@@ -69,6 +69,7 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   if (value.removedAt !== undefined && !number(value.removedAt, 0)) return false;
   if (value.tags !== undefined && (!Array.isArray(value.tags) || value.tags.length > 24 || !value.tags.every(text))) return false;
   if (value.speciesChecked !== undefined && typeof value.speciesChecked !== 'boolean') return false;
+  if (value.subjectDisputed !== undefined && typeof value.subjectDisputed !== 'boolean') return false;
   if (value.cullConfidence !== undefined && !['high', 'medium', 'low'].includes(value.cullConfidence as string)) return false;
   if (value.cullScore !== undefined && !number(value.cullScore, 0, 100)) return false;
   for (const field of ['autoTags', 'declinedTags']) {
@@ -117,9 +118,9 @@ export function encodeProjectBackup(state: CullingState): string {
 
 export function restoreProjectBackup(contents: string, id: string, now = Date.now()): CullingState {
   let envelope: unknown;
-  try { envelope = JSON.parse(contents); } catch { throw new Error('This file is not a readable Kestrel project backup.'); }
+  try { envelope = JSON.parse(contents); } catch { throw new Error('This file is not a readable Kite44 project backup.'); }
   if (!record(envelope) || envelope.format !== FORMAT || envelope.version !== 1 || !record(envelope.project)) {
-    throw new Error('This file is not a supported Kestrel project backup.');
+    throw new Error('This file is not a supported Kite44 project backup.');
   }
   const { shoot, frames, selectedFrameId, compareRightFrameId, filter, searchQuery, keeperTarget, autoAdvance } = envelope.project;
   if (!descriptorIsValid(shoot) || !Array.isArray(frames) || !frames.every(frameIsValid) ||

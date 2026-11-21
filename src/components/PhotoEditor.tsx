@@ -109,6 +109,8 @@ function opinionWords(opinion: Opinion): { title: string; detail: string; fix: s
 }
 
 interface Props {
+  /** The Photo Check found whether two readings of this photo agree about its subject. */
+  onSubjectCheck?: (frame: PhotoFrame, outcome: 'agreed' | 'conflict' | 'unverified') => void;
   /** Fixed-photo website mode: real editing tools, no import, export or file downloads. */
   demoOnly?: boolean;
   /** Opens the macro pad settings and how-to, on the Edit tab. */
@@ -159,7 +161,7 @@ interface Props {
   onUndoKeeperEdits?: () => void;
 }
 
-export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
+export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, onSubjectCheck,
   frame, viewportTransform, onViewportTransform, provider, needsAccess, bindings, onEdit, initialTab, onTabChange, onApplyLook, onExport, exportCount = 1, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, hand, onHandChange,
@@ -1391,7 +1393,8 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
         ))}
         <PhotoAdvice histogram={histogram} edit={edit} mode={guidanceMode}
           photoKey={frame.stableKey} version={framingKey(framing) + ':' + sourceState} sourceVersion={source}
-          disabled={sourceState !== 'ready'} onEdit={onEdit} readPreview={advicePreview} />
+          disabled={sourceState !== 'ready'} onEdit={onEdit} readPreview={advicePreview}
+          onSubjectCheck={onSubjectCheck ? (outcome) => onSubjectCheck(frame, outcome) : undefined} />
         <div className={isPhone && !allControls ? 'hidden' : 'space-y-2'}>
         <div className="space-y-2 px-1 py-2">
           {EDIT_CHOICES.map(({ key }, index) => (

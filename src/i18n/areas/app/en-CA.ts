@@ -11,7 +11,7 @@ export const enCA: AreaTranslation<typeof source> = {
       confirm: 'Analyze selected photos',
     },
     autoAdjustKeepers: {
-      what: 'Kestrel will analyze each unedited keeper locally and adjust its light, colour and tone. Already edited photos stay unchanged.',
+      what: 'Kite44 will analyze each unedited keeper locally and adjust its light, colour and tone. Already edited photos stay unchanged.',
     },
   },
 };

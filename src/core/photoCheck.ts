@@ -41,7 +41,7 @@ export function factsFromDescription(description: string): SceneFacts {
  * A tiny VLM can hallucinate a person, bird or landscape on a blank frame.
  * Interpret its free text as an UNVERIFIED hypothesis. Accept only broad
  * lighting intent that has independent pixel support, and never infer subject
- * identity here. Subject evidence comes from Kestrel's dedicated detectors.
+ * identity here. Subject evidence comes from Kite44's dedicated detectors.
  * A verified light hint can only VETO measured suggestions, not create them.
  */
 export function supportedSceneFacts(candidate: SceneFacts, rgba: Uint8ClampedArray): SceneFacts {

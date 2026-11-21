@@ -4,7 +4,7 @@ import { fitScale, maxCanvasPixels } from './exportLimits';
 
 test('full-resolution Nikon-sized frame remains unscaled on desktop when within canvas cap', () => {
   const width = 8256, height = 5504;
-  const cap = maxCanvasPixels({ userAgent: 'Kestrel desktop', platform: 'Win32' });
+  const cap = maxCanvasPixels({ userAgent: 'Kite44 desktop', platform: 'Win32' });
   assert.equal(cap, 120_000_000);
   assert.equal(fitScale(width, height, cap), 1);
 });

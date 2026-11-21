@@ -9,7 +9,7 @@ import { noiseStrength } from './noiseReduction';
 import { denoiseChromaRgb16 } from './chromaDenoise16';
 
 /**
- * Kestrel's 16-bit export. The RAW decoder's full-size 16-bit picture (display-encoded sRGB, as it was before the editor's
+ * Kite44's 16-bit export. The RAW decoder's full-size 16-bit picture (display-encoded sRGB, as it was before the editor's
  * 8-bit JPEG was made from it) goes through the same edit maths as the screen, and is written as a 16-bit TIFF. Pure:
  * the same code on desktop, web and phones.
  */
@@ -211,7 +211,7 @@ function applyToneRgb16(data: Uint16Array, edit: PhotoEdit): void {
  * Apply local Texture, Clarity and Sharpening at the *same image-wide radius*
  * as the preview's adjusted full photo. Each stripe takes an immutable halo
  * of input pixels, applies the mask's tone and detail to that small scratch
- * region, then blends only its interior using Kestrel's existing mask alpha.
+ * region, then blends only its interior using Kite44's existing mask alpha.
  * This preserves the distinction between original feather texture and
  * background without a 45 MP second image. Earlier masks are committed in
  * recipe order; subsequent masks always see their result, like the screen.
@@ -346,7 +346,7 @@ export function encodeTiff16(image: Rgb16Image, metadata?: TiffExportMetadata | 
   }
   const entries: Array<[tag: number, type: number, count: number, value: number]> = [];
   const SHORT = 3, LONG = 4, RATIONAL = 5, ASCII = 2, UNDEFINED = 7;
-  const software = 'Kestrel\0';
+  const software = 'Kite44\0';
   const xmp = tiffXmpPacket(metadata);
   const entryCount = xmp ? 16 : 15;
   const ifdOffset = 8;

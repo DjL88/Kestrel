@@ -74,7 +74,7 @@ export const nl: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Origineel niet beschikbaar — koppel de map of schijf opnieuw',
     previewUnavailable: 'Voorvertoning niet beschikbaar',
-    heifUndecodable: 'Kestrel kon deze HEIF-foto niet decoderen. Het origineel is ongewijzigd.',
+    heifUndecodable: 'Kite44 kon deze HEIF-foto niet decoderen. Het origineel is ongewijzigd.',
   },
   info: {
     title: 'Foto-info',
@@ -204,6 +204,7 @@ export const nl: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Labelen' : `Alle ${count} labelen`,
     noThanks: 'Nee, bedankt',
     autoTag: 'Sterke matches automatisch labelen',
+    regionLabel: 'Waar je fotografeert',
     checkNote: 'Kijk voorgestelde en automatische labels na. De zekerheid geldt alleen ten opzichte van de namen die dit model kent.',
   },
   scanBanner: {

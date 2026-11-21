@@ -78,7 +78,7 @@ export const fi: AreaTranslation<typeof source> = {
     addFailed: 'Kuvia ei voitu lisätä. Kokeile valita tiedostot uudelleen.',
     noSupportedPhotos: 'Tässä kansiossa ei ole tuettuja kuvia.',
     folderUnreadable: 'Kansiota ei voitu lukea.',
-    oneFolderPerProject: 'Pidä jokainen kansio omassa projektissaan, jotta Kestrel voi yhdistää sen turvallisesti uudelleen.',
+    oneFolderPerProject: 'Pidä jokainen kansio omassa projektissaan, jotta Kite44 voi yhdistää sen turvallisesti uudelleen.',
     folderAddFailed: 'Kansiota ei voitu lisätä. Kokeile valita se uudelleen.',
     folderUnreadableTryFiles: 'Kansiota ei voitu lukea. Kokeile valita tiedostoja.',
   },
@@ -105,7 +105,7 @@ export const fi: AreaTranslation<typeof source> = {
     status: (folder, count) => `Seurataan kansiota ”${folder}” · uusia kuvia lisätty: ${count}`,
   },
   paid: {
-    dialogLabel: (feature) => `${feature} kuuluu Kestrel Prohon`,
+    dialogLabel: (feature) => `${feature} kuuluu Kite44 Prohon`,
     autoCullPitch: 'Apua parhaiden kuviesi valintaan.',
     close: 'Sulje',
   },
@@ -120,8 +120,8 @@ export const fi: AreaTranslation<typeof source> = {
   },
   notices: {
     temporaryOriginals: (count) => plural(count, {
-      one: 'Kestrel ei voinut tallentaa yhtä alkuperäistä seuraavaa avausta varten. Voit käyttää sitä nyt. Säilytä alkuperäinen tiedostosi: sinun on ehkä valittava se uudelleen, kun avaat projektin seuraavan kerran. Projektin varmuuskopiot eivät sisällä alkuperäisiä kuvia.',
-      other: `Kestrel ei voinut tallentaa alkuperäisiä seuraavaa avausta varten (${count}). Voit käyttää niitä nyt. Säilytä alkuperäiset tiedostosi: sinun on ehkä valittava ne uudelleen, kun avaat projektin seuraavan kerran. Projektin varmuuskopiot eivät sisällä alkuperäisiä kuvia.`,
+      one: 'Kite44 ei voinut tallentaa yhtä alkuperäistä seuraavaa avausta varten. Voit käyttää sitä nyt. Säilytä alkuperäinen tiedostosi: sinun on ehkä valittava se uudelleen, kun avaat projektin seuraavan kerran. Projektin varmuuskopiot eivät sisällä alkuperäisiä kuvia.',
+      other: `Kite44 ei voinut tallentaa alkuperäisiä seuraavaa avausta varten (${count}). Voit käyttää niitä nyt. Säilytä alkuperäiset tiedostosi: sinun on ehkä valittava ne uudelleen, kun avaat projektin seuraavan kerran. Projektin varmuuskopiot eivät sisällä alkuperäisiä kuvia.`,
     }),
     dismiss: 'Sulje',
   },
@@ -202,7 +202,7 @@ export const fi: AreaTranslation<typeof source> = {
     autoAdjustKeepers: {
       title: 'Säädetäänkö muokkaamattomat säilytettävät automaattisesti?',
       confirm: 'Säädä säilytettävät',
-      what: 'Kestrel analysoi tällä laitteella jokaisen muokkaamattoman säilytettävän kuvan ja säätää sen valoa, väriä ja sävyjä. Jo muokatut kuvat pysyvät ennallaan.',
+      what: 'Kite44 analysoi tällä laitteella jokaisen muokkaamattoman säilytettävän kuvan ja säätää sen valoa, väriä ja sävyjä. Jo muokatut kuvat pysyvät ennallaan.',
       eligible: (count) => `Säädettäviä säilytettäviä kuvia: ${count}. Tehtävän voi peruuttaa. Muutoksia ei tehdä ennen kuin analyysi on valmis.`,
       safe: 'Mitään ei lähetetä verkkoon eikä alkuperäisiin tiedostoihisi tehdä muutoksia. Voit kumota tuloksen jokaisesta kuvasta.',
     },

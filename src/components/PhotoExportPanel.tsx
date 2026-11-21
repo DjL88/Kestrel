@@ -51,7 +51,7 @@ interface Props {
   frames: PhotoFrame[];
   provider: BrowserPreviewProvider;
   onClose: () => void;
-  /** Called after a desktop save succeeds or a browser download is requested. */
+  /** Called after a file save succeeds or prepared files are handed to the browser or system. */
   onDownloadRequested?: (frames: readonly PhotoFrame[]) => void;
   /** A place the person chose for this project's exports (for example the drive the originals are on). */
   exportPlace?: ExportPlace | null;
@@ -98,7 +98,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const [placeTaskId, setPlaceTaskId] = useState<number | null>(null);
   const [openingPlace, setOpeningPlace] = useState(false);
   const placeBusy = openingPlace || placeTaskId !== null;
-  const [chosen, setChosen] = useState<string[]>(() => loadChosen(false));
+  const [chosen, setChosen] = useState<string[]>(() => loadChosen(readView() === 'wizard'));
   const [preferences] = useState(() => readExportPreferences({ getItem: (key) => localStorage.getItem(key) }));
   const [presets, setPresets] = useState(() => readExportPresets({ getItem: (key) => localStorage.getItem(key) }));
   const [presetName, setPresetName] = useState('');
@@ -202,6 +202,22 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     }
   }
 
+  async function sharePreparedFiles() {
+    if (saveRunning.current || !files.length) return;
+    saveRunning.current = true;
+    setSaving(true);
+    setError('');
+    try {
+      await navigator.share({ files });
+      finishDelivery(frames, true);
+    } catch (reason) {
+      if (!cancelled.current && (reason as Error).name !== 'AbortError') setError(t.results.shareFailed);
+    } finally {
+      saveRunning.current = false;
+      if (!cancelled.current) setSaving(false);
+    }
+  }
+
   /** A sensor-derived 16-bit TIFF is an explicit advanced export alongside
    * ordinary web/social output. It has its own renderer: never imply an 8-bit
    * browser PNG is the RAW master, and never write pixels to the original. */
@@ -221,14 +237,14 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       if (!original) throw new Error(editorT.raw.masterReconnect);
       const shown = await loadExportSource(frame, provider);
       const tiff = await exportRaw16Tiff(
-        original, shown, frame.edit ?? DEFAULT_EDIT, frame.framing,
+        original, frame.filename, shown, frame.edit ?? DEFAULT_EDIT, frame.framing,
         metadataForExport(frame, metadata),
       );
       // The 16-bit TIFF keeps its sensor-derived pixels. Descriptive XMP is
       // opt-in using exactly the same form as JPEG/PNG. Source EXIF, camera
       // identifiers and GPS are never copied implicitly. No burnt-in overlays.
       if (cancelled.current) { task.finish(editorT.raw.cancelledTask); return; }
-      const stem = safeExportName(frame.filename.replace(/\\.[^.]+$/, '')).replace(/\\.[^.]+$/, '');
+      const stem = safeExportName(frame.filename.replace(/\.[^.]+$/, ''));
       const name = `${stem}_16bit.tif`;
       const saved = desktop ? await saveWithDialog(tiff, name, true) : (downloadExport(tiff, name), true);
       if (saved) {
@@ -1125,6 +1141,8 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   ) : null;
 
   const canShare = files.length > 0 && navigator.canShare?.({ files });
+  const shareFirst = Boolean(canShare) && isMobileShell();
+  const primaryClass = 'bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!';
   const featuredGroups = SHARED_SOCIAL_SIZES.filter(group => FEATURED_SIZE_IDS.has(group.canonical.id));
   const otherGroups = SHARED_SOCIAL_SIZES.filter(group => !FEATURED_SIZE_IDS.has(group.canonical.id));
   return (
@@ -1140,6 +1158,9 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             </button>
           )}
         </header>
+        {!resultsReady && blocked && mark.on && mark.kind === 'image' && !mark.imageData && (
+          <p role="status" className="px-4 py-2 text-xs text-amber-200">{t.watermark.choosePicture}</p>
+        )}
         {!resultsReady && <ExportProofDock frames={frames} formats={selected} sources={sources} choice={activeProof}
           failedPhotoId={proofLoadFailed} onRetry={() => setProofRetry(value => value + 1)}
           onChoosePhoto={chooseProofPhoto} onChooseDestination={chooseProofFormat} bars={bars} overlay={overlay}
@@ -1176,11 +1197,15 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               {saving ? t.results.saving : savedName ? t.results.saved(savedName) : t.results.ready(files.length)}
             </p>
             <div className="flex flex-wrap gap-2">
-              {files.length === 1 && <button type="button" aria-busy={saving} className={`${button} inline-flex items-center gap-2 bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover! max-sm:w-full max-sm:justify-center`}
+              {/* On a phone the share sheet comes first: it can put the photos straight into the camera roll (Save Image) or send
+                  them to any app, while saving a ZIP or file goes through the Files app. */}
+              {shareFirst && <button type="button" className={`${button} inline-flex items-center gap-2 ${primaryClass} max-sm:w-full max-sm:justify-center`}
+                aria-busy={saving} disabled={saving || placeBusy} onClick={() => void sharePreparedFiles()}>{t.results.share}</button>}
+              {files.length === 1 && <button type="button" aria-busy={saving} className={`${button} inline-flex items-center gap-2 ${shareFirst ? 'border border-white/20' : primaryClass} max-sm:w-full max-sm:justify-center`}
                 disabled={saving || placeBusy} onClick={() => void deliver(files[0], files[0].name, frames.slice(0, 1))}>
                 {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
                 {saving ? t.results.saving : desktop ? t.results.save : t.results.download}</button>}
-              {files.length > 1 && <button type="button" aria-busy={saving || !zip} disabled={saving || placeBusy || !zip} className={`${button} inline-flex items-center gap-2 bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover! max-sm:w-full max-sm:justify-center`}
+              {files.length > 1 && <button type="button" aria-busy={saving || !zip} disabled={saving || placeBusy || !zip} className={`${button} inline-flex items-center gap-2 ${shareFirst ? 'border border-white/20' : primaryClass} max-sm:w-full max-sm:justify-center`}
                 onClick={() => { if (zip) void deliver(zip, 'kestrel-exports.zip', frames); }}>
                 {(saving || !zip) && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
                 {saving ? t.results.saving : zip ? (desktop ? t.results.saveZip : t.results.downloadZip) : t.results.packingZip}</button>}
@@ -1189,11 +1214,8 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               {placeTaskId !== null && <button type="button" className={button} onClick={() => tasks.cancel(placeTaskId)}>
                 {t.looks.cancel}
               </button>}
-              {canShare && <button type="button" className={button} disabled={saving || placeBusy} onClick={() => {
-                void navigator.share({ files }).catch((reason) => {
-                  if ((reason as Error).name !== 'AbortError') setError(t.results.shareFailed);
-                });
-              }}>{t.results.share}</button>}
+              {canShare && !shareFirst && <button type="button" className={button} aria-busy={saving}
+                disabled={saving || placeBusy} onClick={() => void sharePreparedFiles()}>{t.results.share}</button>}
               <button type="button" className={button} disabled={saving || placeBusy} onClick={() => {
                 packing.current = null;
                 setFiles([]);

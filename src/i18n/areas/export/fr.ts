@@ -232,7 +232,7 @@ export const fr: AreaTranslation<typeof source> = {
     backgroundSaving: (count) => `Export de ${count} fichiers en arrière-plan`,
     choosingFolder: "Choix du dossier…",
     desktopBackground: (count) => `Enregistrer ${count} fichiers dans un dossier en arrière-plan`,
-    desktopBackgroundHelp: "Choisissez un dossier une seule fois. Les fichiers seront enregistrés un par un dans un nouveau dossier Kestrel Exports daté, classés par destination. Suivez la progression et les erreurs dans le gestionnaire des tâches tout en continuant vos retouches.",
+    desktopBackgroundHelp: "Choisissez un dossier une seule fois. Les fichiers seront enregistrés un par un dans un nouveau dossier Kite44 Exports daté, classés par destination. Suivez la progression et les erreurs dans le gestionnaire des tâches tout en continuant vos retouches.",
     saving: 'Enregistrement…',
     saved: (name) => `${name} enregistré`,
     ready: (count) => plural(count, { one: `${count} fichier prêt`, other: `${count} fichiers prêts` }),

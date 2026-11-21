@@ -1,5 +1,5 @@
 /**
- * Kestrel Select: immutable on-device evidence -> subject-detail crop and
+ * Kite44 Select: immutable on-device evidence -> subject-detail crop and
  * conservative burst comparison. This never changes catalogue decisions,
  * source pixels, or mask recipes. Detector scores are NOT calibrated odds.
  */

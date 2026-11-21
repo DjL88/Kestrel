@@ -42,7 +42,7 @@ test('a HEIC photo imports into a project, shows in the grid and opens in the ed
   const tile = page.getByRole('img', { name: 'IMG_0001.HEIC', exact: true }).first();
   await expect(tile).toBeVisible({ timeout: 20_000 });
   await expect.poll(() => tile.evaluate((img) => (img as HTMLImageElement).naturalWidth), { timeout: 20_000 }).toBeGreaterThan(0);
-  await expect(page.getByText('Kestrel could not decode this HEIF photo. The original is unchanged.').first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText('Kite44 could not decode this HEIF photo. The original is unchanged.').first()).toBeVisible({ timeout: 20_000 });
 
   await page.getByRole('button', { name: 'Keep IMG_0001.HEIC', exact: true }).click();
   await collections.getByRole('button', { name: 'Keepers 1' }).click();

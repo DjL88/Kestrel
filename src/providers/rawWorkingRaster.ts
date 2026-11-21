@@ -1,6 +1,7 @@
 import { Sha256Stream } from '../core/sha256';
 import { parseRgb16, type Rgb16Image } from '../core/master16';
 import { developRawRgb16, rawSensorMode } from './rawDevelop';
+import { rawPrecisionEvidence } from './rawPrecisionGate';
 
 /** Sensor pixels, NOT a scene-linear or ICC-verified archival master. */
 export interface SensorWorkingRaster {
@@ -58,11 +59,11 @@ export async function openSensorWorkingRaster(
 ): Promise<SensorWorkingRaster> {
   if (!/\.(nef|nrw|cr2|cr3|arw|raf|rw2|orf|pef|dng|srw|3fr)$/i.test(filename))
     throw new Error('Unsupported RAW extension. The original is unchanged.');
-  const mode = await rawSensorMode(original, filename);
-  if (mode === 'nikon-he' || mode === 'nikon-he-star')
-    throw new Error('Nikon HE/HE* high-bit editing is unavailable pending commercial codec rights clearance. The original is unchanged.');
   if (expectedSourceSha256 !== undefined && !/^[0-9a-f]{64}$/.test(expectedSourceSha256))
     throw new Error('The expected original SHA-256 is invalid.');
+  // The decoder recognises camera bytes independently of the suffix. Keep the
+  // HE check even when an original has been renamed with a different extension.
+  rawPrecisionEvidence(await rawSensorMode(original, 'source.nef'));
   // Bind this decode to the exact original selected by the catalogue, if known.
   const sourceBytes = original.size;
   const before = await hashRawSource(original);

@@ -3,7 +3,7 @@ import { isDesktopApp } from './desktopShell';
 import { linkedPhoto, type PickedPhoto } from './linkedOriginals';
 
 /**
- * Photos the system opens with Kestrel (Open With, a double-click, or a file dropped on the app icon) arrive here as
+ * Photos the system opens with Kite44 (Open With, a double-click, or a file dropped on the app icon) arrive here as
  * saved paths. They are linked, not copied, and handed over as a batch. Does nothing in a browser tab.
  */
 export function useOpenedFiles(onPhotos: (photos: PickedPhoto[]) => void) {
