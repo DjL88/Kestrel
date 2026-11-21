@@ -54,3 +54,17 @@ test('shared social size shows three destination icons and prepares one output f
   await expect(row.locator('svg')).toHaveCount(3);
   await expect(dialog.getByRole('button', { name: 'Prepare 1 file' })).toBeVisible();
 });
+
+test('the watermark offers Text and Picture side by side, so the picture (PNG, JPEG) option is not hidden in a menu', async ({ page }) => {
+  const dialog = await openCompact(page);
+  await dialog.getByRole('tab', { name: 'Advanced', exact: true }).click();
+  await dialog.getByRole('checkbox', { name: 'Add a watermark' }).check();
+  const kind = dialog.getByRole('group', { name: 'Type' });
+  const text = kind.getByRole('button', { name: 'Text', exact: true });
+  const picture = kind.getByRole('button', { name: /^Picture/ });
+  await expect(text).toHaveAttribute('aria-pressed', 'true');
+  await expect(picture).toBeVisible();
+  await picture.click();
+  await expect(picture).toHaveAttribute('aria-pressed', 'true');
+  await expect(dialog.locator('input[type="file"][accept*="image/png"]')).toBeVisible();
+});

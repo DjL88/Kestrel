@@ -15,6 +15,11 @@ export interface PickedPhoto {
   lastModified: number;
   /** Where the original lives on the disk (desktop app only). Never written to. */
   path?: string;
+  /**
+   * True when the photo can be reached again where it is (for example it comes from a connected network drive), so a phone
+   * app does not need to keep its own copy. Photos from the system picker are not reconnectable and are copied.
+   */
+  reconnectable?: boolean;
   read(): Promise<File>;
 }
 

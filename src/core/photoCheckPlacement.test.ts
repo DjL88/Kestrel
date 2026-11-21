@@ -4,10 +4,11 @@ import { placePhotoInsideSquare } from './photoCheckPlacement';
 
 test('landscape photos keep their 3:2 shape when sent to the local vision model', () => {
   const box = placePhotoInsideSquare(3000, 2000, 512);
+  // 85.333… is not exactly representable, so compare to float precision, as the portrait case does.
   assert.equal(box.x, 0);
   assert.equal(box.width, 512);
-  assert.ok(Math.abs(box.y - 256 / 3) < 1e-9);
-  assert.ok(Math.abs(box.height - 1024 / 3) < 1e-9);
+  assert.ok(Math.abs(box.y - 256 / 3) < 1e-9 && Math.abs(box.height - 1024 / 3) < 1e-9);
+  assert.ok(Math.abs(box.width / box.height - 3 / 2) < 1e-12);
 });
 
 test('portrait photos keep their 2:3 shape instead of distorting the subject', () => {

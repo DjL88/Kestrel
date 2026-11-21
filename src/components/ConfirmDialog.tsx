@@ -21,7 +21,7 @@ export function ConfirmDialog({ title, children, confirmLabel, cancelLabel, onCo
     return () => returnFocus(previous);
   }, []);
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-3 sm:p-4"
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 p-3 sm:p-4"
       onKeyDown={(event) => {
         // Keep keys such as K and X from reaching the culling shortcuts underneath.
         event.stopPropagation();

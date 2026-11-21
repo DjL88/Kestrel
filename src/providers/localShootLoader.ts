@@ -9,6 +9,7 @@ import type { BrowserPreviewProvider } from './browserPreviewProvider';
 import { linkedReader, linkedRangeOpener, pickedFromFile, pickedKey, type PickedPhoto } from './linkedOriginals';
 import { checkOriginalPaths } from './originalPathStatus';
 import { isDesktopApp } from './desktopShell';
+import { appCopiesAvailable, copyIntoAppStorage } from './appStorageCopies';
 import { headBlob, materialize, openLinkedRange, type RangeBlob } from './rangeBlob';
 
 const SUPPORTED_EXTENSIONS = new Set(PHOTO_EXTENSIONS);
@@ -135,6 +136,7 @@ export async function loadLocalFileListShoot(
   const rawFrames: PhotoFrame[] = [];
   const unstoredKeys: string[] = [];
   const uncachedPreviewKeys: string[] = [];
+  const copiedPaths = new Map<string, string>();
   const failedNames: string[] = [];
 
   // Manual imports preserve the rest of a shoot if an original is inaccessible.
@@ -178,6 +180,18 @@ export async function loadLocalFileListShoot(
             uncachedPreviewKeys.push(stableKey);
           }
         } else {
+          // Phone and tablet apps keep their own copy of photos that cannot be reached again after a restart, so the
+          // project never has to ask for them again. Photos that can be reconnected where they are are not copied.
+          const copy = !file.reconnectable && appCopiesAvailable() ? await copyIntoAppStorage(stableKey, opened, file.name) : null;
+          if (copy) {
+            copiedPaths.set(stableKey, copy);
+            previewProvider.registerLinked(stableKey, { read: linkedReader(copy, file.name, file.lastModified, file.size), openRange: linkedRangeOpener(copy, file.size), size: file.size, lastModified: file.lastModified });
+            try {
+              if (!await previewProvider.cacheOfflinePreviews(stableKey, file.name, opened)) uncachedPreviewKeys.push(stableKey);
+            } catch {
+              uncachedPreviewKeys.push(stableKey);
+            }
+          } else {
           previewProvider.registerBlob(stableKey, opened);
           const saved = await store.saveLocalFileBlob(stableKey, opened);
           if (!saved) {
@@ -188,10 +202,12 @@ export async function loadLocalFileListShoot(
               uncachedPreviewKeys.push(stableKey);
             }
           }
+          }
         }
 
         const exif = await parseImageExif(opened, file.name);
-        return frameFor(file, stableKey, idx, exif);
+        const copiedTo = copiedPaths.get(stableKey);
+        return frameFor(copiedTo ? { ...file, path: copiedTo } : file, stableKey, idx, exif);
       },
       // A slow 29 MB NEF must not delay ready neighbours in its 4-file
       // import lane. Watched batches are deliberately all-or-nothing.

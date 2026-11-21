@@ -356,7 +356,7 @@ test('watermark: text and a picture each change the preview, wherever they are p
   await mark.getByLabel('Position').selectOption('top-left');
   await expect.poll(picture).not.toBe(bottomRight);
 
-  await mark.getByLabel('Type').selectOption('image');
+  await mark.getByRole('button', { name: /^Picture/ }).click();
   await expect(page.getByText('Choose a picture to see the watermark.')).toBeVisible();
   const logo = await page.evaluate(() => {
     const canvas = document.createElement('canvas');

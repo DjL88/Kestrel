@@ -18,6 +18,10 @@
     "fs:allow-read-dir",
     "fs:allow-remove",
     "fs:allow-stat",
+    "fs:allow-exists",
+    "fs:allow-appdata-meta-recursive",
+    "fs:allow-appdata-write-recursive",
+    "fs:allow-appdata-read-recursive",
     {
       "identifier": "http:default",
       "allow": [

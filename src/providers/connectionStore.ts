@@ -8,13 +8,26 @@ import { webdavConnector } from './webdavConnector';
 
 /**
  * The person's saved connections and how healthy each one is. Details that are not secret (name, where it points) are
- * kept in the app's storage; keys are kept only as the person chose (this session, or remembered on this device).
+ * kept in the app's storage; secrets remain in process memory only.
  */
 const KEY = 'kestrel.connections.v1';
 const SECRET_PREFIX = 'kestrel.connection-keys.v1.';
 const sessionKeys = new Map<string, S3Settings>();
 const sessionDav = new Map<string, WebDavSettings>();
 const DAV_PREFIX = 'kestrel.connection-dav.v1.';
+// Legacy versions persisted credentials in plaintext. Purge every matching key,
+// including orphaned entries for connections already removed from the list.
+function purgeLegacyCredentials(): void {
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith(SECRET_PREFIX) || key.startsWith(DAV_PREFIX))) keys.push(key);
+    }
+    for (const key of keys) localStorage.removeItem(key);
+  } catch { /* browser storage may be disabled */ }
+}
+purgeLegacyCredentials();
 const sessionHandles = new Map<string, FileSystemDirectoryHandle>();
 const reports: Record<string, HealthReport | undefined> = {};
 const listeners = new Set<() => void>();
@@ -56,25 +69,25 @@ export function removeConnection(id: string): void {
 
 export function setS3Keys(id: string, settings: S3Settings, remember: boolean): void {
   sessionKeys.set(id, settings);
-  try { if (remember) localStorage.setItem(SECRET_PREFIX + id, JSON.stringify(settings)); else localStorage.removeItem(SECRET_PREFIX + id); } catch { /* session only */ }
+  void remember;
+  try { localStorage.removeItem(SECRET_PREFIX + id); } catch { /* session only */ }
 }
 
 export function setDavLogin(id: string, settings: WebDavSettings, remember: boolean): void {
   sessionDav.set(id, settings);
-  try { if (remember) localStorage.setItem(DAV_PREFIX + id, JSON.stringify(settings)); else localStorage.removeItem(DAV_PREFIX + id); } catch { /* session only */ }
+  void remember;
+  try { localStorage.removeItem(DAV_PREFIX + id); } catch { /* session only */ }
 }
 
 function davLoginFor(id: string): WebDavSettings | null {
   const held = sessionDav.get(id);
   if (held) return held;
-  try { const stored = JSON.parse(localStorage.getItem(DAV_PREFIX + id) ?? 'null') as WebDavSettings | null; if (stored?.url) { sessionDav.set(id, stored); return stored; } } catch { /* none */ }
   return null;
 }
 
 function s3KeysFor(id: string): S3Settings | null {
   const held = sessionKeys.get(id);
   if (held) return held;
-  try { const stored = JSON.parse(localStorage.getItem(SECRET_PREFIX + id) ?? 'null') as S3Settings | null; if (stored?.bucket) { sessionKeys.set(id, stored); return stored; } } catch { /* none */ }
   return null;
 }
 

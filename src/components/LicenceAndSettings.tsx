@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useBackToClose } from '../providers/useBackToClose';
 import { buildSettingsFile, parseSettingsFile } from '../core/settingsTransfer';
 import { SETTINGS_KEYS } from '../core/settingsTransfer';
 import { downloadExport } from '../providers/browserExport';
@@ -18,6 +19,7 @@ const action = 'min-h-11 rounded-md border border-white/15 px-3 text-sm text-zin
 
 /** One calm place for the licence key and for copying settings to another device. */
 export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
+  useBackToClose(onClose);
   const licence = useLicence();
   const [key, setKey] = useState('');
   const [note, setNote] = useState<{ text: string; good: boolean } | null>(null);

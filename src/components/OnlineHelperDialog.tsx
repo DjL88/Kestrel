@@ -56,7 +56,7 @@ function Panel() {
 
   const field = 'min-h-11 w-full rounded-md border border-white/15 bg-black/20 px-3 text-base sm:text-sm';
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-3 sm:p-4"
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 p-3 sm:p-4"
       onKeyDown={(event) => {
         event.stopPropagation();
         if (event.key === 'Escape') { event.preventDefault(); cancelCheck(); openHelperDialog(false); }

@@ -98,7 +98,7 @@ export function SyncFolderDialog({ title, projectId, updatedAt, frames, onApply,
   });
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="sync-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+    <div role="dialog" aria-modal="true" aria-labelledby="sync-title" className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4"
       onKeyDown={(event) => {
         if (event.key !== 'Tab') return;
         const order = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), a[href]')];
