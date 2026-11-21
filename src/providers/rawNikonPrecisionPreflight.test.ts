@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe } from 'node:test';
+import { expect, it } from '../core/testExpect';
 import { verifiedNikonSensorMode } from './rawDevelop';
 
 describe('verified Nikon precision preflight', () => {
