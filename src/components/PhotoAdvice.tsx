@@ -45,13 +45,26 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
   const [percent, setPercent] = useState(0);
   const [found, setFound] = useState<{ key: string; facts: SceneFacts } | null>(null);
   const autoDone = useRef(new Set<string>());
-  const abort = useRef<AbortController | null>(null);
+  const abort = useRef<AbortController | null>(null); // installer only
+  const checkController = useRef<AbortController | null>(null); // in-flight local inference
   const recipeKey = `${photoKey}|${JSON.stringify(edit)}`;
+  const liveRecipeKey = useRef(recipeKey);
+  liveRecipeKey.current = recipeKey;
   const facts = found?.key === recipeKey ? found.facts : null; // a result for an older picture or recipe is stale and dropped
 
   useEffect(() => { void photoCheckInstalled().then(setInstalled, () => setInstalled(false)); }, []);
-  useEffect(() => { setAsked(false); setUndo(null); setConsent(false); abort.current?.abort(); }, [photoKey, mode]);
-  useEffect(() => () => abort.current?.abort(), []);
+  useEffect(() => {
+    setAsked(false); setUndo(null); setConsent(false);
+    abort.current?.abort();
+    checkController.current?.abort();
+  }, [photoKey, mode]);
+  useEffect(() => {
+    // Never attach an old model reading to the new photograph or recipe.
+    checkController.current?.abort();
+    checkController.current = null;
+    setPhase(current => current === 'checking' ? 'idle' : current);
+  }, [recipeKey]);
+  useEffect(() => () => { abort.current?.abort(); checkController.current?.abort(); }, []);
 
   const advice = useMemo(() => histogram ? adviseOnPhoto(histogram, edit, contextFrom(facts)) : null, [histogram, edit, facts]);
   const action = advice ? adviceAction(mode, advice, { asked, manuallyRefined: !isNeutralEdit(edit) && !autoDone.current.has(photoKey) }) : null;
@@ -59,13 +72,24 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
   async function check() {
     const preview = readPreview();
     if (!preview || phase === 'checking') return;
+    checkController.current?.abort();
     const controller = new AbortController();
-    abort.current = controller;
+    checkController.current = controller;
+    const requestedRecipe = recipeKey;
+    const stillCurrent = () => checkController.current === controller &&
+      !controller.signal.aborted && liveRecipeKey.current === requestedRecipe;
     setPhase('checking');
     try {
       const result = await runPhotoCheck(preview, controller.signal);
-      if (!controller.signal.aborted) { setFound({ key: recipeKey, facts: result.facts }); setPhase('idle'); }
-    } catch (error) { if (!controller.signal.aborted) { console.warn('Photo check failed:', error); setPhase('failed'); } else setPhase('idle'); }
+      if (stillCurrent()) { setFound({ key: requestedRecipe, facts: result.facts }); setPhase('idle'); }
+    } catch (error) {
+      if (stillCurrent()) { console.warn('Photo check failed:', error); setPhase('failed'); }
+    } finally {
+      if (checkController.current === controller) {
+        checkController.current = null;
+        setPhase(current => current === 'checking' ? 'idle' : current);
+      }
+    }
   }
   // Glide and Soar: read the scene once the picture and recipe have been still for a moment. Fly Solo: never unprompted.
   useEffect(() => {
@@ -125,7 +149,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
       )}
       {phase === 'checking' && (
         <p className="flex items-center gap-2 text-zinc-400" role="status">{t.advice.checking}
-          <button type="button" className="min-h-9 underline hover:text-white" onClick={() => abort.current?.abort()}>{t.advice.cancel}</button></p>
+          <button type="button" className="min-h-9 underline hover:text-white" onClick={() => { checkController.current?.abort(); setPhase('idle'); }}>{t.advice.cancel}</button></p>
       )}
       {phase === 'failed' && <p className="text-zinc-400" role="status">{t.advice.failed}</p>}
       {phase === 'installing' && (
