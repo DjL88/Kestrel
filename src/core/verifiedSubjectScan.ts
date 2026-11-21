@@ -144,6 +144,9 @@ export async function scanVerifiedSubjectDetails(
     if (!current() || !await request.verifyRaster(raster, signal) || !current()) return [];
     const finalSha = await request.verifyOriginalSha256(identity.photoId, signal);
     if (!current() || !finalSha || finalSha.toLowerCase() !== identity.sourceSha256.toLowerCase()) return [];
+    // The final original-file read is asynchronous. Re-attest the raster after
+    // it too: a changed decoded buffer must not escape as trusted A/B detail.
+    if (!await request.verifyRaster(raster, signal) || !current()) return [];
     return result;
   } catch {
     return [];
