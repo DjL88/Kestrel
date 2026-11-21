@@ -33,13 +33,11 @@ test('after import, species appears quietly and the info pop-up can change it', 
   // A closed-list bird model cannot establish that a photo contains wildlife.
   // Classify these synthetic bird photos before permitting automatic species names.
   for (const name of ['bird-1.png', 'bird-2.png', 'bird-3.png']) {
-    await page.getByRole('article', { name: `Frame ${name}` }).click({ position: { x: 8, y: 8 } });
-    const expand = page.getByRole('button', { name: 'Expand photo info' });
-    if (await expand.isVisible()) await expand.click();
+    await openInfoFor(page, name);
     await subjectTab(page);
     await page.getByRole('complementary', { name: 'Photo info' }).getByRole('button', { name: 'Wildlife' }).click();
-    await page.getByRole('button', { name: 'Close photo info' }).click();
   }
+  await page.getByRole('button', { name: 'Close photo info' }).click();
 
   // On the project page, not in the editor: an offer to turn it on, then progress as the photos are looked at.
   const banner = page.getByRole('region', { name: 'Species recognition' });
