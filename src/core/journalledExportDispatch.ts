@@ -108,19 +108,26 @@ export function createJournalledExportDispatch(
       active.delete(checkpoint.id);
       throw error;
     }
-    void ticket.done.then(result => {
+    // The task queue finishes rendering before the final durable journal commit.
+    // Do not expose success to callers until the checkpoint has been persisted.
+    // A failed commit must be reported as failure, not as a completed export.
+    const committed = ticket.done.then(result => {
       if (result === 'completed') {
         const saved = journal.load<Recipe>(checkpoint.id);
-        if (saved && saved.receipts.length === saved.items.length) {
-          journal.save({ ...saved, state: 'completed' });
+        if (!saved || saved.receipts.length !== saved.items.length) {
+          throw new Error('Export finished without a complete durable receipt journal.');
         }
+        journal.save({ ...saved, state: 'completed' });
       } else {
         journal.pause(checkpoint.id);
       }
-    }).catch(() => {
-      // Never erase an incomplete checkpoint on a storage failure.
+      return result;
+    }).catch((): 'failed' => {
+      // Preserve receipts for explicit verified recovery. Never report success
+      // after an unsuccessful durable checkpoint write.
+      return 'failed';
     }).finally(() => { active.delete(checkpoint.id); });
-    return ticket;
+    return Object.freeze({ id: ticket.id, cancel: () => ticket.cancel(), done: committed });
   }
 
   return {
