@@ -30,7 +30,9 @@ param(
   [string] $SiteUrl,
   # Store listings for the website's iPhone/iPad and Android cards (https only, on the stores' own hosts).
   [string] $PlayStoreUrl,
-  [string] $AppStoreUrl
+  [string] $AppStoreUrl,
+  # Only for the very first release when latest.json has never existed. Never silently erase a prior manifest.
+  [switch] $BootstrapLatest
 )
 $ErrorActionPreference = 'Stop'
 $downloads = "gs://$Project-kestrel-downloads"
@@ -38,14 +40,21 @@ $modelsBucket = "gs://$Project-kestrel-models"
 
 function Get-Latest {
   $raw = & gcloud storage cat "$downloads/latest.json" --project $Project 2>$null
-  if ($LASTEXITCODE -ne 0 -or -not $raw) { return $null }
-  try { return (($raw -join "`n") | ConvertFrom-Json) } catch { return $null }
+  if ($LASTEXITCODE -ne 0 -or -not $raw) {
+    if ($BootstrapLatest) { Write-Warning 'No readable latest.json. BootstrapLatest explicitly allows a first manifest; check the bucket and access rights.'; return $null }
+    throw 'Cannot read the existing latest.json. Publishing stopped so existing platform downloads and store links cannot be erased. Use -BootstrapLatest only for a genuinely empty bucket.'
+  }
+  try { return (($raw -join "`n") | ConvertFrom-Json -ErrorAction Stop) }
+  catch { throw 'Existing latest.json is malformed. Publishing stopped rather than overwriting the existing release catalogue.' }
 }
 function Write-Latest($latest) {
-  $latestFile = Join-Path $env:TEMP 'latest.json'
-  $latest | ConvertTo-Json -Depth 6 | Set-Content -Encoding utf8 $latestFile
-  # Short cache so the website sees a change within minutes.
-  gcloud storage cp $latestFile "$downloads/latest.json" --cache-control='public, max-age=300' --project $Project
+  $latestFile = Join-Path ([IO.Path]::GetTempPath()) ('kestrel-latest-' + [guid]::NewGuid().ToString('N') + '.json')
+  try {
+    $latest | ConvertTo-Json -Depth 6 | Set-Content -Encoding utf8 $latestFile
+    # Short cache so the website sees a change within minutes.
+    gcloud storage cp $latestFile "$downloads/latest.json" --cache-control='public, max-age=300' --project $Project
+    if ($LASTEXITCODE -ne 0) { throw 'Could not publish latest.json; do not announce a release.' }
+  } finally { Remove-Item -LiteralPath $latestFile -ErrorAction SilentlyContinue }
 }
 function Assert-StoreUrl($url, [string[]] $hosts) {
   $uri = [Uri]$url
