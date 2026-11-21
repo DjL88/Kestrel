@@ -19,3 +19,10 @@ test('16-bit alpha transitions are monotonic and do not collapse to 8-bit', () =
   for (let i = 1; i < samples.length; i++) assert.ok(samples[i] >= samples[i - 1]);
   assert.ok(new Set(samples).size > 200);
 });
+
+test('rejects invalid samples and coverage before corrupting an archival output', () => {
+  assert.throws(() => decodeSrgb16(NaN), RangeError);
+  assert.throws(() => decodeSrgb16(65536), RangeError);
+  assert.throws(() => blendSrgb16(0, 65535, NaN), RangeError);
+  assert.throws(() => blendLinearToSrgb16(0, 1, Infinity), RangeError);
+});
