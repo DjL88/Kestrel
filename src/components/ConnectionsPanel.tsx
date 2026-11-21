@@ -6,8 +6,11 @@ import { pickSyncFolder } from '../providers/folderConnector';
 import { ProviderIcon } from './ProviderIcon';
 import { WebDavForm } from './WebDavForm';
 import { addConnection, checkAllConnections, checkConnection, removeConnection, setS3Keys, useConnections } from '../providers/connectionStore';
+import { rememberTokens } from '../providers/oauthSession';
 import { CloudStorageForm } from './CloudStorageForm';
 import type { S3Settings } from '../core/storageConnectors';
+import { CLOUD_DRIVES, isCloudDrive } from '../core/cloudDrive';
+import { cloudDriveAvailable, cloudDriveUnavailableReason, signInToCloudDrive } from '../providers/oauthSession';
 
 const action = 'min-h-11 rounded-md border border-white/15 px-3 text-sm text-zinc-100 hover:bg-white/8 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-sky-300';
 const field = 'block min-h-11 w-full rounded-md border border-white/15 bg-black/30 px-3 text-sm text-zinc-100';
@@ -61,7 +64,24 @@ export function ConnectionsPanel() {
       removeConnection(id);
       const created = addConnection('folder', old.label, picked.name, { handle: picked.handle, path: picked.path });
       await checkConnection(created.id);
+    } else if (isCloudDrive(kind)) {
+      setBusy(id);
+      try { rememberTokens(id, await signInToCloudDrive(kind)); await checkConnection(id); }
+      catch (error) { setNote(error instanceof Error ? error.message : t.common.couldNotOpenFolder); }
+      setBusy(null);
     } else await checkConnection(id);
+  }
+
+  /** Sign in once with the person's own account; Kestrel then only sees its own folder there. */
+  async function addCloudDrive(kind: 'dropbox' | 'googledrive' | 'onedrive') {
+    setNote(null); setBusy(kind);
+    try {
+      const tokens = await signInToCloudDrive(kind);
+      const created = addConnection(kind, label || CLOUD_DRIVES[kind].name, `${CLOUD_DRIVES[kind].name} · Kestrel folder`, { tokens });
+      setAdding(null); setLabel('');
+      await checkConnection(created.id);
+    } catch (error) { setNote(error instanceof Error ? error.message : t.common.couldNotOpenFolder); }
+    setBusy(null);
   }
 
   return (
@@ -110,12 +130,17 @@ export function ConnectionsPanel() {
       {adding && (
         <div className="mt-3 space-y-3 rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-zinc-300" role="group" aria-label={t.connections.add}>
           <div role="radiogroup" aria-label={t.connections.kind} className="space-y-1">
-            {PROVIDERS.map((provider) => (
-              <label key={provider.kind} className={`flex min-h-11 items-start gap-2 ${provider.available ? '' : 'opacity-60'}`}>
-                <input type="radio" name="provider" className="mt-1" disabled={!provider.available} checked={adding === provider.kind} onChange={() => setAdding(provider.kind)} />
-                <span className="flex items-start gap-2"><ProviderIcon kind={provider.kind} className="mt-0.5 h-4 w-4 shrink-0" /><span>{providerLabel(provider)}{provider.note && <span className="block text-xs text-zinc-400">{providerNote(provider)}</span>}</span></span>
-              </label>
-            ))}
+            {PROVIDERS.map((provider) => {
+              const cloud = isCloudDrive(provider.kind);
+              const available = cloud ? cloudDriveAvailable(provider.kind as 'dropbox') : provider.available;
+              const reason = cloud && !available ? cloudDriveUnavailableReason(provider.kind as 'dropbox') : null;
+              return (
+                <label key={provider.kind} className={`flex min-h-11 items-start gap-2 ${available ? '' : 'opacity-60'}`}>
+                  <input type="radio" name="provider" className="mt-1" disabled={!available} checked={adding === provider.kind} onChange={() => setAdding(provider.kind)} />
+                  <span className="flex items-start gap-2"><ProviderIcon kind={provider.kind} className="mt-0.5 h-5 w-5 shrink-0" /><span>{providerLabel(provider)}{(reason ?? (provider.note && !cloud ? providerNote(provider) : null)) && <span className="block text-xs text-zinc-400">{reason ?? providerNote(provider)}</span>}</span></span>
+                </label>
+              );
+            })}
           </div>
           <label className="block">{t.connections.nameIt}
             <input className={`${field} mt-1`} value={label} onChange={(event) => setLabel(event.target.value)} />
@@ -126,6 +151,12 @@ export function ConnectionsPanel() {
               setAdding(null); setLabel('');
               void checkConnection(created.id);
             }} />
+          )}
+          {isCloudDrive(adding) && (
+            <div className="space-y-2">
+              <p className="text-xs text-zinc-400">Kestrel opens {CLOUD_DRIVES[adding].name}'s own sign-in page. It never sees your password, and can only see its own Kestrel folder, not the rest of your account.</p>
+              <button type="button" className={action} disabled={busy === adding} onClick={() => void addCloudDrive(adding)}>Sign in with {CLOUD_DRIVES[adding].name}</button>
+            </div>
           )}
           {adding === 'folder' && <button type="button" className={action} onClick={() => void addFolder()}>{t.connections.chooseFolder}</button>}
           {adding === 's3' && (

@@ -1,10 +1,13 @@
 import { useSyncExternalStore } from 'react';
-import { healthFromFailure, newConnectionId, type Connection, type Health, type HealthReport, type ProviderKind } from '../core/connections';
+import { healthFromFailure, newConnectionId, PROVIDERS, type Connection, type Health, type HealthReport, type ProviderKind } from '../core/connections';
 import type { S3Settings, StorageConnector, WebDavSettings } from '../core/storageConnectors';
 import { directoryHandleConnector } from './folderConnector';
 import { isDesktopApp } from './desktopShell';
 import { s3Connector } from './s3Connector';
 import { webdavConnector } from './webdavConnector';
+import { isCloudDrive } from '../core/cloudDrive';
+import { dropboxConnector, googleDriveConnector, oneDriveConnector } from './cloudDriveConnectors';
+import { accessTokenFor, forgetTokens, hasTokens, rememberTokens } from './oauthSession';
 
 /**
  * The person's saved connections and how healthy each one is. Details that are not secret (name, where it points) are
@@ -49,9 +52,10 @@ const publish = () => {
 export const connections = () => list;
 export const healthOf = (id: string) => reports[id];
 
-export function addConnection(kind: ProviderKind, label: string, detail: string, secret?: { s3?: S3Settings; dav?: WebDavSettings; remember?: boolean; handle?: FileSystemDirectoryHandle; path?: string }): Connection {
+export function addConnection(kind: ProviderKind, label: string, detail: string, secret?: { tokens?: import('../core/cloudDrive').Tokens; s3?: S3Settings; dav?: WebDavSettings; remember?: boolean; handle?: FileSystemDirectoryHandle; path?: string }): Connection {
   const connection: Connection = { id: newConnectionId(), kind, label: label.trim() || detail, detail };
   list = [...list, connection];
+  if (secret?.tokens) rememberTokens(connection.id, secret.tokens);
   if (secret?.s3) setS3Keys(connection.id, secret.s3, Boolean(secret.remember));
   if (secret?.dav) setDavLogin(connection.id, secret.dav, Boolean(secret.remember));
   if (secret?.handle) sessionHandles.set(connection.id, secret.handle);
@@ -62,7 +66,7 @@ export function addConnection(kind: ProviderKind, label: string, detail: string,
 
 export function removeConnection(id: string): void {
   list = list.filter((c) => c.id !== id);
-  sessionKeys.delete(id); sessionDav.delete(id); sessionHandles.delete(id); delete reports[id];
+  sessionKeys.delete(id); sessionDav.delete(id); sessionHandles.delete(id); delete reports[id]; forgetTokens(id);
   try { localStorage.removeItem(SECRET_PREFIX + id); localStorage.removeItem(DAV_PREFIX + id); localStorage.removeItem(`kestrel.connection-path.v1.${id}`); } catch { /* nothing to remove */ }
   publish();
 }
@@ -106,6 +110,12 @@ export async function openConnection(id: string): Promise<Opened> {
     const login = davLoginFor(id);
     if (!login) return { problem: 'needs-signin', message: 'The password was not remembered. Enter it again to reconnect.' };
     return { connector: webdavConnector(login) };
+  }
+  if (isCloudDrive(connection.kind)) {
+    const kind = connection.kind;
+    if (!hasTokens(id)) return { problem: 'needs-signin', message: `Sign in to ${PROVIDERS.find((p) => p.kind === kind)?.short ?? 'the service'} again to reconnect.` };
+    const deps = { getToken: () => accessTokenFor(id, kind) };
+    return { connector: kind === 'dropbox' ? dropboxConnector(deps) : kind === 'googledrive' ? googleDriveConnector(deps) : oneDriveConnector(deps) };
   }
   if (connection.kind === 'folder') {
     if (isDesktopApp()) {
