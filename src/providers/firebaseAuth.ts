@@ -22,7 +22,9 @@ export function signInPlatform(): SignInPlatform {
 /** The Firebase code is loaded only when someone opens sign-in, so offline use and start-up never pay for it. */
 async function firebase() {
   const [{ initializeApp, getApps }, auth] = await Promise.all([import('firebase/app'), import('firebase/auth')]);
-  const app = getApps()[0] ?? initializeApp(config);
+  // Never attach Kestrel authentication to an unrelated Firebase app that another
+  // optional service may have initialised first in this webview.
+  const app = getApps().find((candidate) => candidate.name === 'kestrel-auth') ?? initializeApp(config, 'kestrel-auth');
   return { auth, instance: auth.getAuth(app) };
 }
 
