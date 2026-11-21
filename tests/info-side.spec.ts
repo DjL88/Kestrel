@@ -13,6 +13,17 @@ test('Photo info sits opposite the Preferred hand, and the editing tools on the 
   const width = page.viewportSize()!.width;
   expect(await centre(), 'right-handed: info on the left').toBeLessThan(width / 2);
 
+  // The rail stays visible while Photo info is open and can fold/reopen it.
+  // This is a real UI affordance rather than a hidden only-when-folded tab.
+  const infoRail = page.getByRole('group', { name: 'Photo info', exact: true });
+  await expect(infoRail.getByRole('button', { name: 'Fold photo info' })).toBeVisible();
+  await infoRail.getByRole('button', { name: 'Fold photo info' }).click();
+  await expect(info).toBeHidden();
+  const foldedRail = page.getByRole('group', { name: 'Folded info pane' });
+  await expect(foldedRail.getByRole('button', { name: 'Expand photo info' })).toBeVisible();
+  await foldedRail.getByRole('button', { name: 'Expand photo info' }).click();
+  await expect(info).toBeVisible();
+
   await page.getByRole('button', { name: 'Workspace options' }).click();
   await page.locator('#workspace-options').getByRole('button', { name: 'Left-handed' }).click();
   await page.keyboard.press('Escape');
