@@ -222,7 +222,7 @@ test('cancelling a waiting export never marks its Task Manager entry completed',
   assert.equal(await first.done, 'completed');
 });
 
-test('cancelling while durable finalization throws leaves cancelled, never completed, Task Manager status', async () => {
+test('cancellation is refused once durable finalisation starts; failed commit stays failed', async () => {
   const store = createTaskStore();
   const queue = createExportBatchQueue(store);
   let release!: () => void;
@@ -235,9 +235,30 @@ test('cancelling while durable finalization throws leaves cancelled, never compl
   });
   for (let i = 0; i < 10 && !finalizing; i++) await tick();
   assert.equal(finalizing, true);
-  assert.equal(ticket.cancel(), true);
+  assert.equal(ticket.cancel(), false, 'the irreversible commit boundary has started');
   release();
-  assert.equal(await ticket.done, 'cancelled');
-  assert.equal(store.list()[0].state, 'cancelled');
+  assert.equal(await ticket.done, 'failed');
+  assert.equal(store.list()[0].state, 'failed');
   assert.notEqual(store.list()[0].state, 'done');
+});
+
+test('late cancellation cannot contradict a successful durable export commit', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let finalizing = false;
+  let commits = 0;
+  const ticket = queue.enqueue({ title: 'Atomic', items: [photos[0]], recipe: {} }, {
+    async render() { return 'pixels'; },
+    async save() {},
+    async finalize() { finalizing = true; await gate; commits++; },
+  });
+  for (let i = 0; i < 10 && !finalizing; i++) await tick();
+  assert.equal(finalizing, true);
+  assert.equal(ticket.cancel(), false);
+  release();
+  assert.equal(await ticket.done, 'completed');
+  assert.equal(commits, 1);
+  assert.equal(store.list()[0].state, 'done');
 });
