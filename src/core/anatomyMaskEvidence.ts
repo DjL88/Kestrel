@@ -8,6 +8,10 @@ import type { Mask, SubjectGrid } from './maskTypes';
 export interface AnatomyEvidence {
   sourceSha256: string;
   framingKey: string;
+  /** Exact base grid this asynchronous proposal analysed (no cross-revision replacement). */
+  baseGridData: string;
+  /** Monotonically increasing edit recipe revision captured before inference. */
+  recipeRevision: number;
   modelId: string;
   modelVersion: string;
   /** Full-image confidence maps, 0..255, with identical dimensions. */
@@ -22,7 +26,7 @@ export interface AnatomyEvidence {
 
 export type AnatomyResult =
   | { ok: true; mask: Extract<Mask, { kind: 'subject' }>; reason: 'observed-refinement' }
-  | { ok: false; reason: 'unverified-source' | 'uncalibrated-evidence' | 'invalid-grid' | 'conflicting-evidence' | 'excessive-change' | 'detached-anatomy' | 'no-change' };
+  | { ok: false; reason: 'unverified-source' | 'uncalibrated-evidence' | 'invalid-grid' | 'conflicting-evidence' | 'excessive-change' | 'detached-anatomy' | 'stale-recipe' | 'no-change' };
 
 const digest = /^[a-f0-9]{64}$/i;
 const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
@@ -55,10 +59,18 @@ export function refineObservedAnatomy(
   mask: Extract<Mask, { kind: 'subject' }>,
   evidence: AnatomyEvidence,
   verifiedSourceSha256: string,
+  currentRecipeRevision: number,
 ): AnatomyResult {
   if (!digest.test(verifiedSourceSha256) || evidence.sourceSha256 !== verifiedSourceSha256 ||
       !evidence.modelId.trim() || !evidence.modelVersion.trim() ||
       evidence.framingKey !== mask.framingKey) return { ok: false, reason: 'unverified-source' };
+  // A matching source digest alone does not protect edits made while a model
+  // was running. Refuse stale proposals rather than replace a newer mask.
+  if (!Number.isSafeInteger(currentRecipeRevision) || currentRecipeRevision < 0 ||
+      !Number.isSafeInteger(evidence.recipeRevision) || evidence.recipeRevision < 0 ||
+      evidence.recipeRevision !== currentRecipeRevision ||
+      evidence.baseGridData !== mask.grid.data)
+    return { ok: false, reason: 'stale-recipe' };
   if (mask.confidence === 'low' || !validConfidence(evidence.partConfidence) ||
       !validConfidence(evidence.occluderConfidence) ||
       evidence.partConfidence < 0.9 || evidence.occluderConfidence < 0.9)
