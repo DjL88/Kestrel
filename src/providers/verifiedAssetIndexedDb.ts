@@ -68,8 +68,15 @@ export function indexedDbAssetSlots(): AssetSlots & {
       if (!SLOT.test(slot) || bytes.byteLength === 0) throw new Error('Invalid immutable asset slot');
       await transact([FILES], 'readwrite', async tx => {
         const store = tx.objectStore(FILES);
-        if (await requestValue(store.getKey(slot)) !== undefined)
-          throw new Error('Immutable asset slot already exists');
+        if (await requestValue(store.getKey(slot)) !== undefined) {
+          // A crash after staging but before CAS must permit an exact retry.
+          // Same SHA slot with different bytes is a hard collision.
+          const existing = await requestValue(store.get(slot));
+          if (!(existing instanceof Uint8Array) || existing.byteLength !== bytes.byteLength ||
+              existing.some((value, index) => value !== bytes[index]))
+            throw new Error('Immutable asset slot collision');
+          return;
+        }
         await requestValue(store.add(bytes.slice(), slot));
       });
     },
