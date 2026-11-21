@@ -1,15 +1,20 @@
 /**
- * The person's own AI, for a second opinion on colour and light: their own Google (Gemini or Vertex AI on their GCP
- * project), Anthropic or OpenAI-compatible key, or a model running on their own computer (Ollama, LM Studio). Nothing
- * is sent until they have chosen a provider, entered its details and agreed to send a small preview there
+ * The person's own AI, for a second opinion on colour and light: their own Google Gemini, Anthropic or
+ * OpenAI-compatible key, or a model running on their own computer (Ollama, LM Studio). Nothing is sent until
+ * they have chosen a provider, entered its details and agreed to send a small preview there
  * (`AI_REVIEW_CONSENT_VERSION`); the preview carries no location, camera details or file name.
  *
  * Keys are kept on this device only, in Kite44's own storage. They are never put in a project backup.
+ *
+ * Google Vertex AI was removed (21 Nov 2026): its standard endpoint (`aiplatform.googleapis.com`) rejects a
+ * plain API key outright and needs a Google Cloud OAuth2 access token instead, which this hand-built request
+ * never supplied - a person who set it up with a normal Vertex key would always have got a 401. Plain Gemini
+ * (`generativelanguage.googleapis.com`), which only ever needed an API key, covers the same models.
  */
 import { AI_REVIEW_SCHEMA, parseAiReview, type AiReview } from '../core/aiReview';
 
-export type AiProviderKind = 'gemini' | 'vertex' | 'anthropic' | 'openai';
-export const AI_PROVIDER_KINDS: readonly AiProviderKind[] = ['gemini', 'vertex', 'anthropic', 'openai'];
+export type AiProviderKind = 'gemini' | 'anthropic' | 'openai';
+export const AI_PROVIDER_KINDS: readonly AiProviderKind[] = ['gemini', 'anthropic', 'openai'];
 
 export interface AiProviderSettings {
   kind: AiProviderKind;
@@ -25,13 +30,11 @@ export interface AiProviderSettings {
 
 export const DEFAULT_AI_MODEL: Record<AiProviderKind, string> = {
   gemini: '',
-  vertex: '',
   anthropic: 'claude-opus-5-5',
   openai: '',
 };
 
 const GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
-const VERTEX = 'https://aiplatform.googleapis.com/v1/publishers/google/models';
 export const AI_REQUEST_TIMEOUT_MS = 45_000;
 
 export class AiReviewError extends Error {
@@ -61,7 +64,6 @@ export function normalisedOpenAiBaseUrl(raw: string): string {
 /** Where a preview goes, said by host name in the consent text and recorded with the consent. */
 export function destinationHost(settings: Pick<AiProviderSettings, 'kind' | 'baseUrl'>): string {
   if (settings.kind === 'gemini') return 'generativelanguage.googleapis.com';
-  if (settings.kind === 'vertex') return 'aiplatform.googleapis.com';
   if (settings.kind === 'anthropic') return 'api.anthropic.com';
   try { return new URL(normalisedOpenAiBaseUrl(settings.baseUrl ?? '')).host || 'unknown'; } catch { return 'unknown'; }
 }
@@ -85,12 +87,12 @@ export function consentFor(version: string, settings: Pick<AiProviderSettings, '
   return `${version}@${destinationHost(settings)}`;
 }
 
-/** The HTTP request for Gemini, Vertex AI and OpenAI-compatible providers. Pure, so it can be tested. */
+/** The HTTP request for Gemini and OpenAI-compatible providers. Pure, so it can be tested. */
 export function buildAiRequest(settings: AiProviderSettings, prompt: string, jpegBase64: string): { url: string; init: RequestInit } {
   const json = { 'content-type': 'application/json' };
-  if (settings.kind === 'gemini' || settings.kind === 'vertex') {
+  if (settings.kind === 'gemini') {
     const model = settings.model.replace(/^models\//, '');
-    const url = settings.kind === 'gemini' ? `${GEMINI}/models/${encodeURIComponent(model)}:generateContent` : `${VERTEX}/${encodeURIComponent(model)}:generateContent`;
+    const url = `${GEMINI}/models/${encodeURIComponent(model)}:generateContent`;
     const body = {
       contents: [{ role: 'user', parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: jpegBase64 } }] }],
       generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
@@ -114,11 +116,11 @@ export function buildAiRequest(settings: AiProviderSettings, prompt: string, jpe
   throw new AiReviewError('setup', 'Claude uses the Anthropic SDK, not a hand-built request.');
 }
 
-/** The answer text from a Gemini/Vertex or OpenAI-compatible reply, or null. */
+/** The answer text from a Gemini or OpenAI-compatible reply, or null. */
 export function readAiAnswer(kind: AiProviderKind, body: unknown): string | null {
   const record = body as Record<string, unknown> | null;
   if (!record || typeof record !== 'object') return null;
-  if (kind === 'gemini' || kind === 'vertex') {
+  if (kind === 'gemini') {
     const candidate = (record.candidates as { content?: { parts?: { text?: string }[] }; finishReason?: string }[] | undefined)?.[0];
     if (candidate?.finishReason === 'SAFETY' || candidate?.finishReason === 'PROHIBITED_CONTENT') throw new AiReviewError('refused');
     const text = candidate?.content?.parts?.map((part) => part.text ?? '').join('');
@@ -185,7 +187,7 @@ async function askClaude(settings: AiProviderSettings, prompt: string, jpegBase6
 export async function askForReview(settings: AiProviderSettings, consentVersion: string, prompt: string, jpegBase64: string, signal?: AbortSignal, fetcher: typeof fetch = fetch): Promise<AiReview> {
   if (settings.consent !== consentFor(consentVersion, settings)) throw new AiReviewError('setup');
   if (settings.kind !== 'openai' && !settings.key.trim()) throw new AiReviewError('setup');
-  if ((settings.kind === 'vertex' || settings.kind === 'openai') && !settings.model.trim()) throw new AiReviewError('setup');
+  if (settings.kind === 'openai' && !settings.model.trim()) throw new AiReviewError('setup');
   let text: string | null;
   if (settings.kind === 'anthropic') {
     text = await askClaude(settings, prompt, jpegBase64, signal);
