@@ -13,6 +13,7 @@ import { detectSubjectInArea } from './subjectDetector';
  */
 export async function suggestObservedMaskCorrection(
   piece: HTMLCanvasElement,
+  framedAspect: number,
   mask: Extract<Mask, { kind: 'subject' }>,
   request: Omit<ObservedMaskRequest, 'maskSnapshot'>,
   verifiedSourceSha256: string,
@@ -25,9 +26,8 @@ export async function suggestObservedMaskCorrection(
       request.framingKey !== mask.framingKey ||
       request.sourceSha256 !== verifiedSourceSha256)
     return { ok: false, reason: 'stale' };
-  const detected = await detectSubjectInArea(
-    piece, request.area, piece.height / Math.max(1, piece.width),
-  );
+  if (!Number.isFinite(framedAspect) || framedAspect <= 0) return { ok: false, reason: 'invalid' };
+  const detected = await detectSubjectInArea(piece, request.area, framedAspect);
   const live = currentMask();
   if (!live || captureAnatomyMaskSnapshot(live) !== snapshot ||
       currentRecipeRevision() !== capturedRevision)
