@@ -49,6 +49,9 @@ interface Props {
   progress: number | null;
   blocked: boolean;
   onPrepare: () => void;
+  /** The exact camera source is a separate delivery choice, never an edited preview. */
+  onSaveOriginal?: () => void;
+  originalUnavailable?: boolean;
 }
 
 /** A small rectangle in the shape of a format, so sizes can be told apart at a glance. */
@@ -147,6 +150,13 @@ export function ExportWizard(props: Props) {
                   {countFor(entry.id) > 0 && <span className="absolute right-1.5 top-1.5 rounded-full bg-sky-300/25 px-1.5 text-xs text-sky-100">{countFor(entry.id)}</span>}
                 </button>
               ))}
+              {props.onSaveOriginal && (
+                <button type="button" disabled={props.busy || props.originalUnavailable} onClick={props.onSaveOriginal}
+                  className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg border border-white/12 bg-white/5 px-2 text-sm text-zinc-100 hover:bg-white/10 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-300">
+                  <ShapeGlyph width={4} height={3} />
+                  {t.originals.action(frames.length)}
+                </button>
+              )}
             </div>
             <p className="text-xs text-zinc-400">{t.wizard.morePlaces}</p>
           </section>
