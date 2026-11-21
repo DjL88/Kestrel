@@ -1,6 +1,6 @@
 import { newId } from '../core/ids';
 import { useEffect, useRef, useState } from 'react';
-import { Check, Trash2 } from 'lucide-react';
+import { Check, Trash2 } from './icons/KestrelUIIcons';
 import { BUILT_IN_PRESETS, addPreset, matchesPresetEdit, removePreset, type Preset } from '../core/presets';
 import { loadPresets, savePresets } from '../providers/browserPresets';
 import { applyDetail, applyPhotoEdit, hasDetail, isNeutralEdit, type PhotoEdit } from '../core/photoEdits';
