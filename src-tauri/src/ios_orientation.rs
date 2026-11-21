@@ -127,5 +127,7 @@ pub unsafe fn fill_window(web_view: *mut AnyObject) {
     let _: () = msg_send![web_view, setFrame: nudged];
     let _: () = msg_send![web_view, setFrame: bounds];
     let _: () = msg_send![web_view, layoutIfNeeded];
+    // The edge swipe becomes the page's Back, so a dialog that listens for it (useBackToClose) closes like on Android.
+    let _: () = msg_send![web_view, setAllowsBackForwardNavigationGestures: true];
 }
 

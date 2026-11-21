@@ -71,25 +71,25 @@
 			</array>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.olympus.raw-image</string>
-				<string>com.nikon.raw-image</string>
 				<string>public.heif</string>
-				<string>public.png</string>
-				<string>com.sony.arw-raw-image</string>
-				<string>com.canon.cr2-raw-image</string>
-				<string>com.pentax.raw-image</string>
-				<string>public.heic</string>
-				<string>com.canon.cr3-raw-image</string>
-				<string>org.webmproject.webp</string>
-				<string>com.sony.raw-image</string>
-				<string>com.fuji.raw-image</string>
-				<string>com.sony.sr2-raw-image</string>
-				<string>com.adobe.raw-image</string>
-				<string>com.panasonic.rw2-raw-image</string>
 				<string>public.heif-standard-image</string>
-				<string>com.nikon.nrw-raw-image</string>
-				<string>public.jpeg</string>
+				<string>com.panasonic.rw2-raw-image</string>
+				<string>com.sony.raw-image</string>
+				<string>public.heic</string>
+				<string>com.fuji.raw-image</string>
 				<string>public.camera-raw-image</string>
+				<string>com.nikon.nrw-raw-image</string>
+				<string>com.canon.cr3-raw-image</string>
+				<string>com.nikon.raw-image</string>
+				<string>com.sony.arw-raw-image</string>
+				<string>com.sony.sr2-raw-image</string>
+				<string>com.olympus.raw-image</string>
+				<string>com.pentax.raw-image</string>
+				<string>public.png</string>
+				<string>public.jpeg</string>
+				<string>org.webmproject.webp</string>
+				<string>com.canon.cr2-raw-image</string>
+				<string>com.adobe.raw-image</string>
 			</array>
 			<key>CFBundleTypeName</key>
 			<string>Photo</string>
