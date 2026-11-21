@@ -43,6 +43,7 @@ test('two original-pixel subject crops preserve source identity and remain revie
   assert.equal(result.right.photoId, 'q');
   assert.equal(result.left.rgba[0], 0);
   assert.equal(result.right.rgba[0], 255);
+  assert.equal(result.comparableDetail, true);
   assert.ok(Number.isFinite(result.leftEdgeEnergy));
   assert.ok(Number.isFinite(result.rightEdgeEnergy));
   assert.ok(result.leftEdgeEnergy >= 0 && result.rightEdgeEnergy >= 0);
@@ -53,7 +54,13 @@ test('A/B proof abstains across source groups, stale images and unbalanced crop 
   const b = { ...a, photoId: 'q', raster: { ...raster(), photoId: 'q' } };
   assert.equal(exactSubjectProofPair(a, { ...b, comparisonGroup: 'folder/two' }), null);
   assert.equal(exactSubjectProofPair(a, { ...b, sourceSha256: 'b'.repeat(64) }), null);
-  assert.equal(exactSubjectProofPair(a, { ...b, box: { x: 0, y: 0, width: 0.5, height: 1 } }), null);
+  const unequal = exactSubjectProofPair(a, { ...b, box: { x: 0, y: 0, width: 0.5, height: 1 } });
+  assert.ok(unequal, 'both true-pixel crops remain available for manual A/B');
+  assert.deepEqual([unequal.left.width, unequal.right.width], [4, 2]);
+  assert.equal(unequal.comparableDetail, false);
+  assert.equal(unequal.leftEdgeEnergy, null);
+  assert.equal(unequal.rightEdgeEnergy, null);
+  assert.equal(unequal.recommendation, 'review');
   assert.equal(exactSubjectProofPair(a, b, 16), null);
   assert.equal(exactSubjectProofPair(a, { ...a }), null);
 });
@@ -67,7 +74,12 @@ test('A/B proof does not invent sharpness from fully transparent source samples'
   const box = { x: 0, y: 0, width: 1, height: 1 };
   const a = { raster: left, photoId: 'p', sourceSha256: sha, box, comparisonGroup: 'g' };
   const b = { raster: right, photoId: 'q', sourceSha256: sha, box, comparisonGroup: 'g' };
-  assert.equal(exactSubjectProofPair(a, b), null);
+  const pair = exactSubjectProofPair(a, b);
+  assert.ok(pair);
+  assert.equal(pair.comparableDetail, false);
+  assert.equal(pair.leftEdgeEnergy, null);
+  assert.equal(pair.rightEdgeEnergy, null);
+  assert.equal(pair.recommendation, 'review');
 });
 
 test('source crop abstains if current photo changes before or during copying', () => {
