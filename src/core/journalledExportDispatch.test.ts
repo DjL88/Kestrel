@@ -256,16 +256,19 @@ it('rejects completion when the original changes after publication', async () =>
 
 it('rejects completion when a previously receipted output changes during the batch', async () => {
   const h = harness();
+  let checks = 0;
   const adapter = {
     ...h.adapter,
-    publishAtomic: async (...args: Parameters<typeof h.adapter.publishAtomic>) => {
-      const digest = await h.adapter.publishAtomic(...args);
-      if (args[0].filename === 'two.jpg') h.setOutput(false);
-      return digest;
+    verifyOutput: async (...args: Parameters<typeof h.adapter.verifyOutput>) => {
+      checks++;
+      // Two successful per-file publication checks, then the final batch
+      // audit detects a changed output without publishing a third file.
+      return checks <= 2 && h.adapter.verifyOutput(...args);
     },
   };
   const dispatch = createJournalledExportDispatch(h.storage, h.queue);
   expect(await dispatch.submit(plan('changed-output'), adapter).done).toBe('failed');
+  expect(dispatch.load('changed-output')?.receipts).toHaveLength(2);
   expect(dispatch.load('changed-output')?.state).not.toBe('completed');
   h.setOutput(true);
   expect(await createJournalledExportDispatch(h.storage, h.queue)
