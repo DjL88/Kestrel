@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { link, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { link, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -11,7 +11,7 @@ const identity = (photoId: string, bytes: string) => ({
   sha256: createHash('sha256').update(bytes).digest('hex'),
 });
 async function sandbox(fn: (dir: string) => Promise<void>) {
-  const dir = await mkdtemp(join(tmpdir(), 'kestrel-relink-'));
+  const dir = await realpath(await mkdtemp(join(tmpdir(), 'kestrel-relink-')));
   try { await fn(dir); } finally { await rm(dir, { recursive: true, force: true }); }
 }
 
