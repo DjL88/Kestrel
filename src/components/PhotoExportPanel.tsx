@@ -9,7 +9,7 @@ import { safeExportName } from '../core/exportPlace';
 import { editorText as editorT } from '../i18n/areas/editor';
 import { RAW_MASTER_EXPORT_ERROR, rawMasterExportBlocked } from '../core/rawMasterExportGate';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, LoaderCircle, X } from 'lucide-react';
 import {
   EXPORT_FORMATS, LEGACY_FORMAT_IDS, PLATFORMS, customFormat, formatById, framingFor, toProfile, turnFormat,
   type BarStyle, type CustomSize, type ExportFormat, type Fit,
@@ -1045,9 +1045,10 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
         {!resultsReady && (
           <section aria-label={t.originals.title} className="mb-3 rounded-lg border border-white/15 bg-black/10 p-3">
             <div className="flex flex-wrap items-center gap-2">
-              <button type="button" className={`${button} border border-white/20 font-medium`}
+              <button type="button" aria-busy={saving} className={`${button} inline-flex items-center gap-2 border border-white/20 font-medium`}
                 disabled={saving || progress !== null || placeBusy || !frames.length || frames.some(frame => frame.isDemo)}
                 onClick={() => void saveUnchangedOriginals()}>
+                {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
                 {openingPlace ? t.results.choosingFolder : t.originals.action(frames.length)}
               </button>
               <span className="text-xs font-medium text-zinc-300">{t.originals.title}</span>
@@ -1062,8 +1063,9 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
           isRawPreviewFile(frames[0].filename) && canDevelopRaw() && (
           <section aria-label={t.rawTiff.action} className="mb-3 rounded-lg border border-white/15 bg-black/15 p-3">
             <div className="flex flex-wrap items-center gap-2">
-              <button type="button" className={`${button} border border-white/20 font-medium`}
+              <button type="button" aria-busy={saving} className={`${button} inline-flex items-center gap-2 border border-white/20 font-medium`}
                 disabled={saving || progress !== null || placeBusy} onClick={() => void saveRawTiff()}>
+                {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
                 {saving ? editorT.raw.masterBusy : t.rawTiff.action}
               </button>
               <details className="min-w-0 flex-1 text-xs text-zinc-300">
@@ -1140,12 +1142,16 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               {saving ? t.results.saving : savedName ? t.results.saved(savedName) : t.results.ready(files.length)}
             </p>
             <div className="flex flex-wrap gap-2">
-              {files.length === 1 && <button type="button" className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
-                disabled={saving || placeBusy} onClick={() => void deliver(files[0], files[0].name, frames.slice(0, 1))}>{desktop ? t.results.save : t.results.download}</button>}
-              {files.length > 1 && <button type="button" disabled={saving || placeBusy || !zip} className={`${button} bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
-                onClick={() => { if (zip) void deliver(zip, 'kestrel-exports.zip', frames); }}>{zip ? (desktop ? t.results.saveZip : t.results.downloadZip) : t.results.packingZip}</button>}
-              {exportPlace && <button type="button" className={button} disabled={saving || placeBusy}
-                onClick={() => void deliverToPlace()}>{placeBusy ? t.results.saving : t.results.alsoSave(exportPlace.label)}</button>}
+              {files.length === 1 && <button type="button" aria-busy={saving} className={`${button} inline-flex items-center gap-2 bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
+                disabled={saving || placeBusy} onClick={() => void deliver(files[0], files[0].name, frames.slice(0, 1))}>
+                {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
+                {saving ? t.results.saving : desktop ? t.results.save : t.results.download}</button>}
+              {files.length > 1 && <button type="button" aria-busy={saving || !zip} disabled={saving || placeBusy || !zip} className={`${button} inline-flex items-center gap-2 bg-kestrel-copper text-zinc-950 hover:bg-kestrel-copper-hover!`}
+                onClick={() => { if (zip) void deliver(zip, 'kestrel-exports.zip', frames); }}>
+                {(saving || !zip) && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
+                {saving ? t.results.saving : zip ? (desktop ? t.results.saveZip : t.results.downloadZip) : t.results.packingZip}</button>}
+              {exportPlace && <button type="button" aria-busy={placeBusy} className={`${button} inline-flex items-center gap-2`} disabled={saving || placeBusy}
+                onClick={() => void deliverToPlace()}>{placeBusy && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}{placeBusy ? t.results.saving : t.results.alsoSave(exportPlace.label)}</button>}
               {placeTaskId !== null && <button type="button" className={button} onClick={() => tasks.cancel(placeTaskId)}>
                 {t.looks.cancel}
               </button>}
