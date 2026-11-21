@@ -83,6 +83,9 @@ test('a second opinion from your own AI: set up, agree to the destination, ask, 
   await expect(result).toContainText('The red is stronger than in life');
   await expect(result).toContainText('Too strong:');
   await expect(result).toContainText('Warmth: −0.2');
+  // Model asked for Colour -0.4, but the existing editor offers one gentle
+  // visible step. What the person sees is exactly what Apply will commit.
+  await expect(result).toContainText('Colour: −0.3');
   expect(asked).toHaveLength(1);
   const request = asked[0] as { model: string; messages: { content: { type: string; text?: string; image_url?: { url: string } }[] }[] };
   expect(request.model).toBe('llava');
