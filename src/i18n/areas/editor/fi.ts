@@ -113,6 +113,7 @@ export const fi: AreaTranslation<typeof source> = {
     save: 'Tallenna resepti',
   },
   advice: {
+    subjectCheck: 'Kohde on epäselvä. Tarkista se ennen lajinimen lisäämistä.',
     region: 'Kuvan tarkistus',
     verdict: { good: 'Näyttää hyvältä', nearly: 'Melkein valmis', 'needs-work': 'Kaipaa työtä', unsure: 'Ei vielä varma' },
     tryThis: 'Kokeile tätä',
@@ -134,7 +135,7 @@ export const fi: AreaTranslation<typeof source> = {
     checking: 'Tarkistetaan…',
     failed: 'Kuvan tarkistus ei valmistunut.',
     scene: 'Kohde',
-    subjects: { person: 'Henkilö', animal: 'Eläin', bird: 'Lintu', landscape: 'Maisema', object: 'Esine' },
+    subjects: { person: 'Henkilö', animal: 'Eläin', bird: 'Lintu', landscape: 'Maisema', object: 'Esine', aircraft: 'Ilma-alus', vehicle: 'Ajoneuvo' },
     lights: { 'low-key': 'Low-key', 'high-key': 'High-key', golden: 'Kultainen valo', cool: 'Kylmä valo' },
   },
   critique: {
