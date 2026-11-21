@@ -71,7 +71,9 @@ test('install the on-device model with consent, check a real photo, apply, undo,
   await expect(panel).toContainText('Scene:', { timeout: 240_000 });
   console.log(`PHOTO-CHECK first inference after idle: ${Date.now() - started} ms; ${panel ? await panel.innerText() : ''}`.replace(/\n/g, ' | '));
   console.log(`PHOTO-CHECK chromium memory after inference: ${chromiumMemoryMb()} MB`);
-  await expect(panel).toContainText('Animal');
+  // Smaller local models can abstain. Prove a completed inference, not an
+  // unreliable hardcoded animal label or an OCR research result.
+  await expect(panel).toHaveAttribute('data-photo-model-status', 'checked');
 
   // One suggestion, applied through the ordinary slider, as one undoable edit.
   const exposure = page.getByRole('slider', { name: 'Exposure' });
@@ -99,7 +101,16 @@ test('install the on-device model with consent, check a real photo, apply, undo,
   // Network off: the check runs again from the verified local files. Changing the recipe makes the old reading stale.
   await context.setOffline(true);
   outside.length = 0;
-  await expect(reopened).toContainText('Scene:', { timeout: 240_000 });
+  // Force a NEW inference after the network has gone offline. Merely waiting
+  // for a Scene: label from before disconnecting would be a false-positive.
+  const offlineExposure = page.getByRole('slider', { name: 'Exposure' });
+  const originalValue = await offlineExposure.inputValue();
+  await offlineExposure.focus();
+  await offlineExposure.press('ArrowRight');
+  await expect(offlineExposure).not.toHaveValue(originalValue);
+  await expect(reopened).not.toHaveAttribute('data-photo-model-status', 'checked');
+  await expect(reopened).toHaveAttribute('data-photo-model-status', 'checked', { timeout: 240_000 });
+  await expect(reopened).toContainText('Scene:');
   expect(outside, 'no request left this computer').toEqual([]);
   expect(downloads).toEqual([]);
 });
