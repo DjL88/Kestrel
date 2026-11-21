@@ -26,6 +26,7 @@ export function fakeProvider(overrides: Partial<AiProvider> = {}): AiProvider & 
     calls: 0,
     async identify() { provider.calls++; return JSON.stringify({ kind: 'wildlife', species: 'Common kingfisher', scientific: 'Alcedo atthis', confidence: 'high', tags: ['perched'] }); },
     async suggest() { provider.calls++; return JSON.stringify({ exposure: 0.3, shadows: 0.5 }); },
+    async verifyColour() { provider.calls++; return JSON.stringify({ plausible: true, concerns: [], note: null }); },
     ...overrides,
   };
   return provider;
