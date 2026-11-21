@@ -6,7 +6,7 @@ import { downloadExport } from '../providers/browserExport';
 import type { Session, SignInProvider } from '../core/cloudInterfaces';
 import { signInOptions } from '../core/signInOptions';
 import { firebaseAuth, isSignInConfigured, signInPlatform } from '../providers/firebaseAuth';
-import { activateFromAccount, leaveAccount, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
+import { activateFromAccount, consumeExpiredAccountNotice, leaveAccount, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
 import { DEV_PRO_PREVIEW_MODE } from '../providers/useAccess';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
@@ -56,7 +56,17 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
     setAccountNote(text[result]);
   }
 
-  useEffect(() => { void firebaseAuth.current().then((current) => { setAccount(current); if (current) void linkLicence(); }, () => setAccount(null)); }, []);
+  useEffect(() => {
+    // Set once by loadLicence() at launch when a stored account grant's offline window (30 days by
+    // default) passed with no online check: this device was signed out of the account and dropped
+    // to Basic. Local photos, edits and projects were never touched; only Pro confirmation and the
+    // account session reset, so this asks the person to sign in again rather than show them as
+    // still "signed in" with only Basic features.
+    if (consumeExpiredAccountNotice()) {
+      setAccountNote('Your Pro confirmation expired after 30 days offline, so this device signed out and is now on Basic. Your photos and edits here are unchanged. Sign in again to confirm Pro.');
+    }
+    void firebaseAuth.current().then((current) => { setAccount(current); if (current) void linkLicence(); }, () => setAccount(null));
+  }, []);
 
   async function chooseSignIn(provider: SignInProvider) {
     setAccountNote(null);
