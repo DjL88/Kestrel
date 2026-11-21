@@ -15,7 +15,6 @@ export const gd: AreaTranslation<typeof source> = {
   provider: 'Dè an AI?',
   providers: {
     gemini: 'Google Gemini (iuchair AI Studio)',
-    vertex: 'Google Vertex AI (iuchair a’ phròiseict Google Cloud agad)',
     anthropic: 'Anthropic Claude',
     openai: 'Co-chòrdail ri OpenAI, no modail air a’ choimpiutair seo (Ollama, LM Studio)',
   },
