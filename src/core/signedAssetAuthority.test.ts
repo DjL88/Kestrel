@@ -24,7 +24,7 @@ async function fixture() {
         sha256: 'a'.repeat(64), bytes: 16, licence: 'reviewed',
         provenance: 'owner-captured', approved: true }], ...overrides,
     }));
-    const signature = new Uint8Array(await crypto.subtle.sign('Ed25519', keys.privateKey, payload));
+    const signature = new Uint8Array(await crypto.subtle.sign('Ed25519', keys.privateKey, payload as BufferSource));
     return { keyId: 'publisher', payload, signature };
   };
   return { authority, sign, fence };
@@ -83,7 +83,7 @@ describe('signed asset catalogue authority', () => {
     const payload = enc.encode(JSON.stringify({ schema: 1, audience: 'kestrel', sequence: 1,
       expiresAt: '2026-12-01T00:00:00Z', assets: [] }));
     const env: SignedAssetEnvelope = { keyId: 'x', payload,
-      signature: new Uint8Array(await crypto.subtle.sign('Ed25519', keys.privateKey, payload)) };
+      signature: new Uint8Array(await crypto.subtle.sign('Ed25519', keys.privateKey, payload as BufferSource)) };
     await expect(a.verify(env)).rejects.toThrow('contention');
   });
 });
