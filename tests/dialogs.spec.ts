@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openExportDialog } from './helpers';
+import { openExportDialog, openInfoFor } from './helpers';
 
 /**
  * Every dialog, pop-up and sheet, at the sizes people really use. Each one must fit the screen, never make the page
@@ -136,7 +136,7 @@ const scenarios: Scenario[] = [
   { name: 'workspace menu', run: async (page, _t, check) => { await project(page); const m = await menu(page); await check('workspace menu', m); await closes(page, m); } },
   { name: 'photo info', run: async (page, _t, check) => {
     await project(page);
-    await page.getByRole('button', { name: 'Photo info and rating for bird-1.png' }).click();
+    await openInfoFor(page, 'bird-1.png');
     await check('photo info', page.getByRole('complementary', { name: 'Photo info' }));
     await page.getByRole('button', { name: 'Close photo info' }).click();
     await expect(page.getByRole('complementary', { name: 'Photo info' })).toBeHidden();

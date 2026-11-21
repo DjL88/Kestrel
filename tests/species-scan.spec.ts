@@ -1,4 +1,4 @@
-import { subjectTab } from './helpers';
+import { subjectTab, unlockPro, openInfoFor } from './helpers';
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
@@ -9,6 +9,7 @@ const standInGate = readFileSync('tests/fixtures/stand-in-gate.onnx');
 test('after import, species appears quietly and the info pop-up can change it', async ({ page }) => {
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
   await page.route('**/stand-in-gate.onnx', (route) => route.fulfill({ body: standInGate, contentType: 'application/octet-stream' }));
+  await unlockPro(page);
   await page.goto('/');
   // Photos with one clear subject, so the subject finder has something to find.
   const pictures = await page.evaluate(() => Array.from({ length: 3 }, (_, index) => {
@@ -32,7 +33,9 @@ test('after import, species appears quietly and the info pop-up can change it', 
   // A closed-list bird model cannot establish that a photo contains wildlife.
   // Classify these synthetic bird photos before permitting automatic species names.
   for (const name of ['bird-1.png', 'bird-2.png', 'bird-3.png']) {
-    await page.getByRole('button', { name: `Photo info and rating for ${name}` }).click();
+    await page.getByRole('article', { name: `Frame ${name}` }).click({ position: { x: 8, y: 8 } });
+    const expand = page.getByRole('button', { name: 'Expand photo info' });
+    if (await expand.isVisible()) await expand.click();
     await subjectTab(page);
     await page.getByRole('complementary', { name: 'Photo info' }).getByRole('button', { name: 'Wildlife' }).click();
     await page.getByRole('button', { name: 'Close photo info' }).click();
@@ -55,7 +58,7 @@ test('after import, species appears quietly and the info pop-up can change it', 
   await expect(banner).toHaveCount(0);
 
   // The info pop-up shows what was found and lets it be changed: remove the automatic name and give another.
-  await page.getByRole('button', { name: 'Photo info and rating for bird-1.png' }).click();
+  await openInfoFor(page, 'bird-1.png');
   const info = page.getByRole('complementary', { name: 'Photo info' });
   await subjectTab(page);
   await expect(info.getByRole('list', { name: 'Tags' })).toContainText('Red kite');
@@ -79,6 +82,7 @@ test('with the subject checker, unclassified bird photos become Wildlife and get
   // ROADMAP P0.4. The gate's stand-in always "sees" a bird; the species stand-in always "sees" a red kite.
   await page.route('**/stand-in-species.onnx', (route) => route.fulfill({ body: standIn, contentType: 'application/octet-stream' }));
   await page.route('**/stand-in-gate.onnx', (route) => route.fulfill({ body: standInGate, contentType: 'application/octet-stream' }));
+  await unlockPro(page);
   await page.goto('/');
   const pictures = await page.evaluate(() => Array.from({ length: 2 }, (_, index) => {
     const canvas = document.createElement('canvas');
@@ -105,7 +109,7 @@ test('with the subject checker, unclassified bird photos become Wildlife and get
   const labels = page.getByTestId('species-label');
   await expect(labels).toHaveCount(2, { timeout: 60000 });
   for (const label of await labels.all()) await expect(label).toContainText('Species: Red kite');
-  await page.getByRole('button', { name: 'Photo info and rating for unmarked-1.png' }).click();
+  await openInfoFor(page, 'unmarked-1.png');
   await subjectTab(page);
   await expect(page.getByRole('complementary', { name: 'Photo info' }).getByRole('button', { name: 'Wildlife' })).toHaveAttribute('aria-pressed', 'true');
 });
