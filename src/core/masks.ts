@@ -1,4 +1,4 @@
-import { applyDetail, applyPhotoEdit, type PhotoEdit } from './photoEdits';
+import { applyDetail, applyPhotoEdit, blendEncoded8, type PhotoEdit } from './photoEdits';
 import { LOCAL_KEYS, hasActiveMasks, type Mask } from './maskTypes';
 import { applyNoiseReduction } from './noiseReduction';
 
@@ -218,9 +218,10 @@ export function applyMasks(pixels: Uint8ClampedArray, width: number, height: num
       const a = alpha[i];
       if (a <= 0) continue;
       const j = i * 4;
-      pixels[j] += (adjusted[j] - pixels[j]) * a;
-      pixels[j + 1] += (adjusted[j + 1] - pixels[j + 1]) * a;
-      pixels[j + 2] += (adjusted[j + 2] - pixels[j + 2]) * a;
+      // Linear-light mix, same convention as the 16-bit master (no dark fringe at feathered edges).
+      pixels[j] = blendEncoded8(pixels[j], adjusted[j], a);
+      pixels[j + 1] = blendEncoded8(pixels[j + 1], adjusted[j + 1], a);
+      pixels[j + 2] = blendEncoded8(pixels[j + 2], adjusted[j + 2], a);
     }
   }
 }

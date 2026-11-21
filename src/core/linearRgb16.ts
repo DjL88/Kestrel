@@ -1,3 +1,5 @@
+/** NOT USED by the 16-bit export: master16 composites in encoded space like the 8-bit preview (see previewMasterParity.test.ts).
+ * Adopt only together with a matching change to applyMasks. Note applyPhotoEditLinear returns display-encoded values. */
 /** RGB16 is sRGB display-encoded, not scene-linear sensor CFA.
  * Local adjustments are mixed in linear light and encoded back to sRGB16.
  * This preserves neutral pixels exactly and avoids dark mask-edge fringes.

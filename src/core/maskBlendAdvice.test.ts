@@ -31,7 +31,7 @@ test('already-soft manually refined masks are never sharpened by Blend edges', (
 
 test('manual brush strokes remain intact and non-subject radial masks are not changed', () => {
   const mask = { ...createSubjectMask('bird', grid, 'crop', 'medium'), edit: { exposure: 1.3 }, strokes: [{ points: [0.2, 0.2, 0.3, 0.3], radius: 0.02, erase: false }] };
-  assert.deepEqual(blendMaskEdges(mask).strokes, mask.strokes);
+  assert.deepEqual((blendMaskEdges(mask) as typeof mask).strokes, mask.strokes);
   const radial = createMask('radial', 'radius');
   assert.equal(blendMaskEdges(radial), radial);
 });
