@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "identifier": "app.kestrel.photo",
+  "bundle": {
+    "iOS": {
+      "developmentTeam": "G53UPS2B95",
+      "minimumSystemVersion": "16.0"
+    }
+  }
+}

@@ -1,4 +1,4 @@
-package app.kestrel.desktop
+package app.kestrel.photo
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
