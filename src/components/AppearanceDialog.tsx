@@ -44,10 +44,10 @@ export function AppearanceDialog({ side, onSideChange, hand, onHandChange, guida
           <button type="button" autoFocus className="min-h-11 rounded-md px-3 text-sm hover:bg-white/10" onClick={onClose}>{m.settings.done}</button>
         </div>
         <AppearanceSettings side={side} onSideChange={onSideChange} hand={hand} onHandChange={onHandChange} guidanceMode={guidanceMode} onGuidanceModeChange={onGuidanceModeChange} />
-        <section className="mt-4 space-y-2 border-t border-white/15 pt-3" aria-label="Your AI settings">
+        <section className="mt-4 space-y-2 border-t border-white/15 pt-3" aria-label="Optional second opinion settings">
           <div className="flex items-center justify-between gap-3">
-            <div><h3 className="text-sm font-semibold text-zinc-100">Your AI (optional)</h3>
-              <p className="text-xs text-zinc-400">{aiSettings ? 'Configured on this device. The editor can now offer a second opinion.' : 'Set up your own provider here to enable a second opinion in the editor.'}</p></div>
+            <div><h3 className="text-sm font-semibold text-zinc-100">Optional second opinion</h3>
+              <p className="text-xs text-zinc-400">{aiSettings ? 'Your selected provider is configured on this device. A second opinion is available when requested.' : 'Add your own provider for an optional second opinion. Kestrel\'s everyday colour checks work offline.'}</p></div>
             <button type="button" className="min-h-11 shrink-0 rounded-md border border-white/15 px-3 text-sm text-zinc-100" onClick={() => setAiSetupOpen((open) => !open)} aria-expanded={aiSetupOpen}>{aiSetupOpen ? 'Hide' : aiSettings ? 'Change' : 'Set up'}</button>
           </div>
           {aiSetupOpen && <AiProviderSetup saved={aiSettings} onDone={() => setAiSetupOpen(false)} />}
