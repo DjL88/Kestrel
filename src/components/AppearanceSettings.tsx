@@ -1,5 +1,7 @@
 import { LanguagePicker } from './LanguagePicker';
 import { ThemePicker } from './ThemePicker';
+import { GuidanceModeControl } from './GuidanceModeControl';
+import type { GuidanceMode } from '../core/guidanceMode';
 import { messages as m } from '../i18n/messages';
 
 interface Props {
@@ -7,6 +9,8 @@ interface Props {
   onSideChange: (side: 'left' | 'right') => void;
   hand?: 'left' | 'right';
   onHandChange?: (hand: 'left' | 'right') => void;
+  guidanceMode?: GuidanceMode;
+  onGuidanceModeChange?: (mode: GuidanceMode) => void;
 }
 
 /**
@@ -14,7 +18,7 @@ interface Props {
  * controls sit on a phone, in the Library and the editor alike. (There used to be a separate "Editing panel position"
  * that looked like the same question.)
  */
-export function AppearanceSettings({ side, onSideChange, hand, onHandChange }: Props) {
+export function AppearanceSettings({ side, onSideChange, hand, onHandChange, guidanceMode = 'glide', onGuidanceModeChange }: Props) {
   return (
     <div className="space-y-3 px-1 pb-2">
       {hand && onHandChange ? (
@@ -45,6 +49,7 @@ export function AppearanceSettings({ side, onSideChange, hand, onHandChange }: P
         </div>
       </fieldset>
       )}
+      {onGuidanceModeChange && <GuidanceModeControl value={guidanceMode} onChange={onGuidanceModeChange} />}
       <ThemePicker />
       <LanguagePicker />
     </div>

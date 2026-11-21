@@ -9,6 +9,7 @@ import {
 import { unreferencedBlobKeys } from '../core/projects';
 import type { CatalogueStore } from '../core/platformBoundaries';
 import type { CullingState, ShootDescriptor, WorkspaceViewMode } from '../core/types';
+import { parseGuidanceMode, type GuidanceMode } from '../core/guidanceMode';
 
 const DB_NAME = 'kestrel-cull-v1';
 const DB_VERSION = 1;
@@ -33,6 +34,8 @@ export interface UserPreferences {
   editPanelSide: 'left' | 'right';
   /** Which hand holds the phone or tablet, and works the mouse: mirrors the thumb controls and sets the panel side. */
   hand: 'left' | 'right';
+  /** User-controlled, local-first photographic help: Soar, Glide or Fly Solo. */
+  guidanceMode?: GuidanceMode;
 }
 
 /** A phone starts without the filmstrip, so the photo gets the room. It can be pinned from the bar under the photo. */
@@ -49,6 +52,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   focusMode: false,
   editPanelSide: 'right',
   hand: 'right',
+  guidanceMode: 'glide',
 };
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -150,6 +154,7 @@ export function loadPreferences(): UserPreferences {
       focusMode: parsed.focusMode ?? DEFAULT_PREFERENCES.focusMode,
       editPanelSide: parsed.editPanelSide === 'left' ? 'left' : 'right',
       hand: parsed.hand === 'left' ? 'left' : 'right',
+      guidanceMode: parseGuidanceMode(parsed.guidanceMode),
       bindings,
     };
   } catch {

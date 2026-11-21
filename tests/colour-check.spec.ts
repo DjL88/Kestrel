@@ -66,7 +66,7 @@ test('a second opinion from your own AI: set up, agree to the destination, ask, 
   // The AI is set up once, in Settings (#513); until then the editor shows no AI controls.
   await expect(panel.getByTestId('ai-review')).toHaveCount(0);
   await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
-  const settings = page.getByRole('region', { name: 'Your AI settings' });
+  const settings = page.getByRole('region', { name: 'Optional second opinion settings' });
   await settings.getByRole('button', { name: 'Set up' }).click();
   await settings.getByLabel('Which AI?').selectOption('openai');
   await settings.getByLabel('Model', { exact: true }).fill('llava');
