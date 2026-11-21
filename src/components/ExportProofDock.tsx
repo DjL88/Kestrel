@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { exportCompactLabels as compact } from '../i18n/exportCompactLabels';
 import type { PhotoFrame } from '../core/types';
@@ -29,6 +29,14 @@ interface Props {
 /** Pinned above the scrolling form. Uses the actual export preview renderer, not a placeholder thumbnail. */
 export function ExportProofDock(props: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 639px)');
+    const update = () => setNarrow(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const frame = props.frames.find(item => item.id === props.choice?.photoId);
   const format = props.formats.find(item => item.id === props.choice?.destinationId);
   return (
@@ -60,7 +68,7 @@ export function ExportProofDock(props: Props) {
           </label>}
         </div>
         <div id="export-mobile-proof" className={mobileOpen ? '' : 'max-sm:hidden'}>
-        {frame && format && props.sources[frame.id] ? (
+        {(!narrow || mobileOpen) && (frame && format && props.sources[frame.id] ? (
           <div className="mx-auto w-full max-w-[min(100%,32rem)] [&_figure>div:first-child>div]:!h-[clamp(9rem,28dvh,17rem)] sm:[&_figure>div:first-child>div]:!h-[clamp(12rem,34dvh,23rem)]">
             <ExportPreviewTile key={frame.id + '|' + format.id} frame={frame} source={props.sources[frame.id]}
               format={format} bars={props.bars} anchor={props.anchorFor(frame, format)}
@@ -74,7 +82,7 @@ export function ExportProofDock(props: Props) {
             <button type="button" className="min-h-11 rounded-md border border-white/25 px-3 hover:bg-white/10"
               onClick={props.onRetry}>{t.proof.retry}</button>
           </div>
-        ) : <p role="status" className="text-sm text-zinc-300">{frame && format ? t.proof.loading : t.proof.choose}</p>}
+        ) : <p role="status" className="text-sm text-zinc-300">{frame && format ? t.proof.loading : t.proof.choose}</p>)}
         <p className="hidden text-center text-xs text-zinc-400 sm:block">{t.proof.resolution}</p>
         </div>
       </div>
