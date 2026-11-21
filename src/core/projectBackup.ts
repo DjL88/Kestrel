@@ -144,7 +144,9 @@ export function restoreProjectBackup(contents: string, id: string, now = Date.no
       needsFolderRegrant: frames.some((frame) => frame.sourceKind === 'directory-handle'),
       needsFileReselect: frames.some((frame) => frame.sourceKind === 'file'),
     },
-    frames, filter: filter as FilterState, searchQuery, keeperTarget, autoAdvance,
+    // Portable backups cannot silently carry automatic OCR of personal writing.
+    frames: (frames as PhotoFrame[]).map(({ searchEvidence: _local, ...frame }) => frame),
+    filter: filter as FilterState, searchQuery, keeperTarget, autoAdvance,
     ...(record(envelope.project.settings) ? { settings: parseSettings(envelope.project.settings) } : {}),
     selectedFrameId: existingId(selectedFrameId),
     compareRightFrameId: existingId(compareRightFrameId),
