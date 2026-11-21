@@ -176,7 +176,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
           </button>
         )}
         {applied && <p role="status" className="text-xs text-zinc-400">{t.fixApplied}</p>}
-        {readJpeg && !disabled && <AiReviewPanel edit={edit} onEdit={onEdit} readJpeg={readJpeg} disabled={disabled}
+        {readJpeg && !disabled && <AiReviewPanel edit={edit} onEdit={onEdit} readJpeg={readJpeg} version={version} disabled={disabled}
           localFindings={report?.findings.map((finding) => describe(finding).text) ?? []} />}
       </div>
     </details>
