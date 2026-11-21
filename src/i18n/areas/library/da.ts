@@ -8,6 +8,20 @@ const n = (count: number) => formatCount.format(count);
 
 /** Danish. DRAFT: written without a native speaker's check. */
 export const da: AreaTranslation<typeof source> = {
+  subjectReview: {
+    find: "Find motiver",
+    busy: "Leder efter motiver på denne enhed…",
+    unavailable: "Billedet kunne ikke undersøges. Kontrollér, at originalen er tilgængelig, og prøv igen.",
+    empty: "Ingen tydelige motiver fundet.",
+    found: "Åbn et forslag for at se udsnittet ved 100 %.",
+    cropUnavailable: "Udsnittet er for stort til at vise",
+    label: (number, kind) => `${number}. ${kind}`,
+    bird: "Mulig fugl",
+    aircraft: "Muligt luftfartøj",
+    person: "Mulig person",
+    pet: "Muligt dyr",
+    unknown: "Ikke-klassificeret motiv",
+  },
   top: {
     xmpImport: "Importér bedømmelser og tags (XMP)…",
     xmpImportHelp: "Indlæs matchende XMP-filer eller et Kite44 XMP-ZIP kun til valgte fotos. Originalerne ændres ikke.",

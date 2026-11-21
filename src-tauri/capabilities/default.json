@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "What the Kestrel window may do on every system: show save dialogs and write the file the person picked.",
+  "description": "Window access for explicit file operations and HTTPS BYO services; plain HTTP is limited to local loopback, never arbitrary internet or LAN hosts.",
   "windows": [
     "main"
   ],
@@ -32,10 +32,13 @@
           "url": "https://*:*"
         },
         {
-          "url": "http://*"
+          "url": "http://localhost:*"
         },
         {
-          "url": "http://*:*"
+          "url": "http://127.0.0.1:*"
+        },
+        {
+          "url": "http://[::1]:*"
         }
       ]
     }

@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { AlertTriangle, Info, LoaderCircle, MessageSquareText } from 'lucide-react';
+import { AlertTriangle, Info, LoaderCircle, MessageSquareText, Server } from 'lucide-react';
+import { BrandIcon } from './BrandIcon';
+import type { BrandIconId } from '../core/brandIcons';
 import { AI_REVIEW_CONSENT_VERSION, aiReviewPrompt, type AiReview } from '../core/aiReview';
 import { yieldToPaint } from '../core/yieldToPaint';
 import { applyFix } from '../core/critique';
@@ -32,6 +34,14 @@ const button = 'min-h-9 rounded-md border border-white/15 px-2 text-xs text-zinc
 const signed = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(2).replace(/0$/, '')}`;
 
 /** Set up the person's own provider: which one, key, model and (for OpenAI-compatible) its address. */
+/** The mark beside each kind of AI. OpenAI-compatible has none: it covers many services, so it keeps a neutral icon. */
+const AI_PROVIDER_MARK: Partial<Record<AiProviderKind, BrandIconId>> = { gemini: 'gemini', anthropic: 'anthropic' };
+/** One tap fills in the address of a model running on this computer. */
+const LOCAL_PRESETS: readonly { name: string; id: BrandIconId; url: string }[] = [
+  { name: 'Ollama', id: 'ollama', url: 'http://localhost:11434/v1' },
+  { name: 'LM Studio', id: 'lmstudio', url: 'http://localhost:1234/v1' },
+];
+
 export function AiProviderSetup({ saved, onDone }: { saved: AiProviderSettings | null; onDone: () => void }) {
   const id = useId();
   const [kind, setKind] = useState<AiProviderKind>(saved?.kind ?? 'gemini');
@@ -55,6 +65,8 @@ export function AiProviderSetup({ saved, onDone }: { saved: AiProviderSettings |
       onDone();
     }}>
       <label htmlFor={`${id}-kind`} className="block text-xs text-zinc-300">{t.provider}</label>
+      <div className="flex items-center gap-2">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-white/8 text-zinc-100" aria-hidden="true">{AI_PROVIDER_MARK[kind] ? <BrandIcon id={AI_PROVIDER_MARK[kind]!} className="h-5 w-5" /> : <Server className="h-5 w-5" />}</span>
       <select id={`${id}-kind`} className={field} value={kind} onChange={(event) => {
         const next = event.target.value as AiProviderKind;
         setKind(next);
@@ -63,7 +75,15 @@ export function AiProviderSetup({ saved, onDone }: { saved: AiProviderSettings |
       }}>
         {AI_PROVIDER_KINDS.map((option) => <option key={option} value={option}>{t.providers[option]}</option>)}
       </select>
+      </div>
       {kind === 'openai' && <>
+        <div role="group" aria-label="Models on this computer" className="flex flex-wrap gap-2">
+          {LOCAL_PRESETS.map((preset) => (
+            <button key={preset.name} type="button" className={`${button} inline-flex items-center gap-1.5`} onClick={() => { setBaseUrl(preset.url); setSetupError(false); }}>
+              <BrandIcon id={preset.id} className="h-4 w-4" />{preset.name}
+            </button>
+          ))}
+        </div>
         <label htmlFor={`${id}-url`} className="block text-xs text-zinc-300">{t.baseUrl}</label>
         <input id={`${id}-url`} type="url" required className={field} value={baseUrl}
           aria-invalid={setupError} aria-describedby={setupError ? `${id}-url-error` : undefined}
@@ -78,7 +98,7 @@ export function AiProviderSetup({ saved, onDone }: { saved: AiProviderSettings |
       <input id={`${id}-model`} className={field} value={model} onChange={(event) => setModel(event.target.value)} autoComplete="off" spellCheck={false} />
       <p className="text-xs text-zinc-400">{kind === 'gemini' ? t.modelAuto : t.modelNeeded}</p>
       <div className="flex flex-wrap gap-2">
-        <button type="submit" className={button} disabled={(kind !== 'openai' && !key.trim()) || ((kind === 'vertex' || kind === 'openai') && !model.trim())}>{t.save}</button>
+        <button type="submit" className={button} disabled={(kind !== 'openai' && !key.trim()) || (kind === 'openai' && !model.trim())}>{t.save}</button>
         {saved && <button type="button" className={button} onClick={() => { forgetAiSettings(); onDone(); }}>{t.forget}</button>}
       </div>
     </form>

@@ -3,6 +3,7 @@ import { ArrowDownUp, ListFilter, Search } from './icons/KestrelUIIcons';
 import type { RatingFilter, SortOrder } from '../core/types';
 import { RatingFilterControl } from './RatingFilterControl';
 import { libraryText as t } from '../i18n/areas/library';
+import { parsePhotoSearch } from '../core/photoSearch';
 
 interface Props {
   searchQuery: string;
@@ -36,6 +37,7 @@ const field = 'mt-1 min-h-10 w-full rounded-md border border-white/10 bg-black/2
  * workspace menu and the collections bar. Sort lives next to it as its own control, since it isn't a filter. */
 export function FilterSortControl(props: Props) {
   const [open, setOpen] = useState(false);
+  const searchDate = parsePhotoSearch(props.searchQuery);
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -91,6 +93,13 @@ export function FilterSortControl(props: Props) {
                   placeholder={t.filter.searchPlaceholder} className={`${field} pl-8`} />
               </span>
             </label>
+            {searchDate.month !== undefined && !searchDate.exactMonthOnly && (
+              <p className="text-xs leading-relaxed text-zinc-400" role="status">
+                {new Date(Date.UTC(2020, searchDate.month - 1, 1)).toLocaleString(undefined, { month: 'long', timeZone: 'UTC' })}
+                {searchDate.year ? ' ' + searchDate.year : ''} is searched first. If fewer than three photos match,
+                results from the months either side may also appear. Check their dates before relying on them.
+              </p>
+            )}
             <div className="text-xs font-medium text-zinc-400">
               {t.filter.rating}
               <RatingFilterControl value={props.ratingFilter} onChange={props.onRatingFilterChange} className="mt-1 w-full" />

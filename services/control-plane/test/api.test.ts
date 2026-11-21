@@ -18,10 +18,29 @@ test('sign-in returns a session, and a refresh token works exactly once', async 
   const me = await h.call('GET', '/v1/me/entitlements', { token: session.body.accessToken });
   assert.equal(me.status, 200);
   assert.equal(me.body.plans[0].managedAi, true);
+  assert.equal(me.body.aiConsent, false, 'new accounts have not opted into the online helper');
   const refreshed = await h.call('POST', '/v1/auth/refresh', { body: { refreshToken: session.body.refreshToken } });
   assert.equal(refreshed.status, 200);
   const again = await h.call('POST', '/v1/auth/refresh', { body: { refreshToken: session.body.refreshToken } });
   assert.equal(again.status, 401, 'refresh tokens are single use');
+});
+
+test('the standing "use Gemini" preference is set once and kept, separate from per-request consent', async () => {
+  const session = await h.call('POST', '/v1/auth/session', { body: { email: 'user@example.test', password: 'user-password-123' } });
+  assert.equal(session.status, 200);
+  const before = await h.call('GET', '/v1/me/entitlements', { token: session.body.accessToken });
+  assert.equal(before.body.aiConsent, false);
+  const denied = await h.call('POST', '/v1/me/ai-consent', { body: { consent: true } });
+  assert.equal(denied.status, 401, 'setting the preference needs a session');
+  const set = await h.call('POST', '/v1/me/ai-consent', { token: session.body.accessToken, body: { consent: true } });
+  assert.equal(set.status, 200);
+  assert.equal(set.body.aiConsent, true);
+  const after = await h.call('GET', '/v1/me/entitlements', { token: session.body.accessToken });
+  assert.equal(after.body.aiConsent, true, 'the preference is kept on the account, not just returned once');
+  const withdrawn = await h.call('POST', '/v1/me/ai-consent', { token: session.body.accessToken, body: { consent: false } });
+  assert.equal(withdrawn.body.aiConsent, false);
+  // Subsequent API tests exercise an explicitly opted-in managed AI account.
+  await h.app.store.setAiConsent(h.user.accountId, true);
 });
 
 test('activation is idempotent per device, capped per licence, and refused once revoked', async () => {
@@ -49,25 +68,55 @@ test('identify returns a checked answer and spends one unit; suggest says when a
   assert.equal(answer.body.abstained, false);
   const balanced = await startHarness(fakeProvider({ suggest: async () => '{}' }));
   try {
+    await balanced.app.store.setAiConsent(balanced.user.accountId, true);
     const result = await balanced.call('POST', '/v1/ai/suggest', { token: balanced.user.token, body: { image: image(), userConsent: true } });
     assert.deepEqual(result.body, { proposal: {}, alreadyBalanced: true });
   } finally { await balanced.close(); }
 });
 
+test('verify-colour gives a bounded second opinion, never more than two concerns and only when implausible', async () => {
+  const plausible = await h.call('POST', '/v1/ai/verify-colour', { token: h.user.token, body: { image: image(), userConsent: true } });
+  assert.equal(plausible.status, 200);
+  assert.deepEqual(plausible.body, { plausible: true, concerns: [], note: null });
+
+  const flagged = await startHarness(fakeProvider({
+    verifyColour: async () => JSON.stringify({ plausible: false, concerns: ['skinTone', 'clipping', 'other'], note: 'Skin tones lean strongly magenta.' }),
+  }));
+  try {
+    await flagged.app.store.setAiConsent(flagged.user.accountId, true);
+    const result = await flagged.call('POST', '/v1/ai/verify-colour', { token: flagged.user.token, body: { image: image(), userConsent: true } });
+    assert.equal(result.status, 200);
+    assert.equal(result.body.plausible, false);
+    assert.deepEqual(result.body.concerns, ['skinTone', 'clipping'], 'kept to at most two concerns');
+    assert.equal(result.body.note, 'Skin tones lean strongly magenta.');
+  } finally { await flagged.close(); }
+
+  const malformed = await startHarness(fakeProvider({ verifyColour: async () => 'not json' }));
+  try {
+    await malformed.app.store.setAiConsent(malformed.user.accountId, true);
+    const result = await malformed.call('POST', '/v1/ai/verify-colour', { token: malformed.user.token, body: { image: image(), userConsent: true } });
+    assert.equal(result.status, 502);
+    assert.equal(result.body.error.code, 'AI_UPSTREAM_MALFORMED');
+  } finally { await malformed.close(); }
+});
+
 test('no provider key, the kill switch, or no AI plan each give a clear refusal', async () => {
   const bare = await startHarness(null);
   try {
+    await bare.app.store.setAiConsent(bare.user.accountId, true);
     const response = await bare.call('POST', '/v1/ai/identify', { token: bare.user.token, body: { image: image(), userConsent: true } });
     assert.equal(response.status, 503);
     assert.equal(response.body.error.code, 'AI_NOT_CONFIGURED');
   } finally { await bare.close(); }
 
+  await h.app.store.setAiConsent(h.user.accountId, true);
   assert.equal((await h.call('POST', '/v1/admin/ai/killswitch', { token: h.adminToken, body: { aiDisabled: true } })).status, 200);
   const off = await h.call('POST', '/v1/ai/identify', { token: h.user.token, body: { image: image(), userConsent: true } });
   assert.equal(off.body.error.code, 'AI_DISABLED');
   await h.call('POST', '/v1/admin/ai/killswitch', { token: h.adminToken, body: { aiDisabled: false } });
 
   const plainId = await h.app.createAccount('free@example.test', 'free-password-123', 'user');
+  await h.app.store.setAiConsent(plainId, true);
   const plain = await h.call('POST', '/v1/ai/identify', { token: (await h.app.issueSession(plainId, 'user')).accessToken, body: { image: image(), userConsent: true } });
   assert.equal(plain.status, 403);
   assert.equal(plain.body.error.code, 'AI_NOT_ENTITLED');

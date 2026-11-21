@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "kestrel-hosting-kestrel",
     "public": "site",
     "cleanUrls": true,
     "rewrites": [

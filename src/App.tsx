@@ -1272,6 +1272,12 @@ export default function App() {
     drawFramedPhoto(image, canvas, { ...DEFAULT_FRAMING, turns: frame.framing?.turns ?? 0 }, { scale: Math.min(1, 448 / Math.max(image.naturalWidth, image.naturalHeight)) });
     return canvas;
   }, []);
+  const reviewSubjects = useCallback(async (frame: PhotoFrame, signal: AbortSignal) => {
+    const source = previewProviderRef.current?.verifiedOriginalReader(frame.stableKey);
+    if (!source) return null;
+    const { reviewPhotoSubjects } = await import('./providers/subjectReview');
+    return reviewPhotoSubjects(frame.id, source, signal);
+  }, []);
   const keepTag = (frame: PhotoFrame, name: string) => updateFrame(frame.id, { autoTags: keepAuto(frame, name) });
   const noteSubjectCheck = (frame: PhotoFrame, outcome: 'agreed' | 'conflict' | 'unverified') => {
     const patch = disputePatch(frame, outcome);
@@ -2642,7 +2648,7 @@ export default function App() {
 
         {!panesCollapsed && showPhotoInfo && (
           <ExifInspector photoOnly={prefs.focusMode} dockedSide={photoInfoDockSide(prefs.hand)} onSubjects={(frame, tags, kind) => setSubjects(frame, tags, kind)} onKeepTag={(frame, name) => keepTag(frame, name)}
-            loadPicture={loadSpeciesPicture}
+            loadPicture={loadSpeciesPicture} reviewSubjects={reviewSubjects}
             mates={burstMates(cullingState.frames, infoFrameId ? cullingState.frames.find((frame) => frame.id === infoFrameId) ?? { id: '', burstGroupId: null } : selectedFrame ?? { id: '', burstGroupId: null })}
             onTagPhotos={(ids, name, kind) => setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() }, frames: tagFrames(prev.frames, ids, name, kind) }))}
             onAutoTag={(frame, name, kind) => {

@@ -11,6 +11,20 @@ const forMany = (count: number) => (count > 1 ? ` (${grianghraf(count, String(co
 
 /** Irish. DRAFT: written without a native speaker's check. Uses "tú", as the common words do. */
 export const ga: AreaTranslation<typeof source> = {
+  subjectReview: {
+    find: "Aimsigh ábhair",
+    busy: "Ábhair á lorg ar an ngléas seo…",
+    unavailable: "Níorbh fhéidir an grianghraf a sheiceáil. Deimhnigh go bhfuil an bunleagan ar fáil agus bain triail eile as.",
+    empty: "Níor aimsíodh aon ábhar soiléir.",
+    found: "Oscail moladh chun an barradh a fheiceáil ag 100%.",
+    cropUnavailable: "Tá an barradh rómhór lena thaispeáint",
+    label: (number, kind) => `${number}. ${kind}`,
+    bird: "Éan, b’fhéidir",
+    aircraft: "Aerárthach, b’fhéidir",
+    person: "Duine, b’fhéidir",
+    pet: "Ainmhí, b’fhéidir",
+    unknown: "Ábhar neamhaicmithe",
+  },
   top: {
     xmpImport: "Iompórtáil rátálacha agus clibeanna (XMP)…",
     xmpImportHelp: "Léigh comhaid XMP nó ZIP XMP Kite44 a mheaitseálann na grianghraif roghnaithe amháin. Ní athraítear bunchomhaid.",

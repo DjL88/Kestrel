@@ -1,5 +1,7 @@
 # Kite44 privacy
 
+> **SUPERSEDED (21 Nov 2026):** the current draft is the website page [`site/privacy.html`](site/privacy.html), served at `/privacy`. This older file says there is no Kite44 server, account or sign-in, which is no longer true (control plane, Firebase sign-in, licences, contact form, managed second opinion). Keep the two in step, or retire this file.
+
 > DRAFT — written from what the code actually does as of 2026-11-17, not a
 > lawyer-reviewed policy. Have this checked before publishing it as your real
 > privacy policy, and keep it in sync as features change — a privacy page that

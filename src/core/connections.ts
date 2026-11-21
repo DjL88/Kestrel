@@ -10,9 +10,9 @@ export const PROVIDERS: { kind: ProviderKind; label: string; short: string; avai
   { kind: 'folder', label: 'A folder (including iCloud Drive, OneDrive or Dropbox on this computer, a shared drive, or a NAS mounted as a drive)', short: 'Folder', available: true },
   { kind: 'webdav', label: 'A NAS or server over WebDAV (Synology, QNAP, Nextcloud, ownCloud and others)', short: 'NAS / WebDAV', available: true },
   { kind: 's3', label: 'My cloud storage (S3-compatible: Amazon S3, Backblaze, Cloudflare R2, Wasabi, MinIO)', short: 'Cloud storage', available: true },
-  { kind: 'dropbox', label: 'Dropbox', short: 'Dropbox', available: false, note: 'Coming: needs the app registered with Dropbox. Until then, use the Dropbox folder on your computer.' },
-  { kind: 'googledrive', label: 'Google Drive', short: 'Google Drive', available: false, note: 'Coming: needs the app registered with Google. Until then, use the Drive folder on your computer.' },
-  { kind: 'onedrive', label: 'Microsoft OneDrive', short: 'OneDrive', available: false, note: 'Coming: needs the app registered with Microsoft. Until then, use the OneDrive folder on your computer.' },
+  { kind: 'dropbox', label: 'Dropbox', short: 'Dropbox', available: false, note: 'Not set up in this build yet. Until then, use the Dropbox folder on your computer.' },
+  { kind: 'googledrive', label: 'Google Drive', short: 'Google Drive', available: false, note: 'Not set up in this build yet. Until then, use the Drive folder on your computer.' },
+  { kind: 'onedrive', label: 'Microsoft OneDrive', short: 'OneDrive', available: false, note: 'Not set up in this build yet. Until then, use the OneDrive folder on your computer.' },
 ];
 
 export interface Connection {

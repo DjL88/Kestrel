@@ -108,7 +108,10 @@ export function encodeProjectBackup(state: CullingState): string {
     // versioned and rebuilt if needed; never claim a cache is a RAW master.
     cache: { developVersion: DEVELOP_VERSION, reviewPreviews: 'device-local', imagesIncluded: false },
     project: {
-      shoot: state.shoot, frames: state.frames, selectedFrameId: state.selectedFrameId,
+      // Derived OCR can contain private writing or registration numbers. It stays
+      // on this device; portable or cloud backups regenerate it rather than
+      // copying unconfirmed text to another destination.
+      shoot: state.shoot, frames: state.frames.map(({ searchEvidence: _local, ...frame }) => frame), selectedFrameId: state.selectedFrameId,
       compareRightFrameId: state.compareRightFrameId, filter: state.filter, searchQuery: state.searchQuery,
       keeperTarget: state.keeperTarget, autoAdvance: state.autoAdvance,
       ...(state.settings ? { settings: state.settings } : {}),
@@ -141,7 +144,9 @@ export function restoreProjectBackup(contents: string, id: string, now = Date.no
       needsFolderRegrant: frames.some((frame) => frame.sourceKind === 'directory-handle'),
       needsFileReselect: frames.some((frame) => frame.sourceKind === 'file'),
     },
-    frames, filter: filter as FilterState, searchQuery, keeperTarget, autoAdvance,
+    // Portable backups cannot silently carry automatic OCR of personal writing.
+    frames: (frames as PhotoFrame[]).map(({ searchEvidence: _local, ...frame }) => frame),
+    filter: filter as FilterState, searchQuery, keeperTarget, autoAdvance,
     ...(record(envelope.project.settings) ? { settings: parseSettings(envelope.project.settings) } : {}),
     selectedFrameId: existingId(selectedFrameId),
     compareRightFrameId: existingId(compareRightFrameId),

@@ -191,7 +191,7 @@ export class CloudDemoStudio implements DemoStudioStore {
       const updated: Example = { ...p, published, revision:revision+1, updatedAtMs:at,
         publicPath:published?path:null,
         publicSnapshot:published?{title:p.title,subject:p.subject,credit:p.credit,alt:p.alt,edit:p.edit,framing:p.framing,revision:revision+1}:null };
-      tx.update(ref,updated); return updated;
+      tx.update(ref,{ ...updated }); return updated;
     });
     if (!published && current.publicPath) await removeGcs(this.publicBucket,current.publicPath).catch(() => {});
     return result;

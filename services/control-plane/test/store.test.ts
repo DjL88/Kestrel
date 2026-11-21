@@ -56,11 +56,16 @@ for (const [kind, open] of stores) {
   test(`${kind}: accounts are unique by email; refresh tokens work once and not after expiry`, async () => {
     const store = await open();
     try {
-      const account = { accountId: 'acc_1', emailHash: 'e'.repeat(64), passwordHash: 'x', role: 'user' as const, status: 'active' as const, createdAtMs: T };
+      const account = { accountId: 'acc_1', emailHash: 'e'.repeat(64), passwordHash: 'x', role: 'user' as const, status: 'active' as const, createdAtMs: T, aiConsent: false };
       assert.equal(await store.createAccount(account), true);
       assert.equal(await store.createAccount({ ...account, accountId: 'acc_2' }), false);
       assert.equal((await store.findAccountByEmailHash('e'.repeat(64)))?.accountId, 'acc_1');
       assert.equal(await store.getAccount('acc_2'), undefined);
+      assert.equal((await store.getAccount('acc_1'))?.aiConsent, false);
+      await store.setAiConsent('acc_1', true);
+      assert.equal((await store.getAccount('acc_1'))?.aiConsent, true);
+      await store.setAiConsent('acc_1', false);
+      assert.equal((await store.getAccount('acc_1'))?.aiConsent, false);
       await store.addRefreshToken('t1', 'acc_1', T + 1000);
       assert.equal(await store.consumeRefreshToken('t1', T), 'acc_1');
       assert.equal(await store.consumeRefreshToken('t1', T), undefined);
@@ -72,7 +77,7 @@ for (const [kind, open] of stores) {
   test(`${kind}: quota periods reset, refunds never go below zero, and billing events apply once`, async () => {
     const store = await open();
     try {
-      for (const id of ['acc_q', 'acc_new']) await store.createAccount({ accountId: id, emailHash: id.padEnd(64, '0'), passwordHash: 'x', role: 'user', status: 'active', createdAtMs: T });
+      for (const id of ['acc_q', 'acc_new']) await store.createAccount({ accountId: id, emailHash: id.padEnd(64, '0'), passwordHash: 'x', role: 'user', status: 'active', createdAtMs: T, aiConsent: false });
       await store.setQuotaLimit('acc_q', 1, T);
       assert.equal(await store.reserveQuota('acc_q', T, 1000), true);
       assert.equal(await store.reserveQuota('acc_q', T, 1000), false);

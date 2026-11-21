@@ -83,11 +83,13 @@ function score(e: SelectEvidence): number | null {
   return detail * 0.7 + (unit(e.poseScore) ? e.poseScore * 0.15 : 0) + (1 - e.motionBlur) * 0.15;
 }
 export function selectBurstDetails(items: readonly SelectEvidence[]): SelectResult[] {
-  const counts = new Map<string, number>();
+  const photoRows = new Map<string, SelectEvidence[]>();
   const multiSubjectBursts = new Set<string>();
   const burstModelBuilds = new Map<string, Set<string>>();
   for (const e of items) {
-    counts.set(e.photoId, (counts.get(e.photoId) ?? 0) + 1);
+    const siblings = photoRows.get(e.photoId) ?? [];
+    siblings.push(e);
+    photoRows.set(e.photoId, siblings);
     // A burst with multiple birds must not silently pretend every crop
     // belongs to the same individual. Even single-subject frames in that
     // burst need an explicit track to take part in a comparative ranking.
@@ -100,13 +102,43 @@ export function selectBurstDetails(items: readonly SelectEvidence[]): SelectResu
     }
   }
   const rows = items.map(e => {
-    const valid = counts.get(e.photoId) === 1 && evidenceValid(e);
+    const siblings = photoRows.get(e.photoId) ?? [];
+    const multiple = siblings.length > 1;
+    // Several subjects in one exposure are legitimate. They need distinct,
+    // source-bound track IDs; otherwise a repeated photo ID could leak a
+    // decision or sharpness score from one animal to another.
+    // subjectCount describes ALL visible subjects in this source frame,
+    // not just members of one detector genre. Bird/aircraft disagreement
+    // must never manufacture two independent tracked individuals.
+    const consistentCount = !multiple || siblings.every(other =>
+      other.subjectCount !== undefined &&
+      other.subjectCount >= siblings.length &&
+      other.subjectCount === e.subjectCount);
+    // Near-identical boxes with different track IDs are likely duplicate
+    // detections, not two independently observed animals. Abstain.
+    const overlap = (a: NormalisedBox, b: NormalisedBox): number => {
+      const w = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+      const h = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+      const intersection = w * h;
+      return intersection / (a.width * a.height + b.width * b.height - intersection);
+    };
+    const distinctBoxes = !multiple || siblings.every((other, i) =>
+      siblings.slice(i + 1).every(next =>
+        box(other.subjectBox) && box(next.subjectBox) &&
+        overlap(other.subjectBox, next.subjectBox) < 0.9));
+    const distinctSubjects = consistentCount && distinctBoxes && (!multiple || (siblings.every(other =>
+      other.sourceSha256 === e.sourceSha256 && other.modelId === e.modelId &&
+      other.modelVersion === e.modelVersion && !!other.subjectTrackId &&
+      box(other.subjectBox) && other.manualDecision !== 'keep' &&
+      other.manualDecision !== 'reject') &&
+      new Set(siblings.map(other => other.subjectTrackId)).size === siblings.length));
+    const valid = distinctSubjects && evidenceValid(e);
     const conflict = valid && contradiction(e);
     const value = valid && !conflict ? score(e) : null;
     const burstKey = e.burstId ? JSON.stringify([e.genre, e.burstId]) : null;
     // Never compare scores from different model builds, nor different birds
     // whose crops happen to be in the same timestamp-defined scene.
-    const needsTrack = !!burstKey && multiSubjectBursts.has(burstKey);
+    const needsTrack = multiple || (!!burstKey && multiSubjectBursts.has(burstKey));
     const tracked = !!e.subjectTrackId;
     const mixedBuilds = !!burstKey && (burstModelBuilds.get(burstKey)?.size ?? 0) > 1;
     const group = valid && !mixedBuilds && e.subjectCount !== 0 && burstKey && (!needsTrack || tracked)

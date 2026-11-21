@@ -1,4 +1,5 @@
 import { searchWords, type SubjectKind } from './subjectTags';
+import { searchableEvidenceWords, type PhotoSearchEvidence } from './photoSearch';
 import { createDemoShootState } from './cullingEngine';
 import { LEGACY_SETTINGS, type ProjectSettings } from './projectSettings';
 import type { CullingState, PhotoFrame } from './types';
@@ -157,9 +158,9 @@ export function moveFrames(source: CullingState, target: CullingState, frameIds:
 export type ProjectSort = 'edited' | 'created' | 'name';
 
 /** Lower-case text a project can be found by: its photos' file names, subject names and tags. */
-export function projectSearchText(frames: readonly { filename: string; subjectNames?: string[]; tags?: string[]; subjectKind?: SubjectKind; removedAt?: number }[]): string {
+export function projectSearchText(frames: readonly { filename: string; subjectNames?: string[]; tags?: string[]; subjectKind?: SubjectKind; stableKey?: string; searchEvidence?: PhotoSearchEvidence; removedAt?: number }[]): string {
   return frames.filter((frame) => frame.removedAt == null)
-    .map((frame) => [frame.filename, ...searchWords(frame)].join(' ')).join('\n').toLowerCase();
+    .map((frame) => [frame.filename, ...searchWords(frame), ...searchableEvidenceWords(frame)].join(' ')).join('\n').toLowerCase();
 }
 
 /** Every word typed must appear in the project's title or one of its photos. Photo-only matches are reported so the list can say why. */

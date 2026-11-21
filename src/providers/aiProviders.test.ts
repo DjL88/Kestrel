@@ -9,7 +9,6 @@ const agreed = (settings: AiProviderSettings): AiProviderSettings => ({ ...setti
 
 test('each provider names where the preview goes; a local model stays on this computer', () => {
   assert.equal(destinationHost({ kind: 'gemini' }), 'generativelanguage.googleapis.com');
-  assert.equal(destinationHost({ kind: 'vertex' }), 'aiplatform.googleapis.com');
   assert.equal(destinationHost({ kind: 'anthropic' }), 'api.anthropic.com');
   assert.equal(destinationHost(local), 'localhost:11434');
   assert.equal(staysOnThisComputer(local), true);
@@ -22,8 +21,6 @@ test('requests carry the image and the question, the key only in a header, and n
   assert.equal(gemini.url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-x:generateContent');
   assert.equal((gemini.init.headers as Record<string, string>)['x-goog-api-key'], 'k1');
   assert.ok(!gemini.url.includes('k1'), 'the key never goes in the address');
-  const vertex = buildAiRequest({ kind: 'vertex', key: 'k2', model: 'gemini-y', consent: null }, 'Q', 'AAAA');
-  assert.equal(vertex.url, 'https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-y:generateContent');
   const openai = buildAiRequest({ ...local, key: 'sk' }, 'Q', 'AAAA');
   assert.equal(openai.url, 'http://localhost:11434/v1/chat/completions');
   assert.equal((openai.init.headers as Record<string, string>).authorization, 'Bearer sk');

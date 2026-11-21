@@ -11,7 +11,7 @@ import { hashPassword, randomId, sha256Hex, signEnvelope, signSession, uuid, ver
 import { SqliteStore } from './sqliteStore.ts';
 import { MemoryDemoStudio, publicExamples, adminExamples, type DemoStudioStore, type ExampleFields } from './demoStudio.ts';
 import { licenceIsUsable, newLicence, type AuditRecord, type Store } from './store.ts';
-import { geminiProvider, identify, suggest, type AiProvider } from './gateway.ts';
+import { geminiProvider, identify, suggest, verifyColour, type AiProvider } from './gateway.ts';
 import type { CommerceLedger } from './commerce/ledger.ts';
 import type { TransactionRecord } from './commerce/records.ts';
 import { emailHashOf, giftEntitlement } from './entitlement.ts';
@@ -122,11 +122,22 @@ export const Schemas = {
   EntitlementsResponse: z.object({
     plans: z.array(z.object({ licenceId: z.string(), plan: z.string(), status: z.string(), managedAi: z.boolean(), offlineGraceDays: z.number(), majorVersion: z.number(), paid: z.boolean(), source: z.string() })),
     aiQuota: z.object({ requestsUsed: z.number(), requestsLimit: z.number(), periodEndsMs: z.number() }).nullable(),
+    /**
+     * The account's own standing "use Gemini" choice, set once and kept across devices. Separate from
+     * `managedAi` above (whether the plan includes the online helper at all) and from the per-request
+     * `userConsent` flag every /v1/ai/* call still carries: this is what lets the app stop asking every time.
+     */
+    aiConsent: z.boolean(),
     nextRevalidationMs: z.number(),
   }),
   ImageRequest: ImageBody,
   IdentifyResponse: z.object({ kind: z.string(), species: z.string().nullable(), scientific: z.string().nullable(), confidence: z.enum(['high', 'medium', 'low']), tags: z.array(z.string()), abstained: z.boolean() }),
   SuggestResponse: z.object({ proposal: z.record(z.string(), z.number()), alreadyBalanced: z.boolean() }),
+  VerifyColourResponse: z.object({
+    plausible: z.boolean(),
+    concerns: z.array(z.enum(['skinTone', 'skyOrFoliage', 'clipping', 'oversaturated', 'flat', 'other'])),
+    note: z.string().nullable(),
+  }),
   ManifestResponse: SignedEnvelopeSchema,
   ReleaseResponse: z.object({ release: z.object({ version: z.string(), url: z.string(), notes: z.string(), minSupported: z.string(), publishedAt: z.string() }).nullable() }),
   WebhookEvent: z.object({
@@ -168,6 +179,7 @@ export const Schemas = {
   }).strict(),
   AdminPromote: z.object({ id: z.string(), version: z.string(), channel: z.enum(['stable', 'beta']).default('stable') }).strict(),
   AdminRelease: z.object({ platform: z.enum(['windows', 'macos']), channel: z.enum(['stable', 'beta']).default('stable'), version: Version, url: z.string().url(), notes: z.string().max(4000).default(''), minSupported: Version.default('0.0.0') }).strict(),
+  AiConsentRequest: z.object({ consent: z.boolean() }).strict(),
 };
 
 // ---- Small helpers -----------------------------------------------------------
@@ -245,7 +257,7 @@ export function createApp(options: AppOptions) {
     const emailHash = sha256Hex(email);
     let account = await store.findAccountByEmailHash(emailHash);
     if (!account) {
-      await store.createAccount({ accountId: `acc_${randomId(12)}`, emailHash, passwordHash: `${provider}-only`, role: 'user', status: 'active', createdAtMs: now() });
+      await store.createAccount({ accountId: `acc_${randomId(12)}`, emailHash, passwordHash: `${provider}-only`, role: 'user', status: 'active', createdAtMs: now(), aiConsent: false });
       account = await store.findAccountByEmailHash(emailHash);
     }
     if (!account || account.status !== 'active') throw new ApiError(403, 'FORBIDDEN', 'This account is suspended.');
@@ -278,7 +290,7 @@ export function createApp(options: AppOptions) {
 
   async function createAccount(email: string, password: string, role: 'user' | 'admin'): Promise<string> {
     const accountId = `acc_${randomId(12)}`;
-    const created = await store.createAccount({ accountId, emailHash: sha256Hex(email.trim().toLowerCase()), passwordHash: hashPassword(password), role, status: 'active', createdAtMs: now() });
+    const created = await store.createAccount({ accountId, emailHash: sha256Hex(email.trim().toLowerCase()), passwordHash: hashPassword(password), role, status: 'active', createdAtMs: now(), aiConsent: false });
     if (!created) throw new ApiError(409, 'ACCOUNT_EXISTS', 'That account already exists.');
     return accountId;
   }
@@ -298,6 +310,11 @@ export function createApp(options: AppOptions) {
     const claims = await bearer(req);
     const body = parseJson(Schemas.ImageRequest, req.rawBody);
     if (body.userConsent !== true) throw new ApiError(400, 'CONSENT_REQUIRED', 'Kestrel needs your permission before sending a photo.');
+    // A per-request click cannot override the account's separately revocable, default-off
+    // managed-AI preference. Check the live store for every request (never a cached token
+    // claim) before decoding, reserving quota or invoking the network provider.
+    const account = await store.getAccount(claims.sub);
+    if (account?.aiConsent !== true) throw new ApiError(403, 'AI_CONSENT_REQUIRED', 'Turn on the online AI helper in your account settings before sending a photo.');
     decodeImage(body.image);
     if ((await store.getSetting('ai_disabled')) === '1') throw new ApiError(503, 'AI_DISABLED', 'The online helper is switched off for now.', true);
     if (!provider) throw new ApiError(503, 'AI_NOT_CONFIGURED', 'The online helper is not set up on this server.');
@@ -527,13 +544,26 @@ export function createApp(options: AppOptions) {
         const claims = await bearer(req);
         const plans = await store.listLicencesForAccount(claims.sub);
         const quota = await store.getQuota(claims.sub);
+        const account = await store.getAccount(claims.sub);
         return {
           status: 200, body: {
             plans: plans.map((p) => ({ licenceId: p.licenceId, plan: p.plan, status: p.status, managedAi: p.managedAi, offlineGraceDays: p.offlineGraceDays, majorVersion: p.majorVersion, paid: p.paid, source: p.source })),
             aiQuota: quota ? { requestsUsed: quota.requestsUsed, requestsLimit: quota.requestsLimit, periodEndsMs: quota.periodStartMs + QUOTA_PERIOD_MS } : null,
+            aiConsent: account?.aiConsent ?? false,
             nextRevalidationMs: now() + 7 * DAY_MS,
           },
         };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/me/ai-consent', summary: 'Set or withdraw the standing "use Gemini" preference for this account', auth: 'user',
+      body: Schemas.AiConsentRequest, response: z.object({ aiConsent: z.boolean() }),
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.AiConsentRequest, req.rawBody);
+        await store.setAiConsent(claims.sub, body.consent);
+        await audit(claims.sub, 'ai.consent.set', 'allowed', body.consent ? 'granted' : 'withdrawn');
+        return { status: 200, body: { aiConsent: body.consent } };
       },
     },
 
@@ -552,6 +582,15 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         const proposal = await aiCall(req, (p, image) => suggest(p, image, config.aiTimeoutMs));
         return { status: 200, body: { proposal, alreadyBalanced: Object.keys(proposal).length === 0 } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/ai/verify-colour',
+      summary: 'A plain-English second opinion on the colour grade of one consented, already-edited thumbnail. Complements, never overrides, the on-device measured check.',
+      auth: 'user', body: Schemas.ImageRequest, response: Schemas.VerifyColourResponse,
+      handler: async (req) => {
+        const answer = await aiCall(req, (p, image) => verifyColour(p, image, config.aiTimeoutMs));
+        return { status: 200, body: answer };
       },
     },
 
@@ -668,7 +707,7 @@ export function createApp(options: AppOptions) {
         let account = await store.findAccountByEmailHash(emailHash);
         if (!account) {
           // No password: this account can only sign in with Google.
-          await store.createAccount({ accountId: `acc_${randomId(12)}`, emailHash, passwordHash: 'google-only', role: 'admin', status: 'active', createdAtMs: now() });
+          await store.createAccount({ accountId: `acc_${randomId(12)}`, emailHash, passwordHash: 'google-only', role: 'admin', status: 'active', createdAtMs: now(), aiConsent: false });
           account = await store.findAccountByEmailHash(emailHash);
         } else if (account.role !== 'admin') {
           await store.setAccountRole(account.accountId, 'admin');
