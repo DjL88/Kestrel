@@ -77,6 +77,9 @@ export async function activateApprovedAsset(options: ActivationOptions): Promise
     notCancelled(signal);
     const previous = await slots.active(asset.id);
     if (previous?.sha256 === asset.sha256 && previous.version === asset.version) return previous;
+    // Never replace a verified newer asset with an older signed-but-replayed version.
+    if (previous && VER.test(previous.version) && !newerOrEqual(asset.version, previous.version))
+      throw new Error('Asset version rollback refused');
     await options.smokeTest(bytes, asset);
     notCancelled(signal);
     const slot = `sha256-${asset.sha256}`;
