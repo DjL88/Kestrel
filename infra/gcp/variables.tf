@@ -76,3 +76,9 @@ variable "apple_client_ids" {
   type        = list(string)
   default     = []
 }
+
+variable "firebase_project_id" {
+  description = "Firebase project whose ID tokens (Google, Apple, email sign-in done in the app) the control plane accepts, for example kestrel-photo. Public, not a secret. Empty: app sign-in is off."
+  type        = string
+  default     = ""
+}

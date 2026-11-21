@@ -16,7 +16,7 @@ import type { CommerceLedger } from './commerce/ledger.ts';
 import type { TransactionRecord } from './commerce/records.ts';
 import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { googleKeysFromNetwork, verifyGoogleIdToken, GOOGLE_CERTS_URL, type GoogleKeys } from './googleIdToken.ts';
-import { APPLE_ISSUER, APPLE_KEYS_URL, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
+import { APPLE_ISSUER, APPLE_KEYS_URL, FIREBASE_KEYS_URL, firebaseIssuer, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
 import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnover.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
 
@@ -35,6 +35,7 @@ export interface AppOptions {
   payments?: { listTransactions(limit: number): Promise<TransactionRecord[]> };
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
   googleKeys?: GoogleKeys;
+  firebaseKeys?: OidcKeys;
   /** Apple's signing keys. Tests supply their own; production reads them from Apple. */
   appleKeys?: OidcKeys;
   /** Injected for tests. Defaults to Gemini when a server key is configured, otherwise none. */
@@ -116,6 +117,7 @@ export const Schemas = {
     devices: z.array(z.object({ activationId: z.string(), platform: z.string(), appVersion: z.string(), lastSeenMs: z.number(), thisDevice: z.boolean() })),
   }),
   DeactivateRequest: z.object({ licenceKey: z.string().min(10).max(2000), activationId: z.string().min(1).max(64) }).strict(),
+  AccountActivateRequest: z.object({ deviceHash: Hex64, platform: Platform, appVersion: Version }).strict(),
   ActivateResponse: z.object({ grant: SignedEnvelopeSchema, activationId: z.string() }),
   EntitlementsResponse: z.object({
     plans: z.array(z.object({ licenceId: z.string(), plan: z.string(), status: z.string(), managedAi: z.boolean(), offlineGraceDays: z.number(), majorVersion: z.number(), paid: z.boolean(), source: z.string() })),
@@ -211,6 +213,7 @@ export function createApp(options: AppOptions) {
   const contactGlobalLimiter = new RateLimiter(60, 60 * 60_000);
   const googleKeys = options.googleKeys ?? googleKeysFromNetwork();
   const appleKeys = options.appleKeys ?? oidcKeysFromNetwork(APPLE_KEYS_URL);
+  const firebaseKeys: OidcKeys = options.firebaseKeys ?? oidcKeysFromNetwork(FIREBASE_KEYS_URL);
   const userGoogleKeys: OidcKeys = options.googleKeys ?? oidcKeysFromNetwork(GOOGLE_CERTS_URL);
   const adminEmailHashes = new Set(config.adminEmails.map((email) => sha256Hex(email)));
   const activateLimiter = new RateLimiter(20, 60_000);
@@ -238,7 +241,7 @@ export function createApp(options: AppOptions) {
    * the account if it is new, and attaches any entitlement that was waiting for it (a purchase or a free grant).
    * Sessions from here are always plain user sessions, whatever role the account holds elsewhere.
    */
-  async function signInWithProvider(provider: 'google' | 'apple', email: string, privateRelay: boolean) {
+  async function signInWithProvider(provider: 'google' | 'apple' | 'firebase', email: string, privateRelay: boolean) {
     const emailHash = sha256Hex(email);
     let account = await store.findAccountByEmailHash(emailHash);
     if (!account) {
@@ -250,17 +253,19 @@ export function createApp(options: AppOptions) {
     await audit(account.accountId, 'user.signin', 'allowed', `${provider}${attached ? ` attached=${attached}` : ''}`);
     return { ...(await issueSession(account.accountId, 'user')), signedInWith: provider, entitlementsAttached: attached, privateRelay };
   }
-  function providerRoute(provider: 'google' | 'apple'): Route {
+  function providerRoute(provider: 'google' | 'apple' | 'firebase'): Route {
     return {
-      method: 'POST', path: `/v1/auth/${provider}`, summary: `Sign in with ${provider === 'apple' ? 'Apple' : 'Google'}: exchange the provider's ID token for a session`, auth: 'none', body: Schemas.ProviderSignIn,
+      method: 'POST', path: `/v1/auth/${provider}`, summary: `Sign in with ${provider === 'apple' ? 'Apple' : provider === 'firebase' ? 'the app (Firebase)' : 'Google'}: exchange the provider's ID token for a session`, auth: 'none', body: Schemas.ProviderSignIn,
       handler: async (req) => {
         if (!authLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
         const body = parseJson(Schemas.ProviderSignIn, req.rawBody);
-        const audiences = provider === 'apple' ? config.appleClientIds : config.userGoogleClientIds;
-        if (audiences.length === 0) throw new ApiError(503, 'SIGNIN_UNAVAILABLE', `Sign in with ${provider === 'apple' ? 'Apple' : 'Google'} is not set up on this server.`);
-        const check = await verifyOidcIdToken(body.credential, {
-          issuers: provider === 'apple' ? [APPLE_ISSUER] : ['accounts.google.com', 'https://accounts.google.com'], audiences,
-        }, provider === 'apple' ? appleKeys : userGoogleKeys, now());
+        const audiences = provider === 'apple' ? config.appleClientIds : provider === 'firebase' ? (config.firebaseProjectId ? [config.firebaseProjectId] : []) : config.userGoogleClientIds;
+        if (audiences.length === 0) throw new ApiError(503, 'SIGNIN_UNAVAILABLE', `Sign in with ${provider === 'apple' ? 'Apple' : provider === 'firebase' ? 'the app' : 'Google'} is not set up on this server.`);
+        const issuers = provider === 'apple' ? [APPLE_ISSUER] : provider === 'firebase' ? [firebaseIssuer(audiences[0]!)] : ['accounts.google.com', 'https://accounts.google.com'];
+        // A Firebase token for an email that is not yet verified is refused here, so nobody can claim a purchase made for
+        // someone else's address just by registering it.
+        const check = await verifyOidcIdToken(body.credential, { issuers, audiences },
+          provider === 'apple' ? appleKeys : provider === 'firebase' ? firebaseKeys : userGoogleKeys, now());
         if (!check.ok) {
           await audit('anonymous', 'user.signin', 'denied', `${provider} token ${check.reason}`);
           if (check.reason === 'keys_unavailable') throw new ApiError(503, 'PROVIDER_UNAVAILABLE', 'The sign-in provider could not be reached. Try again in a minute.', true);
@@ -457,6 +462,31 @@ export function createApp(options: AppOptions) {
       },
     },
     {
+      method: 'POST', path: '/v1/me/activate', summary: 'Signed in: activate this device with the account\'s paid licence; returns an Ed25519-signed offline grant. Signing in alone grants nothing.', auth: 'user',
+      body: Schemas.AccountActivateRequest, response: Schemas.ActivateResponse,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        if (!activateLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+        const body = parseJson(Schemas.AccountActivateRequest, req.rawBody);
+        const t = now();
+        const usable = (await store.listLicencesForAccount(claims.sub)).filter((l) => licenceIsUsable(l, t) && l.plan !== 'free');
+        const licence = usable.sort((a, b) => Number(b.paid) - Number(a.paid) || b.majorVersion - a.majorVersion)[0];
+        if (!licence) throw new ApiError(403, 'NO_LICENCE', 'This account has no Pro licence yet. Your local work is unaffected.');
+        const outcome = await store.activateDevice({
+          licenceId: licence.licenceId, planIfNew: licence.plan, deviceHash: body.deviceHash, platform: body.platform,
+          appVersion: body.appVersion, newActivationId: `act_${randomId(12)}`, nowMs: t,
+        });
+        if (!outcome.ok && outcome.reason === 'not_active') throw new ApiError(403, 'LICENCE_NOT_ACTIVE', 'This licence is no longer active. Your local work is unaffected.');
+        if (!outcome.ok) throw new ApiError(409, 'DEVICE_LIMIT', `This licence is already active on ${outcome.maxDevices} devices. Deactivate one first.`);
+        const grant: EntitlementGrant = {
+          schema: 1, grantId: `grt_${randomId(12)}`, plan: outcome.licence.plan as EntitlementGrant['plan'], managedAi: outcome.licence.managedAi,
+          deviceHash: body.deviceHash, issuedAtMs: t, offlineUntilMs: t + outcome.licence.offlineGraceDays * DAY_MS,
+        };
+        await audit(claims.sub, 'device.activate.account', 'allowed', outcome.activationId);
+        return { status: 200, body: { grant: signEnvelope(grant, config.signingKey), activationId: outcome.activationId } };
+      },
+    },
+    {
       method: 'POST', path: '/v1/licences/status', summary: 'For whoever holds the key: is it active, and on which devices', auth: 'none',
       body: Schemas.LicenceStatusRequest, response: Schemas.LicenceStatusResponse,
       handler: async (req) => {
@@ -552,6 +582,7 @@ export function createApp(options: AppOptions) {
     // ---- Billing
     providerRoute('google'),
     providerRoute('apple'),
+    providerRoute('firebase'),
     {
       method: 'POST', path: '/v1/billing/webhook', summary: 'Signed, idempotent billing events', auth: 'webhook', body: Schemas.WebhookEvent,
       handler: async (req) => {
