@@ -104,6 +104,22 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   }, [disabled, checkRevision, ...version]);
 
 
+  // Fly Solo never runs a background check. An explicit press uses the same local
+  // renderer preview, and the normal version effect invalidates it on any edit/photo change.
+  const checkOnDemand = () => {
+    if (!disabled) { setCheckRevision((n) => n + 1); return; }
+    ++generation.current;
+    setReport(null);
+    setFailed(false);
+    setApplied(false);
+    setShowAll(false);
+    try {
+      const preview = read.current();
+      if (!preview) { setFailed(true); return; }
+      setReport(checkColour({ after: preview.after, before: preview.before, subject: preview.subject }));
+    } catch { setFailed(true); }
+  };
+
   const problems = report?.findings.filter((finding) => finding.severity !== 'info') ?? [];
   const important = report?.findings.filter((finding) => finding.severity !== 'info').slice(0, 3) ?? [];
   const visibleFindings = showAll ? report?.findings ?? [] : important;
@@ -114,9 +130,9 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
         {problems.length > 0 && <span className="text-xs text-zinc-400">({t.findings(problems.length)})</span>}
       </summary>
       <div className="min-w-0 space-y-2 overflow-x-hidden px-1 pb-2 text-sm">
-        {!disabled && <button type="button" className="min-h-11 rounded-md border border-white/15 px-3 text-xs text-zinc-200 focus-visible:outline-2 focus-visible:outline-sky-300" onClick={() => setCheckRevision((n) => n + 1)} aria-label={colourControls.check}>{colourControls.check}</button>}
-        {disabled && <p className="text-xs text-zinc-400">{colourControls.paused}</p>}
-        {!disabled && failed && <p className="text-xs text-zinc-400">{t.unavailable}</p>}
+        <button type="button" className="min-h-11 rounded-md border border-white/15 px-3 text-xs text-zinc-200 focus-visible:outline-2 focus-visible:outline-sky-300" onClick={checkOnDemand} aria-label={colourControls.check}>{colourControls.check}</button>
+        {disabled && !report && !failed && <p className="text-xs text-zinc-400">{colourControls.paused}</p>}
+        {failed && <p className="text-xs text-zinc-400">{t.unavailable}</p>}
         {!disabled && !report && !failed && <p className="text-xs text-zinc-400">{t.checking}</p>}
         {report && report.palette.length > 0 && (
           <div>
