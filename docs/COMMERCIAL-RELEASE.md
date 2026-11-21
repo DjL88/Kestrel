@@ -2,17 +2,18 @@
 
 **Decision context:** Mac and Windows betas first; a separate standalone Kestrel domain is planned but not yet registered or verified. Public download site is being built in PR #131. Do not hardcode a speculative domain. The exact name, registrar control and trademark clearance require owner validation.
 
-## Three-tier product split — Mac and Windows first
+## Current two-edition policy — owner direction, 21 November 2026
 
-| Tier | Price | Entitlements |
-| --- | --- | --- |
-| **Free** | £0 | Basic local editing and export, user-owned projects/backups, offline. No registration required. |
-| **Paid** | £29 one-off (proposed) | Lifetime local desktop app, full import → cull → edit → export, all local advanced tools, unlimited permitted personal use. No mandatory cloud or continuous sign-in. |
-| **Subscribe** | £2.99/month (proposed, in addition to the one-off licence) | All Paid benefits plus optional private cloud sync/storage and hosted AI assistance while subscribed; 50 GB is only a candidate tier pending cost validation. |
+The [Outstanding Programme](OUTSTANDING-PROGRAMME-2026-11-21.md) supersedes the old proposed three-tier/subscription split and daily export limit described in this historic document. **Two editions only: Free and Pro. No paid monthly Kestrel tier.**
 
-**Unresolved purchase design:** If a Free user subscribes without already owning Paid, checkout should either bundle a Paid entitlement or make the £29 prerequisite explicit. Do not charge and silently leave their editing features locked. Existing paid customers should never have to repurchase their local licence.
+| Edition | Included and protected |
+| --- | --- |
+| **Free** | Local/offline importing, honest supported RAW/JPEG/HEIC editing and correct preview/export quality, natural Auto, essential masks, basic subject detection, cull/review, metadata, saved recipes and backups, full-size ordinary JPEG/PNG without a ten-per-day allowance, original retrieval and recovery. |
+| **Pro** | The same integrity and privacy, plus advanced culling, species intelligence, sophisticated batch/Match This Look automation, premium owned models and enhanced professional workflow as developed and validated. One-time paid **major-version** entitlement: owning v1 does not automatically include v2; v1 remains usable offline indefinitely, with the published v1 support/patch policy. |
 
-The native desktop beta includes Free and Paid. Cloud subscription and hosted AI ship only after the service has passed access-control, privacy, security, cost and billing tests. Do not advertise them as live.
+Pricing, tax/payment partner, upgrade discounts and support windows require owner approval before public checkout. Third-party BYO AI/NAS/cloud accounts are optional, billed by their provider if applicable, and must never be represented as a compulsory Kestrel subscription. Signed licences have offline grants, no continuous check or local-data lockouts. Do not advertise unimplemented premium models as available. Optional conservation contributions must be transparently documented and verified.
+
+**Historical note:** The old references below to subscribers, 365-day hosted storage retention and paid cloud quotas are **migration planning notes only** for existing historic records, not new purchasable editions or approved service commitments. The site's pricing, entitlement code and every locale must be reconciled to this policy before release. Never infer a feature is implemented from this product decision.
 
 ### Data minimisation and login
 

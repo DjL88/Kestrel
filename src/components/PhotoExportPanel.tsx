@@ -31,9 +31,6 @@ import { KEEP_NAMES, stemFor, uniqueExportFilename, type NameTemplate } from '..
 import { tasks } from '../core/taskStore';
 import { exportBatchQueue } from '../core/exportBatchQueue';
 import { planConnectedExports } from '../core/exportBatchDestinations';
-import { useAccess } from '../providers/useAccess';
-import { FREE_DAILY_EXPORT_LIMIT } from '../core/features';
-import { createDailyAllowance, parseUsage } from '../core/dailyAllowance';
 import { parseCustomExportDate } from '../core/exportDateInput';
 import { exportMayContinue } from '../core/exportCancellation';
 import { parseWatermark, watermarkForStorage } from '../core/watermarkStore';
@@ -47,13 +44,6 @@ import type { ExportPlace } from '../providers/exportToPlace';
 import { chooseDesktopExportFolder, isDesktopApp, isMobileShell, saveWithDialog } from '../providers/desktopShell';
 import { exportText as t } from '../i18n/areas/export';
 import { formatLabel, shapeName, sizeName, watermarkPositionLabel } from '../i18n/areas/export/labels';
-
-const USAGE_KEY = 'kestrel.exportsToday.v1';
-const exportAllowance = createDailyAllowance(
-  FREE_DAILY_EXPORT_LIMIT,
-  () => { try { return parseUsage(localStorage.getItem(USAGE_KEY)); } catch { return null; } },
-  (usage) => { try { localStorage.setItem(USAGE_KEY, JSON.stringify(usage)); } catch { /* Optional device storage. */ } },
-);
 
 interface Props {
   frames: PhotoFrame[];
@@ -449,11 +439,6 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     return () => document.removeEventListener('keydown', close, true);
   }, [onClose]);
 
-  const { can } = useAccess();
-  const unlimited = can('unlimitedExport');
-  function allowanceError(left: number) {
-    setError(left === 0 ? t.panel.limitUsed(FREE_DAILY_EXPORT_LIMIT) : t.panel.limitLeft(FREE_DAILY_EXPORT_LIMIT, left));
-  }
 
   /**
    * Connected destinations support genuine background saving: a run folder and connector
@@ -474,10 +459,6 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       setError(RAW_MASTER_EXPORT_ERROR);
       return;
     }
-    const reservation = unlimited ? null : exportAllowance.reserve(total);
-    if (reservation && 'left' in reservation) { allowanceError(reservation.left); return; }
-    let queued = false;
-    let saved = 0;
     saveRunning.current = true;
     setOpeningPlace(true);
     setError('');
@@ -528,23 +509,19 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
           const file = rendered.name === item.filename ? rendered
             : new File([rendered], item.filename, { type: rendered.type, lastModified: rendered.lastModified });
           await destination.save(file, item.subfolder, signal);
-          saved += 1;
         },
       });
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(chosen));
         localStorage.setItem(EXPORT_PREFERENCES_KEY, JSON.stringify({ fits, overrides, turned, bars }));
       } catch { /* Export is not dependent on settings storage. */ }
-      queued = true;
       void ticket.done.then(result => {
-        reservation?.settle(saved);
         if (result === 'completed') onDownloadRequested?.(photographs);
       });
       onClose();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not start saving to that destination.');
     } finally {
-      if (!queued) reservation?.settle(0);
       saveRunning.current = false;
       if (!cancelled.current) setOpeningPlace(false);
     }
@@ -566,8 +543,6 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       setError(RAW_MASTER_EXPORT_ERROR);
       return;
     }
-    const reservation = unlimited ? null : exportAllowance.reserve(total);
-    if (reservation && 'left' in reservation) { allowanceError(reservation.left); return; }
     setProgress(0);
     setError('');
     const controller = new AbortController();
@@ -605,9 +580,8 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
           task.progress(output.length);
         }
       }
-      // Stop must never publish partial results or charge the Free allowance.
+      // Stop must never publish partial results.
       if (!exportMayContinue(controller.signal.aborted, task.cancelled, cancelled.current)) return;
-      reservation?.settle(output.length);
       try {
         localStorage.setItem(EXPORT_PREFERENCES_KEY, JSON.stringify({ fits, overrides, turned, bars }));
       } catch { /* Export remains usable when storage is unavailable. */ }
@@ -625,7 +599,6 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     } catch (reason) {
       if (!controller.signal.aborted && !task.cancelled && !cancelled.current) { const message = reason instanceof Error ? reason.message : t.panel.prepareFailed; setError(message); task.fail(message); }
     } finally {
-      reservation?.settle(0);
       task.fail(t.panel.stopped); // does nothing if the task already finished or was cancelled
       activeExport.current = null;
       if (!cancelled.current) setProgress(null);
