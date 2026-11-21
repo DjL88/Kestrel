@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { exportCompactLabels as compact } from '../i18n/exportCompactLabels';
 import type { PhotoFrame } from '../core/types';
 import type { ExportFormat, BarStyle } from '../core/exportFormats';
 import type { FocusPoint } from '../core/exportFraming';
@@ -39,7 +40,7 @@ export function ExportProofDock(props: Props) {
             <button type="button" aria-expanded={mobileOpen} aria-controls="export-mobile-proof"
               onClick={() => setMobileOpen(value => !value)}
               className="inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-xs text-zinc-200 hover:bg-white/10 sm:hidden">
-              {mobileOpen ? 'Hide preview' : 'Show preview'}
+              {mobileOpen ? compact.hideProof : compact.showProof}
               <ChevronDown aria-hidden="true" className={`h-4 w-4 transition-transform ${mobileOpen ? 'rotate-180' : ''}`} />
             </button>
           </div>
