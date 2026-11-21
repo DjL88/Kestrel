@@ -104,7 +104,10 @@ import {
   ListChecks as LucideListChecks,
   Pencil as LucidePencil,
   Save as LucideSave,
-  EyeOff as LucideEyeOff
+  EyeOff as LucideEyeOff,
+  PanelRight as LucidePanelRight,
+  PictureInPicture2 as LucidePictureInPicture2,
+  SquareCheck as LucideSquareCheck
 } from 'lucide-react';
 
 type SourceIcon = typeof LucideCheck;
