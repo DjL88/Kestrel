@@ -122,6 +122,25 @@ export class BrowserPreviewProvider implements PreviewProvider {
     return this.localBlobs.get(stableKey);
   }
 
+  /** A source reader tied to this registration. Linked photos are read from disk
+   * every time so a cached preview or Blob cannot vouch for a changed file. */
+  verifiedOriginalReader(stableKey: string) {
+    const epoch = this.cacheEpoch;
+    const generation = this.linkedGeneration.get(stableKey);
+    const link = this.linked.get(stableKey);
+    const blob = this.localBlobs.get(stableKey);
+    const isCurrent = () => this.cacheEpoch === epoch && this.linkedGeneration.get(stableKey) === generation &&
+      this.linked.get(stableKey) === link && (link !== undefined || this.localBlobs.get(stableKey) === blob);
+    return {
+      isCurrent,
+      read: async () => {
+        if (!isCurrent()) return undefined;
+        const original = link ? await this.reads.run(link.read, 'selected', stableKey) : blob;
+        return isCurrent() ? original : undefined;
+      },
+    };
+  }
+
   /** The original, reading it from the disk first if it is a linked one. Only a few linked photos are held at once. */
   async ensureOriginal(stableKey: string, priority: ReadPriority = 'background'): Promise<Blob | undefined> {
     const held = this.localBlobs.get(stableKey);

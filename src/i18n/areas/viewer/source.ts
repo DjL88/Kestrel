@@ -38,7 +38,7 @@ export const source = {
     keepSide: (side: string) => `keep ${side}`,
     rejectSide: (side: string) => `reject ${side}`,
     clearDecisionFor: (side: string) => `Reset decision for photo ${side}`,
-    clearSide: (side: string) => `Clear ${side}`,
+    clearSide: (side: string) => `Reset ${side}`,
     finish: 'Finish comparing photos',
     done: 'Done',
   },

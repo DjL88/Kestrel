@@ -8,6 +8,20 @@ const n = (count: number) => formatCount.format(count);
 
 /** Icelandic. DRAFT: written without a native speaker's check. File names sit after a colon so they need no case endings. */
 export const is: AreaTranslation<typeof source> = {
+  subjectReview: {
+    find: "Finna myndefni",
+    busy: "Leita að myndefni í þessu tæki…",
+    unavailable: "Ekki tókst að skoða myndina. Gakktu úr skugga um að frumritið sé tiltækt og reyndu aftur.",
+    empty: "Ekkert skýrt myndefni fannst.",
+    found: "Opnaðu tillögu til að sjá myndsniðið í 100% stærð.",
+    cropUnavailable: "Myndsniðið er of stórt til að sýna",
+    label: (number, kind) => `${number}. ${kind}`,
+    bird: "Hugsanlega fugl",
+    aircraft: "Hugsanlega loftfar",
+    person: "Hugsanlega manneskja",
+    pet: "Hugsanlega dýr",
+    unknown: "Óflokkað myndefni",
+  },
   top: {
     xmpImport: "Flytja inn einkunnir og merki (XMP)…",
     xmpImportHelp: "Lesa samsvarandi XMP-skrár eða Kite44 XMP-ZIP aðeins fyrir valdar myndir. Frumskrám er ekki breytt.",

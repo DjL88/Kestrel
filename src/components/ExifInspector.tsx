@@ -12,6 +12,9 @@ import { FloatingPane } from './FloatingPane';
 import { PHOTO_INFO_DOCK_QUERY } from '../core/photoInfoLayout';
 import { formatCaptureDateTime, photoInfoText } from '../core/photoInfoText';
 import { SubjectPanel } from './SubjectPanel';
+import { SubjectReview } from './SubjectReview';
+import { supportsSubjectReview } from '../core/subjectPixelCrop';
+import type { SubjectReviewItem } from '../providers/subjectReview';
 import { SpeciesSuggestions } from './SpeciesSuggestions';
 import { mayAutoTag } from '../core/autoTags';
 import { hasName } from '../core/speciesBurst';
@@ -34,6 +37,7 @@ interface ExifInspectorProps {
   onKeepTag: (frame: PhotoFrame, name: string) => void;
   /** A small picture of a photo for the on-device species model to look at. Null when its original is not available. */
   loadPicture?: (frame: PhotoFrame) => Promise<HTMLCanvasElement | null>;
+  reviewSubjects?: (frame: PhotoFrame, signal: AbortSignal) => Promise<SubjectReviewItem[] | null>;
   /** The other photos in this one's burst, and a way to tag some of them after the person agrees. */
   mates?: PhotoFrame[];
   onTagPhotos?: (ids: string[], name: string, kind: SubjectKind | undefined) => void;
@@ -41,7 +45,7 @@ interface ExifInspectorProps {
   onAutoTag?: (frame: PhotoFrame, name: string, kind: SubjectKind | undefined) => void;
 }
 
-export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide = 'right', photoOnly = false, batchCount, onClose, onRate, onFlag, onImportSidecar, onSubjects, onKeepTag, loadPicture, mates = [], onTagPhotos, onAutoTag }) => {
+export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide = 'right', photoOnly = false, batchCount, onClose, onRate, onFlag, onImportSidecar, onSubjects, onKeepTag, loadPicture, reviewSubjects, mates = [], onTagPhotos, onAutoTag }) => {
   const sidecarInput = useRef<HTMLInputElement>(null);
   const [sidecarBusy, setSidecarBusy] = useState(false);
   const [sidecarStatus, setSidecarStatus] = useState<{ id: string; message: string } | null>(null);
@@ -220,6 +224,9 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
           <p className="mt-2 text-xs text-zinc-400">
             {m.photoInfo.speciesNotice}
           </p>
+        )}
+        {activeTab === 'subject' && reviewSubjects && supportsSubjectReview(frame.filename) && (
+          <SubjectReview key={`${frame.id}:${frame.stableKey}`} scan={(signal) => reviewSubjects(frame, signal)} />
         )}
         {loadPicture && (
           <SpeciesSuggestions frameId={frame.id} ready={Boolean(picture)} getPicture={() => picture}

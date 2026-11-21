@@ -8,6 +8,20 @@ const n = (count: number) => formatCount.format(count);
 
 /** Welsh. DRAFT: written without a native speaker's check. Uses "chi", as the common words do. */
 export const cy: AreaTranslation<typeof source> = {
+  subjectReview: {
+    find: "Dod o hyd i wrthrychau",
+    busy: "Wrthi'n chwilio am wrthrychau ar y ddyfais hon…",
+    unavailable: "Methwyd â gwirio'r llun. Sicrhewch fod y gwreiddiol ar gael a cheisiwch eto.",
+    empty: "Heb ddod o hyd i wrthrychau clir.",
+    found: "Agorwch awgrym i weld y cnwd ar 100%.",
+    cropUnavailable: "Mae'r cnwd yn rhy fawr i'w ddangos",
+    label: (number, kind) => `${number}. ${kind}`,
+    bird: "Aderyn posibl",
+    aircraft: "Awyren bosibl",
+    person: "Person posibl",
+    pet: "Anifail posibl",
+    unknown: "Gwrthrych heb ei ddosbarthu",
+  },
   top: {
     xmpImport: "Mewnforio sgoriau a thagiau (XMP)…",
     xmpImportHelp: "Darllen XMP neu ZIP XMP Kite44 sy'n cyfateb i luniau a ddewiswyd yn unig. Ni chaiff ffeiliau gwreiddiol eu newid.",

@@ -11,6 +11,20 @@ const forMany = (count: number) => (count > 1 ? ` (${dealbh(count, String(count)
 
 /** Scottish Gaelic. DRAFT: written without a native speaker's check. Uses "thu", as the common words do. */
 export const gd: AreaTranslation<typeof source> = {
+  subjectReview: {
+    find: "Lorg cuspairean",
+    busy: "A’ lorg chuspairean air an inneal seo…",
+    unavailable: "Cha b’ urrainn dhuinn an dealbh a sgrùdadh. Dèan cinnteach gu bheil an dealbh tùsail ri fhaighinn is feuch a-rithist.",
+    empty: "Cha deach cuspair soilleir a lorg.",
+    found: "Fosgail moladh gus am bàrr fhaicinn aig 100%.",
+    cropUnavailable: "Tha am bàrr ro mhòr airson a shealltainn",
+    label: (number, kind) => `${number}. ${kind}`,
+    bird: "’S dòcha gur e eun a th’ ann",
+    aircraft: "’S dòcha gur e plèana a th’ ann",
+    person: "’S dòcha gur e duine a th’ ann",
+    pet: "’S dòcha gur e beathach a th’ ann",
+    unknown: "Cuspair gun seòrsachadh",
+  },
   top: {
     xmpImport: "Ion-phortaich rangachaidhean is tagaichean (XMP)…",
     xmpImportHelp: "Leugh XMP no ZIP XMP Kite44 a fhreagras ris na dealbhan taghte a-mhàin. Cha tèid na faidhlichean tùsail atharrachadh.",

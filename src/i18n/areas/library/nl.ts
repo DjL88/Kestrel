@@ -8,6 +8,20 @@ const n = (count: number) => formatCount.format(count);
 
 /** Dutch, u. DRAFT: written without a native speaker's check. */
 export const nl: AreaTranslation<typeof source> = {
+  subjectReview: {
+    find: "Onderwerpen zoeken",
+    busy: "Zoeken naar onderwerpen op dit apparaat…",
+    unavailable: "Deze foto kon niet worden gecontroleerd. Controleer of het origineel beschikbaar is en probeer het opnieuw.",
+    empty: "Geen duidelijke onderwerpen gevonden.",
+    found: "Open een suggestie om de uitsnede op 100% te bekijken.",
+    cropUnavailable: "Uitsnede te groot om weer te geven",
+    label: (number, kind) => `${number}. ${kind}`,
+    bird: "Mogelijke vogel",
+    aircraft: "Mogelijk luchtvaartuig",
+    person: "Mogelijke persoon",
+    pet: "Mogelijk dier",
+    unknown: "Niet-ingedeeld onderwerp",
+  },
   top: {
     xmpImport: "Beoordelingen en tags importeren (XMP)…",
     xmpImportHelp: "Lees overeenkomende XMP-bestanden of een Kite44 XMP-ZIP alleen voor geselecteerde foto's. Originele bestanden blijven ongewijzigd.",

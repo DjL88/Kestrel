@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
-  Eye,
   MoreHorizontal,
   Undo2,
 } from './icons/KestrelUIIcons';
@@ -209,7 +208,7 @@ export const LoupePreview: React.FC<LoupePreviewProps> = ({
             </button>
           )}
         </div>
-        {/* Same full zoom controls as Edit on desktop/tablet. On small phones, the compact Eye button remains accessible and pinch zoom remains available. */}
+        {/* Use the full zoom controls on desktop and tablet. On a phone, pinch to zoom. */}
         <ZoomControls compact previewPixels={!frame.isDemo && isRawPreviewFile(frame.filename)} className="max-sm:hidden" zoom={zoomLevel} fit={measure.fit} dpr={dpr} maxZoom={maxZoomFor(measure.fit || 1, dpr)} note={eyeNote}
           onZoom={(zoom) => { onZoomChange(zoom); if (zoom === 1) onPanChange({ x: 0, y: 0 }); }}
           eye={{ onClick: toggleEyeMode, busy: eyeBusy, pressed: eyeMode,

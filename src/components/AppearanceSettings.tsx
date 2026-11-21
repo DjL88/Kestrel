@@ -22,14 +22,14 @@ export function AppearanceSettings({ side, onSideChange, hand, onHandChange, gui
   return (
     <div className="space-y-3 px-1 pb-2">
       {hand && onHandChange ? (
-        <fieldset data-phone-hidden className="space-y-1">
+        <fieldset className="space-y-1">
           <legend className="text-sm font-medium text-zinc-200">{m.settings.preferredHand}</legend>
           <p className="text-xs text-zinc-400">{m.settings.handHint}</p>
           <div className="grid grid-cols-2 gap-2" role="group" aria-label={m.settings.preferredHand}>
             {(['left', 'right'] as const).map((choice) => (
               <button key={choice} type="button" aria-pressed={hand === choice} onClick={() => onHandChange(choice)}
                 className="min-h-11 rounded-md border border-white/15 px-3 text-sm text-zinc-200 aria-pressed:border-sky-200 aria-pressed:bg-sky-200/15 focus-visible:outline-2 focus-visible:outline-sky-300">
-                {choice === 'left' ? m.settings.leftHanded : m.settings.rightHanded}{hand === choice ? ' ✓' : ''}
+                {choice === 'left' ? m.settings.leftHanded : m.settings.rightHanded}{hand === choice && <span aria-hidden="true"> ✓</span>}
               </button>
             ))}
           </div>

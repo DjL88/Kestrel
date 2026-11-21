@@ -11,6 +11,20 @@ const n = (count: number) => formatCount.format(count);
  * ("Säilytä: kuva.jpg") so they never need inflecting.
  */
 export const fi: AreaTranslation<typeof source> = {
+  subjectReview: {
+    find: "Etsi kohteita",
+    busy: "Etsitään kohteita tällä laitteella…",
+    unavailable: "Kuvaa ei voitu tarkistaa. Varmista, että alkuperäinen on käytettävissä, ja yritä uudelleen.",
+    empty: "Selkeitä kohteita ei löytynyt.",
+    found: "Avaa ehdotus nähdäksesi rajauksen 100 %:n koossa.",
+    cropUnavailable: "Rajaus on liian suuri näytettäväksi",
+    label: (number, kind) => `${number}. ${kind}`,
+    bird: "Mahdollinen lintu",
+    aircraft: "Mahdollinen ilma-alus",
+    person: "Mahdollinen henkilö",
+    pet: "Mahdollinen eläin",
+    unknown: "Luokittelematon kohde",
+  },
   top: {
     xmpImport: "Tuo arviot ja tunnisteet (XMP)…",
     xmpImportHelp: "Lue vastaavat XMP-tiedostot tai Kite44 XMP-ZIP vain valittuihin kuviin. Alkuperäisiä tiedostoja ei muuteta.",

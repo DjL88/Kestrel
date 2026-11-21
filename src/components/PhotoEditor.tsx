@@ -370,7 +370,8 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
     rememberSheet(true);
   };
   // Full screen uses the whole page, so the macro pad and keyboard shortcuts keep working. Not every browser allows it (iPhone Safari does not).
-  const canFullscreen = typeof document !== 'undefined' && Boolean(document.fullscreenEnabled) && !isMobileShell();
+  const mobileShell = isMobileShell();
+  const canFullscreen = typeof document !== 'undefined' && Boolean(document.fullscreenEnabled) && !mobileShell;
   const [fullscreen, setFullscreen] = useState(() => typeof document !== 'undefined' && Boolean(document.fullscreenElement));
   const [landscapeLocked, setLandscapeLocked] = useState(false);
   const [orientationNotice, setOrientationNotice] = useState('');
@@ -1179,14 +1180,11 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
   }
 
   /** One tab bar. On a phone it is a bottom toolbar of large icons, and on wider screens the top of the side panel. */
-  // On a phone Export is the last tab in the bottom bar. On a wider screen it is a button in the header instead,
-  // which leaves the side panel's tabs with room to breathe.
-  // The header's Export button is the way to export on every screen, so the phone's tab bar keeps only editing tabs.
   const visibleTabs = TABS.filter((entry) => entry.id !== 'export' && (isPhone || !hiddenTabs.has(entry.id)));
   const tabList = (
     <div role="tablist" aria-label={t.editor.tablist}
       className={isPhone
-        ? `grid shrink-0 ${visibleTabs.length === 4 ? 'grid-cols-4' : 'grid-cols-5'} border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]`
+        ? `grid min-w-0 flex-1 ${visibleTabs.length === 4 ? 'grid-cols-4' : 'grid-cols-5'}`
         : 'sticky top-0 z-20 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 workspace:-mx-4 workspace:px-3'}
       onKeyDown={(event) => {
         const order = visibleTabs.map((entry) => entry.id);
@@ -1222,10 +1220,14 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
   );
 
   const button = 'min-h-11 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/8 disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-sky-400';
-  const exportButton = (
-    <button type="button" disabled={sourceState !== 'ready'} onClick={openExport} title={exportCount > 1 ? t.editor.exportSelectedTitle(exportCount) : t.editor.exportTitle}
-          className={`${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}>
-          <Download className="h-4 w-4" aria-hidden="true" />{exportCount > 1 ? t.editor.exportCount(exportCount) : t.editor.export}
+  const exportButton = (footer = false) => (
+    <button type="button" data-export-entry disabled={sourceState !== 'ready'} onClick={openExport}
+      title={exportCount > 1 ? t.editor.exportSelectedTitle(exportCount) : t.editor.exportTitle}
+      className={footer
+        ? 'flex min-h-14 min-w-14 shrink-0 flex-col items-center justify-center gap-0.5 bg-kestrel-copper px-1 text-xs font-semibold text-zinc-950 hover:bg-kestrel-copper-hover focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-45 md:hidden'
+        : `${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}>
+      <Download className={footer ? 'h-5 w-5' : 'h-4 w-4'} aria-hidden="true" />
+      {exportCount > 1 ? t.editor.exportCount(exportCount) : t.editor.export}
     </button>
   );
   // One set of independent panel controls serves both the View menu and the
@@ -1742,12 +1744,12 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
           onClick={() => setCompare((value) => !value)}>
           <Columns2 className="h-4 w-4" aria-hidden="true"/>
         </button>
-        <button type="button" aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
+        {!mobileShell && <button type="button" aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
           title={fullscreen ? 'Exit full screen' : 'Full screen'} disabled={!canFullscreen}
           className="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-white/15 text-zinc-200 hover:bg-white/10 disabled:opacity-40"
           onClick={toggleFullscreen}>
           {fullscreen ? <Minimize className="h-4 w-4" aria-hidden="true"/> : <Maximize className="h-4 w-4" aria-hidden="true"/>}
-        </button>
+        </button>}
         {/* Settings is in the top right corner of every page (App). */}
         {canLockOrientation && fullscreen && (
           <button type="button" className={`${button} inline-flex items-center border border-white/15`}
@@ -1759,7 +1761,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
         {/* Full screen lives in one place, the filmstrip bar (FilmstripDock), in the editor and culling alike. */}
         {/* Export sits in the top row, where the library has it. */}
         {/* Without the header slot, Export stays in this row. With it, Export is placed in the header below, so it is there even when this row is hidden. */}
-        {!demoOnly && !headerSlot && exportButton}
+        {!demoOnly && !headerSlot && <div className="max-md:hidden">{exportButton()}</div>}
 
         </div>
       </div>}
@@ -1992,9 +1994,14 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
           )}
         </>
       ); })()}
-      {/* Export is always in the header (phones included): the tab bar keeps only editing tabs. */}
-      {!demoOnly && !focusPhoto && headerSlot && createPortal(<div className="max-md:hidden">{exportButton}</div>, headerSlot)}
-      {isPhone && !focusPhoto && tabList}
+      {/* Export is a button beside the editing tabs on narrow displays and in the header elsewhere. */}
+      {!demoOnly && !focusPhoto && headerSlot && createPortal(<div className="max-md:hidden">{exportButton()}</div>, headerSlot)}
+      {isPhone && !focusPhoto && (
+        <div data-editor-footer className="flex shrink-0 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]">
+          {tabList}
+          {!demoOnly && exportButton(true)}
+        </div>
+      )}
       </div>
       {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}
       {!demoOnly && exportOpen && !onExport && <PhotoExportPanel frames={[frame]} provider={provider} onClose={() => setExportOpen(false)} onDownloadRequested={onExportRequested} />}

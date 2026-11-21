@@ -8,6 +8,20 @@ const n = (count: number) => formatCount.format(count);
 
 /** Spanish (Spain), usted. DRAFT: written without a native speaker's check. */
 export const es: AreaTranslation<typeof source> = {
+  subjectReview: {
+    find: "Buscar sujetos",
+    busy: "Buscando sujetos en este dispositivo…",
+    unavailable: "No se pudo analizar la foto. Comprueba que el original esté disponible y vuelve a intentarlo.",
+    empty: "No se han encontrado sujetos claros.",
+    found: "Abre una sugerencia para ver su recorte al 100 %.",
+    cropUnavailable: "El recorte es demasiado grande para mostrarlo",
+    label: (number, kind) => `${number}. ${kind}`,
+    bird: "Posible ave",
+    aircraft: "Posible aeronave",
+    person: "Posible persona",
+    pet: "Posible animal",
+    unknown: "Sujeto sin clasificar",
+  },
   top: {
     xmpImport: "Importar valoraciones y etiquetas (XMP)…",
     xmpImportHelp: "Leer XMP coincidentes o un ZIP XMP de Kite44 solo para las fotos seleccionadas. Los originales no se modifican.",
