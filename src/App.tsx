@@ -13,6 +13,7 @@ import { scanOriginalFolder, matchScannedOriginals } from './providers/nativeOri
 import { splitDropped } from './core/dropSplit';
 import { useAccess } from './providers/useAccess';
 import { loadLicence } from './providers/licenceStore';
+import { setLandscapeAllowed } from './providers/orientationLock';
 import { PaidNotice } from './components/PaidNotice';
 import { SyncFolderDialog } from './components/SyncFolderDialog';
 import { ProjectLocationsDialog } from './components/ProjectLocationsDialog';
@@ -168,6 +169,8 @@ export default function App() {
   if (!previewProviderRef.current) previewProviderRef.current = new BrowserPreviewProvider();
 
   const [prefs, setPrefs] = useState<UserPreferences>(() => loadPreferences());
+  // A phone is upright, except while a photo is full screen ("Photo only"), where turning it is allowed.
+  useEffect(() => { void setLandscapeAllowed(prefs.focusMode); }, [prefs.focusMode]);
   // Left- or right-handed use is read by the whole page's styles, so the home page and every dialog follow it too.
   useEffect(() => { document.documentElement.dataset.hand = prefs.hand; }, [prefs.hand]);
   // Hand and editing-panel side are one choice now. Settings saved when they could differ follow the hand.

@@ -1,3 +1,5 @@
+#[cfg(target_os = "ios")]
+mod ios_orientation;
 #[cfg(desktop)]
 use kestrel_raw::nikon_he;
 #[cfg(desktop)]
@@ -143,6 +145,20 @@ fn raw_sensor_mode(request: tauri::ipc::Request<'_>) -> Result<String, String> {
     }.to_string())
 }
 
+/// iPhone: upright, except while a photo is full screen (see `ios_orientation.rs`). iPad and every other platform: nothing
+/// to do here, so the page may call this anywhere and it only ever acts on an iPhone.
+#[cfg(mobile)]
+#[tauri::command]
+fn set_landscape_allowed(window: tauri::WebviewWindow, allowed: bool) {
+    #[cfg(target_os = "ios")]
+    let _ = window.with_webview(move |webview| {
+        // SAFETY: `with_webview` runs this on the main thread with the window's live view controller.
+        unsafe { ios_orientation::apply(webview.view_controller().cast(), allowed) }
+    });
+    #[cfg(not(target_os = "ios"))]
+    let _ = (window, allowed);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -153,6 +169,9 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         // Remembers which folders the person allowed, so a chosen sync or backup folder still works after a restart.
         .plugin(tauri_plugin_persisted_scope::init());
+
+    #[cfg(mobile)]
+    let builder = builder.invoke_handler(tauri::generate_handler![set_landscape_allowed]);
 
     // Menus, restart and the updater exist on desktop only.
     #[cfg(desktop)]

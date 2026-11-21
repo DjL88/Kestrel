@@ -38,6 +38,7 @@
 		C422230037B0DA7748EA2AE8 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		C483D320C23FAABE4C04D229 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
 		CE7EA44D9568EDD87F10B1E7 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		D294953D71FAD14CBFC08F58 /* ios_orientation.rs */ = {isa = PBXFileReference; path = ios_orientation.rs; sourceTree = "<group>"; };
 		D4B97566C62422D6331C882A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D9477D34F006910FFA17CC27 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		F851A55E3204D096B080F9A0 /* kestrel_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = kestrel_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -83,6 +84,7 @@
 		410A24C6FCB828BA1F0CA0AE /* src */ = {
 			isa = PBXGroup;
 			children = (
+				D294953D71FAD14CBFC08F58 /* ios_orientation.rs */,
 				FA0166B27D856932EA032BCE /* lib.rs */,
 				29079D0B8371B5D9EF40FB5E /* main.rs */,
 				993B425DAFA0F9C1C7B9EB9B /* raw_precision.rs */,
@@ -152,20 +154,6 @@
 				F851A55E3204D096B080F9A0 /* kestrel_iOS.app */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		"TEMP_6D94E6FF-8D12-4EF9-A82C-AA52A7A6F87C" /* x86_64 */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = x86_64;
-			sourceTree = "<group>";
-		};
-		"TEMP_79577429-89E6-4782-956C-2958261AA936" /* arm64 */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = arm64;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

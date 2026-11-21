@@ -2479,6 +2479,7 @@ version = "26.11.2"
 dependencies = [
  "image",
  "kestrel-raw",
+ "objc2",
  "rawler",
  "rayon",
  "serde",

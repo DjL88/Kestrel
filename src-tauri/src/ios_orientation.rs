@@ -1,0 +1,75 @@
+//! Which way the screen may turn on iOS.
+//!
+//! An iPhone stays upright (portrait) except while a photo is shown full screen, when the person may turn the phone to
+//! see a landscape photo bigger. An iPad is never limited: it turns freely and keeps the full workspace.
+//!
+//! The window library answers the system's "which orientations are allowed?" question from a fixed setting that the
+//! app cannot change afterwards, so this replaces that one answer on the window's view controller with one that reads
+//! a switch. The page flips the switch through the `set_landscape_allowed` command (`src/providers/orientationLock.ts`).
+//! `Info.plist` allows landscape for iPhone so the system never blocks it; this is what keeps the phone upright.
+
+use std::mem;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use objc2::runtime::{AnyObject, Sel};
+use objc2::{class, msg_send};
+
+// UIInterfaceOrientationMask bits.
+const PORTRAIT: usize = 1 << 1;
+const PORTRAIT_UPSIDE_DOWN: usize = 1 << 2;
+const LANDSCAPE: usize = (1 << 3) | (1 << 4);
+const ALL: usize = PORTRAIT | PORTRAIT_UPSIDE_DOWN | LANDSCAPE;
+
+/// What the replaced `supportedInterfaceOrientations` answers. Upright until the page says otherwise.
+static MASK: AtomicUsize = AtomicUsize::new(PORTRAIT);
+
+extern "C" fn supported_orientations(_this: &AnyObject, _cmd: Sel) -> usize {
+    MASK.load(Ordering::Relaxed)
+}
+
+/// Allow (or stop allowing) landscape, and turn the screen to match.
+///
+/// # Safety
+/// `view_controller` must be the window's live `UIViewController`, and this must run on the main thread
+/// (`with_webview` guarantees both).
+pub unsafe fn apply(view_controller: *mut AnyObject, landscape_allowed: bool) {
+    if view_controller.is_null() {
+        return;
+    }
+    let device: *mut AnyObject = msg_send![class!(UIDevice), currentDevice];
+    let idiom: isize = msg_send![device, userInterfaceIdiom];
+    let is_pad = idiom == 1; // UIUserInterfaceIdiomPad
+    let mask = if is_pad {
+        ALL
+    } else if landscape_allowed {
+        PORTRAIT | LANDSCAPE
+    } else {
+        PORTRAIT
+    };
+    MASK.store(mask, Ordering::Relaxed);
+
+    // Replace the answer on this view controller's class (adds it when the class inherits it).
+    let class = objc2::ffi::object_getClass(view_controller.cast());
+    let implementation = mem::transmute::<extern "C" fn(&AnyObject, Sel) -> usize, unsafe extern "C-unwind" fn()>(supported_orientations);
+    let selector = objc2::ffi::sel_registerName(c"supportedInterfaceOrientations".as_ptr());
+    objc2::ffi::class_replaceMethod(class.cast_mut(), selector.expect("the selector name is a valid C string"), implementation, c"Q@:".as_ptr());
+    let _: () = msg_send![view_controller, setNeedsUpdateOfSupportedInterfaceOrientations];
+
+    // Ask the window scene to turn to an allowed orientation now (back upright when landscape is switched off).
+    let view: *mut AnyObject = msg_send![view_controller, view];
+    if view.is_null() {
+        return;
+    }
+    let window: *mut AnyObject = msg_send![view, window];
+    if window.is_null() {
+        return;
+    }
+    let scene: *mut AnyObject = msg_send![window, windowScene];
+    if scene.is_null() {
+        return;
+    }
+    let allocated: *mut AnyObject = msg_send![class!(UIWindowSceneGeometryPreferencesIOS), alloc];
+    let preferences: *mut AnyObject = msg_send![allocated, initWithInterfaceOrientations: mask];
+    let no_handler: *mut AnyObject = std::ptr::null_mut();
+    let _: () = msg_send![scene, requestGeometryUpdateWithPreferences: preferences, errorHandler: no_handler];
+}
