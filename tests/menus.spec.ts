@@ -106,8 +106,8 @@ test('editor: Export is a header button on every screen, never a tab, and tabs s
   const icon = (await page.getByRole('tab', { name: 'Crop' }).locator('svg').boundingBox())!;
   const label = (await page.getByRole('tab', { name: 'Crop' }).locator('span').boundingBox())!;
   expect(icon.y + icon.height, 'icon sits above the label').toBeLessThanOrEqual(label.y + 1);
-  // 56px comfortable, about 45px in the default Compact density (80%): still well above the 24px WCAG 2.2 AA target.
-  expect(tab.height).toBeGreaterThanOrEqual(40);
+  // The default Comfortable density must retain large desktop tab targets; Compact is explicit opt-in.
+  expect(tab.height).toBeGreaterThanOrEqual(48);
 });
 
 test('subject panel: pick a kind, add tags by typing and with quick words, remove one', async ({ page }) => {
