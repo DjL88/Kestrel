@@ -1224,7 +1224,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
     <button type="button" data-export-entry disabled={sourceState !== 'ready'} onClick={openExport}
       title={exportCount > 1 ? t.editor.exportSelectedTitle(exportCount) : t.editor.exportTitle}
       className={footer
-        ? 'flex min-h-14 min-w-14 shrink-0 flex-col items-center justify-center gap-0.5 bg-kestrel-copper px-1 text-xs font-semibold text-zinc-950 hover:bg-kestrel-copper-hover focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-45 md:hidden'
+        ? 'flex min-h-14 min-w-14 shrink-0 flex-col items-center justify-center gap-0.5 bg-kestrel-copper px-1 text-xs font-semibold text-zinc-950 hover:bg-kestrel-copper-hover focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-45 workspace:hidden'
         : `${button} inline-flex items-center gap-1.5 bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}>
       <Download className={footer ? 'h-5 w-5' : 'h-4 w-4'} aria-hidden="true" />
       {exportCount > 1 ? t.editor.exportCount(exportCount) : t.editor.export}
@@ -1761,7 +1761,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
         {/* Full screen lives in one place, the filmstrip bar (FilmstripDock), in the editor and culling alike. */}
         {/* Export sits in the top row, where the library has it. */}
         {/* Without the header slot, Export stays in this row. With it, Export is placed in the header below, so it is there even when this row is hidden. */}
-        {!demoOnly && !headerSlot && <div className="max-md:hidden">{exportButton()}</div>}
+        {!demoOnly && !headerSlot && <div className="hidden workspace:block">{exportButton()}</div>}
 
         </div>
       </div>}
@@ -1995,7 +1995,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
         </>
       ); })()}
       {/* Export is a button beside the editing tabs on narrow displays and in the header elsewhere. */}
-      {!demoOnly && !focusPhoto && headerSlot && createPortal(<div className="max-md:hidden">{exportButton()}</div>, headerSlot)}
+      {!demoOnly && !focusPhoto && headerSlot && createPortal(<div className="hidden workspace:block">{exportButton()}</div>, headerSlot)}
       {isPhone && !focusPhoto && (
         <div data-editor-footer className="flex shrink-0 border-t border-white/10 bg-kestrel-panel pb-[env(safe-area-inset-bottom)]">
           {tabList}
