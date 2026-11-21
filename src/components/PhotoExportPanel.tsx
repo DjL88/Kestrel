@@ -1,4 +1,5 @@
 import { BROWSER_ORIGINAL_ZIP_LIMIT, copyUnchangedOriginal, planOriginalCopies } from '../core/originalCopyExport';
+import { useBackToClose } from '../providers/useBackToClose';
 import { EXPORT_PREFERENCES_KEY, EXPORT_PRESETS_KEY, readExportPreferences, readExportPresets, type ExportPreset } from '../core/exportPreferences';
 import { isRawPreviewFile } from '../core/rawFormats';
 import { master16Blocker } from '../core/master16';
@@ -91,6 +92,7 @@ function loadChosen(freshStart = false): string[] {
 }
 
 export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequested, exportPlace }: Props) {
+  useBackToClose(onClose);
   const [placeNote, setPlaceNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [placeTaskId, setPlaceTaskId] = useState<number | null>(null);
   const [openingPlace, setOpeningPlace] = useState(false);
