@@ -8,6 +8,8 @@ import { signInOptions } from '../core/signInOptions';
 import { firebaseAuth, isSignInConfigured, signInPlatform } from '../providers/firebaseAuth';
 import { activateFromAccount, consumeExpiredAccountNotice, leaveAccount, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
+import { parseControlPlaneUrl } from '../core/licenceOnline';
+import { readAccountAiConsent, setAccountAiConsent, type ManagedAiConsentStatus } from '../providers/accountAiConsent';
 import { DEV_PRO_PREVIEW_MODE } from '../providers/useAccess';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
 import { LicenceOnlineStatus } from './LicenceOnlineStatus';
@@ -28,6 +30,11 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [accountNote, setAccountNote] = useState<string | null>(null);
+  const [aiStatus, setAiStatus] = useState<ManagedAiConsentStatus | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiNote, setAiNote] = useState<string | null>(null);
+  const aiRequest = useRef(0);
+  const aiServer = parseControlPlaneUrl(import.meta.env.VITE_KESTREL_CONTROL_PLANE_URL);
   const previous = useRef<HTMLElement | null>(focusBeforeOpening());
   const title = useRef<HTMLHeadingElement>(null);
   const picker = useRef<HTMLInputElement>(null);
@@ -68,6 +75,71 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
     void firebaseAuth.current().then((current) => { setAccount(current); if (current) void linkLicence(); }, () => setAccount(null));
   }, []);
 
+  // A signed-in Firebase identity is not a control-plane session. Exchange its ID token
+  // only while this dialog is open; read the live consent from the account, never from
+  // localStorage or a licence grant. Ignore old responses after sign-out/account switch.
+  useEffect(() => {
+    const request = ++aiRequest.current;
+    setAiStatus(null);
+    setAiNote(null);
+    if (!account) { setAiBusy(false); return; }
+    setAiBusy(true);
+    void (async () => {
+      try {
+        const token = await firebaseAuth.idToken();
+        const result = await readAccountAiConsent(aiServer, token);
+        if (request === aiRequest.current) setAiStatus(result);
+      } catch {
+        if (request === aiRequest.current) setAiNote('Could not check your online AI preference. No change has been made.');
+      } finally {
+        if (request === aiRequest.current) setAiBusy(false);
+      }
+    })();
+    return () => { ++aiRequest.current; };
+  // aiServer is build-time fixed; a change of signed-in identity must refresh consent.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account?.accountId]);
+
+  async function changeAiConsent(consent: boolean) {
+    if (!account || !aiStatus || aiBusy) return;
+    const request = ++aiRequest.current;
+    setAiBusy(true);
+    setAiNote(null);
+    try {
+      const token = await firebaseAuth.idToken();
+      const confirmed = await setAccountAiConsent(aiServer, token, consent);
+      if (request !== aiRequest.current) return;
+      setAiStatus({ ...aiStatus, consent: confirmed });
+      setAiNote(confirmed
+        ? 'Online Gemini is allowed for this account. It only runs when you choose to use it.'
+        : 'Online Gemini is switched off for this account. Your local photos and edits are unchanged.');
+    } catch {
+      if (request !== aiRequest.current) return;
+      // A failed revoke may NOT be shown as successfully off. Require a fresh server read.
+      setAiStatus(null);
+      setAiNote('Could not confirm this change with the server. Do not use online AI until you have checked the setting again.');
+    } finally {
+      if (request === aiRequest.current) setAiBusy(false);
+    }
+  }
+
+  async function retryAiConsent() {
+    if (!account || aiBusy) return;
+    const request = ++aiRequest.current;
+    setAiStatus(null);
+    setAiBusy(true);
+    setAiNote(null);
+    try {
+      const token = await firebaseAuth.idToken();
+      const result = await readAccountAiConsent(aiServer, token);
+      if (request === aiRequest.current) setAiStatus(result);
+    } catch {
+      if (request === aiRequest.current) setAiNote('Online AI settings are unavailable. Nothing has changed.');
+    } finally {
+      if (request === aiRequest.current) setAiBusy(false);
+    }
+  }
+
   async function chooseSignIn(provider: SignInProvider) {
     setAccountNote(null);
     try { setAccount(await firebaseAuth.signIn(provider)); void linkLicence(); } catch (error) { setAccountNote(error instanceof Error ? error.message : 'Sign-in did not complete.'); }
@@ -84,7 +156,7 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
   }
 
   async function chooseSignOut() {
-    try { await firebaseAuth.signOut(); } finally { leaveAccount(); setAccount(null); setAccountNote('Signed out. Your photos and edits on this device are unchanged.'); }
+    try { await firebaseAuth.signOut(); } finally { ++aiRequest.current; setAiStatus(null); setAiBusy(false); setAiNote(null); leaveAccount(); setAccount(null); setAccountNote('Signed out. Your photos and edits on this device are unchanged.'); }
   }
 
   async function submit(event: React.FormEvent) {
@@ -188,6 +260,34 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
               </>
             )}
             {accountNote && <p role="status" className="text-amber-200">{accountNote}</p>}
+            {account && (
+              <div className="space-y-3 rounded-lg border border-white/10 p-3" aria-label="Optional online AI settings">
+                <h4 className="font-medium text-zinc-100">Online Gemini helper (optional)</h4>
+                <p className="text-xs text-zinc-300">
+                  Off by default. When allowed, the helper can check a small image without camera metadata,
+                  but only when you choose an online AI action. No original photo is automatically uploaded.
+                  Culling, editing and exporting still work offline.
+                </p>
+                <label className="flex min-h-11 items-center gap-3">
+                  <input type="checkbox" aria-label="Allow optional online Gemini helper"
+                    className="h-5 w-5 accent-sky-300"
+                    checked={aiStatus?.consent === true}
+                    disabled={aiBusy || !aiStatus}
+                    onChange={(event) => void changeAiConsent(event.target.checked)} />
+                  <span>{aiBusy ? 'Checking online setting…' : aiStatus?.consent === true ? 'Allowed for this account' :
+                    aiStatus ? 'Off for this account' : 'Waiting for the account setting'}</span>
+                </label>
+                {aiStatus && !aiStatus.planAvailable && (
+                  <p className="text-xs text-zinc-400">Your current plan does not include the hosted helper. Changing this preference does not buy a plan.</p>
+                )}
+                {!aiBusy && !aiStatus && (
+                  <button type="button" className={action} onClick={() => void retryAiConsent()}>
+                    Check online AI setting again
+                  </button>
+                )}
+                {aiNote && <p role="status" className="text-amber-200">{aiNote}</p>}
+              </div>
+            )}
           </section>
           <section aria-labelledby="settings-h" className="space-y-3">
             <h3 id="settings-h" className="font-medium text-zinc-100">{t.licence.copyTitle}</h3>
