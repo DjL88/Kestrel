@@ -7,8 +7,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const script = fileURLToPath(new URL('./verify-deployment.mjs', import.meta.url));
+const privacy = '<h1>Kite44 privacy</h1>';
 const callback = '<p id="m">Finishing sign-in…</p>';
-const landing = '<iframe src="editor/demo-editor.html"></iframe>';
+const landing = '<iframe src="editor/demo-editor.html"></iframe><a href="/privacy">Privacy</a>';
 const demo = (title, entry = '/editor/assets/demo.js') =>
   `<html><title>${title}</title><body><div id="root" data-demo-editor></div><script type="module" src="${entry}"></script></body></html>`;
 
@@ -19,6 +20,7 @@ function fixture() {
   writeFileSync(join(root, 'index.html'), landing);
   writeFileSync(join(root, 'admin.html'), '<h1>Admin</h1>');
   writeFileSync(join(root, 'oauth-callback.html'), callback);
+  writeFileSync(join(root, 'privacy.html'), privacy);
   writeFileSync(join(editor, 'demo-editor.html'), demo('Kite44 editor demonstration'));
   writeFileSync(join(editor, 'assets', 'demo.js'), 'console.log("editor")');
   return root;
@@ -63,6 +65,7 @@ test('accepts the current live entry and rejects stale HTML even if its assets a
     const pages = {
       '/': landing,
       '/oauth-callback.html': callback,
+      '/privacy.html': privacy,
       '/editor/demo-editor.html': demo('A different display name', entry),
       '/editor/assets/demo.js': asset,
       '/editor/assets/older.js': 'console.log("old editor")',
@@ -106,4 +109,15 @@ test('the published callback page is identical to the app\'s copy', () => {
 test('the Hosting site id is the live site, so a deploy cannot hit the empty default site', () => {
   const config = JSON.parse(readFileSync(fileURLToPath(new URL('../../firebase.json', import.meta.url)), 'utf8'));
   assert.equal(config.hosting.site, 'kestrel-hosting-kestrel');
+});
+
+test('fails closed when the privacy page is missing or the homepage does not link to it', () => {
+  const root = fixture();
+  try {
+    rmSync(join(root, 'privacy.html'));
+    assert.match(run(root).stderr, /Required website file missing/);
+    writeFileSync(join(root, 'privacy.html'), privacy);
+    writeFileSync(join(root, 'index.html'), '<iframe src="editor/demo-editor.html"></iframe>');
+    assert.match(run(root).stderr, /privacy page is missing or the homepage does not link/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
