@@ -3,6 +3,7 @@ import { LICENCE_MESSAGES, verifyLicence } from '../core/licence';
 import { decideAccess, decideAccountAccess, parseControlPlaneUrl, parsePinnedKeys, platformOf, renewalDue, type AccessDecision, type AccountStanding, type OnlineStanding } from '../core/licenceOnline';
 import { version as appVersion } from '../../package.json';
 import { isDesktopApp } from './desktopShell';
+import { firebaseAuth } from './firebaseAuth';
 import { LicenceSync, type LicenceStatus } from './licenceSync';
 
 export type LicenceState =
@@ -17,6 +18,19 @@ const RENEW_CHECK_MS = 6 * 60 * 60 * 1000;
 let state: LicenceState = { status: 'none' };
 const listeners = new Set<() => void>();
 const set = (next: LicenceState) => { state = next; listeners.forEach((listener) => listener()); };
+
+/**
+ * Set once, read once by the Settings screen: whether the last launch found an account's offline
+ * Pro confirmation past its window (the stored grant's `offlineUntilMs`, 30 days by default from
+ * the control plane). Local work is never touched; only the account session and Pro status reset,
+ * so the person is asked to sign in again rather than silently kept "signed in" with Basic features.
+ */
+let expiredAccountNotice = false;
+export function consumeExpiredAccountNotice(): boolean {
+  const had = expiredAccountNotice;
+  expiredAccountNotice = false;
+  return had;
+}
 
 const storage = {
   getItem: (name: string) => { try { return localStorage.getItem(name); } catch { return null; } },
@@ -84,7 +98,24 @@ export async function loadLicence() {
   const key = storedKey();
   if (!key) {
     const stored = await sync.storedAccountStanding();
-    set(stored ? accountState(stored) : { status: 'none' });
+    if (stored) {
+      const access = decideAccountAccess(stored, Date.now());
+      // The grant's signature still verifies, but its offline window (offlineGraceDays, 30 by
+      // default) has passed with no successful online check in that time: a previously paid
+      // grant, not one that was always 'no_licence'/free. Treat this like a lapsed session, not a
+      // quiet downgrade - clear it and the account sign-in, so Settings can ask the person to sign
+      // in again rather than show them as still "signed in" with only Basic features.
+      if (stored.kind === 'active' && stored.grant.plan !== 'free' && !access.pro) {
+        sync.forgetAccount();
+        void firebaseAuth.signOut().catch(() => {});
+        expiredAccountNotice = true;
+        set({ status: 'none' });
+        return;
+      }
+      set({ status: 'account', standing: stored, access });
+    } else {
+      set({ status: 'none' });
+    }
     return;
   }
   set({ status: 'checking' });
