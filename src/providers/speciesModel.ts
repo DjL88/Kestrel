@@ -156,14 +156,22 @@ export interface PictureAnalysis {
 }
 
 /**
- * Find the subject, then show the species model a square around it rather than the middle of the frame, so an animal
- * off to one side is not cut out. If no subject is found the centre square is used, exactly as before.
+ * One source-bound crop shared by the general animal/aircraft category gate
+ * and the species embedding. When the local mask model is absent or uncertain,
+ * both models use the same centred square instead of analysing different areas.
+ * A crop is only a model input, never a keeper decision or confirmed species.
  */
-export async function analysePicture(picture: HTMLCanvasElement): Promise<PictureAnalysis> {
+export async function speciesSubjectCrop(picture: HTMLCanvasElement): Promise<{ crop: SquareCrop; grid: SubjectGrid | null }> {
   let grid: SubjectGrid | null = null;
   try {
     const found = await detectSubject(picture);
     if (found.assessment.usable) grid = found.grid;
-  } catch { /* Without a mask the species model simply looks at the centre. */ }
-  return { grid, embedding: await embedPicture(picture, subjectCrop(picture.width, picture.height, grid)) };
+  } catch { /* No reliable subject: both classifiers use the same centre square. */ }
+  return { grid, crop: subjectCrop(picture.width, picture.height, grid) };
+}
+
+/** Find the subject once and classify the same pixels used for manual checks. */
+export async function analysePicture(picture: HTMLCanvasElement): Promise<PictureAnalysis> {
+  const { grid, crop } = await speciesSubjectCrop(picture);
+  return { grid, embedding: await embedPicture(picture, crop) };
 }

@@ -3,16 +3,16 @@ import { Check, Download, Loader2, RefreshCw, X } from './icons/KestrelUIIcons';
 import { SPECIES_MODEL, megabytes } from '../core/speciesModel';
 import { confidenceWord, kindFor, personalBonus, pickSuggestions, rankSpecies, similarPhotos, type Suggestion } from '../core/speciesMatch';
 import { qualifiesForAutoTag } from '../core/autoTags';
-import { gateOutcome } from '../core/categoryGate';
+import { gateOutcome, permitsAutomaticSpeciesTag } from '../core/categoryGate';
 import { STRICT_SPECIES_PROBABILITY } from '../core/subjectRouter';
-import { subjectCrop } from '../core/subjectCrop';
 import { gateAvailable, routePicture } from '../providers/categoryGate';
+import type { SquareCrop } from '../core/subjectCrop';
 import { readAutoTag, readSpeciesCounts, rememberSpecies, saveAutoTag } from '../providers/speciesLearning';
 import { helperReady, failureMessage, type HelperAnswer } from '../core/onlineHelper';
 import { openHelperDialog, useHelperSettings } from '../providers/helperSettings';
 import { HelperError, geminiTransport, imageForHelper } from '../providers/onlineHelper';
 import type { SubjectKind } from '../core/subjectTags';
-import { SPECIES_DOWNLOAD_BYTES, downloadSpeciesModel, embedPicture, loadSpeciesLabels, speciesStatus, type SpeciesStatus } from '../providers/speciesModel';
+import { SPECIES_DOWNLOAD_BYTES, downloadSpeciesModel, embedPicture, loadSpeciesLabels, speciesStatus, speciesSubjectCrop, type SpeciesStatus } from '../providers/speciesModel';
 import { viewerText as t } from '../i18n/areas/viewer';
 
 interface Props {
@@ -76,20 +76,26 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
     try {
       // A species-only classifier cannot tell a helicopter from an Osprey. Do not
       // infer a name unless independent on-device category evidence permits it.
-      if (!gateAvailable()) {
+      const available = await gateAvailable();
+      if (mine !== run.current || latest.current.frameId !== frameId) return;
+      if (!available) {
         setResults([]);
         setGateNote(t.species.needsChecker);
         return;
       }
-      const route = await routePicture(picture, subjectCrop(picture.width, picture.height, null));
-      if (mine !== run.current) return;
+      // A centre crop can look at the sky while the bird is near the edge.
+      // Do not let the category gate and bird-ID model look at different pixels.
+      const { crop } = await speciesSubjectCrop(picture);
+      if (mine !== run.current || latest.current.frameId !== frameId) return;
+      const route = await routePicture(picture, crop);
+      if (mine !== run.current || latest.current.frameId !== frameId) return;
       const gate = gateOutcome(route, latest.current.kind).species;
       if (gate === 'block') {
         setResults([]);
         setGateNote(t.species.notEnoughEvidence);
         return;
       }
-      const [{ labels, vectors }, embedding_] = await Promise.all([loadSpeciesLabels(), embedPicture(picture)]);
+      const [{ labels, vectors }, embedding_] = await Promise.all([loadSpeciesLabels(), embedPicture(picture, crop)]);
       if (mine !== run.current || latest.current.kind !== 'wildlife' || latest.current.frameId !== frameId) return;
       embedding.current = embedding_;
       const picked = pickSuggestions(rankSpecies(embedding_, labels, vectors, personalBonus(labels, readSpeciesCounts())))
@@ -99,7 +105,7 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
       // A strong match must also lead before personal ranking preferences are applied.
       const best = picked[0];
       const now = latest.current;
-      if (gate === 'allow' && best && now.kind === 'wildlife' && now.frameId === frameId && now.tags.length === 0 && now.autoOn && now.canAutoTag && qualifiesForAutoTag(best, embedding_, labels, vectors) && !now.declined.some((name) => name.toLowerCase() === best.label.common.toLowerCase())) {
+      if (permitsAutomaticSpeciesTag(gate) && best && now.kind === 'wildlife' && now.frameId === frameId && now.tags.length === 0 && now.autoOn && now.canAutoTag && qualifiesForAutoTag(best, embedding_, labels, vectors) && !now.declined.some((name) => name.toLowerCase() === best.label.common.toLowerCase())) {
         now.onAutoTag?.(best.label.common, kindFor(best.label));
         void findSimilar(best.label.common, kindFor(best.label));
       }
@@ -140,15 +146,20 @@ export function SpeciesSuggestions({ frameId, getPicture, ready, tags, kind, onA
         if (!picture) continue;
         // Similarity between animal-only embeddings cannot establish that a mate
         // is an animal: a helicopter could otherwise inherit an Osprey tag.
-        if (!gateAvailable()) continue;
+        if (!(await gateAvailable())) continue;
+        if (at !== run.current || latest.current.frameId !== frameId || latest.current.kind !== 'wildlife') return;
+        let crop: SquareCrop | null = null;
         let allowed = false;
         try {
-          const route = await routePicture(picture, subjectCrop(picture.width, picture.height, null));
+          const observation = await speciesSubjectCrop(picture);
+          crop = observation.crop;
+          if (at !== run.current || latest.current.frameId !== frameId || latest.current.kind !== 'wildlife') return;
+          const route = await routePicture(picture, crop);
           allowed = gateOutcome(route, undefined).species === 'allow';
         } catch { /* No independent category evidence: leave this mate untagged. */ }
         if (at !== run.current || latest.current.frameId !== frameId || latest.current.kind !== 'wildlife') return;
-        if (!allowed) continue;
-        found.push({ id: mate.id, embedding: await embedPicture(picture) });
+        if (!allowed || !crop) continue;
+        found.push({ id: mate.id, embedding: await embedPicture(picture, crop) });
         if (at !== run.current || latest.current.frameId !== frameId || latest.current.kind !== 'wildlife') return;
       }
       const ids = similarPhotos(mine, found);
