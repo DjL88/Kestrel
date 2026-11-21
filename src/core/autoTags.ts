@@ -11,7 +11,9 @@ export const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerC
 const has = (list: readonly string[] | undefined, name: string) => (list ?? []).some((entry) => sameName(entry, name));
 
 /** Only a photo with no tags yet is tagged automatically, and never with a name the user removed from it before. */
-export function mayAutoTag(photo: { tags?: readonly string[]; subjectNames?: readonly string[] } & AutoState, name: string): boolean {
+export function mayAutoTag(photo: { tags?: readonly string[]; subjectNames?: readonly string[]; subjectDisputed?: boolean } & AutoState, name: string): boolean {
+  // When two readings of the photo disagree about what it is, no name is added by itself.
+  if (photo.subjectDisputed) return false;
   return !(photo.tags?.length) && !(photo.subjectNames?.length) && !has(photo.declinedTags, name);
 }
 
@@ -80,11 +82,28 @@ export function scanPatch(
 }
 
 /** The species to show on a photo's card: an automatic tag the user has not kept yet, or the first tag of a wildlife photo. */
-export function speciesShown(frame: { autoTags?: readonly string[]; tags?: readonly string[]; subjectKind?: string }): { name: string; auto: boolean } | null {
+export function speciesShown(frame: { autoTags?: readonly string[]; tags?: readonly string[]; subjectKind?: string; subjectDisputed?: boolean }): { name: string; auto: boolean } | null {
   // Older catalogues may contain mistaken automatic bird names on an aircraft.
   // Never display those names as a species once a photo is known to be non-wildlife.
   if (frame.subjectKind !== 'wildlife') return null;
+  // A disputed subject hides names the app added by itself, and only those: a name the person kept is theirs.
+  if (frame.subjectDisputed) {
+    const own = frame.tags?.find((tag) => !has(frame.autoTags, tag));
+    return own ? { name: own, auto: false } : null;
+  }
   if (frame.autoTags?.length) return { name: frame.autoTags[0], auto: true };
   if (frame.tags?.length) return { name: frame.tags[0], auto: false };
+  return null;
+}
+
+/**
+ * What a Photo Check outcome does to the photo's dispute flag. A disagreement sets it; an agreement clears it; an
+ * unverified check (one witness, or none) changes nothing, so it can neither raise nor settle a dispute.
+ * Null means no change is needed.
+ */
+export function disputePatch(frame: { subjectDisputed?: boolean }, outcome: 'agreed' | 'conflict' | 'unverified'): { subjectDisputed: boolean } | null {
+  const now = frame.subjectDisputed === true;
+  if (outcome === 'conflict') return now ? null : { subjectDisputed: true };
+  if (outcome === 'agreed') return now ? { subjectDisputed: false } : null;
   return null;
 }
