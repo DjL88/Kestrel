@@ -44,6 +44,7 @@ import { PHOTO_INFO_DOCK_QUERY } from './core/photoInfoLayout';
 import { PhotoJump } from './components/PhotoJump';
 import { SettingsButton } from './components/SettingsButton';
 import { AppearanceDialog } from './components/AppearanceDialog';
+import { GuidanceModeControl } from './components/GuidanceModeControl';
 import { photoInfoDockSide, readWorkspacePaneState, toggleWorkspacePanes, writeWorkspacePaneState } from './core/workspacePaneState';
 import { newId } from './core/ids';
 import { redoLabel, undoLabel } from './core/describeAction';
@@ -2055,6 +2056,7 @@ export default function App() {
       )}
       {settingsOpen && <AppearanceDialog initialSection={settingsSection} side={prefs.editPanelSide} onSideChange={(side) => setPrefs((prev) => ({ ...prev, hand: side, editPanelSide: side }))}
         hand={prefs.hand} onHandChange={(hand) => setPrefs((prev) => ({ ...prev, hand, editPanelSide: hand }))}
+        guidanceMode={prefs.guidanceMode ?? 'glide'} onGuidanceModeChange={(mode) => setPrefs((prev) => ({ ...prev, guidanceMode: mode }))}
         onClose={() => { setSettingsOpen(false); setSettingsSection('general'); }} onOpenMacroPad={() => { setSettingsOpen(false); setMacroPadMode(editing ? 'edit' : 'cull'); setMacroPadModal(true); }} />}
       <DropOverlay dragging={drop.dragging} message={drop.message} onDismiss={drop.clearMessage} />
       {prefs.focusMode ? null : editing ? (
@@ -2097,6 +2099,10 @@ export default function App() {
                 <input type="checkbox" checked={prefs.focusMode} onChange={() => setPrefs((prev) => ({ ...prev, focusMode: !prev.focusMode }))} />
                 {libraryT.top.photoOnly}
               </label>
+              <div className="border-t border-white/10 pt-2">
+                <GuidanceModeControl compact value={prefs.guidanceMode ?? 'glide'}
+                  onChange={(mode) => setPrefs((prev) => ({ ...prev, guidanceMode: mode }))} />
+              </div>
               <div id="editor-view-tab-actions" className="border-t border-white/10 pt-2" />
             </div>
           </details>
@@ -2292,6 +2298,7 @@ export default function App() {
               onExport={() => setExportFrames(multiSelect && selectedVisibleFrames.length > 1 ? selectedVisibleFrames : [selectedFrame])}
               onOpenMacroPad={() => { setMacroPadMode('edit'); setMacroPadModal(true); }}
               autoEdit={!!cullingState.settings?.autoEdit}
+              guidanceMode={prefs.guidanceMode ?? 'glide'}
               frame={selectedFrame}
               bindings={prefs.bindings}
               provider={previewProviderRef.current!}
