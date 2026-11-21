@@ -16,8 +16,13 @@ import { getModel, putModel, removeModel } from './modelStore';
 const STATE = 'kestrel.models.v1';
 const CACHE = 'kestrel-model-updates-v1';
 
-interface State { revision: number; lastSuccessMs: number | null; installed: Record<string, InstalledAsset & { bytes: number }> }
-const EMPTY: State = { revision: 0, lastSuccessMs: null, installed: {} };
+type Stored = InstalledAsset & { bytes: number };
+interface State { revision: number; lastSuccessMs: number | null; installed: Record<string, Stored>; previous: Record<string, Stored> }
+const EMPTY: State = { revision: 0, lastSuccessMs: null, installed: {}, previous: {} };
+const modelKey = (asset: InstalledAsset) => asset.id + '/' + asset.sha256;
+// Background network work must not silently download an optional 200+ MiB model.
+// Larger files require an explicit check(true) initiated from a user action.
+const MAX_BACKGROUND_MODEL_BYTES = 8 * 1024 * 1024;
 
 export interface ModelStoreLike {
   get(key: string): Promise<Blob | undefined>;
@@ -48,20 +53,26 @@ export class ModelUpdater {
   get configured() { return this.o.baseUrl !== null && Object.keys(this.o.keys).length > 0; }
 
   private load(): State {
-    try { const parsed = JSON.parse(this.o.storage.getItem(STATE) ?? 'null') as State | null; if (parsed && typeof parsed.revision === 'number' && parsed.installed) return parsed; } catch { /* damaged: start again */ }
-    return { ...EMPTY, installed: {} };
+    try { const parsed = JSON.parse(this.o.storage.getItem(STATE) ?? 'null') as State | null; if (parsed && Number.isSafeInteger(parsed.revision) && parsed.revision >= 0 && parsed.installed && typeof parsed.installed === 'object') return { ...parsed, previous: parsed.previous && typeof parsed.previous === 'object' ? parsed.previous : {} }; } catch { /* damaged: start again */ }
+    return { ...EMPTY, installed: {}, previous: {} };
   }
   private save(state: State) { try { this.o.storage.setItem(STATE, JSON.stringify(state)); } catch { /* storage blocked: tries again next launch */ } }
 
   /** The installed update for a slot, re-checked against its recorded checksum, or null (use the bundled model). */
   async installed(id: string): Promise<{ bytes: ArrayBuffer; sha256: string } | null> {
-    const have = this.load().installed[id];
-    if (!have) return null;
-    const blob = await this.o.store.get(id).catch(() => undefined);
-    if (!blob) return null;
-    const bytes = await blob.arrayBuffer();
-    if (bytes.byteLength !== have.bytes || await sha256Hex(bytes) !== have.sha256) return null;
-    return { bytes, sha256: have.sha256 };
+    const state = this.load();
+    // Retain the previous verified model across a process crash, quota failure,
+    // corrupted candidate, or incomplete metadata write. Never trust a blob's
+    // contents merely because its filename matches the manifest.
+    for (const have of [state.installed[id], state.previous[id]]) {
+      if (!have || have.id !== id) continue;
+      const blob = await this.o.store.get(modelKey(have)).catch(() => undefined);
+      if (!blob || blob.size !== have.bytes) continue;
+      const bytes = await blob.arrayBuffer();
+      if (bytes.byteLength !== have.bytes || await sha256Hex(bytes) !== have.sha256) continue;
+      return { bytes, sha256: have.sha256 };
+    }
+    return null;
   }
 
   async check(force = false): Promise<UpdateOutcome> {
@@ -82,39 +93,67 @@ export class ModelUpdater {
 
     const plan = planModelUpdates(opened.manifest, state.installed);
     const installed: string[] = [];
+    const skipped = [...plan.skipped];
     const rejected: { id: string; reason: string }[] = [];
     for (const asset of plan.install) {
-      const result = await this.install(asset, state.installed[asset.id] ?? null);
-      if (result === 'ok') { state.installed[asset.id] = { id: asset.id, version: asset.version, sha256: asset.sha256, bytes: asset.bytes }; installed.push(asset.id); this.save(state); }
-      else rejected.push({ id: asset.id, reason: result });
+      if (!force && asset.bytes > MAX_BACKGROUND_MODEL_BYTES) {
+        skipped.push({ id: asset.id, reason: 'manual_approval_required' });
+        continue;
+      }
+      const old = state.installed[asset.id] ?? null;
+      const result = await this.install(asset, old);
+      if (result === 'ok') {
+        // The old content-addressed blob survives until the replacement has
+        // been verified, activated and saved. It remains a usable fallback.
+        if (old && old.sha256 !== asset.sha256) state.previous[asset.id] = old;
+        state.installed[asset.id] = { id: asset.id, version: asset.version, sha256: asset.sha256, bytes: asset.bytes };
+        installed.push(asset.id);
+        this.save(state);
+      } else rejected.push({ id: asset.id, reason: result });
     }
     state.revision = Math.max(state.revision, opened.manifest.revision);
     // Only a clean pass counts as checked; a rejected download is tried again next launch.
     state.lastSuccessMs = rejected.length ? state.lastSuccessMs : this.o.now();
     this.save(state);
-    return { kind: 'checked', installed, skipped: plan.skipped, rejected };
+    return { kind: 'checked', installed, skipped, rejected };
   }
 
   private async install(asset: DataAsset, previous: InstalledAsset | null): Promise<'ok' | string> {
     let bytes: Uint8Array<ArrayBuffer>;
     try {
       const response = await this.o.fetch(`${this.o.baseUrl}${asset.path}`, { signal: AbortSignal.timeout(10 * 60_000) });
-      if (!response.ok) return 'download_failed';
+      if (!response.ok || !response.body) return 'download_failed';
       const declared = Number(response.headers.get('content-length') ?? asset.bytes);
-      if (Number.isFinite(declared) && declared > asset.bytes) return 'size_mismatch';
-      bytes = new Uint8Array(await response.arrayBuffer());
+      if (!Number.isFinite(declared) || declared > asset.bytes) return 'size_mismatch';
+      // Stream with a strict signed-size ceiling rather than allocating an
+      // unbounded Response.arrayBuffer() supplied by a remote object store.
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let length = 0;
+      while (true) {
+        const result = await reader.read();
+        if (result.done) break;
+        length += result.value.byteLength;
+        if (length > asset.bytes) { await reader.cancel().catch(() => undefined); return 'size_mismatch'; }
+        chunks.push(result.value);
+      }
+      bytes = new Uint8Array(length);
+      let offset = 0;
+      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
     } catch { return 'download_failed'; }
     const decision = await stageDownloadedAsset(asset, bytes, previous);
     if (decision.action !== 'swap') return decision.reason;
-    try { await this.o.store.put(asset.id, new Blob([bytes], { type: 'application/octet-stream' })); } catch { return 'storage_failed'; }
+    try { await this.o.store.put(modelKey(asset), new Blob([bytes], { type: 'application/octet-stream' })); } catch { return 'storage_failed'; }
     return 'ok';
   }
 
   /** Forget every installed update; the loaders go back to the bundled models. */
   async reset(): Promise<void> {
     const state = this.load();
-    for (const id of Object.keys(state.installed)) await this.o.store.remove(id).catch(() => undefined);
-    this.save({ revision: state.revision, lastSuccessMs: null, installed: {} });
+    const keys = new Set<string>();
+    for (const asset of [...Object.values(state.installed), ...Object.values(state.previous)]) keys.add(modelKey(asset));
+    for (const key of keys) await this.o.store.remove(key).catch(() => undefined);
+    this.save({ revision: state.revision, lastSuccessMs: null, installed: {}, previous: {} });
   }
 }
 
