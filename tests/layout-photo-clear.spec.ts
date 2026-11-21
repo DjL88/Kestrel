@@ -94,12 +94,7 @@ test('no control sits on a photo in the library, viewer, editor or export', asyn
   await expect(page.getByRole('button', { name: 'Zoom in' })).toBeVisible();
   expect(await overlapping(page), 'editor').toEqual([]);
 
-  if (phone) {
-    await page.getByRole('tab', { name: 'Export' }).click();
-    await page.getByRole('button', { name: 'Choose formats and export…' }).click();
-  } else {
-    await page.getByRole('button', { name: 'Export', exact: true }).click();
-  }
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Full size', exact: true })).toBeVisible();
   expect(await overlapping(page), 'export').toEqual([]);
 });

@@ -168,7 +168,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
 
   return (
     <>
-    <header className="relative z-50 flex min-w-0 shrink-0 items-center justify-between gap-3 py-1.5 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
+    <header className="relative z-[60] flex min-w-0 shrink-0 items-center justify-between gap-3 py-1.5 border-b border-white/8 bg-kestrel-panel px-2 sm:px-4">
       <input ref={xmpPicker} type="file" hidden multiple accept=".xmp,.zip,application/rdf+xml,application/zip"
         data-testid="file-menu-xmp-import" onChange={event => {
           const files = Array.from(event.currentTarget.files ?? []);
@@ -265,7 +265,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                     <input type="checkbox" checked={props.focusMode} onChange={props.onToggleFocusMode} />
                     {t.top.photoOnly}
                   </label>
-                  <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
+                  <label data-phone-hidden className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
                     <input type="checkbox" checked={showShortcutsOverlay} onChange={props.onToggleShortcutsOverlay} />
                     {t.top.showShortcutGuide}
                   </label>
@@ -278,7 +278,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                     className="flex min-h-11 w-full items-center gap-2 rounded-md border border-white/15 px-3 text-left text-sm text-zinc-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
                     {m.settings.title}
                   </button>}
-                  {isDesktopApp() && <button type="button" onClick={() => choose(props.onOpenMacroPadModal, false)}
+                  {isDesktopApp() && <button type="button" data-phone-hidden onClick={() => choose(props.onOpenMacroPadModal, false)}
                     className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-zinc-200 hover:bg-white/10">
                     <Keyboard className="h-4 w-4" aria-hidden="true" />{t.top.macroPad}
                   </button>}
@@ -340,9 +340,13 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           className={`${actionClass} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-40 `}>
           <Download className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">{t.top.export}</span>
-          <span className="tabular-nums sm:hidden" aria-hidden="true">{props.exportCount !== undefined
-            ? (props.exportCount > 1 ? t.top.exportCountShort(props.exportCount) : '')
-            : props.exportLabel?.replace(t.top.export, '').trim()}</span>
+          {/* Only when there is a count to show: an empty span still takes a gap and pushed the icon off centre. */}
+          {(() => {
+            const short = props.exportCount !== undefined
+              ? (props.exportCount > 1 ? t.top.exportCountShort(props.exportCount) : '')
+              : props.exportLabel?.replace(t.top.export, '').trim();
+            return short ? <span className="tabular-nums sm:hidden" aria-hidden="true">{short}</span> : null;
+          })()}
         </button>
         {props.settingsButton}
       </div>

@@ -10,14 +10,39 @@ async function openEditor(page: Page) {
 }
 const displays = (page: Page) => page.locator('[data-hide-on-phone-edit]').evaluateAll((els) => els.map((el) => getComputedStyle(el).display));
 
-test('on a phone the edit screen hides the filmstrip, Keep and Reject, Jump and Select photos', async ({ page }, info) => {
+test('on a phone the edit screen is a pure editor: one footer row of editing tabs, no library tools, a tall photo', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone', 'this is the phone layout');
   await openEditor(page);
   const shown = await displays(page);
   expect(shown.length).toBeGreaterThanOrEqual(3);
   expect(shown.every((value) => value === 'none')).toBe(true);
-  // Previous and next stay, so editing can move along the photos without going back to the library.
-  await expect(page.getByRole('button', { name: /^Previous/ })).toBeVisible();
+  // No library row at all: previous/next, Keep/Reject, Jump and Select photos are gone, and so is the View menu.
+  await expect(page.getByRole('toolbar', { name: /editor|photo/i }).filter({ hasText: /Jump|Keep/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Previous/ })).toBeHidden();
+  await expect(page.locator('summary').filter({ hasText: /^View$/ })).toBeHidden();
+  // The tab bar is one row of editing tabs along the bottom, and there is no Export tab (Export is the header button).
+  const tabs = page.getByRole('tab');
+  await expect(page.getByRole('tab', { name: 'Export' })).toHaveCount(0);
+  const boxes = await tabs.evaluateAll((els) => els.map((el) => { const r = el.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom) }; }));
+  expect(await tabs.allInnerTexts(), 'the editing tabs').toEqual(['Auto', 'Crop', 'Edit', 'Masks', 'History']);
+  expect(boxes.length).toBe(5);
+  expect(new Set(boxes.map((box) => box.top)).size, 'all tabs share one row').toBe(1);
+  const viewport = page.viewportSize()!;
+  expect(viewport.height - boxes[0]!.bottom, 'the tabs sit at the very bottom (the safe area aside)').toBeLessThan(40);
+  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
+  // With a tool sheet open the photo still has at least two thirds of the editor's height.
+  await page.getByRole('tab', { name: 'Edit' }).click();
+  const ratio = await page.locator('[data-photo-stage]').evaluate((stage) => stage.getBoundingClientRect().height / (stage.closest('section')?.getBoundingClientRect().height ?? 1));
+  expect(ratio).toBeGreaterThanOrEqual(0.6);
+});
+
+test('on a phone Settings does not ask which hand, and masks have no drag-a-box Select area', async ({ page }, info) => {
+  test.skip(info.project.name !== 'phone', 'this is the phone layout');
+  await openEditor(page);
+  await page.getByRole('tab', { name: 'Masks' }).click();
+  await expect(page.getByRole('button', { name: 'Select area', exact: true })).toBeHidden();
+  await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
+  await expect(page.getByText(/right-handed|left-handed/i).first()).toBeHidden();
 });
 
 test('on a desktop the same tools stay available while editing', async ({ page }, info) => {
