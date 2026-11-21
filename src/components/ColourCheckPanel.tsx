@@ -67,15 +67,24 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   read.current = readPreview;
 
   useEffect(() => {
-    if (disabled) return;
+    if (disabled) {
+      // Fly Solo and paused guidance must not display an earlier photo's advice.
+      setReport(null);
+      setFailed(false);
+      return;
+    }
     // Wait for sliders to settle, then check a small preview.
     const timer = window.setTimeout(() => {
       try {
         const preview = read.current();
-        if (!preview) return;
+        if (!preview) {
+          setReport(null);
+          return;
+        }
         setReport(checkColour({ after: preview.after, before: preview.before, subject: preview.subject }));
         setFailed(false);
       } catch {
+        setReport(null);
         setFailed(true);
       }
     }, 400);
@@ -144,7 +153,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
         )}
         {report && important.length > 3 && <button type="button" className="min-h-11 text-xs underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-sky-300" onClick={() => setShowAll((v) => !v)}>{showAll ? "Show fewer" : "More findings"}</button>}
         {applied && <p role="status" className="text-xs text-zinc-400">{t.fixApplied}</p>}
-        {readJpeg && <AiReviewPanel edit={edit} onEdit={onEdit} readJpeg={readJpeg} disabled={disabled}
+        {readJpeg && !disabled && <AiReviewPanel edit={edit} onEdit={onEdit} readJpeg={readJpeg} disabled={disabled}
           localFindings={report?.findings.map((finding) => describe(finding).text) ?? []} />}
       </div>
     </details>
