@@ -481,9 +481,12 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
               {decision === 'keep' ? t.decision.keep : t.decision.reject}
             </button>
           ))}
-          {onOpenEditor && <button type="button" onClick={() => onOpenEditor(actionIds[0])}
+          {/* On a phone Edit is in the footer and Export in the header, so the bar uses its room for the decision instead. */}
+          <button type="button" data-phone-only onClick={() => actionIds.length === 1 ? onDecideFrame(actionIds[0], 'unreviewed') : onBatchDecision(actionIds, 'unreviewed')}
+            className="min-h-12 rounded-md px-3 hover:bg-white/10">{t.decision.undecided}</button>
+          {onOpenEditor && <button type="button" data-phone-hidden onClick={() => onOpenEditor(actionIds[0])}
             className="min-h-10 rounded-md px-3 hover:bg-white/10">{t.photoMenu.edit}</button>}
-          {onExportSelected && <button type="button" onClick={() => onExportSelected(actionIds)}
+          {onExportSelected && <button type="button" data-phone-hidden onClick={() => onExportSelected(actionIds)}
             className="min-h-10 rounded-md px-3 hover:bg-white/10">{t.top.export}</button>}
           <button type="button" aria-expanded={moreOpen} aria-controls="kestrel-selection-more" title={t.sheet.moreActions}
             onClick={() => setMoreOpen((open) => !open)}

@@ -88,7 +88,8 @@ function loadChosen(freshStart = false): string[] {
       if (ids.length) return [...new Set(ids)];
     }
   } catch { /* Use the default when storage is unavailable. */ }
-  return freshStart ? [] : ['master'];
+  // A first export is a JPEG: small enough to share and to put in the camera roll. Full-size PNG is one tick away.
+  return freshStart ? [] : ['full-jpeg'];
 }
 
 export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequested, exportPlace }: Props) {
@@ -842,11 +843,15 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       <label className={check}><input type="checkbox" checked={mark.on} onChange={(event) => setMark({ on: event.target.checked })} />{t.watermark.add}</label>
       {mark.on && (
         <div className="space-y-2">
-          <label className="block text-sm text-zinc-300">{t.watermark.type}
-            <select className={field} value={mark.kind} onChange={(event) => setMark({ kind: event.target.value as WatermarkOptions['kind'] })}>
-              <option value="text">{t.watermark.text}</option><option value="image">{t.watermark.picture}</option>
-            </select>
-          </label>
+          {/* Both kinds are visible at once: a drop-down hid the picture (PNG, JPEG or WebP logo) option. */}
+          <div role="group" aria-label={t.watermark.type} className="grid grid-cols-2 gap-1 rounded-md bg-white/5 p-1">
+            {(['text', 'image'] as const).map((kind) => (
+              <button key={kind} type="button" aria-pressed={mark.kind === kind} onClick={() => setMark({ kind })}
+                className="min-h-11 rounded px-3 text-sm text-zinc-200 hover:bg-white/8 aria-pressed:bg-white/15 aria-pressed:font-medium focus-visible:outline-2 focus-visible:outline-sky-300">
+                {kind === 'text' ? t.watermark.text : `${t.watermark.picture} (PNG, JPEG)`}
+              </button>
+            ))}
+          </div>
           {mark.kind === 'text' ? (
             <label className="block text-sm text-zinc-300">{t.watermark.text}
               <input className={field} maxLength={80} placeholder={t.watermark.placeholder} value={mark.text} onChange={(event) => setMark({ text: event.target.value })} />

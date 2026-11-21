@@ -307,3 +307,13 @@ html, body { background-color: #14161b; color-scheme: dark; }
 
 /* No double-tap zoom delay or text inflation on touch devices; the app lays itself out for every size. */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; }
+
+/* Controls that exist only on a phone (the same phone rule as above). */
+[data-phone-only] { display: none; }
+@media (pointer: coarse) and ((max-width: 599px) or (max-height: 500px)) {
+  [data-phone-only] { display: inline-flex; align-items: center; }
+}
+
+/* A drop-down's arrow sits at its end edge; give the text room before it so a long choice (for example
+   "All photos (6)") never runs under the arrow. */
+select { padding-inline-end: 2rem; text-overflow: ellipsis; }
