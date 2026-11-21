@@ -15,7 +15,6 @@ export const cy: AreaTranslation<typeof source> = {
   provider: 'Pa AI?',
   providers: {
     gemini: 'Google Gemini (allwedd AI Studio)',
-    vertex: 'Google Vertex AI (allwedd eich prosiect Google Cloud)',
     anthropic: 'Anthropic Claude',
     openai: 'Yn gydnaws ag OpenAI, neu fodel ar y cyfrifiadur hwn (Ollama, LM Studio)',
   },
