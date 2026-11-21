@@ -222,7 +222,7 @@ test('cancelling a waiting export never marks its Task Manager entry completed',
   assert.equal(await first.done, 'completed');
 });
 
-test('cancelling while durable finalization throws leaves failed, never completed, Task Manager status', async () => {
+test('cancelling while durable finalization throws leaves cancelled, never completed, Task Manager status', async () => {
   const store = createTaskStore();
   const queue = createExportBatchQueue(store);
   let release!: () => void;
@@ -238,6 +238,6 @@ test('cancelling while durable finalization throws leaves failed, never complete
   assert.equal(ticket.cancel(), true);
   release();
   assert.equal(await ticket.done, 'cancelled');
-  assert.equal(store.list()[0].state, 'failed');
+  assert.equal(store.list()[0].state, 'cancelled');
   assert.notEqual(store.list()[0].state, 'done');
 });
