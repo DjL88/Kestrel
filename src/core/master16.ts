@@ -4,8 +4,8 @@ import { cropRectangle, rotationCoverage, type PhotoFraming } from './photoFrami
 import { THUMB, type Thumb } from './orientMatch';
 import { LOCAL_KEYS, validMasks, type Mask } from './maskTypes';
 import { effectiveAlpha } from './masks';
-import { blendSrgb16, blendLinearToSrgb16, decodeSrgb16, encodeSrgb16 } from './linearRgb16';
-import { protectedMaskAlphaLinear, protectedMaskAlphaSrgb16 } from './maskEdgeRgb16';
+import { blendSrgb16, decodeSrgb16 } from './linearRgb16';
+import { protectedMaskAlphaSrgb16 } from './maskEdgeRgb16';
 import { noiseStrength } from './noiseReduction';
 import { denoiseChromaRgb16 } from './chromaDenoise16';
 
@@ -180,7 +180,14 @@ export function frameRgb16(image: Rgb16Image, framing: PhotoFraming, extraTurns 
 }
 
 /** Apply global or local tone to display-encoded 16-bit samples without
- * collapsing them to 8 bits. Deliberately does not apply detail or masks. */
+ * collapsing them to 8 bits. The shared tone curve returns display-encoded
+ * values: encoding that result a second time would wash out the image.
+ * Deliberately does not apply detail or masks. */
+function sRgbUnitTo16(value: number): number {
+  if (!Number.isFinite(value)) throw new RangeError('Invalid 16-bit tone output.');
+  return Math.round(Math.max(0, Math.min(1, value)) * 65535);
+}
+
 function applyToneRgb16(data: Uint16Array, edit: PhotoEdit): void {
   if (isNeutralTone(edit)) return;
   const CHUNK = 16384;
@@ -196,9 +203,11 @@ function applyToneRgb16(data: Uint16Array, edit: PhotoEdit): void {
     applyPhotoEditLinear(floats.subarray(0, count * 4), edit);
     for (let p = 0; p < count; p += 1) {
       const i = (start + p) * 3;
-      data[i] = encodeSrgb16(floats[p * 4]);
-      data[i + 1] = encodeSrgb16(floats[p * 4 + 1]);
-      data[i + 2] = encodeSrgb16(floats[p * 4 + 2]);
+      // applyPhotoEditLinear returns encoded RGB in 0..1. It does NOT
+      // return scene-linear samples; do not run the sRGB transfer again.
+      data[i] = sRgbUnitTo16(floats[p * 4]);
+      data[i + 1] = sRgbUnitTo16(floats[p * 4 + 1]);
+      data[i + 2] = sRgbUnitTo16(floats[p * 4 + 2]);
     }
   }
 }
@@ -293,16 +302,23 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
         rgba[dst + 3] = 1;
       }
       applyPhotoEditLinear(rgba, local);
+      // The tone result is encoded sRGB, whereas blendSrgb16 performs the
+      // actual interpolation in linear light. Reuse three scratch samples.
+      const adjustedSrgb = new Uint16Array(3);
       for (let p = 0; p < count; p++) {
         const strength = alpha[p];
         if (strength <= 0) continue;
         const src = (from * width + p) * 3, dst = p * 4;
-        // The adjustment renderer returns linear RGB. Blend in linear light
-        // before sRGB16 encoding, never mix encoded source with linear output.
-        const guardedAlpha = protectedMaskAlphaLinear(strength, data, src, rgba, dst);
-        data[src] = blendLinearToSrgb16(data[src], rgba[dst], guardedAlpha);
-        data[src + 1] = blendLinearToSrgb16(data[src + 1], rgba[dst + 1], guardedAlpha);
-        data[src + 2] = blendLinearToSrgb16(data[src + 2], rgba[dst + 2], guardedAlpha);
+        // The shared tone renderer returns encoded sRGB; convert it to
+        // 16-bit encoded values *once*, then let the RGB16 edge compositor
+        // decode to linear for halo protection and the feather blend.
+        adjustedSrgb[0] = sRgbUnitTo16(rgba[dst]);
+        adjustedSrgb[1] = sRgbUnitTo16(rgba[dst + 1]);
+        adjustedSrgb[2] = sRgbUnitTo16(rgba[dst + 2]);
+        const guardedAlpha = protectedMaskAlphaSrgb16(strength, data, src, adjustedSrgb, 0);
+        data[src] = blendSrgb16(data[src], adjustedSrgb[0], guardedAlpha);
+        data[src + 1] = blendSrgb16(data[src + 1], adjustedSrgb[1], guardedAlpha);
+        data[src + 2] = blendSrgb16(data[src + 2], adjustedSrgb[2], guardedAlpha);
       }
     }
   }
