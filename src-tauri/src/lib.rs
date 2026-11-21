@@ -153,7 +153,10 @@ fn set_landscape_allowed(window: tauri::WebviewWindow, allowed: bool) {
     #[cfg(target_os = "ios")]
     let _ = window.with_webview(move |webview| {
         // SAFETY: `with_webview` runs this on the main thread with the window's live view controller.
-        unsafe { ios_orientation::apply(webview.view_controller().cast(), allowed) }
+        unsafe {
+            ios_orientation::apply(webview.view_controller().cast(), allowed);
+            ios_orientation::fill_window(webview.inner().cast());
+        }
     });
     #[cfg(not(target_os = "ios"))]
     let _ = (window, allowed);
