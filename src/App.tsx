@@ -1904,24 +1904,42 @@ export default function App() {
       const [{ open }, fs] = await Promise.all([
         import('@tauri-apps/plugin-dialog'), import('@tauri-apps/plugin-fs'),
       ]);
-      const folder = await open({ directory: true, multiple: false, title: t.reconnect.dialogTitle });
+      const folder = await open({ directory: true, multiple: false, recursive: true, title: t.reconnect.dialogTitle });
       if (typeof folder !== 'string') {
         setRelinkStatus(undefined);
         return;
       }
-      const expected = new Map(cullingState.frames
+      if (stateRef.current.shoot.id !== projectId) return;
+      const expected = new Map(stateRef.current.frames
         .filter((frame) => !frame.removedAt && frame.sourceKind === 'file' && frame.sourcePath)
         .map((frame) => [frame.stableKey, frame]));
       const expectedRecords = [...expected.values()].map((frame) => {
         const parts = frame.stableKey.split('::');
-        return { stableKey: frame.stableKey, filename: frame.filename,
+        return { stableKey: frame.stableKey, filename: frame.filename, sourcePath: frame.sourcePath!,
           size: Number(parts.at(-2)) || 0, lastModified: Number(parts.at(-1)) || 0 };
       });
-      const scan = await scanOriginalFolder(folder, fs.readDir, fs.stat,
-        new Set(expectedRecords.map((frame) => frame.filename.toLowerCase())));
-      const { matches: replacements, ambiguous, approximate } = matchScannedOriginals(expectedRecords, scan.files);
-      const recovered = replacements.size;
+      const currentPaths = await checkOriginalPaths(expectedRecords.map(record => record.sourcePath), fs.stat);
       if (stateRef.current.shoot.id !== projectId) return;
+      const missing = expectedRecords.filter(record => currentPaths.get(record.sourcePath) !== 'available');
+      const connectedPaths = expectedRecords.filter(record => currentPaths.get(record.sourcePath) === 'available')
+        .map(record => record.sourcePath);
+      const scan = missing.length ? await scanOriginalFolder(folder, fs.readDir, fs.stat,
+        new Set(missing.map(record => record.filename.toLowerCase()))) : { files: [], truncated: false, skippedDirectories: 0 };
+      const { matches, ambiguous } = matchScannedOriginals(missing, scan.files, connectedPaths);
+      const candidateByPath = new Map(scan.files.map(file => [file.path, file]));
+      // Recheck candidates before changing a link. A removable drive can
+      // change between scanning the folder and applying the matches.
+      const candidatePaths = await checkOriginalPaths([...matches.values()], async path => {
+        const file = candidateByPath.get(path)!;
+        const info = await fs.stat(path);
+        return { isFile: info.isFile && !info.isSymlink && info.size === file.size && info.mtime?.getTime() === file.lastModified };
+      });
+      if (stateRef.current.shoot.id !== projectId) return;
+      const currentFrames = stateRef.current.frames;
+      const eligibleKeys = new Set(currentFrames.filter(frame => !frame.removedAt && frame.sourceKind === 'file' &&
+        frame.sourcePath === expected.get(frame.stableKey)?.sourcePath).map(frame => frame.stableKey));
+      const replacements = new Map([...matches].filter(([key, path]) =>
+        eligibleKeys.has(key) && candidatePaths.get(path) === 'available'));
       const preview = previewProviderRef.current!;
       for (const [key, path] of replacements) {
         const frame = expected.get(key)!;
@@ -1933,25 +1951,27 @@ export default function App() {
         });
         preview.retryLinkedOriginal(key);
       }
-      const nextFrames = stateRef.current.frames.map((frame) =>
-        replacements.has(frame.stableKey) ? { ...frame, sourcePath: replacements.get(frame.stableKey) } : frame);
-      const paths = nextFrames.filter((frame) => !frame.removedAt && frame.sourceKind === 'file' && frame.sourcePath).map((frame) => frame.sourcePath!);
-      const statuses = await checkOriginalPaths(paths, fs.stat);
-      const remaining = nextFrames.filter((frame) => !frame.removedAt && frame.sourceKind === 'file' && frame.sourcePath && statuses.get(frame.sourcePath) !== 'available').length;
-      if (stateRef.current.shoot.id !== projectId) return;
+      for (const record of expectedRecords) {
+        if (eligibleKeys.has(record.stableKey) && currentPaths.get(record.sourcePath) === 'available' &&
+            preview.isOfflineFallback(record.stableKey)) preview.retryLinkedOriginal(record.stableKey);
+      }
+      const remaining = missing.filter(record => eligibleKeys.has(record.stableKey) && !replacements.has(record.stableKey)).length;
+      const recovered = replacements.size;
       setCullingState((previous) => previous.shoot.id !== projectId ? previous : {
-        ...previous, frames: nextFrames,
+        ...previous, frames: previous.frames.map(frame => {
+          const path = replacements.get(frame.stableKey);
+          return path && frame.sourcePath === expected.get(frame.stableKey)?.sourcePath ? { ...frame, sourcePath: path } : frame;
+        }),
         shoot: { ...previous.shoot, needsFileReselect: remaining > 0 },
       });
       setPreviewRevision((previous) => previous + 1);
-      const details = [approximate.length ? t.reconnect.matchedByNameAndSize(approximate.length) : '', ambiguous.length ? t.reconnect.ambiguousSkipped(ambiguous.length) : '',
-        scan.truncated ? t.reconnect.scanLimit : '',
-        scan.skippedDirectories ? t.reconnect.foldersSkipped(scan.skippedDirectories) : ''].filter(Boolean).join(' ');
-      setRelinkStatus((recovered
-        ? `${t.reconnect.reconnected(recovered)}${remaining ? ` ${t.reconnect.mayStillNeed(remaining)}` : ''}`
-        : t.reconnect.noMatchInFolder) + (details ? ` ${details}` : ''));
+      const message = recovered ? t.reconnect.reconnected(recovered) : remaining ? t.reconnect.noMatchInFolder : '';
+      const details = [message, recovered && remaining ? t.reconnect.mayStillNeed(remaining) : '',
+        ambiguous.length ? t.reconnect.ambiguousSkipped(ambiguous.length) : '', scan.truncated ? t.reconnect.scanLimit : '',
+        scan.skippedDirectories ? t.reconnect.foldersSkipped(scan.skippedDirectories) : ''];
+      setRelinkStatus(details.filter(Boolean).join(' ') || undefined);
     } catch {
-      setRelinkStatus(t.reconnect.folderUnreadable);
+      if (stateRef.current.shoot.id === projectId) setRelinkStatus(t.reconnect.folderUnreadable);
     } finally {
       relinkingFiles.current = false;
     }
