@@ -56,7 +56,9 @@ export function measureMaskBoundary16(pairs: readonly BoundaryPair16[], threshol
 }
 
 /** Full-frame, bounded-memory diagnostic of newly introduced discontinuities.
- * Compare four-connected neighbours straddling effective mask coverage 0.5.
+ * Compare four-connected neighbours across a hard 0.5 crossing OR a meaningful
+ * gradient in the partially covered feather ring. A soft mask can create a
+ * visible fringe without any adjacent samples crossing 0.5.
  * Source and output must have identical framing and verified sRGB16 profiles.
  * No intermediate image or unbounded list of boundary pairs is allocated.
  */
@@ -77,7 +79,11 @@ export function measureFullFrameMaskBoundary16(
   };
   let count = 0, sumL = 0, sumC = 0, maxL = 0, maxC = 0, large = 0;
   const compare = (p: number, q: number) => {
-    if ((alpha[p] < 0.5) === (alpha[q] < 0.5)) return;
+    const ap = alpha[p], aq = alpha[q];
+    const crossesMidpoint = (ap < 0.5) !== (aq < 0.5);
+    const featherGradient = Math.abs(ap - aq) >= 0.125 &&
+      ((ap > 0 && ap < 1) || (aq > 0 && aq < 1));
+    if (!crossesMidpoint && !featherGradient) return;
     const bi = sample(before, p), bo = sample(before, q);
     const ai = sample(after, p), ao = sample(after, q);
     const l = Math.max(0, Math.abs(luminance(ai) - luminance(ao)) - Math.abs(luminance(bi) - luminance(bo)));

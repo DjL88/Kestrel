@@ -26,3 +26,12 @@ test('rejects invalid samples and coverage before corrupting an archival output'
   assert.throws(() => blendSrgb16(0, 65535, NaN), RangeError);
   assert.throws(() => blendLinearToSrgb16(0, 1, Infinity), RangeError);
 });
+
+test('nonfinite tone output cannot silently become black in archival RGB16', () => {
+  for (const invalid of [NaN, Infinity, -Infinity]) {
+    assert.throws(() => encodeSrgb16(invalid), RangeError);
+    assert.throws(() => blendLinearToSrgb16(12345, invalid, 0.5), RangeError);
+  }
+  assert.equal(encodeSrgb16(0), 0);
+  assert.equal(encodeSrgb16(1), 65535);
+});
