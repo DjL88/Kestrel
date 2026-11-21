@@ -1,4 +1,4 @@
-// Kestrel website: the planned Pro price, from ONE table. These are tidy local prices near £29 / €29 / $29, not
+// Kite44 website: the planned Pro price, from ONE table. These are tidy local prices near £29 / €29 / $29, not
 // exchange-rate conversions. Prices are shown before any local tax until VAT and sales tax are confirmed.
 // Nothing can be bought here: the Buy button stays disabled until checkout (SumUp) is live.
 (() => {

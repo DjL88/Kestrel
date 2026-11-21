@@ -232,7 +232,7 @@ export const pt: AreaTranslation<typeof source> = {
     backgroundSaving: (count) => `A exportar ${count} ficheiros em segundo plano`,
     choosingFolder: "A escolher pasta…",
     desktopBackground: (count) => `Guardar ${count} ficheiros numa pasta em segundo plano`,
-    desktopBackgroundHelp: "Escolha uma pasta uma vez. Os ficheiros são guardados um a um numa nova pasta Kestrel Exports com data, agrupados por destino. Pode continuar a editar; o gestor de tarefas mostra o progresso e os erros.",
+    desktopBackgroundHelp: "Escolha uma pasta uma vez. Os ficheiros são guardados um a um numa nova pasta Kite44 Exports com data, agrupados por destino. Pode continuar a editar; o gestor de tarefas mostra o progresso e os erros.",
     saving: 'A guardar…',
     saved: (name) => `${name} guardado`,
     ready: (count) => plural(count, { one: `${count} ficheiro pronto`, other: `${count} ficheiros prontos` }),

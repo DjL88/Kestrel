@@ -18,7 +18,7 @@ export function validateRawExtension(extension: string): string {
 /**
  * Developing a RAW file's sensor data. One decoder everywhere (crates/kestrel-raw, Nikon HE/HE* included): linked
  * natively into the desktop app, and the same Rust code compiled to WebAssembly in the browser and on phones and
- * tablets. The operating system's own decoder is only a last resort on a Mac, after Kestrel's has failed.
+ * tablets. The operating system's own decoder is only a last resort on a Mac, after Kite44's has failed.
  */
 export const canDevelopRaw = () => hasNativeRaw() || webRawAvailable();
 
@@ -46,7 +46,7 @@ export async function developRaw(file: Blob, extension = 'nef'): Promise<Blob> {
 
 /**
  * Decode the sensor-derived RGB16 working raster, rather than the JPEG used by
- * the legacy review/editor route. The same Kestrel Rust decoder runs through
+ * the legacy review/editor route. The same Kite44 Rust decoder runs through
  * Tauri on desktop and WASM on web; platform codec support is NOT guaranteed.
  * The returned buffer is display-encoded RGB16, not a verified linear camera
  * master. Consumers must separately verify original hash, colour evidence and
@@ -133,6 +133,50 @@ export async function rawSensorMode(file: Blob, filename: string): Promise<RawSe
       { headers: { 'x-file-length': String(file.size) } }));
   } catch {
     return 'other';
+  }
+}
+
+/**
+ * Strict preflight for experimental Nikon precision output. Unlike rawSensorMode,
+ * an incomplete/unavailable header inspection is never interpreted as a verified
+ * non-HE NEF. A positive 'other' answer only means the decoder inspected enough
+ * header bytes to classify the compression; it is not a licence grant.
+ */
+export async function verifiedNikonSensorMode(
+  file: Blob,
+  ask: (prefix: number) => Promise<string>,
+): Promise<RawSensorMode | 'unknown'> {
+  if (!Number.isSafeInteger(file.size) || file.size <= 0) return 'unknown';
+  for (let bytes = SENSOR_MODE_PREFIX; ; bytes *= 2) {
+    const length = Math.min(bytes, file.size);
+    let mode: string;
+    try {
+      mode = await ask(length);
+    } catch {
+      return 'unknown';
+    }
+    if (mode === 'nikon-he' || mode === 'nikon-he-star' || mode === 'other') return mode;
+    if (mode !== 'need-more' || length === file.size || length >= SENSOR_MODE_LIMIT) return 'unknown';
+  }
+}
+
+/** Fail closed if a Nikon compression header cannot be positively classified. */
+export async function requireVerifiedNikonPrecisionMode(file: Blob): Promise<void> {
+  if (!hasNativeRaw() && !webRawAvailable()) {
+    throw new Error('Nikon RAW compression could not be verified; no precision export was made.');
+  }
+  const ask = !hasNativeRaw()
+    ? (bytes: number) => sensorModeInBrowser(file, bytes)
+    : async (bytes: number) => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return invoke<string>('raw_sensor_mode', new Uint8Array(await file.slice(0, bytes).arrayBuffer()),
+        { headers: { 'x-file-length': String(file.size) } });
+    };
+  const mode = await verifiedNikonSensorMode(file, ask);
+  if (mode !== 'other') {
+    throw new Error(mode === 'unknown'
+      ? 'Nikon RAW compression could not be verified; no precision export was made.'
+      : 'Nikon HE/HE* precision export requires separate commercial codec clearance.');
   }
 }
 

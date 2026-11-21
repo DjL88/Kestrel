@@ -1,7 +1,7 @@
 import type { Listing } from '../core/folderWatch';
 import { isDesktopApp } from './desktopShell';
 
-/** A folder Kestrel can look at and read photos from. It never writes, renames or deletes anything in it. */
+/** A folder Kite44 can look at and read photos from. It never writes, renames or deletes anything in it. */
 export interface FolderSource { name: string; list(): Promise<Listing[]>; read(name: string): Promise<File> }
 export type PickedSource = FolderSource | 'cancelled' | 'unsupported';
 

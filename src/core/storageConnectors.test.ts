@@ -8,7 +8,7 @@ test('every connector uses one layout, by level', () => {
   assert.equal(syncPath('originals', 'p1', 'img-9'), 'kestrel/v1/originals/p1/img-9.orig');
 });
 
-test('an unsafe id cannot build a path that escapes the Kestrel folder', () => {
+test('an unsafe id cannot build a path that escapes the Kite44 folder', () => {
   for (const bad of ['..', '../x', 'a/b', '', '.hidden', 'a b']) assert.throws(() => syncPath('recipes', bad, 'ok'), /Unsafe/);
   assert.equal(isInsideSyncRoot('kestrel/v1/recipes/p/x.json'), true);
   assert.equal(isInsideSyncRoot('kestrel/v1/../secret'), false);

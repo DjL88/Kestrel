@@ -64,7 +64,7 @@ export const cy: AreaTranslation<typeof source> = {
     addFailed: 'Methu ychwanegu’r lluniau.',
     stoppedUnfinished: 'Wedi stopio cyn gorffen',
     findingPhotos: 'Yn chwilio am luniau yn y ffolder',
-    developingRaw: 'Yn datblygu ffeiliau RAW gyda Kestrel',
+    developingRaw: 'Yn datblygu ffeiliau RAW gyda Kite44',
     developStopped: 'Wedi stopio; mae’r lluniau sy’n weddill yn cadw rhagolwg y camera.',
     developed: (count) => `${count} wedi’u datblygu`,
   },
@@ -77,7 +77,7 @@ export const cy: AreaTranslation<typeof source> = {
     addFailed: 'Methu ychwanegu’r lluniau. Rhowch gynnig ar ddewis y ffeiliau eto.',
     noSupportedPhotos: 'Does dim lluniau a gefnogir yn y ffolder hon.',
     folderUnreadable: 'Methu darllen y ffolder honno.',
-    oneFolderPerProject: 'Cadwch bob ffolder yn ei phrosiect ei hun er mwyn i Kestrel allu ei hailgysylltu’n ddiogel.',
+    oneFolderPerProject: 'Cadwch bob ffolder yn ei phrosiect ei hun er mwyn i Kite44 allu ei hailgysylltu’n ddiogel.',
     folderAddFailed: 'Methu ychwanegu’r ffolder. Rhowch gynnig ar ei dewis eto.',
     folderUnreadableTryFiles: 'Methu darllen y ffolder. Rhowch gynnig ar ddewis ffeiliau.',
   },
@@ -104,7 +104,7 @@ export const cy: AreaTranslation<typeof source> = {
     status: (folder, count) => `Yn gwylio “${folder}” · ${photos(count)} newydd wedi’u hychwanegu`,
   },
   paid: {
-    dialogLabel: (feature) => `Mae ${feature} yn rhan o Kestrel Pro`,
+    dialogLabel: (feature) => `Mae ${feature} yn rhan o Kite44 Pro`,
     autoCullPitch: 'Help i ddewis eich lluniau gorau.',
     close: 'Cau',
   },
@@ -119,8 +119,8 @@ export const cy: AreaTranslation<typeof source> = {
   },
   notices: {
     temporaryOriginals: (count) => (count === 1
-      ? 'Methodd Kestrel â storio un ffeil wreiddiol i’w hailagor. Gallwch ei defnyddio nawr. Cadwch eich ffeil wreiddiol: efallai y bydd angen i chi ei dewis eto ar ôl ailagor. Dydy copïau wrth gefn y prosiect ddim yn cynnwys y lluniau gwreiddiol.'
-      : `Methodd Kestrel â storio ${count} ffeil wreiddiol i’w hailagor. Gallwch eu defnyddio nawr. Cadwch eich ffeiliau gwreiddiol: efallai y bydd angen i chi eu dewis eto ar ôl ailagor. Dydy copïau wrth gefn y prosiect ddim yn cynnwys y lluniau gwreiddiol.`),
+      ? 'Methodd Kite44 â storio un ffeil wreiddiol i’w hailagor. Gallwch ei defnyddio nawr. Cadwch eich ffeil wreiddiol: efallai y bydd angen i chi ei dewis eto ar ôl ailagor. Dydy copïau wrth gefn y prosiect ddim yn cynnwys y lluniau gwreiddiol.'
+      : `Methodd Kite44 â storio ${count} ffeil wreiddiol i’w hailagor. Gallwch eu defnyddio nawr. Cadwch eich ffeiliau gwreiddiol: efallai y bydd angen i chi eu dewis eto ar ôl ailagor. Dydy copïau wrth gefn y prosiect ddim yn cynnwys y lluniau gwreiddiol.`),
     dismiss: 'Cau',
   },
   empty: {
@@ -192,7 +192,7 @@ export const cy: AreaTranslation<typeof source> = {
     remove: {
       title: 'Tynnu o’r llyfrgell?',
       confirm: 'Tynnu o’r llyfrgell',
-      disappears: (name) => `Bydd ${name} yn diflannu o olygon, cyfrifon ac allforion Kestrel.`,
+      disappears: (name) => `Bydd ${name} yn diflannu o olygon, cyfrifon ac allforion Kite44.`,
       thisPhoto: 'y llun hwn',
       notDeleted: 'Dydy’ch ffeil wreiddiol ddim yn cael ei dileu.',
       bringBack: 'Gallwch ddod ag e’n ôl o Opsiynau’r gweithle, Lluniau a dynnwyd, neu drwy bwyso Dadwneud.',
@@ -200,7 +200,7 @@ export const cy: AreaTranslation<typeof source> = {
     autoAdjustKeepers: {
       title: 'Addasu’n awtomatig luniau i’w cadw heb eu golygu?',
       confirm: 'Addasu lluniau i’w cadw',
-      what: 'Bydd Kestrel yn dadansoddi pob llun i’w gadw sydd heb ei olygu, ar y ddyfais hon, ac yn addasu ei olau, ei liw a’i dôn. Mae lluniau sydd wedi’u golygu’n barod yn aros fel y maen nhw.',
+      what: 'Bydd Kite44 yn dadansoddi pob llun i’w gadw sydd heb ei olygu, ar y ddyfais hon, ac yn addasu ei olau, ei liw a’i dôn. Mae lluniau sydd wedi’u golygu’n barod yn aros fel y maen nhw.',
       eligible: (count) => `Mae ${photos(count)} i’w cadw yn gymwys. Gallwch ganslo’r dasg. Does dim newidiadau’n cael eu rhoi nes i’r dadansoddi orffen.`,
       safe: 'Does dim yn cael ei lwytho i fyny na’i newid yn eich ffeiliau gwreiddiol. Gallwch ddadwneud y canlyniad ar gyfer pob llun.',
     },

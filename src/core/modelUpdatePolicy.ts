@@ -2,7 +2,7 @@ import type { DataAsset, DataManifest } from './dataUpdateManifest';
 import type { InstalledAsset } from './modelDelivery';
 
 /**
- * The models Kestrel can update without a new app, and what each must still do. An update is accepted only for a model
+ * The models Kite44 can update without a new app, and what each must still do. An update is accepted only for a model
  * the app already has a slot for, and only when the signed manifest says it keeps that slot's contract: the same input
  * size and preparation, the same outputs and the same labels or vectors. A new contract needs a new app, because the
  * code around the model (labels, vectors, thresholds) is part of the contract. Raise a slot's version only together

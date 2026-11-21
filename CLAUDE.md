@@ -50,6 +50,7 @@ npm run lint                  # TypeScript
 npm test                      # unit tests (src/core, src/providers, tools/mcp, services/control-plane)
 npm run build
 npx playwright test           # browser tests, desktop and phone projects
+npm run test:e2e:dev          # the verified-asset specs, which need the Vite dev server
 cd crates/kestrel-raw && cargo test   # when the RAW pipeline changed (decode, develop)
 cd src-tauri && cargo test    # when Rust or src-tauri changed
 python -m pytest scripts tools/denoise-training tools/lightroom   # when Python changed

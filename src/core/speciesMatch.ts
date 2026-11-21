@@ -8,6 +8,8 @@ export interface SpeciesLabel {
   /** int8 numbers as base64, with the one scale that turns them back into the real vector. */
   vector: string;
   scale: number;
+  /** World-list breeding regions (IOC codes). Absent for names the app ships by hand. */
+  regions?: string[];
 }
 
 export interface Suggestion {

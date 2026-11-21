@@ -5,7 +5,7 @@ import { plural } from '../../../core/locale';
 /** Spanish, Spain (usted). DRAFT: written without a native speaker's check. Colour names sit in brackets or after "en". */
 export const es: AreaTranslation<typeof source> = {
   title: 'Revisión del color',
-  intro: 'Kestrel nombra los colores de esta foto y señala con palabras cualquier cosa que pueda verse mal.',
+  intro: 'Kite44 nombra los colores de esta foto y señala con palabras cualquier cosa que pueda verse mal.',
   checking: 'Revisando el color…',
   unavailable: 'La revisión del color aún no está disponible para esta foto.',
   mainColours: 'Colores principales',

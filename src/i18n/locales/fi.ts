@@ -87,7 +87,7 @@ export const fi: Translation = {
     spacingNormal: 'Normaali',
     spacingRoomy: 'Väljä (leveämmät kirjaimet, sanat ja rivit)',
     language: 'Kieli',
-    languageHint: 'Kestrel käynnistyy uudelleen valitsemallasi kielellä. Työsi on jo tallennettu.',
+    languageHint: 'Kite44 käynnistyy uudelleen valitsemallasi kielellä. Työsi on jo tallennettu.',
     restartIn: (name) => `Käynnistä uudelleen kielellä ${name}`,
     draft: 'Alustava käännös, jota äidinkielinen puhuja ei ole vielä tarkistanut. Osa näkymistä on vielä englanniksi.',
   },

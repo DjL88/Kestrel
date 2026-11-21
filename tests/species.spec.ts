@@ -124,7 +124,10 @@ async function tagsOf(page: import('@playwright/test').Page, filename: string) {
   // Photo info opens from each card in the library. On a phone the open panel covers the cards, so close it first.
   const close = page.getByRole('button', { name: 'Close photo info' });
   if (await close.isVisible()) await close.click();
-  await page.getByRole('button', { name: `Photo info and rating for ${filename}` }).click();
+  // Photo info follows the selected photo: select this card, and open the pane if it is folded.
+  await page.getByRole('article', { name: `Frame ${filename}` }).click({ position: { x: 8, y: 8 } });
+  const expand = page.getByRole('button', { name: 'Expand photo info' });
+  if (await expand.isVisible()) await expand.click();
   await subjectTab(page);
   const subject = page.getByRole('region', { name: 'What is in this photo' });
   await expect(subject).toBeVisible();

@@ -5,7 +5,7 @@ import { plural } from '../../../core/locale';
 /** Icelandic. DRAFT: written without a native speaker's check. Colour names are neuter forms in brackets, so they never need to agree. */
 export const is: AreaTranslation<typeof source> = {
   title: 'Litaskoðun',
-  intro: 'Kestrel nefnir litina í þessari mynd og bendir með orðum á allt sem gæti litið rangt út.',
+  intro: 'Kite44 nefnir litina í þessari mynd og bendir með orðum á allt sem gæti litið rangt út.',
   checking: 'Skoða lit…',
   unavailable: 'Litaskoðun er ekki enn í boði fyrir þessa mynd.',
   mainColours: 'Helstu litir',

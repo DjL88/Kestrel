@@ -3,7 +3,7 @@ import { mosaic, withPreview } from './rawFixture';
 import { expect, test } from '@playwright/test';
 
 /**
- * The web app develops RAW sensor data with Kestrel's own pipeline compiled to WebAssembly, like the desktop app does
+ * The web app develops RAW sensor data with Kite44's own pipeline compiled to WebAssembly, like the desktop app does
  * natively. The file is synthetic: a 96 × 64 Bayer mosaic written by ticoraw's DNG writer (tests/fixtures), plus an
  * embedded JPEG preview added here, as cameras store one. No camera data.
  */
@@ -34,8 +34,11 @@ test('a RAW opened in the web app is developed from its sensor data, and says so
 
   // A 16-bit TIFF straight from the sensor data, through the same WebAssembly decoder and the screen's edit maths.
   await page.getByRole('slider', { name: /^Exposure/ }).first().fill('0.5');
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export photo' });
+  await dialog.getByRole('tab', { name: 'Advanced', exact: true }).click();
   const download = page.waitForEvent('download', { timeout: 60_000 });
-  await page.getByRole('button', { name: 'Export 16-bit TIFF' }).click();
+  await dialog.getByRole('button', { name: 'Export 16-bit RAW TIFF (prototype)' }).click();
   const file = await download;
   expect(file.suggestedFilename()).toBe('synthetic_16bit.tif');
   const tiff = readFileSync(await file.path());
@@ -55,5 +58,6 @@ test('a RAW opened in the web app is developed from its sensor data, and says so
   let notScaled = 0;
   for (let i = 0; i < 64 * 96 * 3; i += 1) if (tiff.readUInt16LE(start + i * 2) % 257 !== 0) notScaled += 1;
   expect(notScaled).toBeGreaterThan(64 * 96);
-  await expect(page.getByText('Saved a 16-bit TIFF', { exact: false })).toBeVisible();
+  expect(tags.has(34675), 'the TIFF includes an ICC profile tag').toBe(true);
+  await expect(dialog).toBeHidden();
 });

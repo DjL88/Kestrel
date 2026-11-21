@@ -18,7 +18,7 @@ const translate = (value: number[]) => `translate(${value[0]}px, ${value[1]}px)`
 const scaleOf = (value: number[]) => `scale(${value[0]}, ${value[1]})`;
 
 /**
- * The launch animation: the Kestrel K draws itself in. It is plain SVG moved by the browser's own animation support,
+ * The launch animation: the Kite44 K draws itself in. It is plain SVG moved by the browser's own animation support,
  * so it needs no library and costs a few kilobytes. A tap or key skips it, and with reduced motion it is a still logo.
  */
 export function Splash() {

@@ -62,7 +62,7 @@ test('store links alone are enough, before any installer exists', async ({ page 
 test('the Basic and Pro table says in words what each edition includes', async ({ page }) => {
   await answer(page, { status: 'coming-soon' });
   await page.goto(`${origin}/#compare`);
-  const table = page.getByRole('table', { name: 'Features in Kestrel Basic and Kestrel Pro' });
+  const table = page.getByRole('table', { name: 'Features in Kite44 Basic and Kite44 Pro' });
   await expect(table.getByRole('columnheader')).toHaveText(['Feature', 'Basic (free)', 'Pro']);
   const species = table.getByRole('row', { name: /Species suggestions/ });
   await expect(species.getByRole('cell')).toHaveText(['Not included', 'Included']);

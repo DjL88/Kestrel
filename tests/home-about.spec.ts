@@ -3,7 +3,7 @@ import packageMetadata from '../package.json' with { type: 'json' };
 
 test('home footer shows product-led About copy and current application version', async ({ page }) => {
   await page.goto('/');
-  const footer = page.locator('footer[aria-label="About Kestrel"]');
+  const footer = page.locator('footer[aria-label="About Kite44"]');
   await expect(footer).toBeVisible();
   await expect(footer.getByText('Thoughtful photo culling and editing, built around a simpler workflow and respect for your originals.')).toBeVisible();
   await expect(footer.getByText(`Version ${packageMetadata.version}`)).toBeVisible();

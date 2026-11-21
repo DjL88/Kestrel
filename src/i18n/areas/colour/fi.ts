@@ -5,7 +5,7 @@ import { plural } from '../../../core/locale';
 /** Finnish. DRAFT: written without a native speaker's check. Colour names stay in the nominative, in brackets or after "väri on". */
 export const fi: AreaTranslation<typeof source> = {
   title: 'Värintarkistus',
-  intro: 'Kestrel kertoo sanoin, mitä värejä tässä kuvassa on, ja mainitsee kaiken, mikä voi näyttää väärältä.',
+  intro: 'Kite44 kertoo sanoin, mitä värejä tässä kuvassa on, ja mainitsee kaiken, mikä voi näyttää väärältä.',
   checking: 'Tarkistetaan väriä…',
   unavailable: 'Värintarkistus ei ole vielä käytettävissä tälle kuvalle.',
   mainColours: 'Päävärit',

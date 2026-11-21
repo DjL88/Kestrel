@@ -74,7 +74,7 @@ export const nb: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Originalen er ikke tilgjengelig — koble til mappen eller stasjonen på nytt',
     previewUnavailable: 'Forhåndsvisning ikke tilgjengelig',
-    heifUndecodable: 'Kestrel kunne ikke dekode dette HEIF-bildet. Originalen er uendret.',
+    heifUndecodable: 'Kite44 kunne ikke dekode dette HEIF-bildet. Originalen er uendret.',
   },
   info: {
     title: 'Bildeinfo',
@@ -204,6 +204,7 @@ export const nb: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Merk det' : `Merk alle ${count}`,
     noThanks: 'Nei takk',
     autoTag: 'Merk sikre treff automatisk',
+    regionLabel: 'Hvor du fotograferer',
     checkNote: 'Se over foreslåtte og automatiske merker. Sikkerheten gjelder bare i forhold til navnene modellen kjenner.',
   },
   scanBanner: {

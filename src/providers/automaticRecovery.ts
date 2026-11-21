@@ -26,14 +26,14 @@ export function sharedOriginalFolder(paths: readonly (string | undefined)[]): st
   return first && folders.every(folder => folder === first) ? first : null;
 }
 
-/** Private Kestrel storage (OPFS), not the phone's photos or an external drive. */
+/** Private Kite44 storage (OPFS), not the phone's photos or an external drive. */
 export async function openDeviceRecovery(): Promise<RecoveryLocation> {
   try {
     if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory)
-      return { problem: 'missing', message: 'Separate device recovery storage is unavailable; the catalogue still saves inside Kestrel.' };
+      return { problem: 'missing', message: 'Separate device recovery storage is unavailable; the catalogue still saves inside Kite44.' };
     return { connector: directoryHandleConnector(await navigator.storage.getDirectory()), to: 'On this device' };
   } catch {
-    return { problem: 'needs-signin', message: 'The local recovery directory is unavailable; the catalogue still saves inside Kestrel.' };
+    return { problem: 'needs-signin', message: 'The local recovery directory is unavailable; the catalogue still saves inside Kite44.' };
   }
 }
 

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { libraryText as t } from '../i18n/areas/library';
 
-/** A calm full-window cue while photos are dragged over Kestrel, and a short note if a drop held no photos. */
+/** A calm full-window cue while photos are dragged over Kite44, and a short note if a drop held no photos. */
 export function DropOverlay({ dragging, message, onDismiss }: { dragging: boolean; message: string | null; onDismiss: () => void }) {
   useEffect(() => {
     if (!message) return;

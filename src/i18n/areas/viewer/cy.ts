@@ -73,7 +73,7 @@ export const cy: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Y gwreiddiol ddim ar gael — ailgysylltwch ei ffolder neu ei ddisg',
     previewUnavailable: 'Rhagolwg ddim ar gael',
-    heifUndecodable: 'Ni allai Kestrel ddatgodio’r llun HEIF hwn. Mae’r gwreiddiol heb ei newid.',
+    heifUndecodable: 'Ni allai Kite44 ddatgodio’r llun HEIF hwn. Mae’r gwreiddiol heb ei newid.',
   },
   info: {
     title: 'Gwybodaeth y llun',
@@ -200,6 +200,7 @@ export const cy: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Ei dagio' : `Tagio’r ${count}`,
     noThanks: 'Dim diolch',
     autoTag: 'Tagio cyfatebiaethau cryf yn awtomatig',
+    regionLabel: 'Ble rydych chi’n tynnu lluniau',
     checkNote: 'Gwiriwch dagiau a awgrymir a thagiau awtomatig. Mae’r hyder yn berthnasol i’r enwau mae’r model hwn yn eu hadnabod yn unig.',
   },
   scanBanner: {

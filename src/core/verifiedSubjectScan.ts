@@ -1,4 +1,4 @@
-import { findSubjects, type FoundSubject } from '../providers/objectDetector';
+import type { FoundSubject } from '../providers/objectDetector';
 import { SUBJECT_CLASSES } from '../core/objectDetection';
 import { exactSubjectPixelCrop, type SourcePixelRaster, type PixelCrop } from './subjectPixelCrop';
 import { multiSubjectSelectEvidence, type MultiSubjectSource, type SubjectCandidate } from './multiSubjectEvidence';
@@ -75,7 +75,9 @@ export async function scanVerifiedSubjects(request: VerifiedSubjectScan): Promis
         decoded.sourceSha256.toLowerCase() !== verified.toLowerCase() ||
         !sameDimensions(decoded, identity) ||
         !sameDimensions(dimensions(request.source), identity)) return [];
-    const detections = await (request.detector ?? findSubjects)(request.source, signal);
+    const detector = request.detector ?? (await import('../providers/objectDetector')).findSubjects;
+    if (!current()) return [];
+    const detections = await detector(request.source, signal);
     if (!current() || !sameDimensions(dimensions(request.source), identity) ||
         detections.length > 20) return [];
     // Recheck the original after potentially lengthy tiled inference. A file

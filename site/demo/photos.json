@@ -60,7 +60,7 @@
         "fi": "kuningaskalastaja",
         "is": "bláþyrill"
       },
-      "credit": "Photograph by the Kestrel project owner, Nikon Z 8. Cropped from the camera’s own JPEG preview; mask made with Kestrel’s subject model (U²-Net-P).",
+      "credit": "Photograph by the Kite44 project owner, Nikon Z 8. Cropped from the camera’s own JPEG preview; mask made with Kite44’s subject model (U²-Net-P).",
       "licence": "All rights reserved. Not licensed for reuse."
     },
     {
@@ -122,7 +122,7 @@
         "fi": "isohaarahaukka",
         "is": "svölugleða"
       },
-      "credit": "Photograph by the Kestrel project owner, Nikon Z 8. Cropped from the camera’s own JPEG preview; mask made with Kestrel’s subject model (U²-Net-P).",
+      "credit": "Photograph by the Kite44 project owner, Nikon Z 8. Cropped from the camera’s own JPEG preview; mask made with Kite44’s subject model (U²-Net-P).",
       "licence": "All rights reserved. Not licensed for reuse."
     },
     {
@@ -184,7 +184,7 @@
         "fi": "suihkukone",
         "is": "þota"
       },
-      "credit": "Photograph by the Kestrel project owner, Nikon Z 8. Cropped from the camera’s own JPEG preview; mask made with Kestrel’s subject model (U²-Net-P).",
+      "credit": "Photograph by the Kite44 project owner, Nikon Z 8. Cropped from the camera’s own JPEG preview; mask made with Kite44’s subject model (U²-Net-P).",
       "licence": "All rights reserved. Not licensed for reuse."
     },
     {
@@ -246,7 +246,7 @@
         "fi": "koskikara",
         "is": "fossbúi"
       },
-      "credit": "Photograph by the Kestrel project owner, Nikon Z 8. Cropped from the camera’s own JPEG preview; mask made with Kestrel’s subject model (U²-Net-P).",
+      "credit": "Photograph by the Kite44 project owner, Nikon Z 8. Cropped from the camera’s own JPEG preview; mask made with Kite44’s subject model (U²-Net-P).",
       "licence": "All rights reserved. Not licensed for reuse."
     },
     {
@@ -308,7 +308,7 @@
         "fi": "mustapäätasku",
         "is": "hagaskvetta"
       },
-      "credit": "Photograph by the Kestrel project owner, Nikon Z 8. Cropped from the camera’s own JPEG preview; mask made with Kestrel’s subject model (U²-Net-P).",
+      "credit": "Photograph by the Kite44 project owner, Nikon Z 8. Cropped from the camera’s own JPEG preview; mask made with Kite44’s subject model (U²-Net-P).",
       "licence": "All rights reserved. Not licensed for reuse."
     }
   ],
@@ -323,7 +323,7 @@
       "thumb": "photos/kestrel-dusk-thumb.webp",
       "subject": "bird",
       "credit": "Synthetic image drawn by scripts/site/generate-demo-photos.mjs",
-      "licence": "Kestrel project asset"
+      "licence": "Kite44 project asset"
     },
     {
       "id": "highland-loch",
@@ -335,7 +335,7 @@
       "thumb": "photos/highland-loch-thumb.webp",
       "subject": "boat",
       "credit": "Synthetic image drawn by scripts/site/generate-demo-photos.mjs",
-      "licence": "Kestrel project asset"
+      "licence": "Kite44 project asset"
     },
     {
       "id": "lighthouse-coast",
@@ -347,7 +347,7 @@
       "thumb": "photos/lighthouse-coast-thumb.webp",
       "subject": "lighthouse",
       "credit": "Synthetic image drawn by scripts/site/generate-demo-photos.mjs",
-      "licence": "Kestrel project asset"
+      "licence": "Kite44 project asset"
     },
     {
       "id": "night-street",
@@ -359,7 +359,7 @@
       "thumb": "photos/night-street-thumb.webp",
       "subject": "lamp post and cyclist",
       "credit": "Synthetic image drawn by scripts/site/generate-demo-photos.mjs",
-      "licence": "Kestrel project asset"
+      "licence": "Kite44 project asset"
     },
     {
       "id": "garden-flower",
@@ -371,7 +371,7 @@
       "thumb": "photos/garden-flower-thumb.webp",
       "subject": "flower",
       "credit": "Synthetic image drawn by scripts/site/generate-demo-photos.mjs",
-      "licence": "Kestrel project asset"
+      "licence": "Kite44 project asset"
     }
   ]
 }
