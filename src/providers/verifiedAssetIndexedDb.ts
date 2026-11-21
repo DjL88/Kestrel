@@ -60,9 +60,11 @@ function valid(asset: ActiveAsset | undefined): asset is ActiveAsset {
 }
 /** The activation core verifies digest before and after write; this adapter
  * enforces immutability and atomic CAS across concurrent browser tabs. */
-export function indexedDbAssetSlots(): AssetSlots & {
+export function indexedDbAssetSlots(maxCacheBytes = 2_147_483_648): AssetSlots & {
   previous(id: string): Promise<ActiveAsset | undefined>;
 } {
+  if (!Number.isSafeInteger(maxCacheBytes) || maxCacheBytes <= 0)
+    throw new Error('Invalid verified asset cache budget');
   return {
     async writeImmutable(slot, bytes) {
       if (!SLOT.test(slot) || bytes.byteLength === 0) throw new Error('Invalid immutable asset slot');
@@ -77,6 +79,28 @@ export function indexedDbAssetSlots(): AssetSlots & {
             throw new Error('Immutable asset slot collision');
           return;
         }
+        // Account for *all* staged and retained versions in one readwrite
+        // transaction. This prevents concurrent tabs independently passing
+        // an optimistic quota check. Do not evict active/previous assets.
+        const used = await new Promise<number>((resolve, reject) => {
+          let total = 0;
+          const cursor = store.openCursor();
+          cursor.onerror = () => reject(cursor.error ?? new Error('Asset cache scan failed'));
+          cursor.onsuccess = () => {
+            const entry = cursor.result;
+            if (!entry) { resolve(total); return; }
+            if (!(entry.value instanceof Uint8Array)) {
+              reject(new Error('Malformed immutable asset cache entry')); return;
+            }
+            total += entry.value.byteLength;
+            if (!Number.isSafeInteger(total) || total > maxCacheBytes) {
+              reject(new Error('Verified asset cache exceeds storage budget')); return;
+            }
+            entry.continue();
+          };
+        });
+        if (bytes.byteLength > maxCacheBytes - used)
+          throw new Error('Verified asset cache exceeds storage budget');
         await requestValue(store.add(bytes.slice(), slot));
       });
     },
