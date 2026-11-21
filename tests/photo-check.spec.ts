@@ -37,6 +37,7 @@ async function openPhoto(page: Page) {
 const chromiumMemoryMb = () => Number(execSync("ps -eo rss,comm | grep -i chrom | awk '{s+=$1} END {print int(s/1024)}'").toString().trim());
 
 test('install the on-device model with consent, check a real photo, apply, undo, reopen, then repeat offline', async ({ page, context }) => {
+  page.on('console', (message) => { if (/Photo check/.test(message.text())) console.log('BROWSER', message.text()); });
   const outside: string[] = [];
   page.on('request', (request) => { const url = request.url(); if (!/^(data|blob):/.test(url) && !new URL(url).hostname.match(/^(localhost|127\.0\.0\.1)$/)) outside.push(url); });
   // The pinned upstream URLs are answered from local files: the real bytes, the real size and digest checks.
@@ -59,7 +60,8 @@ test('install the on-device model with consent, check a real photo, apply, undo,
   await panel.getByRole('button', { name: 'Install photo check' }).click();
   await expect(panel).toContainText('Nothing is uploaded');
   await panel.getByRole('button', { name: 'Install', exact: true }).click();
-  await expect.poll(() => downloads.length, { timeout: 120_000 }).toBe(4);
+  for (let i = 0; i < 6 && downloads.length < 4; i += 1) { await page.waitForTimeout(5000); console.log('PROGRESS', downloads.length, JSON.stringify((await panel.innerText()).replace(/\n/g, ' | '))); }
+  await expect.poll(() => downloads.length, { timeout: 60_000 }).toBe(4);
   await expect(panel).not.toContainText('Installing', { timeout: 120_000 });
   await expect(panel.getByRole('button', { name: /^Install/ })).toHaveCount(0);
   expect(downloads.sort()).toEqual(['onnx/decoder_model_merged_int8.onnx', 'onnx/embed_tokens_int8.onnx', 'onnx/vision_encoder_int8.onnx', 'tokenizer.json']);

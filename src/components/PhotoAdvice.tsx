@@ -65,7 +65,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
     try {
       const result = await runPhotoCheck(preview, controller.signal);
       if (!controller.signal.aborted) { setFound({ key: recipeKey, facts: result.facts }); setPhase('idle'); }
-    } catch { if (!controller.signal.aborted) setPhase('failed'); else setPhase('idle'); }
+    } catch (error) { if (!controller.signal.aborted) { console.warn('Photo check failed:', error); setPhase('failed'); } else setPhase('idle'); }
   }
   // Glide and Soar: read the scene once the picture and recipe have been still for a moment. Fly Solo: never unprompted.
   useEffect(() => {
@@ -83,7 +83,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
       await installPhotoCheck({ signal: controller.signal, onProgress: ({ received, total }) => setPercent(Math.round((received / total) * 100)) });
       setInstalled(true); setConsent(false); setPhase('idle');
       if (mode === 'solo') void check();
-    } catch { setPhase(controller.signal.aborted ? 'idle' : 'failed'); }
+    } catch (error) { if (!controller.signal.aborted) console.warn('Photo check install failed:', error); setPhase(controller.signal.aborted ? 'idle' : 'failed'); }
   }
 
   // Soar: once per photo, only when it is untouched, only measured high-confidence changes. Always undoable.
