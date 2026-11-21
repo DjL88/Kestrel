@@ -48,5 +48,5 @@ export interface SubjectCandidate { index: number; evidence: SelectEvidence }\n\
     // Review-only until independent aircraft negatives and per-bird tracking.
     manualDecision: 'review',
     burstId: source.burstId,
-  }));
+  } satisfies SelectEvidence) }));
 }
