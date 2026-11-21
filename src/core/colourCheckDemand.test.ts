@@ -29,19 +29,20 @@ test('stale-return cleanup releases gate and cannot strand a future check', () =
   const requested = capturePhotoReviewScope(['photo-a', 'edit-1']);
   assert.equal(gate.begin(1000), true);
   let checking = true;
-  try {
-    if (!acceptsColourCheck(2, 2, requested, ['photo-b', 'edit-1'])) {
-      checking = false;
-      returnFromStaleResult();
+  const complete = () => {
+    try {
+      if (!acceptsColourCheck(2, 2, requested, ['photo-b', 'edit-1'])) {
+        checking = false;
+        return false;
+      }
+      return true;
+    } finally {
+      gate.finish();
     }
-  } finally {
-    gate.finish();
-  }
+  };
+  assert.equal(complete(), false);
   assert.equal(checking, false);
   assert.equal(gate.begin(1351), true);
   gate.finish();
 });
 
-function returnFromStaleResult(): void {
-  // The caller's stale branch exits before publishing a report.
-}
