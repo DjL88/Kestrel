@@ -14,12 +14,16 @@ export function decodeSrgb16(sample: number): number {
   return LINEAR[sample];
 }
 export function encodeSrgb16(linear: number): number {
-  const c = Math.min(1, Math.max(0, Number.isFinite(linear) ? linear : 0));
+  if (!Number.isFinite(linear)) throw new RangeError('Invalid linear colour; cannot encode a 16-bit master.');
+  const c = Math.min(1, Math.max(0, linear));
   return Math.round((c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055) * 65535);
 }
 /** Exact identity for alpha=0/1, and linear-light mixing at intermediate coverage. */
 export function blendSrgb16(source: number, adjusted: number, alpha: number): number {
   if (!Number.isFinite(alpha)) throw new RangeError('Invalid mask coverage.');
+  // Endpoints must not allow malformed channel data to escape validation.
+  decodeSrgb16(source);
+  decodeSrgb16(adjusted);
   if (alpha <= 0) return source;
   if (alpha >= 1) return adjusted;
   return encodeSrgb16(decodeSrgb16(source) * (1 - alpha) + decodeSrgb16(adjusted) * alpha);
@@ -27,6 +31,7 @@ export function blendSrgb16(source: number, adjusted: number, alpha: number): nu
 /** When the adjusted value is already linear (from applyPhotoEditLinear). */
 export function blendLinearToSrgb16(source: number, adjustedLinear: number, alpha: number): number {
   if (!Number.isFinite(alpha) || !Number.isFinite(adjustedLinear)) throw new RangeError('Invalid linear colour or mask coverage.');
+  decodeSrgb16(source);
   if (alpha <= 0) return source;
   if (alpha >= 1) return encodeSrgb16(adjustedLinear);
   return encodeSrgb16(decodeSrgb16(source) * (1 - alpha) + adjustedLinear * alpha);
