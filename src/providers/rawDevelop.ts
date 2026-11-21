@@ -2,7 +2,7 @@ import { THUMB, bestTurn } from '../core/orientMatch';
 import { proveTiff16 } from '../core/tiff16Proof';
 import type { NativeRawMasterRecipe, NativeRawMasterFraming } from '../core/nativeRawMaster';
 import { hasNativeRaw } from './desktopShell';
-import { developRawInBrowser, sensorModeInBrowser, webRawAvailable } from './rawWasm';
+import { developRawInBrowser, inspectSensorModeInBrowser, sensorModeInBrowser, webRawAvailable } from './rawWasm';
 
 /** Fail closed before allocating/copying a potentially huge RAW file for native decoding. */
 export function validateRawExtension(extension: string): string {
@@ -61,9 +61,13 @@ export async function developRawRgb16(file: Blob): Promise<ArrayBuffer> {
     picture = await developRaw16InBrowser(file);
   } else {
     const { invoke } = await import('@tauri-apps/api/core');
-    picture = await invoke<ArrayBuffer>('develop_raw_rgb16', new Uint8Array(await file.arrayBuffer()));
+    try {
+      picture = await invoke<ArrayBuffer>('develop_raw_rgb16', new Uint8Array(await file.arrayBuffer()));
+    } catch (error) {
+      throw new Error(typeof error === 'string' ? error : 'This RAW file could not be developed.');
+    }
   }
-  parseRgb16(picture); // Fail closed on forged dimensions and truncated decoder output.
+  parseRgb16(picture, true); // Validate the decoder's fresh buffer in place when possible.
   return picture;
 }
 
@@ -166,7 +170,7 @@ export async function requireVerifiedNikonPrecisionMode(file: Blob): Promise<voi
     throw new Error('Nikon RAW compression could not be verified; no precision export was made.');
   }
   const ask = !hasNativeRaw()
-    ? (bytes: number) => sensorModeInBrowser(file, bytes)
+    ? (bytes: number) => inspectSensorModeInBrowser(file, bytes)
     : async (bytes: number) => {
       const { invoke } = await import('@tauri-apps/api/core');
       return invoke<string>('raw_sensor_mode', new Uint8Array(await file.slice(0, bytes).arrayBuffer()),

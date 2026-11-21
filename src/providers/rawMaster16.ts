@@ -1,39 +1,20 @@
 import type { TiffExportMetadata } from '../core/tiffExportMetadata';
-import { editRgb16, encodeTiff16, frameRgb16, master16Blocker, parseRgb16, thumbRgb16 } from '../core/master16';
+import { editRgb16, encodeTiff16, frameRgb16, master16Blocker, thumbRgb16 } from '../core/master16';
 import { bestTurn } from '../core/orientMatch';
 import type { PhotoEdit } from '../core/photoEdits';
 import { DEFAULT_FRAMING, type PhotoFraming } from '../core/photoFraming';
-import { hasNativeRaw } from './desktopShell';
-import { requireVerifiedNikonPrecisionMode, thumbOf } from './rawDevelop';
-import { developRaw16InBrowser } from './rawWasm';
-
-/** The RAW file's full-size 16-bit picture from Kite44's decoder: natively on desktop, WebAssembly elsewhere. */
-async function developRaw16(file: Blob): Promise<ArrayBuffer> {
-  if (!hasNativeRaw()) return developRaw16InBrowser(file);
-  const { invoke } = await import('@tauri-apps/api/core');
-  try {
-    return await invoke<ArrayBuffer>('develop_raw_rgb16', new Uint8Array(await file.arrayBuffer()));
-  } catch (error) {
-    throw new Error(typeof error === 'string' ? error : 'This RAW file could not be developed.');
-  }
-}
+import { thumbOf } from './rawDevelop';
+import { openSensorWorkingRaster } from './rawWorkingRaster';
 
 /**
  * The edited photo as a 16-bit TIFF, made from the RAW sensor data with the same edit maths as the screen. `shown` is the
  * picture the editor frames (the developed RAW, turned to match the camera's preview where that was needed), so the
  * crop lands in the same place. Refuses, in plain words, edits it cannot carry yet; never drops one.
  */
-export async function exportRaw16Tiff(original: Blob, shown: HTMLImageElement, edit: PhotoEdit, framing: PhotoFraming | undefined, metadata?: TiffExportMetadata | null): Promise<Blob> {
+export async function exportRaw16Tiff(original: Blob, filename: string, shown: HTMLImageElement, edit: PhotoEdit, framing: PhotoFraming | undefined, metadata?: TiffExportMetadata | null): Promise<Blob> {
   const blocker = master16Blocker(edit, framing);
   if (blocker) throw new Error(blocker);
-  // Detect Nikon compression before allocating a full-size decoded buffer.
-  // The current experimental exporter has no commercial HE/HE* clearance.
-  // This is a conservative header check, not proof that every unknown mode is licensed.
-  await requireVerifiedNikonPrecisionMode(original);
-  // This is a freshly developed RGB working ArrayBuffer, not the original
-  // RAW file's bytes. It can safely be edited in place on little-endian hosts
-  // to avoid a second 270 MB RGB16 allocation for a 45MP image.
-  const picture = parseRgb16(await developRaw16(original), true);
+  const { image: picture } = await openSensorWorkingRaster(original, filename);
   const bitmap = await createImageBitmap(shown);
   let turn: number;
   try {
