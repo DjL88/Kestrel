@@ -22,6 +22,13 @@ test('strong subject masking offers a reviewable remedy, not an anatomy claim', 
   assert.equal(next.kind, 'subject');
   assert.deepEqual(mask.edit, { exposure: 1.2, clarity: 1.5 }, 'the original recipe is not mutated');
 });
+test('already-soft manually refined masks are never sharpened by Blend edges', () => {
+  const mask = { ...createSubjectMask('bird', grid, 'crop', 'high'), feather: 0.96, edit: { exposure: 1.3 } };
+  const next = blendMaskEdges(mask);
+  assert.equal(next.feather, 0.96, 'do not reduce the photographer\'s existing feathering');
+  assert.ok((next.edit.exposure ?? 0) < 1.3, 'excessively strong local effect may still be tempered');
+});
+
 test('manual brush strokes remain intact and non-subject radial masks are not changed', () => {
   const mask = { ...createSubjectMask('bird', grid, 'crop', 'medium'), edit: { exposure: 1.3 }, strokes: [{ points: [0.2, 0.2, 0.3, 0.3], radius: 0.02, erase: false }] };
   assert.deepEqual(blendMaskEdges(mask).strokes, mask.strokes);
