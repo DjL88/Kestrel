@@ -39,6 +39,8 @@ test('the standing "use Gemini" preference is set once and kept, separate from p
   assert.equal(after.body.aiConsent, true, 'the preference is kept on the account, not just returned once');
   const withdrawn = await h.call('POST', '/v1/me/ai-consent', { token: session.body.accessToken, body: { consent: false } });
   assert.equal(withdrawn.body.aiConsent, false);
+  // Subsequent API tests exercise an explicitly opted-in managed AI account.
+  await h.app.store.setAiConsent(h.user.accountId, true);
 });
 
 test('activation is idempotent per device, capped per licence, and refused once revoked', async () => {
@@ -66,6 +68,7 @@ test('identify returns a checked answer and spends one unit; suggest says when a
   assert.equal(answer.body.abstained, false);
   const balanced = await startHarness(fakeProvider({ suggest: async () => '{}' }));
   try {
+    await balanced.app.store.setAiConsent(balanced.user.accountId, true);
     const result = await balanced.call('POST', '/v1/ai/suggest', { token: balanced.user.token, body: { image: image(), userConsent: true } });
     assert.deepEqual(result.body, { proposal: {}, alreadyBalanced: true });
   } finally { await balanced.close(); }
@@ -80,6 +83,7 @@ test('verify-colour gives a bounded second opinion, never more than two concerns
     verifyColour: async () => JSON.stringify({ plausible: false, concerns: ['skinTone', 'clipping', 'other'], note: 'Skin tones lean strongly magenta.' }),
   }));
   try {
+    await flagged.app.store.setAiConsent(flagged.user.accountId, true);
     const result = await flagged.call('POST', '/v1/ai/verify-colour', { token: flagged.user.token, body: { image: image(), userConsent: true } });
     assert.equal(result.status, 200);
     assert.equal(result.body.plausible, false);
@@ -89,6 +93,7 @@ test('verify-colour gives a bounded second opinion, never more than two concerns
 
   const malformed = await startHarness(fakeProvider({ verifyColour: async () => 'not json' }));
   try {
+    await malformed.app.store.setAiConsent(malformed.user.accountId, true);
     const result = await malformed.call('POST', '/v1/ai/verify-colour', { token: malformed.user.token, body: { image: image(), userConsent: true } });
     assert.equal(result.status, 502);
     assert.equal(result.body.error.code, 'AI_UPSTREAM_MALFORMED');
@@ -98,6 +103,7 @@ test('verify-colour gives a bounded second opinion, never more than two concerns
 test('no provider key, the kill switch, or no AI plan each give a clear refusal', async () => {
   const bare = await startHarness(null);
   try {
+    await bare.app.store.setAiConsent(bare.user.accountId, true);
     const response = await bare.call('POST', '/v1/ai/identify', { token: bare.user.token, body: { image: image(), userConsent: true } });
     assert.equal(response.status, 503);
     assert.equal(response.body.error.code, 'AI_NOT_CONFIGURED');
