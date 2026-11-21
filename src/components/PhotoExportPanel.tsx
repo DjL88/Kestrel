@@ -39,6 +39,7 @@ import { hasWatermark, NO_WATERMARK, WATERMARK_POSITIONS, WATERMARK_FONTS, type 
 import { NO_OVERLAY, exportOverlayTitle, photoOverlayLines, type OverlayOptions } from '../core/exportOverlay';
 import { exportFilename } from '../core/exportProfiles';
 import { SocialIcon } from './SocialIcon';
+import { exportCompactLabels as compact } from '../i18n/exportCompactLabels';
 import { commonSocialSizes, uniqueRenderedSocialFormats, type SocialSizeGroup } from '../core/exportSocialGroups';
 import type { ExportPlace } from '../providers/exportToPlace';
 import { chooseDesktopExportFolder, isDesktopApp, isMobileShell, saveWithDialog } from '../providers/desktopShell';
@@ -634,7 +635,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               <span>{formatLabel(shownFormat)}</span>
               {group && <span className="inline-flex items-center gap-2" title={group.platforms.map(id => PLATFORMS.find(p => p.id === id)?.label ?? id).join(', ')}>
                 {group.platforms.map(id => <SocialIcon key={id} id={id} className="h-4 w-4 shrink-0 text-zinc-300" />)}
-                <span className="sr-only">Suitable for {group.platforms.map(id => PLATFORMS.find(p => p.id === id)?.label ?? id).join(', ')}</span>
+                <span className="sr-only">{compact.suitable} {group.platforms.map(id => PLATFORMS.find(p => p.id === id)?.label ?? id).join(', ')}</span>
               </span>}
             </span>
             <span className="block text-xs text-zinc-400">{sizeName(shownFormat)}</span>
@@ -1149,13 +1150,13 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
           <p className="mb-2 text-center text-xs text-zinc-300">{t.panel.rawPreview}</p>
         )}
         {!resultsReady && !wizard && (
-          <div role="tablist" aria-label="Export settings" className="sticky top-0 z-10 flex gap-1 border-b border-white/10 bg-kestrel-raised py-2">
+          <div role="tablist" aria-label={compact.tabList} className="sticky top-0 z-10 flex gap-1 border-b border-white/10 bg-kestrel-raised py-2">
             <button type="button" role="tab" aria-selected={simpleTab === 'export'}
               className={`${button} flex-1 aria-selected:bg-white/10 aria-selected:text-white`}
-              onClick={() => setSimpleTab('export')}>Export</button>
+              onClick={() => setSimpleTab('export')}>{compact.exportTab}</button>
             <button type="button" role="tab" aria-selected={simpleTab === 'advanced'}
               className={`${button} flex-1 aria-selected:bg-white/10 aria-selected:text-white`}
-              onClick={() => setSimpleTab('advanced')}>Advanced</button>
+              onClick={() => setSimpleTab('advanced')}>{compact.advancedTab}</button>
           </div>
         )}
         {resultsReady ? (
@@ -1224,25 +1225,25 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
                   {formatRow(formatById('before-after')!)}
                   {originalChoice}
                 </div>
-                <h3 className="text-sm font-medium text-zinc-100">Popular social sizes</h3>
+                <h3 className="text-sm font-medium text-zinc-100">{compact.popular}</h3>
                 <div className="space-y-1.5">
                   {featuredGroups.map(group => formatRow(group.canonical, group))}
                 </div>
                 <details className="rounded-md border border-white/10 p-2">
-                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-zinc-200">More sizes</summary>
+                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-zinc-200">{compact.more}</summary>
                   <div className="space-y-1.5 pt-2">
                     {otherGroups.map(group => formatRow(group.canonical, group))}
                     {customBlock}
                   </div>
                 </details>
                 <p className="text-xs text-zinc-400">
-                  Identical sizes use one image for all the platforms shown beside them. A different crop or quality is kept separate.
+                  {compact.shared}
                 </p>
                 {destinationActions}
               </fieldset>
             ) : (
               <section aria-label="Advanced export settings" className="space-y-3">
-                <h3 className="text-sm font-medium text-zinc-100">Text, watermark and finishing options</h3>
+                <h3 className="text-sm font-medium text-zinc-100">{compact.finishing}</h3>
                 {overlayBlock}
                 {optionsBlock}
                 {presetsBlock}
