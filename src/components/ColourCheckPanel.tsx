@@ -61,28 +61,51 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   const [report, setReport] = useState<ColourReport | null>(null);
   const [failed, setFailed] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const [checkRevision, setCheckRevision] = useState(0);
+  const generation = useRef(0);
   const read = useRef(readPreview);
   read.current = readPreview;
 
   useEffect(() => {
+    // Invalidate every pending check when the image, recipe or guidance state changes.
+    // A previous photo must never leave apparently current colour advice behind.
+    const current = ++generation.current;
+    setReport(null);
+    setFailed(false);
+    setApplied(false);
+    setShowAll(false);
     if (disabled) return;
-    // Wait for sliders to settle, then check a small preview.
     const timer = window.setTimeout(() => {
+      if (current !== generation.current) return;
       try {
         const preview = read.current();
-        if (!preview) return;
-        setReport(checkColour({ after: preview.after, before: preview.before, subject: preview.subject }));
+        if (!preview) {
+          setReport(null);
+          setFailed(true);
+          return;
+        }
+        const next = checkColour({ after: preview.after, before: preview.before, subject: preview.subject });
+        if (current !== generation.current) return;
+        setReport(next);
         setFailed(false);
       } catch {
+        if (current !== generation.current) return;
+        setReport(null);
         setFailed(true);
       }
-    }, 400);
-    return () => window.clearTimeout(timer);
+    }, checkRevision ? 0 : 400);
+    return () => {
+      ++generation.current;
+      window.clearTimeout(timer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [disabled, ...version]);
+  }, [disabled, checkRevision, ...version]);
 
 
   const problems = report?.findings.filter((finding) => finding.severity !== 'info') ?? [];
+  const important = report?.findings.filter((finding) => finding.severity !== 'info').slice(0, 3) ?? [];
+  const visibleFindings = showAll ? report?.findings ?? [] : important;
   return (
     <details open className="border-t border-white/10" data-testid="colour-check">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
@@ -90,6 +113,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
         {problems.length > 0 && <span className="text-xs text-zinc-400">({t.findings(problems.length)})</span>}
       </summary>
       <div className="space-y-2 px-1 pb-2 text-sm" aria-live="polite">
+        {!disabled && <button type="button" className="min-h-11 rounded-md border border-white/15 px-3 text-xs text-zinc-200 focus-visible:outline-2 focus-visible:outline-sky-300" onClick={() => setCheckRevision((n) => n + 1)} aria-label="Check colours again">Check now</button>}
         {failed && <p className="text-xs text-zinc-400">{t.unavailable}</p>}
         {!report && !failed && <p className="text-xs text-zinc-400">{t.checking}</p>}
         {report && report.palette.length > 0 && (
@@ -108,8 +132,8 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
         )}
         {report && (
           <ul className="space-y-2" data-testid="colour-findings">
-            {report.findings.length === 0 && <li className="text-xs text-zinc-300">{t.nothingToFix}</li>}
-            {report.findings.map((finding) => {
+            {important.length === 0 && <li className="text-xs text-zinc-300">{t.nothingToFix}</li>}
+            {visibleFindings.map((finding) => {
               const said = describe(finding);
               const Icon = ICON[finding.severity];
               const label = finding.severity === 'warning' ? t.watchOut : finding.severity === 'tip' ? t.tip : t.note;
@@ -130,8 +154,13 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
             })}
           </ul>
         )}
+        {report && report.findings.length > important.length && (
+          <button type="button" className="min-h-11 rounded-md px-2 text-xs text-zinc-300 underline focus-visible:outline-2 focus-visible:outline-sky-300" aria-expanded={showAll} onClick={() => setShowAll((value) => !value)}>
+            {showAll ? 'Show fewer findings' : 'Show all findings'}
+          </button>
+        )}
         {applied && <p role="status" className="text-xs text-zinc-400">{t.fixApplied}</p>}
-        {readJpeg && <AiReviewPanel edit={edit} onEdit={onEdit} readJpeg={readJpeg} disabled={disabled}
+        {readJpeg && !disabled && <AiReviewPanel edit={edit} onEdit={onEdit} readJpeg={readJpeg} disabled={disabled}
           localFindings={report?.findings.map((finding) => describe(finding).text) ?? []} />}
       </div>
     </details>
