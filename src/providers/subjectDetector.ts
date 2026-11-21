@@ -1,4 +1,5 @@
 import { sha256Hex } from '../core/sha256';
+import { assertSubjectActive, boundedSubjectGuide } from '../core/subjectCancellation';
 import { friendlyToolError } from '../core/toolErrors';
 import { bundledModelUrl } from './bundledModelAssets';
 import { installedModel } from './modelUpdater';
@@ -113,7 +114,9 @@ export interface GuidedSubject extends DetectedSubject {
  * trustworthy box, or when the cut-out gives no clear subject, this is exactly the whole-photo search.
  */
 export async function detectSubjectGuided(framed: HTMLCanvasElement, options: { maxCoverage?: number; signal?: AbortSignal } = {}): Promise<GuidedSubject> {
+  assertSubjectActive(options.signal);
   const whole = async (): Promise<GuidedSubject> => {
+    assertSubjectActive(options.signal);
     const scale = Math.min(1, 640 / Math.max(framed.width, framed.height));
     const preview = document.createElement('canvas');
     preview.width = Math.max(1, Math.round(framed.width * scale));
@@ -122,25 +125,26 @@ export async function detectSubjectGuided(framed: HTMLCanvasElement, options: { 
     if (!context) throw new Error('Canvas unavailable');
     context.imageSmoothingQuality = 'high';
     context.drawImage(framed, 0, 0, preview.width, preview.height);
-    return { ...(await detectSubject(preview, options)), guide: null, detail: null };
+    const detected = await detectSubject(preview, options);
+    assertSubjectActive(options.signal);
+    return { ...detected, guide: null, detail: null };
   };
 
   // The outline model is the one that must work; if it can't load, say so now rather than after the detector runs.
   await load();
+  assertSubjectActive(options.signal);
   let found: Awaited<ReturnType<typeof import('./objectDetector').findSubject>> = null;
-  let budget: number | undefined;
   try {
     const { findSubject } = await import('./objectDetector');
     // The detector only steers; it never holds the mask up. Past its budget the whole-photo search is used.
-    found = await Promise.race([
-      findSubject(framed, options.signal),
-      new Promise<null>((resolve) => { budget = window.setTimeout(() => resolve(null), GUIDE_BUDGET_MS); }),
-    ]);
-  } catch {
-    // A missing or broken detector must not take subject masks away; the whole-photo search still works.
+    found = await boundedSubjectGuide(findSubject(framed, options.signal), GUIDE_BUDGET_MS, options.signal);
+    assertSubjectActive(options.signal);
+  } catch (error) {
+    // A cancellation is never a licence to run another model on a stale photo.
+    assertSubjectActive(options.signal);
+    if (error instanceof DOMException && error.name === 'AbortError') throw error;
+    // A missing or broken detector must not take subject masks away.
     return whole();
-  } finally {
-    if (budget !== undefined) window.clearTimeout(budget);
   }
   const region = guideRegion(found?.detection.box, found?.detection.score ?? 0, framed.width, framed.height);
   if (!found || !region) return whole();
@@ -153,11 +157,13 @@ export async function detectSubjectGuided(framed: HTMLCanvasElement, options: { 
   if (!context) return whole();
   context.drawImage(framed, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
   const map = await subjectMap(piece);
+  assertSubjectActive(options.signal);
   const assessment = assessSubject(map, 0.98);
   if (!assessment.usable) return whole();
   const localSize = gridSizeFor(piece.height / piece.width);
   const local = toGrid(map, SUBJECT_MODEL.inputSize, localSize.w, localSize.h);
   const detail = refinedDetail(map, piece, bounds);
+  assertSubjectActive(options.signal);
   // With a fine outline the whole-photo grid is only the fallback, so it stays at the ordinary size; without one it
   // carries the detail itself.
   const full = detail ? gridSizeFor(framed.height / framed.width) : guidedGridSize(framed.height / framed.width, bounds);
