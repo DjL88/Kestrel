@@ -25,15 +25,18 @@ export async function openPhotoInfo(page: Page) {
   const back = page.getByRole('button', { name: 'Back', exact: true });
   if (await back.isVisible()) await back.click(); // from the editor; already in the library otherwise
   const small = (page.viewportSize()?.width ?? 1280) < 768;
-  await page.getByRole('button', { name: small ? 'More' : 'Workspace options', exact: true }).click();
+  const trigger = page.getByRole('button', { name: small ? 'More' : 'Workspace options', exact: true });
+  await trigger.click();
   const menu = page.locator('#workspace-options');
   // Photo info is a checkbox in this menu and is on by default (#339): leave it on, switch it on if it was turned off.
   // It sits under the collapsed "View · show or hide" section, so open that first.
   const section = menu.locator('details', { hasText: /photo info/i }).first();
   if (!(await section.evaluate((el) => (el as HTMLDetailsElement).open))) await section.locator('summary').click();
   const info = menu.getByRole('checkbox', { name: 'Photo info', exact: true });
-  if (await info.isChecked()) await page.keyboard.press('Escape');
-  else await info.check();
+  if (!(await info.isChecked())) await info.check();
+  await page.keyboard.press('Escape');
+  // Escape does not always fold the menu (a phone sheet stays over the panel): close it with its own button.
+  if ((await trigger.getAttribute('aria-expanded')) === 'true') await trigger.click();
 }
 
 /** Photo info has Info and Subject tabs: open Subject (kind, tags, species) if it is not already showing. */
@@ -64,4 +67,6 @@ export async function openInfoFor(page: Page, filename: string) {
   await page.getByRole('article', { name: `Frame ${filename}` }).click({ position: { x: 8, y: 8 } });
   const expand = page.getByRole('button', { name: 'Expand photo info' });
   if (await expand.isVisible()) await expand.click();
+  // On a phone the panel is not docked: bring it up through the menu.
+  if (!(await page.getByRole('complementary', { name: 'Photo info' }).isVisible())) await openPhotoInfo(page);
 }
