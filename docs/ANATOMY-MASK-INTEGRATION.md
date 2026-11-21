@@ -17,7 +17,7 @@ Executable unit, lint, build, Playwright, Cargo, real Nikon, Mac/Windows/phone a
 
 ## Asynchronous edit-revision guard (21 November)
 
-The producer must capture `sourceSha256`, `framingKey`, the **exact current** `mask.grid.data` as `baseGridData`, and the editor's monotonically increasing `recipeRevision` **before** starting optional local inference. At acceptance, pass the independently verified original SHA and **current** recipe revision to `refineObservedAnatomy(mask, evidence, sourceSha, currentRevision)`. Any crop, mask brush, slider, undo, history restore or photo switch must increment/change the revision or cancel the pending proposal. The function now returns `stale-recipe` when either revision or base grid changed, even if the original photo hash still matches. Never retry by replacing the current revision with the old one; run a fresh analysis after the user explicitly requests it or guidance policy permits.
+The producer must capture `sourceSha256`, `framingKey`, the **exact current** `mask.grid.data` as `baseGridData`, and the editor's monotonically increasing `recipeRevision` **before** starting optional local inference. At acceptance, pass the independently verified original SHA and **current** recipe revision to `refineObservedAnatomy(mask, evidence, sourceSha, currentRevision, verifyCalibration)`. Any crop, mask brush, slider, undo, history restore or photo switch must increment/change the revision or cancel the pending proposal. The function now returns `stale-recipe` when either revision or base grid changed, even if the original photo hash still matches. Never retry by replacing the current revision with the old one; run a fresh analysis after the user explicitly requests it or guidance policy permits.
 
 The returned mask is a **proposal**; Glide requires Apply, Fly Solo requires an explicit request, and Soar requires opt-in plus verified evidence and undo/history. This function does not authorize automatic recipe writes. It still requires a rights-cleared local anatomy/occlusion producer with independent real negative calibration; fixture probabilities are not calibration. W1 owns editor/history integration and W3 owns model evidence. W2 owns true renderer/export parity. No cloud upload or model training is performed here.
 
@@ -43,3 +43,24 @@ evidence leave the device. No quality or calibration accuracy is claimed.
 This update also repairs literal escaped newline tokens that had made the
 TypeScript test fixture syntactically invalid. Source readback is not an
 executable test; exact-head tests and installed checks remain NOT RUN.
+
+## Complete mask-state concurrency guard (21 November, 07:31 UTC)
+
+The existing source digest, grid bytes and recipe revision are necessary but not
+sufficient when an integration misses a revision increment. Before inference,
+set `evidence.baseMaskSnapshot = captureAnatomyMaskSnapshot(mask)` on the
+current validated subject mask. At acceptance the consumer compares the full
+editable mask snapshot (manual strokes, feather, local edit strengths, limits,
+invert, fine detail, identity and grid) as well as source, framing and revision.
+Any mismatch abstains with `stale-recipe`; the caller must reanalyse, never
+rewrite the current snapshot to force a stale result through. The snapshot is
+not a cryptographic source hash and does not replace verifying original bytes.
+The complete snapshot contains mask grid data, so it stays **on-device only**;
+do not log, transmit or persist it as analytics. The result remains a proposal,
+not an automatic write. A missing or mismatched snapshot fails closed.
+
+Three additional synthetic regression cases cover missed brush-revision bumps,
+changed feather/local edits/limits and a valid freshly captured proposal. This
+is not installed-editor or real-photo proof. W1 owns capturing the snapshot at
+the async producer boundary, comparing again at undoable commit, and honoring
+Soar/Glide/Fly Solo; W5 owns independent signed calibration verification.
