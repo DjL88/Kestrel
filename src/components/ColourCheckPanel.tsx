@@ -63,7 +63,6 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   const [failed, setFailed] = useState(false);
   const [applied, setApplied] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const [checkRevision, setCheckRevision] = useState(0);
   const generation = useRef(0);
   const read = useRef(readPreview);
   read.current = readPreview;
@@ -95,19 +94,18 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
         setReport(null);
         setFailed(true);
       }
-    }, checkRevision ? 0 : 400);
+    }, 400);
     return () => {
       ++generation.current;
       window.clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [disabled, checkRevision, ...version]);
+  }, [disabled, ...version]);
 
 
   // Fly Solo never runs a background check. An explicit press uses the same local
   // renderer preview, and the normal version effect invalidates it on any edit/photo change.
   const checkOnDemand = () => {
-    if (!disabled) { setCheckRevision((n) => n + 1); return; }
     ++generation.current;
     setReport(null);
     setFailed(false);
