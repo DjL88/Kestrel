@@ -3,7 +3,11 @@ import { test } from 'node:test';
 import { placePhotoInsideSquare } from './photoCheckPlacement';
 
 test('landscape photos keep their 3:2 shape when sent to the local vision model', () => {
-  assert.deepEqual(placePhotoInsideSquare(3000, 2000, 512), { x: 0, y: 256 / 3, width: 512, height: 1024 / 3 });
+  const box = placePhotoInsideSquare(3000, 2000, 512);
+  assert.equal(box.x, 0);
+  assert.equal(box.width, 512);
+  assert.ok(Math.abs(box.y - 256 / 3) < 1e-9);
+  assert.ok(Math.abs(box.height - 1024 / 3) < 1e-9);
 });
 
 test('portrait photos keep their 2:3 shape instead of distorting the subject', () => {

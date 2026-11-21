@@ -211,6 +211,7 @@ export const source = {
     tagAll: (count: number) => plural(count, { one: 'Tag it', other: `Tag all ${count}` }),
     noThanks: 'No thanks',
     autoTag: 'Automatically tag strong matches',
+    regionLabel: 'Where you photograph',
     checkNote: 'Check suggested and automatic tags. Confidence is relative to the names this model knows.',
   },
   scanBanner: {
