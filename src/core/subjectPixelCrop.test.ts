@@ -31,8 +31,10 @@ test('malformed, oversized, or non-finite crop abstains', () => {
 });
 
 test('two original-pixel subject crops preserve source identity and remain review-only', () => {
-  const left = raster();
-  const right = { ...raster(), photoId: 'q', sourceSha256: 'b'.repeat(64), rgba: Uint8Array.from({ length: 48 }, (_, i) => 255 - i) };
+  // Edge energy only counts fully opaque samples (see the transparent-samples test below), so these frames are opaque.
+  const opaque = (value: (i: number) => number) => Uint8Array.from({ length: 48 }, (_, i) => i % 4 === 3 ? 255 : value(i));
+  const left = { ...raster(), rgba: opaque((i) => i) };
+  const right = { ...raster(), photoId: 'q', sourceSha256: 'b'.repeat(64), rgba: opaque((i) => 255 - i) };
   const box = { x: 0, y: 0, width: 1, height: 1 };
   const a = { raster: left, photoId: 'p', sourceSha256: sha, box, comparisonGroup: 'folder/burst' };
   const b = { raster: right, photoId: 'q', sourceSha256: right.sourceSha256, box, comparisonGroup: 'folder/burst' };
