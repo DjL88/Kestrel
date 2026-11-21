@@ -41,6 +41,7 @@ export interface DurableExportQueue {
     adapter: {
       render(item: { sourceId: string; filename: string; subfolder: string }, recipe: Readonly<Recipe>, signal: AbortSignal): Promise<Output>;
       save(item: { sourceId: string; filename: string; subfolder: string }, output: Output, signal: AbortSignal): Promise<void>;
+      finalize?(recipe: Readonly<Recipe>, signal: AbortSignal): Promise<void>;
     },
   ): ExportBatchTicket;
 }
@@ -97,36 +98,53 @@ export function createJournalledExportDispatch(
           abortIf(signal);
           const outputSha256 = await adapter.publishAtomic(source, output, signal);
           if (!HASH.test(outputSha256)) throw new Error('Export adapter did not return a verified output SHA-256.');
+          // A successful publication call is not proof that the bytes now at
+          // the destination match its receipt (e.g. a replaced NAS mount).
+          // Never journal an unverified file as safely completed.
+          const receipt: ExportQueueReceipt = {
+            index, outputSha256: outputSha256.toLowerCase(), relativePath: relative(source),
+          };
+          if (!await adapter.verifyOutput(source, receipt))
+            throw new Error('Published export could not be verified; manual recovery required.');
+          abortIf(signal);
           // If journal persistence fails after publication, the next explicit
           // attempt must fail safely on the adapter's no-overwrite collision.
-          journal.receipt<Recipe>(checkpoint.id, {
-            index, outputSha256: outputSha256.toLowerCase(), relativePath: relative(source),
-          });
+          journal.receipt<Recipe>(checkpoint.id, receipt);
+        },
+        finalize: async (_recipe, signal) => {
+          abortIf(signal);
+          const saved = journal.load<Recipe>(checkpoint.id);
+          if (!saved || saved.receipts.length !== saved.items.length)
+            throw new Error('Export finished without complete durable receipts.');
+          // Finish only when the same originals and all published bytes still
+          // match the frozen plan. This catches a drive/NAS swap mid-batch.
+          for (const item of saved.items) {
+            abortIf(signal);
+            if (!await adapter.verifySource(item))
+              throw new Error('Original changed before export completion.');
+          }
+          for (const receipt of saved.receipts) {
+            abortIf(signal);
+            if (!await adapter.verifyOutput(saved.items[receipt.index], receipt))
+              throw new Error('Export output changed before completion.');
+          }
+          abortIf(signal);
+          journal.save({ ...saved, state: 'completed' });
         },
       });
     } catch (error) {
       active.delete(checkpoint.id);
       throw error;
     }
-    // The task queue finishes rendering before the final durable journal commit.
-    // Do not expose success to callers until the checkpoint has been persisted.
-    // A failed commit must be reported as failure, not as a completed export.
+    // The queue's finalize hook commits the journal BEFORE its Task Manager
+    // handle transitions to done. Failures retain receipts for explicit retry.
     const committed = ticket.done.then(result => {
-      if (result === 'completed') {
+      if (result !== 'completed') {
         const saved = journal.load<Recipe>(checkpoint.id);
-        if (!saved || saved.receipts.length !== saved.items.length) {
-          throw new Error('Export finished without a complete durable receipt journal.');
-        }
-        journal.save({ ...saved, state: 'completed' });
-      } else {
-        journal.pause(checkpoint.id);
+        if (saved && saved.state !== 'completed') journal.pause(checkpoint.id);
       }
       return result;
-    }).catch((): 'failed' => {
-      // Preserve receipts for explicit verified recovery. Never report success
-      // after an unsuccessful durable checkpoint write.
-      return 'failed';
-    }).finally(() => { active.delete(checkpoint.id); });
+    }).catch((): 'failed' => 'failed').finally(() => { active.delete(checkpoint.id); });
     return Object.freeze({ id: ticket.id, cancel: () => ticket.cancel(), done: committed });
   }
 

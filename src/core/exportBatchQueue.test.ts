@@ -163,3 +163,102 @@ test('explicit retries are bounded and cancelled jobs are never retried automati
   assert.equal(await stopped.done, 'completed');
   assert.equal(queue.canRetryTask(store.list().at(-1)!.id), false);
 });
+
+
+test('Task Manager stays running until durable finalization commits', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let finalizing = false;
+  const ticket = queue.enqueue({ title: 'Durable', items: [photos[0]], recipe: {} }, {
+    async render() { return 'pixels'; },
+    async save() {},
+    async finalize() { finalizing = true; await gate; },
+  });
+  for (let i = 0; i < 10 && !finalizing; i++) await tick();
+  assert.equal(finalizing, true);
+  assert.notEqual(store.list()[0].state, 'done', 'rendered bytes are not a committed batch');
+  release();
+  assert.equal(await ticket.done, 'completed');
+  assert.equal(store.list()[0].state, 'done');
+});
+
+test('durable finalization failure leaves a visible failed Task Manager job', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  const ticket = queue.enqueue({ title: 'Durable', items: [photos[0]], recipe: {} }, {
+    async render() { return 'pixels'; },
+    async save() {},
+    async finalize() { throw new Error('Checkpoint disk full'); },
+  });
+  assert.equal(await ticket.done, 'failed');
+  assert.equal(store.list()[0].state, 'failed');
+  assert.match(store.list()[0].detail ?? '', /Checkpoint disk full/);
+});
+
+test('cancelling a waiting export never marks its Task Manager entry completed', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let firstStarted = false;
+  const first = queue.enqueue({ title: 'First', items: [photos[0]], recipe: {} }, {
+    async render() { firstStarted = true; await gate; return 'pixels'; },
+    async save() {},
+  });
+  for (let i = 0; i < 10 && !firstStarted; i++) await tick();
+  assert.equal(firstStarted, true);
+  let secondRendered = false;
+  const second = queue.enqueue({ title: 'Waiting', items: [photos[0]], recipe: {} }, {
+    async render() { secondRendered = true; return 'pixels'; },
+    async save() {},
+  });
+  assert.equal(second.cancel(), true);
+  assert.equal(await second.done, 'cancelled');
+  assert.equal(secondRendered, false);
+  assert.notEqual(store.list().find(task => task.title === 'Waiting')?.state, 'done');
+  release();
+  assert.equal(await first.done, 'completed');
+});
+
+test('cancellation is refused once durable finalisation starts; failed commit stays failed', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let finalizing = false;
+  const ticket = queue.enqueue({ title: 'Interrupted commit', items: [photos[0]], recipe: {} }, {
+    async render() { return 'pixels'; },
+    async save() {},
+    async finalize() { finalizing = true; await gate; throw new Error('Interrupted checkpoint'); },
+  });
+  for (let i = 0; i < 10 && !finalizing; i++) await tick();
+  assert.equal(finalizing, true);
+  assert.equal(ticket.cancel(), false, 'the irreversible commit boundary has started');
+  release();
+  assert.equal(await ticket.done, 'failed');
+  assert.equal(store.list()[0].state, 'failed');
+  assert.notEqual(store.list()[0].state, 'done');
+});
+
+test('late cancellation cannot contradict a successful durable export commit', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let finalizing = false;
+  let commits = 0;
+  const ticket = queue.enqueue({ title: 'Atomic', items: [photos[0]], recipe: {} }, {
+    async render() { return 'pixels'; },
+    async save() {},
+    async finalize() { finalizing = true; await gate; commits++; },
+  });
+  for (let i = 0; i < 10 && !finalizing; i++) await tick();
+  assert.equal(finalizing, true);
+  assert.equal(ticket.cancel(), false);
+  release();
+  assert.equal(await ticket.done, 'completed');
+  assert.equal(commits, 1);
+  assert.equal(store.list()[0].state, 'done');
+});
