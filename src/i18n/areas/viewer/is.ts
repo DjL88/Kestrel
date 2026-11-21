@@ -207,6 +207,7 @@ export const is: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Merkja hana' : `Merkja allar ${count}`,
     noThanks: 'Nei takk',
     autoTag: 'Merkja sterkar samsvaranir sjálfkrafa',
+    regionLabel: 'Hvar þú tekur myndir',
     checkNote: 'Yfirfarðu tillögð og sjálfvirk merki. Vissan miðast aðeins við heitin sem þetta líkan þekkir.',
   },
   scanBanner: {

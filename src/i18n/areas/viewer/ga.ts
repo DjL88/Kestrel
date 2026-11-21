@@ -200,6 +200,7 @@ export const ga: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Clibeáil é' : `Clibeáil iad go léir (${count})`,
     noThanks: 'Ní raibh maith agat',
     autoTag: 'Clibeáil meaitseálacha láidre go huathoibríoch',
+    regionLabel: 'An áit a nglacann tú grianghraif',
     checkNote: 'Seiceáil clibeanna molta agus uathoibríocha. Tá an mhuinín bunaithe ar na hainmneacha atá ar eolas ag an múnla seo amháin.',
   },
   scanBanner: {

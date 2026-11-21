@@ -204,6 +204,7 @@ export const de: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Verschlagworten' : `Alle ${count} verschlagworten`,
     noThanks: 'Nein, danke',
     autoTag: 'Sichere Treffer automatisch verschlagworten',
+    regionLabel: 'Wo du fotografierst',
     checkNote: 'Prüfen Sie vorgeschlagene und automatische Schlagwörter. Die Sicherheit bezieht sich nur auf die Namen, die dieses Modell kennt.',
   },
   scanBanner: {

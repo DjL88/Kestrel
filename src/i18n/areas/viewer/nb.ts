@@ -204,6 +204,7 @@ export const nb: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Merk det' : `Merk alle ${count}`,
     noThanks: 'Nei takk',
     autoTag: 'Merk sikre treff automatisk',
+    regionLabel: 'Hvor du fotograferer',
     checkNote: 'Se over foreslåtte og automatiske merker. Sikkerheten gjelder bare i forhold til navnene modellen kjenner.',
   },
   scanBanner: {

@@ -204,6 +204,7 @@ export const nl: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Labelen' : `Alle ${count} labelen`,
     noThanks: 'Nee, bedankt',
     autoTag: 'Sterke matches automatisch labelen',
+    regionLabel: 'Waar je fotografeert',
     checkNote: 'Kijk voorgestelde en automatische labels na. De zekerheid geldt alleen ten opzichte van de namen die dit model kent.',
   },
   scanBanner: {

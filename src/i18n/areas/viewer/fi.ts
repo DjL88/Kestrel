@@ -204,6 +204,7 @@ export const fi: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Merkitse se' : `Merkitse kaikki ${count}`,
     noThanks: 'Ei kiitos',
     autoTag: 'Merkitse vahvat osumat automaattisesti',
+    regionLabel: 'Missä kuvaat',
     checkNote: 'Tarkista ehdotetut ja automaattiset tunnisteet. Varmuus koskee vain nimiä, jotka tämä malli tuntee.',
   },
   scanBanner: {

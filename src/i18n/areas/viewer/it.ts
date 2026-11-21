@@ -204,6 +204,7 @@ export const it: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Etichettala' : `Etichettale tutte e ${count}`,
     noThanks: 'No, grazie',
     autoTag: 'Etichetta in automatico le corrispondenze sicure',
+    regionLabel: 'Dove fotografi',
     checkNote: 'Controlla le etichette suggerite e automatiche. La sicurezza è relativa ai nomi che questo modello conosce.',
   },
   scanBanner: {

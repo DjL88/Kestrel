@@ -200,6 +200,7 @@ export const gd: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Tagaich e' : `Tagaich iad uile (${count})`,
     noThanks: 'Chan eil, mòran taing',
     autoTag: 'Tagaich co-fhreagairtean làidir gu fèin-obrachail',
+    regionLabel: 'Càite am bi thu a’ togail dhealbhan',
     checkNote: 'Thoir sùil air tagaichean a chaidh a mholadh is fèin-obrachail. Tha an earbsa a rèir nan ainmean as aithne dhan mhodail seo a-mhàin.',
   },
   scanBanner: {

@@ -5,7 +5,7 @@ import { readHeifExif } from './heifExif.ts';
 import { HEIF_EXTENSIONS, PHOTO_ACCEPT, PHOTO_EXTENSIONS, RAW_ACCEPT, heifFormatLabel, isHeifFile, isRawPreviewFile, looksLikeHeif } from './rawFormats.ts';
 import { isSupportedPhotoFilename } from '../providers/localShootLoader.ts';
 
-// tests/fixtures/make_heic_fixture.py: wholly synthetic, 96 x 64, EXIF from a made-up "Kite44 Test" camera.
+// tests/fixtures/make_heic_fixture.py: wholly synthetic, 96 x 64, EXIF from a made-up "Kestrel Test" camera.
 const FIXTURE = new Uint8Array(readFileSync(new URL('../../tests/fixtures/synthetic-heic.heic', import.meta.url)));
 
 const ftyp = (major: string, ...compatible: string[]) => {
@@ -58,7 +58,7 @@ describe('HEIF EXIF', () => {
     const tiff = await readHeifExif(new Blob([FIXTURE]));
     expect(tiff).toBeTruthy();
     expect(String.fromCharCode(tiff![0], tiff![1])).toBe('MM');
-    expect(new TextDecoder().decode(tiff!)).toContain('Kite44 Test');
+    expect(new TextDecoder().decode(tiff!)).toContain('Kestrel Test');
   });
 
   it('returns no EXIF for a file without one, or for damaged bytes, rather than guessing', async () => {

@@ -200,6 +200,7 @@ export const cy: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Ei dagio' : `Tagio’r ${count}`,
     noThanks: 'Dim diolch',
     autoTag: 'Tagio cyfatebiaethau cryf yn awtomatig',
+    regionLabel: 'Ble rydych chi’n tynnu lluniau',
     checkNote: 'Gwiriwch dagiau a awgrymir a thagiau awtomatig. Mae’r hyder yn berthnasol i’r enwau mae’r model hwn yn eu hadnabod yn unig.',
   },
   scanBanner: {
