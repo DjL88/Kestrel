@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download } from 'lucide-react';
+import { Download } from './icons/KestrelUIIcons';
 import { megabytes } from '../core/speciesModel';
 import type { useSpeciesScan } from '../useSpeciesScan';
 import { ONLINE_HELPER_VISIBLE, openHelperDialog } from '../providers/helperSettings';
