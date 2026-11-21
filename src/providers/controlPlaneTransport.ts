@@ -47,7 +47,7 @@ export function controlPlaneTransport(
   }
 
   /** One request to one managed AI route: same auth, metadata guard, timeout and failure mapping for all three. */
-  async function post(path: string, jpegBase64: string, signal?: AbortSignal): Promise<unknown> {
+  async function post(path: Parameters<ManagedAiPhotoPermission>[0], jpegBase64: string, signal?: AbortSignal): Promise<unknown> {
     const token = session();
     if (!token) throw new HelperError('auth', 'Sign in to use the online helper.');
     // Account-level Gemini opt-in alone is NOT approval to transmit this photo.
@@ -55,7 +55,7 @@ export function controlPlaneTransport(
     // Every managed route needs an explicit current-photo user action. No consent
     // callback (or a stale/throwing callback) always means no network request.
     let approved = false;
-    try { approved = consentForCurrentPhoto?.(path as Parameters<ManagedAiPhotoPermission>[0]) === true; } catch { /* fail closed */ }
+    try { approved = consentForCurrentPhoto?.(path) === true; } catch { /* fail closed */ }
     if (!approved) throw new HelperError('blocked', 'Choose the online helper for this photo before sending it.');
     // Never send a photo that still carries camera data: the redraw in imageForHelper should guarantee this.
     const facts = inspectJpeg(base64Bytes(jpegBase64));
