@@ -1,5 +1,5 @@
-import { useId, useRef, useState } from 'react';
-import { AlertTriangle, Info, MessageSquareText } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { AlertTriangle, Info, LoaderCircle, MessageSquareText } from 'lucide-react';
 import { AI_REVIEW_CONSENT_VERSION, aiReviewPrompt, type AiReview } from '../core/aiReview';
 import { applyFix } from '../core/critique';
 import type { PhotoEdit } from '../core/photoEdits';
@@ -91,23 +91,42 @@ export function AiReviewPanel({ edit, onEdit, readJpeg, localFindings, disabled 
   const [review, setReview] = useState<AiReview | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
+  useEffect(() => () => { abort.current?.abort(); }, []);
   const agreed = settings ? settings.consent === consentFor(AI_REVIEW_CONSENT_VERSION, settings) : false;
 
   async function ask() {
-    if (!settings) return;
-    const jpeg = readJpeg();
-    if (!jpeg) return;
+    if (!settings || abort.current) return;
+    const controller = new AbortController();
+    abort.current = controller;
     setMessage(null); setReview(null); setMode('asking');
-    abort.current = new AbortController();
     try {
+      // Preview encoding can be synchronous. Paint progress before touching
+      // the canvas so tapping Ask never appears to do nothing.
+      await new Promise<void>((resolve) => {
+        let settled = false;
+        const finish = () => { if (settled) return; settled = true; window.clearTimeout(fallback); resolve(); };
+        const fallback = window.setTimeout(finish, 80);
+        window.requestAnimationFrame(() => window.setTimeout(finish, 0));
+      });
+      if (controller.signal.aborted) return;
+      const jpeg = readJpeg();
+      if (!jpeg) { if (abort.current === controller) setMessage(t.errors.other); return; }
       const prompt = aiReviewPrompt(languageOption(language).englishName, localFindings);
-      setReview(await askForReview(settings, AI_REVIEW_CONSENT_VERSION, prompt, jpeg, abort.current.signal));
+      const result = await askForReview(settings, AI_REVIEW_CONSENT_VERSION, prompt, jpeg, controller.signal);
+      if (abort.current === controller && !controller.signal.aborted) setReview(result);
     } catch (error) {
-      if (!abort.current.signal.aborted) setMessage(t.errors[error instanceof AiReviewError ? error.reason : 'other']);
+      if (abort.current === controller && !controller.signal.aborted) {
+        setMessage(t.errors[error instanceof AiReviewError ? error.reason : 'other']);
+      }
     } finally {
-      setMode('idle');
+      if (abort.current === controller) { abort.current = null; setMode('idle'); }
     }
   }
+  const cancelAsk = () => {
+    abort.current?.abort();
+    abort.current = null;
+    setMode('idle');
+  };
 
   // A provider is configured in Settings. No integration controls are shown until then.
   if (!settings) return null;
@@ -129,7 +148,9 @@ export function AiReviewPanel({ edit, onEdit, readJpeg, localFindings, disabled 
       {agreed && (
         <div className="flex flex-wrap gap-2">
           {mode === 'asking'
-            ? <><span role="status" className="self-center text-xs text-zinc-300">{t.asking}</span><button type="button" className={button} onClick={() => abort.current?.abort()}>{t.cancel}</button></>
+            ? <><span role="status" aria-live="polite" className="inline-flex min-h-9 items-center gap-2 self-center text-xs text-zinc-300">
+                <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />{t.asking}
+              </span><button type="button" className={button} onClick={cancelAsk}>{t.cancel}</button></>
             : <button type="button" className={button} disabled={disabled} onClick={() => void ask()}>{t.ask}</button>}
         </div>
       )}
