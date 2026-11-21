@@ -5,7 +5,10 @@
  */
 export type LicenceState = 'active' | 'trial' | 'unverified' | 'unlicensed';
 export type CloudState = 'active' | 'past_due' | 'cancelled' | 'none';
-export type Plan = 'free' | 'paid' | 'subscriber';
+/** User-visible product tiers: Basic and lifetime Pro only. */
+export type ProductPlan = 'free' | 'paid';
+/** Historical subscriber records remain readable for migration/recovery; never issue new subscriber licences. */
+export type Plan = ProductPlan | 'subscriber';
 
 export interface AccessSnapshot {
   /** Explicit product tier from a verified signed entitlement. Defaults to legacy state for migration. */
@@ -68,8 +71,8 @@ export function accessCapabilities(snapshot: AccessSnapshot): Capabilities {
   const withinRetention = now !== null && retentionValid && now <= readOnlyUntil;
   const eligibleSubscription = tier === 'subscriber' && fullEditor;
 
-  // A verified active subscription requires a confirmed paid-through timestamp
-  // for the new 3-tier contract; legacy snapshots preserve previous behavior.
+  // Only historical subscriber records have a paid-through cloud period.
+  // Basic and one-off Pro have no monthly tier; optional BYO storage is separate.
   const legacy = snapshot.plan === undefined;
   const currentlyPaid = legacy
     ? snapshot.cloud === 'active'
@@ -96,13 +99,11 @@ export function accessCapabilities(snapshot: AccessSnapshot): Capabilities {
 
 export interface PriceDisplay {
   localPence: number;
-  cloudMonthlyPence: number;
   currency: 'GBP';
 }
 
 /** UK price proposals, NOT payment/checkout authority. */
 export const PROPOSED_UK_PRICES: Readonly<PriceDisplay> = Object.freeze({
   localPence: 2900,
-  cloudMonthlyPence: 299,
   currency: 'GBP',
 });

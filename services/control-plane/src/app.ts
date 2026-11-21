@@ -130,7 +130,7 @@ export const Schemas = {
   }).strict(),
   AdminAccount: z.object({ email: z.string().email(), password: z.string().min(12).max(200), role: z.enum(['user', 'admin']) }).strict(),
   AdminIssue: z.object({
-    plan: z.enum(['paid', 'subscriber']), managedAi: z.boolean().default(false), accountId: z.string().optional(), maxDevices: z.number().int().min(1).max(20).default(3),
+    plan: z.literal('paid'), managedAi: z.boolean().default(false), accountId: z.string().optional(), maxDevices: z.number().int().min(1).max(20).default(3),
     note: z.string().trim().max(200).optional().describe('Who the key is for, e.g. "Gift for the camera club". Admin-only.'),
     validDays: z.number().int().min(1).max(3650).optional().describe('Server-side expiry: activation and renewal stop after this many days. A key used fully offline is not checked against it.'),
   }).strict(),
