@@ -1,6 +1,15 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "identifier": "app.kestrel.photo",
+  "app": {
+    "windows": [
+      {
+        "title": "Kestrel",
+        "backgroundColor": "#1c2027",
+        "dragDropEnabled": false
+      }
+    ]
+  },
   "bundle": {
     "iOS": {
       "developmentTeam": "G53UPS2B95",

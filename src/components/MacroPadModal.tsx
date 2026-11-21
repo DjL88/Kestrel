@@ -150,7 +150,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="macropad-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-xs p-4"
     >
       <div className="w-full max-w-2xl bg-kestrel-panel border border-white/12 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
         {/* Header */}

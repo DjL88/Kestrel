@@ -1,4 +1,5 @@
 import { AppearanceSettings } from './AppearanceSettings';
+import { useBackToClose } from '../providers/useBackToClose';
 import type { GuidanceMode } from '../core/guidanceMode';
 import { ConnectionsPanel } from './ConnectionsPanel';
 import { Keyboard } from 'lucide-react';
@@ -22,6 +23,7 @@ interface Props {
 
 /** One bounded, touch-friendly settings sheet from Home, Library or Editor. */
 export function AppearanceDialog({ side, onSideChange, hand, onHandChange, guidanceMode = 'glide', onGuidanceModeChange, onClose, onOpenMacroPad, initialSection = 'general' }: Props) {
+  useBackToClose(onClose);
   const aiSettings = useAiSettings();
   const [aiSetupOpen, setAiSetupOpen] = useState(initialSection === 'ai');
   const [storageOpen, setStorageOpen] = useState(initialSection === 'storage');

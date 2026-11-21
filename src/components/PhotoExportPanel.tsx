@@ -1,4 +1,5 @@
 import { BROWSER_ORIGINAL_ZIP_LIMIT, copyUnchangedOriginal, planOriginalCopies } from '../core/originalCopyExport';
+import { useBackToClose } from '../providers/useBackToClose';
 import { EXPORT_PREFERENCES_KEY, EXPORT_PRESETS_KEY, readExportPreferences, readExportPresets, type ExportPreset } from '../core/exportPreferences';
 import { isRawPreviewFile } from '../core/rawFormats';
 import { master16Blocker } from '../core/master16';
@@ -87,10 +88,12 @@ function loadChosen(freshStart = false): string[] {
       if (ids.length) return [...new Set(ids)];
     }
   } catch { /* Use the default when storage is unavailable. */ }
-  return freshStart ? [] : ['master'];
+  // A first export is a JPEG: small enough to share and to put in the camera roll. Full-size PNG is one tick away.
+  return freshStart ? [] : ['full-jpeg'];
 }
 
 export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequested, exportPlace }: Props) {
+  useBackToClose(onClose);
   const [placeNote, setPlaceNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [placeTaskId, setPlaceTaskId] = useState<number | null>(null);
   const [openingPlace, setOpeningPlace] = useState(false);
@@ -840,11 +843,15 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
       <label className={check}><input type="checkbox" checked={mark.on} onChange={(event) => setMark({ on: event.target.checked })} />{t.watermark.add}</label>
       {mark.on && (
         <div className="space-y-2">
-          <label className="block text-sm text-zinc-300">{t.watermark.type}
-            <select className={field} value={mark.kind} onChange={(event) => setMark({ kind: event.target.value as WatermarkOptions['kind'] })}>
-              <option value="text">{t.watermark.text}</option><option value="image">{t.watermark.picture}</option>
-            </select>
-          </label>
+          {/* Both kinds are visible at once: a drop-down hid the picture (PNG, JPEG or WebP logo) option. */}
+          <div role="group" aria-label={t.watermark.type} className="grid grid-cols-2 gap-1 rounded-md bg-white/5 p-1">
+            {(['text', 'image'] as const).map((kind) => (
+              <button key={kind} type="button" aria-pressed={mark.kind === kind} onClick={() => setMark({ kind })}
+                className="min-h-11 rounded px-3 text-sm text-zinc-200 hover:bg-white/8 aria-pressed:bg-white/15 aria-pressed:font-medium focus-visible:outline-2 focus-visible:outline-sky-300">
+                {kind === 'text' ? t.watermark.text : `${t.watermark.picture} (PNG, JPEG)`}
+              </button>
+            ))}
+          </div>
           {mark.kind === 'text' ? (
             <label className="block text-sm text-zinc-300">{t.watermark.text}
               <input className={field} maxLength={80} placeholder={t.watermark.placeholder} value={mark.text} onChange={(event) => setMark({ text: event.target.value })} />
@@ -1025,7 +1032,11 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
         <span>{t.originals.action(frames.length)}</span>
         {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
       </button>
-      <p className="px-3 pb-1 text-xs text-zinc-400">{t.originals.privacy}</p>
+      {/* One line by default: the full explanation is a tap away, so the Export tab keeps its room on a phone. */}
+      <details className="px-3 pb-1 text-xs text-zinc-400">
+        <summary className="min-h-9 cursor-pointer py-1.5">{t.originals.title}</summary>
+        <p className="pb-1">{t.originals.privacy}</p>
+      </details>
       {frames.some(frame => frame.isDemo) && <p role="note" className="px-3 text-xs text-amber-200">{t.originals.unavailable}</p>}
       {(!desktop || isMobileShell()) && frames.length > 1 && <p className="px-3 text-xs text-zinc-400">{t.originals.browserLimitHelp}</p>}
     </div>
@@ -1117,7 +1128,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const featuredGroups = SHARED_SOCIAL_SIZES.filter(group => FEATURED_SIZE_IDS.has(group.canonical.id));
   const otherGroups = SHARED_SOCIAL_SIZES.filter(group => !FEATURED_SIZE_IDS.has(group.canonical.id));
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/75 p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
       <section ref={dialog} className={`workspace-popover flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col overflow-hidden border-0 bg-kestrel-raised shadow-xl`}>
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-raised px-2 py-1 max-sm:pt-[calc(0.25rem+env(safe-area-inset-top))]">
           <button type="button" onClick={onClose} aria-label={t.panel.close} title={t.panel.close} className={button}><X className="h-5 w-5" aria-hidden="true" /></button>
