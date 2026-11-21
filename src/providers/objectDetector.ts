@@ -1,6 +1,7 @@
 import { sha256Hex } from '../core/sha256';
 import { friendlyToolError } from '../core/toolErrors';
 import { bundledModelUrl } from './bundledModelAssets';
+import { installedModel } from './modelUpdater';
 import { DETECTOR_MODEL, boxSharpness, detectorWorkerCount, decodeTile, mergeDetections, tilePlan, tileScale, toInput, type Box, type Detection } from '../core/objectDetection';
 
 type Ort = typeof import('onnxruntime-web/wasm');
@@ -11,6 +12,9 @@ let loading: Promise<Loaded> | null = null;
 let modelBytes: Promise<ArrayBuffer> | null = null;
 function verifiedModel(): Promise<ArrayBuffer> {
   modelBytes ??= (async () => {
+    // A same-contract update installed from the signed manifest (already checked against its signed checksum) comes first.
+    const updated = await installedModel('yolox-tiny');
+    if (updated) return updated.bytes;
     const modelUrl = bundledModelUrl(DETECTOR_MODEL.file);
     if (!modelUrl) throw new Error('The optional subject detector is not installed in this preview. Original photos and manual editing remain available.');
     const response = await fetch(modelUrl);

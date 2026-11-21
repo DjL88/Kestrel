@@ -1,6 +1,7 @@
 import { sha256Hex } from '../core/sha256';
 import { friendlyToolError } from '../core/toolErrors';
 import { bundledModelUrl } from './bundledModelAssets';
+import { installedModel } from './modelUpdater';
 import { SUBJECT_MODEL, assessSubject, detailSizeFor, encodeValues, gridSizeFor, readSubjectMap, preprocess, toGrid, type SubjectAssessment } from '../core/subjectModel';
 import { guidedFilter, resampleMap } from '../core/guidedFilter';
 import { lumaOf } from '../core/eyeFinder';
@@ -17,13 +18,19 @@ let loading: Promise<Loaded> | null = null;
 /** Loads the runtime and the bundled model once. The model is checked against its recorded checksum first. */
 function load(): Promise<Loaded> {
   loading ??= (async () => {
-    const modelUrl = bundledModelUrl('u2netp.onnx');
-    if (!modelUrl) throw new Error('The optional subject mask model is not installed in this preview. Manual masks and editing remain available.');
-    const response = await fetch(modelUrl);
-    if (!response.ok) throw new Error('The subject model could not be loaded.');
-    const bytes = await response.arrayBuffer();
-    if (bytes.byteLength !== SUBJECT_MODEL.bytes || (await sha256Hex(bytes)) !== SUBJECT_MODEL.sha256) {
-      throw new Error('The subject model file does not match its checksum, so it was not used.');
+    const updated = await installedModel('u2netp');
+    let bytes: ArrayBuffer;
+    if (updated) {
+      bytes = updated.bytes; // a same-contract update, already checked against its signed checksum
+    } else {
+      const modelUrl = bundledModelUrl('u2netp.onnx');
+      if (!modelUrl) throw new Error('The optional subject mask model is not installed in this preview. Manual masks and editing remain available.');
+      const response = await fetch(modelUrl);
+      if (!response.ok) throw new Error('The subject model could not be loaded.');
+      bytes = await response.arrayBuffer();
+      if (bytes.byteLength !== SUBJECT_MODEL.bytes || (await sha256Hex(bytes)) !== SUBJECT_MODEL.sha256) {
+        throw new Error('The subject model file does not match its checksum, so it was not used.');
+      }
     }
     // The runtime loads on demand, and a hosted dev server can fail to serve it the first time. Try once more before giving up.
     const ort = await import('onnxruntime-web/wasm').catch(async () => {

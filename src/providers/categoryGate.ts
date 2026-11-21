@@ -1,4 +1,5 @@
 import { Sha256Stream } from '../core/sha256';
+import { installedModel } from './modelUpdater';
 import { GATE_MODEL, gateVectors } from '../core/categoryGate';
 import { preprocessSpecies } from '../core/speciesModel';
 import { normalise } from '../core/speciesMatch';
@@ -54,8 +55,12 @@ let loading: Promise<Loaded> | null = null;
 function load(): Promise<Loaded> {
   loading ??= (async () => {
     let bytes: Uint8Array;
-    const stored = isDesktopApp() ? undefined : await getModel(GATE_MODEL.cache, GATE_MODEL.url);
-    if (stored) {
+    // A same-contract update from the signed manifest (already checked against its signed checksum) comes first.
+    const updated = await installedModel('clip-vit-b32-vision-uint8');
+    const stored = updated || isDesktopApp() ? undefined : await getModel(GATE_MODEL.cache, GATE_MODEL.url);
+    if (updated) {
+      bytes = new Uint8Array(updated.bytes);
+    } else if (stored) {
       bytes = new Uint8Array(await stored.arrayBuffer());
     } else if (isDesktopApp()) {
       const response = await fetch(GATE_MODEL.url);
@@ -66,7 +71,7 @@ function load(): Promise<Loaded> {
     }
     const hash = new Sha256Stream();
     hash.update(bytes);
-    if (bytes.byteLength !== GATE_MODEL.bytes || hash.digest() !== GATE_MODEL.sha256) {
+    if (!updated && (bytes.byteLength !== GATE_MODEL.bytes || hash.digest() !== GATE_MODEL.sha256)) {
       throw new Error('The subject category model failed its integrity check, so it was not used.');
     }
     const [taxonomy, vectorFile] = await Promise.all([import('../assets/subject/taxonomy.json'), import('../assets/subject/vectors.json')]);

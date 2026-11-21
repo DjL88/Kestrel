@@ -3,6 +3,29 @@
 Kestrel works fully offline without any of this. Hosting gives people somewhere to download Kestrel, lets the app fetch
 newer models safely, and keeps the keys that sign them out of the code.
 
+## Publishing a model update (the app fetches it by itself)
+
+The app checks `manifest/stable.json` in the models bucket on launch, at most once a day, and never blocks anything. It
+installs a model only when **all** of these hold: the manifest's signature matches the key pinned in the build
+(`VITE_KESTREL_MODEL_KEYS`); its revision is not older than one already seen; the model is one of the four the app has a
+slot for (`MODEL_SLOTS` in `src/core/modelUpdatePolicy.ts`); the manifest says the model keeps that slot's **contract**
+(same inputs, outputs and labels); and the downloaded size and SHA-256 match the signed list. Otherwise the bundled model
+keeps working. A model that changes its contract (new labels, input size or outputs) needs an app release, because the
+code around it changes too; raise the slot's contract in the app first.
+
+To publish: put the new `.onnx` file(s) in a folder (file name decides the id: `yolox_tiny.onnx` is `yolox-tiny`), then
+run the existing steps in "Set it up" with a **higher `--revision`** than the last one:
+
+```powershell
+npx tsx scripts/release/sign-data-manifest.ts --dir models-to-publish --version 2026.12.1 --revision 2 --out out/models
+./scripts/release/publish-gcp.ps1 -Project kestrel-hosting -Models out/models
+```
+
+The script refuses an id the app has no slot for and stamps each model with its slot's contract. Installed apps pick the
+update up within a day of being online. Build settings the app needs: `VITE_KESTREL_MODEL_BASE_URL` (`terraform output
+models_base_url`) and `VITE_KESTREL_MODEL_KEYS` (`kestrel-2026-11=<manifest public key>`, listed in `.env.example`).
+Note that `/v1/models/manifest` on the control plane is a separate registry and is not what the app reads for this.
+
 ## What phase 1 creates (this folder)
 
 | Piece | What it's for | Who can read it |
