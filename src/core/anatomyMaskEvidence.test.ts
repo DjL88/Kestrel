@@ -11,7 +11,7 @@ const grid = (paint: Record<number, number> = {}): SubjectGrid => {
 };
 const evidence = (parts: SubjectGrid, occluders: SubjectGrid, baseGridData: string): AnatomyEvidence => ({
   sourceSha256: sha, framingKey: 'frame', baseGridData, recipeRevision: 7, modelId: 'local-segmenter',
-  modelVersion: 'fixture-1', partConfidence: 0.95, occluderConfidence: 0.96,
+  modelVersion: 'fixture-1', calibration: { modelId: 'local-segmenter', modelVersion: 'fixture-1',\n    domain: 'wildlife', datasetDigestSha256: 'b'.repeat(64), calibrationVersion: 'fixture',\n    positiveCount: 1, negativeCount: 1, approved: true },\n  partConfidence: 0.95, occluderConfidence: 0.96,
   domain: 'wildlife', observedParts: parts, foregroundOccluders: occluders,
 });
 
@@ -59,7 +59,7 @@ test('invalid grid and absence of observed changes leave source intact', () => {
 test('cross-genre evidence uses identical conservative mask rules, not wildlife species labels', () => {
   for (const domain of ['wildlife', 'person', 'pet', 'sport', 'macro', 'general'] as const) {
     const mask = createSubjectMask('s', grid({ 1: 255 }), 'frame', 'medium');
-    const result = refineObservedAnatomy(mask, { ...evidence(grid({ 2: 255 }), grid(), mask.grid.data), domain }, sha, 7);
+    const e = evidence(grid({ 2: 255 }), grid(), mask.grid.data);\n    const result = refineObservedAnatomy(mask, { ...e, domain, calibration: { ...e.calibration, domain } }, sha, 7);
     assert.equal(result.ok, true, domain);
   }
 });
@@ -148,4 +148,27 @@ test('manual brush and edit changes invalidate old revision even when grid is un
     { ok: false, reason: 'stale-recipe' });
   assert.equal(mask.strokes.length, 1);
   assert.equal(mask.edit.exposure, 0.2);
+});
+
+test('unapproved or missing independent calibration provenance never authorises anatomy edits', () => {
+  const mask = createSubjectMask('s', grid({ 10: 255 }), 'frame', 'high');
+  const e = evidence(grid({ 19: 255 }), grid(), mask.grid.data);
+  for (const calibration of [
+    { ...e.calibration, approved: false },
+    { ...e.calibration, modelVersion: 'wrong-version' },
+    { ...e.calibration, domain: 'person' as const },
+    { ...e.calibration, datasetDigestSha256: '' },
+    { ...e.calibration, calibrationVersion: '' },
+    { ...e.calibration, negativeCount: 0 },
+    { ...e.calibration, positiveCount: Number.NaN },
+  ]) assert.deepEqual(refineObservedAnatomy(mask, { ...e, calibration }, sha, 7),
+    { ok: false, reason: 'uncalibrated-evidence' });
+  assert.equal(atob(mask.grid.data).charCodeAt(19), 0);
+});
+
+test('a raw detector score without calibration metadata is not treated as confidence', () => {
+  const mask = createSubjectMask('s', grid({ 10: 255 }), 'frame', 'high');
+  const e = evidence(grid({ 19: 255 }), grid(), mask.grid.data);
+  assert.deepEqual(refineObservedAnatomy(mask, { ...e, calibration: undefined as unknown as AnatomyEvidence['calibration'] }, sha, 7),
+    { ok: false, reason: 'uncalibrated-evidence' });
 });
