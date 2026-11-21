@@ -93,3 +93,23 @@ test('rejects portable case-folded destination aliases before publication', () =
     ...plan(), items: [item, { ...item, sourceId: 'original-2', filename: 'BIRD.TIF', subfolder: 'master' }],
   }), /collision/);
 });
+
+test('completed export never claims verified success after original or output changes', async () => {
+  const { journal } = setup();
+  journal.save(plan());
+  journal.receipt('batch_01', { index: 0, relativePath: 'Master/bird.tif', outputSha256: hash });
+  journal.save({ ...journal.load<{ quality: number }>('batch_01')!, state: 'completed' });
+  let sources = 0, outputs = 0;
+  const verified = await journal.pendingForExplicitResume('batch_01',
+    async () => { sources++; return true; },
+    async () => { outputs++; return true; });
+  assert.equal(verified.checkpoint.state, 'completed');
+  assert.deepEqual(verified.pending, []);
+  assert.equal(sources, 1);
+  assert.equal(outputs, 1);
+  await assert.rejects(journal.pendingForExplicitResume('batch_01',
+    async () => false, async () => true), /Original identity/);
+  await assert.rejects(journal.pendingForExplicitResume('batch_01',
+    async () => true, async () => false), /changed or disappeared/);
+  assert.equal(journal.load('batch_01')?.state, 'completed');
+});
