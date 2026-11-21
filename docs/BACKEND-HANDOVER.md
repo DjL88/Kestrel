@@ -94,3 +94,23 @@ for app screens, then merges and applies any Google Cloud change only with your 
 2. **Apply with issuing on.** `terraform -chdir=infra/gcp plan` then `apply` with `-var licence_issuing_enabled=true` (plus the existing image and client-id variables, see `infra/gcp/README.md`). Review the plan first: it should only grant the service account access to that secret and add the environment variable.
 3. **Add admins.** Add a new version of `kcp-admin-emails` with the full comma-separated list of Google addresses, then redeploy or restart the service so it reads it. Every admin can issue and revoke licences, and each action is written to the audit log, so keep the list short.
 4. **Check.** Sign in at `/admin` with an allow-listed account, issue a test key, activate it in a development build, then revoke it.
+
+
+## People sign-in and entitlements (built 21 Nov 2026, not yet deployed)
+
+**The model.** A licence record is now an entitlement keyed to the person: account, plan, `majorVersion`, `paid` (money received; a gift is `false`), `source` (`purchase`, `gift` or `key`), managed AI and validity. The person is identified by a hash of their email, so an entitlement can wait for them: a free grant or a payment made before they have an account attaches the moment they sign in. Granting is idempotent (purchase id comes from the checkout reference; a gift is one per person, plan and version), so a replayed webhook or a double click cannot create duplicates. No signing key is needed.
+
+**Free grant.** `POST /v1/admin/licences/grant` `{ email, plan, majorVersion, managedAi, note, validDays }`, admin only, audited without the address.
+
+**Sign in.** `POST /v1/auth/apple` and `POST /v1/auth/google` take the provider's ID token. The server checks signature (provider's published keys), issuer, **our** client id, expiry and a verified email, creates the account if new, attaches waiting entitlements, and returns a session. These sessions are always plain `user` sessions. `GET /v1/me/entitlements` now includes `majorVersion`, `paid` and `source`.
+
+**Known limitation.** If someone uses Apple's "Hide my email", their sign-in email is a relay address and will not match a purchase made with their real email. The response sets `privateRelay: true` so the app can explain this and offer to link the purchase email.
+
+**Payments.** `purchaseEntitlement` (in `entitlement.ts`) turns a verified sale into an entitlement and is tested, but **no route calls it yet**. It still needs: the SumUp API key in `kestrel-sumup-api-key`, a route that starts a hosted checkout from the price quote, and a verification step that calls SumUp `verify`, then `CommerceLedger.recordPaid`, then `store.grantLicence`. Do not wire it to anything that has not retrieved and matched the payment from SumUp first.
+
+### What only you can do
+
+1. **Sign in with Apple needs no private key.** The server only verifies Apple's ID tokens. In the Apple Developer portal (Certificates, Identifiers & Profiles): create an **App ID** with Sign in with Apple enabled (the app's bundle id), and a **Services ID** for the website with the site's domain and return URL. Send me, or set in Terraform, the Services ID and bundle id as `apple_client_ids`. The development certificate (`.cer`) you uploaded is for signing builds and is not used here.
+2. **Sign in with Google for people.** In Google Cloud, APIs & Services, Credentials: create OAuth client ids for web (and iOS/Android if those apps ship). Set them as `user_google_client_ids`. These are not secrets. Web OAuth clients cannot be created with `gcloud`.
+3. **Apply.** `terraform plan` then `apply` with `apple_client_ids`, `user_google_client_ids` and a new control-plane image built from this commit. Review the plan: it should only add two environment variables and a new revision.
+4. **SumUp key**, then the checkout route above.

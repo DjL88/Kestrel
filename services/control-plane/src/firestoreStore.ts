@@ -73,6 +73,8 @@ const toLicence = (d: FsData): LicenceRecord => ({
   managedAi: d.managedAi === true, status: d.status as LicenceStatus, maxDevices: d.maxDevices as number,
   offlineGraceDays: d.offlineGraceDays as number, validUntilMs: (d.validUntilMs as number | null) ?? null, updatedAtMs: d.updatedAtMs as number,
   note: typeof d.note === 'string' ? d.note : null,
+  majorVersion: typeof d.majorVersion === 'number' ? d.majorVersion : 1, paid: d.paid === true,
+  source: d.source === 'purchase' || d.source === 'gift' ? d.source : 'key', emailHash: typeof d.emailHash === 'string' ? d.emailHash : null,
 });
 const licenceDoc = (l: LicenceRecord, deviceCount: number): FsData => ({ ...l, deviceCount });
 const deviceCountOf = (d: FsData | undefined) => (typeof d?.deviceCount === 'number' ? d.deviceCount : 0);
@@ -133,6 +135,30 @@ export class FirestoreStore implements Store {
       const current = await tx.get(ref);
       tx.set(ref, licenceDoc(l, deviceCountOf(current.data())));
     });
+  }
+  async grantLicence(l: LicenceRecord) {
+    return this.db.runTransaction(async (tx) => {
+      const ref = this.ref(C.licences, l.licenceId);
+      const current = await tx.get(ref);
+      if (current.exists) return { created: false, licence: toLicence(current.data()!) };
+      tx.set(ref, licenceDoc(l, 0));
+      return { created: true, licence: l };
+    });
+  }
+  async claimLicencesForEmail(emailHash: string, accountId: string) {
+    const snap = await this.db.collection(C.licences).where('emailHash', '==', emailHash).get();
+    let claimed = 0;
+    for (const doc of snap.docs) {
+      // Re-read inside a transaction so two sign-ins racing cannot both take the same licence.
+      claimed += await this.db.runTransaction(async (tx) => {
+        const ref = this.ref(C.licences, doc.id);
+        const current = await tx.get(ref);
+        if (!current.exists || (current.data()!.accountId ?? null) !== null) return 0;
+        tx.update(ref, { accountId });
+        return 1;
+      });
+    }
+    return claimed;
   }
   async getLicence(licenceId: string) {
     const snap = await this.ref(C.licences, licenceId).get();

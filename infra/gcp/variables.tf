@@ -64,3 +64,15 @@ variable "google_oauth_client_id" {
   type        = string
   default     = ""
 }
+
+variable "user_google_client_ids" {
+  description = "OAuth client ids (web, iOS, Android) accepted when people sign in with Google. Not secrets. Empty: falls back to google_oauth_client_id."
+  type        = list(string)
+  default     = []
+}
+
+variable "apple_client_ids" {
+  description = "Sign in with Apple: the Services ID (web) and app bundle ids. Not secrets. Empty: Sign in with Apple is off."
+  type        = list(string)
+  default     = []
+}

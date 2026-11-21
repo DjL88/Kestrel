@@ -170,6 +170,20 @@ resource "google_cloud_run_v2_service" "control_plane" {
         }
       }
       dynamic "env" {
+        for_each = length(var.user_google_client_ids) == 0 ? [] : [join(",", var.user_google_client_ids)]
+        content {
+          name  = "KCP_USER_GOOGLE_CLIENT_IDS"
+          value = env.value
+        }
+      }
+      dynamic "env" {
+        for_each = length(var.apple_client_ids) == 0 ? [] : [join(",", var.apple_client_ids)]
+        content {
+          name  = "KCP_APPLE_CLIENT_IDS"
+          value = env.value
+        }
+      }
+      dynamic "env" {
         for_each = local.control_plane_secrets
         content {
           name = env.key

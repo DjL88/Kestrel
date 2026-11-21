@@ -53,6 +53,7 @@ Firestore collections: `accounts`, `account_emails` (keeps email hashes unique),
 | Route | Auth | What it does |
 | --- | --- | --- |
 | `POST /v1/auth/session` | none, rate-limited | Email and password → 15-minute HS256 JWT + single-use refresh token |
+| `POST /v1/auth/google`, `POST /v1/auth/apple` | provider ID token | People sign in with a verified email. Creates the account if new, attaches any waiting entitlement, returns a plain user session. Rate-limited. |
 | `POST /v1/auth/refresh` | refresh token | Rotates the session |
 | `POST /v1/licences/activate` | signed `KESTREL1` key | Atomic device-slot count → Ed25519 offline grant (default 30 days, client cap 90) |
 | `GET /v1/me/entitlements` | bearer | Plans, AI allowance, next revalidation |
@@ -64,6 +65,7 @@ Firestore collections: `accounts`, `account_emails` (keeps email hashes unique),
 | `POST /v1/contact` | none; per-sender and global rate limits | Website contact form: name, email, message and `consent: true`. A filled-in hidden `website` field (a robot) gets a normal answer and nothing is stored |
 | `GET /v1/admin/config` | none | Tells the admin page whether Google sign-in is set up (the public OAuth client id). No data |
 | `POST /v1/admin/session/google` | Google ID token | Allow-listed (`KCP_ADMIN_EMAILS`), verified Google account for this OAuth client (`KCP_GOOGLE_CLIENT_ID`) → 15-minute admin session, no refresh token |
+| `POST /v1/admin/licences/grant` | admin | Gives a plan by email, free and idempotent. No key; it attaches when the person signs in. |
 | `/v1/admin/*` | admin bearer | Overview, audit, licensees with their devices and AI allowance, free a device, usage, payments (SumUp checkouts from the commerce ledger, plus billing events), contact messages and their status, accounts, issue (with note and expiry)/revoke/extend licences, AI kill switch and quotas, tax, model register/promote (rollback = promote older), release publish. Every call is written to the append-only `audit_log`, allowed or denied. With `KCP_ADMIN_EMAILS` set, an admin role alone is not enough: the account's email must be on the list |
 
 Admin routes accept only bearer tokens in a header. There are no cookies, so a browser holds no ambient credential that a CSRF attack could use. CORS is granted only to the app's own origins (`KCP_ALLOWED_ORIGINS`).
