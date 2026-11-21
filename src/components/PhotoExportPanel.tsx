@@ -1142,6 +1142,9 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             </button>
           )}
         </header>
+        {!resultsReady && blocked && mark.on && mark.kind === 'image' && !mark.imageData && (
+          <p role="status" className="px-4 py-2 text-xs text-amber-200">{t.watermark.choosePicture}</p>
+        )}
         {!resultsReady && <ExportProofDock frames={frames} formats={selected} sources={sources} choice={activeProof}
           failedPhotoId={proofLoadFailed} onRetry={() => setProofRetry(value => value + 1)}
           onChoosePhoto={chooseProofPhoto} onChooseDestination={chooseProofFormat} bars={bars} overlay={overlay}
