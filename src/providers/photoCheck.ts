@@ -1,4 +1,4 @@
-import { factsFromDescription, type SceneFacts } from '../core/photoCheck';
+import { factsFromDescription, supportedSceneFacts, type SceneFacts } from '../core/photoCheck';
 import { IMAGE_EDGE } from '../core/smolvlm';
 import { openSmolVlm } from './smolvlmRuntime';
 import { readPhotoCheckFiles } from './photoCheckStore';
@@ -20,14 +20,25 @@ export function previewPixels(source: CanvasImageSource): Uint8ClampedArray {
  * No network is used: the files come from the verified store. Cancellation stops between decoding steps.
  */
 export async function runPhotoCheck(source: CanvasImageSource, signal?: AbortSignal): Promise<PhotoCheckResult> {
+  if (signal?.aborted) throw new DOMException('Photo check cancelled', 'AbortError');
   const started = performance.now();
+  // Freeze the actual edited picture before asynchronous model loading.
+  const pixels = previewPixels(source);
   const files = await readPhotoCheckFiles();
-  if (!files) throw new Error('The photo check is not installed.');
+  if (signal?.aborted) throw new DOMException('Photo check cancelled', 'AbortError');
+  if (!files) throw new Error('The photo check is not installed or could not be verified.');
   const ort = await import('onnxruntime-web/wasm');
+  if (signal?.aborted) throw new DOMException('Photo check cancelled', 'AbortError');
   const vlm = await openSmolVlm(ort, files);
   const loaded = performance.now();
   try {
-    const description = await vlm.describe(previewPixels(source), { signal, maxTokens: 28 });
-    return { facts: factsFromDescription(description), description, loadMs: Math.round(loaded - started), inferMs: Math.round(performance.now() - loaded) };
+    if (signal?.aborted) throw new DOMException('Photo check cancelled', 'AbortError');
+    // Claude measured very poor subject classification on this 256M checkpoint.
+    // Descriptions are hypotheses; only independently corroborated lighting
+    // may veto a conventional edit. Never turn text into a model instruction.
+    const description = await vlm.describe(pixels, { signal, maxTokens: 28 });
+    if (signal?.aborted) throw new DOMException('Photo check cancelled', 'AbortError');
+    const facts = supportedSceneFacts(factsFromDescription(description), pixels);
+    return { facts, description, loadMs: Math.round(loaded - started), inferMs: Math.round(performance.now() - loaded) };
   } finally { await vlm.dispose(); }
 }
