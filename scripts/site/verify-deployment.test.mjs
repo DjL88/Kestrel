@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const script = fileURLToPath(new URL('./verify-deployment.mjs', import.meta.url));
+const callback = '<p id="m">Finishing sign-in…</p>';
 const landing = '<iframe src="editor/demo-editor.html"></iframe>';
 const demo = (title, entry = '/editor/assets/demo.js') =>
   `<html><title>${title}</title><body><div id="root" data-demo-editor></div><script type="module" src="${entry}"></script></body></html>`;
@@ -17,6 +18,7 @@ function fixture() {
   mkdirSync(join(editor, 'assets'), { recursive: true });
   writeFileSync(join(root, 'index.html'), landing);
   writeFileSync(join(root, 'admin.html'), '<h1>Admin</h1>');
+  writeFileSync(join(root, 'oauth-callback.html'), callback);
   writeFileSync(join(editor, 'demo-editor.html'), demo('Kite44 editor demonstration'));
   writeFileSync(join(editor, 'assets', 'demo.js'), 'console.log("editor")');
   return root;
@@ -60,6 +62,7 @@ test('accepts the current live entry and rejects stale HTML even if its assets a
   const runLive = (entry, asset = 'console.log("editor")') => {
     const pages = {
       '/': landing,
+      '/oauth-callback.html': callback,
       '/editor/demo-editor.html': demo('A different display name', entry),
       '/editor/assets/demo.js': asset,
       '/editor/assets/older.js': 'console.log("old editor")',
@@ -81,4 +84,26 @@ test('accepts the current live entry and rejects stale HTML even if its assets a
     assert.match(runLive('/editor/assets/older.js').stderr, /different set of compiled assets/);
     assert.match(runLive('/editor/assets/demo.js', '<!doctype html><html></html>').stderr, /missing or wrong asset/);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('fails closed when the sign-in callback page is missing or wrong', () => {
+  const root = fixture();
+  try {
+    writeFileSync(join(root, 'oauth-callback.html'), '<h1>Not it</h1>');
+    const result = run(root);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /sign-in callback page/);
+    rmSync(join(root, 'oauth-callback.html'));
+    assert.notEqual(run(root).status, 0);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('the published callback page is identical to the app\'s copy', () => {
+  const read = rel => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
+  assert.equal(read('../../site/oauth-callback.html'), read('../../public/oauth-callback.html'));
+});
+
+test('the Hosting site id is the live site, so a deploy cannot hit the empty default site', () => {
+  const config = JSON.parse(readFileSync(fileURLToPath(new URL('../../firebase.json', import.meta.url)), 'utf8'));
+  assert.equal(config.hosting.site, 'kestrel-hosting-kestrel');
 });

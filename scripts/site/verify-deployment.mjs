@@ -30,6 +30,7 @@ function requireText(path) {
   return readFileSync(path, 'utf8');
 }
 const editorPath = '/editor/demo-editor.html';
+const callbackPath = '/oauth-callback.html';
 const embedsEditor = html => /<iframe\b[^>]*\ssrc=["']\/?editor\/demo-editor\.html["']/i.test(html);
 
 function builtAssets(html) {
@@ -62,6 +63,10 @@ async function main() {
   const dir = resolve(root);
   const landing = requireText(join(dir, 'index.html'));
   requireText(join(dir, 'admin.html'));
+  // The cloud-drive sign-in pop-up returns here (src/providers/oauthSession.ts); the providers have this exact URL registered.
+  if (!requireText(join(dir, callbackPath.slice(1))).includes('Finishing sign-in')) {
+    throw new Error('The sign-in callback page is not the expected page: ' + callbackPath);
+  }
   if (!embedsEditor(landing)) {
     throw new Error('The homepage does not embed the compiled photo editor.');
   }
@@ -73,14 +78,14 @@ async function main() {
       throw new Error('Missing or empty compiled editor asset: ' + file);
     }
   }
-  console.log('Local site PASS: homepage, admin, compiled editor and ' + assets.length + ' local assets.');
+  console.log('Local site PASS: homepage, admin, sign-in callback, compiled editor and ' + assets.length + ' local assets.');
   if (!liveUrl) {
     console.log('Live Firebase deployment NOT RUN. Pass --live-url after publishing.');
     return;
   }
   const base = new URL(liveUrl);
   if (base.protocol !== 'https:') throw new Error('Live URL must use HTTPS.');
-  for (const suffix of ['/', editorPath, ...assets]) {
+  for (const suffix of ['/', editorPath, callbackPath, ...assets]) {
     const uri = new URL(suffix, base);
     uri.searchParams.set('kestrel-health-check', String(Date.now()));
     const response = await fetch(uri, { signal: AbortSignal.timeout(15_000), headers: { accept: 'text/html,application/javascript,text/css,*/*' } });
