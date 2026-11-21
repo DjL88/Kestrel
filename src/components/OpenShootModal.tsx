@@ -1,7 +1,7 @@
 import { PHOTO_ACCEPT } from '../core/rawFormats';
 import React, { useEffect, useRef, useState } from 'react';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
-import { FolderOpen, ImagePlus, X } from 'lucide-react';
+import { FolderOpen, ImagePlus, X } from './icons/KestrelUIIcons';
 import { isSupportedPhotoFilename, supportsDirectoryPicker } from '../providers/localShootLoader';
 import { isDesktopApp } from '../providers/desktopShell';
 import { projectsText as t } from '../i18n/areas/projects';
