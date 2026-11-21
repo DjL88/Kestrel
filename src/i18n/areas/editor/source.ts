@@ -148,6 +148,33 @@ export const source = {
     save: 'Save recipe',
   },
   /** Quality checks from `critique`, by opinion id. */
+  advice: {
+    region: 'Photo check',
+    verdict: { good: 'Looking good', nearly: 'Nearly there', 'needs-work': 'Needs work', unsure: 'Not sure yet' } as Record<string, string>,
+    tryThis: 'Try this',
+    auto: 'Auto',
+    autoApplied: 'Auto applied',
+    undo: 'Undo',
+    check: 'Check my photo',
+    raise: 'Raise',
+    lower: 'Lower',
+    sliders: { exposure: 'Exposure', warmth: 'Warmth', highlights: 'Highlights', shadows: 'Shadows', contrast: 'Contrast' } as Record<string, string>,
+    /** What the change does, for the button's accessible name. */
+    tryLabel: (action: string) => `Try this: ${action}`,
+    /** Why: one short phrase for the most important measured issue. */
+    notes: { whiteClip: 'Highlights are clipped', blackClip: 'Shadows are clipped', dark: 'Looks dark', bright: 'Looks bright', flat: 'Looks flat', warm: 'Warm cast', cool: 'Cool cast' } as Record<string, string>,
+    install: 'Install photo check',
+    installNote: (size: string) => `Runs on this device only, about ${size}. Nothing is uploaded.`,
+    installConfirm: 'Install',
+    notNow: 'Not now',
+    installing: (percent: string) => `Installing ${percent}`,
+    cancel: 'Cancel',
+    checking: 'Checking…',
+    failed: 'The photo check did not finish.',
+    scene: 'Scene',
+    subjects: { person: 'Person', animal: 'Animal', bird: 'Bird', landscape: 'Landscape', object: 'Object' } as Record<string, string>,
+    lights: { 'low-key': 'Low-key', 'high-key': 'High-key', golden: 'Golden light', cool: 'Cool light' } as Record<string, string>,
+  },
   critique: {
     region: 'Quality checks for this look',
     none: 'No obvious warning from this small preview. Check fine detail at 100% before exporting.',
