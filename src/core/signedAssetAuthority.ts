@@ -22,6 +22,8 @@ export interface SignedAssetPolicy {
   /** Only app-pinned, audited Ed25519 verification keys. */
   keys: ReadonlyMap<string, CryptoKey>;
   fence: SequenceFence;
+  /** App-defined distribution audience; prevents replay into another product/feed. */
+  audience: string;
   now?: () => Date;
   maxManifestBytes?: number;
 }
@@ -82,6 +84,7 @@ export function createSignedAssetAuthority(policy: SignedAssetPolicy):
         throw new Error('Untrusted asset catalogue signature');
       const data: unknown = JSON.parse(decoder.decode(envelope.payload));
       if (!record(data) || data.schema !== 1 ||
+          !ID.test(policy.audience) || data.audience !== policy.audience ||
           !Number.isSafeInteger(data.sequence) || (data.sequence as number) < 1 ||
           typeof data.expiresAt !== 'string' ||
           !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?Z$/.test(data.expiresAt) ||
