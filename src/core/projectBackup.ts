@@ -69,6 +69,7 @@ function frameIsValid(value: unknown): value is PhotoFrame {
   if (value.removedAt !== undefined && !number(value.removedAt, 0)) return false;
   if (value.tags !== undefined && (!Array.isArray(value.tags) || value.tags.length > 24 || !value.tags.every(text))) return false;
   if (value.speciesChecked !== undefined && typeof value.speciesChecked !== 'boolean') return false;
+  if (value.subjectDisputed !== undefined && typeof value.subjectDisputed !== 'boolean') return false;
   if (value.cullConfidence !== undefined && !['high', 'medium', 'low'].includes(value.cullConfidence as string)) return false;
   if (value.cullScore !== undefined && !number(value.cullScore, 0, 100)) return false;
   for (const field of ['autoTags', 'declinedTags']) {

@@ -149,6 +149,7 @@ export const source = {
   },
   /** Quality checks from `critique`, by opinion id. */
   advice: {
+    subjectCheck: 'The subject is unclear. Check it before adding a species name.',
     region: 'Photo check',
     verdict: { good: 'Looking good', nearly: 'Nearly there', 'needs-work': 'Needs work', unsure: 'Not sure yet' } as Record<string, string>,
     tryThis: 'Try this',
@@ -172,7 +173,7 @@ export const source = {
     checking: 'Checking…',
     failed: 'The photo check did not finish.',
     scene: 'Scene',
-    subjects: { person: 'Person', animal: 'Animal', bird: 'Bird', landscape: 'Landscape', object: 'Object' } as Record<string, string>,
+    subjects: { person: 'Person', animal: 'Animal', bird: 'Bird', landscape: 'Landscape', object: 'Object', aircraft: 'Aircraft', vehicle: 'Vehicle' } as Record<string, string>,
     lights: { 'low-key': 'Low-key', 'high-key': 'High-key', golden: 'Golden light', cool: 'Cool light' } as Record<string, string>,
   },
   critique: {

@@ -3,6 +3,7 @@ import { Check, CircleAlert, CircleHelp, Sparkles } from 'lucide-react';
 import { LoaderCircle } from './icons/KestrelUIIcons';
 import { adviceAction, adviseOnPhoto, applySuggestion, type AdviceKey, type SceneContext, type Suggestion, type Verdict } from '../core/photoAdvice';
 import type { SceneFacts } from '../core/photoCheck';
+import type { Corroboration } from '../core/subjectCorroboration';
 import { PHOTO_CHECK_TOTAL_BYTES } from '../core/photoCheckPack';
 import type { GuidanceMode } from '../core/guidanceMode';
 import type { Histogram } from '../core/histogram';
@@ -34,9 +35,11 @@ const megabytes = (bytes: number) => `${Math.round(bytes / 1_000_000)} MB`;
  * nothing uploaded) it also reads the scene, which can only stop a deliberate look being "fixed". Fly Solo never runs the
  * model unless asked. Nothing is applied over the photographer's own edits.
  */
-export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVersion, disabled, onEdit, readPreview }: {
+export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVersion, disabled, onEdit, readPreview, onSubjectCheck }: {
   histogram: Histogram | null; edit: PhotoEdit; mode: GuidanceMode; photoKey: string; version: string; sourceVersion: object | null;
   disabled?: boolean; onEdit: (edit: PhotoEdit) => void; readPreview: () => HTMLCanvasElement | null;
+  /** Tells the host whether the two readings of the subject agreed, disagreed or could not both speak. */
+  onSubjectCheck?: (outcome: 'agreed' | 'conflict' | 'unverified') => void;
 }) {
   const [asked, setAsked] = useState(false);
   const [undo, setUndo] = useState<PhotoEdit | null>(null);
@@ -48,7 +51,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVe
   // Scene recognition is about the source and framing, not the current value
   // of a slider. Keep broad conservative context while histogram advice updates.
   const sceneScope = useMemo(() => ({ photoKey, version, sourceVersion }), [photoKey, version, sourceVersion]);
-  const [found, setFound] = useState<{ sceneScope: typeof sceneScope; facts: SceneFacts } | null>(null);
+  const [found, setFound] = useState<{ sceneScope: typeof sceneScope; facts: SceneFacts; subject: Corroboration } | null>(null);
   const autoDone = useRef(new Set<string>());
   const cancelledFor = useRef<typeof scope | null>(null);
   // A large WASM scene check is not a live slider effect: auto-run at most
@@ -60,6 +63,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVe
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
   const facts = found?.sceneScope === sceneScope ? found.facts : null;
+  const subject = found?.sceneScope === sceneScope ? found.subject : null;
 
   useEffect(() => { void photoCheckInstalled().then(setInstalled, () => setInstalled(false)); }, []);
   useEffect(() => { setAsked(false); setUndo(null); setConsent(false); }, [photoKey, mode]);
@@ -98,7 +102,8 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVe
     try {
       const result = await runPhotoCheck(preview, controller.signal);
       if (request === requestId.current && scopeRef.current === scope && !controller.signal.aborted) {
-        setFound({ sceneScope, facts: result.facts });
+        setFound({ sceneScope, facts: result.facts, subject: result.subject });
+        onSubjectCheck?.(result.subject.state);
         setPhase('idle');
       }
     } catch (error) {
@@ -184,13 +189,15 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVe
       </div>
       {facts && (
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-zinc-400" role="status">{t.advice.scene}: {facts.light ? t.advice.lights[facts.light] : t.advice.verdict.unsure}</p>
+          {/* Only what two independent readings agree on is shown as the subject; one reading alone shows nothing. */}
+          <p className="text-zinc-400" role="status">{t.advice.scene}: {[subject?.state === 'agreed' ? t.advice.subjects[subject.subject] : null, facts.light ? t.advice.lights[facts.light] : null].filter(Boolean).join(' · ') || t.advice.verdict.unsure}</p>
           {installed && phase === 'idle' && (
             <button type="button" className="min-h-9 px-1 text-zinc-300 underline hover:text-white" disabled={disabled}
               onClick={() => void check()}>{t.advice.check}</button>
           )}
         </div>
       )}
+      {subject?.state === 'conflict' && <p className="text-amber-200" role="status">{t.advice.subjectCheck}</p>}
       {installed && (mode === 'solo' || autoAttempted.current === sceneScope) && phase !== 'checking' && phase !== 'installing' && !facts && (
         <button type="button" className="min-h-9 text-zinc-300 underline hover:text-white" disabled={disabled}
           onClick={() => void check()}>{t.advice.check}</button>
