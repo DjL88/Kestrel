@@ -1,4 +1,5 @@
 import { AppearanceSettings } from './AppearanceSettings';
+import type { GuidanceMode } from '../core/guidanceMode';
 import { ConnectionsPanel } from './ConnectionsPanel';
 import { Keyboard } from 'lucide-react';
 import { useState } from 'react';
@@ -12,13 +13,15 @@ interface Props {
   onSideChange: (side: 'left' | 'right') => void;
   hand?: 'left' | 'right';
   onHandChange?: (hand: 'left' | 'right') => void;
+  guidanceMode?: GuidanceMode;
+  onGuidanceModeChange?: (mode: GuidanceMode) => void;
   initialSection?: 'general' | 'ai' | 'storage';
   onClose: () => void;
   onOpenMacroPad?: () => void;
 }
 
 /** One bounded, touch-friendly settings sheet from Home, Library or Editor. */
-export function AppearanceDialog({ side, onSideChange, hand, onHandChange, onClose, onOpenMacroPad, initialSection = 'general' }: Props) {
+export function AppearanceDialog({ side, onSideChange, hand, onHandChange, guidanceMode = 'glide', onGuidanceModeChange, onClose, onOpenMacroPad, initialSection = 'general' }: Props) {
   const aiSettings = useAiSettings();
   const [aiSetupOpen, setAiSetupOpen] = useState(initialSection === 'ai');
   const [storageOpen, setStorageOpen] = useState(initialSection === 'storage');
@@ -40,7 +43,7 @@ export function AppearanceDialog({ side, onSideChange, hand, onHandChange, onClo
           <h2 className="text-base font-semibold">{m.settings.title}</h2>
           <button type="button" autoFocus className="min-h-11 rounded-md px-3 text-sm hover:bg-white/10" onClick={onClose}>{m.settings.done}</button>
         </div>
-        <AppearanceSettings side={side} onSideChange={onSideChange} hand={hand} onHandChange={onHandChange} />
+        <AppearanceSettings side={side} onSideChange={onSideChange} hand={hand} onHandChange={onHandChange} guidanceMode={guidanceMode} onGuidanceModeChange={onGuidanceModeChange} />
         <section className="mt-4 space-y-2 border-t border-white/15 pt-3" aria-label="Your AI settings">
           <div className="flex items-center justify-between gap-3">
             <div><h3 className="text-sm font-semibold text-zinc-100">Your AI (optional)</h3>
