@@ -88,3 +88,15 @@ test('a card shows an automatic species, or the first tag of a wildlife photo, a
   assert.equal(speciesShown({ subjectKind: 'people', tags: ['Sam'] }), null);
   assert.equal(speciesShown({}), null);
 });
+
+test('a closed catalogue with only one choice must not automatically label any animal', () => {
+  const single: SpeciesLabel = {
+    common: 'Red kite', scientific: 'Milvus milvus', group: 'bird',
+    vector: 'AQ==', scale: 1,
+  };
+  const embedding = Float32Array.from([1]);
+  const best = rankSpecies(embedding, [single], [embedding])[0];
+  assert.equal(best.probability, 1, 'a single-choice softmax is inevitably 100%');
+  assert.equal(qualifiesForAutoTag(best, embedding, [single], [embedding]), false,
+    'one available class cannot establish the true species');
+});
