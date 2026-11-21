@@ -78,3 +78,12 @@ test('scene context from the model only ever removes advice: golden light keeps 
   assert.deepEqual(withContext.suggestions.map((item) => item.issue), plain.suggestions.map((item) => item.issue), 'measured clipping is never explained away');
   assert.deepEqual(withContext.suggestions.map((item) => item.confidence), plain.suggestions.map((item) => item.confidence), 'context never raises confidence');
 });
+
+test('exposure suggestions preserve the editor wider EV dial instead of snapping a manual edit to ±2', () => {
+  const refined = { ...DEFAULT_EDIT, exposure: 5 };
+  const next = applySuggestion(refined, { issue: 'dark', confidence: 'medium', changes: { exposure: 0.3 } });
+  assert.equal(next.exposure, 5.3);
+  const nearMax = applySuggestion({ ...DEFAULT_EDIT, exposure: 12.4 },
+    { issue: 'dark', confidence: 'medium', changes: { exposure: 0.3 } });
+  assert.equal(nearMax.exposure, 12.5);
+});
