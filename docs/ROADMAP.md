@@ -438,7 +438,7 @@ Take these in order. Each item is accepted on real, rights-cleared RAW files (Ni
 ### Accounts, licences, payments and the admin console (owner decisions, 20 Nov; lifted from the P3 freeze)
 Kestrel stays free and anonymous offline. An account is needed only to buy Pro or use it on several devices.
 - **Product:** Pro is a **one-off licence** (no subscriptions). Basic stays free: manual culling and editing, export and local backup are never gated (K.17 decides what is Pro).
-- **Accounts:** Sign in with Apple, Sign in with Google, and an email link (no passwords). Apple's rule: the iPhone/iPad app must offer Sign in with Apple if it offers Google.
+- **Accounts:** Sign in with Apple, Sign in with Google, and email with password, through **Firebase Auth** (owner decision 21 Nov 2026, superseding the earlier email-link, no-passwords decision; see the Sign-in row and `CLOUD-PLAN.md` §4). Apple's rule: the iPhone/iPad app must offer Sign in with Apple if it offers Google. The control plane should accept Firebase ID tokens as the account identity when licences are linked to accounts (step 3 below); that wiring is NOT BUILT.
 - **Payments:**
   - Website and desktop: **SumUp Hosted Checkout** (cards, Apple Pay, Google Pay). The SumUp webhook and checkout status are the source of truth, never the browser redirect. Apple Pay on the web needs each domain registered with Apple.
   - iPhone/iPad and Android apps: the stores' own in-app purchase (StoreKit / Play Billing; store rules for unlocking features). Purchases are verified server-side (App Store Server API and Notifications v2; Play Developer API and Real-time developer notifications) and linked to the signed-in Kestrel account.
