@@ -5,7 +5,7 @@ import type { ActiveAsset, ApprovedAsset } from './verifiedAssetActivation';
 
 const bytes = new TextEncoder().encode('approved local colour notes');
 const digest = async (data: Uint8Array) =>
-  Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', data)),
+  Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', data as BufferSource)),
     b => b.toString(16).padStart(2, '0')).join('');
 async function fixture() {
   const hash = await digest(bytes);
