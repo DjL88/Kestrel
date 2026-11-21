@@ -25,19 +25,21 @@ test('the selection bar shows the everyday actions and keeps the rest behind Mor
   await page.getByLabel('Frame one.png').click();
   const bar = page.getByRole('toolbar', { name: 'Actions for selected photos' });
   await expect(bar).toBeVisible();
-  for (const name of ['Keep', 'Reject', 'Edit photo', 'Export']) {
+  // On a phone, Edit and Export already live in the footer and header, so the floating bar keeps only the decisions.
+  const phone = test.info().project.name === 'phone';
+  for (const name of phone ? ['Keep', 'Reject', 'Undecided'] : ['Keep', 'Reject', 'Edit photo', 'Export']) {
     await expect(bar.getByRole('button', { name, exact: true })).toBeVisible();
   }
   // Decluttered: the occasional actions are not sitting open in the bar.
-  for (const name of ['Undecided', 'Reset edit', 'Auto-adjust', 'Apply look']) {
+  for (const name of phone ? ['Reset edit', 'Auto-adjust', 'Apply look'] : ['Undecided', 'Reset edit', 'Auto-adjust', 'Apply look']) {
     await expect(bar.getByRole('button', { name, exact: true })).toHaveCount(0);
   }
   const more = bar.getByRole('button', { name: 'More actions' });
   await expect(more).toHaveAttribute('aria-expanded', 'false');
   await more.click();
   await expect(more).toHaveAttribute('aria-expanded', 'true');
-  for (const name of ['Undecided', 'Reset edit', 'Photo info']) {
-    await expect(bar.getByRole('button', { name, exact: true })).toBeVisible();
+  for (const name of phone ? ['Reset edit', 'Photo info'] : ['Undecided', 'Reset edit', 'Photo info']) {
+    await expect(bar.getByRole('button', { name, exact: true }).first()).toBeVisible();
   }
   // Escape closes only this menu and puts focus back where it came from.
   await page.keyboard.press('Escape');
