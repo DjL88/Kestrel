@@ -163,3 +163,36 @@ test('explicit retries are bounded and cancelled jobs are never retried automati
   assert.equal(await stopped.done, 'completed');
   assert.equal(queue.canRetryTask(store.list().at(-1)!.id), false);
 });
+
+
+test('Task Manager stays running until durable finalization commits', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let finalizing = false;
+  const ticket = queue.enqueue({ title: 'Durable', items: [photos[0]], recipe: {} }, {
+    async render() { return 'pixels'; },
+    async save() {},
+    async finalize() { finalizing = true; await gate; },
+  });
+  for (let i = 0; i < 10 && !finalizing; i++) await tick();
+  assert.equal(finalizing, true);
+  assert.notEqual(store.list()[0].state, 'done', 'rendered bytes are not a committed batch');
+  release();
+  assert.equal(await ticket.done, 'completed');
+  assert.equal(store.list()[0].state, 'done');
+});
+
+test('durable finalization failure leaves a visible failed Task Manager job', async () => {
+  const store = createTaskStore();
+  const queue = createExportBatchQueue(store);
+  const ticket = queue.enqueue({ title: 'Durable', items: [photos[0]], recipe: {} }, {
+    async render() { return 'pixels'; },
+    async save() {},
+    async finalize() { throw new Error('Checkpoint disk full'); },
+  });
+  assert.equal(await ticket.done, 'failed');
+  assert.equal(store.list()[0].state, 'failed');
+  assert.match(store.list()[0].detail ?? '', /Checkpoint disk full/);
+});
