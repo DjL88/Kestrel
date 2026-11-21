@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, CircleAlert, CircleHelp, Sparkles } from 'lucide-react';
+import { LoaderCircle } from './icons/KestrelUIIcons';
 import { adviceAction, adviseOnPhoto, applySuggestion, type AdviceKey, type SceneContext, type Suggestion, type Verdict } from '../core/photoAdvice';
 import type { SceneFacts } from '../core/photoCheck';
 import { PHOTO_CHECK_TOTAL_BYTES } from '../core/photoCheckPack';
@@ -33,8 +34,8 @@ const megabytes = (bytes: number) => `${Math.round(bytes / 1_000_000)} MB`;
  * nothing uploaded) it also reads the scene, which can only stop a deliberate look being "fixed". Fly Solo never runs the
  * model unless asked. Nothing is applied over the photographer's own edits.
  */
-export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit, readPreview }: {
-  histogram: Histogram | null; edit: PhotoEdit; mode: GuidanceMode; photoKey: string;
+export function PhotoAdvice({ histogram, edit, mode, photoKey, version, disabled, onEdit, readPreview }: {
+  histogram: Histogram | null; edit: PhotoEdit; mode: GuidanceMode; photoKey: string; version: string;
   disabled?: boolean; onEdit: (edit: PhotoEdit) => void; readPreview: () => HTMLCanvasElement | null;
 }) {
   const [asked, setAsked] = useState(false);
@@ -45,27 +46,56 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
   const [percent, setPercent] = useState(0);
   const [found, setFound] = useState<{ key: string; facts: SceneFacts } | null>(null);
   const autoDone = useRef(new Set<string>());
-  const abort = useRef<AbortController | null>(null);
-  const recipeKey = `${photoKey}|${JSON.stringify(edit)}`;
+  const checkAbort = useRef<AbortController | null>(null);
+  const installAbort = useRef<AbortController | null>(null);
+  const requestId = useRef(0);
+  const recipeKey = `${photoKey}|${version}|${JSON.stringify(edit)}`;
+  const scopeRef = useRef(recipeKey);
+  scopeRef.current = recipeKey;
   const facts = found?.key === recipeKey ? found.facts : null; // a result for an older picture or recipe is stale and dropped
 
   useEffect(() => { void photoCheckInstalled().then(setInstalled, () => setInstalled(false)); }, []);
-  useEffect(() => { setAsked(false); setUndo(null); setConsent(false); abort.current?.abort(); }, [photoKey, mode]);
-  useEffect(() => () => abort.current?.abort(), []);
+  useEffect(() => { setAsked(false); setUndo(null); setConsent(false); }, [photoKey, mode]);
+  useEffect(() => {
+    requestId.current += 1;
+    checkAbort.current?.abort();
+    checkAbort.current = null;
+    setPhase((previous) => previous === 'checking' ? 'idle' : previous);
+  }, [recipeKey, mode]);
+  useEffect(() => () => { requestId.current += 1; checkAbort.current?.abort(); installAbort.current?.abort(); }, []);
 
   const advice = useMemo(() => histogram ? adviseOnPhoto(histogram, edit, contextFrom(facts)) : null, [histogram, edit, facts]);
   const action = advice ? adviceAction(mode, advice, { asked, manuallyRefined: !isNeutralEdit(edit) && !autoDone.current.has(photoKey) }) : null;
 
+  function cancel() {
+    requestId.current += 1;
+    checkAbort.current?.abort();
+    installAbort.current?.abort();
+    setPhase('idle');
+  }
   async function check() {
+    if (disabled || phase === 'checking') return;
     const preview = readPreview();
-    if (!preview || phase === 'checking') return;
+    if (!preview) return;
     const controller = new AbortController();
-    abort.current = controller;
+    checkAbort.current?.abort();
+    checkAbort.current = controller;
+    const request = ++requestId.current;
     setPhase('checking');
     try {
       const result = await runPhotoCheck(preview, controller.signal);
-      if (!controller.signal.aborted) { setFound({ key: recipeKey, facts: result.facts }); setPhase('idle'); }
-    } catch (error) { if (!controller.signal.aborted) { console.warn('Photo check failed:', error); setPhase('failed'); } else setPhase('idle'); }
+      if (request === requestId.current && scopeRef.current === recipeKey && !controller.signal.aborted) {
+        setFound({ key: recipeKey, facts: result.facts });
+        setPhase('idle');
+      }
+    } catch (error) {
+      if (request === requestId.current && !controller.signal.aborted) {
+        console.warn('Photo check failed:', error);
+        setPhase('failed');
+      }
+    } finally {
+      if (checkAbort.current === controller) checkAbort.current = null;
+    }
   }
   // Glide and Soar: read the scene once the picture and recipe have been still for a moment. Fly Solo: never unprompted.
   useEffect(() => {
@@ -77,15 +107,25 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
 
   async function install() {
     const controller = new AbortController();
-    abort.current = controller;
+    installAbort.current?.abort();
+    installAbort.current = controller;
     setPhase('installing'); setPercent(0);
     try {
-      await installPhotoCheck({ signal: controller.signal, onProgress: ({ received, total }) => setPercent(Math.round((received / total) * 100)) });
+      await installPhotoCheck({
+        signal: controller.signal,
+        onProgress: ({ received, total }) => {
+          if (!controller.signal.aborted) setPercent(Math.round((received / total) * 100));
+        },
+      });
+      if (controller.signal.aborted) return;
       setInstalled(true); setConsent(false); setPhase('idle');
-      if (mode === 'solo') void check();
-    } catch (error) { if (!controller.signal.aborted) console.warn('Photo check install failed:', error); setPhase(controller.signal.aborted ? 'idle' : 'failed'); }
+      // Fly Solo stays opt-in: installing a large model never starts analysis.
+    } catch (error) {
+      if (!controller.signal.aborted) { console.warn('Photo check install failed:', error); setPhase('failed'); }
+    } finally {
+      if (installAbort.current === controller) installAbort.current = null;
+    }
   }
-
   // Soar: once per photo, only when it is untouched, only measured high-confidence changes. Always undoable.
   useEffect(() => {
     if (disabled || !action || !action.auto.length || autoDone.current.has(photoKey)) return;
@@ -124,13 +164,13 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
         <p className="text-zinc-400">{t.advice.scene}: {[facts.subject && t.advice.subjects[facts.subject], facts.light && t.advice.lights[facts.light]].filter(Boolean).join(' · ')}</p>
       )}
       {phase === 'checking' && (
-        <p className="flex items-center gap-2 text-zinc-400" role="status">{t.advice.checking}
-          <button type="button" className="min-h-9 underline hover:text-white" onClick={() => abort.current?.abort()}>{t.advice.cancel}</button></p>
+        <p className="flex items-center gap-2 text-zinc-400" role="status"><LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />{t.advice.checking}
+          <button type="button" className="min-h-9 underline hover:text-white" onClick={cancel}>{t.advice.cancel}</button></p>
       )}
       {phase === 'failed' && <p className="text-zinc-400" role="status">{t.advice.failed}</p>}
       {phase === 'installing' && (
-        <p className="flex items-center gap-2 text-zinc-400" role="status">{t.advice.installing(`${percent}%`)}
-          <button type="button" className="min-h-9 underline hover:text-white" onClick={() => abort.current?.abort()}>{t.advice.cancel}</button></p>
+        <p className="flex items-center gap-2 text-zinc-400" role="status"><LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />{t.advice.installing(`${percent}%`)}
+          <button type="button" className="min-h-9 underline hover:text-white" onClick={cancel}>{t.advice.cancel}</button></p>
       )}
       {installed === false && phase !== 'installing' && (consent ? (
         <div className="space-y-1 text-zinc-300">
