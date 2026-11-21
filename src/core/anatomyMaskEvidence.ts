@@ -17,6 +17,18 @@ export interface AnatomyEvidence {
   /** Full-image confidence maps, 0..255, with identical dimensions. */
   observedParts: SubjectGrid;
   foregroundOccluders: SubjectGrid;
+  /** Independent calibration provenance; caller must verify the signed/approved local manifest. */
+  calibration: {
+    modelId: string;
+    modelVersion: string;
+    domain: AnatomyEvidence['domain'];
+    datasetDigestSha256: string;
+    calibrationVersion: string;
+    positiveCount: number;
+    negativeCount: number;
+    /** A trusted caller has validated this rights-cleared evaluation manifest. */
+    approved: boolean;
+  };
   /** Independently calibrated probabilities, NOT raw detector logits. */
   partConfidence: number;
   occluderConfidence: number;
@@ -71,6 +83,21 @@ export function refineObservedAnatomy(
       evidence.recipeRevision !== currentRecipeRevision ||
       evidence.baseGridData !== mask.grid.data)
     return { ok: false, reason: 'stale-recipe' };
+  const calibration = evidence.calibration;
+  // A bare detector score is never a calibrated probability. Reject missing,
+  // unapproved or wrong-domain/model evaluation records, including fixtures.
+  // A trusted asset loader must verify the underlying signed manifest; this
+  // boolean alone is NOT proof of real-world calibration.
+  if (!calibration || calibration.approved !== true ||
+      calibration.modelId !== evidence.modelId ||
+      calibration.modelVersion !== evidence.modelVersion ||
+      calibration.domain !== evidence.domain ||
+      !digest.test(calibration.datasetDigestSha256) ||
+      !calibration.calibrationVersion?.trim() ||
+      !Number.isSafeInteger(calibration.positiveCount) ||
+      !Number.isSafeInteger(calibration.negativeCount) ||
+      calibration.positiveCount < 1 || calibration.negativeCount < 1)
+    return { ok: false, reason: 'uncalibrated-evidence' };
   if (mask.confidence === 'low' || !validConfidence(evidence.partConfidence) ||
       !validConfidence(evidence.occluderConfidence) ||
       evidence.partConfidence < 0.9 || evidence.occluderConfidence < 0.9)
