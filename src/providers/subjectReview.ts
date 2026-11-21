@@ -74,7 +74,7 @@ export async function reviewPhotoSubjects(
     });
     if (!candidates || !current()) return null;
     let remaining = MAX_CROP_BYTES;
-    return candidates.map(({ evidence }) => {
+    const results = candidates.map(({ evidence }) => {
       const item: SubjectReviewItem = { genre: evidence.genre };
       const box = evidence.subjectBox && subjectPixelBounds(width, height, evidence.subjectBox);
       if (!box || box.width * box.height * 4 > remaining || Math.max(box.width, box.height) > 4096)
@@ -88,6 +88,15 @@ export async function reviewPhotoSubjects(
       remaining -= box.width * box.height * 4;
       return { ...item, crop };
     });
+    // Drawing every full-resolution crop can take time on a large shoot.
+    // A linked original replaced during this work must never return stale
+    // subject crops, even if it had passed the detector's earlier SHA checks.
+    if (!current()) return null;
+    const latest = await source.read();
+    if (!latest || !current()) return null;
+    const finalSha = latest === original ? sha : await hashPhoto(latest, signal);
+    if (!finalSha || finalSha.toLowerCase() !== sha.toLowerCase() || !current()) return null;
+    return results;
   } finally {
     bitmap.close();
   }
