@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import { activateApprovedAsset, readVerifiedActive, type ActiveAsset, type AssetSlots, type ApprovedAsset } from './verifiedAssetActivation';
 const bytes = new TextEncoder().encode('verified offline knowledge');
 async function fixture() {
-  const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
+  const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as BufferSource)), b => b.toString(16).padStart(2, '0')).join('');
   const asset: ApprovedAsset = { id: 'colour-notes', kind: 'knowledge', version: '1.0.0', sha256: hash,
     bytes: bytes.length, licence: 'CC0-1.0', provenance: 'Kestrel authored and rights reviewed', approved: true };
   const files = new Map<string, Uint8Array>();
