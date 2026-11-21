@@ -9,16 +9,15 @@ import { safeExportName } from '../core/exportPlace';
 import { editorText as editorT } from '../i18n/areas/editor';
 import { RAW_MASTER_EXPORT_ERROR, rawMasterExportBlocked } from '../core/rawMasterExportGate';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, LoaderCircle, X } from 'lucide-react';
+import { LoaderCircle, X } from 'lucide-react';
 import {
-  EXPORT_FORMATS, LEGACY_FORMAT_IDS, PLATFORMS, customFormat, formatById, framingFor, toProfile, turnFormat,
+  LEGACY_FORMAT_IDS, PLATFORMS, customFormat, formatById, framingFor, toProfile, turnFormat,
   type BarStyle, type CustomSize, type ExportFormat, type Fit,
 } from '../core/exportFormats';
 import type { FocusPoint } from '../core/exportFraming';
 import type { PhotoFrame } from '../core/types';
 import { archiveExports, downloadExport, loadExportSource, renderExport } from '../providers/browserExport';
 import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider';
-import { ExportPreviewTile } from './ExportPreviewTile';
 import { ExportProofDock } from './ExportProofDock';
 import { chooseProof, reconcileProofChoice, type ProofChoice } from '../core/exportProofSelection';
 import { AdjustmentSlider } from './AdjustmentSlider';
@@ -61,7 +60,6 @@ const field = 'min-h-10 w-full rounded-md border border-white/15 bg-[#15171C] px
 const STORAGE_KEY = 'kestrel.lastExport.v2';
 /** Photos drawn in the preview, and the most tiles shown at once, so a big selection stays quick. */
 const PREVIEW_PHOTOS = 4;
-const MAX_TILES = 12;
 const SHARED_SOCIAL_SIZES = commonSocialSizes();
 const FEATURED_SIZE_IDS = new Set(['ig-45', 'ig-story', 'ig-11', 'ig-34']);
 
@@ -106,7 +104,6 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const [turned, setTurned] = useState(preferences.turned);
   const [view, setView] = useState<'wizard' | 'list'>(readView);
   const [simpleTab, setSimpleTab] = useState<'export' | 'advanced'>('export');
-  const [openPlatforms, setOpenPlatforms] = useState<Record<string, boolean>>({});
   const [bars, setBars] = useState<BarStyle>(preferences.bars);
   const [customOn, setCustomOn] = useState(false);
   const [custom, setCustom] = useState<CustomSize>(DEFAULT_CUSTOM);
@@ -622,8 +619,6 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
     const withoutAliases = previous.filter(id => !group.ids.includes(id));
     return on ? [...withoutAliases, group.canonical.id] : withoutAliases;
   });
-  const tiles = previewFrames.flatMap((frame) => selected.map((format) => ({ frame, format }))).slice(0, MAX_TILES);
-  const hiddenTiles = frames.length * selected.length - tiles.length;
   const anyBars = selected.some((format) => format.fit === 'bars' && format.width > 0);
 
   const formatRow = (format: ExportFormat, group?: SocialSizeGroup) => {
