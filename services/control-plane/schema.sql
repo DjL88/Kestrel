@@ -30,7 +30,11 @@ CREATE TABLE IF NOT EXISTS licences (
   offline_grace_days INTEGER NOT NULL DEFAULT 30,
   valid_until_ms     INTEGER,
   updated_at_ms      INTEGER NOT NULL,
-  note               TEXT                       -- admin's note, e.g. who a gift key is for
+  note               TEXT,                      -- admin's note, e.g. who a gift key is for
+  major_version      INTEGER NOT NULL DEFAULT 1, -- the major app version this licence covers
+  paid               INTEGER NOT NULL DEFAULT 0, -- 1 only when money was received
+  source             TEXT NOT NULL DEFAULT 'key', -- 'purchase' | 'gift' | 'key'
+  email_hash         TEXT                       -- SHA-256 of the email an unclaimed entitlement waits for
 );
 
 CREATE TABLE IF NOT EXISTS device_activations (

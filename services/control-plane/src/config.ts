@@ -31,6 +31,10 @@ export interface Config {
   adminEmails: string[];
   /** OAuth web client id for "Sign in with Google" on /admin. Not a secret. Absent: Google sign-in is off. */
   googleClientId?: string;
+  /** OAuth client ids (web, iOS, Android) accepted for people signing in with Google. Falls back to googleClientId. Not secrets. */
+  userGoogleClientIds: string[];
+  /** Apple Services ID (web) and app bundle ids accepted for Sign in with Apple. Not secrets. Empty: Apple sign-in is off. */
+  appleClientIds: string[];
 }
 
 const required = (env: NodeJS.ProcessEnv, name: string): string => {
@@ -68,5 +72,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     devMode,
     adminEmails: (env.KCP_ADMIN_EMAILS ?? '').split(/[,\s]+/).map((s) => s.trim().toLowerCase()).filter(Boolean),
     googleClientId: env.KCP_GOOGLE_CLIENT_ID || undefined,
+    userGoogleClientIds: (env.KCP_USER_GOOGLE_CLIENT_IDS ?? env.KCP_GOOGLE_CLIENT_ID ?? '').split(/[,\s]+/).map((v) => v.trim()).filter(Boolean),
+    appleClientIds: (env.KCP_APPLE_CLIENT_IDS ?? '').split(/[,\s]+/).map((v) => v.trim()).filter(Boolean),
   };
 }

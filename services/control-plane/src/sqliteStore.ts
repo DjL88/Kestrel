@@ -9,13 +9,14 @@ import {
 
 type Value = string | number | null;
 
-interface LicenceRow { licence_id: string; account_id: string | null; plan: LicenceRecord['plan']; managed_ai: number; status: LicenceStatus; max_devices: number; offline_grace_days: number; valid_until_ms: number | null; updated_at_ms: number; note: string | null }
+interface LicenceRow { licence_id: string; account_id: string | null; plan: LicenceRecord['plan']; managed_ai: number; status: LicenceStatus; max_devices: number; offline_grace_days: number; valid_until_ms: number | null; updated_at_ms: number; note: string | null; major_version: number; paid: number; source: LicenceRecord['source']; email_hash: string | null }
 interface AccountRow { account_id: string; email_hash: string; password_hash: string; role: AccountRecord['role']; status: AccountRecord['status']; created_at_ms: number }
 interface AssetRow { asset_id: string; kind: string; version: string; channel: string; path: string; sha256: string; bytes: number; required_app_min: string; status: ModelAssetRecord['status']; created_at_ms: number }
 
 const licence = (r: LicenceRow): LicenceRecord => ({
   licenceId: r.licence_id, accountId: r.account_id, plan: r.plan, managedAi: r.managed_ai === 1, status: r.status,
   maxDevices: r.max_devices, offlineGraceDays: r.offline_grace_days, validUntilMs: r.valid_until_ms, updatedAtMs: r.updated_at_ms, note: r.note ?? null,
+  majorVersion: r.major_version ?? 1, paid: r.paid === 1, source: r.source ?? 'key', emailHash: r.email_hash ?? null,
 });
 const account = (r: AccountRow): AccountRecord => ({ accountId: r.account_id, emailHash: r.email_hash, passwordHash: r.password_hash, role: r.role, status: r.status, createdAtMs: r.created_at_ms });
 const asset = (r: AssetRow): ModelAssetRecord => ({
@@ -41,6 +42,11 @@ export class SqliteStore implements Store {
     // Databases made before licences had a note.
     const columns = this.all<{ name: string }>('PRAGMA table_info(licences)').map((c) => c.name);
     if (!columns.includes('note')) this.db.exec('ALTER TABLE licences ADD COLUMN note TEXT');
+    // Databases made before entitlements carried a version, a paid flag, a source and an email.
+    if (!columns.includes('major_version')) this.db.exec('ALTER TABLE licences ADD COLUMN major_version INTEGER NOT NULL DEFAULT 1');
+    if (!columns.includes('paid')) this.db.exec('ALTER TABLE licences ADD COLUMN paid INTEGER NOT NULL DEFAULT 0');
+    if (!columns.includes('source')) this.db.exec("ALTER TABLE licences ADD COLUMN source TEXT NOT NULL DEFAULT 'key'");
+    if (!columns.includes('email_hash')) this.db.exec('ALTER TABLE licences ADD COLUMN email_hash TEXT');
   }
 
   private get<T>(sql: string, ...params: Value[]): T | undefined { return this.db.prepare(sql).get(...params) as T | undefined; }
@@ -51,11 +57,13 @@ export class SqliteStore implements Store {
     try { const result = body(); this.db.exec('COMMIT'); return result; } catch (error) { this.db.exec('ROLLBACK'); throw error; }
   }
   private writeLicence(l: LicenceRecord): void {
-    this.run(`INSERT INTO licences (licence_id, account_id, plan, managed_ai, status, max_devices, offline_grace_days, valid_until_ms, updated_at_ms, note)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (licence_id) DO UPDATE SET account_id = excluded.account_id, plan = excluded.plan,
+    this.run(`INSERT INTO licences (licence_id, account_id, plan, managed_ai, status, max_devices, offline_grace_days, valid_until_ms, updated_at_ms, note, major_version, paid, source, email_hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (licence_id) DO UPDATE SET account_id = excluded.account_id, plan = excluded.plan,
       managed_ai = excluded.managed_ai, status = excluded.status, max_devices = excluded.max_devices, offline_grace_days = excluded.offline_grace_days,
-      valid_until_ms = excluded.valid_until_ms, updated_at_ms = excluded.updated_at_ms, note = excluded.note`,
-    l.licenceId, l.accountId, l.plan, l.managedAi ? 1 : 0, l.status, l.maxDevices, l.offlineGraceDays, l.validUntilMs, l.updatedAtMs, l.note);
+      valid_until_ms = excluded.valid_until_ms, updated_at_ms = excluded.updated_at_ms, note = excluded.note, major_version = excluded.major_version,
+      paid = excluded.paid, source = excluded.source, email_hash = excluded.email_hash`,
+    l.licenceId, l.accountId, l.plan, l.managedAi ? 1 : 0, l.status, l.maxDevices, l.offlineGraceDays, l.validUntilMs, l.updatedAtMs, l.note,
+    l.majorVersion, l.paid ? 1 : 0, l.source, l.emailHash);
   }
   private readLicence(licenceId: string): LicenceRecord | undefined {
     const row = this.get<LicenceRow>('SELECT * FROM licences WHERE licence_id = ?', licenceId);
@@ -86,6 +94,17 @@ export class SqliteStore implements Store {
   }
 
   async insertLicence(l: LicenceRecord): Promise<void> { this.writeLicence(l); }
+  async grantLicence(l: LicenceRecord) {
+    return this.transaction(() => {
+      const existing = this.readLicence(l.licenceId);
+      if (existing) return { created: false, licence: existing };
+      this.writeLicence(l);
+      return { created: true, licence: l };
+    });
+  }
+  async claimLicencesForEmail(emailHash: string, accountId: string) {
+    return this.run('UPDATE licences SET account_id = ? WHERE email_hash = ? AND account_id IS NULL', accountId, emailHash);
+  }
   async getLicence(licenceId: string) { return this.readLicence(licenceId); }
   async listLicencesForAccount(accountId: string) { return this.all<LicenceRow>('SELECT * FROM licences WHERE account_id = ? ORDER BY licence_id', accountId).map(licence); }
   async hasActiveManagedAi(accountId: string) { return !!this.get('SELECT 1 FROM licences WHERE account_id = ? AND managed_ai = 1 AND status = \'active\'', accountId); }

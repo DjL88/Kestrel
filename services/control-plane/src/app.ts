@@ -14,7 +14,9 @@ import { licenceIsUsable, newLicence, type AuditRecord, type Store } from './sto
 import { geminiProvider, identify, suggest, type AiProvider } from './gateway.ts';
 import type { CommerceLedger } from './commerce/ledger.ts';
 import type { TransactionRecord } from './commerce/records.ts';
-import { googleKeysFromNetwork, verifyGoogleIdToken, type GoogleKeys } from './googleIdToken.ts';
+import { emailHashOf, giftEntitlement } from './entitlement.ts';
+import { googleKeysFromNetwork, verifyGoogleIdToken, GOOGLE_CERTS_URL, type GoogleKeys } from './googleIdToken.ts';
+import { APPLE_ISSUER, APPLE_KEYS_URL, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
 import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnover.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
 
@@ -33,6 +35,8 @@ export interface AppOptions {
   payments?: { listTransactions(limit: number): Promise<TransactionRecord[]> };
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
   googleKeys?: GoogleKeys;
+  /** Apple's signing keys. Tests supply their own; production reads them from Apple. */
+  appleKeys?: OidcKeys;
   /** Injected for tests. Defaults to Gemini when a server key is configured, otherwise none. */
   provider?: AiProvider | null;
   now?: () => number;
@@ -114,7 +118,7 @@ export const Schemas = {
   DeactivateRequest: z.object({ licenceKey: z.string().min(10).max(2000), activationId: z.string().min(1).max(64) }).strict(),
   ActivateResponse: z.object({ grant: SignedEnvelopeSchema, activationId: z.string() }),
   EntitlementsResponse: z.object({
-    plans: z.array(z.object({ licenceId: z.string(), plan: z.string(), status: z.string(), managedAi: z.boolean(), offlineGraceDays: z.number() })),
+    plans: z.array(z.object({ licenceId: z.string(), plan: z.string(), status: z.string(), managedAi: z.boolean(), offlineGraceDays: z.number(), majorVersion: z.number(), paid: z.boolean(), source: z.string() })),
     aiQuota: z.object({ requestsUsed: z.number(), requestsLimit: z.number(), periodEndsMs: z.number() }).nullable(),
     nextRevalidationMs: z.number(),
   }),
@@ -129,11 +133,20 @@ export const Schemas = {
     data: z.object({ licenceId: z.string().min(1).max(64), plan: z.enum(['paid', 'subscriber']).optional(), validUntilMs: z.number().int().optional(), managedAi: z.boolean().optional() }).strict(),
   }).strict(),
   AdminAccount: z.object({ email: z.string().email(), password: z.string().min(12).max(200), role: z.enum(['user', 'admin']) }).strict(),
+  AdminGrant: z.object({
+    email: z.string().trim().email().max(254),
+    plan: z.enum(['paid', 'subscriber']).default('paid'),
+    majorVersion: z.number().int().min(1).max(99).default(1),
+    managedAi: z.boolean().default(false),
+    note: z.string().trim().max(200).optional().describe('Why this was given, e.g. "Camera club prize". Admin-only.'),
+    validDays: z.number().int().min(1).max(3650).optional(),
+  }).strict(),
   AdminIssue: z.object({
     plan: z.literal('paid'), managedAi: z.boolean().default(false), accountId: z.string().optional(), maxDevices: z.number().int().min(1).max(20).default(3),
     note: z.string().trim().max(200).optional().describe('Who the key is for, e.g. "Gift for the camera club". Admin-only.'),
     validDays: z.number().int().min(1).max(3650).optional().describe('Server-side expiry: activation and renewal stop after this many days. A key used fully offline is not checked against it.'),
   }).strict(),
+  ProviderSignIn: z.object({ credential: z.string().min(20).max(4096) }).strict(),
   AdminGoogleSession: z.object({ credential: z.string().min(20).max(4096) }).strict(),
   AdminMessageStatus: z.object({ status: z.enum(['new', 'read', 'answered']) }).strict(),
   ContactRequest: z.object({
@@ -197,6 +210,8 @@ export function createApp(options: AppOptions) {
   const contactLimiter = new RateLimiter(5, 10 * 60_000);
   const contactGlobalLimiter = new RateLimiter(60, 60 * 60_000);
   const googleKeys = options.googleKeys ?? googleKeysFromNetwork();
+  const appleKeys = options.appleKeys ?? oidcKeysFromNetwork(APPLE_KEYS_URL);
+  const userGoogleKeys: OidcKeys = options.googleKeys ?? oidcKeysFromNetwork(GOOGLE_CERTS_URL);
   const adminEmailHashes = new Set(config.adminEmails.map((email) => sha256Hex(email)));
   const activateLimiter = new RateLimiter(20, 60_000);
 
@@ -216,6 +231,44 @@ export function createApp(options: AppOptions) {
     const refreshToken = randomId(32);
     await store.addRefreshToken(sha256Hex(refreshToken), accountId, now() + REFRESH_TTL_MS);
     return { accessToken: signSession(accountId, role, config.sessionSecret, now()), refreshToken, expiresIn: 900 };
+  }
+
+  /**
+   * People sign in with a provider's ID token, never a password. The email is the identity: a verified address creates
+   * the account if it is new, and attaches any entitlement that was waiting for it (a purchase or a free grant).
+   * Sessions from here are always plain user sessions, whatever role the account holds elsewhere.
+   */
+  async function signInWithProvider(provider: 'google' | 'apple', email: string, privateRelay: boolean) {
+    const emailHash = sha256Hex(email);
+    let account = await store.findAccountByEmailHash(emailHash);
+    if (!account) {
+      await store.createAccount({ accountId: `acc_${randomId(12)}`, emailHash, passwordHash: `${provider}-only`, role: 'user', status: 'active', createdAtMs: now() });
+      account = await store.findAccountByEmailHash(emailHash);
+    }
+    if (!account || account.status !== 'active') throw new ApiError(403, 'FORBIDDEN', 'This account is suspended.');
+    const attached = await store.claimLicencesForEmail(emailHash, account.accountId);
+    await audit(account.accountId, 'user.signin', 'allowed', `${provider}${attached ? ` attached=${attached}` : ''}`);
+    return { ...(await issueSession(account.accountId, 'user')), signedInWith: provider, entitlementsAttached: attached, privateRelay };
+  }
+  function providerRoute(provider: 'google' | 'apple'): Route {
+    return {
+      method: 'POST', path: `/v1/auth/${provider}`, summary: `Sign in with ${provider === 'apple' ? 'Apple' : 'Google'}: exchange the provider's ID token for a session`, auth: 'none', body: Schemas.ProviderSignIn,
+      handler: async (req) => {
+        if (!authLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Too many attempts. Wait a minute and try again.', true);
+        const body = parseJson(Schemas.ProviderSignIn, req.rawBody);
+        const audiences = provider === 'apple' ? config.appleClientIds : config.userGoogleClientIds;
+        if (audiences.length === 0) throw new ApiError(503, 'SIGNIN_UNAVAILABLE', `Sign in with ${provider === 'apple' ? 'Apple' : 'Google'} is not set up on this server.`);
+        const check = await verifyOidcIdToken(body.credential, {
+          issuers: provider === 'apple' ? [APPLE_ISSUER] : ['accounts.google.com', 'https://accounts.google.com'], audiences,
+        }, provider === 'apple' ? appleKeys : userGoogleKeys, now());
+        if (!check.ok) {
+          await audit('anonymous', 'user.signin', 'denied', `${provider} token ${check.reason}`);
+          if (check.reason === 'keys_unavailable') throw new ApiError(503, 'PROVIDER_UNAVAILABLE', 'The sign-in provider could not be reached. Try again in a minute.', true);
+          throw new ApiError(401, 'AUTH_FAILED', 'That sign-in could not be checked. Sign in again.');
+        }
+        return { status: 200, body: await signInWithProvider(provider, check.email, check.privateRelay) };
+      },
+    };
   }
 
   async function createAccount(email: string, password: string, role: 'user' | 'admin'): Promise<string> {
@@ -446,7 +499,7 @@ export function createApp(options: AppOptions) {
         const quota = await store.getQuota(claims.sub);
         return {
           status: 200, body: {
-            plans: plans.map((p) => ({ licenceId: p.licenceId, plan: p.plan, status: p.status, managedAi: p.managedAi, offlineGraceDays: p.offlineGraceDays })),
+            plans: plans.map((p) => ({ licenceId: p.licenceId, plan: p.plan, status: p.status, managedAi: p.managedAi, offlineGraceDays: p.offlineGraceDays, majorVersion: p.majorVersion, paid: p.paid, source: p.source })),
             aiQuota: quota ? { requestsUsed: quota.requestsUsed, requestsLimit: quota.requestsLimit, periodEndsMs: quota.periodStartMs + QUOTA_PERIOD_MS } : null,
             nextRevalidationMs: now() + 7 * DAY_MS,
           },
@@ -497,6 +550,8 @@ export function createApp(options: AppOptions) {
     },
 
     // ---- Billing
+    providerRoute('google'),
+    providerRoute('apple'),
     {
       method: 'POST', path: '/v1/billing/webhook', summary: 'Signed, idempotent billing events', auth: 'webhook', body: Schemas.WebhookEvent,
       handler: async (req) => {
@@ -706,6 +761,22 @@ export function createApp(options: AppOptions) {
         const body = parseJson(Schemas.AdminAccount, req.rawBody);
         const accountId = await createAccount(body.email, body.password, body.role);
         return adminDone(claims, 'account.create', `${accountId} role=${body.role}`, { accountId });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/licences/grant', summary: 'Give someone a plan by email, free. No key is needed: it attaches when they sign in', auth: 'admin', body: Schemas.AdminGrant,
+      handler: async (req) => {
+        const claims = await admin(req, 'licence.grant');
+        const body = parseJson(Schemas.AdminGrant, req.rawBody);
+        const existing = await store.findAccountByEmailHash(emailHashOf(body.email));
+        const record = giftEntitlement({
+          email: body.email, plan: body.plan, majorVersion: body.majorVersion, managedAi: body.managedAi, note: body.note ?? null,
+          validUntilMs: body.validDays ? now() + body.validDays * DAY_MS : null, accountId: existing?.accountId ?? null,
+        }, now());
+        const result = await store.grantLicence(record);
+        // The address is never written to the audit log, only a short hash, like the admin sign-in entries.
+        return adminDone(claims, 'licence.grant', `${record.licenceId} plan=${body.plan} v${body.majorVersion}${result.created ? '' : ' (already granted)'}`,
+          { licenceId: record.licenceId, created: result.created, attachedNow: result.licence.accountId !== null });
       },
     },
     {

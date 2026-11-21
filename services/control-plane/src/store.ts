@@ -16,6 +16,8 @@
 export type Role = 'user' | 'admin';
 export type LicencePlan = 'free' | 'paid' | 'subscriber';
 export type LicenceStatus = 'active' | 'trial' | 'expired' | 'revoked';
+/** How an entitlement came about: a verified payment, a gift from the admin, or a typed KESTREL1 key. */
+export type LicenceSource = 'purchase' | 'gift' | 'key';
 
 export interface AccountRecord {
   accountId: string;
@@ -38,6 +40,13 @@ export interface LicenceRecord {
   updatedAtMs: number;
   /** Admin's note, e.g. who a gift key is for. Never shown to the licensee. */
   note: string | null;
+  /** The major app version this licence covers (Pro is a one-off licence per major version). */
+  majorVersion: number;
+  /** True only when money was received. A gift is `paid: false` and still grants the plan. */
+  paid: boolean;
+  source: LicenceSource;
+  /** SHA-256 of the person's email, so an entitlement can wait for them to sign in. Never the address itself. */
+  emailHash: string | null;
 }
 
 export interface ActivationRecord {
@@ -138,6 +147,10 @@ export interface Store {
 
   // Licences and devices
   insertLicence(licence: LicenceRecord): Promise<void>;
+  /** Atomic and idempotent on `licenceId`: an existing licence is returned unchanged and `created` is false. */
+  grantLicence(licence: LicenceRecord): Promise<{ created: boolean; licence: LicenceRecord }>;
+  /** Attaches every unclaimed licence for this email to the account. Returns how many were attached. */
+  claimLicencesForEmail(emailHash: string, accountId: string): Promise<number>;
   getLicence(licenceId: string): Promise<LicenceRecord | undefined>;
   listLicencesForAccount(accountId: string): Promise<LicenceRecord[]>;
   hasActiveManagedAi(accountId: string): Promise<boolean>;
@@ -208,7 +221,7 @@ export const AUDIT_DETAIL_MAX = 500;
 export const QUOTA_DEFAULT_LIMIT = 500;
 
 export function newLicence(licenceId: string, plan: LicencePlan, nowMs: number, extra: Partial<LicenceRecord> = {}): LicenceRecord {
-  return { licenceId, accountId: null, plan, managedAi: false, status: 'active', maxDevices: 3, offlineGraceDays: 30, validUntilMs: null, updatedAtMs: nowMs, note: null, ...extra };
+  return { licenceId, accountId: null, plan, managedAi: false, status: 'active', maxDevices: 3, offlineGraceDays: 30, validUntilMs: null, updatedAtMs: nowMs, note: null, majorVersion: 1, paid: false, source: 'key', emailHash: null, ...extra };
 }
 
 export function licenceIsUsable(licence: LicenceRecord, nowMs: number): boolean {
