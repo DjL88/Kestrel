@@ -48,11 +48,11 @@ export function supportedSceneFacts(candidate: SceneFacts, rgba: Uint8ClampedArr
   if (rgba.length < 400 || rgba.length % 4 !== 0) return {};
   const pixels = rgba.length / 4;
   const stride = Math.max(1, Math.ceil(pixels / 32768));
-  let count = 0, red = 0, green = 0, blue = 0, luma = 0;
+  let count = 0, red = 0, blue = 0, luma = 0;
   for (let p = 0; p < pixels; p += stride) {
     const j = p * 4;
     if (rgba[j + 3] < 128) continue;
-    red += rgba[j]; green += rgba[j + 1]; blue += rgba[j + 2];
+    red += rgba[j]; blue += rgba[j + 2];
     luma += 0.2126 * rgba[j] + 0.7152 * rgba[j + 1] + 0.0722 * rgba[j + 2];
     count += 1;
   }
