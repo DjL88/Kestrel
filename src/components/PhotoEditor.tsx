@@ -1349,7 +1349,8 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
               <button type="button" className="min-h-9 text-xs text-zinc-400 underline hover:text-white" onClick={() => setOpinions(null)}>{t.critique.hide}</button>
             </section>
           )}
-        <details className="border-t border-white/10 pt-1">
+        {/* Open on a phone, where the Auto tab is short: recipes are the point of the tab, so they should not hide behind a tap. */}
+        <details open={isPhone ? true : undefined} className="border-t border-white/10 pt-1">
           <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-zinc-200">{t.auto.recipes}</summary>
           <div aria-label={t.auto.recipesRegion} className="space-y-2 pb-2">
             <PresetPanel edit={edit} disabled={sourceState !== 'ready'} previewSource={lookPreviewSource} onApply={(next) => (onApplyLook ?? onEdit)({ ...next, ...(edit.masks ? { masks: edit.masks } : {}) })} />

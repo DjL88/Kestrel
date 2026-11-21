@@ -1,4 +1,5 @@
 import { clearOfflinePreviews, deleteOfflinePreviewsForOriginals } from './offlinePreviewCache';
+import { removeAppCopies } from './appStorageCopies';
 import { computeCullCounts } from '../core/cullingEngine';
 import { projectSearchText } from '../core/projects';
 import {
@@ -299,6 +300,8 @@ export class BrowserCatalogueStore implements CatalogueStore {
     });
     this.projectWrite = write.catch(() => {});
     await write;
+    // A phone app's own copies of photos nothing else uses go too (the originals in Photos or Files are never touched).
+    await removeAppCopies(orphaned);
     // Finish legacy-state cleanup even if derived-preview storage is unavailable.
     // The atomic catalogue marker already prevents the deleted project resurfacing.
     const previewsCleared = await deleteOfflinePreviewsForOriginals(orphaned);
