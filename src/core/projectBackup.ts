@@ -108,7 +108,10 @@ export function encodeProjectBackup(state: CullingState): string {
     // versioned and rebuilt if needed; never claim a cache is a RAW master.
     cache: { developVersion: DEVELOP_VERSION, reviewPreviews: 'device-local', imagesIncluded: false },
     project: {
-      shoot: state.shoot, frames: state.frames, selectedFrameId: state.selectedFrameId,
+      // Derived OCR can contain private writing or registration numbers. It stays
+      // on this device; portable or cloud backups regenerate it rather than
+      // copying unconfirmed text to another destination.
+      shoot: state.shoot, frames: state.frames.map(({ searchEvidence: _local, ...frame }) => frame), selectedFrameId: state.selectedFrameId,
       compareRightFrameId: state.compareRightFrameId, filter: state.filter, searchQuery: state.searchQuery,
       keeperTarget: state.keeperTarget, autoAdvance: state.autoAdvance,
       ...(state.settings ? { settings: state.settings } : {}),
