@@ -175,6 +175,8 @@ const scenarios: Scenario[] = [
     await page.getByRole('button', { name: 'View bird-1.png' }).click();
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
     await page.getByRole('tab', { name: 'Crop' }).waitFor();
+    // The export panel opens in its compact list view since #708; this case checks the step-by-step wizard.
+    await page.evaluate(() => localStorage.setItem('kestrel.exportView', 'wizard'));
     await openExportDialog(page);
     const dialog = page.getByRole('dialog', { name: /Export/ });
     await check('export: where to', dialog);
@@ -194,8 +196,12 @@ const scenarios: Scenario[] = [
     await dialog.getByRole('button', { name: 'Back', exact: true }).click();
     await dialog.getByRole('button', { name: 'Show all formats at once' }).click();
     await check('export: all formats', dialog);
+    // Custom size lives under the collapsed "More sizes" section of the list view.
+    await dialog.getByText('More sizes', { exact: true }).click();
     await dialog.getByLabel('Custom size').check();
     await check('export: custom size', dialog);
+    // Back to the guide: that link shows on the list view's Advanced tab.
+    await dialog.getByRole('tab', { name: 'Advanced' }).click();
     await dialog.getByRole('button', { name: 'Guide me step by step' }).click();
     await closes(page, dialog);
   } },
@@ -204,6 +210,7 @@ const scenarios: Scenario[] = [
     await page.getByRole('button', { name: 'View bird-1.png' }).click();
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
     await page.getByRole('tab', { name: 'Crop' }).waitFor();
+    await page.evaluate(() => localStorage.setItem('kestrel.exportView', 'wizard'));
     await openExportDialog(page);
     const dialog = page.getByRole('dialog', { name: /Export/ });
     await dialog.getByRole('button', { name: 'Instagram' }).click();
