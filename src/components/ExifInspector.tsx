@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { messages as m } from '../i18n/messages';
 import { libraryText as libraryT } from '../i18n/areas/library';
-import { ChevronLeft, ChevronRight, ClipboardCopy, Download, EyeOff, LoaderCircle, PanelRight, PanelTopOpen, PictureInPicture2, Star, X } from './icons/KestrelUIIcons';
+import { ChevronLeft, ChevronRight, ClipboardCopy, Download, EyeOff, LoaderCircle, PanelRight, PictureInPicture2, Star, X } from './icons/KestrelUIIcons';
 import { useLongPress } from './useLongPress';
 import { exportText } from '../i18n/areas/export';
 import { downloadInBrowser } from '../providers/browserExport';
@@ -175,7 +175,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
           className="flex-1 rounded-sm text-sm font-semibold focus-visible:outline-2 focus-visible:outline-sky-300">{m.photoInfo.title}</h2>
         {!floating && <button data-info-undock type="button" onClick={() => detach(true)} title={libraryT.floatingPane.undockInfoHelp}
           aria-label={libraryT.floatingPane.undockInfo} className="hidden h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 info-dock:grid">
-          <PanelTopOpen className="h-4 w-4" aria-hidden="true"/>
+          <PictureInPicture2 className="h-4 w-4" aria-hidden="true"/>
         </button>}
         {/* An arrow towards the edge it folds into, as on the editing tools; on small screens, where it floats, a cross. */}
         <button type="button" onClick={onClose} aria-label={m.photoInfo.close} title={m.photoInfo.fold} className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">

@@ -40,6 +40,9 @@ import {
   ChevronLeft as LucideChevronLeft,
   ChevronRight as LucideChevronRight,
   Maximize2 as LucideMaximize2,
+  Expand as LucideExpand,
+  Shrink as LucideShrink,
+  Scan as LucideScan,
   ZoomIn as LucideZoomIn,
   ArrowDownUp as LucideArrowDownUp,
   ListFilter as LucideListFilter,
@@ -150,6 +153,9 @@ export const ArrowLeftRight = branded(LucideArrowLeftRight, 'ArrowLeftRight');
 export const ChevronLeft = branded(LucideChevronLeft, 'ChevronLeft');
 export const ChevronRight = branded(LucideChevronRight, 'ChevronRight');
 export const Maximize2 = branded(LucideMaximize2, 'Maximize2');
+export const Expand = branded(LucideExpand, 'Expand');
+export const Shrink = branded(LucideShrink, 'Shrink');
+export const Scan = branded(LucideScan, 'Scan');
 export const ZoomIn = branded(LucideZoomIn, 'ZoomIn');
 export const ArrowDownUp = branded(LucideArrowDownUp, 'ArrowDownUp');
 export const ListFilter = branded(LucideListFilter, 'ListFilter');

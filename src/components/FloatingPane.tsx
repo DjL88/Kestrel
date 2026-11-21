@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Grip, Maximize2, Minimize2, PanelRightClose, Pin } from 'lucide-react';
+import { Grip, Expand, Shrink, PanelRightClose, Pin } from 'lucide-react';
 import { clampPaneRect, defaultPaneRect, FLOATING_PANE_GAP as GAP, type PaneRect } from '../core/floatingPaneGeometry';
 import { FLOATING_PANE_Z } from '../core/photoInfoLayout';
 import { libraryText as t } from '../i18n/areas/library';
@@ -148,7 +148,7 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
         <button type="button" onClick={() => setMaximised((value) => !value)}
           aria-label={maximised ? t.floatingPane.restore(title) : t.floatingPane.maximise(title)}
           className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-          {maximised ? <Minimize2 className="h-4 w-4" aria-hidden="true"/> : <Maximize2 className="h-4 w-4" aria-hidden="true"/>}
+          {maximised ? <Shrink className="h-4 w-4" aria-hidden="true"/> : <Expand className="h-4 w-4" aria-hidden="true"/>}
         </button>
         <button type="button" aria-pressed={pinned}
           aria-label={t.floatingPane.pin(title)} title={t.floatingPane.pin(title)}
