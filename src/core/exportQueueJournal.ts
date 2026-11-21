@@ -111,7 +111,9 @@ export function createExportQueueJournal(storage: ExportQueueStorage, prefix = '
     ): Promise<{ checkpoint: ExportQueueCheckpoint<Recipe>; pending: readonly number[] }> {
       const current = this.load<Recipe>(id);
       if (!current) throw new Error('Export job not found.');
-      if (current.state === 'completed') return { checkpoint: current, pending: [] };
+      // Even a completed journal is only a receipt claim, not proof that the
+      // original and destination still exist unchanged after a restart.
+      // Verify before returning success; never silently trust stale receipts.
       for (const item of current.items) {
         if (!await verifySource(item)) throw new Error('Original identity could not be verified; export remains paused.');
       }
