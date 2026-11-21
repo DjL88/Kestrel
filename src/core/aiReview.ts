@@ -4,7 +4,7 @@
  * anything; `src/providers/aiProviders.ts` does that, only after the person has agreed.
  *
  * Rules (PRODUCT-SPEC §5): the AI never edits. It may only describe in plain words and suggest bounded slider values,
- * which Kestrel shows for the person to Apply or ignore, as one undoable step. People are never named or described.
+ * which Kite44 shows for the person to Apply or ignore, as one undoable step. People are never named or described.
  */
 import { parseRecipeProposal, type RecipeProposal } from './recipeProposal';
 

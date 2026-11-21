@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { checkS3Settings, type S3Settings } from '../core/storageConnectors';
-import { forgetCloudSettings, isCloudRemembered, saveCloudSettings } from '../providers/cloudSettings';
+import { forgetCloudSettings, saveCloudSettings } from '../providers/cloudSettings';
 import { s3Connector } from '../providers/s3Connector';
 import { projectsText as t } from '../i18n/areas/projects';
 
@@ -14,7 +14,6 @@ export function CloudStorageForm({ initial, onSaved, onCancel, persist = true }:
   const [bucket, setBucket] = useState(initial?.bucket ?? '');
   const [accessKeyId, setAccessKeyId] = useState(initial?.accessKeyId ?? '');
   const [secretAccessKey, setSecretAccessKey] = useState(initial?.secretAccessKey ?? '');
-  const [remember, setRemember] = useState(isCloudRemembered());
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -31,8 +30,8 @@ export function CloudStorageForm({ initial, onSaved, onCancel, persist = true }:
     event.preventDefault();
     const problems = checkS3Settings(settings());
     if (problems.length) { setResult({ ok: false, text: problems[0] }); return; }
-    if (persist) saveCloudSettings(settings(), remember);
-    onSaved(settings(), remember);
+    if (persist) saveCloudSettings(settings(), false);
+    onSaved(settings(), false);
   }
 
   return (
@@ -55,11 +54,7 @@ export function CloudStorageForm({ initial, onSaved, onCancel, persist = true }:
       <label className="block">{t.cloud.secretKey}
         <input type="password" className={`${field} mt-1 font-mono`} value={secretAccessKey} onChange={(event) => setSecretAccessKey(event.target.value)} autoComplete="off" spellCheck={false} />
       </label>
-      <label className="flex min-h-11 items-start gap-2">
-        <input type="checkbox" className="mt-1" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
-        <span>{t.cloud.remember}</span>
-      </label>
-      <p className="text-xs text-zinc-400">{t.cloud.keysNote}</p>
+      <p className="text-xs text-zinc-400">For your security, access keys are kept only while Kite44 is open. Enter them again after restarting. Use a key restricted to this bucket.</p>
       {result && <p role={result.ok ? 'status' : 'alert'} className={result.ok ? 'text-emerald-200' : 'text-amber-200'}>{result.text}</p>}
       <div className="flex flex-wrap gap-2">
         <button type="button" className={action} disabled={busy} onClick={() => void test()}>{t.common.testConnection}</button>

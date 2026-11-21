@@ -29,7 +29,7 @@ export interface OfflineAssetRuntime<Envelope> {
 }
 const validId = (id: string) => /^[a-z][a-z0-9._-]{0,127}$/.test(id);
 const sha = async (bytes: Uint8Array) =>
-  Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
+  Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as BufferSource)),
     x => x.toString(16).padStart(2, '0')).join('');
 async function readPointer(slots: AssetSlots, pointer: ActiveAsset | undefined) {
   if (!pointer || pointer.slot !== 'sha256-' + pointer.sha256 ||

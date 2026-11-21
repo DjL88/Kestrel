@@ -64,7 +64,7 @@ export const es: AreaTranslation<typeof source> = {
     addFailed: 'No se pudieron añadir las fotos.',
     stoppedUnfinished: 'Detenido antes de terminar',
     findingPhotos: 'Buscando fotos en la carpeta',
-    developingRaw: 'Revelando archivos RAW con Kestrel',
+    developingRaw: 'Revelando archivos RAW con Kite44',
     developStopped: 'Detenido; las fotos restantes conservan la vista previa de la cámara.',
     developed: (count) => `${count} revelada(s)`,
   },
@@ -77,7 +77,7 @@ export const es: AreaTranslation<typeof source> = {
     addFailed: 'No se pudieron añadir las fotos. Pruebe a seleccionar los archivos de nuevo.',
     noSupportedPhotos: 'Esta carpeta no tiene fotos compatibles.',
     folderUnreadable: 'No se pudo leer esa carpeta.',
-    oneFolderPerProject: 'Ponga cada carpeta en su propio proyecto para que Kestrel pueda volver a conectarla de forma segura.',
+    oneFolderPerProject: 'Ponga cada carpeta en su propio proyecto para que Kite44 pueda volver a conectarla de forma segura.',
     folderAddFailed: 'No se pudo añadir la carpeta. Pruebe a seleccionarla de nuevo.',
     folderUnreadableTryFiles: 'No se pudo leer la carpeta. Pruebe a seleccionar archivos.',
   },
@@ -104,7 +104,7 @@ export const es: AreaTranslation<typeof source> = {
     status: (folder, count) => `Vigilando «${folder}» · ${plural(count, { one: `${count} foto nueva añadida`, other: `${count} fotos nuevas añadidas` })}`,
   },
   paid: {
-    dialogLabel: (feature) => `${feature} forma parte de Kestrel Pro`,
+    dialogLabel: (feature) => `${feature} forma parte de Kite44 Pro`,
     autoCullPitch: 'Ayuda para elegir sus mejores fotos.',
     close: 'Cerrar',
   },
@@ -119,8 +119,8 @@ export const es: AreaTranslation<typeof source> = {
   },
   notices: {
     temporaryOriginals: (count) => plural(count, {
-      one: 'Kestrel no pudo guardar un original para volver a abrirlo. Puede usarlo ahora. Conserve su archivo original: puede que tenga que volver a seleccionarlo al abrir de nuevo. Las copias de seguridad del proyecto no incluyen las fotos originales.',
-      other: `Kestrel no pudo guardar ${count} originales para volver a abrirlos. Puede usarlos ahora. Conserve sus archivos originales: puede que tenga que volver a seleccionarlos al abrir de nuevo. Las copias de seguridad del proyecto no incluyen las fotos originales.`,
+      one: 'Kite44 no pudo guardar un original para volver a abrirlo. Puede usarlo ahora. Conserve su archivo original: puede que tenga que volver a seleccionarlo al abrir de nuevo. Las copias de seguridad del proyecto no incluyen las fotos originales.',
+      other: `Kite44 no pudo guardar ${count} originales para volver a abrirlos. Puede usarlos ahora. Conserve sus archivos originales: puede que tenga que volver a seleccionarlos al abrir de nuevo. Las copias de seguridad del proyecto no incluyen las fotos originales.`,
     }),
     dismiss: 'Cerrar',
   },
@@ -193,7 +193,7 @@ export const es: AreaTranslation<typeof source> = {
     remove: {
       title: '¿Quitar de la fototeca?',
       confirm: 'Quitar de la fototeca',
-      disappears: (name) => `${name} desaparecerá de las vistas, los recuentos y las exportaciones de Kestrel.`,
+      disappears: (name) => `${name} desaparecerá de las vistas, los recuentos y las exportaciones de Kite44.`,
       thisPhoto: 'Esta foto',
       notDeleted: 'Su archivo original no se elimina.',
       bringBack: 'Puede recuperarla desde Opciones del espacio de trabajo, Fotos quitadas, o con Deshacer.',
@@ -201,7 +201,7 @@ export const es: AreaTranslation<typeof source> = {
     autoAdjustKeepers: {
       title: '¿Ajustar automáticamente las fotos para conservar sin editar?',
       confirm: 'Ajustar fotos para conservar',
-      what: 'Kestrel analizará en este dispositivo cada foto para conservar sin editar y ajustará su luz, color y tono. Las fotos ya editadas no cambian.',
+      what: 'Kite44 analizará en este dispositivo cada foto para conservar sin editar y ajustará su luz, color y tono. Las fotos ya editadas no cambian.',
       eligible: (count) => `${photos(count)} para conservar se pueden ajustar. La tarea se puede cancelar. No se aplica ningún cambio hasta que termine el análisis.`,
       safe: 'No se sube nada ni se modifica nada en sus archivos originales. Puede deshacer el resultado en cada foto.',
     },

@@ -47,14 +47,14 @@ test('opt-in TIFF XMP preserves all original RGB16 pixel bytes and ICC profile',
 
 test('opt-in metadata embeds escaped Unicode fields and no implicit sensitive EXIF/GPS', async () => {
   const buffer = await encodeTiff16(img(), {
-    title: 'Kestrel & <clouds>', caption: 'Français — 日本語',
+    title: 'Kite44 & <clouds>', caption: 'Français — 日本語',
     creator: 'Owner', copyright: '© 2026', keywords: ['owl', 'owl', 'garden'],
   }).arrayBuffer();
   const v = new DataView(buffer);
   const xmp = tag(v, 700)!;
   assert.ok(xmp.count > 0);
   const xml = decode(new Uint8Array(buffer, xmp.offset, xmp.count));
-  assert.match(xml, /Kestrel &amp; &lt;clouds&gt;/);
+  assert.match(xml, /Kite44 &amp; &lt;clouds&gt;/);
   assert.match(xml, /Français — 日本語/);
   assert.match(xml, /rdf:Alt/);
   assert.equal((xml.match(/<rdf:li>owl<\/rdf:li>/g) ?? []).length, 1);

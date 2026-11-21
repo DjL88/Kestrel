@@ -2,15 +2,15 @@ import { useId, useState } from 'react';
 import { Languages } from './icons/KestrelUIIcons';
 import { LANGUAGES, isLanguageCode, languageOption, mergeMessages, SOURCE_LANGUAGE, type LanguageCode } from '../core/locale';
 import { enGB } from '../i18n/en-GB';
-import { chooseLanguage, deviceLanguage, keepLanguage, language, languageChosen, TRANSLATIONS, type Messages } from '../i18n/messages';
+import { chooseLanguage, deviceLanguage, keepLanguage, language, languageIsChosen, TRANSLATIONS, type Messages } from '../i18n/messages';
 
 /** Every first launch offers a choice, including UK English or unsupported device locales. */
 export function shouldOfferLanguage(): boolean {
-  return !languageChosen;
+  return !languageIsChosen();
 }
 
 /**
- * The first step of setting up Kestrel: the device's language is suggested, in that language and in English, and
+ * The first step of setting up Kite44: the device's language is suggested, in that language and in English, and
  * nothing changes until the person picks. It shows once; Settings → Language changes it later.
  */
 export function LanguageWelcome() {

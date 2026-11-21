@@ -24,6 +24,8 @@ test('photo cards and Keep/Reject/Info touch targets stay onscreen from phone to
   const grid = page.getByTestId('virtualized-contact-sheet');
   for (const width of [320, 375, 420, 640, 960, 1280, 1440]) {
     await page.setViewportSize({ width, height: 850 });
+    const closeInfo = page.getByRole('button', { name: 'Close photo info', exact: true });
+    if (await closeInfo.isVisible()) await closeInfo.click();
     await expect(grid).toBeVisible();
     await expect.poll(async () => {
       const bounds = await grid.boundingBox();
@@ -36,13 +38,22 @@ test('photo cards and Keep/Reject/Info touch targets stay onscreen from phone to
       }
       return true;
     }).toBe(true);
-    const first = grid.getByRole('article').first();
-    for (const name of [/^Keep /, /^Reject /, /^Photo info and rating/]) {
-      const control = first.getByRole('button', { name });
+    const first = grid.getByRole('button', { name: 'View responsive-0.png', exact: true });
+    if (await first.getAttribute('aria-pressed') !== 'true') await first.press('Space');
+    const actions = page.getByRole('toolbar', { name: 'Actions for selected photos' });
+    const more = actions.getByRole('button', { name: 'More actions', exact: true });
+    await more.click({ timeout: 5000 });
+    const menu = actions.getByRole('group', { name: 'More actions', exact: true });
+    for (const [container, name] of [[actions, 'Keep'], [actions, 'Reject'], [actions, 'More actions'], [menu, 'Photo info']] as const) {
+      const control = container.getByRole('button', { name, exact: true });
+      await expect(control).toBeVisible();
       const box = await control.boundingBox();
       expect(box, `Missing ${name} at ${width}px`).toBeTruthy();
       expect(box!.width, `Narrow hit target at ${width}px`).toBeGreaterThanOrEqual(44);
       expect(box!.height, `Short hit target at ${width}px`).toBeGreaterThanOrEqual(44);
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width);
     }
+    await page.keyboard.press('Escape');
   }
 });

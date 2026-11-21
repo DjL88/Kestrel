@@ -6,7 +6,6 @@ import { PHOTO_ACCEPT } from '../core/rawFormats';
 import { LicenceAndSettings } from './LicenceAndSettings';
 import { SettingsButton } from './SettingsButton';
 import { AppearanceDialog } from './AppearanceDialog';
-import { ConnectionsPanel } from './ConnectionsPanel';
 import type { ShootDescriptor } from '../core/types';
 import { NewProjectWizard } from './NewProjectWizard';
 import { LanguageWelcome } from './LanguageWelcome';
@@ -98,11 +97,11 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
   const backupInput = useRef<HTMLInputElement>(null);
   const quickInput = useRef<HTMLInputElement>(null);
   return (
-    <main className="h-dvh max-h-dvh w-full max-w-full min-w-0 overflow-x-hidden overflow-y-auto bg-kestrel-canvas px-4 text-zinc-100 sm:px-8">
+    <main className="h-dvh max-h-dvh w-full max-w-full min-w-0 overflow-x-hidden overflow-y-auto bg-kestrel-canvas px-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-zinc-100 sm:px-8">
       <div className="mx-auto max-w-3xl py-8 sm:py-14">
         <div className="mb-7 flex items-center gap-2.5">
           <img src={kestrelMark} alt="" className="h-10 w-10" />
-          <span className="text-lg font-semibold tracking-tight text-kestrel-ink">Kestrel</span>
+          <span className="text-lg font-semibold tracking-tight text-kestrel-ink">Kite44</span>
           <div className="ml-auto"><SettingsButton open={appearanceOpen} onOpen={() => setAppearanceOpen(true)} /></div>
         </div>
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -212,7 +211,6 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
             )}
           </>;
         })()}
-        <ConnectionsPanel />
         {projects.length > 0 && <CatalogueStorage />}
         <footer aria-label={m.home.aboutTitle} className="mt-14 border-t border-white/10 pt-5 pb-4 text-xs leading-relaxed text-zinc-400">
           <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2">

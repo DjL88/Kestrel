@@ -5,7 +5,7 @@ import { plural } from '../../../core/locale';
 /** Norwegian Bokmål. DRAFT: written without a native speaker's check. Colour names sit in brackets. */
 export const nb: AreaTranslation<typeof source> = {
   title: 'Fargesjekk',
-  intro: 'Kestrel navngir fargene i dette bildet og forteller med ord om alt som kan se feil ut.',
+  intro: 'Kite44 navngir fargene i dette bildet og forteller med ord om alt som kan se feil ut.',
   checking: 'Sjekker farge…',
   unavailable: 'Fargesjekken er ikke tilgjengelig for dette bildet ennå.',
   mainColours: 'Hovedfarger',

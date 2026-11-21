@@ -5,7 +5,7 @@ import { isDesktopApp } from './desktopShell';
 import { discoverPhotoPaths } from './nativeFolderDiscovery';
 
 /**
- * A photo Kestrel knows about without holding it: where it is, and how to read it when it is needed.
+ * A photo Kite44 knows about without holding it: where it is, and how to read it when it is needed.
  * On the desktop app photos stay where they are on the disk and are read from there on demand, instead of
  * being copied into the app's own storage. In a browser a picked file has no path, so it is wrapped as it is.
  */
@@ -15,6 +15,11 @@ export interface PickedPhoto {
   lastModified: number;
   /** Where the original lives on the disk (desktop app only). Never written to. */
   path?: string;
+  /**
+   * True when the photo can be reached again where it is (for example it comes from a connected network drive), so a phone
+   * app does not need to keep its own copy. Photos from the system picker are not reconnectable and are copied.
+   */
+  reconnectable?: boolean;
   read(): Promise<File>;
 }
 
@@ -134,7 +139,7 @@ export async function pickFolderNatively(options: {
   if (discovery.truncated || discovery.skippedFolders) {
     // Never silently import only part of a shoot when the scan was incomplete.
     throw new Error(discovery.truncated
-      ? 'This folder contains more photos than Kestrel can safely scan at once. Choose a smaller shoot folder.'
+      ? 'This folder contains more photos than Kite44 can safely scan at once. Choose a smaller shoot folder.'
       : 'Some folders could not be read. Check drive permissions and try again.');
   }
   // Limit concurrent filesystem metadata requests for large camera cards/NAS volumes.

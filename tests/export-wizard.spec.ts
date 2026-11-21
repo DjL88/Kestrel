@@ -3,6 +3,11 @@ import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
 import { openExportDialog } from './helpers';
 
+// The export panel opens in its compact list view by default (#708); the step-by-step wizard is a stored choice.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => { try { localStorage.setItem('kestrel.exportView', 'wizard'); } catch { /* optional preference */ } });
+});
+
 test('export wizard: platform, size, position, then export', async ({ page }) => {
   await page.goto('/');
   const png = await page.evaluate(() => {
@@ -33,24 +38,24 @@ test('export wizard: platform, size, position, then export', async ({ page }) =>
 
   // 3. Position, with the preview, zoom and turn right there.
   await expect(page.getByRole('region', { name: 'Position' })).toBeVisible();
-  const preview = page.getByRole('img', { name: /as Post · 4:5/ });
+  const preview = page.getByRole('img', { name: /as Post · 4:5/ }).first();
   await expect(preview).toBeVisible();
   await expect.poll(() => preview.evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(0.8);
   const snapshot = await preview.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
   await page.getByRole('checkbox', { name: 'Show text overlay' }).check();
-  await page.getByLabel('Title', { exact: true }).fill('Kestrel at dusk');
+  await page.getByLabel('Title', { exact: true }).fill('Kite44 at dusk');
   await page.getByLabel('Location', { exact: true }).fill('Herefordshire');
   await page.getByLabel('Alignment').selectOption('centre');
   await expect.poll(() => preview.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())).not.toBe(snapshot);
   await page.getByRole('button', { name: /Turn Post · 4:5 on its side/ }).click();
-  await expect.poll(() => page.getByRole('img', { name: /as Post · 5:4/ }).evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(1.25);
+  await expect.poll(() => page.getByRole('img', { name: /as Post · 5:4/ }).first().evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(1.25);
   await next.click();
 
   // 4. Review, back and forward keep the choices, then export.
   await expect(page.getByRole('heading', { name: 'Ready to export' })).toBeFocused();
   await expect(page.getByRole('region', { name: 'Ready to export' })).toBeVisible();
-  await expect(page.getByText('Post · 5:4').first()).toBeVisible();
-  await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Kestrel at dusk');
+  await expect(page.getByText('Post · 5:4').locator('visible=true').first()).toBeVisible();
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Kite44 at dusk');
   await page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.getByRole('heading', { name: /^Position/ })).toBeFocused();
   await expect(page.getByRole('region', { name: 'Position' })).toBeVisible();
@@ -76,16 +81,14 @@ test('full-size export never silently substitutes a smaller file on a constraine
   await page.addInitScript(() => Object.defineProperty(navigator, 'userAgent', { value: 'iPhone', configurable: true }));
   await openWizard(page, { width: 5000, height: 4000 });
   await page.getByRole('button', { name: 'Full size', exact: true }).click();
-  await page.getByRole('checkbox', { name: /Full size · PNG/ }).check();
-  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  // 'Full size' is the PNG master and goes straight to the review step: no size step, no PNG checkbox.
   await page.getByRole('button', { name: 'Prepare 1 file', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('cannot safely export 5000 × 4000 px');
   await expect(page.getByRole('alert')).toContainText('No smaller file was substituted');
   await expect(page.getByRole('button', { name: 'Download', exact: true })).toHaveCount(0);
   // The failure is recoverable: a deliberately chosen smaller preset still works.
-  await page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true }).click();
-  await page.getByRole('checkbox', { name: /Full size · PNG/ }).uncheck();
-  await page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^Remove Full size/ }).click();
+  await page.getByRole('button', { name: 'Add another place' }).click();
   await page.getByRole('button', { name: 'Instagram', exact: true }).click();
   await page.getByRole('checkbox', { name: /Post · 4:5/ }).check();
   await page.getByRole('button', { name: 'Next', exact: true }).click();
@@ -97,8 +100,7 @@ test('full-size export never silently substitutes a smaller file on a constraine
 test('a supported full-size PNG download retains the source dimensions', async ({ page }) => {
   await openWizard(page);
   await page.getByRole('button', { name: 'Full size', exact: true }).click();
-  await page.getByRole('checkbox', { name: /Full size · PNG/ }).check();
-  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  // 'Full size' is the PNG master and goes straight to the review step: no size step, no PNG checkbox.
   await page.getByRole('button', { name: 'Prepare 1 file', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: '1 file ready' })).toBeVisible();
   const downloaded = page.waitForEvent('download');
@@ -120,9 +122,11 @@ test('desktop export records the edit only after a successful save and can retry
       __TAURI_INTERNALS__: {
         transformCallback: () => 1,
         metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main', windowLabel: 'main' } },
-        invoke: async (command: string) => {
+        invoke: async (command: string, payload?: { data?: { byteLength?: number; length?: number } }) => {
           if (command === 'plugin:dialog|save') return ++trace.picks === 1 ? null : '/synthetic/export.png';
-          if (command === 'plugin:fs|write_file' && ++trace.writes === 1) throw new Error('Drive unavailable');
+          // The app streams into a file handle (open, then write); the first write fails, the retry succeeds.
+          if (command === 'plugin:fs|open') return 7;
+          if (command === 'plugin:fs|write') { if (++trace.writes === 1) throw new Error('Drive unavailable'); return payload?.data?.byteLength ?? payload?.data?.length ?? 0; }
           if (command === 'plugin:opener|reveal_item_in_dir') throw new Error('File manager unavailable');
           return 0;
         },
@@ -138,8 +142,7 @@ test('desktop export records the edit only after a successful save and can retry
   await expect(lastExport).toBeDisabled();
   await openExportDialog(page);
   await page.getByRole('button', { name: 'Full size', exact: true }).click();
-  await page.getByRole('checkbox', { name: /Full size · PNG/ }).check();
-  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  // 'Full size' is the PNG master and goes straight to the review step: no size step, no PNG checkbox.
   await page.getByRole('button', { name: 'Prepare 1 file', exact: true }).click();
 
   const panel = page.getByRole('dialog', { name: 'Export photo' });
@@ -157,8 +160,8 @@ test('desktop export records the edit only after a successful save and can retry
   await expect(save).toBeEnabled();
 
   await save.click();
-  await expect(panel.getByRole('status')).toContainText('Saved');
-  await expect(panel.getByRole('alert')).toHaveCount(0);
+  // A complete save records the export and closes the dialog; "Saved …" is only shown for a partial batch.
+  await expect(panel).toBeHidden();
   await expect.poll(trace).toEqual({ picks: 3, writes: 2 });
   await expect(lastExport).toBeEnabled();
   expect(downloads).toBe(0);
@@ -312,7 +315,7 @@ test('details overlay: the photo’s own camera and settings are printed on the 
   await page.getByRole('button', { name: 'Instagram' }).click();
   await page.getByRole('checkbox', { name: /Post · 4:5/ }).check();
   await page.getByRole('button', { name: 'Next', exact: true }).click();
-  const picture = page.getByRole('img', { name: /as Post · 4:5/ });
+  const picture = page.getByRole('img', { name: /as Post · 4:5/ }).first();
   const bottomBrightness = () => picture.evaluate((canvas: HTMLCanvasElement) => {
     const c = canvas.getContext('2d')!;
     const d = c.getImageData(0, Math.floor(canvas.height * 0.8), canvas.width, Math.floor(canvas.height * 0.2)).data;
@@ -342,7 +345,7 @@ test('watermark: text and a picture each change the preview, wherever they are p
   await page.getByRole('button', { name: 'Instagram' }).click();
   await page.getByRole('checkbox', { name: /Post · 4:5/ }).check();
   await page.getByRole('button', { name: 'Next', exact: true }).click();
-  const preview = page.getByRole('img', { name: /as Post · 4:5/ });
+  const preview = page.getByRole('img', { name: /as Post · 4:5/ }).first();
   await expect(preview).toBeVisible();
   const mark = page.getByRole('group', { name: 'Watermark' });
   const picture = () => preview.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
@@ -350,13 +353,13 @@ test('watermark: text and a picture each change the preview, wherever they are p
 
   await mark.getByRole('checkbox', { name: 'Add a watermark' }).check();
   await expect(page.getByText('Type some text to see the watermark.')).toBeVisible();
-  await mark.getByLabel('Text', { exact: true }).fill('© Kestrel');
+  await mark.getByLabel('Text', { exact: true }).fill('© Kite44');
   await expect.poll(picture).not.toBe(plain);
   const bottomRight = await picture();
   await mark.getByLabel('Position').selectOption('top-left');
   await expect.poll(picture).not.toBe(bottomRight);
 
-  await mark.getByLabel('Type').selectOption('image');
+  await mark.getByRole('button', { name: /^Picture/ }).click();
   await expect(page.getByText('Choose a picture to see the watermark.')).toBeVisible();
   const logo = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
@@ -370,7 +373,7 @@ test('watermark: text and a picture each change the preview, wherever they are p
   await expect.poll(picture).not.toBe(withText);
 });
 
-test('watermark settings are remembered the next time Kestrel opens', async ({ page }) => {
+test('watermark settings are remembered the next time Kite44 opens', async ({ page }) => {
   await page.goto('/');
   const png = await page.evaluate(() => {
     const canvas = document.createElement('canvas'); canvas.width = 300; canvas.height = 200;

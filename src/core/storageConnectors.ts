@@ -1,6 +1,6 @@
 /**
  * Where synced files go. The person picks one place: a folder (including one managed by iCloud Drive, Dropbox, OneDrive or
- * Google Drive's app), their own S3-compatible bucket, a WebDAV or NAS share, or Kestrel's managed storage. All of them
+ * Google Drive's app), their own S3-compatible bucket, a WebDAV or NAS share, or Kite44's managed storage. All of them
  * look the same to the app: put, get, list, remove, under one shared layout. Nothing here talks to a network.
  */
 export type ConnectorKind = 'folder' | 's3' | 'webdav' | 'managed';
@@ -28,14 +28,14 @@ export function syncPath(level: SyncLevel, projectId: string, photoId: string): 
   return `${SYNC_ROOT}/${level}/${projectId}/${photoId}.${ending}`;
 }
 
-/** Only paths inside the Kestrel folder are ever read, written or removed. */
+/** Only paths inside the Kite44 folder are ever read, written or removed. */
 export function isInsideSyncRoot(path: string): boolean {
   return path.startsWith(`${SYNC_ROOT}/`) && !path.split('/').some((part) => part === '..' || part === '.' || part === '');
 }
 
 /**
  * Exports may also be saved to a folder called "export" in a place the person chose (for example beside their originals).
- * That is the only place outside Kestrel's own folder that is ever written to, and files there are never read or removed.
+ * That is the only place outside Kite44's own folder that is ever written to, and files there are never read or removed.
  */
 export function isInsideExportRoot(path: string): boolean {
   return path.startsWith('export/') && !path.split('/').some((part) => part === '..' || part === '.' || part === '');
@@ -82,11 +82,11 @@ export function checkS3Settings(settings: S3Settings): string[] {
 /** An in-memory connector: used by tests, and a model of how every real one must behave (including refusing paths outside the root). */
 export function memoryConnector(): StorageConnector & { files: Map<string, Uint8Array> } {
   const files = new Map<string, Uint8Array>();
-  const guard = (path: string) => { if (!isInsideSyncRoot(path)) throw new Error('Path is outside the Kestrel folder.'); };
+  const guard = (path: string) => { if (!isInsideSyncRoot(path)) throw new Error('Path is outside the Kite44 folder.'); };
   return {
     kind: 'folder', files,
     test: async () => ({ ok: true }),
-    put: async (path, bytes) => { if (!isWritablePath(path)) throw new Error('Path is outside the Kestrel folder.'); files.set(path, bytes); },
+    put: async (path, bytes) => { if (!isWritablePath(path)) throw new Error('Path is outside the Kite44 folder.'); files.set(path, bytes); },
     get: async (path) => { guard(path); return files.get(path) ?? null; },
     list: async (prefix) => { guard(prefix.replace(/\/+$/, '')); return [...files.keys()].filter((key) => key.startsWith(prefix)).sort(); },
     remove: async (path) => { guard(path); files.delete(path); },

@@ -20,6 +20,11 @@ export const GATE_MODEL = {
   cache: 'kestrel-species-v1',
 } as const;
 
+/** A doubtful animal/aircraft category can be shown for review, but must never auto-name a species. */
+export function permitsAutomaticSpeciesTag(species: SpeciesGate): boolean {
+  return species === 'allow';
+}
+
 export interface GateOutcome {
   /** 'wildlife' only when the photo had no kind and the gate is confident it is an animal the species list covers. */
   kind?: Extract<SubjectKind, 'wildlife'>;

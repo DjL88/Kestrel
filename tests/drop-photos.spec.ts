@@ -24,6 +24,6 @@ test('photos dropped on the project list open straight in the editor', async ({ 
 test('a drop with no photos says so and changes nothing', async ({ page }) => {
   await page.goto('/');
   await drop(page, [{ name: 'notes.txt', type: 'text/plain' }]);
-  await expect(page.getByRole('status').filter({ hasText: 'not photos Kestrel can open' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'not photos Kite44 can open' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Back', exact: true })).toHaveCount(0);
 });

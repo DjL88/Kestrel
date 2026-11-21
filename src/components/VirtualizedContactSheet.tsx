@@ -84,12 +84,30 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
     }
     return allFrames.filter((frame) => !frame.burstGroupId || winners.get(frame.burstGroupId)?.id === frame.id);
   }, [allFrames, groupBursts]);
-  const actionFrames = allFrames.filter((frame) => !frame.removedAt &&
-    (multiSelect ? markedIds.has(frame.id) : frame.id === selectedFrameId));
-  const actionIds = actionFrames.map((frame) => frame.id);
+  // Re-walking every frame on each render stutters once a library reaches the
+  // project's own 500-2000 photo acceptance size; this only needs to change
+  // when the frames, marks or selection actually change.
+  const actionFrames = useMemo(() => allFrames.filter((frame) => !frame.removedAt &&
+    (multiSelect ? markedIds.has(frame.id) : frame.id === selectedFrameId)),
+    [allFrames, multiSelect, markedIds, selectedFrameId]);
+  const actionIds = useMemo(() => actionFrames.map((frame) => frame.id), [actionFrames]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState({ width: 1120, height: 640 });
   const [scrollTop, setScrollTop] = useState(0);
+  const scrollFrameRef = useRef<number | null>(null);
+  // A raw scroll/fling fires far faster than the browser repaints; coalesce to one
+  // state update per frame instead of one per native scroll event.
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const next = event.currentTarget.scrollTop;
+    if (scrollFrameRef.current !== null) cancelAnimationFrame(scrollFrameRef.current);
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      scrollFrameRef.current = null;
+      setScrollTop(next);
+    });
+  }, []);
+  useEffect(() => () => {
+    if (scrollFrameRef.current !== null) cancelAnimationFrame(scrollFrameRef.current);
+  }, []);
   const [jumpOpen, setJumpOpen] = useState(false);
   // Secondary selection actions live behind one control so the bar stays small, especially on phones.
   const [moreOpen, setMoreOpen] = useState(false);
@@ -288,7 +306,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   return (
     <div
       ref={containerRef}
-      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      onScroll={handleScroll}
       data-testid="virtualized-contact-sheet"
       className="flex-1 overflow-y-auto bg-kestrel-stage relative min-w-0 min-h-0"
     >
@@ -473,21 +491,24 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
       </div>
       {actionIds.length > 0 && (
         <div role="toolbar" aria-label={t.sheet.selectionBar} ref={selectionBarRef}
-          className="sticky bottom-2 z-[80] mx-auto mt-2 flex w-fit max-w-[96vw] flex-wrap items-center justify-center gap-1 rounded-xl border border-white/20 bg-kestrel-raised p-1.5 text-sm text-zinc-100 shadow-2xl">
+          className="sticky bottom-2 z-[40] mx-auto mt-2 flex w-fit max-w-[96vw] flex-wrap items-center justify-center gap-1 rounded-xl border border-white/20 bg-kestrel-raised p-1.5 text-sm text-zinc-100 shadow-2xl">
           <span className={`max-w-40 truncate px-2 text-xs text-zinc-300 ${multiSelect ? '' : 'hidden sm:inline'}`}>{multiSelect ? t.sheet.selectedCount(actionIds.length) : actionFrames[0]?.filename}</span>
           {(['keep', 'reject'] as const).map((decision) => (
-            <button key={decision} type="button" className="min-h-10 rounded-md px-3 hover:bg-white/10"
+            <button key={decision} type="button" className="min-h-11 min-w-11 rounded-md px-3 hover:bg-white/10"
               onClick={() => actionIds.length === 1 ? onDecideFrame(actionIds[0], decision) : onBatchDecision(actionIds, decision)}>
               {decision === 'keep' ? t.decision.keep : t.decision.reject}
             </button>
           ))}
-          {onOpenEditor && <button type="button" onClick={() => onOpenEditor(actionIds[0])}
+          {/* On a phone Edit is in the footer and Export in the header, so the bar uses its room for the decision instead. */}
+          <button type="button" data-phone-only onClick={() => actionIds.length === 1 ? onDecideFrame(actionIds[0], 'unreviewed') : onBatchDecision(actionIds, 'unreviewed')}
+            className="min-h-12 rounded-md px-3 hover:bg-white/10">{t.decision.undecided}</button>
+          {onOpenEditor && <button type="button" data-phone-hidden onClick={() => onOpenEditor(actionIds[0])}
             className="min-h-10 rounded-md px-3 hover:bg-white/10">{t.photoMenu.edit}</button>}
-          {onExportSelected && <button type="button" onClick={() => onExportSelected(actionIds)}
+          {onExportSelected && <button type="button" data-phone-hidden onClick={() => onExportSelected(actionIds)}
             className="min-h-10 rounded-md px-3 hover:bg-white/10">{t.top.export}</button>}
           <button type="button" aria-expanded={moreOpen} aria-controls="kestrel-selection-more" title={t.sheet.moreActions}
             onClick={() => setMoreOpen((open) => !open)}
-            className="grid min-h-10 min-w-10 place-items-center rounded-md px-2 hover:bg-white/10"
+            className="grid min-h-11 min-w-11 place-items-center rounded-md px-2 hover:bg-white/10"
             data-selection-more="">
             <Ellipsis className="h-5 w-5" aria-hidden="true" />
             <span className="sr-only">{t.sheet.moreActions}</span>
@@ -502,7 +523,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                 ...(onAutoAdjustSelected ? [[appText.editorBar.autoAdjust, () => onAutoAdjustSelected(actionIds)]] : []),
                 ...(onApplyLookSelected ? [[appText.editorBar.applyLook, () => onApplyLookSelected(actionIds)]] : []),
               ] as Array<[string, (el: HTMLButtonElement) => void]>).map(([label, run]) => (
-                <button key={label} type="button" className="min-h-10 rounded-md px-3 text-left hover:bg-white/10"
+                <button key={label} type="button" className="min-h-11 rounded-md px-3 text-left hover:bg-white/10"
                   onClick={(event) => { setMoreOpen(false); run(event.currentTarget); }}>{label}</button>
               ))}
             </div>

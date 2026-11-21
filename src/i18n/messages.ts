@@ -23,7 +23,7 @@ import { nb } from './locales/nb';
 import { fi } from './locales/fi';
 import { is } from './locales/is';
 
-/** Every sentence Kestrel shows, in the shape of the British English source. */
+/** Every sentence Kite44 shows, in the shape of the British English source. */
 export type Messages = Widen<typeof enGB>;
 /** A language file: any part of the source, translated. Anything left out stays in British English. */
 export type Translation = DeepPartial<Messages>;
@@ -46,7 +46,17 @@ function savedLanguage(): unknown {
 /** True once the person has chosen a language (in Settings or at first run), so the welcome never asks twice. */
 export const languageChosen: boolean = isLanguageCode(savedLanguage());
 
-/** The device's own language, if Kestrel has it: offered at first run, never applied without asking. */
+let chosenThisSession = false;
+/**
+ * Whether the person has chosen a language, read now rather than at start-up. The welcome card remounts every time the
+ * Home screen does, and the start-up value never changes when "keep this language" does not reload the page, so
+ * checking it there asked again after every visit to a project. The session flag also covers storage that is blocked.
+ */
+export function languageIsChosen(): boolean {
+  return chosenThisSession || isLanguageCode(savedLanguage());
+}
+
+/** The device's own language, if Kite44 has it: offered at first run, never applied without asking. */
 export const deviceLanguage: LanguageCode | undefined = typeof navigator === 'undefined'
   ? undefined
   : matchDeviceLanguage(navigator.languages?.length ? navigator.languages : [navigator.language]);
@@ -61,6 +71,7 @@ export const formatCount = new Intl.NumberFormat(language);
 
 /** Saves the choice and restarts the interface in it. Work is saved as it happens, so nothing is lost. */
 export function chooseLanguage(code: LanguageCode) {
+  chosenThisSession = true;
   try {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, code);
   } catch {

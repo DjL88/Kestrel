@@ -22,15 +22,25 @@ test('desktop: photos stay where they are, nothing is copied into the app, and t
       if (!bytes.has(path)) bytes.set(path, png(files[path] ?? 0));
       return bytes.get(path)!;
     };
+    const recoveryRoot = 'D:/recovery';
+    const recoveryMode = () => localStorage.getItem('test-original-recovery');
     w.__TAURI_INTERNALS__ = {
       transformCallback: () => 1,
       metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main', windowLabel: 'main' } },
-      invoke: async (command: string, args: { path?: string }) => {
-        if (command === 'plugin:dialog|open') return Object.keys(files);
-        if (command === 'plugin:fs|stat') {
-          return { isFile: true, isDirectory: false, isSymlink: false, size: (await bytesFor(args.path!)).byteLength, mtime: 1700000000000 + (files[args.path!] ?? 0), atime: null, birthtime: null, readonly: false, fileAttributes: null, dev: 0, ino: null, mode: 0, nlink: null, uid: 0, gid: 0, rdev: 0, blksize: 0, blocks: 0 };
+      invoke: async (command: string, args: { path?: string; options?: { directory?: boolean } }) => {
+        if (command === 'plugin:dialog|open') return args.options?.directory ? recoveryRoot : Object.keys(files);
+        if (command === 'plugin:fs|read_dir' && args.path === recoveryRoot) {
+          return ['a.png', 'b.png'].map(name => ({ name, isFile: true, isDirectory: false, isSymlink: false }));
         }
-        if (command === 'plugin:fs|read_file') { w.__reads.push(args.path!); return bytesFor(args.path!); }
+        const path = args.path ?? '';
+        const recoveryCopy = path.startsWith(recoveryRoot + '/');
+        const source = recoveryCopy ? path.replace(recoveryRoot, 'C:/shots') : path;
+        if (recoveryMode() && !recoveryCopy && path === 'C:/shots/b.png') throw new Error('No such file');
+        if (command === 'plugin:fs|stat') {
+          const changedTime = recoveryCopy && source === 'C:/shots/b.png' && recoveryMode() === 'approximate' ? 30_000 : 0;
+          return { isFile: true, isDirectory: false, isSymlink: false, size: (await bytesFor(source)).byteLength, mtime: 1700000000000 + (files[source] ?? 0) + changedTime, atime: null, birthtime: null, readonly: false, fileAttributes: null, dev: 0, ino: null, mode: 0, nlink: null, uid: 0, gid: 0, rdev: 0, blksize: 0, blocks: 0 };
+        }
+        if (command === 'plugin:fs|read_file') { w.__reads.push(path); return bytesFor(source); }
         return 0;
       },
     };
@@ -65,6 +75,22 @@ test('desktop: photos stay where they are, nothing is copied into the app, and t
   await page.getByRole('button', { name: /Linked/ }).first().click();
   await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 2' })).toBeVisible({ timeout: 30000 });
   await expect(page.getByText(/reconnect|re-select|reselect/i)).toHaveCount(0);
+
+  // Recover only the missing link. The other source still lives at its recorded
+  // path, even though the recovery folder happens to contain an identical name.
+  await page.evaluate(() => localStorage.setItem('test-original-recovery', 'approximate'));
+  await page.reload();
+  await page.getByRole('button', { name: /Linked/ }).first().click();
+  const reconnect = page.getByRole('button', { name: 'Re-open Files', exact: true });
+  await reconnect.click();
+  await expect(page.getByText('No matching originals found.', { exact: false })).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { __reads: string[] }).__reads)).not.toContain('D:/recovery/b.png');
+
+  await page.evaluate(() => localStorage.setItem('test-original-recovery', 'exact'));
+  await reconnect.click();
+  await expect(reconnect).toBeHidden();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __reads: string[] }).__reads)).toContain('D:/recovery/b.png');
+  expect(await page.evaluate(() => (window as unknown as { __reads: string[] }).__reads)).not.toContain('D:/recovery/a.png');
 });
 
 // A desktop import needs a RAW's embedded preview and its EXIF, not the whole file (about 3 MB of a 29 MB Z8 NEF).

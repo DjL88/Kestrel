@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import { useBackToClose } from '../providers/useBackToClose';
 import { buildSettingsFile, parseSettingsFile } from '../core/settingsTransfer';
 import { SETTINGS_KEYS } from '../core/settingsTransfer';
 import { downloadExport } from '../providers/browserExport';
 import type { Session, SignInProvider } from '../core/cloudInterfaces';
 import { signInOptions } from '../core/signInOptions';
 import { firebaseAuth, isSignInConfigured, signInPlatform } from '../providers/firebaseAuth';
-import { activateFromAccount, leaveAccount, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
+import { activateFromAccount, consumeExpiredAccountNotice, leaveAccount, removeLicence, saveLicence, useLicence } from '../providers/licenceStore';
 import { isDesktopApp, isMobileShell } from '../providers/desktopShell';
 import { DEV_PRO_PREVIEW_MODE } from '../providers/useAccess';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
@@ -18,6 +19,7 @@ const action = 'min-h-11 rounded-md border border-white/15 px-3 text-sm text-zin
 
 /** One calm place for the licence key and for copying settings to another device. */
 export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
+  useBackToClose(onClose);
   const licence = useLicence();
   const [key, setKey] = useState('');
   const [note, setNote] = useState<{ text: string; good: boolean } | null>(null);
@@ -44,17 +46,27 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
     if (!token) return;
     const result = await activateFromAccount(token);
     const text: Record<typeof result, string | null> = {
-      pro: 'Kestrel Pro is active on this device through your account.',
-      free: 'Signed in. This account has no Pro licence yet, and signing in does not change what Kestrel can do.',
+      pro: 'Kite44 Pro is active on this device through your account.',
+      free: 'Signed in. This account has no Pro licence yet, and signing in does not change what Kite44 can do.',
       limit: 'This account\'s Pro licence is already on its maximum number of devices. Free one from another device and try again.',
       revoked: 'This account\'s Pro licence is no longer active. Your local work is unaffected.',
-      unreachable: 'Signed in, but the licence service could not be reached or the email is not verified yet. Check your email, then sign in again. Kestrel keeps working.',
+      unreachable: 'Signed in, but the licence service could not be reached or the email is not verified yet. Check your email, then sign in again. Kite44 keeps working.',
       not_set_up: null,
     };
     setAccountNote(text[result]);
   }
 
-  useEffect(() => { void firebaseAuth.current().then((current) => { setAccount(current); if (current) void linkLicence(); }, () => setAccount(null)); }, []);
+  useEffect(() => {
+    // Set once by loadLicence() at launch when a stored account grant's offline window (30 days by
+    // default) passed with no online check: this device was signed out of the account and dropped
+    // to Basic. Local photos, edits and projects were never touched; only Pro confirmation and the
+    // account session reset, so this asks the person to sign in again rather than show them as
+    // still "signed in" with only Basic features.
+    if (consumeExpiredAccountNotice()) {
+      setAccountNote('Your Pro confirmation expired after 30 days offline, so this device signed out and is now on Basic. Your photos and edits here are unchanged. Sign in again to confirm Pro.');
+    }
+    void firebaseAuth.current().then((current) => { setAccount(current); if (current) void linkLicence(); }, () => setAccount(null));
+  }, []);
 
   async function chooseSignIn(provider: SignInProvider) {
     setAccountNote(null);
@@ -97,7 +109,7 @@ export function LicenceAndSettings({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="licence-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+    <div role="dialog" aria-modal="true" aria-labelledby="licence-title" className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4"
       onKeyDown={(event) => {
         if (event.key !== 'Tab') return;
         const order = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), a[href]')];

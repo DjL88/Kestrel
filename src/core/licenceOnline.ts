@@ -1,5 +1,5 @@
 /**
- * The online half of a Kestrel licence, as pure rules. The offline half is `licence.ts`: a KESTREL1 key whose signature
+ * The online half of a Kite44 licence, as pure rules. The offline half is `licence.ts`: a KESTREL1 key whose signature
  * checks out unlocks Pro with no account and no connection, for good. Going online adds three things:
  * - a device slot and an Ed25519-signed offline grant (`entitlementGrant.ts`) from the control plane, renewed while online;
  * - the managed AI allowance, which only a grant can turn on;
@@ -87,7 +87,7 @@ export function decideAccess(keyValid: boolean, standing: OnlineStanding, nowMs:
   if (standing.kind === 'revoked') return { pro: false, managedAi: false, basis: 'revoked' };
   // A known server denial is authoritative. Never promote a new device that could not activate.
   if (standing.kind === 'device_limit') return { pro: false, managedAi: false, basis: 'none' };
-  // The key itself was checked against Kestrel's pinned Ed25519 public key:
+  // The key itself was checked against Kite44's pinned Ed25519 public key:
   // a valid one-off purchase must NOT be locked out by an unreachable optional service.
   // Authoritative last-known denials above still win over the key.
   const grant = standing.kind === 'active' ? standing.grant : standing.kind === 'unreachable' ? standing.grant : null;

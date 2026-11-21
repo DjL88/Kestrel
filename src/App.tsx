@@ -14,6 +14,7 @@ import { splitDropped } from './core/dropSplit';
 import { useAccess } from './providers/useAccess';
 import { loadLicence } from './providers/licenceStore';
 import { startModelUpdates } from './providers/modelUpdater';
+import { setLandscapeAllowed } from './providers/orientationLock';
 import { PaidNotice } from './components/PaidNotice';
 import { SyncFolderDialog } from './components/SyncFolderDialog';
 import { ProjectLocationsDialog } from './components/ProjectLocationsDialog';
@@ -35,7 +36,7 @@ import { useBackgroundDevelop } from './useBackgroundDevelop';
 import { SpeciesScanBanner } from './components/SpeciesScanBanner';
 import { addTags, type SubjectKind } from './core/subjectTags';
 import type { ImportedPhotoSidecar } from './core/photoSidecar';
-import { applyAutoTag, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTags';
+import { applyAutoTag, disputePatch, keepAuto, mayAutoTag, reconcileAuto } from './core/autoTags';
 import { burstMates, tagFrames } from './core/speciesBurst';
 import { loadImage } from './providers/loadImage';
 import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
@@ -169,6 +170,8 @@ export default function App() {
   if (!previewProviderRef.current) previewProviderRef.current = new BrowserPreviewProvider();
 
   const [prefs, setPrefs] = useState<UserPreferences>(() => loadPreferences());
+  // A phone is upright, except while a photo is full screen ("Photo only"), where turning it is allowed.
+  useEffect(() => { void setLandscapeAllowed(prefs.focusMode); }, [prefs.focusMode]);
   // Left- or right-handed use is read by the whole page's styles, so the home page and every dialog follow it too.
   useEffect(() => { document.documentElement.dataset.hand = prefs.hand; }, [prefs.hand]);
   // Hand and editing-panel side are one choice now. Settings saved when they could differ follow the hand.
@@ -1232,7 +1235,7 @@ export default function App() {
     [selectedFrame, handleDecideFrame, toggleCompareView, prefs.knobMode, handleStepFrame]
   );
 
-  const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames' | 'tags' | 'subjectKind' | 'autoTags' | 'declinedTags' | 'rating' | 'framing' | 'focusPoint'>) => {
+  const updateFrame = (frameId: string, patch: Pick<PhotoFrame, 'edit' | 'subjectNames' | 'tags' | 'subjectKind' | 'autoTags' | 'declinedTags' | 'rating' | 'framing' | 'focusPoint' | 'subjectDisputed'>) => {
     const at = Date.now();
     const isRecipe = 'edit' in patch || 'framing' in patch;
     setCullingState((prev) => ({
@@ -1257,7 +1260,8 @@ export default function App() {
 
   // Tags and kind for any photo, from the editor or from the info pop-up.
   const setSubjects = (frame: PhotoFrame, tags: string[], subjectKind: SubjectKind | undefined) =>
-    updateFrame(frame.id, { tags, subjectNames: [], subjectKind, ...reconcileAuto(frame, tags) });
+    // The person setting the subject themselves settles any dispute between the two readings.
+    updateFrame(frame.id, { tags, subjectNames: [], subjectKind, subjectDisputed: false, ...reconcileAuto(frame, tags) });
   /** A small copy of a photo for the species model, drawn the way the camera held it. Null when the original is not available. */
   const loadSpeciesPicture = useCallback(async (frame: PhotoFrame): Promise<HTMLCanvasElement | null> => {
     const provider = previewProviderRef.current;
@@ -1268,7 +1272,17 @@ export default function App() {
     drawFramedPhoto(image, canvas, { ...DEFAULT_FRAMING, turns: frame.framing?.turns ?? 0 }, { scale: Math.min(1, 448 / Math.max(image.naturalWidth, image.naturalHeight)) });
     return canvas;
   }, []);
+  const reviewSubjects = useCallback(async (frame: PhotoFrame, signal: AbortSignal) => {
+    const source = previewProviderRef.current?.verifiedOriginalReader(frame.stableKey);
+    if (!source) return null;
+    const { reviewPhotoSubjects } = await import('./providers/subjectReview');
+    return reviewPhotoSubjects(frame.id, source, signal);
+  }, []);
   const keepTag = (frame: PhotoFrame, name: string) => updateFrame(frame.id, { autoTags: keepAuto(frame, name) });
+  const noteSubjectCheck = (frame: PhotoFrame, outcome: 'agreed' | 'conflict' | 'unverified') => {
+    const patch = disputePatch(frame, outcome);
+    if (patch) updateFrame(frame.id, patch);
+  };
 
   // After photos are added, name the species in the background. The subject flashes up on each card as it is found.
   const scan = useSpeciesScan({
@@ -1283,7 +1297,7 @@ export default function App() {
     }),
   });
 
-  // Every RAW is developed from its sensor data in the background, so the library shows Kestrel's develop, not the
+  // Every RAW is developed from its sensor data in the background, so the library shows Kite44's develop, not the
   // camera's JPEG. Continue the queue while reviewing or editing; the selected image has its own priority.
   useBackgroundDevelop({
     projectId: cullingState.shoot.id, frames: cullingState.frames, provider: previewProviderRef.current,
@@ -1683,7 +1697,7 @@ export default function App() {
     } catch {
       task?.fail(t.tasks.addFailed);
       setProjectError(t.importing.addFailed);
-      if (options?.watched) throw new Error('Kestrel could not import the watched photos. They will be retried.');
+      if (options?.watched) throw new Error('Kite44 could not import the watched photos. They will be retried.');
     } finally {
       // Only a failed/retired import still owns the optional model observer.
       // A successful import transferred it to background culling for safe drain.
@@ -1896,24 +1910,42 @@ export default function App() {
       const [{ open }, fs] = await Promise.all([
         import('@tauri-apps/plugin-dialog'), import('@tauri-apps/plugin-fs'),
       ]);
-      const folder = await open({ directory: true, multiple: false, title: t.reconnect.dialogTitle });
+      const folder = await open({ directory: true, multiple: false, recursive: true, title: t.reconnect.dialogTitle });
       if (typeof folder !== 'string') {
         setRelinkStatus(undefined);
         return;
       }
-      const expected = new Map(cullingState.frames
+      if (stateRef.current.shoot.id !== projectId) return;
+      const expected = new Map(stateRef.current.frames
         .filter((frame) => !frame.removedAt && frame.sourceKind === 'file' && frame.sourcePath)
         .map((frame) => [frame.stableKey, frame]));
       const expectedRecords = [...expected.values()].map((frame) => {
         const parts = frame.stableKey.split('::');
-        return { stableKey: frame.stableKey, filename: frame.filename,
+        return { stableKey: frame.stableKey, filename: frame.filename, sourcePath: frame.sourcePath!,
           size: Number(parts.at(-2)) || 0, lastModified: Number(parts.at(-1)) || 0 };
       });
-      const scan = await scanOriginalFolder(folder, fs.readDir, fs.stat,
-        new Set(expectedRecords.map((frame) => frame.filename.toLowerCase())));
-      const { matches: replacements, ambiguous, approximate } = matchScannedOriginals(expectedRecords, scan.files);
-      const recovered = replacements.size;
+      const currentPaths = await checkOriginalPaths(expectedRecords.map(record => record.sourcePath), fs.stat);
       if (stateRef.current.shoot.id !== projectId) return;
+      const missing = expectedRecords.filter(record => currentPaths.get(record.sourcePath) !== 'available');
+      const connectedPaths = expectedRecords.filter(record => currentPaths.get(record.sourcePath) === 'available')
+        .map(record => record.sourcePath);
+      const scan = missing.length ? await scanOriginalFolder(folder, fs.readDir, fs.stat,
+        new Set(missing.map(record => record.filename.toLowerCase()))) : { files: [], truncated: false, skippedDirectories: 0 };
+      const { matches, ambiguous } = matchScannedOriginals(missing, scan.files, connectedPaths);
+      const candidateByPath = new Map(scan.files.map(file => [file.path, file]));
+      // Recheck candidates before changing a link. A removable drive can
+      // change between scanning the folder and applying the matches.
+      const candidatePaths = await checkOriginalPaths([...matches.values()], async path => {
+        const file = candidateByPath.get(path)!;
+        const info = await fs.stat(path);
+        return { isFile: info.isFile && !info.isSymlink && info.size === file.size && info.mtime?.getTime() === file.lastModified };
+      });
+      if (stateRef.current.shoot.id !== projectId) return;
+      const currentFrames = stateRef.current.frames;
+      const eligibleKeys = new Set(currentFrames.filter(frame => !frame.removedAt && frame.sourceKind === 'file' &&
+        frame.sourcePath === expected.get(frame.stableKey)?.sourcePath).map(frame => frame.stableKey));
+      const replacements = new Map([...matches].filter(([key, path]) =>
+        eligibleKeys.has(key) && candidatePaths.get(path) === 'available'));
       const preview = previewProviderRef.current!;
       for (const [key, path] of replacements) {
         const frame = expected.get(key)!;
@@ -1925,25 +1957,27 @@ export default function App() {
         });
         preview.retryLinkedOriginal(key);
       }
-      const nextFrames = stateRef.current.frames.map((frame) =>
-        replacements.has(frame.stableKey) ? { ...frame, sourcePath: replacements.get(frame.stableKey) } : frame);
-      const paths = nextFrames.filter((frame) => !frame.removedAt && frame.sourceKind === 'file' && frame.sourcePath).map((frame) => frame.sourcePath!);
-      const statuses = await checkOriginalPaths(paths, fs.stat);
-      const remaining = nextFrames.filter((frame) => !frame.removedAt && frame.sourceKind === 'file' && frame.sourcePath && statuses.get(frame.sourcePath) !== 'available').length;
-      if (stateRef.current.shoot.id !== projectId) return;
+      for (const record of expectedRecords) {
+        if (eligibleKeys.has(record.stableKey) && currentPaths.get(record.sourcePath) === 'available' &&
+            preview.isOfflineFallback(record.stableKey)) preview.retryLinkedOriginal(record.stableKey);
+      }
+      const remaining = missing.filter(record => eligibleKeys.has(record.stableKey) && !replacements.has(record.stableKey)).length;
+      const recovered = replacements.size;
       setCullingState((previous) => previous.shoot.id !== projectId ? previous : {
-        ...previous, frames: nextFrames,
+        ...previous, frames: previous.frames.map(frame => {
+          const path = replacements.get(frame.stableKey);
+          return path && frame.sourcePath === expected.get(frame.stableKey)?.sourcePath ? { ...frame, sourcePath: path } : frame;
+        }),
         shoot: { ...previous.shoot, needsFileReselect: remaining > 0 },
       });
       setPreviewRevision((previous) => previous + 1);
-      const details = [approximate.length ? t.reconnect.matchedByNameAndSize(approximate.length) : '', ambiguous.length ? t.reconnect.ambiguousSkipped(ambiguous.length) : '',
-        scan.truncated ? t.reconnect.scanLimit : '',
-        scan.skippedDirectories ? t.reconnect.foldersSkipped(scan.skippedDirectories) : ''].filter(Boolean).join(' ');
-      setRelinkStatus((recovered
-        ? `${t.reconnect.reconnected(recovered)}${remaining ? ` ${t.reconnect.mayStillNeed(remaining)}` : ''}`
-        : t.reconnect.noMatchInFolder) + (details ? ` ${details}` : ''));
+      const message = recovered ? t.reconnect.reconnected(recovered) : remaining ? t.reconnect.noMatchInFolder : '';
+      const details = [message, recovered && remaining ? t.reconnect.mayStillNeed(remaining) : '',
+        ambiguous.length ? t.reconnect.ambiguousSkipped(ambiguous.length) : '', scan.truncated ? t.reconnect.scanLimit : '',
+        scan.skippedDirectories ? t.reconnect.foldersSkipped(scan.skippedDirectories) : ''];
+      setRelinkStatus(details.filter(Boolean).join(' ') || undefined);
     } catch {
-      setRelinkStatus(t.reconnect.folderUnreadable);
+      if (stateRef.current.shoot.id === projectId) setRelinkStatus(t.reconnect.folderUnreadable);
     } finally {
       relinkingFiles.current = false;
     }
@@ -2031,7 +2065,7 @@ export default function App() {
   }
 
   return (
-    <div className={`h-dvh max-h-dvh w-full max-w-full min-w-0 flex flex-col pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden ${editing ? '' : 'max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]'}`}>
+    <div className={`h-dvh max-h-dvh w-full max-w-full min-w-0 flex flex-col pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden ${editing ? '' : 'max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]'}`}>
       {photoMenu && (() => {
         const frame = cullingState.frames.find((candidate) => candidate.id === photoMenu.frameId);
         if (!frame) return null;
@@ -2047,7 +2081,7 @@ export default function App() {
       {watchOpen && <WatchFolderDialog onStart={(source, includeExisting) => void watch.start(source, includeExisting)} onClose={() => setWatchOpen(false)} />}
       {watch.status && <p role="status" className="fixed bottom-3 left-3 z-40 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/15 bg-kestrel-raised px-3 py-2 text-xs text-zinc-100 shadow-lg">{watch.status.error ?? t.watch.status(watch.status.folder, watch.status.imported)}</p>}
       {paidDialog && (
-        <div role="dialog" aria-modal="true" aria-label={t.paid.dialogLabel(paidDialog)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+        <div role="dialog" aria-modal="true" aria-label={t.paid.dialogLabel(paidDialog)} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4"
           onKeyDown={(event) => { if (event.key === 'Escape') setPaidDialog(null); }}>
           <div className="w-full max-w-sm space-y-3 rounded-xl border border-white/12 bg-kestrel-panel p-4">
             <PaidNotice title={paidDialog}>{t.paid.autoCullPitch}</PaidNotice>
@@ -2064,7 +2098,7 @@ export default function App() {
         <header className="relative z-40 flex shrink-0 items-center gap-2 border-b border-white/10 bg-kestrel-panel px-2 py-1 sm:gap-3 sm:px-3">
           <button type="button" onClick={leaveEditor} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300" aria-label={t.header.back} title={t.header.backTitle}><ArrowLeft className="h-4 w-4" aria-hidden="true" />{t.header.back}</button>
           {/* The View menu is the only home for show/hide controls in Edit, just as in Review. */}
-          <details className="relative shrink-0" onKeyDown={(event) => {
+          <details data-phone-hidden className="relative shrink-0" onKeyDown={(event) => {
             if (event.key !== 'Escape') return;
             event.preventDefault();
             event.stopPropagation();
@@ -2286,6 +2320,7 @@ export default function App() {
                 <WorkspacePaneRail kind="tools" side="left" onExpand={() => setWorkspacePanes({ folded: false })} />
               )}
             <PhotoEditor
+              onSubjectCheck={noteSubjectCheck}
               viewportTransform={{ zoom: zoomLevel, pan: panOffset }}
               onViewportTransform={(next) => {
                 setZoomLevel(next.zoom);
@@ -2550,7 +2585,7 @@ export default function App() {
           )}
 
           {editing && selectedFrame && (
-            <div role="toolbar" aria-label={t.editorBar.label}
+            <div role="toolbar" data-hide-on-phone-edit aria-label={t.editorBar.label}
               className={`${prefs.focusMode ? 'hidden ' : ''}mobile-toolbar-scroll flex min-w-0 max-w-full shrink-0 items-center gap-1 overflow-x-auto border-t border-white/10 bg-kestrel-panel px-2`}>
               {/* Section F: one footer order across Review and Edit — navigation, actions, then zoom. */}
               <button type="button" aria-label={t.editorBar.previous} title={t.editorBar.previousTitle} disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) <= 0} onClick={() => handleStepFrame(-1)}
@@ -2559,7 +2594,7 @@ export default function App() {
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
               {/* Keep/Review/Reject remain available in Edit without switching screens.
                   These reuse the same decisions and history as Library and Compare. */}
-              <div role="group" aria-label={libraryT.top.photoActions} className="flex shrink-0 items-center border-x border-white/10 px-1">
+              <div role="group" data-hide-on-phone-edit aria-label={libraryT.top.photoActions} className="flex shrink-0 items-center border-x border-white/10 px-1">
                 <DecisionButtons labels decision={selectedFrame.decision} filename={selectedFrame.filename}
                   edited={false}
                   onKeep={() => handleDecideFrame(selectedFrame.id, 'keep', false)}
@@ -2567,11 +2602,11 @@ export default function App() {
                   onTrash={() => handleDecideFrame(selectedFrame.id, 'reject', false)}
                   onReset={() => requestReset([selectedFrame.id])} />
               </div>
-              <PhotoJump index={editorIndex} total={editorFrames.length}
+              <div data-hide-on-phone-edit className="contents"><PhotoJump index={editorIndex} total={editorFrames.length}
                 onJump={(index) => {
                   const next = editorFrames[index];
                   if (next) handleSelectFrame(next.id);
-                }} />
+                }} /></div>
               {/* On phones, Copy and Paste are in the photo's long-press menu, so this bar fits the screen. */}
               <button type="button" title={t.editorBar.copyTitle} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-white/10 max-sm:hidden"
                 onClick={() => { setCopiedEdit(selectedFrame.edit ?? DEFAULT_EDIT); showToast(t.toasts.adjustmentsCopied); }}>
@@ -2581,7 +2616,7 @@ export default function App() {
                 onClick={() => { if (copiedEdit) { updateFrame(selectedFrame.id, { edit: isEmptyEdit(copiedEdit) ? undefined : { ...copiedEdit } }); showToast(t.toasts.adjustmentsPasted); } }}>
                 <ClipboardPaste className="h-4 w-4" aria-hidden="true" /> {t.editorBar.paste}
               </button>}
-              <button type="button" aria-pressed={multiSelect} className="inline-flex min-h-11 items-center rounded-md px-2 text-xs hover:bg-white/10"
+              <button type="button" aria-pressed={multiSelect} {...(multiSelect ? {} : { 'data-hide-on-phone-edit': '' })} className="inline-flex min-h-11 items-center rounded-md px-2 text-xs hover:bg-white/10"
                 onClick={() => {
                   cancelLinkedEdit();
                   flushLinkedEdit();
@@ -2613,7 +2648,7 @@ export default function App() {
 
         {!panesCollapsed && showPhotoInfo && (
           <ExifInspector photoOnly={prefs.focusMode} dockedSide={photoInfoDockSide(prefs.hand)} onSubjects={(frame, tags, kind) => setSubjects(frame, tags, kind)} onKeepTag={(frame, name) => keepTag(frame, name)}
-            loadPicture={loadSpeciesPicture}
+            loadPicture={loadSpeciesPicture} reviewSubjects={reviewSubjects}
             mates={burstMates(cullingState.frames, infoFrameId ? cullingState.frames.find((frame) => frame.id === infoFrameId) ?? { id: '', burstGroupId: null } : selectedFrame ?? { id: '', burstGroupId: null })}
             onTagPhotos={(ids, name, kind) => setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() }, frames: tagFrames(prev.frames, ids, name, kind) }))}
             onAutoTag={(frame, name, kind) => {
@@ -2640,7 +2675,7 @@ export default function App() {
       {/* Independent full-width dock: side panels never constrain filmstrip width. */}
       {/* Not in grid view, where every photo is already on screen. */}
       {!prefs.focusMode && visibleFrames.length > 0 && (editing || prefs.viewMode !== 'grid') && (
-        <FilmstripDock expanded={prefs.showFilmstrip} onToggle={toggleFilmstrip}
+        <FilmstripDock phoneEditHidden={editing} expanded={prefs.showFilmstrip} onToggle={toggleFilmstrip}
           onPhotoOnly={() => setPrefs((prev) => ({ ...prev, focusMode: true }))}>
             <Filmstrip
               onPhotoMenu={openPhotoMenu}

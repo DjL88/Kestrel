@@ -4,7 +4,7 @@ import type { source } from './source';
 /** Spanish, Spain (usted). DRAFT: written without a native speaker's check. */
 export const es: AreaTranslation<typeof source> = {
   title: 'Segunda opinión de su propia IA',
-  intro: 'Opcional. Use su propia cuenta de IA, o un modelo en este ordenador, para revisar el color y la luz de esta foto. La revisión del color de Kestrel, más arriba, siempre funciona sin ella.',
+  intro: 'Opcional. Use su propia cuenta de IA, o un modelo en este ordenador, para revisar el color y la luz de esta foto. La revisión del color de Kite44, más arriba, siempre funciona sin ella.',
   ask: 'Preguntar a mi IA',
   asking: 'Preguntando a su IA…',
   cancel: 'Cancelar',
@@ -30,8 +30,8 @@ export const es: AreaTranslation<typeof source> = {
   invalidBaseUrl: "Utiliza HTTPS para una IA remota o http://localhost para una IA en este ordenador. No incluyas claves en la dirección.",
   save: 'Guardar',
   consentTitle: 'Antes de enviar nada',
-  consentCloud: (host) => `Kestrel enviará a ${host} una copia de esta foto de 1024 píxeles en su lado más largo. No incluye la ubicación, los datos de la cámara ni el nombre del archivo. Es posible que su proveedor le cobre por cada pregunta.`,
-  consentLocal: (host) => `Kestrel enviará una copia de esta foto de 1024 píxeles en su lado más largo a la IA en ${host}, que está en este ordenador. Nada sale de su ordenador.`,
+  consentCloud: (host) => `Kite44 enviará a ${host} una copia de esta foto de 1024 píxeles en su lado más largo. No incluye la ubicación, los datos de la cámara ni el nombre del archivo. Es posible que su proveedor le cobre por cada pregunta.`,
+  consentLocal: (host) => `Kite44 enviará una copia de esta foto de 1024 píxeles en su lado más largo a la IA en ${host}, que está en este ordenador. Nada sale de su ordenador.`,
   agree: 'Acepto',
   summary: 'Lo que dice su IA',
   suggested: 'Cambios sugeridos',
@@ -52,7 +52,7 @@ export const es: AreaTranslation<typeof source> = {
   errors: {
     setup: 'Su IA aún no está configurada, o falta el consentimiento.',
     key: 'Su IA indica que la clave es incorrecta o no está permitida. Compruébela en la cuenta de su proveedor.',
-    offline: 'No tiene conexión. La revisión del color de Kestrel sigue funcionando.',
+    offline: 'No tiene conexión. La revisión del color de Kite44 sigue funcionando.',
     timeout: 'Su IA ha tardado demasiado en responder. Vuelva a intentarlo dentro de un momento.',
     refused: 'Su IA se ha negado a revisar esta foto.',
     unreadable: 'No se ha podido leer la respuesta de su IA, así que no se ha cambiado nada.',

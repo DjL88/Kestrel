@@ -63,6 +63,8 @@ function Assert-StoreUrl($url, [string[]] $hosts) {
 
 if ($Installers) {
   if (-not $Version) { throw 'Give -Version with -Installers.' }
+  node (Join-Path $PSScriptRoot '../check-public-native-release.mjs')
+  if ($LASTEXITCODE -ne 0) { throw 'Public installer publishing stopped because the native release checks failed.' }
   $files = $Installers | ForEach-Object { Get-Item $_ }
   if (-not $files) { throw 'No installer files found.' }
   $sums = $files | ForEach-Object { '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name }

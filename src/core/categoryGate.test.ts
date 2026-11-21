@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import taxonomy from '../assets/subject/taxonomy.json' with { type: 'json' };
 import vectorFile from '../assets/subject/vectors.json' with { type: 'json' };
-import { gateOutcome, gateVectors } from './categoryGate';
+import { gateOutcome, gateVectors, permitsAutomaticSpeciesTag } from './categoryGate';
 import { routeSubject, type SubjectCategory } from './subjectRouter';
 
 const categories = taxonomy.categories as SubjectCategory[];
@@ -64,4 +64,13 @@ test('an ambiguous aircraft-versus-bird route never qualifies for ordinary autom
   assert.equal(gateOutcome(evidence, undefined).kind, undefined);
   // The user may keep Wildlife manually; the classifier cannot silently change it.
   assert.equal(gateOutcome(evidence, 'wildlife').kind, undefined);
+});
+
+test('only independent, positive animal evidence permits automatic species tagging', () => {
+  assert.equal(permitsAutomaticSpeciesTag('allow'), true);
+  assert.equal(permitsAutomaticSpeciesTag('strict'), false, 'even 100% of a closed species set is not proof');
+  assert.equal(permitsAutomaticSpeciesTag('block'), false);
+  assert.equal(permitsAutomaticSpeciesTag(gateOutcome(null, 'wildlife').species), false);
+  assert.equal(permitsAutomaticSpeciesTag(gateOutcome(route(at('bird')), undefined).species), true);
+  assert.equal(permitsAutomaticSpeciesTag(gateOutcome(route(at('helicopter')), 'wildlife').species), false);
 });

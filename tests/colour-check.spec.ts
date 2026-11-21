@@ -40,7 +40,10 @@ test('the colour check names the colours and says what is wrong, in words, with 
   await strong.getByRole('button', { name: 'Soften colour' }).click();
   // The fix goes into the normal, undoable edit, and the check runs again on the softened picture.
   await expect(panel.getByRole('status')).toContainText('Edit history');
-  await expect(page.getByRole('button', { name: /^Undo/ }).first()).toBeEnabled();
+  // Real undo, not a button lookup (a /^Undo/ name also matches "Undock …"): the editor's own shortcut brings the finding back.
+  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Control+z');
+  await expect(panel.locator('[data-finding="strongColour"]')).toBeVisible();
 });
 
 test('a calm, natural photo gets its colours named and no warnings', async ({ page }) => {
@@ -83,6 +86,9 @@ test('a second opinion from your own AI: set up, agree to the destination, ask, 
   await expect(result).toContainText('The red is stronger than in life');
   await expect(result).toContainText('Too strong:');
   await expect(result).toContainText('Warmth: −0.2');
+  // Model asked for Colour -0.4, but the existing editor offers one gentle
+  // visible step. What the person sees is exactly what Apply will commit.
+  await expect(result).toContainText('Colour: −0.3');
   expect(asked).toHaveLength(1);
   const request = asked[0] as { model: string; messages: { content: { type: string; text?: string; image_url?: { url: string } }[] }[] };
   expect(request.model).toBe('llava');
@@ -91,5 +97,49 @@ test('a second opinion from your own AI: set up, agree to the destination, ask, 
 
   await result.getByRole('button', { name: 'Apply suggestions' }).click();
   await expect(ai.getByRole('status')).toContainText('Edit history');
-  await expect(page.getByRole('button', { name: /^Undo/ }).first()).toBeEnabled();
+  // Real undo, not a button lookup (a /^Undo/ name also matches "Undock …"): the editor's own shortcut brings the finding back.
+  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Control+z');
+  await expect(panel.locator('[data-finding="strongColour"]')).toBeVisible();
+});
+
+
+test('an in-flight second opinion cannot attach to a newly changed edit', async ({ page }) => {
+  // A deliberately slow local model illustrates a real on-device VLM as well
+  // as an optional BYO endpoint; changing this edit must cancel the old result.
+  let release: (() => void) | undefined;
+  let received = false;
+  const pending = new Promise<void>((resolve) => { release = resolve; });
+  await page.route('http://localhost:11434/v1/chat/completions', async (route) => {
+    received = true;
+    await pending;
+    try {
+      await route.fulfill({ json: { choices: [{ message: { content: JSON.stringify({
+        summary: 'Stale advice from the earlier photo state.',
+        points: [{ issue: 'tooStrong', detail: 'This is no longer the current edit.' }],
+        suggestion: { colour: -1.5 },
+      }) } }] } });
+    } catch { /* An already-aborted request cannot be fulfilled; expected. */ }
+  });
+  const panel = await openInEditor(page, JSON.stringify([
+    ['rgb(150,130,100)', 0, 0, 400, 300], ['rgb(255,0,30)', 0, 0, 400, 150],
+  ]));
+  await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
+  const settings = page.getByRole('region', { name: 'Optional second opinion settings' });
+  await settings.getByRole('button', { name: 'Set up' }).click();
+  await settings.getByLabel('Which AI?').selectOption('openai');
+  await settings.getByLabel('Model', { exact: true }).fill('llava');
+  await settings.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Done' }).click();
+  const review = panel.getByTestId('ai-review');
+  await review.getByRole('button', { name: 'I agree' }).click();
+  await review.getByRole('button', { name: 'Ask my own AI' }).click();
+  await expect.poll(() => received).toBe(true);
+
+  // A photographer continues editing while the slow model is thinking.
+  await panel.locator('[data-finding="strongColour"]').getByRole('button', { name: 'Soften colour' }).click();
+  await expect(review.getByTestId('ai-review-result')).toHaveCount(0);
+  release?.();
+  await expect(review.getByRole('button', { name: 'Ask my own AI' })).toBeEnabled();
+  await expect(review.getByTestId('ai-review-result')).toHaveCount(0);
 });

@@ -15,7 +15,7 @@ export interface WatermarkOptions {
   /** Automatic chooses light or dark text from pixels under each watermark. */
   tone: 'light' | 'dark' | 'auto';
   /** A bundled/safe font family id; never inject arbitrary font strings into Canvas. */
-  font?: 'inter' | 'jakarta' | 'atkinson';
+  font?: 'inter' | 'jakarta' | 'atkinson' | 'serif' | 'classic' | 'mono' | 'rounded' | 'condensed' | 'script';
 }
 
 export const NO_WATERMARK: WatermarkOptions = { on: false, kind: 'text', text: '', position: 'bottom-right', size: 0.06, opacity: 0.7, tone: 'auto', font: 'inter' };
@@ -57,6 +57,13 @@ export const WATERMARK_FONTS = [
   { id: 'inter', label: 'Inter', css: 'Inter, system-ui, sans-serif' },
   { id: 'jakarta', label: 'Plus Jakarta Sans', css: '"Plus Jakarta Sans", system-ui, sans-serif' },
   { id: 'atkinson', label: 'Atkinson Hyperlegible', css: '"Atkinson Hyperlegible", system-ui, sans-serif' },
+  // Device fonts: nothing is downloaded or bundled, so the look follows the platform's own serif, mono and so on.
+  { id: 'serif', label: 'Serif (device)', css: 'Georgia, "Times New Roman", serif' },
+  { id: 'classic', label: 'Classic book (device)', css: '"Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif' },
+  { id: 'mono', label: 'Typewriter (device)', css: 'ui-monospace, Menlo, Consolas, "Courier New", monospace' },
+  { id: 'rounded', label: 'Rounded (device)', css: 'ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", system-ui, sans-serif' },
+  { id: 'condensed', label: 'Condensed (device)', css: '"Arial Narrow", "Roboto Condensed", "Helvetica Neue", sans-serif' },
+  { id: 'script', label: 'Handwriting (device)', css: '"Segoe Script", "Snell Roundhand", "Bradley Hand", cursive' },
 ] as const;
 
 export const watermarkFont = (font: WatermarkOptions['font']): string =>

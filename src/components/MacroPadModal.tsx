@@ -40,7 +40,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
 }) => {
   const [padTab, setPadTab] = useState<PadMode>('cull');
   const [capturingId, setCapturingId] = useState<CommandId | null>(null);
-  // The last key Kestrel received while the dialog was open, so a pad's real behaviour can be checked.
+  // The last key Kite44 received while the dialog was open, so a pad's real behaviour can be checked.
   const [received, setReceived] = useState<{ chord: string; label: string } | null>(null);
 
   useEffect(() => {
@@ -150,7 +150,7 @@ export const MacroPadModal: React.FC<MacroPadModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="macropad-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-xs p-4"
     >
       <div className="w-full max-w-2xl bg-kestrel-panel border border-white/12 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
         {/* Header */}

@@ -1,3 +1,5 @@
+#[cfg(target_os = "ios")]
+mod ios_orientation;
 #[cfg(desktop)]
 use kestrel_raw::nikon_he;
 #[cfg(desktop)]
@@ -13,13 +15,13 @@ use tauri::{Emitter, Manager};
 #[cfg(desktop)]
 use tauri_plugin_fs::FsExt;
 
-/// Photos the system asked Kestrel to open (Open With, double-click, or a path on the command line) that the page has not
+/// Photos the system asked Kite44 to open (Open With, double-click, or a path on the command line) that the page has not
 /// taken yet. Kept here so a file that launches the app is not lost before the page is ready to listen.
 #[cfg(desktop)]
 #[derive(Default)]
 struct OpenedFiles(std::sync::Mutex<Vec<String>>);
 
-/// Only picture files Kestrel can read. Anything else handed to the app is ignored.
+/// Only picture files Kite44 can read. Anything else handed to the app is ignored.
 #[cfg(desktop)]
 fn is_photo(path: &std::path::Path) -> bool {
     const KNOWN: [&str; 19] = ["jpg", "jpeg", "png", "webp", "heic", "heif", "hif", "nef", "nrw", "arw", "srf", "sr2", "cr2", "cr3", "raf", "rw2", "orf", "pef", "dng"];
@@ -61,7 +63,7 @@ async fn develop_raw(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Res
 }
 
 /// Develop a RAW file to its full-size 16-bit picture (width, height, then RGB16 samples; `kestrel_raw::rgb16_bytes`).
-/// The page runs Kestrel's shared edit maths on it for the 16-bit export, exactly as the web build does.
+/// The page runs Kite44's shared edit maths on it for the 16-bit export, exactly as the web build does.
 #[cfg(desktop)]
 #[tauri::command]
 async fn develop_raw_rgb16(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Response, String> {
@@ -143,6 +145,23 @@ fn raw_sensor_mode(request: tauri::ipc::Request<'_>) -> Result<String, String> {
     }.to_string())
 }
 
+/// iPhone: upright, except while a photo is full screen (see `ios_orientation.rs`). iPad and every other platform: nothing
+/// to do here, so the page may call this anywhere and it only ever acts on an iPhone.
+#[cfg(mobile)]
+#[tauri::command]
+fn set_landscape_allowed(window: tauri::WebviewWindow, allowed: bool) {
+    #[cfg(target_os = "ios")]
+    let _ = window.with_webview(move |webview| {
+        // SAFETY: `with_webview` runs this on the main thread with the window's live view controller.
+        unsafe {
+            ios_orientation::apply(webview.view_controller().cast(), allowed);
+            ios_orientation::fill_window(webview.inner().cast());
+        }
+    });
+    #[cfg(not(target_os = "ios"))]
+    let _ = (window, allowed);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -154,6 +173,9 @@ pub fn run() {
         // Remembers which folders the person allowed, so a chosen sync or backup folder still works after a restart.
         .plugin(tauri_plugin_persisted_scope::init());
 
+    #[cfg(mobile)]
+    let builder = builder.invoke_handler(tauri::generate_handler![set_landscape_allowed]);
+
     // Menus, restart and the updater exist on desktop only.
     #[cfg(desktop)]
     let builder = builder
@@ -162,7 +184,7 @@ pub fn run() {
         .manage(OpenedFiles::default())
         .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files])
         .menu(|app| {
-            let app_menu = Submenu::with_items(app, "Kestrel", true, &[
+            let app_menu = Submenu::with_items(app, "Kite44", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,
                 &PredefinedMenuItem::separator(app)?,
                 &PredefinedMenuItem::hide(app, None)?,
@@ -226,7 +248,7 @@ pub fn run() {
 
     let app = builder
         .build(tauri::generate_context!())
-        .expect("error while building Kestrel");
+        .expect("error while building Kite44");
     // Windows and Linux pass the file to open as an argument when the app starts.
     #[cfg(desktop)]
     queue_opened_files(app.handle(), std::env::args_os().skip(1).map(std::path::PathBuf::from).collect());

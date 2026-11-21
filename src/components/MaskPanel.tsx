@@ -75,7 +75,7 @@ export function MaskPanel(props: Props) {
             <ScanSearch className="h-3.5 w-3.5" aria-hidden="true" />{props.detecting ? t.mask.finding : t.mask.findBackground}
           </button>
         </div>
-        <button type="button" aria-pressed={props.selectingArea} disabled={disabled || props.detecting || masks.length >= MAX_MASKS}
+        <button type="button" data-phone-hidden aria-pressed={props.selectingArea} disabled={disabled || props.detecting || masks.length >= MAX_MASKS}
           className={`${chip} inline-flex w-full items-center justify-center gap-1 aria-pressed:border-sky-300 aria-pressed:bg-sky-300/15`} onClick={() => props.onSelectArea(!props.selectingArea)}>
           <SquareDashedMousePointer className="h-3.5 w-3.5" aria-hidden="true" />{props.selectingArea ? t.mask.cancelSelectArea : t.mask.selectArea}
         </button>

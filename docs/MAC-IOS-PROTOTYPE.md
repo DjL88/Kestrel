@@ -65,6 +65,10 @@ Do not claim an iOS IPA has been created until the Xcode/Tauri project has actua
 initialised, built and signed on your Mac. The Windows Android APK builder is documented
 separately at [ANDROID-PROTOTYPE.md](ANDROID-PROTOTYPE.md).
 
+## Not yet verified (native setup)
+
+`tauri ios init` has been run (21 Nov, Xcode 26.1.1, `xcodegen` and CocoaPods from Homebrew) and the project is in `src-tauri/gen/apple` (bundle ID `app.kestrel.photo`, team `G53UPS2B95`, Sign in with Apple entitlement). `npx tauri ios build --debug --target aarch64-sim --ci` produced `Kestrel.app` and it **launched on the iPhone 17 simulator (iOS 26.1)** and showed the Projects screen. Not done: a physical iPhone or iPad, a signed device or TestFlight build, importing, editing or exporting a photo, and a release build. After fixes (21 Nov): the page pads for the status bar and notch, the page, window and launch screen are dark, the app is set to dark mode, the Kestrel icon replaces Tauri's default, pinch, double-tap and focus zoom are off inside the app (`index.html`), iPhone is portrait-only and iPad is landscape-first with all four orientations. Still seen: a darker-grey band about 97 pt tall below the web view on an iPhone 17 (the web view stops short of the bottom edge); not yet explained. Landscape for a fullscreen photo on iPhone needs a native orientation hook and is not built. The Android package rename (`app.kestrel.desktop` to `app.kestrel.photo`) is an edit to the committed Gradle and Kotlin files that has **not been compiled**: build it once with `scripts/android/Build-Kestrel.ps1` on the Windows laptop before merging.
+
 ## Deferred to final validation phase
 
 Check a real DMG install/upgrade/uninstall, Apple security prompts, 500-photo journey,

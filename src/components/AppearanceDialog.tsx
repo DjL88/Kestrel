@@ -1,4 +1,5 @@
 import { AppearanceSettings } from './AppearanceSettings';
+import { useBackToClose } from '../providers/useBackToClose';
 import type { GuidanceMode } from '../core/guidanceMode';
 import { ConnectionsPanel } from './ConnectionsPanel';
 import { Keyboard } from 'lucide-react';
@@ -22,11 +23,12 @@ interface Props {
 
 /** One bounded, touch-friendly settings sheet from Home, Library or Editor. */
 export function AppearanceDialog({ side, onSideChange, hand, onHandChange, guidanceMode = 'glide', onGuidanceModeChange, onClose, onOpenMacroPad, initialSection = 'general' }: Props) {
+  useBackToClose(onClose);
   const aiSettings = useAiSettings();
   const [aiSetupOpen, setAiSetupOpen] = useState(initialSection === 'ai');
   const [storageOpen, setStorageOpen] = useState(initialSection === 'storage');
   return (
-    <div role="presentation" className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] workspace:items-center"
+    <div role="presentation" className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] workspace:items-center"
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section role="dialog" aria-modal="true" aria-label={m.appearance.dialogLabel}
         onKeyDown={(event) => {
@@ -47,7 +49,7 @@ export function AppearanceDialog({ side, onSideChange, hand, onHandChange, guida
         <section className="mt-4 space-y-2 border-t border-white/15 pt-3" aria-label="Optional second opinion settings">
           <div className="flex items-center justify-between gap-3">
             <div><h3 className="text-sm font-semibold text-zinc-100">Optional second opinion</h3>
-              <p className="text-xs text-zinc-400">{aiSettings ? 'Your selected provider is configured on this device. A second opinion is available when requested.' : 'Add your own provider for an optional second opinion. Kestrel\'s everyday colour checks work offline.'}</p></div>
+              <p className="text-xs text-zinc-400">{aiSettings ? 'Your selected provider is configured on this device. A second opinion is available when requested.' : 'Add your own provider for an optional second opinion. Kite44\'s everyday colour checks work offline.'}</p></div>
             <button type="button" className="min-h-11 shrink-0 rounded-md border border-white/15 px-3 text-sm text-zinc-100" onClick={() => setAiSetupOpen((open) => !open)} aria-expanded={aiSetupOpen}>{aiSetupOpen ? 'Hide' : aiSettings ? 'Change' : 'Set up'}</button>
           </div>
           {aiSetupOpen && <AiProviderSetup saved={aiSettings} onDone={() => setAiSetupOpen(false)} />}
@@ -61,7 +63,7 @@ export function AppearanceDialog({ side, onSideChange, hand, onHandChange, guida
           {storageOpen && <ConnectionsPanel />}
         </section>
         {onOpenMacroPad && isDesktopApp() && (
-          <button type="button" onClick={() => { onClose(); onOpenMacroPad(); }}
+          <button type="button" data-phone-hidden onClick={() => { onClose(); onOpenMacroPad(); }}
             className="flex min-h-11 w-full items-center gap-2 rounded-md border border-white/15 px-3 text-sm text-zinc-200 hover:bg-white/10">
             <Keyboard className="h-4 w-4" aria-hidden="true" />{m.appearance.shortcuts}
           </button>

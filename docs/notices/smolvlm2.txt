@@ -1,0 +1,8 @@
+SmolVLM2-256M-Video-Instruct
+Copyright Hugging Face, Inc. and contributors (HuggingFaceTB).
+Licensed under the Apache License, Version 2.0: https://www.apache.org/licenses/LICENSE-2.0
+Model: https://huggingface.co/HuggingFaceTB/SmolVLM2-256M-Video-Instruct (revision 9cda5c165b28c68a52e9bb542d2b89f0f6963709)
+
+Kestrel does not redistribute these weights. The photographer chooses to download them from the pinned revision; they
+are checked against a recorded SHA-256 and stored on the device. They run on the device only. No changes were made to
+the weights; the 8-bit ONNX export published in the same repository is used as is.

@@ -11,7 +11,6 @@ export function WebDavForm({ onSaved, onCancel }: { onSaved: (settings: WebDavSe
   const [url, setUrl] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const settings = (): WebDavSettings => ({ url: url.trim(), username: username.trim(), password });
@@ -27,7 +26,7 @@ export function WebDavForm({ onSaved, onCancel }: { onSaved: (settings: WebDavSe
     event.preventDefault();
     const problems = checkWebDavSettings(settings());
     if (problems.length) { setResult({ ok: false, text: problems[0] }); return; }
-    onSaved(settings(), remember);
+    onSaved(settings(), false);
   }
 
   return (
@@ -42,11 +41,7 @@ export function WebDavForm({ onSaved, onCancel }: { onSaved: (settings: WebDavSe
       <label className="block">{t.webdav.password}
         <input type="password" className={`${field} mt-1`} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="off" />
       </label>
-      <label className="flex min-h-11 items-start gap-2">
-        <input type="checkbox" className="mt-1" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
-        <span>{t.webdav.remember}</span>
-      </label>
-      <p className="text-xs text-zinc-400">{t.webdav.certificateNote}</p>
+      <p className="text-xs text-zinc-400">{t.webdav.certificateNote} Your password is kept only while Kite44 is open; enter it again after restarting.</p>
       {result && <p role={result.ok ? 'status' : 'alert'} className={result.ok ? 'text-emerald-200' : 'text-amber-200'}>{result.text}</p>}
       <div className="flex flex-wrap gap-2">
         <button type="button" className={action} disabled={busy} onClick={() => void test()}>{t.common.testConnection}</button>

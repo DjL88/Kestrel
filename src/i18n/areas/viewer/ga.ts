@@ -73,7 +73,7 @@ export const ga: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Níl an bunleagan ar fáil — ceangail a fhillteán nó a thiomántán arís',
     previewUnavailable: 'Níl réamhamharc ar fáil',
-    heifUndecodable: 'Níorbh fhéidir le Kestrel an grianghraf HEIF seo a dhíchódú. Níl aon athrú ar an mbunleagan.',
+    heifUndecodable: 'Níorbh fhéidir le Kite44 an grianghraf HEIF seo a dhíchódú. Níl aon athrú ar an mbunleagan.',
   },
   info: {
     title: 'Eolas an ghrianghraif',
@@ -200,6 +200,7 @@ export const ga: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Clibeáil é' : `Clibeáil iad go léir (${count})`,
     noThanks: 'Ní raibh maith agat',
     autoTag: 'Clibeáil meaitseálacha láidre go huathoibríoch',
+    regionLabel: 'An áit a nglacann tú grianghraif',
     checkNote: 'Seiceáil clibeanna molta agus uathoibríocha. Tá an mhuinín bunaithe ar na hainmneacha atá ar eolas ag an múnla seo amháin.',
   },
   scanBanner: {

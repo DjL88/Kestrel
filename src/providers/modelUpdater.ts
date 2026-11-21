@@ -1,5 +1,5 @@
 /**
- * Keeps Kestrel's models current without a new app. It never blocks launch and never needs a connection: it asks the
+ * Keeps Kite44's models current without a new app. It never blocks launch and never needs a connection: it asks the
  * models bucket for the signed manifest (at most once a day), checks the signature against the pinned key, refuses an
  * older revision, and installs only same-contract models (`modelUpdatePolicy.ts`) whose size and SHA-256 match the signed
  * list. A bad download leaves the previous model in place. The loaders use an installed model first and the bundled one

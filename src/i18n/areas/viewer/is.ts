@@ -74,7 +74,7 @@ export const is: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Frumrit ekki tiltækt — tengdu möppuna eða drifið aftur',
     previewUnavailable: 'Forskoðun ekki tiltæk',
-    heifUndecodable: 'Kestrel gat ekki afkóðað þessa HEIF-mynd. Frumritið er óbreytt.',
+    heifUndecodable: 'Kite44 gat ekki afkóðað þessa HEIF-mynd. Frumritið er óbreytt.',
   },
   info: {
     title: 'Upplýsingar um mynd',
@@ -207,6 +207,7 @@ export const is: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Merkja hana' : `Merkja allar ${count}`,
     noThanks: 'Nei takk',
     autoTag: 'Merkja sterkar samsvaranir sjálfkrafa',
+    regionLabel: 'Hvar þú tekur myndir',
     checkNote: 'Yfirfarðu tillögð og sjálfvirk merki. Vissan miðast aðeins við heitin sem þetta líkan þekkir.',
   },
   scanBanner: {

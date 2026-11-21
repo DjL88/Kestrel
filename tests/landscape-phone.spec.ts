@@ -4,11 +4,11 @@ const photo = { name: 'land.png', mimeType: 'image/png', buffer: Buffer.from('iV
 
 test.describe('a phone turned sideways', () => {
   test.use({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
-  test('starts without the filmstrip, so the photo gets the room, and it can be pinned', async ({ page }) => {
+  test('the edit screen is only an editor: no filmstrip, so the photo gets the room', async ({ page }) => {
     await page.goto('/');
     await page.getByTestId('quick-edit-input').setInputFiles(photo);
     await page.getByRole('tab', { name: 'Edit' }).click({ timeout: 20000 });
-    await expect(page.getByRole('button', { name: /Expand filmstrip/ })).toBeVisible();
+    await expect(page.locator('[data-filmstrip-dock]')).toBeHidden();
     await expect(page.getByRole('button', { name: /Collapse filmstrip/ })).toHaveCount(0);
   });
 });

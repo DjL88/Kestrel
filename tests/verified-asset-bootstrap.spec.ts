@@ -3,7 +3,9 @@ import { test, expect } from '@playwright/test';
 test('signed asset activation persists offline and refuses catalogue rollback after restart', async ({ page }) => {
   await page.goto('/');
   const result = await page.evaluate(async () => {
+    // @ts-ignore browser URL, resolved by the dev server
     const { createVerifiedBrowserAssetRuntime } = await import('/src/core/verifiedAssetBootstrap.ts');
+    // @ts-ignore browser URL, resolved by the dev server
     const { indexedDbSequenceFence } = await import('/src/providers/verifiedAssetSequenceFence.ts');
     const audience = 'kestrel-test-' + crypto.randomUUID().replaceAll('-', '');
     const id = 'asset-' + crypto.randomUUID().replaceAll('-', '');
@@ -52,6 +54,7 @@ test('signed asset activation persists offline and refuses catalogue rollback af
 test('asset sequence CAS refuses stale and conflicting concurrent writers', async ({ page }) => {
   await page.goto('/');
   const result = await page.evaluate(async () => {
+    // @ts-ignore browser URL, resolved by the dev server
     const { indexedDbSequenceFence } = await import('/src/providers/verifiedAssetSequenceFence.ts');
     const fence = indexedDbSequenceFence('fence-' + crypto.randomUUID().replaceAll('-', ''));
     const a = { sequence: 1, digest: 'a'.repeat(64) };

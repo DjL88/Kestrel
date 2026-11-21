@@ -2,15 +2,24 @@
 <html lang="en-GB" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <script>
+      // Inside the installed app on a touch device the page behaves like an app, not a web page: no pinch, double-tap or
+      // focus zoom (it zoomed in and cropped the screen). A browser keeps its own zoom, which people rely on to read.
+      if ('__TAURI_INTERNALS__' in window && navigator.maxTouchPoints > 0) {
+        document.querySelector('meta[name="viewport"]').setAttribute('content',
+          'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+      }
+    </script>
     <link rel="icon" type="image/svg+xml" href="/src/assets/kestrel-mark.svg" />
     <meta name="theme-color" content="#14161b" />
-    <title>Kestrel — Local-First Photo Culling</title>
+    <title>Kite44 — Local-First Photo Culling</title>
     <meta
       name="description"
       content="Local-first wildlife, bird, and pet photo culling workspace for Nikon Z8 and Z5II shooters with burst grouping, wipe comparison, and programmable macro pad shortcuts."
     />
-    <meta property="og:title" content="Kestrel — Local-First Photo Culling" />
+    <meta property="og:title" content="Kite44 — Local-First Photo Culling" />
     <meta
       property="og:description"
       content="Local-first wildlife, bird, and pet photo culling workspace for Nikon Z8 and Z5II shooters."

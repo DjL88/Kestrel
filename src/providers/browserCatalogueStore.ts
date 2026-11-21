@@ -1,4 +1,5 @@
 import { clearOfflinePreviews, deleteOfflinePreviewsForOriginals } from './offlinePreviewCache';
+import { removeAppCopies } from './appStorageCopies';
 import { computeCullCounts } from '../core/cullingEngine';
 import { projectSearchText } from '../core/projects';
 import {
@@ -90,10 +91,10 @@ async function idbGet<T>(storeName: string, key: string): Promise<T | null> {
       const request = tx.objectStore(storeName).get(key);
       let value: T | null = null;
       request.onsuccess = () => { value = (request.result as T) ?? null; };
-      request.onerror = () => reject(request.error ?? new Error('Reading Kestrel storage failed.'));
+      request.onerror = () => reject(request.error ?? new Error('Reading Kite44 storage failed.'));
       tx.oncomplete = () => resolve(value);
-      tx.onerror = () => reject(tx.error ?? new Error('Reading Kestrel storage failed.'));
-      tx.onabort = () => reject(tx.error ?? new Error('Reading Kestrel storage was interrupted.'));
+      tx.onerror = () => reject(tx.error ?? new Error('Reading Kite44 storage failed.'));
+      tx.onabort = () => reject(tx.error ?? new Error('Reading Kite44 storage was interrupted.'));
     });
   } finally {
     db.close();
@@ -299,6 +300,8 @@ export class BrowserCatalogueStore implements CatalogueStore {
     });
     this.projectWrite = write.catch(() => {});
     await write;
+    // A phone app's own copies of photos nothing else uses go too (the originals in Photos or Files are never touched).
+    await removeAppCopies(orphaned);
     // Finish legacy-state cleanup even if derived-preview storage is unavailable.
     // The atomic catalogue marker already prevents the deleted project resurfacing.
     const previewsCleared = await deleteOfflinePreviewsForOriginals(orphaned);

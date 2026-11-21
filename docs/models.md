@@ -125,3 +125,52 @@ Run the Python test harness using `python3 -m unittest discover -s scripts/model
 where its dependencies are installed. See each script's header for model and
 optional dependency requirements. These are developer tools, not a background
 download started by the photographer's app. Large packs require explicit consent.
+
+## Local photo check prototype — SmolVLM2-256M
+
+The opt-in prototype uses **SmolVLM2-256M-Video-Instruct** (HuggingFaceTB, Apache-2.0, revision `9cda5c165b28c68a52e9bb542d2b89f0f6963709`) in Kestrel's existing `onnxruntime-web/wasm`. The four pinned 8-bit ONNX/tokenizer files total about 264 MB. Exact sizes and SHA-256s live in `src/core/photoCheckPack.ts`; the Apache notice lives in `docs/notices/smolvlm2.txt`. Weights and photos are **not** in Git. Installation requires a user's explicit consent; local editing works without the pack.
+
+The files are pinned by the app and activated through its verified immutable IndexedDB store: large assets are stored in atomic 16 MiB records, verified against their SHA-256 before activation and each use, with existing active/previous pointers. This is **not** a second auto-updater. A corrupt or incomplete pack reverts to the Install state; no photos are uploaded. The inference backend runs local CPU WASM and creates/reclaims sessions when checking.
+
+**Reliability guard.** Claude's experiments showed the 256M/500M model can confidently misidentify subjects, blank photos and closed-choice options. Its text is treated as untrusted hypotheses. Only broad lighting intent supported by the actual displayed pixel distribution may *suppress* a conventional suggestion; it never supplies identity or increases confidence. Exposure/clipping corrections come from Kestrel's measured histogram and ordinary reversible sliders, not invented VLM values. Solo is opt-in; Glide offers proposals; Soar makes only bounded, objective changes.
+
+**Proof status.** The original Claude browser E2E **failed** at the IndexedDB single-value limit on the 137.5 MB decoder, before local inference. #709 addresses that limit; a fresh live browser/installed test **has not run** here. In the recovered implementation branch, the test `tests/photo-check.spec.ts` requires `KESTREL_MODEL_DIR` with the four pinned files and `KESTREL_TEST_PHOTO` containing a rights-cleared photograph. It asserts explicit installation, actual local model completion, a normal slider edit, undo, reopen, and no outgoing network activity in the offline phase. CPU/RAM, photo genres, initial loading, visual accuracy and installed-device evidence remain acceptance gates. Do not call the model production-ready without those checks.
+
+## Reading text in a photo: registrations and bird rings (21 Nov 2026)
+
+**Status: policy written and unit-tested, then parked, because OCR is deliberately after the Photo Check slice and unwired code does not merge.** The code and its 9 tests are in git history (commit `2220a6d8`, on `claude/nice-maxwell-f6hjzj` before this PR) and were built against real recorded Florence-2 output (`tools/vision-lab/fixtures/two-pass-real.json`).
+
+**The reader should be SmolVLM2, which the Photo Check already runs, so no second model is needed to read.** Same synthetic frames, nine crops each (three paddings x three zoom sizes), `tools/vision-lab/try_smolvlm_text.py`:
+
+| Text | SmolVLM2-500M (int8) | Florence-2-base (int8) |
+| --- | --- | --- |
+| `G-OKES` | 9 of 9 exact | 8 of 9 |
+| `EB 74918` | 9 of 9 exact | 8 of 9 (a single zoom read it wrongly twice) |
+| `N738PA` | 9 of 9 exact | 4 of 9 (5 read as `N738PAA`) |
+
+Clean, flat, synthetic text only. Real photos (blur, angle, glare, tiny rings on a moving leg) are untested, so every result stays a suggestion to confirm.
+
+**What the policy does.** Read once in the background; when the person interacts with the photo, read again zoomed on just that text; if the two disagree or the reader is doubtful, a bounded tie-break (at most 6 reads, different crops) and a vote among **format-valid** readings (UK, US N-number, other civil, ring-like). A clear majority is `agreed`; otherwise `needs-review` keeps every candidate and picks none. Nothing is written to metadata until the person confirms, like a confirmed subject tag.
+
+**What is still missing: finding where the text is.** Whole-frame reading fails on small text (the reader sees a 512 to 768 px view), and tiling a whole frame was slow and invented text on blank tiles. Florence-2's `<OCR_WITH_REGION>` located the text well, but SmolVLM2 does not give boxes. Options, in order of preference: restrict the search to the subject's box and the likely area (tail and fuselage for aircraft, legs for birds) with the existing detectors; or keep Florence-2 (about 0.3 GB) only as the locator. Decide after measuring on real photos, because a second model costs storage and memory on every device.
+
+## Photo Check measured on real photos (21 Nov 2026, Claude)
+
+**Executed:** the full browser journey passed (`tests/photo-check.spec.ts`, consented install of the pinned SmolVLM2-256M, real WASM inference in the editor, apply, undo, reopen, repeat offline, no outside requests). First inference after idle 9.6 s including load; Chromium about 2.05 GB across processes; CPU only. Recipe for the fixture photo (CC0 cat, bright but unclipped): `(a ** 0.3) * 245`.
+
+**Why the editor says "Scene: Not sure yet":** `supportedSceneFacts` (src/core/photoCheck.ts) deliberately discards the model's subject, sky and foliage words, because a word in a small model's answer is not independent evidence; only lighting intent with pixel support passes. So today the model's subject reading is never shown.
+
+**How good is that discarded reading?** `tools/vision-lab/photo_check_replica.py` replicates the app's check (same pinned 256M int8 files, letterbox on grey at 512 px, same question and 28-token limit) and `eval_photo_check.py` / `eval_raw_facts.mts` score it. Data: `lakhaniabhi/european-birds-50` test split (declared CC0 by the uploader, provenance unverified, never committed), 100 photos at 2 per species with a fixed seed, plus 12 helicopters and 12 not-helicopters from `dcskycam/helicopter-classification` (CC-BY-4.0), plus 4 scikit-image samples. Mean 0.54 s per photo natively.
+
+| Photos | Model's description names | |
+| --- | --- | --- |
+| 100 European birds | a bird 86, another subject 3, nothing the app's word list knows 11 | ~10 of the 11 are real birds called seagull, goose, puffin or penguin: a vocabulary gap in `SUBJECTS`, not a recognition failure |
+| 12 helicopters | an aircraft 11, a bird **0** | |
+| 100 birds | an aircraft **0** | |
+
+**What this supports:** the model is a useful second witness for "bird or aircraft", which is the roadmap's known failure. **What it does not show:** the photos are clean subject portraits from one dataset; distant, small, in-flight or poor-light field photos, other subjects and any independent benchmark are untested; n is small.
+
+**Proposed next step (not built):** corroborate instead of discard. Show a scene or subject only when the model and the existing detector (YOLOX / category gate) agree; on a bird-versus-aircraft disagreement, abstain and flag the photo for review (never auto-reject). Needs the Photo Check owner, because it touches PhotoAdvice and the detector hand-off. Also extend the subject vocabulary (seagull, goose, puffin and similar) and add an aircraft kind.
+
+### Subject corroboration is now in the Photo Check (21 Nov 2026)
+`src/core/subjectCorroboration.ts` combines the scene reading with the existing object detector (`findSubject`, run on the same frozen preview). The subject appears in the Scene line only when both name the same kind; a disagreement (bird against aircraft first) shows one quiet "check the subject" note and asserts nothing; one witness alone shows nothing new; a detector that cannot run is no witness. No model, AI or runtime wording is user-facing. Executed: `tests/photo-check.spec.ts` with the real model and detector passes, and the cat fixture now reads "Scene: Animal" where it read "Not sure yet" before (first inference 10.6 s including load, about 2.25 GB Chromium memory, CPU only). Measured on the recorded descriptions: 96 of 100 bird photos read as a bird (86 before the word list was widened), 0 as an aircraft; 11 of 12 helicopters as an aircraft. Not shown: field photos, other detectors' agreement rates on a labelled set, and what a bird-versus-aircraft conflict does downstream (species naming and cull are not yet gated by it).

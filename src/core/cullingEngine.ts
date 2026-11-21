@@ -1,5 +1,5 @@
 import { searchWords } from './subjectTags';
-import { sameCaptureCamera, safeBurstGapMs } from './burstIdentity';
+import { sameCaptureCamera, sameCaptureSourceFolder, safeBurstGapMs } from './burstIdentity';
 import { matchesRating } from './ratingFilter';
 import type {
   CullCounts,
@@ -153,6 +153,8 @@ export function assignBurstGroups(
       // mistake interleaved Z8/Z5II captures for a single burst.
       // Missing camera tags must not bridge two different known cameras.
       && sameCaptureCamera(frame.exif.camera, currentCluster.map((member) => member.exif.camera))
+      // Separate folders, NAS shares or relinked sources must not form one burst.
+      && sameCaptureSourceFolder(frame, currentCluster)
     ) {
       currentCluster.push(frame);
     } else {

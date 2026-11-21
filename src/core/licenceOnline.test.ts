@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decideAccess, parseControlPlaneUrl, parsePinnedKeys, platformOf, renewalDue, RENEW_AFTER_MS } from './licenceOnline';
+import { decideAccess, decideAccountAccess, parseControlPlaneUrl, parsePinnedKeys, platformOf, renewalDue, RENEW_AFTER_MS } from './licenceOnline';
 import type { EntitlementGrant } from './entitlementGrant';
 
 const DAY = 86_400_000;
@@ -49,4 +49,23 @@ test('Pro: signed key remains valid offline, while last-known server denials ove
   assert.deepEqual(decideAccess(true, { kind: 'unreachable', grant: grant({ managedAi: true }), activationId: 'act_1' }, NOW + 31 * DAY), { pro: true, managedAi: false, basis: 'key' });
   assert.deepEqual(decideAccess(true, { kind: 'active', grant: grant({ plan: 'free' }), activationId: 'act_1' }, NOW), { pro: false, managedAi: false, basis: 'none' });
   assert.deepEqual(decideAccess(true, { kind: 'revoked', message: 'x' }, NOW), { pro: false, managedAi: false, basis: 'revoked' });
+});
+
+test('an account has nothing to fall back on: Pro only inside the grant\'s offline window (30 days by default)', () => {
+  assert.deepEqual(decideAccountAccess({ kind: 'no_licence' }, NOW), { pro: false, managedAi: false, basis: 'none' });
+  assert.deepEqual(decideAccountAccess({ kind: 'revoked', message: 'x' }, NOW), { pro: false, managedAi: false, basis: 'revoked' });
+  assert.deepEqual(decideAccountAccess({ kind: 'device_limit', message: 'x' }, NOW), { pro: false, managedAi: false, basis: 'none' });
+  // Inside the window: Pro, with whatever managed-AI flag the grant carries.
+  assert.deepEqual(decideAccountAccess({ kind: 'active', grant: grant({ managedAi: true }), activationId: 'act_1' }, NOW),
+    { pro: true, managedAi: true, basis: 'grant' });
+  // Exactly on the boundary still counts.
+  assert.deepEqual(decideAccountAccess({ kind: 'active', grant: grant(), activationId: 'act_1' }, NOW + 30 * DAY),
+    { pro: true, managedAi: false, basis: 'grant' });
+  // One tick past 30 days offline with no successful renewal: back to Basic, unlike a signed key
+  // there is no fallback that keeps it Pro.
+  assert.deepEqual(decideAccountAccess({ kind: 'active', grant: grant(), activationId: 'act_1' }, NOW + 30 * DAY + 1),
+    { pro: false, managedAi: false, basis: 'none' });
+  // A grant that was always Free never counts, whatever its window.
+  assert.deepEqual(decideAccountAccess({ kind: 'active', grant: grant({ plan: 'free' }), activationId: 'act_1' }, NOW),
+    { pro: false, managedAi: false, basis: 'none' });
 });

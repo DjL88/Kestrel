@@ -25,19 +25,24 @@ test('the selection bar shows the everyday actions and keeps the rest behind Mor
   await page.getByLabel('Frame one.png').click();
   const bar = page.getByRole('toolbar', { name: 'Actions for selected photos' });
   await expect(bar).toBeVisible();
-  for (const name of ['Keep', 'Reject', 'Edit photo', 'Export']) {
+  const phone = await page.evaluate(() => matchMedia('(pointer: coarse) and ((max-width: 599px) or (max-height: 500px))').matches);
+  for (const name of phone ? ['Keep', 'Reject', 'Undecided'] : ['Keep', 'Reject', 'Edit photo', 'Export']) {
     await expect(bar.getByRole('button', { name, exact: true })).toBeVisible();
   }
-  // Decluttered: the occasional actions are not sitting open in the bar.
-  for (const name of ['Undecided', 'Reset edit', 'Auto-adjust', 'Apply look']) {
+  if (phone) {
+    await expect(page.getByRole('toolbar', { name: 'Photo actions' }).getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
+    await expect(page.getByRole('banner').getByRole('button', { name: 'Export', exact: true })).toBeVisible();
+  }
+  for (const name of ['Reset edit', 'Auto-adjust', 'Apply look']) {
     await expect(bar.getByRole('button', { name, exact: true })).toHaveCount(0);
   }
   const more = bar.getByRole('button', { name: 'More actions' });
   await expect(more).toHaveAttribute('aria-expanded', 'false');
   await more.click();
   await expect(more).toHaveAttribute('aria-expanded', 'true');
+  const menu = bar.getByRole('group', { name: 'More actions', exact: true });
   for (const name of ['Undecided', 'Reset edit', 'Photo info']) {
-    await expect(bar.getByRole('button', { name, exact: true })).toBeVisible();
+    await expect(menu.getByRole('button', { name, exact: true })).toBeVisible();
   }
   // Escape closes only this menu and puts focus back where it came from.
   await page.keyboard.press('Escape');
