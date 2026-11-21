@@ -138,7 +138,7 @@ The files are pinned by the app and activated through its verified immutable Ind
 
 ## Reading text in a photo: registrations and bird rings (21 Nov 2026)
 
-**Status: policy written and unit-tested (`src/core/textReading.ts`); NOT yet called by the editor.** The tests use real recorded Florence-2 output (`tools/vision-lab/fixtures/two-pass-real.json`).
+**Status: policy written and unit-tested, then parked, because OCR is deliberately after the Photo Check slice and unwired code does not merge.** The code and its 9 tests are in git history (commit `2220a6d8`, on `claude/nice-maxwell-f6hjzj` before this PR) and were built against real recorded Florence-2 output (`tools/vision-lab/fixtures/two-pass-real.json`).
 
 **The reader should be SmolVLM2, which the Photo Check already runs, so no second model is needed to read.** Same synthetic frames, nine crops each (three paddings x three zoom sizes), `tools/vision-lab/try_smolvlm_text.py`:
 
@@ -171,3 +171,6 @@ Clean, flat, synthetic text only. Real photos (blur, angle, glare, tiny rings on
 **What this supports:** the model is a useful second witness for "bird or aircraft", which is the roadmap's known failure. **What it does not show:** the photos are clean subject portraits from one dataset; distant, small, in-flight or poor-light field photos, other subjects and any independent benchmark are untested; n is small.
 
 **Proposed next step (not built):** corroborate instead of discard. Show a scene or subject only when the model and the existing detector (YOLOX / category gate) agree; on a bird-versus-aircraft disagreement, abstain and flag the photo for review (never auto-reject). Needs the Photo Check owner, because it touches PhotoAdvice and the detector hand-off. Also extend the subject vocabulary (seagull, goose, puffin and similar) and add an aircraft kind.
+
+### Subject corroboration is now in the Photo Check (21 Nov 2026)
+`src/core/subjectCorroboration.ts` combines the scene reading with the existing object detector (`findSubject`, run on the same frozen preview). The subject appears in the Scene line only when both name the same kind; a disagreement (bird against aircraft first) shows one quiet "check the subject" note and asserts nothing; one witness alone shows nothing new; a detector that cannot run is no witness. No model, AI or runtime wording is user-facing. Executed: `tests/photo-check.spec.ts` with the real model and detector passes, and the cat fixture now reads "Scene: Animal" where it read "Not sure yet" before (first inference 10.6 s including load, about 2.25 GB Chromium memory, CPU only). Measured on the recorded descriptions: 96 of 100 bird photos read as a bird (86 before the word list was widened), 0 as an aircraft; 11 of 12 helicopters as an aircraft. Not shown: field photos, other detectors' agreement rates on a labelled set, and what a bird-versus-aircraft conflict does downstream (species naming and cull are not yet gated by it).
