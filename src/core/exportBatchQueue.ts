@@ -114,11 +114,14 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
         const controller = new AbortController();
         let handle: TaskHandle | null = null;
         let finished = false;
+        // Once finalisation starts, the destination may already be committed.
+        // Cancellation must not create a false 'cancelled' result after that point.
+        let committing = false;
         let savedCount = startIndex;
         let resolveDone!: (result: ExportBatchResult) => void;
         const done = new Promise<ExportBatchResult>((resolve) => { resolveDone = resolve; });
         const cancel = () => {
-          if (finished || controller.signal.aborted) return false;
+          if (finished || committing || controller.signal.aborted) return false;
           controller.abort();
           if (handle) taskStore.cancel(handle.id);
           if (pending.delete(id)) {
@@ -151,14 +154,12 @@ export function createExportBatchQueue(taskStore: ExportTaskStore = tasks) {
             } else {
               // A published file is not a completed batch until its recovery
               // checkpoint is durable. Failure is surfaced in Task Manager.
+              committing = true;
               await adapter.finalize?.(recipe, controller.signal);
-              if (controller.signal.aborted || handle?.cancelled) {
-                handle?.fail('Export stopped after files were saved. Verify the destination before retrying.');
-                resolveDone('cancelled');
-              } else {
-                handle?.finish(`${items.length} files saved`);
-                resolveDone('completed');
-              }
+              // A successful finalisation is an irreversible durable commit.
+              // Never report cancellation after the journal has committed.
+              handle?.finish(`${items.length} files saved`);
+              resolveDone('completed');
             }
           } catch (error) {
             if (controller.signal.aborted || handle?.cancelled) {
