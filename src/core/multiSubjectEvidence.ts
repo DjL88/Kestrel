@@ -17,9 +17,9 @@ const genreOf = (label: string): SubjectGenre =>
 /** Real local detector boxes; never fabricated eye, identity, species or blur evidence.
  * The caller must independently verify the original source digest and current photo.
  */
-export function multiSubjectSelectEvidence(
+export interface SubjectCandidate { index: number; evidence: SelectEvidence }\n\nexport function multiSubjectSelectEvidence(
   source: MultiSubjectSource, detections: readonly FoundSubject[],
-): SelectEvidence[] {
+): SubjectCandidate[] {
   if (!source.photoId.trim() || !sha.test(source.sourceSha256) ||
       !source.modelVersion.trim() || !Number.isSafeInteger(source.width) ||
       !Number.isSafeInteger(source.height) || source.width < 1 || source.height < 1 ||
@@ -33,7 +33,7 @@ export function multiSubjectSelectEvidence(
   // A malformed bird box must not silently reduce the count to one.
   if (valid.length !== detections.length) return [];
   const birds = valid.filter(v => v.detection.label === 'bird').length;
-  return valid.map(({ detection: d }) => ({
+  return valid.map(({ detection: d }, index) => ({ index, evidence: ({
     photoId: source.photoId,
     sourceSha256: source.sourceSha256,
     modelId: 'yolox-tiny',
