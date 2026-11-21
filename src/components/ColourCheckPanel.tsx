@@ -70,6 +70,8 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   const report = samePhotoReviewScope(reportScope.current, currentScope.current) ? storedReport : null;
   const [failed, setFailed] = useState(false);
   const [applied, setApplied] = useState(false);
+  // The edit a fix makes is itself a version change; the confirmation must survive that one change, not be wiped by it.
+  const appliedByFix = useRef(false);
   const [checking, setChecking] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const generation = useRef(0);
@@ -87,7 +89,8 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
     reportScope.current = null;
     setReport(null);
     setFailed(false);
-    setApplied(false);
+    setApplied(appliedByFix.current);
+    appliedByFix.current = false;
     setShowAll(false);
     setChecking(!disabled);
     if (disabled) return;
@@ -172,7 +175,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
         <button type="button" className="min-h-11 rounded-md border border-white/15 px-3 text-xs text-zinc-200 focus-visible:outline-2 focus-visible:outline-sky-300" onClick={checkOnDemand} aria-label={colourControls.check} aria-disabled={checking}>{colourControls.check}</button>
         {disabled && !report && !failed && <p className="text-xs text-zinc-400">{colourControls.paused}</p>}
         {failed && <p role="status" className="text-xs text-zinc-400">{t.unavailable} {colourControls.retry}</p>}
-        {!disabled && checking && !report && !failed && <p role="status" className="text-xs text-zinc-400">{t.checking}</p>}
+        {!disabled && checking && !report && !failed && !applied && <p role="status" className="text-xs text-zinc-400">{t.checking}</p>}
         {report && report.palette.length > 0 && (
           <div>
             <h4 className="text-xs font-medium text-zinc-300">{t.mainColours}</h4>
@@ -208,6 +211,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
                         // parent render must not apply the same suggestion twice.
                         reportScope.current = null;
                         setReport(null);
+                        appliedByFix.current = true;
                         setApplied(true);
                         onEdit(applyFix(edit, { kind: 'global', delta: said.fix!.delta }));
                       }}>
