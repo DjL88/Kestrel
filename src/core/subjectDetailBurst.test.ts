@@ -139,3 +139,53 @@ test('untracked animals in the same photo abstain rather than assuming continuit
   assert.ok(selectBurstDetails(evidence).every(row =>
     row.recommendation === 'review' && row.comparisonGroup === null));
 });
+
+test('contradictory single-animal count cannot nominate two tracked animals from one frame', () => {
+  const rows = [
+    base('frame', { subjectCount: 1, subjectTrackId: 'a', subjectBox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 }, eyeBox: undefined }),
+    base('frame', { subjectCount: 1, subjectTrackId: 'b', subjectBox: { x: 0.6, y: 0.1, width: 0.2, height: 0.2 }, eyeBox: undefined }),
+  ];
+  assert.ok(selectBurstDetails(rows).every(r => r.recommendation === 'review' && r.comparisonGroup === null));
+});
+
+test('two tracks with inconsistent counts or duplicate boxes cannot claim separate subjects', () => {
+  const boxA = { x: 0.2, y: 0.2, width: 0.2, height: 0.2 };
+  const boxB = { x: 0.7, y: 0.2, width: 0.2, height: 0.2 };
+  for (const boxes of [[boxA, boxA], [boxA, boxB]]) {
+    const rows = [
+      base('frame', { subjectCount: 2, subjectTrackId: 'a', subjectBox: boxes[0], eyeBox: undefined }),
+      base('frame', { subjectCount: boxes[0] === boxes[1] ? 2 : 3, subjectTrackId: 'b', subjectBox: boxes[1], eyeBox: undefined }),
+    ];
+    assert.ok(selectBurstDetails(rows).every(r => r.recommendation === 'review' && r.comparisonGroup === null));
+  }
+});
+
+test('two independently observed boxes with matching count preserve reviewable crops', () => {
+  const rows = [
+    base('frame', { subjectCount: 2, subjectTrackId: 'a', subjectBox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 }, eyeBox: undefined }),
+    base('frame', { subjectCount: 2, subjectTrackId: 'b', subjectBox: { x: 0.6, y: 0.1, width: 0.2, height: 0.2 }, eyeBox: undefined }),
+  ];
+  const results = selectBurstDetails(rows);
+  assert.ok(results.every(r => r.crop && r.comparisonGroup && r.recommendation !== 'reject'));
+});
+
+test('cross-genre duplicate detector boxes cannot create independent animal identities', () => {
+  const frame = (count: number, aircraftBox: { x: number; y: number; width: number; height: number }) => [
+    base('same-source', { subjectCount: count, subjectTrackId: 'bird-a', eyeBox: undefined,
+      subjectBox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } }),
+    base('same-source', { genre: 'aircraft', birdScore: 0.08, aircraftScore: 0.92,
+      subjectCount: count, subjectTrackId: 'aircraft-b', eyeBox: undefined, subjectBox: aircraftBox }),
+  ];
+  // A single frame cannot contain two tracked subjects if the detector counted only one,
+  // even when one head labels a bird and the other an aircraft.
+  const distinct = { x: 0.7, y: 0.1, width: 0.2, height: 0.2 };
+  const duplicate = { x: 0.1, y: 0.1, width: 0.2, height: 0.2 };
+  for (const evidence of [frame(1, distinct), frame(2, duplicate)]) {
+    const result = selectBurstDetails(evidence);
+    assert.ok(result.every(r => r.recommendation === 'review' && r.comparisonGroup === null && r.crop === null));
+  }
+  // Two separate supported boxes with a count of two remain reviewable,
+  // irrespective of genre, without ever issuing an automatic Reject.
+  const accepted = selectBurstDetails(frame(2, distinct));
+  assert.ok(accepted.every(r => r.crop && r.comparisonGroup && r.recommendation !== 'reject'));
+});
