@@ -101,3 +101,41 @@ test('manual Keep still takes precedence within a verified multi-bird track', ()
   ];
   assert.deepEqual(selectBurstDetails(evidence).map(r => r.recommendation), ['keep', 'review']);
 });
+
+test('two individually tracked birds in one exposure retain distinct reviewable crops', () => {
+  const subjectBoxA = { x: 0.1, y: 0.2, width: 0.15, height: 0.2 };
+  const subjectBoxB = { x: 0.7, y: 0.3, width: 0.15, height: 0.2 };
+  const evidence = [
+    base('both', { subjectCount: 2, subjectTrackId: 'bird-a', subjectBox: subjectBoxA, eyeBox: undefined }),
+    base('both', { subjectCount: 2, subjectTrackId: 'bird-b', subjectBox: subjectBoxB, eyeBox: undefined }),
+    base('next-a', { subjectCount: 2, subjectTrackId: 'bird-a', subjectBox: subjectBoxA, eyeBox: undefined }),
+    base('next-b', { subjectCount: 2, subjectTrackId: 'bird-b', subjectBox: subjectBoxB, eyeBox: undefined }),
+  ];
+  const result = selectBurstDetails(evidence);
+  assert.ok(result.every(row => row.crop && row.comparisonGroup));
+  assert.notEqual(result[0].comparisonGroup, result[1].comparisonGroup);
+  assert.notDeepEqual(result[0].crop, result[1].crop);
+  assert.equal(result.filter(row => row.recommendation === 'reject').length, 0);
+});
+
+test('duplicate subject tracks or conflicting source hashes cannot inherit a keeper', () => {
+  const frames = [
+    base('same', { subjectCount: 2, subjectTrackId: 'a', manualDecision: 'keep', subjectBox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } }),
+    base('same', { subjectCount: 2, subjectTrackId: 'b', subjectBox: { x: 0.6, y: 0.1, width: 0.2, height: 0.2 } }),
+    base('collision', { subjectCount: 2, subjectTrackId: 'a', subjectBox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } }),
+    base('collision', { subjectCount: 2, subjectTrackId: 'a', subjectBox: { x: 0.6, y: 0.1, width: 0.2, height: 0.2 } }),
+    base('replacement', { subjectCount: 2, subjectTrackId: 'a', subjectBox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } }),
+    base('replacement', { subjectCount: 2, subjectTrackId: 'b', sourceSha256: 'b'.repeat(64), subjectBox: { x: 0.6, y: 0.1, width: 0.2, height: 0.2 } }),
+  ];
+  const result = selectBurstDetails(frames);
+  assert.ok(result.every(row => row.recommendation === 'review' && row.comparisonGroup === null));
+});
+
+test('untracked animals in the same photo abstain rather than assuming continuity', () => {
+  const evidence = [
+    base('two', { subjectCount: 2, subjectBox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } }),
+    base('two', { subjectCount: 2, subjectBox: { x: 0.6, y: 0.1, width: 0.2, height: 0.2 } }),
+  ];
+  assert.ok(selectBurstDetails(evidence).every(row =>
+    row.recommendation === 'review' && row.comparisonGroup === null));
+});
