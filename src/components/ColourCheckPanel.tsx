@@ -72,6 +72,8 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   const [checking, setChecking] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const generation = useRef(0);
+  // Synchronous lock: React state alone cannot stop two clicks before rerender.
+  const demandInFlight = useRef(false);
   const read = useRef(readPreview);
   read.current = readPreview;
 
@@ -79,6 +81,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
     // Invalidate every pending check when the image, recipe or guidance state changes.
     // A previous photo must never leave apparently current colour advice behind.
     const current = ++generation.current;
+    demandInFlight.current = false;
     const requested = capturePhotoReviewScope(currentScope.current);
     reportScope.current = null;
     setReport(null);
@@ -121,7 +124,9 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   // Fly Solo never runs a background check. An explicit press uses the same local
   // renderer preview, and the normal version effect invalidates it on any edit/photo change.
   const checkOnDemand = () => {
-    ++generation.current;
+    if (demandInFlight.current) return;
+    demandInFlight.current = true;
+    const current = ++generation.current;
     const requested = capturePhotoReviewScope(currentScope.current);
     reportScope.current = null;
     setReport(null);
@@ -133,11 +138,18 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
       const preview = read.current();
       if (!preview) { setFailed(true); setChecking(false); return; }
       const next = checkColour({ after: preview.after, before: preview.before, subject: preview.subject });
-      if (!samePhotoReviewScope(requested, currentScope.current)) return;
+      if (current !== generation.current || !samePhotoReviewScope(requested, currentScope.current)) {
+        setChecking(false);
+        return;
+      }
       reportScope.current = requested;
       setReport(next);
       setChecking(false);
-    } catch { setFailed(true); setChecking(false); }
+    } catch {
+      if (current === generation.current) { setFailed(true); setChecking(false); }
+    } finally {
+      demandInFlight.current = false;
+    }
   };
 
   const problems = report?.findings.filter((finding) => finding.severity !== 'info') ?? [];
@@ -150,7 +162,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
         {problems.length > 0 && <span className="text-xs text-zinc-400">({t.findings(problems.length)})</span>}
       </summary>
       <div className="min-w-0 space-y-2 overflow-x-hidden px-1 pb-2 text-sm" aria-busy={!disabled && checking}>
-        <button type="button" className="min-h-11 rounded-md border border-white/15 px-3 text-xs text-zinc-200 focus-visible:outline-2 focus-visible:outline-sky-300" onClick={checkOnDemand} aria-label={colourControls.check}>{colourControls.check}</button>
+        <button type="button" className="min-h-11 rounded-md border border-white/15 px-3 text-xs text-zinc-200 focus-visible:outline-2 focus-visible:outline-sky-300" onClick={checkOnDemand} aria-label={colourControls.check} aria-disabled={checking}>{colourControls.check}</button>
         {disabled && !report && !failed && <p className="text-xs text-zinc-400">{colourControls.paused}</p>}
         {failed && <p role="status" className="text-xs text-zinc-400">{t.unavailable} {colourControls.retry}</p>}
         {!disabled && checking && !report && !failed && <p role="status" className="text-xs text-zinc-400">{t.checking}</p>}
