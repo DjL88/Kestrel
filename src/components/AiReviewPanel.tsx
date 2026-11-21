@@ -35,7 +35,7 @@ const signed = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${
 
 /** Set up the person's own provider: which one, key, model and (for OpenAI-compatible) its address. */
 /** The mark beside each kind of AI. OpenAI-compatible has none: it covers many services, so it keeps a neutral icon. */
-const AI_PROVIDER_MARK: Partial<Record<AiProviderKind, BrandIconId>> = { gemini: 'gemini', vertex: 'googlecloud', anthropic: 'anthropic' };
+const AI_PROVIDER_MARK: Partial<Record<AiProviderKind, BrandIconId>> = { gemini: 'gemini', anthropic: 'anthropic' };
 /** One tap fills in the address of a model running on this computer. */
 const LOCAL_PRESETS: readonly { name: string; id: BrandIconId; url: string }[] = [
   { name: 'Ollama', id: 'ollama', url: 'http://localhost:11434/v1' },
