@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { focusBeforeOpening, returnFocus } from './focusReturn';
-import { AlertTriangle, RotateCcw, X } from 'lucide-react';
+import { AlertTriangle, RotateCcw, X } from './icons/KestrelUIIcons';
 import {
   CULL_COMMANDS,
   DEFAULT_KEY_BINDINGS,
