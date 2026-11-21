@@ -78,7 +78,7 @@ export function retainPhotoSearchEvidence(
   } };
 }
 
-export function photoSearchableText(frame: PhotoFrame): string {
+export function searchableEvidenceWords(frame: { stableKey?: string; searchEvidence?: PhotoSearchEvidence }): string[] {
   const evidence = frame.searchEvidence;
   const supported = evidence?.schema === 1 && evidence.sourceStableKey === frame.stableKey
     ? [...(evidence.ocr ?? []), ...(evidence.subjects ?? [])]
@@ -86,9 +86,13 @@ export function photoSearchableText(frame: PhotoFrame): string {
           (entry.status === 'confirmed' || entry.status === 'agreed' || entry.status === 'supported'))
         .map((entry) => entry.value)
     : [];
+  return supported;
+}
+
+export function photoSearchableText(frame: PhotoFrame): string {
   return [
     frame.filename, frame.exif.camera ?? '', frame.exif.lens ?? '',
-    frame.demoVariant?.demoSceneLabel ?? '', ...searchWords(frame), ...supported,
+    frame.demoVariant?.demoSceneLabel ?? '', ...searchWords(frame), ...searchableEvidenceWords(frame),
   ].join(' ');
 }
 
