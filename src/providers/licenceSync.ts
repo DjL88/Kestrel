@@ -29,6 +29,7 @@ export interface LicenceStatus { status: 'active' | 'revoked' | 'expired' | 'unk
 const DEVICE = 'kestrel.device.v1';
 const GRANT = 'kestrel.licence.grant.v1';
 const REVOKED = 'kestrel.licence.revoked.v1';
+const DENIED = 'kestrel.licence.denied.v1';
 const TIMEOUT_MS = 12_000;
 
 interface StoredGrant { envelope: unknown; activationId: string; licenceKeyHash: string }
@@ -66,6 +67,13 @@ export class LicenceSync {
     if (revoked) {
       try { const r = JSON.parse(revoked) as { licenceKeyHash: string; message: string }; if (r.licenceKeyHash === keyHash) return { kind: 'revoked', message: r.message }; } catch { /* ignore */ }
     }
+    const denied = this.read(DENIED);
+    if (denied) {
+      try {
+        const r = JSON.parse(denied) as { licenceKeyHash: string; message: string };
+        if (r.licenceKeyHash === keyHash) return { kind: 'device_limit', message: r.message };
+      } catch { /* ignore damaged local record; never infer Pro without a signed grant */ }
+    }
     const grant = await this.storedGrant(keyHash);
     return grant ? { kind: 'unreachable', grant: grant.grant, activationId: grant.activationId } : { kind: 'not_checked' };
   }
@@ -91,13 +99,18 @@ export class LicenceSync {
 
   /**
    * Activate (or renew) this device. Any network trouble keeps what was there: a stored grant stays in force until its
-   * window ends, and a valid key keeps working offline either way.
+   * window ends; an already activated, never-revoked paid key keeps working locally when renewal is unavailable.
    */
   async activate(key: string): Promise<OnlineStanding> {
     if (!this.configured) return { kind: 'not_set_up' };
     const keyHash = await this.keyHash(key);
+    const lastKnown = await this.storedStanding(key);
     const fallback = await this.storedGrant(keyHash);
-    const unreachable: OnlineStanding = { kind: 'unreachable', grant: fallback?.grant ?? null, activationId: fallback?.activationId ?? null };
+    // If the last successful request explicitly blocked this key/device, a
+    // network failure is NOT permission to revert to key-only Pro.
+    const unreachable: OnlineStanding = lastKnown.kind === 'revoked' || lastKnown.kind === 'device_limit'
+      ? lastKnown
+      : { kind: 'unreachable', grant: fallback?.grant ?? null, activationId: fallback?.activationId ?? null };
     let reply: Awaited<ReturnType<LicenceSync['post']>>;
     try {
       reply = await this.post('/v1/licences/activate', { licenceKey: key.trim(), deviceHash: await this.deviceHash(), platform: this.o.platform, appVersion: this.o.appVersion });
@@ -106,15 +119,22 @@ export class LicenceSync {
     const message = (reply.json?.error?.message as string | undefined) ?? '';
     if (reply.status === 403 && code === 'LICENCE_NOT_ACTIVE') {
       this.write(REVOKED, JSON.stringify({ licenceKeyHash: keyHash, message }));
+      this.write(DENIED, null);
       this.write(GRANT, null);
       return { kind: 'revoked', message };
     }
-    if (reply.status === 409 && code === 'DEVICE_LIMIT') return { kind: 'device_limit', message };
+    if (reply.status === 409 && code === 'DEVICE_LIMIT') {
+      this.write(DENIED, JSON.stringify({ licenceKeyHash: keyHash, message }));
+      // Prevent an obsolete grant from unlocking a device that was just denied.
+      this.write(GRANT, null);
+      return { kind: 'device_limit', message };
+    }
     if (reply.status !== 200 || !reply.json) return unreachable;
     const check = await verifyEntitlementGrant(reply.json.grant, this.o.grantKeys, await this.deviceHash());
     // A grant that fails the pinned key is ignored, never trusted: as if the server could not be reached.
     if (!check.ok || typeof reply.json.activationId !== 'string') return unreachable;
     this.write(REVOKED, null);
+    this.write(DENIED, null);
     this.write(GRANT, JSON.stringify({ envelope: reply.json.grant, activationId: reply.json.activationId, licenceKeyHash: keyHash } satisfies StoredGrant));
     return { kind: 'active', grant: check.grant, activationId: reply.json.activationId };
   }
@@ -136,10 +156,12 @@ export class LicenceSync {
       if (reply.status !== 200) return false;
       const stored = await this.storedGrant(await this.keyHash(key));
       if (stored?.activationId === activationId) this.write(GRANT, null);
+      // A freed slot permits reactivation after a prior known device-limit denial.
+      this.write(DENIED, null);
       return true;
     } catch { return false; }
   }
 
   /** Forget everything about the key on this device (the device id stays, so a re-entered key reuses its slot). */
-  forget(): void { this.write(GRANT, null); this.write(REVOKED, null); }
+  forget(): void { this.write(GRANT, null); this.write(REVOKED, null); this.write(DENIED, null); }
 }
