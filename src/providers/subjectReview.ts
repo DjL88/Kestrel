@@ -12,7 +12,7 @@ export interface SubjectReviewItem {
   genre: SubjectGenre;
   crop?: HTMLCanvasElement;
   /** Detector observation only, never a confirmed species or searchable tag. */
-  evidence: SubjectReviewObservation;
+  evidence?: SubjectReviewObservation;
 }
 
 /** Review-only source identity and subject ROI for W1 and optional W5 OCR.
