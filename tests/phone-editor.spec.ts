@@ -20,7 +20,7 @@ test('on a phone the edit screen is a pure editor: one footer row of editing tab
   await expect(page.getByRole('toolbar', { name: /editor|photo/i }).filter({ hasText: /Jump|Keep/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^Previous/ })).toBeHidden();
   await expect(page.locator('summary').filter({ hasText: /^View$/ })).toBeHidden();
-  // The tab bar is one row of editing tabs along the bottom, and there is no Export tab (Export is the header button).
+  // The tab bar is one row of editing tabs along the bottom, with a separate Export button in the same footer.
   const tabs = page.getByRole('tab');
   await expect(page.getByRole('tab', { name: 'Export' })).toHaveCount(0);
   const boxes = await tabs.evaluateAll((els) => els.map((el) => { const r = el.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom) }; }));
@@ -29,7 +29,8 @@ test('on a phone the edit screen is a pure editor: one footer row of editing tab
   expect(new Set(boxes.map((box) => box.top)).size, 'all tabs share one row').toBe(1);
   const viewport = page.viewportSize()!;
   expect(viewport.height - boxes[0]!.bottom, 'the tabs sit at the very bottom (the safe area aside)').toBeLessThan(40);
-  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
+  // Export lives in the footer on phones.
+  await expect(page.getByRole('button', { name: /^Export/ }).filter({ visible: true }).first()).toBeVisible();
   // With a tool sheet open the photo still has at least two thirds of the editor's height.
   await page.getByRole('tab', { name: 'Edit' }).click();
   const ratio = await page.locator('[data-photo-stage]').evaluate((stage) => stage.getBoundingClientRect().height / (stage.closest('section')?.getBoundingClientRect().height ?? 1));
