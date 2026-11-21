@@ -48,6 +48,10 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVe
   const [found, setFound] = useState<{ scope: typeof scope; facts: SceneFacts } | null>(null);
   const autoDone = useRef(new Set<string>());
   const cancelledFor = useRef<typeof scope | null>(null);
+  // A large WASM scene check is not a live slider effect: auto-run at most
+  // once for a photo/source/crop while this editor is open.
+  const sceneScope = useMemo(() => ({ photoKey, version, sourceVersion }), [photoKey, version, sourceVersion]);
+  const autoAttempted = useRef<typeof sceneScope | null>(null);
   const checkAbort = useRef<AbortController | null>(null);
   const installAbort = useRef<AbortController | null>(null);
   const requestId = useRef(0);
@@ -70,6 +74,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVe
 
   function cancel() {
     cancelledFor.current = scope;
+    autoAttempted.current = sceneScope;
     requestId.current += 1;
     checkAbort.current?.abort();
     installAbort.current?.abort();
@@ -103,11 +108,16 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVe
   }
   // Glide and Soar: read the scene once the picture and recipe have been still for a moment. Fly Solo: never unprompted.
   useEffect(() => {
-    if (mode === 'solo' || !installed || disabled || !histogram || found?.scope === scope || cancelledFor.current === scope || phase !== 'idle') return;
-    const timer = window.setTimeout(() => void check(), IDLE_MS);
+    if (mode === 'solo' || !installed || disabled || !histogram ||
+      found?.scope === scope || cancelledFor.current === scope ||
+      autoAttempted.current === sceneScope || phase !== 'idle') return;
+    const timer = window.setTimeout(() => {
+      autoAttempted.current = sceneScope; // even a failed or cancelled check needs deliberate retry
+      void check();
+    }, IDLE_MS);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, installed, disabled, histogram, scope, found, phase]);
+  }, [mode, installed, disabled, histogram, scope, sceneScope, found, phase]);
 
   async function install() {
     const controller = new AbortController();
@@ -169,7 +179,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVe
       {facts && (
         <p className="text-zinc-400" role="status">{t.advice.scene}: {facts.light ? t.advice.lights[facts.light] : t.advice.verdict.unsure}</p>
       )}
-      {installed && mode === 'solo' && phase === 'idle' && !facts && (
+      {installed && (mode === 'solo' || autoAttempted.current === sceneScope) && phase === 'idle' && !facts && (
         <button type="button" className="min-h-9 text-zinc-300 underline hover:text-white" disabled={disabled}
           onClick={() => void check()}>{t.advice.check}</button>
       )}
