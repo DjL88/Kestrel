@@ -9,7 +9,8 @@ const bird = (x: number) => ({
   sharpness: 9, coverage: 0.015,
 });
 const base = (): VerifiedSubjectScan => ({
-  source: {} as HTMLCanvasElement,
+  source: { width: 1000, height: 800 } as HTMLCanvasElement,
+  verifyDecodedSource: async () => ({ sourceSha256: sha, width: 1000, height: 800 }),
   identity,
   isCurrent: () => true,
   verifyOriginalSha256: async () => sha,
@@ -68,4 +69,47 @@ test('aircraft cannot acquire a bird label, track or species', async () => {
   assert.equal(rows[0].evidence.genre, 'aircraft');
   assert.equal(rows[0].evidence.birdScore, undefined);
   assert.equal(rows[0].evidence.manualDecision, 'review');
+});
+
+test('a thumbnail or mismatched input geometry is never passed to the detector', async () => {
+  let called = false;
+  const rows = await scanVerifiedSubjects({
+    ...base(),
+    source: { width: 500, height: 400 } as HTMLCanvasElement,
+    detector: async () => { called = true; return [bird(20)]; },
+  });
+  assert.deepEqual(rows, []);
+  assert.equal(called, false);
+});
+
+test('an untrusted decoded preview cannot borrow the original file digest', async () => {
+  let called = false;
+  const rows = await scanVerifiedSubjects({
+    ...base(),
+    verifyDecodedSource: async () => ({ sourceSha256: 'b'.repeat(64), width: 1000, height: 800 }),
+    detector: async () => { called = true; return [bird(20)]; },
+  });
+  assert.deepEqual(rows, []);
+  assert.equal(called, false);
+});
+
+test('decoded source replacement while the detector is running discards candidates', async () => {
+  let reads = 0;
+  const rows = await scanVerifiedSubjects({
+    ...base(),
+    verifyDecodedSource: async () => ({
+      sourceSha256: ++reads === 1 ? sha : 'b'.repeat(64), width: 1000, height: 800,
+    }),
+  });
+  assert.deepEqual(rows, []);
+  assert.equal(reads, 2);
+});
+
+test('a mutable canvas resized during inference cannot return boxes for the old geometry', async () => {
+  const source = { width: 1000, height: 800 } as HTMLCanvasElement;
+  const rows = await scanVerifiedSubjects({
+    ...base(), source,
+    detector: async () => { source.width = 400; return [bird(20)]; },
+  });
+  assert.deepEqual(rows, []);
 });
