@@ -113,6 +113,7 @@ export const de: AreaTranslation<typeof source> = {
     save: 'Rezept speichern',
   },
   advice: {
+    subjectCheck: 'Das Motiv ist unklar. Prüfen Sie es, bevor Sie einen Artnamen hinzufügen.',
     region: 'Foto-Check',
     verdict: { good: 'Sieht gut aus', nearly: 'Fast geschafft', 'needs-work': 'Braucht Arbeit', unsure: 'Noch unsicher' },
     tryThis: 'Probieren',
@@ -134,7 +135,7 @@ export const de: AreaTranslation<typeof source> = {
     checking: 'Prüfe…',
     failed: 'Der Foto-Check wurde nicht abgeschlossen.',
     scene: 'Szene',
-    subjects: { person: 'Person', animal: 'Tier', bird: 'Vogel', landscape: 'Landschaft', object: 'Objekt' },
+    subjects: { person: 'Person', animal: 'Tier', bird: 'Vogel', landscape: 'Landschaft', object: 'Objekt', aircraft: 'Flugzeug', vehicle: 'Fahrzeug' },
     lights: { 'low-key': 'Low-Key', 'high-key': 'High-Key', golden: 'Goldenes Licht', cool: 'Kühles Licht' },
   },
   critique: {

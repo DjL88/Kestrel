@@ -113,6 +113,7 @@ export const da: AreaTranslation<typeof source> = {
     save: 'Gem opskrift',
   },
   advice: {
+    subjectCheck: 'Motivet er uklart. Tjek det, før du tilføjer et artsnavn.',
     region: 'Fototjek',
     verdict: { good: 'Ser godt ud', nearly: 'Næsten der', 'needs-work': 'Trænger til arbejde', unsure: 'Endnu ikke sikker' },
     tryThis: 'Prøv dette',
@@ -134,7 +135,7 @@ export const da: AreaTranslation<typeof source> = {
     checking: 'Tjekker…',
     failed: 'Fototjekket blev ikke færdigt.',
     scene: 'Motiv',
-    subjects: { person: 'Person', animal: 'Dyr', bird: 'Fugl', landscape: 'Landskab', object: 'Objekt' },
+    subjects: { person: 'Person', animal: 'Dyr', bird: 'Fugl', landscape: 'Landskab', object: 'Objekt', aircraft: 'Fly', vehicle: 'Køretøj' },
     lights: { 'low-key': 'Low-key', 'high-key': 'High-key', golden: 'Gyldent lys', cool: 'Køligt lys' },
   },
   critique: {

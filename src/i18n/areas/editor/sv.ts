@@ -113,6 +113,7 @@ export const sv: AreaTranslation<typeof source> = {
     save: 'Spara recept',
   },
   advice: {
+    subjectCheck: 'Motivet är oklart. Kontrollera det innan du lägger till ett artnamn.',
     region: 'Fotokoll',
     verdict: { good: 'Ser bra ut', nearly: 'Nästan klar', 'needs-work': 'Behöver arbete', unsure: 'Inte säker ännu' },
     tryThis: 'Prova detta',
@@ -134,7 +135,7 @@ export const sv: AreaTranslation<typeof source> = {
     checking: 'Kontrollerar…',
     failed: 'Fotokollen blev inte klar.',
     scene: 'Motiv',
-    subjects: { person: 'Person', animal: 'Djur', bird: 'Fågel', landscape: 'Landskap', object: 'Föremål' },
+    subjects: { person: 'Person', animal: 'Djur', bird: 'Fågel', landscape: 'Landskap', object: 'Föremål', aircraft: 'Flygplan', vehicle: 'Fordon' },
     lights: { 'low-key': 'Low-key', 'high-key': 'High-key', golden: 'Gyllene ljus', cool: 'Kallt ljus' },
   },
   critique: {
