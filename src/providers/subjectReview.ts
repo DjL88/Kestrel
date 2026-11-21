@@ -1,7 +1,7 @@
 import { Sha256Stream } from '../core/sha256';
 import { subjectPixelBounds } from '../core/subjectPixelCrop';
 import { findVerifiedSubjectCandidates } from '../core/verifiedSubjectScan';
-import type { SubjectGenre } from '../core/subjectDetailBurst';
+import type { SubjectGenre, SelectEvidence } from '../core/subjectDetailBurst';
 import { detectorModelVersion, findSubjects, resetDetectorFailure } from './objectDetector';
 
 const MAX_ORIGINAL_BYTES = 128 * 1024 * 1024;
@@ -11,6 +11,40 @@ const MAX_CROP_BYTES = 24 * 1024 * 1024;
 export interface SubjectReviewItem {
   genre: SubjectGenre;
   crop?: HTMLCanvasElement;
+  /** Detector observation only, never a confirmed species or searchable tag. */
+  evidence: SubjectReviewObservation;
+}
+
+/** Review-only source identity and subject ROI for W1 and optional W5 OCR.
+ * A detector box is not proof of a bird, eye, ring or registration.
+ */
+export interface SubjectReviewObservation {
+  photoId: string;
+  sourceSha256: string;
+  modelId: string;
+  modelVersion: string;
+  subjectBox: NonNullable<SelectEvidence['subjectBox']>;
+  status: 'needs-review';
+}
+
+export function reviewOnlySubjectObservation(
+  evidence: SelectEvidence,
+  photoId: string,
+  originalSha256: string,
+): SubjectReviewObservation | null {
+  const box = evidence.subjectBox;
+  if (!box || evidence.photoId !== photoId ||
+      evidence.sourceSha256.toLowerCase() !== originalSha256.toLowerCase() ||
+      !/^[a-f0-9]{64}$/i.test(originalSha256) ||
+      !evidence.modelId?.trim() || !evidence.modelVersion?.trim() ||
+      ![box.x, box.y, box.width, box.height].every(Number.isFinite) ||
+      box.width <= 0 || box.height <= 0 || box.x < 0 || box.y < 0 ||
+      box.x + box.width > 1.00000001 || box.y + box.height > 1.00000001) return null;
+  return {
+    photoId, sourceSha256: originalSha256.toLowerCase(),
+    modelId: evidence.modelId, modelVersion: evidence.modelVersion,
+    subjectBox: { ...box }, status: 'needs-review',
+  };
 }
 
 export interface SubjectReviewSource {
@@ -90,20 +124,29 @@ export async function reviewPhotoSubjects(
     });
     if (!candidates || !current()) return null;
     let remaining = MAX_CROP_BYTES;
-    const results = candidates.map(({ evidence }) => {
-      const item: SubjectReviewItem = { genre: evidence.genre };
-      const box = evidence.subjectBox && subjectPixelBounds(width, height, evidence.subjectBox);
-      if (!box || box.width * box.height * 4 > remaining || Math.max(box.width, box.height) > 4096)
-        return item;
+    const results: SubjectReviewItem[] = [];
+    for (const { evidence } of candidates) {
+      const observation = reviewOnlySubjectObservation(evidence, photoId, sha);
+      // A malformed/mismatched box invalidates the entire multi-subject scan.
+      if (!observation) return null;
+      const item: SubjectReviewItem = { genre: evidence.genre, evidence: observation };
+      const box = subjectPixelBounds(width, height, observation.subjectBox);
+      if (!box || box.width * box.height * 4 > remaining || Math.max(box.width, box.height) > 4096) {
+        results.push(item);
+        continue;
+      }
       const crop = document.createElement('canvas');
       crop.width = box.width;
       crop.height = box.height;
       const context = crop.getContext('2d');
-      if (!context) return item;
+      if (!context) {
+        results.push(item);
+        continue;
+      }
       context.drawImage(bitmap, box.x, box.y, box.width, box.height, 0, 0, box.width, box.height);
       remaining -= box.width * box.height * 4;
-      return { ...item, crop };
-    });
+      results.push({ ...item, crop });
+    }
     // Drawing every full-resolution crop can take time on a large shoot.
     // A linked original replaced during this work must never return stale
     // subject crops, even if it had passed the detector's earlier SHA checks.
