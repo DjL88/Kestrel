@@ -6,7 +6,7 @@ import {
   Eye,
   MoreHorizontal,
   Undo2,
-} from 'lucide-react';
+} from './icons/KestrelUIIcons';
 import { panToCentre } from '../core/eyeFinder';
 import { isRawPreviewFile } from '../core/rawFormats';
 import { maxZoomFor, zoomForPercent } from '../core/zoomControls';
