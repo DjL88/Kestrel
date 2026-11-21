@@ -227,6 +227,10 @@ h1, h2, h3, summary, button { font-family: var(--font-display); }
 html[data-font="readable"], html[data-font="readable"] * {
   font-family: "Atkinson Hyperlegible", ui-sans-serif, system-ui, sans-serif;
 }
+/* Roomier reading: moderate letter, word and paragraph spacing, inside the WCAG 1.4.12 limits. Inherited, so dense
+   controls that set their own tracking keep it. */
+html[data-spacing="roomy"] body { letter-spacing: 0.03em; word-spacing: 0.1em; }
+html[data-spacing="roomy"] :where(p, li, dd) { line-height: 1.65; }
 html[data-calm="true"] *, html[data-calm="true"] *::before, html[data-calm="true"] *::after {
   animation: none !important;
   transition: none !important;
