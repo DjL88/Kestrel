@@ -63,3 +63,14 @@ test('broad mask replacement is rejected even with user-selected area', () => {
   assert.deepEqual(proposeObservedMaskCorrection(mask, grid(cells), request, sha, 7),
     { ok: false, reason: 'too-broad' });
 });
+
+test('a higher-resolution full-frame detector grid maps onto the editable mask', () => {
+  const { mask, request } = fixture();
+  const pixels = new Uint8Array(400);
+  // 20x20 detected grid cell covering editable cell (x=6,y=4).
+  pixels[9 * 20 + 13] = 255;
+  const observed: SubjectGrid = { w: 20, h: 20, data: btoa(String.fromCharCode(...pixels)) };
+  const result = proposeObservedMaskCorrection(mask, observed, request, sha, 7);
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(atob(result.after.grid.data).charCodeAt(46), 255);
+});
