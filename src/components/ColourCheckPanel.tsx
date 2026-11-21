@@ -70,6 +70,8 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   const report = samePhotoReviewScope(reportScope.current, currentScope.current) ? storedReport : null;
   const [failed, setFailed] = useState(false);
   const [applied, setApplied] = useState(false);
+  // Preserve the undo confirmation across the single recipe revision caused by applying a fix.
+  const appliedByFix = useRef(false);
   const [checking, setChecking] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const generation = useRef(0);
@@ -96,7 +98,8 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
     reportScope.current = null;
     setReport(null);
     setFailed(false);
-    setApplied(false);
+    setApplied(appliedByFix.current);
+    appliedByFix.current = false;
     setShowAll(false);
     setChecking(!disabled);
     if (disabled) return;
@@ -149,6 +152,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
     setFailed(false);
     setApplied(false);
     setShowAll(false);
+    cancelManual();
     setChecking(true);
     // Yield a frame and a task before CPU-bound local analysis. Without this,
     // synchronous pixel analysis prevents the busy state from ever painting.
@@ -170,7 +174,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
           if (acceptsColourCheck(current, generation.current, requested, currentScope.current)) setFailed(true);
         } finally {
           if (current === generation.current) setChecking(false);
-          demandGate.current.finish();
+          if (current === generation.current) demandGate.current.finish();
         }
       }, 0);
     });
@@ -225,6 +229,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
                         // parent render must not apply the same suggestion twice.
                         reportScope.current = null;
                         setReport(null);
+                        appliedByFix.current = true;
                         setApplied(true);
                         onEdit(applyFix(edit, { kind: 'global', delta: said.fix!.delta }));
                       }}>
