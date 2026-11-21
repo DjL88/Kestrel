@@ -201,3 +201,16 @@ test('photo switch during raster attestation discards subject crops', async () =
   });
   assert.deepEqual(rows, []);
 });
+
+test('raster changed during final asynchronous original hash cannot escape as verified detail', async () => {
+  let attested = 0;
+  let originalReads = 0;
+  const rows = await scanVerifiedSubjectDetails({
+    ...detailBase(),
+    verifyRaster: async () => ++attested < 3,
+    verifyOriginalSha256: async () => { originalReads++; return sha; },
+  });
+  assert.deepEqual(rows, []);
+  assert.equal(originalReads, 3);
+  assert.equal(attested, 3);
+});
