@@ -120,6 +120,7 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
   await checkExport('footer');
   await page.setViewportSize({ width: 799, height: 700 });
   await checkViewport('Foldable narrow window stays compact');
+  await checkExport('footer');
   await expect.poll(editLayout).toBe('column');
   await page.setViewportSize({ width: 800, height: 700 });
   await checkViewport('Foldable unfolded tablet-width editor');
