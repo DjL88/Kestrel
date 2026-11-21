@@ -4,6 +4,7 @@ import { PROVIDERS, type Health, type ProviderKind } from '../core/connections';
 import { projectsText as t } from '../i18n/areas/projects';
 import { pickSyncFolder } from '../providers/folderConnector';
 import { ProviderIcon } from './ProviderIcon';
+import { WorksWith } from './BrandIcon';
 import { WebDavForm } from './WebDavForm';
 import { addConnection, checkAllConnections, checkConnection, removeConnection, setS3Keys, useConnections } from '../providers/connectionStore';
 import { rememberTokens } from '../providers/oauthSession';
@@ -30,6 +31,12 @@ const providerLabel = (provider: (typeof PROVIDERS)[number]) => (t.connections.p
 const providerShort = (kind: ProviderKind) => (t.connections.providerShort as Partial<Record<ProviderKind, string>>)[kind] ?? PROVIDERS.find((p) => p.kind === kind)?.short;
 const providerNote = (provider: (typeof PROVIDERS)[number]) => (provider.note ? (t.connections.providerNote as Partial<Record<ProviderKind, string>>)[provider.kind] ?? provider.note : undefined);
 const advice = (health: Health) => (t.connections.advice as Partial<Record<Health, string>>)[health] ?? '';
+
+/** The makes of NAS and storage each option covers, so a person can see theirs is included. */
+const WORKS_WITH: Partial<Record<ProviderKind, readonly { id?: import('../core/brandIcons').BrandIconId; name: string }[]>> = {
+  webdav: [{ id: 'synology', name: 'Synology' }, { id: 'qnap', name: 'QNAP' }, { id: 'nextcloud', name: 'Nextcloud' }, { id: 'owncloud', name: 'ownCloud' }],
+  s3: [{ name: 'Amazon S3' }, { id: 'backblaze', name: 'Backblaze B2' }, { id: 'cloudflare', name: 'Cloudflare R2' }, { id: 'wasabi', name: 'Wasabi' }, { id: 'minio', name: 'MinIO' }],
+};
 
 /** Where this person keeps their work, with a health for each, on the home page. */
 export function ConnectionsPanel() {
@@ -137,7 +144,7 @@ export function ConnectionsPanel() {
               return (
                 <label key={provider.kind} className={`flex min-h-11 items-start gap-2 ${available ? '' : 'opacity-60'}`}>
                   <input type="radio" name="provider" className="mt-1" disabled={!available} checked={adding === provider.kind} onChange={() => setAdding(provider.kind)} />
-                  <span className="flex items-start gap-2"><ProviderIcon kind={provider.kind} className="mt-0.5 h-5 w-5 shrink-0" /><span>{providerLabel(provider)}{(reason ?? (provider.note && !cloud ? providerNote(provider) : null)) && <span className="block text-xs text-zinc-400">{reason ?? providerNote(provider)}</span>}</span></span>
+                  <span className="flex items-start gap-2"><ProviderIcon kind={provider.kind} className="mt-0.5 h-5 w-5 shrink-0" /><span>{providerLabel(provider)}{(reason ?? (provider.note && !cloud ? providerNote(provider) : null)) && <span className="block text-xs text-zinc-400">{reason ?? providerNote(provider)}</span>}{WORKS_WITH[provider.kind] && <WorksWith items={WORKS_WITH[provider.kind]!} />}</span></span>
                 </label>
               );
             })}
