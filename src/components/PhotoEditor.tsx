@@ -4,6 +4,7 @@ import { newId } from '../core/ids';
 import { mayApplyGuidance, type GuidanceMode } from '../core/guidanceMode';
 import { blendMaskEdges, inspectMaskBoundary, type MaskBoundaryEvidence } from '../core/maskBlendAdvice';
 import { loadImage } from '../providers/loadImage';
+import { yieldToPaint } from '../core/yieldToPaint';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
 import { editorText as t } from '../i18n/areas/editor';
@@ -853,17 +854,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
       // Give the browser one paint opportunity to display the busy label and
       // spinner before any synchronous canvas sampling or model setup begins.
       // The timeout fallback also works when the page is backgrounded.
-      await new Promise<void>((resolve) => {
-        let settled = false;
-        const finish = () => {
-          if (settled) return;
-          settled = true;
-          window.clearTimeout(fallback);
-          resolve();
-        };
-        const fallback = window.setTimeout(finish, 80);
-        window.requestAnimationFrame(() => window.setTimeout(finish, 0));
-      });
+      await yieldToPaint();
       if (!stillCurrent()) return;
       if (!originalSource || !outputSize || !startedFor) {
         if (run === autoRun.current) setAutoNotes([t.auto.couldNotAnalyse]);
