@@ -2316,8 +2316,8 @@ export default function App() {
         <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           {editing && selectedFrame && (
             <div className="flex min-h-0 min-w-0 flex-1">
-              {panesCollapsed && !prefs.focusMode && prefs.hand === 'left' && (
-                <WorkspacePaneRail kind="tools" side="left" onExpand={() => setWorkspacePanes({ folded: false })} />
+              {!prefs.focusMode && prefs.hand === 'left' && (
+                <WorkspacePaneRail kind="tools" side="left" open={!panesCollapsed} onFold={() => setWorkspacePanes({ folded: true })} onExpand={() => setWorkspacePanes({ folded: false })} />
               )}
             <PhotoEditor
               onSubjectCheck={noteSubjectCheck}
@@ -2401,8 +2401,8 @@ export default function App() {
               onApplyToKeepers={applyEditToKeepers}
               onUndoKeeperEdits={batchUndo ? undoKeeperEdits : undefined}
             />
-              {panesCollapsed && !prefs.focusMode && prefs.hand === 'right' && (
-                <WorkspacePaneRail kind="tools" side="right" onExpand={() => setWorkspacePanes({ folded: false })} />
+              {!prefs.focusMode && prefs.hand === 'right' && (
+                <WorkspacePaneRail kind="tools" side="right" open={!panesCollapsed} onFold={() => setWorkspacePanes({ folded: true })} onExpand={() => setWorkspacePanes({ folded: false })} />
               )}
             </div>
           )}

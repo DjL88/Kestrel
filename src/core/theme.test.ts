@@ -15,8 +15,8 @@ import { parseDisplay, DEFAULT_DISPLAY, CALM_AND_CLEAR, isCalmAndClear } from '.
 
 test('display settings validate every field and fall back safely', () => {
   assert.deepEqual(parseDisplay(undefined), DEFAULT_DISPLAY);
-  assert.deepEqual(parseDisplay({ theme: 'night', textSize: '150', font: 'readable', calm: true, spacing: 'roomy' }),
-    { theme: 'night', textSize: '150', font: 'readable', calm: true, spacing: 'roomy' });
+  assert.deepEqual(parseDisplay({ theme: 'night', textSize: '150', font: 'readable', calm: true, spacing: 'roomy', density: 'comfortable' }),
+    { theme: 'night', textSize: '150', font: 'readable', calm: true, spacing: 'roomy', density: 'comfortable' });
   assert.deepEqual(parseDisplay({ theme: 'x', textSize: '999', font: 'comic', calm: 'yes' }), DEFAULT_DISPLAY);
 });
 
@@ -30,4 +30,11 @@ test('Calm and clear is recognised only when every part of it is on', () => {
   assert.equal(isCalmAndClear(DEFAULT_DISPLAY), false);
   assert.equal(isCalmAndClear({ ...CALM_AND_CLEAR, textSize: '150' }), false, 'changing one part leaves the preset');
   assert.equal(isCalmAndClear({ ...CALM_AND_CLEAR, spacing: 'normal' }), false);
+});
+
+test('density defaults to compact, accepts comfortable, and rejects anything else', () => {
+  assert.equal(parseDisplay({}).density, 'compact');
+  assert.equal(parseDisplay({ density: 'comfortable' }).density, 'comfortable');
+  assert.equal(parseDisplay({ density: 'tiny' }).density, 'compact');
+  assert.equal(CALM_AND_CLEAR.density, 'comfortable');
 });

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { applyDisplay, loadDisplay } from '../providers/browserTheme';
-import { CALM_AND_CLEAR, DEFAULT_DISPLAY, FONTS, SPACINGS, TEXT_SIZES, THEMES, isCalmAndClear, type DisplaySettings } from '../core/theme';
+import { CALM_AND_CLEAR, DEFAULT_DISPLAY, DENSITIES, FONTS, SPACINGS, TEXT_SIZES, THEMES, isCalmAndClear, type DisplaySettings } from '../core/theme';
 import { messages as m } from '../i18n/messages';
+import { libraryText } from '../i18n/areas/library';
 
 const THEME_LABELS = { default: m.settings.themeClassic, night: m.settings.themeSofter, contrast: m.settings.themeContrast } as const;
 const SPACING_LABELS = { normal: m.settings.spacingNormal, roomy: m.settings.spacingRoomy } as const;
@@ -59,6 +60,15 @@ export function ThemePicker() {
           <label key={name} className={row}>
             <input type="radio" name="kestrel-spacing" checked={settings.spacing === name} onChange={() => update({ spacing: name })} />
             {SPACING_LABELS[name]}
+          </label>
+        ))}
+      </fieldset>
+      <fieldset>
+        <legend className="pb-1 text-sm text-zinc-300">{libraryText.density.legend}</legend>
+        {DENSITIES.map((name) => (
+          <label key={name} className={row}>
+            <input type="radio" name="kestrel-density" checked={settings.density === name} onChange={() => update({ density: name })} />
+            {libraryText.density[name]}
           </label>
         ))}
       </fieldset>

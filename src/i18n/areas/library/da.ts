@@ -400,7 +400,14 @@ export const da: AreaTranslation<typeof source> = {
     pin: (title) => `Hold ${title} synlig i Kun foto-tilstand`,
     dock: (title) => `Fastgør ${title}`,
   },
+  density: {
+    legend: 'Størrelse på knapper og paneler',
+    comfortable: 'Komfortabel (størst)',
+    compact: 'Kompakt (80 %, mere plads til fotoet)',
+  },
   paneRail: {
+    foldTools: 'Fold redigeringsværktøjer sammen',
+    foldInfo: 'Fold fotoinfo sammen',
     editingTools: 'Redigeringsværktøjer',
     photoInfo: 'Fotoinfo',
     foldedTools: 'Sammenfoldet værktøjspanel',

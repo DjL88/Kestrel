@@ -400,7 +400,14 @@ export const nl: AreaTranslation<typeof source> = {
     pin: (title) => `Houd ${title} zichtbaar in de modus Alleen foto`,
     dock: (title) => `Koppel ${title} vast`,
   },
+  density: {
+    legend: 'Grootte van knoppen en panelen',
+    comfortable: 'Comfortabel (grootst)',
+    compact: 'Compact (80%, meer ruimte voor de foto)',
+  },
   paneRail: {
+    foldTools: 'Bewerkingsgereedschap inklappen',
+    foldInfo: 'Foto-info inklappen',
     editingTools: 'Bewerkingsgereedschap',
     photoInfo: 'Foto-info',
     foldedTools: 'Ingeklapt gereedschapspaneel',
