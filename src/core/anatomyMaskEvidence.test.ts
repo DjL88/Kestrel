@@ -1,7 +1,18 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createSubjectMask, validMasks, type SubjectGrid } from './maskTypes';
-import { refineObservedAnatomy, type AnatomyEvidence } from './anatomyMaskEvidence';
+import { refineObservedAnatomy as refineWithAuthority, type AnatomyEvidence } from './anatomyMaskEvidence';
+
+// Synthetic fixture authority is TEST-ONLY. Production must use the verified
+// signed model/calibration catalogue, never this fixture approval.
+const fixtureAuthority = (calibration: AnatomyEvidence['calibration']) =>
+  calibration.approved === true && calibration.calibrationVersion === 'fixture';
+const refineObservedAnatomy = (
+  mask: Parameters<typeof refineWithAuthority>[0],
+  observed: AnatomyEvidence,
+  source: string,
+  revision: number,
+) => refineWithAuthority(mask, observed, source, revision, fixtureAuthority);
 
 const sha = 'a'.repeat(64);
 const grid = (paint: Record<number, number> = {}): SubjectGrid => {
@@ -11,7 +22,10 @@ const grid = (paint: Record<number, number> = {}): SubjectGrid => {
 };
 const evidence = (parts: SubjectGrid, occluders: SubjectGrid, baseGridData: string): AnatomyEvidence => ({
   sourceSha256: sha, framingKey: 'frame', baseGridData, recipeRevision: 7, modelId: 'local-segmenter',
-  modelVersion: 'fixture-1', calibration: { modelId: 'local-segmenter', modelVersion: 'fixture-1',\n    domain: 'wildlife', datasetDigestSha256: 'b'.repeat(64), calibrationVersion: 'fixture',\n    positiveCount: 1, negativeCount: 1, approved: true },\n  partConfidence: 0.95, occluderConfidence: 0.96,
+  modelVersion: 'fixture-1', calibration: { modelId: 'local-segmenter', modelVersion: 'fixture-1',
+    domain: 'wildlife', datasetDigestSha256: 'b'.repeat(64), calibrationVersion: 'fixture',
+    positiveCount: 1, negativeCount: 1, approved: true },
+  partConfidence: 0.95, occluderConfidence: 0.96,
   domain: 'wildlife', observedParts: parts, foregroundOccluders: occluders,
 });
 
@@ -59,7 +73,8 @@ test('invalid grid and absence of observed changes leave source intact', () => {
 test('cross-genre evidence uses identical conservative mask rules, not wildlife species labels', () => {
   for (const domain of ['wildlife', 'person', 'pet', 'sport', 'macro', 'general'] as const) {
     const mask = createSubjectMask('s', grid({ 1: 255 }), 'frame', 'medium');
-    const e = evidence(grid({ 2: 255 }), grid(), mask.grid.data);\n    const result = refineObservedAnatomy(mask, { ...e, domain, calibration: { ...e.calibration, domain } }, sha, 7);
+    const e = evidence(grid({ 2: 255 }), grid(), mask.grid.data);
+    const result = refineObservedAnatomy(mask, { ...e, domain, calibration: { ...e.calibration, domain } }, sha, 7);
     assert.equal(result.ok, true, domain);
   }
 });
@@ -171,4 +186,16 @@ test('a raw detector score without calibration metadata is not treated as confid
   const e = evidence(grid({ 19: 255 }), grid(), mask.grid.data);
   assert.deepEqual(refineObservedAnatomy(mask, { ...e, calibration: undefined as unknown as AnatomyEvidence['calibration'] }, sha, 7),
     { ok: false, reason: 'uncalibrated-evidence' });
+});
+
+test('self-asserted approval cannot bypass a missing or rejecting signed calibration authority', () => {
+  const mask = createSubjectMask('subject', grid({ 10: 255 }), 'frame', 'high');
+  const observed = evidence(grid({ 19: 255 }), grid(), mask.grid.data);
+  assert.deepEqual(refineWithAuthority(mask, observed, sha, 7, () => false),
+    { ok: false, reason: 'uncalibrated-evidence' });
+  assert.deepEqual(refineWithAuthority(mask, observed, sha, 7, () => { throw Error('invalid signature'); }),
+    { ok: false, reason: 'uncalibrated-evidence' });
+  assert.deepEqual(refineWithAuthority(mask, observed, sha, 7, undefined as unknown as typeof fixtureAuthority),
+    { ok: false, reason: 'uncalibrated-evidence' });
+  assert.equal(atob(mask.grid.data).charCodeAt(19), 0);
 });
