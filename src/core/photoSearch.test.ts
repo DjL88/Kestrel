@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { PhotoFrame } from './types';
 import { parsePhotoSearch, photoSearchableText, retainPhotoSearchEvidence, searchPhotoCollection } from './photoSearch';
+import { filterFrames } from './cullingEngine';
+import { projectSearchText } from './projects';
 
 const at = (year: number, month: number, day = 15) => Date.UTC(year, month - 1, day, 12);
 function photo(id: string, label: string, capturedAtMs?: number): PhotoFrame {
@@ -91,4 +93,30 @@ test('stale frame, invalid source digest, removed photo and older scans cannot o
   assert.strictEqual(retainPhotoSearchEvidence(removed, receipt), removed);
   const indexed = retainPhotoSearchEvidence(current, receipt, checksum);
   assert.strictEqual(retainPhotoSearchEvidence(indexed, { ...receipt, indexedAt: 9 }, checksum), indexed);
+});
+
+
+test('existing photo filter and project index can search agreed OCR and detected subjects', () => {
+  const base = photo('indexed', '', at(2026, 5));
+  const indexed = retainPhotoSearchEvidence(base, {
+    frameId: base.id, sourceStableKey: base.stableKey,
+    modelRevision: 'local-1', indexedAt: 500,
+    ocr: [{ value: 'G-OKES', status: 'agreed' }, { value: 'uncertain-777', status: 'needs-review' }],
+    subjects: [{ value: 'Kingfisher', status: 'supported' }],
+  });
+  const mayBird = photo('other', 'Barn owl', at(2026, 5));
+  assert.deepEqual(filterFrames([mayBird, indexed], 'all', 'Find Kingfisher photos from May').map((p) => p.id), ['indexed']);
+  assert.deepEqual(filterFrames([indexed], 'all', 'G-OKES').map((p) => p.id), ['indexed']);
+  assert.deepEqual(filterFrames([indexed], 'all', 'uncertain-777').map((p) => p.id), []);
+  assert.match(projectSearchText([indexed]), /g-okes/);
+  assert.doesNotMatch(projectSearchText([indexed]), /uncertain-777/);
+});
+
+test('search phrases parse subject/date and do not mistake modal may for a month', () => {
+  const a = parsePhotoSearch('Find Kingfishers from May 2025');
+  assert.deepEqual(a.terms, ['kingfisher']);
+  assert.equal(a.month, 5);
+  assert.equal(a.year, 2025);
+  assert.equal(parsePhotoSearch('Find photos that may contain a plane').month, undefined);
+  assert.equal(parsePhotoSearch('Kingfisher in May only').exactMonthOnly, true);
 });
