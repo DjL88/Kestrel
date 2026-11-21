@@ -33,6 +33,22 @@ async function hashPhoto(blob: Blob, signal: AbortSignal) {
   return sha.digest();
 }
 
+/** Revalidate a linked original after crop drawing, not merely after inference. */
+export async function finalSubjectSourceMatches(
+  original: Blob, originalSha: string, source: SubjectReviewSource, signal: AbortSignal,
+): Promise<boolean> {
+  if (signal.aborted || !source.isCurrent()) return false;
+  try {
+    const latest = await source.read();
+    if (!latest || signal.aborted || !source.isCurrent()) return false;
+    const finalSha = latest === original ? originalSha : await hashPhoto(latest, signal);
+    return !!finalSha && finalSha.toLowerCase() === originalSha.toLowerCase() &&
+      !signal.aborted && source.isCurrent();
+  } catch {
+    return false;
+  }
+}
+
 /** Inspect the current original with the local detector, using its actual pixels
  * and never the review preview. Null is unavailable, [] is a completed scan. */
 export async function reviewPhotoSubjects(
@@ -74,7 +90,7 @@ export async function reviewPhotoSubjects(
     });
     if (!candidates || !current()) return null;
     let remaining = MAX_CROP_BYTES;
-    return candidates.map(({ evidence }) => {
+    const results = candidates.map(({ evidence }) => {
       const item: SubjectReviewItem = { genre: evidence.genre };
       const box = evidence.subjectBox && subjectPixelBounds(width, height, evidence.subjectBox);
       if (!box || box.width * box.height * 4 > remaining || Math.max(box.width, box.height) > 4096)
@@ -88,6 +104,11 @@ export async function reviewPhotoSubjects(
       remaining -= box.width * box.height * 4;
       return { ...item, crop };
     });
+    // Drawing every full-resolution crop can take time on a large shoot.
+    // A linked original replaced during this work must never return stale
+    // subject crops, even if it had passed the detector's earlier SHA checks.
+    if (!await finalSubjectSourceMatches(original, sha, source, signal)) return null;
+    return results;
   } finally {
     bitmap.close();
   }
