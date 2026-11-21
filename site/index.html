@@ -53,6 +53,15 @@
     .picker{display:inline-flex;align-items:center;gap:8px;font-size:.9rem;color:#d3d9e5}.picker select{min-height:40px;padding:6px 10px;border-radius:8px;border:1px solid #5e6270;background:var(--panel);color:inherit;font:inherit}.picker select:focus-visible{outline:3px solid var(--dusk);outline-offset:2px}
     .price{margin:0 0 4px!important;font-size:1.6rem;color:var(--ivory)!important}.price span{font-size:1rem;color:#bfc6d2}.price-tax{font-size:.88rem}.currency{margin-top:16px}
     .buy{border:0;font:inherit;font-weight:700}.buy:disabled{opacity:.7;cursor:default}
+    .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+    .table-wrap{overflow-x:auto;border:1px solid #2c313b;border-radius:14px;margin:0 0 16px}
+    .table-wrap:focus-visible{outline:3px solid var(--dusk);outline-offset:4px}
+    .matrix{border-collapse:collapse;width:100%;min-width:520px;background:var(--panel)}
+    .matrix th,.matrix td{padding:12px 16px;text-align:left;border-bottom:1px solid #2c313b;vertical-align:top}
+    .matrix thead th{background:var(--raised);font-size:.9rem;color:#d3d9e5}
+    .matrix tbody th{font-weight:500;color:var(--ivory)}
+    .matrix tbody tr:last-child :is(th,td){border-bottom:0}
+    .matrix td{white-space:nowrap}
     footer{padding:30px 0;border-top:1px solid #343946;color:#bfc6d2}
     @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
   </style>
@@ -117,11 +126,34 @@
       <article class="card"><h3><span data-i18n="proTitle">Pro</span> <span class="pill" data-i18n="proPill">Planned, not on sale</span></h3>
         <p class="price"><strong id="pro-price">£29</strong> <span data-i18n="priceOnce">one-off</span></p>
         <p class="price-tax" data-i18n="priceTax">Before any local tax. VAT and sales tax will be confirmed before anything goes on sale.</p>
-        <p data-i18n="proBody">Pro is planned to include masks, subject detection, species suggestions and assisted culling. The licence works offline.</p>
+        <p data-i18n="proBody">Pro adds species suggestions, assisted culling and the optional online helper. The licence works offline.</p>
         <button type="button" class="cta buy" disabled data-i18n="buySoon">Available soon</button>
       </article>
     </div>
     <p class="picker currency"><label for="currency-select" data-i18n="currencyLabel">Show prices in</label><select id="currency-select"></select></p>
+  </section>
+  <section id="compare" aria-labelledby="compare-title">
+    <h2 id="compare-title" data-i18n="matrixTitle">What is in Basic and what is in Pro</h2>
+    <div class="table-wrap" tabindex="0" role="region" data-i18n-attr="aria-label:matrixCaption" aria-label="Features in Kestrel Basic and Kestrel Pro">
+      <table class="matrix">
+        <caption class="sr-only" data-i18n="matrixCaption">Features in Kestrel Basic and Kestrel Pro</caption>
+        <thead><tr><th scope="col" data-i18n="matrixFeature">Feature</th><th scope="col" data-i18n="matrixBasic">Basic (free)</th><th scope="col" data-i18n="matrixPro">Pro</th></tr></thead>
+        <tbody>
+        <tr><th scope="row" data-i18n="matrixRowImport">Import from your own drives, folders and network storage</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowCull">Cull and compare by hand: Keep, Reject, side-by-side</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowEdit">Edit light, colour, crop and straighten, with reversible edits</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowMasks">Masks and subject detection on your own device</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowAuto">Natural Auto edit suggestions</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowExport">Full-size export (JPEG, PNG) with an optional watermark</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowBackup">Local backup and restore of your projects</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowKeys">Keyboard shortcuts and macro-pad support</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowSpecies">Species suggestions from an optional on-device model</th><td data-i18n="matrixNo">Not included</td><td data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowAssist">Assisted culling that suggests keepers from each burst</th><td data-i18n="matrixNo">Not included</td><td data-i18n="matrixYes">Included</td></tr>
+        <tr><th scope="row" data-i18n="matrixRowOnline">Optional online helper, used only when you choose</th><td data-i18n="matrixNo">Not included</td><td data-i18n="matrixYes">Included</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note" data-i18n="matrixNote">Basic never expires and needs no account. Pro is a one-off licence for one major version, and works offline. Importing, editing and exporting are never held back, and your originals are never changed in either edition. Pro features marked here are planned for sale; nothing is on sale yet.</p>
   </section>
   <section id="requirements" aria-labelledby="requirements-title">
     <h2 id="requirements-title" data-i18n="reqTitle">System requirements</h2>
@@ -209,21 +241,52 @@
     i18n.bind(link, 'downloadFile', { name: asset.name });
     target.replaceWith(link);
   }
+  // Store links (Google Play, App Store, TestFlight) come from latest.json too, and only from these hosts: a store
+  // listing is the only way to install on iPhone, iPad and (via Play) Android, and never an arbitrary address.
+  const storeHosts = {
+    android: [/^play\.google\.com$/],
+    ios: [/^apps\.apple\.com$/, /^testflight\.apple\.com$/],
+  };
+  function storeLink(platform, address) {
+    let url;
+    try { url = new URL(String(address)); } catch { return null; }
+    if (url.protocol !== 'https:' || url.username || url.password) return null;
+    return (storeHosts[platform] || []).some(host => host.test(url.hostname)) ? url : null;
+  }
+  function showStore(platform, url) {
+    const target = document.getElementById(platform);
+    if (!target || target.tagName === 'A') return false;
+    const link = document.createElement('a');
+    link.className = 'download';
+    link.href = url.href;
+    link.rel = 'noopener';
+    i18n.bind(link, platform === 'ios' && url.hostname === 'testflight.apple.com' ? 'storeTestFlight' : platform === 'ios' ? 'storeAppStore' : 'storePlay');
+    target.replaceWith(link);
+    return true;
+  }
   (async () => {
     const status = document.getElementById('release-status');
     if (DOWNLOADS_LATEST) {
       try {
         const latest = await (await fetch(DOWNLOADS_LATEST, { cache: 'no-store' })).json();
-        // Before the first release, latest.json says so; the cards keep saying "Coming soon".
-        if (latest && latest.status === 'coming-soon') { i18n.bind(status, 'releaseNotYet'); return; }
+        // Store links stand on their own: an app can be in a store before there is any installer file.
+        let stores = 0;
+        for (const platform of Object.keys(storeHosts)) {
+          const url = storeLink(platform, latest && latest.stores && latest.stores[platform]);
+          if (url && showStore(platform, url)) stores += 1;
+        }
         if (latest && Array.isArray(latest.files) && /^\d+\.\d+\.\d+/.test(String(latest.version))) {
           for (const [id, expression] of Object.entries(patterns)) {
+            // Prefer the newest file for each platform; a file may carry its own version when platforms ship separately.
             const file = latest.files.find(candidate => expression.test(candidate.name) && /^https:\/\//.test(candidate.url));
-            if (file) showAsset(id, file);
+            if (file && document.getElementById(id)?.tagName !== 'A') showAsset(id, file);
           }
           i18n.bind(status, 'releaseShowing', { version: String(latest.version) });
           return;
         }
+        // Before the first release, latest.json says so; the cards keep saying "Coming soon".
+        if (stores) { i18n.bind(status, 'releaseStoresOnly'); return; }
+        if (latest && latest.status === 'coming-soon') { i18n.bind(status, 'releaseNotYet'); return; }
       } catch { /* reported below */ }
     }
     i18n.bind(status, DOWNLOADS_LATEST ? 'releaseCheckFailed' : 'releaseNotYet');
