@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import { planCuratedAssets, type CuratorCandidate } from './assetCuration';
 const candidate: CuratorCandidate = {
   id: 'lens-notes', version: '1.0.0', kind: 'knowledge', sha256: 'a'.repeat(64), bytes: 120,
-  licence: 'CC0-1.0', attributionUrl: 'https://example.org/licence', provenance: 'Original Kestrel-authored text',
+  licence: 'CC0-1.0', attributionUrl: 'https://example.org/licence', provenance: 'Original Kite44-authored text',
   rightsReviewer: 'rights-owner', qualityReviewer: 'independent-reviewer',
   rightsApprovedAt: '2026-11-21T00:00:00Z', qualityApprovedAt: '2026-11-21T01:00:00Z',
   evidenceSha256: 'b'.repeat(64),

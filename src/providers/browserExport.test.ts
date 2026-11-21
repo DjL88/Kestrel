@@ -221,7 +221,7 @@ test('export rejects an empty encoded file rather than saving a corrupt master',
   assert.equal(canvas?.height, 0);
 });
 
-test('previewless RAW uses Kestrel sensor development for export, without a second photo app', async (t) => {
+test('previewless RAW uses Kite44 sensor development for export, without a second photo app', async (t) => {
   const previousImage = Object.getOwnPropertyDescriptor(globalThis, 'Image');
   const previousObjectUrl = URL.createObjectURL;
   const previousRevoke = URL.revokeObjectURL;

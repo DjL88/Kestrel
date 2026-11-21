@@ -5,7 +5,7 @@ import type { GuidanceMode } from '../core/guidanceMode';
 type Copy = { title: string; help: string; modes: Record<GuidanceMode, [string, string]> };
 const en: Copy = {
   title: 'Photographic guidance',
-  help: 'Choose how much help Kestrel offers. All changes are reversible.',
+  help: 'Choose how much help Kite44 offers. All changes are reversible.',
   modes: {
     soar: ['Soar', 'Gentle automatic changes only when evidence is strong.'],
     glide: ['Glide', 'Quiet suggestions. You choose what to apply.'],

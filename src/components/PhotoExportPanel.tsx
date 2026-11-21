@@ -98,7 +98,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const [placeTaskId, setPlaceTaskId] = useState<number | null>(null);
   const [openingPlace, setOpeningPlace] = useState(false);
   const placeBusy = openingPlace || placeTaskId !== null;
-  const [chosen, setChosen] = useState<string[]>(() => loadChosen(false));
+  const [chosen, setChosen] = useState<string[]>(() => loadChosen(readView() === 'wizard'));
   const [preferences] = useState(() => readExportPreferences({ getItem: (key) => localStorage.getItem(key) }));
   const [presets, setPresets] = useState(() => readExportPresets({ getItem: (key) => localStorage.getItem(key) }));
   const [presetName, setPresetName] = useState('');
@@ -1142,6 +1142,9 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             </button>
           )}
         </header>
+        {!resultsReady && blocked && mark.on && mark.kind === 'image' && !mark.imageData && (
+          <p role="status" className="px-4 py-2 text-xs text-amber-200">{t.watermark.choosePicture}</p>
+        )}
         {!resultsReady && <ExportProofDock frames={frames} formats={selected} sources={sources} choice={activeProof}
           failedPhotoId={proofLoadFailed} onRetry={() => setProofRetry(value => value + 1)}
           onChoosePhoto={chooseProofPhoto} onChooseDestination={chooseProofFormat} bars={bars} overlay={overlay}

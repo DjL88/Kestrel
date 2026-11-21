@@ -5,7 +5,7 @@ import { plural } from '../../../core/locale';
 /** Danish. DRAFT: written without a native speaker's check. Colour names sit in brackets. */
 export const da: AreaTranslation<typeof source> = {
   title: 'Farvetjek',
-  intro: 'Kestrel navngiver farverne i dette billede og fortæller med ord om alt, der måske ser forkert ud.',
+  intro: 'Kite44 navngiver farverne i dette billede og fortæller med ord om alt, der måske ser forkert ud.',
   checking: 'Tjekker farve…',
   unavailable: 'Farvetjekket er ikke tilgængeligt for dette billede endnu.',
   mainColours: 'Hovedfarver',

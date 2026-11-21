@@ -38,24 +38,24 @@ test('export wizard: platform, size, position, then export', async ({ page }) =>
 
   // 3. Position, with the preview, zoom and turn right there.
   await expect(page.getByRole('region', { name: 'Position' })).toBeVisible();
-  const preview = page.getByRole('img', { name: /as Post · 4:5/ });
+  const preview = page.getByRole('img', { name: /as Post · 4:5/ }).first();
   await expect(preview).toBeVisible();
   await expect.poll(() => preview.evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(0.8);
   const snapshot = await preview.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
   await page.getByRole('checkbox', { name: 'Show text overlay' }).check();
-  await page.getByLabel('Title', { exact: true }).fill('Kestrel at dusk');
+  await page.getByLabel('Title', { exact: true }).fill('Kite44 at dusk');
   await page.getByLabel('Location', { exact: true }).fill('Herefordshire');
   await page.getByLabel('Alignment').selectOption('centre');
   await expect.poll(() => preview.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())).not.toBe(snapshot);
   await page.getByRole('button', { name: /Turn Post · 4:5 on its side/ }).click();
-  await expect.poll(() => page.getByRole('img', { name: /as Post · 5:4/ }).evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(1.25);
+  await expect.poll(() => page.getByRole('img', { name: /as Post · 5:4/ }).first().evaluate((canvas: HTMLCanvasElement) => Number((canvas.width / canvas.height).toFixed(2)))).toBe(1.25);
   await next.click();
 
   // 4. Review, back and forward keep the choices, then export.
   await expect(page.getByRole('heading', { name: 'Ready to export' })).toBeFocused();
   await expect(page.getByRole('region', { name: 'Ready to export' })).toBeVisible();
   await expect(page.getByText('Post · 5:4').locator('visible=true').first()).toBeVisible();
-  await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Kestrel at dusk');
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Kite44 at dusk');
   await page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.getByRole('heading', { name: /^Position/ })).toBeFocused();
   await expect(page.getByRole('region', { name: 'Position' })).toBeVisible();
@@ -317,7 +317,7 @@ test('details overlay: the photo’s own camera and settings are printed on the 
   await page.getByRole('button', { name: 'Instagram' }).click();
   await page.getByRole('checkbox', { name: /Post · 4:5/ }).check();
   await page.getByRole('button', { name: 'Next', exact: true }).click();
-  const picture = page.getByRole('img', { name: /as Post · 4:5/ });
+  const picture = page.getByRole('img', { name: /as Post · 4:5/ }).first();
   const bottomBrightness = () => picture.evaluate((canvas: HTMLCanvasElement) => {
     const c = canvas.getContext('2d')!;
     const d = c.getImageData(0, Math.floor(canvas.height * 0.8), canvas.width, Math.floor(canvas.height * 0.2)).data;
@@ -347,7 +347,7 @@ test('watermark: text and a picture each change the preview, wherever they are p
   await page.getByRole('button', { name: 'Instagram' }).click();
   await page.getByRole('checkbox', { name: /Post · 4:5/ }).check();
   await page.getByRole('button', { name: 'Next', exact: true }).click();
-  const preview = page.getByRole('img', { name: /as Post · 4:5/ });
+  const preview = page.getByRole('img', { name: /as Post · 4:5/ }).first();
   await expect(preview).toBeVisible();
   const mark = page.getByRole('group', { name: 'Watermark' });
   const picture = () => preview.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
@@ -355,7 +355,7 @@ test('watermark: text and a picture each change the preview, wherever they are p
 
   await mark.getByRole('checkbox', { name: 'Add a watermark' }).check();
   await expect(page.getByText('Type some text to see the watermark.')).toBeVisible();
-  await mark.getByLabel('Text', { exact: true }).fill('© Kestrel');
+  await mark.getByLabel('Text', { exact: true }).fill('© Kite44');
   await expect.poll(picture).not.toBe(plain);
   const bottomRight = await picture();
   await mark.getByLabel('Position').selectOption('top-left');
@@ -375,7 +375,7 @@ test('watermark: text and a picture each change the preview, wherever they are p
   await expect.poll(picture).not.toBe(withText);
 });
 
-test('watermark settings are remembered the next time Kestrel opens', async ({ page }) => {
+test('watermark settings are remembered the next time Kite44 opens', async ({ page }) => {
   await page.goto('/');
   const png = await page.evaluate(() => {
     const canvas = document.createElement('canvas'); canvas.width = 300; canvas.height = 200;

@@ -4,7 +4,7 @@ import { assessAutoQuality } from './autoQualityGate';
 import type { LocalEdit, SubjectGrid } from './maskTypes';
 
 /**
- * Kestrel Natural Auto: the one automatic-edit engine for the editor and for batch keepers.
+ * Kite44 Natural Auto: the one automatic-edit engine for the editor and for batch keepers.
  *
  * It replaces the full-frame histogram rules of `autoEnhance` and the AI Studio `studioAutoEnhance` heuristic with
  * measurements of what matters in a wildlife photograph:
@@ -62,7 +62,7 @@ export interface NaturalAutoResult {
   subjectEdit: LocalEdit | null;
   notes: string[];
   scene: SceneReport;
-  /** True when Kestrel decided the photo already works and suggests nothing. */
+  /** True when Kite44 decided the photo already works and suggests nothing. */
   abstained: boolean;
 }
 
@@ -431,7 +431,7 @@ export function naturalAuto(input: NaturalAutoInput): NaturalAutoResult {
   const globalChanged = Object.values(edit).some((v) => v !== 0);
   const localChanged = Object.keys(subjectEdit).length > 0;
   const abstained = !globalChanged && !localChanged;
-  if (abstained) notes.push('This photo already works, so Kestrel leaves it as it is.');
+  if (abstained) notes.push('This photo already works, so Kite44 leaves it as it is.');
   return { edit, subjectEdit: localChanged ? subjectEdit : null, notes, scene, abstained };
 }
 
@@ -570,6 +570,6 @@ export function stageNaturalRecipe(
 export function describeOutcome(outcome: StagedOutcome, reason: string): string {
   if (outcome === 'full') return 'Checked: no new clipping, colour shift or background sharpening.';
   if (outcome === 'gentler') return `The full suggestion failed a check (${reason.toLowerCase()}), so a gentler version is offered.`;
-  if (outcome === 'declined') return `Kestrel declined to change this photo: ${reason.toLowerCase()}.`;
+  if (outcome === 'declined') return `Kite44 declined to change this photo: ${reason.toLowerCase()}.`;
   return 'This photo already works, so nothing changes.';
 }

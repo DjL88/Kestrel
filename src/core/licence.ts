@@ -37,7 +37,7 @@ export async function verifyLicence(key: string, publicKey: string = LICENCE_PUB
 }
 
 export const LICENCE_MESSAGES: Record<'format' | 'signature' | 'unsupported', string> = {
-  format: 'That does not look like a Kestrel licence key. Copy it exactly as it was emailed to you.',
+  format: 'That does not look like a Kite44 licence key. Copy it exactly as it was emailed to you.',
   signature: 'That key was not recognised. Check it was copied in full, or contact support with your receipt.',
   unsupported: 'This device cannot check licence keys yet. Update your system or browser, or use the desktop app.',
 };

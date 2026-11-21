@@ -64,7 +64,7 @@ export const it: AreaTranslation<typeof source> = {
     addFailed: 'Impossibile aggiungere le foto.',
     stoppedUnfinished: 'Interrotto prima della fine',
     findingPhotos: 'Ricerca delle foto nella cartella',
-    developingRaw: 'Sviluppo dei file RAW con Kestrel',
+    developingRaw: 'Sviluppo dei file RAW con Kite44',
     developStopped: 'Interrotto; le foto rimaste mantengono l’anteprima della fotocamera.',
     developed: (count) => `${count} sviluppate`,
   },
@@ -77,7 +77,7 @@ export const it: AreaTranslation<typeof source> = {
     addFailed: 'Impossibile aggiungere le foto. Prova a selezionare di nuovo i file.',
     noSupportedPhotos: 'Questa cartella non contiene foto supportate.',
     folderUnreadable: 'Impossibile leggere quella cartella.',
-    oneFolderPerProject: 'Tieni ogni cartella in un progetto a sé, così Kestrel può ricollegarla in sicurezza.',
+    oneFolderPerProject: 'Tieni ogni cartella in un progetto a sé, così Kite44 può ricollegarla in sicurezza.',
     folderAddFailed: 'Impossibile aggiungere la cartella. Prova a selezionarla di nuovo.',
     folderUnreadableTryFiles: 'Impossibile leggere la cartella. Prova a selezionare dei file.',
   },
@@ -104,7 +104,7 @@ export const it: AreaTranslation<typeof source> = {
     status: (folder, count) => `Cartella «${folder}» sotto controllo · ${plural(count, { one: `${count} nuova foto aggiunta`, other: `${count} nuove foto aggiunte` })}`,
   },
   paid: {
-    dialogLabel: (feature) => `${feature} fa parte di Kestrel Pro`,
+    dialogLabel: (feature) => `${feature} fa parte di Kite44 Pro`,
     autoCullPitch: 'Un aiuto per scegliere i tuoi scatti migliori.',
     close: 'Chiudi',
   },
@@ -119,8 +119,8 @@ export const it: AreaTranslation<typeof source> = {
   },
   notices: {
     temporaryOriginals: (count) => plural(count, {
-      one: 'Kestrel non è riuscito a conservare un originale per la prossima apertura. Puoi usarlo adesso. Conserva il tuo file originale: potresti doverlo selezionare di nuovo dopo la riapertura. I backup del progetto non includono le foto originali.',
-      other: `Kestrel non è riuscito a conservare ${count} originali per la prossima apertura. Puoi usarli adesso. Conserva i tuoi file originali: potresti doverli selezionare di nuovo dopo la riapertura. I backup del progetto non includono le foto originali.`,
+      one: 'Kite44 non è riuscito a conservare un originale per la prossima apertura. Puoi usarlo adesso. Conserva il tuo file originale: potresti doverlo selezionare di nuovo dopo la riapertura. I backup del progetto non includono le foto originali.',
+      other: `Kite44 non è riuscito a conservare ${count} originali per la prossima apertura. Puoi usarli adesso. Conserva i tuoi file originali: potresti doverli selezionare di nuovo dopo la riapertura. I backup del progetto non includono le foto originali.`,
     }),
     dismiss: 'Chiudi',
   },
@@ -193,7 +193,7 @@ export const it: AreaTranslation<typeof source> = {
     remove: {
       title: 'Togliere dalla libreria?',
       confirm: 'Togli dalla libreria',
-      disappears: (name) => `${name} sparirà dalle viste, dai conteggi e dalle esportazioni di Kestrel.`,
+      disappears: (name) => `${name} sparirà dalle viste, dai conteggi e dalle esportazioni di Kite44.`,
       thisPhoto: 'Questa foto',
       notDeleted: 'Il tuo file originale non viene eliminato.',
       bringBack: 'Puoi recuperarla da Opzioni dell’area di lavoro, Foto tolte, oppure con Annulla.',
@@ -201,7 +201,7 @@ export const it: AreaTranslation<typeof source> = {
     autoAdjustKeepers: {
       title: 'Regolare automaticamente le foto da tenere non modificate?',
       confirm: 'Regola foto da tenere',
-      what: 'Kestrel analizzerà su questo dispositivo ogni foto da tenere non modificata e regolerà luce, colore e toni. Le foto già modificate restano invariate.',
+      what: 'Kite44 analizzerà su questo dispositivo ogni foto da tenere non modificata e regolerà luce, colore e toni. Le foto già modificate restano invariate.',
       eligible: (count) => `${photos(count)} da tenere idonee. L’attività si può annullare. Nessuna modifica viene applicata finché l’analisi non finisce.`,
       safe: 'Niente viene caricato online né modificato nei tuoi file originali. Puoi annullare il risultato per ogni foto.',
     },

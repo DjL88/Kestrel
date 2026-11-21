@@ -33,7 +33,7 @@ export const HEALTH_TEXT: Record<Health, { word: string; advice: string }> = {
   unknown: { word: 'Not checked', advice: 'Check the connection.' },
   ok: { word: 'Connected', advice: '' },
   'needs-signin': { word: 'Sign in again', advice: 'The sign-in or keys are no longer accepted. Reconnect to carry on.' },
-  offline: { word: 'Offline', advice: 'Kestrel cannot reach it right now. Check your connection; your work is safe here.' },
+  offline: { word: 'Offline', advice: 'Kite44 cannot reach it right now. Check your connection; your work is safe here.' },
   missing: { word: 'Not found', advice: 'The folder or drive is not there. Plug it in, or choose it again.' },
   error: { word: 'Problem', advice: 'Something is wrong with this connection. Open it to see what.' },
 };

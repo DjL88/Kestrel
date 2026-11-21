@@ -74,7 +74,7 @@ export const it: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Originale non disponibile — ricollega la sua cartella o il suo disco',
     previewUnavailable: 'Anteprima non disponibile',
-    heifUndecodable: 'Kestrel non è riuscito a decodificare questa foto HEIF. L’originale non è stato modificato.',
+    heifUndecodable: 'Kite44 non è riuscito a decodificare questa foto HEIF. L’originale non è stato modificato.',
   },
   info: {
     title: 'Info foto',
@@ -204,6 +204,7 @@ export const it: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Etichettala' : `Etichettale tutte e ${count}`,
     noThanks: 'No, grazie',
     autoTag: 'Etichetta in automatico le corrispondenze sicure',
+    regionLabel: 'Dove fotografi',
     checkNote: 'Controlla le etichette suggerite e automatiche. La sicurezza è relativa ai nomi che questo modello conosce.',
   },
   scanBanner: {

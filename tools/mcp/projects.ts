@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import { parseSnapshot, type ProjectSnapshot, type SyncedPhoto } from '../../src/core/projectSnapshot.ts';
 
 /**
- * What an assistant may see of a Kestrel project, read from the sync folder a person chose to share. It reads only the
- * small project files Kestrel writes there (decisions, ratings, tags, edit settings): never photographs, never the
+ * What an assistant may see of a Kite44 project, read from the sync folder a person chose to share. It reads only the
+ * small project files Kite44 writes there (decisions, ratings, tags, edit settings): never photographs, never the
  * rest of the disk. Anything it wants changed becomes a proposal file the person reviews; nothing is applied for them.
  */
 const SLUG = /^[a-z0-9][a-z0-9-]{0,59}$/;
@@ -12,7 +12,7 @@ const root = (folder: string) => join(folder, 'kestrel', 'v1');
 
 export class McpInputError extends Error {}
 
-const checkSlug = (slug: string) => { if (!SLUG.test(slug)) throw new McpInputError('That is not a project name Kestrel uses.'); return slug; };
+const checkSlug = (slug: string) => { if (!SLUG.test(slug)) throw new McpInputError('That is not a project name Kite44 uses.'); return slug; };
 
 async function load(folder: string, slug: string): Promise<ProjectSnapshot> {
   checkSlug(slug);
