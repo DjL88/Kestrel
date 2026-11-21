@@ -1,5 +1,6 @@
 # Kestrel roadmap
 
+> **21 NOVEMBER 2026 — CURRENT PRODUCT RESET: [From Good to Outstanding](OUTSTANDING-PROGRAMME-2026-11-21.md).** This five-workstream programme defines the new priority order, Free/Pro versioned offline licence direction, Kestrel-owned RAW/model R&D, authentic non-generative AI limits, cross-genre design, end-to-end photographer journey, and each worker's whole-project audit obligation. Keep every unfinished acceptance item below visible; this header does NOT certify implementation. All workers must read the programme, keep implementation versus installed validation distinct, and work on substantial vertical outcomes. The existing taskboard #418 remains the run-level evidence log under integration ownership.\n\n
 **The single roadmap for Kestrel on every platform.** It replaces the earlier roadmaps, next-step lists and audits; [README.md](README.md) says which of those are history.
 
 - [PRODUCT-SPEC.md](PRODUCT-SPEC.md) says *what Kestrel must be*.
