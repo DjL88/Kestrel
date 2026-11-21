@@ -1,9 +1,22 @@
 import type { S3Settings } from '../core/storageConnectors';
 
 const KEY = 'kestrel.cloud.v1';
-// Purge legacy plaintext credentials even when the user never opens cloud settings.
-try { localStorage.removeItem(KEY); } catch { /* storage may be unavailable */ }
-/** Save only in process memory; ignore legacy remember requests. */
+/** Credentials are session-only until an OS keychain integration is available. */
+let session: S3Settings | null = null;
+
+// Remove plaintext credentials left by previous versions even if this form is never opened.
+try { localStorage.removeItem(KEY); } catch { /* browser storage may be unavailable */ }
+
+/** Never reload secrets from persistent browser storage. */
+export function loadCloudSettings(): S3Settings | null {
+  try { localStorage.removeItem(KEY); } catch { /* unavailable */ }
+  return session;
+}
+
+/** Persistent credential remembering is disabled until a native secure store exists. */
+export const isCloudRemembered = () => false;
+
+/** Keep connection credentials only in memory for this session. */
 export function saveCloudSettings(settings: S3Settings, remember: boolean): void {
   session = settings;
   void remember;
