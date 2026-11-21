@@ -943,7 +943,6 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const optionsBlock = (
     <>
       {namingBlock}
-      {!wizard && overlayBlock}
       {metadataBlock}
               <fieldset disabled={progress !== null} className="space-y-2">
                 {anyBars && (
@@ -1154,6 +1153,16 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
         {!resultsReady && frames.some((frame) => !frame.isDemo && isRawPreviewFile(frame.filename) && !provider.isDeveloped(frame.stableKey)) && (
           <p className="mb-2 text-center text-xs text-zinc-300">{t.panel.rawPreview}</p>
         )}
+        {!resultsReady && !wizard && (
+          <div role="tablist" aria-label="Export settings" className="sticky top-0 z-10 flex gap-1 border-b border-white/10 bg-kestrel-raised py-2">
+            <button type="button" role="tab" aria-selected={simpleTab === 'export'}
+              className={`${button} flex-1 aria-selected:bg-white/10 aria-selected:text-white`}
+              onClick={() => setSimpleTab('export')}>Export</button>
+            <button type="button" role="tab" aria-selected={simpleTab === 'advanced'}
+              className={`${button} flex-1 aria-selected:bg-white/10 aria-selected:text-white`}
+              onClick={() => setSimpleTab('advanced')}>Advanced</button>
+          </div>
+        )}
         {resultsReady ? (
           <div className="space-y-3">
             <p role="status" className="text-sm text-zinc-300">
@@ -1208,53 +1217,43 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
             {progress !== null && <progress aria-label={t.panel.progress} className="mt-2 block w-full" value={progress} max={total} />}
           </>
         ) : (
-          <form id="export-form" className="mt-2 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]" onSubmit={(event) => { event.preventDefault(); void prepare(); }}>
-            <fieldset disabled={progress !== null} className="min-w-0 space-y-3">
-              <legend className="mb-1 text-sm font-medium text-zinc-100">{t.list.chooseFormats}</legend>
-              {formatRow(formatById('master')!)}
-              {formatRow(formatById('full-jpeg')!)}
-              {formatRow(formatById('before-after')!)}
-              {PLATFORMS.map((platform) => {
-                const formats = EXPORT_FORMATS.filter((format) => format.platform === platform.id);
-                const count = formats.filter((format) => chosen.includes(format.id)).length;
-                const open = openPlatforms[platform.id] ?? count > 0;
-                return (
-                  <details key={platform.id} open={open} className="rounded-md border border-white/10"
-                    onToggle={(event) => { const now = event.currentTarget.open; if (now !== open) setOpenPlatforms((prior) => ({ ...prior, [platform.id]: now })); }}>
-                    <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-2 text-sm font-medium text-zinc-100 [&::-webkit-details-marker]:hidden">
-                      <SocialIcon id={platform.id} className="h-4 w-4 text-zinc-200" />
-                      <span className="flex-1">{platform.label}</span>
-                      {count > 0 && <span className="rounded-full bg-sky-300/20 px-2 text-xs text-sky-100">{t.list.chosen(count)}</span>}
-                      <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
-                    </summary>
-                    <div className="space-y-1 p-1">{formats.map(formatRow)}</div>
-                  </details>
-                );
-              })}
-              {customBlock}
-              <p className="text-xs text-zinc-400">{t.list.sizesNote}</p>
-            </fieldset>
-
-            <div className="min-w-0 space-y-3">
-              <section aria-label={t.list.previews}>
-                <h3 className="mb-1 text-sm font-medium text-zinc-100">{t.list.preview}</h3>
-                {tiles.length === 0 ? <p className="text-sm text-zinc-400">{t.list.choosePreview}</p> : (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {tiles.map(({ frame, format }) => (
-                      <ExportPreviewTile key={`${frame.id}|${format.id}`} frame={frame} source={sources[frame.id]} format={format} bars={bars}
-                        anchor={anchorFor(frame, format)} onAnchor={(anchor) => setAnchors((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: anchor }))}
-                        zoom={zoomFor(frame, format)} onZoom={(zoom) => setZooms((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))}
-                        platform={format.platform} overlay={overlay} onTurn={() => setTurned((prior) => ({ ...prior, [format.id]: !prior[format.id] }))} />
-                    ))}
+          <form id="export-form" className="mt-2 min-w-0 space-y-3"
+            onSubmit={event => { event.preventDefault(); void prepare(); }}>
+            {simpleTab === 'export' ? (
+              <fieldset disabled={progress !== null} className="min-w-0 space-y-3">
+                <legend className="mb-1 text-sm font-medium text-zinc-100">{t.list.chooseFormats}</legend>
+                <div className="space-y-1.5">
+                  {formatRow(formatById('master')!)}
+                  {formatRow(formatById('full-jpeg')!)}
+                  {formatRow(formatById('before-after')!)}
+                  {originalChoice}
+                </div>
+                <h3 className="text-sm font-medium text-zinc-100">Popular social sizes</h3>
+                <div className="space-y-1.5">
+                  {featuredGroups.map(group => formatRow(group.canonical, group))}
+                </div>
+                <details className="rounded-md border border-white/10 p-2">
+                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-zinc-200">More sizes</summary>
+                  <div className="space-y-1.5 pt-2">
+                    {otherGroups.map(group => formatRow(group.canonical, group))}
+                    {customBlock}
                   </div>
-                )}
-                {hiddenTiles > 0 && <p className="mt-1 text-xs text-zinc-400">{t.list.hiddenTiles(tiles.length, hiddenTiles)}</p>}
+                </details>
+                <p className="text-xs text-zinc-400">
+                  Identical sizes use one image for all the platforms shown beside them. A different crop or quality is kept separate.
+                </p>
+                {destinationActions}
+              </fieldset>
+            ) : (
+              <section aria-label="Advanced export settings" className="space-y-3">
+                <h3 className="text-sm font-medium text-zinc-100">Text, watermark and finishing options</h3>
+                {overlayBlock}
+                {optionsBlock}
+                {presetsBlock}
+                {rawMasterChoice}
               </section>
-              {optionsBlock}
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              {progress !== null && <progress aria-label={t.panel.progress} className="block w-full" value={progress} max={total} />}
-            </div>
+            )}
+            {progress !== null && <progress aria-label={t.panel.progress} className="block w-full" value={progress} max={total} />}
           </form>
         )}
         {error && <p role="alert" className="mt-2 text-sm text-orange-200">{error}</p>}
