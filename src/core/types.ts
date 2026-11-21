@@ -1,4 +1,5 @@
 import type { FocusPoint } from './exportFraming';
+import type { PhotoSearchEvidence } from './photoSearch';
 import type { EditHistory } from './editHistory';
 import type { PhotoFraming } from './photoFraming';
 import type { PhotoEdit } from './photoEdits';
@@ -74,6 +75,8 @@ export interface PhotoFrame {
   subjectNames?: string[];
   /** Labels such as a species, kept with the photo so projects can be searched by them. Always a suggestion the user can edit. */
   tags?: string[];
+  /** Quiet local OCR and corroborated subject evidence. Separate from the photographer's tags and camera EXIF. */
+  searchEvidence?: PhotoSearchEvidence;
   /** What the photo is mainly of, chosen by the user. */
   subjectKind?: import('./subjectTags').SubjectKind;
   /** Set when two independent readings of the photo (scene reading and object detector) disagreed about its subject, for
