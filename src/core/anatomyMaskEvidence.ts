@@ -10,6 +10,8 @@ export interface AnatomyEvidence {
   framingKey: string;
   /** Exact base grid this asynchronous proposal analysed (no cross-revision replacement). */
   baseGridData: string;
+  /** Exact editable mask state when inference began, including brush and edits. */
+  baseMaskSnapshot: string;
   /** Monotonically increasing edit recipe revision captured before inference. */
   recipeRevision: number;
   modelId: string;
@@ -47,6 +49,12 @@ export type AnatomyResult =
 
 const digest = /^[a-f0-9]{64}$/i;
 const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+/** Deterministic snapshot for a bounded mask recipe. Capture before local inference;
+ * any brush, limit, feather, detail or local edit change invalidates the proposal.
+ * Never use this as an original-file identity or cryptographic source digest. */
+export function captureAnatomyMaskSnapshot(mask: Extract<Mask, { kind: 'subject' }>): string {
+  return JSON.stringify(mask);
+}
 const validConfidence = (v: number) => Number.isFinite(v) && v >= 0 && v <= 1;
 function bytes(grid: SubjectGrid): Uint8Array | null {
   if (!Number.isInteger(grid.w) || !Number.isInteger(grid.h) || grid.w < 8 || grid.h < 8 ||
@@ -87,7 +95,9 @@ export function refineObservedAnatomy(
   if (!Number.isSafeInteger(currentRecipeRevision) || currentRecipeRevision < 0 ||
       !Number.isSafeInteger(evidence.recipeRevision) || evidence.recipeRevision < 0 ||
       evidence.recipeRevision !== currentRecipeRevision ||
-      evidence.baseGridData !== mask.grid.data)
+      evidence.baseGridData !== mask.grid.data ||
+      typeof evidence.baseMaskSnapshot !== 'string' ||
+      evidence.baseMaskSnapshot !== captureAnatomyMaskSnapshot(mask))
     return { ok: false, reason: 'stale-recipe' };
   const calibration = evidence.calibration;
   // A bare detector score is never a calibrated probability. Reject missing,
