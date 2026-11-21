@@ -1208,7 +1208,8 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               anchorFor={anchorFor} onAnchor={(frame, format, anchor) => setAnchors((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: anchor }))}
               zoomFor={zoomFor} onZoom={(frame, format, zoom) => setZooms((prior) => ({ ...prior, [`${frame.id}|${format.id}`]: zoom }))}
               onTurn={(id) => setTurned((prior) => ({ ...prior, [id]: !prior[id] }))} overlay={overlay} overlaySlot={overlayBlock} reviewSlot={optionsBlock}
-              busy={progress !== null} total={total} progress={progress} blocked={blocked} onPrepare={() => void prepare()} />
+              busy={progress !== null} total={total} progress={progress} blocked={blocked} onPrepare={() => void prepare()}
+              onSaveOriginal={() => void saveUnchangedOriginals()} originalUnavailable={saving || placeBusy || frames.some(frame => frame.isDemo)} />
             {progress !== null && <progress aria-label={t.panel.progress} className="mt-2 block w-full" value={progress} max={total} />}
           </>
         ) : (
