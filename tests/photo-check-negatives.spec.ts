@@ -118,20 +118,22 @@ test('Fly Solo makes no check until the photographer asks, then does exactly tha
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   const all = page.getByRole('button', { name: 'All controls' });
   if (await all.isVisible()) await all.click();
+  // Before it is asked, Fly Solo shows one quiet button and nothing else: no panel, no reading, no checking state.
+  const ask = page.getByRole('button', { name: 'Check my photo' });
   const panel = page.getByRole('region', { name: 'Photo check' });
-  await expect(panel).toBeVisible({ timeout: 30_000 });
+  await expect(ask).toBeVisible({ timeout: 30_000 });
 
   // Long enough for the unobtrusive after-idle check of Glide to have run, were it going to.
-  const seen = new Set<string>();
+  let sawPanel = false;
   const end = Date.now() + 20_000;
   while (Date.now() < end) {
-    seen.add((await panel.getAttribute('data-photo-model-status')) ?? 'none');
+    if (await panel.count()) sawPanel = true;
     await page.waitForTimeout(500);
   }
-  expect([...seen], 'Fly Solo must never start a check by itself').not.toContain('checking');
-  await expect(panel).not.toContainText('Scene:');
+  expect(sawPanel, 'Fly Solo must not start a check or show a reading by itself').toBe(false);
+  await expect(ask).toBeVisible();
 
-  await panel.getByRole('button', { name: 'Check my photo' }).click();
+  await ask.click();
   await expect(panel).toContainText('Scene:', { timeout: 240_000 });
   files.close();
 });
