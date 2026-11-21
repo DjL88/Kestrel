@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { blendMaskEdges, reviewMaskBlend } from './maskBlendAdvice';
+import { blendMaskEdges, inspectMaskBoundary, reviewMaskBlend } from './maskBlendAdvice';
 import { createSubjectMask, createMask } from './maskTypes';
 
 const grid = { w: 8, h: 8, data: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==' };
@@ -27,4 +27,26 @@ test('manual brush strokes remain intact and non-subject radial masks are not ch
   assert.deepEqual(blendMaskEdges(mask).strokes, mask.strokes);
   const radial = createMask('radial', 'radius');
   assert.equal(blendMaskEdges(radial), radial);
+});
+
+test('boundary evidence compares locally edited pixels against the same global render', () => {
+  const width = 40, height = 40;
+  const global = new Uint8ClampedArray(width * height * 4);
+  const adjusted = new Uint8ClampedArray(width * height * 4);
+  const alpha = new Float32Array(width * height);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const p = y * width + x;
+    const a = x < 20 ? 1 : 0;
+    alpha[p] = a;
+    for (let c = 0; c < 3; c++) {
+      global[p * 4 + c] = 100;
+      adjusted[p * 4 + c] = 100 + 60 * a;
+    }
+    global[p * 4 + 3] = adjusted[p * 4 + 3] = 255;
+  }
+  const evidence = inspectMaskBoundary(global, adjusted, alpha, width, height);
+  assert.ok(evidence);
+  assert.ok(evidence.possibleHardEdge, 'large additional contrast across an abrupt subject boundary');
+  assert.equal(inspectMaskBoundary(global, global, alpha, width, height)?.possibleHardEdge, false);
+  assert.equal(inspectMaskBoundary(global, adjusted, alpha, 2, height), null, 'invalid/undersized preview refuses fake evidence');
 });
