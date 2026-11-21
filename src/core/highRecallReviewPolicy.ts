@@ -95,8 +95,8 @@ export function recommendForReview(items: readonly ReviewCandidate[]): ReviewSug
     // a higher established overall-quality score or a manual decision.
     if (!previous || (item.quality as number) > previous.quality ||
         ((item.quality as number) === previous.quality &&
-          (detail !== null && previous.detail !== null && detail > previous.detail ||
-            (detail === previous.detail || detail === null || previous.detail === null) && item.id < previous.id))) {
+          ((detail ?? -1) > (previous.detail ?? -1) ||
+            (detail === previous.detail && item.id < previous.id)))) {
       best.set(key, { id: item.id, quality: item.quality as number, detail });
     }
   }
