@@ -68,7 +68,7 @@ export function Splash() {
 
   if (!open) return null;
   return (
-    <div data-testid="splash" aria-hidden="true" className="fixed inset-0 z-[1000] grid place-items-center bg-kestrel-canvas"
+    <div data-testid="splash" aria-hidden="true" className="fixed inset-0 z-[1000] grid place-items-center bg-[#1c2027]"
       style={{ opacity: leaving ? 0 : 1, transition: reduced ? undefined : `opacity ${FADE_MS}ms ease-out` }}>
       {animation ? (
         <svg viewBox={`0 0 ${animation.width} ${animation.height}`} className="h-[min(56vmin,18rem)] w-[min(56vmin,18rem)]">

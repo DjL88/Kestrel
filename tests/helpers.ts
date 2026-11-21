@@ -8,19 +8,13 @@ const usesSheet = (page: Page) => {
 
 /** Opens the export dialog from the editor. */
 export async function openExportDialog(page: Page) {
-  if (usesSheet(page)) {
-    await page.getByRole('tab', { name: 'Export' }).click();
-    await page.getByRole('button', { name: 'Choose formats and export…' }).click();
-  } else {
-    await page.getByRole('button', { name: 'Export', exact: true }).click();
-  }
+  // Export is the header button on every screen; the phone's tab bar keeps only editing tabs.
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
 }
 
 /** The control that opened the export dialog, which should get focus back when it closes. */
 export function exportOpener(page: Page) {
-  return usesSheet(page)
-    ? page.getByRole('button', { name: 'Choose formats and export…' })
-    : page.getByRole('button', { name: 'Export', exact: true });
+  return page.getByRole('button', { name: 'Export', exact: true });
 }
 
 /**

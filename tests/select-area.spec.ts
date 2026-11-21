@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+test.skip(({ viewport }) => (viewport?.width ?? 1280) < 600, 'Select area (drag a box) is hidden on phones: it is not a finger gesture');
+
 test('select area finds a subject inside the dragged box and keeps the mask inside it', async ({ page }) => {
   await page.goto('/');
   // A photo with one clear subject on the right and a distracting blob on the left.
