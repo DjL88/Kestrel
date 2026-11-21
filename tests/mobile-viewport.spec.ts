@@ -78,6 +78,17 @@ test('phone layouts stay inside the device viewport in portrait and landscape', 
     await expect(button).toBeFocused();
   };
   await checkExport('footer');
+  // At 799px Review must still use its compact footer, matching the editor sheet.
+  await page.setViewportSize({ width: 799, height: 700 });
+  await checkViewport('Foldable Review');
+  await checkExport('footer');
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  const foldableFileMenu = page.locator('#workspace-options');
+  await expect(foldableFileMenu).toBeVisible();
+  await expect(foldableFileMenu.getByRole('button', { name: 'Save ratings and tags (XMP)…' })).toBeVisible();
+  await expect(foldableFileMenu.getByRole('button', { name: /Import.*XMP/i })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 390, height: 700 });
 
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(page.getByRole('toolbar', { name: 'Editor actions' })).toBeVisible();
