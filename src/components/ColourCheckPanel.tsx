@@ -161,7 +161,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
                     <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                     <span><strong className="font-semibold">{label}</strong> {said.text}{said.extra ? ` ${said.extra}` : ''}</span>
                   </p>
-                  {said.fix && !disabled && (
+                  {said.fix && (
                     <button type="button" className="ml-5 min-h-9 rounded-md border border-white/15 px-2 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300"
                       onClick={() => { onEdit(applyFix(edit, { kind: 'global', delta: said.fix!.delta })); setApplied(true); }}>
                       {said.fix.label}
