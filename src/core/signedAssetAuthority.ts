@@ -35,7 +35,7 @@ const decoder = new TextDecoder('utf-8', { fatal: true });
 const record = (v: unknown): v is Record<string, unknown> =>
   v !== null && typeof v === 'object' && !Array.isArray(v);
 const hash = async (bytes: Uint8Array): Promise<string> =>
-  Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
+  Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as BufferSource)),
     x => x.toString(16).padStart(2, '0')).join('');
 
 function parseAsset(v: unknown): ApprovedAsset {
@@ -80,7 +80,7 @@ export function createSignedAssetAuthority(policy: SignedAssetPolicy):
       const key = policy.keys.get(envelope.keyId);
       if (!key || key.type !== 'public' || key.algorithm.name !== 'Ed25519' ||
           !key.usages.includes('verify') ||
-          !await crypto.subtle.verify('Ed25519', key, envelope.signature, envelope.payload))
+          !await crypto.subtle.verify('Ed25519', key, envelope.signature as BufferSource, envelope.payload as BufferSource))
         throw new Error('Untrusted asset catalogue signature');
       const data: unknown = JSON.parse(decoder.decode(envelope.payload));
       if (!record(data) || data.schema !== 1 ||
