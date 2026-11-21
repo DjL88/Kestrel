@@ -101,10 +101,21 @@ test('install the on-device model with consent, check a real photo, apply, undo,
   await expect(reopened.getByRole('button', { name: 'Install photo check' })).toHaveCount(0);
   expect(downloads).toEqual([]);
 
-  // Network off: the check runs again from the verified local files. Changing the recipe makes the old reading stale.
+  // Network off: intentionally change the edit AFTER disconnecting. A test
+  // that merely waits for an old "Scene:" line could pass without running the
+  // offline model even once. Changing the recipe invalidates that old result.
   await context.setOffline(true);
   outside.length = 0;
+  const offlineExposure = page.getByRole('slider', { name: 'Exposure' });
+  const startingValue = await offlineExposure.inputValue();
+  await offlineExposure.focus();
+  await offlineExposure.press('ArrowRight');
+  await expect(offlineExposure).not.toHaveValue(startingValue);
+  await expect(reopened).not.toContainText('Scene:');
+  const offlineStart = Date.now();
+  await expect(reopened).toContainText('Checking…', { timeout: 30_000 });
   await expect(reopened).toContainText('Scene:', { timeout: 240_000 });
+  console.log(`PHOTO-CHECK fresh OFFLINE inference: ${Date.now() - offlineStart} ms`);
   expect(outside, 'no request left this computer').toEqual([]);
   expect(downloads).toEqual([]);
 });
