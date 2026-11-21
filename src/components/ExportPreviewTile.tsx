@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { Minus, Plus, RectangleHorizontal } from 'lucide-react';
+import { Minus, Plus, RectangleHorizontal } from './icons/KestrelUIIcons';
 import { canTurn, framingFor, shapeLabel, toProfile, type BarStyle, type ExportFormat } from '../core/exportFormats';
 import { MAX_ZOOM, clampAnchor, clampZoom, planExportFraming, type FocusPoint } from '../core/exportFraming';
 import { DEFAULT_FRAMING, framedSize } from '../core/photoFraming';
