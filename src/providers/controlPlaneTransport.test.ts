@@ -43,3 +43,35 @@ test('server refusals become the helper states the app already shows', async () 
   assert.equal(await ask(503, 'AI_DISABLED'), 'other');
   assert.equal(await ask(200), 'other', 'a 200 that is not a helper answer is not used');
 });
+
+test('suggest reaches the managed slider-suggestion route with the same auth and re-checks the proposal', async () => {
+  let sent: { url: string; init: RequestInit } | null = null;
+  const transport = controlPlaneTransport('https://cp.example', () => 'token-1', async (url, init) => {
+    sent = { url: String(url), init: init! };
+    return new Response(JSON.stringify({ proposal: { exposure: 0.3, invented: 9 }, alreadyBalanced: false }), { status: 200 });
+  });
+  const proposal = await transport.suggest(clean);
+  assert.equal(sent!.url, 'https://cp.example/v1/ai/suggest');
+  assert.equal((sent!.init.headers as Record<string, string>).authorization, 'Bearer token-1');
+  assert.deepEqual(proposal, { exposure: 0.3 }, 'an unknown slider from the server is dropped too');
+});
+
+test('verifyColour reaches the managed colour-grade route and keeps the answer bounded', async () => {
+  let sent: { url: string; init: RequestInit } | null = null;
+  const transport = controlPlaneTransport('https://cp.example', () => 'token-1', async (url, init) => {
+    sent = { url: String(url), init: init! };
+    return new Response(JSON.stringify({ plausible: false, concerns: ['skinTone', 'clipping', 'other'], note: 'Shadows lean green.' }), { status: 200 });
+  });
+  const answer = await transport.verifyColour(clean);
+  assert.equal(sent!.url, 'https://cp.example/v1/ai/verify-colour');
+  assert.deepEqual(answer, { plausible: false, concerns: ['skinTone', 'clipping'], note: 'Shadows lean green.' }, 'capped at two concerns, as the server itself already enforces');
+});
+
+test('suggest and verifyColour fail closed the same way identify does: no session, bad answer, or a refusal', async () => {
+  const fetcher = async () => { throw new Error('must not be called'); };
+  assert.equal(await failureOf(controlPlaneTransport('https://cp.example', () => null, fetcher).suggest(clean)), 'auth');
+  assert.equal(await failureOf(controlPlaneTransport('https://cp.example', () => null, fetcher).verifyColour(clean)), 'auth');
+  assert.equal(await failureOf(controlPlaneTransport('https://cp.example', () => 't', reply(200, { proposal: 'not an object' })).suggest(clean)), 'other');
+  assert.equal(await failureOf(controlPlaneTransport('https://cp.example', () => 't', reply(200, { plausible: 'not a boolean' })).verifyColour(clean)), 'other');
+  assert.equal(await failureOf(controlPlaneTransport('https://cp.example', () => 't', reply(403, { error: { code: 'AI_NOT_ENTITLED' } })).suggest(clean)), 'auth');
+});
