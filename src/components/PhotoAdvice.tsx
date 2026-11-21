@@ -164,7 +164,8 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVe
   const next = action.tryThis ? describe(action.tryThis) : null;
   const reason = advice.issues.find((issue) => t.advice.notes[issue]);
   return (
-    <section aria-label={t.advice.region} className="space-y-1 border-t border-white/10 px-1 py-1 text-xs text-zinc-200">
+    <section aria-label={t.advice.region} className="space-y-1 border-t border-white/10 px-1 py-1 text-xs text-zinc-200"
+      data-photo-model-status={phase === 'idle' ? (facts ? 'checked' : installed ? 'ready' : 'not-installed') : phase}>
       <div className="flex min-h-9 flex-wrap items-center gap-2">
         <span role="status" className="inline-flex items-center gap-1 font-medium"><Icon className="h-3.5 w-3.5" aria-hidden="true" />{t.advice.verdict[advice.verdict]}</span>
         {reason && advice.verdict !== 'good' && <span className="text-zinc-400">{t.advice.notes[reason]}</span>}
