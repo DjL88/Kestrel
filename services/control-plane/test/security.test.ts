@@ -17,7 +17,7 @@ import { fakeProvider, image, startHarness, type Harness } from './helpers.ts';
 
 let h: Harness;
 const provider = fakeProvider();
-before(async () => { h = await startHarness(provider); });
+before(async () => { h = await startHarness(provider); await h.app.store.setAiConsent(h.user.accountId, true); });
 after(async () => { await h.close(); });
 
 const webhook = (body: object, secret = h.app.config.webhookSecret, at = h.clock.now) => {
@@ -96,6 +96,7 @@ test('7. malformed or out-of-range upstream answers are rejected or clamped, nev
     suggest: async () => JSON.stringify({ exposure: 99, shadows: -50, denoise: -1, deleteOriginal: true, pixels: [1, 2, 3], warmth: 'hot' }),
   }));
   try {
+    await broken.app.store.setAiConsent(broken.user.accountId, true);
     const identifyResponse = await broken.call('POST', '/v1/ai/identify', { token: broken.user.token, body: { image: image(), userConsent: true } });
     assert.equal(identifyResponse.status, 502);
     assert.equal(identifyResponse.body.error.code, 'AI_UPSTREAM_MALFORMED');
@@ -111,6 +112,7 @@ test('7. malformed or out-of-range upstream answers are rejected or clamped, nev
 test('8. ten concurrent requests against one remaining unit: exactly one succeeds, nine get 429', async () => {
   const race = await startHarness(fakeProvider({ identify: () => new Promise((resolve) => setTimeout(() => resolve(JSON.stringify({ kind: 'wildlife', species: null, confidence: 'low', tags: [] })), 30)) }));
   try {
+    await race.app.store.setAiConsent(race.user.accountId, true);
     const set = await race.call('POST', '/v1/admin/ai/quota', { token: race.adminToken, body: { accountId: race.user.accountId, requestsLimit: 1 } });
     assert.equal(set.status, 200);
     const results = await Promise.all(Array.from({ length: 10 }, () =>

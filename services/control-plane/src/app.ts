@@ -310,6 +310,11 @@ export function createApp(options: AppOptions) {
     const claims = await bearer(req);
     const body = parseJson(Schemas.ImageRequest, req.rawBody);
     if (body.userConsent !== true) throw new ApiError(400, 'CONSENT_REQUIRED', 'Kestrel needs your permission before sending a photo.');
+    // A per-request click cannot override the account's separately revocable, default-off
+    // managed-AI preference. Check the live store for every request (never a cached token
+    // claim) before decoding, reserving quota or invoking the network provider.
+    const account = await store.getAccount(claims.sub);
+    if (account?.aiConsent !== true) throw new ApiError(403, 'AI_CONSENT_REQUIRED', 'Turn on the online AI helper in your account settings before sending a photo.');
     decodeImage(body.image);
     if ((await store.getSetting('ai_disabled')) === '1') throw new ApiError(503, 'AI_DISABLED', 'The online helper is switched off for now.', true);
     if (!provider) throw new ApiError(503, 'AI_NOT_CONFIGURED', 'The online helper is not set up on this server.');
