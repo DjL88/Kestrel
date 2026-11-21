@@ -22,7 +22,7 @@ export interface AnatomyEvidence {
 
 export type AnatomyResult =
   | { ok: true; mask: Extract<Mask, { kind: 'subject' }>; reason: 'observed-refinement' }
-  | { ok: false; reason: 'unverified-source' | 'uncalibrated-evidence' | 'invalid-grid' | 'no-change' };
+  | { ok: false; reason: 'unverified-source' | 'uncalibrated-evidence' | 'invalid-grid' | 'conflicting-evidence' | 'excessive-change' | 'no-change' };
 
 const digest = /^[a-f0-9]{64}$/i;
 const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
@@ -72,14 +72,31 @@ export function refineObservedAnatomy(
     return { ok: false, reason: 'invalid-grid' };
   const revised = new Uint8Array(base);
   let changed = false;
+  let added = 0;
+  let removed = 0;
+  let subjectCells = 0;
   for (let i = 0; i < revised.length; i++) {
-    // Conservative high-probability observations, never a class-based shape guess.
+    // These are pixel-wise evidence maps, not an invitation to extrapolate anatomy.
+    // A detector calling the SAME pixel both an appendage and an occluder is
+    // contradictory; never silently pick a winner.
     const part = parts[i] >= 230 ? parts[i] : 0;
     const occlusion = occluders[i] >= 230 ? occluders[i] : 0;
+    if (part && occlusion) return { ok: false, reason: 'conflicting-evidence' };
+    if (base[i] >= 128) subjectCells++;
     const next = clamp(Math.max(base[i], part) * (1 - occlusion / 255));
-    if (next !== base[i]) { revised[i] = next; changed = true; }
+    if (next !== base[i]) {
+      revised[i] = next;
+      changed = true;
+      if (base[i] < 128 && next >= 128) added++;
+      if (base[i] >= 128 && next < 128) removed++;
+    }
   }
   if (!changed) return { ok: false, reason: 'no-change' };
+  // A small observed foot or foreground branch is plausible; wholesale
+  // replacement of the silhouette is not. Keep the old mask for manual review.
+  const maxChange = Math.max(4, Math.floor(subjectCells / 4));
+  if (added > maxChange || removed > maxChange)
+    return { ok: false, reason: 'excessive-change' };
   return { ok: true, reason: 'observed-refinement',
     mask: { ...mask, grid: { ...mask.grid, data: encode(revised) },
       // Fine detail from the old segmentation is stale after a grid revision.
