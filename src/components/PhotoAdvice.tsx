@@ -94,7 +94,8 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVe
     } catch (error) {
       if (request === requestId.current && !controller.signal.aborted) {
         console.warn('Photo check failed:', error);
-        setPhase('failed');
+        if (!await photoCheckInstalled() && request === requestId.current) setInstalled(false);
+        if (request === requestId.current) setPhase('failed');
       }
     } finally {
       if (checkAbort.current === controller) checkAbort.current = null;
