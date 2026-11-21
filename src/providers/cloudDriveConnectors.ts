@@ -1,8 +1,12 @@
 import { healthFromFailure } from '../core/connections';
+import { isDesktopApp } from './desktopShell';
 import { isInsideExportRoot, isInsideSyncRoot, isWritablePath, type StorageConnector } from '../core/storageConnectors';
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 export interface CloudDeps { getToken: () => Promise<string>; fetchImpl?: FetchLike }
+
+/** The desktop app's own HTTP client has no cross-origin limits; the browser's fetch is used on the web. */
+const plainFetch: FetchLike = async (input, init) => (isDesktopApp() ? ((await import('@tauri-apps/plugin-http')).fetch as FetchLike)(input, init) : fetch(input, init));
 
 export class CloudError extends Error { constructor(message: string, readonly status = 0) { super(message); } }
 
@@ -19,7 +23,7 @@ const guardPath = (path: string, name: string) => { if (!isInsideSyncRoot(path.r
 
 function sender(name: string, deps: CloudDeps) {
   return async (url: string, init: RequestInit = {}): Promise<Response> => {
-    const fetchImpl = deps.fetchImpl ?? ((input: string, i?: RequestInit) => fetch(input, i));
+    const fetchImpl = deps.fetchImpl ?? plainFetch;
     let token: string;
     try { token = await deps.getToken(); } catch (error) { throw new CloudError(error instanceof Error ? error.message : `Sign in to ${name} again.`, 401); }
     try {
@@ -226,7 +230,7 @@ export function oneDriveConnector(deps: CloudDeps): StorageConnector {
       for (let start = 0; start < bytes.byteLength; start += CHUNK) {
         const end = Math.min(start + CHUNK, bytes.byteLength);
         // The session URL is pre-authorised; it must not be sent our bearer token, so it goes through plain fetch.
-        const fetchImpl = deps.fetchImpl ?? ((input: string, i?: RequestInit) => fetch(input, i));
+        const fetchImpl = deps.fetchImpl ?? plainFetch;
         let response: Response;
         try { response = await fetchImpl(uploadUrl, { method: 'PUT', headers: { 'Content-Range': `bytes ${start}-${end - 1}/${bytes.byteLength}` }, body: bytes.slice(start, end) as unknown as BodyInit }); }
         catch { throw new CloudError('Could not reach OneDrive. Check your connection; your work is safe here.'); }

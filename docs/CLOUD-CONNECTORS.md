@@ -2,7 +2,9 @@
 
 **Status (21 Nov 2026):** CODED and unit-tested against fake servers (`src/core/cloudDrive.test.ts`,
 `src/providers/cloudDriveConnectors.test.ts`). NOT VERIFIED against the real services: that needs the three app
-registrations below. Web sign-in only; desktop (Tauri) sign-in needs a loopback listener and is NOT built.
+registrations below. Web sign-in uses a pop-up. Desktop sign-in opens the system browser and catches the redirect on
+`http://localhost:53682/oauth-callback` with a one-shot listener on this computer only (`src-tauri/src/oauth_loopback.rs`,
+4 Rust tests pass with plain `rustc`; the Tauri wrapper in `lib.rs` is NOT compiled yet, see ROADMAP). Phone apps: not built.
 
 ## What the person sees
 Connections → Add a connection → pick the logo → **Sign in with …**. The provider's own page opens in a pop-up; Kestrel never
@@ -18,7 +20,7 @@ All use OAuth 2.0 code + PKCE, so no secret ships in the app (Google "Desktop ap
 Tokens stay on the device. They are removed when the connection is removed.
 
 ## Owner steps (about 10 minutes each)
-Redirect URI for every provider: `https://<your-site>/oauth-callback.html` (and `http://localhost:3000/oauth-callback.html` for development).
+Register **both** redirect URIs with every provider: `https://<your-site>/oauth-callback.html` (web), and `http://localhost:53682/oauth-callback` (desktop app). For development also `http://localhost:3000/oauth-callback.html`.
 
 1. **Dropbox** — https://www.dropbox.com/developers/apps → Create app → *Scoped access* → **App folder** → name it.
    Permissions tab: tick `files.content.read`, `files.content.write`, `account_info.read`, Submit. Settings tab: add the redirect URI.
@@ -36,4 +38,4 @@ Put the ids in the build environment (see `.env.example`). Each id switches on t
 ## Known limits
 - Dropbox single upload is capped at 150 MB (larger originals are refused with a plain message; chunked sessions not built).
 - Public release needs each provider's app review where required (Google verification, Dropbox production approval) and official logo assets in `ProviderIcon.tsx`.
-- Desktop sign-in, NAS auto-discovery and a "Test with real account" Playwright run are the next items.
+- Phone-app sign-in, NAS auto-discovery and a "Test with real account" Playwright run are the next items.

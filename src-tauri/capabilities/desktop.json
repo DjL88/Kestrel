@@ -12,7 +12,12 @@
   ],
   "permissions": [
     "opener:allow-reveal-item-in-dir",
-    { "identifier": "opener:allow-open-url", "allow": [{ "url": "https://kestrel-hosting-kestrel.web.app/#pricing" }] },
+    { "identifier": "opener:allow-open-url", "allow": [
+      { "url": "https://kestrel-hosting-kestrel.web.app/#pricing" },
+      { "url": "https://www.dropbox.com/oauth2/authorize*" },
+      { "url": "https://accounts.google.com/o/oauth2/v2/auth*" },
+      { "url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize*" }
+    ] },
     "updater:default",
     "process:allow-restart"
   ]

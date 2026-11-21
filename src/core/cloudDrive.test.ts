@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { authorizeUrl, challengeFor, CLOUD_DRIVES, exchangeBody, isConfigured, makeVerifier, needsRefresh, parseTokens, refreshBody } from './cloudDrive.ts';
+import { DESKTOP_REDIRECT, parseCallbackQuery, explainSignInError, authorizeUrl, challengeFor, CLOUD_DRIVES, exchangeBody, isConfigured, makeVerifier, needsRefresh, parseTokens, refreshBody } from './cloudDrive.ts';
 
 test('the PKCE challenge matches the RFC 7636 example', async () => {
   assert.equal(await challengeFor('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'), 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
@@ -47,4 +47,13 @@ test('a provider is configured only when a real-looking client id is present', (
   assert.equal(isConfigured(undefined), false);
   assert.equal(isConfigured(''), false);
   assert.equal(isConfigured('abcdefghij'), true);
+});
+
+test('the desktop callback is read only when its state matches', () => {
+  assert.deepEqual(parseCallbackQuery('code=abc&state=s1', 's1'), { code: 'abc', error: null });
+  assert.deepEqual(parseCallbackQuery('?error=access_denied&state=s1', 's1'), { code: null, error: 'access_denied' });
+  assert.deepEqual(parseCallbackQuery('code=abc&state=other', 's1'), { code: null, error: 'state_mismatch' });
+  assert.deepEqual(parseCallbackQuery('code=abc', 's1'), { code: null, error: 'state_mismatch' });
+  assert.match(explainSignInError('state_mismatch'), /ignored/);
+  assert.equal(DESKTOP_REDIRECT, 'http://localhost:53682/oauth-callback');
 });
