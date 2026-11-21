@@ -4,8 +4,7 @@ import { bestTurn } from '../core/orientMatch';
 import type { PhotoEdit } from '../core/photoEdits';
 import { DEFAULT_FRAMING, type PhotoFraming } from '../core/photoFraming';
 import { hasNativeRaw } from './desktopShell';
-import { rawSensorMode, thumbOf } from './rawDevelop';
-import { rawPrecisionEvidence } from './rawPrecisionGate';
+import { requireVerifiedNikonPrecisionMode, thumbOf } from './rawDevelop';
 import { developRaw16InBrowser } from './rawWasm';
 
 /** The RAW file's full-size 16-bit picture from Kestrel's decoder: natively on desktop, WebAssembly elsewhere. */
@@ -30,7 +29,7 @@ export async function exportRaw16Tiff(original: Blob, shown: HTMLImageElement, e
   // Detect Nikon compression before allocating a full-size decoded buffer.
   // The current experimental exporter has no commercial HE/HE* clearance.
   // This is a conservative header check, not proof that every unknown mode is licensed.
-  rawPrecisionEvidence(await rawSensorMode(original, 'source.nef'));
+  await requireVerifiedNikonPrecisionMode(original);
   // This is a freshly developed RGB working ArrayBuffer, not the original
   // RAW file's bytes. It can safely be edited in place on little-endian hosts
   // to avoid a second 270 MB RGB16 allocation for a 45MP image.
