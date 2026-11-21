@@ -12,7 +12,7 @@ use std::mem;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use objc2::runtime::{AnyObject, Sel};
-use objc2::{class, msg_send};
+use objc2::{class, msg_send, Encode, Encoding, RefEncode};
 
 // UIInterfaceOrientationMask bits.
 const PORTRAIT: usize = 1 << 1;
@@ -72,4 +72,45 @@ pub unsafe fn apply(view_controller: *mut AnyObject, landscape_allowed: bool) {
     let preferences: *mut AnyObject = msg_send![allocated, initWithInterfaceOrientations: mask];
     let no_handler: *mut AnyObject = std::ptr::null_mut();
     let _: () = msg_send![scene, requestGeometryUpdateWithPreferences: preferences, errorHandler: no_handler];
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Point { x: f64, y: f64 }
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Size { width: f64, height: f64 }
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Rect { origin: Point, size: Size }
+// SAFETY: these match CoreGraphics' CGPoint, CGSize and CGRect (two f64s each) on 64-bit iOS.
+unsafe impl Encode for Point { const ENCODING: Encoding = Encoding::Struct("CGPoint", &[Encoding::Double, Encoding::Double]); }
+unsafe impl Encode for Size { const ENCODING: Encoding = Encoding::Struct("CGSize", &[Encoding::Double, Encoding::Double]); }
+unsafe impl Encode for Rect { const ENCODING: Encoding = Encoding::Struct("CGRect", &[Point::ENCODING, Size::ENCODING]); }
+unsafe impl RefEncode for Rect { const ENCODING_REF: Encoding = Encoding::Pointer(&Rect::ENCODING); }
+
+/// Make the web view cover the whole window.
+///
+/// The window library sizes the web view down by the top and bottom safe areas but leaves it at the top, so on a phone it
+/// stopped about 96 pt short of the bottom edge (the page measured 778 pt on an 874 pt screen) and the footer floated
+/// above an empty band. The page already pads for the safe areas itself (`env(safe-area-inset-*)`), so the view should
+/// fill the window and follow it when the screen turns.
+///
+/// # Safety
+/// `web_view` must be the live `WKWebView`, and this must run on the main thread (`with_webview` guarantees both).
+pub unsafe fn fill_window(web_view: *mut AnyObject) {
+    if web_view.is_null() {
+        return;
+    }
+    let window: *mut AnyObject = msg_send![web_view, window];
+    if window.is_null() {
+        return;
+    }
+    let bounds: Rect = msg_send![window, bounds];
+    let _: () = msg_send![web_view, setFrame: bounds];
+    // UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight
+    let _: () = msg_send![web_view, setAutoresizingMask: 18usize];
+    // The page does its own safe-area padding, so the scroll view must not add a second inset.
+    let scroll_view: *mut AnyObject = msg_send![web_view, scrollView];
+    let _: () = msg_send![scroll_view, setContentInsetAdjustmentBehavior: 2isize]; // UIScrollViewContentInsetAdjustmentNever
 }
