@@ -35,6 +35,21 @@ Register **both** redirect URIs with every provider: `https://<your-site>/oauth-
 
 Put the ids in the build environment (see `.env.example`). Each id switches on that provider's button; absent ids leave it listed but off.
 
+## Registration status (21 Nov 2026)
+All three apps are registered under the owner's accounts, named "Kite44". The client ids are in the owner's build environment, not in Git. **Still not verified against a real sign-in.**
+
+| Service | Registered as | Redirects registered | Status and limits |
+|---|---|---|---|
+| Dropbox | Scoped access, App folder; `files.content.read/write`, `account_info.read`, `files.metadata.read` | web and `http://localhost:53682/oauth-callback` | Development status, owner only. Needs Dropbox production approval for other users. |
+| Google Drive | Desktop-app OAuth client in the `kestrel-hosting` project, `drive.file` scope, Drive API enabled | Desktop clients take no redirect list; Google accepts any `http://localhost:<port>` loopback | Consent screen in **Testing**: only listed test users, refresh tokens expire after about 7 days. Publish (Branding page first) for real users. |
+| OneDrive | Entra app, "Any Entra ID tenant + personal accounts"; Graph delegated `Files.ReadWrite.AppFolder`, `offline_access` | web as **Single-page application**; loopback as **Mobile and desktop** | A multi-tenant app may need publisher verification for wide use. "Allow public client flows" not yet checked. |
+
+Findings that change the plan above:
+- A Google **Desktop-app** client cannot register the https web redirect, so web pop-up sign-in for Google Drive is expected not to work with it. Options: a second Web-type client, or a control-plane token exchange. Undecided.
+- The Google client secret is shown only once at creation. Keep it in the owner's password manager. It ends up inside the shipped app, so Secret Manager would only be a private record.
+- The loopback redirect is registered under Entra's "Mobile and desktop" platform, not "Single-page", so no Origin header is needed to redeem the code.
+- The development redirect `http://localhost:3000/oauth-callback.html` is not registered with any provider yet.
+
 ## Known limits
 - Dropbox single upload is capped at 150 MB (larger originals are refused with a plain message; chunked sessions not built).
 - Public release needs each provider's app review where required (Google verification, Dropbox production approval) and official logo assets in `ProviderIcon.tsx`.
