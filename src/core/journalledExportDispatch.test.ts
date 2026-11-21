@@ -30,6 +30,7 @@ function harness() {
             if (controller.signal.aborted) return 'cancelled' as const;
             await adapter.save(source, output, controller.signal);
           }
+          await adapter.finalize?.(plan.recipe, controller.signal);
           return 'completed' as const;
         } catch {
           return controller.signal.aborted ? 'cancelled' as const : 'failed' as const;
