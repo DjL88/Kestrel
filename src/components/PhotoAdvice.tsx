@@ -44,16 +44,16 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, disabled
   const [consent, setConsent] = useState(false);
   const [phase, setPhase] = useState<'idle' | 'installing' | 'checking' | 'failed'>('idle');
   const [percent, setPercent] = useState(0);
-  const [found, setFound] = useState<{ key: string; facts: SceneFacts } | null>(null);
+  const scope = useMemo(() => ({ photoKey, version, edit }), [photoKey, version, edit]);
+  const [found, setFound] = useState<{ scope: typeof scope; facts: SceneFacts } | null>(null);
   const autoDone = useRef(new Set<string>());
-  const cancelledFor = useRef(new Set<string>());
+  const cancelledFor = useRef<typeof scope | null>(null);
   const checkAbort = useRef<AbortController | null>(null);
   const installAbort = useRef<AbortController | null>(null);
   const requestId = useRef(0);
-  const recipeKey = `${photoKey}|${version}|${JSON.stringify(edit)}`;
-  const scopeRef = useRef(recipeKey);
-  scopeRef.current = recipeKey;
-  const facts = found?.key === recipeKey ? found.facts : null; // a result for an older picture or recipe is stale and dropped
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+  const facts = found?.scope === scope ? found.facts : null;
 
   useEffect(() => { void photoCheckInstalled().then(setInstalled, () => setInstalled(false)); }, []);
   useEffect(() => { setAsked(false); setUndo(null); setConsent(false); }, [photoKey, mode]);
@@ -62,14 +62,14 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, disabled
     checkAbort.current?.abort();
     checkAbort.current = null;
     setPhase((previous) => previous === 'checking' ? 'idle' : previous);
-  }, [recipeKey, mode]);
+  }, [scope, mode]);
   useEffect(() => () => { requestId.current += 1; checkAbort.current?.abort(); installAbort.current?.abort(); }, []);
 
   const advice = useMemo(() => histogram ? adviseOnPhoto(histogram, edit, contextFrom(facts)) : null, [histogram, edit, facts]);
   const action = advice ? adviceAction(mode, advice, { asked, manuallyRefined: !isNeutralEdit(edit) && !autoDone.current.has(photoKey) }) : null;
 
   function cancel() {
-    cancelledFor.current.add(recipeKey);
+    cancelledFor.current = scope;
     requestId.current += 1;
     checkAbort.current?.abort();
     installAbort.current?.abort();
@@ -77,7 +77,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, disabled
   }
   async function check() {
     if (disabled || phase === 'checking') return;
-    cancelledFor.current.delete(recipeKey);
+    cancelledFor.current = null;
     const preview = readPreview();
     if (!preview) return;
     const controller = new AbortController();
@@ -87,8 +87,8 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, disabled
     setPhase('checking');
     try {
       const result = await runPhotoCheck(preview, controller.signal);
-      if (request === requestId.current && scopeRef.current === recipeKey && !controller.signal.aborted) {
-        setFound({ key: recipeKey, facts: result.facts });
+      if (request === requestId.current && scopeRef.current === scope && !controller.signal.aborted) {
+        setFound({ scope, facts: result.facts });
         setPhase('idle');
       }
     } catch (error) {
@@ -102,11 +102,11 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, disabled
   }
   // Glide and Soar: read the scene once the picture and recipe have been still for a moment. Fly Solo: never unprompted.
   useEffect(() => {
-    if (mode === 'solo' || !installed || disabled || !histogram || found?.key === recipeKey || cancelledFor.current.has(recipeKey) || phase !== 'idle') return;
+    if (mode === 'solo' || !installed || disabled || !histogram || found?.scope === scope || cancelledFor.current === scope || phase !== 'idle') return;
     const timer = window.setTimeout(() => void check(), IDLE_MS);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, installed, disabled, histogram, recipeKey, found, phase]);
+  }, [mode, installed, disabled, histogram, scope, found, phase]);
 
   async function install() {
     const controller = new AbortController();
@@ -124,7 +124,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, disabled
       setInstalled(true); setConsent(false); setPhase('idle');
       // The photographer already pressed Check my photo before choosing Install.
       // Do not run this if they changed to another photo during the download.
-      if (mode === 'solo' && asked && scopeRef.current === recipeKey) void check();
+      if (mode === 'solo' && asked && scopeRef.current === scope) void check();
     } catch (error) {
       if (!controller.signal.aborted) { console.warn('Photo check install failed:', error); setPhase('failed'); }
     } finally {
