@@ -15,7 +15,7 @@ export interface HistogramNote {
   tone: 'good' | 'info' | 'watch';
 }
 
-function summary(h: Histogram) {
+export function histogramSummary(h: Histogram) {
   const total = Math.max(1, h.pixels);
   let sum = 0;
   let shadows = 0;
@@ -49,7 +49,7 @@ const percent = (value: number) => `${(value * 100).toFixed(value < 0.1 ? 1 : 0)
  */
 export function interpretHistogram(h: Histogram): HistogramNote[] {
   if (h.pixels < 100) return [];
-  const s = summary(h);
+  const s = histogramSummary(h);
   const notes: HistogramNote[] = [];
 
   if (h.highlightClip > 0.01) {
