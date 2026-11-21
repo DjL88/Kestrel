@@ -1,6 +1,7 @@
 import { Sha256Stream } from '../core/sha256';
 import { isDesktopApp } from './desktopShell';
 import { getModel, hasModel, putModel, removeModel } from './modelStore';
+import { installedModel } from './modelUpdater';
 import { SPECIES_MODEL, centreSquare, preprocessSpecies } from '../core/speciesModel';
 import { decodeVector, normalise, type SpeciesLabel } from '../core/speciesMatch';
 import { friendlyToolError } from '../core/toolErrors';
@@ -85,9 +86,13 @@ export async function removeSpeciesModel(): Promise<void> {
 
 function loadSession(): Promise<Loaded> {
   loading ??= (async () => {
-    const stored = await getModel(SPECIES_MODEL.cache, SPECIES_MODEL.url);
+    // A same-contract update from the signed manifest (already checked against its signed checksum) comes first.
+    const updated = await installedModel('bioclip-image-int8');
+    const stored = updated ? undefined : await getModel(SPECIES_MODEL.cache, SPECIES_MODEL.url);
     let bytes: Uint8Array;
-    if (stored) {
+    if (updated) {
+      bytes = new Uint8Array(updated.bytes);
+    } else if (stored) {
       bytes = new Uint8Array(await stored.arrayBuffer());
     } else if (isDesktopApp() && SPECIES_MODEL.bundled && SPECIES_MODEL.url) {
       // Native installer ships this asset: resolve it through the app's own
