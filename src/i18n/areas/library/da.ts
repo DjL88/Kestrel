@@ -380,6 +380,7 @@ export const da: AreaTranslation<typeof source> = {
     undockInfoHelp: "Flyt fotooplysninger til et vindue, der kan ændres i størrelse",
     move: (title) => `Flyt ${title} med piletasterne`,
     drag: (title) => `Træk for at flytte ${title}, eller brug piletasterne`,
+    resize: (title) => `Tilpas størrelsen på ${title}: træk eller brug piletasterne`,
     restore: (title) => `Gendan størrelsen på panelet ${title}`,
     maximise: (title) => `Maksimér panelet ${title}`,
     pin: (title) => `Hold ${title} synlig i Kun foto-tilstand`,
