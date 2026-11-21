@@ -24,10 +24,11 @@ test('cancelled requests waiting behind a model do not start another model', asy
   const controller = new AbortController();
   let called = false;
   const cancelled = run(async () => { called = true; return 'never'; }, controller.signal);
+  const rejected = assert.rejects(cancelled, { name: 'AbortError' });
   controller.abort();
   finish();
   assert.equal(await first, 'old');
-  await assert.rejects(cancelled, { name: 'AbortError' });
+  await rejected;
   assert.equal(called, false);
   assert.equal(await run(async () => 'recovered'), 'recovered');
 });
