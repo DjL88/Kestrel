@@ -39,3 +39,32 @@ test('RGB16 and float-tone adapters agree on the same linear-light pixels', () =
   const b = protectedMaskAlphaLinear(0.5, src, 0, linear, 0);
   assert.ok(Math.abs(a - b) < 1e-7);
 });
+
+test('chroma-only bird feather fringe is reduced without reducing the solid centre', () => {
+  // Equal linear luminance but radically different hue: previous tone-only
+  // protection could not see this bright-green contamination.
+  const feather: [number, number, number] = [0.25, 0.25, 0.25];
+  const green: [number, number, number] = [0.05, 0.30956, 0.05];
+  const a = protectedMaskAlpha(0.5, feather, green);
+  assert.ok(a < 0.5 && a >= 0.325, `guarded alpha: ${a}`);
+  assert.equal(protectedMaskAlpha(1, feather, green), 1);
+  assert.equal(protectedMaskAlpha(0, feather, green), 0);
+});
+test('ordinary exposure and gentle colour balance keep the natural transition', () => {
+  const src: [number, number, number] = [0.24, 0.32, 0.43];
+  const gentle: [number, number, number] = [0.26, 0.34, 0.44];
+  assert.equal(protectedMaskAlpha(0.5, src, gentle), 0.5);
+  assert.equal(protectedMaskAlpha(0.25, src, gentle), 0.25);
+});
+test('newly clipped bright sky edge receives bounded attenuation', () => {
+  const src: [number, number, number] = [0.92, 0.94, 0.95];
+  const clipped: [number, number, number] = [1, 0.94, 0.95];
+  const a = protectedMaskAlpha(0.5, src, clipped);
+  assert.ok(a < 0.5 && a >= 0.325);
+  assert.equal(protectedMaskAlpha(1, src, clipped), 1);
+});
+test('near-black colour noise does not trigger an unstable hue guard', () => {
+  const src: [number, number, number] = [0.002, 0.003, 0.001];
+  const dst: [number, number, number] = [0.003, 0.002, 0.001];
+  assert.equal(protectedMaskAlpha(0.5, src, dst), 0.5);
+});
