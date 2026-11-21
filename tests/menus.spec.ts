@@ -59,12 +59,12 @@ test('the editor can go full screen and come back', async ({ page }) => {
     buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
   });
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  const full = page.getByRole('button', { name: 'Full screen' });
-  test.skip(!(await full.count()), 'This browser does not allow full screen');
+  const full = page.locator('[data-filmstrip-dock]').getByRole('button', { name: 'Full screen', exact: true });
+  test.skip(!(await full.count()) || page.viewportSize()!.width < 768, 'This browser does not allow full screen, and phones do not offer it');
   await full.click();
   await expect(page.getByRole('button', { name: 'Leave full screen' })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Leave full screen' }).click();
-  await expect(page.getByRole('button', { name: 'Full screen' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('[data-filmstrip-dock]').getByRole('button', { name: 'Full screen', exact: true })).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('rating filter is one row of stars: tap sets, tap again clears, the symbol flips to exactly', async ({ page }) => {
@@ -189,11 +189,12 @@ test('File, Edit and View organise actions; show/hide controls stay together in 
   await expect(view).toHaveCount(1);
   await view.locator('summary').click();
   await expect(view.getByRole('checkbox', { name: 'Show filmstrip' })).toBeVisible();
-  await expect(view.getByRole('checkbox', { name: 'Photo info' })).toBeVisible();
+  await expect(view.getByRole('checkbox', { name: 'Photo info', exact: true })).toBeVisible();
   await expect(view.getByRole('checkbox', { name: 'Photo-only view (F)' })).toBeVisible();
-  await expect(view.getByRole('checkbox', { name: 'Show shortcut guide' })).toBeVisible();
+  // The keyboard shortcut guide is not offered on a phone (no keyboard).
+  await expect(view.getByRole('checkbox', { name: 'Show shortcut guide' })).toBeVisible({ visible: !onPhone });
   await expect(view.getByRole('button', { name: 'Group or ungroup bursts' })).toBeVisible();
-  const info = view.getByRole('checkbox', { name: 'Photo info' });
+  const info = view.getByRole('checkbox', { name: 'Photo info', exact: true });
   await info.check();
   await expect(info).toBeChecked();
   await info.uncheck();
