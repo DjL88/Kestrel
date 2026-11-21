@@ -60,6 +60,13 @@ describe('verified asset activation', () => {
     await expect(activateApprovedAsset(f.opts)).rejects.toThrow('pointer changed');
     expect(f.pointers.size).toBe(0);
   });
+  it('refuses an older revision and same-version changed digest', async () => {
+    const f = await fixture();
+    f.pointers.set(f.asset.id, { id: f.asset.id, version: '2.0.0', sha256: 'a'.repeat(64), slot: 'sha256-' + 'a'.repeat(64) });
+    await expect(activateApprovedAsset(f.opts)).rejects.toThrow('rollback');
+    f.pointers.set(f.asset.id, { id: f.asset.id, version: '1.0.0', sha256: 'b'.repeat(64), slot: 'sha256-' + 'b'.repeat(64) });
+    await expect(activateApprovedAsset(f.opts)).rejects.toThrow('same-version');
+  });
   it('falls back when an active slot is corrupted or unavailable', async () => {
     const f = await fixture();
     await activateApprovedAsset(f.opts);
