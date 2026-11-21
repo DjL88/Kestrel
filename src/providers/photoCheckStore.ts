@@ -67,6 +67,11 @@ export async function readPhotoCheckFiles(): Promise<SmolVlmFiles | null> {
 }
 export async function photoCheckInstalled(): Promise<boolean> {
   const store = slots();
-  for (const file of PHOTO_CHECK_PACK.files) if (!(await store.active(packAssetId(file)))) return false;
+  // A pointer alone does NOT mean that a 260 MB model is intact.
+  // Missing, truncated or corrupt chunks must show the Install option,
+  // rather than leaving the photographer with a permanently failed Check.
+  for (const file of PHOTO_CHECK_PACK.files) {
+    if (!(await readVerifiedActive(store, packAssetId(file)))) return false;
+  }
   return true;
 }
