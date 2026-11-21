@@ -1,5 +1,3 @@
-/** NOT USED by the 16-bit export: master16 composites in encoded space like the 8-bit preview (see previewMasterParity.test.ts).
- * Adopt only together with a matching change to applyMasks. Note applyPhotoEditLinear returns display-encoded values. */
 /** RGB16 is sRGB display-encoded, not scene-linear sensor CFA.
  * Local adjustments are mixed in linear light and encoded back to sRGB16.
  * This preserves neutral pixels exactly and avoids dark mask-edge fringes.
@@ -26,11 +24,4 @@ export function blendSrgb16(source: number, adjusted: number, alpha: number): nu
   if (alpha <= 0) return source;
   if (alpha >= 1) return adjusted;
   return encodeSrgb16(decodeSrgb16(source) * (1 - alpha) + decodeSrgb16(adjusted) * alpha);
-}
-/** When the adjusted value is already linear (from applyPhotoEditLinear). */
-export function blendLinearToSrgb16(source: number, adjustedLinear: number, alpha: number): number {
-  if (!Number.isFinite(alpha) || !Number.isFinite(adjustedLinear)) throw new RangeError('Invalid linear colour or mask coverage.');
-  if (alpha <= 0) return source;
-  if (alpha >= 1) return encodeSrgb16(adjustedLinear);
-  return encodeSrgb16(decodeSrgb16(source) * (1 - alpha) + adjustedLinear * alpha);
 }
