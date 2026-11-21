@@ -5,15 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build",
+    "build": "node scripts/check-source-parse.mjs && vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "model:species": "node scripts/fetch-species-model.mjs",
-    "lint": "tsc --noEmit",
+    "lint": "node scripts/check-source-parse.mjs && tsc --noEmit",
     "test:e2e": "playwright test",
     "test:raw-master": "node scripts/test-raw-master.mjs",
     "test:e2e:dev": "playwright test -c playwright.dev.config.ts",
-    "test": "node --import tsx --test \"src/core/*.test.ts\" \"src/providers/*.test.ts\" \"tools/mcp/*.test.ts\" \"services/control-plane/test/*.test.ts\" \"scripts/prototype-gate.test.mjs\" \"scripts/site/verify-deployment.test.mjs\"",
+    "test": "node --import tsx --test \"src/core/*.test.ts\" \"src/providers/*.test.ts\" \"tools/mcp/*.test.ts\" \"services/control-plane/test/*.test.ts\" \"scripts/prototype-gate.test.mjs\" \"scripts/check-source-parse.test.mjs\" \"scripts/site/verify-deployment.test.mjs\"",
     "control-plane": "npm --prefix services/control-plane start",
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
@@ -23,7 +23,8 @@
     "journey:local": "tsx scripts/journey-local.ts",
     "raw:wasm": "node scripts/build-raw-wasm.mjs",
     "build:site-editor": "vite build --config vite.demo.config.ts",
-    "verify:site-editor": "node scripts/site/verify-deployment.mjs"
+    "verify:site-editor": "node scripts/site/verify-deployment.mjs",
+    "check:syntax": "node scripts/check-source-parse.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.6.0",
