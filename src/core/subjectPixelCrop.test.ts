@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { exactSubjectPixelCrop, type SourcePixelRaster } from './subjectPixelCrop';
+import { exactSubjectPixelCrop, exactSubjectProofPair, type SourcePixelRaster } from './subjectPixelCrop';
 const sha = 'a'.repeat(64);
 const raster = (): SourcePixelRaster => ({
   photoId: 'p', sourceSha256: sha, width: 4, height: 3, sourceWidth: 4, sourceHeight: 3,
@@ -28,4 +28,47 @@ test('malformed, oversized, or non-finite crop abstains', () => {
   assert.equal(exactSubjectPixelCrop(r, 'p', sha, { x: NaN, y: 0, width: 1, height: 1 }), null);
   assert.equal(exactSubjectPixelCrop(r, 'p', sha, { x: 0.9, y: 0, width: 0.5, height: 1 }), null);
   assert.equal(exactSubjectPixelCrop(r, 'p', sha, { x: 0, y: 0, width: 1, height: 1 }, 8), null);
+});
+
+test('two original-pixel subject crops preserve source identity and remain review-only', () => {
+  const left = raster();
+  const right = { ...raster(), photoId: 'q', sourceSha256: 'b'.repeat(64), rgba: Uint8Array.from({ length: 48 }, (_, i) => 255 - i) };
+  const box = { x: 0, y: 0, width: 1, height: 1 };
+  const a = { raster: left, photoId: 'p', sourceSha256: sha, box, comparisonGroup: 'folder/burst' };
+  const b = { raster: right, photoId: 'q', sourceSha256: right.sourceSha256, box, comparisonGroup: 'folder/burst' };
+  const result = exactSubjectProofPair(a, b);
+  assert.ok(result);
+  assert.equal(result.recommendation, 'review');
+  assert.equal(result.left.photoId, 'p');
+  assert.equal(result.right.photoId, 'q');
+  assert.equal(result.left.rgba[0], 0);
+  assert.equal(result.right.rgba[0], 255);
+  assert.ok(Number.isFinite(result.leftEdgeEnergy));
+  assert.ok(Number.isFinite(result.rightEdgeEnergy));
+  assert.ok(result.leftEdgeEnergy >= 0 && result.rightEdgeEnergy >= 0);
+});
+test('A/B proof abstains across source groups, stale images and unbalanced crop geometry', () => {
+  const box = { x: 0, y: 0, width: 1, height: 1 };
+  const a = { raster: raster(), photoId: 'p', sourceSha256: sha, box, comparisonGroup: 'folder/one' };
+  const b = { ...a, photoId: 'q', raster: { ...raster(), photoId: 'q' } };
+  assert.equal(exactSubjectProofPair(a, { ...b, comparisonGroup: 'folder/two' }), null);
+  assert.equal(exactSubjectProofPair(a, { ...b, sourceSha256: 'b'.repeat(64) }), null);
+  assert.equal(exactSubjectProofPair(a, { ...b, box: { x: 0, y: 0, width: 0.5, height: 1 } }), null);
+  assert.equal(exactSubjectProofPair(a, b, 16), null);
+  assert.equal(exactSubjectProofPair(a, { ...a }), null);
+});
+test('A/B proof does not invent sharpness from fully transparent source samples', () => {
+  const left = raster();
+  const right = { ...raster(), photoId: 'q' };
+  for (let i = 3; i < left.rgba.length; i += 4) {
+    left.rgba[i] = 0;
+    right.rgba[i] = 0;
+  }
+  const box = { x: 0, y: 0, width: 1, height: 1 };
+  const a = { raster: left, photoId: 'p', sourceSha256: sha, box, comparisonGroup: 'g' };
+  const b = { raster: right, photoId: 'q', sourceSha256: sha, box, comparisonGroup: 'g' };
+  const proof = exactSubjectProofPair(a, b);
+  assert.ok(proof);
+  assert.equal(proof.leftEdgeEnergy, 0);
+  assert.equal(proof.rightEdgeEnergy, 0);
 });
