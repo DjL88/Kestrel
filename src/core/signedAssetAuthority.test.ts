@@ -13,12 +13,12 @@ async function fixture() {
     },
   };
   const authority = createSignedAssetAuthority({
-    keys: new Map([['publisher', keys.publicKey]]), fence,
+    keys: new Map([['publisher', keys.publicKey]]), fence, audience: 'kestrel',
     now: () => new Date('2026-11-21T00:00:00Z'),
   });
   const sign = async (sequence: number, overrides: Record<string, unknown> = {}) => {
     const payload = enc.encode(JSON.stringify({
-      schema: 1, sequence, expiresAt: '2026-12-01T00:00:00Z',
+      schema: 1, audience: 'kestrel', sequence, expiresAt: '2026-12-01T00:00:00Z',
       assets: [{ id: 'bird-model', version: '1.0.0', kind: 'model',
         sha256: 'a'.repeat(64), bytes: 16, licence: 'reviewed',
         provenance: 'owner-captured', approved: true }], ...overrides,
@@ -38,6 +38,11 @@ describe('signed asset catalogue authority', () => {
     const f = await fixture(); const env = await f.sign(1);
     env.payload = enc.encode(new TextDecoder().decode(env.payload).replace('bird-model', 'fake-model'));
     await expect(f.authority.verify(env)).rejects.toThrow('signature');
+  });
+  it('rejects cross-app signed catalogue replay', async () => {
+    const f = await fixture();
+    await expect(f.authority.verify(await f.sign(1, { audience: 'other-app' })))
+      .rejects.toThrow('Expired or malformed');
   });
   it('rejects unknown publisher key', async () => {
     const f = await fixture(); const env = await f.sign(1); env.keyId = 'unknown';
@@ -72,9 +77,9 @@ describe('signed asset catalogue authority', () => {
     // The fixture's fence is intentionally used as an untrusted persistence adapter.
     const broken: SequenceFence = { read: f.fence.read, compareAndSwap: async () => false };
     const keys = await crypto.subtle.generateKey('Ed25519', true, ['sign', 'verify']);
-    const a = authority({ keys: new Map([['x', keys.publicKey]]), fence: broken,
+    const a = authority({ keys: new Map([['x', keys.publicKey]]), fence: broken, audience: 'kestrel',
       now: () => new Date('2026-11-21T00:00:00Z') });
-    const payload = enc.encode(JSON.stringify({ schema: 1, sequence: 1,
+    const payload = enc.encode(JSON.stringify({ schema: 1, audience: 'kestrel', sequence: 1,
       expiresAt: '2026-12-01T00:00:00Z', assets: [] }));
     const env: SignedAssetEnvelope = { keyId: 'x', payload,
       signature: new Uint8Array(await crypto.subtle.sign('Ed25519', keys.privateKey, payload)) };
