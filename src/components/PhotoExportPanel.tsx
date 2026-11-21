@@ -1229,7 +1229,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
                 <div className="space-y-1.5">
                   {featuredGroups.map(group => formatRow(group.canonical, group))}
                 </div>
-                <details key={customOn ? 'custom-size-open' : 'more-sizes'} defaultOpen={customOn || otherGroups.some(group => group.ids.some(id => chosen.includes(id)))} className="rounded-md border border-white/10 p-2">
+                <details key={customOn ? 'custom-size-open' : 'more-sizes'} open={customOn || otherGroups.some(group => group.ids.some(id => chosen.includes(id)))} className="rounded-md border border-white/10 p-2">
                   <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-zinc-200">{compact.more}</summary>
                   <div className="space-y-1.5 pt-2">
                     {otherGroups.map(group => formatRow(group.canonical, group))}
