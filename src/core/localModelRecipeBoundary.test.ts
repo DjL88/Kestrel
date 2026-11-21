@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, it } from 'node:test';
+import { expect } from './testExpect';
 import { createLocalRecipeAdvisor, validateLocalRecipes, type RecipeProposal } from './localModelRecipeBoundary';
 
 const hash = 'a'.repeat(64);
