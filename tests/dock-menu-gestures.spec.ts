@@ -43,8 +43,14 @@ test('right-clicking an editor tab opens a menu with icon toggles to hide or und
   await expect(menu.getByRole('menuitem', { name: 'Hide Crop' }).locator('svg')).toBeVisible();
   await menu.getByRole('menuitem', { name: 'Undock Crop' }).click();
   await expect(menu).toBeHidden();
+  // The menu is per tab: Auto's menu offers only Auto, and the undocked Crop tab's own menu says it is floating and offers Dock.
   await page.getByRole('tab', { name: 'Auto' }).click({ button: 'right' });
+  await expect(page.getByTestId('tab-context-menu').getByRole('menuitem', { name: 'Undock Auto' })).toBeVisible();
+  await expect(page.getByTestId('tab-context-menu').getByRole('menuitem', { name: /Crop/ })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await page.getByRole('tab', { name: 'Crop' }).click({ button: 'right' });
   await expect(page.getByTestId('tab-context-menu').getByText('Floating')).toBeVisible();
+  await expect(page.getByTestId('tab-context-menu').getByRole('menuitem', { name: 'Dock Crop' })).toBeVisible();
 });
 
 test('a touch long-press on a tab opens the same menu, and the press does not also select the tab', async ({ page }) => {
