@@ -400,7 +400,14 @@ export const is: AreaTranslation<typeof source> = {
     pin: (title) => `Halda ${title} sýnilegu í hamnum Aðeins mynd`,
     dock: (title) => `Festa ${title}`,
   },
+  density: {
+    legend: 'Stærð hnappa og spjalda',
+    comfortable: 'Þægileg (stærst)',
+    compact: 'Þétt (80%, meira pláss fyrir myndina)',
+  },
   paneRail: {
+    foldTools: 'Fella saman breytingaverkfæri',
+    foldInfo: 'Fella saman myndaupplýsingar',
     editingTools: 'Breytingaverkfæri',
     photoInfo: 'Upplýsingar um mynd',
     foldedTools: 'Samanfellt verkfæraspjald',

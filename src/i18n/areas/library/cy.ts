@@ -388,7 +388,14 @@ export const cy: AreaTranslation<typeof source> = {
     pin: (title) => `Cadw ${title} yn weladwy yn y modd Llun yn Unig`,
     dock: (title) => `Docio ${title}`,
   },
+  density: {
+    legend: 'Maint botymau a phaneli',
+    comfortable: 'Cyfforddus (y mwyaf)',
+    compact: 'Cryno (80%, mwy o le i\'r llun)',
+  },
   paneRail: {
+    foldTools: 'Plygu\'r offer golygu',
+    foldInfo: 'Plygu gwybodaeth y llun',
     editingTools: 'Offer golygu',
     photoInfo: 'Gwybodaeth y llun',
     foldedTools: 'Panel offer wedi’i blygu',

@@ -391,7 +391,14 @@ export const gd: AreaTranslation<typeof source> = {
     pin: (title) => `Cùm ${title} ri fhaicinn ann am modh Dealbh a-mhàin`,
     dock: (title) => `Docaich ${title}`,
   },
+  density: {
+    legend: 'Meud putanan is phanailean',
+    comfortable: 'Comhfhurtail (as motha)',
+    compact: 'Dlùth (80%, barrachd rùm dhan dealbh)',
+  },
   paneRail: {
+    foldTools: 'Paisg na h-innealan deasachaidh',
+    foldInfo: 'Paisg fiosrachadh na dealbh',
     editingTools: 'Innealan deasachaidh',
     photoInfo: 'Fiosrachadh an deilbh',
     foldedTools: 'Panail nan innealan paisgte',

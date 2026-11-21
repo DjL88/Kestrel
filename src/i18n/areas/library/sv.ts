@@ -400,7 +400,14 @@ export const sv: AreaTranslation<typeof source> = {
     pin: (title) => `Håll ${title} synlig i läget Endast foto`,
     dock: (title) => `Docka ${title}`,
   },
+  density: {
+    legend: 'Storlek på knappar och paneler',
+    comfortable: 'Bekväm (störst)',
+    compact: 'Kompakt (80 %, mer plats för fotot)',
+  },
   paneRail: {
+    foldTools: 'Fäll in redigeringsverktygen',
+    foldInfo: 'Fäll in fotoinfo',
     editingTools: 'Redigeringsverktyg',
     photoInfo: 'Fotoinfo',
     foldedTools: 'Hopfälld verktygspanel',

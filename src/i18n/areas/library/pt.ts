@@ -400,7 +400,14 @@ export const pt: AreaTranslation<typeof source> = {
     pin: (title) => `Manter ${title} visível no modo Só fotografia`,
     dock: (title) => `Encaixar ${title}`,
   },
+  density: {
+    legend: 'Tamanho de botões e painéis',
+    comfortable: 'Confortável (o maior)',
+    compact: 'Compacto (80%, mais espaço para a foto)',
+  },
   paneRail: {
+    foldTools: 'Recolher as ferramentas de edição',
+    foldInfo: 'Recolher as informações da foto',
     editingTools: 'Ferramentas de edição',
     photoInfo: 'Informações da foto',
     foldedTools: 'Painel de ferramentas recolhido',

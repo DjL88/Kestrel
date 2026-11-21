@@ -400,7 +400,14 @@ export const de: AreaTranslation<typeof source> = {
     pin: (title) => `${title} im Modus Nur Foto sichtbar halten`,
     dock: (title) => `${title} andocken`,
   },
+  density: {
+    legend: 'Größe von Schaltflächen und Bereichen',
+    comfortable: 'Komfortabel (am größten)',
+    compact: 'Kompakt (80 %, mehr Platz fürs Foto)',
+  },
   paneRail: {
+    foldTools: 'Bearbeitungswerkzeuge einklappen',
+    foldInfo: 'Fotoinfo einklappen',
     editingTools: 'Bearbeitungswerkzeuge',
     photoInfo: 'Fotoinfos',
     foldedTools: 'Eingeklappter Werkzeugbereich',

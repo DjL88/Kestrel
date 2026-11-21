@@ -403,7 +403,14 @@ export const fi: AreaTranslation<typeof source> = {
     pin: (title) => `Pidä ${title} näkyvissä Vain kuva -tilassa`,
     dock: (title) => `Telakoi ${title}`,
   },
+  density: {
+    legend: 'Painikkeiden ja paneelien koko',
+    comfortable: 'Väljä (suurin)',
+    compact: 'Tiivis (80 %, enemmän tilaa kuvalle)',
+  },
   paneRail: {
+    foldTools: 'Piilota muokkaustyökalut',
+    foldInfo: 'Piilota kuvan tiedot',
     editingTools: 'Muokkaustyökalut',
     photoInfo: 'Kuvan tiedot',
     foldedTools: 'Pienennetty työkalupaneeli',

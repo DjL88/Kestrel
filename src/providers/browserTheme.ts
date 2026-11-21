@@ -20,6 +20,7 @@ export function applyDisplay(settings: DisplaySettings): void {
   root.dataset.font = settings.font;
   root.dataset.calm = String(settings.calm);
   root.dataset.spacing = settings.spacing;
+  root.dataset.density = settings.density;
   try {
     localStorage.setItem(DISPLAY_KEY, JSON.stringify(settings));
   } catch {

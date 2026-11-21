@@ -400,7 +400,14 @@ export const fr: AreaTranslation<typeof source> = {
     pin: (title) => `Garder ${title} visible en mode Photo uniquement`,
     dock: (title) => `Ancrer ${title}`,
   },
+  density: {
+    legend: 'Taille des boutons et des panneaux',
+    comfortable: 'Confortable (la plus grande)',
+    compact: 'Compacte (80 %, plus de place pour la photo)',
+  },
   paneRail: {
+    foldTools: 'Replier les outils de retouche',
+    foldInfo: 'Replier les infos photo',
     editingTools: 'Outils de retouche',
     photoInfo: 'Infos photo',
     foldedTools: 'Panneau des outils replié',

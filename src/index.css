@@ -231,6 +231,11 @@ html[data-font="readable"], html[data-font="readable"] * {
    controls that set their own tracking keep it. */
 html[data-spacing="roomy"] body { letter-spacing: 0.03em; word-spacing: 0.1em; }
 html[data-spacing="roomy"] :where(p, li, dd) { line-height: 1.65; }
+/* Compact density: Tailwind sizes everything from --spacing, so one value scales buttons, rows and gaps to 80%
+   while text stays the same size. Only for a mouse or pen on a wide screen: touch targets are never shrunk. */
+@media (pointer: fine) and (min-width: 900px) {
+  html[data-density="compact"] { --spacing: 0.2rem; }
+}
 html[data-calm="true"] *, html[data-calm="true"] *::before, html[data-calm="true"] *::after {
   animation: none !important;
   transition: none !important;

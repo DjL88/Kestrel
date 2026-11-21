@@ -403,11 +403,18 @@ export const source = {
     pin: (title: string) => `Keep ${title} visible in Photo only`,
     dock: (title: string) => `Dock ${title}`,
   },
+  density: {
+    legend: 'Size of buttons and panels',
+    comfortable: 'Comfortable (largest)',
+    compact: 'Compact (80%, more room for the photo)',
+  },
   paneRail: {
     editingTools: 'Editing tools',
     photoInfo: 'Photo info',
     foldedTools: 'Folded tools pane',
     foldedInfo: 'Folded info pane',
+    foldTools: 'Fold editing tools',
+    foldInfo: 'Fold photo info',
     expandTools: 'Expand editing tools',
     expandInfo: 'Expand photo info',
   },

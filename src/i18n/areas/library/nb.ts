@@ -400,7 +400,14 @@ export const nb: AreaTranslation<typeof source> = {
     pin: (title) => `Hold ${title} synlig i Bare bilde-modus`,
     dock: (title) => `Dokk ${title}`,
   },
+  density: {
+    legend: 'Størrelse på knapper og paneler',
+    comfortable: 'Komfortabel (størst)',
+    compact: 'Kompakt (80 %, mer plass til bildet)',
+  },
   paneRail: {
+    foldTools: 'Skjul redigeringsverktøyene',
+    foldInfo: 'Skjul fotoinfo',
     editingTools: 'Redigeringsverktøy',
     photoInfo: 'Bildeinfo',
     foldedTools: 'Sammenfoldet verktøypanel',

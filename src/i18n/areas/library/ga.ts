@@ -391,7 +391,14 @@ export const ga: AreaTranslation<typeof source> = {
     pin: (title) => `Coinnigh ${title} infheicthe sa mhód Grianghraf amháin`,
     dock: (title) => `Ceangail ${title}`,
   },
+  density: {
+    legend: 'Méid cnaipí agus painéal',
+    comfortable: 'Compordach (is mó)',
+    compact: 'Dlúth (80%, níos mó spáis don ghrianghraf)',
+  },
   paneRail: {
+    foldTools: 'Fill na huirlisí eagarthóireachta',
+    foldInfo: 'Fill faisnéis an ghrianghraif',
     editingTools: 'Uirlisí eagarthóireachta',
     photoInfo: 'Eolas an ghrianghraif',
     foldedTools: 'Painéal uirlisí fillte',

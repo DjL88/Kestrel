@@ -397,7 +397,14 @@ export const it: AreaTranslation<typeof source> = {
     pin: (title) => `Mantieni ${title} visibile in modalità Solo foto`,
     dock: (title) => `Aggancia ${title}`,
   },
+  density: {
+    legend: 'Dimensione di pulsanti e pannelli',
+    comfortable: 'Comoda (la più grande)',
+    compact: 'Compatta (80%, più spazio per la foto)',
+  },
   paneRail: {
+    foldTools: 'Comprimi gli strumenti di modifica',
+    foldInfo: 'Comprimi le info foto',
     editingTools: 'Strumenti di modifica',
     photoInfo: 'Info della foto',
     foldedTools: 'Pannello strumenti chiuso',
