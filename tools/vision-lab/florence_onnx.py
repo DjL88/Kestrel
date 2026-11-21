@@ -12,7 +12,7 @@ from PIL import Image
 
 LAYERS, HEADS, HEAD_DIM, SIZE = 6, 12, 64, 768
 MEAN, STD = np.array([0.485, 0.456, 0.406], np.float32), np.array([0.229, 0.224, 0.225], np.float32)
-PROMPTS = {'<OCR>': 'What is the text in the image?', '<OD>': 'Locate the objects with category name in the image.', '<CAPTION>': 'What does the image describe?',
+PROMPTS = {'<OCR>': 'What is the text in the image?', '<OCR_WITH_REGION>': 'What is the text in the image, with regions?', '<OD>': 'Locate the objects with category name in the image.', '<CAPTION>': 'What does the image describe?',
            '<CAPTION_TO_PHRASE_GROUNDING>': 'Locate the phrases in the caption: '}
 
 class Florence:
@@ -65,6 +65,18 @@ class Florence:
         raw = self.tokenizer.decode(out, skip_special_tokens=False)
         text_out = re.sub(r'</?s>|<pad>', '', raw)
         return {'raw': text_out, 'seconds': time.perf_counter() - t, 'boxes': self.parse_boxes(text_out, image.size)}
+
+    @staticmethod
+    def parse_text_regions(text: str, size: tuple[int, int]) -> list[dict]:
+        """`text<loc>x8` (a quadrilateral on the 0 to 999 grid) becomes the text and its bounding box in image pixels."""
+        width, height = size
+        regions = []
+        for match in re.finditer(r'([^<]*)((?:<loc_\d+>){8})', text):
+            values = [int(v) for v in re.findall(r'<loc_(\d+)>', match.group(2))]
+            xs, ys = values[0::2], values[1::2]
+            regions.append({'text': match.group(1).strip(),
+                            'box': [min(xs) / 1000 * width, min(ys) / 1000 * height, max(xs) / 1000 * width, max(ys) / 1000 * height]})
+        return regions
 
     @staticmethod
     def parse_boxes(text: str, size: tuple[int, int]) -> list[dict]:
