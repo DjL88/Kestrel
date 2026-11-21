@@ -102,7 +102,13 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
           return;
         }
         const next = checkColour({ after: preview.after, before: preview.before, subject: preview.subject });
-        if (current !== generation.current || !samePhotoReviewScope(requested, currentScope.current)) return;
+        if (current !== generation.current) return;
+        if (!samePhotoReviewScope(requested, currentScope.current)) {
+          // A new photo can render before the dependency effect runs. Do not
+          // publish its predecessor's findings or leave the old check spinning.
+          setChecking(false);
+          return;
+        }
         reportScope.current = requested;
         setReport(next);
         setFailed(false);
