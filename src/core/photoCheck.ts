@@ -35,3 +35,36 @@ export function factsFromDescription(description: string): SceneFacts {
   if (word('trees?|leaves|foliage|grass|meadow|forest|green plants?|bushes?').test(text)) facts.foliage = true;
   return facts;
 }
+
+
+/**
+ * A tiny VLM can hallucinate a person, bird or landscape on a blank frame.
+ * Interpret its free text as an UNVERIFIED hypothesis. Accept only broad
+ * lighting intent that has independent pixel support, and never infer subject
+ * identity here. Subject evidence comes from Kestrel's dedicated detectors.
+ * A verified light hint can only VETO measured suggestions, not create them.
+ */
+export function supportedSceneFacts(candidate: SceneFacts, rgba: Uint8ClampedArray): SceneFacts {
+  if (rgba.length < 400 || rgba.length % 4 !== 0) return {};
+  const pixels = rgba.length / 4;
+  const stride = Math.max(1, Math.ceil(pixels / 32768));
+  let count = 0, red = 0, green = 0, blue = 0, luma = 0;
+  for (let p = 0; p < pixels; p += stride) {
+    const j = p * 4;
+    if (rgba[j + 3] < 128) continue;
+    red += rgba[j]; green += rgba[j + 1]; blue += rgba[j + 2];
+    luma += 0.2126 * rgba[j] + 0.7152 * rgba[j + 1] + 0.0722 * rgba[j + 2];
+    count += 1;
+  }
+  if (count < 100) return {};
+  const brightness = luma / (count * 255);
+  const warmDelta = (red - blue) / (count * 255);
+  const result: SceneFacts = {};
+  if (candidate.light === 'low-key' && brightness < 0.38) result.light = 'low-key';
+  else if (candidate.light === 'high-key' && brightness > 0.68) result.light = 'high-key';
+  else if (candidate.light === 'golden' && brightness > 0.14 && brightness < 0.88 && warmDelta > 0.09) result.light = 'golden';
+  else if (candidate.light === 'cool' && brightness > 0.14 && brightness < 0.88 && warmDelta < -0.09) result.light = 'cool';
+  // Do not pass candidate.subject, candidate.sky or candidate.foliage through:
+  // a word appearing in a small VLM's answer is not independent evidence.
+  return result;
+}
