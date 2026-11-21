@@ -113,6 +113,7 @@ export const is: AreaTranslation<typeof source> = {
     save: 'Vista uppskrift',
   },
   advice: {
+    subjectCheck: 'Viðfangsefnið er óljóst. Athugaðu það áður en þú bætir við tegundarheiti.',
     region: 'Athugun á mynd',
     verdict: { good: 'Lítur vel út', nearly: 'Næstum því', 'needs-work': 'Þarfnast vinnu', unsure: 'Ekki viss enn' },
     tryThis: 'Prófaðu þetta',
@@ -134,7 +135,7 @@ export const is: AreaTranslation<typeof source> = {
     checking: 'Athuga…',
     failed: 'Athuguninni lauk ekki.',
     scene: 'Sena',
-    subjects: { person: 'Manneskja', animal: 'Dýr', bird: 'Fugl', landscape: 'Landslag', object: 'Hlutur' },
+    subjects: { person: 'Manneskja', animal: 'Dýr', bird: 'Fugl', landscape: 'Landslag', object: 'Hlutur', aircraft: 'Loftfar', vehicle: 'Farartæki' },
     lights: { 'low-key': 'Dökk lýsing', 'high-key': 'Björt lýsing', golden: 'Gullin birta', cool: 'Köld birta' },
   },
   critique: {
