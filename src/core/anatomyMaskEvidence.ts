@@ -36,6 +36,11 @@ export interface AnatomyEvidence {
   domain: 'wildlife' | 'person' | 'pet' | 'sport' | 'macro' | 'general';
 }
 
+/** A trusted, offline signed-asset authority must verify the exact calibration
+ * manifest and its model/dataset binding. Never trust evidence.approved alone.
+ * This callback must fail closed if the model pack is absent or unverified. */
+export type VerifyAnatomyCalibration = (calibration: AnatomyEvidence['calibration'], evidence: AnatomyEvidence) => boolean;
+
 export type AnatomyResult =
   | { ok: true; mask: Extract<Mask, { kind: 'subject' }>; reason: 'observed-refinement' }
   | { ok: false; reason: 'unverified-source' | 'uncalibrated-evidence' | 'invalid-grid' | 'conflicting-evidence' | 'excessive-change' | 'detached-anatomy' | 'stale-recipe' | 'no-change' };
@@ -72,6 +77,7 @@ export function refineObservedAnatomy(
   evidence: AnatomyEvidence,
   verifiedSourceSha256: string,
   currentRecipeRevision: number,
+  verifyCalibration: VerifyAnatomyCalibration,
 ): AnatomyResult {
   if (!digest.test(verifiedSourceSha256) || evidence.sourceSha256 !== verifiedSourceSha256 ||
       !evidence.modelId.trim() || !evidence.modelVersion.trim() ||
@@ -96,8 +102,17 @@ export function refineObservedAnatomy(
       !calibration.calibrationVersion?.trim() ||
       !Number.isSafeInteger(calibration.positiveCount) ||
       !Number.isSafeInteger(calibration.negativeCount) ||
-      calibration.positiveCount < 1 || calibration.negativeCount < 1)
+      calibration.positiveCount < 1 || calibration.negativeCount < 1 ||
+      typeof verifyCalibration !== 'function')
     return { ok: false, reason: 'uncalibrated-evidence' };
+  // A self-asserted approved:true bit is insufficient: a separately trusted
+  // signed-asset authority must validate this precise manifest before use.
+  try {
+    if (verifyCalibration(calibration, evidence) !== true)
+      return { ok: false, reason: 'uncalibrated-evidence' };
+  } catch {
+    return { ok: false, reason: 'uncalibrated-evidence' };
+  }
   if (mask.confidence === 'low' || !validConfidence(evidence.partConfidence) ||
       !validConfidence(evidence.occluderConfidence) ||
       evidence.partConfidence < 0.9 || evidence.occluderConfidence < 0.9)
