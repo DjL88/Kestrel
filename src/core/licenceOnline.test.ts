@@ -38,12 +38,15 @@ test('platform names follow the shell, not just the browser', () => {
   assert.equal(platformOf(false, 'Mozilla/5.0 (Macintosh)'), 'web');
 });
 
-test('Pro: a valid key works offline for good; a grant adds the AI flag; a revoked key turns Pro off', () => {
+test('Pro: never assume first online activation, honour last verified grant offline and cached denials', () => {
   assert.deepEqual(decideAccess(false, { kind: 'active', grant: grant(), activationId: 'act_1' }, NOW), { pro: false, managedAi: false, basis: 'none' });
-  for (const standing of [{ kind: 'not_set_up' }, { kind: 'not_checked' }, { kind: 'device_limit', message: '' }, { kind: 'unreachable', grant: null, activationId: null }] as const) {
-    assert.deepEqual(decideAccess(true, standing, NOW), { pro: true, managedAi: false, basis: 'key' }, standing.kind);
-  }
+  assert.deepEqual(decideAccess(true, { kind: 'not_set_up' }, NOW), { pro: true, managedAi: false, basis: 'key' });
+  assert.deepEqual(decideAccess(true, { kind: 'not_checked' }, NOW), { pro: false, managedAi: false, basis: 'none' });
+  assert.deepEqual(decideAccess(true, { kind: 'device_limit', message: 'Full' }, NOW), { pro: false, managedAi: false, basis: 'none' });
+  assert.deepEqual(decideAccess(true, { kind: 'unreachable', grant: null, activationId: null }, NOW), { pro: false, managedAi: false, basis: 'none' });
+  assert.deepEqual(decideAccess(true, { kind: 'unreachable', grant: grant({ plan: 'free' }), activationId: 'act_1' }, NOW), { pro: false, managedAi: false, basis: 'none' });
   assert.deepEqual(decideAccess(true, { kind: 'active', grant: grant({ managedAi: true }), activationId: 'act_1' }, NOW), { pro: true, managedAi: true, basis: 'grant' });
   assert.deepEqual(decideAccess(true, { kind: 'unreachable', grant: grant({ managedAi: true }), activationId: 'act_1' }, NOW + 31 * DAY), { pro: true, managedAi: false, basis: 'key' });
+  assert.deepEqual(decideAccess(true, { kind: 'active', grant: grant({ plan: 'free' }), activationId: 'act_1' }, NOW), { pro: false, managedAi: false, basis: 'none' });
   assert.deepEqual(decideAccess(true, { kind: 'revoked', message: 'x' }, NOW), { pro: false, managedAi: false, basis: 'revoked' });
 });

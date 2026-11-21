@@ -3,7 +3,7 @@
  * checks out unlocks Pro with no account and no connection, for good. Going online adds three things:
  * - a device slot and an Ed25519-signed offline grant (`entitlementGrant.ts`) from the control plane, renewed while online;
  * - the managed AI allowance, which only a grant can turn on;
- * - hearing about a revoked key. A key the server says is revoked or expired stops unlocking Pro on this device.
+ * - hearing about a revoked key or device limit. Those last-known denials are cached and never ignored offline.
  *
  * Nothing here ever locks, hides or deletes local work: Free editing, projects, backup and export never depend on it.
  */
@@ -75,13 +75,26 @@ export interface AccessDecision {
 /**
  * Pro on this device, from the key (checked offline) and what the server last said.
  * - A verified grant inside its offline window: Pro, with the managed AI flag it carries.
- * - Otherwise a valid key: Pro, offline, as promised (no account, no connection needed).
- * - The server said the key is revoked or expired: not Pro, whatever the key says. Free stays fully usable.
+ * - Offline-only builds: the Ed25519-verified purchased key remains fully usable without the service.
+ * - Configured builds: a first-time, not-yet-confirmed key is Basic until activated once; no unverified Pro assumption.
+ * - Previously activated devices: an Ed25519-verified paid grant keeps Pro working during network outages,
+ *   even if renewal is overdue; managed AI is disabled outside the signed grant's offline window.
+ * - A known device limit, revoke or expiry takes precedence over the key; Free stays usable.
  */
 export function decideAccess(keyValid: boolean, standing: OnlineStanding, nowMs: number): AccessDecision {
   if (!keyValid) return { pro: false, managedAi: false, basis: 'none' };
   if (standing.kind === 'revoked') return { pro: false, managedAi: false, basis: 'revoked' };
-  const grant = standing.kind === 'active' ? standing.grant : standing.kind === 'unreachable' ? standing.grant : null;
-  if (grant && grant.plan !== 'free' && nowMs <= grant.offlineUntilMs) return { pro: true, managedAi: grant.managedAi, basis: 'grant' };
+  // A known server denial is authoritative. Never promote a new device that could not activate.
+  if (standing.kind === 'device_limit') return { pro: false, managedAi: false, basis: 'none' };
+  // An offline-only signed key is already independent proof. In a configured build,
+  // however, a never-activated key must NOT silently become Pro without a device grant.
+  if (standing.kind === 'not_set_up') return { pro: true, managedAi: false, basis: 'key' };
+  if (standing.kind === 'not_checked') return { pro: false, managedAi: false, basis: 'none' };
+  const grant = standing.grant;
+  if (!grant || grant.plan === 'free') return { pro: false, managedAi: false, basis: 'none' };
+  if (nowMs <= grant.offlineUntilMs) return { pro: true, managedAi: grant.managedAi, basis: 'grant' };
+  // A previously authenticated one-off Pro purchase continues offline, with the
+  // locally signed key as proof. Revalidation is still required before managed AI;
+  // a previously received revoke/limit is held in the separate denial store.
   return { pro: true, managedAi: false, basis: 'key' };
 }
