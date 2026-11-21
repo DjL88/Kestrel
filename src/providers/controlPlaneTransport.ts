@@ -34,8 +34,12 @@ function base64Bytes(base64: string): Uint8Array {
   return bytes;
 }
 
+/** The caller must validate a fresh, explicit user action for the current photo and route. */
+export type ManagedAiPhotoPermission = (path: '/v1/ai/identify' | '/v1/ai/suggest' | '/v1/ai/verify-colour') => boolean;
+
 export function controlPlaneTransport(
   baseUrl: string, session: () => string | null, fetcher: typeof fetch = fetch,
+  consentForCurrentPhoto?: ManagedAiPhotoPermission,
 ): ManagedAiTransport {
   const origin = new URL(baseUrl);
   if (origin.protocol !== 'https:' && origin.hostname !== 'localhost' && origin.hostname !== '127.0.0.1') {
@@ -46,6 +50,13 @@ export function controlPlaneTransport(
   async function post(path: string, jpegBase64: string, signal?: AbortSignal): Promise<unknown> {
     const token = session();
     if (!token) throw new HelperError('auth', 'Sign in to use the online helper.');
+    // Account-level Gemini opt-in alone is NOT approval to transmit this photo.
+    // A settings switch must not silently turn background scanning into photo uploads.
+    // Every managed route needs an explicit current-photo user action. No consent
+    // callback (or a stale/throwing callback) always means no network request.
+    let approved = false;
+    try { approved = consentForCurrentPhoto?.(path as Parameters<ManagedAiPhotoPermission>[0]) === true; } catch { /* fail closed */ }
+    if (!approved) throw new HelperError('blocked', 'Choose the online helper for this photo before sending it.');
     // Never send a photo that still carries camera data: the redraw in imageForHelper should guarantee this.
     const facts = inspectJpeg(base64Bytes(jpegBase64));
     if (!facts || facts.hasMetadata) throw new HelperError('other', 'This photo could not be prepared for sending without its camera data.');
@@ -75,6 +86,7 @@ export function controlPlaneTransport(
     }
 
     const code = (body as { error?: { code?: unknown } } | null)?.error?.code;
+    if (status === 403 && code === 'AI_CONSENT_REQUIRED') throw new HelperError('auth', 'Online Gemini is off for this account. Enable it in Account Settings first.');
     if (status === 401 || status === 403) throw new HelperError('auth', code === 'AI_NOT_ENTITLED' ? 'The online helper is not part of this plan.' : 'Your session has ended. Sign in again to use the online helper.');
     if (status === 429) throw new HelperError('rate');
     if (status === 504) throw new HelperError('timeout');
