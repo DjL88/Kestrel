@@ -29,8 +29,10 @@ const unit = (n: number) => Number.isFinite(n) && n >= 0 && n <= 1;
 export function exactSubjectPixelCrop(
   raster: SourcePixelRaster, expectedPhotoId: string, expectedSourceSha256: string,
   box: NormalisedBox, maxBytes = 32 * 1024 * 1024,
+  isCurrent?: () => boolean,
 ): PixelCrop | null {
   const { width, height } = raster;
+  if (isCurrent && !isCurrent()) return null;
   if (!expectedPhotoId || raster.photoId !== expectedPhotoId ||
       !digest.test(expectedSourceSha256) || raster.sourceSha256 !== expectedSourceSha256 ||
       !Number.isSafeInteger(width) || !Number.isSafeInteger(height) ||
@@ -50,6 +52,8 @@ export function exactSubjectPixelCrop(
     const start = ((y + row) * width + x) * 4;
     rgba.set(raster.rgba.subarray(start, start + w * 4), row * w * 4);
   }
+  // A photo switch can happen while a large crop is being copied.
+  if (isCurrent && !isCurrent()) return null;
   return { photoId: expectedPhotoId, sourceSha256: expectedSourceSha256, x, y, width: w, height: h, rgba };
 }
 
@@ -104,22 +108,24 @@ export function exactSubjectProofPair(
   left: SubjectProofRequest,
   right: SubjectProofRequest,
   maxBytes = 32 * 1024 * 1024,
+  isCurrent?: () => boolean,
 ): SubjectProofPair | null {
+  if (isCurrent && !isCurrent()) return null;
   if (!left.comparisonGroup.trim() || left.comparisonGroup !== right.comparisonGroup ||
       left.photoId === right.photoId || !Number.isSafeInteger(maxBytes) || maxBytes < 8)
     return null;
   // Split the budget before allocating either crop; no unbounded pair of
   // full-frame copies on phones or other low-memory devices.
   const half = Math.floor(maxBytes / 2);
-  const a = exactSubjectPixelCrop(left.raster, left.photoId, left.sourceSha256, left.box, half);
+  const a = exactSubjectPixelCrop(left.raster, left.photoId, left.sourceSha256, left.box, half, isCurrent);
   if (!a) return null;
-  const b = exactSubjectPixelCrop(right.raster, right.photoId, right.sourceSha256, right.box, maxBytes - a.rgba.byteLength);
+  const b = exactSubjectPixelCrop(right.raster, right.photoId, right.sourceSha256, right.box, maxBytes - a.rgba.byteLength, isCurrent);
   if (!b) return null;
   // Without equivalent source-pixel crop geometry, raw edge energy is not
   // directly comparable; do not present an unfair sharpness comparison.
   if (a.width !== b.width || a.height !== b.height || a.width < 2 || a.height < 2) return null;
   const leftEdgeEnergy = sourceEdgeEnergy(a);
   const rightEdgeEnergy = sourceEdgeEnergy(b);
-  if (leftEdgeEnergy === null || rightEdgeEnergy === null) return null;
+  if (leftEdgeEnergy === null || rightEdgeEnergy === null || (isCurrent && !isCurrent())) return null;
   return { left: a, right: b, leftEdgeEnergy, rightEdgeEnergy, recommendation: 'review' };
 }
