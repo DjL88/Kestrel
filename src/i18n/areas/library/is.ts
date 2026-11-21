@@ -380,6 +380,7 @@ export const is: AreaTranslation<typeof source> = {
     undockInfoHelp: "Færa myndupplýsingar í glugga sem hægt er að breyta stærð á",
     move: (title) => `Færa ${title} með örvatökkunum`,
     drag: (title) => `Dragðu til að færa ${title}, eða notaðu örvatakkana`,
+    resize: (title) => `Breyttu stærð ${title}: dragðu eða notaðu örvatakkana`,
     restore: (title) => `Endurheimta stærð spjaldsins ${title}`,
     maximise: (title) => `Hámarka spjaldið ${title}`,
     pin: (title) => `Halda ${title} sýnilegu í hamnum Aðeins mynd`,
