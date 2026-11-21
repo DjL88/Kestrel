@@ -18,7 +18,7 @@ export const MODEL_SLOTS = {
 export type ModelSlotId = keyof typeof MODEL_SLOTS;
 export const isModelSlot = (id: string): id is ModelSlotId => Object.hasOwn(MODEL_SLOTS, id);
 
-export interface SkippedModel { id: string; reason: 'not_a_model_slot' | 'contract_changed' | 'contract_missing' }
+export interface SkippedModel { id: string; reason: 'not_a_model_slot' | 'contract_changed' | 'contract_missing' | 'manual_approval_required' }
 export interface ModelUpdatePlan { install: DataAsset[]; skipped: SkippedModel[] }
 
 /** Which assets in a verified manifest this app may install now. Everything else is reported, never installed. */
