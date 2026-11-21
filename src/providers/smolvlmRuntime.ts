@@ -14,10 +14,17 @@ export interface SmolVlm {
 }
 const LAYERS = 30, KV_HEADS = 3, HEAD_DIM = 64, HIDDEN = 576;
 
-/** SmolVLM2-256M on the app's own onnxruntime-web (CPU WebAssembly, one thread: no cross-origin isolation needed, works offline). */
+/**
+ * SmolVLM2-256M on the app's own onnxruntime-web (CPU WebAssembly, one thread: no cross-origin
+ * isolation needed, works offline). `proxy: true` with `numThreads: 1` moves inference into ORT's
+ * single-threaded proxy worker instead of the calling (UI) thread; it still needs no
+ * SharedArrayBuffer/COOP+COEP, since that is only required once numThreads > 1. Still needs a
+ * real-device check that the app's CSP allows ORT's inline worker (worker-src 'self' blob: or
+ * equivalent, see the #748 CSP narrowing) - not yet run here.
+ */
 export async function openSmolVlm(ort: Ort, files: SmolVlmFiles): Promise<SmolVlm> {
   ort.env.wasm.numThreads = 1;
-  ort.env.wasm.proxy = false;
+  ort.env.wasm.proxy = true;
   const tokenizer = createTokenizer(files.tokenizer);
   const imageId = tokenizer.special('<image>');
   const options = { executionProviders: ['wasm'], graphOptimizationLevel: 'all' } as const;

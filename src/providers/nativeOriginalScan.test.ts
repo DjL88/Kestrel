@@ -43,11 +43,10 @@ test('two unrelated catalogue keys cannot claim one scanned file', () => {
   assert.deepEqual(result.ambiguous, ['key-a', 'key-b']);
 });
 
-test('a copied or re-downloaded original with a new modified time still reconnects when name and size are unique', () => {
+test('a file with the same name and size is left unresolved if the timestamp differs', () => {
   const expected = [{ stableKey: 'a', filename: 'DSC001.NEF', size: 100, lastModified: 10 }];
   const result = matchScannedOriginals(expected, [{ path: 'D:/new/dsc001.nef', name: 'dsc001.nef', size: 100, lastModified: 99 }]);
-  assert.equal(result.matches.get('a'), 'D:/new/dsc001.nef');
-  assert.deepEqual(result.approximate, ['a']);
+  assert.equal(result.matches.size, 0);
 });
 
 test('name and size alone never guess between two candidates, or two missing photos', () => {
@@ -58,9 +57,16 @@ test('name and size alone never guess between two candidates, or two missing pho
   assert.equal(matchScannedOriginals(missing, [two[0]]).matches.size, 0);
 });
 
-test('an exact match is preferred and not reported as approximate', () => {
+test('a missing original with matching size and timestamp can reconnect', () => {
   const expected = [{ stableKey: 'a', filename: 'IMG.NEF', size: 100, lastModified: 10 }];
   const result = matchScannedOriginals(expected, [{ path: 'D:/IMG.NEF', name: 'IMG.NEF', size: 100, lastModified: 10 }]);
   assert.equal(result.matches.get('a'), 'D:/IMG.NEF');
-  assert.deepEqual(result.approximate, []);
+});
+
+test('a connected original cannot also be assigned to a missing photo', () => {
+  const expected = [{ stableKey: 'a', filename: 'IMG.NEF', size: 100, lastModified: 10 }];
+  const candidate = { path: 'D:/photos/IMG.NEF', name: 'IMG.NEF', size: 100, lastModified: 10 };
+  const result = matchScannedOriginals(expected, [candidate], ['d:\\Photos\\IMG.NEF']);
+  assert.equal(result.matches.size, 0);
+  assert.deepEqual(result.ambiguous, ['a']);
 });

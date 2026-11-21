@@ -45,12 +45,15 @@ export async function scanOriginalFolder(
   return { files, truncated, skippedDirectories };
 }
 
-/** Reject ambiguous duplicates instead of silently selecting the wrong original. */
+/** Legacy catalogues have no content hash. Use all the recorded metadata and
+ * never assign an existing link's path or a name-and-size-only match. */
 export function matchScannedOriginals(
   expected: readonly { stableKey: string; filename: string; size: number; lastModified: number }[],
   candidates: readonly ScannedOriginal[],
-): { matches: Map<string, string>; ambiguous: string[]; approximate: string[] } {
-  const approximate: string[] = [];
+  connectedPaths: readonly string[] = [],
+): { matches: Map<string, string>; ambiguous: string[] } {
+  const pathKey = (path: string) => path.replace(/\\/g, '/').toLowerCase();
+  const reserved = new Set(connectedPaths.map(pathKey));
   const matches = new Map<string, string>(), ambiguous: string[] = [];
   const byIdentity = new Map<string, ScannedOriginal[]>();
   for (const candidate of candidates) {
@@ -61,40 +64,26 @@ export function matchScannedOriginals(
   }
   const claimedPaths = new Map<string, string>();
   for (const frame of expected) {
+    if (!Number.isSafeInteger(frame.size) || frame.size <= 0 || !Number.isFinite(frame.lastModified) || frame.lastModified <= 0) continue;
     const identity = JSON.stringify([frame.filename.toLowerCase(), frame.size, frame.lastModified]);
     const possible = byIdentity.get(identity) ?? [];
     if (possible.length === 1) {
       const path = possible[0].path;
-      const claimant = claimedPaths.get(path.toLowerCase());
+      const key = pathKey(path);
+      if (reserved.has(key)) {
+        ambiguous.push(frame.stableKey);
+        continue;
+      }
+      const claimant = claimedPaths.get(key);
       if (claimant && claimant !== frame.stableKey) {
         matches.delete(claimant);
         if (!ambiguous.includes(claimant)) ambiguous.push(claimant);
         ambiguous.push(frame.stableKey);
       } else {
         matches.set(frame.stableKey, path);
-        claimedPaths.set(path.toLowerCase(), frame.stableKey);
+        claimedPaths.set(key, frame.stableKey);
       }
     } else if (possible.length > 1) ambiguous.push(frame.stableKey);
   }
-  // Second pass for what is still unmatched: a file copied, re-downloaded or exported again keeps its name and size but gets a
-  // new modified time. Accept it only when exactly one candidate and exactly one missing photo share that name and size,
-  // and say so, so it can never quietly pick the wrong file.
-  const nameSize = (name: string, size: number) => JSON.stringify([name.toLowerCase(), size]);
-  const candidatesByNameSize = new Map<string, ScannedOriginal[]>();
-  for (const candidate of candidates) {
-    const key = nameSize(candidate.name, candidate.size);
-    candidatesByNameSize.set(key, [...(candidatesByNameSize.get(key) ?? []), candidate]);
-  }
-  const waiting = expected.filter((frame) => !matches.has(frame.stableKey) && !ambiguous.includes(frame.stableKey));
-  const waitingCount = new Map<string, number>();
-  for (const frame of waiting) waitingCount.set(nameSize(frame.filename, frame.size), (waitingCount.get(nameSize(frame.filename, frame.size)) ?? 0) + 1);
-  for (const frame of waiting) {
-    const key = nameSize(frame.filename, frame.size);
-    const possible = candidatesByNameSize.get(key) ?? [];
-    if (possible.length !== 1 || waitingCount.get(key) !== 1 || claimedPaths.has(possible[0].path.toLowerCase())) continue;
-    matches.set(frame.stableKey, possible[0].path);
-    claimedPaths.set(possible[0].path.toLowerCase(), frame.stableKey);
-    approximate.push(frame.stableKey);
-  }
-  return { matches, ambiguous, approximate };
+  return { matches, ambiguous };
 }

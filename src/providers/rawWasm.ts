@@ -76,12 +76,18 @@ export async function developRaw16InBrowser(file: Blob): Promise<ArrayBuffer> {
   return reply.picture;
 }
 
-/** Nikon High Efficiency or not, from the file's first bytes. Anything that goes wrong answers 'other'. */
+/** Inspect the file header and propagate unavailable or failed inspections. */
+export async function inspectSensorModeInBrowser(file: Blob, prefixBytes: number): Promise<WasmSensorMode> {
+  const prefix = await file.slice(0, prefixBytes).arrayBuffer();
+  const reply = await ask({ type: 'mode', prefix, fileLength: file.size }, [prefix]);
+  if (reply.type !== 'mode') throw new Error('The RAW decoder could not inspect the file header.');
+  return reply.mode;
+}
+
+/** Best-effort Nikon label for the review UI. */
 export async function sensorModeInBrowser(file: Blob, prefixBytes: number): Promise<WasmSensorMode> {
   try {
-    const prefix = await file.slice(0, prefixBytes).arrayBuffer();
-    const reply = await ask({ type: 'mode', prefix, fileLength: file.size }, [prefix]);
-    return reply.type === 'mode' ? reply.mode : 'other';
+    return await inspectSensorModeInBrowser(file, prefixBytes);
   } catch {
     return 'other';
   }

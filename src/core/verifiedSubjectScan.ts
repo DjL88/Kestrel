@@ -59,42 +59,47 @@ const sameDimensions = (a: { width: number; height: number }, b: { width: number
  * Nothing here changes cull flags or original files.
  */
 export async function scanVerifiedSubjects(request: VerifiedSubjectScan): Promise<SubjectCandidate[]> {
+  return await findVerifiedSubjectCandidates(request) ?? [];
+}
+
+/** Null is an aborted or unverifiable scan. An empty list is a completed scan without usable detections. */
+export async function findVerifiedSubjectCandidates(request: VerifiedSubjectScan): Promise<SubjectCandidate[] | null> {
   const { identity, signal, isCurrent, verifyOriginalSha256, verifyDecodedSource } = request;
   const current = () => !signal?.aborted && isCurrent(identity.photoId, identity.sourceSha256);
   if (!identity.photoId?.trim() || !digest.test(identity.sourceSha256) ||
       !identity.modelVersion?.trim() || !current() ||
-      !sameDimensions(dimensions(request.source), identity)) return [];
+      !sameDimensions(dimensions(request.source), identity)) return null;
   try {
     const verified = await verifyOriginalSha256(identity.photoId, signal);
     if (!current() || !verified || !digest.test(verified) ||
-        verified.toLowerCase() !== identity.sourceSha256.toLowerCase()) return [];
+        verified.toLowerCase() !== identity.sourceSha256.toLowerCase()) return null;
     // A matching file hash alone does not establish that a thumbnail/canvas
     // contains that file's pixels. The decoder must attest the actual input.
     const decoded = await verifyDecodedSource(identity.photoId, request.source, signal);
     if (!current() || !decoded || !digest.test(decoded.sourceSha256) ||
         decoded.sourceSha256.toLowerCase() !== verified.toLowerCase() ||
         !sameDimensions(decoded, identity) ||
-        !sameDimensions(dimensions(request.source), identity)) return [];
+        !sameDimensions(dimensions(request.source), identity)) return null;
     const detector = request.detector ?? (await import('../providers/objectDetector')).findSubjects;
-    if (!current()) return [];
+    if (!current()) return null;
     const detections = await detector(request.source, signal);
     if (!current() || !sameDimensions(dimensions(request.source), identity) ||
-        detections.length > 20) return [];
+        detections.length > 20) return null;
     // Recheck the original after potentially lengthy tiled inference. A file
     // replaced in place must not inherit the previous photo's subject boxes.
     const after = await verifyOriginalSha256(identity.photoId, signal);
     if (!current() || !after || after.toLowerCase() !== verified.toLowerCase() ||
-        !sameDimensions(dimensions(request.source), identity)) return [];
+        !sameDimensions(dimensions(request.source), identity)) return null;
     const decodedAfter = await verifyDecodedSource(identity.photoId, request.source, signal);
     if (!current() || !decodedAfter || !digest.test(decodedAfter.sourceSha256) ||
         decodedAfter.sourceSha256.toLowerCase() !== verified.toLowerCase() ||
-        !sameDimensions(decodedAfter, identity)) return [];
+        !sameDimensions(decodedAfter, identity)) return null;
     const conservative = conservativeDetections(detections);
-    if (!conservative) return [];
+    if (!conservative) return null;
     return multiSubjectSelectEvidence(identity, conservative);
   } catch {
     // Offline/model unavailable and cancellation are safe abstentions.
-    return [];
+    return null;
   }
 }
 

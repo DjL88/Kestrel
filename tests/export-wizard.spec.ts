@@ -81,16 +81,14 @@ test('full-size export never silently substitutes a smaller file on a constraine
   await page.addInitScript(() => Object.defineProperty(navigator, 'userAgent', { value: 'iPhone', configurable: true }));
   await openWizard(page, { width: 5000, height: 4000 });
   await page.getByRole('button', { name: 'Full size', exact: true }).click();
-  await page.getByRole('checkbox', { name: /Full size · PNG/ }).check();
-  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  // 'Full size' is the PNG master and goes straight to the review step: no size step, no PNG checkbox.
   await page.getByRole('button', { name: 'Prepare 1 file', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('cannot safely export 5000 × 4000 px');
   await expect(page.getByRole('alert')).toContainText('No smaller file was substituted');
   await expect(page.getByRole('button', { name: 'Download', exact: true })).toHaveCount(0);
   // The failure is recoverable: a deliberately chosen smaller preset still works.
-  await page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true }).click();
-  await page.getByRole('checkbox', { name: /Full size · PNG/ }).uncheck();
-  await page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^Remove Full size/ }).click();
+  await page.getByRole('button', { name: 'Add another place' }).click();
   await page.getByRole('button', { name: 'Instagram', exact: true }).click();
   await page.getByRole('checkbox', { name: /Post · 4:5/ }).check();
   await page.getByRole('button', { name: 'Next', exact: true }).click();
@@ -102,8 +100,7 @@ test('full-size export never silently substitutes a smaller file on a constraine
 test('a supported full-size PNG download retains the source dimensions', async ({ page }) => {
   await openWizard(page);
   await page.getByRole('button', { name: 'Full size', exact: true }).click();
-  await page.getByRole('checkbox', { name: /Full size · PNG/ }).check();
-  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  // 'Full size' is the PNG master and goes straight to the review step: no size step, no PNG checkbox.
   await page.getByRole('button', { name: 'Prepare 1 file', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: '1 file ready' })).toBeVisible();
   const downloaded = page.waitForEvent('download');
@@ -125,9 +122,11 @@ test('desktop export records the edit only after a successful save and can retry
       __TAURI_INTERNALS__: {
         transformCallback: () => 1,
         metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main', windowLabel: 'main' } },
-        invoke: async (command: string) => {
+        invoke: async (command: string, payload?: { data?: { byteLength?: number; length?: number } }) => {
           if (command === 'plugin:dialog|save') return ++trace.picks === 1 ? null : '/synthetic/export.png';
-          if (command === 'plugin:fs|write_file' && ++trace.writes === 1) throw new Error('Drive unavailable');
+          // The app streams into a file handle (open, then write); the first write fails, the retry succeeds.
+          if (command === 'plugin:fs|open') return 7;
+          if (command === 'plugin:fs|write') { if (++trace.writes === 1) throw new Error('Drive unavailable'); return payload?.data?.byteLength ?? payload?.data?.length ?? 0; }
           if (command === 'plugin:opener|reveal_item_in_dir') throw new Error('File manager unavailable');
           return 0;
         },
@@ -143,8 +142,7 @@ test('desktop export records the edit only after a successful save and can retry
   await expect(lastExport).toBeDisabled();
   await openExportDialog(page);
   await page.getByRole('button', { name: 'Full size', exact: true }).click();
-  await page.getByRole('checkbox', { name: /Full size · PNG/ }).check();
-  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  // 'Full size' is the PNG master and goes straight to the review step: no size step, no PNG checkbox.
   await page.getByRole('button', { name: 'Prepare 1 file', exact: true }).click();
 
   const panel = page.getByRole('dialog', { name: 'Export photo' });
@@ -162,8 +160,8 @@ test('desktop export records the edit only after a successful save and can retry
   await expect(save).toBeEnabled();
 
   await save.click();
-  await expect(panel.getByRole('status')).toContainText('Saved');
-  await expect(panel.getByRole('alert')).toHaveCount(0);
+  // A complete save records the export and closes the dialog; "Saved …" is only shown for a partial batch.
+  await expect(panel).toBeHidden();
   await expect.poll(trace).toEqual({ picks: 3, writes: 2 });
   await expect(lastExport).toBeEnabled();
   expect(downloads).toBe(0);
