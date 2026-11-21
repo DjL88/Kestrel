@@ -1,5 +1,5 @@
-import { authorizeUrl, challengeFor, CLOUD_DRIVES, exchangeBody, explainSignInError, isConfigured, makeVerifier, needsRefresh, parseTokens, refreshBody, type CloudDriveKind, type Tokens } from '../core/cloudDrive';
-import { isDesktopApp } from './desktopShell';
+import { authorizeUrl, challengeFor, CLOUD_DRIVES, exchangeBody, explainSignInError, isConfigured, makeVerifier, needsRefresh, parseCallbackQuery, parseTokens, refreshBody, type CloudDriveKind, type Tokens } from '../core/cloudDrive';
+import { isDesktopApp, isMobileShell } from './desktopShell';
 
 /**
  * Signing in to Dropbox, Google Drive or OneDrive from the web build: a small pop-up, the provider's own sign-in page, and a
@@ -13,12 +13,18 @@ export const clientIdFor = (kind: CloudDriveKind) => env[CLOUD_DRIVES[kind].clie
 const secretFor = (kind: CloudDriveKind) => { const name = CLOUD_DRIVES[kind].clientSecretEnv; return name ? env[name] : undefined; };
 
 /** Offered only when this build has been registered with the provider and can open a sign-in window. */
-export const cloudDriveAvailable = (kind: CloudDriveKind) => isConfigured(clientIdFor(kind)) && !isDesktopApp();
+export const cloudDriveAvailable = (kind: CloudDriveKind) => isConfigured(clientIdFor(kind)) && !isMobileShell();
 
 export function cloudDriveUnavailableReason(kind: CloudDriveKind): string | null {
   if (!isConfigured(clientIdFor(kind))) return `This copy of Kestrel is not yet registered with ${CLOUD_DRIVES[kind].name}. Use the ${CLOUD_DRIVES[kind].name} folder on your computer for now.`;
-  if (isDesktopApp()) return `Signing in to ${CLOUD_DRIVES[kind].name} from the desktop app is coming. Use its folder on your computer, or sign in from the web version.`;
+  if (isMobileShell()) return `Signing in to ${CLOUD_DRIVES[kind].name} from the phone app is coming. Use its folder on your device, or sign in from the web version.`;
   return null;
+}
+
+/** The desktop app's own HTTP client has no cross-origin limits; the browser's fetch is used on the web. */
+async function httpFetch(): Promise<typeof fetch> {
+  if (isDesktopApp()) return (await import('@tauri-apps/plugin-http')).fetch as typeof fetch;
+  return (input, init) => fetch(input, init);
 }
 
 type Answer = { code: string | null; state: string | null; error: string | null };
@@ -38,7 +44,7 @@ function waitForAnswer(popup: Window | null, state: string, timeoutMs = 180_000)
 
 async function tokenRequest(kind: CloudDriveKind, body: URLSearchParams, now: number, previousRefresh?: string): Promise<Tokens> {
   let response: Response;
-  try { response = await fetch(CLOUD_DRIVES[kind].tokenUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body }); }
+  try { response = await (await httpFetch())(CLOUD_DRIVES[kind].tokenUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body }); }
   catch { throw new Error(`Could not reach ${CLOUD_DRIVES[kind].name}. Check your connection.`); }
   const json = await response.json().catch(() => null) as { error?: string } | null;
   if (!response.ok) throw new Error(explainSignInError(json?.error));
@@ -52,12 +58,31 @@ export async function signInToCloudDrive(kind: CloudDriveKind, now = Date.now())
   const clientId = clientIdFor(kind)!;
   const verifier = makeVerifier(crypto.getRandomValues(new Uint8Array(32)));
   const state = makeVerifier(crypto.getRandomValues(new Uint8Array(32)));
-  const url = authorizeUrl(CLOUD_DRIVES[kind], { clientId, redirectUri: REDIRECT(), state, challenge: await challengeFor(verifier) });
-  const popup = window.open(url, 'kestrel-oauth', 'popup,width=520,height=720');
-  if (!popup) throw new Error('Your browser blocked the sign-in window. Allow pop-ups for this page and try again.');
-  const answer = await waitForAnswer(popup, state);
+  const challenge = await challengeFor(verifier);
+  const config = CLOUD_DRIVES[kind];
+  let redirectUri: string;
+  let answer: Answer;
+  if (isDesktopApp()) {
+    // Desktop: the system browser (where the person is probably already signed in) and a one-shot listener on this computer.
+    const { invoke } = await import('@tauri-apps/api/core');
+    try { redirectUri = await invoke<string>('oauth_listen_start'); } catch (error) { throw new Error(typeof error === 'string' ? error : explainSignInError(null)); }
+    try {
+      const { openUrl } = await import('@tauri-apps/plugin-opener');
+      await openUrl(authorizeUrl(config, { clientId, redirectUri, state, challenge }));
+      const query = await invoke<string>('oauth_listen_wait', { timeoutSecs: 180 });
+      answer = { ...parseCallbackQuery(query, state), state };
+    } catch (error) {
+      await invoke('oauth_listen_stop').catch(() => undefined);
+      throw new Error(typeof error === 'string' ? error : explainSignInError(null));
+    }
+  } else {
+    redirectUri = REDIRECT();
+    const popup = window.open(authorizeUrl(config, { clientId, redirectUri, state, challenge }), 'kestrel-oauth', 'popup,width=520,height=720');
+    if (!popup) throw new Error('Your browser blocked the sign-in window. Allow pop-ups for this page and try again.');
+    answer = await waitForAnswer(popup, state);
+  }
   if (answer.error || !answer.code) throw new Error(explainSignInError(answer.error));
-  return tokenRequest(kind, exchangeBody(CLOUD_DRIVES[kind], { clientId, clientSecret: secretFor(kind), code: answer.code, verifier, redirectUri: REDIRECT() }), now);
+  return tokenRequest(kind, exchangeBody(config, { clientId, clientSecret: secretFor(kind), code: answer.code, verifier, redirectUri }), now);
 }
 
 export function saveTokens(connectionId: string, tokens: Tokens): void { try { localStorage.setItem(TOKENS + connectionId, JSON.stringify(tokens)); } catch { /* this session only */ } }

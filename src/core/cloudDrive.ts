@@ -109,6 +109,7 @@ export function explainSignInError(code: string | null | undefined): string {
   switch (code) {
     case 'access_denied': return 'Sign-in was cancelled. Nothing changed.';
     case 'invalid_client': return 'This copy of Kestrel is not yet registered with that service. Use the folder option for now.';
+    case 'state_mismatch': return 'The sign-in answer did not match this request, so it was ignored. Try again.';
     case 'invalid_grant': return 'The sign-in has expired or was withdrawn. Sign in again.';
     default: return 'Sign-in did not finish. Nothing changed; try again.';
   }
@@ -116,3 +117,13 @@ export function explainSignInError(code: string | null | undefined): string {
 
 /** Whether this build has been given a client id for a provider. Without one the option is shown but not offered. */
 export const isConfigured = (clientId: string | undefined) => typeof clientId === 'string' && clientId.trim().length > 6;
+
+/** Where the system browser comes back to on desktop: a one-shot listener on this computer only (see src-tauri/src/oauth_loopback.rs). */
+export const DESKTOP_REDIRECT = 'http://localhost:53682/oauth-callback';
+
+/** Read the query string the listener hands back. The state must match the one sent, or the answer is ignored. */
+export function parseCallbackQuery(query: string, expectedState: string): { code: string | null; error: string | null } {
+  const params = new URLSearchParams(query.replace(/^\?/, ''));
+  if (params.get('state') !== expectedState) return { code: null, error: 'state_mismatch' };
+  return { code: params.get('code'), error: params.get('error') };
+}

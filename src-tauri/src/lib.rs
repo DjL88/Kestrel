@@ -5,6 +5,8 @@ use kestrel_raw::nikon_he;
 #[cfg(desktop)]
 mod raw;
 #[cfg(desktop)]
+mod oauth_loopback;
+#[cfg(desktop)]
 pub use kestrel_raw::scene_develop;
 #[cfg(desktop)]
 pub mod raw_precision;
@@ -20,6 +22,38 @@ use tauri_plugin_fs::FsExt;
 #[cfg(desktop)]
 #[derive(Default)]
 struct OpenedFiles(std::sync::Mutex<Vec<String>>);
+
+/// The listener that waits for a cloud sign-in to come back to this computer. One at a time; starting again replaces it.
+#[cfg(desktop)]
+#[derive(Default)]
+struct OauthListener(std::sync::Mutex<Option<std::net::TcpListener>>);
+
+/// Start listening for the sign-in redirect and return the redirect address to give the provider.
+#[cfg(desktop)]
+#[tauri::command]
+fn oauth_listen_start(state: tauri::State<'_, OauthListener>) -> Result<String, String> {
+    let listener = oauth_loopback::bind(oauth_loopback::PORT).map_err(|_| "Another sign-in is already open, or something else is using the sign-in port. Close it and try again.".to_string())?;
+    *state.0.lock().map_err(|_| "Sign-in is busy. Try again.".to_string())? = Some(listener);
+    Ok(format!("http://localhost:{}{}", oauth_loopback::PORT, oauth_loopback::CALLBACK_PATH))
+}
+
+/// Wait for the one redirect and return its query string (`code` and `state`, or `error`). The page checks `state`.
+#[cfg(desktop)]
+#[tauri::command]
+async fn oauth_listen_wait(state: tauri::State<'_, OauthListener>, timeout_secs: u64) -> Result<String, String> {
+    let listener = state.0.lock().map_err(|_| "Sign-in is busy. Try again.".to_string())?.take().ok_or_else(|| "No sign-in is waiting.".to_string())?;
+    let timeout = std::time::Duration::from_secs(timeout_secs.clamp(10, 600));
+    tauri::async_runtime::spawn_blocking(move || oauth_loopback::wait_for_callback(&listener, timeout))
+        .await
+        .map_err(|_| "Sign-in stopped unexpectedly.".to_string())?
+}
+
+/// Stop listening, for example when the person closes the browser tab and cancels.
+#[cfg(desktop)]
+#[tauri::command]
+fn oauth_listen_stop(state: tauri::State<'_, OauthListener>) {
+    if let Ok(mut held) = state.0.lock() { *held = None; }
+}
 
 /// Only picture files Kite44 can read. Anything else handed to the app is ignored.
 #[cfg(desktop)]
@@ -182,7 +216,8 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(OpenedFiles::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files])
+        .manage(OauthListener::default())
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, oauth_listen_start, oauth_listen_wait, oauth_listen_stop])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "Kite44", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,
