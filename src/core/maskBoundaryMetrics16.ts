@@ -54,3 +54,47 @@ export function measureMaskBoundary16(pairs: readonly BoundaryPair16[], threshol
     largeDiscontinuityFraction: large / pairs.length,
   };
 }
+
+/** Full-frame, bounded-memory diagnostic of newly introduced discontinuities.
+ * Compare four-connected neighbours straddling effective mask coverage 0.5.
+ * Source and output must have identical framing and verified sRGB16 profiles.
+ * No intermediate image or unbounded list of boundary pairs is allocated.
+ */
+export function measureFullFrameMaskBoundary16(
+  before: Uint16Array, after: Uint16Array, alpha: Float32Array,
+  width: number, height: number, threshold = 0.08,
+): BoundaryMetrics16 {
+  const pixels = width * height;
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) ||
+      width < 1 || height < 1 || pixels > 80_000_000 ||
+      alpha.length !== pixels || before.length !== pixels * 3 ||
+      after.length !== pixels * 3 || !Number.isFinite(threshold) ||
+      threshold < 0 || threshold > 1)
+    throw new RangeError('Invalid full-resolution mask evidence geometry.');
+  const sample = (buf: Uint16Array, p: number): [number, number, number] => {
+    const i = p * 3;
+    return [decodeSrgb16(buf[i]), decodeSrgb16(buf[i + 1]), decodeSrgb16(buf[i + 2])];
+  };
+  let count = 0, sumL = 0, sumC = 0, maxL = 0, maxC = 0, large = 0;
+  const compare = (p: number, q: number) => {
+    if ((alpha[p] < 0.5) === (alpha[q] < 0.5)) return;
+    const bi = sample(before, p), bo = sample(before, q);
+    const ai = sample(after, p), ao = sample(after, q);
+    const l = Math.max(0, Math.abs(luminance(ai) - luminance(ao)) - Math.abs(luminance(bi) - luminance(bo)));
+    const c = Math.max(0, chromaDistance(ai, ao) - chromaDistance(bi, bo));
+    count++; sumL += l; sumC += c;
+    maxL = Math.max(maxL, l); maxC = Math.max(maxC, c);
+    if (Math.max(l, c) > threshold) large++;
+  };
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const p = y * width + x, a = alpha[p];
+    if (!Number.isFinite(a) || a < 0 || a > 1) throw new RangeError('Invalid mask coverage.');
+    if (x + 1 < width) compare(p, p + 1);
+    if (y + 1 < height) compare(p, p + width);
+  }
+  return {
+    samples: count, meanExcessLuminanceJump: count ? sumL / count : 0,
+    maxExcessLuminanceJump: maxL, meanExcessChromaJump: count ? sumC / count : 0,
+    maxExcessChromaJump: maxC, largeDiscontinuityFraction: count ? large / count : 0,
+  };
+}
