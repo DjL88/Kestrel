@@ -107,10 +107,12 @@ test('Fly Solo makes no check until the photographer asks, then does exactly tha
   await first.getByRole('button', { name: 'Install', exact: true }).click();
   await expect(first).toContainText('Scene:', { timeout: 240_000 });
 
-  await page.goto('/');
+  // The Soar / Glide / Fly Solo choice is offered inside a project (Settings and the View menu), not on the project list.
   await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
   await page.getByRole('dialog').getByRole('radio', { name: /Fly Solo/ }).check();
   await page.getByRole('dialog').getByRole('button', { name: 'Done' }).click();
+  // Reload so the panel starts with no earlier reading on screen; the preference is stored on the device.
+  await page.reload();
   await page.getByRole('button', { name: /Photo check negatives/ }).first().click();
   await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
