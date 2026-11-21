@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Maximize2, Minimize2, PanelRightClose, Pin } from 'lucide-react';
+import { Grip, Maximize2, Minimize2, PanelRightClose, Pin } from 'lucide-react';
 import { clampPaneRect, defaultPaneRect, FLOATING_PANE_GAP as GAP, type PaneRect } from '../core/floatingPaneGeometry';
 import { FLOATING_PANE_Z } from '../core/photoInfoLayout';
 import { libraryText as t } from '../i18n/areas/library';
@@ -50,6 +50,8 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
   const visible = !photoOnly || pinned;
   const [maximised, setMaximised] = useState(false);
   const drag = useRef<{ pointer: number; x: number; y: number; rect: PaneRect } | null>(null);
+  const resizeDrag = useRef<{ pointer: number; x: number; y: number; rect: PaneRect } | null>(null);
+  const ignoreResizeClick = useRef(false);
   const frame = useRef<HTMLElement>(null);
   // Panels are working surfaces, not modal dialogs. Clicked/focused panel comes
   // forward, but always stays BELOW Save, Export and Settings modal overlays.
@@ -103,11 +105,15 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
       y: current.y + (event.key === 'ArrowUp' ? -amount : event.key === 'ArrowDown' ? amount : 0),
     }, { width: window.innerWidth, height: window.innerHeight }));
   };
-  const measureResize = () => {
-    if (maximised || !frame.current) return;
-    const bounds = frame.current.getBoundingClientRect();
-    setRect((current) => clampPaneRect({ ...current, width: bounds.width, height: bounds.height },
-      { width: window.innerWidth, height: window.innerHeight }));
+  // An explicit grip works with mouse, pen and touch (native CSS `resize` does not
+  // consistently expose a handle on tablets). The same control supports arrows.
+  const resizeBy = (width: number, height: number) => setRect((current) => clampPaneRect({ ...current,
+    width: current.width + width, height: current.height + height,
+  }, { width: window.innerWidth, height: window.innerHeight }));
+  const stopResize = (event: PointerEvent<HTMLButtonElement>) => {
+    if (resizeDrag.current?.pointer !== event.pointerId) return;
+    resizeDrag.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
   if (!visible) return null;
   return createPortal(
@@ -115,7 +121,7 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
       className="fixed z-40 flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/25 bg-kestrel-panel shadow-2xl"
       style={maximised
         ? { inset: GAP, width: 'auto', height: 'auto' }
-        : { left: rect.x, top: rect.y, width: rect.width, height: rect.height, resize: 'both', maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100dvh - 24px)' }}
+        : { left: rect.x, top: rect.y, width: rect.width, height: rect.height, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100dvh - 24px)' }}
       onPointerDownCapture={bringToFront}
       onFocusCapture={bringToFront}
       onKeyDown={(event) => {
@@ -125,7 +131,7 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
         event.stopPropagation();
         dock();
       }}
-      onPointerUp={measureResize} onPointerCancel={measureResize}>
+>
       <div className="flex min-h-12 shrink-0 items-center gap-1 border-b border-white/15 bg-kestrel-raised px-2">
         <div role="button" data-pane-drag-handle tabIndex={0} aria-label={t.floatingPane.move(title)} title={t.floatingPane.drag(title)}
           className="flex min-h-11 min-w-0 flex-1 touch-none cursor-move items-center px-2 text-sm font-semibold text-zinc-100 focus-visible:outline-2 focus-visible:outline-sky-300"
@@ -159,6 +165,39 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
         </button>
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+      {!maximised && <button type="button" data-pane-resize-handle
+        aria-label={t.floatingPane.resize(title)} title={t.floatingPane.resize(title)}
+        className="absolute bottom-0 right-0 z-10 grid h-9 w-9 touch-none place-items-center rounded-tl-md border-l border-t border-white/20 bg-kestrel-raised/95 text-zinc-300 cursor-se-resize hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-sky-300"
+        onPointerDown={(event) => {
+          if (event.button !== 0) return;
+          ignoreResizeClick.current = false;
+          resizeDrag.current = { pointer: event.pointerId, x: event.clientX, y: event.clientY, rect };
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          const start = resizeDrag.current;
+          if (!start || start.pointer !== event.pointerId) return;
+          const dx = event.clientX - start.x, dy = event.clientY - start.y;
+          if (Math.abs(dx) + Math.abs(dy) > 3) ignoreResizeClick.current = true;
+          setRect(clampPaneRect({ ...start.rect, width: start.rect.width + dx, height: start.rect.height + dy },
+            { width: window.innerWidth, height: window.innerHeight }));
+        }}
+        onPointerUp={stopResize} onPointerCancel={stopResize}
+        onClick={() => {
+          if (ignoreResizeClick.current) { ignoreResizeClick.current = false; return; }
+          resizeBy(30, 30);
+        }}
+        onKeyDown={(event) => {
+          const amount = event.shiftKey ? 40 : 16;
+          const dx = event.key === 'ArrowRight' ? amount : event.key === 'ArrowLeft' ? -amount : 0;
+          const dy = event.key === 'ArrowDown' ? amount : event.key === 'ArrowUp' ? -amount : 0;
+          if (!dx && !dy) return;
+          event.preventDefault();
+          event.stopPropagation();
+          resizeBy(dx, dy);
+        }}>
+        <Grip className="h-4 w-4" aria-hidden="true" />
+      </button>}
     </section>, document.body,
   );
 }

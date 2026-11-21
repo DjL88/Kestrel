@@ -371,6 +371,7 @@ export const ga: AreaTranslation<typeof source> = {
     undockInfoHelp: "Bog Eolas an Ghrianghraif go fuinneog in-athraithe méid",
     move: (title) => `Bog ${title}; úsáid na saigheadeochracha`,
     drag: (title) => `Tarraing chun ${title} a bhogadh, nó úsáid na saigheadeochracha`,
+    resize: (title) => `Athraigh méid ${title}: tarraing nó úsáid na saigheadeochracha`,
     restore: (title) => `Athchóirigh méid phainéal ${title}`,
     maximise: (title) => `Uasmhéadaigh painéal ${title}`,
     pin: (title) => `Coinnigh ${title} infheicthe sa mhód Grianghraf amháin`,

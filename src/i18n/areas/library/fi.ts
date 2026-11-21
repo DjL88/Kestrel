@@ -383,6 +383,7 @@ export const fi: AreaTranslation<typeof source> = {
     undockInfoHelp: "Siirrä kuvan tiedot koon mukaan säädettävään ikkunaan",
     move: (title) => `Siirrä ${title} nuolinäppäimillä`,
     drag: (title) => `Vedä siirtääksesi kohdetta ${title}, tai käytä nuolinäppäimiä`,
+    resize: (title) => `Muuta paneelin ${title} kokoa vetämällä tai nuolinäppäimillä`,
     restore: (title) => `Palauta paneelin ${title} koko`,
     maximise: (title) => `Suurenna paneeli ${title}`,
     pin: (title) => `Pidä ${title} näkyvissä Vain kuva -tilassa`,

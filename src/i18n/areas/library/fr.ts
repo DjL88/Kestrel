@@ -380,6 +380,7 @@ export const fr: AreaTranslation<typeof source> = {
     undockInfoHelp: "Déplacer les infos photo dans une fenêtre redimensionnable",
     move: (title) => `Déplacer ${title} avec les touches fléchées`,
     drag: (title) => `Faites glisser pour déplacer ${title}, ou utilisez les touches fléchées`,
+    resize: (title) => `Redimensionner ${title} : faites glisser ou utilisez les flèches`,
     restore: (title) => `Rétablir la taille du panneau ${title}`,
     maximise: (title) => `Agrandir le panneau ${title}`,
     pin: (title) => `Garder ${title} visible en mode Photo uniquement`,

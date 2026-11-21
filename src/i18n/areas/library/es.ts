@@ -380,6 +380,7 @@ export const es: AreaTranslation<typeof source> = {
     undockInfoHelp: "Mover la información a una ventana de tamaño ajustable",
     move: (title) => `Mover ${title} con las teclas de dirección`,
     drag: (title) => `Arrastra para mover ${title}, o usa las teclas de dirección`,
+    resize: (title) => `Cambiar el tamaño de ${title}: arrastra o usa las flechas`,
     restore: (title) => `Restaurar tamaño del panel ${title}`,
     maximise: (title) => `Maximizar panel ${title}`,
     pin: (title) => `Mantener ${title} visible en modo Solo foto`,

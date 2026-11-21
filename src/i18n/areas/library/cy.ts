@@ -368,6 +368,7 @@ export const cy: AreaTranslation<typeof source> = {
     undockInfoHelp: "Symud Gwybodaeth y Llun i ffenestr y gellir newid ei maint",
     move: (title) => `Symud ${title}; defnyddiwch y bysellau saeth`,
     drag: (title) => `Llusgwch i symud ${title}, neu defnyddiwch y bysellau saeth`,
+    resize: (title) => `Newid maint ${title}: llusgwch neu defnyddiwch y bysellau saeth`,
     restore: (title) => `Adfer maint panel ${title}`,
     maximise: (title) => `Ehangu panel ${title}`,
     pin: (title) => `Cadw ${title} yn weladwy yn y modd Llun yn Unig`,
