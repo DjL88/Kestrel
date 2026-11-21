@@ -84,6 +84,8 @@ export interface PhotoFrame {
   autoTags?: string[];
   /** Names the user removed from this photo, so the app never adds them to it again. */
   declinedTags?: string[];
+  /** Picture vector for search by description (CLIP image encoder). Kept with the project; never the photo. */
+  searchVector?: import('./textSearch').StoredVector;
   /** Set once the species model has looked at this photo, so it is not looked at again. */
   speciesChecked?: boolean;
   /** How confident the last auto-cull scan was in this photo, and its score (0-100). Set when a scan looks at the

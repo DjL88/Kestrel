@@ -110,3 +110,19 @@ export async function routePicture(picture: HTMLCanvasElement, crop: SquareCrop)
   const output = results.image_embeds ?? results[session.outputNames[0]];
   return routeSubject(normalise(Float32Array.from(output.data as Float32Array)), vectors, categories);
 }
+
+/** The picture's unit-length CLIP vector (centre square), for search by description. Runs on this device. */
+export async function embedPicture(picture: HTMLCanvasElement): Promise<Float32Array> {
+  const { ort, session } = await load();
+  const size = GATE_MODEL.size;
+  const side = Math.min(picture.width, picture.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Canvas unavailable');
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(picture, (picture.width - side) / 2, (picture.height - side) / 2, side, side, 0, 0, size, size);
+  const input = preprocessSpecies(context.getImageData(0, 0, size, size).data, size);
+  const results = await session.run({ [session.inputNames[0]]: new ort.Tensor('float32', input, [1, 3, size, size]) });
+  return normalise(Float32Array.from((results.image_embeds ?? results[session.outputNames[0]]).data as Float32Array));
+}

@@ -32,6 +32,8 @@ import { DesktopUpdate } from './components/DesktopUpdate';
 import { useDesktopMenu } from './providers/useDesktopMenu';
 import { OnlineHelperDialog } from './components/OnlineHelperDialog';
 import { useSpeciesScan } from './useSpeciesScan';
+import { useTextSearch } from './useTextSearch';
+import { mergeMatches, searchNote } from './core/textSearch';
 import { useBackgroundDevelop } from './useBackgroundDevelop';
 import { SpeciesScanBanner } from './components/SpeciesScanBanner';
 import { addTags, type SubjectKind } from './core/subjectTags';
@@ -532,19 +534,20 @@ export default function App() {
   const uneditedKeepers = previewKeeperLook(cullingState.frames).eligible;
   const guided = guidedStep(counts, uneditedKeepers);
 
+  const textSearch = useTextSearch({
+    frames: cullingState.frames, provider: previewProviderRef.current, query: cullingState.searchQuery,
+    onVector: (frameId, vector) => setCullingState((prev) => prev.shoot.id !== cullingState.shoot.id ? prev
+      : { ...prev, frames: prev.frames.map((frame) => frame.id === frameId ? { ...frame, searchVector: vector } : frame) }),
+  });
   const visibleFrames = useMemo(
-    () =>
-      sortFrames(
-        filterFrames(
-          cullingState.frames,
-          cullingState.filter,
-          cullingState.searchQuery,
-          cullingState.ratingFilter,
-          cullingState.cameraFilter,
-          cullingState.lensFilter
-        ),
-        cullingState.sortOrder
-      ),
+    () => {
+      const words = filterFrames(cullingState.frames, cullingState.filter, cullingState.searchQuery, cullingState.ratingFilter, cullingState.cameraFilter, cullingState.lensFilter);
+      if (!textSearch.ranked.length) return sortFrames(words, cullingState.sortOrder);
+      // Picture matches respect the other filters; with no sort chosen they come best first.
+      const pool = filterFrames(cullingState.frames, cullingState.filter, '', cullingState.ratingFilter, cullingState.cameraFilter, cullingState.lensFilter);
+      const merged = mergeMatches(words, pool, textSearch.ranked);
+      return cullingState.sortOrder ? sortFrames(merged, cullingState.sortOrder) : merged;
+    },
     [
       cullingState.frames,
       cullingState.filter,
@@ -553,6 +556,7 @@ export default function App() {
       cullingState.cameraFilter,
       cullingState.lensFilter,
       cullingState.sortOrder,
+      textSearch.ranked,
     ]
   );
 
@@ -2159,6 +2163,9 @@ export default function App() {
             return { ...prev, ratingFilter: next, selectedFrameId: stillVisible ? prev.selectedFrameId : nextVisible[0]?.id ?? null };
           })
         }
+        searchNote={searchNote(textSearch.state, textSearch.progress.done, textSearch.progress.total)}
+        onSearchDownload={textSearch.state === 'offer-download' ? () => void textSearch.startDownload() : undefined}
+        searchDownload={textSearch.download}
         searchQuery={cullingState.searchQuery}
         onSearchChange={(q) =>
           setCullingState((prev) => {

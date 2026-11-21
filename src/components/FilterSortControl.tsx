@@ -5,6 +5,10 @@ import { RatingFilterControl } from './RatingFilterControl';
 import { libraryText as t } from '../i18n/areas/library';
 
 interface Props {
+  /** Plain-words line under the search box, and the opt-in download for searching by description. */
+  searchNote?: string;
+  onSearchDownload?: () => void;
+  searchDownload?: number | null;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   ratingFilter: RatingFilter | null;
@@ -90,6 +94,14 @@ export function FilterSortControl(props: Props) {
                 <input type="search" value={props.searchQuery} onChange={(event) => props.onSearchChange(event.target.value)}
                   placeholder={t.filter.searchPlaceholder} className={`${field} pl-8`} />
               </span>
+              {(props.searchNote || props.searchDownload != null) && (
+                <span role="status" className="mt-1 block text-xs font-normal text-zinc-400">
+                  {props.searchDownload != null ? `Downloading… ${Math.round(props.searchDownload * 100)}%` : props.searchNote}
+                  {props.onSearchDownload && props.searchDownload == null && (
+                    <button type="button" onClick={props.onSearchDownload} className="ml-2 inline-flex min-h-8 items-center underline focus-visible:outline-2 focus-visible:outline-sky-300">Download (about 61 MB)</button>
+                  )}
+                </span>
+              )}
             </label>
             <div className="text-xs font-medium text-zinc-400">
               {t.filter.rating}
