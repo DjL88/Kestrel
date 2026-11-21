@@ -45,13 +45,26 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
   const [percent, setPercent] = useState(0);
   const [found, setFound] = useState<{ key: string; facts: SceneFacts } | null>(null);
   const autoDone = useRef(new Set<string>());
-  const abort = useRef<AbortController | null>(null);
+  const abort = useRef<AbortController | null>(null); // installer only
+  const checkController = useRef<AbortController | null>(null); // in-flight local inference
   const recipeKey = `${photoKey}|${JSON.stringify(edit)}`;
+  const liveRecipeKey = useRef(recipeKey);
+  liveRecipeKey.current = recipeKey;
   const facts = found?.key === recipeKey ? found.facts : null; // a result for an older picture or recipe is stale and dropped
 
   useEffect(() => { void photoCheckInstalled().then(setInstalled, () => setInstalled(false)); }, []);
-  useEffect(() => { setAsked(false); setUndo(null); setConsent(false); abort.current?.abort(); }, [photoKey, mode]);
-  useEffect(() => () => abort.current?.abort(), []);
+  useEffect(() => {
+    setAsked(false); setUndo(null); setConsent(false);
+    abort.current?.abort();
+    checkController.current?.abort();
+  }, [photoKey, mode]);
+  useEffect(() => {
+    // Never attach an old model reading to the new photograph or recipe.
+    checkController.current?.abort();
+    checkController.current = null;
+    setPhase(current => current === 'checking' ? 'idle' : current);
+  }, [recipeKey]);
+  useEffect(() => () => { abort.current?.abort(); checkController.current?.abort(); }, []);
 
   const advice = useMemo(() => histogram ? adviseOnPhoto(histogram, edit, contextFrom(facts)) : null, [histogram, edit, facts]);
   const action = advice ? adviceAction(mode, advice, { asked, manuallyRefined: !isNeutralEdit(edit) && !autoDone.current.has(photoKey) }) : null;
@@ -59,13 +72,28 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
   async function check() {
     const preview = readPreview();
     if (!preview || phase === 'checking') return;
+    checkController.current?.abort();
     const controller = new AbortController();
-    abort.current = controller;
+    checkController.current = controller;
+    const requestedRecipe = recipeKey;
+    const stillCurrent = () => checkController.current === controller &&
+      !controller.signal.aborted && liveRecipeKey.current === requestedRecipe;
     setPhase('checking');
     try {
       const result = await runPhotoCheck(preview, controller.signal);
-      if (!controller.signal.aborted) { setFound({ key: recipeKey, facts: result.facts }); setPhase('idle'); }
-    } catch (error) { if (!controller.signal.aborted) { console.warn('Photo check failed:', error); setPhase('failed'); } else setPhase('idle'); }
+      if (stillCurrent()) { setFound({ key: requestedRecipe, facts: result.facts }); setPhase('idle'); }
+    } catch (error) {
+      if (stillCurrent()) {
+        console.warn('Photo check failed:', error);
+        if (error instanceof Error && error.message.includes('not installed')) setInstalled(false);
+        setPhase('failed');
+      }
+    } finally {
+      if (checkController.current === controller) {
+        checkController.current = null;
+        setPhase(current => current === 'checking' ? 'idle' : current);
+      }
+    }
   }
   // Glide and Soar: read the scene once the picture and recipe have been still for a moment. Fly Solo: never unprompted.
   useEffect(() => {
@@ -103,7 +131,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
   const next = action.tryThis ? describe(action.tryThis) : null;
   const reason = advice.issues.find((issue) => t.advice.notes[issue]);
   return (
-    <section aria-label={t.advice.region} className="space-y-1 border-t border-white/10 px-1 py-1 text-xs text-zinc-200">
+    <section aria-label={t.advice.region} data-photo-model-status={facts ? 'checked' : phase} className="space-y-1 border-t border-white/10 px-1 py-1 text-xs text-zinc-200">
       <div className="flex min-h-9 flex-wrap items-center gap-2">
         <span role="status" className="inline-flex items-center gap-1 font-medium"><Icon className="h-3.5 w-3.5" aria-hidden="true" />{t.advice.verdict[advice.verdict]}</span>
         {reason && advice.verdict !== 'good' && <span className="text-zinc-400">{t.advice.notes[reason]}</span>}
@@ -120,14 +148,23 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, disabled, onEdit,
           </button>
         )}
       </div>
-      {facts && (facts.subject || facts.light) && (
-        <p className="text-zinc-400">{t.advice.scene}: {[facts.subject && t.advice.subjects[facts.subject], facts.light && t.advice.lights[facts.light]].filter(Boolean).join(' · ')}</p>
+      {facts && (
+        <p className="text-zinc-400">{t.advice.scene}: {
+          [facts.subject && t.advice.subjects[facts.subject], facts.light && t.advice.lights[facts.light]]
+            .filter(Boolean).join(' · ') || t.advice.verdict.unsure
+        }</p>
       )}
       {phase === 'checking' && (
         <p className="flex items-center gap-2 text-zinc-400" role="status">{t.advice.checking}
-          <button type="button" className="min-h-9 underline hover:text-white" onClick={() => abort.current?.abort()}>{t.advice.cancel}</button></p>
+          <button type="button" className="min-h-9 underline hover:text-white" onClick={() => { checkController.current?.abort(); setPhase('idle'); }}>{t.advice.cancel}</button></p>
       )}
-      {phase === 'failed' && <p className="text-zinc-400" role="status">{t.advice.failed}</p>}
+      {phase === 'failed' && (
+        <p className="flex items-center gap-2 text-zinc-400" role="status">
+          {t.advice.failed}
+          {installed && <button type="button" className="min-h-9 rounded border border-white/20 px-2 hover:bg-white/10"
+            onClick={() => void check()}>{t.advice.check}</button>}
+        </p>
+      )}
       {phase === 'installing' && (
         <p className="flex items-center gap-2 text-zinc-400" role="status">{t.advice.installing(`${percent}%`)}
           <button type="button" className="min-h-9 underline hover:text-white" onClick={() => abort.current?.abort()}>{t.advice.cancel}</button></p>
