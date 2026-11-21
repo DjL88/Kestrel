@@ -1,4 +1,4 @@
-import { Settings2 } from 'lucide-react';
+import { Settings2 } from './icons/KestrelUIIcons';
 import { libraryText as t } from '../i18n/areas/library';
 
 /** Settings, always in the top right corner, on every page and every screen size. */

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download } from 'lucide-react';
+import { Download } from './icons/KestrelUIIcons';
 import { ConfirmDialog } from './ConfirmDialog';
 import { projectsText as t } from '../i18n/areas/projects';
 import type { ShootDescriptor } from '../core/types';
