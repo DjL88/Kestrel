@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe } from 'node:test';
+import { expect, it } from './testExpect';
 import { verifyModelBytes, verifySignedModelManifest } from './trustedModelDelivery';
 
 async function fixture() {

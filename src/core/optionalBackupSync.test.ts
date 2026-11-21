@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe } from 'node:test';
+import { expect, it } from './testExpect';
 import { digest, publishBackup, readVerifiedBackup, type BackupRemote } from './optionalBackupSync';
 const enc = new TextEncoder();
 function fixture() {

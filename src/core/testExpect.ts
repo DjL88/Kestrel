@@ -53,6 +53,8 @@ export function expect(actual: unknown) {
     resolves: {
       toBe: async (expected: unknown) => assert.equal(await actual, expected),
       toEqual: async (expected: unknown) => assert.deepEqual(await actual, expected),
+      toBeUndefined: async () => assert.equal(await actual, undefined),
+      toBeNull: async () => assert.equal(await actual, null),
     },
   };
 }
