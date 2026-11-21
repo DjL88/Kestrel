@@ -15,7 +15,6 @@ export const fi: AreaTranslation<typeof source> = {
   provider: 'Mikä tekoäly?',
   providers: {
     gemini: 'Google Gemini (AI Studio -avain)',
-    vertex: 'Google Vertex AI (Google Cloud -projektisi avain)',
     anthropic: 'Anthropic Claude',
     openai: 'OpenAI-yhteensopiva tai tällä tietokoneella oleva malli (Ollama, LM Studio)',
   },

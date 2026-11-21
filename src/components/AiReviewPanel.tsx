@@ -78,7 +78,7 @@ export function AiProviderSetup({ saved, onDone }: { saved: AiProviderSettings |
       <input id={`${id}-model`} className={field} value={model} onChange={(event) => setModel(event.target.value)} autoComplete="off" spellCheck={false} />
       <p className="text-xs text-zinc-400">{kind === 'gemini' ? t.modelAuto : t.modelNeeded}</p>
       <div className="flex flex-wrap gap-2">
-        <button type="submit" className={button} disabled={(kind !== 'openai' && !key.trim()) || ((kind === 'vertex' || kind === 'openai') && !model.trim())}>{t.save}</button>
+        <button type="submit" className={button} disabled={(kind !== 'openai' && !key.trim()) || (kind === 'openai' && !model.trim())}>{t.save}</button>
         {saved && <button type="button" className={button} onClick={() => { forgetAiSettings(); onDone(); }}>{t.forget}</button>}
       </div>
     </form>

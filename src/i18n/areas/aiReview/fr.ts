@@ -15,7 +15,6 @@ export const fr: AreaTranslation<typeof source> = {
   provider: 'Quelle IA ?',
   providers: {
     gemini: 'Google Gemini (clé AI Studio)',
-    vertex: 'Google Vertex AI (clé de votre projet Google Cloud)',
     anthropic: 'Anthropic Claude',
     openai: 'Compatible OpenAI, ou un modèle sur cet ordinateur (Ollama, LM Studio)',
   },

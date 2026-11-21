@@ -15,7 +15,6 @@ export const is: AreaTranslation<typeof source> = {
   provider: 'Hvaða gervigreind?',
   providers: {
     gemini: 'Google Gemini (AI Studio-lykill)',
-    vertex: 'Google Vertex AI (lykill að Google Cloud-verkefninu þínu)',
     anthropic: 'Anthropic Claude',
     openai: 'Samhæft við OpenAI, eða líkan á þessari tölvu (Ollama, LM Studio)',
   },
