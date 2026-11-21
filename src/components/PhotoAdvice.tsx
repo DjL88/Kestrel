@@ -34,8 +34,8 @@ const megabytes = (bytes: number) => `${Math.round(bytes / 1_000_000)} MB`;
  * nothing uploaded) it also reads the scene, which can only stop a deliberate look being "fixed". Fly Solo never runs the
  * model unless asked. Nothing is applied over the photographer's own edits.
  */
-export function PhotoAdvice({ histogram, edit, mode, photoKey, version, disabled, onEdit, readPreview }: {
-  histogram: Histogram | null; edit: PhotoEdit; mode: GuidanceMode; photoKey: string; version: string;
+export function PhotoAdvice({ histogram, edit, mode, photoKey, version, sourceVersion, disabled, onEdit, readPreview }: {
+  histogram: Histogram | null; edit: PhotoEdit; mode: GuidanceMode; photoKey: string; version: string; sourceVersion: object | null;
   disabled?: boolean; onEdit: (edit: PhotoEdit) => void; readPreview: () => HTMLCanvasElement | null;
 }) {
   const [asked, setAsked] = useState(false);
@@ -44,7 +44,7 @@ export function PhotoAdvice({ histogram, edit, mode, photoKey, version, disabled
   const [consent, setConsent] = useState(false);
   const [phase, setPhase] = useState<'idle' | 'installing' | 'checking' | 'failed'>('idle');
   const [percent, setPercent] = useState(0);
-  const scope = useMemo(() => ({ photoKey, version, edit }), [photoKey, version, edit]);
+  const scope = useMemo(() => ({ photoKey, version, sourceVersion, edit }), [photoKey, version, sourceVersion, edit]);
   const [found, setFound] = useState<{ scope: typeof scope; facts: SceneFacts } | null>(null);
   const autoDone = useRef(new Set<string>());
   const cancelledFor = useRef<typeof scope | null>(null);
