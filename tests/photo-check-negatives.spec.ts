@@ -77,6 +77,8 @@ test('a corrupted model file is refused, nothing is installed or read, and a cle
   // Nothing was activated: after a reload the install is still on offer.
   await page.reload();
   const again = await (async () => {
+    // A reload returns to the project list: open the project first, as the main photo-check spec does.
+    await page.getByRole('button', { name: /Photo check negatives/ }).first().click();
     await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
     await page.getByRole('tab', { name: 'Edit', exact: true }).click();
     const all = page.getByRole('button', { name: 'All controls' });
