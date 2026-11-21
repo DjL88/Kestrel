@@ -1,6 +1,8 @@
 import { canShowNeutralRaster } from '../core/neutralRasterDisplay';
 import { displayCanvasColourSpace } from '../providers/displayColour';
 import { newId } from '../core/ids';
+import { mayApplyGuidance, type GuidanceMode } from '../core/guidanceMode';
+import { blendMaskEdges } from '../core/maskBlendAdvice';
 import { loadImage } from '../providers/loadImage';
 import type { FocusPoint } from '../core/exportFraming';
 import { messages as m } from '../i18n/messages';
@@ -110,6 +112,8 @@ interface Props {
   onOpenMacroPad?: () => void;
   /** Suggest colour and tone the first time a photo is opened, when the project asked for it. */
   autoEdit?: boolean;
+  /** Soar / Glide / Fly Solo, stored by the host app. */
+  guidanceMode?: GuidanceMode;
   frame: PhotoFrame;
   /** App-wide camera shared by Review, Compare and Edit: opening tools never moves the photo. */
   viewportTransform?: ViewportTransform;
@@ -152,7 +156,7 @@ interface Props {
   onUndoKeeperEdits?: () => void;
 }
 
-export function PhotoEditor({ autoEdit, onOpenMacroPad,
+export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad,
   frame, viewportTransform, onViewportTransform, provider, needsAccess, bindings, onEdit, initialTab, onTabChange, onApplyLook, onExport, exportCount = 1, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, hand, onHandChange,
@@ -193,6 +197,7 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   // Once asked for, the opinion stays up to date as the edit changes, until it is hidden.
   const [opinions, setOpinions] = useState<Opinion[] | null>(null);
   const [selectedMaskId, setSelectedMaskId] = useState<string | null>(null);
+  const [manualColourCheck, setManualColourCheck] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [detectNotice, setDetectNotice] = useState('');
   const [brushRadius, setBrushRadius] = useState(0.05);
@@ -402,6 +407,11 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   const savedEdit = frame.edit ?? DEFAULT_EDIT;
   // While a history step is being previewed, draw that step's recipe instead of the saved one.
   const edit = (previewRecipe ? previewRecipe.edit : frame.edit) ?? DEFAULT_EDIT;
+  // Fly Solo performs no unsolicited image analysis. A requested colour check
+  // stays visible for that recipe only; any subsequent edit needs a new request.
+  useEffect(() => {
+    if (guidanceMode === 'solo') setManualColourCheck(false);
+  }, [guidanceMode, frame.stableKey, frame.edit, frame.framing]);
   // Painting is always a deliberate choice: leaving a mask or the Masks tab switches it off.
   useEffect(() => { setPaintOn(false); }, [selectedMaskId, tab]);
   // Delete or Backspace removes the selected mask, as in Lightroom. Typing in a field is never touched.
@@ -999,10 +1009,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       const masks = edit.masks ?? [];
       const key = framingKey(framing);
       if (replaceId) {
+        // Re-finding a mask must never silently erase the photographer's own refinements.
         onEdit({ ...edit, masks: masks.map((mask) => mask.id === replaceId && mask.kind === 'subject'
-          ? { ...mask, grid, detail: detail ?? undefined, framingKey: key, confidence: assessment.confidence, strokes: [] } : mask) });
+          ? { ...mask, grid, detail: detail ?? undefined, framingKey: key, confidence: assessment.confidence, strokes: mask.strokes } : mask) });
       } else {
-        const mask = { ...createSubjectMask(newId(), grid, key, assessment.confidence, detail), invert: background };
+        const mask = { ...createSubjectMask(newId(), grid, key, assessment.confidence, detail), invert: background,
+          feather: mayApplyGuidance(guidanceMode, assessment.confidence, false) ? 0.68 : 0.5 };
         onEdit({ ...edit, masks: [...masks, mask] });
         setSelectedMaskId(mask.id);
         setShowMaskOverlay(true);
@@ -1299,7 +1311,12 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           <button type="button" aria-expanded={quickChoices} onClick={() => setQuickChoices(!quickChoices)}
             className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white desk:min-h-7">{t.edit.quickChoices}</button>
         </div>
-        <ColourCheckPanel edit={edit} readPreview={colourPreview} version={[edit, framing, source]} onEdit={onEdit} disabled={sourceState !== 'ready'} readJpeg={reviewJpeg} />
+        {guidanceMode === 'solo' && !manualColourCheck ? (
+          <button type="button" className="min-h-10 w-full border-t border-white/10 px-1 text-left text-xs text-zinc-300 hover:text-white"
+            disabled={sourceState !== 'ready'} onClick={() => setManualColourCheck(true)}>Check colour</button>
+        ) : (
+          <ColourCheckPanel edit={edit} readPreview={colourPreview} version={[edit, framing, source]} onEdit={onEdit} disabled={sourceState !== 'ready'} readJpeg={reviewJpeg} />
+        )}
         <details open className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
             {t.edit.tone} <ChevronDown className="h-4 w-4" aria-hidden="true" />
@@ -1532,7 +1549,16 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
               onSelect={setSelectedMaskId} onChange={(masks) => { if (onlyAdjustmentsChanged(edit.masks ?? [], masks)) pauseMaskHighlight(); onEdit({ ...edit, masks }); }}
               onBrushRadius={setBrushRadius} onErase={setErase} onShowOverlay={setShowMaskOverlay}
               onFindSubject={(background) => void findSubject(background)} onRefind={(id) => void findSubject(false, id)} selectingArea={selectingArea} onSelectArea={setSelectingArea}
-              detecting={detecting} detectNotice={detectNotice} currentFramingKey={framingKey(framing)} />
+              detecting={detecting} detectNotice={detectNotice} currentFramingKey={framingKey(framing)}
+              guidanceMode={guidanceMode} onBlendEdges={(id) => {
+                const currentMasks = edit.masks ?? [];
+                const selected = currentMasks.find((candidate) => candidate.id === id);
+                if (!selected) return;
+                const blended = blendMaskEdges(selected);
+                if (blended === selected) return;
+                pauseMaskHighlight();
+                onEdit({ ...edit, masks: currentMasks.map((candidate) => candidate.id === id ? blended : candidate) });
+              }} />
 
           </div>
         )}
