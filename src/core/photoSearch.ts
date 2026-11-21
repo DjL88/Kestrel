@@ -80,12 +80,15 @@ export function retainPhotoSearchEvidence(
 
 export function searchableEvidenceWords(frame: { stableKey?: string; searchEvidence?: PhotoSearchEvidence }): string[] {
   const evidence = frame.searchEvidence;
-  const supported = evidence?.schema === 1 && evidence.sourceStableKey === frame.stableKey
-    ? [...(evidence.ocr ?? []), ...(evidence.subjects ?? [])]
-        .filter((entry) => entry && typeof entry.value === 'string' &&
-          (entry.status === 'confirmed' || entry.status === 'agreed' || entry.status === 'supported'))
-        .map((entry) => entry.value)
-    : [];
+  if (!evidence || evidence.schema !== 1 || evidence.sourceStableKey !== frame.stableKey) return [];
+  // Two agreeing OCR reads remain suggestions, while uncertain single reads
+  // are held back from automatic search. Subject detection needs a separate
+  // corroborating witness; a species guess on its own is not evidence.
+  const text = Array.isArray(evidence.ocr) ? evidence.ocr.filter((entry) => entry &&
+    typeof entry.value === 'string' && (entry.status === 'agreed' || entry.status === 'confirmed')) : [];
+  const subjects = Array.isArray(evidence.subjects) ? evidence.subjects.filter((entry) => entry &&
+    typeof entry.value === 'string' && (entry.status === 'supported' || entry.status === 'confirmed')) : [];
+  const supported = [...text, ...subjects].slice(0, 48).map((entry) => entry.value);
   return supported;
 }
 
