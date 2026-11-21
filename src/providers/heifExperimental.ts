@@ -26,7 +26,7 @@ function ensureWorker(): Worker {
   started.onerror = (event) => {
     // The worker itself failed (out of memory, or the decoder could not load): fail what was waiting, start afresh next time.
     event.preventDefault();
-    for (const pending of waiting.values()) pending.reject(new HeifUndecodableError('Kestrel ran out of room decoding this HEIF photo.'));
+    for (const pending of waiting.values()) pending.reject(new HeifUndecodableError('Kite44 ran out of room decoding this HEIF photo.'));
     waiting.clear();
     started.terminate();
     if (worker === started) worker = null;
@@ -51,12 +51,12 @@ async function encodePng(width: number, height: number, data: ArrayBuffer): Prom
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext('2d');
-  if (!context) throw new HeifUndecodableError('Kestrel could not prepare this HEIF photo for display.');
+  if (!context) throw new HeifUndecodableError('Kite44 could not prepare this HEIF photo for display.');
   context.putImageData(new ImageData(new Uint8ClampedArray(data), width, height), 0, 0);
   const png = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
   canvas.width = 0;
   canvas.height = 0;
-  if (!png) throw new HeifUndecodableError('Kestrel could not prepare this HEIF photo for display.');
+  if (!png) throw new HeifUndecodableError('Kite44 could not prepare this HEIF photo for display.');
   return png;
 }
 
@@ -65,9 +65,9 @@ async function encodePng(width: number, height: number, data: ArrayBuffer): Prom
  * cannot be decoded (damaged, an unsupported codec, or too large); the interface then shows its own translated message.
  */
 export async function decodeHeifToPng(original: Blob): Promise<Blob> {
-  // Every platform Kestrel ships on has both; the decoder is shipped once, in the worker.
+  // Every platform Kite44 ships on has both; the decoder is shipped once, in the worker.
   if (typeof WebAssembly === 'undefined' || typeof Worker === 'undefined') {
-    throw new HeifUndecodableError('This browser cannot run Kestrel’s HEIF decoder.');
+    throw new HeifUndecodableError('This browser cannot run Kite44’s HEIF decoder.');
   }
   const reply = await inWorker(await original.arrayBuffer());
   if (reply.type === 'error') {

@@ -117,9 +117,9 @@ export function encodeProjectBackup(state: CullingState): string {
 
 export function restoreProjectBackup(contents: string, id: string, now = Date.now()): CullingState {
   let envelope: unknown;
-  try { envelope = JSON.parse(contents); } catch { throw new Error('This file is not a readable Kestrel project backup.'); }
+  try { envelope = JSON.parse(contents); } catch { throw new Error('This file is not a readable Kite44 project backup.'); }
   if (!record(envelope) || envelope.format !== FORMAT || envelope.version !== 1 || !record(envelope.project)) {
-    throw new Error('This file is not a supported Kestrel project backup.');
+    throw new Error('This file is not a supported Kite44 project backup.');
   }
   const { shoot, frames, selectedFrameId, compareRightFrameId, filter, searchQuery, keeperTarget, autoAdvance } = envelope.project;
   if (!descriptorIsValid(shoot) || !Array.isArray(frames) || !frames.every(frameIsValid) ||

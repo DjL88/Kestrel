@@ -5,8 +5,8 @@ export interface PickedFolder { connector: StorageConnector; name: string; /** T
 export type PickResult = PickedFolder | 'cancelled' | 'unsupported';
 
 const parts = (path: string) => path.split('/').filter(Boolean);
-const guardWrite = (path: string) => { if (!isWritablePath(path)) throw new Error('Path is outside the Kestrel folder.'); };
-const guard = (path: string) => { if (!isInsideSyncRoot(path.replace(/\/+$/, ''))) throw new Error('Path is outside the Kestrel folder.'); };
+const guardWrite = (path: string) => { if (!isWritablePath(path)) throw new Error('Path is outside the Kite44 folder.'); };
+const guard = (path: string) => { if (!isInsideSyncRoot(path.replace(/\/+$/, ''))) throw new Error('Path is outside the Kite44 folder.'); };
 
 /** A folder opened with the browser's folder picker (Chrome, Edge, and anything else that supports it). */
 export function directoryHandleConnector(root: FileSystemDirectoryHandle): StorageConnector {
@@ -23,7 +23,7 @@ export function directoryHandleConnector(root: FileSystemDirectoryHandle): Stora
   }
   return {
     kind: 'folder',
-    async test() { try { await root.getDirectoryHandle('.kestrel-test', { create: true }); await root.removeEntry('.kestrel-test'); return { ok: true as const }; } catch { return { ok: false as const, reason: 'Kestrel cannot write to that folder. Choose another, or allow access when asked.' }; } },
+    async test() { try { await root.getDirectoryHandle('.kestrel-test', { create: true }); await root.removeEntry('.kestrel-test'); return { ok: true as const }; } catch { return { ok: false as const, reason: 'Kite44 cannot write to that folder. Choose another, or allow access when asked.' }; } },
     async put(path, bytes) {
       guardWrite(path);
       const segments = parts(path);
@@ -64,7 +64,7 @@ export async function desktopFolderConnector(root: string): Promise<StorageConne
   const join = (path: string) => `${root.replace(/[\\/]+$/, '')}/${path}`;
   return {
     kind: 'folder',
-    async test() { try { await fs.mkdir(join('kestrel/v1'), { recursive: true }); return { ok: true as const }; } catch { return { ok: false as const, reason: 'Kestrel cannot write to that folder. Choose another.' }; } },
+    async test() { try { await fs.mkdir(join('kestrel/v1'), { recursive: true }); return { ok: true as const }; } catch { return { ok: false as const, reason: 'Kite44 cannot write to that folder. Choose another.' }; } },
     async put(path, bytes) {
       guardWrite(path);
       await fs.mkdir(join(parts(path).slice(0, -1).join('/')), { recursive: true });

@@ -10,7 +10,7 @@ export function shouldOfferLanguage(): boolean {
 }
 
 /**
- * The first step of setting up Kestrel: the device's language is suggested, in that language and in English, and
+ * The first step of setting up Kite44: the device's language is suggested, in that language and in English, and
  * nothing changes until the person picks. It shows once; Settings → Language changes it later.
  */
 export function LanguageWelcome() {

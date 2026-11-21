@@ -1,5 +1,5 @@
 /**
- * The online helper through Kestrel's own control plane (services/control-plane)
+ * The online helper through Kite44's own control plane (services/control-plane)
  * instead of a user's Google key. Same HelperTransport interface, so callers do
  * not change. The provider key stays on the server; this side holds only a
  * short-lived session token and checks every answer again before use.

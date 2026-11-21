@@ -2,7 +2,7 @@ import type { PhotoEdit } from './photoEdits';
 import type { LocalEdit, Mask, SubjectDetail, SubjectGrid } from './maskTypes';
 
 /**
- * Kestrel Insight research: a conservative, offline subject-aware Auto proposal.
+ * Kite44 Insight research: a conservative, offline subject-aware Auto proposal.
  *
  * Operates on an unedited, framed preview and existing segmentation result.
  * It NEVER commits an edit: the caller must show a before/after preview and

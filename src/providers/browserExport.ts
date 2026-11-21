@@ -24,7 +24,7 @@ import { isDesktopApp, saveWithDialog } from './desktopShell';
 const pendingSensorDevelopments = new WeakMap<object, Map<string, Promise<void>>>();
 
 /** Choose the source for an export. A review-cache image is never silently
- * treated as the original. If a RAW has no usable camera JPEG, Kestrel may
+ * treated as the original. If a RAW has no usable camera JPEG, Kite44 may
  * develop its own source bytes on demand rather than require a second app.
  * The fallback decoder argument is injectable so safety can be unit-tested
  * without a hardware decoder in Node.
@@ -39,11 +39,11 @@ export async function loadExportSource(
   const url = await provider.getFullPreviewUrl(frame, priority);
   const cachedReviewOnly = !frame.isDemo && Boolean(provider.isOfflineFallback?.(frame.stableKey));
   // A RAW without an embedded JPEG must not be a dead end. Use the same
-  // Kestrel sensor decoder that develops it in Edit; this is still an 8-bit
+  // Kite44 sensor decoder that develops it in Edit; this is still an 8-bit
   // rendered picture, not an archival 16-bit sensor master.
   // A valid camera JPEG is a useful instant preview, not evidence that a RAW
   // was developed at sensor resolution. On the real provider, prefer the
-  // original and Kestrel's decoder if no current full development exists.
+  // original and Kite44's decoder if no current full development exists.
   // Injected legacy providers without isDeveloped preserve their preview mode.
   const needsSensorDevelopment = !frame.isDemo && isRawPreviewFile(frame.filename)
     && provider.hasBlob(frame.stableKey) && rawDecoder && provider.ensureOriginal
@@ -84,7 +84,7 @@ export async function loadExportSource(
       await pending;
     } catch (reason) {
       const detail = reason instanceof Error ? reason.message : 'Unknown RAW decoder failure.';
-      throw new Error(`Kestrel could not develop ${frame.filename} from RAW sensor data: ${detail} The original is unchanged.`);
+      throw new Error(`Kite44 could not develop ${frame.filename} from RAW sensor data: ${detail} The original is unchanged.`);
     }
     const developedUrl = await provider.getFullPreviewUrl(frame, priority);
     if (!developedUrl || provider.isOfflineFallback?.(key) || provider.isDeveloped?.(key) === false) {
@@ -101,7 +101,7 @@ export async function loadExportSource(
       rendered = await rawDecoder(original, extension);
     } catch (reason) {
       const detail = reason instanceof Error ? reason.message : 'Unknown decoder failure.';
-      throw new Error(`Kestrel could not develop ${frame.filename} from its RAW sensor data: ${detail} The original is unchanged.`);
+      throw new Error(`Kite44 could not develop ${frame.filename} from its RAW sensor data: ${detail} The original is unchanged.`);
     }
     // A relink or changed drive may have landed during a slow decode. Never
     // export pixels associated with a superseded original in that case.
@@ -109,7 +109,7 @@ export async function loadExportSource(
       throw new Error(`The original for ${frame.filename} changed during RAW development. Retry the export.`);
     }
     if (rendered.type !== 'image/jpeg' || rendered.size === 0) {
-      throw new Error(`Kestrel's RAW decoder did not return a usable image for ${frame.filename}. The original is unchanged.`);
+      throw new Error(`Kite44's RAW decoder did not return a usable image for ${frame.filename}. The original is unchanged.`);
     }
     const objectUrl = URL.createObjectURL(rendered);
     try { return await loadImage(objectUrl); }
@@ -318,7 +318,7 @@ export function drawCropQuickly(source: HTMLImageElement, frame: PhotoFrame, pro
 
 /**
  * Compose authentic before/after panels from the SAME photographic source.
- * Both halves use Kestrel's ordinary crop and tone/mask renderer. The left
+ * Both halves use Kite44's ordinary crop and tone/mask renderer. The left
  * half has neutral edits, the right has the saved reversible adjustments.
  * The photo's framing is identical, so the photographer compares like for like.
  * Text and watermarks are composited on the pair once, after the image pixels.

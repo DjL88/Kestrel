@@ -8,7 +8,7 @@ import { rawSensorMode, thumbOf } from './rawDevelop';
 import { rawPrecisionEvidence } from './rawPrecisionGate';
 import { developRaw16InBrowser } from './rawWasm';
 
-/** The RAW file's full-size 16-bit picture from Kestrel's decoder: natively on desktop, WebAssembly elsewhere. */
+/** The RAW file's full-size 16-bit picture from Kite44's decoder: natively on desktop, WebAssembly elsewhere. */
 async function developRaw16(file: Blob): Promise<ArrayBuffer> {
   if (!hasNativeRaw()) return developRaw16InBrowser(file);
   const { invoke } = await import('@tauri-apps/api/core');

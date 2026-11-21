@@ -1286,7 +1286,7 @@ export default function App() {
     }),
   });
 
-  // Every RAW is developed from its sensor data in the background, so the library shows Kestrel's develop, not the
+  // Every RAW is developed from its sensor data in the background, so the library shows Kite44's develop, not the
   // camera's JPEG. Continue the queue while reviewing or editing; the selected image has its own priority.
   useBackgroundDevelop({
     projectId: cullingState.shoot.id, frames: cullingState.frames, provider: previewProviderRef.current,
@@ -1686,7 +1686,7 @@ export default function App() {
     } catch {
       task?.fail(t.tasks.addFailed);
       setProjectError(t.importing.addFailed);
-      if (options?.watched) throw new Error('Kestrel could not import the watched photos. They will be retried.');
+      if (options?.watched) throw new Error('Kite44 could not import the watched photos. They will be retried.');
     } finally {
       // Only a failed/retired import still owns the optional model observer.
       // A successful import transferred it to background culling for safe drain.

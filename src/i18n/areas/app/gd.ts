@@ -65,7 +65,7 @@ export const gd: AreaTranslation<typeof source> = {
     addFailed: 'Cha b’ urrainn dhuinn na dealbhan a chur ris.',
     stoppedUnfinished: 'Stad mus do chrìochnaich e',
     findingPhotos: 'A’ lorg dhealbhan sa phasgan',
-    developingRaw: 'A’ leasachadh fhaidhlichean RAW le Kestrel',
+    developingRaw: 'A’ leasachadh fhaidhlichean RAW le Kite44',
     developStopped: 'Stad; cumaidh na dealbhan eile ro-shealladh a’ chamara.',
     developed: (count) => `${count} air an leasachadh`,
   },
@@ -78,7 +78,7 @@ export const gd: AreaTranslation<typeof source> = {
     addFailed: 'Cha b’ urrainn dhuinn na dealbhan a chur ris. Feuch is tagh na faidhlichean a-rithist.',
     noSupportedPhotos: 'Chan eil dealbh ris an cuirear taic sa phasgan seo.',
     folderUnreadable: 'Cha b’ urrainn dhuinn am pasgan sin a leughadh.',
-    oneFolderPerProject: 'Cùm gach pasgan na phròiseact fhèin airson ’s gun urrainn do Kestrel a cheangal a-rithist gu sàbhailte.',
+    oneFolderPerProject: 'Cùm gach pasgan na phròiseact fhèin airson ’s gun urrainn do Kite44 a cheangal a-rithist gu sàbhailte.',
     folderAddFailed: 'Cha b’ urrainn dhuinn am pasgan a chur ris. Feuch is tagh e a-rithist.',
     folderUnreadableTryFiles: 'Cha b’ urrainn dhuinn am pasgan a leughadh. Feuch is tagh faidhlichean.',
   },
@@ -105,7 +105,7 @@ export const gd: AreaTranslation<typeof source> = {
     status: (folder, count) => `A’ cumail sùil air “${folder}” · ${photos(count)} ùr air an cur ris`,
   },
   paid: {
-    dialogLabel: (feature) => `Tha ${feature} na phàirt de Kestrel Pro`,
+    dialogLabel: (feature) => `Tha ${feature} na phàirt de Kite44 Pro`,
     autoCullPitch: 'Cuideachadh gus na dealbhan as fheàrr agad a thaghadh.',
     close: 'Dùin',
   },
@@ -120,8 +120,8 @@ export const gd: AreaTranslation<typeof source> = {
   },
   notices: {
     temporaryOriginals: (count) => plural(count, {
-      one: 'Cha b’ urrainn do Kestrel aon fhaidhle tùsail a stòradh airson fhosgladh a-rithist. Faodaidh tu a chleachdadh an-dràsta. Cùm am faidhle tùsail agad: dh’fhaoidte gum feum thu a thaghadh a-rithist às dèidh fhosgladh a-rithist. Chan eil na dealbhan tùsail am broinn lethbhreacan-glèidhidh nam pròiseactan.',
-      other: `Cha b’ urrainn do Kestrel ${count} faidhle tùsail a stòradh airson fhosgladh a-rithist. Faodaidh tu an cleachdadh an-dràsta. Cùm na faidhlichean tùsail agad: dh’fhaoidte gum feum thu an taghadh a-rithist às dèidh fhosgladh a-rithist. Chan eil na dealbhan tùsail am broinn lethbhreacan-glèidhidh nam pròiseactan.`,
+      one: 'Cha b’ urrainn do Kite44 aon fhaidhle tùsail a stòradh airson fhosgladh a-rithist. Faodaidh tu a chleachdadh an-dràsta. Cùm am faidhle tùsail agad: dh’fhaoidte gum feum thu a thaghadh a-rithist às dèidh fhosgladh a-rithist. Chan eil na dealbhan tùsail am broinn lethbhreacan-glèidhidh nam pròiseactan.',
+      other: `Cha b’ urrainn do Kite44 ${count} faidhle tùsail a stòradh airson fhosgladh a-rithist. Faodaidh tu an cleachdadh an-dràsta. Cùm na faidhlichean tùsail agad: dh’fhaoidte gum feum thu an taghadh a-rithist às dèidh fhosgladh a-rithist. Chan eil na dealbhan tùsail am broinn lethbhreacan-glèidhidh nam pròiseactan.`,
     }),
     dismiss: 'Dùin',
   },
@@ -194,7 +194,7 @@ export const gd: AreaTranslation<typeof source> = {
     remove: {
       title: 'A bheil thu airson a thoirt às an leabharlann?',
       confirm: 'Thoir às an leabharlann',
-      disappears: (name) => `Falbhaidh ${name} à seallaidhean, cunntasan is às-phortaidhean Kestrel.`,
+      disappears: (name) => `Falbhaidh ${name} à seallaidhean, cunntasan is às-phortaidhean Kite44.`,
       thisPhoto: 'an dealbh seo',
       notDeleted: 'Cha tèid am faidhle tùsail agad a sguabadh às.',
       bringBack: 'Gheibh thu air ais e à Roghainnean an ionaid-obrach, Dealbhan air an toirt air falbh, no le Neo-dhèan.',
@@ -202,7 +202,7 @@ export const gd: AreaTranslation<typeof source> = {
     autoAdjustKeepers: {
       title: 'A bheil thu airson dealbhan ri chumail nach deach a dheasachadh a ghleusadh gu fèin-obrachail?',
       confirm: 'Gleus na dealbhan ri chumail',
-      what: 'Sgrùdaidh Kestrel gach dealbh ri chumail nach deach a dheasachadh air an uidheam seo agus gleusaidh e an solas, an dath is an tòn. Cha atharraichear dealbhan a chaidh a dheasachadh mu thràth.',
+      what: 'Sgrùdaidh Kite44 gach dealbh ri chumail nach deach a dheasachadh air an uidheam seo agus gleusaidh e an solas, an dath is an tòn. Cha atharraichear dealbhan a chaidh a dheasachadh mu thràth.',
       eligible: (count) => `Tha ${photos(count)} ri chumail freagarrach. Faodar sgur dhen obair. Cha tèid atharrachadh sam bith a chur an sàs gus an crìochnaich an sgrùdadh.`,
       safe: 'Cha tèid dad a luchdadh suas no atharrachadh sna faidhlichean tùsail agad. Faodaidh tu an toradh a neo-dhèanamh airson gach dealbh.',
     },

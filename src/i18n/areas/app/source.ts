@@ -72,7 +72,7 @@ export const source = {
     addFailed: 'Could not add the photos.',
     stoppedUnfinished: 'Stopped before it finished',
     findingPhotos: 'Finding photos in the folder',
-    developingRaw: 'Developing RAW files with Kestrel',
+    developingRaw: 'Developing RAW files with Kite44',
     developStopped: 'Stopped; the remaining photos keep the camera preview.',
     developed: (count: number) => `${count} developed`,
   },
@@ -90,7 +90,7 @@ export const source = {
     addFailed: 'Could not add the photos. Try selecting the files again.',
     noSupportedPhotos: 'This folder has no supported photos.',
     folderUnreadable: 'Could not read that folder.',
-    oneFolderPerProject: 'Keep each folder in its own project so Kestrel can reconnect it safely.',
+    oneFolderPerProject: 'Keep each folder in its own project so Kite44 can reconnect it safely.',
     folderAddFailed: 'Could not add the folder. Try selecting it again.',
     folderUnreadableTryFiles: 'Could not read the folder. Try selecting files.',
   },
@@ -126,7 +126,7 @@ export const source = {
     }),
   },
   paid: {
-    dialogLabel: (feature: string) => `${feature} is part of Kestrel Pro`,
+    dialogLabel: (feature: string) => `${feature} is part of Kite44 Pro`,
     autoCullPitch: 'Assisted selection of your best frames.',
     close: 'Close',
   },
@@ -142,8 +142,8 @@ export const source = {
   },
   notices: {
     temporaryOriginals: (count: number) => plural(count, {
-      one: 'Kestrel could not store one original for reopening. You can use them now. Keep your original file: you may need to reselect it after reopening. Project backups do not include original photos.',
-      other: `Kestrel could not store ${count} originals for reopening. You can use them now. Keep your original files: you may need to reselect them after reopening. Project backups do not include original photos.`,
+      one: 'Kite44 could not store one original for reopening. You can use them now. Keep your original file: you may need to reselect it after reopening. Project backups do not include original photos.',
+      other: `Kite44 could not store ${count} originals for reopening. You can use them now. Keep your original files: you may need to reselect them after reopening. Project backups do not include original photos.`,
     }),
     dismiss: 'Dismiss',
   },
@@ -216,7 +216,7 @@ export const source = {
     remove: {
       title: 'Remove from the library?',
       confirm: 'Remove from library',
-      disappears: (name: string) => `${name} will disappear from Kestrel’s views, counts and exports.`,
+      disappears: (name: string) => `${name} will disappear from Kite44’s views, counts and exports.`,
       thisPhoto: 'This photo',
       notDeleted: 'Your original file is not deleted.',
       bringBack: 'You can bring it back from Workspace options, Removed photos, or press Undo.',
@@ -224,7 +224,7 @@ export const source = {
     autoAdjustKeepers: {
       title: 'Auto-adjust unedited keepers?',
       confirm: 'Auto-adjust keepers',
-      what: 'Kestrel will analyse each unedited keeper locally and adjust its light, colour and tone. Already edited photos stay unchanged.',
+      what: 'Kite44 will analyse each unedited keeper locally and adjust its light, colour and tone. Already edited photos stay unchanged.',
       eligible: (count: number) => `${count} keepers are eligible. The task can be cancelled. No changes are applied until the scan finishes.`,
       safe: 'Nothing is uploaded or modified in your original files. You can undo the result for each photo.',
     },

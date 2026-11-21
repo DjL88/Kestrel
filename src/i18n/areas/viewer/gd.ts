@@ -73,7 +73,7 @@ export const gd: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Chan eil an tùsail ri fhaighinn — ceangail a phasgan no an draibh aige a-rithist',
     previewUnavailable: 'Chan eil ro-shealladh ri fhaighinn',
-    heifUndecodable: 'Cha b’ urrainn do Kestrel an dealbh HEIF seo a dhì-chòdachadh. Tha an tùsail gun atharrachadh.',
+    heifUndecodable: 'Cha b’ urrainn do Kite44 an dealbh HEIF seo a dhì-chòdachadh. Tha an tùsail gun atharrachadh.',
   },
   info: {
     title: 'Fiosrachadh an deilbh',
@@ -200,6 +200,7 @@ export const gd: AreaTranslation<typeof source> = {
     tagAll: (count) => count === 1 ? 'Tagaich e' : `Tagaich iad uile (${count})`,
     noThanks: 'Chan eil, mòran taing',
     autoTag: 'Tagaich co-fhreagairtean làidir gu fèin-obrachail',
+    regionLabel: 'Càite am bi thu a’ togail dhealbhan',
     checkNote: 'Thoir sùil air tagaichean a chaidh a mholadh is fèin-obrachail. Tha an earbsa a rèir nan ainmean as aithne dhan mhodail seo a-mhàin.',
   },
   scanBanner: {

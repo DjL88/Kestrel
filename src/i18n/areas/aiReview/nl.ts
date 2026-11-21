@@ -4,7 +4,7 @@ import type { source } from './source';
 /** Dutch (u). DRAFT: written without a native speaker's check. */
 export const nl: AreaTranslation<typeof source> = {
   title: 'Tweede mening van uw eigen AI',
-  intro: 'Optioneel. Gebruik uw eigen AI-account, of een model op deze computer, om naar de kleur en het licht van deze foto te laten kijken. De kleurcontrole van Kestrel hierboven werkt altijd zonder.',
+  intro: 'Optioneel. Gebruik uw eigen AI-account, of een model op deze computer, om naar de kleur en het licht van deze foto te laten kijken. De kleurcontrole van Kite44 hierboven werkt altijd zonder.',
   ask: 'Mijn eigen AI vragen',
   asking: 'Uw AI wordt gevraagd…',
   cancel: 'Annuleren',
@@ -30,8 +30,8 @@ export const nl: AreaTranslation<typeof source> = {
   invalidBaseUrl: "Gebruik HTTPS voor externe AI of http://localhost voor AI op deze computer. Zet geen sleutels in het adres.",
   save: 'Opslaan',
   consentTitle: 'Voordat er iets wordt verstuurd',
-  consentCloud: (host) => `Kestrel stuurt een kopie van deze foto, 1.024 pixels aan de langste zijde, naar ${host}. Daarin zitten geen locatie, cameragegevens of bestandsnaam. Uw aanbieder kan voor elke vraag kosten rekenen.`,
-  consentLocal: (host) => `Kestrel stuurt een kopie van deze foto, 1.024 pixels aan de langste zijde, naar de AI op ${host}, die op deze computer staat. Er verlaat niets uw computer.`,
+  consentCloud: (host) => `Kite44 stuurt een kopie van deze foto, 1.024 pixels aan de langste zijde, naar ${host}. Daarin zitten geen locatie, cameragegevens of bestandsnaam. Uw aanbieder kan voor elke vraag kosten rekenen.`,
+  consentLocal: (host) => `Kite44 stuurt een kopie van deze foto, 1.024 pixels aan de langste zijde, naar de AI op ${host}, die op deze computer staat. Er verlaat niets uw computer.`,
   agree: 'Ik ga akkoord',
   summary: 'Wat uw AI zegt',
   suggested: 'Voorgestelde wijzigingen',
@@ -52,7 +52,7 @@ export const nl: AreaTranslation<typeof source> = {
   errors: {
     setup: 'Uw AI is nog niet ingesteld, of de toestemming ontbreekt.',
     key: 'Uw AI meldt dat de sleutel onjuist of niet toegestaan is. Controleer hem in het account bij uw aanbieder.',
-    offline: 'U bent offline. De kleurcontrole van Kestrel werkt nog steeds.',
+    offline: 'U bent offline. De kleurcontrole van Kite44 werkt nog steeds.',
     timeout: 'Uw AI deed er te lang over om te antwoorden. Probeer het zo opnieuw.',
     refused: 'Uw AI weigerde naar deze foto te kijken.',
     unreadable: 'Het antwoord van uw AI kon niet worden gelezen, dus er is niets gewijzigd.',

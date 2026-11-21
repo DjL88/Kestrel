@@ -41,7 +41,7 @@ export function WebDavForm({ onSaved, onCancel }: { onSaved: (settings: WebDavSe
       <label className="block">{t.webdav.password}
         <input type="password" className={`${field} mt-1`} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="off" />
       </label>
-      <p className="text-xs text-zinc-400">{t.webdav.certificateNote} Your password is kept only while Kestrel is open; enter it again after restarting.</p>
+      <p className="text-xs text-zinc-400">{t.webdav.certificateNote} Your password is kept only while Kite44 is open; enter it again after restarting.</p>
       {result && <p role={result.ok ? 'status' : 'alert'} className={result.ok ? 'text-emerald-200' : 'text-amber-200'}>{result.text}</p>}
       <div className="flex flex-wrap gap-2">
         <button type="button" className={action} disabled={busy} onClick={() => void test()}>{t.common.testConnection}</button>

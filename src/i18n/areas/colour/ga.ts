@@ -5,7 +5,7 @@ import { plural } from '../../../core/locale';
 /** Irish. DRAFT: written without a native speaker's check. Colour names sit in brackets or after a colon so they keep their base form. */
 export const ga: AreaTranslation<typeof source> = {
   title: 'Seiceáil datha',
-  intro: 'Ainmníonn Kestrel na dathanna sa ghrianghraf seo agus insíonn sé duit, i bhfocail, faoi aon rud a d’fhéadfadh a bheith cearr.',
+  intro: 'Ainmníonn Kite44 na dathanna sa ghrianghraf seo agus insíonn sé duit, i bhfocail, faoi aon rud a d’fhéadfadh a bheith cearr.',
   checking: 'Ag seiceáil an datha…',
   unavailable: 'Níl an tseiceáil datha ar fáil don ghrianghraf seo fós.',
   mainColours: 'Príomhdhathanna',

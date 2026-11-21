@@ -1,7 +1,7 @@
 /** Words for "Ask my own AI" (British English source). */
 export const source = {
   title: 'Second opinion from your own AI',
-  intro: 'Optional. Use your own AI account, or a model on this computer, to look at this photo’s colour and light. Kestrel’s own check above always works without it.',
+  intro: 'Optional. Use your own AI account, or a model on this computer, to look at this photo’s colour and light. Kite44’s own check above always works without it.',
   ask: 'Ask my own AI',
   asking: 'Asking your AI…',
   cancel: 'Cancel',
@@ -27,8 +27,8 @@ export const source = {
   invalidBaseUrl: 'Use HTTPS for remote AI, or http://localhost for AI on this computer. Do not include keys in the address.',
   save: 'Save',
   consentTitle: 'Before anything is sent',
-  consentCloud: (host: string) => `Kestrel will send a copy of this photo, 1,024 pixels on its longest side, to ${host}. It does not include the location, camera details or file name. Your provider may charge you for each question.`,
-  consentLocal: (host: string) => `Kestrel will send a copy of this photo, 1,024 pixels on its longest side, to the AI at ${host}, which is on this computer. Nothing leaves your computer.`,
+  consentCloud: (host: string) => `Kite44 will send a copy of this photo, 1,024 pixels on its longest side, to ${host}. It does not include the location, camera details or file name. Your provider may charge you for each question.`,
+  consentLocal: (host: string) => `Kite44 will send a copy of this photo, 1,024 pixels on its longest side, to the AI at ${host}, which is on this computer. Nothing leaves your computer.`,
   agree: 'I agree',
   summary: 'What your AI says',
   suggested: 'Suggested changes',
@@ -49,7 +49,7 @@ export const source = {
   errors: {
     setup: 'Your AI isn’t set up yet, or the agreement is missing.',
     key: 'Your AI said the key is wrong or not allowed. Check it in your provider’s account.',
-    offline: 'You’re offline. Kestrel’s own colour check still works.',
+    offline: 'You’re offline. Kite44’s own colour check still works.',
     timeout: 'Your AI took too long to answer. Try again in a moment.',
     refused: 'Your AI declined to look at this photo.',
     unreadable: 'Your AI’s answer couldn’t be read, so nothing was changed.',

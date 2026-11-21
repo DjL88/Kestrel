@@ -1,6 +1,6 @@
 Species suggestions model: notice
 
-Kestrel's optional species suggestions use a converted copy of the image half of BioCLIP
+Kite44's optional species suggestions use a converted copy of the image half of BioCLIP
 (https://huggingface.co/imageomics/bioclip), shrunk to int8 for the browser. The conversion
 is described in docs/SPECIES-TAGGING-SPIKE.md. BioCLIP is released under the MIT licence,
 reproduced below as that licence requires. The model was trained on TreeOfLife-10M.

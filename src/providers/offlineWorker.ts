@@ -17,7 +17,7 @@ export async function manageOfflineWorker(production: boolean, desktop: boolean)
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
   try {
     if (desktop) {
-      // Remove only Kestrel's own legacy worker. Do not delete caches or
+      // Remove only Kite44's own legacy worker. Do not delete caches or
       // unregister unrelated workers; a restart can then load bundled assets.
       const registrations = await navigator.serviceWorker.getRegistrations();
       await Promise.all(registrations
