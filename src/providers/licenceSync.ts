@@ -104,8 +104,13 @@ export class LicenceSync {
   async activate(key: string): Promise<OnlineStanding> {
     if (!this.configured) return { kind: 'not_set_up' };
     const keyHash = await this.keyHash(key);
+    const lastKnown = await this.storedStanding(key);
     const fallback = await this.storedGrant(keyHash);
-    const unreachable: OnlineStanding = { kind: 'unreachable', grant: fallback?.grant ?? null, activationId: fallback?.activationId ?? null };
+    // If the last successful request explicitly blocked this key/device, a
+    // network failure is NOT permission to revert to key-only Pro.
+    const unreachable: OnlineStanding = lastKnown.kind === 'revoked' || lastKnown.kind === 'device_limit'
+      ? lastKnown
+      : { kind: 'unreachable', grant: fallback?.grant ?? null, activationId: fallback?.activationId ?? null };
     let reply: Awaited<ReturnType<LicenceSync['post']>>;
     try {
       reply = await this.post('/v1/licences/activate', { licenceKey: key.trim(), deviceHash: await this.deviceHash(), platform: this.o.platform, appVersion: this.o.appVersion });
