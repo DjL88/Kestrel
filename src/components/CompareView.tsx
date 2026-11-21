@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { ArrowLeftRight, ChevronLeft, ChevronRight, Maximize2, ZoomIn } from './icons/KestrelUIIcons';
+import { ArrowLeftRight, ChevronLeft, ChevronRight, Scan, ZoomIn } from './icons/KestrelUIIcons';
 import type { CullDecision, PhotoFrame } from '../core/types';
 import { toggleCompareDecision } from '../core/compareDecision';
 import { resolveCompareKey } from '../core/compareKeyboard';
@@ -115,7 +115,7 @@ export function CompareView({
         <div role="group" aria-label={t.compare.zoomGroup} className="flex items-center">
           <button type="button" className={control} onClick={() => onTransform(1, { x: 0, y: 0 })}
             aria-label={t.compare.fitBoth} title={t.compare.fitBoth} aria-pressed={zoomLevel === 1}>
-            <Maximize2 aria-hidden="true" className="h-4 w-4" /><span className="ml-1 text-xs">{t.compare.fit}</span>
+            <Scan aria-hidden="true" className="h-4 w-4" /><span className="ml-1 text-xs">{t.compare.fit}</span>
           </button>
           {([100, 200] as const).map((percent) => {
             const actual = comparePreviewPixelZoom(previewFit, dpr, percent);

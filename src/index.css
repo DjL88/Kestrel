@@ -247,6 +247,16 @@ html[data-calm="true"] *, html[data-calm="true"] *::before, html[data-calm="true
   }
 }
 
+/* Busy feedback must survive reduced motion and Calm mode, or a button that is working looks dead.
+   Spinners swap rotation for a slow fade: no movement, but still visibly alive. */
+@keyframes busy-fade { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin, .motion-safe\:animate-spin { animation: busy-fade 1.6s ease-in-out infinite !important; }
+}
+html[data-calm="true"] .animate-spin, html[data-calm="true"] .motion-safe\:animate-spin {
+  animation: busy-fade 1.6s ease-in-out infinite !important;
+}
+
 /* Left-handed use mirrors rows of thumb controls, so the ones used most sit under the thumb that holds the phone. */
 [data-hand='left'] .hand-row { flex-direction: row-reverse; }
 

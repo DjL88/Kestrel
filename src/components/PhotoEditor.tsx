@@ -1957,7 +1957,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
             title={libraryT.floatingPane.undockTabHelp}
             onClick={() => toggleFloatTab(tab)}
             className="grid h-11 w-11 shrink-0 place-items-center border-b border-white/10 text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-            <Maximize className="h-4 w-4" aria-hidden="true"/>
+            <PictureInPicture2 className="h-4 w-4" aria-hidden="true"/>
           </button>}
           {onFoldTools && !floatingTools && <button type="button" onClick={onFoldTools} aria-label={t.editor.fold} title={t.editor.foldTitle}
             className={`grid w-9 shrink-0 place-items-center border-b border-white/10 text-zinc-400 hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 ${panelSide === 'left' ? 'order-last' : ''}`}>
