@@ -371,6 +371,7 @@ export const gd: AreaTranslation<typeof source> = {
     undockInfoHelp: "Gluais Fiosrachadh an Dealbh gu uinneag le meud atharraichte",
     move: (title) => `Gluais ${title}; cleachd na saighdean`,
     drag: (title) => `Slaod gus ${title} a ghluasad, no cleachd na saighdean`,
+    resize: (title) => `Atharraich meud ${title}: slaod no cleachd na saighdean`,
     restore: (title) => `Aisig meud pana ${title}`,
     maximise: (title) => `Meudaich pana ${title}`,
     pin: (title) => `Cùm ${title} ri fhaicinn ann am modh Dealbh a-mhàin`,
