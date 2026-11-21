@@ -1,4 +1,6 @@
 import { newId } from '../core/ids';
+import type { GuidanceMode } from '../core/guidanceMode';
+import { reviewMaskBlend, type MaskBoundaryEvidence } from '../core/maskBlendAdvice';
 import { AdjustmentSlider } from './AdjustmentSlider';
 import { Eraser, Paintbrush, Plus, Trash2 } from 'lucide-react';
 import { ScanSearch, SquareDashedMousePointer } from 'lucide-react';
@@ -35,11 +37,15 @@ interface Props {
   detecting: boolean;
   detectNotice: string;
   currentFramingKey: string;
+  guidanceMode?: GuidanceMode;
+  boundaryEvidence?: MaskBoundaryEvidence | null;
+  onBlendEdges?: (id: string) => void;
 }
 
 export function MaskPanel(props: Props) {
   const { masks, selectedId, disabled, brushRadius, erase, showOverlay, paintOn } = props;
   const selected = masks.find((mask) => mask.id === selectedId) ?? null;
+  const blendAdvice = selected ? reviewMaskBlend(selected, props.guidanceMode ?? 'glide', props.boundaryEvidence) : null;
   const update = (patch: Partial<Mask>) => selected && props.onChange(masks.map((mask) => mask.id === selected.id ? { ...mask, ...patch } as Mask : mask));
   const add = (kind: Exclude<Mask['kind'], 'subject'>) => {
     const mask = createMask(kind, newId());
@@ -113,6 +119,14 @@ export function MaskPanel(props: Props) {
               min={0} max={1} neutral={0} step={0.01} disabled={disabled} resettable={false}
               displayValue={`${Math.round(selected.feather * 100)}%`}
               onChange={(value) => update({ feather: value })} />
+          )}
+          {selected.kind === 'subject' && props.onBlendEdges && (
+            <div className="space-y-1 rounded-md border border-white/10 p-2 text-xs text-zinc-300" data-testid="mask-blend">
+              {blendAdvice && <p role="status">{blendAdvice.reason}</p>}
+              <button type="button" className={chip} disabled={disabled || !Object.keys(selected.edit).length}
+                title="Soften the boundary and, where needed, gently reduce a strong local effect. This does not create missing subject detail."
+                onClick={() => props.onBlendEdges?.(selected.id)}>Blend edges</button>
+            </div>
           )}
           {selected.kind === 'subject' && (
             <div className="space-y-1 rounded bg-black/20 p-2 text-xs text-zinc-300">
