@@ -3,6 +3,7 @@ import { AlertTriangle, Info, Lightbulb, Palette } from 'lucide-react';
 import { checkColour, type ColourFamily, type ColourFinding, type ColourReport, type Pixels, type Strength } from '../core/colourCheck';
 import type { PhotoEdit } from '../core/photoEdits';
 import { applyFix } from '../core/critique';
+import { capturePhotoReviewScope, samePhotoReviewScope, type PhotoReviewScope } from '../core/photoReviewScope';
 import { colourText as t } from '../i18n/areas/colour';
 import { colourControls } from '../i18n/colourControls';
 import { AiReviewPanel } from './AiReviewPanel';
@@ -59,7 +60,13 @@ const ICON = { warning: AlertTriangle, tip: Lightbulb, info: Info } as const;
  * and a label (never colour alone). Runs on a small preview on this device; nothing is uploaded.
  */
 export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled, readJpeg }: Props) {
-  const [report, setReport] = useState<ColourReport | null>(null);
+  const [storedReport, setReport] = useState<ColourReport | null>(null);
+  const reportScope = useRef<PhotoReviewScope | null>(null);
+  const currentScope = useRef<PhotoReviewScope>([]);
+  currentScope.current = [disabled, ...version];
+  // A colour fix must never belong to the previous frame on the render in
+  // which source/edit props change, even before React runs effect cleanup.
+  const report = samePhotoReviewScope(reportScope.current, currentScope.current) ? storedReport : null;
   const [failed, setFailed] = useState(false);
   const [applied, setApplied] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -71,6 +78,8 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
     // Invalidate every pending check when the image, recipe or guidance state changes.
     // A previous photo must never leave apparently current colour advice behind.
     const current = ++generation.current;
+    const requested = capturePhotoReviewScope(currentScope.current);
+    reportScope.current = null;
     setReport(null);
     setFailed(false);
     setApplied(false);
@@ -86,7 +95,8 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
           return;
         }
         const next = checkColour({ after: preview.after, before: preview.before, subject: preview.subject });
-        if (current !== generation.current) return;
+        if (current !== generation.current || !samePhotoReviewScope(requested, currentScope.current)) return;
+        reportScope.current = requested;
         setReport(next);
         setFailed(false);
       } catch {
@@ -107,6 +117,8 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
   // renderer preview, and the normal version effect invalidates it on any edit/photo change.
   const checkOnDemand = () => {
     ++generation.current;
+    const requested = capturePhotoReviewScope(currentScope.current);
+    reportScope.current = null;
     setReport(null);
     setFailed(false);
     setApplied(false);
@@ -114,7 +126,10 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
     try {
       const preview = read.current();
       if (!preview) { setFailed(true); return; }
-      setReport(checkColour({ after: preview.after, before: preview.before, subject: preview.subject }));
+      const next = checkColour({ after: preview.after, before: preview.before, subject: preview.subject });
+      if (!samePhotoReviewScope(requested, currentScope.current)) return;
+      reportScope.current = requested;
+      setReport(next);
     } catch { setFailed(true); }
   };
 
@@ -161,7 +176,10 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
                   </p>
                   {said.fix && (
                     <button type="button" className="ml-5 min-h-9 rounded-md border border-white/15 px-2 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300"
-                      onClick={() => { onEdit(applyFix(edit, { kind: 'global', delta: said.fix!.delta })); setApplied(true); }}>
+                      onClick={() => {
+                        if (!samePhotoReviewScope(reportScope.current, currentScope.current)) return;
+                        onEdit(applyFix(edit, { kind: 'global', delta: said.fix!.delta })); setApplied(true);
+                      }}>
                       {said.fix.label}
                     </button>
                   )}
@@ -176,7 +194,7 @@ export function ColourCheckPanel({ edit, readPreview, version, onEdit, disabled,
           </button>
         )}
         {applied && <p role="status" className="text-xs text-zinc-400">{t.fixApplied}</p>}
-        {readJpeg && !disabled && <AiReviewPanel edit={edit} onEdit={onEdit} readJpeg={readJpeg} disabled={disabled}
+        {readJpeg && !disabled && <AiReviewPanel edit={edit} onEdit={onEdit} readJpeg={readJpeg} version={version} disabled={disabled}
           localFindings={report?.findings.map((finding) => describe(finding).text) ?? []} />}
       </div>
     </details>
