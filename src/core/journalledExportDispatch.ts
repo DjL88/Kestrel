@@ -98,17 +98,37 @@ export function createJournalledExportDispatch(
           abortIf(signal);
           const outputSha256 = await adapter.publishAtomic(source, output, signal);
           if (!HASH.test(outputSha256)) throw new Error('Export adapter did not return a verified output SHA-256.');
+          // A successful publication call is not proof that the bytes now at
+          // the destination match its receipt (e.g. a replaced NAS mount).
+          // Never journal an unverified file as safely completed.
+          const receipt: ExportQueueReceipt = {
+            index, outputSha256: outputSha256.toLowerCase(), relativePath: relative(source),
+          };
+          if (!await adapter.verifyOutput(source, receipt))
+            throw new Error('Published export could not be verified; manual recovery required.');
+          abortIf(signal);
           // If journal persistence fails after publication, the next explicit
           // attempt must fail safely on the adapter's no-overwrite collision.
-          journal.receipt<Recipe>(checkpoint.id, {
-            index, outputSha256: outputSha256.toLowerCase(), relativePath: relative(source),
-          });
+          journal.receipt<Recipe>(checkpoint.id, receipt);
         },
         finalize: async (_recipe, signal) => {
           abortIf(signal);
           const saved = journal.load<Recipe>(checkpoint.id);
           if (!saved || saved.receipts.length !== saved.items.length)
             throw new Error('Export finished without complete durable receipts.');
+          // Finish only when the same originals and all published bytes still
+          // match the frozen plan. This catches a drive/NAS swap mid-batch.
+          for (const item of saved.items) {
+            abortIf(signal);
+            if (!await adapter.verifySource(item))
+              throw new Error('Original changed before export completion.');
+          }
+          for (const receipt of saved.receipts) {
+            abortIf(signal);
+            if (!await adapter.verifyOutput(saved.items[receipt.index], receipt))
+              throw new Error('Export output changed before completion.');
+          }
+          abortIf(signal);
           journal.save({ ...saved, state: 'completed' });
         },
       });
