@@ -21,9 +21,18 @@ export async function openSmolVlm(ort: Ort, files: SmolVlmFiles): Promise<SmolVl
   const tokenizer = createTokenizer(files.tokenizer);
   const imageId = tokenizer.special('<image>');
   const options = { executionProviders: ['wasm'], graphOptimizationLevel: 'all' } as const;
-  const [vision, embed, decoder] = await Promise.all([
-    ort.InferenceSession.create(files.vision, options), ort.InferenceSession.create(files.embed, options), ort.InferenceSession.create(files.decoder, options),
-  ]);
+  // Serialise large session creation. Three simultaneous WASM allocations can
+  // exhaust a phone or leave partial sessions resident if the decoder fails.
+  const sessions: Array<Awaited<ReturnType<typeof ort.InferenceSession.create>>> = [];
+  try {
+    for (const bytes of [files.vision, files.embed, files.decoder]) {
+      sessions.push(await ort.InferenceSession.create(bytes, options));
+    }
+  } catch (error) {
+    await Promise.allSettled(sessions.map((session) => session.release()));
+    throw error;
+  }
+  const [vision, embed, decoder] = sessions;
   const emptyPast = () => {
     const feeds: Record<string, import('onnxruntime-web/wasm').Tensor> = {};
     for (let i = 0; i < LAYERS; i += 1) for (const kind of ['key', 'value']) {
