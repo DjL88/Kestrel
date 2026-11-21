@@ -136,6 +136,50 @@ export async function rawSensorMode(file: Blob, filename: string): Promise<RawSe
   }
 }
 
+/**
+ * Strict preflight for experimental Nikon precision output. Unlike rawSensorMode,
+ * an incomplete/unavailable header inspection is never interpreted as a verified
+ * non-HE NEF. A positive 'other' answer only means the decoder inspected enough
+ * header bytes to classify the compression; it is not a licence grant.
+ */
+export async function verifiedNikonSensorMode(
+  file: Blob,
+  ask: (prefix: number) => Promise<string>,
+): Promise<RawSensorMode | 'unknown'> {
+  if (!Number.isSafeInteger(file.size) || file.size <= 0) return 'unknown';
+  for (let bytes = SENSOR_MODE_PREFIX; ; bytes *= 2) {
+    const length = Math.min(bytes, file.size);
+    let mode: string;
+    try {
+      mode = await ask(length);
+    } catch {
+      return 'unknown';
+    }
+    if (mode === 'nikon-he' || mode === 'nikon-he-star' || mode === 'other') return mode;
+    if (mode !== 'need-more' || length === file.size || length >= SENSOR_MODE_LIMIT) return 'unknown';
+  }
+}
+
+/** Fail closed if a Nikon compression header cannot be positively classified. */
+export async function requireVerifiedNikonPrecisionMode(file: Blob): Promise<void> {
+  if (!hasNativeRaw() && !webRawAvailable()) {
+    throw new Error('Nikon RAW compression could not be verified; no precision export was made.');
+  }
+  const ask = !hasNativeRaw()
+    ? (bytes: number) => sensorModeInBrowser(file, bytes)
+    : async (bytes: number) => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return invoke<string>('raw_sensor_mode', new Uint8Array(await file.slice(0, bytes).arrayBuffer()),
+        { headers: { 'x-file-length': String(file.size) } });
+    };
+  const mode = await verifiedNikonSensorMode(file, ask);
+  if (mode !== 'other') {
+    throw new Error(mode === 'unknown'
+      ? 'Nikon RAW compression could not be verified; no precision export was made.'
+      : 'Nikon HE/HE* precision export requires separate commercial codec clearance.');
+  }
+}
+
 /** Plain words for how a developed picture was made from the sensor data. */
 export function sensorModeLabel(mode: RawSensorMode): string | null {
   if (mode === 'nikon-he') return 'Nikon High Efficiency';
