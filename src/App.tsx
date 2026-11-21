@@ -2030,7 +2030,7 @@ export default function App() {
   }
 
   return (
-    <div className={`h-dvh max-h-dvh w-full max-w-full min-w-0 flex flex-col pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden ${editing ? '' : 'max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]'}`}>
+    <div className={`h-dvh max-h-dvh w-full max-w-full min-w-0 flex flex-col pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] bg-kestrel-canvas text-zinc-100 overflow-hidden ${editing ? '' : 'max-md:pb-[calc(3.5rem+env(safe-area-inset-bottom))]'}`}>
       {photoMenu && (() => {
         const frame = cullingState.frames.find((candidate) => candidate.id === photoMenu.frameId);
         if (!frame) return null;

@@ -288,3 +288,10 @@ html[data-calm="true"] *, html[data-calm="true"] *::before, html[data-calm="true
   -webkit-user-select: text;
   user-select: text;
 }
+
+/* The page itself is dark before and behind the app, so a phone never flashes a white band while loading or over a
+   safe area (status bar, home indicator). */
+html, body { background-color: #14161b; color-scheme: dark; }
+
+/* No double-tap zoom delay or text inflation on touch devices; the app lays itself out for every size. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; }
