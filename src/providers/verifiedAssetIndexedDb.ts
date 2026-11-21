@@ -60,7 +60,7 @@ function valid(asset: ActiveAsset | undefined): asset is ActiveAsset {
 }
 /** The activation core verifies digest before and after write; this adapter
  * enforces immutability and atomic CAS across concurrent browser tabs. */
-export function indexedDbAssetSlots(maxCacheBytes = 2_147_483_648): AssetSlots & {
+export function indexedDbAssetSlots(maxCacheBytes = 4_294_967_296): AssetSlots & {
   previous(id: string): Promise<ActiveAsset | undefined>;
 } {
   if (!Number.isSafeInteger(maxCacheBytes) || maxCacheBytes <= 0)
