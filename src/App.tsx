@@ -2050,7 +2050,7 @@ export default function App() {
       {watchOpen && <WatchFolderDialog onStart={(source, includeExisting) => void watch.start(source, includeExisting)} onClose={() => setWatchOpen(false)} />}
       {watch.status && <p role="status" className="fixed bottom-3 left-3 z-40 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/15 bg-kestrel-raised px-3 py-2 text-xs text-zinc-100 shadow-lg">{watch.status.error ?? t.watch.status(watch.status.folder, watch.status.imported)}</p>}
       {paidDialog && (
-        <div role="dialog" aria-modal="true" aria-label={t.paid.dialogLabel(paidDialog)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+        <div role="dialog" aria-modal="true" aria-label={t.paid.dialogLabel(paidDialog)} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4"
           onKeyDown={(event) => { if (event.key === 'Escape') setPaidDialog(null); }}>
           <div className="w-full max-w-sm space-y-3 rounded-xl border border-white/12 bg-kestrel-panel p-4">
             <PaidNotice title={paidDialog}>{t.paid.autoCullPitch}</PaidNotice>

@@ -1025,7 +1025,11 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
         <span>{t.originals.action(frames.length)}</span>
         {saving && <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
       </button>
-      <p className="px-3 pb-1 text-xs text-zinc-400">{t.originals.privacy}</p>
+      {/* One line by default: the full explanation is a tap away, so the Export tab keeps its room on a phone. */}
+      <details className="px-3 pb-1 text-xs text-zinc-400">
+        <summary className="min-h-9 cursor-pointer py-1.5">{t.originals.title}</summary>
+        <p className="pb-1">{t.originals.privacy}</p>
+      </details>
       {frames.some(frame => frame.isDemo) && <p role="note" className="px-3 text-xs text-amber-200">{t.originals.unavailable}</p>}
       {(!desktop || isMobileShell()) && frames.length > 1 && <p className="px-3 text-xs text-zinc-400">{t.originals.browserLimitHelp}</p>}
     </div>
@@ -1117,7 +1121,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
   const featuredGroups = SHARED_SOCIAL_SIZES.filter(group => FEATURED_SIZE_IDS.has(group.canonical.id));
   const otherGroups = SHARED_SOCIAL_SIZES.filter(group => !FEATURED_SIZE_IDS.has(group.canonical.id));
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/75 p-0" role="dialog" aria-modal="true" aria-labelledby="export-title">
       <section ref={dialog} className={`workspace-popover flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col overflow-hidden border-0 bg-kestrel-raised shadow-xl`}>
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-kestrel-raised px-2 py-1 max-sm:pt-[calc(0.25rem+env(safe-area-inset-top))]">
           <button type="button" onClick={onClose} aria-label={t.panel.close} title={t.panel.close} className={button}><X className="h-5 w-5" aria-hidden="true" /></button>

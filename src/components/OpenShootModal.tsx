@@ -86,7 +86,7 @@ export const OpenShootModal: React.FC<OpenShootModalProps> = ({
         event.preventDefault();
         order[(at + (event.shiftKey ? order.length - 1 : 1)) % order.length]?.focus();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-xs p-4"
     >
       <div className="w-full max-w-xl bg-kestrel-panel border border-white/12 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-4">
