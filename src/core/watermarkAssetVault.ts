@@ -113,6 +113,8 @@ export function watermarkBlobDataUrl(blob: Blob): Promise<string> {
 export function legacyWatermarkBlob(src: string): Blob {
   const match = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(src);
   if (!match || src.length > 4_000_024) throw new Error('The previous watermark is not a valid local raster image.');
-  const bytes = Uint8Array.from(atob(match[2]), char => char.charCodeAt(0));
+  let bytes: Uint8Array<ArrayBuffer>;
+  try { bytes = Uint8Array.from(atob(match[2]), char => char.charCodeAt(0)); }
+  catch { throw new Error('The previous watermark is not a valid local raster image.'); }
   return new Blob([bytes], { type: 'image/' + match[1] });
 }

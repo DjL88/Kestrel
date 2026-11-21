@@ -100,6 +100,9 @@ export const fi: AreaTranslation<typeof source> = {
     rejected: 'Hylätyt',
   },
   sheet: {
+    moreActions: 'Lisää toimintoja',
+    selectionBar: 'Valittujen kuvien toiminnot',
+    selectedCount: (count) => `${count} valittu`,
     noRecordedEdits: 'Tässä näkymässä ei ole tallennettuja muokkauksia.',
     noCaptureDates: 'Tässä näkymässä ei ole käyttökelpoisia kuvauspäiviä.',
     frameNotInView: 'Kuva ei ole tässä näkymässä.',
@@ -361,6 +364,9 @@ export const fi: AreaTranslation<typeof source> = {
     eyeBusy: 'Silmä…',
   },
   floatingPane: {
+    infoOptions: 'Kuvatietojen asetukset',
+    hideInfo: 'Piilota kuvatiedot',
+    floating: 'Irrallaan',
     tabOptions: "Välilehtien ja paneelien asetukset",
     tabGuide: "Näytä, piilota, telakoi tai irrota",
     showTab: "Näytä",

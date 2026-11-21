@@ -196,3 +196,25 @@ describe('journalled export dispatch', () => {
   });
 
 });
+
+// A renderer's completed promise is not equivalent to a durable completed job.
+it('does not claim completed when final checkpoint persistence fails', async () => {
+  const h = harness();
+  let failFinal = true;
+  const storage = {
+    ...h.storage,
+    write: (key: string, value: string) => {
+      if (failFinal && JSON.parse(value).state === 'completed') throw new Error('Disk full');
+      h.storage.write(key, value);
+    },
+  };
+  const dispatch = createJournalledExportDispatch(storage, h.queue);
+  expect(await dispatch.submit(plan('durability'), h.adapter).done).toBe('failed');
+  expect(dispatch.load('durability')?.receipts).toHaveLength(2);
+  expect(dispatch.load('durability')?.state).not.toBe('completed');
+  failFinal = false;
+  const restarted = createJournalledExportDispatch(storage, h.queue);
+  expect(await restarted.resume('durability', h.adapter)).toBeNull();
+  expect(restarted.load('durability')?.state).toBe('completed');
+  expect(h.published).toEqual(['one.jpg', 'two.jpg']);
+});

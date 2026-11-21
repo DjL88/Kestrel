@@ -29,7 +29,13 @@ created and changed only with Terraform in `infra/gcp` (state in `gs://kestrel-h
   signature, wrong key refused, downloaded model's size and SHA-256 match.
 - Budget alert: £20 a month (emails at 50%, 90%, 100%).
 
-**Merged, not deployed yet**
+**Deployed (verified 21 Nov 2026 with `gcloud`, read-only)**
+- Control plane: Cloud Run service `kestrel-control-plane`, `europe-west2`, revision 00002 (deployed 20 Nov 18:14), Ready, scale 0 to 1, public invoker (it authenticates requests itself). Firestore native database `(default)` in `europe-west2` exists. Secrets attached: signing key, session secret, webhook secret, licence public key, admin allow-list; the Google OAuth client id is set. Only empty-message warnings in the logs over two days. Not checked from the sandbox: the live `/healthz` and the website (egress to `*.run.app` and `*.web.app` is blocked there), so confirm those from your own machine.
+- **Licence issuing is OFF.** Secret `kcp-licence-private-key-pem` has no versions and the service has no `KCP_LICENCE_PRIVATE_KEY_PEM`, so `POST /v1/admin/licences/issue` answers `LICENCE_SIGNING_UNAVAILABLE`.
+- **Payments are not connected.** Secret `kestrel-sumup-api-key` has no versions.
+- **One admin.** The allow-list (`kcp-admin-emails`) holds one Google account. Add more addresses to give others access to the console.
+
+**Merged earlier (now deployed above)**
 - Control plane on Firestore, Cloud Run, Artifact Registry and its secrets in Terraform (#535).
 - Admin console with Google sign-in (allow-list), gift keys, revoke, usage, payments, contact inbox, tax, audit (#584).
 - Contact form on the website, wired to the admin inbox (#586).
@@ -80,3 +86,11 @@ for app screens, then merges and applies any Google Cloud change only with your 
 - #561, #562 and #563 conflict with `main` and wait for their authors to rebase.
 - The C: drive is nearly full (single-digit GB). Rust builds need about 15 GB free; see `docs/INSTALL-FROM-SOURCE.md`.
 - Several sessions merged in parallel today and broke `main` three times; the one-coordinator rule exists for that.
+
+
+## Turning on licence creation and adding people (needs the owner)
+
+1. **Add the licence private key.** From the Mac that holds it: `gcloud secrets versions add kcp-licence-private-key-pem --project kestrel-hosting --data-file="$HOME/.kestrel-signing/licence.key.pem"`. Its public half must equal `LICENCE_PUBLIC_KEY` in `src/core/licence.ts`; a different key would make every issued licence fail in the app. Do not generate a new pair unless an app update is planned.
+2. **Apply with issuing on.** `terraform -chdir=infra/gcp plan` then `apply` with `-var licence_issuing_enabled=true` (plus the existing image and client-id variables, see `infra/gcp/README.md`). Review the plan first: it should only grant the service account access to that secret and add the environment variable.
+3. **Add admins.** Add a new version of `kcp-admin-emails` with the full comma-separated list of Google addresses, then redeploy or restart the service so it reads it. Every admin can issue and revoke licences, and each action is written to the audit log, so keep the list short.
+4. **Check.** Sign in at `/admin` with an allow-listed account, issue a test key, activate it in a development build, then revoke it.

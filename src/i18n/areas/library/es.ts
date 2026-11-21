@@ -97,6 +97,9 @@ export const es: AreaTranslation<typeof source> = {
     rejected: 'Descartadas',
   },
   sheet: {
+    moreActions: 'Más acciones',
+    selectionBar: 'Acciones para las fotos seleccionadas',
+    selectedCount: (count) => `${count} seleccionadas`,
     noRecordedEdits: 'No hay ediciones guardadas en esta vista.',
     noCaptureDates: 'No hay fechas de captura útiles en esta vista.',
     frameNotInView: 'Esta foto no está en esta vista.',
@@ -358,6 +361,9 @@ export const es: AreaTranslation<typeof source> = {
     eyeBusy: 'Ojo…',
   },
   floatingPane: {
+    infoOptions: 'Opciones de Información de la foto',
+    hideInfo: 'Ocultar Información de la foto',
+    floating: 'Flotante',
     tabOptions: "Opciones de pestañas y paneles",
     tabGuide: "Mostrar, ocultar, acoplar o desacoplar",
     showTab: "Mostrar",

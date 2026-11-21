@@ -7,13 +7,14 @@ import { messages as m } from '../i18n/messages';
 import { editorText as t } from '../i18n/areas/editor';
 import { libraryText as libraryT } from '../i18n/areas/library';
 import { exportText as exportT } from '../i18n/areas/export';
-import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed, Wand2 } from 'lucide-react';
+import { Eye, EyeOff, PanelRight, PictureInPicture2, ChevronDown, ChevronLeft, ChevronRight, Columns2, Copy, Maximize, Minimize, Crop, Download, History, Lightbulb, RectangleHorizontal, RectangleVertical, RotateCcw, RotateCw, SlidersHorizontal, Square, SquircleDashed, Wand2 } from 'lucide-react';
 import { recipeAt } from '../core/editHistory';
 import { acceptedAutoChanges } from '../core/autoSuggestionSummary';
 import { formatClock } from '../core/formatDate';
 import { CROP_RATIOS, DEFAULT_FRAMING, MIN_CROP_SIZE, displayFramingFor, detailAnchor, drawCrop, drawFramedPhoto, estimateLevel, fixedShape, framedSize, resizeCrop, resizeCropEdge, thirdsCropAnchor, type CropCorner, type CropEdge, type PhotoFraming } from '../core/photoFraming';
 import { PhotoExportPanel } from './PhotoExportPanel';
 import { FloatingPane } from './FloatingPane';
+import { useLongPress } from './useLongPress';
 import { downloadExport } from '../providers/browserExport';
 import { QuickAdjust } from './QuickAdjust';
 import { AdjustmentSlider } from './AdjustmentSlider';
@@ -1108,8 +1109,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
         document.getElementById(`tab-${next}`)?.focus();
       }}>
       {visibleTabs.map(({ id, label, Icon }) => (
-        <button key={id} id={`tab-${id}`} role="tab" type="button" aria-label={label} title={label} aria-selected={tab === id} aria-controls={`panel-${id}`} tabIndex={tab === id ? 0 : -1}
-          aria-expanded={isPhone ? sheetOpen && tab === id : undefined}
+        <TabButton key={id} id={id} label={label} Icon={Icon} selected={tab === id} isPhone={isPhone} sheetOpen={sheetOpen}
+          menuEnabled={!isPhone && id !== 'export'} onOpenMenu={(point) => setTabMenu({ id, ...point })}
           onContextMenu={(event) => {
             if (isPhone || id === 'export') return;
             event.preventDefault();
@@ -1124,10 +1125,8 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           onClick={() => chooseTab(id)}
           className={isPhone
             ? 'relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 overflow-hidden px-0.5 text-xs text-zinc-300 focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:text-white aria-selected:after:absolute aria-selected:after:top-0 aria-selected:after:h-0.5 aria-selected:after:w-10 aria-selected:after:bg-sky-200'
-            : 'flex min-h-14 flex-1 shrink-0 flex-col items-center justify-center gap-1 border-b-2 border-transparent px-2 text-xs text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:border-sky-200 aria-selected:text-white'}>
-          <Icon className="h-5 w-5" aria-hidden="true" />
-          <span className="w-full truncate text-center max-[420px]:sr-only">{label}{id === 'masks' && edit.masks?.length ? <span className="ml-1 text-xs tabular-nums text-zinc-400">{edit.masks.length}</span> : null}</span>
-        </button>
+            : 'flex min-h-14 flex-1 shrink-0 flex-col items-center justify-center gap-1 border-b-2 border-transparent px-2 text-xs text-zinc-300 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 aria-selected:border-sky-200 aria-selected:text-white'}
+          badge={id === 'masks' && edit.masks?.length ? edit.masks.length : undefined} />
       ))}
     </div>
   );
@@ -1137,24 +1136,38 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
   // desktop tab's right-click menu. Both read the same device-local state.
   const tabLayoutControls = (inContextMenu: boolean) => (
     <div role={inContextMenu ? undefined : 'group'} aria-label={inContextMenu ? undefined : libraryT.floatingPane.tabOptions}>
-      <p className="px-2 py-1 text-xs font-semibold text-zinc-300">{libraryT.floatingPane.tabGuide}</p>
+      <p className="flex items-center justify-between px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+        <span>{libraryT.floatingPane.tabGuide}</span>
+      </p>
       {FLOATABLE_TABS.map((id) => {
         const label = TABS.find((entry) => entry.id === id)?.label ?? id;
+        const hidden = hiddenTabs.has(id);
+        const floating = floatingTabs.has(id);
+        const onlyVisible = !hidden && FLOATABLE_TABS.filter((candidate) => !hiddenTabs.has(candidate)).length <= 1;
+        const TabIcon = TABS.find((entry) => entry.id === id)?.Icon;
+        const iconButton = 'grid h-9 w-9 place-items-center rounded-md border text-xs transition-colors focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-35';
         return (
-          <div key={id} className="flex items-center justify-between gap-1 rounded-md px-2 py-1 hover:bg-white/5">
-            <span className="min-w-0 flex-1 truncate text-xs">{label}</span>
+          <div key={id} data-current={inContextMenu && tabMenu?.id === id ? 'true' : undefined}
+            className={`flex items-center justify-between gap-2 rounded-md px-2 py-1 hover:bg-white/5 ${inContextMenu && tabMenu?.id === id ? 'bg-white/8' : ''}`}>
+            <span className={`inline-flex min-w-0 flex-1 items-center gap-2 text-xs ${hidden ? 'text-zinc-400 line-through' : 'text-zinc-100'}`}>
+              {TabIcon && <TabIcon className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden="true" />}
+              <span className="truncate">{label}</span>
+              {floating && !hidden && <span className="rounded bg-sky-300/15 px-1 text-[10px] font-medium text-sky-200">{libraryT.floatingPane.floating}</span>}
+            </span>
             <button type="button" role={inContextMenu ? 'menuitem' : undefined}
-              className="min-h-9 rounded-md px-2 text-xs hover:bg-white/10"
-              aria-label={`${hiddenTabs.has(id) ? libraryT.floatingPane.showTab : libraryT.floatingPane.hideTab} ${label}`}
-              disabled={!hiddenTabs.has(id) && FLOATABLE_TABS.filter((candidate) => !hiddenTabs.has(candidate)).length <= 1}
+              className={`${iconButton} ${hidden ? 'border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-100' : 'border-white/15 bg-white/8 text-zinc-100 hover:bg-white/15'}`}
+              aria-label={`${hidden ? libraryT.floatingPane.showTab : libraryT.floatingPane.hideTab} ${label}`}
+              title={`${hidden ? libraryT.floatingPane.showTab : libraryT.floatingPane.hideTab} ${label}`}
+              disabled={onlyVisible}
               onClick={() => { toggleHideTab(id); if (inContextMenu) setTabMenu(null); }}>
-              {hiddenTabs.has(id) ? libraryT.floatingPane.showTab : libraryT.floatingPane.hideTab}
+              {hidden ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
             </button>
             <button type="button" role={inContextMenu ? 'menuitem' : undefined}
-              className="min-h-9 rounded-md px-2 text-xs hover:bg-white/10"
-              aria-label={floatingTabs.has(id) ? libraryT.floatingPane.dock(label) : libraryT.floatingPane.undockTab(label)}
+              className={`${iconButton} ${floating ? 'border-sky-300/60 bg-sky-300/20 text-sky-100 hover:bg-sky-300/30' : 'border-white/10 text-zinc-300 hover:bg-white/10 hover:text-zinc-100'}`}
+              aria-label={floating ? libraryT.floatingPane.dock(label) : libraryT.floatingPane.undockTab(label)}
+              title={floating ? libraryT.floatingPane.dock(label) : libraryT.floatingPane.undockTab(label)}
               onClick={() => { toggleFloatTab(id); if (inContextMenu) setTabMenu(null); }}>
-              {floatingTabs.has(id) ? libraryT.floatingPane.dockLabel : libraryT.floatingPane.undockLabel}
+              {floating ? <PanelRight className="h-4 w-4" aria-hidden="true" /> : <PictureInPicture2 className="h-4 w-4" aria-hidden="true" />}
             </button>
           </div>
         );
@@ -1847,9 +1860,9 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
           {floatingTools
             ? <FloatingPane title={libraryT.paneRail.editingTools} photoOnly={focusPhoto} initialSide={panelSide} storageKey="kestrel-tools-float-rect-v1" dockFocusSelector="[data-editor-undock]" onDock={() => setToolsUndocked(false)}>{toolPanel}</FloatingPane>
             : toolPanel}
-          {!isPhone && FLOATABLE_TABS.filter((id) => floatingTabs.has(id) && !hiddenTabs.has(id)).map((id) => (
+          {!isPhone && FLOATABLE_TABS.filter((id) => floatingTabs.has(id) && !hiddenTabs.has(id)).map((id, order) => (
             <FloatingPane key={id} title={TABS.find((entry) => entry.id === id)?.label ?? id}
-              photoOnly={focusPhoto} initialSide={panelSide} storageKey={`kestrel-tab-float-${id}-v1`}
+              photoOnly={focusPhoto} initialSide={panelSide} initialAvoidPx={panelWidth} initialIndex={order} storageKey={`kestrel-tab-float-${id}-v1`}
               dockFocusSelector={`#tab-${id}`} onDock={() => toggleFloatTab(id)}>
               <div className="h-full overflow-y-auto bg-kestrel-panel p-3">{renderTabBody(id)}</div>
             </FloatingPane>
@@ -1870,6 +1883,29 @@ export function PhotoEditor({ autoEdit, onOpenMacroPad,
       {orientationNotice && <p role="status" className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-2 right-2 z-40 rounded-md bg-kestrel-panel p-3 text-center text-xs text-zinc-100">{orientationNotice}</p>}
       {!demoOnly && exportOpen && !onExport && <PhotoExportPanel frames={[frame]} provider={provider} onClose={() => setExportOpen(false)} onDownloadRequested={onExportRequested} />}
     </section>
+  );
+}
+
+interface TabButtonProps {
+  id: Tab; label: string; Icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }>;
+  selected: boolean; isPhone: boolean; sheetOpen: boolean; menuEnabled: boolean; badge?: number; className: string;
+  onOpenMenu: (point: { x: number; y: number }) => void;
+  onContextMenu: React.MouseEventHandler<HTMLButtonElement>;
+  onKeyUp: React.KeyboardEventHandler<HTMLButtonElement>;
+  onClick: () => void;
+}
+
+/** One editor tab. Right-click, the Menu key, or a touch/pen long-press (tablets) opens its dock menu. */
+function TabButton({ id, label, Icon, selected, isPhone, sheetOpen, menuEnabled, badge, className, onOpenMenu, onContextMenu, onKeyUp, onClick }: TabButtonProps) {
+  const longPress = useLongPress(onOpenMenu, menuEnabled);
+  return (
+    <button id={`tab-${id}`} role="tab" type="button" aria-label={label} title={label} aria-selected={selected} aria-controls={`panel-${id}`} tabIndex={selected ? 0 : -1}
+      aria-expanded={isPhone ? sheetOpen && selected : undefined}
+      {...longPress}
+      onContextMenu={onContextMenu} onKeyUp={onKeyUp} onClick={onClick} className={className}>
+      <Icon className="h-5 w-5" aria-hidden="true" />
+      <span className="w-full truncate text-center max-[420px]:sr-only">{label}{badge ? <span className="ml-1 text-xs tabular-nums text-zinc-400">{badge}</span> : null}</span>
+    </button>
   );
 }
 

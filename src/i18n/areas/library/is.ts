@@ -97,6 +97,9 @@ export const is: AreaTranslation<typeof source> = {
     rejected: 'Hafnaðar',
   },
   sheet: {
+    moreActions: 'Fleiri aðgerðir',
+    selectionBar: 'Aðgerðir fyrir valdar myndir',
+    selectedCount: (count) => `${count} valdar`,
     noRecordedEdits: 'Engar vistaðar breytingar í þessari sýn.',
     noCaptureDates: 'Engar nothæfar tökudagsetningar í þessari sýn.',
     frameNotInView: 'Myndin er ekki í þessari sýn.',
@@ -358,6 +361,9 @@ export const is: AreaTranslation<typeof source> = {
     eyeBusy: 'Auga…',
   },
   floatingPane: {
+    infoOptions: 'Valkostir myndaupplýsinga',
+    hideInfo: 'Fela myndaupplýsingar',
+    floating: 'Fljótandi',
     tabOptions: "Valkostir flipa og spjalda",
     tabGuide: "Sýna, fela, festa eða losa",
     showTab: "Sýna",

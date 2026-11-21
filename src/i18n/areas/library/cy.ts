@@ -97,6 +97,9 @@ export const cy: AreaTranslation<typeof source> = {
     rejected: 'Wedi’u gwrthod',
   },
   sheet: {
+    moreActions: 'Rhagor o weithredoedd',
+    selectionBar: 'Gweithredoedd ar gyfer y lluniau a ddewiswyd',
+    selectedCount: (count) => `${count} wedi’u dewis`,
     noRecordedEdits: 'Dim golygiadau wedi’u cofnodi yn y golwg hwn.',
     noCaptureDates: 'Dim dyddiadau tynnu defnyddiol yn y golwg hwn.',
     frameNotInView: 'Nid yw’r llun hwn yn y golwg hwn.',
@@ -346,6 +349,9 @@ export const cy: AreaTranslation<typeof source> = {
     eyeBusy: 'Llygad…',
   },
   floatingPane: {
+    infoOptions: 'Dewisiadau Gwybodaeth y llun',
+    hideInfo: 'Cuddio Gwybodaeth y llun',
+    floating: 'Fel ffenestr',
     tabOptions: "Dewisiadau tabiau a phaneli",
     tabGuide: "Dangos, cuddio, docio neu ddad-docio",
     showTab: "Dangos",

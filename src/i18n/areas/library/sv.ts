@@ -97,6 +97,9 @@ export const sv: AreaTranslation<typeof source> = {
     rejected: 'Bortvalda',
   },
   sheet: {
+    moreActions: 'Fler åtgärder',
+    selectionBar: 'Åtgärder för markerade bilder',
+    selectedCount: (count) => `${count} markerade`,
     noRecordedEdits: 'Inga sparade redigeringar i den här visningen.',
     noCaptureDates: 'Inga användbara fotodatum i den här visningen.',
     frameNotInView: 'Fotot finns inte i den här visningen.',
@@ -358,6 +361,9 @@ export const sv: AreaTranslation<typeof source> = {
     eyeBusy: 'Öga…',
   },
   floatingPane: {
+    infoOptions: 'Alternativ för Bildinfo',
+    hideInfo: 'Dölj Bildinfo',
+    floating: 'Flytande',
     tabOptions: "Flik- och panelalternativ",
     tabGuide: "Visa, dölj, docka eller frigör",
     showTab: "Visa",

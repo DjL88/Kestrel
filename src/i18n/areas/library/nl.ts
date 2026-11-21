@@ -97,6 +97,9 @@ export const nl: AreaTranslation<typeof source> = {
     rejected: 'Afgewezen',
   },
   sheet: {
+    moreActions: 'Meer acties',
+    selectionBar: 'Acties voor geselecteerde foto’s',
+    selectedCount: (count) => `${count} geselecteerd`,
     noRecordedEdits: 'Geen opgeslagen bewerkingen in deze weergave.',
     noCaptureDates: 'Geen bruikbare opnamedatums in deze weergave.',
     frameNotInView: 'Deze foto staat niet in deze weergave.',
@@ -358,6 +361,9 @@ export const nl: AreaTranslation<typeof source> = {
     eyeBusy: 'Oog…',
   },
   floatingPane: {
+    infoOptions: 'Opties voor Foto-info',
+    hideInfo: 'Foto-info verbergen',
+    floating: 'Zwevend',
     tabOptions: "Tab- en paneelopties",
     tabGuide: "Tonen, verbergen, vastzetten of losmaken",
     showTab: "Tonen",

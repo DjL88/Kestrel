@@ -97,6 +97,9 @@ export const nb: AreaTranslation<typeof source> = {
     rejected: 'Valgt bort',
   },
   sheet: {
+    moreActions: 'Flere handlinger',
+    selectionBar: 'Handlinger for valgte bilder',
+    selectedCount: (count) => `${count} valgt`,
     noRecordedEdits: 'Ingen lagrede redigeringer i denne visningen.',
     noCaptureDates: 'Ingen brukbare opptaksdatoer i denne visningen.',
     frameNotInView: 'Bildet er ikke i denne visningen.',
@@ -358,6 +361,9 @@ export const nb: AreaTranslation<typeof source> = {
     eyeBusy: 'Øye…',
   },
   floatingPane: {
+    infoOptions: 'Valg for Bildeinfo',
+    hideInfo: 'Skjul Bildeinfo',
+    floating: 'Flytende',
     tabOptions: "Valg for faner og paneler",
     tabGuide: "Vis, skjul, dokk eller løsne",
     showTab: "Vis",
