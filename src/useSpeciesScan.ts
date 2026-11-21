@@ -7,8 +7,7 @@ import type { BrowserPreviewProvider } from './providers/browserPreviewProvider'
 import { pictureForAnalysis } from './providers/pictureForAnalysis';
 import { SPECIES_DOWNLOAD_BYTES, analysePicture, downloadSpeciesModel, loadSpeciesLabels, speciesStatus, type SpeciesStatus } from './providers/speciesModel';
 import { readAutoTag, readSpeciesCounts } from './providers/speciesLearning';
-import { gateOutcome } from './core/categoryGate';
-import { STRICT_SPECIES_PROBABILITY } from './core/subjectRouter';
+import { gateOutcome, permitsAutomaticSpeciesTag } from './core/categoryGate';
 import { subjectCrop } from './core/subjectCrop';
 import { gateAvailable, routePicture } from './providers/categoryGate';
 import { HELPER_GAP_MS, HELPER_SESSION_CAP, failureMessage, helperPatch, helperReady } from './core/onlineHelper';
@@ -102,8 +101,9 @@ export function useSpeciesScan({ projectId, frames, provider, active, onResult }
             const outcome = gateOutcome(await routePicture(picture, subjectCrop(picture.width, picture.height, grid)), frame.subjectKind);
             const kind = frame.subjectKind ?? outcome.kind;
             if (kind === 'wildlife' && outcome.species !== 'block') {
-              const sureEnough = outcome.species === 'allow' || (named && named.probability >= STRICT_SPECIES_PROBABILITY);
-              patch = scanPatch({ ...frame, subjectKind: kind }, sureEnough ? named : undefined);
+              // A high closed-set species score never cancels uncertainty in
+              // the independent animal/aircraft check. Strict = review only.
+              patch = scanPatch({ ...frame, subjectKind: kind }, permitsAutomaticSpeciesTag(outcome.species) ? named : undefined);
               if (outcome.kind) patch = { ...patch, subjectKind: outcome.kind };
             } else if (kind) {
               // Not an animal the list can name (a helicopter, a car): looked at, and no animal name offered.
