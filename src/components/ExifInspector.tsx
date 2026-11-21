@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { messages as m } from '../i18n/messages';
 import { libraryText as libraryT } from '../i18n/areas/library';
-import { ChevronLeft, ChevronRight, ClipboardCopy, Download, PanelTopOpen, Star, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardCopy, Download, PanelTopOpen, Star, X } from './icons/KestrelUIIcons';
 import { exportText } from '../i18n/areas/export';
 import { downloadInBrowser } from '../providers/browserExport';
 import { isDesktopApp, isMobileShell, saveWithDialog } from '../providers/desktopShell';
