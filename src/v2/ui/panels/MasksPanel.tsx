@@ -48,6 +48,8 @@ export default function MasksPanel({
         {STRINGS.masks.subtitle}
       </p>
 
+      <p role="status" className="text-[11px] leading-relaxed text-[var(--text-muted)]">Subject and Background masks work on this device. Sky and manual painting are not connected yet.</p>
+
       {/* Auto-detect mask triggers */}
       <div className="space-y-2">
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">
@@ -58,11 +60,13 @@ export default function MasksPanel({
             <button
               key={tool.id}
               type="button"
+              disabled={tool.id === 'sky'}
+              title={tool.id === 'sky' ? 'Sky detection is not available yet' : undefined}
               onClick={() => {
                 onSetMaskTool(tool.id);
                 onAddMaskLayer(photo.id, tool.id);
               }}
-              className={`flex h-9 items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-3 text-xs font-medium transition-colors ${
+              className={`disabled:cursor-not-allowed disabled:opacity-50 flex h-9 items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-3 text-xs font-medium transition-colors ${
                 activeMaskTool === tool.id
                   ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                   : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-primary)] hover:border-[var(--border-default)]'
@@ -88,8 +92,10 @@ export default function MasksPanel({
             <button
               key={tool.id}
               type="button"
+              disabled
+              title="Manual mask painting is not connected to the canvas yet"
               onClick={() => onSetMaskTool(tool.id)}
-              className={`flex flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] border py-2.5 text-[11px] font-medium transition-colors ${
+              className={`disabled:cursor-not-allowed disabled:opacity-50 flex flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] border py-2.5 text-[11px] font-medium transition-colors ${
                 activeMaskTool === tool.id
                   ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                   : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
