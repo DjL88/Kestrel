@@ -1172,7 +1172,8 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
   }
 
   /** One tab bar. On a phone it is a bottom toolbar of large icons, and on wider screens the top of the side panel. */
-  const visibleTabs = TABS.filter((entry) => entry.id !== 'export' && (isPhone || !hiddenTabs.has(entry.id)));
+  // A floating tab lives in its own pane, so it leaves the strip entirely. Docking it from the right-click or View menu brings it back.
+  const visibleTabs = TABS.filter((entry) => entry.id !== 'export' && (isPhone || (!hiddenTabs.has(entry.id) && !floatingTabs.has(entry.id))));
   const tabList = (
     <div role="tablist" aria-label={t.editor.tablist}
       className={isPhone
@@ -1180,6 +1181,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
         : 'sticky top-0 z-20 -mx-3 flex overflow-x-auto border-b border-white/10 bg-kestrel-panel px-2 workspace:-mx-4 workspace:px-3'}
       onKeyDown={(event) => {
         const order = visibleTabs.map((entry) => entry.id);
+        if (!order.length) return;
         const at = order.indexOf(tab);
         const next = event.key === 'ArrowRight' ? order[(at + 1) % order.length] : event.key === 'ArrowLeft' ? order[(at + order.length - 1) % order.length]
           : event.key === 'Home' ? order[0] : event.key === 'End' ? order[order.length - 1] : null;
@@ -1229,7 +1231,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
       <p className="flex items-center justify-between px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
         <span>{libraryT.floatingPane.tabGuide}</span>
       </p>
-      {FLOATABLE_TABS.filter((id) => !inContextMenu || tabMenu?.id === id).map((id) => {
+      {FLOATABLE_TABS.map((id) => {
         const label = TABS.find((entry) => entry.id === id)?.label ?? id;
         const hidden = hiddenTabs.has(id);
         const floating = floatingTabs.has(id);
@@ -1873,13 +1875,6 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
         sliderTimer.current = window.setTimeout(() => setSliderBusy(false), 700);
       }} data-tools-panel style={{ '--panel-w': `${panelWidth}px` } as React.CSSProperties} className={floatingTools ? 'h-full min-h-0 w-full space-y-2 overflow-y-auto bg-kestrel-panel p-3' : `${toolsHidden ? 'hidden ' : ''}scroll-pt-14 max-h-[46%] shrink-0 space-y-2 overflow-y-auto border-t border-white/10 bg-kestrel-panel p-3 pt-0 workspace:relative workspace:z-10 workspace:max-h-none workspace:w-[var(--panel-w)] workspace:border-t-0 workspace:p-4 workspace:pt-0 ${panelSide === 'left' ? 'workspace:order-[-9999] workspace:border-r' : 'workspace:border-l'}`}>
         {!isPhone && <div className="sticky top-0 z-20 -mx-3 flex items-stretch bg-kestrel-panel workspace:-mx-4">
-          {!floatingTools && !isPhone && <button data-editor-undock type="button"
-            aria-label={libraryT.floatingPane.undockTab(TABS.find((entry) => entry.id === tab)?.label ?? tab)}
-            title={libraryT.floatingPane.undockTabHelp}
-            onClick={() => toggleFloatTab(tab)}
-            className="grid h-11 w-11 shrink-0 place-items-center border-b border-white/10 text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-            <PictureInPicture2 className="h-4 w-4" aria-hidden="true"/>
-          </button>}
           {onFoldTools && !floatingTools && <button type="button" onClick={onFoldTools} aria-label={t.editor.fold} title={t.editor.foldTitle}
             className={`grid w-9 shrink-0 place-items-center border-b border-white/10 text-zinc-400 hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-sky-300 ${panelSide === 'left' ? 'order-last' : ''}`}>
             {panelSide === 'left' ? <ChevronLeft className="h-5 w-5" aria-hidden="true" /> : <ChevronRight className="h-5 w-5" aria-hidden="true" />}
@@ -1893,7 +1888,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
       ); return (
         <>
           {floatingTools
-            ? <FloatingPane title={libraryT.paneRail.editingTools} photoOnly={focusPhoto} initialSide={panelSide} storageKey="kestrel-tools-float-rect-v1" dockFocusSelector="[data-editor-undock]" onDock={() => setToolsUndocked(false)} onDockTo={onPanelSideChange}>{toolPanel}</FloatingPane>
+            ? <FloatingPane title={libraryT.paneRail.editingTools} photoOnly={focusPhoto} initialSide={panelSide} storageKey="kestrel-tools-float-rect-v1" dockFocusSelector="[role=tablist] [aria-selected=true]" onDock={() => setToolsUndocked(false)} onDockTo={onPanelSideChange}>{toolPanel}</FloatingPane>
             : toolPanel}
           {!isPhone && FLOATABLE_TABS.filter((id) => floatingTabs.has(id) && !hiddenTabs.has(id)).map((id, order) => (
             <FloatingPane key={id} title={TABS.find((entry) => entry.id === id)?.label ?? id}

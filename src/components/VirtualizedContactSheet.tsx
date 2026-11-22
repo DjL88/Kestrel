@@ -505,7 +505,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
       </div>
       {actionIds.length > 0 && (
         <div role="toolbar" aria-label={t.sheet.selectionBar} ref={selectionBarRef}
-          className="sticky bottom-2 z-[40] mx-auto mt-2 flex w-fit max-w-[96vw] flex-wrap items-center justify-center gap-1 rounded-xl border border-white/20 bg-kestrel-raised p-1.5 text-sm text-zinc-100 shadow-2xl">
+          className="sticky bottom-2 z-[40] mx-auto mt-2 flex w-fit sm:fixed sm:bottom-4 sm:left-1/2 sm:mx-0 sm:mt-0 sm:-translate-x-1/2 max-w-[96vw] flex-wrap items-center justify-center gap-1 rounded-xl border border-white/20 bg-kestrel-raised p-1.5 text-sm text-zinc-100 shadow-2xl">
           <span className={`max-w-40 truncate px-2 text-xs text-zinc-300 ${multiSelect ? '' : 'hidden sm:inline'}`}>{multiSelect ? t.sheet.selectedCount(actionIds.length) : actionFrames[0]?.filename}</span>
           {(['keep', 'reject'] as const).map((decision) => (
             <button key={decision} type="button" className="min-h-11 min-w-11 rounded-md px-3 hover:bg-white/10"

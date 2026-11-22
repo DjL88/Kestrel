@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
-import { isMobileShell } from '../providers/desktopShell';
-import { ChevronDown, ChevronUp, Focus, Maximize, Minimize, GripHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronUp, Focus, GripHorizontal } from 'lucide-react';
 import { clampFilmstripHeight, FILMSTRIP_SIZE_KEY, parseFilmstripHeight } from '../core/filmstripGeometry';
 import { libraryText as t } from '../i18n/areas/library';
 
@@ -24,7 +23,6 @@ export function FilmstripDock({ expanded, onToggle, onPhotoOnly, phoneEditHidden
     try { return parseFilmstripHeight(window.localStorage.getItem(FILMSTRIP_SIZE_KEY), window.innerHeight); }
     catch { return parseFilmstripHeight(null, typeof window === 'undefined' ? 800 : window.innerHeight); }
   });
-  const [fullscreen, setFullscreen] = useState(() => typeof document !== 'undefined' && !!document.fullscreenElement);
   const drag = useRef<{ y: number; height: number } | null>(null);
 
   useEffect(() => {
@@ -33,12 +31,9 @@ export function FilmstripDock({ expanded, onToggle, onPhotoOnly, phoneEditHidden
   }, [height]);
   useEffect(() => {
     const resize = () => setHeight((value) => clampFilmstripHeight(value, window.innerHeight));
-    const syncFullscreen = () => setFullscreen(Boolean(document.fullscreenElement));
     window.addEventListener('resize', resize);
-    document.addEventListener('fullscreenchange', syncFullscreen);
     return () => {
       window.removeEventListener('resize', resize);
-      document.removeEventListener('fullscreenchange', syncFullscreen);
     };
   }, []);
 
@@ -55,12 +50,6 @@ export function FilmstripDock({ expanded, onToggle, onPhotoOnly, phoneEditHidden
   const endDrag = (event: PointerEvent<HTMLDivElement>) => {
     drag.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-  };
-  const toggleFullscreen = () => {
-    const request = document.fullscreenElement
-      ? document.exitFullscreen()
-      : document.documentElement.requestFullscreen();
-    void request.catch(() => { /* The browser may not support fullscreen. */ });
   };
 
   return (
@@ -101,14 +90,6 @@ export function FilmstripDock({ expanded, onToggle, onPhotoOnly, phoneEditHidden
               <Focus className="h-4 w-4" aria-hidden="true"/>
             </button>
           )}
-          {typeof document !== 'undefined' && document.fullscreenEnabled && !isMobileShell() && (
-            <button type="button" aria-pressed={fullscreen} title={fullscreen ? t.filmstripDock.leaveFullScreenTitle : t.filmstripDock.fullScreenTitle}
-              aria-label={fullscreen ? t.filmstripDock.leaveFullScreen : t.filmstripDock.fullScreen} onClick={toggleFullscreen}
-              className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-              {fullscreen ? <Minimize className="h-4 w-4" aria-hidden="true"/> : <Maximize className="h-4 w-4" aria-hidden="true"/>}
-            </button>
-          )}
-
         </div>
       </div>
       {expanded && <div className="min-h-0 flex-1 overflow-hidden">{children}</div>}
