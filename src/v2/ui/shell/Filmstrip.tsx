@@ -13,7 +13,7 @@ interface FilmstripProps {
   bottomTab: 'filmstrip' | 'info';
   collapsed: boolean;
   height: number;
-  filter: 'all' | 'flagged';
+  filter: 'all' | 'flagged' | 'set-aside';
   search: string;
   calmView: boolean;
   looks: LookPreset[];
@@ -21,12 +21,13 @@ interface FilmstripProps {
   onSetBottomTab: (tab: 'filmstrip' | 'info') => void;
   onSetCollapsed: (collapsed: boolean) => void;
   onSetHeight: (height: number) => void;
-  onSetFilter: (filter: 'all' | 'flagged') => void;
+  onSetFilter: (filter: 'all' | 'flagged' | 'set-aside') => void;
   onSetSearch: (q: string) => void;
   onSelectPhoto: (photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) => void;
   onClearSelection: () => void;
   onToggleFlag: (photoIds: string[]) => void;
   onSetRating: (photoIds: string[], rating: number) => void;
+  onSetDecision: (photoIds: string[], decision: 'unreviewed' | 'keep' | 'reject') => void;
   onPasteRecipe: () => void;
   onApplyLook: (photoId: string, lookId: string) => void;
   onImport: () => void;
@@ -56,6 +57,7 @@ export default function Filmstrip({
   onClearSelection,
   onToggleFlag,
   onSetRating,
+  onSetDecision,
   onPasteRecipe,
   onApplyLook,
   onImport,
@@ -87,6 +89,7 @@ export default function Filmstrip({
 
   const visiblePhotos = filterPhotos(photos, filter, search).filter((photo) => photo.rating >= minimumRating);
   const flaggedCount = photos.filter((p) => p.decision === 'keep').length;
+  const setAsideCount = photos.filter((p) => p.decision === 'reject').length;
 
   const handleResizeDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -227,6 +230,12 @@ export default function Filmstrip({
               {STRINGS.filmstrip.filterFlagged} ({flaggedCount})
             </button>
           </div>
+
+          <button type="button" onClick={() => onSetFilter('set-aside')}
+            aria-pressed={filter === 'set-aside'}
+            className={`h-8 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-2 text-xs font-medium ${filter === 'set-aside' ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
+            Set aside ({setAsideCount})
+          </button>
 
           {/* Search icon expanding into search input */}
           {searchOpen || search || minimumRating > 0 ? (
@@ -444,6 +453,22 @@ export default function Filmstrip({
           >
             <BrandIcon name="flag" size={14} />
             <span>Flag / unflag</span>
+          </button>
+          <button type="button" role="menuitem"
+            onClick={() => {
+              onSetDecision(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId], 'reject');
+              setTileMenu(null);
+            }}
+            className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            Reject / set aside
+          </button>
+          <button type="button" role="menuitem"
+            onClick={() => {
+              onSetDecision(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId], 'unreviewed');
+              setTileMenu(null);
+            }}
+            className="flex w-full px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            Return to review
           </button>
           <div className="border-t border-[var(--border-subtle)] px-3 py-2">
             <span className="mb-1 block text-[11px] text-[var(--text-secondary)]">Rating</span>

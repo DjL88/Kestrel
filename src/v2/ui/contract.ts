@@ -392,7 +392,7 @@ export interface WorkspaceStore {
   panels: Record<PanelId, PanelLayoutState>;
   filmstripCollapsed: boolean;
   filmstripHeight: number;
-  filmstripFilter: 'all' | 'flagged';
+  filmstripFilter: 'all' | 'flagged' | 'set-aside';
   filmstripSearch: string;
   gridViewOpen: boolean;
   compareMode: boolean;
@@ -508,7 +508,7 @@ export interface WorkspaceActions {
   setBottomTab: (tab: 'filmstrip' | 'info') => void;
   setFilmstripCollapsed: (collapsed: boolean) => void;
   setFilmstripHeight: (height: number) => void;
-  setFilmstripFilter: (filter: 'all' | 'flagged') => void;
+  setFilmstripFilter: (filter: 'all' | 'flagged' | 'set-aside') => void;
   setFilmstripSearch: (query: string) => void;
   setGridViewOpen: (open: boolean) => void;
   setCompareMode: (compare: boolean) => void;

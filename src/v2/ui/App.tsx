@@ -419,6 +419,7 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
                 onClearSelection={actions.clearSelection}
                 onToggleFlag={actions.toggleFlag}
                 onSetRating={actions.setRating}
+                onSetDecision={actions.setDecision}
                 onPasteRecipe={actions.pasteRecipe}
                 onApplyLook={actions.applyLook}
                 onImport={actions.importPhotos}

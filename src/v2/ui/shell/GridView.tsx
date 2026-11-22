@@ -8,13 +8,13 @@ interface GridViewProps {
   photos: Photo[];
   activePhotoId: string | null;
   selectedPhotoIds: string[];
-  filter: 'all' | 'flagged';
+  filter: 'all' | 'flagged' | 'set-aside';
   search: string;
   onSelectPhoto: (photoId: string, modifiers?: { ctrl?: boolean; shift?: boolean }) => void;
   onOpenInEditor: (photoId: string) => void;
   onToggleFlag: (photoIds: string[]) => void;
   onSetRating: (photoIds: string[], rating: number) => void;
-  onSetFilter: (filter: 'all' | 'flagged') => void;
+  onSetFilter: (filter: 'all' | 'flagged' | 'set-aside') => void;
   onSetSearch: (q: string) => void;
   onClose: () => void;
 }
@@ -35,6 +35,7 @@ export default function GridView({
 }: GridViewProps) {
   const visible = filterPhotos(photos, filter, search);
   const flaggedCount = photos.filter((p) => p.decision === 'keep').length;
+  const setAsideCount = photos.filter((p) => p.decision === 'reject').length;
 
   return (
     <section
@@ -78,6 +79,11 @@ export default function GridView({
             </button>
           </div>
 
+          <button type="button" onClick={() => onSetFilter('set-aside')}
+            aria-pressed={filter === 'set-aside'}
+            className={`h-8 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] px-2 text-xs font-medium ${filter === 'set-aside' ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
+            Set aside ({setAsideCount})
+          </button>
           <div className="relative">
             <BrandIcon
               name="search"
