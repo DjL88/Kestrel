@@ -186,6 +186,10 @@ export const Schemas = {
   AdminModel: z.object({
     id: z.string(), kind: z.enum(['onnx', 'species-library', 'equipment']), version: z.string(), path: z.string(),
     sha256: Hex64, bytes: z.number().int().positive(), requiredAppMin: Version.default('0.0.0'), channel: z.enum(['stable', 'beta']).default('stable'),
+    /** What the model does for the app (inputs, outputs, labels). Required for ONNX: the app only swaps a slot with an unchanged contract. */
+    contract: z.string().max(80).optional(),
+    /** The rights record for this exact version. Required for ONNX. Never stored in Git; weights are not either. */
+    licence: z.object({ spdx: z.string().min(1).max(64), sourceUrl: z.string().url().max(300).startsWith('https://'), noticePath: z.string().max(180).optional(), rightsConfirmed: z.boolean() }).strict().optional(),
   }).strict(),
   AdminPromote: z.object({ id: z.string(), version: z.string(), channel: z.enum(['stable', 'beta']).default('stable') }).strict(),
   AdminRelease: z.object({ platform: z.enum(['windows', 'macos']), channel: z.enum(['stable', 'beta']).default('stable'), version: Version, url: z.string().url(), notes: z.string().max(4000).default(''), minSupported: Version.default('0.0.0') }).strict(),
@@ -339,22 +343,27 @@ export function createApp(options: AppOptions) {
   }
 
   // ---- Cloud Processing gate. Order matters: nothing is reserved or uploaded until every check has passed.
-  async function cloudJobStart(req: Request): Promise<Reply> {
-    const claims = await bearer(req);
-    const body = parseJson(Schemas.CloudJobRequest, req.rawBody);
-    if (body.userConsent !== true) throw new ApiError(400, 'CONSENT_REQUIRED', 'InFlight needs your permission before sending a photo to be processed.');
+  /** Configured, kill switch and Pro. Runs on every request that starts work, not only on create. */
+  async function cloudGate(accountId: string) {
     const cloud = options.cloud;
     if (!cloud) throw new ApiError(503, 'CLOUD_NOT_CONFIGURED', 'Cloud processing is not set up on this server.');
     // Kill switch: the settings key or a kill-switched flag. Checked live on every request.
     if ((await store.getSetting('cloud_disabled')) === '1' || (await loadFlags())['cloud.processing']?.kill === true) {
-      await audit(claims.sub, 'cloud.job.create', 'denied', 'kill switch');
+      await audit(accountId, 'cloud.job.create', 'denied', 'kill switch');
       throw new ApiError(503, 'CLOUD_DISABLED', 'Cloud processing is switched off for now.', true);
     }
-    const licences = await store.listLicencesForAccount(claims.sub);
+    const licences = await store.listLicencesForAccount(accountId);
     if (!licences.some((l) => (l.plan === 'paid' || l.plan === 'subscriber') && licenceIsUsable(l, now()))) {
-      await audit(claims.sub, 'cloud.job.create', 'denied', 'not Pro');
+      await audit(accountId, 'cloud.job.create', 'denied', 'not Pro');
       throw new ApiError(403, 'CLOUD_NOT_ENTITLED', 'Cloud processing is part of Pro.');
     }
+    return cloud;
+  }
+  async function cloudJobStart(req: Request): Promise<Reply> {
+    const claims = await bearer(req);
+    const body = parseJson(Schemas.CloudJobRequest, req.rawBody);
+    if (body.userConsent !== true) throw new ApiError(400, 'CONSENT_REQUIRED', 'InFlight needs your permission before sending a photo to be processed.');
+    const cloud = await cloudGate(claims.sub);
     if (body.inputBytes > cloud.maxInputBytes) throw new ApiError(413, 'CLOUD_INPUT_TOO_LARGE', 'This file is larger than cloud processing accepts.');
     if (!(await cloud.ledger.reserve(claims.sub, now(), cloud.jobsPerPeriod, QUOTA_PERIOD_MS))) {
       await audit(claims.sub, 'cloud.job.create', 'denied', 'quota');
@@ -416,10 +425,21 @@ export function createApp(options: AppOptions) {
     return { flags: resolveFlagsForGrant(flags, { audience, nowMs, bucket, appVersion }) };
   }
 
+  // Contract and licence per model version live in one settings document (works on SQLite and Firestore alike).
+  const MODEL_META_SETTING = 'model_meta';
+  type ModelMeta = Record<string, { contract?: string; licence?: { spdx: string; sourceUrl: string; noticePath?: string; rightsConfirmed: true; recordedAtMs: number } }>;
+  async function loadModelMeta(): Promise<ModelMeta> {
+    try { return JSON.parse((await store.getSetting(MODEL_META_SETTING)) ?? '{}') as ModelMeta; } catch { return {}; }
+  }
+
   async function currentManifest(appVersion: string, channel: string): Promise<DataManifest> {
     const rows = await store.listLiveModelAssets(channel);
+    const meta = await loadModelMeta();
     const assets = rows.filter((row) => versionAtLeast(appVersion, row.requiredAppMin))
-      .map((row) => ({ id: row.assetId, kind: row.kind, version: row.version, path: row.path, bytes: row.bytes, sha256: row.sha256 }));
+      .map((row) => {
+        const contract = meta[`${row.assetId}@${row.version}`]?.contract;
+        return { id: row.assetId, kind: row.kind, version: row.version, path: row.path, bytes: row.bytes, sha256: row.sha256, ...(contract ? { contract } : {}) };
+      });
     const manifest = parseDataManifest({ schema: 1, revision: Number((await store.getSetting(`manifest_revision_${channel}`)) ?? 1), assets });
     if (!manifest) throw new ApiError(500, 'MANIFEST_INVALID', 'The model registry is in an invalid state.');
     return manifest;
@@ -667,14 +687,47 @@ export function createApp(options: AppOptions) {
       handler: (req) => cloudJobStart(req),
     },
     {
-      method: 'GET', path: '/v1/cloud/jobs/:id', summary: 'Status of one of your cloud processing jobs', auth: 'user',
-      handler: async (req, params) => { const { record } = await cloudJobOwned(req, params.id!); return { status: 200, body: { jobId: record.jobId, status: record.status, kind: record.kind } }; },
+      method: 'GET', path: '/v1/cloud/jobs/:id', summary: 'Status of one of your cloud processing jobs; a signed result URL once ready', auth: 'user',
+      handler: async (req, params) => {
+        const { cloud, record } = await cloudJobOwned(req, params.id!);
+        let current = record;
+        let resultUrl: string | undefined;
+        if (record.status === 'running') {
+          const p = await cloud.runner.poll(record.jobId);
+          if (p.state !== 'running') {
+            // The job has ended: the input goes now, not at finish or at the lifecycle backstop.
+            await cloud.runner.deleteInput(record.jobId);
+            current = { ...record, status: p.state };
+            await cloud.ledger.put(current);
+            if (p.state === 'failed') await cloud.ledger.refund(record.accountId); // a failed job costs nothing; the status change makes this happen once
+            await audit(record.accountId, 'cloud.job.end', 'allowed', `${record.jobId} ${p.state}`);
+          }
+          if (p.state === 'ready') resultUrl = p.resultUrl;
+        } else if (record.status === 'ready') {
+          const p = await cloud.runner.poll(record.jobId);
+          if (p.state === 'ready') resultUrl = p.resultUrl;
+        }
+        return { status: 200, body: { jobId: current.jobId, status: current.status, kind: current.kind, ...(resultUrl ? { resultUrl } : {}), ...(current.status === 'failed' ? { failure: 'CLOUD_JOB_FAILED' } : {}) } };
+      },
     },
     {
-      method: 'POST', path: '/v1/cloud/jobs/:id/finish', summary: 'Result collected or job cancelled: deletes the uploaded input now (idempotent)', auth: 'user',
+      method: 'POST', path: '/v1/cloud/jobs/:id/start', summary: 'Start processing once the upload has arrived (idempotent). Re-checks the kill switch and Pro', auth: 'user',
+      handler: async (req, params) => {
+        const { record } = await cloudJobOwned(req, params.id!);
+        const cloud = await cloudGate(record.accountId);
+        if (record.status !== 'awaiting-upload') return { status: 200, body: { jobId: record.jobId, status: record.status } };
+        if (!(await cloud.runner.inputPresent(record.jobId))) throw new ApiError(409, 'CLOUD_INPUT_MISSING', 'The upload has not arrived yet.', true);
+        await cloud.runner.start(record.jobId, record.kind);
+        await cloud.ledger.put({ ...record, status: 'running' });
+        return { status: 200, body: { jobId: record.jobId, status: 'running' } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/cloud/jobs/:id/finish', summary: 'Result collected or job cancelled: deletes the input and the result now (idempotent)', auth: 'user',
       handler: async (req, params) => {
         const { cloud, record } = await cloudJobOwned(req, params.id!);
         await cloud.runner.deleteInput(record.jobId);
+        await cloud.runner.deleteResult(record.jobId);
         await cloud.ledger.put({ ...record, status: 'finished' });
         return { status: 200, body: { jobId: record.jobId, inputDeleted: true } };
       },
@@ -1055,12 +1108,35 @@ export function createApp(options: AppOptions) {
           await audit(claims.sub, 'model.register', 'denied', `invalid asset ${JSON.stringify(body.id).slice(0, 80)}`);
           throw new ApiError(400, 'ASSET_INVALID', 'Asset id, version or path is not allowed (paths must be /data/..., with no ".." or absolute paths).');
         }
+        const metaKey = `${body.id}@${body.version}`;
+        if (body.kind === 'onnx') {
+          if (!body.contract) throw new ApiError(400, 'MODEL_CONTRACT_REQUIRED', 'An ONNX model needs its contract (for example denoise-heavy/v1).');
+          if (!body.licence) throw new ApiError(400, 'MODEL_LICENCE_REQUIRED', 'An ONNX model needs a licence record: SPDX id, source URL and confirmation that you have the rights to publish it.');
+          if (body.licence.rightsConfirmed !== true) throw new ApiError(400, 'MODEL_LICENCE_REQUIRED', 'Confirm that you have the rights to publish this model.');
+        }
+        if (body.contract && !parseDataManifest({ schema: 1, revision: 1, assets: [{ id: body.id, kind: body.kind, version: body.version, path: body.path, bytes: body.bytes, sha256: body.sha256, contract: body.contract }] })) {
+          throw new ApiError(400, 'ASSET_INVALID', 'The contract is not allowed (use name/v1).');
+        }
         const inserted = await store.insertModelAsset({
           assetId: body.id, kind: body.kind, version: body.version, channel: body.channel, path: body.path, sha256: body.sha256,
           bytes: body.bytes, requiredAppMin: body.requiredAppMin, status: 'candidate', createdAtMs: now(),
         });
         if (!inserted) throw new ApiError(409, 'ASSET_EXISTS', 'That version is already registered. Give it a new version.');
-        return adminDone(claims, 'model.register', `${body.id}@${body.version} ${body.channel}`, { status: 'candidate' });
+        if (body.contract || body.licence) {
+          const meta = await loadModelMeta();
+          meta[metaKey] = { ...(body.contract ? { contract: body.contract } : {}), ...(body.licence ? { licence: { ...body.licence, rightsConfirmed: true as const, recordedAtMs: now() } } : {}) };
+          await store.setSetting(MODEL_META_SETTING, JSON.stringify(meta));
+        }
+        return adminDone(claims, 'model.register', `${metaKey} ${body.channel}${body.licence ? ` licence=${body.licence.spdx}` : ''}`, { status: 'candidate' });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/models/licences', summary: 'The licence record and contract of every registered model version', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'model.licences');
+        const meta = await loadModelMeta();
+        const licences = Object.fromEntries(Object.entries(meta).filter(([, v]) => v.licence).map(([k, v]) => [k, { ...v.licence, contract: v.contract }]));
+        return adminDone(claims, 'model.licences', '', { licences });
       },
     },
     {
@@ -1068,6 +1144,12 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         const claims = await admin(req, 'model.promote');
         const body = parseJson(Schemas.AdminPromote, req.rawBody);
+        const meta = await loadModelMeta();
+        const target = await store.getModelAsset(body.id, body.version, body.channel);
+        if (target?.kind === 'onnx' && !meta[`${body.id}@${body.version}`]?.licence) {
+          await audit(claims.sub, 'model.promote', 'denied', `${body.id}@${body.version} no licence record`);
+          throw new ApiError(409, 'MODEL_LICENCE_MISSING', 'This ONNX version has no licence record, so it cannot go live. Register a new version with one.');
+        }
         if (!(await store.promoteModelAsset(body.id, body.version, body.channel))) throw new ApiError(404, 'NOT_FOUND', 'No such model version.');
         return adminDone(claims, 'model.promote', `${body.id}@${body.version} ${body.channel}`, { live: true });
       },
