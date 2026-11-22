@@ -39,11 +39,11 @@ export default function ExportDialog({
   onExport,
 }: ExportDialogProps) {
   const [destination, setDestination] = useState<ExportDestination>('local-zip');
-  const [selectedSizeIds, setSelectedSizeIds] = useState<string[]>(['orig-3x2', 'ig-portrait', 'yt-wide']);
+  const [selectedSizeIds, setSelectedSizeIds] = useState<string[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(['group-primary']);
   const [includeBefore, setIncludeBefore] = useState(false);
   const [includeAfter, setIncludeAfter] = useState(true);
-  const [includeOverlay, setIncludeOverlay] = useState(true);
+  const [includeOverlay, setIncludeOverlay] = useState(false);
   const [includeWatermark, setIncludeWatermark] = useState(false);
   const [includeVideo, setIncludeVideo] = useState(false);
 
@@ -68,23 +68,21 @@ export default function ExportDialog({
     }
   };
 
+  // Only the two local download routes are implemented by planExport. A connector being
+  // connected in Settings does not mean the export renderer can write to it.
   const destinations: Array<{ id: ExportDestination; label: string; icon: BrandIconName; sub: string }> = [
     { id: 'local-zip', label: STRINGS.exportDialog.destLocalZip, icon: 'archive', sub: 'Single tidy archive' },
     { id: 'local-individual', label: STRINGS.exportDialog.destLocalFiles, icon: 'hard-drive', sub: 'Save directly to folder' },
-    { id: 'share', label: STRINGS.exportDialog.destShare, icon: 'export', sub: 'Device share sheet / social' },
-    ...storageConnectors.filter((c) => c.status === 'connected').map((c) => ({
-      id: c.id as ExportDestination,
-      label: c.name,
-      icon: (c.id === 'nas' ? 'server' : 'cloud') as BrandIconName,
-      sub: c.accountLabel || 'Connected',
-    })),
   ];
+
+  const availableSizeIds = photo.sizes.filter((size) => size.kind === 'photo').map((size) => size.id);
+  const effectiveSizeIds = selectedSizeIds.length ? selectedSizeIds.filter((id) => availableSizeIds.includes(id)) : availableSizeIds.slice(0, 1);
 
   const handleSubmit = () => {
     onExport({
       destination,
       groupIds: selectedGroupIds,
-      sizeIds: selectedSizeIds,
+      sizeIds: effectiveSizeIds,
       includeBefore,
       includeAfter,
       includeOverlay,
@@ -221,12 +219,12 @@ export default function ExportDialog({
 
               <div className="grid grid-cols-2 gap-1.5 pt-1">
                 {photo.sizes.map((size) => {
-                  const checked = selectedSizeIds.includes(size.id);
+                  const checked = effectiveSizeIds.includes(size.id);
                   return (
                     <button
                       key={size.id}
                       type="button"
-                      onClick={() => toggleSize(size.id)}
+                      onClick={() => setSelectedSizeIds((previous) => { const current = previous.length ? previous : availableSizeIds.slice(0, 1); return current.includes(size.id) ? current.filter((id) => id !== size.id) : [...current, size.id]; })}
                       aria-pressed={checked}
                       className={`flex items-center justify-between gap-1.5 rounded-[var(--radius-sm)] border px-2.5 py-2 text-left text-xs transition-colors ${
                         checked
@@ -250,21 +248,23 @@ export default function ExportDialog({
                 {STRINGS.exportDialog.variantsHeading}
               </h3>
               <div className="space-y-1.5">
+                <p className="text-xs text-[var(--text-secondary)]">Only edited JPEG downloads are available. Before, text overlays, watermarks and video cannot yet be included in the saved file.</p>
                 {[
-                  { label: STRINGS.exportDialog.variantBefore, val: includeBefore, set: setIncludeBefore },
-                  { label: STRINGS.exportDialog.variantAfter, val: includeAfter, set: setIncludeAfter },
-                  { label: STRINGS.exportDialog.variantOverlay, val: includeOverlay, set: setIncludeOverlay },
-                  { label: STRINGS.exportDialog.variantWatermark, val: includeWatermark, set: setIncludeWatermark },
+                  { label: STRINGS.exportDialog.variantBefore, val: includeBefore, set: setIncludeBefore, unavailable: true },
+                  { label: STRINGS.exportDialog.variantAfter, val: includeAfter, set: setIncludeAfter, unavailable: false },
+                  { label: STRINGS.exportDialog.variantOverlay, val: includeOverlay, set: setIncludeOverlay, unavailable: true },
+                  { label: STRINGS.exportDialog.variantWatermark, val: includeWatermark, set: setIncludeWatermark, unavailable: true },
                   ...(features.zoomVideo
-                    ? [{ label: STRINGS.exportDialog.variantVideo, val: includeVideo, set: setIncludeVideo }]
+                    ? [{ label: STRINGS.exportDialog.variantVideo, val: includeVideo, set: setIncludeVideo, unavailable: true }]
                     : []),
                 ].map((item) => (
                   <button
                     key={item.label}
                     type="button"
                     onClick={() => item.set(!item.val)}
+                    disabled={item.unavailable}
                     aria-pressed={item.val}
-                    className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+                    className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <BrandIcon
                       name={item.val ? 'checkbox-checked' : 'checkbox-empty'}
@@ -282,8 +282,8 @@ export default function ExportDialog({
         {/* Footer */}
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-3.5">
           <span className="text-xs text-[var(--text-secondary)] tabular-nums">
-            {selectedPhotoIds.length || 1} {(selectedPhotoIds.length || 1) === 1 ? 'photo' : 'photos'} · {selectedSizeIds.length}{' '}
-            {selectedSizeIds.length === 1 ? 'format' : 'formats'} · {selectedGroupIds.length}{' '}
+            {selectedPhotoIds.length || 1} {(selectedPhotoIds.length || 1) === 1 ? 'photo' : 'photos'} · {effectiveSizeIds.length}{' '}
+            {effectiveSizeIds.length === 1 ? 'format' : 'formats'} · {selectedGroupIds.length}{' '}
             {selectedGroupIds.length === 1 ? 'group' : 'groups'}
           </span>
           <div className="flex items-center gap-2">
@@ -296,7 +296,7 @@ export default function ExportDialog({
             </button>
             <button
               type="button"
-              disabled={selectedSizeIds.length === 0 && !includeVideo}
+              disabled={effectiveSizeIds.length === 0 || !includeAfter}
               onClick={handleSubmit}
               className="inline-flex min-h-10 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-4 text-xs font-semibold text-[var(--text-on-accent)] transition-colors hover:bg-[var(--brand-accent-hover)] disabled:opacity-50"
             >
