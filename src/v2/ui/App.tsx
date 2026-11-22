@@ -205,6 +205,8 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
             onUpdateRow={actions.updateOverlayRow}
             onRemoveRow={actions.removeOverlayRow}
             onAddCustomFont={actions.addCustomFont}
+            onListDeviceFonts={actions.listDeviceFonts}
+            onHasDeviceFont={actions.hasDeviceFont}
           />
         );
       case 'assist':

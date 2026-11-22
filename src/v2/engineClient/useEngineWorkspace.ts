@@ -17,10 +17,12 @@ import { useSpeciesScan } from '../../useSpeciesScan';
 import { isDesktopApp } from '../../providers/desktopShell';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { loadLocalFileListShoot } from '../../providers/localShootLoader';
-import type { EditRecipe, HubViewState, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
+import type { EditRecipe, HubViewState, OverlaySettings, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
 import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
 import { featureAccess, featurePlan } from './featureMap';
+import { hasDeviceFont, listDeviceFonts, loadSavedDeviceFonts, mergeFonts, saveDeviceFonts } from './fonts';
+import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
 import { frameToPhoto, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { applyRecipePatch, editToRecipe } from './recipeMap';
@@ -31,8 +33,7 @@ import { surfaceBridge } from './surfaceBridge';
 const NOT_CONNECTED = [
   'setActiveGroup', 'addEditGroup', 'renameEditGroup', 'toggleSizeEnabled', 'toggleSizeLinked', 'updateSizeCrop',
   'flipSelectedSizes', 'rotateSelectedSizes', 'resetSizeCrop', 'addCustomSize', 'toggleSplitFrames', 'setSplitPanOffset',
-  'updateVideoZoom', 'updateOverlay', 'alignOverlaysCleanly', 'addOverlayRow', 'updateOverlayRow', 'removeOverlayRow',
-  'addCustomFont', 'addMaskLayer', 'toggleMaskLayer', 'removeMaskLayer', 'runDeepVisionReview',
+  'updateVideoZoom', 'addMaskLayer', 'toggleMaskLayer', 'removeMaskLayer', 'runDeepVisionReview',
   'runExport', 'reconnectOriginal',
 ] as const satisfies readonly (keyof WorkspaceActions)[];
 
@@ -77,6 +78,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [selected, setSelected] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<EditRecipe | null>(null);
+  const [deviceFonts, setDeviceFonts] = useState<string[]>(loadSavedDeviceFonts);
   const [assists, setAssists] = useState<Record<string, AssistState>>({});
   const autoInFlight = useRef(new Set<string>());
   const cullController = useRef<AbortController | null>(null);
@@ -260,6 +262,17 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }
   }, [can]);
 
+  /** The text and watermark overlay lives with the photo (saved, backed up and exported with the project). It is not an
+   * edit, so it has no place in the edit history. */
+  const changeOverlay = useCallback((photoId: string, change: (overlay: OverlaySettings) => OverlaySettings) => {
+    const at = Date.now();
+    mutate((current) => ({
+      ...current,
+      shoot: { ...current.shoot, lastUpdatedAt: at },
+      frames: current.frames.map((frame) => (frame.id === photoId ? { ...frame, overlay: change(readOverlay(frame.overlay)) } : frame)),
+    }));
+  }, [mutate]);
+
   const applyAuto = useCallback((frameId: string) => {
     const assist = assists[frameId];
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === frameId);
@@ -389,6 +402,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     applyAssistSuggestion: (photoId) => applyAuto(photoId),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
     dismissAssistSuggestion: (photoId) => setAssists((current) => (current[photoId] ? { ...current, [photoId]: { ...current[photoId], dismissed: true } } : current)),
+    updateOverlay: (photoId, patch) => changeOverlay(photoId, (overlay) => patchOverlay(overlay, patch)),
+    alignOverlaysCleanly: (photoId, layout) => changeOverlay(photoId, (overlay) => alignOverlays(overlay, layout)),
+    addOverlayRow: (photoId) => changeOverlay(photoId, (overlay) => addRow(overlay, `row-${newId().slice(0, 8)}`)),
+    updateOverlayRow: (photoId, rowId, patch) => changeOverlay(photoId, (overlay) => updateRow(overlay, rowId, patch)),
+    removeOverlayRow: (photoId, rowId) => changeOverlay(photoId, (overlay) => removeRow(overlay, rowId)),
+    addCustomFont: (fontName) => {
+      const name = fontName.trim();
+      if (!name) return;
+      if (!hasDeviceFont(name)) { setNotice(`"${name}" is not installed on this device, so it was not added.`); return; }
+      setDeviceFonts((current) => { const next = [...new Set([...current, name])]; saveDeviceFonts(next); return next; });
+    },
+    listDeviceFonts: () => listDeviceFonts(),
+    hasDeviceFont: (fontName) => hasDeviceFont(fontName),
     updateRecipe: (photoId, patch) => applyPatch(editTargets(photoId), patch),
     applyLook: (photoId, lookId) => {
       const look = stub.store.looks.find((entry) => entry.id === lookId);
@@ -415,11 +441,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, stub.store.looks, applyAuto, runAutoCull, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
+    [stub.actions, stub.store.looks, applyAuto, changeOverlay, runAutoCull, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
 
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], assists[frame.id])), [state?.frames, urls, assists]);
   const store: WorkspaceStore = useMemo(() => ({
     ...stub.store,
+    fonts: mergeFonts(deviceFonts),
     features: featureAccess(can),
     featurePlan: featurePlan(),
     screen, hubState, projects,
@@ -433,7 +460,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
-  }), [stub.store, can, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, activeId, selected, taskList, taskHistory, clock, notice]);
+  }), [stub.store, can, deviceFonts, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, activeId, selected, taskList, taskHistory, clock, notice]);
 
   return { store, actions };
 }

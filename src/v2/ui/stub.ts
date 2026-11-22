@@ -162,20 +162,18 @@ export const INITIAL_LOOKS: LookPreset[] = [
   },
 ];
 
+/** Our favourites. Every one is bundled with the app (SIL Open Font Licence), so it looks the same offline and in exports. */
 export const INITIAL_FONTS: FontOption[] = [
   { id: 'jakarta', label: 'Plus Jakarta Sans', family: '"Plus Jakarta Sans", sans-serif', category: 'Sans' },
-  { id: 'playfair', label: 'Playfair Display', family: '"Playfair Display", Georgia, serif', category: 'Serif' },
+  { id: 'inter', label: 'Inter', family: '"Inter", sans-serif', category: 'Sans' },
+  { id: 'dm-sans', label: 'DM Sans', family: '"DM Sans", sans-serif', category: 'Sans' },
   { id: 'outfit', label: 'Outfit', family: '"Outfit", sans-serif', category: 'Sans' },
-  { id: 'jetbrains', label: 'JetBrains Mono', family: '"JetBrains Mono", monospace', category: 'Mono' },
+  { id: 'oswald', label: 'Oswald Condensed', family: '"Oswald", sans-serif', category: 'Display' },
+  { id: 'playfair', label: 'Playfair Display', family: '"Playfair Display", Georgia, serif', category: 'Serif' },
+  { id: 'lora', label: 'Lora', family: '"Lora", Georgia, serif', category: 'Serif' },
   { id: 'fraunces', label: 'Fraunces', family: '"Fraunces", Georgia, serif', category: 'Serif' },
   { id: 'cormorant', label: 'Cormorant Garamond', family: '"Cormorant Garamond", Georgia, serif', category: 'Serif' },
-  { id: 'bricolage', label: 'Bricolage Grotesque', family: '"Bricolage Grotesque", sans-serif', category: 'Display' },
-  { id: 'dm-sans', label: 'DM Sans', family: '"DM Sans", sans-serif', category: 'Sans' },
-  { id: 'syne', label: 'Syne', family: '"Syne", sans-serif', category: 'Display' },
-  { id: 'lora', label: 'Lora', family: '"Lora", Georgia, serif', category: 'Serif' },
-  { id: 'ibm-mono', label: 'IBM Plex Mono', family: '"IBM Plex Mono", monospace', category: 'Mono' },
-  { id: 'manrope', label: 'Manrope', family: '"Manrope", sans-serif', category: 'Sans' },
-  { id: 'oswald', label: 'Oswald Condensed', family: '"Oswald", sans-serif', category: 'Display' },
+  { id: 'jetbrains', label: 'JetBrains Mono', family: '"JetBrains Mono", monospace', category: 'Mono' },
   { id: 'caveat', label: 'Caveat Script', family: '"Caveat", cursive', category: 'Handwritten' },
 ];
 
@@ -1647,6 +1645,8 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    listDeviceFonts: async () => ['Avenir Next', 'Baskerville', 'Futura', 'Gill Sans', 'Helvetica Neue', 'Optima'],
+    hasDeviceFont: (fontName) => ['avenir next', 'baskerville', 'futura', 'gill sans', 'helvetica neue', 'optima'].includes(fontName.trim().toLowerCase()),
     addCustomFont: (fontName) => {
       const clean = fontName.trim();
       if (!clean) return;

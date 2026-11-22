@@ -445,6 +445,10 @@ export interface WorkspaceActions {
   updateOverlayRow: (photoId: string, rowId: string, patch: Partial<OverlayTextRow>) => void;
   removeOverlayRow: (photoId: string, rowId: string) => void;
   addCustomFont: (fontName: string) => void;
+  /** Names of the fonts installed on this device, or null when the device cannot list them (then a name can be typed). */
+  listDeviceFonts: () => Promise<string[] | null>;
+  /** True when a font of this name is installed on this device. */
+  hasDeviceFont: (fontName: string) => boolean;
 
   // Masks (placeholder engine hook)
   setActiveMaskTool: (tool: WorkspaceStore['activeMaskTool']) => void;
