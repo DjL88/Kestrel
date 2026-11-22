@@ -643,6 +643,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     fonts: INITIAL_FONTS,
     watermarkPresets: INITIAL_WATERMARKS,
     tasks: INITIAL_TASKS,
+    reviewingPhotoIds: [],
     settings: {
       theme: 'dark',
       calmView: false,
