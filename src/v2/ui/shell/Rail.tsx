@@ -8,6 +8,10 @@ interface RailProps {
   activePanel: PanelId | null;
   panels: Record<PanelId, PanelLayoutState>;
   runningTaskCount: number;
+  /** Average progress of running tasks, 0 to 100. */
+  taskProgress: number;
+  onOpenTasks: () => void;
+  onOpenModeSettings: () => void;
   calmView: boolean;
   onSelectPanel: (panelId: PanelId) => void;
   onSetPanelVisible: (panelId: PanelId, visible: boolean) => void;
@@ -26,6 +30,9 @@ export default function Rail({
   activePanel,
   panels,
   runningTaskCount,
+  taskProgress,
+  onOpenTasks,
+  onOpenModeSettings,
   calmView,
   onSelectPanel,
   onSetPanelVisible,
@@ -63,9 +70,7 @@ export default function Rail({
     { id: 'masks', label: STRINGS.rail.masks, icon: 'masks' },
     { id: 'enhance', label: STRINGS.rail.enhance, icon: 'focus' },
     { id: 'overlays', label: STRINGS.rail.overlays, icon: 'overlay' },
-    { id: 'assist', label: STRINGS.rail.assist, icon: 'assist' },
     { id: 'info', label: STRINGS.rail.info, icon: 'info' },
-    { id: 'tasks', label: STRINGS.rail.tasks, icon: 'clock' },
   ];
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -104,7 +109,7 @@ export default function Rail({
               >
                 <BrandIcon name={item.icon} size={18} />
                 <span className="truncate max-w-full leading-tight">{item.label}</span>
-                {item.id === 'tasks' && runningTaskCount > 0 && !calmView && (
+                {false && runningTaskCount > 0 && !calmView && (
                   <span
                     aria-label={`${runningTaskCount} running tasks`}
                     className="absolute right-1.5 top-1.5 min-w-[16px] rounded-full bg-[var(--brand-accent)] px-1 text-center text-[9px] font-bold text-[var(--text-on-accent)] tabular-nums"
@@ -117,7 +122,19 @@ export default function Rail({
           })}
         </div>
 
-        <div className="w-full border-t border-[var(--border-subtle)] pt-2 px-1.5">
+        <div className="w-full space-y-0.5 border-t border-[var(--border-subtle)] px-1.5 pt-2">
+          <TasksWheel running={runningTaskCount} percent={taskProgress} active={activePanel === 'tasks'} onClick={onOpenTasks} />
+          <button
+            type="button"
+            onClick={onOpenModeSettings}
+            title={STRINGS.modeFlag.label(modeLabel)}
+            aria-label={STRINGS.modeFlag.label(modeLabel)}
+            data-testid="mode-flag"
+            className="flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border border-[var(--brand-accent-border)] bg-[var(--brand-accent-soft)] py-1.5 text-[10px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface-hover)]"
+          >
+            <BrandIcon name={assistModeIconName(assistMode)} size={16} className="text-[var(--brand-accent)]" />
+            <span className="truncate leading-tight">{modeLabel}</span>
+          </button>
           <button
             type="button"
             onClick={onOpenSettings}
@@ -188,5 +205,36 @@ export default function Rail({
         </div>
       )}
     </>
+  );
+}
+
+/** Tasks, as a count inside a progress ring. The ring is a second cue: the number and the words say the same thing. */
+function TasksWheel({ running, percent, active, onClick }: { running: number; percent: number; active: boolean; onClick: () => void }) {
+  const radius = 11, circumference = 2 * Math.PI * radius;
+  const shown = Math.max(0, Math.min(100, Math.round(percent)));
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      aria-label={STRINGS.tasks.wheel(running, shown)}
+      title={STRINGS.tasks.wheel(running, shown)}
+      data-testid="tasks-wheel"
+      className={`flex w-full flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] py-1.5 text-[10px] font-medium transition-colors ${
+        active ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
+      }`}
+    >
+      <span className="relative grid h-7 w-7 place-items-center">
+        <svg viewBox="0 0 28 28" className="absolute inset-0 h-7 w-7 -rotate-90" aria-hidden="true">
+          <circle cx="14" cy="14" r={radius} fill="none" stroke="var(--border-default)" strokeWidth="2.5" />
+          {running > 0 && (
+            <circle cx="14" cy="14" r={radius} fill="none" stroke="var(--brand-accent)" strokeWidth="2.5" strokeLinecap="round"
+              strokeDasharray={circumference} strokeDashoffset={circumference * (1 - shown / 100)} />
+          )}
+        </svg>
+        <span className="relative text-[11px] font-bold tabular-nums text-[var(--text-primary)]">{running}</span>
+      </span>
+      <span>{STRINGS.rail.tasks}</span>
+    </button>
   );
 }

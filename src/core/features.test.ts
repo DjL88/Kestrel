@@ -10,11 +10,11 @@ const cancelledCloud = accessCapabilities({ plan: 'paid', licence: 'active', clo
 
 test('Free includes everyday editing, natural Auto, subject detection, masks and full-size export', () => {
   assert.deepEqual(FEATURE_NAMES.filter((name) => featureAvailable(name, free)).sort(),
-    ['autoTab', 'basicEditing', 'cropAndStraighten', 'export', 'import', 'localBackup', 'macroPad', 'masks', 'subjectDetection', 'watermark']);
+    ['autoTab', 'basicEditing', 'cropAndStraighten', 'export', 'import', 'localBackup', 'macroPad', 'masks', 'splitFrames', 'subjectDetection', 'watermark', 'zoomVideo']);
 });
 
 test('Pro adds advanced classification and automation instead of withholding photo fidelity', () => {
-  for (const name of ['speciesId', 'onlineAi', 'smartCulling'] as const) assert.equal(featureAvailable(name, free), false, name);
+  for (const name of ['speciesId', 'onlineAi', 'smartCulling', 'overlayText', 'watermarkCustom', 'cloudAssist'] as const) assert.equal(featureAvailable(name, free), false, name);
   for (const name of ['masks', 'subjectDetection', 'autoTab', 'export', 'localBackup'] as const) assert.equal(featureAvailable(name, free), true, name);
 });
 
