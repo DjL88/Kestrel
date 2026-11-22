@@ -1,13 +1,14 @@
 # Kestrel commercial and release distribution decisions (proposal)
 
-## InFlight V2 pricing and cloud proposal · 22 November 2026
+## InFlight V2 pricing and cloud · 22 November 2026
 
-| Option | Working price | Included |
-| --- | --- | --- |
-| Basic | Free | Basic tools and local, NAS or connected-drive storage |
-| Pro (one-off) | £29 | Pro tools for the purchased major version and the same storage options as Basic |
-| Pro (monthly) | £2.99/month | Pro while subscribed, new versions and 100 GB of cloud gallery storage |
-| Extra cloud storage | £1/month per 30 GB | Added to the monthly subscription when the customer chooses it |
+| Plan | Monthly | Annual | One-off | Included |
+| --- | --- | --- | --- | --- |
+| Basic | Free | — | — | Core editing and local, NAS or connected-drive storage |
+| Pro | £2.99 | £29 | £29 | All editing tools and an account. The subscription includes software updates. The one-off licence covers the purchased major version. |
+| Pro Cloud | £9.99 | £99 | — | Pro, software updates and 100 GB of hosted storage for edited copies |
+
+Pro Cloud customers can add 10 GB for £1 per month. Hosted gallery storage belongs to Pro Cloud. Confirm the cloud-processing allowance for signed-in Pro and Pro Cloud customers before launch.
 
 The storage limit is measured in bytes. The number of edited photos varies with format and compression. A full allowance pauses uploads and shows an account alert. Download and deletion remain available. A renewal failure stops new uploads once the paid period ends. Track retention separately from the paid-through date so existing copies are recoverable under the agreed policy.
 
@@ -21,11 +22,11 @@ Firestore keeps a per-account index outside the licence records. Each committed 
 
 SumUp verifies the £29 payment against a server-owned order before granting Pro for that major version. The subscription needs a separate saved-payment mandate and a successful payment for each renewal period. Storage blocks change the next agreed renewal amount. A missed payment freezes uploads and preserves access during the retention window. A monthly account grant must expire no later than its paid-through date and may be issued for up to 30 days offline. Offer cloud processing to eligible signed-in users after measuring device and cloud costs. A failed cloud attempt returns the work to the device.
 
-The amounts above are for review. Before taking payments, verify merchant capability and pricing for recurring payments, the location evidence for tax, and full-usage costs for storage, browsing, downloading and compute.
+The table records launch pricing. Before enabling it at checkout, verify merchant capability for recurring payments, billing-country evidence for tax, and full-usage costs for storage, browsing, downloading and compute.
 
 **Decision context:** Mac and Windows betas first; a separate standalone Kestrel domain is planned but not yet registered or verified. Public download site is being built in PR #131. Do not hardcode a speculative domain. The exact name, registrar control and trademark clearance require owner validation.
 
-## Current two-edition policy — owner direction, 21 November 2026
+## Previous two-edition policy · 21 November 2026
 
 The [Outstanding Programme](OUTSTANDING-PROGRAMME-2026-11-21.md) supersedes the old proposed three-tier/subscription split and daily export limit described in this historic document. **Two editions only: Free and Pro. No paid monthly Kestrel tier.**
 
@@ -127,7 +128,7 @@ Primary upstream references:
 - **Beta: everything is open** (`useAccess.ts`) until licence activation exists. To see and test the Free experience: `VITE_KESTREL_PLAN=free KESTREL_PLAN_PREVIEW=free npx playwright test tests/free-plan.spec.ts`. Those tests skip in normal runs.
 - Apple notarisation will use the owner's Apple ID as the repository secret `APPLE_ID` (never committed), plus an app-specific password and Team ID the owner creates.
 
-## Current decision: keep it simple (supersedes the three tiers above)
+## Earlier offline-only proposal
 - **Free** and **Paid, £29 once**. No accounts, no cloud, no user data. The monthly Cloud + AI plan is parked; a "Pro" with ongoing costs (managed storage, hosted AI, sync through our servers) is only built if customers ask, and the app never depends on it or advertises it inside the editor.
 - **Storage is the customer's own:** a sync folder (works with iCloud Drive, Dropbox, OneDrive, Google Drive's app), their own S3-compatible bucket, or a NAS. Several devices can share one folder. See `docs/CLOUD-PLAN.md` section 1a and `src/core/storageConnectors.ts`.
 - **Paid is unlocked by an offline licence key** (`src/core/licence.ts`): "KESTREL1.<details>.<signature>", checked in the app against a built-in public key. No server, no login, works offline. It holds no personal data; the buyer's email and receipt stay with the payment provider (proposed: Paddle). Keys can be shared; that is accepted. A lost key is re-sent from the receipt.
