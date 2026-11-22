@@ -59,12 +59,14 @@ test('the editor can go full screen and come back', async ({ page }) => {
     buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
   });
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  const full = page.locator('[data-filmstrip-dock]').getByRole('button', { name: 'Full screen', exact: true });
+  const full = page.getByRole('button', { name: 'Full screen', exact: true });
   test.skip(!(await full.count()) || page.viewportSize()!.width < 768, 'This browser does not allow full screen, and phones do not offer it');
+  // There is exactly one Full screen control on the editor.
+  await expect(full).toHaveCount(1);
   await full.click();
-  await expect(page.getByRole('button', { name: 'Leave full screen' })).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'Leave full screen' }).click();
-  await expect(page.locator('[data-filmstrip-dock]').getByRole('button', { name: 'Full screen', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('button', { name: 'Exit full screen' })).toBeVisible();
+  await page.getByRole('button', { name: 'Exit full screen' }).click();
+  await expect(page.getByRole('button', { name: 'Full screen', exact: true })).toBeVisible();
 });
 
 test('rating filter is one row of stars: tap sets, tap again clears, the symbol flips to exactly', async ({ page }) => {

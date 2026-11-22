@@ -21,7 +21,8 @@ test('Escape during a pane drag cancels it: the panel stays floating, back where
   await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
 
-  await page.locator('[data-editor-undock]').click();
+  await page.getByRole('tab', { name: 'Edit', exact: true }).click({ button: 'right' });
+  await page.getByTestId('tab-context-menu').getByRole('menuitem', { name: 'Undock Edit' }).click();
   const pane = page.locator('[data-floating-pane]').filter({ hasText: 'Edit' });
   await expect(pane).toBeVisible();
   const before = (await pane.boundingBox())!;

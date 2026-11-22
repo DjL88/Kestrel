@@ -33,7 +33,7 @@ async function press(target: Locator, type: 'touch' | 'mouse', holdMs: number, m
   await target.dispatchEvent('pointerup', init(x + moveBy));
 }
 
-test('right-clicking an editor tab opens a menu with icon toggles to hide or undock it', async ({ page }) => {
+test('right-clicking an editor tab lists every tab with icon toggles to hide or undock it', async ({ page }) => {
   await openEditor(page);
   await page.getByRole('tab', { name: 'Crop' }).click({ button: 'right' });
   const menu = page.getByTestId('tab-context-menu');
@@ -43,14 +43,16 @@ test('right-clicking an editor tab opens a menu with icon toggles to hide or und
   await expect(menu.getByRole('menuitem', { name: 'Hide Crop' }).locator('svg')).toBeVisible();
   await menu.getByRole('menuitem', { name: 'Undock Crop' }).click();
   await expect(menu).toBeHidden();
-  // The menu is per tab: Auto's menu offers only Auto, and the undocked Crop tab's own menu says it is floating and offers Dock.
+  // The menu lists every tab, like the View menu. The tab that was clicked is marked, and a floating tab shows Dock.
   await page.getByRole('tab', { name: 'Auto' }).click({ button: 'right' });
-  await expect(page.getByTestId('tab-context-menu').getByRole('menuitem', { name: 'Undock Auto' })).toBeVisible();
-  await expect(page.getByTestId('tab-context-menu').getByRole('menuitem', { name: /Crop/ })).toHaveCount(0);
+  const all = page.getByTestId('tab-context-menu');
+  await expect(all.getByRole('menuitem', { name: 'Undock Auto' })).toBeVisible();
+  await expect(all.getByRole('menuitem', { name: 'Hide Edit' })).toBeVisible();
+  await expect(all.getByText('Floating')).toBeVisible();
+  await expect(all.getByRole('menuitem', { name: 'Dock Crop' })).toBeVisible();
+  // A floating tab leaves the tab strip completely.
   await page.keyboard.press('Escape');
-  await page.getByRole('tab', { name: 'Crop' }).click({ button: 'right' });
-  await expect(page.getByTestId('tab-context-menu').getByText('Floating')).toBeVisible();
-  await expect(page.getByTestId('tab-context-menu').getByRole('menuitem', { name: 'Dock Crop' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Crop' })).toHaveCount(0);
 });
 
 test('a touch long-press on a tab opens the same menu, and the press does not also select the tab', async ({ page }) => {

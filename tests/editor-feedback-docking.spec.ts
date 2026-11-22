@@ -24,10 +24,12 @@ test('desktop editor undocks, resizes with keyboard, and docks its tool without 
   await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
 
-  await page.locator('[data-editor-undock]').click();
+  await page.getByRole('tab', { name: 'Edit', exact: true }).click({ button: 'right' });
+  await page.getByTestId('tab-context-menu').getByRole('menuitem', { name: 'Undock Edit' }).click();
   const pane = page.locator('[data-floating-pane]').filter({ hasText: 'Edit' });
   await expect(pane).toBeVisible();
-  await expect(page.locator('[data-editor-undock]')).toBeVisible();
+  // A floating tab leaves the strip entirely; docking it brings it back.
+  await expect(page.getByRole('tab', { name: 'Edit', exact: true })).toHaveCount(0);
   const grip = pane.locator('[data-pane-resize-handle]');
   await expect(grip).toBeVisible();
   const before = await pane.boundingBox();
