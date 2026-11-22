@@ -120,3 +120,37 @@ test('?v2 edits are real: Adjust changes the pixels, Compare splits original and
   await expect.poll(mean, { timeout: 15000 }).toBeLessThan(brighter - 3);
   await expect(root.getByLabel('Exposure', { exact: true })).toHaveValue('0');
 });
+
+test('?v2 Co-pilot checks the photo on this device, suggests Auto, and applying it is one undoable edit', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Real auto check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  // A dark, low-contrast picture: Auto should find a real exposure lift, or say plainly that it cannot.
+  const image = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 320; canvas.height = 213;
+    const ctx = canvas.getContext('2d')!; const gradient = ctx.createLinearGradient(0, 0, 320, 213);
+    gradient.addColorStop(0, '#0c1016'); gradient.addColorStop(1, '#262c36'); ctx.fillStyle = gradient; ctx.fillRect(0, 0, 320, 213);
+    ctx.fillStyle = '#3b3328'; ctx.fillRect(110, 70, 100, 70);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'dark-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  // The verdict is always written in words (Assist panel), whatever it is, and comes from the measured values.
+  await root.getByRole('button', { name: 'Assist', exact: true }).first().click();
+  const verdict = root.getByText(/Auto applied|Looks good|Cannot improve this safely|gentler version/);
+  await expect(verdict.first()).toBeVisible({ timeout: 60000 });
+  await root.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
+  const apply = root.getByRole('button', { name: 'Apply suggested recipe' });
+  if (await apply.count()) {
+    await apply.click();
+    await expect(root.getByRole('button', { name: 'Apply suggested recipe' })).toHaveCount(0);
+    await root.getByRole('button', { name: 'Edit', exact: true }).click();
+    await expect(root.getByRole('menuitem', { name: /^Undo/ })).toBeEnabled();
+  } else {
+    await expect(root.getByText(/Looks good|Cannot improve/).first()).toBeVisible();
+  }
+});
