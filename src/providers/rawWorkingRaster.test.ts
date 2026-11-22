@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptSensorRgb16, hashRawSource } from './rawWorkingRaster';
+import { acceptSensorRgb16, hashRawSource, checkRawDecodeInputBudget } from './rawWorkingRaster';
 
 function rgb16(width: number, height: number, samples: number[]): ArrayBuffer {
   const buffer = new ArrayBuffer(8 + samples.length * 2);
@@ -52,4 +52,12 @@ test('source hash rejects empty inputs and unsafe chunk limits', async () => {
   await assert.rejects(hashRawSource(new Blob([])));
   await assert.rejects(hashRawSource(new Blob(['a']), 1));
   await assert.rejects(hashRawSource(new Blob(['a']), 5 * 1024 * 1024));
+});
+
+test('rejects excessive RAW input and invalid pixel budget before decode', () => {
+  assert.throws(() => checkRawDecodeInputBudget(new Blob(['abc']), 0), /budget/);
+  assert.throws(() => checkRawDecodeInputBudget(new Blob(['abc']), 80_000_001), /budget/);
+  assert.throws(() => checkRawDecodeInputBudget(new Blob([]), 1), /budget/);
+  assert.throws(() => checkRawDecodeInputBudget(new Blob(['abc']), 1, 2), /budget/);
+  assert.doesNotThrow(() => checkRawDecodeInputBudget(new Blob(['abc']), 1, 3));
 });

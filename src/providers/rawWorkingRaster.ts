@@ -52,6 +52,19 @@ export async function hashRawSource(original: Blob, chunkBytes = 1024 * 1024): P
   return sha.digest();
 }
 
+/**
+ * Pre-decode input budget. This prevents pathological RAW inputs from being
+ * copied into native/WASM memory before the decoded dimensions are available.
+ * It is NOT a peak-memory guarantee: the decoder still needs a native pixel
+ * budget and tiled decode before allocating its output.
+ */
+export function checkRawDecodeInputBudget(original: Blob, maxPixels: number, maxSourceBytes = 512 * 1024 * 1024): void {
+  if (!Number.isSafeInteger(maxPixels) || maxPixels <= 0 || maxPixels > 80_000_000 ||
+      !Number.isSafeInteger(maxSourceBytes) || maxSourceBytes <= 0 ||
+      !Number.isSafeInteger(original.size) || original.size <= 0 || original.size > maxSourceBytes)
+    throw new Error('RAW source or working-image budget is invalid or exceeds the safe input limit.');
+}
+
 /** Opt-in W1 integration seam. No JPEG fallback, no HE/HE* patent bypass. */
 export async function openSensorWorkingRaster(
   original: Blob, filename: string, maxPixels = 80_000_000, expectedSourceSha256?: string,
@@ -60,14 +73,16 @@ export async function openSensorWorkingRaster(
     throw new Error('Unsupported RAW extension. The original is unchanged.');
   if (expectedSourceSha256 !== undefined && !/^[0-9a-f]{64}$/.test(expectedSourceSha256))
     throw new Error('The expected original SHA-256 is invalid.');
-  // The decoder recognises camera bytes independently of the suffix. Keep the
-  // HE check even when an original has been renamed with a different extension.
-  await requireVerifiedNikonPrecisionMode(original);
-  // Bind this decode to the exact original selected by the catalogue, if known.
+  // Reject invalid budgets before header inspection or native/WASM file copies.
+  checkRawDecodeInputBudget(original, maxPixels);
+  // Bind to the selected catalogue original before invoking any decoder.
   const sourceBytes = original.size;
   const before = await hashRawSource(original);
   if (expectedSourceSha256 && before !== expectedSourceSha256)
     throw new Error('The selected original no longer matches its recorded SHA-256. No edit source was opened.');
+  // The decoder recognises camera bytes independently of the suffix. Keep
+  // the HE gate for renamed files, without claiming that this proves rights.
+  await requireVerifiedNikonPrecisionMode(original);
   const decoded = await developRawRgb16(original);
   // Files backed by removable/network storage can change while decoding.
   if (original.size !== sourceBytes || await hashRawSource(original) !== before)
