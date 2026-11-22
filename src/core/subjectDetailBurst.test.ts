@@ -213,3 +213,15 @@ test('uncertain bird/aircraft conflict remains Review even with an unrelated eye
   assert.equal(results[0].recommendation, 'review');
   assert.equal(results[0].reason, 'conflict');
 });
+
+test('eye box crossing animal boundary cannot boost ranking or move crop', () => {
+  const subjectBox = { x: 0.1, y: 0.1, width: 0.2, height: 0.2 };
+  const results = selectBurstDetails([
+    base('straddling', { subjectBox, eyeBox: { x: 0.29, y: 0.15, width: 0.04, height: 0.02 },
+      eyeSharpness: 1, subjectSharpness: 0.2 }),
+    base('inside', { subjectBox, eyeBox: { x: 0.15, y: 0.15, width: 0.02, height: 0.02 },
+      eyeSharpness: 0.8, subjectSharpness: 0.7 }),
+  ]);
+  assert.deepEqual(results.map(r => r.recommendation), ['review', 'keep']);
+  assert.ok(results[0].crop && results[0].crop.x < 0.5);
+});
