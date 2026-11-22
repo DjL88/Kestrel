@@ -2,6 +2,7 @@ import type { PhotoFrame, ShootDescriptor } from '../../core/types';
 import { computeCullCounts } from '../../core/cullingEngine';
 import type { Photo, Project, TaskInfo, TileState } from '../ui/contract';
 import { createDefaultSizes, createEditGroups } from '../ui/stub';
+import { editToRecipe } from './recipeMap';
 import type { Task } from '../../core/taskStore';
 
 /** A transparent pixel, so a photo whose picture is not ready yet shows an empty tile rather than a broken image. */
@@ -26,7 +27,8 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  */
 export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined): Photo {
   const { exif } = frame;
-  const groups = createEditGroups(false);
+  // The UI's sample group carries a made-up look. A real photo starts from its own edit: neutral until the person edits it.
+  const groups = createEditGroups(false).map((group) => ({ ...group, name: 'Edit group 1', recipe: editToRecipe(frame.edit) }));
   const thumb = urls?.thumb ?? BLANK_IMAGE;
   return {
     id: frame.id,

@@ -58,3 +58,13 @@ test('tasks keep their progress and a failure is shown as failed, not as cancell
   assert.equal(taskToInfo({ ...base, state: 'failed', detail: 'Disk full' }).status, 'failed');
   assert.equal(taskToInfo({ ...base, state: 'cancelled' }).status, 'cancelled');
 });
+
+test('a photo starts with a neutral recipe and its own edit is what the sliders show', () => {
+  const neutral = frameToPhoto(frame(), undefined).editGroups[0].recipe;
+  assert.equal(neutral.exposure, 0);
+  assert.equal(neutral.sharpen, 0);
+  assert.equal(frameToPhoto(frame(), undefined).editGroups[0].name, 'Edit group 1');
+  const edited = frameToPhoto(frame({ edit: { exposure: 1, warmth: 1, colour: 0 } }), undefined).editGroups[0].recipe;
+  assert.equal(edited.exposure, 0.4);
+  assert.equal(edited.temperature, 50);
+});

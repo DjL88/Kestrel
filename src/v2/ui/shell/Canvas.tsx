@@ -7,12 +7,14 @@ import type {
   LookPreset,
   OverlaySettings,
   Photo,
+  PhotoSurfaceProps,
   SizePreset,
   VideoZoomConfig,
   WatermarkPreset,
 } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
+import CompareSplit from './CompareSplit';
 import {
   buildPreviewFilterCss,
   clamp,
@@ -24,6 +26,8 @@ import {
 } from '../utils/studioMath';
 
 interface CanvasProps {
+  /** Engine-supplied renderer; falls back to a plain image. */
+  PhotoSurface?: React.ComponentType<PhotoSurfaceProps>;
   photo: Photo | null;
   activeSizeId: string;
   selectedSizeIds: string[];
@@ -56,6 +60,7 @@ interface CanvasProps {
 }
 
 export default function Canvas({
+  PhotoSurface,
   photo,
   activeSizeId,
   selectedSizeIds,
@@ -405,6 +410,15 @@ export default function Canvas({
     );
   };
 
+  /** The photo as pixels: the engine's renderer when there is one, otherwise a plain image with the CSS approximation. */
+  const renderSurface = (variant: 'edited' | 'original', alt: string, style: React.CSSProperties, filter: string) =>
+    PhotoSurface ? (
+      <PhotoSurface photoId={photo.id} variant={variant} alt={alt} className="h-full w-full" style={style} />
+    ) : (
+      <img src={photo.previewUrl} alt={alt} referrerPolicy="no-referrer" draggable={false}
+        className="h-full w-full object-cover" style={{ ...style, filter }} />
+    );
+
   const renderSingleArtboard = () => {
     const aspect = activeSize.width / Math.max(1, activeSize.height);
     const maxW = aspect >= 1 ? 660 : 420;
@@ -483,50 +497,12 @@ export default function Canvas({
           >
             {/* Before / After split comparison or single view */}
             {compareMode ? (
-              <div className="grid h-full w-full grid-cols-2">
-                <div className="relative h-full overflow-hidden border-r border-white/60">
-                  <img
-                    src={photo.previewUrl}
-                    alt={`${photo.title} original`}
-                    referrerPolicy="no-referrer"
-                    draggable={false}
-                    className="h-full w-[200%] max-w-none object-cover"
-                    style={{ transform: buildImageTransform(activeSize.crop) }}
-                  />
-                  <span className="absolute left-2.5 top-2.5 rounded bg-[var(--bg-scrim)] px-2 py-0.5 text-[10px] font-semibold text-white">
-                    {STRINGS.canvas.beforeLabel}
-                  </span>
-                </div>
-                <div className="relative h-full overflow-hidden">
-                  <img
-                    src={photo.previewUrl}
-                    alt={`${photo.title} edited`}
-                    referrerPolicy="no-referrer"
-                    draggable={false}
-                    className="h-full w-[200%] max-w-none -translate-x-1/2 object-cover"
-                    style={{
-                      filter: filterCss,
-                      transform: `translateX(-50%) ${buildImageTransform(activeSize.crop)}`,
-                    }}
-                  />
-                  <span className="absolute right-2.5 top-2.5 rounded bg-[var(--brand-accent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-on-accent)]">
-                    {STRINGS.canvas.afterLabel}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <img
-                src={photo.previewUrl}
-                alt={photo.title}
-                referrerPolicy="no-referrer"
-                draggable={false}
-                className="h-full w-full object-cover"
-                style={{
-                  filter: filterCss,
-                  transform: buildImageTransform(activeSize.crop),
-                  clipPath: cropClip,
-                }}
+              <CompareSplit
+                before={renderSurface('original', `${photo.title} original`, { transform: buildImageTransform(activeSize.crop) }, 'none')}
+                after={renderSurface('edited', `${photo.title} edited`, { transform: buildImageTransform(activeSize.crop) }, filterCss)}
               />
+            ) : (
+              renderSurface('edited', photo.title, { transform: buildImageTransform(activeSize.crop), clipPath: cropClip }, filterCss)
             )}
 
             {/* Draggable Crop Edge Handles */}

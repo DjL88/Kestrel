@@ -122,6 +122,8 @@ export const STRINGS = {
     originalUnavailableTitle: 'Original not connected, preview only',
     originalUnavailableBody: 'Adjustments still save to your recipe. Reconnect the source drive before full-resolution export.',
     reconnectOriginal: 'Reconnect folder',
+    compareSplitLabel: 'Before and after split',
+    compareSplitValue: (pct: number) => `${pct}% shows the original, ${100 - pct}% shows the edit`,
     beforeLabel: 'Before',
     afterLabel: 'After',
     splitFrameAdd: 'Split across 2 frames',
