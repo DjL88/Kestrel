@@ -28,6 +28,7 @@ import { INITIAL_WATERMARKS } from '../ui/stub';
 import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
 import { frameToPhoto, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
+import { runDeepVisionReview } from './deepVisionReview';
 import { applyRecipePatch, editToRecipe } from './recipeMap';
 import { surfaceBridge } from './surfaceBridge';
 
@@ -36,7 +37,7 @@ import { surfaceBridge } from './surfaceBridge';
 const NOT_CONNECTED = [
   'setActiveGroup', 'addEditGroup', 'renameEditGroup', 'toggleSizeEnabled', 'toggleSizeLinked', 'updateSizeCrop',
   'flipSelectedSizes', 'rotateSelectedSizes', 'resetSizeCrop', 'addCustomSize', 'toggleSplitFrames', 'setSplitPanOffset',
-  'updateVideoZoom', 'addMaskLayer', 'toggleMaskLayer', 'removeMaskLayer', 'runDeepVisionReview',
+  'updateVideoZoom', 'addMaskLayer', 'toggleMaskLayer', 'removeMaskLayer',
   'runExport', 'reconnectOriginal',
 ] as const satisfies readonly (keyof WorkspaceActions)[];
 
@@ -75,8 +76,10 @@ async function pickFiles(): Promise<Array<File | PickedPhoto> | null> {
 /**
  * The V2 store backed by the real catalogue. Connected now: projects (create, open, back), importing photos with the
  * real loader and Task Manager, thumbnails and previews from the preview provider, flag (= keep), reject, rating,
- * selection, the Adjust recipe (sliders, Looks, reset, copy and paste, with edit undo and redo) and the canvas renderer. Everything else keeps the UI's own layout state; edit-type actions say they are not
- * connected yet (NOT_CONNECTED). Originals are never written.
+ * selection, the Adjust recipe (sliders, Looks, reset, copy and paste, with edit undo and redo) and the canvas renderer,
+ * and the deep vision review (real subject detection + trust gate + Look suggestion from src/engine/*, reported as a
+ * plain-text notice; see deepVisionReview.ts). Everything else keeps the UI's own layout state; edit-type actions say
+ * they are not connected yet (NOT_CONNECTED). Originals are never written.
  */
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
   const stub = useWorkspace();
@@ -352,6 +355,23 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen, assistMode, activeFrame?.id]);
 
+  // The person asked for this (Co-pilot/Assist "deep review" or refresh button); it is not the automatic
+  // per-photo pass above. Wired to the real engine (src/engine/subjectDetectAction.ts, lookSuggestions.ts)
+  // via deepVisionReview.ts. Result is shown as a plain-text notice for now, not yet an AssistSuggestion.
+  const deepVisionInFlight = useRef(new Set<string>());
+  const runDeepVisionReviewAction = useCallback((photoId: string) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!frame || deepVisionInFlight.current.has(photoId)) return;
+    deepVisionInFlight.current.add(photoId);
+    const task = tasks.start('Running a deep vision review');
+    runDeepVisionReview(frame, provider.current!).then((result) => {
+      if (!result) { task.finish('Could not run a deep review on this photo.'); setNotice('Could not run a deep review on this photo.'); return; }
+      task.finish(result.summary);
+      setNotice(result.summary);
+    }, () => { task.fail('Deep vision review failed.'); setNotice('The deep vision review failed.'); })
+      .finally(() => deepVisionInFlight.current.delete(photoId));
+  }, []);
+
   const importPhotos = useCallback(async () => {
     const target = stateRef.current;
     if (!target) return;
@@ -453,6 +473,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     applyAssistSuggestion: (photoId) => applyAuto(photoId),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
     dismissAssistSuggestion: (photoId) => setAssists((current) => (current[photoId] ? { ...current, [photoId]: { ...current[photoId], dismissed: true } } : current)),
+    runDeepVisionReview: (photoId) => runDeepVisionReviewAction(photoId),
     updateOverlay: (photoId, patch) => changeOverlay(photoId, (overlay) => patchOverlay(overlay, patch)),
     alignOverlaysCleanly: (photoId, layout) => changeOverlay(photoId, (overlay) => alignOverlays(overlay, layout)),
     addOverlayRow: (photoId) => changeOverlay(photoId, (overlay) => addRow(overlay, `row-${newId().slice(0, 8)}`)),
@@ -521,7 +542,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, stub.store.looks, applyAuto, changeOverlay, runAutoCull, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
+    [stub.actions, stub.store.looks, applyAuto, changeOverlay, runAutoCull, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
 
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], assists[frame.id], watermarkAuto[frame.id])), [state?.frames, urls, assists, watermarkAuto]);
   const store: WorkspaceStore = useMemo(() => ({
