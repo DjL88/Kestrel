@@ -106,6 +106,9 @@ export interface PhotoFrame {
   /** The V2 text and watermark overlay for this photo (rows of text, fonts, placement). The shape belongs to src/v2, which
    * validates it on read; core only keeps it with the photo so it is saved, backed up and exported with the project. */
   overlay?: unknown;
+  /** The V2 crop for each format of this photo (zoom, position, flips, rotation), by format id. The shape belongs to src/v2, which
+   * validates it on read; core only keeps it with the photo. Each format has its own crop and never affects another photo. */
+  sizeCrops?: unknown;
   /** Set when the photo was removed from the library. The original file is never touched, and Restore clears this. */
   removedAt?: number;
 }
