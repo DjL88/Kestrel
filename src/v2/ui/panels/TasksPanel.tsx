@@ -48,6 +48,8 @@ export default function TasksPanel({ tasks, onCancelTask }: TasksPanelProps) {
                     ? 'bg-[var(--semantic-success)]'
                     : task.status === 'cancelled'
                     ? 'bg-[var(--text-muted)]'
+                    : task.status === 'failed'
+                    ? 'bg-[var(--semantic-danger)]'
                     : 'bg-[var(--brand-accent)]'
                 }`}
                 style={{ width: `${task.progress}%` }}
@@ -56,7 +58,7 @@ export default function TasksPanel({ tasks, onCancelTask }: TasksPanelProps) {
             <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
               <span className="flex items-center gap-1">
                 <BrandIcon
-                  name={task.status === 'done' ? 'ready' : task.status === 'cancelled' ? 'close' : 'loader'}
+                  name={task.status === 'done' ? 'ready' : task.status === 'cancelled' || task.status === 'failed' ? 'close' : 'loader'}
                   size={11}
                   className={
                     task.status === 'done'
@@ -71,6 +73,8 @@ export default function TasksPanel({ tasks, onCancelTask }: TasksPanelProps) {
                     ? STRINGS.tasks.statusRunning
                     : task.status === 'done'
                     ? STRINGS.tasks.statusDone
+                    : task.status === 'failed'
+                    ? STRINGS.tasks.statusFailed
                     : STRINGS.tasks.statusCancelled}
                 </span>
               </span>

@@ -257,7 +257,7 @@ export interface TaskInfo {
   label: string;
   detail: string;
   progress: number; // 0 to 100
-  status: 'running' | 'done' | 'cancelled';
+  status: 'running' | 'done' | 'cancelled' | 'failed';
 }
 
 export interface PanelLayoutState {

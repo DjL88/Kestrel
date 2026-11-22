@@ -185,7 +185,7 @@ export const INITIAL_WATERMARKS: WatermarkPreset[] = [
   { id: 'wm-editorial', label: 'Editorial Plate Stamp', text: 'PLATE 04 // FIELD NOTES' },
 ];
 
-function createDefaultSizes(): SizePreset[] {
+export function createDefaultSizes(): SizePreset[] {
   return [
     {
       id: 'orig-3x2',
@@ -288,7 +288,7 @@ function createDefaultSizes(): SizePreset[] {
   ];
 }
 
-function createDefaultOverlay(enabled = false): OverlaySettings {
+export function createDefaultOverlay(enabled = false): OverlaySettings {
   return {
     textEnabled: enabled,
     textLayoutMode: 'as-is',
@@ -333,7 +333,7 @@ function createDefaultOverlay(enabled = false): OverlaySettings {
   };
 }
 
-function createEditGroups(withAltGroup = true): EditGroup[] {
+export function createEditGroups(withAltGroup = true): EditGroup[] {
   const mainGroup: EditGroup = {
     id: 'group-primary',
     name: 'Edit Group 1 · Clean Feed',
@@ -589,7 +589,7 @@ function createDefaultPanels(): Record<PanelId, PanelLayoutState> {
   };
 }
 
-const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
+export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
   watermarkCustom: true,
   overlayText: true,
   smartCulling: true,
