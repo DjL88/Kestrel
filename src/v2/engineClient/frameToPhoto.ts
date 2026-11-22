@@ -3,6 +3,7 @@ import { computeCullCounts } from '../../core/cullingEngine';
 import type { Photo, Project, TaskInfo, TileState } from '../ui/contract';
 import { createDefaultSizes, createEditGroups } from '../ui/stub';
 import { editToRecipe } from './recipeMap';
+import { readOverlay } from './overlayOps';
 import type { AutoRun } from './runAuto';
 import type { AssistSuggestion, EditRecipe } from '../ui/contract';
 import type { Task } from '../../core/taskStore';
@@ -67,7 +68,7 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
 export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, assist?: AssistState): Photo {
   const { exif } = frame;
   // The UI's sample group carries a made-up look. A real photo starts from its own edit: neutral until the person edits it.
-  const groups = createEditGroups(false).map((group) => ({ ...group, name: 'Edit group 1', recipe: editToRecipe(frame.edit) }));
+  const groups = createEditGroups(false).map((group) => ({ ...group, name: 'Edit group 1', recipe: editToRecipe(frame.edit), overlay: readOverlay(frame.overlay) }));
   const thumb = urls?.thumb ?? BLANK_IMAGE;
   return {
     id: frame.id,

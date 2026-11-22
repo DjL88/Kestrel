@@ -221,3 +221,47 @@ test('?v2 chrome: icons load, no File/Edit/View or mode switch in the header, th
   await page.waitForTimeout(500);
   expect(missing, `icons that did not load: ${missing.join(', ')}`).toEqual([]);
 });
+
+test('?v2 font picker: favourites shown in their own typeface, a sample of real text, and fonts added from the device', async ({ page }) => {
+  await page.goto('/?v2&stub=1&autostart=1');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
+  await root.getByRole('button', { name: 'Plus Jakarta Sans' }).first().click();
+  const list = root.getByRole('listbox', { name: 'Fonts' });
+  await expect(list.getByText('Our favourites')).toBeVisible();
+  // Each favourite is drawn in its own font, and the font is actually loaded (bundled, so it works offline).
+  const loaded = await page.evaluate(async () => {
+    await document.fonts.ready;
+    return ['Playfair Display', 'Oswald', 'Caveat Script'.replace(' Script', ''), 'Lora', 'JetBrains Mono'].map((name) => document.fonts.check(`16px "${name}"`));
+  });
+  expect(loaded.every(Boolean)).toBe(true);
+  await expect(list.getByRole('button', { name: /Playfair Display/ })).toHaveCSS('font-family', /Playfair Display|sans-serif/);
+  const family = await list.getByText('Playfair Display', { exact: true }).evaluate((el) => getComputedStyle(el).fontFamily);
+  expect(family).toContain('Playfair Display');
+  // The chosen font shows a sample of what the row will say.
+  await list.getByRole('button', { name: /Oswald/ }).click();
+  await expect(root.getByTestId('font-sample').first()).toHaveCSS('font-family', /Oswald/);
+  // Add a font from this device: search by name, see it in its typeface, add it, find it under "On this device".
+  await root.getByRole('button', { name: /Oswald/ }).first().click();
+  await root.getByRole('button', { name: 'Add a font from this device' }).click();
+  await root.getByRole('searchbox', { name: /Search the fonts on this device/ }).fill('fut');
+  await root.getByRole('button', { name: /Futura/ }).click();
+  await expect(root.getByRole('listbox', { name: 'Fonts' }).getByText('On this device').first()).toBeVisible();
+  await expect(root.getByRole('listbox', { name: 'Fonts' }).getByRole('button', { name: /Futura/ }).first()).toBeVisible();
+});
+
+test('?v2 on the Free plan the text overlay shows the Pro badge instead of its controls', async ({ page }) => {
+  // Saving overlays with the photo is covered by the unit tests (overlayOps); the Pro path needs a licence (see #867 note).
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Overlay lock check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const image = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 200; c.height = 140; const x = c.getContext('2d')!; x.fillStyle = '#586b82'; x.fillRect(0, 0, 200, 140); return c.toDataURL('image/png').split(',')[1]; });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'ov-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
+  await expect(root.getByText(/Part of InFlight Pro\. Basic keeps/).first()).toBeVisible();
+});

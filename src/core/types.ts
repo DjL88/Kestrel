@@ -103,6 +103,9 @@ export interface PhotoFrame {
   sourceKind: 'demo' | 'file' | 'directory-handle';
   /** Desktop app: where the original is on the disk. It is read from there, never copied into the app or changed. */
   sourcePath?: string;
+  /** The V2 text and watermark overlay for this photo (rows of text, fonts, placement). The shape belongs to src/v2, which
+   * validates it on read; core only keeps it with the photo so it is saved, backed up and exported with the project. */
+  overlay?: unknown;
   /** Set when the photo was removed from the library. The original file is never touched, and Restore clears this. */
   removedAt?: number;
 }

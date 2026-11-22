@@ -10,9 +10,13 @@ import type {
 } from '../contract';
 import { STRINGS } from '../strings';
 import ProBadge from '../shell/ProBadge';
+import FontPicker from './FontPicker';
 import BrandIcon from '../icons/BrandIcon';
 import InfoPopover from '../shell/InfoPopover';
-import { detectOverlayOverflow, getActiveGroup } from '../utils/studioMath';
+import { detectOverlayOverflow, formatOverlayRowText, getActiveGroup } from '../utils/studioMath';
+
+/** The words a row will say on this photo (or a pangram when it has nothing yet), so a font is judged on real text. */
+const sampleText = (photo: Photo, row: OverlayTextRow) => formatOverlayRowText(row, photo).trim() || 'The quick brown fox jumps over the lazy dog';
 
 interface OverlayPanelProps {
   photo: Photo | null;
@@ -25,6 +29,8 @@ interface OverlayPanelProps {
   onUpdateRow: (photoId: string, rowId: string, patch: Partial<OverlayTextRow>) => void;
   onRemoveRow: (photoId: string, rowId: string) => void;
   onAddCustomFont: (fontName: string) => void;
+  onListDeviceFonts: () => Promise<string[] | null>;
+  onHasDeviceFont: (fontName: string) => boolean;
 }
 
 const ANCHORS: Array<{ id: OverlayAnchor; x: number; y: number }> = [
@@ -61,11 +67,10 @@ export default function OverlayPanel({
   onUpdateRow,
   onRemoveRow,
   onAddCustomFont,
+  onListDeviceFonts,
+  onHasDeviceFont,
 }: OverlayPanelProps) {
   const [subTab, setSubTab] = useState<'text' | 'watermark'>('text');
-  const [openFontRowId, setOpenFontRowId] = useState<string | null>(null);
-  const [fontQuery, setFontQuery] = useState('');
-  const [customFontInput, setCustomFontInput] = useState('');
 
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to edit overlays.</p>;
@@ -75,9 +80,6 @@ export default function OverlayPanel({
   const overlay = group.overlay;
   const overflowIssues = detectOverlayOverflow(overlay, photo, photo.sizes);
 
-  const filteredFonts = fonts.filter((f) =>
-    `${f.label} ${f.category}`.toLowerCase().includes(fontQuery.trim().toLowerCase())
-  );
 
   const toggleField = (row: OverlayTextRow, field: OverlayTextRow['fields'][number]) => {
     const exists = row.fields.includes(field);
@@ -259,8 +261,6 @@ export default function OverlayPanel({
                 </div>
 
                 {overlay.rows.map((row, idx) => {
-                  const activeFont = fonts.find((f) => f.id === row.fontId) ?? fonts[0];
-                  const isDropdownOpen = openFontRowId === row.id;
 
                   return (
                     <div
@@ -314,76 +314,15 @@ export default function OverlayPanel({
                         />
                       )}
 
-                      {/* Styled Font Dropdown (shows each font in its own typeface!) */}
-                      <div className="relative">
-                        <button
-                          type="button"
-                          aria-expanded={isDropdownOpen}
-                          onClick={() => setOpenFontRowId(isDropdownOpen ? null : row.id)}
-                          className="flex h-8 w-full items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 text-xs text-[var(--text-primary)]"
-                        >
-                          <span style={{ fontFamily: activeFont.family }} className="truncate">
-                            {activeFont.label}
-                          </span>
-                          <BrandIcon name="chevron" size={13} className="text-[var(--text-muted)]" />
-                        </button>
-
-                        {isDropdownOpen && (
-                          <div className="mt-1.5 max-h-56 overflow-y-auto inflight-scroll rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-2 shadow-[var(--shadow-popover)]">
-                            <input
-                              type="search"
-                              value={fontQuery}
-                              onChange={(e) => setFontQuery(e.target.value)}
-                              placeholder={STRINGS.overlays.fontSearchPlaceholder}
-                              className="mb-2 h-7 w-full rounded-[var(--radius-xs)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2 text-[11px] text-[var(--text-primary)]"
-                            />
-                            <div className="space-y-0.5">
-                              {filteredFonts.map((f) => (
-                                <button
-                                  key={f.id}
-                                  type="button"
-                                  onClick={() => {
-                                    onUpdateRow(photo.id, row.id, { fontId: f.id });
-                                    setOpenFontRowId(null);
-                                  }}
-                                  className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors ${
-                                    f.id === row.fontId
-                                      ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                                      : 'text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
-                                  }`}
-                                >
-                                  <span style={{ fontFamily: f.family }} className="text-sm">
-                                    {f.label}
-                                  </span>
-                                  <span className="text-[10px] text-[var(--text-muted)]">{f.category}</span>
-                                </button>
-                              ))}
-                            </div>
-
-                            {/* Add custom / device-installed font */}
-                            <div className="mt-2 flex gap-1 border-t border-[var(--border-subtle)] pt-2">
-                              <input
-                                type="text"
-                                value={customFontInput}
-                                onChange={(e) => setCustomFontInput(e.target.value)}
-                                placeholder="Device or custom font name…"
-                                className="h-7 flex-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2 text-[11px] text-[var(--text-primary)]"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!customFontInput.trim()) return;
-                                  onAddCustomFont(customFontInput);
-                                  setCustomFontInput('');
-                                }}
-                                className="h-7 rounded bg-[var(--brand-accent)] px-2 text-[11px] font-semibold text-[var(--text-on-accent)]"
-                              >
-                                Add
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      <FontPicker
+                        fonts={fonts}
+                        row={row}
+                        sample={sampleText(photo, row)}
+                        onSelect={(fontId) => onUpdateRow(photo.id, row.id, { fontId })}
+                        onAddCustomFont={onAddCustomFont}
+                        onListDeviceFonts={onListDeviceFonts}
+                        onHasDeviceFont={onHasDeviceFont}
+                      />
 
                       {/* Size & Uppercase */}
                       <div className="flex items-center gap-3">
