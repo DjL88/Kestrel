@@ -3,10 +3,40 @@ import { computeCullCounts } from '../../core/cullingEngine';
 import type { Photo, Project, TaskInfo, TileState } from '../ui/contract';
 import { createDefaultSizes, createEditGroups } from '../ui/stub';
 import { editToRecipe } from './recipeMap';
+import type { AutoRun } from './runAuto';
+import type { AssistSuggestion, EditRecipe } from '../ui/contract';
 import type { Task } from '../../core/taskStore';
 
 /** A transparent pixel, so a photo whose picture is not ready yet shows an empty tile rather than a broken image. */
 export const BLANK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+/** What Auto found for a photo, and what the person has done with it. */
+export interface AssistState { run: AutoRun; applied: boolean; dismissed: boolean }
+
+/** Only the sliders Auto would move, in the UI's units. */
+export function recipeDelta(base: Parameters<typeof editToRecipe>[0], proposal: Parameters<typeof editToRecipe>[0]): Partial<EditRecipe> {
+  const before = editToRecipe(base), after = editToRecipe(proposal);
+  return Object.fromEntries((Object.keys(after) as (keyof EditRecipe)[]).filter((key) => before[key] !== after[key]).map((key) => [key, after[key]])) as Partial<EditRecipe>;
+}
+
+export function assistCritiqueFor(assist: AssistState | undefined): Photo['assistCritique'] {
+  if (!assist) return { subjectNote: '', colourConfidence: '', kelvinEstimate: '', suggestions: [] };
+  const { run } = assist;
+  const suggestions: AssistSuggestion[] = run.improved && !assist.dismissed ? [{
+    id: 'natural-auto',
+    title: 'Natural Auto',
+    summary: run.detail.slice(2).join(' ') || run.headline,
+    colourReadout: run.plan.species.reason,
+    applied: assist.applied,
+    recipeDelta: recipeDelta(run.plan.base, run.plan.proposal),
+  }] : [];
+  return {
+    subjectNote: run.headline,
+    colourConfidence: [run.detail[1], ...run.plan.measured.colourWarnings].filter(Boolean).join(' '),
+    kelvinEstimate: 'Not measured',
+    suggestions,
+  };
+}
 
 export interface FrameUrls { thumb?: string; preview?: string; failed?: boolean }
 
@@ -25,7 +55,7 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  * not record says "Not recorded" (or is left empty), never an invented value. The edit, size and mask parts start as the
  * UI's neutral defaults; they are connected to the real recipe in a later step.
  */
-export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined): Photo {
+export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, assist?: AssistState): Photo {
   const { exif } = frame;
   // The UI's sample group carries a made-up look. A real photo starts from its own edit: neutral until the person edits it.
   const groups = createEditGroups(false).map((group) => ({ ...group, name: 'Edit group 1', recipe: editToRecipe(frame.edit) }));
@@ -61,7 +91,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined): Ph
     sizes: createDefaultSizes(),
     videoZoom: { enabled: false, focalX: 50, focalY: 50, direction: 'in', durationSec: 6 },
     masks: [],
-    assistCritique: { subjectNote: '', colourConfidence: '', kelvinEstimate: '', suggestions: [] },
+    assistCritique: assistCritiqueFor(assist),
   };
 }
 

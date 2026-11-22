@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { applyDecisionWithHistory, redoDecision, undoDecision } from '../../core/cullingEngine';
 import { recordEdit, stepEdit } from '../../core/editHistory';
-import { isEmptyEdit, type PhotoEdit } from '../../core/photoEdits';
+import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
+import { sameRecipe } from '../../core/naturalAuto';
 import { newId } from '../../core/ids';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
 import { appendProjectPhotos, applyImportBursts, createEmptyProject } from '../../core/projects';
@@ -15,7 +16,8 @@ import { loadLocalFileListShoot } from '../../providers/localShootLoader';
 import type { EditRecipe, HubViewState, Project, WorkspaceActions, WorkspaceStore } from '../ui/contract';
 import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
-import { frameToPhoto, shootToProject, taskToInfo, type FrameUrls } from './frameToPhoto';
+import { frameToPhoto, shootToProject, taskToInfo, type AssistState, type FrameUrls } from './frameToPhoto';
+import { runAuto } from './runAuto';
 import { applyRecipePatch, editToRecipe } from './recipeMap';
 import { surfaceBridge } from './surfaceBridge';
 
@@ -26,7 +28,7 @@ const NOT_CONNECTED = [
   'flipSelectedSizes', 'rotateSelectedSizes', 'resetSizeCrop', 'addCustomSize', 'toggleSplitFrames', 'setSplitPanOffset',
   'updateVideoZoom', 'updateOverlay', 'alignOverlaysCleanly', 'addOverlayRow', 'updateOverlayRow', 'removeOverlayRow',
   'addCustomFont', 'addMaskLayer', 'toggleMaskLayer', 'removeMaskLayer', 'runAutoCull', 'runDeepVisionReview',
-  'applyAssistSuggestion', 'applyAllAssistSuggestions', 'dismissAssistSuggestion', 'runExport', 'reconnectOriginal',
+  'runExport', 'reconnectOriginal',
 ] as const satisfies readonly (keyof WorkspaceActions)[];
 
 const THUMBNAIL_WORKERS = 4;
@@ -69,6 +71,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [selected, setSelected] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<EditRecipe | null>(null);
+  const [assists, setAssists] = useState<Record<string, AssistState>>({});
+  const autoInFlight = useRef(new Set<string>());
   const stateRef = useRef<CullingState | null>(null);
   stateRef.current = state;
   useEffect(() => { surfaceBridge.set(state?.frames ?? [], provider.current); }, [state?.frames]);
@@ -98,6 +102,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const enterProject = useCallback((next: CullingState) => {
     provider.current!.clear();
     setUrls({});
+    setAssists({});
     setSelected(next.selectedFrameId ? [next.selectedFrameId] : []);
     setState(next);
     setScreen('editor');
@@ -166,6 +171,34 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (unmapped.length) setNotice(`Not connected to the InFlight engine yet, so not applied: ${unmapped.join(', ')}.`);
     editFrames(ids, (frame) => applyRecipePatch(frame.edit, patch).edit);
   }, [editFrames]);
+
+  const applyAuto = useCallback((frameId: string) => {
+    const assist = assists[frameId];
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === frameId);
+    if (!assist || !frame) return;
+    if (!sameRecipe(frame.edit ?? DEFAULT_EDIT, assist.run.plan.base)) { setNotice('This photo changed since Auto looked at it. Open it again to get a fresh suggestion.'); return; }
+    editFrames([frameId], () => assist.run.plan.proposal);
+    setAssists((current) => ({ ...current, [frameId]: { ...assist, applied: true } }));
+  }, [assists, editFrames]);
+
+  // Co-pilot and Auto-pilot look at the photo on the canvas, on this device, one at a time. Solo never does.
+  const assistMode = stub.store.assistMode;
+  useEffect(() => {
+    if (screen !== 'editor' || assistMode === 'solo' || !activeFrame || assists[activeFrame.id] || autoInFlight.current.has(activeFrame.id)) return;
+    const frame = activeFrame;
+    autoInFlight.current.add(frame.id);
+    const task = tasks.start('Checking the photo and colour');
+    runAuto(frame, provider.current!).then((run) => {
+      if (!run) { task.finish('Could not analyse this photo.'); return; }
+      task.finish(run.headline);
+      const untouched = !frame.edit && !frame.editHistory?.steps.length;
+      const apply = assistMode === 'autopilot' && run.improved && untouched;
+      setAssists((current) => ({ ...current, [frame.id]: { run, applied: apply, dismissed: false } }));
+      if (apply) editFrames([frame.id], () => run.plan.proposal);
+    }, () => task.fail('Checking the photo failed.')).finally(() => autoInFlight.current.delete(frame.id));
+    // Runs once per photo and mode; `assists` guards repeats.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, assistMode, activeFrame?.id]);
 
   const importPhotos = useCallback(async () => {
     const target = stateRef.current;
@@ -262,6 +295,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       shoot: { ...current.shoot, lastUpdatedAt: Date.now() },
     })),
     importPhotos: () => { void importPhotos(); },
+    applyAssistSuggestion: (photoId) => applyAuto(photoId),
+    applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
+    dismissAssistSuggestion: (photoId) => setAssists((current) => (current[photoId] ? { ...current, [photoId]: { ...current[photoId], dismissed: true } } : current)),
     updateRecipe: (photoId, patch) => applyPatch(editTargets(photoId), patch),
     applyLook: (photoId, lookId) => {
       const look = stub.store.looks.find((entry) => entry.id === lookId);
@@ -286,9 +322,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, stub.store.looks, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
+    [stub.actions, stub.store.looks, applyAuto, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
 
-  const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id])), [state?.frames, urls]);
+  const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], assists[frame.id])), [state?.frames, urls, assists]);
   const store: WorkspaceStore = useMemo(() => ({
     ...stub.store,
     screen, hubState, projects,
