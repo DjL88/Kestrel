@@ -586,6 +586,7 @@ function createDefaultPanels(): Record<PanelId, PanelLayoutState> {
     overlays: { visible: true, dock: 'left', floatX: 110, floatY: 88 },
     assist: { visible: true, dock: 'right', floatX: 980, floatY: 88 },
     info: { visible: true, dock: 'right', floatX: 980, floatY: 88 },
+    history: { visible: true, dock: 'left', floatX: 110, floatY: 88 },
     tasks: { visible: true, dock: 'right', floatX: 980, floatY: 88 },
   };
 }
@@ -804,6 +805,8 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     },
 
     eraseDeviceData: () => { logAction('eraseDeviceData', {}); setStore((prev) => ({ ...prev, lastActionNotice: 'Sample data: nothing was erased.' })); },
+
+    jumpToEditStep: (photoId, cursor) => { logAction('jumpToEditStep', { photoId, cursor }); },
 
     setHubState: (hubState) => {
       logAction('setHubState', { hubState });

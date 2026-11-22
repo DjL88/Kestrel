@@ -28,6 +28,7 @@ export type PanelId =
   | 'overlays'
   | 'assist'
   | 'info'
+  | 'history'
   | 'tasks';
 
 export type DockPosition = 'left' | 'right' | 'float';
@@ -251,6 +252,8 @@ export interface Photo {
   sizes: SizePreset[];
   videoZoom: VideoZoomConfig;
   masks: MaskLayer[];
+  /** The photo's recorded edit steps (oldest first) and where it stands now. Absent until it has been edited. */
+  editHistory?: { steps: { label: string; at: number }[]; cursor: number };
   /** The picture's size in real pixels, when the file says. Used for the true 100% zoom. */
   pixelSize?: { width: number; height: number };
   /** Measured from the picture as it is now. Absent until measured; the interface shows nothing rather than a guess. */
@@ -529,6 +532,8 @@ export interface WorkspaceActions {
   moveFloatingPanel: (panelId: PanelId, x: number, y: number) => void;
   resetPanelLayout: () => void;
   setBottomTab: (tab: 'filmstrip' | 'info') => void;
+  /** Restore a photo to how it was after this many edit steps (0 is the original). Later steps stay available. */
+  jumpToEditStep: (photoId: string, cursor: number) => void;
   setFilmstripCollapsed: (collapsed: boolean) => void;
   setFilmstripHeight: (height: number) => void;
   setFilmstripFilter: (filter: 'all' | 'flagged' | 'set-aside') => void;
