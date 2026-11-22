@@ -36,7 +36,7 @@ Full table in `node scripts/cloud-measure/model.mjs`.
 
 ## Next PRs (each small, tests first, nothing billable)
 
-1. Job API contract and server-side gate (plan, consent, quota, kill switch on every request) in `services/control-plane`, with the storage and runner behind interfaces and an in-memory fake. No GCP.
+1. **Built (this PR, in-memory fakes, no GCP):** job API contract and server-side gate (plan, consent, quota, kill switch on every request) in `services/control-plane`, with the storage and runner behind interfaces and an in-memory fake. No GCP.
 2. Firestore job, usage and consent records.
 3. Terraform plan for the private, encrypted, short-expiry bucket with a lifecycle rule and the runner service, for the owner to review and apply. Nothing applied by us.
 

@@ -58,6 +58,7 @@ Firestore collections: `accounts`, `account_emails` (keeps email hashes unique),
 | `POST /v1/licences/activate` | signed `KESTREL1` key | Atomic device-slot count → Ed25519 offline grant (default 30 days, client cap 90) |
 | `GET /v1/me/entitlements` | bearer | Plans, AI allowance, next revalidation |
 | `POST /v1/ai/identify` | bearer + `userConsent: true` | One metadata-free JPEG ≤512 KB/≤1024 px → checked species answer. 12 s upstream deadline; failures refunded |
+| `POST /v1/cloud/jobs`, `GET /v1/cloud/jobs/:id`, `POST /v1/cloud/jobs/:id/finish` | bearer + `userConsent: true` + Pro licence | Cloud Processing gate (docs/CLOUD-PROCESSING.md). Checks in order: consent, configured, kill switch (`cloud_disabled` setting or killed `cloud.processing` flag), Pro, size, per-account quota. Runner failure refunds. `finish` deletes the input. **In-memory fakes only; answers 503 `CLOUD_NOT_CONFIGURED` until the owner approves a bucket and runner** |
 | `POST /v1/ai/suggest` | bearer + consent | Bounded slider proposal only, never pixels. `{}` → `alreadyBalanced: true` |
 | `GET /v1/models/manifest?app=&channel=` | none | Signed `dataUpdateManifest` with live assets for that app version |
 | `GET /v1/desktop/releases?platform=` | none | Latest release for a notice; links allow-listed to `github.com` |

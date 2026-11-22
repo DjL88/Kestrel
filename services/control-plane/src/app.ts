@@ -19,6 +19,7 @@ import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { googleKeysFromNetwork, verifyGoogleIdToken, GOOGLE_CERTS_URL, type GoogleKeys } from './googleIdToken.ts';
 import { APPLE_ISSUER, APPLE_KEYS_URL, FIREBASE_KEYS_URL, firebaseIssuer, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
 import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnover.ts';
+import { CLOUD_KINDS, type CloudOptions } from './cloudJobs.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
 
 export const MAX_IMAGE_BYTES = 512 * 1024;
@@ -44,6 +45,8 @@ export interface AppOptions {
   now?: () => number;
   /** Backend-only demo image store; Cloud Run supplies GCS+Firestore, local tests use memory. */
   demoStudio?: DemoStudioStore;
+  /** Cloud Processing Engine. Absent in production until the owner approves the bucket and runner: the routes then answer 503. */
+  cloud?: CloudOptions;
 }
 
 // ---- Schemas: the contract, also published as OpenAPI ------------------------
@@ -131,6 +134,7 @@ export const Schemas = {
     aiConsent: z.boolean(),
     nextRevalidationMs: z.number(),
   }),
+  CloudJobRequest: z.object({ kind: z.enum(CLOUD_KINDS), inputBytes: z.number().int().positive(), userConsent: z.boolean() }).strict(),
   ImageRequest: ImageBody,
   IdentifyResponse: z.object({ kind: z.string(), species: z.string().nullable(), scientific: z.string().nullable(), confidence: z.enum(['high', 'medium', 'low']), tags: z.array(z.string()), abstained: z.boolean() }),
   SuggestResponse: z.object({ proposal: z.record(z.string(), z.number()), alreadyBalanced: z.boolean() }),
@@ -332,6 +336,48 @@ export function createApp(options: AppOptions) {
       await refund(); // A failed answer costs nothing.
       throw error;
     }
+  }
+
+  // ---- Cloud Processing gate. Order matters: nothing is reserved or uploaded until every check has passed.
+  async function cloudJobStart(req: Request): Promise<Reply> {
+    const claims = await bearer(req);
+    const body = parseJson(Schemas.CloudJobRequest, req.rawBody);
+    if (body.userConsent !== true) throw new ApiError(400, 'CONSENT_REQUIRED', 'InFlight needs your permission before sending a photo to be processed.');
+    const cloud = options.cloud;
+    if (!cloud) throw new ApiError(503, 'CLOUD_NOT_CONFIGURED', 'Cloud processing is not set up on this server.');
+    // Kill switch: the settings key or a kill-switched flag. Checked live on every request.
+    if ((await store.getSetting('cloud_disabled')) === '1' || (await loadFlags())['cloud.processing']?.kill === true) {
+      await audit(claims.sub, 'cloud.job.create', 'denied', 'kill switch');
+      throw new ApiError(503, 'CLOUD_DISABLED', 'Cloud processing is switched off for now.', true);
+    }
+    const licences = await store.listLicencesForAccount(claims.sub);
+    if (!licences.some((l) => (l.plan === 'paid' || l.plan === 'subscriber') && licenceIsUsable(l, now()))) {
+      await audit(claims.sub, 'cloud.job.create', 'denied', 'not Pro');
+      throw new ApiError(403, 'CLOUD_NOT_ENTITLED', 'Cloud processing is part of Pro.');
+    }
+    if (body.inputBytes > cloud.maxInputBytes) throw new ApiError(413, 'CLOUD_INPUT_TOO_LARGE', 'This file is larger than cloud processing accepts.');
+    if (!(await cloud.ledger.reserve(claims.sub, now(), cloud.jobsPerPeriod, QUOTA_PERIOD_MS))) {
+      await audit(claims.sub, 'cloud.job.create', 'denied', 'quota');
+      throw new ApiError(429, 'CLOUD_QUOTA_EXHAUSTED', 'This account has used its cloud processing allowance for this period.');
+    }
+    const jobId = uuid();
+    try {
+      const upload = await cloud.runner.createUpload(jobId, body.inputBytes);
+      await cloud.ledger.put({ jobId, accountId: claims.sub, kind: body.kind, inputBytes: body.inputBytes, status: 'awaiting-upload', createdAtMs: now() });
+      await audit(claims.sub, 'cloud.job.create', 'allowed', `${body.kind} ${jobId}`);
+      return { status: 200, body: { jobId, uploadUrl: upload.uploadUrl, expiresAtMs: upload.expiresAtMs } };
+    } catch (error) {
+      await cloud.ledger.refund(claims.sub); // A job that never started costs nothing.
+      await cloud.runner.deleteInput(jobId).catch(() => undefined);
+      throw new ApiError(502, 'CLOUD_RUNNER_FAILED', 'Cloud processing could not start. Nothing was uploaded or charged.', true);
+    }
+  }
+  async function cloudJobOwned(req: Request, jobId: string) {
+    const claims = await bearer(req);
+    const record = await options.cloud?.ledger.get(jobId);
+    // Someone else's job is indistinguishable from a missing one.
+    if (!options.cloud || !record || record.accountId !== claims.sub) throw new ApiError(404, 'NOT_FOUND', 'No such job.');
+    return { cloud: options.cloud, record };
   }
 
   async function admin(req: Request, action: string): Promise<SessionClaims> {
@@ -612,6 +658,25 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         const answer = await aiCall(req, (p, image) => verifyColour(p, image, config.aiTimeoutMs));
         return { status: 200, body: answer };
+      },
+    },
+
+    // ---- Cloud Processing (Pro, consented, quota'd, kill-switched on every request)
+    {
+      method: 'POST', path: '/v1/cloud/jobs', summary: 'Start a cloud processing job: returns a short-lived signed upload URL', auth: 'user', body: Schemas.CloudJobRequest,
+      handler: (req) => cloudJobStart(req),
+    },
+    {
+      method: 'GET', path: '/v1/cloud/jobs/:id', summary: 'Status of one of your cloud processing jobs', auth: 'user',
+      handler: async (req, params) => { const { record } = await cloudJobOwned(req, params.id!); return { status: 200, body: { jobId: record.jobId, status: record.status, kind: record.kind } }; },
+    },
+    {
+      method: 'POST', path: '/v1/cloud/jobs/:id/finish', summary: 'Result collected or job cancelled: deletes the uploaded input now (idempotent)', auth: 'user',
+      handler: async (req, params) => {
+        const { cloud, record } = await cloudJobOwned(req, params.id!);
+        await cloud.runner.deleteInput(record.jobId);
+        await cloud.ledger.put({ ...record, status: 'finished' });
+        return { status: 200, body: { jobId: record.jobId, inputDeleted: true } };
       },
     },
 
