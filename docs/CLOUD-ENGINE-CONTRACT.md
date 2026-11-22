@@ -1,10 +1,10 @@
 # Cloud Processing: contract for the engine's cloud runner (22 Nov 2026)
 
-For the engine worker. The backend side of "one engine API, device and cloud alike" ([V2-WORKSPACE.md](V2-WORKSPACE.md) section 15). Source of truth for behaviour: `services/control-plane/src/cloudJobs.ts` and the `/v1/cloud/jobs` routes. **Built on in-memory fakes only; the deployed service answers 503 `CLOUD_NOT_CONFIGURED`.** Nothing is uploaded unless the person says yes to that job. Offline stays complete: every call below is optional, and the device runner is always the fallback.
+The job contract for the engine dispatcher in [V2 Workspace, section 15](V2-WORKSPACE.md). The control plane serves `/v1/cloud/jobs` and can use the Firestore ledger, GCS signer and Cloud Run Jobs adapter when configured. Without the bucket and job settings it returns `CLOUD_NOT_CONFIGURED`. The client job transport is in `src/providers/cloudJobTransport.ts`. Production activation needs the capability implementation and verification described below.
 
 ## Names
 
-Job `kind` is the engine's capability name: `denoise`, `upscale`, `mask` (`EngineCapability` in `src/engine/types.ts`, draft PR #868). Not offered in the cloud: `raw-develop` (the measurement shows the cloud cannot win), `vision-scene` and `subject-detect` (small on-device models). **Needed from the engine side:** `EngineRunner` has `'device' | 'cloud-gemini' | 'cloud-byo'`; the Cloud Processing Engine needs its own value, suggested `'cloud-processing'`. Not changed by the backend.
+The job kinds are `denoise`, `upscale` and `mask`. The engine reports a verified result from this service as `cloud-processing`. RAW development, scene reading and subject detection stay on the device.
 
 ## Flow (one job)
 
@@ -28,12 +28,12 @@ Server enforcement on every create and start: consent, configured, kill switch (
 | 502 `CLOUD_RUNNER_FAILED`, `failed` status | Cloud could not run it | Device runner; nothing was charged |
 | 401 | Session expired | Refresh the session, or device runner |
 
-The dispatcher attempts cloud processing only for denoise, upscale or masks after the caller has an authenticated online session and the person has approved that job. `runEngineCapability` reports the runner that supplied the result. A failed request, refusal or result that does not verify falls back to the existing device action. Cancelling ends the attempt without starting the device action. The transport must honour cancellation and bound poll time. The API enforces entitlement, consent and spending limits independently of the client.
+The dispatcher attempts cloud processing only for denoise, upscale or masks after the caller has an authenticated online session and the person has approved that job. `runEngineCapability` reports the runner that supplied the result. A failed request, refusal or result that does not verify falls back to the existing device action. Cancelling ends the attempt without starting the device action. The transport uses a two-minute deadline by default. It makes a separate bounded cleanup request for any job whose ID it received, including after cancellation. The bucket lifecycle covers objects left after interrupted cleanup or a late runner write. The API enforces entitlement, consent and spending limits independently of the client.
 
 ## Runner design note (22 Nov 2026)
 
-The runner is a Cloud Run **job**, started by the control plane on `start` and reading `inputs/<jobId>` from the private bucket; it writes `results/<jobId>` (or an empty `failed/<jobId>`). Adapters exist (`services/control-plane/src/gcsAdapters.ts`) but are not wired or deployed. A job still `running` after a maximum time should be treated as failed and refunded (planned, not built).
+The runner is a Cloud Run **job**, started by the control plane on `start` and reading `inputs/<jobId>` from the private bucket. It writes `results/<jobId>` or an empty `failed/<jobId>`. The server wiring loads the Google adapters only when configured. The status route has a watchdog for a runner that has exceeded its time limit and left no result marker.
 
-## Not done
+## Remaining activation work
 
-Real Google Cloud Storage runner and signer, wiring the Firestore ledger into `server.ts`, and the runner image that does the ONNX work: all behind the owner's approval ([BACKEND-OWNER-RUNBOOK.md](BACKEND-OWNER-RUNBOOK.md)). No capability's cloud implementation has been measured (CLOUD-PROCESSING.md). No end-to-end test exists against the engine; the engine side of this contract is not built.
+Build the runner image and agree the per-capability payload and output formats with its local verifier. Then connect a user-initiated V2 action to the transport, using the current account session and upload consent for that exact job. The local HTTP integration suite exercises the protocol with a fixture runner. A staging run still needs an eligible account, genuine signed GCS transfers, a verified photographic result, and observation of the on-device fallback. See the [owner runbook](BACKEND-OWNER-RUNBOOK.md) and the [processing benchmark](CLOUD-PROCESSING.md).
