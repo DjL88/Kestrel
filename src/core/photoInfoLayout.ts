@@ -17,8 +17,10 @@ export function canDockPhotoInfo(width: number, height: number): boolean {
 }
 
 export const FLOATING_PANE_Z = {
-  background: 40,
-  foreground: 44,
-  /** Modal dialogs remain above both docked and floating panels. */
+  // Owner decision (22 Nov 2026): undocked panels always sit in front of everything, dialogs
+  // included (those are z-100), so their title bars stay reachable. Do not drop below 100.
+  background: 110,
+  foreground: 114,
+  /** The lowest z-index a dialog may use; panels sit above it. */
   modalMinimum: 50,
 } as const;
