@@ -274,7 +274,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                     <button type="button" aria-pressed={props.hand === 'left'} onClick={() => props.onHandChange?.('left')} className="rounded-md border border-white/15 px-3 py-2 aria-pressed:bg-sky-300/20">{t.top.left}</button>
                     <button type="button" aria-pressed={props.hand !== 'left'} onClick={() => props.onHandChange?.('right')} className="rounded-md border border-white/15 px-3 py-2 aria-pressed:bg-sky-300/20">{t.top.right}</button>
                   </div>}
-                  {props.onOpenSettings && <button type="button" onClick={() => choose(props.onOpenSettings!)}
+                  {props.onOpenSettings && <button type="button" data-phone-hidden onClick={() => choose(props.onOpenSettings!)}
                     className="flex min-h-11 w-full items-center gap-2 rounded-md border border-white/15 px-3 text-left text-sm text-zinc-100 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
                     {m.settings.title}
                   </button>}

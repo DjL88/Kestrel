@@ -96,9 +96,11 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
   const [sort, setSort] = useState<ProjectSort>('edited');
   const backupInput = useRef<HTMLInputElement>(null);
   const quickInput = useRef<HTMLInputElement>(null);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const aboutTouchY = useRef<number | null>(null);
   return (
-    <main className="h-dvh max-h-dvh w-full max-w-full min-w-0 overflow-x-hidden overflow-y-auto bg-kestrel-canvas px-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-zinc-100 sm:px-8">
-      <div className="mx-auto max-w-3xl py-8 sm:py-14">
+    <main className="h-dvh max-h-dvh w-full max-w-full min-w-0 flex flex-col overflow-hidden bg-kestrel-canvas px-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-zinc-100 sm:px-8">
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col pt-4 sm:pt-10">
         <div className="mb-7 flex items-center gap-2.5">
           <img src={kestrelMark} alt="" className="h-10 w-10" />
           <span className="text-lg font-semibold tracking-tight text-kestrel-ink">Kite44</span>
@@ -155,6 +157,7 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
             </label>
           </div>
         )}
+        <div data-project-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4">
         <LanguageWelcome />
         {creating && <NewProjectWizard loading={loading} onCancel={() => setCreating(false)} onCreate={onCreate} />}
         {error && <p role="alert" className="mb-3 text-sm text-orange-200">{error}</p>}
@@ -212,17 +215,29 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
           </>;
         })()}
         {projects.length > 0 && <CatalogueStorage />}
-        <footer aria-label={m.home.aboutTitle} className="mt-14 border-t border-white/10 pt-5 pb-4 text-xs leading-relaxed text-zinc-400">
-          <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
-            <div className="min-w-0">
-              <p className="font-medium text-zinc-300">{m.home.aboutTitle}</p>
-              <p className="mt-1 max-w-lg">{m.home.about}</p>
+        </div>
+        <footer aria-label={m.home.aboutTitle} data-about-bar className="shrink-0 border-t border-white/10 bg-kestrel-panel text-xs leading-relaxed text-zinc-400"
+          onTouchStart={(event) => { aboutTouchY.current = event.touches[0]?.clientY ?? null; }}
+          onTouchEnd={(event) => {
+            const start = aboutTouchY.current; aboutTouchY.current = null;
+            const end = event.changedTouches[0]?.clientY;
+            if (start === null || end === undefined) return;
+            if (start - end > 30) setAboutOpen(true); else if (end - start > 30) setAboutOpen(false);
+          }}>
+          <button type="button" aria-expanded={aboutOpen} onClick={() => setAboutOpen(value => !value)}
+            className="flex min-h-11 w-full items-center justify-between gap-2 px-1 text-left font-medium text-zinc-300 focus-visible:outline-2 focus-visible:outline-sky-300">
+            <span>{m.home.aboutTitle}</span>
+            <ChevronRight className={`h-4 w-4 transition-transform ${aboutOpen ? '-rotate-90' : 'rotate-90'}`} aria-hidden="true" />
+          </button>
+          {aboutOpen && (
+            <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 px-1 pb-3">
+              <p className="min-w-0 max-w-lg">{m.home.about}</p>
+              <div className="flex shrink-0 items-center gap-3">
+                <button type="button" onClick={() => setLicenceOpen(true)} className="min-h-11 rounded-md px-2 text-zinc-300 underline hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">{m.home.licence}</button>
+                <p className="font-mono" aria-label={t.list.versionLabel(appVersion)}>{m.home.version(appVersion)}</p>
+              </div>
             </div>
-            <div className="flex shrink-0 items-center gap-3">
-              <button type="button" onClick={() => setLicenceOpen(true)} className="min-h-11 rounded-md px-2 text-zinc-300 underline hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300">{m.home.licence}</button>
-              <p className="font-mono" aria-label={t.list.versionLabel(appVersion)}>{m.home.version(appVersion)}</p>
-            </div>
-          </div>
+          )}
         </footer>
       </div>
       {appearanceOpen && <AppearanceDialog side={editPanelSide} onSideChange={onEditPanelSideChange} onOpenMacroPad={onOpenMacroPad} onClose={() => setAppearanceOpen(false)} />}
