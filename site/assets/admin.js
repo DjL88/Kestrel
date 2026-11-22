@@ -2,6 +2,8 @@
 // (Firebase Hosting forwards /v1/admin/** to Cloud Run). The session lives in memory only: closing the tab signs out.
 // Everything from the server is written with textContent, never as HTML.
 
+import { KNOWN_FLAGS, NEVER_GATED, fieldsFromRule, flagFromForm, ruleSummary } from './admin-flags.js';
+
 const $ = id => document.getElementById(id);
 const status = $('status');
 let token;
@@ -89,7 +91,8 @@ function signOut(message = '') {
   $('sign-out').hidden = true;
   $('who').textContent = '';
   $('sign-in').hidden = false;
-  for (const id of ['licence-table', 'usage-table', 'payments-table', 'audit-table']) $(id).tBodies[0].replaceChildren();
+  for (const id of ['licence-table', 'usage-table', 'payments-table', 'audit-table', 'flags-table']) $(id).tBodies[0].replaceChildren();
+  flagsState = {};
   $('message-list').replaceChildren();
   $('issued').hidden = true;
   $('issued-key').value = '';
@@ -138,7 +141,7 @@ act($('sign-out'), 'click', () => signOut('Signed out.'));
 // ---- Sections --------------------------------------------------------------------------------------------------
 
 async function refreshAll() {
-  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadMessages(), loadTax(), loadPriceReview(), loadAudit()]);
+  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadMessages(), loadTax(), loadPriceReview(), loadFlags(), loadAudit()]);
   const failed = results.find(r => r.status === 'rejected' && !(r.reason instanceof SignedOut));
   if (failed) say(failed.reason.message);
 }
@@ -370,6 +373,130 @@ act(ossForm, 'submit', async () => {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   say('Quarterly summary downloaded.');
+});
+
+// ---- Feature flags ---------------------------------------------------------------------------------------------
+
+let flagsState = {};
+const flagForm = $('flag-form');
+const ruleRows = $('flag-rule-rows');
+$('never-gated').textContent = NEVER_GATED.join(', ');
+$('flag-names').replaceChildren(...KNOWN_FLAGS.map(name => { const option = document.createElement('option'); option.value = name; return option; }));
+
+async function loadFlags() {
+  flagsState = (await api('admin/flags')).flags;
+  renderFlags();
+}
+
+function renderFlags() {
+  const keys = Object.keys(flagsState).sort();
+  $('flags-empty').hidden = keys.length > 0;
+  $('flags-table').tBodies[0].replaceChildren(...keys.map(key => {
+    const flag = flagsState[key];
+    const row = document.createElement('tr');
+    const name = el('div');
+    name.append(code(key));
+    if (NEVER_GATED.includes(key)) name.append(' ', badge('Never switched off', 'good'));
+    if (flag.kill) name.append(' ', badge('Switched off now', 'bad'));
+    if (flag.minAppVersion) name.append(el('div', 'App ' + flag.minAppVersion + ' or newer', 'muted'));
+    cell(row, name);
+    cell(row, badge(flag.default ? 'On' : 'Off'));
+    const list = el('ul');
+    if (!flag.rules.length) list.append(el('li', 'No rules'));
+    for (const rule of flag.rules) list.append(el('li', ruleSummary(rule)));
+    cell(row, list);
+    const actions = el('div', undefined, 'row');
+    actions.append(
+      button('Edit', 'Edit ' + key, 'quiet', async () => editFlag(key)),
+      button('Delete', 'Delete ' + key, 'danger', async () => {
+        if (!confirm('Delete the flag ' + key + '? The app goes back to its built-in setting for it.')) return;
+        await api('admin/flags/delete', { key });
+        await Promise.all([loadFlags(), loadAudit()]);
+        say('Deleted ' + key + '.');
+      }),
+    );
+    cell(row, actions);
+    return row;
+  }));
+}
+
+function labelled(text, control, className) {
+  const label = document.createElement('label');
+  if (className) label.className = className;
+  if (className === 'check') label.append(control, ' ' + text); else label.append(text + ' ', control);
+  return label;
+}
+function choose(options, value) {
+  const select = document.createElement('select');
+  for (const [v, text] of options) { const o = document.createElement('option'); o.value = v; o.textContent = text; select.append(o); }
+  select.value = value;
+  return select;
+}
+function field(type, value, attributes = {}) {
+  const input = document.createElement('input');
+  input.type = type;
+  if (type === 'checkbox') input.checked = value === true; else input.value = value ?? '';
+  for (const [name, v] of Object.entries(attributes)) input.setAttribute(name, v);
+  return input;
+}
+
+function addRuleRow(fields = { kind: 'plan', plan: 'basic', text: '', enabled: true, trial: false, firstDay: '', lastDay: '', percent: '' }) {
+  const row = el('div', undefined, 'rule-row');
+  const kind = choose([['any', 'Everyone'], ['plan', 'A plan'], ['corporate', 'An organisation'], ['user', 'One person']], fields.kind);
+  const plan = choose([['unknown', 'People without an account'], ['basic', 'Basic'], ['pro', 'Pro']], fields.plan);
+  const text = field('text', fields.text, { maxlength: '254', autocomplete: 'off', spellcheck: 'false' });
+  const then = choose([['on', 'Switch on'], ['off', 'Switch off']], fields.enabled ? 'on' : 'off');
+  const trial = field('checkbox', fields.trial);
+  const first = field('date', fields.firstDay);
+  const last = field('date', fields.lastDay);
+  const percent = field('number', fields.percent, { min: '0', max: '100', step: '1', inputmode: 'numeric' });
+  const whoLabel = labelled('Who', kind), planLabel = labelled('Plan', plan), textLabel = labelled('Name or email', text);
+  const remove = el('button', 'Remove');
+  remove.type = 'button';
+  remove.className = 'small danger';
+  remove.setAttribute('aria-label', 'Remove this rule');
+  remove.addEventListener('click', () => row.remove());
+  const showWho = () => { planLabel.hidden = kind.value !== 'plan'; textLabel.hidden = kind.value !== 'corporate' && kind.value !== 'user'; };
+  kind.addEventListener('change', showWho);
+  showWho();
+  row.append(whoLabel, planLabel, textLabel, labelled('Then', then), labelled('Trial', trial, 'check'), labelled('First day', first),
+    labelled('Last day (empty = until stopped)', last), labelled('Only this % of devices', percent), remove);
+  row.readFields = () => ({ kind: kind.value, plan: plan.value, text: text.value, enabled: then.value === 'on', trial: trial.checked, firstDay: first.value, lastDay: last.value, percent: percent.value });
+  ruleRows.append(row);
+}
+
+function resetFlagForm() {
+  flagForm.reset();
+  ruleRows.replaceChildren();
+  $('flag-form-title').textContent = 'Add or change a flag';
+}
+function editFlag(key) {
+  const flag = flagsState[key];
+  if (!flag) return;
+  resetFlagForm();
+  flagForm.elements.key.value = key;
+  flagForm.elements.defaultOn.value = flag.default ? 'on' : 'off';
+  flagForm.elements.minAppVersion.value = flag.minAppVersion ?? '';
+  flagForm.elements.kill.checked = flag.kill === true;
+  for (const rule of flag.rules) addRuleRow(fieldsFromRule(rule));
+  $('flag-form-title').textContent = 'Change ' + key;
+  flagForm.scrollIntoView();
+  flagForm.elements.key.focus();
+}
+
+$('add-rule').addEventListener('click', () => addRuleRow());
+$('flag-reset').addEventListener('click', resetFlagForm);
+act(flagForm, 'submit', async () => {
+  const data = new FormData(flagForm);
+  const result = flagFromForm({
+    key: data.get('key'), defaultOn: data.get('defaultOn') === 'on', kill: data.get('kill') === 'on', minAppVersion: data.get('minAppVersion'),
+    rules: [...ruleRows.children].map(row => row.readFields()),
+  });
+  if (result.error) throw new Error(result.error);
+  await api('admin/flags/set', { key: result.key, flag: result.flag });
+  await Promise.all([loadFlags(), loadAudit()]);
+  resetFlagForm();
+  say('Saved ' + result.key + '.');
 });
 
 async function loadAudit() {
