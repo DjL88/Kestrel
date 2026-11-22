@@ -4,6 +4,8 @@ import { STRINGS } from '../strings';
 import BrandIcon, { BrandLogo, assistModeIconName } from '../icons/BrandIcon';
 
 interface TopBarProps {
+  /** The File, Edit and View menus. Off in the interface: the desktop app has them natively. */
+  showMenus?: boolean;
   photoName: string;
   assistMode: AssistMode;
   theme: ThemeMode;
@@ -38,6 +40,7 @@ interface TopBarProps {
 type OpenMenu = 'file' | 'edit' | 'view' | null;
 
 export default function TopBar({
+  showMenus = false,
   photoName,
   assistMode,
   theme,
@@ -109,9 +112,7 @@ export default function TopBar({
           aria-label={STRINGS.topBar.backToProjects}
           className="inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-sm)] px-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] whitespace-nowrap shrink-0"
         >
-          <span className="inline-flex rotate-180">
-            <BrandIcon name="arrow" size={16} />
-          </span>
+          <BrandIcon name="arrow-left" size={16} />
           <span className="hidden sm:inline">Back</span>
         </button>
 
@@ -122,7 +123,7 @@ export default function TopBar({
         </div>
 
         {/* Desktop menus: File, Edit, View */}
-        <nav className="hidden lg:flex items-center gap-1 ml-1" aria-label="Application menus">
+        {showMenus && <nav className="hidden lg:flex items-center gap-1 ml-1" aria-label="Application menus">
           {/* File Menu */}
           <div className="relative">
             <button
@@ -314,7 +315,7 @@ export default function TopBar({
               </div>
             )}
           </div>
-        </nav>
+        </nav>}
       </div>
 
       {/* Centre zone: Current photo name (clean single-line) */}
@@ -326,37 +327,6 @@ export default function TopBar({
 
       {/* Right zone: Assist Mode switch (Solo / Co-pilot / Auto-pilot) + Export button */}
       <div className="flex items-center gap-2 md:gap-3 shrink-0">
-        <div
-          role="radiogroup"
-          aria-label="Flight assist mode"
-          className="inline-flex items-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5"
-        >
-          {modes.map((mode) => {
-            const active = assistMode === mode;
-            return (
-              <button
-                key={mode}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => onSetAssistMode(mode)}
-                className={`inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] px-2 md:px-2.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
-                  active
-                    ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                <BrandIcon
-                  name={assistModeIconName(mode)}
-                  size={14}
-                  className={active ? 'text-[var(--brand-accent)]' : ''}
-                />
-                <span className="hidden sm:inline">{STRINGS.topBar.assistModes[mode]}</span>
-              </button>
-            );
-          })}
-        </div>
-
         <button
           type="button"
           onClick={onExport}

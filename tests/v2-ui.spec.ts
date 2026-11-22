@@ -115,8 +115,9 @@ test('?v2 edits are real: Adjust changes the pixels, Compare splits original and
   await expect(split).toHaveAttribute('aria-valuenow', '0');
   await root.getByRole('button', { name: 'Compare', exact: true }).click();
   // Undo returns the picture to the original.
-  await root.getByRole('button', { name: 'Edit', exact: true }).click();
-  await root.getByRole('menuitem', { name: /^Undo/ }).click();
+  // The Edit menu is not in the interface (the desktop app has it natively); Undo is the keyboard shortcut.
+  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Control+z');
   await expect.poll(mean, { timeout: 15000 }).toBeLessThan(brighter - 3);
   await expect(root.getByLabel('Exposure', { exact: true })).toHaveValue('0');
 });
@@ -139,17 +140,14 @@ test('?v2 Co-pilot checks the photo on this device, suggests Auto, and applying 
   await root.getByRole('button', { name: /^Import/ }).first().click();
   await (await chooser).setFiles([{ name: 'dark-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
-  // The verdict is always written in words (Assist panel), whatever it is, and comes from the measured values.
-  await root.getByRole('button', { name: 'Assist', exact: true }).first().click();
+  // The verdict is always written in words (in the merged Co-pilot panel), whatever it is, and comes from the measured values.
+  await root.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
   const verdict = root.getByText(/Auto applied|Looks good|Cannot improve this safely|gentler version/);
   await expect(verdict.first()).toBeVisible({ timeout: 60000 });
-  await root.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
   const apply = root.getByRole('button', { name: 'Apply suggested recipe' });
   if (await apply.count()) {
     await apply.click();
     await expect(root.getByRole('button', { name: 'Apply suggested recipe' })).toHaveCount(0);
-    await root.getByRole('button', { name: 'Edit', exact: true }).click();
-    await expect(root.getByRole('menuitem', { name: /^Undo/ })).toBeEnabled();
   } else {
     await expect(root.getByText(/Looks good|Cannot improve/).first()).toBeVisible();
   }
@@ -179,4 +177,111 @@ test('?v2 Auto-Cull says it is part of Pro on the Free plan and changes nothing'
   await root.getByRole('button', { name: /Auto-Cull/ }).first().click();
   await expect(root.getByText('Auto-cull is part of InFlight Pro.')).toBeVisible();
   await expect(root.getByRole('button', { name: /^Unflag / })).toHaveCount(0);
+});
+
+test('?v2 marks Pro features with the Pro badge, and leaves Basic features unmarked', async ({ page }) => {
+  await page.goto('/?v2&stub=1');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: /Scottish Highlands/ }).first().click();
+  // Auto-Cull is Pro: the badge is the word "Pro" in the brand badge, with the same words for screen readers.
+  const autoCull = root.getByRole('button', { name: /Auto-Cull/ }).first();
+  await expect(autoCull.getByText('Part of InFlight Pro')).toHaveCount(1);
+  // Dark and light versions of the brand badge are both in the page; the theme shows one.
+  await expect(autoCull.locator('img.v2-pro-dark, img.v2-pro-light')).toHaveCount(2);
+  await expect(autoCull.locator('img.v2-pro-dark')).toBeVisible();
+  // Import is Basic: no badge.
+  await expect(root.getByRole('button', { name: /^Import/ }).first().getByText('Part of InFlight Pro')).toHaveCount(0);
+  // Deep Vision (online AI) is Pro too.
+  await root.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
+  await expect(root.getByRole('button', { name: /Deep Vision Review/ }).getByText('Part of InFlight Pro')).toHaveCount(1);
+});
+
+test('?v2 chrome: icons load, no File/Edit/View or mode switch in the header, the mode shows as a flag and is set in Settings', async ({ page }) => {
+  const missing: string[] = [];
+  page.on('response', (response) => { if (response.url().includes('/v2-icons/') && response.status() >= 400) missing.push(response.url()); });
+  await page.goto('/?v2&stub=1');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: /Scottish Highlands/ }).first().click();
+  const header = root.getByRole('banner');
+  await expect(header.getByRole('navigation', { name: 'Application menus' })).toHaveCount(0);
+  await expect(header.getByRole('radiogroup', { name: /assist mode/i })).toHaveCount(0);
+  await expect(header.getByRole('button', { name: 'Back to projects' })).toBeVisible();
+  // Assist and Co-pilot are one tool: there is no separate Assist in the rail.
+  const rail = root.getByRole('complementary', { name: 'Studio tools' });
+  await expect(rail.getByRole('button', { name: /^Assist/ })).toHaveCount(0);
+  // The flag says which mode is on; Settings changes it.
+  const flag = root.getByTestId('mode-flag');
+  await expect(flag).toContainText('Co-pilot');
+  await flag.click();
+  await root.getByRole('button', { name: 'Auto-pilot', exact: true }).click();
+  await root.getByRole('button', { name: 'Close settings' }).click().catch(() => page.keyboard.press('Escape'));
+  await expect(flag).toContainText('Auto-pilot');
+  // Tasks sit at the bottom with a count in a progress ring.
+  await expect(root.getByTestId('tasks-wheel')).toBeVisible();
+  await page.waitForTimeout(500);
+  expect(missing, `icons that did not load: ${missing.join(', ')}`).toEqual([]);
+});
+
+test('?v2 font picker: favourites shown in their own typeface, a sample of real text, and fonts added from the device', async ({ page }) => {
+  await page.goto('/?v2&stub=1&autostart=1');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
+  await root.getByRole('button', { name: 'Plus Jakarta Sans' }).first().click();
+  const list = root.getByRole('listbox', { name: 'Fonts' });
+  await expect(list.getByText('Our favourites')).toBeVisible();
+  // Each favourite is drawn in its own font, and the font is actually loaded (bundled, so it works offline).
+  const loaded = await page.evaluate(async () => {
+    await document.fonts.ready;
+    return ['Playfair Display', 'Oswald', 'Caveat Script'.replace(' Script', ''), 'Lora', 'JetBrains Mono'].map((name) => document.fonts.check(`16px "${name}"`));
+  });
+  expect(loaded.every(Boolean)).toBe(true);
+  await expect(list.getByRole('button', { name: /Playfair Display/ })).toHaveCSS('font-family', /Playfair Display|sans-serif/);
+  const family = await list.getByText('Playfair Display', { exact: true }).evaluate((el) => getComputedStyle(el).fontFamily);
+  expect(family).toContain('Playfair Display');
+  // The chosen font shows a sample of what the row will say.
+  await list.getByRole('button', { name: /Oswald/ }).click();
+  await expect(root.getByTestId('font-sample').first()).toHaveCSS('font-family', /Oswald/);
+  // Add a font from this device: search by name, see it in its typeface, add it, find it under "On this device".
+  await root.getByRole('button', { name: /Oswald/ }).first().click();
+  await root.getByRole('button', { name: 'Add a font from this device' }).click();
+  await root.getByRole('searchbox', { name: /Search the fonts on this device/ }).fill('fut');
+  await root.getByRole('button', { name: /Futura/ }).click();
+  await expect(root.getByRole('listbox', { name: 'Fonts' }).getByText('On this device').first()).toBeVisible();
+  await expect(root.getByRole('listbox', { name: 'Fonts' }).getByRole('button', { name: /Futura/ }).first()).toBeVisible();
+});
+
+test('?v2 on the Free plan the text overlay shows the Pro badge instead of its controls', async ({ page }) => {
+  // Saving overlays with the photo is covered by the unit tests (overlayOps); the Pro path needs a licence (see #867 note).
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Overlay lock check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const image = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 200; c.height = 140; const x = c.getContext('2d')!; x.fillStyle = '#586b82'; x.fillRect(0, 0, 200, 140); return c.toDataURL('image/png').split(',')[1]; });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'ov-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
+  await expect(root.getByText(/Part of InFlight Pro\. Basic keeps/).first()).toBeVisible();
+});
+
+test('?v2 shows the engine ranking as a word, and says "Not ranked yet" rather than guessing', async ({ page }) => {
+  await page.goto('/?v2&stub=1&autostart=1');
+  const root = page.locator('.inflight-v2');
+  await expect(root.getByTestId('tier-badge').first()).toBeVisible();
+  await expect(root.getByTestId('tier-badge').filter({ hasText: /^Best$/ }).first()).toBeVisible();
+  // The real catalogue has no engine ranking wired yet: a photo shows "Not ranked yet", never a made-up tier.
+  await page.goto('/?v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Rank check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const image = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 200; c.height = 140; const x = c.getContext('2d')!; x.fillStyle = '#586b82'; x.fillRect(0, 0, 200, 140); return c.toDataURL('image/png').split(',')[1]; });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'rk-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  await expect(root.getByTestId('tier-badge')).toHaveCount(0);
+  await root.getByRole('button', { name: 'Info', exact: true }).first().click();
+  await expect(root.getByText('Not ranked yet')).toBeVisible();
 });
