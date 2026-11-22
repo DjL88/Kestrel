@@ -99,3 +99,35 @@ test('Pro: Auto-Cull scores the photos on this device and never rejects', async 
   await expect(root.getByText(/Auto-cull looked at 4 photos/)).toBeVisible({ timeout: 90000 });
   await expect(root.getByText(/were rejected|has been rejected/)).toHaveCount(0);
 });
+
+test('Pro: the text overlay is drawn into the exported file, and left out when the export asks for no overlay', async ({ page }) => {
+  const root = await openProject(page, 'Overlay export check', '#586b82');
+  await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
+  await root.locator('div').filter({ hasText: /^Show text overlay on this photo/ }).getByRole('switch').first().click();
+  const exportOnce = async (withOverlay: boolean) => {
+    await root.getByRole('button', { name: /^Export/ }).first().click();
+    const dialog = page.getByRole('dialog', { name: /export/i });
+    const sizes = dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]');
+    const names = await sizes.allTextContents();
+    for (const name of names.slice(1)) await dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]', { hasText: name }).first().click();
+    if (!withOverlay) await dialog.getByRole('button', { name: 'With text overlay' }).first().click();
+    const downloading = page.waitForEvent('download', { timeout: 60000 });
+    await dialog.getByRole('button', { name: /export bundle/i }).click();
+    const download = await downloading;
+    const { readFileSync } = await import('node:fs');
+    const base64 = readFileSync(await download.path()).toString('base64');
+    await dialog.getByRole('button', { name: 'Close export dialog' }).click();
+    // Count pixels that are clearly not the plain photo colour.
+    return page.evaluate(async (data) => {
+      const bitmap = await createImageBitmap(await (await fetch(`data:image/jpeg;base64,${data}`)).blob());
+      const canvas = document.createElement('canvas'); canvas.width = bitmap.width; canvas.height = bitmap.height;
+      const ctx = canvas.getContext('2d')!; ctx.drawImage(bitmap, 0, 0);
+      const px = ctx.getImageData(0, 0, bitmap.width, bitmap.height).data;
+      let different = 0;
+      for (let i = 0; i < px.length; i += 4) if (Math.abs(px[i] - 0x58) + Math.abs(px[i + 1] - 0x6b) + Math.abs(px[i + 2] - 0x82) > 60) different += 1;
+      return different;
+    }, base64);
+  };
+  expect(await exportOnce(true)).toBeGreaterThan(200);
+  expect(await exportOnce(false)).toBeLessThan(20);
+});

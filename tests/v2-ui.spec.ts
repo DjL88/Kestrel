@@ -510,3 +510,54 @@ test('?v2 overlay panel: clear on/off toggle that greys the controls until on, p
   await root.getByRole('tab', { name: /Appearance/ }).click();
   await expect(root.getByText(/comfortable|compact/i)).toHaveCount(0);
 });
+
+test('?v2 export draws the size copy as the canvas shows it: capped at the picture, flipped when the format is flipped', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Real export check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  // A 2:1 picture, red on the left and blue on the right, so a crop, a flip and the size cap are all visible in the file.
+  const image = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 2000; canvas.height = 1000;
+    const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#d02020'; ctx.fillRect(0, 0, 1000, 1000);
+    ctx.fillStyle = '#2020d0'; ctx.fillRect(1000, 0, 1000, 1000);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'export-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  await expect(root.getByTestId('canvas-frame').locator('canvas, img').first()).toBeVisible({ timeout: 30000 });
+  // The flip applies to the format on the canvas: remember which one that is and export only it.
+  const shown = ((await root.getByTestId('canvas-frame').locator('xpath=../../div[1]/span[1]').textContent()) ?? '').trim();
+  expect(shown).not.toBe('');
+  await root.getByRole('button', { name: 'Flip horizontally' }).click();
+  await root.getByRole('button', { name: /^Export/ }).first().click();
+  const dialog = page.getByRole('dialog', { name: /export/i });
+  // Keep one format: the one that was flipped.
+  const sizes = dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]');
+  // The list shrinks as formats are switched off, so read every name first.
+  const names = (await sizes.allTextContents()).filter((text) => !text.includes(shown));
+  for (const name of names) await dialog.locator('.grid.grid-cols-2 button[aria-pressed="true"]', { hasText: name }).first().click();
+  const downloading = page.waitForEvent('download', { timeout: 60000 });
+  await dialog.getByRole('button', { name: /export bundle/i }).click();
+  const download = await downloading;
+  expect(download.suggestedFilename()).toMatch(/\.jpg$/);
+  const path = await download.path();
+  const { readFileSync } = await import('node:fs');
+  const base64 = readFileSync(path).toString('base64');
+  const result = await page.evaluate(async (data) => {
+    const bitmap = await createImageBitmap(await (await fetch(`data:image/jpeg;base64,${data}`)).blob());
+    const canvas = document.createElement('canvas'); canvas.width = bitmap.width; canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d')!; ctx.drawImage(bitmap, 0, 0);
+    const at = (x: number) => Array.from(ctx.getImageData(Math.round(bitmap.width * x), Math.round(bitmap.height / 2), 1, 1).data.slice(0, 3));
+    return { width: bitmap.width, height: bitmap.height, left: at(0.25), right: at(0.75) };
+  }, base64);
+  // The picture is 2000 x 1000: whatever the format asks for, the file is never larger than the picture can fill.
+  expect(result.width).toBeLessThanOrEqual(2000);
+  expect(result.height).toBeLessThanOrEqual(1000);
+  // Flipped: the left of the file is blue, the right is red.
+  expect(result.left[2]).toBeGreaterThan(result.left[0] + 80);
+  expect(result.right[0]).toBeGreaterThan(result.right[2] + 80);
+});

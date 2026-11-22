@@ -37,8 +37,11 @@ import { frameToPhoto, shootToProject, taskToInfo, visibleTasks, type AssistStat
 import { runAuto } from './runAuto';
 import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
-import { archiveExports, downloadExport, loadExportSource, renderExport } from '../../providers/browserExport';
-import { framingFor, toProfile } from '../../core/exportFormats';
+import { archiveExports, downloadExport, loadExportSource } from '../../providers/browserExport';
+import { toProfile } from '../../core/exportFormats';
+import { renderV2Export, type OverlayDraw } from './renderV2Export';
+import { formatOverlayRowText } from '../ui/utils/studioMath';
+import { loadImage } from '../../providers/loadImage';
 import { uniqueExportFilename } from '../../core/exportNaming';
 import { exportMayContinue } from '../../core/exportCancellation';
 import type { ExportRequest } from '../ui/contract';
@@ -53,6 +56,28 @@ const NOT_CONNECTED = [
   'updateVideoZoom', 'addMaskLayer', 'toggleMaskLayer', 'removeMaskLayer',
   'reconnectOriginal',
 ] as const satisfies readonly (keyof WorkspaceActions)[];
+
+/** What the export needs to draw the overlay exactly as the canvas does, read from the latest render. */
+interface ExportEnv { fonts: ReturnType<typeof mergeFonts>; presets: WatermarkPreset[]; auto: Record<string, 'light-on-dark' | 'dark-on-light'>; textAllowed: boolean; markAllowed: boolean }
+
+async function buildOverlayDraw(frame: PhotoFrame, request: ExportRequest, env: ExportEnv): Promise<OverlayDraw | null> {
+  const overlay = readOverlay(frame.overlay);
+  const text = request.includeOverlay && overlay.textEnabled && env.textAllowed && overlay.rows.length > 0;
+  const preset = env.presets.find((candidate) => candidate.id === overlay.watermarkPresetId) ?? env.presets[0];
+  const mark = request.includeWatermark && overlay.watermarkEnabled && env.markAllowed && !!preset;
+  if (!text && !mark) return null;
+  const photo = frameToPhoto(frame, undefined, {});
+  const contrast = overlay.watermarkContrast === 'auto' ? env.auto[frame.id] ?? 'light-on-dark' : overlay.watermarkContrast;
+  const fallbackFamily = getComputedStyle(document.documentElement).getPropertyValue('--font-sans').trim() || 'sans-serif';
+  const imageUrl = preset?.kind === 'image'
+    ? (contrast === 'light-on-dark' ? preset.forDarkUrl ?? preset.forLightUrl : preset.forLightUrl ?? preset.forDarkUrl)
+    : undefined;
+  return {
+    overlay, text, watermark: mark, contrast,
+    rows: overlay.rows.map((row) => ({ text: formatOverlayRowText(row, photo) || 'Custom caption', family: env.fonts.find((font) => font.id === row.fontId)?.family ?? fallbackFamily, weight: row.weight, sizePx: row.sizePx, letterSpacing: row.letterSpacing })),
+    mark: !mark || !preset ? null : imageUrl ? { kind: 'image', image: await loadImage(imageUrl) } : { kind: 'text', text: preset.text, ...(preset.subtext ? { subtext: preset.subtext } : {}) },
+  };
+}
 
 const THUMBNAIL_WORKERS = 4;
 
@@ -143,6 +168,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [importing, setImporting] = useState(false);
   const stateRef = useRef<CullingState | null>(null);
   stateRef.current = state;
+  const exportEnv = useRef<ExportEnv>({ fonts: [], presets: [], auto: {}, textAllowed: false, markAllowed: false });
   useEffect(() => { surfaceBridge.set(state?.frames ?? [], provider.current); }, [state?.frames]);
   const importController = useRef<AbortController | null>(null);
   const taskList = useSyncExternalStore(tasks.subscribe, tasks.list, tasks.list);
@@ -296,6 +322,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const task = tasks.start(`Exporting ${plan.summary}`, { total: plan.jobs.length, cancel: () => controller.abort() });
     const output: File[] = [];
     const used = new Set<string>();
+    let cappedCount = 0;
     const started = new Date();
     try {
       for (const job of plan.jobs) {
@@ -303,7 +330,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         const frame = current.frames.find((candidate) => candidate.id === job.frameId);
         if (!frame) continue;
         const image = await loadExportSource(frame, provider.current!);
-        const rendered = await renderExport(image, frame, toProfile(job.format), started, controller.signal, framingFor(job.format.fit));
+        const env = exportEnv.current;
+        const overlayDraw = await buildOverlayDraw(frame, request, env);
+        const { file: rendered, capped } = await renderV2Export(image, frame, job.size, job.crop, toProfile(job.format), overlayDraw, started, controller.signal);
+        if (capped) cappedCount += 1;
         const name = uniqueExportFilename(rendered.name, used);
         output.push(name === rendered.name ? rendered : new File([rendered], name, { type: rendered.type, lastModified: rendered.lastModified }));
         task.progress(output.length);
@@ -312,7 +342,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (request.destination === 'local-zip' && output.length > 1) downloadExport(await archiveExports(output), `inflight-export-${started.toISOString().slice(0, 10)}.zip`);
       else for (const file of output) downloadExport(file, file.name);
       task.finish(`Exported ${output.length} file${output.length === 1 ? '' : 's'}`);
-      setNotice(`Exported ${plan.summary}. Your originals are unchanged.`);
+      setNotice(`Exported ${plan.summary}.${cappedCount ? ` ${cappedCount} ${cappedCount === 1 ? 'file is' : 'files are'} smaller than the size asked for, because the photo has fewer pixels.` : ''} Your originals are unchanged.`);
     } catch (reason) {
       if (!controller.signal.aborted && !task.cancelled) { const message = reason instanceof Error ? reason.message : 'Export failed.'; task.fail(message); setNotice(message); }
     } finally {
@@ -688,6 +718,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [stub.actions, stub.store.looks, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
 
+  exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id] })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes]);
   const store: WorkspaceStore = useMemo(() => ({
     ...stub.store,
