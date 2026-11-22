@@ -14,6 +14,7 @@ import { scanOriginalFolder, matchScannedOriginals } from './providers/nativeOri
 import { splitDropped } from './core/dropSplit';
 import { useAccess } from './providers/useAccess';
 import { loadLicence } from './providers/licenceStore';
+import { loadPublicFlags } from './providers/featureFlagsStore';
 import { startModelUpdates } from './providers/modelUpdater';
 import { setLandscapeAllowed } from './providers/orientationLock';
 import { PaidNotice } from './components/PaidNotice';
@@ -163,7 +164,7 @@ export default function App() {
   const [syncOpen, setSyncOpen] = useState(false);
   const [locationsOpen, setLocationsOpen] = useState(false);
   const [watchOpen, setWatchOpen] = useState(false);
-  useEffect(() => { void loadLicence(); startModelUpdates(); }, []);
+  useEffect(() => { void loadLicence(); void loadPublicFlags(); startModelUpdates(); }, []);
   const [paidDialog, setPaidDialog] = useState<string | null>(null);
   useDesktopMenu();
   const storeRef = useRef<BrowserCatalogueStore | null>(null);
