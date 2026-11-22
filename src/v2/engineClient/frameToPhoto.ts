@@ -4,6 +4,7 @@ import type { Photo, Project, TaskInfo, TileState } from '../ui/contract';
 import { createDefaultSizes, createEditGroups } from '../ui/stub';
 import { editToRecipe } from './recipeMap';
 import { readOverlay } from './overlayOps';
+import { masksToLayers } from './maskOps';
 import { readCrops } from './cropOps';
 import type { AutoRun } from './runAuto';
 import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contract';
@@ -106,7 +107,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     editGroups: groups,
     sizes: createDefaultSizes().map((size) => { const crop = crops[size.id]; return crop ? { ...size, crop } : size; }),
     videoZoom: { enabled: false, focalX: 50, focalY: 50, direction: 'in', durationSec: 6 },
-    masks: [],
+    masks: masksToLayers(frame.edit?.masks),
     ...(watermarkAuto ? { watermarkAuto } : {}),
     ...(histogram ? { histogram } : {}),
     assistCritique: assistCritiqueFor(assist),
