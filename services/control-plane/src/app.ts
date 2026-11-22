@@ -182,6 +182,10 @@ export const Schemas = {
   AdminModel: z.object({
     id: z.string(), kind: z.enum(['onnx', 'species-library', 'equipment']), version: z.string(), path: z.string(),
     sha256: Hex64, bytes: z.number().int().positive(), requiredAppMin: Version.default('0.0.0'), channel: z.enum(['stable', 'beta']).default('stable'),
+    /** What the model does for the app (inputs, outputs, labels). Required for ONNX: the app only swaps a slot with an unchanged contract. */
+    contract: z.string().max(80).optional(),
+    /** The rights record for this exact version. Required for ONNX. Never stored in Git; weights are not either. */
+    licence: z.object({ spdx: z.string().min(1).max(64), sourceUrl: z.string().url().max(300).startsWith('https://'), noticePath: z.string().max(180).optional(), rightsConfirmed: z.boolean() }).strict().optional(),
   }).strict(),
   AdminPromote: z.object({ id: z.string(), version: z.string(), channel: z.enum(['stable', 'beta']).default('stable') }).strict(),
   AdminRelease: z.object({ platform: z.enum(['windows', 'macos']), channel: z.enum(['stable', 'beta']).default('stable'), version: Version, url: z.string().url(), notes: z.string().max(4000).default(''), minSupported: Version.default('0.0.0') }).strict(),
@@ -370,10 +374,21 @@ export function createApp(options: AppOptions) {
     return { flags: resolveFlagsForGrant(flags, { audience, nowMs, bucket, appVersion }) };
   }
 
+  // Contract and licence per model version live in one settings document (works on SQLite and Firestore alike).
+  const MODEL_META_SETTING = 'model_meta';
+  type ModelMeta = Record<string, { contract?: string; licence?: { spdx: string; sourceUrl: string; noticePath?: string; rightsConfirmed: true; recordedAtMs: number } }>;
+  async function loadModelMeta(): Promise<ModelMeta> {
+    try { return JSON.parse((await store.getSetting(MODEL_META_SETTING)) ?? '{}') as ModelMeta; } catch { return {}; }
+  }
+
   async function currentManifest(appVersion: string, channel: string): Promise<DataManifest> {
     const rows = await store.listLiveModelAssets(channel);
+    const meta = await loadModelMeta();
     const assets = rows.filter((row) => versionAtLeast(appVersion, row.requiredAppMin))
-      .map((row) => ({ id: row.assetId, kind: row.kind, version: row.version, path: row.path, bytes: row.bytes, sha256: row.sha256 }));
+      .map((row) => {
+        const contract = meta[`${row.assetId}@${row.version}`]?.contract;
+        return { id: row.assetId, kind: row.kind, version: row.version, path: row.path, bytes: row.bytes, sha256: row.sha256, ...(contract ? { contract } : {}) };
+      });
     const manifest = parseDataManifest({ schema: 1, revision: Number((await store.getSetting(`manifest_revision_${channel}`)) ?? 1), assets });
     if (!manifest) throw new ApiError(500, 'MANIFEST_INVALID', 'The model registry is in an invalid state.');
     return manifest;
@@ -990,12 +1005,35 @@ export function createApp(options: AppOptions) {
           await audit(claims.sub, 'model.register', 'denied', `invalid asset ${JSON.stringify(body.id).slice(0, 80)}`);
           throw new ApiError(400, 'ASSET_INVALID', 'Asset id, version or path is not allowed (paths must be /data/..., with no ".." or absolute paths).');
         }
+        const metaKey = `${body.id}@${body.version}`;
+        if (body.kind === 'onnx') {
+          if (!body.contract) throw new ApiError(400, 'MODEL_CONTRACT_REQUIRED', 'An ONNX model needs its contract (for example denoise-heavy/v1).');
+          if (!body.licence) throw new ApiError(400, 'MODEL_LICENCE_REQUIRED', 'An ONNX model needs a licence record: SPDX id, source URL and confirmation that you have the rights to publish it.');
+          if (body.licence.rightsConfirmed !== true) throw new ApiError(400, 'MODEL_LICENCE_REQUIRED', 'Confirm that you have the rights to publish this model.');
+        }
+        if (body.contract && !parseDataManifest({ schema: 1, revision: 1, assets: [{ id: body.id, kind: body.kind, version: body.version, path: body.path, bytes: body.bytes, sha256: body.sha256, contract: body.contract }] })) {
+          throw new ApiError(400, 'ASSET_INVALID', 'The contract is not allowed (use name/v1).');
+        }
         const inserted = await store.insertModelAsset({
           assetId: body.id, kind: body.kind, version: body.version, channel: body.channel, path: body.path, sha256: body.sha256,
           bytes: body.bytes, requiredAppMin: body.requiredAppMin, status: 'candidate', createdAtMs: now(),
         });
         if (!inserted) throw new ApiError(409, 'ASSET_EXISTS', 'That version is already registered. Give it a new version.');
-        return adminDone(claims, 'model.register', `${body.id}@${body.version} ${body.channel}`, { status: 'candidate' });
+        if (body.contract || body.licence) {
+          const meta = await loadModelMeta();
+          meta[metaKey] = { ...(body.contract ? { contract: body.contract } : {}), ...(body.licence ? { licence: { ...body.licence, rightsConfirmed: true as const, recordedAtMs: now() } } : {}) };
+          await store.setSetting(MODEL_META_SETTING, JSON.stringify(meta));
+        }
+        return adminDone(claims, 'model.register', `${metaKey} ${body.channel}${body.licence ? ` licence=${body.licence.spdx}` : ''}`, { status: 'candidate' });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/models/licences', summary: 'The licence record and contract of every registered model version', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'model.licences');
+        const meta = await loadModelMeta();
+        const licences = Object.fromEntries(Object.entries(meta).filter(([, v]) => v.licence).map(([k, v]) => [k, { ...v.licence, contract: v.contract }]));
+        return adminDone(claims, 'model.licences', '', { licences });
       },
     },
     {
@@ -1003,6 +1041,12 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         const claims = await admin(req, 'model.promote');
         const body = parseJson(Schemas.AdminPromote, req.rawBody);
+        const meta = await loadModelMeta();
+        const target = await store.getModelAsset(body.id, body.version, body.channel);
+        if (target?.kind === 'onnx' && !meta[`${body.id}@${body.version}`]?.licence) {
+          await audit(claims.sub, 'model.promote', 'denied', `${body.id}@${body.version} no licence record`);
+          throw new ApiError(409, 'MODEL_LICENCE_MISSING', 'This ONNX version has no licence record, so it cannot go live. Register a new version with one.');
+        }
         if (!(await store.promoteModelAsset(body.id, body.version, body.channel))) throw new ApiError(404, 'NOT_FOUND', 'No such model version.');
         return adminDone(claims, 'model.promote', `${body.id}@${body.version} ${body.channel}`, { live: true });
       },
