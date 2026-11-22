@@ -1,5 +1,5 @@
 /**
- * The few WASI functions Kite44's RAW WebAssembly (crates/kestrel-raw-wasm, built for wasm32-wasip1) imports: random
+ * The few WASI functions InFlight's RAW WebAssembly (crates/kestrel-raw-wasm, built for wasm32-wasip1) imports: random
  * bytes, the clock, an empty environment, and stderr. Nothing touches files or the network. A decoder panic writes its
  * message to stderr before stopping, so the message is kept and can be shown in plain words.
  */
@@ -88,7 +88,7 @@ interface RawExports {
 
 export type WasmSensorMode = 'nikon-he' | 'nikon-he-star' | 'other' | 'need-more';
 
-/** One instance of Kite44's RAW WebAssembly. After any failure that stopped the module, make a new one. */
+/** One instance of InFlight's RAW WebAssembly. After any failure that stopped the module, make a new one. */
 export interface RawWasm {
   develop(file: Uint8Array): Uint8Array;
   /** The full-size 16-bit picture: width and height (u32), then RGB samples (u16), all little-endian. */
@@ -122,7 +122,7 @@ export async function instantiateRawWasm(module: WebAssembly.Module): Promise<Ra
       // A trap ("unreachable") after a panic or a failed allocation: say which, in plain words.
       const stderr = shim.stderr();
       if (/memory allocation of \d+ bytes failed/.test(stderr) || error instanceof RangeError) {
-        throw new Error('This device ran out of room to develop this RAW file. Kite44 keeps using the preview stored in the file.', { cause: error });
+        throw new Error('This device ran out of room to develop this RAW file. InFlight keeps using the preview stored in the file.', { cause: error });
       }
       const said = stderr.split('\n').find((line) => line.includes('panicked'))?.replace(/^.*panicked at [^:]*:\d+:\d+:\s*/, '');
       throw new Error(said ? `This RAW file could not be read: ${said}` : 'This RAW file could not be read.', { cause: error });

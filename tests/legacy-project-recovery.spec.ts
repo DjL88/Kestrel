@@ -9,7 +9,7 @@ test('deleting the final project cannot resurrect an obsolete recovery snapshot 
   await page.getByRole('button', { name: 'Back to projects' }).click();
   await expect(page.getByRole('button', { name: /Do not restore/ }).first()).toBeVisible();
 
-  // Simulate the recovery data produced by an older Kite44 build.
+  // Simulate the recovery data produced by an older InFlight build.
   // The actual project record is copied so the snapshot is realistic.
   await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {

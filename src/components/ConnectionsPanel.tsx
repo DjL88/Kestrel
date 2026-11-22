@@ -79,12 +79,12 @@ export function ConnectionsPanel() {
     } else await checkConnection(id);
   }
 
-  /** Sign in once with the person's own account; Kestrel then only sees its own folder there. */
+  /** Sign in once with the person's own account; InFlight then only sees its own folder there. */
   async function addCloudDrive(kind: 'dropbox' | 'googledrive' | 'onedrive') {
     setNote(null); setBusy(kind);
     try {
       const tokens = await signInToCloudDrive(kind);
-      const created = addConnection(kind, label || CLOUD_DRIVES[kind].name, `${CLOUD_DRIVES[kind].name} · Kestrel folder`, { tokens });
+      const created = addConnection(kind, label || CLOUD_DRIVES[kind].name, `${CLOUD_DRIVES[kind].name} · InFlight folder`, { tokens });
       setAdding(null); setLabel('');
       await checkConnection(created.id);
     } catch (error) { setNote(error instanceof Error ? error.message : t.common.couldNotOpenFolder); }
@@ -161,7 +161,7 @@ export function ConnectionsPanel() {
           )}
           {isCloudDrive(adding) && (
             <div className="space-y-2">
-              <p className="text-xs text-zinc-400">Kestrel opens {CLOUD_DRIVES[adding].name}'s own sign-in page. It never sees your password, and can only see its own Kestrel folder, not the rest of your account.</p>
+              <p className="text-xs text-zinc-400">InFlight opens {CLOUD_DRIVES[adding].name}'s own sign-in page. It never sees your password, and can only see its own InFlight folder, not the rest of your account.</p>
               <button type="button" className={action} disabled={busy === adding} onClick={() => void addCloudDrive(adding)}>Sign in with {CLOUD_DRIVES[adding].name}</button>
             </div>
           )}

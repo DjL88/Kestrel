@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 pub const PORT: u16 = 53682;
 pub const CALLBACK_PATH: &str = "/oauth-callback";
-const PAGE: &str = "<!doctype html><html lang=\"en-GB\"><meta charset=\"utf-8\"><title>Kestrel</title><body style=\"font-family:system-ui,sans-serif;background:#111;color:#eee;display:grid;place-items:center;min-height:100vh;margin:0\"><p>You can close this tab and go back to Kestrel.</p></body></html>";
+const PAGE: &str = "<!doctype html><html lang=\"en-GB\"><meta charset=\"utf-8\"><title>InFlight</title><body style=\"font-family:system-ui,sans-serif;background:#111;color:#eee;display:grid;place-items:center;min-height:100vh;margin:0\"><p>You can close this tab and go back to InFlight.</p></body></html>";
 
 /// Listen on this computer only.
 pub fn bind(port: u16) -> std::io::Result<TcpListener> {

@@ -4,7 +4,7 @@ import type { source } from './source';
 /** Finnish. DRAFT: written without a native speaker's check. */
 export const fi: AreaTranslation<typeof source> = {
   title: 'Toinen mielipide omalta tekoälyltäsi',
-  intro: 'Vapaaehtoinen. Käytä omaa tekoälytiliäsi tai tällä tietokoneella olevaa mallia, niin se katsoo tämän kuvan värit ja valon. Kestrelin oma värintarkistus yllä toimii aina ilman sitä.',
+  intro: 'Vapaaehtoinen. Käytä omaa tekoälytiliäsi tai tällä tietokoneella olevaa mallia, niin se katsoo tämän kuvan värit ja valon. InFlightin oma värintarkistus yllä toimii aina ilman sitä.',
   ask: 'Kysy omalta tekoälyltäni',
   asking: 'Kysytään tekoälyltäsi…',
   cancel: 'Peruuta',
@@ -29,8 +29,8 @@ export const fi: AreaTranslation<typeof source> = {
   invalidBaseUrl: "Käytä etä-AI:lle HTTPS-yhteyttä tai tämän tietokoneen AI:lle osoitetta http://localhost. Älä lisää avaimia osoitteeseen.",
   save: 'Tallenna',
   consentTitle: 'Ennen kuin mitään lähetetään',
-  consentCloud: (host) => `Kite44 lähettää kopion tästä kuvasta, pisimmältä sivultaan 1 024 pikseliä, osoitteeseen ${host}. Siinä ei ole sijaintia, kameran tietoja eikä tiedoston nimeä. Palveluntarjoajasi voi veloittaa jokaisesta kysymyksestä.`,
-  consentLocal: (host) => `Kite44 lähettää kopion tästä kuvasta, pisimmältä sivultaan 1 024 pikseliä, tekoälylle osoitteessa ${host}, joka on tällä tietokoneella. Mitään ei lähde tietokoneeltasi.`,
+  consentCloud: (host) => `InFlight lähettää kopion tästä kuvasta, pisimmältä sivultaan 1 024 pikseliä, osoitteeseen ${host}. Siinä ei ole sijaintia, kameran tietoja eikä tiedoston nimeä. Palveluntarjoajasi voi veloittaa jokaisesta kysymyksestä.`,
+  consentLocal: (host) => `InFlight lähettää kopion tästä kuvasta, pisimmältä sivultaan 1 024 pikseliä, tekoälylle osoitteessa ${host}, joka on tällä tietokoneella. Mitään ei lähde tietokoneeltasi.`,
   agree: 'Hyväksyn',
   summary: 'Mitä tekoälysi sanoo',
   suggested: 'Ehdotetut muutokset',
@@ -51,7 +51,7 @@ export const fi: AreaTranslation<typeof source> = {
   errors: {
     setup: 'Tekoälyäsi ei ole vielä otettu käyttöön, tai suostumus puuttuu.',
     key: 'Tekoälysi mukaan avain on väärä tai sitä ei sallita. Tarkista se palveluntarjoajasi tililtä.',
-    offline: 'Olet offline-tilassa. Kestrelin oma värintarkistus toimii silti.',
+    offline: 'Olet offline-tilassa. InFlightin oma värintarkistus toimii silti.',
     timeout: 'Tekoälysi vastasi liian hitaasti. Yritä hetken päästä uudelleen.',
     refused: 'Tekoälysi kieltäytyi katsomasta tätä kuvaa.',
     unreadable: 'Tekoälysi vastausta ei voitu lukea, joten mitään ei muutettu.',

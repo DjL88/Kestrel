@@ -1,5 +1,5 @@
 /**
- * The contracts between the app and a future Kite44 backend. Nothing here talks to a network: the app ships with
+ * The contracts between the app and a future InFlight backend. Nothing here talks to a network: the app ships with
  * `OFFLINE_ACCOUNT` below, which is "signed out, Free, no cloud", and works fully with it. A real backend later
  * implements these without changing the offline app. See docs/BACKEND.md.
  */

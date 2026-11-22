@@ -7,7 +7,7 @@
 export interface JpegFacts {
   width: number;
   height: number;
-  /** An APP1 Exif or XMP segment is present. Kite44 only sends redrawn, metadata-free images. */
+  /** An APP1 Exif or XMP segment is present. InFlight only sends redrawn, metadata-free images. */
   hasMetadata: boolean;
 }
 

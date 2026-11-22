@@ -4,7 +4,7 @@ import type { source } from './source';
 /** Italian (tu). DRAFT: written without a native speaker's check. */
 export const it: AreaTranslation<typeof source> = {
   title: 'Un secondo parere dalla tua IA',
-  intro: 'Facoltativo. Usa il tuo account di IA, o un modello su questo computer, per far esaminare il colore e la luce di questa foto. Il controllo colore di Kite44, qui sopra, funziona sempre anche senza.',
+  intro: 'Facoltativo. Usa il tuo account di IA, o un modello su questo computer, per far esaminare il colore e la luce di questa foto. Il controllo colore di InFlight, qui sopra, funziona sempre anche senza.',
   ask: 'Chiedi alla mia IA',
   asking: 'Sto chiedendo alla tua IA…',
   cancel: 'Annulla',
@@ -29,8 +29,8 @@ export const it: AreaTranslation<typeof source> = {
   invalidBaseUrl: "Usa HTTPS per un’IA remota o http://localhost per un’IA su questo computer. Non inserire chiavi nell’indirizzo.",
   save: 'Salva',
   consentTitle: 'Prima di inviare qualsiasi cosa',
-  consentCloud: (host) => `Kite44 invierà a ${host} una copia di questa foto di 1024 pixel sul lato più lungo. Non contiene il luogo, i dati della fotocamera né il nome del file. Il tuo fornitore potrebbe addebitarti un costo per ogni domanda.`,
-  consentLocal: (host) => `Kite44 invierà una copia di questa foto di 1024 pixel sul lato più lungo all’IA su ${host}, che si trova su questo computer. Nulla esce dal tuo computer.`,
+  consentCloud: (host) => `InFlight invierà a ${host} una copia di questa foto di 1024 pixel sul lato più lungo. Non contiene il luogo, i dati della fotocamera né il nome del file. Il tuo fornitore potrebbe addebitarti un costo per ogni domanda.`,
+  consentLocal: (host) => `InFlight invierà una copia di questa foto di 1024 pixel sul lato più lungo all’IA su ${host}, che si trova su questo computer. Nulla esce dal tuo computer.`,
   agree: 'Accetto',
   summary: 'Cosa dice la tua IA',
   suggested: 'Modifiche suggerite',
@@ -51,7 +51,7 @@ export const it: AreaTranslation<typeof source> = {
   errors: {
     setup: 'La tua IA non è ancora configurata, oppure manca il consenso.',
     key: 'La tua IA dice che la chiave è sbagliata o non autorizzata. Controllala nell’account del tuo fornitore.',
-    offline: 'Sei offline. Il controllo colore di Kite44 funziona comunque.',
+    offline: 'Sei offline. Il controllo colore di InFlight funziona comunque.',
     timeout: 'La tua IA ci ha messo troppo a rispondere. Riprova tra un momento.',
     refused: 'La tua IA si è rifiutata di esaminare questa foto.',
     unreadable: 'Non è stato possibile leggere la risposta della tua IA, quindi non è stato cambiato nulla.',

@@ -74,7 +74,7 @@ export const fr: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Original indisponible — reconnectez son dossier ou son disque',
     previewUnavailable: 'Aperçu indisponible',
-    heifUndecodable: 'Kite44 n’a pas pu décoder cette photo HEIF. L’original n’est pas modifié.',
+    heifUndecodable: 'InFlight n’a pas pu décoder cette photo HEIF. L’original n’est pas modifié.',
   },
   info: {
     title: 'Infos photo',

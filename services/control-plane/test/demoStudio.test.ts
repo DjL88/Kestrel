@@ -17,7 +17,7 @@ test('owner controls private demo assets, explicit publication snapshots and del
       token: h.adminToken,
       body: {
         jpegBase64: bytes.toString('base64'),
-        title: 'Backlit robin', subject: 'European robin', credit: 'Kestrel owner', alt: 'A bird sitting on a tree branch',
+        title: 'Backlit robin', subject: 'European robin', credit: 'InFlight owner', alt: 'A bird sitting on a tree branch',
       },
     });
     assert.equal(created.status, 200, JSON.stringify(created.body));
@@ -33,7 +33,7 @@ test('owner controls private demo assets, explicit publication snapshots and del
     const framing = { ratio: 4/5, turns: 0, straighten: 0, x: 0.55, y: 0.47, size: 0.72 };
     const saved = await h.call('POST', '/v1/admin/demo/photos/' + id + '/save', {
       token: h.adminToken,
-      body: { revision: 1, title:'Robin portrait',subject:'European robin',credit:'Kestrel owner',alt:'Robin close-up',edit:recipe,framing },
+      body: { revision: 1, title:'Robin portrait',subject:'European robin',credit:'InFlight owner',alt:'Robin close-up',edit:recipe,framing },
     });
     assert.equal(saved.status, 200, JSON.stringify(saved.body));
     assert.equal(saved.body.revision, 2);
@@ -53,7 +53,7 @@ test('owner controls private demo assets, explicit publication snapshots and del
     // Owner saves a new recipe but the public snapshot must not change until Publish is chosen again.
     assert.equal((await h.call('POST', '/v1/admin/demo/photos/' + id + '/save', {
       token: h.adminToken,
-      body: { revision: 3, title:'Robin portrait',subject:'European robin',credit:'Kestrel owner',alt:'Robin close-up',
+      body: { revision: 3, title:'Robin portrait',subject:'European robin',credit:'InFlight owner',alt:'Robin close-up',
         edit: { ...recipe, shadows:1.6 }, framing },
     })).status, 200);
     assert.equal((await h.call('GET', '/v1/demo/photos')).body.photos[0].edit.shadows, 1.1);

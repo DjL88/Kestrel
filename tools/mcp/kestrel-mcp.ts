@@ -5,10 +5,10 @@ import { z } from 'zod';
 import { findPhotos, getEdit, getProject, listProjects, McpInputError, writeProposal } from './projects.ts';
 
 /**
- * Kite44 for AI assistants (Model Context Protocol), run on this computer by the assistant app.
+ * InFlight for AI assistants (Model Context Protocol), run on this computer by the assistant app.
  *   npx tsx tools/mcp/kestrel-mcp.ts <sync folder> [--allow-proposals]
- * It reads the project files Kite44 keeps in a sync folder. Read-only by default. With --allow-proposals it may also
- * leave suggestions in a separate proposals folder, which Kite44 shows for the person to accept. It never changes a
+ * It reads the project files InFlight keeps in a sync folder. Read-only by default. With --allow-proposals it may also
+ * leave suggestions in a separate proposals folder, which InFlight shows for the person to accept. It never changes a
  * project, touches photographs, or uses the network.
  */
 const args = process.argv.slice(2);
@@ -21,13 +21,13 @@ const server = new McpServer({ name: 'kestrel', version: '0.1.0' });
 const answer = async (work: () => Promise<unknown>) => {
   try { return { content: [{ type: 'text' as const, text: JSON.stringify(await work(), null, 2) }] }; }
   catch (error) {
-    const message = error instanceof McpInputError ? error.message : 'Something went wrong reading the Kite44 folder.';
+    const message = error instanceof McpInputError ? error.message : 'Something went wrong reading the InFlight folder.';
     return { isError: true, content: [{ type: 'text' as const, text: message }] };
   }
 };
 const readOnly = { readOnlyHint: true, destructiveHint: false, openWorldHint: false };
 
-server.registerTool('list_projects', { description: 'List the Kite44 projects in the sync folder, with how many photos are kept, rejected and still to review.', annotations: readOnly }, () => answer(() => listProjects(folder)));
+server.registerTool('list_projects', { description: 'List the InFlight projects in the sync folder, with how many photos are kept, rejected and still to review.', annotations: readOnly }, () => answer(() => listProjects(folder)));
 server.registerTool('get_project', { description: 'Summary of one project: title, when it was saved and the photo counts.', inputSchema: { project: z.string().describe('The project name from list_projects') }, annotations: readOnly }, ({ project }) => answer(() => getProject(folder, project)));
 server.registerTool('find_photos', {
   description: 'Find photos in a project by decision, rating, tag or whether they have been edited. Returns file names, decisions, ratings and tags (no pixels).',
@@ -38,7 +38,7 @@ server.registerTool('get_edit', { description: 'The edit settings (sliders, mask
 
 if (allowProposals) {
   server.registerTool('propose_changes', {
-    description: 'Suggest decisions, ratings or tags for photos. This only saves suggestions for the person to review in Kite44; nothing is changed. Give a short reason for each.',
+    description: 'Suggest decisions, ratings or tags for photos. This only saves suggestions for the person to review in InFlight; nothing is changed. Give a short reason for each.',
     inputSchema: { project: z.string(), changes: z.array(z.object({ photo: z.string(), decision: z.enum(['keep', 'reject', 'unreviewed']).optional(), rating: z.number().int().min(0).max(5).optional(), addTags: z.array(z.string()).optional(), reason: z.string() })).min(1).max(200) },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   }, ({ project, changes }) => answer(() => writeProposal(folder, project, changes)));

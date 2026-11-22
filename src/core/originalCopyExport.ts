@@ -6,7 +6,7 @@ import type { BrowserPreviewProvider } from '../providers/browserPreviewProvider
 export const BROWSER_ORIGINAL_ZIP_LIMIT = 128_000_000;
 
 /**
- * A source copy is NEVER rendered through Kite44's JPEG/PNG/RAW developing
+ * A source copy is NEVER rendered through InFlight's JPEG/PNG/RAW developing
  * pipeline. A File wrapper changes the safe destination name/timestamp only;
  * Blob bytes, embedded EXIF/GPS, format and compression are untouched.
  */

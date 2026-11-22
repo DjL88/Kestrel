@@ -14,7 +14,7 @@ export function originalRecoveryMessage(state: OriginalPathState): OriginalRecov
     case 'missing':
       return { title: 'Find original folder', detail: 'This photo may have moved. Choose its folder to reconnect it without changing your edits.', action: 'locate-folder' };
     case 'permission-denied':
-      return { title: 'Allow folder access', detail: 'Kite44 can see the saved location but cannot read it. Check folder permissions, then try again.', action: 'grant-access' };
+      return { title: 'Allow folder access', detail: 'InFlight can see the saved location but cannot read it. Check folder permissions, then try again.', action: 'grant-access' };
     case 'unavailable':
       return { title: 'Original temporarily unavailable', detail: 'The drive or network location may be disconnected. Reconnect it to continue editing the original.', action: 'check-drive' };
   }

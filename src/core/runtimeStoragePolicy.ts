@@ -23,7 +23,7 @@ export function detectRuntime(signals: RuntimeSignals): KestrelRuntime {
 }
 
 export interface OriginalAccessPolicy {
-  /** How Kite44 opens the original, not how a thumbnail is rendered. */
+  /** How InFlight opens the original, not how a thumbnail is rendered. */
   mode: 'native-path' | 'user-granted-file' | 'explicit-remote';
   retainOriginalInPlace: boolean;
   automaticUpload: false;

@@ -30,7 +30,7 @@ test('the not-confident wording is used only for photos an automatic scan actual
     id, stableKey: id, filename: id, sequenceIndex: 1, decision, burstGroupId: null, burstIndex: 1, burstCount: 1,
     exif: {}, isDemo: false, sourceKind: 'file' as const, ...extra,
   });
-  // Decided by hand, Auto-cull never ran: Kite44 made no judgement.
+  // Decided by hand, Auto-cull never ran: InFlight made no judgement.
   assert.equal(remainingWereScanned([frame('a', 'keep'), frame('b', 'unreviewed')]), false);
   // A scan looked at the photo and left it: honest to say it wasn't confident.
   assert.equal(remainingWereScanned([frame('a', 'keep'), frame('b', 'unreviewed', { cullConfidence: 'low' })]), true);

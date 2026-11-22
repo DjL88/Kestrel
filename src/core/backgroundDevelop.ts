@@ -3,7 +3,7 @@ import { isRawPreviewFile } from './rawFormats';
 import type { PhotoFrame } from './types';
 
 /**
- * Developing every RAW in the background, so the library, culling and the editor show Kite44's own develop rather than
+ * Developing every RAW in the background, so the library, culling and the editor show InFlight's own develop rather than
  * the camera's embedded JPEG. Pure scheduling; the work itself is in src/providers.
  */
 

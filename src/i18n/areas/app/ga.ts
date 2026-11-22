@@ -67,7 +67,7 @@ export const ga: AreaTranslation<typeof source> = {
     addFailed: 'Níorbh fhéidir na grianghraif a chur leis.',
     stoppedUnfinished: 'Stopadh sular chríochnaigh sé',
     findingPhotos: 'Ag aimsiú grianghraf san fhillteán',
-    developingRaw: 'Ag forbairt comhad RAW le Kite44',
+    developingRaw: 'Ag forbairt comhad RAW le InFlight',
     developStopped: 'Stopadh; coinníonn na grianghraif eile réamhamharc an cheamara.',
     developed: (count) => `${count} forbartha`,
   },
@@ -80,7 +80,7 @@ export const ga: AreaTranslation<typeof source> = {
     addFailed: 'Níorbh fhéidir na grianghraif a chur leis. Bain triail as na comhaid a roghnú arís.',
     noSupportedPhotos: 'Níl aon ghrianghraf a dtacaítear leis san fhillteán seo.',
     folderUnreadable: 'Níorbh fhéidir an fillteán sin a léamh.',
-    oneFolderPerProject: 'Coinnigh gach fillteán ina thionscadal féin ionas gur féidir le Kite44 é a athcheangal go sábháilte.',
+    oneFolderPerProject: 'Coinnigh gach fillteán ina thionscadal féin ionas gur féidir le InFlight é a athcheangal go sábháilte.',
     folderAddFailed: 'Níorbh fhéidir an fillteán a chur leis. Bain triail as é a roghnú arís.',
     folderUnreadableTryFiles: 'Níorbh fhéidir an fillteán a léamh. Bain triail as comhaid a roghnú.',
   },
@@ -107,7 +107,7 @@ export const ga: AreaTranslation<typeof source> = {
     status: (folder, count) => `Ag faire ar “${folder}” · cuireadh ${photos(count)} nua leis`,
   },
   paid: {
-    dialogLabel: (feature) => `Is cuid de Kite44 Pro é ${feature}`,
+    dialogLabel: (feature) => `Is cuid de InFlight Pro é ${feature}`,
     autoCullPitch: 'Cabhair chun do ghrianghraif is fearr a roghnú.',
     close: 'Dún',
   },
@@ -122,8 +122,8 @@ export const ga: AreaTranslation<typeof source> = {
   },
   notices: {
     temporaryOriginals: (count) => plural(count, {
-      one: 'Níorbh fhéidir le Kite44 bunleagan amháin a stóráil le hathoscailt. Is féidir leat é a úsáid anois. Coinnigh do chomhad bunaidh: b’fhéidir go mbeidh ort é a roghnú arís tar éis athoscailte. Ní chuimsíonn cúltacaí tionscadail na grianghraif bhunaidh.',
-      other: `Níorbh fhéidir le Kite44 ${count} bunleagan a stóráil le hathoscailt. Is féidir leat iad a úsáid anois. Coinnigh do chomhaid bhunaidh: b’fhéidir go mbeidh ort iad a roghnú arís tar éis athoscailte. Ní chuimsíonn cúltacaí tionscadail na grianghraif bhunaidh.`,
+      one: 'Níorbh fhéidir le InFlight bunleagan amháin a stóráil le hathoscailt. Is féidir leat é a úsáid anois. Coinnigh do chomhad bunaidh: b’fhéidir go mbeidh ort é a roghnú arís tar éis athoscailte. Ní chuimsíonn cúltacaí tionscadail na grianghraif bhunaidh.',
+      other: `Níorbh fhéidir le InFlight ${count} bunleagan a stóráil le hathoscailt. Is féidir leat iad a úsáid anois. Coinnigh do chomhaid bhunaidh: b’fhéidir go mbeidh ort iad a roghnú arís tar éis athoscailte. Ní chuimsíonn cúltacaí tionscadail na grianghraif bhunaidh.`,
     }),
     dismiss: 'Dún',
   },
@@ -196,7 +196,7 @@ export const ga: AreaTranslation<typeof source> = {
     remove: {
       title: 'Bain den leabharlann?',
       confirm: 'Bain den leabharlann',
-      disappears: (name) => `Imeoidh ${name} as amhairc, comhairimh agus easpórtálacha Kite44.`,
+      disappears: (name) => `Imeoidh ${name} as amhairc, comhairimh agus easpórtálacha InFlight.`,
       thisPhoto: 'an grianghraf seo',
       notDeleted: 'Ní scriostar do chomhad bunaidh.',
       bringBack: 'Is féidir leat é a thabhairt ar ais ó Roghanna an spáis oibre, Grianghraif bainte, nó le Cealaigh.',
@@ -204,7 +204,7 @@ export const ga: AreaTranslation<typeof source> = {
     autoAdjustKeepers: {
       title: 'Coigeartaigh go huathoibríoch grianghraif le coinneáil nach bhfuil curtha in eagar?',
       confirm: 'Coigeartaigh grianghraif le coinneáil',
-      what: 'Déanfaidh Kite44 anailís ar an ngléas seo ar gach grianghraf le coinneáil nach bhfuil curtha in eagar agus coigeartóidh sé a sholas, a dhath agus a thon. Ní athraítear grianghraif atá curtha in eagar cheana.',
+      what: 'Déanfaidh InFlight anailís ar an ngléas seo ar gach grianghraf le coinneáil nach bhfuil curtha in eagar agus coigeartóidh sé a sholas, a dhath agus a thon. Ní athraítear grianghraif atá curtha in eagar cheana.',
       eligible: (count) => `Tá ${photos(count)} le coinneáil incháilithe. Is féidir an tasc a chealú. Ní chuirtear aon athrú i bhfeidhm go dtí go gcríochnaíonn an anailís.`,
       safe: 'Ní uaslódáiltear aon rud agus ní athraítear aon rud i do chomhaid bhunaidh. Is féidir leat an toradh a chealú do gach grianghraf.',
     },

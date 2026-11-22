@@ -100,6 +100,7 @@ import { LoupePreview } from './components/LoupePreview';
 import { MacroPadModal } from './components/MacroPadModal';
 import { OpenShootModal } from './components/OpenShootModal';
 import { TopWorkspaceBar } from './components/TopWorkspaceBar';
+import { HeaderLogo } from './components/BrandLogo';
 import { VirtualizedContactSheet } from './components/VirtualizedContactSheet';
 import {
   DEFAULT_KEEPER_TARGET,
@@ -1301,7 +1302,7 @@ export default function App() {
     }),
   });
 
-  // Every RAW is developed from its sensor data in the background, so the library shows Kite44's develop, not the
+  // Every RAW is developed from its sensor data in the background, so the library shows InFlight's develop, not the
   // camera's JPEG. Continue the queue while reviewing or editing; the selected image has its own priority.
   useBackgroundDevelop({
     projectId: cullingState.shoot.id, frames: cullingState.frames, provider: previewProviderRef.current,
@@ -1735,7 +1736,7 @@ export default function App() {
     } catch {
       task?.fail(t.tasks.addFailed);
       setProjectError(t.importing.addFailed);
-      if (options?.watched) throw new Error('Kite44 could not import the watched photos. They will be retried.');
+      if (options?.watched) throw new Error('InFlight could not import the watched photos. They will be retried.');
     } finally {
       // Only a failed/retired import still owns the optional model observer.
       // A successful import transferred it to background culling for safe drain.
@@ -2134,6 +2135,7 @@ export default function App() {
       <DropOverlay dragging={drop.dragging} message={drop.message} onDismiss={drop.clearMessage} />
       {prefs.focusMode ? null : editing ? (
         <header className="relative z-40 flex shrink-0 items-center gap-2 border-b border-white/10 bg-kestrel-panel px-2 py-1 sm:gap-3 sm:px-3">
+          <HeaderLogo />
           <button type="button" onClick={leaveEditor} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300" aria-label={t.header.back} title={t.header.backTitle}><ArrowLeft className="h-4 w-4" aria-hidden="true" />{t.header.back}</button>
           {/* The View menu is the only home for show/hide controls in Edit, just as in Review. */}
           <details data-phone-hidden className="relative shrink-0" onKeyDown={(event) => {

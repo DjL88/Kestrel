@@ -4,7 +4,7 @@
  * they have chosen a provider, entered its details and agreed to send a small preview there
  * (`AI_REVIEW_CONSENT_VERSION`); the preview carries no location, camera details or file name.
  *
- * Keys are kept on this device only, in Kite44's own storage. They are never put in a project backup.
+ * Keys are kept on this device only, in InFlight's own storage. They are never put in a project backup.
  *
  * Google Vertex AI was removed (21 Nov 2026): its standard endpoint (`aiplatform.googleapis.com`) rejects a
  * plain API key outright and needs a Google Cloud OAuth2 access token instead, which this hand-built request
@@ -153,7 +153,7 @@ async function send(url: string, init: RequestInit, signal?: AbortSignal, fetche
 /** Claude, through Anthropic's own SDK (loaded only when chosen), with structured output and refusal fallback. */
 async function askClaude(settings: AiProviderSettings, prompt: string, jpegBase64: string, signal?: AbortSignal): Promise<string> {
   const { default: Anthropic } = await import('@anthropic-ai/sdk');
-  // The person's own key, used from their own device: there is no Kite44 server in between.
+  // The person's own key, used from their own device: there is no InFlight server in between.
   const client = new Anthropic({ apiKey: settings.key.trim(), dangerouslyAllowBrowser: true, timeout: AI_REQUEST_TIMEOUT_MS, maxRetries: 1 });
   try {
     const response = await client.beta.messages.create({

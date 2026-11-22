@@ -1,4 +1,4 @@
-/** TrueDetail is a Kite44 Pro technology family, not a separate subscription.
+/** TrueDetail is an InFlight Pro technology family, not a separate subscription.
  *
  * Release status is intentionally independent of the signed offline licence:
  * paid entitlement NEVER implies that unfinished imaging code exists.
@@ -6,7 +6,7 @@
  * the implementation is verified and explicitly promoted to 'released'.
  */
 export const TRUEDETAIL = {
-  brand: 'Kite44 TrueDetail',
+  brand: 'InFlight TrueDetail',
   tagline: 'See the detail. Keep it real.',
   tier: 'paid',
   capabilities: {

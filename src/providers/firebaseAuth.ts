@@ -22,7 +22,7 @@ export function signInPlatform(): SignInPlatform {
 /** The Firebase code is loaded only when someone opens sign-in, so offline use and start-up never pay for it. */
 async function firebase() {
   const [{ initializeApp, getApps }, auth] = await Promise.all([import('firebase/app'), import('firebase/auth')]);
-  // Never attach Kite44 authentication to an unrelated Firebase app that another
+  // Never attach InFlight authentication to an unrelated Firebase app that another
   // optional service may have initialised first in this webview.
   const app = getApps().find((candidate) => candidate.name === 'kestrel-auth') ?? initializeApp(config, 'kestrel-auth');
   return { auth, instance: auth.getAuth(app) };
@@ -49,8 +49,8 @@ const friendly = (error: unknown): string => {
   if (code === 'auth/weak-password') return 'Choose a longer password (at least 6 characters).';
   if (code === 'auth/invalid-email') return 'That does not look like an email address.';
   if (code === 'auth/too-many-requests') return 'Too many attempts. Wait a few minutes and try again.';
-  if (code === 'auth/network-request-failed') return 'Could not reach the sign-in service. Check your connection; Kite44 still works offline.';
-  return 'Sign-in did not complete. Nothing changed and Kite44 still works without an account.';
+  if (code === 'auth/network-request-failed') return 'Could not reach the sign-in service. Check your connection; InFlight still works offline.';
+  return 'Sign-in did not complete. Nothing changed and InFlight still works without an account.';
 };
 
 /** Email and password work in the browser and, unlike pop-ups, would also work in the installed apps; the apps still wait on their own Settings wiring. */

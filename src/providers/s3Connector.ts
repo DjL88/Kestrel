@@ -62,7 +62,7 @@ export function s3Connector(settings: S3Settings, options: { fetchImpl?: FetchLi
     return response;
   }
 
-  const guard = (path: string) => { if (!isInsideSyncRoot(path.replace(/\/+$/, ''))) throw new S3Error('Path is outside the Kite44 folder.'); };
+  const guard = (path: string) => { if (!isInsideSyncRoot(path.replace(/\/+$/, ''))) throw new S3Error('Path is outside the InFlight folder.'); };
 
   return {
     kind: 's3',
@@ -77,7 +77,7 @@ export function s3Connector(settings: S3Settings, options: { fetchImpl?: FetchLi
       }
     },
     async put(path, bytes) {
-      if (!isWritablePath(path)) throw new S3Error('Path is outside the Kite44 folder.');
+      if (!isWritablePath(path)) throw new S3Error('Path is outside the InFlight folder.');
       const exportWrite = isInsideExportRoot(path);
       const response = await send('PUT', objectUrl(path), bytes, {
         'content-type': 'application/octet-stream',

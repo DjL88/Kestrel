@@ -42,7 +42,7 @@ async function openPhoto(page: Page, options: { flySolo?: boolean } = {}) {
   await page.goto('/');
   if (options.flySolo) {
     await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
-    await page.getByRole('dialog').getByRole('radio', { name: /Fly Solo/ }).check();
+    await page.getByRole('dialog').getByRole('radio', { name: /Solo/ }).check();
     await page.getByRole('dialog').getByRole('button', { name: 'Done' }).click();
   }
   await page.getByRole('button', { name: 'New project' }).click();
@@ -109,7 +109,7 @@ test('Fly Solo makes no check until the photographer asks, then does exactly tha
 
   // The Soar / Glide / Fly Solo choice is offered inside a project (Settings and the View menu), not on the project list.
   await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
-  await page.getByRole('dialog').getByRole('radio', { name: /Fly Solo/ }).check();
+  await page.getByRole('dialog').getByRole('radio', { name: /Solo/ }).check();
   await page.getByRole('dialog').getByRole('button', { name: 'Done' }).click();
   // Reload so the panel starts with no earlier reading on screen; the preference is stored on the device.
   await page.reload();

@@ -1,6 +1,6 @@
 # Third-party notices
 
-Kite44's own code is proprietary (see LICENSE). It bundles the open-source
+InFlight's own code is proprietary (see LICENSE). It bundles the open-source
 components below, each under its own license. This list was compiled by hand
 from `package.json` and `src-tauri/Cargo.toml` on 2026-11-17 — it is a starting
 point, **not a verified, complete, transitive dependency audit**. Before any
@@ -13,7 +13,7 @@ an update.
 ## Needs a legal decision before release: `rawler` (Rust, native RAW decoding)
 
 `src-tauri/src/raw.rs` links the `rawler` crate, licensed **LGPL-2.1**. Rust has
-no stable dynamic-linking ABI, so Kite44's desktop binary statically links it,
+no stable dynamic-linking ABI, so InFlight's desktop binary statically links it,
 and LGPL-2.1 compliance for a statically-linked proprietary binary is a genuinely
 unsettled area (the usual remedies — dynamic linking, or shipping relinkable
 object files — don't map cleanly onto Rust's toolchain). `rawler`'s own source
@@ -31,9 +31,9 @@ TicoRAW / JPEG XS codec it implements is **covered by patents** (intoPIX), and t
 crate author states the copyright licence is not a patent licence. Writing our own
 decoder would not avoid the patents.
 
-**Owner decision (19 Nov 2026):** Kite44 ships its own HE/HE* decoder in every
+**Owner decision (19 Nov 2026):** InFlight ships its own HE/HE* decoder in every
 build (desktop, web and mobile), as one decoder for all platforms. The operating
-system's decoder is used only where Kite44's cannot read a file. The patent
+system's decoder is used only where InFlight's cannot read a file. The patent
 exposure is accepted by the owner; this note records it and is not legal advice.
 The code stays behind the `nikon-he` Cargo feature (on by default), so a build
 without it is one flag away (`--no-default-features`, or
@@ -41,7 +41,7 @@ without it is one flag away (`--no-default-features`, or
 
 ## The web app's RAW decoder (`src/assets/wasm/kestrel_raw.wasm`)
 
-The web app ships Kite44's RAW pipeline (`crates/kestrel-raw`, via `crates/kestrel-raw-wasm`) compiled to
+The web app ships InFlight's RAW pipeline (`crates/kestrel-raw`, via `crates/kestrel-raw-wasm`) compiled to
 WebAssembly. Serving the web app distributes that binary, so the `rawler` LGPL-2.1 question above applies to it too.
 The source of every part is in this repository and the binary is rebuilt with `npm run raw:wasm`. It includes the
 `nikon-he` codec (`ticoraw`), per the owner decision above, so the web app and the mobile shells decode HE/HE* with the
@@ -56,7 +56,7 @@ published on npm as `libheif-js` (pinned to exactly **1.23.5**, published
 builds https://github.com/strukturag/libheif and
 https://github.com/strukturag/libde265). The package, libheif and libde265 are
 all **LGPL-3.0**. The full licence text ships inside the package
-(`node_modules/libheif-js/LICENSE`) and must ship with Kite44 too.
+(`node_modules/libheif-js/LICENSE`) and must ship with InFlight too.
 
 **This is not a "clean" permissive licence.** LGPL-3.0 allows use in a
 proprietary app, but on conditions: say that the library is used and under which
@@ -64,11 +64,11 @@ licence (this notice), provide the LGPL and GPL texts, make the library's source
 (for the exact version shipped) available, and let the user replace the library
 with a modified version. How the decoder is kept separate:
 
-- It lives only behind Kite44's HEIF adapter (`src/providers/heifDecode.ts`,
+- It lives only behind InFlight's HEIF adapter (`src/providers/heifDecode.ts`,
   `heifWasmWorker.ts`, `heifWasmCore.ts`). Nothing else in the app imports it.
 - Vite emits it as its own file (a worker chunk, `heifWasmWorker-*.js`, with the
   WebAssembly inlined), built only when the experimental flag is enabled and used only if native decoding fails. Replacing that
-  one file replaces the decoder; Kite44's own code is not compiled into it.
+  one file replaces the decoder; InFlight's own code is not compiled into it.
 - A native decoder (Windows WIC/HEIF extension, macOS ImageIO) could take its
   place in the adapter without touching the rest of the app, if that is the
   decision.

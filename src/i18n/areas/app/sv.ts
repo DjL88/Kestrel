@@ -64,7 +64,7 @@ export const sv: AreaTranslation<typeof source> = {
     addFailed: 'Fotona kunde inte läggas till.',
     stoppedUnfinished: 'Stoppades innan det var klart',
     findingPhotos: 'Letar efter foton i mappen',
-    developingRaw: 'Framkallar RAW-filer med Kite44',
+    developingRaw: 'Framkallar RAW-filer med InFlight',
     developStopped: 'Stoppades; de återstående fotona behåller kamerans förhandsvisning.',
     developed: (count) => `${count} framkallade`,
   },
@@ -77,7 +77,7 @@ export const sv: AreaTranslation<typeof source> = {
     addFailed: 'Fotona kunde inte läggas till. Försök välja filerna igen.',
     noSupportedPhotos: 'Den här mappen har inga foton som stöds.',
     folderUnreadable: 'Mappen kunde inte läsas.',
-    oneFolderPerProject: 'Ha varje mapp i ett eget projekt så att Kite44 säkert kan ansluta den igen.',
+    oneFolderPerProject: 'Ha varje mapp i ett eget projekt så att InFlight säkert kan ansluta den igen.',
     folderAddFailed: 'Mappen kunde inte läggas till. Försök välja den igen.',
     folderUnreadableTryFiles: 'Mappen kunde inte läsas. Försök välja filer i stället.',
   },
@@ -104,7 +104,7 @@ export const sv: AreaTranslation<typeof source> = {
     status: (folder, count) => `Bevakar ”${folder}” · ${plural(count, { one: `${count} nytt foto tillagt`, other: `${count} nya foton tillagda` })}`,
   },
   paid: {
-    dialogLabel: (feature) => `${feature} ingår i Kite44 Pro`,
+    dialogLabel: (feature) => `${feature} ingår i InFlight Pro`,
     autoCullPitch: 'Hjälp att välja dina bästa bilder.',
     close: 'Stäng',
   },
@@ -119,8 +119,8 @@ export const sv: AreaTranslation<typeof source> = {
   },
   notices: {
     temporaryOriginals: (count) => plural(count, {
-      one: 'Kite44 kunde inte spara ett original till nästa gång. Du kan använda det nu. Behåll din originalfil: du kan behöva välja den igen när projektet öppnas på nytt. Projektsäkerhetskopior innehåller inte originalfotona.',
-      other: `Kite44 kunde inte spara ${count} original till nästa gång. Du kan använda dem nu. Behåll dina originalfiler: du kan behöva välja dem igen när projektet öppnas på nytt. Projektsäkerhetskopior innehåller inte originalfotona.`,
+      one: 'InFlight kunde inte spara ett original till nästa gång. Du kan använda det nu. Behåll din originalfil: du kan behöva välja den igen när projektet öppnas på nytt. Projektsäkerhetskopior innehåller inte originalfotona.',
+      other: `InFlight kunde inte spara ${count} original till nästa gång. Du kan använda dem nu. Behåll dina originalfiler: du kan behöva välja dem igen när projektet öppnas på nytt. Projektsäkerhetskopior innehåller inte originalfotona.`,
     }),
     dismiss: 'Stäng',
   },
@@ -193,7 +193,7 @@ export const sv: AreaTranslation<typeof source> = {
     remove: {
       title: 'Ta bort från biblioteket?',
       confirm: 'Ta bort från biblioteket',
-      disappears: (name) => `${name} försvinner från Kestrels vyer, räkningar och exporter.`,
+      disappears: (name) => `${name} försvinner från InFlights vyer, räkningar och exporter.`,
       thisPhoto: 'Det här fotot',
       notDeleted: 'Din originalfil raderas inte.',
       bringBack: 'Du kan ta tillbaka det från Arbetsytans alternativ, Borttagna foton, eller med Ångra.',
@@ -201,7 +201,7 @@ export const sv: AreaTranslation<typeof source> = {
     autoAdjustKeepers: {
       title: 'Justera oredigerade foton att behålla automatiskt?',
       confirm: 'Justera foton att behålla',
-      what: 'Kite44 analyserar varje oredigerat foto att behålla på den här enheten och justerar ljus, färg och toner. Foton som redan är redigerade förblir oförändrade.',
+      what: 'InFlight analyserar varje oredigerat foto att behålla på den här enheten och justerar ljus, färg och toner. Foton som redan är redigerade förblir oförändrade.',
       eligible: (count) => `${photos(count)} att behålla kan justeras. Uppgiften kan avbrytas. Inga ändringar görs förrän analysen är klar.`,
       safe: 'Inget laddas upp eller ändras i dina originalfiler. Du kan ångra resultatet för varje foto.',
     },

@@ -93,7 +93,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     return () => observer.disconnect();
   }, [frame.id, variant, priority]);
 
-  // When the background develop finishes this photo, the card swaps the camera's JPEG for Kite44's develop.
+  // When the background develop finishes this photo, the card swaps the camera's JPEG for InFlight's develop.
   const [developedRev, setDevelopedRev] = useState(0);
   useEffect(() => {
     const key = frame.stableKey;

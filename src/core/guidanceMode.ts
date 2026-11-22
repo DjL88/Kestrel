@@ -12,9 +12,9 @@ export const GUIDANCE_CHOICES: ReadonlyArray<{
   label: string;
   description: string;
 }> = [
-  { value: 'soar', label: 'Soar', description: 'Safe, reversible improvements where Kite44 has strong evidence.' },
-  { value: 'glide', label: 'Glide', description: 'Quiet suggestions while you edit. You choose what to apply.' },
-  { value: 'solo', label: 'Fly Solo', description: 'Complete control. Advice only when you ask for it.' },
+  { value: 'soar', label: 'Auto Pilot', description: 'Safe, reversible improvements where InFlight has strong evidence.' },
+  { value: 'glide', label: 'Co Pilot', description: 'Quiet suggestions while you edit. You choose what to apply.' },
+  { value: 'solo', label: 'Solo', description: 'Complete control. Advice only when you ask for it.' },
 ] as const;
 
 export function parseGuidanceMode(value: unknown): GuidanceMode {

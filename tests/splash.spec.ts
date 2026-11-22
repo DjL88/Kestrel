@@ -10,9 +10,10 @@ test('the splash plays on launch, draws every layer, then fades and leaves the a
   await page.goto('/?splash=1');
   const splash = page.getByTestId('splash');
   await expect(splash).toBeVisible();
-  await expect(splash.locator('svg path')).toHaveCount(5);
-  // Five layers each move three ways: faded, moved and scaled.
-  expect(await page.evaluate(() => document.getAnimations().length)).toBe(15);
+  // The brand animation is drawn as SVG by the on-demand player, on the dark brand surface.
+  await expect(splash.getByTestId('splash-animation')).toHaveAttribute('data-played', 'true');
+  await expect(splash.locator('svg').first()).toBeAttached();
+  expect(await splash.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(14, 17, 22)');
   // It leaves by itself within about three seconds, with nothing to click.
   await expect(splash).toHaveCount(0, { timeout: 8000 });
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
@@ -32,6 +33,9 @@ test('with reduced motion the logo is still, and leaves quickly', async ({ page 
   await page.goto('/?splash=1');
   const splash = page.getByTestId('splash');
   await expect(splash).toBeVisible();
+  // Reduced motion shows the still stacked logo and never loads the player.
+  await expect(splash.getByTestId('brand-logo-stacked')).toBeVisible();
+  await expect(splash.getByTestId('splash-animation')).toHaveCount(0);
   expect(await splash.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0);
   await expect(splash).toHaveCount(0, { timeout: 4000 });
 });

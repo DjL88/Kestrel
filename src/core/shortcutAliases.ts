@@ -1,7 +1,7 @@
 import { normalizeKeyChord, type CommandId, type KeyBindingsMap, type KeyEventLike } from './keyboardCommands';
 
 /**
- * Familiar Lightroom / DxO keys that work in addition to Kestrel's own bindings.
+ * Familiar Lightroom / DxO keys that work in addition to InFlight's own bindings.
  * Nothing here replaces a binding: a chord the person has bound to a command always wins, and an alias is never
  * offered when it would shadow one. "Mod" is Command on a Mac and Control elsewhere (either is accepted).
  */

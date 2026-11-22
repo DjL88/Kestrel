@@ -28,8 +28,8 @@ test('installer files and store listings appear on the right cards, and nothing 
   await answer(page, {
     version: '26.12.0',
     files: [
-      { name: 'Kestrel_26.12.0_aarch64.dmg', url: 'https://storage.googleapis.com/b/releases/26.12.0/Kestrel.dmg' },
-      { name: 'Kestrel_26.12.0_x64-setup.exe', url: 'https://storage.googleapis.com/b/releases/26.12.0/Kestrel.exe' },
+      { name: 'InFlight_26.12.0_aarch64.dmg', url: 'https://storage.googleapis.com/b/releases/26.12.0/Kestrel.dmg' },
+      { name: 'InFlight_26.12.0_x64-setup.exe', url: 'https://storage.googleapis.com/b/releases/26.12.0/Kestrel.exe' },
       { name: 'notes.txt', url: 'https://storage.googleapis.com/b/notes.txt' },
     ],
     stores: { android: 'https://play.google.com/store/apps/details?id=app.kestrel.photo', ios: 'https://testflight.apple.com/join/abc123' },

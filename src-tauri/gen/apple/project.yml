@@ -10,7 +10,7 @@ configs:
 settingGroups:
   app:
     base:
-      PRODUCT_NAME: Kestrel
+      PRODUCT_NAME: InFlight
       PRODUCT_BUNDLE_IDENTIFIER: app.kestrel.photo
       DEVELOPMENT_TEAM: G53UPS2B95
 targetTemplates:

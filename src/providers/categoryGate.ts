@@ -64,7 +64,7 @@ function load(): Promise<Loaded> {
       bytes = new Uint8Array(await stored.arrayBuffer());
     } else if (isDesktopApp()) {
       const response = await fetch(GATE_MODEL.url);
-      if (!response.ok) throw new Error('The subject category model is missing. Reinstall Kite44.');
+      if (!response.ok) throw new Error('The subject category model is missing. Reinstall InFlight.');
       bytes = new Uint8Array(await response.arrayBuffer());
     } else {
       throw new Error('The subject checker has not been downloaded.');

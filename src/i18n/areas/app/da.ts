@@ -64,7 +64,7 @@ export const da: AreaTranslation<typeof source> = {
     addFailed: 'Fotoene kunne ikke tilføjes.',
     stoppedUnfinished: 'Stoppet, før det var færdigt',
     findingPhotos: 'Finder fotos i mappen',
-    developingRaw: 'Fremkalder RAW-filer med Kite44',
+    developingRaw: 'Fremkalder RAW-filer med InFlight',
     developStopped: 'Stoppet; de resterende fotos beholder kameraets forhåndsvisning.',
     developed: (count) => `${count} fremkaldt`,
   },
@@ -77,7 +77,7 @@ export const da: AreaTranslation<typeof source> = {
     addFailed: 'Fotoene kunne ikke tilføjes. Prøv at vælge filerne igen.',
     noSupportedPhotos: 'Denne mappe har ingen understøttede fotos.',
     folderUnreadable: 'Mappen kunne ikke læses.',
-    oneFolderPerProject: 'Hold hver mappe i sit eget projekt, så Kite44 trygt kan forbinde den igen.',
+    oneFolderPerProject: 'Hold hver mappe i sit eget projekt, så InFlight trygt kan forbinde den igen.',
     folderAddFailed: 'Mappen kunne ikke tilføjes. Prøv at vælge den igen.',
     folderUnreadableTryFiles: 'Mappen kunne ikke læses. Prøv at vælge filer i stedet.',
   },
@@ -104,7 +104,7 @@ export const da: AreaTranslation<typeof source> = {
     status: (folder, count) => `Holder øje med “${folder}” · ${plural(count, { one: `${count} nyt foto tilføjet`, other: `${count} nye fotos tilføjet` })}`,
   },
   paid: {
-    dialogLabel: (feature) => `${feature} er en del af Kite44 Pro`,
+    dialogLabel: (feature) => `${feature} er en del af InFlight Pro`,
     autoCullPitch: 'Hjælp til at vælge dine bedste billeder.',
     close: 'Luk',
   },
@@ -119,8 +119,8 @@ export const da: AreaTranslation<typeof source> = {
   },
   notices: {
     temporaryOriginals: (count) => plural(count, {
-      one: 'Kite44 kunne ikke gemme én original til næste gang. Du kan bruge den nu. Behold din originalfil: du skal måske vælge den igen, når du åbner projektet igen. Projektsikkerhedskopier indeholder ikke de originale fotos.',
-      other: `Kite44 kunne ikke gemme ${count} originaler til næste gang. Du kan bruge dem nu. Behold dine originalfiler: du skal måske vælge dem igen, når du åbner projektet igen. Projektsikkerhedskopier indeholder ikke de originale fotos.`,
+      one: 'InFlight kunne ikke gemme én original til næste gang. Du kan bruge den nu. Behold din originalfil: du skal måske vælge den igen, når du åbner projektet igen. Projektsikkerhedskopier indeholder ikke de originale fotos.',
+      other: `InFlight kunne ikke gemme ${count} originaler til næste gang. Du kan bruge dem nu. Behold dine originalfiler: du skal måske vælge dem igen, når du åbner projektet igen. Projektsikkerhedskopier indeholder ikke de originale fotos.`,
     }),
     dismiss: 'Luk',
   },
@@ -193,7 +193,7 @@ export const da: AreaTranslation<typeof source> = {
     remove: {
       title: 'Fjern fra biblioteket?',
       confirm: 'Fjern fra biblioteket',
-      disappears: (name) => `${name} forsvinder fra Kestrels visninger, optællinger og eksporter.`,
+      disappears: (name) => `${name} forsvinder fra InFlights visninger, optællinger og eksporter.`,
       thisPhoto: 'Dette foto',
       notDeleted: 'Din originalfil bliver ikke slettet.',
       bringBack: 'Du kan hente det tilbage fra Arbejdsområdets indstillinger, Fjernede fotos, eller med Fortryd.',
@@ -201,7 +201,7 @@ export const da: AreaTranslation<typeof source> = {
     autoAdjustKeepers: {
       title: 'Justér uredigerede fotos til at beholde automatisk?',
       confirm: 'Justér fotos til at beholde',
-      what: 'Kite44 analyserer hvert uredigeret foto til at beholde på denne enhed og justerer lys, farve og toner. Fotos, der allerede er redigeret, forbliver uændrede.',
+      what: 'InFlight analyserer hvert uredigeret foto til at beholde på denne enhed og justerer lys, farve og toner. Fotos, der allerede er redigeret, forbliver uændrede.',
       eligible: (count) => `${photos(count)} til at beholde kan justeres. Opgaven kan annulleres. Intet anvendes, før analysen er færdig.`,
       safe: 'Intet bliver uploadet eller ændret i dine originalfiler. Du kan fortryde resultatet for hvert foto.',
     },

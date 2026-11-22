@@ -4,7 +4,7 @@ import type { source } from './source';
 /** Irish. DRAFT: written without a native speaker's check. */
 export const ga: AreaTranslation<typeof source> = {
   title: 'Dara tuairim ó do AI féin',
-  intro: 'Roghnach. Úsáid do chuntas AI féin, nó samhail ar an ríomhaire seo, chun féachaint ar dhath agus ar sholas an ghrianghraif seo. Oibríonn seiceáil datha Kite44 féin thuas i gcónaí gan é.',
+  intro: 'Roghnach. Úsáid do chuntas AI féin, nó samhail ar an ríomhaire seo, chun féachaint ar dhath agus ar sholas an ghrianghraif seo. Oibríonn seiceáil datha InFlight féin thuas i gcónaí gan é.',
   ask: 'Fiafraigh de mo AI féin',
   asking: 'Ag fiafraí de do AI…',
   cancel: 'Cealaigh',
@@ -29,8 +29,8 @@ export const ga: AreaTranslation<typeof source> = {
   invalidBaseUrl: "Úsáid HTTPS le haghaidh AI cianda, nó http://localhost le haghaidh AI ar an ríomhaire seo. Ná cuir eochracha sa seoladh.",
   save: 'Sábháil',
   consentTitle: 'Sula seoltar aon rud',
-  consentCloud: (host) => `Seolfaidh Kite44 cóip den ghrianghraf seo, 1,024 picteilín ar an taobh is faide, chuig ${host}. Ní chuimsíonn sí an suíomh, sonraí an cheamara ná ainm an chomhaid. D’fhéadfadh do sholáthraí táille a ghearradh ort as gach ceist.`,
-  consentLocal: (host) => `Seolfaidh Kite44 cóip den ghrianghraf seo, 1,024 picteilín ar an taobh is faide, chuig an AI ag ${host}, atá ar an ríomhaire seo. Ní fhágann aon rud do ríomhaire.`,
+  consentCloud: (host) => `Seolfaidh InFlight cóip den ghrianghraf seo, 1,024 picteilín ar an taobh is faide, chuig ${host}. Ní chuimsíonn sí an suíomh, sonraí an cheamara ná ainm an chomhaid. D’fhéadfadh do sholáthraí táille a ghearradh ort as gach ceist.`,
+  consentLocal: (host) => `Seolfaidh InFlight cóip den ghrianghraf seo, 1,024 picteilín ar an taobh is faide, chuig an AI ag ${host}, atá ar an ríomhaire seo. Ní fhágann aon rud do ríomhaire.`,
   agree: 'Aontaím',
   summary: 'An méid a deir do AI',
   suggested: 'Athruithe molta',
@@ -51,7 +51,7 @@ export const ga: AreaTranslation<typeof source> = {
   errors: {
     setup: 'Níl do AI socraithe fós, nó tá an comhaontú in easnamh.',
     key: 'Deir do AI go bhfuil an eochair mícheart nó nach bhfuil cead aici. Seiceáil í i do chuntas leis an soláthraí.',
-    offline: 'Tá tú as líne. Oibríonn seiceáil datha Kite44 féin fós.',
+    offline: 'Tá tú as líne. Oibríonn seiceáil datha InFlight féin fós.',
     timeout: 'Thóg do AI rófhada ag freagairt. Bain triail eile as i gceann nóiméid.',
     refused: 'Dhiúltaigh do AI féachaint ar an ngrianghraf seo.',
     unreadable: 'Níorbh fhéidir freagra do AI a léamh, mar sin níor athraíodh aon rud.',

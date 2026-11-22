@@ -21,8 +21,8 @@ export function guidedStep(counts: Pick<CullCounts, 'all' | 'unreviewed' | 'keep
 
 /**
  * True only when every photo still waiting for a decision was actually looked at by an automatic cull scan, so the
- * banner may say Kite44 "wasn't confident enough". Photos decided by hand say nothing about Kite44's confidence:
- * with Auto-cull off, or for photos added after a scan, claiming Kite44 tried and left them would be untrue.
+ * banner may say InFlight "wasn't confident enough". Photos decided by hand say nothing about InFlight's confidence:
+ * with Auto-cull off, or for photos added after a scan, claiming InFlight tried and left them would be untrue.
  */
 export function remainingWereScanned(frames: readonly PhotoFrame[]): boolean {
   const waiting = frames.filter((frame) => frame.removedAt == null && !frame.virtualCopy && frame.decision === 'unreviewed');

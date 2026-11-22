@@ -86,6 +86,6 @@ export function renderStorySlideSvg(story: EditStory, stepIndex: number, imageDa
 <rect x="0" y="${titleY - 82}" width="${width}" height="${height - titleY + 82}" fill="#111" fill-opacity=".82"/>
 <text x="${margin}" y="${titleY}" font-family="Arial, sans-serif" font-weight="bold" font-size="44" fill="#fff">${safeTitle}</text>
 ${caption}
-<text x="${margin}" y="${height - 38}" font-family="Arial, sans-serif" font-size="24" fill="#ccc">Kite44 Edit Story · ${stepIndex + 1}/${story.steps.length}</text>
+<text x="${margin}" y="${height - 38}" font-family="Arial, sans-serif" font-size="24" fill="#ccc">InFlight Edit Story · ${stepIndex + 1}/${story.steps.length}</text>
 </svg>`;
 }

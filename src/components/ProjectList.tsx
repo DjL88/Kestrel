@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Archive, ArchiveRestore, ChevronRight, Folder, FolderUp, Plus, Search, Settings2, SquareChevronsRight, Trash2 } from './icons/KestrelUIIcons';
-import kestrelMark from '../assets/kestrel-mark.svg';
+import { BrandLogo } from './BrandLogo';
 import { version as appVersion } from '../../package.json';
 import { PHOTO_ACCEPT } from '../core/rawFormats';
 import { LicenceAndSettings } from './LicenceAndSettings';
@@ -101,10 +101,9 @@ export function ProjectList({ projects, photoText = {}, loading, error, onOpen, 
   return (
     <main className="h-dvh max-h-dvh w-full max-w-full min-w-0 flex flex-col overflow-hidden bg-kestrel-canvas px-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-zinc-100 sm:px-8">
       <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col pt-4 sm:pt-10">
-        <div className="mb-7 flex items-center gap-2.5">
-          <img src={kestrelMark} alt="" className="h-10 w-10" />
-          <span className="text-lg font-semibold tracking-tight text-kestrel-ink">Kite44</span>
-          <div className="ml-auto"><SettingsButton open={appearanceOpen} onOpen={() => setAppearanceOpen(true)} /></div>
+        <div className="relative mb-7 flex items-start justify-center">
+          <BrandLogo kind="stacked" className="h-auto w-44 sm:w-52" />
+          <div className="absolute right-0 top-0"><SettingsButton open={appearanceOpen} onOpen={() => setAppearanceOpen(true)} /></div>
         </div>
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">{m.home.projects}</h1>

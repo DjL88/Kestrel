@@ -232,7 +232,7 @@ export const fi: AreaTranslation<typeof source> = {
     backgroundSaving: (count) => `Viedään ${count} tiedostoa taustalla`,
     choosingFolder: "Valitaan kansiota…",
     desktopBackground: (count) => `Tallenna ${count} tiedostoa kansioon taustalla`,
-    desktopBackgroundHelp: "Valitse kansio kerran. Tiedostot tallennetaan yksitellen uuteen päivättyyn Kite44 Exports -kansioon kohteen mukaan ryhmiteltyinä. Voit jatkaa muokkausta; tehtävienhallinta näyttää edistymisen ja virheet.",
+    desktopBackgroundHelp: "Valitse kansio kerran. Tiedostot tallennetaan yksitellen uuteen päivättyyn InFlight Exports -kansioon kohteen mukaan ryhmiteltyinä. Voit jatkaa muokkausta; tehtävienhallinta näyttää edistymisen ja virheet.",
     saving: 'Tallennetaan…',
     saved: (name) => `${name} tallennettu`,
     ready: (count) => plural(count, { one: `${count} tiedosto valmiina`, other: `${count} tiedostoa valmiina` }),

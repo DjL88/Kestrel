@@ -1,5 +1,5 @@
 /**
- * Copy a person's Kite44 settings to another device through a plain file. They save it somewhere their devices share
+ * Copy a person's InFlight settings to another device through a plain file. They save it somewhere their devices share
  * (iCloud Drive, Dropbox, a USB stick) and load it on the other device. Only an allow-list of look-and-feel settings
  * travels: never licence keys, helper keys or consent, photos, projects or edits.
  */
@@ -26,10 +26,10 @@ export type SettingsParse = { ok: true; settings: Record<string, string>; skippe
 /** Read a settings file back. Anything outside the allow-list, or not text, or too large, is skipped; a wrong file is refused. */
 export function parseSettingsFile(text: string): SettingsParse {
   let value: unknown;
-  try { value = JSON.parse(text); } catch { return { ok: false, reason: 'That is not a Kite44 settings file.' }; }
+  try { value = JSON.parse(text); } catch { return { ok: false, reason: 'That is not an InFlight settings file.' }; }
   const file = value as Partial<SettingsFile> | null;
   if (!file || file.format !== FORMAT || file.version !== 1 || typeof file.settings !== 'object' || file.settings === null) {
-    return { ok: false, reason: 'That is not a Kite44 settings file.' };
+    return { ok: false, reason: 'That is not an InFlight settings file.' };
   }
   const settings: Record<string, string> = {};
   let skipped = 0, total = 0;
@@ -38,5 +38,5 @@ export function parseSettingsFile(text: string): SettingsParse {
     total += entry.length;
     settings[key] = entry;
   }
-  return Object.keys(settings).length ? { ok: true, settings, skipped } : { ok: false, reason: 'That file has no settings Kite44 can use.' };
+  return Object.keys(settings).length ? { ok: true, settings, skipped } : { ok: false, reason: 'That file has no settings InFlight can use.' };
 }

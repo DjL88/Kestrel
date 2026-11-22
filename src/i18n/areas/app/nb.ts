@@ -64,7 +64,7 @@ export const nb: AreaTranslation<typeof source> = {
     addFailed: 'Bildene kunne ikke legges til.',
     stoppedUnfinished: 'Stoppet før det var ferdig',
     findingPhotos: 'Finner bilder i mappen',
-    developingRaw: 'Fremkaller RAW-filer med Kite44',
+    developingRaw: 'Fremkaller RAW-filer med InFlight',
     developStopped: 'Stoppet; de gjenværende bildene beholder kameraets forhåndsvisning.',
     developed: (count) => `${count} fremkalt`,
   },
@@ -77,7 +77,7 @@ export const nb: AreaTranslation<typeof source> = {
     addFailed: 'Bildene kunne ikke legges til. Prøv å velge filene igjen.',
     noSupportedPhotos: 'Denne mappen har ingen støttede bilder.',
     folderUnreadable: 'Mappen kunne ikke leses.',
-    oneFolderPerProject: 'Ha hver mappe i sitt eget prosjekt, så Kite44 trygt kan koble den til igjen.',
+    oneFolderPerProject: 'Ha hver mappe i sitt eget prosjekt, så InFlight trygt kan koble den til igjen.',
     folderAddFailed: 'Mappen kunne ikke legges til. Prøv å velge den igjen.',
     folderUnreadableTryFiles: 'Mappen kunne ikke leses. Prøv å velge filer i stedet.',
   },
@@ -104,7 +104,7 @@ export const nb: AreaTranslation<typeof source> = {
     status: (folder, count) => `Følger med på «${folder}» · ${plural(count, { one: `${count} nytt bilde lagt til`, other: `${count} nye bilder lagt til` })}`,
   },
   paid: {
-    dialogLabel: (feature) => `${feature} er en del av Kite44 Pro`,
+    dialogLabel: (feature) => `${feature} er en del av InFlight Pro`,
     autoCullPitch: 'Hjelp til å velge de beste bildene dine.',
     close: 'Lukk',
   },
@@ -119,8 +119,8 @@ export const nb: AreaTranslation<typeof source> = {
   },
   notices: {
     temporaryOriginals: (count) => plural(count, {
-      one: 'Kite44 kunne ikke lagre én original til neste gang. Du kan bruke den nå. Ta vare på originalfilen: du må kanskje velge den igjen når prosjektet åpnes på nytt. Sikkerhetskopier av prosjekter inneholder ikke originalbildene.',
-      other: `Kite44 kunne ikke lagre ${count} originaler til neste gang. Du kan bruke dem nå. Ta vare på originalfilene: du må kanskje velge dem igjen når prosjektet åpnes på nytt. Sikkerhetskopier av prosjekter inneholder ikke originalbildene.`,
+      one: 'InFlight kunne ikke lagre én original til neste gang. Du kan bruke den nå. Ta vare på originalfilen: du må kanskje velge den igjen når prosjektet åpnes på nytt. Sikkerhetskopier av prosjekter inneholder ikke originalbildene.',
+      other: `InFlight kunne ikke lagre ${count} originaler til neste gang. Du kan bruke dem nå. Ta vare på originalfilene: du må kanskje velge dem igjen når prosjektet åpnes på nytt. Sikkerhetskopier av prosjekter inneholder ikke originalbildene.`,
     }),
     dismiss: 'Lukk',
   },
@@ -193,7 +193,7 @@ export const nb: AreaTranslation<typeof source> = {
     remove: {
       title: 'Fjerne fra biblioteket?',
       confirm: 'Fjern fra biblioteket',
-      disappears: (name) => `${name} forsvinner fra Kestrels visninger, tellinger og eksporter.`,
+      disappears: (name) => `${name} forsvinner fra InFlights visninger, tellinger og eksporter.`,
       thisPhoto: 'Dette bildet',
       notDeleted: 'Originalfilen din blir ikke slettet.',
       bringBack: 'Du kan hente det tilbake fra Alternativer for arbeidsområdet, Fjernede bilder, eller med Angre.',
@@ -201,7 +201,7 @@ export const nb: AreaTranslation<typeof source> = {
     autoAdjustKeepers: {
       title: 'Justere uredigerte bilder å beholde automatisk?',
       confirm: 'Juster bilder å beholde',
-      what: 'Kite44 analyserer hvert uredigerte bilde å beholde på denne enheten og justerer lys, farge og toner. Bilder som allerede er redigert, forblir uendret.',
+      what: 'InFlight analyserer hvert uredigerte bilde å beholde på denne enheten og justerer lys, farge og toner. Bilder som allerede er redigert, forblir uendret.',
       eligible: (count) => `${photos(count)} å beholde kan justeres. Oppgaven kan avbrytes. Ingen endringer tas i bruk før analysen er ferdig.`,
       safe: 'Ingenting lastes opp eller endres i originalfilene dine. Du kan angre resultatet for hvert bilde.',
     },

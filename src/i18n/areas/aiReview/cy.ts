@@ -4,7 +4,7 @@ import type { source } from './source';
 /** Welsh. DRAFT: written without a native speaker's check. */
 export const cy: AreaTranslation<typeof source> = {
   title: 'Ail farn gan eich AI eich hun',
-  intro: 'Dewisol. Defnyddiwch eich cyfrif AI eich hun, neu fodel ar y cyfrifiadur hwn, i edrych ar liw a golau’r llun hwn. Mae gwiriad lliw Kite44 ei hun uchod bob amser yn gweithio hebddo.',
+  intro: 'Dewisol. Defnyddiwch eich cyfrif AI eich hun, neu fodel ar y cyfrifiadur hwn, i edrych ar liw a golau’r llun hwn. Mae gwiriad lliw InFlight ei hun uchod bob amser yn gweithio hebddo.',
   ask: 'Gofyn i’m AI fy hun',
   asking: 'Yn gofyn i’ch AI…',
   cancel: 'Canslo',
@@ -29,8 +29,8 @@ export const cy: AreaTranslation<typeof source> = {
   invalidBaseUrl: "Defnyddiwch HTTPS ar gyfer AI o bell, neu http://localhost ar gyfer AI ar y cyfrifiadur hwn. Peidiwch â rhoi allweddi yn y cyfeiriad.",
   save: 'Cadw',
   consentTitle: 'Cyn anfon dim',
-  consentCloud: (host) => `Bydd Kite44 yn anfon copi o’r llun hwn, 1,024 picsel ar ei ochr hiraf, at ${host}. Nid yw’n cynnwys y lleoliad, manylion y camera nac enw’r ffeil. Efallai y bydd eich darparwr yn codi tâl arnoch am bob cwestiwn.`,
-  consentLocal: (host) => `Bydd Kite44 yn anfon copi o’r llun hwn, 1,024 picsel ar ei ochr hiraf, at yr AI yn ${host}, sydd ar y cyfrifiadur hwn. Does dim byd yn gadael eich cyfrifiadur.`,
+  consentCloud: (host) => `Bydd InFlight yn anfon copi o’r llun hwn, 1,024 picsel ar ei ochr hiraf, at ${host}. Nid yw’n cynnwys y lleoliad, manylion y camera nac enw’r ffeil. Efallai y bydd eich darparwr yn codi tâl arnoch am bob cwestiwn.`,
+  consentLocal: (host) => `Bydd InFlight yn anfon copi o’r llun hwn, 1,024 picsel ar ei ochr hiraf, at yr AI yn ${host}, sydd ar y cyfrifiadur hwn. Does dim byd yn gadael eich cyfrifiadur.`,
   agree: 'Rwy’n cytuno',
   summary: 'Beth mae eich AI yn ei ddweud',
   suggested: 'Newidiadau a awgrymir',
@@ -51,7 +51,7 @@ export const cy: AreaTranslation<typeof source> = {
   errors: {
     setup: 'Nid yw eich AI wedi’i osod eto, neu mae’r cytundeb ar goll.',
     key: 'Mae eich AI yn dweud bod yr allwedd yn anghywir neu heb ei chaniatáu. Gwiriwch hi yng nghyfrif eich darparwr.',
-    offline: 'Rydych chi all-lein. Mae gwiriad lliw Kite44 ei hun yn dal i weithio.',
+    offline: 'Rydych chi all-lein. Mae gwiriad lliw InFlight ei hun yn dal i weithio.',
     timeout: 'Cymerodd eich AI ormod o amser i ateb. Rhowch gynnig arall arni mewn munud.',
     refused: 'Gwrthododd eich AI edrych ar y llun hwn.',
     unreadable: 'Doedd dim modd darllen ateb eich AI, felly ni newidiwyd dim.',

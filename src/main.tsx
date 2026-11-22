@@ -13,7 +13,11 @@ import { setGpuRenderer } from './core/canvasEdit.ts';
 import { renderEditOnGpu } from './providers/webglEdit.ts';
 import { applyDisplay, loadDisplay } from './providers/browserTheme.ts';
 import { isDesktopApp } from './providers/desktopShell.ts';
+import { keepsNativeMenu } from './core/appChrome.ts';
 import { manageOfflineWorker } from './providers/offlineWorker.ts';
+
+// No browser right-click menu in the app (Open Image in New Window, Download Image, Inspect Element), except in text fields.
+document.addEventListener('contextmenu', (event) => { if (!keepsNativeMenu(event.target as HTMLElement | null)) event.preventDefault(); });
 
 applyDisplay(loadDisplay());
 setGpuRenderer(renderEditOnGpu);

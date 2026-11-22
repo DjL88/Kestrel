@@ -1,6 +1,6 @@
 import type { PhotoFrame, RatingFilter } from './types';
 
-/** The star rating Kite44 shows for a photo: the user's rating, else the one embedded in the file, else none. */
+/** The star rating InFlight shows for a photo: the user's rating, else the one embedded in the file, else none. */
 export function ratingOf(frame: Pick<PhotoFrame, 'rating' | 'exif'>): number {
   return frame.rating ?? frame.exif?.rating ?? 0;
 }

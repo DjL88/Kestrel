@@ -24,8 +24,8 @@ interface Options {
 }
 
 /**
- * After photos are added, develop every RAW from its sensor data with Kite44's own decoder, one at a time, and keep a
- * screen-sized copy, so the library shows Kite44's develop rather than the camera's JPEG. Shown in Tasks as a continuous per-project job, where it can
+ * After photos are added, develop every RAW from its sensor data with InFlight's own decoder, one at a time, and keep a
+ * screen-sized copy, so the library shows InFlight's develop rather than the camera's JPEG. Shown in Tasks as a continuous per-project job, where it can
  * be stopped (until the next photos are added). A file that cannot be developed keeps its embedded preview, quietly.
  */
 export function useBackgroundDevelop({ projectId, frames, provider, active, onScreen }: Options) {

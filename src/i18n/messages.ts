@@ -23,7 +23,7 @@ import { nb } from './locales/nb';
 import { fi } from './locales/fi';
 import { is } from './locales/is';
 
-/** Every sentence Kite44 shows, in the shape of the British English source. */
+/** Every sentence InFlight shows, in the shape of the British English source. */
 export type Messages = Widen<typeof enGB>;
 /** A language file: any part of the source, translated. Anything left out stays in British English. */
 export type Translation = DeepPartial<Messages>;
@@ -56,7 +56,7 @@ export function languageIsChosen(): boolean {
   return chosenThisSession || isLanguageCode(savedLanguage());
 }
 
-/** The device's own language, if Kite44 has it: offered at first run, never applied without asking. */
+/** The device's own language, if InFlight has it: offered at first run, never applied without asking. */
 export const deviceLanguage: LanguageCode | undefined = typeof navigator === 'undefined'
   ? undefined
   : matchDeviceLanguage(navigator.languages?.length ? navigator.languages : [navigator.language]);

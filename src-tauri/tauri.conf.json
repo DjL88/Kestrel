@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Kite44",
+  "productName": "InFlight",
   "version": "26.11.2",
   "identifier": "app.kestrel.desktop",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Kite44",
+        "title": "InFlight",
         "width": 1360,
         "height": 860,
         "minWidth": 900,
