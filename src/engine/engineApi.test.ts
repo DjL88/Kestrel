@@ -52,4 +52,55 @@ describe('runEngineCapability', () => {
     if (response.capability !== 'subject-detect') return; // narrows the union for the next line
     assert.equal(response.result.finding, null);
   });
+
+  const cloudGates = { online: true, signedIn: true, userConsent: true };
+  const original = flat(16, [120, 120, 120]);
+
+  it('keeps offline, signed-out and unconsented jobs on the device', async () => {
+    let cloudRuns = 0;
+    for (const gate of ['online', 'signedIn', 'userConsent'] as const) {
+      const result = await runEngineCapability({ capability: 'upscale', original, scale: 2 }, {
+        ...cloudGates, [gate]: false,
+        run: async () => { cloudRuns++; throw new Error('Unexpected cloud attempt'); },
+      });
+      assert.equal(result.runner, 'device');
+    }
+    assert.equal(cloudRuns, 0);
+  });
+
+  it('runs the device action if the cloud fails or its result is unverified', async () => {
+    const request = { capability: 'upscale', original, scale: 2 } as const;
+    const local = await runEngineCapability(request);
+    assert.equal(local.capability, 'upscale');
+    for (const run of [
+      async () => { throw new Error('Cloud job unavailable'); },
+      async () => ({ capability: 'upscale' as const, result: { ...local.result, verification: { ...local.result.verification, ok: false } } }),
+    ]) {
+      const result = await runEngineCapability(request, { ...cloudGates, run });
+      assert.equal(result.runner, 'device');
+      assert.equal(result.capability, 'upscale');
+      assert.deepEqual(result.result.pixels, local.result.pixels);
+    }
+  });
+
+  it('reports the cloud runner only when an eligible job returns a verified result', async () => {
+    const request = { capability: 'upscale', original, scale: 2 } as const;
+    const result = await runEngineCapability(request);
+    assert.equal(result.capability, 'upscale');
+    const cloud = await runEngineCapability(request, { ...cloudGates, run: async () => result });
+    assert.equal(cloud.runner, 'cloud-processing');
+  });
+
+  it('does not start a local retry after the user cancels a cloud job', async () => {
+    const controller = new AbortController();
+    let localRuns = 0;
+    await assert.rejects(runEngineCapability({
+      capability: 'denoise', original, backgroundDenoise: 1,
+      render: async () => { localRuns++; return original; },
+    }, {
+      ...cloudGates, signal: controller.signal,
+      run: async () => { controller.abort(); throw new Error('Cloud request cancelled'); },
+    }), { name: 'AbortError' });
+    assert.equal(localRuns, 0);
+  });
 });

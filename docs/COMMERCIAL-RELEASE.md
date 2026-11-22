@@ -1,5 +1,28 @@
 # Kestrel commercial and release distribution decisions (proposal)
 
+## InFlight V2 pricing and cloud proposal · 22 November 2026
+
+| Option | Working price | Included |
+| --- | --- | --- |
+| Basic | Free | Basic tools and local, NAS or connected-drive storage |
+| Pro (one-off) | £29 | Pro tools for the purchased major version and the same storage options as Basic |
+| Pro (monthly) | £2.99/month | Pro while subscribed, new versions and 100 GB of cloud gallery storage |
+| Extra cloud storage | £1/month per 30 GB | Added to the monthly subscription when the customer chooses it |
+
+The storage limit is measured in bytes. The number of edited photos varies with format and compression. A full allowance pauses uploads and shows an account alert. Download and deletion remain available. A renewal failure stops new uploads once the paid period ends. Track retention separately from the paid-through date so existing copies are recoverable under the agreed policy.
+
+### Cloud gallery
+
+Export renders a new file with the applied crop, recipe and overlays. The user can choose individual edits or the flagged selection and opt in to adding those rendered copies to the gallery. Keep original paths, original bytes and private camera metadata on the user's device, NAS or connected drives. The second device can view the gallery without access to the original.
+
+Firestore keeps a per-account index outside the licence records. Each committed entry identifies the edited copy, its dimensions, content type, verified byte count, checksum and storage object. The backend authorises each list, download and delete from the current account. Use private object storage and short-lived, object-specific URLs. Verify uploads before making an entry visible, reserve and release quota atomically, and expire abandoned reservations. Retry by upload ID so an interrupted upload or duplicate request does not double-count it.
+
+### Billing and access
+
+SumUp verifies the £29 payment against a server-owned order before granting Pro for that major version. The subscription needs a separate saved-payment mandate and a successful payment for each renewal period. Storage blocks change the next agreed renewal amount. A missed payment freezes uploads and preserves access during the retention window. A monthly account grant must expire no later than its paid-through date and may be issued for up to 30 days offline. Offer cloud processing to eligible signed-in users after measuring device and cloud costs. A failed cloud attempt returns the work to the device.
+
+The amounts above are for review. Before taking payments, verify merchant capability and pricing for recurring payments, the location evidence for tax, and full-usage costs for storage, browsing, downloading and compute.
+
 **Decision context:** Mac and Windows betas first; a separate standalone Kestrel domain is planned but not yet registered or verified. Public download site is being built in PR #131. Do not hardcode a speculative domain. The exact name, registrar control and trademark clearance require owner validation.
 
 ## Current two-edition policy — owner direction, 21 November 2026
