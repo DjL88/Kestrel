@@ -44,6 +44,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const { setActivePanel } = actions;
   const hasOverlays = store.features.overlayText || store.features.watermarkCustom;
   const [shortcutGuideOpen, setShortcutGuideOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
@@ -482,51 +483,92 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             )}
           </div>
 
-          {/* Mobile Portrait Compact Tool Bar & Slide-Up Drawer (<= 767px) */}
+          {/* Mobile tool bar (<= 767px): four large targets, like Lightroom; everything else lives in More. */}
           {isMobile && (
             <nav
               aria-label="Mobile studio tools"
-              className="flex h-14 shrink-0 items-center justify-around border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1"
+              className="flex min-h-16 shrink-0 items-stretch justify-around border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1 pb-[env(safe-area-inset-bottom)]"
             >
               {(
                 [
                   { id: 'copilot', label: 'Flight', icon: assistModeIconName(store.assistMode) },
                   { id: 'adjust', label: 'Adjust', icon: 'sliders' as const },
                   { id: 'formats', label: 'Formats', icon: 'all-sizes' as const },
-                  { id: 'overlays', label: 'Overlays', icon: 'overlay' as const },
-                  { id: 'assist', label: 'Assist', icon: 'assist' as const },
                 ] as const
-              ).filter((item) => item.id !== 'overlays' || hasOverlays).map((item) => {
-                const active = store.activePanel === item.id;
+              ).map((item) => {
+                const active = store.activePanel === item.id && !moreOpen;
                 return (
                   <button
                     key={item.id}
                     type="button"
                     aria-pressed={active}
-                    onClick={() => actions.setActivePanel(item.id)}
-                    className={`flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[var(--radius-sm)] text-[10px] font-medium ${
+                    onClick={() => {
+                      setMoreOpen(false);
+                      actions.setActivePanel(item.id);
+                    }}
+                    className={`flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] text-xs font-medium ${
                       active ? 'text-[var(--brand-accent)]' : 'text-[var(--text-secondary)]'
                     }`}
                   >
-                    <BrandIcon name={item.icon} size={18} />
+                    <BrandIcon name={item.icon} size={24} />
                     <span>{item.label}</span>
                   </button>
                 );
               })}
               <button
                 type="button"
-                onClick={() => actions.setSettingsOpen(true)}
-                className="flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[var(--radius-sm)] text-[10px] font-medium text-[var(--text-secondary)]"
+                aria-pressed={moreOpen}
+                aria-expanded={moreOpen}
+                onClick={() => setMoreOpen((v) => !v)}
+                className={`flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] text-xs font-medium ${
+                  moreOpen ? 'text-[var(--brand-accent)]' : 'text-[var(--text-secondary)]'
+                }`}
               >
-                <BrandIcon name="settings" size={18} />
-                <span>Settings</span>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" />
+                </svg>
+                <span>More</span>
               </button>
             </nav>
           )}
 
+          {isMobile && moreOpen && (
+            <div
+              role="dialog"
+              aria-label="More tools"
+              className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 grid grid-cols-3 gap-2 rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-panel)]"
+            >
+              {(
+                [
+                  { id: 'overlays', label: 'Overlays', icon: 'overlay' as const },
+                  { id: 'masks', label: STRINGS.rail.masks, icon: 'masks' as const },
+                  { id: 'enhance', label: STRINGS.rail.enhance, icon: 'focus' as const },
+                  { id: 'info', label: STRINGS.rail.info, icon: 'info' as const },
+                  { id: 'settings', label: 'Settings', icon: 'settings' as const },
+                ] as const
+              )
+                .filter((item) => item.id !== 'overlays' || hasOverlays)
+                .map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setMoreOpen(false);
+                      if (item.id === 'settings') actions.setSettingsOpen(true);
+                      else actions.setActivePanel(item.id);
+                    }}
+                    className="flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-primary)]"
+                  >
+                    <BrandIcon name={item.icon} size={24} />
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+            </div>
+          )}
+
           {/* Mobile Drawer when a tool tab is selected on small portrait screens */}
           {isMobile && store.activePanel && (
-            <div className="fixed inset-x-0 bottom-14 z-30 flex max-h-[54vh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]">
+            <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]">
               <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-2.5">
                 <h2 className="text-xs font-semibold text-[var(--text-primary)]">
                   {PANEL_TITLES[store.activePanel]}
@@ -535,13 +577,16 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                   type="button"
                   aria-label="Close mobile drawer"
                   onClick={() => actions.setActivePanel(null)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded text-[var(--text-muted)]"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded text-[var(--text-muted)]"
                 >
-                  <BrandIcon name="close" size={15} />
+                  <BrandIcon name="close" size={18} />
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto inflight-scroll p-4">
                 {renderPanelContent(store.activePanel)}
+                {store.activePanel === 'copilot' && (
+                  <div className="mt-4 border-t border-[var(--border-subtle)] pt-4">{renderPanelContent('assist')}</div>
+                )}
               </div>
             </div>
           )}
@@ -585,7 +630,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
           role="status"
           aria-live="polite"
           className={`pointer-events-none fixed right-4 z-50 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-3.5 py-2 text-xs font-medium text-[var(--text-primary)] shadow-[var(--shadow-popover)] ${
-            isMobile ? 'bottom-16' : 'bottom-4'
+            isMobile ? 'bottom-20' : 'bottom-4'
           }`}
         >
           {store.lastActionNotice}
