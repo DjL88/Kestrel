@@ -69,12 +69,12 @@ export function scorePreview(frameId: string, pixels: Uint8ClampedArray, width: 
 /** What the subject detector found in a photo, or null when it found nothing it trusts. */
 export interface SubjectFinding { label: string; score: number; /** Long side of the subject in the photo's own pixels. */ size: number; sharpness: number }
 
-/**
- * Judge a photo by its subject, not by the texture of the whole frame. A sheep-sized speck or a faint guess does not count as a subject.
- * Calibrated on 30 real long-lens frames of jets: well-held shots read about 15 to 25, soft or very distant ones about 5 to 10.
- */
-export function scoreWithSubject(base: CullSuggestion, found: SubjectFinding | null): CullSuggestion {
-  if (base.reason === 'unavailable' || base.reason === 'flat' || base.reason === 'duplicate') return base;
+/** Just the `{ decision, confidence, score, reason }` part of judging a subject on its own evidence -
+ * factored out of `scoreWithSubject` so a caller with no whole-frame `CullSuggestion` to merge onto (e.g.
+ * `src/engine/subjectDetectAction.ts`, which judges a detection the moment it comes back, before any
+ * frame-level score exists) can still use the exact same real thresholds, rather than a second, drifting
+ * copy of them. `scoreWithSubject` below is unchanged behaviourally; it now just delegates here. */
+export function judgeSubject(found: SubjectFinding | null): Pick<CullSuggestion, 'decision' | 'confidence' | 'score' | 'reason'> {
   // Detector adapters and persisted worker results are not guaranteed to
   // respect TypeScript types. Non-finite or out-of-range metrics must never
   // manufacture a high-confidence keeper (or propagate a NaN score).
@@ -82,16 +82,25 @@ export function scoreWithSubject(base: CullSuggestion, found: SubjectFinding | n
       !Number.isFinite(found.score) || found.score < 0 || found.score > 1 ||
       !Number.isFinite(found.size) || found.size <= 0 ||
       !Number.isFinite(found.sharpness) || found.sharpness < 0)) {
-    return { ...base, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
+    return { decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
   }
   const real = found && ((found.score >= 0.45 && found.size >= 120) || found.score >= 0.7);
-  if (!found || !real) return { ...base, decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
+  if (!found || !real) return { decision: null, confidence: 'low', score: 35, reason: 'noSubject' };
   const weight = Math.min(1, found.score / 0.8);
   if (found.sharpness >= 14) {
-    return { ...base, decision: 'keep', confidence: found.size < 120 ? 'medium' : found.score >= 0.5 ? 'high' : 'medium', score: Math.min(99, Math.round(70 + found.sharpness * 1.1 * weight)), reason: 'subjectSharp' };
+    return { decision: 'keep', confidence: found.size < 120 ? 'medium' : found.score >= 0.5 ? 'high' : 'medium', score: Math.min(99, Math.round(70 + found.sharpness * 1.1 * weight)), reason: 'subjectSharp' };
   }
-  if (found.sharpness >= 8) return { ...base, decision: 'keep', confidence: 'medium', score: Math.round(55 + found.sharpness * 1.5 * weight), reason: 'subjectOk' };
-  return { ...base, decision: null, confidence: 'low', score: Math.round(30 + found.sharpness * 2), reason: 'subjectSoft' };
+  if (found.sharpness >= 8) return { decision: 'keep', confidence: 'medium', score: Math.round(55 + found.sharpness * 1.5 * weight), reason: 'subjectOk' };
+  return { decision: null, confidence: 'low', score: Math.round(30 + found.sharpness * 2), reason: 'subjectSoft' };
+}
+
+/**
+ * Judge a photo by its subject, not by the texture of the whole frame. A sheep-sized speck or a faint guess does not count as a subject.
+ * Calibrated on 30 real long-lens frames of jets: well-held shots read about 15 to 25, soft or very distant ones about 5 to 10.
+ */
+export function scoreWithSubject(base: CullSuggestion, found: SubjectFinding | null): CullSuggestion {
+  if (base.reason === 'unavailable' || base.reason === 'flat' || base.reason === 'duplicate') return base;
+  return { ...base, ...judgeSubject(found) };
 }
 
 export function limitAutoKeepers(
