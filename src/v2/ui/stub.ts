@@ -162,20 +162,18 @@ export const INITIAL_LOOKS: LookPreset[] = [
   },
 ];
 
+/** Our favourites. Every one is bundled with the app (SIL Open Font Licence), so it looks the same offline and in exports. */
 export const INITIAL_FONTS: FontOption[] = [
   { id: 'jakarta', label: 'Plus Jakarta Sans', family: '"Plus Jakarta Sans", sans-serif', category: 'Sans' },
-  { id: 'playfair', label: 'Playfair Display', family: '"Playfair Display", Georgia, serif', category: 'Serif' },
+  { id: 'inter', label: 'Inter', family: '"Inter", sans-serif', category: 'Sans' },
+  { id: 'dm-sans', label: 'DM Sans', family: '"DM Sans", sans-serif', category: 'Sans' },
   { id: 'outfit', label: 'Outfit', family: '"Outfit", sans-serif', category: 'Sans' },
-  { id: 'jetbrains', label: 'JetBrains Mono', family: '"JetBrains Mono", monospace', category: 'Mono' },
+  { id: 'oswald', label: 'Oswald Condensed', family: '"Oswald", sans-serif', category: 'Display' },
+  { id: 'playfair', label: 'Playfair Display', family: '"Playfair Display", Georgia, serif', category: 'Serif' },
+  { id: 'lora', label: 'Lora', family: '"Lora", Georgia, serif', category: 'Serif' },
   { id: 'fraunces', label: 'Fraunces', family: '"Fraunces", Georgia, serif', category: 'Serif' },
   { id: 'cormorant', label: 'Cormorant Garamond', family: '"Cormorant Garamond", Georgia, serif', category: 'Serif' },
-  { id: 'bricolage', label: 'Bricolage Grotesque', family: '"Bricolage Grotesque", sans-serif', category: 'Display' },
-  { id: 'dm-sans', label: 'DM Sans', family: '"DM Sans", sans-serif', category: 'Sans' },
-  { id: 'syne', label: 'Syne', family: '"Syne", sans-serif', category: 'Display' },
-  { id: 'lora', label: 'Lora', family: '"Lora", Georgia, serif', category: 'Serif' },
-  { id: 'ibm-mono', label: 'IBM Plex Mono', family: '"IBM Plex Mono", monospace', category: 'Mono' },
-  { id: 'manrope', label: 'Manrope', family: '"Manrope", sans-serif', category: 'Sans' },
-  { id: 'oswald', label: 'Oswald Condensed', family: '"Oswald", sans-serif', category: 'Display' },
+  { id: 'jetbrains', label: 'JetBrains Mono', family: '"JetBrains Mono", monospace', category: 'Mono' },
   { id: 'caveat', label: 'Caveat Script', family: '"Caveat", cursive', category: 'Handwritten' },
 ];
 
@@ -455,6 +453,7 @@ function createStubPhotos(): Photo[] {
       speciesLabel: base.species,
       category: base.category,
       sharpnessScore: 84 + ((i * 7) % 15),
+      tier: i % 5 === 0 ? 'best' : i % 3 === 0 ? 'better' : i % 7 === 0 ? 'good' : null,
       exif: {
         camera: base.camera,
         lens: base.lens,
@@ -589,6 +588,17 @@ function createDefaultPanels(): Record<PanelId, PanelLayoutState> {
   };
 }
 
+export const DEFAULT_FEATURE_PLAN: Record<FeatureKey, 'basic' | 'pro'> = {
+  watermarkCustom: 'pro',
+  overlayText: 'pro',
+  smartCulling: 'pro',
+  speciesId: 'pro',
+  onlineAi: 'pro',
+  cloudAssist: 'pro',
+  zoomVideo: 'basic',
+  splitFrames: 'basic',
+};
+
 export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
   watermarkCustom: true,
   overlayText: true,
@@ -625,6 +635,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     bottomTab: 'filmstrip',
     assistMode: 'copilot',
     features: DEFAULT_FEATURES,
+    featurePlan: DEFAULT_FEATURE_PLAN,
     looks: INITIAL_LOOKS,
     hoveredLookId: null,
     fonts: INITIAL_FONTS,
@@ -1635,6 +1646,12 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    importWatermarkImage: async () => null,
+    cutOutWatermark: async () => null,
+    makeWatermarkVariant: async () => undefined,
+    deleteWatermark: () => undefined,
+    listDeviceFonts: async () => ['Avenir Next', 'Baskerville', 'Futura', 'Gill Sans', 'Helvetica Neue', 'Optima'],
+    hasDeviceFont: (fontName) => ['avenir next', 'baskerville', 'futura', 'gill sans', 'helvetica neue', 'optima'].includes(fontName.trim().toLowerCase()),
     addCustomFont: (fontName) => {
       const clean = fontName.trim();
       if (!clean) return;
@@ -1691,6 +1708,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    clearTask: (taskId) => {
+      logAction('clearTask', { taskId });
+      setStore((prev) => ({ ...prev, tasks: prev.tasks.filter((task) => task.id !== taskId || task.status === 'running') }));
+    },
+    clearCompletedTasks: () => {
+      logAction('clearCompletedTasks');
+      setStore((prev) => ({ ...prev, tasks: prev.tasks.filter((task) => task.status === 'running') }));
+    },
     cancelTask: (taskId) => {
       logAction('cancelTask', { taskId });
       setStore((prev) => ({

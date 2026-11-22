@@ -13,6 +13,9 @@ interface SettingsDialogProps {
   open: boolean;
   activeTab: SettingsTabId;
   settings: WorkspaceSettings;
+  /** The mode that is on now. It is chosen here and shown by the flag at the bottom of the tool rail. */
+  assistMode: AssistMode;
+  onSetAssistMode: (mode: AssistMode) => void;
   onClose: () => void;
   onSelectTab: (tab: SettingsTabId) => void;
   onUpdateSettings: (patch: Partial<WorkspaceSettings>) => void;
@@ -44,6 +47,8 @@ const SHORTCUTS = [
 ];
 
 export default function SettingsDialog({
+  assistMode,
+  onSetAssistMode,
   open,
   activeTab,
   settings,
@@ -317,9 +322,9 @@ export default function SettingsDialog({
                       <button
                         key={m}
                         type="button"
-                        onClick={() => onUpdateSettings({ defaultAssistMode: m })}
+                        onClick={() => { onSetAssistMode(m); onUpdateSettings({ defaultAssistMode: m }); }}
                         className={`h-9 rounded-[var(--radius-sm)] border text-xs font-medium ${
-                          settings.defaultAssistMode === m
+                          assistMode === m
                             ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                             : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
                         }`}

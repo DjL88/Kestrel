@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { TaskInfo } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
@@ -6,20 +6,48 @@ import BrandIcon from '../icons/BrandIcon';
 interface TasksPanelProps {
   tasks: TaskInfo[];
   onCancelTask: (taskId: string) => void;
+  onClearTask: (taskId: string) => void;
+  onClearCompleted: () => void;
 }
 
-export default function TasksPanel({ tasks, onCancelTask }: TasksPanelProps) {
-  if (tasks.length === 0) {
+export default function TasksPanel({ tasks, onCancelTask, onClearTask, onClearCompleted }: TasksPanelProps) {
+  const [tab, setTab] = useState<'active' | 'completed'>('active');
+  const running = tasks.filter((task) => task.status === 'running');
+  const finished = tasks.filter((task) => task.status !== 'running');
+  const shown = tab === 'active' ? running : finished;
+  const tabButton = (id: 'active' | 'completed', label: string, count: number) => (
+    <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+      className={`flex-1 rounded-[var(--radius-sm)] px-2 py-1.5 text-xs font-medium ${tab === id ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
+      {label} ({count})
+    </button>
+  );
+  const tabs = (
+    <div role="tablist" aria-label={STRINGS.tasks.heading} className="mb-2.5 flex gap-1 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-0.5">
+      {tabButton('active', STRINGS.tasks.tabActive, running.length)}
+      {tabButton('completed', STRINGS.tasks.tabCompleted, finished.length)}
+    </div>
+  );
+  if (shown.length === 0) {
     return (
-      <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4 text-center text-xs text-[var(--text-muted)]">
-        {STRINGS.tasks.empty}
+      <div>
+        {tabs}
+        <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4 text-center text-xs text-[var(--text-secondary)]">
+          {tab === 'active' ? STRINGS.tasks.empty : STRINGS.tasks.emptyCompleted}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-2.5">
-      {tasks.map((task) => (
+      {tabs}
+      {tab === 'completed' && (
+        <div className="flex items-center justify-between gap-2 text-[11px] text-[var(--text-secondary)]">
+          <span>{STRINGS.tasks.keepNote}</span>
+          <button type="button" onClick={onClearCompleted} className="shrink-0 rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2 py-0.5 font-medium hover:border-[var(--semantic-danger)]">{STRINGS.tasks.deleteAll}</button>
+        </div>
+      )}
+      {shown.map((task) => (
         <div
           key={task.id}
           className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3 space-y-2"
@@ -36,6 +64,15 @@ export default function TasksPanel({ tasks, onCancelTask }: TasksPanelProps) {
                 className="shrink-0 rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)] hover:border-[var(--semantic-danger)] hover:text-[var(--semantic-danger)]"
               >
                 {STRINGS.tasks.cancel}
+              </button>
+            )}
+            {task.status !== 'running' && (
+              <button
+                type="button"
+                onClick={() => onClearTask(task.id)}
+                className="shrink-0 rounded-[var(--radius-xs)] border border-[var(--border-default)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)] hover:border-[var(--semantic-danger)] hover:text-[var(--semantic-danger)]"
+              >
+                {STRINGS.tasks.deleteOne}
               </button>
             )}
           </div>
