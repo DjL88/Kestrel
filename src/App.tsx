@@ -43,7 +43,7 @@ import { applyAutoTag, disputePatch, keepAuto, mayAutoTag, reconcileAuto } from 
 import { burstMates, tagFrames } from './core/speciesBurst';
 import { loadImage } from './providers/loadImage';
 import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
-import { ArrowLeft, ChevronLeft, ChevronRight, Copy, ClipboardPaste, PanelLeftClose, PanelLeftOpen, Maximize2 } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Copy, ClipboardPaste, PanelLeftClose, PanelLeftOpen, Maximize2, X } from 'lucide-react';
 import { WorkspacePaneRail } from './components/WorkspacePaneRail';
 import { PHOTO_INFO_DOCK_QUERY } from './core/photoInfoLayout';
 import { PhotoJump } from './components/PhotoJump';
@@ -2736,9 +2736,9 @@ export default function App() {
       )}
       {prefs.focusMode && (
         <div className="flex shrink-0 justify-end border-t border-white/10 bg-kestrel-panel px-3 py-1">
-          <button type="button" onClick={() => setPrefs((prev) => ({ ...prev, focusMode: false }))}
-            className="min-h-10 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-            {t.editorBar.exitPhotoOnly}
+          <button type="button" onClick={() => setPrefs((prev) => ({ ...prev, focusMode: false }))} aria-label={t.editorBar.exitPhotoOnly}
+            className="grid min-h-11 min-w-11 place-items-center rounded-md px-3 text-sm sm:inline-flex text-zinc-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+            <X className="h-5 w-5 sm:hidden" aria-hidden="true" /><span className="max-sm:sr-only">{t.editorBar.exitPhotoOnly}</span>
           </button>
         </div>
       )}
