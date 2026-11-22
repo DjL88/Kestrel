@@ -13,7 +13,7 @@
     "test:e2e": "playwright test",
     "test:raw-master": "node scripts/test-raw-master.mjs",
     "test:e2e:dev": "playwright test -c playwright.dev.config.ts",
-    "test": "node --import tsx --test \"src/core/*.test.ts\" \"src/engine/*.test.ts\" \"src/v2/*.test.ts\" \"src/v2/ui/utils/*.test.ts\" \"src/v2/engineClient/*.test.ts\" \"src/providers/*.test.ts\" \"tools/mcp/*.test.ts\" \"services/control-plane/test/*.test.ts\" \"services/cloud-runner/test/*.test.ts\" \"scripts/prototype-gate.test.mjs\" \"scripts/check-source-parse.test.mjs\" \"scripts/site/verify-deployment.test.mjs\" \"scripts/site/admin-flags.test.mjs\"",
+    "test": "node --import tsx --test \"src/core/*.test.ts\" \"src/engine/*.test.ts\" \"src/v2/*.test.ts\" \"src/v2/ui/utils/*.test.ts\" \"src/v2/ui/commands/*.test.ts\" \"src/v2/engineClient/*.test.ts\" \"src/providers/*.test.ts\" \"tools/mcp/*.test.ts\" \"services/control-plane/test/*.test.ts\" \"services/cloud-runner/test/*.test.ts\" \"scripts/prototype-gate.test.mjs\" \"scripts/check-source-parse.test.mjs\" \"scripts/site/verify-deployment.test.mjs\" \"scripts/site/admin-flags.test.mjs\"",
     "control-plane": "npm --prefix services/control-plane start",
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
