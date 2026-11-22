@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import type { EntitlementGrant } from '../../../src/core/entitlementGrant.ts';
+import { forPublicDocument, parseFlagSet, resolveFlagsForGrant, MAX_GRANT_FLAGS, type Audience, type FlagSet } from '../../../src/core/featureFlags.ts';
 import { parseDataManifest, type DataManifest } from '../../../src/core/dataUpdateManifest.ts';
 import { verifyLicence } from '../../../src/core/licence.ts';
 import { newerRelease } from '../../../src/core/desktopRelease.ts';
@@ -172,6 +173,11 @@ export const Schemas = {
   AdminRevokeKey: z.object({ licenceKey: z.string().min(10).max(2000).describe('The whole key, so its signature can be checked. Only its licence id is kept.') }).strict(),
   AdminExtend: z.object({ days: z.number().int().min(1).max(365) }).strict(),
   AdminKillSwitch: z.object({ aiDisabled: z.boolean() }).strict(),
+  AdminFlagSet: z.object({
+    key: z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/),
+    flag: z.object({ default: z.boolean(), kill: z.boolean().optional(), minAppVersion: z.string().max(20).optional(), rules: z.array(z.unknown()).max(50) }).strict(),
+  }).strict(),
+  AdminFlagDelete: z.object({ key: z.string().regex(/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/) }).strict(),
   AdminQuota: z.object({ accountId: z.string(), requestsLimit: z.number().int().min(0).max(1_000_000) }).strict(),
   AdminModel: z.object({
     id: z.string(), kind: z.enum(['onnx', 'species-library', 'equipment']), version: z.string(), path: z.string(),
@@ -351,6 +357,19 @@ export function createApp(options: AppOptions) {
     return { status: 200, body };
   }
 
+  // Feature flags live in one settings document (works on SQLite and Firestore alike). Rules for a named user hold the
+  // SHA-256 of their email, never the address. Each device's grant carries the flags already resolved for that person.
+  const FLAGS_SETTING = 'feature_flags';
+  async function loadFlags(): Promise<FlagSet> {
+    try { return parseFlagSet(JSON.parse((await store.getSetting(FLAGS_SETTING)) ?? '{}')); } catch { return {}; }
+  }
+  async function grantFlagsFor(audience: Audience, deviceHash: string, appVersion: string, nowMs: number): Promise<Pick<EntitlementGrant, 'flags'>> {
+    const flags = await loadFlags();
+    if (!Object.keys(flags).length) return {};
+    const bucket = Number.parseInt(deviceHash.slice(0, 8), 16) % 100;
+    return { flags: resolveFlagsForGrant(flags, { audience, nowMs, bucket, appVersion }) };
+  }
+
   async function currentManifest(appVersion: string, channel: string): Promise<DataManifest> {
     const rows = await store.listLiveModelAssets(channel);
     const assets = rows.filter((row) => versionAtLeast(appVersion, row.requiredAppMin))
@@ -474,6 +493,7 @@ export function createApp(options: AppOptions) {
         const grant: EntitlementGrant = {
           schema: 1, grantId: `grt_${randomId(12)}`, plan: licence.plan as EntitlementGrant['plan'], managedAi: licence.managedAi,
           deviceHash: body.deviceHash, issuedAtMs: t, offlineUntilMs: t + licence.offlineGraceDays * DAY_MS,
+          ...(await grantFlagsFor({ plan: licence.plan === 'free' ? 'basic' : 'pro' }, body.deviceHash, body.appVersion, t)),
         };
         return { status: 200, body: { grant: signEnvelope(grant, config.signingKey), activationId } };
       },
@@ -498,6 +518,7 @@ export function createApp(options: AppOptions) {
         const grant: EntitlementGrant = {
           schema: 1, grantId: `grt_${randomId(12)}`, plan: outcome.licence.plan as EntitlementGrant['plan'], managedAi: outcome.licence.managedAi,
           deviceHash: body.deviceHash, issuedAtMs: t, offlineUntilMs: t + outcome.licence.offlineGraceDays * DAY_MS,
+          ...(await grantFlagsFor({ plan: outcome.licence.plan === 'free' ? 'basic' : 'pro', user: (await store.getAccount(claims.sub))?.emailHash }, body.deviceHash, body.appVersion, t)),
         };
         await audit(claims.sub, 'device.activate.account', 'allowed', outcome.activationId);
         return { status: 200, body: { grant: signEnvelope(grant, config.signingKey), activationId: outcome.activationId } };
@@ -602,6 +623,49 @@ export function createApp(options: AppOptions) {
         const channel = req.query.get('channel') ?? 'stable';
         if (!Version.safeParse(app).success || (channel !== 'stable' && channel !== 'beta')) throw new ApiError(400, 'VALIDATION_FAILED', 'Give app as x.y.z and channel as stable or beta.');
         return { status: 200, body: signEnvelope(await currentManifest(app, channel), config.signingKey), headers: { 'cache-control': 'public, max-age=3600' } };
+      },
+    },
+    {
+      method: 'GET', path: '/v1/flags/public', summary: 'Signed feature flags for people without an account: no named users or organisations', auth: 'none', response: Schemas.ManifestResponse,
+      handler: async () => ({ status: 200, body: signEnvelope({ schema: 1, flags: forPublicDocument(await loadFlags()) }, config.signingKey), headers: { 'cache-control': 'public, max-age=3600' } }),
+    },
+    {
+      method: 'GET', path: '/v1/admin/flags', summary: 'Read every feature flag. Named-user rules show a hash of the email, never the address', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'flags.read');
+        return adminDone(claims, 'flags.read', '', { flags: await loadFlags() });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/flags/set', summary: 'Create or replace one feature flag. A rule for a named user may give the email: it is stored as a hash', auth: 'admin', body: Schemas.AdminFlagSet,
+      handler: async (req) => {
+        const claims = await admin(req, 'flags.set');
+        const body = parseJson(Schemas.AdminFlagSet, req.rawBody);
+        const rules = body.flag.rules.map((rule) => {
+          const r = rule as { audience?: { kind?: unknown; email?: unknown } };
+          if (r?.audience?.kind === 'user' && typeof r.audience.email === 'string' && r.audience.email.includes('@')) {
+            return { ...(rule as object), audience: { kind: 'user', email: emailHashOf(r.audience.email) } };
+          }
+          return rule;
+        });
+        const parsed = parseFlagSet({ [body.key]: { ...body.flag, rules } })[body.key];
+        if (!parsed || parsed.rules.length !== rules.length) throw new ApiError(400, 'VALIDATION_FAILED', 'One of the rules is not valid. Nothing was changed.');
+        const flags = { ...(await loadFlags()), [body.key]: parsed };
+        if (Object.keys(flags).length > MAX_GRANT_FLAGS) throw new ApiError(400, 'VALIDATION_FAILED', `At most ${MAX_GRANT_FLAGS} flags.`);
+        await store.setSetting(FLAGS_SETTING, JSON.stringify(flags));
+        return adminDone(claims, 'flags.set', `${body.key} rules=${parsed.rules.length} kill=${parsed.kill === true}`, { key: body.key, flag: parsed });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/flags/delete', summary: 'Remove one feature flag (the app falls back to its compiled default)', auth: 'admin', body: Schemas.AdminFlagDelete,
+      handler: async (req) => {
+        const claims = await admin(req, 'flags.delete');
+        const body = parseJson(Schemas.AdminFlagDelete, req.rawBody);
+        const flags = { ...(await loadFlags()) };
+        const existed = Object.hasOwn(flags, body.key);
+        delete flags[body.key];
+        await store.setSetting(FLAGS_SETTING, JSON.stringify(flags));
+        return adminDone(claims, 'flags.delete', body.key, { key: body.key, existed });
       },
     },
     {

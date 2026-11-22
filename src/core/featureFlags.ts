@@ -103,6 +103,17 @@ function ruleApplies(rule: FlagRule, context: EvaluationContext): boolean {
   return true;
 }
 
+function pickRule(flag: FlagDefinition, context: EvaluationContext): FlagRule | null {
+  let best: FlagRule | null = null;
+  for (const rule of flag.rules) {
+    if (!ruleApplies(rule, context)) continue;
+    if (!best) { best = rule; continue; }
+    const more = SPECIFICITY[rule.audience.kind] - SPECIFICITY[best.audience.kind];
+    if (more > 0 || (more === 0 && !rule.enabled && best.enabled)) best = rule;
+  }
+  return best;
+}
+
 /**
  * Order: never-gated, kill switch, app version, then the most specific matching rule (user, then corporate, then plan,
  * then any). On a tie a rule that switches the feature off beats one that switches it on. With no matching rule the flag's default applies.
@@ -115,15 +126,73 @@ export function evaluateFlag(key: string, flags: FlagSet, fallback: FlagSet, con
   if (flag.minAppVersion && context.appVersion && compareVersions(context.appVersion, flag.minAppVersion) < 0) {
     return { on: false, reason: 'app-too-old', trial: false };
   }
-  let best: FlagRule | null = null;
-  for (const rule of flag.rules) {
-    if (!ruleApplies(rule, context)) continue;
-    if (!best) { best = rule; continue; }
-    const more = SPECIFICITY[rule.audience.kind] - SPECIFICITY[best.audience.kind];
-    if (more > 0 || (more === 0 && !rule.enabled && best.enabled)) best = rule;
-  }
+  const best = pickRule(flag, context);
   if (best) return { on: best.enabled, reason: REASON[best.audience.kind], trial: best.enabled && best.trial === true };
   return { on: flag.default, reason: 'default', trial: false };
+}
+
+/**
+ * What the control plane signs into a device's entitlement grant: each flag already resolved for that person, so named
+ * users and organisations never travel to the device. `endsAtMs` is the end of the matching rule's date range, so a
+ * trial closes on time even when the device stays offline.
+ */
+export interface GrantFlag { on: boolean; trial?: true; endsAtMs?: number }
+export type GrantFlags = Readonly<Record<string, GrantFlag>>;
+export const MAX_GRANT_FLAGS = 64;
+
+export function resolveFlagsForGrant(flags: FlagSet, context: EvaluationContext): GrantFlags {
+  const out: Record<string, GrantFlag> = {};
+  for (const key of Object.keys(flags).slice(0, MAX_GRANT_FLAGS)) {
+    const flag = flags[key];
+    if (flag.kill) { out[key] = { on: false }; continue; }
+    if (flag.minAppVersion && context.appVersion && compareVersions(context.appVersion, flag.minAppVersion) < 0) { out[key] = { on: false }; continue; }
+    const best = pickRule(flag, context);
+    if (!best) { out[key] = { on: flag.default }; continue; }
+    const resolved: GrantFlag = { on: best.enabled };
+    if (best.enabled && best.trial) resolved.trial = true;
+    if (best.enabled && typeof best.endsAtMs === 'number') resolved.endsAtMs = best.endsAtMs;
+    out[key] = resolved;
+  }
+  return out;
+}
+
+/** Read grant flags from a verified grant. Returns null when anything is malformed, so the whole grant is refused. */
+export function parseGrantFlags(value: unknown): GrantFlags | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length > MAX_GRANT_FLAGS) return null;
+  const out: Record<string, GrantFlag> = {};
+  for (const [key, raw] of entries) {
+    if (!/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(key) || typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+    const flag = raw as Record<string, unknown>;
+    if (typeof flag.on !== 'boolean') return null;
+    if (Object.keys(flag).some((name) => name !== 'on' && name !== 'trial' && name !== 'endsAtMs')) return null;
+    if (flag.trial !== undefined && flag.trial !== true) return null;
+    if (flag.endsAtMs !== undefined && !(typeof flag.endsAtMs === 'number' && Number.isSafeInteger(flag.endsAtMs) && flag.endsAtMs >= 0)) return null;
+    const resolved: GrantFlag = { on: flag.on };
+    if (flag.trial === true) resolved.trial = true;
+    if (typeof flag.endsAtMs === 'number') resolved.endsAtMs = flag.endsAtMs;
+    out[key] = resolved;
+  }
+  return out;
+}
+
+/**
+ * Turn grant flags back into rules for the evaluator. A window that has already closed is left out, so the feature goes
+ * back to its compiled default, never to "off". A flag that is on for good is a plain default.
+ */
+export function flagSetFromGrant(grantFlags: GrantFlags | undefined, nowMs: number): FlagSet {
+  const out: Record<string, FlagDefinition> = {};
+  for (const [key, flag] of Object.entries(grantFlags ?? {})) {
+    if (!flag.on) { out[key] = { default: false, rules: [] }; continue; }
+    if (typeof flag.endsAtMs === 'number' && nowMs >= flag.endsAtMs) continue;
+    if (flag.trial || typeof flag.endsAtMs === 'number') {
+      const rule: FlagRule = { audience: { kind: 'any' }, enabled: true, trial: flag.trial === true };
+      if (typeof flag.endsAtMs === 'number') rule.endsAtMs = flag.endsAtMs;
+      out[key] = { default: false, rules: [rule] };
+    } else out[key] = { default: true, rules: [] };
+  }
+  return out;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
