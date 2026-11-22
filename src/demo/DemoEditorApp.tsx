@@ -22,14 +22,32 @@ interface Example {
   revision: number;
   edit?: PhotoEdit;
   framing?: PhotoFraming;
+  illustration?: true;
 }
 interface ActivePhoto { meta: Example; frame: PhotoFrame }
 const adminMode = new URLSearchParams(location.search).get('admin') === '1';
+
+type DemoLabel = string | { 'en-GB'?: string };
+const label = (value?: DemoLabel) => typeof value === 'string' ? value : value?.['en-GB'] ?? '';
+
+async function bundledExamples(): Promise<Example[]> {
+  const response = await fetch('/demo/photos.json');
+  if (!response.ok) return [];
+  const list = (await response.json() as { fallback?: Array<{
+    id: string; src: string; title: DemoLabel; alt: DemoLabel; subject?: DemoLabel; credit: string;
+  }> }).fallback;
+  return (list ?? []).filter((photo) => /^photos\/[a-z0-9-]+\.webp$/.test(photo.src)).slice(0, 5).map((photo) => ({
+    id: 'illustration-' + photo.id, imageUrl: '/demo/' + photo.src,
+    title: label(photo.title), alt: label(photo.alt), subject: label(photo.subject), credit: photo.credit,
+    revision: 1, published: true, illustration: true,
+  }));
+}
 
 async function api(path: string, token: string | null, body?: unknown) {
   const res = await fetch('/v1/' + path, {
     method: body === undefined ? 'GET' : 'POST',
     cache: 'no-store',
+    signal: AbortSignal.timeout(10_000),
     headers: {
       ...(token ? { Authorization: 'Bearer ' + token } : {}),
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
@@ -71,9 +89,9 @@ async function preparePhoto(file: File): Promise<string> {
 function asFrame(photo: Example, index: number): PhotoFrame {
   return {
     id: photo.id, stableKey: 'website-example:' + photo.id,
-    filename: photo.title + '.jpg', sequenceIndex: index + 1,
+    filename: photo.title + (photo.illustration ? '.webp' : '.jpg'), sequenceIndex: index + 1,
     decision: 'unreviewed', burstGroupId: null, burstIndex: 0, burstCount: 1,
-    exif: { formatLabel: 'Approved JPEG example' },
+    exif: { formatLabel: photo.illustration ? 'Sample illustration (WebP)' : 'Approved JPEG example' },
     isDemo: true, sourceKind: 'file',
     subjectNames: photo.subject ? [photo.subject] : [],
     tags: photo.subject ? [photo.subject] : [],
@@ -109,18 +127,16 @@ export function DemoEditorApp() {
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
-  const refresh = useCallback(async (auth: string | null, keepId?: string) => {
-    setMessage('Loading approved photographs…');
-    const result = await api(auth && adminMode ? 'admin/demo/photos' : 'demo/photos', auth && adminMode ? auth : null);
-    const entries = (result.photos as Example[]).slice(0, 40);
+  const loadExamples = useCallback(async (entries: Example[], auth: string | null) => {
     const next: ActivePhoto[] = [];
     for (const [index, photo] of entries.entries()) {
       try {
         let blob: Blob;
         if (photo.imageUrl) {
-          const response = await fetch(photo.imageUrl, { cache: 'no-store' });
+          const response = await fetch(photo.imageUrl, { cache: photo.illustration ? 'default' : 'no-store', signal: AbortSignal.timeout(10_000) });
           if (!response.ok) throw new Error('Image is unavailable.');
           blob = await response.blob();
+          if (!blob.type.startsWith('image/')) throw new Error('Expected an image.');
         } else if (auth && adminMode) {
           const raw = await api('admin/demo/photos/' + encodeURIComponent(photo.id) + '/image', auth);
           const bytes = Uint8Array.from(atob(raw.jpegBase64), (char) => char.charCodeAt(0));
@@ -131,11 +147,25 @@ export function DemoEditorApp() {
         next.push({ meta: photo, frame });
       } catch { /* An unavailable image must not hide the other approved photographs. */ }
     }
+    return next;
+  }, []);
+
+  const refresh = useCallback(async (auth: string | null, keepId?: string) => {
+    setMessage('Loading approved photographs…');
+    let next: ActivePhoto[];
+    if (adminMode) {
+      const result = auth ? await api('admin/demo/photos', auth) : { photos: [] };
+      next = await loadExamples((result.photos as Example[]).slice(0, 40), auth);
+    } else {
+      const result = await api('demo/photos', null).catch(() => ({ photos: [] }));
+      next = await loadExamples((Array.isArray(result.photos) ? result.photos : []).slice(0, 10), null);
+      if (!next.length) next = await loadExamples(await bundledExamples().catch(() => []), null);
+    }
     setPhotos(next);
     setSelected(next.find((p) => p.meta.id === keepId)?.meta.id ?? next[0]?.meta.id ?? '');
     setDirty(false);
     setMessage(next.length ? '' : auth && adminMode ? 'Upload your first approved photograph.' : 'Curated photographs are being prepared.');
-  }, []);
+  }, [loadExamples]);
 
   useEffect(() => { void refresh(token).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Could not load photographs.')); }, [refresh, token]);
   const active = photos.find((p) => p.meta.id === selected);
@@ -255,7 +285,7 @@ export function DemoEditorApp() {
         {adminMode && !token ? 'Sign in through the InFlight admin console to manage examples.' : 'No published photographs are available yet.'}
       </div>}
       <p className="shrink-0 border-t border-white/10 bg-[#1a1d23] px-3 py-1 text-[11px] text-zinc-400">
-        Real InFlight editor · fixed JPEG examples · no import or export · visitor changes are temporary
+        {active?.meta.illustration ? 'Sample illustrations' : 'Approved JPEG examples'} · Edits last for this visit
       </p>
     </div>
   );
