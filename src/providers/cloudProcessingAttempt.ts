@@ -97,7 +97,7 @@ async function runMaskCloud(request: MaskRequest, connection: CloudConnection, s
 async function runUpscaleCloud(request: UpscaleRequest, connection: CloudConnection, signal?: AbortSignal): Promise<UpscaleActionResult> {
   const uploadBytes = encodeUpscaleUpload(request.original, request.scale);
   const resultBlob = await runCloudJob(connection, {
-    kind: 'upscale', input: new Blob([uploadBytes]), userConsent: true, signal, maxResultBytes: DEFAULT_MAX_RESULT_BYTES,
+    kind: 'upscale', input: new Blob([uploadBytes as BlobPart]), userConsent: true, signal, maxResultBytes: DEFAULT_MAX_RESULT_BYTES,
   });
   const { header, picture } = decodeResult(new Uint8Array(await resultBlob.arrayBuffer()));
   const downsampled = resampleLanczos3({ data: picture.data, width: picture.width, height: picture.height, channels: 4 }, request.original.width, request.original.height);
