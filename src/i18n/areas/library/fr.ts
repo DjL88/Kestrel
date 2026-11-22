@@ -383,6 +383,8 @@ export const fr: AreaTranslation<typeof source> = {
     showTab: "Afficher",
     hideTab: "Masquer",
     dockLabel: "Ancrer",
+    dockLeft: 'Ancrer à gauche',
+    dockRight: 'Ancrer à droite',
     undockLabel: "Détacher",
     undockTab: (title) => `Détacher ${title}`,
     undockTabHelp: "Ouvrir cet onglet dans un panneau séparé, déplaçable et redimensionnable",

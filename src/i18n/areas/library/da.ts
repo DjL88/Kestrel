@@ -383,6 +383,8 @@ export const da: AreaTranslation<typeof source> = {
     showTab: "Vis",
     hideTab: "Skjul",
     dockLabel: "Fastgør",
+    dockLeft: 'Fastgør til venstre',
+    dockRight: 'Fastgør til højre',
     undockLabel: "Frigør",
     undockTab: (title) => `Frigør ${title}`,
     undockTabHelp: "Åbn fanen i et separat panel, der kan flyttes og ændres i størrelse",

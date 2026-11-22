@@ -27,6 +27,8 @@ interface ExifInspectorProps {
   /** The dock sits opposite the photographer's preferred tool hand. */
   photoOnly?: boolean;
   dockedSide?: 'left' | 'right';
+  /** Dragging the floating panel onto a window edge: dock it on that side. */
+  onDockSide?: (side: 'left' | 'right') => void;
   onClose: () => void;
   batchCount: number;
   onRate: (id: string, rating: number) => void;
@@ -45,7 +47,7 @@ interface ExifInspectorProps {
   onAutoTag?: (frame: PhotoFrame, name: string, kind: SubjectKind | undefined) => void;
 }
 
-export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide = 'right', photoOnly = false, batchCount, onClose, onRate, onFlag, onImportSidecar, onSubjects, onKeepTag, loadPicture, reviewSubjects, mates = [], onTagPhotos, onAutoTag }) => {
+export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide = 'right', onDockSide, photoOnly = false, batchCount, onClose, onRate, onFlag, onImportSidecar, onSubjects, onKeepTag, loadPicture, reviewSubjects, mates = [], onTagPhotos, onAutoTag }) => {
   const sidecarInput = useRef<HTMLInputElement>(null);
   const [sidecarBusy, setSidecarBusy] = useState(false);
   const [sidecarStatus, setSidecarStatus] = useState<{ id: string; message: string } | null>(null);
@@ -303,6 +305,6 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
     </aside>
   );
   return floating
-    ? <FloatingPane title={m.photoInfo.title} photoOnly={photoOnly} initialSide={dockedSide} storageKey="kestrel-info-float-rect-v1" dockFocusSelector="[data-info-undock]" onDock={() => detach(false)}>{inspector}</FloatingPane>
+    ? <FloatingPane title={m.photoInfo.title} photoOnly={photoOnly} initialSide={dockedSide} storageKey="kestrel-info-float-rect-v1" dockFocusSelector="[data-info-undock]" onDock={() => detach(false)} onDockTo={onDockSide}>{inspector}</FloatingPane>
     : inspector;
 };
