@@ -175,3 +175,53 @@ Intended behaviour: Basic gets an InFlight watermark. A backend toggle opens cus
 **The seam (frontend side).** The frontend talks to the engine only through `src/v2/ui/contract.ts` (`WorkspaceStore`, `WorkspaceActions`) via one adapter, `src/v2/engineClient/` (today a thin adapter over the V1 `src/core` and `src/providers` code, which stays the engine until the engine worker moves it behind the task manager). The frontend must not grow engine logic: it asks for a capability, shows progress from the task manager, and renders what comes back. Where the frontend needs something the engine does not yet provide (a good/better/best rank per photo, top-three recipe candidates, a mask list per photo, a cloud-consent state), it adds the **field to the contract** and says so, and the engine worker fills it.
 
 **Open for the engine worker:** the task-manager request/result shape that device and cloud calls share; the decision maker's score and tiers; recipe format with masks; where learning is stored. See also `docs/AI-INTEGRATION.md` (one engine API, top-three candidates).
+
+## 16. Gap analysis: V2 interface against V1 (22 Nov 2026)
+
+Method: V1 = the current Library and Editor (`src/App.tsx`, `src/components/*`, `docs/PRODUCT-SPEC.md` section 3). V2 = `src/v2/ui` on the real catalogue through `src/v2/engineClient`. Status words: **Done** (real, tested), **Partial** (works but narrower than V1), **Stub** (shown but not connected, or fake), **Missing** (not in V2). Priority: **P0** blocks daily use or breaks a non-negotiable, **P1** expected by V1 users, **P2** later. "Intentional" means the owner moved or dropped it (File/Edit/View, Assist as a separate tool, mode switch in the header).
+
+### P0: V2 cannot replace V1 until these work
+| Area | V1 | V2 now | Gap |
+|---|---|---|---|
+| Export | Wizard: full-size PNG/JPEG master, social sizes, before/after, zip or folder, destinations, proof preview, never reduces resolution silently | Dialog is shown, `runExport` is **Stub** (does nothing) | Whole export; shared overlay and watermark renderer so the file matches the canvas |
+| Crop, rotate, straighten | Saved in the recipe (`PhotoFraming`), used by export | Crop and sizes are CSS-only, not saved (**Stub**) | Save framing; size copies (`createCropCopy`) |
+| Masks | Subject, area and brush masks with blend and halo-free edges (`MaskPanel`) | Masks panel **Stub** | Connect to the engine mask pipeline |
+| Remove and restore photos | Remove from library, Removed photos panel, restore | **Missing** (photos cannot be removed) | Remove, undo and restore, never touching originals |
+| Missing originals | Relink banner and relink flow, never attach the wrong file | Shows "Original not connected" but `reconnectOriginal` is **Stub** | Relink |
+| Histogram | Real, from the preview pixels | **Fake**: seeded curve from the sliders (`buildHistogramData`) | Replace with the real histogram (must not mislead) |
+
+### P1: V1 behaviour people rely on
+| Area | V1 | V2 now |
+|---|---|---|
+| Projects | Archive, restore from backup, delete, rename, project locations, move photos between projects, quick edits bucket | Hub: create and open only (**Missing** the rest) |
+| Import | Files, folders, drag and drop, RAW+JPEG pairing, watch folder, sync folder, cancel with summary | Files only; Stop works via Tasks (**Partial**) |
+| Filter and sort | Rating filter, camera, lens, search, sort order, "needs a decision" | All/Flagged and search only (**Partial**) |
+| Culling | Keep, reject, undo, side-by-side compare of two photos, burst groups, review tab, keeper target and confidence tiers in Auto-cull | Flag, rating, Auto-cull flags high-confidence keepers; **Missing** two-photo compare, bursts, reject flow, tiers; "Compare" is before/after only |
+| Zoom and focus | Zoom to eye, 100% pixel zoom, wheel and pinch, zoom kept between photos, Shift 3x3 grid | Fixed 50 to 300% buttons (**Partial**); before/after split is done |
+| Context menu and keys | Right-click photo menu (flag, rate, copy and paste, reset, export, remove), keep/reject keys, shortcut overlay, macro pad | A few keys (F, 1 to 5, G, backslash, undo); no photo context menu, no `?` overlay, no macro pad (**Missing**) |
+| Metadata | EXIF inspector, XMP sidecars, camera ratings and flags read at import | Info panel shows basic EXIF (**Partial**); no XMP save, no camera label or pick import |
+| Subject and species | Top three species suggestions with confidence, edit subject kind and tags, "unknown stays unknown", species scan banner | Label shown, marked "(suggested)"; no edit, no top three (**Partial**) |
+| Batch | Apply a Look or Auto to the selection with preview, selection bar actions, move, export selected | Recipe edits apply to the selected photos; no Look preview dialog, no selection bar (**Partial**) |
+| Edits | Quick Adjust, presets, Auto strength slider, colour check panel, Photo Advice, histories | Adjust and Looks, Co-pilot Auto and colour check (**Done/Partial**); Auto strength slider, Photo Advice, history list **Missing** |
+| Storage and recovery | Catalogue storage manager, automatic backup and restore proof, cloud and NAS connections (S3, WebDAV, Drive, OneDrive, Dropbox), temporary-originals warning | Settings shows sample connectors (**Stub**) |
+| Licence and account | Licence key entry, online status, devices, sign in, Pro dialogs | Sample sign-in (**Stub**); Pro badge and Basic/Pro gate done |
+| First run | Language welcome, three-facts onboarding, guided banner | **Missing** |
+| Appearance | Dark, night, high-contrast themes, left/right handedness, guidance modes, language picker | Dark and light only; language list is sample (**Partial**) |
+
+### P2 and platform
+Phone and tablet layout, native desktop menus and auto-update banner (desktop gets File, Edit and View natively, **Intentional**), PWA offline checks, optional cloud help (engine and backend halves), personal and collective learning.
+
+### What V2 has that V1 does not
+One workspace (no Library/Editor split), Task Manager wheel with a Completed tab, Before/After split with a draggable handle, watermark library with Auto light/dark and Remove background, bundled and device fonts, good/better/best word, Pro badges, Co-pilot with one panel.
+
+### Small things worth bringing over first (low risk, high value)
+1. **Real histogram** (replace the fake one).
+2. **Rating filter and sort** in the filmstrip filter (reuse `RatingFilterControl` logic, `filterFrames`, `sortFrames`).
+3. **Photo right-click menu** (flag, rate, copy and paste edit, reset, export, remove) and `?` shortcut overlay.
+4. **Reject and "Set aside"** (flagged = keep; rejects stay findable) with undo, as decided in section 11.
+5. **Remove and restore photos** (the Removed photos panel behaviour).
+6. **Drag and drop import** and folder import.
+7. **Zoom to eye** and 100% pixel zoom, zoom kept between photos.
+8. **Relink** missing originals.
+9. **Hub actions**: rename, archive, delete, restore backup.
+10. **Species: top three** suggestions and edit subject kind and tags.
