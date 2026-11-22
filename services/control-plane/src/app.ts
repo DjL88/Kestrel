@@ -339,22 +339,27 @@ export function createApp(options: AppOptions) {
   }
 
   // ---- Cloud Processing gate. Order matters: nothing is reserved or uploaded until every check has passed.
-  async function cloudJobStart(req: Request): Promise<Reply> {
-    const claims = await bearer(req);
-    const body = parseJson(Schemas.CloudJobRequest, req.rawBody);
-    if (body.userConsent !== true) throw new ApiError(400, 'CONSENT_REQUIRED', 'InFlight needs your permission before sending a photo to be processed.');
+  /** Configured, kill switch and Pro. Runs on every request that starts work, not only on create. */
+  async function cloudGate(accountId: string) {
     const cloud = options.cloud;
     if (!cloud) throw new ApiError(503, 'CLOUD_NOT_CONFIGURED', 'Cloud processing is not set up on this server.');
     // Kill switch: the settings key or a kill-switched flag. Checked live on every request.
     if ((await store.getSetting('cloud_disabled')) === '1' || (await loadFlags())['cloud.processing']?.kill === true) {
-      await audit(claims.sub, 'cloud.job.create', 'denied', 'kill switch');
+      await audit(accountId, 'cloud.job.create', 'denied', 'kill switch');
       throw new ApiError(503, 'CLOUD_DISABLED', 'Cloud processing is switched off for now.', true);
     }
-    const licences = await store.listLicencesForAccount(claims.sub);
+    const licences = await store.listLicencesForAccount(accountId);
     if (!licences.some((l) => (l.plan === 'paid' || l.plan === 'subscriber') && licenceIsUsable(l, now()))) {
-      await audit(claims.sub, 'cloud.job.create', 'denied', 'not Pro');
+      await audit(accountId, 'cloud.job.create', 'denied', 'not Pro');
       throw new ApiError(403, 'CLOUD_NOT_ENTITLED', 'Cloud processing is part of Pro.');
     }
+    return cloud;
+  }
+  async function cloudJobStart(req: Request): Promise<Reply> {
+    const claims = await bearer(req);
+    const body = parseJson(Schemas.CloudJobRequest, req.rawBody);
+    if (body.userConsent !== true) throw new ApiError(400, 'CONSENT_REQUIRED', 'InFlight needs your permission before sending a photo to be processed.');
+    const cloud = await cloudGate(claims.sub);
     if (body.inputBytes > cloud.maxInputBytes) throw new ApiError(413, 'CLOUD_INPUT_TOO_LARGE', 'This file is larger than cloud processing accepts.');
     if (!(await cloud.ledger.reserve(claims.sub, now(), cloud.jobsPerPeriod, QUOTA_PERIOD_MS))) {
       await audit(claims.sub, 'cloud.job.create', 'denied', 'quota');
@@ -667,14 +672,47 @@ export function createApp(options: AppOptions) {
       handler: (req) => cloudJobStart(req),
     },
     {
-      method: 'GET', path: '/v1/cloud/jobs/:id', summary: 'Status of one of your cloud processing jobs', auth: 'user',
-      handler: async (req, params) => { const { record } = await cloudJobOwned(req, params.id!); return { status: 200, body: { jobId: record.jobId, status: record.status, kind: record.kind } }; },
+      method: 'GET', path: '/v1/cloud/jobs/:id', summary: 'Status of one of your cloud processing jobs; a signed result URL once ready', auth: 'user',
+      handler: async (req, params) => {
+        const { cloud, record } = await cloudJobOwned(req, params.id!);
+        let current = record;
+        let resultUrl: string | undefined;
+        if (record.status === 'running') {
+          const p = await cloud.runner.poll(record.jobId);
+          if (p.state !== 'running') {
+            // The job has ended: the input goes now, not at finish or at the lifecycle backstop.
+            await cloud.runner.deleteInput(record.jobId);
+            current = { ...record, status: p.state };
+            await cloud.ledger.put(current);
+            if (p.state === 'failed') await cloud.ledger.refund(record.accountId); // a failed job costs nothing; the status change makes this happen once
+            await audit(record.accountId, 'cloud.job.end', 'allowed', `${record.jobId} ${p.state}`);
+          }
+          if (p.state === 'ready') resultUrl = p.resultUrl;
+        } else if (record.status === 'ready') {
+          const p = await cloud.runner.poll(record.jobId);
+          if (p.state === 'ready') resultUrl = p.resultUrl;
+        }
+        return { status: 200, body: { jobId: current.jobId, status: current.status, kind: current.kind, ...(resultUrl ? { resultUrl } : {}), ...(current.status === 'failed' ? { failure: 'CLOUD_JOB_FAILED' } : {}) } };
+      },
     },
     {
-      method: 'POST', path: '/v1/cloud/jobs/:id/finish', summary: 'Result collected or job cancelled: deletes the uploaded input now (idempotent)', auth: 'user',
+      method: 'POST', path: '/v1/cloud/jobs/:id/start', summary: 'Start processing once the upload has arrived (idempotent). Re-checks the kill switch and Pro', auth: 'user',
+      handler: async (req, params) => {
+        const { record } = await cloudJobOwned(req, params.id!);
+        const cloud = await cloudGate(record.accountId);
+        if (record.status !== 'awaiting-upload') return { status: 200, body: { jobId: record.jobId, status: record.status } };
+        if (!(await cloud.runner.inputPresent(record.jobId))) throw new ApiError(409, 'CLOUD_INPUT_MISSING', 'The upload has not arrived yet.', true);
+        await cloud.runner.start(record.jobId, record.kind);
+        await cloud.ledger.put({ ...record, status: 'running' });
+        return { status: 200, body: { jobId: record.jobId, status: 'running' } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/cloud/jobs/:id/finish', summary: 'Result collected or job cancelled: deletes the input and the result now (idempotent)', auth: 'user',
       handler: async (req, params) => {
         const { cloud, record } = await cloudJobOwned(req, params.id!);
         await cloud.runner.deleteInput(record.jobId);
+        await cloud.runner.deleteResult(record.jobId);
         await cloud.ledger.put({ ...record, status: 'finished' });
         return { status: 200, body: { jobId: record.jobId, inputDeleted: true } };
       },
