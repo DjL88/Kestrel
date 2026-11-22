@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Grip, Expand, Shrink, PanelRightClose, Pin } from 'lucide-react';
+import { Grip, PanelRightClose, Pin } from 'lucide-react';
 import { clampPaneRect, defaultPaneRect, dockZoneAt, FLOATING_PANE_GAP as GAP, type PaneRect } from '../core/floatingPaneGeometry';
 import { FLOATING_PANE_Z } from '../core/photoInfoLayout';
 import { libraryText as t } from '../i18n/areas/library';
@@ -50,7 +50,7 @@ export function FloatingPane({ title, storageKey, onDock, onDockTo, dockFocusSel
     try { return localStorage.getItem(pinKey) === 'true'; } catch { return false; }
   });
   const visible = !photoOnly || pinned;
-  const [maximised, setMaximised] = useState(false);
+  const maximised = false; // The full-screen button was removed as pointless; the drag and resize code still reads this.
   const [dockZone, setDockZone] = useState<'left' | 'right' | null>(null);
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ pointer: number; x: number; y: number; rect: PaneRect } | null>(null);
@@ -164,11 +164,6 @@ export function FloatingPane({ title, storageKey, onDock, onDockTo, dockFocusSel
           onPointerMove={moveDrag} onPointerUp={dropDrag} onPointerCancel={stopDrag}>
           <span className="truncate">{title}</span>
         </div>
-        <button type="button" onClick={() => setMaximised((value) => !value)}
-          aria-label={maximised ? t.floatingPane.restore(title) : t.floatingPane.maximise(title)}
-          className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-          {maximised ? <Shrink className="h-4 w-4" aria-hidden="true"/> : <Expand className="h-4 w-4" aria-hidden="true"/>}
-        </button>
         <button type="button" aria-pressed={pinned}
           aria-label={t.floatingPane.pin(title)} title={t.floatingPane.pin(title)}
           onClick={() => {
