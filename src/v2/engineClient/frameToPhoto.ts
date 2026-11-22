@@ -65,7 +65,7 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  * not record says "Not recorded" (or is left empty), never an invented value. The edit, size and mask parts start as the
  * UI's neutral defaults; they are connected to the real recipe in a later step.
  */
-export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, assist?: AssistState): Photo {
+export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, assist?: AssistState, watermarkAuto?: 'light-on-dark' | 'dark-on-light'): Photo {
   const { exif } = frame;
   // The UI's sample group carries a made-up look. A real photo starts from its own edit: neutral until the person edits it.
   const groups = createEditGroups(false).map((group) => ({ ...group, name: 'Edit group 1', recipe: editToRecipe(frame.edit), overlay: readOverlay(frame.overlay) }));
@@ -101,6 +101,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ass
     sizes: createDefaultSizes(),
     videoZoom: { enabled: false, focalX: 50, focalY: 50, direction: 'in', durationSec: 6 },
     masks: [],
+    ...(watermarkAuto ? { watermarkAuto } : {}),
     assistCritique: assistCritiqueFor(assist),
   };
 }

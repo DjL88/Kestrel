@@ -14,8 +14,13 @@ test('Pro is what enhances the photo or costs money to run; zoom video and split
 });
 
 test('access follows the single can() gate for every feature', () => {
-  const basic = featureAccess((feature) => feature === 'zoomVideo' || feature === 'splitFrames');
+  const basic = featureAccess((feature) => feature === 'zoomVideo' || feature === 'splitFrames', false);
   assert.equal(basic.zoomVideo, true);
   assert.equal(basic.smartCulling, false);
   assert.deepEqual(Object.keys(basic).sort(), [...V2_FEATURES].sort());
+});
+
+test('the developer-only Pro preview opens every feature, and is off unless asked for', () => {
+  assert.equal(featureAccess(() => false, true).smartCulling, true);
+  assert.equal(featureAccess(() => false, false).smartCulling, false);
 });

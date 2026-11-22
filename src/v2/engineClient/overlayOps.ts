@@ -27,7 +27,8 @@ function readRow(raw: unknown, fallback: OverlayTextRow): OverlayTextRow | null 
 /** The overlay stored on a photo, read defensively: anything missing or wrong falls back to the default (text and
  * watermark off). A stored overlay can come from an older build or a damaged file, so nothing is trusted. */
 export function readOverlay(raw: unknown): OverlaySettings {
-  const base = createDefaultOverlay(false);
+  // A new photo's watermark starts on 'auto': light or dark is chosen from the photo behind it.
+  const base: OverlaySettings = { ...createDefaultOverlay(false), watermarkContrast: 'auto' };
   if (!raw || typeof raw !== 'object') return base;
   const value = raw as Record<string, unknown>;
   const anchor = (candidate: unknown, fallback: OverlayAnchor) => ((ANCHORS as readonly unknown[]).includes(candidate) ? (candidate as OverlayAnchor) : fallback);
@@ -48,7 +49,7 @@ export function readOverlay(raw: unknown): OverlaySettings {
     watermarkX: num(value.watermarkX, base.watermarkX, 4, 96), watermarkY: num(value.watermarkY, base.watermarkY, 4, 96),
     watermarkOpacity: num(value.watermarkOpacity, base.watermarkOpacity, 10, 100),
     watermarkScale: num(value.watermarkScale, base.watermarkScale, 40, 160),
-    watermarkContrast: value.watermarkContrast === 'dark-on-light' ? 'dark-on-light' : 'light-on-dark',
+    watermarkContrast: value.watermarkContrast === 'dark-on-light' ? 'dark-on-light' : value.watermarkContrast === 'light-on-dark' ? 'light-on-dark' : 'auto',
     snapEnabled: value.snapEnabled !== false,
   };
 }

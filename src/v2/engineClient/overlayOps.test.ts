@@ -43,3 +43,10 @@ test('patching keeps the overlay valid, and a clean alignment resets the offsets
   assert.equal(aligned.watermarkPosition, 'bottom-right');
   assert.equal(aligned.watermarkX, 92);
 });
+
+test('a watermark starts on auto contrast, and an explicit choice is kept', () => {
+  assert.equal(readOverlay(undefined).watermarkContrast, 'auto');
+  assert.equal(readOverlay({ watermarkContrast: 'dark-on-light' }).watermarkContrast, 'dark-on-light');
+  assert.equal(readOverlay({ watermarkContrast: 'light-on-dark' }).watermarkContrast, 'light-on-dark');
+  assert.equal(readOverlay({ watermarkContrast: 'weird' }).watermarkContrast, 'auto');
+});

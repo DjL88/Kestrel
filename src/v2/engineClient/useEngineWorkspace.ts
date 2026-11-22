@@ -17,11 +17,14 @@ import { useSpeciesScan } from '../../useSpeciesScan';
 import { isDesktopApp } from '../../providers/desktopShell';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { loadLocalFileListShoot } from '../../providers/localShootLoader';
-import type { EditRecipe, HubViewState, OverlaySettings, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
+import type { EditRecipe, HubViewState, OverlaySettings, WatermarkPreset, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
 import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
 import { featureAccess, featurePlan } from './featureMap';
 import { hasDeviceFont, listDeviceFonts, loadSavedDeviceFonts, mergeFonts, saveDeviceFonts } from './fonts';
+import { assetUrl, cutOut, importWatermark, loadStored, makeVariant, saveStored, toPresets, type StoredWatermark } from './watermarkLibrary';
+import { watermarkToneForPixels } from '../../core/watermark';
+import { INITIAL_WATERMARKS } from '../ui/stub';
 import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
 import { frameToPhoto, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
@@ -38,6 +41,19 @@ const NOT_CONNECTED = [
 ] as const satisfies readonly (keyof WorkspaceActions)[];
 
 const THUMBNAIL_WORKERS = 4;
+
+async function pickImageFile(): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/png,image/jpeg,image/webp'; input.hidden = true;
+    input.setAttribute('data-testid', 'v2-watermark-input');
+    document.body.appendChild(input);
+    const done = (file: File | null) => { input.remove(); resolve(file); };
+    input.addEventListener('change', () => done(input.files?.[0] ?? null));
+    input.addEventListener('cancel', () => done(null));
+    input.click();
+  });
+}
 
 async function pickFiles(): Promise<Array<File | PickedPhoto> | null> {
   if (isDesktopApp()) {
@@ -64,7 +80,9 @@ async function pickFiles(): Promise<Array<File | PickedPhoto> | null> {
  */
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
   const stub = useWorkspace();
-  const { can } = useAccess();
+  const { can: canByPlan } = useAccess();
+  // One gate for the whole adapter: the plan's answer, or the developer-only Pro preview (see featureMap.ts).
+  const can = useCallback((feature: Parameters<typeof canByPlan>[0]) => featureAccess(canByPlan)[feature as keyof ReturnType<typeof featureAccess>] ?? canByPlan(feature), [canByPlan]);
   const catalogue = useRef<BrowserCatalogueStore | null>(null);
   if (!catalogue.current) catalogue.current = new BrowserCatalogueStore();
   const provider = useRef<BrowserPreviewProvider | null>(null);
@@ -79,6 +97,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [notice, setNotice] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<EditRecipe | null>(null);
   const [deviceFonts, setDeviceFonts] = useState<string[]>(loadSavedDeviceFonts);
+  const [watermarkStore, setWatermarkStore] = useState<StoredWatermark[]>(loadStored);
+  const [watermarkLibrary, setWatermarkLibrary] = useState<WatermarkPreset[]>([]);
+  const [watermarkAuto, setWatermarkAuto] = useState<Record<string, 'light-on-dark' | 'dark-on-light'>>({});
+  useEffect(() => { let live = true; void toPresets(watermarkStore).then((presets) => { if (live) setWatermarkLibrary(presets); }); return () => { live = false; }; }, [watermarkStore]);
+  const updateWatermarks = useCallback((next: StoredWatermark[]) => { setWatermarkStore(next); saveStored(next); }, []);
   const [assists, setAssists] = useState<Record<string, AssistState>>({});
   const autoInFlight = useRef(new Set<string>());
   const cullController = useRef<AbortController | null>(null);
@@ -273,6 +296,34 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }));
   }, [mutate]);
 
+  // 'auto' watermark: light or dark from the pixels behind it, using the same measure as the export (src/core/watermark.ts).
+  const activeOverlay = activeFrame ? readOverlay(activeFrame.overlay) : null;
+  const detectKey = activeFrame && activeOverlay?.watermarkEnabled && activeOverlay.watermarkContrast === 'auto'
+    ? `${activeFrame.id}|${activeOverlay.watermarkX}|${activeOverlay.watermarkY}|${activeOverlay.watermarkScale}` : null;
+  useEffect(() => {
+    if (!detectKey || !activeFrame || !activeOverlay) return;
+    let live = true;
+    const frame = activeFrame, overlay = activeOverlay;
+    provider.current!.getFullPreviewUrl(frame, 'selected').then(async (url) => {
+      if (!url || !live) return;
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => { const element = new Image(); element.onload = () => resolve(element); element.onerror = reject; element.src = url; });
+      const scale = Math.min(1, 320 / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext('2d', { willReadFrequently: true })!;
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      // The patch the watermark covers: about 22% by 12% of the frame, scaled with the watermark, centred on its position.
+      const w = Math.max(8, Math.round(canvas.width * 0.22 * (overlay.watermarkScale / 100))), h = Math.max(8, Math.round(canvas.height * 0.12 * (overlay.watermarkScale / 100)));
+      const x = Math.min(canvas.width - w, Math.max(0, Math.round((overlay.watermarkX / 100) * canvas.width - w / 2)));
+      const y = Math.min(canvas.height - h, Math.max(0, Math.round((overlay.watermarkY / 100) * canvas.height - h / 2)));
+      const patch = context.getImageData(x, y, w, h);
+      const tone = watermarkToneForPixels(patch.data, patch.width, patch.height);
+      if (live) setWatermarkAuto((current) => ({ ...current, [frame.id]: tone === 'light' ? 'light-on-dark' : 'dark-on-light' }));
+    }).catch(() => { /* no measurement: the watermark falls back to light on dark */ });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detectKey]);
+
   const applyAuto = useCallback((frameId: string) => {
     const assist = assists[frameId];
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === frameId);
@@ -413,6 +464,35 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!hasDeviceFont(name)) { setNotice(`"${name}" is not installed on this device, so it was not added.`); return; }
       setDeviceFonts((current) => { const next = [...new Set([...current, name])]; saveDeviceFonts(next); return next; });
     },
+    importWatermarkImage: async () => {
+      const picked = await pickImageFile();
+      if (!picked) return null;
+      try {
+        const entry = await importWatermark(picked, picked.name.replace(/\.[^.]+$/, ''), `wm-${newId().slice(0, 8)}`);
+        updateWatermarks([...watermarkStore, entry]);
+        return entry.id;
+      } catch (error) { setNotice(error instanceof Error ? error.message : 'That image could not be added.'); return null; }
+    },
+    cutOutWatermark: async (presetId, slot, tolerance, commit) => {
+      const entry = watermarkStore.find((candidate) => candidate.id === presetId);
+      if (!entry) return null;
+      const result = await cutOut(entry, slot, tolerance, commit).catch(() => null);
+      if (!result) return null;
+      if (commit && !result.tooMuch) updateWatermarks(watermarkStore.map((candidate) => (candidate.id === presetId ? result.entry : candidate)));
+      if (result.tooMuch) setNotice('The background is not one flat colour, so it was left as it is. Try a plain background.');
+      return { url: result.url, tooMuch: result.tooMuch };
+    },
+    makeWatermarkVariant: async (presetId, slot) => {
+      const entry = watermarkStore.find((candidate) => candidate.id === presetId);
+      const next = entry ? await makeVariant(entry, slot).catch(() => null) : null;
+      if (next) updateWatermarks(watermarkStore.map((candidate) => (candidate.id === presetId ? next : candidate)));
+      else setNotice('That version could not be made.');
+    },
+    deleteWatermark: (presetId) => {
+      updateWatermarks(watermarkStore.filter((candidate) => candidate.id !== presetId));
+      // Photos that used it fall back to the first built-in watermark; nothing else about them changes.
+      mutate((current) => ({ ...current, frames: current.frames.map((frame) => { const overlay = readOverlay(frame.overlay); return overlay.watermarkPresetId === presetId ? { ...frame, overlay: { ...overlay, watermarkPresetId: INITIAL_WATERMARKS[0].id } } : frame; }) }));
+    },
     listDeviceFonts: () => listDeviceFonts(),
     hasDeviceFont: (fontName) => hasDeviceFont(fontName),
     updateRecipe: (photoId, patch) => applyPatch(editTargets(photoId), patch),
@@ -443,10 +523,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [stub.actions, stub.store.looks, applyAuto, changeOverlay, runAutoCull, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
 
-  const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], assists[frame.id])), [state?.frames, urls, assists]);
+  const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], assists[frame.id], watermarkAuto[frame.id])), [state?.frames, urls, assists, watermarkAuto]);
   const store: WorkspaceStore = useMemo(() => ({
     ...stub.store,
     fonts: mergeFonts(deviceFonts),
+    watermarkPresets: [...INITIAL_WATERMARKS, ...watermarkLibrary],
     features: featureAccess(can),
     featurePlan: featurePlan(),
     screen, hubState, projects,
@@ -460,7 +541,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
-  }), [stub.store, can, deviceFonts, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, activeId, selected, taskList, taskHistory, clock, notice]);
+  }), [stub.store, can, deviceFonts, watermarkLibrary, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, activeId, selected, taskList, taskHistory, clock, notice]);
 
   return { store, actions };
 }

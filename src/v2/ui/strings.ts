@@ -67,6 +67,28 @@ export const STRINGS = {
     floatPanel: 'Float window',
   },
 
+  // Watermark library
+  watermarks: {
+    add: 'Add a watermark image',
+    none: 'None yet',
+    forDark: 'On dark photos',
+    forLight: 'On light photos',
+    removeBgDark: 'Remove background (dark photos)',
+    removeBgLight: 'Remove background (light photos)',
+    removeBgHelp: 'Removes a flat background, such as the white round a logo saved as a JPEG. White inside the logo stays. Your original image is kept.',
+    previewAlt: 'The watermark with its background removed, on a checkerboard',
+    tolerance: 'How much to remove',
+    working: 'Working…',
+    tooMuch: 'The background is not one flat colour, so nothing was removed.',
+    apply: 'Remove background',
+    cancel: 'Cancel',
+    makeLight: 'Make a light version',
+    makeDark: 'Make a dark version',
+    delete: 'Delete',
+    localNote: 'Watermarks are saved on this device only. Use a light version on dark photos and a dark one on light photos; Auto picks from the photo.',
+    auto: 'Auto',
+  },
+
   // Pro
   pro: {
     partOf: 'Part of InFlight Pro',
