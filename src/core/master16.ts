@@ -2,7 +2,7 @@ import { tiffXmpPacket, type TiffExportMetadata } from './tiffExportMetadata';
 import { applyDetailRgb16, applyPhotoEditLinear, detailParams, hasDetail, isNeutralTone, type PhotoEdit } from './photoEdits';
 import { cropRectangle, rotationCoverage, type PhotoFraming } from './photoFraming';
 import { THUMB, type Thumb } from './orientMatch';
-import { LOCAL_KEYS, validMasks, type Mask } from './maskTypes';
+import { maskIsActive, validMasks, type Mask } from './maskTypes';
 import { effectiveAlpha } from './masks';
 import { blendSrgb16 } from './linearRgb16';
 import { noiseStrength } from './noiseReduction';
@@ -272,7 +272,7 @@ export function applyToneMasksRgb16(image: Rgb16Image, masks: readonly Mask[] | 
   // 256k pixels = about 4 MiB temporary RGBA floats + 1 MiB alpha.
   const rows = Math.max(1, Math.floor(262144 / width));
   for (const mask of masks) {
-    if (!LOCAL_KEYS.some((key) => !!mask.edit[key])) continue;
+    if (!maskIsActive(mask)) continue;
     const local: PhotoEdit = { exposure: 0, warmth: 0, colour: 0, ...mask.edit };
     if (hasDetail(local) || noiseStrength(local.denoise) > 0) {
       applyDetailMaskRgb16(image, mask, masks, local, detailBandPixels);

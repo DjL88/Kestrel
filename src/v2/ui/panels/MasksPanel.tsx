@@ -2,6 +2,7 @@ import React from 'react';
 import type { MaskLayer, Photo, WorkspaceStore } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon, { type BrandIconName } from '../icons/BrandIcon';
+import { MASK_SLIDERS } from '../../engineClient/maskOps';
 
 interface MasksPanelProps {
   photo: Photo | null;
@@ -10,6 +11,8 @@ interface MasksPanelProps {
   onAddMaskLayer: (photoId: string, type: MaskLayer['type']) => void;
   onToggleMaskLayer: (photoId: string, maskId: string) => void;
   onRemoveMaskLayer: (photoId: string, maskId: string) => void;
+  onSetMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
+  onSetMaskFeather: (photoId: string, maskId: string, percent: number) => void;
 }
 
 export default function MasksPanel({
@@ -19,7 +22,10 @@ export default function MasksPanel({
   onAddMaskLayer,
   onToggleMaskLayer,
   onRemoveMaskLayer,
+  onSetMaskEdit,
+  onSetMaskFeather,
 }: MasksPanelProps) {
+  const [openId, setOpenId] = React.useState<string | null>(null);
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to manage masks.</p>;
   }
@@ -102,38 +108,69 @@ export default function MasksPanel({
           Active layers ({photo.masks.length})
         </h3>
         <div className="space-y-1.5">
-          {photo.masks.map((layer) => (
-            <div
-              key={layer.id}
-              className="flex items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2.5 py-2"
-            >
-              <button
-                type="button"
-                onClick={() => onToggleMaskLayer(photo.id, layer.id)}
-                className="flex items-center gap-2 min-w-0 text-left text-xs text-[var(--text-primary)]"
-              >
-                <BrandIcon
-                  name={layer.visible ? 'eye' : 'eye-off'}
-                  size={14}
-                  className={layer.visible ? 'text-[var(--brand-accent)]' : 'text-[var(--text-muted)]'}
-                />
-                <span className={`truncate ${layer.visible ? '' : 'opacity-50'}`}>{layer.name}</span>
-              </button>
-              <button
-                type="button"
-                aria-label={`Delete ${layer.name}`}
-                onClick={() => onRemoveMaskLayer(photo.id, layer.id)}
-                className="text-[var(--text-muted)] hover:text-[var(--semantic-danger)]"
-              >
-                <BrandIcon name="trash" size={13} />
-              </button>
-            </div>
-          ))}
+          {photo.masks.length === 0 && <p className="text-[11px] text-[var(--text-muted)]">No masks yet. Detect the subject or select the background to start.</p>}
+          {photo.masks.map((layer) => {
+            const expanded = openId === layer.id;
+            return (
+              <div key={layer.id} className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)]">
+                <div className="flex items-center justify-between gap-2 px-2.5 py-2">
+                  <button
+                    type="button"
+                    aria-label={`${layer.visible ? 'Hide' : 'Show'} ${layer.name}`}
+                    aria-pressed={layer.visible}
+                    onClick={() => onToggleMaskLayer(photo.id, layer.id)}
+                    className="text-[var(--text-muted)]"
+                  >
+                    <BrandIcon name={layer.visible ? 'eye' : 'eye-off'} size={14} className={layer.visible ? 'text-[var(--brand-accent)]' : ''} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-expanded={expanded}
+                    onClick={() => setOpenId(expanded ? null : layer.id)}
+                    className="min-w-0 flex-1 truncate text-left text-xs text-[var(--text-primary)]"
+                  >
+                    <span className={layer.visible ? '' : 'opacity-50'}>{layer.name}</span>
+                    <span className="ml-2 text-[10px] text-[var(--text-muted)]">{Object.keys(layer.edit).length ? `${Object.keys(layer.edit).length} adjusted` : 'no adjustments'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Delete ${layer.name}`}
+                    onClick={() => onRemoveMaskLayer(photo.id, layer.id)}
+                    className="text-[var(--text-muted)] hover:text-[var(--semantic-danger)]"
+                  >
+                    <BrandIcon name="trash" size={13} />
+                  </button>
+                </div>
+                {expanded && (
+                  <div className="space-y-2 border-t border-[var(--border-subtle)] px-2.5 py-2.5">
+                    {MASK_SLIDERS.map((slider) => (
+                      <label key={slider.key} className="block space-y-1 text-[11px] text-[var(--text-secondary)]">
+                        <span className="flex justify-between"><span>{slider.label}</span><span className="font-mono tabular-nums">{(layer.edit[slider.key] ?? 0).toFixed(2)}</span></span>
+                        <input
+                          type="range" className="inflight-slider" aria-label={`${layer.name} ${slider.label}`}
+                          min={slider.min} max={slider.max} step={slider.step} value={layer.edit[slider.key] ?? 0}
+                          onChange={(event) => onSetMaskEdit(photo.id, layer.id, slider.key, Number(event.target.value))}
+                        />
+                      </label>
+                    ))}
+                    <label className="block space-y-1 text-[11px] text-[var(--text-secondary)]">
+                      <span className="flex justify-between"><span>{STRINGS.masks.feather}</span><span className="font-mono tabular-nums">{layer.feather}</span></span>
+                      <input
+                        type="range" className="inflight-slider" aria-label={`${layer.name} ${STRINGS.masks.feather}`}
+                        min={0} max={100} step={1} value={layer.feather}
+                        onChange={(event) => onSetMaskFeather(photo.id, layer.id, Number(event.target.value))}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
       <p className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2.5 text-[11px] leading-relaxed text-[var(--text-muted)]">
-        {STRINGS.masks.placeholderNote}
+        Subject and Background are found on this device. Sky, brush and area masks are not available yet.
       </p>
     </div>
   );

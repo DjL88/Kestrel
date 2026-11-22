@@ -49,6 +49,8 @@ export type Mask = MaskShape & {
   /** 0 is a crisp edge, 1 is the softest transition. */
   feather: number;
   edit: LocalEdit;
+  /** Switched off by the person: kept (shape, strokes, sliders) but not drawn or exported until switched back on. */
+  hidden?: boolean;
 };
 
 export const MAX_MASKS = 12;
@@ -57,8 +59,13 @@ export function usesDetail(masks: Mask[] | undefined): boolean {
   return !!masks?.some((mask) => LOCAL_DETAIL_KEYS.some((key) => !!mask.edit[key]));
 }
 
+/** A mask changes the picture only when it is switched on and has at least one slider set. */
+export function maskIsActive(mask: Mask): boolean {
+  return !mask.hidden && LOCAL_KEYS.some((key) => !!mask.edit[key]);
+}
+
 export function hasActiveMasks(masks: Mask[] | undefined): boolean {
-  return !!masks?.some((mask) => LOCAL_KEYS.some((key) => !!mask.edit[key]));
+  return !!masks?.some(maskIsActive);
 }
 
 export function createMask(kind: Exclude<Mask['kind'], 'subject'>, id: string): Mask {

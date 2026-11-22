@@ -202,7 +202,10 @@ export interface MaskLayer {
   name: string;
   type: 'subject' | 'sky' | 'background' | 'brush' | 'area';
   visible: boolean;
+  /** Edge softness, 0 to 100. */
   feather: number;
+  /** The mask's own sliders (exposure, contrast, ...), each only present when set. */
+  edit: Record<string, number>;
 }
 
 export interface AssistSuggestion {
@@ -493,6 +496,8 @@ export interface WorkspaceActions {
   addMaskLayer: (photoId: string, type: MaskLayer['type']) => void;
   toggleMaskLayer: (photoId: string, maskId: string) => void;
   removeMaskLayer: (photoId: string, maskId: string) => void;
+  setMaskEdit: (photoId: string, maskId: string, key: string, value: number) => void;
+  setMaskFeather: (photoId: string, maskId: string, percent: number) => void;
 
   // Tasks & Export
   cancelTask: (taskId: string) => void;

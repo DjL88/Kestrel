@@ -1,5 +1,5 @@
 import { applyDetail, applyPhotoEdit, blendEncoded8, type PhotoEdit } from './photoEdits';
-import { LOCAL_KEYS, hasActiveMasks, type Mask } from './maskTypes';
+import { hasActiveMasks, maskIsActive, type Mask } from './maskTypes';
 import { applyNoiseReduction } from './noiseReduction';
 
 /** Which part of the framed photo a canvas shows. A zoomed region covers a sub-rectangle. */
@@ -205,7 +205,7 @@ export function effectiveAlpha(mask: Mask, masks: readonly Mask[], width: number
 export function applyMasks(pixels: Uint8ClampedArray, width: number, height: number, masks: Mask[] | undefined, context: MaskContext): void {
   if (!masks || !hasActiveMasks(masks)) return;
   for (const mask of masks) {
-    if (!LOCAL_KEYS.some((key) => mask.edit[key])) continue;
+    if (!maskIsActive(mask)) continue;
     const alpha = effectiveAlpha(mask, masks, width, height, context);
     const local = { exposure: 0, warmth: 0, colour: 0, ...mask.edit } as PhotoEdit;
     // Denoise the neighbouring source pixels before tone/detail, then composite
