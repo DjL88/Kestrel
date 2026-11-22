@@ -65,7 +65,7 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
   const summary = first ? `${first.title}, ${label(first)}` : word;
   const others = running > 1 ? running - 1 : 0;
   const panel = open && (
-    <section aria-label={t.tasks.tasks} className={`absolute right-2 top-full mt-1 max-h-[65dvh] overflow-y-auto overscroll-contain w-80 max-w-[calc(100vw-1rem)] rounded-xl border border-white/15 bg-kestrel-raised p-3 text-sm text-zinc-100 shadow-lg ${inline ? 'z-40 right-0 max-sm:fixed max-sm:inset-x-2 max-sm:top-14 max-sm:mt-0 max-sm:w-auto max-sm:max-w-none' : ''}`}>
+    <section aria-label={t.tasks.tasks} className={`absolute right-2 top-full mt-1 max-h-[65dvh] overflow-y-auto overscroll-contain w-80 max-w-[calc(100vw-1rem)] rounded-xl border border-white/15 bg-kestrel-raised p-3 text-sm text-zinc-100 shadow-lg ${inline ? 'z-40 right-0 max-sm:fixed max-sm:inset-y-0 max-sm:left-auto max-sm:right-0 max-sm:top-0 max-sm:mt-0 max-sm:max-h-none max-sm:w-[90vw] max-sm:max-w-none max-sm:rounded-none max-sm:rounded-l-xl max-sm:pt-[max(0.75rem,env(safe-area-inset-top))] max-sm:z-[110] max-sm:task-tray-in' : ''}`}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="font-medium">{t.tasks.tasks}</h2>
         <button type="button" onClick={() => tasks.clearFinished()} disabled={running === list.length} className="min-h-11 rounded-md px-2 text-xs text-zinc-300 underline hover:bg-white/8 disabled:opacity-40">{t.tasks.clearFinished}</button>

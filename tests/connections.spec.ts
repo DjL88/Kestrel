@@ -12,6 +12,7 @@ async function openStoragePanel(page: Page) {
   const panel = page.getByRole('region', { name: 'Where my work is kept' });
   if (!(await panel.isVisible())) {
     await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
+    await page.getByRole('tab', { name: 'Connectivity' }).click();
     await page.getByRole('button', { name: /Bring your own Storage/ }).click();
   }
   return panel;
