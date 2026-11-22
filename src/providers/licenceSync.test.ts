@@ -55,7 +55,7 @@ import { canonicalJson } from '../core/signedEnvelope';
 import { decideAccountAccess } from '../core/licenceOnline';
 import { sha256Hex } from '../core/signedEnvelope';
 
-async function accountSetup(mode: 'no_licence' | 'grant' | 'limit' | 'down' | 'badsig') {
+async function accountSetup(mode: 'no_licence' | 'grant' | 'limit' | 'down' | 'badsig', beforeGrant?: () => Promise<void>) {
   const pair = await webcrypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify']) as CryptoKeyPair;
   const b64 = (b: ArrayBuffer) => Buffer.from(b).toString('base64');
   const grantKeys = { k1: b64(await webcrypto.subtle.exportKey('raw', pair.publicKey)) };
@@ -71,6 +71,7 @@ async function accountSetup(mode: 'no_licence' | 'grant' | 'limit' | 'down' | 'b
     if (url.endsWith('/v1/auth/firebase')) return json(200, { accessToken: 'session-token' });
     if (mode === 'no_licence') return json(403, { error: { code: 'NO_LICENCE', message: 'none' } });
     if (mode === 'limit') return json(409, { error: { code: 'DEVICE_LIMIT', message: 'full' } });
+    if (beforeGrant) await beforeGrant();
     const payload = { schema: 1, grantId: 'grt_abcdefgh', plan: 'paid', managedAi: false, deviceHash, issuedAtMs: now, offlineUntilMs: now + 30 * 86_400_000 };
     const signature = mode === 'badsig' ? 'A'.repeat(86) + '==' : b64(await webcrypto.subtle.sign({ name: 'Ed25519' }, pair.privateKey, new TextEncoder().encode(canonicalJson(payload))));
     return json(200, { grant: { payload, keyId: 'k1', signature }, activationId: 'act_1' });
@@ -96,6 +97,23 @@ test('an account with a paid licence gets a verified grant that survives a resta
   assert.equal((await env.reload().storedAccountStanding())?.kind, 'active');
   assert.equal(decideAccountAccess(standing!, env.now + 31 * 86_400_000).pro, false, 'the offline window ends');
   env.sync.forgetAccount();
+  assert.equal(await env.reload().storedAccountStanding(), null);
+});
+
+test('sign-out during an online grant check cannot restore the signed-out account', async () => {
+  let markReady!: () => void;
+  let finish!: () => void;
+  const ready = new Promise<void>((resolve) => { markReady = resolve; });
+  const finished = new Promise<void>((resolve) => { finish = resolve; });
+  const env = await accountSetup('grant', async () => {
+    markReady();
+    await finished;
+  });
+  const check = env.sync.activateAccount('firebase-id-token');
+  await ready;
+  env.sync.forgetAccount();
+  finish();
+  assert.equal(await check, null);
   assert.equal(await env.reload().storedAccountStanding(), null);
 });
 

@@ -12,6 +12,7 @@ import BrandIcon, { type BrandIconName } from '../icons/BrandIcon';
 interface SettingsDialogProps {
   open: boolean;
   activeTab: SettingsTabId;
+  accountPanel?: React.ReactNode;
   settings: WorkspaceSettings;
   /** The mode that is on now. It is chosen here and shown by the flag at the bottom of the tool rail. */
   assistMode: AssistMode;
@@ -51,6 +52,7 @@ export default function SettingsDialog({
   onSetAssistMode,
   open,
   activeTab,
+  accountPanel,
   settings,
   onClose,
   onSelectTab,
@@ -215,8 +217,10 @@ export default function SettingsDialog({
               </div>
             )}
 
-            {/* 2. ACCOUNT (Google, Apple, Email/Password UI stubs — no real auth) */}
             {activeTab === 'account' && (
+              accountPanel ? <div className="text-sm text-[var(--text-secondary)] [--account-foreground:var(--text-primary)] [--account-text:var(--text-secondary)] [--account-muted:var(--text-muted)] [--account-border:var(--border-default)] [--account-field:var(--bg-input)] [--account-warning:var(--text-primary)]">
+                {accountPanel}
+              </div> :
               <div className="space-y-5">
                 {settings.account.signedIn ? (
                   <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-4 space-y-3">

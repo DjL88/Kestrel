@@ -85,11 +85,11 @@ export const firebaseAuth: AuthProvider = {
     const { auth, instance } = await firebase();
     await auth.signOut(instance);
   },
-  async idToken() {
+  async idToken(forceRefresh = false) {
     if (!isSignInConfigured()) return null;
     const { instance } = await firebase();
     await instance.authStateReady();
-    return instance.currentUser ? instance.currentUser.getIdToken() : null;
+    return instance.currentUser ? instance.currentUser.getIdToken(forceRefresh) : null;
   },
   async current() {
     if (!isSignInConfigured()) return null;

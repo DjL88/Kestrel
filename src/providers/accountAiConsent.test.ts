@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { readAccountAiConsent, setAccountAiConsent } from './accountAiConsent';
+import { readAccountAiConsent, readAccountOnlineSettings, setAccountAiConsent } from './accountAiConsent';
 
 type Call = { path: string; method: string; body: Record<string, unknown> | null; auth: string | null; options: RequestInit };
-function makeServer(consent: boolean, enabledPlan = true) {
+function makeServer(consent: boolean, enabledPlan = true, cloudPlan = false, quota: unknown = null) {
   const calls: Call[] = [];
   let live = consent;
   const fetcher = (async (input: RequestInfo | URL, options: RequestInit = {}) => {
@@ -19,7 +19,8 @@ function makeServer(consent: boolean, enabledPlan = true) {
     if (headers.get('authorization') !== 'Bearer short-lived-session')
       return json({ error: 'AUTH_INVALID' }, 401);
     if (path === '/v1/me/entitlements')
-      return json({ aiConsent: live, plans: enabledPlan ? [{ status: 'active', managedAi: true }] : [] });
+      return json({ aiConsent: live, plans: enabledPlan ? [{ status: 'active', managedAi: true, plan: cloudPlan ? 'subscriber' : 'paid' }] : [] });
+    if (path === '/v1/safe-copy/usage') return quota ? json(quota) : json({ error: 'SAFE_COPY_NOT_CONFIGURED' }, 503);
     if (path === '/v1/me/ai-consent') {
       if (typeof body?.consent !== 'boolean') return json({ error: 'INVALID_BODY' }, 400);
       live = body.consent;
@@ -45,6 +46,22 @@ test('online AI setting reads live default-off consent; no photos, cookies or st
     assert.equal(call.options.cache, 'no-store');
     assert.ok(!JSON.stringify(call.body).includes('image'));
   }
+});
+
+test('storage usage uses the signed-in cloud account and only displays a confirmed quota', async () => {
+  const basic = makeServer(false);
+  assert.equal((await readAccountOnlineSettings('https://control.example', 'firebase-id', basic.fetcher)).cloud, null);
+  assert.equal(basic.calls.some(call => call.path === '/v1/safe-copy/usage'), false);
+
+  const local = makeServer(false, true, true, { bytesUsed: 5_000_000_000, bytesQuota: 5_000_000_000 });
+  const result = await readAccountOnlineSettings('https://control.example', 'firebase-id', local.fetcher);
+  assert.deepEqual(result.cloud, { state: 'available', bytesUsed: 5_000_000_000, bytesQuota: 5_000_000_000 });
+  assert.equal(local.calls.at(-1)?.auth, 'Bearer short-lived-session');
+
+  const unavailable = makeServer(false, true, true);
+  assert.deepEqual((await readAccountOnlineSettings('https://control.example', 'firebase-id', unavailable.fetcher)).cloud, { state: 'unavailable' });
+  const malformed = makeServer(false, true, true, { bytesUsed: -1, bytesQuota: '0' });
+  assert.deepEqual((await readAccountOnlineSettings('https://control.example', 'firebase-id', malformed.fetcher)).cloud, { state: 'unavailable' });
 });
 
 test('explicit opt-in and live revocation use the control plane, not local flags', async () => {

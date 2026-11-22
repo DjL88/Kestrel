@@ -18,7 +18,7 @@ export interface AuthProvider {
   createAccount(email: string, password: string): Promise<Session>;
   sendPasswordReset(email: string): Promise<void>;
   /** A fresh sign-in token for the control plane, or null when signed out. It identifies the account; it grants nothing. */
-  idToken(): Promise<string | null>;
+  idToken(forceRefresh?: boolean): Promise<string | null>;
   signOut(): Promise<void>;
   /** The saved session on this device, or null. Never contacts the network when signed out. */
   current(): Promise<Session | null>;

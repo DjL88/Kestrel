@@ -36,7 +36,10 @@ const PANEL_TITLES: Record<PanelId, string> = {
   tasks: STRINGS.tasks.heading,
 };
 
-export default function App({ useStore = useWorkspace }: { useStore?: typeof useWorkspace } = {}) {
+export default function App({ useStore = useWorkspace, accountPanel }: {
+  useStore?: typeof useWorkspace;
+  accountPanel?: React.ReactNode;
+} = {}) {
   const { store, actions } = useStore();
   const [shortcutGuideOpen, setShortcutGuideOpen] = useState(false);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
@@ -554,6 +557,7 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
       <SettingsDialog
         open={store.settingsOpen}
         activeTab={store.settingsTab}
+        accountPanel={accountPanel}
         settings={store.settings}
         assistMode={store.assistMode}
         onSetAssistMode={actions.setAssistMode}

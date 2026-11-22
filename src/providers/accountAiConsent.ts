@@ -13,6 +13,10 @@ export interface ManagedAiConsentStatus {
   planAvailable: boolean;
 }
 
+export type AccountCloudUsage =
+  | { state: 'unavailable' }
+  | { state: 'available'; bytesUsed: number; bytesQuota: number };
+
 export class AccountAiConsentError extends Error {
   constructor(message = 'Could not reach your online AI settings. Nothing has changed.') {
     super(message);
@@ -76,14 +80,39 @@ export function readAccountAiConsent(
 ): Promise<ManagedAiConsentStatus> {
   return withSession(baseUrl, firebaseIdToken, fetcher, async (origin, session) => {
     const data = await request(origin + '/v1/me/entitlements', fetcher, 'GET', undefined, session);
-    // Malformed/older backends must NOT result in a fabricated "off" status.
-    if (typeof data.aiConsent !== 'boolean') throw new AccountAiConsentError();
-    const plans = Array.isArray(data.plans) ? data.plans : [];
-    const planAvailable = plans.some(plan => {
+    return consentFrom(data);
+  });
+}
+
+function consentFrom(data: JsonObject): ManagedAiConsentStatus {
+  if (typeof data.aiConsent !== 'boolean') throw new AccountAiConsentError();
+  const plans = Array.isArray(data.plans) ? data.plans : [];
+  const planAvailable = plans.some(plan => {
+    const value = record(plan);
+    return value?.managedAi === true && value?.status === 'active';
+  });
+  return { consent: data.aiConsent, planAvailable };
+}
+
+/** Only show the account's server-reported storage usage after sign-in. An unconfigured
+ * service is treated as unavailable, never as an empty or full allowance. */
+export function readAccountOnlineSettings(
+  baseUrl: string | null, firebaseIdToken: string | null, fetcher: typeof fetch = fetch,
+): Promise<{ ai: ManagedAiConsentStatus; cloud: AccountCloudUsage | null }> {
+  return withSession(baseUrl, firebaseIdToken, fetcher, async (origin, session) => {
+    const data = await request(origin + '/v1/me/entitlements', fetcher, 'GET', undefined, session);
+    const ai = consentFrom(data);
+    const cloudPlan = Array.isArray(data.plans) && data.plans.some(plan => {
       const value = record(plan);
-      return value?.managedAi === true && value?.status === 'active';
+      return value?.plan === 'subscriber' && value.status === 'active';
     });
-    return { consent: data.aiConsent, planAvailable };
+    if (!cloudPlan) return { ai, cloud: null };
+    const usage = await request(origin + '/v1/safe-copy/usage', fetcher, 'GET', undefined, session).catch(() => null);
+    const used = usage?.bytesUsed;
+    const quota = usage?.bytesQuota;
+    const valid = typeof used === 'number' && Number.isSafeInteger(used) && used >= 0
+      && typeof quota === 'number' && Number.isSafeInteger(quota) && quota > 0;
+    return { ai, cloud: valid ? { state: 'available', bytesUsed: used, bytesQuota: quota } : { state: 'unavailable' } };
   });
 }
 

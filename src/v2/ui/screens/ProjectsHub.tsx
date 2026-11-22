@@ -43,34 +43,35 @@ export default function ProjectsHub({
   return (
     <div className="flex h-full flex-col overflow-hidden bg-[var(--bg-app)]">
       {/* Clean 3-zone header */}
-      <header className="flex h-16 shrink-0 items-center justify-between gap-6 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-6 md:px-10">
+      <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 sm:gap-6 sm:px-6 md:px-10">
         <div className="flex items-center shrink-0">
           <BrandLogo height={44} />
         </div>
 
-        <nav className="hidden sm:flex items-center gap-6 text-sm font-medium text-[var(--text-secondary)]">
+        <nav className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] sm:gap-6">
           <button
             type="button"
             onClick={() => onSetHubState('ready')}
-            className="hover:text-[var(--text-primary)] transition-colors whitespace-nowrap"
+            className="hidden whitespace-nowrap transition-colors hover:text-[var(--text-primary)] sm:inline-flex"
           >
             Library
           </button>
           <button
             type="button"
             onClick={onToggleTheme}
-            className="inline-flex items-center gap-1.5 hover:text-[var(--text-primary)] transition-colors whitespace-nowrap"
+            className="hidden items-center gap-1.5 whitespace-nowrap transition-colors hover:text-[var(--text-primary)] sm:inline-flex"
           >
             <BrandIcon name={theme === 'dark' ? 'theme-light' : 'theme-dark'} size={15} />
             <span>{theme === 'dark' ? 'Light theme' : 'Dark theme'}</span>
           </button>
           <button
             type="button"
+            aria-label="Settings"
             onClick={onOpenSettings}
-            className="inline-flex items-center gap-1.5 hover:text-[var(--text-primary)] transition-colors whitespace-nowrap"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius-sm)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
           >
             <BrandIcon name="settings" size={15} />
-            <span>Settings</span>
+            <span className="hidden sm:inline">Settings</span>
           </button>
         </nav>
 
