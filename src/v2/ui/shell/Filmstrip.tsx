@@ -71,8 +71,18 @@ export default function Filmstrip({
   useEffect(() => {
     if (!tileMenu) return;
     const close = () => setTileMenu(null);
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        setTileMenu(null);
+      }
+    };
     window.addEventListener('mousedown', close);
-    return () => window.removeEventListener('mousedown', close);
+    window.addEventListener('keydown', onEscape);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', onEscape);
+    };
   }, [tileMenu]);
 
   const visiblePhotos = filterPhotos(photos, filter, search).filter((photo) => photo.rating >= minimumRating);
