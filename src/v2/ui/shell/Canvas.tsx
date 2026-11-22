@@ -19,6 +19,7 @@ import {
   buildPreviewFilterCss,
   clamp,
   detectOverlayOverflow,
+  effectiveOutputSize,
   formatOverlayRowText,
   getActiveGroup,
   snapOverlayPosition,
@@ -458,6 +459,8 @@ export default function Canvas({
     const { frameW, frameH } = artboardFrame(activeSize);
     return Math.max(frameW / photo.pixelSize.width, frameH / photo.pixelSize.height);
   })();
+  // The format's real output size: never more pixels than the picture has.
+  const output = effectiveOutputSize(activeSize, photo.pixelSize);
   const actualPercent = fitScale ? Math.round(fitScale * canvasZoom * 100) : Math.round(canvasZoom * 100);
   const toggleActualSize = () => {
     if (!fitScale) { onSetZoom(1); return; }
@@ -516,8 +519,19 @@ export default function Canvas({
           <span className="font-medium text-[var(--text-secondary)]">{activeSize.label}</span>
           <span aria-hidden="true">·</span>
           <span className="font-mono tabular-nums">
-            {activeSize.width}×{activeSize.height} ({activeSize.ratioLabel})
+            {output.width}×{output.height} ({activeSize.ratioLabel})
           </span>
+          {output.capped && (
+            <span
+              role="status"
+              data-testid="size-cap-warning"
+              title={STRINGS.canvas.sizeCappedLong(output.requestedWidth, output.requestedHeight, output.width, output.height)}
+              className="inline-flex items-center gap-1 rounded border border-[var(--semantic-warning)] bg-[var(--semantic-warning-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-primary)]"
+            >
+              <BrandIcon name="alert" size={11} />
+              {STRINGS.canvas.sizeCapped(output.requestedWidth, output.requestedHeight)}
+            </span>
+          )}
           {activeSize.crop.flipH && <span>· Flipped H</span>}
           {activeSize.crop.flipV && <span>· Flipped V</span>}
           {activeSize.crop.rotateDeg !== 0 && <span>· {activeSize.crop.rotateDeg}°</span>}

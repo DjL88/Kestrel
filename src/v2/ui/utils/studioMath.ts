@@ -2,6 +2,7 @@
 // Zero DOM, zero network, zero canvas pixel processing.
 
 import type {
+  CropTransform,
   EditGroup,
   EditRecipe,
   LookPreset,
@@ -365,3 +366,41 @@ export function buildHistogramData(recipe: EditRecipe, seed = 1): {
   return { luma, red, green, blue };
 }
 
+
+export interface OutputSize {
+  /** What the format will really be, in pixels. Never more than the picture has. */
+  width: number;
+  height: number;
+  /** True when the format asked for more pixels than the picture has, so it was reduced (never enlarged). */
+  capped: boolean;
+  requestedWidth: number;
+  requestedHeight: number;
+}
+
+/**
+ * A format's real output size. A format never asks the picture for more pixels than it has: 3000 x 2000 on a picture that is
+ * 1500 pixels wide becomes 1500 x 1000, keeping the format's shape, and says so (`capped`). The picture is fitted to the
+ * format's shape first (the part of it the format shows), then the crop zoom and edge insets are taken off. With no known
+ * picture size nothing is capped: the format's own size is returned.
+ */
+export function effectiveOutputSize(
+  size: { width: number; height: number; crop?: Pick<CropTransform, 'zoom' | 'insetTop' | 'insetRight' | 'insetBottom' | 'insetLeft'> },
+  pixelSize: { width: number; height: number } | undefined,
+): OutputSize {
+  const requested = { requestedWidth: size.width, requestedHeight: size.height };
+  if (!pixelSize || !(pixelSize.width > 0) || !(pixelSize.height > 0) || !(size.width > 0) || !(size.height > 0)) {
+    return { width: size.width, height: size.height, capped: false, ...requested };
+  }
+  const aspect = size.width / size.height;
+  // The largest piece of the picture with the format's shape.
+  let usableWidth = pixelSize.width / pixelSize.height >= aspect ? pixelSize.height * aspect : pixelSize.width;
+  const crop = size.crop;
+  if (crop) {
+    const widthShare = 1 - (crop.insetLeft + crop.insetRight) / 100;
+    const heightShare = 1 - (crop.insetTop + crop.insetBottom) / 100;
+    usableWidth *= Math.max(0.01, Math.min(widthShare, heightShare)) / Math.max(1, crop.zoom);
+  }
+  if (usableWidth >= size.width - 0.5) return { width: size.width, height: size.height, capped: false, ...requested };
+  const width = Math.max(1, Math.round(usableWidth));
+  return { width, height: Math.max(1, Math.round(width / aspect)), capped: true, ...requested };
+}

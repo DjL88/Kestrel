@@ -373,3 +373,21 @@ test('?v2 overlay text is the same share of the frame in every format and at eve
   });
   expect(Math.abs(single - shares[0])).toBeLessThan(0.002);
 });
+
+test('?v2 a format is capped at the photo\'s own pixels, with a small warning', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Size cap check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  // A 1500 x 1000 picture on a format that asks for 3000 x 2000.
+  const image = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 1500; c.height = 1000; const x = c.getContext('2d')!; x.fillStyle = '#586b82'; x.fillRect(0, 0, 1500, 1000); return c.toDataURL('image/png').split(',')[1]; });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'cap-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  const warning = root.getByTestId('size-cap-warning');
+  await expect(warning).toContainText('Smaller than 3000×2000', { timeout: 30000 });
+  await expect(root.getByText('1500×1000 (3:2)')).toBeVisible();
+  await expect(warning).toHaveAttribute('title', /never enlarges/);
+});
