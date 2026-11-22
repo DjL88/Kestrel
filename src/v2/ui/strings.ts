@@ -167,6 +167,8 @@ export const STRINGS = {
     originalUnavailableTitle: 'Original not connected, preview only',
     originalUnavailableBody: 'Adjustments still save to your recipe. Reconnect the source drive before full-resolution export.',
     reconnectOriginal: 'Reconnect folder',
+    sizeCapped: (w: number, h: number) => `Smaller than ${w}×${h}`,
+    sizeCappedLong: (rw: number, rh: number, w: number, h: number) => `This photo only has the pixels for ${w}×${h}, so this format exports at ${w}×${h} instead of ${rw}×${rh}. InFlight never enlarges a picture to reach a size.`,
     compareDisabledSplit: 'Compare is not available while a photo is split across two frames. Rejoin it to compare.',
     zoomToFit: 'Fit to window',
     zoomTo100: 'Show at 100% (one picture pixel per screen pixel)',

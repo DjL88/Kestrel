@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  effectiveOutputSize,
   buildHistogramData,
   buildPreviewFilterCss,
   computeMultiSelection,
@@ -207,3 +208,27 @@ test('buildHistogramData returns 32 bounded RGB + luma bins', () => {
   assert.ok(hist.luma.every((v) => v >= 0 && v <= 100));
 });
 
+
+test('a format is capped at the picture\'s own pixels, never enlarged', () => {
+  const capped = effectiveOutputSize({ width: 3000, height: 2000 }, { width: 1500, height: 1000 });
+  assert.deepEqual([capped.width, capped.height, capped.capped], [1500, 1000, true]);
+  assert.deepEqual([capped.requestedWidth, capped.requestedHeight], [3000, 2000]);
+  const fits = effectiveOutputSize({ width: 1080, height: 1350 }, { width: 6000, height: 4000 });
+  assert.deepEqual([fits.width, fits.height, fits.capped], [1080, 1350, false]);
+});
+
+test('a different shape uses only the part of the picture it shows', () => {
+  // A 4:5 portrait cut from a 3:2 picture 6000 x 4000 can be at most 3200 x 4000, so 2000 x 2500 is fine but 4000 x 5000 is not.
+  assert.equal(effectiveOutputSize({ width: 2000, height: 2500 }, { width: 6000, height: 4000 }).capped, false);
+  const portrait = effectiveOutputSize({ width: 4000, height: 5000 }, { width: 6000, height: 4000 });
+  assert.deepEqual([portrait.width, portrait.height, portrait.capped], [3200, 4000, true]);
+});
+
+test('crop zoom and insets use up pixels, and an unknown picture size caps nothing', () => {
+  const zoomed = effectiveOutputSize({ width: 3000, height: 2000, crop: { zoom: 2, insetTop: 0, insetRight: 0, insetBottom: 0, insetLeft: 0 } }, { width: 6000, height: 4000 });
+  assert.deepEqual([zoomed.width, zoomed.height, zoomed.capped], [3000, 2000, false]);
+  const tight = effectiveOutputSize({ width: 3000, height: 2000, crop: { zoom: 3, insetTop: 0, insetRight: 0, insetBottom: 0, insetLeft: 0 } }, { width: 6000, height: 4000 });
+  assert.deepEqual([tight.width, tight.height, tight.capped], [2000, 1333, true]);
+  assert.equal(effectiveOutputSize({ width: 3000, height: 2000 }, undefined).capped, false);
+  assert.equal(effectiveOutputSize({ width: 3000, height: 2000 }, { width: 0, height: 0 }).capped, false);
+});
