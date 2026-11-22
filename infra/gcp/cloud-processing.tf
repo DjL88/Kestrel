@@ -16,12 +16,6 @@ locals {
   cloud_on = var.cloud_processing_enabled
 }
 
-resource "google_project_service" "cloud_processing" {
-  for_each           = local.cloud_on ? toset(["run.googleapis.com", "iamcredentials.googleapis.com"]) : toset([])
-  service            = each.value
-  disable_on_destroy = false
-}
-
 resource "google_storage_bucket" "cloud_inputs" {
   count                       = local.cloud_on ? 1 : 0
   name                        = "${local.prefix}-kestrel-cloud-inputs"
@@ -44,9 +38,9 @@ resource "google_storage_bucket" "cloud_inputs" {
   }
   # Browsers upload with PUT to a signed URL, so the app's origins need CORS. Desktop uploads are not browsers.
   cors {
-    origin          = var.allowed_origins
-    method          = ["PUT"]
-    response_header = ["Content-Type", "Content-Length"]
+    origin          = local.control_plane_origin_list
+    method          = ["PUT", "GET"]
+    response_header = ["Content-Type", "Content-Length", "x-goog-content-length-range"]
     max_age_seconds = 600
   }
   depends_on = [google_project_service.enabled]
@@ -73,14 +67,6 @@ resource "google_storage_bucket_iam_member" "control_plane_objects" {
   bucket = google_storage_bucket.cloud_inputs[0].name
   role   = "roles/storage.objectUser"
   member = "serviceAccount:${google_service_account.control_plane.email}"
-}
-
-# V4 signed URLs from Cloud Run use IAM signBlob on the service's own account (no key file is ever created).
-resource "google_service_account_iam_member" "control_plane_signs" {
-  count              = local.cloud_on ? 1 : 0
-  service_account_id = google_service_account.control_plane.name
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = "serviceAccount:${google_service_account.control_plane.email}"
 }
 
 # ---- The runner: a Cloud Run JOB (only when an image is given) ---------------------------------------------------------
@@ -112,12 +98,11 @@ resource "google_cloud_run_v2_job" "cloud_runner" {
       }
     }
   }
-  depends_on = [google_project_service.cloud_processing]
+  depends_on = [google_project_service.control_plane, google_storage_bucket_iam_member.runner_objects]
 }
 
 # The control plane may start this one job, with the job id and kind passed as overrides, and nothing else. Least privilege:
-# a custom role with exactly the two permissions. UNVERIFIED permission names: if `apply` rejects one, the fallback is the
-# broader roles/run.developer on this job (still scoped to this job only).
+# a custom role with only run.jobs.run and run.jobs.runWithOverrides.
 resource "google_project_iam_custom_role" "cloud_job_starter" {
   count       = length(google_cloud_run_v2_job.cloud_runner)
   role_id     = "kestrelCloudJobStarter"

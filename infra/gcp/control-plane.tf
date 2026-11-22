@@ -21,12 +21,21 @@ locals {
   # The KESTREL1 licence-issuing PRIVATE key. Only the admin console's "issue a key" needs it. It is mounted into the
   # service only when var.licence_issuing_enabled is true, and only this service's account can read it.
   licence_private_key_secret = "kcp-licence-private-key-pem"
-  control_plane_origins      = join(",", concat(var.allowed_origins, ["https://${google_firebase_hosting_site.site.site_id}.web.app"]))
+  control_plane_origin_list  = distinct(concat(var.allowed_origins, ["https://${google_firebase_hosting_site.site.site_id}.web.app"]))
+  control_plane_origins      = join(",", local.control_plane_origin_list)
+  storage_signing_enabled    = local.cloud_on || var.safe_copy_enabled
 }
 
 resource "google_project_service" "control_plane" {
   for_each           = toset(local.control_plane_services)
   service            = each.value
+  disable_on_destroy = false
+}
+
+# Both optional storage features sign URLs as the same Cloud Run identity.
+resource "google_project_service" "control_plane_url_signing" {
+  count              = local.storage_signing_enabled ? 1 : 0
+  service            = "iamcredentials.googleapis.com"
   disable_on_destroy = false
 }
 
@@ -63,6 +72,14 @@ resource "google_service_account" "control_plane" {
   account_id   = "kestrel-control-plane"
   display_name = "Kestrel control plane (Cloud Run)"
   depends_on   = [google_project_service.enabled]
+}
+
+resource "google_service_account_iam_member" "control_plane_url_signing" {
+  count              = local.storage_signing_enabled ? 1 : 0
+  service_account_id = google_service_account.control_plane.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.control_plane.email}"
+  depends_on         = [google_project_service.control_plane_url_signing]
 }
 
 resource "google_project_iam_member" "control_plane_firestore" {
@@ -169,11 +186,11 @@ resource "google_cloud_run_v2_service" "control_plane" {
         value = google_firestore_database.default.name
       }
       env {
-        name = "KCP_DEMO_PRIVATE_BUCKET"
+        name  = "KCP_DEMO_PRIVATE_BUCKET"
         value = google_storage_bucket.demo_drafts.name
       }
       env {
-        name = "KCP_DEMO_PUBLIC_BUCKET"
+        name  = "KCP_DEMO_PUBLIC_BUCKET"
         value = google_storage_bucket.demo_published.name
       }
       env {
@@ -284,6 +301,12 @@ resource "google_cloud_run_v2_service" "control_plane" {
     google_storage_bucket_iam_member.demo_published_service,
     google_secret_manager_secret_iam_member.control_plane,
     google_secret_manager_secret_iam_member.licence_private_key,
+    google_secret_manager_secret_iam_member.gemini_api_key,
+    google_service_account_iam_member.control_plane_url_signing,
+    google_storage_bucket_iam_member.control_plane_objects,
+    google_storage_bucket_iam_member.safe_copy_control_plane,
+    google_cloud_run_v2_job_iam_member.control_plane_starts_job,
+    google_service_account_iam_member.control_plane_acts_as_runner,
   ]
 }
 
