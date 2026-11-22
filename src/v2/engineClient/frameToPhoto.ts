@@ -126,5 +126,15 @@ export function taskToInfo(task: Task): TaskInfo {
     detail: task.detail ?? (task.total ? `${task.done} of ${task.total}` : ''),
     progress,
     status: task.state === 'running' ? 'running' : task.state,
+    ...(task.endedAt !== undefined ? { endedAt: task.endedAt } : {}),
   };
+}
+
+/** Finished tasks stay in the Completed tab for this long, or until the person deletes them. */
+export const COMPLETED_KEEP_MS = 4 * 60 * 60 * 1000;
+
+/** Running tasks first, then finished ones still inside the keep window, newest first. */
+export function visibleTasks(running: readonly TaskInfo[], history: readonly TaskInfo[], now: number): TaskInfo[] {
+  const keep = history.filter((task) => now - (task.endedAt ?? now) < COMPLETED_KEEP_MS && !running.some((live) => live.id === task.id));
+  return [...running, ...keep.sort((a, b) => (b.endedAt ?? 0) - (a.endedAt ?? 0))];
 }

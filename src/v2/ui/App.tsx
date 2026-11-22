@@ -129,6 +129,7 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
             features={store.features}
             ongoingCritique={store.settings.ongoingCritique}
             onSetAssistMode={actions.setAssistMode}
+            onOpenSettings={() => actions.setSettingsOpen(true, 'assistance')}
             onRunDeepVisionReview={actions.runDeepVisionReview}
             onApplySuggestion={actions.applyAssistSuggestion}
             onApplyAll={actions.applyAllAssistSuggestions}
@@ -224,7 +225,7 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
           />
         );
       case 'tasks':
-        return <TasksPanel tasks={store.tasks} onCancelTask={actions.cancelTask} />;
+        return <TasksPanel tasks={store.tasks} onCancelTask={actions.cancelTask} onClearTask={actions.clearTask} onClearCompleted={actions.clearCompletedTasks} />;
     }
   };
 
@@ -299,6 +300,9 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
               activePanel={store.activePanel}
               panels={store.panels}
               runningTaskCount={runningTaskCount}
+              taskProgress={runningTaskCount ? store.tasks.filter((t) => t.status === 'running').reduce((sum, t) => sum + t.progress, 0) / runningTaskCount : 0}
+              onOpenTasks={() => actions.setActivePanel(store.activePanel === 'tasks' ? null : 'tasks')}
+              onOpenModeSettings={() => actions.setSettingsOpen(true, 'assistance')}
               calmView={store.settings.calmView}
               onSelectPanel={actions.setActivePanel}
               onSetPanelVisible={actions.setPanelVisible}
@@ -516,6 +520,8 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
         open={store.settingsOpen}
         activeTab={store.settingsTab}
         settings={store.settings}
+        assistMode={store.assistMode}
+        onSetAssistMode={actions.setAssistMode}
         onClose={() => actions.setSettingsOpen(false)}
         onSelectTab={actions.setSettingsTab}
         onUpdateSettings={actions.updateSettings}

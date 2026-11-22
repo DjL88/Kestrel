@@ -115,8 +115,9 @@ test('?v2 edits are real: Adjust changes the pixels, Compare splits original and
   await expect(split).toHaveAttribute('aria-valuenow', '0');
   await root.getByRole('button', { name: 'Compare', exact: true }).click();
   // Undo returns the picture to the original.
-  await root.getByRole('button', { name: 'Edit', exact: true }).click();
-  await root.getByRole('menuitem', { name: /^Undo/ }).click();
+  // The Edit menu is not in the interface (the desktop app has it natively); Undo is the keyboard shortcut.
+  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Control+z');
   await expect.poll(mean, { timeout: 15000 }).toBeLessThan(brighter - 3);
   await expect(root.getByLabel('Exposure', { exact: true })).toHaveValue('0');
 });
@@ -139,17 +140,14 @@ test('?v2 Co-pilot checks the photo on this device, suggests Auto, and applying 
   await root.getByRole('button', { name: /^Import/ }).first().click();
   await (await chooser).setFiles([{ name: 'dark-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
-  // The verdict is always written in words (Assist panel), whatever it is, and comes from the measured values.
-  await root.getByRole('button', { name: 'Assist', exact: true }).first().click();
+  // The verdict is always written in words (in the merged Co-pilot panel), whatever it is, and comes from the measured values.
+  await root.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
   const verdict = root.getByText(/Auto applied|Looks good|Cannot improve this safely|gentler version/);
   await expect(verdict.first()).toBeVisible({ timeout: 60000 });
-  await root.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
   const apply = root.getByRole('button', { name: 'Apply suggested recipe' });
   if (await apply.count()) {
     await apply.click();
     await expect(root.getByRole('button', { name: 'Apply suggested recipe' })).toHaveCount(0);
-    await root.getByRole('button', { name: 'Edit', exact: true }).click();
-    await expect(root.getByRole('menuitem', { name: /^Undo/ })).toBeEnabled();
   } else {
     await expect(root.getByText(/Looks good|Cannot improve/).first()).toBeVisible();
   }
@@ -196,4 +194,30 @@ test('?v2 marks Pro features with the Pro badge, and leaves Basic features unmar
   // Deep Vision (online AI) is Pro too.
   await root.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
   await expect(root.getByRole('button', { name: /Deep Vision Review/ }).getByText('Part of InFlight Pro')).toHaveCount(1);
+});
+
+test('?v2 chrome: icons load, no File/Edit/View or mode switch in the header, the mode shows as a flag and is set in Settings', async ({ page }) => {
+  const missing: string[] = [];
+  page.on('response', (response) => { if (response.url().includes('/v2-icons/') && response.status() >= 400) missing.push(response.url()); });
+  await page.goto('/?v2&stub=1');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: /Scottish Highlands/ }).first().click();
+  const header = root.getByRole('banner');
+  await expect(header.getByRole('navigation', { name: 'Application menus' })).toHaveCount(0);
+  await expect(header.getByRole('radiogroup', { name: /assist mode/i })).toHaveCount(0);
+  await expect(header.getByRole('button', { name: 'Back to projects' })).toBeVisible();
+  // Assist and Co-pilot are one tool: there is no separate Assist in the rail.
+  const rail = root.getByRole('complementary', { name: 'Studio tools' });
+  await expect(rail.getByRole('button', { name: /^Assist/ })).toHaveCount(0);
+  // The flag says which mode is on; Settings changes it.
+  const flag = root.getByTestId('mode-flag');
+  await expect(flag).toContainText('Co-pilot');
+  await flag.click();
+  await root.getByRole('button', { name: 'Auto-pilot', exact: true }).click();
+  await root.getByRole('button', { name: 'Close settings' }).click().catch(() => page.keyboard.press('Escape'));
+  await expect(flag).toContainText('Auto-pilot');
+  // Tasks sit at the bottom with a count in a progress ring.
+  await expect(root.getByTestId('tasks-wheel')).toBeVisible();
+  await page.waitForTimeout(500);
+  expect(missing, `icons that did not load: ${missing.join(', ')}`).toEqual([]);
 });

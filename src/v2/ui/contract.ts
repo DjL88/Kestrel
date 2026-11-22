@@ -260,6 +260,8 @@ export interface TaskInfo {
   detail: string;
   progress: number; // 0 to 100
   status: 'running' | 'done' | 'cancelled' | 'failed';
+  /** When it finished (ms since 1970). Finished tasks stay in the Completed tab for 4 hours or until deleted. */
+  endedAt?: number;
 }
 
 export interface PanelLayoutState {
@@ -452,6 +454,9 @@ export interface WorkspaceActions {
 
   // Tasks & Export
   cancelTask: (taskId: string) => void;
+  /** Remove one finished task from the Completed tab. */
+  clearTask: (taskId: string) => void;
+  clearCompletedTasks: () => void;
   setExportOpen: (open: boolean) => void;
   runExport: (request: ExportRequest) => void;
 

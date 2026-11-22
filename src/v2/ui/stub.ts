@@ -1703,6 +1703,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    clearTask: (taskId) => {
+      logAction('clearTask', { taskId });
+      setStore((prev) => ({ ...prev, tasks: prev.tasks.filter((task) => task.id !== taskId || task.status === 'running') }));
+    },
+    clearCompletedTasks: () => {
+      logAction('clearCompletedTasks');
+      setStore((prev) => ({ ...prev, tasks: prev.tasks.filter((task) => task.status === 'running') }));
+    },
     cancelTask: (taskId) => {
       logAction('cancelTask', { taskId });
       setStore((prev) => ({
