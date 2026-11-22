@@ -100,6 +100,14 @@ test('?v2 edits are real: Adjust changes the pixels, Compare splits original and
   await expect.poll(mean).toBeGreaterThan(10);
   const before = await mean();
   // Move Exposure up through the real slider: the recipe becomes a PhotoEdit and the canvas redraws brighter.
+  const advanced = root.getByRole('tab', { name: 'Advanced Edits' });
+  if (!(await advanced.isVisible())) await root.getByRole('button', { name: 'Adjust', exact: true }).first().click();
+  const curated = root.getByRole('tab', { name: 'Curated Looks' });
+  await expect(curated).toHaveAttribute('aria-selected', 'true');
+  await curated.focus();
+  await curated.press('ArrowRight');
+  await expect(advanced).toBeFocused();
+  await expect(advanced).toHaveAttribute('aria-selected', 'true');
   const exposure = root.getByLabel('Exposure', { exact: true });
   await exposure.fill('1');
   await expect.poll(mean, { timeout: 15000 }).toBeGreaterThan(before + 3);
