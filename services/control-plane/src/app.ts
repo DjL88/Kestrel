@@ -22,6 +22,7 @@ import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnove
 import { CLOUD_KINDS, type CloudOptions } from './cloudJobs.ts';
 import { LEARNING_ACTIONS, LEARNING_CAPABILITIES, LEARNING_SOURCES, type LearningSink } from './learningSignal.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
+import type { SpendOptions } from './spendGuard.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
 
 export const MAX_IMAGE_BYTES = 512 * 1024;
@@ -53,6 +54,8 @@ export interface AppOptions {
   learning?: LearningSink;
   /** Managed safe copy (opt-in backup). Absent in production until a bucket exists and is approved: routes answer 503. */
   safeCopy?: SafeCopyOptions;
+  /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
+  spend?: SpendOptions;
 }
 
 // ---- Schemas: the contract, also published as OpenAPI ------------------------
@@ -337,6 +340,15 @@ export function createApp(options: AppOptions) {
     };
   }
 
+  /** Reserve estimated metered spend; refuse with 503 when the month's ceiling would be passed. Returns the refund. */
+  async function reserveSpend(pence: number): Promise<() => Promise<void>> {
+    const sp = options.spend;
+    if (!sp) return async () => undefined;
+    if (!(await sp.guard.reserve(now(), pence, sp.ceilingPence))) throw new ApiError(503, 'SPEND_CEILING_REACHED', 'This month\'s spending limit for the online helper and cloud processing has been reached. Local work is unaffected.', true);
+    let done = false;
+    return async () => { if (done) return; done = true; await sp.guard.refund(now(), pence); };
+  }
+
   async function aiCall<T>(req: Request, work: (provider: AiProvider, image: string) => Promise<T>): Promise<T> {
     const claims = await bearer(req);
     const body = parseJson(Schemas.ImageRequest, req.rawBody);
@@ -350,11 +362,13 @@ export function createApp(options: AppOptions) {
     if ((await store.getSetting('ai_disabled')) === '1') throw new ApiError(503, 'AI_DISABLED', 'The online helper is switched off for now.', true);
     if (!provider) throw new ApiError(503, 'AI_NOT_CONFIGURED', 'The online helper is not set up on this server.');
     if (!(await store.hasActiveManagedAi(claims.sub))) throw new ApiError(403, 'AI_NOT_ENTITLED', 'The online helper is not part of this plan.');
-    const refund = await reserveQuota(claims.sub);
+    const refundSpend = await reserveSpend(options.spend?.aiCallPence ?? 0);
+    const refund = await reserveQuota(claims.sub).catch(async (e) => { await refundSpend(); throw e; });
     try {
       return await work(provider, body.image);
     } catch (error) {
       await refund(); // A failed answer costs nothing.
+      await refundSpend();
       throw error;
     }
   }
@@ -382,7 +396,9 @@ export function createApp(options: AppOptions) {
     if (body.userConsent !== true) throw new ApiError(400, 'CONSENT_REQUIRED', 'InFlight needs your permission before sending a photo to be processed.');
     const cloud = await cloudGate(claims.sub);
     if (body.inputBytes > cloud.maxInputBytes) throw new ApiError(413, 'CLOUD_INPUT_TOO_LARGE', 'This file is larger than cloud processing accepts.');
+    const refundSpend = await reserveSpend(options.spend?.cloudJobPence ?? 0).catch(async (e) => { await audit(claims.sub, 'cloud.job.create', 'denied', 'spend ceiling'); throw e; });
     if (!(await cloud.ledger.reserve(claims.sub, now(), cloud.jobsPerPeriod, QUOTA_PERIOD_MS))) {
+      await refundSpend();
       await audit(claims.sub, 'cloud.job.create', 'denied', 'quota');
       throw new ApiError(429, 'CLOUD_QUOTA_EXHAUSTED', 'This account has used its cloud processing allowance for this period.');
     }
@@ -394,6 +410,7 @@ export function createApp(options: AppOptions) {
       return { status: 200, body: { jobId, uploadUrl: upload.uploadUrl, expiresAtMs: upload.expiresAtMs } };
     } catch (error) {
       await cloud.ledger.refund(claims.sub); // A job that never started costs nothing.
+      await refundSpend();
       await cloud.runner.deleteInput(jobId).catch(() => undefined);
       throw new ApiError(502, 'CLOUD_RUNNER_FAILED', 'Cloud processing could not start. Nothing was uploaded or charged.', true);
     }
@@ -733,7 +750,7 @@ export function createApp(options: AppOptions) {
             await cloud.runner.deleteInput(record.jobId);
             current = { ...record, status: p.state };
             await cloud.ledger.put(current);
-            if (p.state === 'failed') await cloud.ledger.refund(record.accountId); // a failed job costs nothing; the status change makes this happen once
+            if (p.state === 'failed') { await cloud.ledger.refund(record.accountId); if (options.spend) await options.spend.guard.refund(now(), options.spend.cloudJobPence); } // a failed job costs nothing; the status change makes this happen once
             await audit(record.accountId, 'cloud.job.end', 'allowed', `${record.jobId} ${p.state}`);
           }
           if (p.state === 'ready') resultUrl = p.resultUrl;
