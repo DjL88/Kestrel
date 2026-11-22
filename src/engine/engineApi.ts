@@ -27,9 +27,10 @@ import type { EngineRunner } from './types';
  * always run on-device internally - so there is nothing for this router to pass through or reject for
  * those two capabilities; a later slice giving them a runner choice should update this file to match, not
  * have this file pretend the choice exists first. Where a runner IS given (`subject-detect`), a request
- * for `'cloud-gemini'` or `'cloud-byo'` is rejected with a clear error rather than silently run on-device
- * and reported as something it wasn't - `types.ts` already says neither cloud runner has an implementation
- * anywhere in this codebase.
+ * for `'cloud-gemini'`, `'cloud-byo'` or `'cloud-processing'` (the owner's own managed Cloud Processing
+ * Engine, named at the backend worker's request on #418) is rejected with a clear error rather than
+ * silently run on-device and reported as something it wasn't - `types.ts` already says none of the three
+ * cloud runners has an implementation anywhere in this codebase.
  */
 
 export type EngineRequest =
@@ -42,7 +43,7 @@ export type EngineResponse =
   | { capability: 'upscale'; result: UpscaleActionResult }
   | { capability: 'subject-detect'; result: SubjectDetectActionResult };
 
-const UNIMPLEMENTED_RUNNERS: ReadonlySet<EngineRunner> = new Set(['cloud-gemini', 'cloud-byo']);
+const UNIMPLEMENTED_RUNNERS: ReadonlySet<EngineRunner> = new Set(['cloud-gemini', 'cloud-byo', 'cloud-processing']);
 
 export async function runEngineCapability(request: EngineRequest): Promise<EngineResponse> {
   if (request.capability === 'subject-detect' && request.runner && UNIMPLEMENTED_RUNNERS.has(request.runner)) {
