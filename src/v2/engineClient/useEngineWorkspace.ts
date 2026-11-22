@@ -530,6 +530,30 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const frame = next.frames.find((candidate) => candidate.id === id);
       return frame ? applyDecisionWithHistory(next, id, frame.decision === 'keep' ? 'unreviewed' : 'keep', { allowAdvance: false }) : next;
     }, current)),
+    correctSpeciesName: (photoId, proposedName) => {
+      const name = proposedName.trim().slice(0, 120);
+      if (!name) return;
+      mutate((current) => ({
+        ...current,
+        shoot: { ...current.shoot, lastUpdatedAt: Date.now() },
+        frames: current.frames.map((frame) => {
+          if (frame.id !== photoId || frame.removedAt) return frame;
+          // A correction is the photographer's own label, not an unverified model suggestion.
+          // Keep separate tags/evidence, but remove the former automatic name from primary display.
+          const autoNames = new Set(frame.autoTags ?? []);
+          const manualTags = (frame.tags ?? []).filter((tag) => !autoNames.has(tag));
+          return {
+            ...frame,
+            subjectNames: [name],
+            tags: [name, ...manualTags.filter((tag) => tag !== name)],
+            autoTags: [],
+            speciesChecked: true,
+            subjectDisputed: false,
+          };
+        }),
+      }));
+      setNotice('Species name saved to this project.');
+    },
     setRating: (ids, rating) => mutate((current) => ({
       ...current,
       frames: current.frames.map((frame) => (ids.includes(frame.id) ? { ...frame, rating } : frame)),
