@@ -9,9 +9,15 @@ import type {
   WatermarkPreset,
 } from '../contract';
 import { STRINGS } from '../strings';
+import ProBadge from '../shell/ProBadge';
+import FontPicker from './FontPicker';
+import WatermarkLibrary from './WatermarkLibrary';
 import BrandIcon from '../icons/BrandIcon';
 import InfoPopover from '../shell/InfoPopover';
-import { detectOverlayOverflow, getActiveGroup } from '../utils/studioMath';
+import { detectOverlayOverflow, formatOverlayRowText, getActiveGroup } from '../utils/studioMath';
+
+/** The words a row will say on this photo (or a pangram when it has nothing yet), so a font is judged on real text. */
+const sampleText = (photo: Photo, row: OverlayTextRow) => formatOverlayRowText(row, photo).trim() || 'The quick brown fox jumps over the lazy dog';
 
 interface OverlayPanelProps {
   photo: Photo | null;
@@ -24,6 +30,12 @@ interface OverlayPanelProps {
   onUpdateRow: (photoId: string, rowId: string, patch: Partial<OverlayTextRow>) => void;
   onRemoveRow: (photoId: string, rowId: string) => void;
   onAddCustomFont: (fontName: string) => void;
+  onListDeviceFonts: () => Promise<string[] | null>;
+  onImportWatermark: () => Promise<string | null>;
+  onCutOutWatermark: (presetId: string, slot: 'dark' | 'light', tolerance: number, commit: boolean) => Promise<{ url: string; tooMuch: boolean } | null>;
+  onMakeWatermarkVariant: (presetId: string, slot: 'dark' | 'light') => Promise<void>;
+  onDeleteWatermark: (presetId: string) => void;
+  onHasDeviceFont: (fontName: string) => boolean;
 }
 
 const ANCHORS: Array<{ id: OverlayAnchor; x: number; y: number }> = [
@@ -60,11 +72,14 @@ export default function OverlayPanel({
   onUpdateRow,
   onRemoveRow,
   onAddCustomFont,
+  onListDeviceFonts,
+  onHasDeviceFont,
+  onImportWatermark,
+  onCutOutWatermark,
+  onMakeWatermarkVariant,
+  onDeleteWatermark,
 }: OverlayPanelProps) {
   const [subTab, setSubTab] = useState<'text' | 'watermark'>('text');
-  const [openFontRowId, setOpenFontRowId] = useState<string | null>(null);
-  const [fontQuery, setFontQuery] = useState('');
-  const [customFontInput, setCustomFontInput] = useState('');
 
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to edit overlays.</p>;
@@ -74,9 +89,6 @@ export default function OverlayPanel({
   const overlay = group.overlay;
   const overflowIssues = detectOverlayOverflow(overlay, photo, photo.sizes);
 
-  const filteredFonts = fonts.filter((f) =>
-    `${f.label} ${f.category}`.toLowerCase().includes(fontQuery.trim().toLowerCase())
-  );
 
   const toggleField = (row: OverlayTextRow, field: OverlayTextRow['fields'][number]) => {
     const exists = row.fields.includes(field);
@@ -170,7 +182,7 @@ export default function OverlayPanel({
       {subTab === 'text' && (
         <div className="space-y-4">
           {!features.overlayText ? (
-            <p className="text-xs text-[var(--text-muted)]">{STRINGS.formats.featureLocked}</p>
+            <p className="flex items-center gap-2 text-xs text-[var(--text-muted)]"><ProBadge feature="overlayText" />{STRINGS.pro.lockedHint}</p>
           ) : (
             <>
               {/* Enable toggle + Layout mode */}
@@ -258,8 +270,6 @@ export default function OverlayPanel({
                 </div>
 
                 {overlay.rows.map((row, idx) => {
-                  const activeFont = fonts.find((f) => f.id === row.fontId) ?? fonts[0];
-                  const isDropdownOpen = openFontRowId === row.id;
 
                   return (
                     <div
@@ -313,76 +323,15 @@ export default function OverlayPanel({
                         />
                       )}
 
-                      {/* Styled Font Dropdown (shows each font in its own typeface!) */}
-                      <div className="relative">
-                        <button
-                          type="button"
-                          aria-expanded={isDropdownOpen}
-                          onClick={() => setOpenFontRowId(isDropdownOpen ? null : row.id)}
-                          className="flex h-8 w-full items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 text-xs text-[var(--text-primary)]"
-                        >
-                          <span style={{ fontFamily: activeFont.family }} className="truncate">
-                            {activeFont.label}
-                          </span>
-                          <BrandIcon name="chevron" size={13} className="text-[var(--text-muted)]" />
-                        </button>
-
-                        {isDropdownOpen && (
-                          <div className="mt-1.5 max-h-56 overflow-y-auto inflight-scroll rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] p-2 shadow-[var(--shadow-popover)]">
-                            <input
-                              type="search"
-                              value={fontQuery}
-                              onChange={(e) => setFontQuery(e.target.value)}
-                              placeholder={STRINGS.overlays.fontSearchPlaceholder}
-                              className="mb-2 h-7 w-full rounded-[var(--radius-xs)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2 text-[11px] text-[var(--text-primary)]"
-                            />
-                            <div className="space-y-0.5">
-                              {filteredFonts.map((f) => (
-                                <button
-                                  key={f.id}
-                                  type="button"
-                                  onClick={() => {
-                                    onUpdateRow(photo.id, row.id, { fontId: f.id });
-                                    setOpenFontRowId(null);
-                                  }}
-                                  className={`flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left transition-colors ${
-                                    f.id === row.fontId
-                                      ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                                      : 'text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
-                                  }`}
-                                >
-                                  <span style={{ fontFamily: f.family }} className="text-sm">
-                                    {f.label}
-                                  </span>
-                                  <span className="text-[10px] text-[var(--text-muted)]">{f.category}</span>
-                                </button>
-                              ))}
-                            </div>
-
-                            {/* Add custom / device-installed font */}
-                            <div className="mt-2 flex gap-1 border-t border-[var(--border-subtle)] pt-2">
-                              <input
-                                type="text"
-                                value={customFontInput}
-                                onChange={(e) => setCustomFontInput(e.target.value)}
-                                placeholder="Device or custom font name…"
-                                className="h-7 flex-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-input)] px-2 text-[11px] text-[var(--text-primary)]"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!customFontInput.trim()) return;
-                                  onAddCustomFont(customFontInput);
-                                  setCustomFontInput('');
-                                }}
-                                className="h-7 rounded bg-[var(--brand-accent)] px-2 text-[11px] font-semibold text-[var(--text-on-accent)]"
-                              >
-                                Add
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      <FontPicker
+                        fonts={fonts}
+                        row={row}
+                        sample={sampleText(photo, row)}
+                        onSelect={(fontId) => onUpdateRow(photo.id, row.id, { fontId })}
+                        onAddCustomFont={onAddCustomFont}
+                        onListDeviceFonts={onListDeviceFonts}
+                        onHasDeviceFont={onHasDeviceFont}
+                      />
 
                       {/* Size & Uppercase */}
                       <div className="flex items-center gap-3">
@@ -457,7 +406,7 @@ export default function OverlayPanel({
       {subTab === 'watermark' && (
         <div className="space-y-4">
           {!features.watermarkCustom ? (
-            <p className="text-xs text-[var(--text-muted)]">{STRINGS.formats.featureLocked}</p>
+            <p className="flex items-center gap-2 text-xs text-[var(--text-muted)]"><ProBadge feature="watermarkCustom" />{STRINGS.pro.lockedHint}</p>
           ) : (
             <>
               <div className="flex items-center justify-between">
@@ -487,36 +436,31 @@ export default function OverlayPanel({
                   <BrandIcon name="watermark-library" size={14} />
                   <span>{STRINGS.overlays.watermarkLibrary}</span>
                 </span>
-                <div className="space-y-1.5">
-                  {watermarkPresets.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() =>
-                        onUpdateOverlay(photo.id, {
-                          watermarkEnabled: true,
-                          watermarkPresetId: preset.id,
-                        })
-                      }
-                      className={`flex w-full flex-col rounded-[var(--radius-sm)] border px-2.5 py-2 text-left transition-colors ${
-                        overlay.watermarkPresetId === preset.id
-                          ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-input)] hover:border-[var(--border-default)]'
-                      }`}
-                    >
-                      <span className="text-xs font-semibold text-[var(--text-primary)]">
-                        {preset.label}
-                      </span>
-                      <span className="mt-0.5 font-mono text-[10px] text-[var(--text-muted)]">
-                        {preset.text} {preset.subtext ? `· ${preset.subtext}` : ''}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                <WatermarkLibrary
+                  presets={watermarkPresets}
+                  selectedId={overlay.watermarkPresetId}
+                  onSelect={(presetId) => onUpdateOverlay(photo.id, { watermarkEnabled: true, watermarkPresetId: presetId })}
+                  onImport={onImportWatermark}
+                  onCutOut={onCutOutWatermark}
+                  onMakeVariant={onMakeWatermarkVariant}
+                  onDelete={onDeleteWatermark}
+                />
               </div>
 
               {/* Contrast swatch */}
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  aria-pressed={overlay.watermarkContrast === 'auto'}
+                  onClick={() => onUpdateOverlay(photo.id, { watermarkContrast: 'auto' })}
+                  className={`inline-flex h-8 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border text-xs font-medium ${
+                    overlay.watermarkContrast === 'auto'
+                      ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
+                      : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
+                  }`}
+                >
+                  <span>{STRINGS.watermarks.auto}</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => onUpdateOverlay(photo.id, { watermarkContrast: 'light-on-dark' })}
