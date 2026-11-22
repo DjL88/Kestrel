@@ -38,7 +38,7 @@
 <div id="console" hidden>
   <nav class="tabs" aria-label="Console sections">
     <a href="#overview">Overview</a><a href="#licensees">Licensees and devices</a><a href="#issue">Issue a key</a>
-    <a href="#demo-studio">Demo Studio</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
+    <a href="#demo-studio">Demo Studio</a><a href="#flags">Flags</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
   </nav>
 
   <section id="overview" class="panel" aria-labelledby="overview-title">
@@ -82,6 +82,32 @@
       <label>Licence key <textarea id="issued-key" rows="3" readonly></textarea></label>
       <button type="button" id="copy-key">Copy key</button>
     </div>
+  </section>
+
+  <section id="flags" class="panel" aria-labelledby="flags-title">
+    <h2 id="flags-title">Feature flags</h2>
+    <p class="muted">Switch a feature on or off for everyone, for a plan, for an organisation or for one person, over a date range. A trial is a rule with a date range; leave the last day empty and it runs until you stop it. The most specific rule wins (one person, then an organisation, then a plan, then everyone), and an off rule beats an on rule at the same level. Changes reach a device the next time it checks in, and are written to the audit log.</p>
+    <p class="muted">These can never be switched off, whatever the rules say: <span id="never-gated"></span>.</p>
+    <div class="scroll"><table id="flags-table">
+      <caption class="sr-only">Feature flags</caption>
+      <thead><tr><th scope="col">Flag</th><th scope="col">Default</th><th scope="col">Rules</th><th scope="col">Actions</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p id="flags-empty" class="muted" hidden>No flags yet. Every feature uses the app's built-in setting.</p>
+    <form id="flag-form">
+      <h3 id="flag-form-title">Add or change a flag</h3>
+      <label>Flag name <input id="flag-key" name="key" list="flag-names" required maxlength="64" autocomplete="off" spellcheck="false"></label>
+      <datalist id="flag-names"></datalist>
+      <label>When no rule applies
+        <select name="defaultOn"><option value="off">Off</option><option value="on">On</option></select>
+      </label>
+      <label>Minimum app version (optional) <input name="minAppVersion" placeholder="26.11.2" maxlength="20" autocomplete="off"></label>
+      <label class="check"><input type="checkbox" name="kill"> Switch off for everyone now (kill switch)</label>
+      <fieldset id="flag-rules"><legend>Rules</legend><div id="flag-rule-rows"></div>
+        <button type="button" id="add-rule" class="quiet">Add a rule</button>
+      </fieldset>
+      <div class="row"><button>Save flag</button><button type="button" id="flag-reset" class="quiet">Clear the form</button></div>
+    </form>
   </section>
 
   <section id="usage" class="panel" aria-labelledby="usage-title">

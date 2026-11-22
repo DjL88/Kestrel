@@ -54,3 +54,18 @@ progress{width:100%;accent-color:var(--copper-hover)}
 .messages .body{white-space:pre-wrap;margin:0 0 10px;overflow-wrap:anywhere}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+
+fieldset{border:1px solid var(--line);border-radius:8px;margin:12px 0;padding:8px 12px 12px}legend{padding:0 6px;color:#d3d9e5;font-weight:600}
+.rule-row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;padding:10px 0;border-bottom:1px solid var(--line)}
+.rule-row label{margin:0}.rule-row input,.rule-row select{width:auto;min-width:120px}.rule-row input[type=number]{min-width:90px}
+.rule-row label.check{align-self:center}
+[hidden]{display:none!important}
+.rule-row input[type=checkbox]{min-width:0;width:auto;min-height:auto;margin:0 6px 0 0;accent-color:var(--copper-hover)}
+@media(max-width:640px){
+  #flags-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  #flags-table,#flags-table tbody,#flags-table tr,#flags-table td{display:block;width:100%}
+  #flags-table tr{border-bottom:1px solid var(--line);padding:10px 0}
+  #flags-table td{border:0;padding:4px 0}
+  #flags-table td:nth-child(2)::before{content:"When no rule applies: ";color:#bdc4cf}
+  #flags-table td:nth-child(3)::before{content:"Rules";display:block;color:#bdc4cf;font-size:.88rem}
+}
