@@ -589,6 +589,17 @@ function createDefaultPanels(): Record<PanelId, PanelLayoutState> {
   };
 }
 
+export const DEFAULT_FEATURE_PLAN: Record<FeatureKey, 'basic' | 'pro'> = {
+  watermarkCustom: 'pro',
+  overlayText: 'pro',
+  smartCulling: 'pro',
+  speciesId: 'pro',
+  onlineAi: 'pro',
+  cloudAssist: 'pro',
+  zoomVideo: 'basic',
+  splitFrames: 'basic',
+};
+
 export const DEFAULT_FEATURES: Record<FeatureKey, boolean> = {
   watermarkCustom: true,
   overlayText: true,
@@ -625,6 +636,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     bottomTab: 'filmstrip',
     assistMode: 'copilot',
     features: DEFAULT_FEATURES,
+    featurePlan: DEFAULT_FEATURE_PLAN,
     looks: INITIAL_LOOKS,
     hoveredLookId: null,
     fonts: INITIAL_FONTS,

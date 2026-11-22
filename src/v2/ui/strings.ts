@@ -67,6 +67,12 @@ export const STRINGS = {
     floatPanel: 'Float window',
   },
 
+  // Pro
+  pro: {
+    partOf: 'Part of InFlight Pro',
+    lockedHint: 'Part of InFlight Pro. Basic keeps everything you need to import, cull, edit and export.',
+  },
+
   // Projects Hub
   hub: {
     heading: 'Projects',

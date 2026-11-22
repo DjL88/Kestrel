@@ -9,6 +9,7 @@ import type {
   WatermarkPreset,
 } from '../contract';
 import { STRINGS } from '../strings';
+import ProBadge from '../shell/ProBadge';
 import BrandIcon from '../icons/BrandIcon';
 import InfoPopover from '../shell/InfoPopover';
 import { detectOverlayOverflow, getActiveGroup } from '../utils/studioMath';
@@ -170,7 +171,7 @@ export default function OverlayPanel({
       {subTab === 'text' && (
         <div className="space-y-4">
           {!features.overlayText ? (
-            <p className="text-xs text-[var(--text-muted)]">{STRINGS.formats.featureLocked}</p>
+            <p className="flex items-center gap-2 text-xs text-[var(--text-muted)]"><ProBadge feature="overlayText" />{STRINGS.pro.lockedHint}</p>
           ) : (
             <>
               {/* Enable toggle + Layout mode */}
@@ -457,7 +458,7 @@ export default function OverlayPanel({
       {subTab === 'watermark' && (
         <div className="space-y-4">
           {!features.watermarkCustom ? (
-            <p className="text-xs text-[var(--text-muted)]">{STRINGS.formats.featureLocked}</p>
+            <p className="flex items-center gap-2 text-xs text-[var(--text-muted)]"><ProBadge feature="watermarkCustom" />{STRINGS.pro.lockedHint}</p>
           ) : (
             <>
               <div className="flex items-center justify-between">
