@@ -53,6 +53,19 @@ test('320px phone can undo and redo an offline edit by touch', async ({ page, co
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
 });
 
+test('canvas frame only blocks touch scrolling while a photo pinch/pan gesture can run there', async ({ page }) => {
+  // Regression guard for the fix in src/v2/ui/shell/Canvas.tsx that scopes touchAction: 'none' to
+  // `activeSize.kind === 'photo' && !compareMode` — previously it was applied unconditionally, which
+  // blocked the surrounding page from scrolling even in modes (like before/after compare) where no
+  // photo pinch/pan gesture can start on the frame at all.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const studio = await importPhoto(page);
+  const frame = studio.getByTestId('canvas-frame');
+  await expect(frame).toHaveCSS('touch-action', 'none');
+  await studio.getByRole('button', { name: 'Compare before & after' }).tap();
+  await expect(frame).toHaveCSS('touch-action', 'auto');
+});
+
 for (const viewport of [{ width: 320, height: 568 }, { width: 667, height: 375 }]) {
   test(`Export controls stay reachable at ${viewport.width}×${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
