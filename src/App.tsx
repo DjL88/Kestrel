@@ -27,6 +27,7 @@ import { TaskManager } from './components/TaskManager';
 import { PhotoContextMenu } from './components/PhotoContextMenu';
 import { ratingFor, targetsFor, type PhotoAction } from './core/photoMenu';
 import { resolveShortcutAlias, type AliasAction } from './core/shortcutAliases';
+import { DESKTOP_MENU_ACTION_IDS, menuActionFor } from './core/desktopMenuCommands';
 import { photoMenuHints } from './core/shortcutHints';
 import { DropOverlay } from './components/DropOverlay';
 import { useDropPhotos } from './providers/useDropPhotos';
@@ -1478,6 +1479,27 @@ export default function App() {
     else if (action.kind === 'edit') { if (selectedFrame) { setEditQueueIds(visibleFrames.map((frame) => frame.id)); setEditing(true); } }
     else if (action.kind === 'export') { if (exportSelection.length) setExportFrames(exportSelection); }
   };
+
+  // Native Photo and View menu items (desktop app): the same actions as the keys, through the same ref.
+  const runMenuAction = useRef<(id: string) => void>(() => {});
+  runMenuAction.current = (id) => {
+    if (projectsOpen) return;
+    const action = menuActionFor(id);
+    if (!action) return;
+    if (action.kind === 'view') {
+      if (action.mode === 'compare') { if (prefs.viewMode !== 'compare') toggleCompareView(); }
+      else setPrefs((prev) => ({ ...prev, viewMode: action.mode }));
+    } else if (action.kind === 'photoOnly') setPrefs((prev) => ({ ...prev, focusMode: !prev.focusMode }));
+    else runAlias.current(action);
+  };
+  useEffect(() => {
+    const handlers = DESKTOP_MENU_ACTION_IDS.map((id) => {
+      const listener = () => runMenuAction.current(id);
+      window.addEventListener('kestrel:menu-' + id, listener);
+      return () => window.removeEventListener('kestrel:menu-' + id, listener);
+    });
+    return () => handlers.forEach((off) => off());
+  }, []);
 
   // Global keyboard listener wired through unified resolveKeyboardCommand
   useEffect(() => {

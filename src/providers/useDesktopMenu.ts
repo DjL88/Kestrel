@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { isDesktopApp } from './desktopShell';
+import { DESKTOP_MENU_ACTION_IDS } from '../core/desktopMenuCommands';
 
 /** Button text each native menu item presses. A first version: it reuses the buttons already on screen. */
 const BUTTONS: Record<string, RegExp> = { filmstrip: /^(show|hide) filmstrip$/i };
@@ -20,7 +21,7 @@ export function useDesktopMenu() {
       // translated button's text or change browser text selections.
       if (['add', 'edit-photo', 'edit-auto', 'edit-look', 'edit-copy-adjustments',
         'edit-paste-adjustments', 'view-info', 'view-tools',
-        'view-left', 'view-right', 'view-bursts', 'view-all-tabs', 'settings-ai', 'settings-storage'].includes(payload) || payload.startsWith('view-tab-')) {
+        'view-left', 'view-right', 'view-bursts', 'view-all-tabs', 'settings-ai', 'settings-storage'].includes(payload) || DESKTOP_MENU_ACTION_IDS.includes(payload) || payload.startsWith('view-tab-')) {
         window.dispatchEvent(new Event('kestrel:menu-' + payload));
         return;
       }
