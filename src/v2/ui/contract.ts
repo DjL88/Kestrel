@@ -171,7 +171,8 @@ export interface OverlaySettings {
   watermarkY: number; // 4 to 96 (% of frame height)
   watermarkOpacity: number; // 10 to 100
   watermarkScale: number; // 40 to 160 (%)
-  watermarkContrast: 'light-on-dark' | 'dark-on-light';
+  /** 'auto' picks light or dark from the photo behind the watermark (see Photo.watermarkAuto). */
+  watermarkContrast: 'light-on-dark' | 'dark-on-light' | 'auto';
   snapEnabled: boolean;
 }
 
@@ -235,6 +236,8 @@ export interface Photo {
   sizes: SizePreset[];
   videoZoom: VideoZoomConfig;
   masks: MaskLayer[];
+  /** What 'auto' resolves to for this photo's watermark, measured on the pixels behind it. Absent until measured. */
+  watermarkAuto?: 'light-on-dark' | 'dark-on-light';
   assistCritique: {
     subjectNote: string;
     colourConfidence: string;
@@ -260,6 +263,8 @@ export interface TaskInfo {
   detail: string;
   progress: number; // 0 to 100
   status: 'running' | 'done' | 'cancelled' | 'failed';
+  /** When it finished (ms since 1970). Finished tasks stay in the Completed tab for 4 hours or until deleted. */
+  endedAt?: number;
 }
 
 export interface PanelLayoutState {
@@ -274,6 +279,12 @@ export interface WatermarkPreset {
   label: string;
   text: string;
   subtext?: string;
+  /** 'image' is the person's own artwork, kept on this device. Absent means a text watermark. */
+  kind?: 'text' | 'image';
+  /** Artwork for dark photos (a light mark). */
+  forDarkUrl?: string;
+  /** Artwork for light photos (a dark mark). */
+  forLightUrl?: string;
 }
 
 export interface AiProviderConfig {
@@ -348,6 +359,8 @@ export interface WorkspaceStore {
   bottomTab: 'filmstrip' | 'info';
   assistMode: AssistMode;
   features: Record<FeatureKey, boolean>;
+  /** Which plan each feature belongs to, so the UI can mark Pro features with the Pro badge. Basic or Pro only. */
+  featurePlan: Record<FeatureKey, 'basic' | 'pro'>;
   looks: LookPreset[];
   hoveredLookId: string | null;
   fonts: FontOption[];
@@ -440,7 +453,18 @@ export interface WorkspaceActions {
   addOverlayRow: (photoId: string) => void;
   updateOverlayRow: (photoId: string, rowId: string, patch: Partial<OverlayTextRow>) => void;
   removeOverlayRow: (photoId: string, rowId: string) => void;
+  /** Opens the file picker and adds the chosen image to the watermark library. Resolves to the new watermark's id. */
+  importWatermarkImage: () => Promise<string | null>;
+  /** Removes a flat background from a watermark's artwork. With commit false it only previews (a picture on transparency). */
+  cutOutWatermark: (presetId: string, slot: 'dark' | 'light', tolerance: number, commit: boolean) => Promise<{ url: string; tooMuch: boolean } | null>;
+  /** Makes the missing version (white for dark photos, black for light photos) from the one that exists. */
+  makeWatermarkVariant: (presetId: string, slot: 'dark' | 'light') => Promise<void>;
+  deleteWatermark: (presetId: string) => void;
   addCustomFont: (fontName: string) => void;
+  /** Names of the fonts installed on this device, or null when the device cannot list them (then a name can be typed). */
+  listDeviceFonts: () => Promise<string[] | null>;
+  /** True when a font of this name is installed on this device. */
+  hasDeviceFont: (fontName: string) => boolean;
 
   // Masks (placeholder engine hook)
   setActiveMaskTool: (tool: WorkspaceStore['activeMaskTool']) => void;
@@ -450,6 +474,9 @@ export interface WorkspaceActions {
 
   // Tasks & Export
   cancelTask: (taskId: string) => void;
+  /** Remove one finished task from the Completed tab. */
+  clearTask: (taskId: string) => void;
+  clearCompletedTasks: () => void;
   setExportOpen: (open: boolean) => void;
   runExport: (request: ExportRequest) => void;
 
