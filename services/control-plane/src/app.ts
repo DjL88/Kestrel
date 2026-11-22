@@ -19,7 +19,7 @@ import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { googleKeysFromNetwork, verifyGoogleIdToken, GOOGLE_CERTS_URL, type GoogleKeys } from './googleIdToken.ts';
 import { APPLE_ISSUER, APPLE_KEYS_URL, FIREBASE_KEYS_URL, firebaseIssuer, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
 import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnover.ts';
-import { CLOUD_KINDS, type CloudOptions } from './cloudJobs.ts';
+import { CLOUD_KINDS, DEFAULT_MAX_JOB_MS, type CloudOptions } from './cloudJobs.ts';
 import { LEARNING_ACTIONS, LEARNING_CAPABILITIES, LEARNING_SOURCES, type LearningSink } from './learningSignal.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
 import type { SpendOptions } from './spendGuard.ts';
@@ -744,7 +744,9 @@ export function createApp(options: AppOptions) {
         let current = record;
         let resultUrl: string | undefined;
         if (record.status === 'running') {
-          const p = await cloud.runner.poll(record.jobId);
+          let p = await cloud.runner.poll(record.jobId);
+          // Watchdog: a crashed runner writes no marker, so without this the job (and its spend) would stay 'running' forever.
+          if (p.state === 'running' && now() - record.createdAtMs > (cloud.maxJobMs ?? DEFAULT_MAX_JOB_MS)) p = { state: 'failed' };
           if (p.state !== 'running') {
             // The job has ended: the input goes now, not at finish or at the lifecycle backstop.
             await cloud.runner.deleteInput(record.jobId);
