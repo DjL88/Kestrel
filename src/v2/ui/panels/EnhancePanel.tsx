@@ -9,12 +9,17 @@ interface EnhancePanelProps {
   photo: Photo | null;
   calmView: boolean;
   onUpdateRecipe: (photoId: string, patch: Partial<EditRecipe>) => void;
+  onDenoise?: (photoId: string) => void;
+  /** Whether this plan includes cloud processing. */
+  cloudEnabled?: boolean;
 }
 
 export default function EnhancePanel({
   photo,
   calmView,
   onUpdateRecipe,
+  onDenoise,
+  cloudEnabled = false,
 }: EnhancePanelProps) {
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to enhance detail and denoise.</p>;
@@ -29,6 +34,21 @@ export default function EnhancePanel({
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">
           {STRINGS.enhance.denoiseHeading}
         </h3>
+
+        {onDenoise && (
+          <div className="space-y-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2.5">
+            <button
+              type="button"
+              onClick={() => onDenoise(photo.id)}
+              className="h-8 w-full rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 text-xs font-medium text-[var(--text-on-accent)]"
+            >
+              {STRINGS.enhance.denoiseNow}
+            </button>
+            <p className="text-[11px] text-[var(--text-muted)]">
+              {cloudEnabled ? STRINGS.enhance.denoiseCloudNote : STRINGS.enhance.denoiseDeviceNote}
+            </p>
+          </div>
+        )}
 
         <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2.5">
           <div className="flex items-center gap-1.5">

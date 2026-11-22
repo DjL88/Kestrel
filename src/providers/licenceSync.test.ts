@@ -124,3 +124,13 @@ test('a device limit, an unreachable server or a forged grant never unlocks Pro'
   assert.equal(await forged.sync.activateAccount('t'), null);
   assert.equal(await forged.reload().storedAccountStanding(), null);
 });
+
+test('the account session is kept in memory for cloud processing, is not stored, and ends on sign-out', async () => {
+  const env = await accountSetup('grant');
+  assert.equal(env.sync.accountConnection(), null, 'nothing before signing in');
+  await env.sync.activateAccount('firebase-id-token');
+  assert.equal(env.sync.accountConnection()?.session, 'session-token');
+  assert.equal(env.reload().accountConnection(), null, 'a restarted app has no session until it signs in again');
+  env.sync.forgetAccount();
+  assert.equal(env.sync.accountConnection(), null);
+});

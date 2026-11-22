@@ -1,3 +1,4 @@
+import { StorageConnections } from './StorageConnections';
 import React, { useState } from 'react';
 import type {
   AiProviderConfig,
@@ -13,9 +14,7 @@ import type { BrandIconId } from '../../../core/brandIcons';
 /** Official marks that ship with the app (decoration only; the name is always written beside it). Where there is no official
  * asset in the repo yet (OneDrive, OpenAI) or the place is generic (a NAS), a neutral icon is used instead. */
 const AI_MARK: Partial<Record<AiProviderConfig['id'], BrandIconId>> = { gemini: 'gemini', claude: 'anthropic' };
-const STORAGE_MARK: Partial<Record<StorageConnector['id'], BrandIconId>> = { dropbox: 'dropbox', 'google-drive': 'googledrive' };
 const AI_NEUTRAL: Record<AiProviderConfig['id'], BrandIconName> = { gemini: 'cloud-assist', claude: 'cloud-assist', chatgpt: 'cloud-assist', local: 'assist' };
-const STORAGE_NEUTRAL: Record<StorageConnector['id'], BrandIconName> = { dropbox: 'cloud', onedrive: 'cloud', 'google-drive': 'cloud', nas: 'hard-drive' };
 import BrandIcon, { type BrandIconName } from '../icons/BrandIcon';
 
 interface SettingsDialogProps {
@@ -445,47 +444,14 @@ export default function SettingsDialog({
                   />
                 </section>
 
-                <section className="space-y-2">
-                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-                    {STRINGS.settings.storage.connectorsHeading}
-                  </h3>
-                  <div className="space-y-2">
-                    {settings.storageConnectors.map((conn) => (
-                      <div
-                        key={conn.id}
-                        className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3.5 py-2.5"
-                      >
-                        <span className="mr-3 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)]" aria-hidden="true">
-                          {STORAGE_MARK[conn.id] ? <OfficialMark id={STORAGE_MARK[conn.id]!} className="h-5 w-5" /> : <BrandIcon name={STORAGE_NEUTRAL[conn.id]} size={20} />}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold text-[var(--text-primary)]">{conn.name}</p>
-                          <p className="text-[11px] text-[var(--text-muted)]">
-                            {conn.status === 'connected' ? conn.accountLabel || 'Connected' : 'Not connected'}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => onToggleStorageConnector(conn.id)}
-                          className={`h-8 rounded-[var(--radius-sm)] px-3 text-xs font-medium ${
-                            conn.status === 'connected'
-                              ? 'border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)]'
-                              : 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
-                          }`}
-                        >
-                          {conn.status === 'connected' ? 'Disconnect' : 'Connect'}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <div>
+                <StorageConnections />
+                <div>
                     <p className="text-[11px] font-medium text-[var(--text-muted)]">Bring your own storage: also works with</p>
                     <WorksWith items={[{ id: 'synology', name: 'Synology' }, { id: 'qnap', name: 'QNAP' }, { id: 'nextcloud', name: 'Nextcloud' }, { id: 'owncloud', name: 'ownCloud' }, { id: 'backblaze', name: 'Backblaze B2' }]} />
-                  </div>
-                  <p className="pt-1 text-[11px] text-[var(--text-muted)]">
-                    {STRINGS.settings.storage.inflightCloudNote}
-                  </p>
-                </section>
+                </div>
+                <p className="pt-1 text-[11px] text-[var(--text-muted)]">
+                  {STRINGS.settings.storage.inflightCloudNote}
+                </p>
               </div>
             )}
 

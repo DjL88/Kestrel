@@ -206,6 +206,8 @@ export async function freeLicenceDevice(activationId: string): Promise<boolean> 
 }
 
 export const licenceOnlineConfigured = () => sync.configured;
+/** Where and how to reach account-only services (cloud processing) right now; null when signed out or the session ended. */
+export const accountConnection = () => sync.accountConnection();
 
 export function useLicence(): LicenceState {
   return useSyncExternalStore((listener) => { listeners.add(listener); return () => listeners.delete(listener); }, () => state, () => state);
