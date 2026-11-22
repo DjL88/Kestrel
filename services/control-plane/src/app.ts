@@ -56,6 +56,8 @@ export interface AppOptions {
   safeCopy?: SafeCopyOptions;
   /** Hard monthly ceiling on metered spend (Gemini, cloud jobs). Absent: no guard (development and tests). */
   spend?: SpendOptions;
+  /** Production sets this: the cloud, safe copy and learning features stay OFF until an admin switches them on. Tests and development leave them on. */
+  requireAdminSwitch?: boolean;
 }
 
 // ---- Schemas: the contract, also published as OpenAPI ------------------------
@@ -119,6 +121,7 @@ const DemoFraming = z.object({
 const SliderMap = z.record(z.string().regex(/^[a-z][a-zA-Z0-9]{0,23}$/), z.number().finite().min(-100).max(100)).refine((m) => Object.keys(m).length <= 16, 'at most 16 sliders');
 const Sha = z.string().regex(/^[0-9a-f]{64}$/);
 export const Schemas = {
+  AdminSwitch: z.object({ key: z.enum(['managed-ai', 'cloud-processing', 'safe-copy', 'learning-signal']), on: z.boolean() }).strict(),
   SafeCopyLevels: z.object({ levels: z.object({ recipes: z.boolean(), previews: z.boolean(), originals: z.boolean() }).partial().strict() }).strict(),
   SafeCopyUpload: z.object({ level: z.enum(SAFE_COPY_LEVELS), sha256: Sha, bytes: z.number().int().positive() }).strict(),
   SafeCopyObject: z.object({ level: z.enum(SAFE_COPY_LEVELS), sha256: Sha }).strict(),
@@ -340,6 +343,25 @@ export function createApp(options: AppOptions) {
     };
   }
 
+  // ---- Admin on/off switches. Managed Gemini is on unless switched off (the existing `ai_disabled` setting, so the
+  // existing admin control and this one are the same switch). The new features are off in production until an admin
+  // switches them on. The older kill settings (cloud_disabled, safe_copy_disabled) still win.
+  const SWITCHES = [
+    { key: 'managed-ai', label: 'Managed Gemini helper', note: 'Sends one consented, metadata-free thumbnail at a time to Gemini. Counts against the monthly spend ceiling.' },
+    { key: 'cloud-processing', label: 'Cloud processing', note: 'Heavier jobs (denoise, upscale, masks) for Pro. Needs the bucket and the runner job set up.' },
+    { key: 'safe-copy', label: 'Safe copy (managed backup)', note: 'Opt-in backup to InFlight UK storage. Switching off stops uploads only; people can always read and delete their copy.' },
+    { key: 'learning-signal', label: 'Learning signal', note: 'Opt-in anonymous corrections. Switching off stops sharing; opting out and deletion keep working.' },
+  ] as const;
+  type SwitchKey = typeof SWITCHES[number]['key'];
+  const switchConfigured = (key: SwitchKey) => key === 'managed-ai' ? provider !== null : key === 'cloud-processing' ? !!options.cloud : key === 'safe-copy' ? !!options.safeCopy : !!options.learning;
+  async function switchOn(key: SwitchKey): Promise<boolean> {
+    if (key === 'managed-ai') return (await store.getSetting('ai_disabled')) !== '1';
+    const legacy = key === 'cloud-processing' ? 'cloud_disabled' : key === 'safe-copy' ? 'safe_copy_disabled' : undefined;
+    if (legacy && (await store.getSetting(legacy)) === '1') return false;
+    const v = await store.getSetting(`switch_${key}`);
+    return v === '1' || (v !== '0' && !options.requireAdminSwitch);
+  }
+
   /** Reserve estimated metered spend; refuse with 503 when the month's ceiling would be passed. Returns the refund. */
   async function reserveSpend(pence: number): Promise<() => Promise<void>> {
     const sp = options.spend;
@@ -359,7 +381,7 @@ export function createApp(options: AppOptions) {
     const account = await store.getAccount(claims.sub);
     if (account?.aiConsent !== true) throw new ApiError(403, 'AI_CONSENT_REQUIRED', 'Turn on the online AI helper in your account settings before sending a photo.');
     decodeImage(body.image);
-    if ((await store.getSetting('ai_disabled')) === '1') throw new ApiError(503, 'AI_DISABLED', 'The online helper is switched off for now.', true);
+    if (!(await switchOn('managed-ai'))) throw new ApiError(503, 'AI_DISABLED', 'The online helper is switched off for now.', true);
     if (!provider) throw new ApiError(503, 'AI_NOT_CONFIGURED', 'The online helper is not set up on this server.');
     if (!(await store.hasActiveManagedAi(claims.sub))) throw new ApiError(403, 'AI_NOT_ENTITLED', 'The online helper is not part of this plan.');
     const refundSpend = await reserveSpend(options.spend?.aiCallPence ?? 0);
@@ -379,7 +401,7 @@ export function createApp(options: AppOptions) {
     const cloud = options.cloud;
     if (!cloud) throw new ApiError(503, 'CLOUD_NOT_CONFIGURED', 'Cloud processing is not set up on this server.');
     // Kill switch: the settings key or a kill-switched flag. Checked live on every request.
-    if ((await store.getSetting('cloud_disabled')) === '1' || (await loadFlags())['cloud.processing']?.kill === true) {
+    if (!(await switchOn('cloud-processing')) || (await loadFlags())['cloud.processing']?.kill === true) {
       await audit(accountId, 'cloud.job.create', 'denied', 'kill switch');
       throw new ApiError(503, 'CLOUD_DISABLED', 'Cloud processing is switched off for now.', true);
     }
@@ -433,7 +455,7 @@ export function createApp(options: AppOptions) {
   }
   async function safeCopyUploadGate(accountId: string, level: typeof SAFE_COPY_LEVELS[number]) {
     const sc = safeCopyCfg();
-    if ((await store.getSetting('safe_copy_disabled')) === '1') throw new ApiError(503, 'SAFE_COPY_DISABLED', 'Safe copy uploads are switched off for now. Your existing copy stays readable.', true);
+    if (!(await switchOn('safe-copy'))) throw new ApiError(503, 'SAFE_COPY_DISABLED', 'Safe copy uploads are switched off for now. Your existing copy stays readable.', true);
     if (!(await sc.catalog.getSettings(accountId))[level]) throw new ApiError(403, 'SAFE_COPY_NOT_ENABLED', `Turn on safe copy for ${level} first. It is off until you choose.`);
     const plans = await store.listLicencesForAccount(accountId);
     if (!plans.some((l) => l.plan === 'subscriber' && licenceIsUsable(l, now()))) throw new ApiError(403, 'SAFE_COPY_NOT_ENTITLED', 'Managed storage is part of the Cloud plan.');
@@ -801,6 +823,8 @@ export function createApp(options: AppOptions) {
         const body = parseJson(Schemas.AiConsentRequest, req.rawBody);
         const sink = options.learning;
         if (!sink) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Sharing corrections is not set up on this server.');
+        // Opting in needs the switch on; opting OUT (and the deletion that goes with it) always works.
+        if (body.consent && !(await switchOn('learning-signal'))) throw new ApiError(503, 'LEARNING_DISABLED', 'Sharing corrections is switched off for now.', true);
         const subject = learningSubject(claims.sub);
         await sink.setConsent(subject, body.consent);
         const deleted = body.consent ? 0 : await sink.deleteBySubject(subject);
@@ -816,6 +840,7 @@ export function createApp(options: AppOptions) {
         const sink = options.learning;
         if (!sink) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Sharing corrections is not set up on this server.');
         const subject = learningSubject(claims.sub);
+        if (!(await switchOn('learning-signal'))) throw new ApiError(503, 'LEARNING_DISABLED', 'Sharing corrections is switched off for now.', true);
         // Checked live on every request, so withdrawing takes effect at once.
         if (!(await sink.getConsent(subject))) throw new ApiError(403, 'LEARNING_CONSENT_REQUIRED', 'Turn on "help improve suggestions" before sharing corrections.');
         await sink.append({ ...body, subject, receivedDay: new Date(now()).toISOString().slice(0, 10) });
@@ -1151,6 +1176,24 @@ export function createApp(options: AppOptions) {
           licenceIssuing: !!config.licencePrivateKey,
           paymentsConnected: !!options.payments,
         });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/switches', summary: 'On/off switches for the managed backend features', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'switches.read');
+        const switches = await Promise.all(SWITCHES.map(async (w) => ({ key: w.key, label: w.label, note: w.note, on: await switchOn(w.key), configured: switchConfigured(w.key) })));
+        return adminDone(claims, 'switches.read', '', { switches });
+      },
+    },
+    {
+      method: 'POST', path: '/v1/admin/switches/set', summary: 'Switch one managed backend feature on or off (audited)', auth: 'admin', body: Schemas.AdminSwitch,
+      handler: async (req) => {
+        const claims = await admin(req, 'switch.set');
+        const body = parseJson(Schemas.AdminSwitch, req.rawBody);
+        if (body.on && !switchConfigured(body.key)) throw new ApiError(409, 'SWITCH_NOT_CONFIGURED', 'That feature is not set up on this server yet, so it cannot be switched on.');
+        await store.setSetting(body.key === 'managed-ai' ? 'ai_disabled' : `switch_${body.key}`, body.key === 'managed-ai' ? (body.on ? '0' : '1') : (body.on ? '1' : '0'));
+        return adminDone(claims, 'switch.set', `${body.key} ${body.on ? 'on' : 'off'}`, { key: body.key, on: body.on });
       },
     },
     {
