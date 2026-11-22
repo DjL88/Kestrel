@@ -45,3 +45,15 @@ test('further panels are nudged apart, and a small window still keeps the panel 
   const tiny = defaultPaneRect({ width: 500, height: 400 }, 'right', { avoidPx: 380, index: 3 });
   assert.ok(tiny.x >= 0 && tiny.y >= 0 && tiny.x + tiny.width <= 500 && tiny.y + tiny.height <= 400);
 });
+
+import { dockZoneAt } from './floatingPaneGeometry.ts';
+test('letting go near the left or right edge docks to that edge; elsewhere it does not', () => {
+  assert.equal(dockZoneAt(10, 1440), 'left');
+  assert.equal(dockZoneAt(72, 1440), 'left');
+  assert.equal(dockZoneAt(1430, 1440), 'right');
+  assert.equal(dockZoneAt(700, 1440), null);
+});
+test('a tiny window or bad numbers never dock', () => {
+  assert.equal(dockZoneAt(5, 200), null);
+  assert.equal(dockZoneAt(Number.NaN, 1440), null);
+});
