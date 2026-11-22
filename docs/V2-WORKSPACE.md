@@ -293,3 +293,64 @@ Where: `src/v2/ui/shell/Canvas.tsx` (`handleFramePointerDown`, `renderOverlaysIn
 
 ### Masks: engine support is on main (#904); the V2 Masks panel is not wired (frontend open item)
 `runEngineCapability({ capability: 'mask', ... })` (`src/engine/engineApi.ts`, `maskAction.ts`) now builds, verifies and retries a list of masks (decide, render, verify, retry at lower strength; `combineMasks` for Intersect and Subtract against a second mask). V2's Masks panel still calls `addMaskLayer`, `toggleMaskLayer` and `removeMaskLayer`, which are in `NOT_CONNECTED` in `engineClient/useEngineWorkspace.ts`. To wire: keep masks in the photo's `PhotoEdit.masks` (the existing core mask model, so Undo, the catalogue and the export already understand them), call the engine action for subject, sky, background and brush masks, show progress through the Task Manager, and show the verifier's refusal in words. Watch rendering speed (the engine worker's masking performance advisory is on #890). Presets such as "lift the subject and add detail" or "dull and blur the background" are Looks built from masks (`src/engine/looks.ts`).
+
+## 19. Owner decisions, round 4 (22 Nov 2026): gap review against Canva, Lightroom, DxO and others
+
+Source: a read-only gap review (docs and source greps, nothing run) and the owner's answers. **Everything below is DESIGNED, not built.** Items already covered in sections 16 to 18 are not repeated; this section adds the new ones and the order.
+
+### 19.1 Decisions
+| Topic | Decision |
+|---|---|
+| **Templates and layouts** | Add. Ideas from the PhotoSpec app (ideas only, no code, UI or text copied). **NOT VERIFIED:** the site returned HTTP 429 when read, so nothing here is drawn from its pages; re-read it before design. A template is a saved layout: format set, overlay (text tokens and watermark), border and position. Builds on backlog items 24 and 25 (section 17). |
+| **Brand kit** | Add. One place for the person's logo(s), fonts, colours and a default overlay, stored in the existing private watermark vault. Templates and overlays pick from it. Plan gating is an owner question (see 19.3); until decided the evaluator default is Pro, behind flag `overlay.brandkit`. |
+| **Publish, scheduling, collaboration** | Not wanted. Out of scope; do not build. |
+| **History panel** | Add. Lists the photo's edit steps from `src/core/editHistory.ts`, click to preview, restore a step, always undoable. |
+| **Discoverability** | Add. A command search (Cmd or Ctrl+K) that finds any tool, panel, setting or shortcut; tooltips that name the shortcut; calm empty states that say what to do next; a short first-run orientation. No modal tours. |
+| **Light mode** | Already there (section 8). Make it easy to find: a Light, Dark, System switch in the top bar and in Settings, remembered per device. |
+| **Needs review** | Retired as a separate state: **flagged or unflagged only.** Safeguard kept from the spec: auto-cull never sets a photo aside or removes a flag the person set; an uncertain photo simply stays unflagged. `PRODUCT-SPEC.md` 3.3 is amended to match. |
+| **Burst groups** | Add to the filmstrip: a burst shows as one stack, expands in place, the engine suggests the best frame, and one action flags the best. Reuses `burstIdentity`, `speciesBurst`, `subjectDetailBurst`. |
+| **Overlay replaces Mark** | Agreed (section 3). |
+| **Export** | Keep it simple: one screen, the same defaults as today. Useful extras kept: **Original file** (exact bytes, labelled as such), **Unedited, developed to JPEG/PNG** (no edits, labelled "not the original file"), **Before and after** (raw against edit). The wording must never pass a developed preview off as the original or as a RAW master (non-negotiable). |
+| **XMP** | Moved into a discreet File > Metadata sub-menu (save, import). **Also sync to Firestore now:** ratings, flags, tags and recipes only, through the allowlisted serialiser in spec section 6, **opt-in per account**, never images or paths. This is backend work; deploying or switching it on needs the owner's explicit approval (CLAUDE.md rule on GCP). Not built. |
+| **Project operations** | Add to V2: virtual copies, move to project, **copy to project**, relink when an original is missing. |
+| **Keyboard** | Defaults aligned with Lightroom, Capture One and Photo Mechanic (table in 19.2), selectable as a keymap preset, every command rebindable. |
+| **Macro pad and TourBox** | Both supported: every command bindable, a command list the device software can target, and dial or knob turns mapped to slider nudges. The existing macro pad support carries over. **TourBox: NOT VERIFIED** until tested on a real device. |
+| **Settings** | Two levels: **Global settings** (appearance, language, accounts, storage, keyboard) and **Project settings** (guidance mode Solo, Co-pilot or Auto-pilot, and other per-shoot choices). |
+| **Languages** | V2 uses the existing locale packs (V1 has 14); no hard-coded English in `src/v2`. British English is the source. |
+| **Licence** | Email-driven: the person enters their email, receives a verification, and the signed offline grant is stored on the device. The offline grant keeps working with no connection. Whether the existing key entry stays as a fallback is an owner question. |
+| **Phone** | Needs refinement before parity; see section 9 and slice 5. Old phone path is not retired until it passes real phone-width review. |
+| **Other tools (competitor table)** | Agreed as direction: Capture One colour and layers, Photo Mechanic ingest speed (benchmark 500 photos), Photomator one-tap Auto, darktable and RawTherapee as the free baseline, panorama and stacking as a known gap. **No generative edits** (stays a selling point). |
+| **Send to other editors** | Add a right-click **Edit in...** that works like Lightroom's: renders a copy (16-bit TIFF where proven, else full-size JPEG, labelled), opens it in the chosen app (Topaz and others, list set in Settings), and brings the result back as a **new virtual copy stacked with the original**. Desktop only (adapter in `src-tauri`); the original is never written. The Rust side needs a compile check before merge. |
+
+### 19.2 Default shortcuts (to verify against each vendor's current documentation before release)
+| Action | Default |
+|---|---|
+| Flag, unflag, set aside | P, U, X |
+| Rating, clear rating | 1 to 5, 0 |
+| Next, previous photo | Right, Left arrow |
+| Grid, loupe (single photo), compare | G, E, C |
+| Crop, before and after | R, backslash |
+| Zoom to 100%, fit | Z (toggle) |
+| Copy, paste edit settings | Cmd or Ctrl+Shift+C, Cmd or Ctrl+Shift+V |
+| Undo, redo | Cmd or Ctrl+Z, Shift+Z |
+| Export | Cmd or Ctrl+Shift+E |
+| Hide panels, full screen | Tab, F |
+| Command search | Cmd or Ctrl+K |
+Rotate with [ and ]. Presets: InFlight, Lightroom, Capture One, Photo Mechanic. A conflict with a macro pad or TourBox binding is shown, never silently overwritten.
+
+### 19.3 Order of work (most impactful first)
+1. **Finish the P0 table in section 16**: real export, crop saved in the recipe, masks wired, remove and restore, relink, real histogram. Nothing below matters if V2 cannot export.
+2. **Flag and burst workflow**: flag-only model, burst stacks, best-frame action, right-click menus, keyboard presets, history panel.
+3. **Formats, templates and brand kit** (sections 17 slice 2 and 4, plus 19.1).
+4. **Discoverability, light switch, global and project settings.**
+5. **Project operations, XMP sub-menu, languages, email licence.**
+6. **Phone refinement.**
+7. **Edit in... external editors.**
+8. **Firestore metadata sync** (needs owner approval to deploy).
+9. **Editing depth**, proposed and not yet decided: colour mixer and tone curve first (biggest visible gap against Lightroom and Capture One), then straighten and perspective, healing, lens correction, dehaze, vignette and grain; panorama and stacking later. Copy and paste settings and Lightroom catalogue import are expected by switchers.
+
+### 19.4 Questions still with the owner
+1. Is the brand kit Basic or Pro?
+2. Does the email licence replace the existing key entry, or sit beside it?
+3. Approve switching on Firestore metadata sync (cost, region, privacy text) when the backend slice is ready?
+4. Which of the editing-depth items in 19.3 step 9 are wanted, and in what order?

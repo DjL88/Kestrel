@@ -44,7 +44,7 @@ Kestrel is an offline-first, nondestructive photography workspace. It offers fas
 
 ### 3.3 Kestrel Select: culling and review
 - The primary actions are fast keep, reject and undo, star ratings, filters, burst grouping and side-by-side comparison. On desktop the keyboard and optional macro pad are first-class.
-- Detect likely sharpness, subject and eye location, and burst similarity. Hold uncertain cases for human review. **A sharp background is not proof of a sharp bird.**
+- Detect likely sharpness, subject and eye location, and burst similarity. Uncertain cases are left unflagged for the person to decide: **V2 (owner, 22 Nov 2026) replaces Keep, Review and Reject with flagged or unflagged**, and automation never sets a photo aside or removes a flag the person set. **A sharp background is not proof of a sharp bird.**
 - Species and subject recognition runs quietly, with a bounded fallback chain:
   1. Camera hints, when available.
   2. On-device subject detection.
