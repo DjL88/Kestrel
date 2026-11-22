@@ -31,6 +31,7 @@ interface FilmstripProps {
   onPasteRecipe: () => void;
   onApplyLook: (photoId: string, lookId: string) => void;
   onImport: () => void;
+  onImportFolder: () => void;
   onRunAutoCull: () => void;
   onExportSelected: () => void;
 }
@@ -61,6 +62,7 @@ export default function Filmstrip({
   onPasteRecipe,
   onApplyLook,
   onImport,
+  onImportFolder,
   onRunAutoCull,
   onExportSelected,
 }: FilmstripProps) {
@@ -158,6 +160,13 @@ export default function Filmstrip({
           >
             <BrandIcon name="image-plus" size={14} />
             <span>{STRINGS.filmstrip.importPhotos}</span>
+          </button>
+
+          <button type="button" onClick={onImportFolder}
+            className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] px-2 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] whitespace-nowrap"
+            title="Add photographs from a folder">
+            <BrandIcon name="folder-open" size={14} />
+            <span>Folder</span>
           </button>
 
           <button
