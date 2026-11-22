@@ -880,6 +880,14 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       });
     },
 
+    importFolder: () => {
+      logAction('importFolder');
+      setStore((prev) => ({ ...prev, lastActionNotice: 'Folder import is available in the real workspace.' }));
+    },
+    importDroppedPhotos: (files) => {
+      logAction('importDroppedPhotos', { count: files.length });
+      setStore((prev) => ({ ...prev, lastActionNotice: 'Drag and drop is available in the real workspace.' }));
+    },
     importPhotos: () => {
       logAction('importPhotos');
       const taskId = `task-import-${Date.now()}`;
