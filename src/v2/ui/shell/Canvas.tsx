@@ -682,7 +682,7 @@ export default function Canvas({
     const cropClip = `inset(${activeSize.crop.insetTop}% ${activeSize.crop.insetRight}% ${activeSize.crop.insetBottom}% ${activeSize.crop.insetLeft}%)`;
 
     if (group.splitFrames && features.splitFrames) {
-      // Split 1 photo seamlessly across 2 equal side-by-side frames
+      // Each half is a complete format-sized frame. The source spans both frames, not two reduced thumbnails.
       return (
         <div
           className="m-auto flex items-center gap-4"
@@ -695,7 +695,7 @@ export default function Canvas({
               </span>
               <div
                 onPointerDown={(e) => handleFramePointerDown(e, 'split', activeSize, e.currentTarget)}
-                className="relative h-[340px] w-[280px] cursor-grab overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] active:cursor-grabbing"
+                className="relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] active:cursor-grabbing"\n                style={{ width: frameW, height: frameH }}
               >
                 <img
                   src={photo.previewUrl}
