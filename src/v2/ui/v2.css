@@ -49,3 +49,8 @@
   .inflight-v2 input[type="range"].inflight-slider::-webkit-slider-thumb { width: 26px; height: 26px; }
   .inflight-v2 input[type="range"].inflight-slider::-moz-range-thumb { width: 26px; height: 26px; }
 }
+
+/* Short landscape phone: drop the size caption above the photo (the Formats tool still shows it) so the photo gets the height. */
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 899px) {
+  .inflight-v2 .v2-canvas-meta { display: none; }
+}

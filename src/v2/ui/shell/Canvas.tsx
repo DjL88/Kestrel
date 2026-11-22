@@ -723,7 +723,7 @@ export default function Canvas({
         className="relative m-auto flex flex-col items-center gap-2"
         style={{ zoom: canvasZoom, transform: offset ? `translate(${offset.x}px, ${offset.y}px)` : undefined }}
       >
-        <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
+        <div className="v2-canvas-meta flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
           <span className="font-medium text-[var(--text-secondary)]">{activeSize.label}</span>
           <span aria-hidden="true">·</span>
           <span className="font-mono tabular-nums">
