@@ -10,6 +10,8 @@ interface MasksPanelProps {
   onAddMaskLayer: (photoId: string, type: MaskLayer['type']) => void;
   onToggleMaskLayer: (photoId: string, maskId: string) => void;
   onRemoveMaskLayer: (photoId: string, maskId: string) => void;
+  /** Only true when the live workspace has a verified, persistent mask adapter. */
+  maskActionsConnected?: boolean;
 }
 
 export default function MasksPanel({
@@ -19,6 +21,7 @@ export default function MasksPanel({
   onAddMaskLayer,
   onToggleMaskLayer,
   onRemoveMaskLayer,
+  maskActionsConnected = false,
 }: MasksPanelProps) {
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to manage masks.</p>;
@@ -42,6 +45,12 @@ export default function MasksPanel({
         {STRINGS.masks.subtitle}
       </p>
 
+      {!maskActionsConnected && (
+        <p role="status" className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2.5 text-xs leading-relaxed text-[var(--text-secondary)]">
+          Masks are not available in this workspace yet. No mask will be created or applied until the local engine and saved edits are connected.
+        </p>
+      )}
+
       {/* Auto-detect mask triggers */}
       <div className="space-y-2">
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">
@@ -52,11 +61,13 @@ export default function MasksPanel({
             <button
               key={tool.id}
               type="button"
+              disabled={!maskActionsConnected}
+              title={!maskActionsConnected ? 'Mask creation is not connected to the local editor' : undefined}
               onClick={() => {
                 onSetMaskTool(tool.id);
                 onAddMaskLayer(photo.id, tool.id);
               }}
-              className={`flex h-9 items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-3 text-xs font-medium transition-colors ${
+              className={`disabled:cursor-not-allowed disabled:opacity-50 flex h-9 items-center justify-between gap-2 rounded-[var(--radius-sm)] border px-3 text-xs font-medium transition-colors ${
                 activeMaskTool === tool.id
                   ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                   : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-primary)] hover:border-[var(--border-default)]'
@@ -82,8 +93,10 @@ export default function MasksPanel({
             <button
               key={tool.id}
               type="button"
+              disabled={!maskActionsConnected}
+              title={!maskActionsConnected ? 'Manual mask painting is not connected to the canvas' : undefined}
               onClick={() => onSetMaskTool(tool.id)}
-              className={`flex flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] border py-2.5 text-[11px] font-medium transition-colors ${
+              className={`disabled:cursor-not-allowed disabled:opacity-50 flex flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] border py-2.5 text-[11px] font-medium transition-colors ${
                 activeMaskTool === tool.id
                   ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                   : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -109,6 +122,7 @@ export default function MasksPanel({
             >
               <button
                 type="button"
+                disabled={!maskActionsConnected}
                 onClick={() => onToggleMaskLayer(photo.id, layer.id)}
                 className="flex items-center gap-2 min-w-0 text-left text-xs text-[var(--text-primary)]"
               >
@@ -122,6 +136,7 @@ export default function MasksPanel({
               <button
                 type="button"
                 aria-label={`Delete ${layer.name}`}
+                disabled={!maskActionsConnected}
                 onClick={() => onRemoveMaskLayer(photo.id, layer.id)}
                 className="text-[var(--text-muted)] hover:text-[var(--semantic-danger)]"
               >
@@ -133,7 +148,7 @@ export default function MasksPanel({
       </div>
 
       <p className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2.5 text-[11px] leading-relaxed text-[var(--text-muted)]">
-        {STRINGS.masks.placeholderNote}
+        {maskActionsConnected ? STRINGS.masks.placeholderNote : 'Existing mask details are shown for reference only until editing and export can preserve them.'}
       </p>
     </div>
   );
