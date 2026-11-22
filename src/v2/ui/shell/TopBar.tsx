@@ -328,14 +328,14 @@ export default function TopBar({
       <div className="flex shrink-0 items-center gap-1 md:gap-3">
         <div role="group" aria-label="Edit history" className="flex md:hidden">
           {([
-            { icon: 'undo', label: STRINGS.topBar.editActions.undo, enabled: canUndo, action: onUndo },
-            { icon: 'refresh', label: STRINGS.topBar.editActions.redo, enabled: canRedo, action: onRedo },
-          ] as const).map(({ icon, label, enabled, action }) => (
+            { icon: 'undo', label: STRINGS.topBar.editActions.undo, shortcut: 'Z', enabled: canUndo, action: onUndo },
+            { icon: 'refresh', label: STRINGS.topBar.editActions.redo, shortcut: 'Shift+Z', enabled: canRedo, action: onRedo },
+          ] as const).map(({ icon, label, shortcut, enabled, action }) => (
             <button
               key={icon}
               type="button"
               aria-label={label}
-              title={label}
+              title={`${label} (${/Mac|iPhone|iPad/.test(navigator.platform) ? 'Cmd' : 'Ctrl'}+${shortcut})`}
               disabled={!enabled}
               onClick={action}
               className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] disabled:opacity-40"
