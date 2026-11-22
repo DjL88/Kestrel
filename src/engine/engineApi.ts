@@ -4,38 +4,6 @@ import { runSubjectDetectAction, type SubjectDetectActionInput, type SubjectDete
 import { runMaskAction, type MaskActionInput, type MaskActionResult } from './maskAction';
 import type { EngineRunner } from './types';
 
-/**
- * The one-call-per-capability seam `docs/AI-INTEGRATION.md` asks for ("the frontend just calls APIs to
- * these engines whether internal or online"). This is a thin ROUTER over the real actions already built
- * - `denoiseAction.ts`, `upscaleAction.ts`, `subjectDetectAction.ts`, `maskAction.ts` - not new logic. A
- * caller (eventually the UI; nothing calls this today) names a capability and gets back that capability's
- * real result type, without importing four different modules and remembering which function goes with
- * which.
- *
- * Deliberately narrower than `EngineCapability` (`types.ts`): only `'denoise'`, `'upscale'`,
- * `'subject-detect'` and `'mask'` are covered, because those are the only four with a real action behind
- * them today. `'raw-develop'` is left out - it has no engine-layer action at all yet. Listing it here
- * before the action exists would have this API claim to do something nobody built. (`'mask'` used to be
- * excluded on the same reasoning, back when masking was only a parameter other actions took; `maskAction.ts`
- * closes that gap, so it belongs here now.)
- *
- * Decision Maker (`decisionMaker.ts`) and Looks (`looks.ts`, `lookSuggestions.ts`) are NOT routed through
- * here either, on purpose: they are orchestration ON TOP of these capabilities (ranking their results,
- * sequencing several of them together), not a swappable device/cloud capability in their own right -
- * there is no "run ranking in the cloud" for a runner choice to ever mean. Folding them in here would
- * blur that distinction just to look more unified than it is.
- *
- * Runner handling is honest about an existing gap: only `subject-detect`'s own input (`SubjectDetectActionInput`)
- * has a `runner` field at all. Neither `denoiseAction.ts` nor `upscaleAction.ts` exposes one today - both
- * always run on-device internally - so there is nothing for this router to pass through or reject for
- * those two capabilities; a later slice giving them a runner choice should update this file to match, not
- * have this file pretend the choice exists first. Where a runner IS given (`subject-detect`), a request
- * for `'cloud-gemini'`, `'cloud-byo'` or `'cloud-processing'` (the owner's own managed Cloud Processing
- * Engine, named at the backend worker's request on #418) is rejected with a clear error rather than
- * silently run on-device and reported as something it wasn't - `types.ts` already says none of the three
- * cloud runners has an implementation anywhere in this codebase.
- */
-
 export type EngineRequest =
   | ({ capability: 'denoise' } & DenoiseActionInput)
   | ({ capability: 'upscale' } & UpscaleActionInput)
@@ -48,9 +16,48 @@ export type EngineResponse =
   | { capability: 'subject-detect'; result: SubjectDetectActionResult }
   | { capability: 'mask'; result: MaskActionResult };
 
+type DeviceResponse = EngineResponse & { runner: 'device' };
+type CloudRequest = Exclude<EngineRequest, { capability: 'subject-detect' }>;
+type CloudResponse = Exclude<EngineResponse, { capability: 'subject-detect' }>;
+
+export interface CloudProcessingAttempt {
+  online: boolean;
+  signedIn: boolean;
+  userConsent: boolean;
+  signal?: AbortSignal;
+  /** The authenticated adapter validates and verifies its result before resolving. */
+  run: (request: CloudRequest, signal?: AbortSignal) => Promise<CloudResponse>;
+}
+
 const UNIMPLEMENTED_RUNNERS: ReadonlySet<EngineRunner> = new Set(['cloud-gemini', 'cloud-byo', 'cloud-processing']);
 
-export async function runEngineCapability(request: EngineRequest): Promise<EngineResponse> {
+/** Use the device unless an eligible, consented cloud attempt is available for this job. */
+export async function runEngineCapability(
+  request: EngineRequest,
+  cloud?: CloudProcessingAttempt,
+): Promise<DeviceResponse | (CloudResponse & { runner: 'cloud-processing' })> {
+  const deviceSignal = request.capability === 'upscale' ? request.signal : undefined;
+  const signal = deviceSignal && cloud?.signal
+    ? AbortSignal.any([deviceSignal, cloud.signal])
+    : deviceSignal ?? cloud?.signal;
+  signal?.throwIfAborted();
+  if (request.capability !== 'subject-detect' && cloud?.online && cloud.signedIn && cloud.userConsent) {
+    try {
+      const response = await cloud.run(request, signal);
+      signal?.throwIfAborted();
+      if (response.capability === request.capability && response.result.verification.ok) {
+        return { ...response, runner: 'cloud-processing' };
+      }
+    } catch {
+      signal?.throwIfAborted();
+    }
+  }
+  const response = await runDeviceCapability(request, signal);
+  signal?.throwIfAborted();
+  return { ...response, runner: 'device' };
+}
+
+async function runDeviceCapability(request: EngineRequest, signal?: AbortSignal): Promise<EngineResponse> {
   if (request.capability === 'subject-detect' && request.runner && UNIMPLEMENTED_RUNNERS.has(request.runner)) {
     throw new Error(`The '${request.runner}' engine runner is named in the design (docs/AI-INTEGRATION.md) but has no implementation yet - no request can run there.`);
   }
@@ -61,7 +68,7 @@ export async function runEngineCapability(request: EngineRequest): Promise<Engin
     }
     case 'upscale': {
       const { capability, ...input } = request;
-      return { capability, result: await runUpscaleAction(input) };
+      return { capability, result: await runUpscaleAction({ ...input, signal }) };
     }
     case 'subject-detect': {
       const { capability, ...input } = request;

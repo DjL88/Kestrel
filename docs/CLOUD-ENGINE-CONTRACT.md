@@ -28,7 +28,7 @@ Server enforcement on every create and start: consent, configured, kill switch (
 | 502 `CLOUD_RUNNER_FAILED`, `failed` status | Cloud could not run it | Device runner; nothing was charged |
 | 401 | Session expired | Refresh the session, or device runner |
 
-Device is always the fallback, so a capability never becomes unavailable because the cloud is. Record `runner` in the task detail as `runEngineTask` already does.
+The dispatcher attempts cloud processing only for denoise, upscale or masks after the caller has an authenticated online session and the person has approved that job. `runEngineCapability` reports the runner that supplied the result. A failed request, refusal or result that does not verify falls back to the existing device action. Cancelling ends the attempt without starting the device action. The transport must honour cancellation and bound poll time. The API enforces entitlement, consent and spending limits independently of the client.
 
 ## Runner design note (22 Nov 2026)
 
