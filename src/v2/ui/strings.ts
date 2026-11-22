@@ -291,6 +291,7 @@ export const STRINGS = {
     statusRunning: 'Running',
     statusDone: 'Complete',
     statusCancelled: 'Cancelled',
+    statusFailed: 'Failed',
   },
 
   // Export Dialog

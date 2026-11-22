@@ -34,8 +34,8 @@ const PANEL_TITLES: Record<PanelId, string> = {
   tasks: STRINGS.tasks.heading,
 };
 
-export default function App() {
-  const { store, actions } = useWorkspace();
+export default function App({ useStore = useWorkspace }: { useStore?: typeof useWorkspace } = {}) {
+  const { store, actions } = useStore();
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
