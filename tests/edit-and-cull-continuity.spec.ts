@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('a photographer can Keep and Reject in Edit without losing the Review queue', async ({ page }) => {
+test('Edit offers Undo and Redo, leaves decisions alone, and keeps the Review queue', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Cull while editing');
@@ -28,20 +28,18 @@ test('a photographer can Keep and Reject in Edit without losing the Review queue
   const editor = page.getByRole('region', { name: 'Photo editor' });
   const footer = page.getByRole('toolbar', { name: 'Photo navigation and editing actions' });
   await expect(editor).toBeVisible();
-  await footer.getByRole('button', { name: 'Keep editable-1.png' }).click();
-  await expect(editor).toBeVisible();
+  // The editor's bar offers Undo and Redo, not Keep and Reject (decisions live in Library, Compare and Photo info).
+  await expect(footer.getByRole('button', { name: 'Step back' })).toBeDisabled();
+  await expect(footer.getByRole('button', { name: 'Step forward' })).toBeDisabled();
+  await expect(footer.getByRole('button', { name: 'Keep editable-1.png' })).toHaveCount(0);
+  await expect(footer.getByRole('button', { name: 'Reject editable-1.png' })).toHaveCount(0);
   await footer.getByRole('button', { name: 'Next photo' }).click();
-  await expect(footer.getByRole('button', { name: 'Reject editable-2.png' })).toBeVisible();
-  await footer.getByRole('button', { name: 'Reject editable-2.png' }).click();
   await expect(editor).toBeVisible();
-
-  // The session is deliberately stable even though the Review filter now
-  // contains only the third image. No outside app or view switch is required.
   await footer.getByRole('button', { name: 'Previous photo' }).click();
-  await expect(footer.getByRole('button', { name: 'Move editable-1.png back to review (Undecided)' })).toBeVisible();
+  await expect(editor).toBeVisible();
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await collections.getByRole('button', { name: /^All photos/ }).click();
-  await expect(page.getByRole('article', { name: 'Frame editable-1.png' }).getByTestId('tile-decision')).toHaveText('Kept');
-  await expect(page.getByRole('article', { name: 'Frame editable-2.png' }).getByTestId('tile-decision')).toHaveText('Rejected');
-  await expect(page.getByRole('article', { name: 'Frame editable-3.png' }).getByTestId('tile-decision')).toHaveText('Undecided');
+  for (const name of ['editable-1.png', 'editable-2.png', 'editable-3.png']) {
+    await expect(page.getByRole('article', { name: `Frame ${name}` }).getByTestId('tile-decision')).toHaveText('Undecided');
+  }
 });
