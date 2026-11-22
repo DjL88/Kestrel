@@ -27,7 +27,7 @@ function fakeDropbox() {
   return { files, seen, fetchImpl };
 }
 
-test('Dropbox: put, get, list and remove stay inside the Kestrel folder and send the token', async () => {
+test('Dropbox: put, get, list and remove stay inside the InFlight folder and send the token', async () => {
   const fake = fakeDropbox();
   const connector = dropboxConnector({ getToken: async () => 'tok', fetchImpl: fake.fetchImpl });
   assert.deepEqual(await connector.test(), { ok: true });

@@ -4,7 +4,7 @@ import type { source } from './source';
 /** Icelandic. DRAFT: written without a native speaker's check. */
 export const is: AreaTranslation<typeof source> = {
   title: 'Annað álit frá þinni eigin gervigreind',
-  intro: 'Valfrjálst. Notaðu þinn eigin gervigreindaraðgang, eða líkan á þessari tölvu, til að skoða lit og birtu þessarar myndar. Litaskoðun Kite44 hér fyrir ofan virkar alltaf án þess.',
+  intro: 'Valfrjálst. Notaðu þinn eigin gervigreindaraðgang, eða líkan á þessari tölvu, til að skoða lit og birtu þessarar myndar. Litaskoðun InFlight hér fyrir ofan virkar alltaf án þess.',
   ask: 'Spyrja mína gervigreind',
   asking: 'Spyr gervigreindina þína…',
   cancel: 'Hætta við',
@@ -29,8 +29,8 @@ export const is: AreaTranslation<typeof source> = {
   invalidBaseUrl: "Notaðu HTTPS fyrir fjartengt gervigreindarlíkan eða http://localhost fyrir líkan á þessari tölvu. Ekki setja lykla í vistfangið.",
   save: 'Vista',
   consentTitle: 'Áður en nokkuð er sent',
-  consentCloud: (host) => `Kite44 sendir afrit af þessari mynd, 1.024 dílar á lengstu hliðinni, til ${host}. Það inniheldur hvorki staðsetningu, upplýsingar um myndavélina né skráarheitið. Þjónustuaðilinn þinn gæti rukkað þig fyrir hverja spurningu.`,
-  consentLocal: (host) => `Kite44 sendir afrit af þessari mynd, 1.024 dílar á lengstu hliðinni, til gervigreindarinnar á ${host}, sem er á þessari tölvu. Ekkert fer út af tölvunni þinni.`,
+  consentCloud: (host) => `InFlight sendir afrit af þessari mynd, 1.024 dílar á lengstu hliðinni, til ${host}. Það inniheldur hvorki staðsetningu, upplýsingar um myndavélina né skráarheitið. Þjónustuaðilinn þinn gæti rukkað þig fyrir hverja spurningu.`,
+  consentLocal: (host) => `InFlight sendir afrit af þessari mynd, 1.024 dílar á lengstu hliðinni, til gervigreindarinnar á ${host}, sem er á þessari tölvu. Ekkert fer út af tölvunni þinni.`,
   agree: 'Ég samþykki',
   summary: 'Það sem gervigreindin þín segir',
   suggested: 'Tillögur að breytingum',
@@ -51,7 +51,7 @@ export const is: AreaTranslation<typeof source> = {
   errors: {
     setup: 'Gervigreindin þín hefur ekki verið sett upp enn, eða samþykkið vantar.',
     key: 'Gervigreindin þín segir að lykillinn sé rangur eða ekki leyfður. Athugaðu hann á aðganginum þínum hjá þjónustuaðilanum.',
-    offline: 'Engin nettenging. Litaskoðun Kite44 virkar samt.',
+    offline: 'Engin nettenging. Litaskoðun InFlight virkar samt.',
     timeout: 'Gervigreindin þín var of lengi að svara. Reyndu aftur eftir smástund.',
     refused: 'Gervigreindin þín neitaði að skoða þessa mynd.',
     unreadable: 'Ekki var hægt að lesa svar gervigreindarinnar, svo engu var breytt.',

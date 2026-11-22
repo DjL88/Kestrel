@@ -4,7 +4,7 @@ import type { source } from './source';
 /** Norwegian Bokmål. DRAFT: written without a native speaker's check. */
 export const nb: AreaTranslation<typeof source> = {
   title: 'En ekstra vurdering fra din egen KI',
-  intro: 'Valgfritt. Bruk din egen KI-konto, eller en modell på denne datamaskinen, til å se på farge og lys i dette bildet. Kestrels egen fargesjekk over virker alltid uten.',
+  intro: 'Valgfritt. Bruk din egen KI-konto, eller en modell på denne datamaskinen, til å se på farge og lys i dette bildet. InFlights egen fargesjekk over virker alltid uten.',
   ask: 'Spør min egen KI',
   asking: 'Spør din KI…',
   cancel: 'Avbryt',
@@ -29,8 +29,8 @@ export const nb: AreaTranslation<typeof source> = {
   invalidBaseUrl: "Bruk HTTPS for ekstern KI eller http://localhost for KI på denne datamaskinen. Ikke legg nøkler i adressen.",
   save: 'Lagre',
   consentTitle: 'Før noe blir sendt',
-  consentCloud: (host) => `Kite44 sender en kopi av dette bildet, 1 024 piksler på den lengste siden, til ${host}. Den inneholder ikke stedet, kameraopplysninger eller filnavnet. Leverandøren din kan ta betalt for hvert spørsmål.`,
-  consentLocal: (host) => `Kite44 sender en kopi av dette bildet, 1 024 piksler på den lengste siden, til KI-en på ${host}, som er på denne datamaskinen. Ingenting forlater datamaskinen din.`,
+  consentCloud: (host) => `InFlight sender en kopi av dette bildet, 1 024 piksler på den lengste siden, til ${host}. Den inneholder ikke stedet, kameraopplysninger eller filnavnet. Leverandøren din kan ta betalt for hvert spørsmål.`,
+  consentLocal: (host) => `InFlight sender en kopi av dette bildet, 1 024 piksler på den lengste siden, til KI-en på ${host}, som er på denne datamaskinen. Ingenting forlater datamaskinen din.`,
   agree: 'Jeg godtar',
   summary: 'Hva KI-en din sier',
   suggested: 'Foreslåtte endringer',
@@ -51,7 +51,7 @@ export const nb: AreaTranslation<typeof source> = {
   errors: {
     setup: 'KI-en din er ikke satt opp ennå, eller samtykket mangler.',
     key: 'KI-en din sier at nøkkelen er feil eller ikke tillatt. Sjekk den i kontoen din hos leverandøren.',
-    offline: 'Du er frakoblet. Kestrels egen fargesjekk virker fortsatt.',
+    offline: 'Du er frakoblet. InFlights egen fargesjekk virker fortsatt.',
     timeout: 'KI-en din brukte for lang tid på å svare. Prøv igjen om litt.',
     refused: 'KI-en din avslo å se på dette bildet.',
     unreadable: 'Svaret fra KI-en din kunne ikke leses, så ingenting ble endret.',

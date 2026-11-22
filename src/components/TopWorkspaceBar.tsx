@@ -6,6 +6,7 @@ import { messages as m } from '../i18n/messages';
 import type { CullCounts, FilterState, RatingFilter, ShootDescriptor, SortOrder, WorkspaceViewMode } from '../core/types';
 import { FilterSortControl } from './FilterSortControl';
 import { libraryText as t } from '../i18n/areas/library';
+import { HeaderLogo } from './BrandLogo';
 
 interface TopWorkspaceBarProps {
   /** Work in hand (Tasks), shown compactly in this row rather than in rows of its own. */
@@ -175,6 +176,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           event.currentTarget.value = '';
           if (files.length) props.onImportSidecars?.(files);
         }} />
+      <HeaderLogo />
       <button type="button" onClick={props.onBackToProjects} disabled={props.actionsDisabled} className={actionClass} aria-label={t.top.backToProjects} title={t.top.backToProjects}>
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">{t.top.projects}</span>
       </button>

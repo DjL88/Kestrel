@@ -80,12 +80,12 @@ test('choose Welsh, restart in it, and keep every decision', async ({ page }) =>
 
 test('first run asks for a language even on an English (UK) system; the choice stays saved', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Welcome to Kite44' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome to InFlight' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB');
   await page.getByRole('button', { name: 'Continue in English (UK)' }).click();
-  await expect(page.getByRole('heading', { name: 'Welcome to Kite44' })).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Welcome to InFlight' })).toBeHidden();
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Welcome to Kite44' })).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Welcome to InFlight' })).toBeHidden();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-GB');
 });
 
@@ -95,7 +95,7 @@ test.describe('Canadian French system locale', () => {
   test('offers the detected regional language once, then honours the chosen language', async ({ page }) => {
     await page.goto('/');
     // The welcome is written in the language on offer, so a French speaker can read it before choosing.
-    const welcome = page.getByRole('heading', { name: 'Bienvenue dans Kite44' });
+    const welcome = page.getByRole('heading', { name: 'Bienvenue dans InFlight' });
     await expect(welcome).toBeVisible();
     // The question keeps the English in brackets, so nobody is stranded.
     const chooser = page.getByLabel('Which language would you like?');

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isKestrelOfflineWorker, manageOfflineWorker } from './offlineWorker';
 
-test('recognises only same-origin Kite44 offline workers', () => {
+test('recognises only same-origin InFlight offline workers', () => {
   assert.equal(isKestrelOfflineWorker('http://tauri.localhost/offline.js', 'http://tauri.localhost/'), true);
   assert.equal(isKestrelOfflineWorker('https://example.test/sub/offline.js', 'https://example.test/sub/'), true);
   assert.equal(isKestrelOfflineWorker('https://other.test/offline.js', 'https://example.test/'), false);

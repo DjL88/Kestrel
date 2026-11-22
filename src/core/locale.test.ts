@@ -64,7 +64,7 @@ test('dates follow the chosen language: British by default, never the browser’
   }
 });
 
-test('the device language is matched to one Kite44 has, to offer at first run', () => {
+test('the device language is matched to one InFlight has, to offer at first run', () => {
   assert.equal(matchDeviceLanguage(['en-US']), 'en-US');
   assert.equal(matchDeviceLanguage(['en-AU', 'fr']), 'en-AU', 'Australian English is a regional option');
   assert.equal(matchDeviceLanguage(['en-NZ']), 'en-NZ');
@@ -80,7 +80,7 @@ test('the device language is matched to one Kite44 has, to offer at first run', 
   assert.equal(matchDeviceLanguage(['nn-NO']), 'nb');
   assert.equal(matchDeviceLanguage(['sv_SE']), 'sv');
   assert.equal(matchDeviceLanguage(['cy-GB']), 'cy');
-  assert.equal(matchDeviceLanguage(['ja-JP', 'da-DK']), 'da', 'the first language Kite44 has wins');
+  assert.equal(matchDeviceLanguage(['ja-JP', 'da-DK']), 'da', 'the first language InFlight has wins');
   assert.equal(matchDeviceLanguage(['ja-JP', 'zh']), undefined);
   assert.equal(matchDeviceLanguage([]), undefined);
   assert.equal(matchDeviceLanguage(undefined), undefined);

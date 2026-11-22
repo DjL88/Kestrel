@@ -4,7 +4,7 @@ import type { source } from './source';
 /** US English: only the words that differ from British English (color, gray). */
 export const enUS: AreaTranslation<typeof source> = {
   title: 'Color check',
-  intro: 'Kite44 names the colors in this photo and points out anything that may look wrong, in words.',
+  intro: 'InFlight names the colors in this photo and points out anything that may look wrong, in words.',
   checking: 'Checking color…',
   unavailable: 'The color check isn’t available for this photo yet.',
   mainColours: 'Main colors',

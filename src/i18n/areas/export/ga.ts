@@ -233,7 +233,7 @@ export const ga: AreaTranslation<typeof source> = {
     backgroundSaving: (count) => `Ag easpórtáil ${count} comhad sa chúlra`,
     choosingFolder: "Fillteán á roghnú…",
     desktopBackground: (count) => `Sábháil ${count} comhad i bhfillteán sa chúlra`,
-    desktopBackgroundHelp: "Roghnaigh fillteán uair amháin. Sábháiltear comhaid ceann ar cheann i bhfillteán nua Kite44 Exports, grúpáilte de réir ceann scríbe. Feictear dul chun cinn agus earráidí sa Bhainisteoir Tascanna.",
+    desktopBackgroundHelp: "Roghnaigh fillteán uair amháin. Sábháiltear comhaid ceann ar cheann i bhfillteán nua InFlight Exports, grúpáilte de réir ceann scríbe. Feictear dul chun cinn agus earráidí sa Bhainisteoir Tascanna.",
     saving: 'Á shábháil…',
     saved: (name) => `Sábháladh ${name}`,
     ready: (count) => `${files(count)} réidh`,

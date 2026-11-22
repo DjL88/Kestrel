@@ -4,7 +4,7 @@
   "app": {
     "windows": [
       {
-        "title": "Kestrel",
+        "title": "InFlight",
         "backgroundColor": "#1c2027",
         "dragDropEnabled": false
       }

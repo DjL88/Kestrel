@@ -18,7 +18,7 @@ export function validateRawExtension(extension: string): string {
 /**
  * Developing a RAW file's sensor data. One decoder everywhere (crates/kestrel-raw, Nikon HE/HE* included): linked
  * natively into the desktop app, and the same Rust code compiled to WebAssembly in the browser and on phones and
- * tablets. The operating system's own decoder is only a last resort on a Mac, after Kite44's has failed.
+ * tablets. The operating system's own decoder is only a last resort on a Mac, after InFlight's has failed.
  */
 export const canDevelopRaw = () => hasNativeRaw() || webRawAvailable();
 
@@ -46,7 +46,7 @@ export async function developRaw(file: Blob, extension = 'nef'): Promise<Blob> {
 
 /**
  * Decode the sensor-derived RGB16 working raster, rather than the JPEG used by
- * the legacy review/editor route. The same Kite44 Rust decoder runs through
+ * the legacy review/editor route. The same InFlight Rust decoder runs through
  * Tauri on desktop and WASM on web; platform codec support is NOT guaranteed.
  * The returned buffer is display-encoded RGB16, not a verified linear camera
  * master. Consumers must separately verify original hash, colour evidence and

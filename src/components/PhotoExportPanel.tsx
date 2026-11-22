@@ -807,7 +807,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
               onChange={(value) => setOverlay((prior) => ({ ...prior, shade: value }))} />
           </div>
           <label className="block text-sm text-zinc-300">{t.typeface}
-            <FontPicker value={overlay.font ?? 'inter'} label={t.typeface} sample={overlay.title || 'Kite44'} onChange={font => setOverlay(prior => ({ ...prior, font }))} />
+            <FontPicker value={overlay.font ?? 'inter'} label={t.typeface} sample={overlay.title || 'InFlight'} onChange={font => setOverlay(prior => ({ ...prior, font }))} />
           </label>
           {frames.every((frame) => photoOverlayLines(frame, overlay).length === 0) && (
             <p role="status" className="text-xs text-zinc-400">{t.overlay.noDetails}</p>
@@ -902,7 +902,7 @@ export function PhotoExportPanel({ frames, provider, onClose, onDownloadRequeste
           </label>
           {mark.kind === 'text' && (
             <label className="block text-sm text-zinc-300">{t.typeface}
-              <FontPicker value={mark.font ?? 'inter'} label={t.typeface} sample={mark.text || 'Kite44'} onChange={font => setMark({ font })} />
+              <FontPicker value={mark.font ?? 'inter'} label={t.typeface} sample={mark.text || 'InFlight'} onChange={font => setMark({ font })} />
             </label>
           )}
           {mark.kind === 'text' && (

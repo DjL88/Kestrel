@@ -68,12 +68,12 @@ test('after an Auto-cull scan has looked at the rest, the banner says so instead
   await expect(dialog.getByRole('region', { name: 'Auto-cull summary' })).toBeVisible({ timeout: 60_000 });
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  // Only photos the scan actually looked at may be described as ones Kite44 was not confident about.
+  // Only photos the scan actually looked at may be described as ones InFlight was not confident about.
   await expect(banner).toContainText(/still needs? a decision/);
   await expect(banner).toContainText("wasn't confident enough to call these on its own");
-  await expect(banner.getByRole('button', { name: 'Let Kite44 try these too' })).toBeVisible();
+  await expect(banner.getByRole('button', { name: 'Let InFlight try these too' })).toBeVisible();
   // The old "first pass" framing would be misleading once a pass has already happened.
-  await expect(banner).not.toContainText('Kite44 can take a first pass');
+  await expect(banner).not.toContainText('InFlight can take a first pass');
 });
 
 test('once everything is decided and kept, the banner offers to export, not to cull or review again', async ({ page }) => {
@@ -103,8 +103,8 @@ test('review guidance appears only on To review, never over Keepers or All photo
   await expect(guide).toBeVisible();
 });
 
-test('after deciding photos by hand, the banner never claims Kite44 tried and gave up', async ({ page }) => {
-  // Auto-cull never ran here, so "Kite44 wasn't confident" would be untrue (found on a real 116-photo import).
+test('after deciding photos by hand, the banner never claims InFlight tried and gave up', async ({ page }) => {
+  // Auto-cull never ran here, so "InFlight wasn't confident" would be untrue (found on a real 116-photo import).
   await projectWithUnreviewedPhotos(page);
   await page.getByRole('button', { name: 'Keep g-1.png', exact: true }).click();
   const banner = page.getByRole('region', { name: "What's next" });

@@ -32,7 +32,7 @@ export type MaskShape =
       /**
        * Optional fine outline for the area around the subject (0 to 1 across the framed photo), refined against the
        * photo's own pixels. Used inside `region` wherever no brush stroke has touched; `grid` stays the whole-photo
-       * fallback, so older versions of Kite44 still read the mask.
+       * fallback, so older versions of InFlight still read the mask.
        */
       detail?: SubjectDetail };
 
@@ -83,7 +83,7 @@ export function createSubjectMask(id: string, grid: SubjectGrid, key: string, co
   return { id, kind: 'subject', grid, framingKey: key, confidence, strokes: [], invert: false, feather: 0.5, edit: {}, ...(detail ? { detail } : {}) };
 }
 
-/** A base64 grid of w × h bytes within the sizes Kite44 writes. */
+/** A base64 grid of w × h bytes within the sizes InFlight writes. */
 function validGrid(value: unknown): boolean {
   if (typeof value !== 'object' || value === null) return false;
   const { w, h, data } = value as Record<string, unknown>;

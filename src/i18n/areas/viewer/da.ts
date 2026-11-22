@@ -74,7 +74,7 @@ export const da: AreaTranslation<typeof source> = {
   frame: {
     originalUnavailable: 'Originalen er ikke tilgængelig — tilslut mappen eller drevet igen',
     previewUnavailable: 'Forhåndsvisning ikke tilgængelig',
-    heifUndecodable: 'Kite44 kunne ikke afkode dette HEIF-billede. Originalen er uændret.',
+    heifUndecodable: 'InFlight kunne ikke afkode dette HEIF-billede. Originalen er uændret.',
   },
   info: {
     title: 'Fotoinfo',

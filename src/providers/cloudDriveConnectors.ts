@@ -14,12 +14,12 @@ export function explainCloudFailure(name: string, status: number): string {
   if (status === 401 || status === 403) return `${name} no longer accepts the sign-in. Sign in again to carry on.`;
   if (status === 404) return `${name} could not find that file.`;
   if (status === 409 || status === 412) return 'A file is already there. It was not replaced.';
-  if (status === 429) return `${name} asked Kestrel to slow down. Try again in a minute.`;
+  if (status === 429) return `${name} asked InFlight to slow down. Try again in a minute.`;
   if (status === 507 || status === 413) return `${name} says there is no room left in the account.`;
   return `${name} answered with an error (${status}).`;
 }
 
-const guardPath = (path: string, name: string) => { if (!isInsideSyncRoot(path.replace(/\/+$/, ''))) throw new CloudError(`Path is outside the Kestrel folder in ${name}.`); };
+const guardPath = (path: string, name: string) => { if (!isInsideSyncRoot(path.replace(/\/+$/, ''))) throw new CloudError(`Path is outside the InFlight folder in ${name}.`); };
 
 function sender(name: string, deps: CloudDeps) {
   return async (url: string, init: RequestInit = {}): Promise<Response> => {
@@ -57,7 +57,7 @@ export function dropboxConnector(deps: CloudDeps): StorageConnector {
     kind: 'folder',
     test: () => testWith('Dropbox', () => rpc('users/get_current_account', null).then((r) => r)),
     async put(path, bytes) {
-      if (!isWritablePath(path)) throw new CloudError('Path is outside the Kestrel folder in Dropbox.');
+      if (!isWritablePath(path)) throw new CloudError('Path is outside the InFlight folder in Dropbox.');
       if (bytes.byteLength > DROPBOX_SINGLE_UPLOAD_LIMIT) throw new CloudError('This file is larger than Dropbox accepts in one go (150 MB). Choose a Dropbox folder on your computer for very large files.');
       const noOverwrite = isInsideExportRoot(path);
       const response = await send('https://content.dropboxapi.com/2/files/upload', {
@@ -96,7 +96,7 @@ export function dropboxConnector(deps: CloudDeps): StorageConnector {
   };
 }
 
-// ---------------------------------------------------------------- Google Drive (drive.file: only what Kestrel made)
+// ---------------------------------------------------------------- Google Drive (drive.file: only what InFlight made)
 
 const DRIVE = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
@@ -165,7 +165,7 @@ export function googleDriveConnector(deps: CloudDeps): StorageConnector {
     kind: 'folder',
     test: () => testWith('Google Drive', () => send(`${DRIVE}/about?fields=user(emailAddress)`)),
     async put(path, bytes) {
-      if (!isWritablePath(path)) throw new CloudError('Path is outside the Kestrel folder in Google Drive.');
+      if (!isWritablePath(path)) throw new CloudError('Path is outside the InFlight folder in Google Drive.');
       const { folder, name } = split(path);
       const parent = (await folderId(folder, true))!;
       const existing = await childOf(parent, name, false);
@@ -216,7 +216,7 @@ export function oneDriveConnector(deps: CloudDeps): StorageConnector {
     kind: 'folder',
     test: () => testWith('OneDrive', () => send(GRAPH)),
     async put(path, bytes) {
-      if (!isWritablePath(path)) throw new CloudError('Path is outside the Kestrel folder in OneDrive.');
+      if (!isWritablePath(path)) throw new CloudError('Path is outside the InFlight folder in OneDrive.');
       const behaviour = isInsideExportRoot(path) ? 'fail' : 'replace';
       const fail = (response: Response) => response.status === 409 && behaviour === 'fail' ? new CloudError('An export already exists at this destination. The file was not replaced.', 409) : failed('OneDrive', response);
       if (bytes.byteLength <= SMALL_UPLOAD) {

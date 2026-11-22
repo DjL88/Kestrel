@@ -1,4 +1,4 @@
-/** Evidence from Kestrel's existing display-encoded sRGB RGB16 working pixels.
+/** Evidence from InFlight's existing display-encoded sRGB RGB16 working pixels.
  * This is not a sensor-linear colour measurement or a camera-profile calibration.
  * An explicit provenance gate prevents calling unknown/ICC-unverified data accurate.
  * Only existing captured pixels are read. No edits or invented scene data.

@@ -1,5 +1,5 @@
 /**
- * Kite44's local-first commercial policy. This module only returns UI
+ * InFlight's local-first commercial policy. This module only returns UI
  * capabilities; it is NEVER proof of cloud entitlement or permission.
  * Cloud APIs must independently enforce every request server-side.
  */

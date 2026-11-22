@@ -4,7 +4,7 @@ import type { source } from './source';
 /** Danish. DRAFT: written without a native speaker's check. */
 export const da: AreaTranslation<typeof source> = {
   title: 'En ekstra vurdering fra din egen AI',
-  intro: 'Valgfrit. Brug din egen AI-konto, eller en model på denne computer, til at se på farve og lys i dette billede. Kestrels eget farvetjek ovenfor virker altid uden.',
+  intro: 'Valgfrit. Brug din egen AI-konto, eller en model på denne computer, til at se på farve og lys i dette billede. InFlights eget farvetjek ovenfor virker altid uden.',
   ask: 'Spørg min egen AI',
   asking: 'Spørger din AI…',
   cancel: 'Annuller',
@@ -29,8 +29,8 @@ export const da: AreaTranslation<typeof source> = {
   invalidBaseUrl: "Brug HTTPS til ekstern AI eller http://localhost til AI på denne computer. Indsæt ikke nøgler i adressen.",
   save: 'Gem',
   consentTitle: 'Før noget bliver sendt',
-  consentCloud: (host) => `Kite44 sender en kopi af dette billede, 1.024 pixels på den længste side, til ${host}. Den indeholder ikke stedet, kameraoplysninger eller filnavnet. Din udbyder kan tage betaling for hvert spørgsmål.`,
-  consentLocal: (host) => `Kite44 sender en kopi af dette billede, 1.024 pixels på den længste side, til AI’en på ${host}, som ligger på denne computer. Intet forlader din computer.`,
+  consentCloud: (host) => `InFlight sender en kopi af dette billede, 1.024 pixels på den længste side, til ${host}. Den indeholder ikke stedet, kameraoplysninger eller filnavnet. Din udbyder kan tage betaling for hvert spørgsmål.`,
+  consentLocal: (host) => `InFlight sender en kopi af dette billede, 1.024 pixels på den længste side, til AI’en på ${host}, som ligger på denne computer. Intet forlader din computer.`,
   agree: 'Jeg accepterer',
   summary: 'Hvad din AI siger',
   suggested: 'Foreslåede ændringer',
@@ -51,7 +51,7 @@ export const da: AreaTranslation<typeof source> = {
   errors: {
     setup: 'Din AI er ikke sat op endnu, eller samtykket mangler.',
     key: 'Din AI siger, at nøglen er forkert eller ikke tilladt. Tjek den på din konto hos udbyderen.',
-    offline: 'Du er offline. Kestrels eget farvetjek virker stadig.',
+    offline: 'Du er offline. InFlights eget farvetjek virker stadig.',
     timeout: 'Din AI var for længe om at svare. Prøv igen om et øjeblik.',
     refused: 'Din AI afviste at se på dette billede.',
     unreadable: 'Din AI’s svar kunne ikke læses, så intet blev ændret.',

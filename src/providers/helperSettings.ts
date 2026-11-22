@@ -60,7 +60,7 @@ export function openHelperDialog(open = true): void { dialogOpen = open; notify(
 export const changed = notify;
 
 /**
- * The online helper is hidden for now: the key will live in a backend secret once Kite44 is deployed, so people are not
+ * The online helper is hidden for now: the key will live in a backend secret once InFlight is deployed, so people are not
  * asked to bring their own. A build made with VITE_SHOW_ONLINE_HELPER=true shows it again (the browser tests use that).
  */
 export const ONLINE_HELPER_VISIBLE = import.meta.env?.VITE_SHOW_ONLINE_HELPER === 'true';

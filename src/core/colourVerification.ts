@@ -2,7 +2,7 @@
  * A second opinion, in words, on the colour grade of a photo the person has already finished editing.
  *
  * This is deliberately small and never authoritative. The on-device, measured Colour Confidence check
- * (src/core/colourCheck.ts) is the thing Kestrel trusts: it works from the actual pixels, offline, and its
+ * (src/core/colourCheck.ts) is the thing InFlight trusts: it works from the actual pixels, offline, and its
  * numbers do not change from one run to the next. This online helper is the opposite in every way that
  * matters - it is a cloud model's plain-English impression of whether a finished edit still looks like a
  * believable photograph, offered alongside the measured check, never in place of it. It cannot change a

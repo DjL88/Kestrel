@@ -1,5 +1,5 @@
 /**
- * Develops RAW files with Kite44's own pipeline (crates/kestrel-raw, compiled to WebAssembly) off the interface thread,
+ * Develops RAW files with InFlight's own pipeline (crates/kestrel-raw, compiled to WebAssembly) off the interface thread,
  * so the web app develops sensor data like the desktop app does. One file at a time. Messages:
  *   in  { type: 'develop', id, url, bytes }           out { type: 'developed', id, jpeg } or { type: 'error', id, message }
  *   in  { type: 'develop16', id, url, bytes }         out { type: 'developed16', id, picture } or { type: 'error', id, message }

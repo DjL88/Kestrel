@@ -44,7 +44,7 @@ export function sumupCheckouts(
         method: 'POST',
         body: JSON.stringify({
           checkout_reference: order.reference, currency: 'GBP', amount: order.totalPence / 100,
-          merchant_code: credentials.merchantCode, description: 'Kestrel Pro',
+          merchant_code: credentials.merchantCode, description: 'InFlight Pro',
           hosted_checkout: { enabled: true }, redirect_url: redirectUrl,
         }),
       });

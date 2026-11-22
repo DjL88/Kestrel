@@ -3,7 +3,7 @@ import { isDesktopApp, isMobileShell } from './desktopShell';
 
 /**
  * Signing in to Dropbox, Google Drive or OneDrive from the web build: a small pop-up, the provider's own sign-in page, and a
- * one-time code that Kestrel swaps for a token itself. The password never passes through Kestrel. Tokens stay on this device.
+ * one-time code that InFlight swaps for a token itself. The password never passes through InFlight. Tokens stay on this device.
  */
 const TOKENS = 'kestrel.cloud-tokens.v1.';
 const REDIRECT = () => `${location.origin}/oauth-callback.html`;
@@ -16,7 +16,7 @@ const secretFor = (kind: CloudDriveKind) => { const name = CLOUD_DRIVES[kind].cl
 export const cloudDriveAvailable = (kind: CloudDriveKind) => isConfigured(clientIdFor(kind)) && !isMobileShell();
 
 export function cloudDriveUnavailableReason(kind: CloudDriveKind): string | null {
-  if (!isConfigured(clientIdFor(kind))) return `This copy of Kestrel is not yet registered with ${CLOUD_DRIVES[kind].name}. Use the ${CLOUD_DRIVES[kind].name} folder on your computer for now.`;
+  if (!isConfigured(clientIdFor(kind))) return `This copy of InFlight is not yet registered with ${CLOUD_DRIVES[kind].name}. Use the ${CLOUD_DRIVES[kind].name} folder on your computer for now.`;
   if (isMobileShell()) return `Signing in to ${CLOUD_DRIVES[kind].name} from the phone app is coming. Use its folder on your device, or sign in from the web version.`;
   return null;
 }

@@ -166,7 +166,7 @@ export const Schemas = {
     name: z.string().trim().min(1).max(100),
     email: z.string().trim().email().max(254),
     message: z.string().trim().min(1).max(5000),
-    consent: z.literal(true).describe('The sender agreed that Kestrel may store this message to reply to it'),
+    consent: z.literal(true).describe('The sender agreed that InFlight may store this message to reply to it'),
     website: z.string().max(200).optional().describe('Leave empty. Hidden from people; filled in by spam robots.'),
   }).strict(),
   AdminRevokeKey: z.object({ licenceKey: z.string().min(10).max(2000).describe('The whole key, so its signature can be checked. Only its licence id is kept.') }).strict(),
@@ -205,7 +205,7 @@ function decodeImage(base64: string): Buffer {
   const facts = inspectJpeg(bytes);
   if (!facts) throw new ApiError(400, 'IMAGE_INVALID', 'The image is not a JPEG.');
   if (facts.width > MAX_IMAGE_EDGE || facts.height > MAX_IMAGE_EDGE) throw new ApiError(413, 'IMAGE_TOO_LARGE', 'The image is larger than 1024 pixels on a side.');
-  if (facts.hasMetadata) throw new ApiError(400, 'IMAGE_HAS_METADATA', 'The image still carries camera metadata (EXIF or XMP), which can include location. Kestrel only sends redrawn images.');
+  if (facts.hasMetadata) throw new ApiError(400, 'IMAGE_HAS_METADATA', 'The image still carries camera metadata (EXIF or XMP), which can include location. InFlight only sends redrawn images.');
   return bytes;
 }
 
@@ -309,7 +309,7 @@ export function createApp(options: AppOptions) {
   async function aiCall<T>(req: Request, work: (provider: AiProvider, image: string) => Promise<T>): Promise<T> {
     const claims = await bearer(req);
     const body = parseJson(Schemas.ImageRequest, req.rawBody);
-    if (body.userConsent !== true) throw new ApiError(400, 'CONSENT_REQUIRED', 'Kestrel needs your permission before sending a photo.');
+    if (body.userConsent !== true) throw new ApiError(400, 'CONSENT_REQUIRED', 'InFlight needs your permission before sending a photo.');
     // A per-request click cannot override the account's separately revocable, default-off
     // managed-AI preference. Check the live store for every request (never a cached token
     // claim) before decoding, reserving quota or invoking the network provider.
@@ -879,7 +879,7 @@ export function createApp(options: AppOptions) {
         const body = parseJson(Schemas.AdminRevokeKey, req.rawBody);
         // The signature check keeps typos and made-up keys out of the list. The key itself is never stored or logged.
         const check = await verifyLicence(body.licenceKey, config.licencePublicKey);
-        if (!check.ok) throw new ApiError(400, 'LICENCE_INVALID', 'That is not a genuine Kestrel licence key, so there is nothing to revoke. Check it was copied in full.');
+        if (!check.ok) throw new ApiError(400, 'LICENCE_INVALID', 'That is not a genuine InFlight licence key, so there is nothing to revoke. Check it was copied in full.');
         const id = check.details.id;
         const existing = await store.getLicence(id);
         if (existing) await store.setLicenceStatus(id, 'revoked', now());
@@ -1016,7 +1016,7 @@ export function openApi(routes: Route[]) {
   }
   return {
     openapi: '3.1.0',
-    info: { title: 'Kestrel control plane', version: '1', description: 'Optional online services. Kestrel works fully offline without them.' },
+    info: { title: 'InFlight control plane', version: '1', description: 'Optional online services. InFlight works fully offline without them.' },
     components: { securitySchemes: { bearer: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, webhookSignature: { type: 'apiKey', in: 'header', name: 'kestrel-signature' } } },
     paths,
   };

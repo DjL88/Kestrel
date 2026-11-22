@@ -1,5 +1,5 @@
 /**
- * Languages Kite44 can show, and the pure helpers behind them. British English is the source: every other language
+ * Languages InFlight can show, and the pure helpers behind them. British English is the source: every other language
  * is laid over it, so a sentence nobody has translated yet still appears, in British English, rather than a blank or
  * a code. Nothing here touches the browser; `src/i18n/messages.ts` reads the saved choice.
  */
@@ -48,7 +48,7 @@ export function isLanguageCode(value: unknown): value is LanguageCode {
 }
 
 /**
- * The language to show. Only a choice the person made counts: Kite44 never switches language because a browser or
+ * The language to show. Only a choice the person made counts: InFlight never switches language because a browser or
  * operating system reports another one, so the app always looks the same until they change it themselves.
  */
 export function resolveLanguage(saved: unknown): LanguageCode {
@@ -60,11 +60,11 @@ export function needsLanguageSetup(saved: unknown): boolean {
   return !isLanguageCode(saved);
 }
 
-/** Other tags that mean one of Kite44's languages: Norwegian has three codes, and Nynorsk readers read Bokmål. */
+/** Other tags that mean one of InFlight's languages: Norwegian has three codes, and Nynorsk readers read Bokmål. */
 const ALIASES: Record<string, LanguageCode> = { no: 'nb', nn: 'nb' };
 
 /**
- * The device's own language, matched to one Kite44 has, to *offer* at first run (never applied without asking).
+ * The device's own language, matched to one InFlight has, to *offer* at first run (never applied without asking).
  * Tries each of the device's preferred languages in order: the exact tag (en-US), then its language (fr-BE → fr,
  * pt-BR → pt, nb-NO → nb). Australia, New Zealand and Canadian French retain their own choices.
  * Other English regions use UK wording; an unsupported device language is not silently selected.

@@ -1,26 +1,28 @@
 import { expect, test } from '@playwright/test';
 
-test('Soar, Glide and Fly Solo live in Settings and persist as a preference', async ({ page }) => {
+test('Auto Pilot, Co Pilot and Solo live in Settings and persist as a preference', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
   const dialog = page.getByRole('dialog');
-  const soar = dialog.getByRole('radio', { name: /Soar/ });
-  const glide = dialog.getByRole('radio', { name: /Glide/ });
-  const solo = dialog.getByRole('radio', { name: /Fly Solo/ });
+  const soar = dialog.getByRole('radio', { name: /Auto Pilot/ });
+  const glide = dialog.getByRole('radio', { name: /Co Pilot/ });
+  const solo = dialog.getByRole('radio', { name: /Solo/ });
   await expect(glide).toBeChecked();
+  // Each mode shows the brand pack's chevron icon, drawn as inline SVG.
+  await expect(dialog.locator('label:has(input[type=radio]) svg')).toHaveCount(3);
   await soar.check();
   await expect(soar).toBeChecked();
   await solo.check();
   await dialog.getByRole('button', { name: 'Done' }).click();
   await page.reload();
   await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
-  await expect(page.getByRole('dialog').getByRole('radio', { name: /Fly Solo/ })).toBeChecked();
+  await expect(page.getByRole('dialog').getByRole('radio', { name: /Solo/ })).toBeChecked();
 });
 
 test('Fly Solo never runs the normal colour check until the photographer asks', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
-  await page.getByRole('dialog').getByRole('radio', { name: /Fly Solo/ }).check();
+  await page.getByRole('dialog').getByRole('radio', { name: /Solo/ }).check();
   await page.getByRole('dialog').getByRole('button', { name: 'Done' }).click();
 
   await page.getByRole('button', { name: 'New project' }).click();

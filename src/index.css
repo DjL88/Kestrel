@@ -10,16 +10,29 @@
 @custom-variant info-dock (@media ((min-width: 1024px) and (min-height: 550px)) or ((min-width: 1280px) and (min-height: 440px)));
 @custom-variant hand-left (:root[data-hand="left"] &);
 
+/* InFlight brand tokens (pack v2.2). Every display theme is dark, so the dark-surface values apply; a future light theme sets data-theme="light". */
+:root {
+  --if-brand-rust: #e8743c; --if-brand-wingtip: #cc4d66;
+  --if-surface-bg: #0e1116; --if-surface-raised: #171b22;
+  --if-text-primary: #f4efe8; --if-text-secondary: #9aa1ae;
+  --if-pro-silver: #b4bbc5; --if-font: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}
+:root[data-theme="light"] {
+  --if-brand-rust: #bf5824; --if-brand-wingtip: #9e2f45;
+  --if-surface-bg: #faf7f2; --if-surface-raised: #ffffff;
+  --if-text-primary: #16181d; --if-text-secondary: #5c6270; --if-pro-silver: #7e8691;
+}
+
 @theme {
   --color-kestrel-canvas: #14161b;
   --color-kestrel-stage: #121419;
   --color-kestrel-panel: #1a1d23;
   --color-kestrel-raised: #1c2027;
   --color-kestrel-ink: #f4efe6;
-  --color-kestrel-copper: #c9652e;
-  --color-kestrel-copper-hover: #d97840;
+  --color-kestrel-copper: #e8743c; /* InFlight rust, dark-surface value (brand pack tokens) */
+  --color-kestrel-copper-hover: #f08a57;
   --color-kestrel-blue: #4a88b2;
-  --color-kestrel-red: #c54f63;
+  --color-kestrel-red: #cc4d66; /* InFlight wingtip, dark-surface value */
   --color-kestrel-mist: #8b93a3;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -297,7 +310,7 @@ html[data-calm="true"] .animate-spin, html[data-calm="true"] .motion-safe\:anima
   .kestrel-editor-main > [data-photo-stage] { min-height: 0; }
 }
 
-/* Kite44 is an image workspace, not a selectable browser article. Keep
+/* InFlight is an image workspace, not a selectable browser article. Keep
    ordinary text inputs, accessibility controls and code snippets selectable. */
 #root { -webkit-user-select: none; user-select: none; }
 #root input, #root textarea, #root select, #root [contenteditable="true"],
@@ -338,3 +351,6 @@ select { padding-inline-end: 2rem; text-overflow: ellipsis; }
 /* The task list slides in from the right edge on phones, so a long problem message always has room. */
 @keyframes task-tray-in { from { transform: translateX(100%); } to { transform: none; } }
 @media (prefers-reduced-motion: no-preference) { .task-tray-in { animation: task-tray-in 180ms ease-out; } }
+
+/* The app is not a web page: images are not dragged out of it or selected, and the logo is never a download. */
+img { -webkit-user-drag: none; user-select: none; }

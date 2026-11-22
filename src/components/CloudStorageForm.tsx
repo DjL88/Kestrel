@@ -54,7 +54,7 @@ export function CloudStorageForm({ initial, onSaved, onCancel, persist = true }:
       <label className="block">{t.cloud.secretKey}
         <input type="password" className={`${field} mt-1 font-mono`} value={secretAccessKey} onChange={(event) => setSecretAccessKey(event.target.value)} autoComplete="off" spellCheck={false} />
       </label>
-      <p className="text-xs text-zinc-400">For your security, access keys are kept only while Kite44 is open. Enter them again after restarting. Use a key restricted to this bucket.</p>
+      <p className="text-xs text-zinc-400">For your security, access keys are kept only while InFlight is open. Enter them again after restarting. Use a key restricted to this bucket.</p>
       {result && <p role={result.ok ? 'status' : 'alert'} className={result.ok ? 'text-emerald-200' : 'text-amber-200'}>{result.text}</p>}
       <div className="flex flex-wrap gap-2">
         <button type="button" className={action} disabled={busy} onClick={() => void test()}>{t.common.testConnection}</button>

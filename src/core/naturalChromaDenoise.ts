@@ -1,5 +1,5 @@
 /**
- * Kite44 TrueDetail research: deterministic, non-generative colour-noise baseline.
+ * InFlight TrueDetail research: deterministic, non-generative colour-noise baseline.
  *
  * This is NOT a production RAW/DeepPRIME replacement. It accepts already developed
  * 8-bit RGBA pixels and deliberately leaves luminance/detail alone. No model, network,

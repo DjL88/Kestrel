@@ -41,14 +41,14 @@ export async function withDeadline<T>(timeoutMs: number, work: (signal: AbortSig
 export async function identify(provider: AiProvider, jpegBase64: string, timeoutMs: number): Promise<HelperAnswer> {
   const text = await withDeadline(timeoutMs, (signal) => provider.identify(jpegBase64, signal));
   const answer = typeof text === 'string' ? parseHelperAnswer(text) : null;
-  if (!answer) throw new ApiError(502, 'AI_UPSTREAM_MALFORMED', 'The AI provider gave an answer Kestrel could not use.', true);
+  if (!answer) throw new ApiError(502, 'AI_UPSTREAM_MALFORMED', 'The AI provider gave an answer InFlight could not use.', true);
   return answer;
 }
 
 export async function suggest(provider: AiProvider, jpegBase64: string, timeoutMs: number): Promise<RecipeProposal> {
   const text = await withDeadline(timeoutMs, (signal) => provider.suggest(jpegBase64, signal));
   const proposal = typeof text === 'string' ? parseRecipeProposal(text) : null;
-  if (!proposal) throw new ApiError(502, 'AI_UPSTREAM_MALFORMED', 'The AI provider gave an answer Kestrel could not use.', true);
+  if (!proposal) throw new ApiError(502, 'AI_UPSTREAM_MALFORMED', 'The AI provider gave an answer InFlight could not use.', true);
   return proposal;
 }
 
@@ -59,7 +59,7 @@ export async function suggest(provider: AiProvider, jpegBase64: string, timeoutM
 export async function verifyColour(provider: AiProvider, jpegBase64: string, timeoutMs: number): Promise<ColourVerificationAnswer> {
   const text = await withDeadline(timeoutMs, (signal) => provider.verifyColour(jpegBase64, signal));
   const answer = typeof text === 'string' ? parseColourVerification(text) : null;
-  if (!answer) throw new ApiError(502, 'AI_UPSTREAM_MALFORMED', 'The AI provider gave an answer Kestrel could not use.', true);
+  if (!answer) throw new ApiError(502, 'AI_UPSTREAM_MALFORMED', 'The AI provider gave an answer InFlight could not use.', true);
   return answer;
 }
 

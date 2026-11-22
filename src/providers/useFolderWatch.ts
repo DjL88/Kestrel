@@ -22,7 +22,7 @@ export function useFolderWatch(onFiles: (files: File[]) => Promise<number>) {
     setStatus({ folder: source.name, imported: 0, error: null });
     let state: WatchState;
     try { state = startWatching(await source.list(), includeExisting); }
-    catch { if (!token.stop) setStatus({ folder: source.name, imported: 0, error: 'Kite44 cannot read that folder. Choose it again.' }); return; }
+    catch { if (!token.stop) setStatus({ folder: source.name, imported: 0, error: 'InFlight cannot read that folder. Choose it again.' }); return; }
     let imported = 0;
     const tick = async () => {
       if (token.stop) return;
@@ -68,7 +68,7 @@ export function useFolderWatch(onFiles: (files: File[]) => Promise<number>) {
               }
               if (!token.stop) setStatus({
                 folder: source.name, imported,
-                error: 'Some watched photos could not be added. Kite44 will retry.',
+                error: 'Some watched photos could not be added. InFlight will retry.',
               });
             }
           }

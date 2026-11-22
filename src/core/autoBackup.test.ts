@@ -40,7 +40,7 @@ test('backups are named so the oldest sorts first, one folder per project', () =
   assert.ok(a < b);
 });
 
-test('only the newest ten are kept, and only Kite44 backups of that project are ever chosen for deletion', () => {
+test('only the newest ten are kept, and only InFlight backups of that project are ever chosen for deletion', () => {
   const names = Array.from({ length: 13 }, (_, i) => backupName('kite-day', new Date(2026, 10, 1 + i)));
   const gone = backupsToDelete([...names, 'kestrel/v1/backups/other/x.kestrel.json', 'kestrel/v1/backups/kite-day/notes.txt', 'elsewhere/y.kestrel.json'], 'kite-day');
   assert.deepEqual(gone, names.slice(0, 3));

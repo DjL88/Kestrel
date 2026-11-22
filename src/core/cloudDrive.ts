@@ -1,8 +1,8 @@
 /**
  * Sign-in providers for Dropbox, Google Drive and OneDrive. Pure: no network, no browser. The person signs in once with
- * their own account (OAuth 2.0 authorisation code with PKCE, so no secret has to ship in the app) and Kestrel only ever
+ * their own account (OAuth 2.0 authorisation code with PKCE, so no secret has to ship in the app) and InFlight only ever
  * sees its own folder: Dropbox "App folder", Google's `drive.file` scope, OneDrive's App Folder. Nothing else in the
- * account is visible to Kestrel, and nothing is sent anywhere but the provider the person chose.
+ * account is visible to InFlight, and nothing is sent anywhere but the provider the person chose.
  */
 export type CloudDriveKind = 'dropbox' | 'googledrive' | 'onedrive';
 
@@ -108,7 +108,7 @@ export function refreshBody(args: { clientId: string; clientSecret?: string; ref
 export function explainSignInError(code: string | null | undefined): string {
   switch (code) {
     case 'access_denied': return 'Sign-in was cancelled. Nothing changed.';
-    case 'invalid_client': return 'This copy of Kestrel is not yet registered with that service. Use the folder option for now.';
+    case 'invalid_client': return 'This copy of InFlight is not yet registered with that service. Use the folder option for now.';
     case 'state_mismatch': return 'The sign-in answer did not match this request, so it was ignored. Try again.';
     case 'invalid_grant': return 'The sign-in has expired or was withdrawn. Sign in again.';
     default: return 'Sign-in did not finish. Nothing changed; try again.';

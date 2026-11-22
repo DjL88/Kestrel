@@ -1,10 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import splashFile from '../assets/splash/kestrel-k-splash.json';
-import kestrelMark from '../assets/kestrel-mark.svg';
-import { parseLottie, type SplashAnimation, type Track } from '../core/lottieLite';
+import { useEffect, useRef, useState } from 'react';
+import type { AnimationItem } from 'lottie-web';
+import splashDark from '../assets/brand/splash/inflight-splash-dark.json';
+import splashLight from '../assets/brand/splash/inflight-splash-light.json';
+import splashProDark from '../assets/brand/splash/inflight-splash-pro-dark.json';
+import splashProLight from '../assets/brand/splash/inflight-splash-pro-light.json';
 import { FADE_MS, HOLD_MS, STILL_MS, shouldShowSplash } from '../core/splashRules';
+import type { LogoTone } from '../core/brandLogo';
+import { BrandLogo, useIsPro, useLogoTone } from './BrandLogo';
 
+// The session key keeps its old spelling so a person who already saw the splash this session is not shown it again after updating.
 const SEEN_KEY = 'kestrel-splash-v1';
+
+const ANIMATIONS = { dark: splashDark, light: splashLight, proDark: splashProDark, proLight: splashProLight };
+/** Surface colours from the brand tokens, so the splash matches the app it hands over to. */
+const BACKGROUND: Record<LogoTone, string> = { dark: '#0e1116', light: '#faf7f2' };
 
 function shouldShow(): boolean {
   let alreadyShown = false;
@@ -12,44 +21,45 @@ function shouldShow(): boolean {
   return shouldShowSplash({ automated: navigator.webdriver === true, alreadyShown, forced: new URLSearchParams(location.search).has('splash') });
 }
 
-const first = (track: Track) => ('still' in track ? track.still : track.keyframes[0].value);
-const last = (track: Track) => ('still' in track ? track.still : track.keyframes[track.keyframes.length - 1].value);
-const translate = (value: number[]) => `translate(${value[0]}px, ${value[1]}px)`;
-const scaleOf = (value: number[]) => `scale(${value[0]}, ${value[1]})`;
-
 /**
- * The launch animation: the Kite44 K draws itself in. It is plain SVG moved by the browser's own animation support,
- * so it needs no library and costs a few kilobytes. A tap or key skips it, and with reduced motion it is a still logo.
+ * The launch animation from the InFlight brand pack (Lottie, 3 s): the chevron holds, the bird opens its wings, the wordmark follows.
+ * Light and dark versions follow the display theme, and the Pro version shows only for a verified Pro licence.
+ * A tap or key skips it. With reduced motion there is no animation, only the still stacked logo for a moment.
+ * The player is loaded on demand so it is not part of the first paint.
  */
 export function Splash() {
   const [open, setOpen] = useState(shouldShow);
   const [leaving, setLeaving] = useState(false);
-  const animation = useMemo<SplashAnimation | null>(() => parseLottie(splashFile), []);
-  const reduced = useMemo(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false, []);
-  const groups = useRef<{ opacity: SVGGElement | null; position: SVGGElement | null; scale: SVGGElement | null }[]>([]);
+  const [played, setPlayed] = useState(false);
+  const tone = useLogoTone();
+  const pro = useIsPro();
+  const host = useRef<HTMLDivElement>(null);
+  const reduced = useRef(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false).current;
 
   useEffect(() => { if (open) { try { sessionStorage.setItem(SEEN_KEY, '1'); } catch { /* Not remembered. */ } } }, [open]);
 
-  // Play, hold the finished logo for a moment, then fade away.
+  // Reduced motion: the still logo, held briefly.
   useEffect(() => {
-    if (!open) return;
-    const players: Animation[] = [];
-    if (animation && !reduced) {
-      animation.layers.forEach((layer, index) => {
-        const refs = groups.current[index];
-        const play = (element: SVGGElement | null, track: Track, build: (value: number[]) => Keyframe) => {
-          if (!element || 'still' in track) return;
-          players.push(element.animate(track.keyframes.map((frame) => ({ ...build(frame.value), offset: frame.offset, easing: frame.easing })), { duration: animation.durationMs, fill: 'both' }));
-        };
-        play(refs?.opacity ?? null, layer.opacity, (value) => ({ opacity: value[0] }));
-        play(refs?.position ?? null, layer.position, (value) => ({ transform: translate(value) }));
-        play(refs?.scale ?? null, layer.scale, (value) => ({ transform: scaleOf(value) }));
-      });
-    }
-    const playing = animation && !reduced ? animation.durationMs : 0;
-    const leave = window.setTimeout(() => setLeaving(true), playing + (animation && !reduced ? HOLD_MS : STILL_MS));
-    return () => { window.clearTimeout(leave); players.forEach((player) => player.cancel()); };
-  }, [open, animation, reduced]);
+    if (!open || !reduced) return;
+    const leave = window.setTimeout(() => setLeaving(true), STILL_MS);
+    return () => window.clearTimeout(leave);
+  }, [open, reduced]);
+
+  // Otherwise play the animation, hold the finished logo for a moment, then fade away.
+  useEffect(() => {
+    if (!open || reduced || !host.current) return;
+    let cancelled = false;
+    let item: AnimationItem | undefined;
+    let hold = 0;
+    const data = ANIMATIONS[pro ? (tone === 'light' ? 'proLight' : 'proDark') : tone];
+    import('lottie-web/build/player/lottie_light').then(({ default: lottie }) => {
+      if (cancelled || !host.current) return;
+      item = lottie.loadAnimation({ container: host.current, renderer: 'svg', loop: false, autoplay: true, animationData: structuredClone(data) });
+      setPlayed(true);
+      item.addEventListener('complete', () => { hold = window.setTimeout(() => setLeaving(true), HOLD_MS); });
+    }).catch(() => { if (!cancelled) setLeaving(true); }); // If the player cannot load, never hold the app back.
+    return () => { cancelled = true; window.clearTimeout(hold); item?.destroy(); };
+  }, [open, reduced, tone, pro]);
 
   useEffect(() => {
     if (!leaving) return;
@@ -68,30 +78,11 @@ export function Splash() {
 
   if (!open) return null;
   return (
-    <div data-testid="splash" aria-hidden="true" className="fixed inset-0 z-[1000] grid place-items-center bg-[#1c2027]"
-      style={{ opacity: leaving ? 0 : 1, transition: reduced ? undefined : `opacity ${FADE_MS}ms ease-out` }}>
-      {animation ? (
-        <svg viewBox={`0 0 ${animation.width} ${animation.height}`} className="h-[min(56vmin,18rem)] w-[min(56vmin,18rem)]">
-          {animation.layers.map((layer, index) => {
-            const startOpacity = reduced ? last(layer.opacity)[0] : first(layer.opacity)[0];
-            const position = reduced ? last(layer.position) : first(layer.position);
-            const scale = reduced ? last(layer.scale) : first(layer.scale);
-            groups.current[index] ??= { opacity: null, position: null, scale: null };
-            return (
-              <g key={`${layer.name}-${index}`} ref={(element) => { groups.current[index].opacity = element; }} style={{ opacity: startOpacity }}>
-                <g ref={(element) => { groups.current[index].position = element; }} style={{ transform: translate(position), transformOrigin: '0 0' }}>
-                  <g ref={(element) => { groups.current[index].scale = element; }} style={{ transform: scaleOf(scale), transformOrigin: '0 0' }}>
-                    <g transform={`translate(${-layer.anchor[0]} ${-layer.anchor[1]})`}>
-                      {layer.rect && <rect x={layer.rect.x} y={layer.rect.y} width={layer.rect.width} height={layer.rect.height} rx={layer.rect.radius} fill={layer.fill} fillOpacity={layer.fillOpacity} />}
-                      {layer.path && <path d={layer.path} fill={layer.fill} fillOpacity={layer.fillOpacity} fillRule={layer.evenOdd ? 'evenodd' : 'nonzero'} />}
-                    </g>
-                  </g>
-                </g>
-              </g>
-            );
-          })}
-        </svg>
-      ) : <img src={kestrelMark} alt="" className="h-40 w-40" />}
+    <div data-testid="splash" aria-hidden="true" className="fixed inset-0 z-[1000] grid place-items-center"
+      style={{ backgroundColor: BACKGROUND[tone], opacity: leaving ? 0 : 1, transition: reduced ? undefined : `opacity ${FADE_MS}ms ease-out` }}>
+      {reduced
+        ? <BrandLogo kind="stacked" decorative className="h-auto w-[min(60vmin,16rem)]" />
+        : <div ref={host} data-testid="splash-animation" data-played={played} className="h-[min(88vmin,34rem)] w-[min(88vmin,34rem)]" />}
     </div>
   );
 }

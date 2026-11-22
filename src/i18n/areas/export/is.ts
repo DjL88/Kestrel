@@ -232,7 +232,7 @@ export const is: AreaTranslation<typeof source> = {
     backgroundSaving: (count) => `Flyt út ${count} skrár í bakgrunni`,
     choosingFolder: "Vel möppu…",
     desktopBackground: (count) => `Vista ${count} skrár í möppu í bakgrunni`,
-    desktopBackgroundHelp: "Veldu möppu einu sinni. Skrár eru vistaðar ein af annarri í nýja dagsetta Kite44 Exports-möppu, flokkaðar eftir áfangastað. Þú getur haldið áfram að breyta; verkefnastjórinn sýnir framvindu og villur.",
+    desktopBackgroundHelp: "Veldu möppu einu sinni. Skrár eru vistaðar ein af annarri í nýja dagsetta InFlight Exports-möppu, flokkaðar eftir áfangastað. Þú getur haldið áfram að breyta; verkefnastjórinn sýnir framvindu og villur.",
     saving: 'Vista…',
     saved: (name) => `${name} vistuð`,
     ready: (count) => plural(count, { one: `${count} skrá tilbúin`, other: `${count} skrár tilbúnar` }),

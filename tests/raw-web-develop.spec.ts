@@ -3,7 +3,7 @@ import { mosaic, withPreview } from './rawFixture';
 import { expect, test } from '@playwright/test';
 
 /**
- * The web app develops RAW sensor data with Kite44's own pipeline compiled to WebAssembly, like the desktop app does
+ * The web app develops RAW sensor data with InFlight's own pipeline compiled to WebAssembly, like the desktop app does
  * natively. The file is synthetic: a 96 × 64 Bayer mosaic written by ticoraw's DNG writer (tests/fixtures), plus an
  * embedded JPEG preview added here, as cameras store one. No camera data.
  */

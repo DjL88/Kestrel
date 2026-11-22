@@ -5,7 +5,7 @@ import { plural } from '../../../core/locale';
 /** Swedish. DRAFT: written without a native speaker's check. Colour names sit in brackets. */
 export const sv: AreaTranslation<typeof source> = {
   title: 'Färgkontroll',
-  intro: 'Kite44 namnger färgerna i den här bilden och berättar med ord om allt som kan se fel ut.',
+  intro: 'InFlight namnger färgerna i den här bilden och berättar med ord om allt som kan se fel ut.',
   checking: 'Kontrollerar färg…',
   unavailable: 'Färgkontrollen är inte tillgänglig för den här bilden än.',
   mainColours: 'Huvudfärger',

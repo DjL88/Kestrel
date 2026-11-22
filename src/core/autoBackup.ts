@@ -62,7 +62,7 @@ export function backupName(projectId: string, now: Date): string {
 
 const BACKUP_FILE = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z_[a-f0-9]{32}\.kestrel\.json$/;
 
-/** Which old backups to delete so only the newest few are kept. Only files that look like Kite44 backups are ever named. */
+/** Which old backups to delete so only the newest few are kept. Only files that look like InFlight backups are ever named. */
 export function backupsToDelete(names: readonly string[], projectId: string, keep = KEEP_BACKUPS): string[] {
   const prefix = `${backupFolder(projectId)}/`;
   const ours = [...new Set(names)].filter((name) => name.startsWith(prefix) && BACKUP_FILE.test(name.slice(prefix.length))).sort();

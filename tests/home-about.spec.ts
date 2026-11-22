@@ -3,7 +3,7 @@ import packageMetadata from '../package.json' with { type: 'json' };
 
 test('home footer shows product-led About copy and current application version', async ({ page }) => {
   await page.goto('/');
-  const footer = page.locator('footer[aria-label="About Kite44"]');
+  const footer = page.locator('footer[aria-label="About InFlight"]');
   await expect(footer).toBeVisible();
   // About is a bar at the bottom of the screen; it opens on tap.
   await footer.getByRole('button', { name: 'About Kite44' }).click();

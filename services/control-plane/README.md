@@ -1,6 +1,6 @@
-# Kestrel control plane
+# InFlight control plane
 
-One small, optional service for the parts of Kestrel that need a server: licence activation with offline grants, a managed AI gateway (provider keys stay here), and a signed registry for models and desktop release notices. **Kestrel works fully offline without it.** Nothing here receives originals, catalogues or EXIF.
+One small, optional service for the parts of InFlight that need a server: licence activation with offline grants, a managed AI gateway (provider keys stay here), and a signed registry for models and desktop release notices. **InFlight works fully offline without it.** Nothing here receives originals, catalogues or EXIF.
 
 It is one Node process with one route table (`src/app.ts`). Zod schemas validate every request, and the same schemas generate `/openapi.json`. There are no microservices. The shared contract lives in `src/core/` and is used by the server and the app alike:
 

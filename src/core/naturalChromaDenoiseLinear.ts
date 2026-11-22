@@ -1,5 +1,5 @@
 /**
- * Kite44 TrueDetail research kernel for high-precision scene-linear RGB.
+ * InFlight TrueDetail research kernel for high-precision scene-linear RGB.
  *
  * Unlike the 8-bit preview prototype, this preserves signed/floating pixel values
  * (including highlight values above 1) and never converts to JPEG or 8-bit RGB.

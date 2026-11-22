@@ -1,3 +1,4 @@
+import horizontalLogo from '../assets/brand/logo/inflight-logo-horizontal-dark.svg';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { PhotoEditor, type EditorTab } from '../components/PhotoEditor';
 import { Filmstrip } from '../components/Filmstrip';
@@ -204,7 +205,7 @@ export function DemoEditorApp() {
   return (
     <div className="flex h-[100dvh] min-h-[520px] w-full flex-col overflow-hidden bg-[#111318] text-zinc-100">
       <header className="flex min-h-12 shrink-0 items-center gap-3 overflow-x-auto border-b border-white/10 bg-[#1a1d23] px-3 text-sm">
-        <strong className="font-semibold tracking-wide">Kite44</strong>
+        <img src={horizontalLogo} alt="InFlight" className="h-6 w-auto" />
         <span className="text-zinc-500">/</span><span className="font-semibold">Edit</span>
         <span className="ml-auto max-w-[35%] truncate text-xs text-zinc-400">{active?.meta.title ?? 'Selected photographs'}</span>
       </header>
@@ -251,10 +252,10 @@ export function DemoEditorApp() {
           </FilmstripDock>
         </div>
       ) : <div className="min-h-0 flex-1 p-6 text-sm text-zinc-300">
-        {adminMode && !token ? 'Sign in through the Kite44 admin console to manage examples.' : 'No published photographs are available yet.'}
+        {adminMode && !token ? 'Sign in through the InFlight admin console to manage examples.' : 'No published photographs are available yet.'}
       </div>}
       <p className="shrink-0 border-t border-white/10 bg-[#1a1d23] px-3 py-1 text-[11px] text-zinc-400">
-        Real Kite44 editor · fixed JPEG examples · no import or export · visitor changes are temporary
+        Real InFlight editor · fixed JPEG examples · no import or export · visitor changes are temporary
       </p>
     </div>
   );

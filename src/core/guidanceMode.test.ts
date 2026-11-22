@@ -7,7 +7,7 @@ test('Glide is the safe default for absent and invalid old preferences', () => {
   assert.equal(parseGuidanceMode(undefined), 'glide');
   assert.equal(parseGuidanceMode('back-seat-driver'), 'glide');
   assert.equal(parseGuidanceMode('auto'), 'glide');
-  assert.deepEqual(GUIDANCE_CHOICES.map((mode) => mode.label), ['Soar', 'Glide', 'Fly Solo']);
+  assert.deepEqual(GUIDANCE_CHOICES.map((mode) => mode.label), ['Auto Pilot', 'Co Pilot', 'Solo']);
 });
 test('Fly Solo never starts an unsolicited analysis even when finishing or exporting', () => {
   assert.equal(observeGuidance('solo', 'idle'), false);

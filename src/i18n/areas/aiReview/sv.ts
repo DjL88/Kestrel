@@ -4,7 +4,7 @@ import type { source } from './source';
 /** Swedish. DRAFT: written without a native speaker's check. */
 export const sv: AreaTranslation<typeof source> = {
   title: 'En andra bedömning från din egen AI',
-  intro: 'Valfritt. Använd ditt eget AI-konto, eller en modell på den här datorn, för att titta på färg och ljus i den här bilden. Kestrels egen färgkontroll ovan fungerar alltid utan den.',
+  intro: 'Valfritt. Använd ditt eget AI-konto, eller en modell på den här datorn, för att titta på färg och ljus i den här bilden. InFlights egen färgkontroll ovan fungerar alltid utan den.',
   ask: 'Fråga min egen AI',
   asking: 'Frågar din AI…',
   cancel: 'Avbryt',
@@ -29,8 +29,8 @@ export const sv: AreaTranslation<typeof source> = {
   invalidBaseUrl: "Använd HTTPS för fjärransluten AI eller http://localhost för AI på den här datorn. Ange inga nycklar i adressen.",
   save: 'Spara',
   consentTitle: 'Innan något skickas',
-  consentCloud: (host) => `Kite44 skickar en kopia av den här bilden, 1 024 pixlar på den längsta sidan, till ${host}. Den innehåller inte platsen, kamerauppgifter eller filnamnet. Din leverantör kan ta betalt för varje fråga.`,
-  consentLocal: (host) => `Kite44 skickar en kopia av den här bilden, 1 024 pixlar på den längsta sidan, till AI:n på ${host}, som finns på den här datorn. Ingenting lämnar din dator.`,
+  consentCloud: (host) => `InFlight skickar en kopia av den här bilden, 1 024 pixlar på den längsta sidan, till ${host}. Den innehåller inte platsen, kamerauppgifter eller filnamnet. Din leverantör kan ta betalt för varje fråga.`,
+  consentLocal: (host) => `InFlight skickar en kopia av den här bilden, 1 024 pixlar på den längsta sidan, till AI:n på ${host}, som finns på den här datorn. Ingenting lämnar din dator.`,
   agree: 'Jag godkänner',
   summary: 'Vad din AI säger',
   suggested: 'Föreslagna ändringar',
@@ -51,7 +51,7 @@ export const sv: AreaTranslation<typeof source> = {
   errors: {
     setup: 'Din AI är inte inställd än, eller så saknas samtycket.',
     key: 'Din AI säger att nyckeln är fel eller inte tillåten. Kontrollera den i ditt konto hos leverantören.',
-    offline: 'Du är offline. Kestrels egen färgkontroll fungerar ändå.',
+    offline: 'Du är offline. InFlights egen färgkontroll fungerar ändå.',
     timeout: 'Din AI tog för lång tid att svara. Försök igen om en stund.',
     refused: 'Din AI avböjde att titta på den här bilden.',
     unreadable: 'Svaret från din AI gick inte att läsa, så ingenting ändrades.',

@@ -64,7 +64,7 @@ export const de: AreaTranslation<typeof source> = {
     addFailed: 'Die Fotos konnten nicht hinzugefügt werden.',
     stoppedUnfinished: 'Vor dem Ende gestoppt',
     findingPhotos: 'Fotos im Ordner werden gesucht',
-    developingRaw: 'RAW-Dateien werden mit Kite44 entwickelt',
+    developingRaw: 'RAW-Dateien werden mit InFlight entwickelt',
     developStopped: 'Gestoppt; die übrigen Fotos behalten die Kameravorschau.',
     developed: (count) => `${count} entwickelt`,
   },
@@ -77,7 +77,7 @@ export const de: AreaTranslation<typeof source> = {
     addFailed: 'Die Fotos konnten nicht hinzugefügt werden. Wählen Sie die Dateien noch einmal aus.',
     noSupportedPhotos: 'Dieser Ordner enthält keine unterstützten Fotos.',
     folderUnreadable: 'Dieser Ordner konnte nicht gelesen werden.',
-    oneFolderPerProject: 'Legen Sie jeden Ordner in ein eigenes Projekt, damit Kite44 ihn sicher wieder verbinden kann.',
+    oneFolderPerProject: 'Legen Sie jeden Ordner in ein eigenes Projekt, damit InFlight ihn sicher wieder verbinden kann.',
     folderAddFailed: 'Der Ordner konnte nicht hinzugefügt werden. Wählen Sie ihn noch einmal aus.',
     folderUnreadableTryFiles: 'Der Ordner konnte nicht gelesen werden. Wählen Sie stattdessen Dateien aus.',
   },
@@ -104,7 +104,7 @@ export const de: AreaTranslation<typeof source> = {
     status: (folder, count) => `„${folder}“ wird beobachtet · ${plural(count, { one: `${count} neues Foto hinzugefügt`, other: `${count} neue Fotos hinzugefügt` })}`,
   },
   paid: {
-    dialogLabel: (feature) => `${feature} gehört zu Kite44 Pro`,
+    dialogLabel: (feature) => `${feature} gehört zu InFlight Pro`,
     autoCullPitch: 'Unterstützte Auswahl Ihrer besten Aufnahmen.',
     close: 'Schließen',
   },
@@ -119,8 +119,8 @@ export const de: AreaTranslation<typeof source> = {
   },
   notices: {
     temporaryOriginals: (count) => plural(count, {
-      one: 'Kite44 konnte ein Original nicht für das nächste Öffnen speichern. Sie können es jetzt verwenden. Behalten Sie Ihre Originaldatei: Eventuell müssen Sie sie nach dem erneuten Öffnen wieder auswählen. Projektsicherungen enthalten keine Originalfotos.',
-      other: `Kite44 konnte ${count} Originale nicht für das nächste Öffnen speichern. Sie können sie jetzt verwenden. Behalten Sie Ihre Originaldateien: Eventuell müssen Sie sie nach dem erneuten Öffnen wieder auswählen. Projektsicherungen enthalten keine Originalfotos.`,
+      one: 'InFlight konnte ein Original nicht für das nächste Öffnen speichern. Sie können es jetzt verwenden. Behalten Sie Ihre Originaldatei: Eventuell müssen Sie sie nach dem erneuten Öffnen wieder auswählen. Projektsicherungen enthalten keine Originalfotos.',
+      other: `InFlight konnte ${count} Originale nicht für das nächste Öffnen speichern. Sie können sie jetzt verwenden. Behalten Sie Ihre Originaldateien: Eventuell müssen Sie sie nach dem erneuten Öffnen wieder auswählen. Projektsicherungen enthalten keine Originalfotos.`,
     }),
     dismiss: 'Schließen',
   },
@@ -193,7 +193,7 @@ export const de: AreaTranslation<typeof source> = {
     remove: {
       title: 'Aus der Bibliothek entfernen?',
       confirm: 'Aus der Bibliothek entfernen',
-      disappears: (name) => `${name} verschwindet aus den Ansichten, Zählungen und Exporten von Kite44.`,
+      disappears: (name) => `${name} verschwindet aus den Ansichten, Zählungen und Exporten von InFlight.`,
       thisPhoto: 'Dieses Foto',
       notDeleted: 'Ihre Originaldatei wird nicht gelöscht.',
       bringBack: 'Sie können es über Arbeitsbereich-Optionen, Entfernte Fotos oder mit Rückgängig zurückholen.',
@@ -201,7 +201,7 @@ export const de: AreaTranslation<typeof source> = {
     autoAdjustKeepers: {
       title: 'Unbearbeitete Fotos zum Behalten automatisch anpassen?',
       confirm: 'Fotos zum Behalten anpassen',
-      what: 'Kite44 analysiert jedes unbearbeitete Foto zum Behalten auf diesem Gerät und passt Licht, Farbe und Tonwerte an. Bereits bearbeitete Fotos bleiben unverändert.',
+      what: 'InFlight analysiert jedes unbearbeitete Foto zum Behalten auf diesem Gerät und passt Licht, Farbe und Tonwerte an. Bereits bearbeitete Fotos bleiben unverändert.',
       eligible: (count) => `${photos(count)} kommen infrage. Die Aufgabe lässt sich abbrechen. Änderungen werden erst angewendet, wenn die Analyse fertig ist.`,
       safe: 'Nichts wird hochgeladen oder in Ihren Originaldateien verändert. Sie können das Ergebnis für jedes Foto rückgängig machen.',
     },

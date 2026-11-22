@@ -6,7 +6,7 @@ import type { PhotoEdit } from './photoEdits';
 /**
  * Offline photo advice, shown as a short "Try this" / "Auto" plus a one-word verdict, never as prose on the picture.
  *
- * Kite44 MEASURES (the histogram of what is on screen); a vision model may later supply `SceneContext` (is a dark frame
+ * InFlight MEASURES (the histogram of what is on screen); a vision model may later supply `SceneContext` (is a dark frame
  * deliberately low-key?). The model never supplies numbers: every suggestion is a bounded change to a real slider,
  * reversible through the normal edit history. Unknown stays unknown: with too little data the verdict is "unsure".
  */

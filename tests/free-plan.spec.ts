@@ -11,9 +11,9 @@ test('Free: natural Auto and basic Masks are available without Pro', async ({ pa
   await page.getByTestId('quick-edit-input').setInputFiles(photo());
   await expect(page.getByRole('tab', { name: 'Edit' })).toHaveAttribute('aria-selected', 'true', { timeout: 15000 });
   await page.getByRole('tab', { name: 'Auto' }).click();
-  await expect(page.getByRole('heading', { name: 'The Auto tab is part of Kite44 Pro' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'The Auto tab is part of InFlight Pro' })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Masks' }).click();
-  await expect(page.getByRole('heading', { name: 'Masks and subject detection is part of Kite44 Pro' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Masks and subject detection is part of InFlight Pro' })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Edit' }).click();
   await expect(page.getByRole('slider').first()).toBeVisible();
 });

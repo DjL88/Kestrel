@@ -1,5 +1,5 @@
 /**
- * Pure planning boundary for a future signed Kite44 data feed.
+ * Pure planning boundary for a future signed InFlight data feed.
  * It does not fetch, install or execute files. A transport MUST authenticate
  * the publisher signature before calling parseDataManifest on network input.
  */
