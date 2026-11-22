@@ -225,3 +225,38 @@ One workspace (no Library/Editor split), Task Manager wheel with a Completed tab
 8. **Relink** missing originals.
 9. **Hub actions**: rename, archive, delete, restore backup.
 10. **Species: top three** suggestions and edit subject kind and tags.
+
+## 17. Owner backlog, round 3 (22 Nov 2026): decisions and commitment
+
+The owner answered the ten "small things" and added items 11 to 27 plus three extras. **The frontend worker commits to all items below marked FE**; engine (E) and backend (B) items are handed over on issue #418. Order is the build order; each slice is small PRs behind `?v2`, checked as PASS, FAIL or NOT RUN.
+
+### Decisions recorded
+- **Set aside = unflagged** (no new decision value): a rejected photo reads as unflagged and is found under "Set aside" in the filter. Undo for every flag, reject, set aside and remove.
+- **Rating filter lives in the search popup**, not as a new bar.
+- **Zoom:** click the % number between - and + to jump to 100% (and back to Fit).
+- **Photo right-click menu and a tidy multi-select menu:** paste settings, apply Look, set aside, flag, rate.
+- **Species:** show the suggested name, **editable**; when the person says it is wrong, show the top few candidates to choose from. Unknown stays unknown.
+- **Formats:** several formats can be selected (shift+click) and an edit applies to all selected; with one selected it is an individual edit.
+- **Footer:** photo info is removed from the footer and kept only in the left tool.
+- **Co-pilot:** the tool is called Co-pilot, so the separate mode button by Settings goes (the flag stays); text is replaced by previews.
+
+### Slice 1: quick wins (FE)
+1 real histogram (replace the fake one) · 2 rating filter in the search popup · 3 photo right-click menu and `?` shortcut overlay · 4 reject and Set aside with undo · 5 remove and restore photos · 6 drag and drop and folder import · 7 click the zoom % to go to 100% · 8 relink missing originals · 9 tidy multi-select with right-click menu · 10 species editable, then top choices · 13 remove info from the footer · 14 bigger logo · 18 Compare greyed out in split mode, with a tooltip saying why.
+
+### Slice 2: the formats working area (FE)
+11 crop keeps the aspect ratio, drag corners, pinch to crop (saved in the recipe, used by export) · 12 per-format border: thickness and colour · 15 dot grid background so it looks like a working area · 16 split gives **two frames, each the full frame size** (the image spans 2x), with Rejoin · 17 a split shows on the All Formats board as **two adjoining photos**, can be split again, and **a split belongs to the selected photo only** (changing format does not carry it to other photos) · 19 multi-select formats for bulk edits.
+
+### Slice 3: Co-pilot and Adjust (FE, E)
+20 Co-pilot simplified with previews instead of paragraphs (FE; engine supplies up to three candidates) · 21 Adjust in two tabs: Curated Looks and Advanced Edits (FE) · 22 create and import your own Looks; a Look is a macro (masks, adjustments, denoise, vision-guided) (E: `src/engine/looks.ts`; FE: create, import, preview, apply).
+
+### Slice 4: overlays and export (FE, E, B)
+26 **overlays and watermarks must be visible on the image**: the preview app runs as Basic, where text and watermark are locked (Pro); the watermark was verified drawn with Pro, text overlay on the canvas still needs a test and a check (FE) · shared overlay renderer used by the canvas and the export (FE) · 23 Export: only configured drives plus Downloads; quality, size (longest edge), type; scope Current, All, All flagged (FE; see the Export screen design) · 24 templates: if a watermark or text template exists, apply it automatically in the right place, e.g. always create a duplicate group carrying the overlay (FE; E for the decision) · 25 save a custom overlay (layout and fonts) as a template (FE) · 27 field corrections in Settings: Make, Model, Lens text rewritten for overlays while keeping the original EXIF (e.g. "NIKON CORPORATION NIKON Z5_2" shows as "Nikon Z5ii"); a shared library in Firestore with a per-user override (FE settings, B Firestore library) · **social text**: the engine writes a short caption (image description, camera, hashtags) within the shortest character limit of the main platforms (limits are checked when built, they change), shown in Info with Copy to clipboard, and one for the whole project (E, FE; Pro, with consent where it uses a cloud model).
+
+### Slice 5: logos (FE)
+Logos for drives (Dropbox, Google Drive, OneDrive, NAS), social platforms and camera brands. **Third-party logos must be the official assets used under each brand's guidelines, not redrawn** (OneDrive, OpenAI and Amazon S3 still use neutral icons for that reason; camera brand logos need the same permission check). Until an official asset is added, the neutral icon stays.
+
+### Risks and open points
+- Split semantics (16, 17) change how size copies and the All Formats board store data (`createCropCopy` links); needs a short design note before code.
+- Crop and borders must be in the recipe and the export together, or the file will not match the canvas.
+- Social text and Looks that call a vision model are Pro and consent-gated; the Basic path is a plain template (camera, lens, settings, date) with no AI.
+- Firestore corrections library and any cloud call are backend work and need owner approval before anything is deployed.
