@@ -17,6 +17,7 @@ import BrandIcon from '../icons/BrandIcon';
 import CompareSplit from './CompareSplit';
 import {
   buildPreviewFilterCss,
+  cropPanLimits,
   clamp,
   detectOverlayOverflow,
   effectiveOutputSize,
@@ -165,14 +166,8 @@ export default function Canvas({
 
   const MAX_CROP_ZOOM = 8;
   /** How far the picture can be moved under the crop window (in % of the frame) before its edge shows. */
-  const panLimits = (zoom: number) => {
-    const imageAspect = photo.pixelSize ? photo.pixelSize.width / photo.pixelSize.height : 3 / 2;
-    const frame = artboardFrame(activeSize);
-    const frameAspect = frame.frameW / frame.frameH;
-    const widthRatio = imageAspect > frameAspect ? (imageAspect / frameAspect) * zoom : zoom; // picture width over frame width
-    const heightRatio = imageAspect > frameAspect ? zoom : (frameAspect / imageAspect) * zoom;
-    return { x: Math.max(0, (widthRatio - 1) / 2) * 100, y: Math.max(0, (heightRatio - 1) / 2) * 100 };
-  };
+  const panLimits = (size: SizePreset, zoom: number) =>
+    cropPanLimits(photo.pixelSize, size, zoom);
 
   const handleFramePointerDown = (
     e: React.PointerEvent<HTMLElement>,
@@ -282,7 +277,7 @@ export default function Canvas({
 
     if (drag.kind === 'pan') {
       // Move the picture under the crop window: 100% of the frame is 100 units, and it can go as far as the picture reaches.
-      const limits = panLimits(drag.crop?.zoom ?? 1);
+      const limits = panLimits(photo.sizes.find((size) => size.id === drag.sizeId) ?? activeSize, drag.crop?.zoom ?? 1);
       onUpdateCrop(photo.id, drag.sizeId, {
         panX: Math.round(clamp(drag.origA + (dx / width) * 100, -limits.x, limits.x)),
         panY: Math.round(clamp(drag.origB + (dy / height) * 100, -limits.y, limits.y)),
@@ -300,7 +295,7 @@ export default function Canvas({
       const zoom = clamp(drag.crop.zoom / Math.max(0.05, 1 - inward), 1, MAX_CROP_ZOOM);
       const anchors: Record<string, [number, number]> = { top: [0, 0.5], bottom: [0, -0.5], left: [0.5, 0], right: [-0.5, 0], tl: [0.5, 0.5], tr: [-0.5, 0.5], bl: [0.5, -0.5], br: [-0.5, -0.5] };
       const [ax, ay] = anchors[side] ?? [0, 0];
-      const limits = panLimits(zoom);
+      const limits = panLimits(photo.sizes.find((size) => size.id === drag.sizeId) ?? activeSize, zoom);
       onUpdateCrop(photo.id, drag.sizeId, {
         zoom: Number(zoom.toFixed(2)),
         panX: Math.round(clamp(drag.crop.panX + (drag.crop.zoom - zoom) * ax * 100, -limits.x, limits.x)),
