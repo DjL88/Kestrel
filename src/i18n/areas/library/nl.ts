@@ -383,6 +383,8 @@ export const nl: AreaTranslation<typeof source> = {
     showTab: "Tonen",
     hideTab: "Verbergen",
     dockLabel: "Vastzetten",
+    dockLeft: 'Links vastzetten',
+    dockRight: 'Rechts vastzetten',
     undockLabel: "Losmaken",
     undockTab: (title) => `Losmaken ${title}`,
     undockTabHelp: "Open dit tabblad in een apart verplaatsbaar paneel waarvan het formaat kan worden aangepast",

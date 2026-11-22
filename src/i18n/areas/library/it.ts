@@ -380,6 +380,8 @@ export const it: AreaTranslation<typeof source> = {
     showTab: "Mostra",
     hideTab: "Nascondi",
     dockLabel: "Aggancia",
+    dockLeft: 'Aggancia a sinistra',
+    dockRight: 'Aggancia a destra',
     undockLabel: "Sgancia",
     undockTab: (title) => `Sgancia ${title}`,
     undockTabHelp: "Apri questa scheda in un pannello separato, spostabile e ridimensionabile",
