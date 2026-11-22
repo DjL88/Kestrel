@@ -6,6 +6,7 @@ import {
   effectiveOutputSize,
   buildHistogramData,
   buildPreviewFilterCss,
+  cropPanLimits,
   computeMultiSelection,
   detectOverlayOverflow,
   filterPhotos,
@@ -267,4 +268,24 @@ test('fitting scales every row together, just enough, and leaves text that alrea
   assert.ok(Math.abs(fitted[0].sizePx / fitted[1].sizePx - 2) < 0.2, 'the rows keep their proportions');
   const small = { textLayoutMode: 'as-is', textOffsetX: 0, rows: [{ ...base, id: 'a', sizePx: 12 }] } as never;
   assert.equal(fitOverlayRows(small, photo)[0].sizePx, 12);
+});
+
+test('crop pan bounds use each format aspect rather than the active format', () => {
+  const source = { width: 6000, height: 4000 };
+  const landscape = cropPanLimits(source, { width: 3000, height: 2000 }, 1);
+  const portrait = cropPanLimits(source, { width: 1080, height: 1350 }, 1);
+  assert.deepEqual(landscape, { x: 0, y: 0 });
+  assert.ok(portrait.x > 0);
+  assert.equal(portrait.y, 0);
+  assert.deepEqual(cropPanLimits(source, { width: 1080, height: 1350 }, 2), {
+    x: ((1.5 / 0.8) * 2 - 1) * 50,
+    y: 50,
+  });
+});
+
+test('crop pan bounds reject invalid zoom and missing source dimensions safely', () => {
+  const bounds = cropPanLimits(undefined, { width: 1500, height: 1000 }, Number.NaN);
+  assert.deepEqual(bounds, { x: 0, y: 0 });
+  const invalid = cropPanLimits({ width: 0, height: 0 }, { width: 0, height: 0 }, -10);
+  assert.ok(Number.isFinite(invalid.x) && Number.isFinite(invalid.y));
 });

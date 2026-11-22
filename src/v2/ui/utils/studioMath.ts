@@ -426,3 +426,22 @@ export function effectiveOutputSize(
   const width = Math.max(1, Math.round(usableWidth));
   return { width, height: Math.max(1, Math.round(width / aspect)), capped: true, ...requested };
 }
+
+/** Bounds for moving the source under one format's fixed-aspect crop window.
+ * Always use the format being dragged, not the currently selected format.
+ * Values are percentages of the format frame; a source with unknown dimensions
+ * uses the preview's 3:2 assumption, never claims measured source geometry.
+ */
+export function cropPanLimits(
+  pixelSize: { width: number; height: number } | undefined,
+  size: Pick<SizePreset, 'width' | 'height'>,
+  zoom: number
+): { x: number; y: number } {
+  const sourceAspect = pixelSize && pixelSize.width > 0 && pixelSize.height > 0
+    ? pixelSize.width / pixelSize.height : 3 / 2;
+  const frameAspect = size.width > 0 && size.height > 0 ? size.width / size.height : sourceAspect;
+  const safeZoom = Number.isFinite(zoom) ? Math.max(1, zoom) : 1;
+  const widthRatio = sourceAspect > frameAspect ? (sourceAspect / frameAspect) * safeZoom : safeZoom;
+  const heightRatio = sourceAspect > frameAspect ? safeZoom : (frameAspect / sourceAspect) * safeZoom;
+  return { x: Math.max(0, (widthRatio - 1) / 2) * 100, y: Math.max(0, (heightRatio - 1) / 2) * 100 };
+}
