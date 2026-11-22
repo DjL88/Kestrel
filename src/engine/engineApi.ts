@@ -2,23 +2,30 @@ import { runDenoiseAction, type DenoiseActionInput, type DenoiseActionResult } f
 import { runUpscaleAction, type UpscaleActionInput, type UpscaleActionResult } from './upscaleAction';
 import { runSubjectDetectAction, type SubjectDetectActionInput, type SubjectDetectActionResult } from './subjectDetectAction';
 import { runMaskAction, type MaskActionInput, type MaskActionResult } from './maskAction';
+import { runRawDevelopAction, type RawDevelopActionInput, type RawDevelopActionResult } from './rawDevelopAction';
 import type { EngineRunner } from './types';
 
 export type EngineRequest =
   | ({ capability: 'denoise' } & DenoiseActionInput)
   | ({ capability: 'upscale' } & UpscaleActionInput)
   | ({ capability: 'subject-detect' } & SubjectDetectActionInput)
-  | ({ capability: 'mask' } & MaskActionInput);
+  | ({ capability: 'mask' } & MaskActionInput)
+  | ({ capability: 'raw-develop' } & RawDevelopActionInput);
 
 export type EngineResponse =
   | { capability: 'denoise'; result: DenoiseActionResult }
   | { capability: 'upscale'; result: UpscaleActionResult }
   | { capability: 'subject-detect'; result: SubjectDetectActionResult }
-  | { capability: 'mask'; result: MaskActionResult };
+  | { capability: 'mask'; result: MaskActionResult }
+  | { capability: 'raw-develop'; result: RawDevelopActionResult };
 
 type DeviceResponse = EngineResponse & { runner: 'device' };
-type CloudRequest = Exclude<EngineRequest, { capability: 'subject-detect' }>;
-type CloudResponse = Exclude<EngineResponse, { capability: 'subject-detect' }>;
+// 'subject-detect' has no cloud contract yet (no `runner` field accepted below it). 'raw-develop' has no
+// `result.verification` to check at the cloud-fallback gate (rawDevelopAction.ts explains why: there is no
+// "before" Pixels buffer to judge a fresh decode against) and no cloud develop contract exists either - both
+// stay device-only until a real cloud path for them is built.
+type CloudRequest = Exclude<EngineRequest, { capability: 'subject-detect' | 'raw-develop' }>;
+type CloudResponse = Exclude<EngineResponse, { capability: 'subject-detect' | 'raw-develop' }>;
 
 export interface CloudProcessingAttempt {
   online: boolean;
@@ -41,7 +48,7 @@ export async function runEngineCapability(
     ? AbortSignal.any([deviceSignal, cloud.signal])
     : deviceSignal ?? cloud?.signal;
   signal?.throwIfAborted();
-  if (request.capability !== 'subject-detect' && cloud?.online && cloud.signedIn && cloud.userConsent) {
+  if (request.capability !== 'subject-detect' && request.capability !== 'raw-develop' && cloud?.online && cloud.signedIn && cloud.userConsent) {
     try {
       const response = await cloud.run(request, signal);
       signal?.throwIfAborted();
@@ -77,6 +84,10 @@ async function runDeviceCapability(request: EngineRequest, signal?: AbortSignal)
     case 'mask': {
       const { capability, ...input } = request;
       return { capability, result: await runMaskAction(input) };
+    }
+    case 'raw-develop': {
+      const { capability, ...input } = request;
+      return { capability, result: await runRawDevelopAction(input) };
     }
   }
 }
