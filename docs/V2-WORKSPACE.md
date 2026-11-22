@@ -349,8 +349,8 @@ Rotate with [ and ]. Presets: InFlight, Lightroom, Capture One, Photo Mechanic. 
 8. **Firestore metadata sync** (needs owner approval to deploy).
 9. **Editing depth**, proposed and not yet decided: colour mixer and tone curve first (biggest visible gap against Lightroom and Capture One), then straighten and perspective, healing, lens correction, dehaze, vignette and grain; panorama and stacking later. Copy and paste settings and Lightroom catalogue import are expected by switchers.
 
-### 19.4 Questions still with the owner
-1. Is the brand kit Basic or Pro?
-2. Does the email licence replace the existing key entry, or sit beside it?
-3. Approve switching on Firestore metadata sync (cost, region, privacy text) when the backend slice is ready?
-4. Which of the editing-depth items in 19.3 step 9 are wanted, and in what order?
+### 19.4 Owner answers (22 Nov 2026)
+1. **Brand kit: Pro** (flag `overlay.brandkit`, Basic keeps the plain InFlight overlay).
+2. **Email licence replaces key entry.** Risk to handle in the same slice: existing `KESTREL1` keys must keep working until each holder has been migrated to an email account, and a migration path must exist before key entry is removed (never lock out a paying owner; offline grants keep working). Needs a short migration design first.
+3. **Firestore metadata sync: approved, opt-in only.** Ratings, flags, tags and recipes through the allowlisted serialiser; no images or paths. The owner still approves the actual deploy, region and privacy text before it is switched on.
+4. **Editing depth: all four groups wanted**, in this order: colour mixer and tone curve; straighten and perspective; healing and spot removal (non-generative); lens correction, dehaze, vignette and grain (lens correction waits for the signed lens database). Each needs its own design note and engine support in `PhotoEdit` and the renderer.
