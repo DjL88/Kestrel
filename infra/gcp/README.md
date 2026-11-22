@@ -323,3 +323,7 @@ Before enabling it, build and publish an image from a commit containing `src/com
 - [ECB reference rates](https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html)
 - [ONS all-items CPI index](https://www.ons.gov.uk/economy/inflationandpriceindices/timeseries/d7bt)
 - [Scheduling Cloud Run jobs](https://docs.cloud.google.com/run/docs/execute/jobs-on-schedule)
+
+## Managed Gemini gateway key (optional; plan only, not applied)
+
+The gateway code (`/v1/ai/*`: consent each time plus a revocable standing preference, metadata-free JPEG up to 1024 px, per-account quota in Firestore, kill switch) is already in the control plane and answers `AI_NOT_CONFIGURED` without a key. `gemini_gateway_enabled` (default `false`, so no plan change) creates the empty secret `kcp-gemini-api-key`, lets only the control plane read it and mounts it as `KCP_GEMINI_API_KEY`. **You** add the key value (`gcloud secrets versions add kcp-gemini-api-key --project kestrel-hosting --data-file=-`, paste, Ctrl-D) and apply; that starts per-call Gemini charges. Review first: `terraform -chdir=infra/gcp plan -var gemini_gateway_enabled=true -var control_plane_image=<current image>` should show one secret, one IAM member and a new service revision with one extra variable. Nothing has been applied or checked with Terraform here.

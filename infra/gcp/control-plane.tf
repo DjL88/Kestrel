@@ -111,6 +111,28 @@ resource "google_secret_manager_secret_iam_member" "licence_private_key" {
   member    = "serviceAccount:${google_service_account.control_plane.email}"
 }
 
+# ---- Managed Gemini gateway key (owner's key; container only, the value is added with gcloud) ------------------------
+# Off by default. Mounted only while var.gemini_gateway_enabled is true; only this service's account can read it.
+resource "google_secret_manager_secret" "gemini_api_key" {
+  count     = var.gemini_gateway_enabled ? 1 : 0
+  secret_id = "kcp-gemini-api-key"
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+  depends_on = [google_project_service.enabled]
+}
+
+resource "google_secret_manager_secret_iam_member" "gemini_api_key" {
+  count     = var.gemini_gateway_enabled ? 1 : 0
+  secret_id = google_secret_manager_secret.gemini_api_key[0].id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.control_plane.email}"
+}
+
 # ---- The service (created once an image exists) -------------------------------------------------------------------
 resource "google_cloud_run_v2_service" "control_plane" {
   count               = var.control_plane_image == "" ? 0 : 1
@@ -209,6 +231,18 @@ resource "google_cloud_run_v2_service" "control_plane" {
           value_source {
             secret_key_ref {
               secret  = google_secret_manager_secret.licence_private_key.secret_id
+              version = "latest"
+            }
+          }
+        }
+      }
+      dynamic "env" {
+        for_each = var.gemini_gateway_enabled ? [1] : []
+        content {
+          name = "KCP_GEMINI_API_KEY"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.gemini_api_key[0].secret_id
               version = "latest"
             }
           }

@@ -82,3 +82,9 @@ variable "apple_client_ids" {
   type        = list(string)
   default     = []
 }
+
+variable "gemini_gateway_enabled" {
+  description = "Mount the owner's Gemini API key (secret kcp-gemini-api-key) into the control plane so /v1/ai/* works. Off: the routes answer AI_NOT_CONFIGURED and nothing is created. Adding the key value and turning this on is the owner's decision (it starts per-call Gemini charges)."
+  type        = bool
+  default     = false
+}
