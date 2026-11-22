@@ -453,6 +453,7 @@ function createStubPhotos(): Photo[] {
       speciesLabel: base.species,
       category: base.category,
       sharpnessScore: 84 + ((i * 7) % 15),
+      tier: i % 5 === 0 ? 'best' : i % 3 === 0 ? 'better' : i % 7 === 0 ? 'good' : null,
       exif: {
         camera: base.camera,
         lens: base.lens,

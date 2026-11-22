@@ -463,6 +463,15 @@ export default function Filmstrip({
                         }`}
                       />
                       {/* Tile state word (always readable text, never colour alone) */}
+                      {photo.tier && (
+                        <span
+                          data-testid="tier-badge"
+                          title={`${STRINGS.tier.label}: ${STRINGS.tier[photo.tier]}`}
+                          className="absolute right-1.5 bottom-1.5 rounded border border-[var(--brand-accent-border)] bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[9px] font-semibold text-white"
+                        >
+                          {STRINGS.tier[photo.tier]}
+                        </span>
+                      )}
                       {(photo.state !== 'ready' || !calmView) && (
                         <span
                           className={`absolute left-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[9px] font-semibold ${

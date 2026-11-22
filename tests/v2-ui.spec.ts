@@ -265,3 +265,23 @@ test('?v2 on the Free plan the text overlay shows the Pro badge instead of its c
   await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
   await expect(root.getByText(/Part of InFlight Pro\. Basic keeps/).first()).toBeVisible();
 });
+
+test('?v2 shows the engine ranking as a word, and says "Not ranked yet" rather than guessing', async ({ page }) => {
+  await page.goto('/?v2&stub=1&autostart=1');
+  const root = page.locator('.inflight-v2');
+  await expect(root.getByTestId('tier-badge').first()).toBeVisible();
+  await expect(root.getByTestId('tier-badge').filter({ hasText: /^Best$/ }).first()).toBeVisible();
+  // The real catalogue has no engine ranking wired yet: a photo shows "Not ranked yet", never a made-up tier.
+  await page.goto('/?v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Rank check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const image = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 200; c.height = 140; const x = c.getContext('2d')!; x.fillStyle = '#586b82'; x.fillRect(0, 0, 200, 140); return c.toDataURL('image/png').split(',')[1]; });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'rk-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  await expect(root.getByTestId('tier-badge')).toHaveCount(0);
+  await root.getByRole('button', { name: 'Info', exact: true }).first().click();
+  await expect(root.getByText('Not ranked yet')).toBeVisible();
+});
