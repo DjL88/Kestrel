@@ -63,6 +63,22 @@ async function pickImageFile(): Promise<File | null> {
   });
 }
 
+/** Pick a local folder through the webview's directory input. Import uses the same verified catalogue loader. */
+async function pickFolderFiles(): Promise<File[] | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.multiple = true; input.accept = PHOTO_ACCEPT;
+    input.setAttribute('webkitdirectory', '');
+    input.hidden = true;
+    input.setAttribute('data-testid', 'v2-folder-input');
+    document.body.appendChild(input);
+    const done = (files: File[] | null) => { input.remove(); resolve(files); };
+    input.addEventListener('change', () => done(input.files?.length ? Array.from(input.files) : null));
+    input.addEventListener('cancel', () => done(null));
+    input.click();
+  });
+}
+
 async function pickFiles(): Promise<Array<File | PickedPhoto> | null> {
   if (isDesktopApp()) {
     const chosen = await pickPhotosNatively();
@@ -423,11 +439,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       .finally(() => deepVisionInFlight.current.delete(photoId));
   }, []);
 
-  const importPhotos = useCallback(async () => {
+  const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null) => {
     const target = stateRef.current;
     if (!target) return;
     if (importController.current) { setNotice('Photos are already being added. Wait for them to finish, or stop that task first.'); return; }
-    const picks = await pickFiles();
+    const picks = suppliedPicks === undefined ? await pickFiles() : suppliedPicks;
     if (!picks?.length) return;
     const files = picks.map((pick) => (pick instanceof File ? pickedFromFile(pick) : pick));
     const existing = new Set(target.frames.filter((frame) => !frame.removedAt).map((frame) => frame.stableKey));
@@ -520,6 +536,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       shoot: { ...current.shoot, lastUpdatedAt: Date.now() },
     })),
     importPhotos: () => { void importPhotos(); },
+    importFolder: () => { void pickFolderFiles().then((files) => { if (files?.length) void importPhotos(files); }); },
+    importDroppedPhotos: (files) => { if (files.length) void importPhotos(files); },
     runAutoCull: () => { void runAutoCull(); },
     applyAssistSuggestion: (photoId) => applyAuto(photoId),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),

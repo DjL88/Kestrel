@@ -251,6 +251,18 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
     <div
       className="inflight-v2 fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
       data-v2-theme={store.settings.theme}
+      onDragOver={(e) => {
+        if (store.screen === 'editor' && Array.from(e.dataTransfer.types).includes('Files')) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        }
+      }}
+      onDrop={(e) => {
+        if (store.screen !== 'editor' || !Array.from(e.dataTransfer.types).includes('Files')) return;
+        e.preventDefault();
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length) actions.importDroppedPhotos(files);
+      }}
       onContextMenu={(e) => {
         // Suppress native browser context menu inside the studio workspace
         const target = e.target as HTMLElement | null;
@@ -423,6 +435,7 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
                 onPasteRecipe={actions.pasteRecipe}
                 onApplyLook={actions.applyLook}
                 onImport={actions.importPhotos}
+                onImportFolder={actions.importFolder}
                 onRunAutoCull={actions.runAutoCull}
                 onExportSelected={() => actions.setExportOpen(true)}
               />

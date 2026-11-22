@@ -425,6 +425,8 @@ export interface WorkspaceActions {
   toggleFlag: (photoIds: string[]) => void;
   setRating: (photoIds: string[], rating: number) => void;
   importPhotos: () => void;
+  importFolder: () => void;
+  importDroppedPhotos: (files: File[]) => void;
   runAutoCull: () => void;
   reconnectOriginal: (photoId: string) => void;
   toggleDemoUnavailable: () => void;
