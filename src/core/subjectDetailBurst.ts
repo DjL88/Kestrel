@@ -51,10 +51,11 @@ const eyeWithinSubject = (e: SelectEvidence): boolean => {
   if (!box(e.subjectBox)) return false;
   const eye = e.eyeBox;
   const subject = e.subjectBox;
-  const cx = eye.x + eye.width / 2;
-  const cy = eye.y + eye.height / 2;
-  return cx >= subject.x && cy >= subject.y &&
-    cx <= subject.x + subject.width && cy <= subject.y + subject.height;
+  // Require the entire observed eye region, not merely its centre, inside
+  // the subject. A straddling eye box is ambiguous and cannot boost ranking.
+  return eye.x >= subject.x && eye.y >= subject.y &&
+    eye.x + eye.width <= subject.x + subject.width &&
+    eye.y + eye.height <= subject.y + subject.height;
 };
 const cropAround = (b: NormalisedBox): NormalisedBox => {
   const side = Math.min(1, Math.max(0.08, Math.max(b.width, b.height) * 2.5));
