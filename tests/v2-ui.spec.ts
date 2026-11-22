@@ -625,6 +625,9 @@ test('?v2 Settings storage uses the shared connections (NAS, cloud drives and th
   await expect(kinds.getByText(/Dropbox/).first()).toBeVisible();
   // Dropbox and Google Drive draw their marks (an svg), next to their written names.
   expect(await kinds.locator('svg').count()).toBeGreaterThan(3);
+  // OneDrive shows Microsoft's own logo as a picture, not a plain cloud.
+  await expect(kinds.locator('img').first()).toBeVisible();
+  expect(await kinds.locator('img').first().evaluate((img: HTMLImageElement) => img.naturalWidth > 0)).toBe(true);
   await kinds.getByText(/NAS or server over WebDAV/).click();
   await expect(root.getByRole('button', { name: /Test|Connect|Save/ }).first()).toBeVisible();
 });
