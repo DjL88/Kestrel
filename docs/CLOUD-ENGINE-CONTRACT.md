@@ -30,6 +30,10 @@ Server enforcement on every create and start: consent, configured, kill switch (
 
 Device is always the fallback, so a capability never becomes unavailable because the cloud is. Record `runner` in the task detail as `runEngineTask` already does.
 
+## Runner design note (22 Nov 2026)
+
+The runner is a Cloud Run **job**, started by the control plane on `start` and reading `inputs/<jobId>` from the private bucket; it writes `results/<jobId>` (or an empty `failed/<jobId>`). Adapters exist (`services/control-plane/src/gcsAdapters.ts`) but are not wired or deployed. A job still `running` after a maximum time should be treated as failed and refunded (planned, not built).
+
 ## Not done
 
 Real Google Cloud Storage runner and signer, wiring the Firestore ledger into `server.ts`, and the runner image that does the ONNX work: all behind the owner's approval ([BACKEND-OWNER-RUNBOOK.md](BACKEND-OWNER-RUNBOOK.md)). No capability's cloud implementation has been measured (CLOUD-PROCESSING.md). No end-to-end test exists against the engine; the engine side of this contract is not built.

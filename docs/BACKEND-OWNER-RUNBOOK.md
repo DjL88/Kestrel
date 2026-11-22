@@ -64,3 +64,24 @@ The control plane service is not changed by the cloud-processing or safe-copy Te
 ## 6. Known gaps (nobody has built these)
 
 Reservations in safe copy that never commit still count against quota (needs a sweep); chunked upload for originals over 500 MB; a daily cap and export for the learning signal; the country to region table; checking object size and SHA-256 against the real model file on the server (only the release script and the app do that); Firebase Auth records are not region-pinned (decided 21 Nov); Google's physical deletion timing and retention are unverified.
+
+## 7. Handover for the next backend worker (written 22 Nov 2026, near the usage limit)
+
+**Owner approval on record:** a £20 spend ceiling and "go ahead" to build the real adapters and wire them. Read as: **build and test code only.** Nothing may be applied, deployed, given a secret or created in Google Cloud without a separate explicit go-ahead that names what to switch on. Terraform and the emulator suite were never run by anyone.
+
+**Merged since section 1:** [#895](https://github.com/DjL88/Kestrel/pull/895) spend guard (`spendGuard.ts`; hard monthly ceiling on Gemini calls and cloud jobs, reserved before and refunded after; memory and Firestore; not yet wired in `server.ts`, so `options.spend` is unset in production). Plus the GCS adapters PR (`gcsAdapters.ts`: `GcsSafeCopyStorage`, `GcsCloudRunner`, `CloudRunJobTrigger`, `metadataAccessToken`; fake-bucket tests only; unwired).
+
+**Still to build, in this order (each a small PR, tests first):**
+1. **Wire `server.ts`** (only when `KCP_STORE=firestore`; each feature stays off, so 503, unless its env is set). Suggested env: `KCP_CLOUD_PROCESSING_BUCKET` plus `KCP_CLOUD_RUNNER_JOB` (`projects/<p>/locations/europe-west2/jobs/<name>`) builds `GcsCloudRunner` + `FirestoreCloudLedger`; `KCP_SAFE_COPY_BUCKET` builds `GcsSafeCopyStorage` + `FirestoreSafeCopyCatalog`; `KCP_LEARNING_ENABLED=1` builds `FirestoreLearningSink`; `KCP_MONTHLY_SPEND_CEILING_PENCE` (default 1500, i.e. £15 metered, leaving headroom under the approved £20), `KCP_CLOUD_JOB_PENCE`, `KCP_AI_CALL_PENCE`, `KCP_CLOUD_JOBS_PER_PERIOD`, `KCP_SAFE_COPY_BYTES_QUOTA`. Put it in a testable `wiring.ts`; test that no env gives no features. Pence estimates are **placeholders**, not Google prices.
+2. **Stuck-job watchdog.** A runner job that crashes writes no marker, so `GET /v1/cloud/jobs/:id` would say `running` forever and its spend would never be refunded. Add a max run time (default 15 minutes) in the status handler: past it, mark `failed`, delete the input, refund quota and spend once.
+3. **Fix the merged Terraform.** `infra/gcp/cloud-processing.tf` (#874) defines the runner as a Cloud Run **service**. The control plane is CPU-throttled once a request returns, so the runner must be a Cloud Run **job** that `CloudRunJobTrigger` starts (`:run` with `KCR_JOB_ID` and `KCR_KIND` env overrides). Replace the service, its invoker binding and the request-log exclusion with `google_cloud_run_v2_job` plus a job-level IAM binding for the control plane. **UNVERIFIED:** which role grants `run.jobs.runWithOverrides` (I believe `roles/run.developer`, not `run.invoker`). Add switch-gated env vars to the control plane service (`KCP_*` above), and keep a default plan showing no change.
+4. **The runner job itself does not exist** (no image, no ONNX code). Contract: reads `inputs/<KCR_JOB_ID>` from `KCR_INPUT_BUCKET`, writes `results/<id>` on success or an empty `failed/<id>` on failure, deletes nothing else, logs no payload or file names.
+5. **Run the Firestore emulator suite** (`npm run test:emulator` in `services/control-plane`; `java` and the `firebase` CLI are on the owner's Mac). Never run.
+6. **Engine side** (not this worker): `EngineRunner` needs a `'cloud-processing'` value; client for `docs/CLOUD-ENGINE-CONTRACT.md`; end-to-end test.
+
+**Gotchas that cost time:**
+- Many PRs append rows to the same places (`docs/ROADMAP.md`, `services/control-plane/README.md`, `infra/gcp/variables.tf`, `services/control-plane/test/helpers.ts`, `services/control-plane/src/app.ts` imports, options, schemas and route block). Branch from current `main`, merge small and often, and expect a union merge.
+- GitHub **auto-closes a stacked PR** when its base branch is deleted on merge (#873 became #888). Retarget dependents to `main` first, or merge without `--delete-branch`.
+- In zsh `$VAR:path` is a modifier: write `${VAR}:path`. macOS has no `timeout`; use the test runner's `--test-timeout --test-force-exit`. Force-pushing was blocked by the permission classifier: push a normal merge commit instead.
+- A failing assertion in a test harness `setup` can leave a server open and hang the run; use `--test-force-exit` to see the failure.
+- Never wipe a file with `git show ref:path > file` when `ref:path` may be wrong: it truncates it.
