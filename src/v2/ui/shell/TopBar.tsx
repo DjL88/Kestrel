@@ -101,7 +101,7 @@ export default function TopBar({
 
   return (
     <header
-      className="relative z-40 flex h-[var(--topbar-height)] shrink-0 items-center justify-between gap-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 md:px-4"
+      className="relative z-40 flex h-[var(--topbar-height)] shrink-0 items-center justify-between gap-1 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 md:gap-4 md:px-4"
       aria-label="InFlight studio header"
     >
       {/* Left zone: Back button + InFlight logo + File / Edit / View desktop menus */}
@@ -119,7 +119,7 @@ export default function TopBar({
         <div className="h-5 w-px bg-[var(--border-subtle)] shrink-0" aria-hidden="true" />
 
         <div className="flex items-center px-1 shrink-0">
-          <BrandLogo height={38} />
+          <BrandLogo height={38} className="h-auto w-[92px] md:w-[124px]" />
         </div>
 
         {/* Desktop menus: File, Edit, View */}
@@ -325,12 +325,29 @@ export default function TopBar({
         </span>
       </div>
 
-      {/* Right zone: Assist Mode switch (Solo / Co-pilot / Auto-pilot) + Export button */}
-      <div className="flex items-center gap-2 md:gap-3 shrink-0">
+      <div className="flex shrink-0 items-center gap-1 md:gap-3">
+        <div role="group" aria-label="Edit history" className="flex md:hidden">
+          {([
+            { icon: 'undo', label: STRINGS.topBar.editActions.undo, enabled: canUndo, action: onUndo },
+            { icon: 'refresh', label: STRINGS.topBar.editActions.redo, enabled: canRedo, action: onRedo },
+          ] as const).map(({ icon, label, enabled, action }) => (
+            <button
+              key={icon}
+              type="button"
+              aria-label={label}
+              title={label}
+              disabled={!enabled}
+              onClick={action}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] disabled:opacity-40"
+            >
+              <BrandIcon name={icon} size={17} />
+            </button>
+          ))}
+        </div>
         <button
           type="button"
           onClick={onExport}
-          className="inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-3.5 text-xs font-semibold text-[var(--text-on-accent)] transition-colors hover:bg-[var(--brand-accent-hover)] whitespace-nowrap shrink-0"
+          className="inline-flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-2.5 text-xs font-semibold text-[var(--text-on-accent)] transition-colors hover:bg-[var(--brand-accent-hover)] md:h-9 md:px-3.5"
         >
           <BrandIcon name="export" size={15} />
           <span>{STRINGS.topBar.exportButton}</span>

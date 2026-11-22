@@ -34,5 +34,6 @@ export const loadUi = (): SavedUi => { try { return parseSavedUi(window.localSto
 export const saveUi = (ui: SavedUi): void => { try { window.localStorage.setItem(KEY, JSON.stringify(ui)); } catch { /* the choices last for this session */ } };
 
 export function mergeSettings(base: WorkspaceSettings, saved: SavedUi['settings'], patch: Partial<WorkspaceSettings> = {}): WorkspaceSettings {
-  return { ...base, ...saved, ...patch };
+  // Connections in the sample workspace do not reflect the device's authorised destinations.
+  return { ...base, ...saved, storageConnectors: [], ...patch };
 }

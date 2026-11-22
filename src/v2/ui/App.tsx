@@ -41,6 +41,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   accountPanel?: React.ReactNode;
 } = {}) {
   const { store, actions } = useStore();
+  const { setActivePanel } = actions;
+  const hasOverlays = store.features.overlayText || store.features.watermarkCustom;
   const [shortcutGuideOpen, setShortcutGuideOpen] = useState(false);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
@@ -51,13 +53,13 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
     const mq = window.matchMedia('(max-width: 767px)');
     const onChange = (e: MediaQueryListEvent) => {
       setIsMobile(e.matches);
-      if (e.matches) actions.setActivePanel(null);
+      if (e.matches) setActivePanel(null);
     };
     setIsMobile(mq.matches);
-    if (mq.matches) actions.setActivePanel(null);
+    if (mq.matches) setActivePanel(null);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
-  }, [actions]);
+  }, [setActivePanel]);
 
   const activePhoto =
     store.photos.find((p) => p.id === store.activePhotoId) ?? store.photos[0] ?? null;
@@ -327,7 +329,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
           <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''}`}>
             <Rail
               hand={store.settings.hand}
-              hiddenPanels={!store.features.overlayText && !store.features.watermarkCustom ? ['overlays'] : []}
+              hiddenPanels={hasOverlays ? [] : ['overlays']}
               assistMode={store.assistMode}
               activePanel={store.activePanel}
               panels={store.panels}
@@ -492,12 +494,13 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                   { id: 'overlays', label: 'Overlays', icon: 'overlay' as const },
                   { id: 'assist', label: 'Assist', icon: 'assist' as const },
                 ] as const
-              ).map((item) => {
+              ).filter((item) => item.id !== 'overlays' || hasOverlays).map((item) => {
                 const active = store.activePanel === item.id;
                 return (
                   <button
                     key={item.id}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => actions.setActivePanel(item.id)}
                     className={`flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 rounded-[var(--radius-sm)] text-[10px] font-medium ${
                       active ? 'text-[var(--brand-accent)]' : 'text-[var(--text-secondary)]'
