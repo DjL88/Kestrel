@@ -577,17 +577,19 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   // per-photo pass above. Wired to the real engine (src/engine/subjectDetectAction.ts, lookSuggestions.ts)
   // via deepVisionReview.ts. Result is shown as a plain-text notice for now, not yet an AssistSuggestion.
   const deepVisionInFlight = useRef(new Set<string>());
+  const [reviewingIds, setReviewingIds] = useState<string[]>([]);
   const runDeepVisionReviewAction = useCallback((photoId: string) => {
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
     if (!frame || deepVisionInFlight.current.has(photoId)) return;
     deepVisionInFlight.current.add(photoId);
+    setReviewingIds((current) => [...current, photoId]);
     const task = tasks.start('Running a deep vision review');
     runDeepVisionReview(frame, provider.current!).then((result) => {
       if (!result) { task.finish('Could not run a deep review on this photo.'); setNotice('Could not run a deep review on this photo.'); return; }
       task.finish(result.summary);
       setNotice(result.summary);
     }, () => { task.fail('Deep vision review failed.'); setNotice('The deep vision review failed.'); })
-      .finally(() => deepVisionInFlight.current.delete(photoId));
+      .finally(() => { deepVisionInFlight.current.delete(photoId); setReviewingIds((current) => current.filter((id) => id !== photoId)); });
   }, []);
 
   const importPhotos = useCallback(async (suppliedPicks?: Array<File | PickedPhoto> | null) => {
@@ -864,6 +866,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     photos,
     activePhotoId: activeId,
     selectedPhotoIds: selected,
+    reviewingPhotoIds: reviewingIds,
     tasks: visibleTasks(taskList.filter((task) => task.state === 'running').map(taskToInfo), Object.values(taskHistory), clock),
     canUndo: Boolean(state?.undoStack.length) || (activeFrame?.editHistory?.cursor ?? 0) > 0,
     canRedo: Boolean(state?.redoStack.length) || (activeFrame?.editHistory ? activeFrame.editHistory.cursor < activeFrame.editHistory.steps.length : false),

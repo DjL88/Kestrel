@@ -393,6 +393,8 @@ export interface WorkspaceStore {
   fonts: FontOption[];
   watermarkPresets: WatermarkPreset[];
   tasks: TaskInfo[];
+  /** Photos whose deep vision review is running right now (empty when none). */
+  reviewingPhotoIds: string[];
   settings: WorkspaceSettings;
 
   // Shell UI layout state

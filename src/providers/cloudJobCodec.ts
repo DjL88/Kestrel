@@ -5,7 +5,11 @@ import type { Mask } from '../core/maskTypes';
  * The wire format for a cloud processing job's uploaded input and downloaded result
  * (`docs/CLOUD-ENGINE-CONTRACT.md` calls this out as still unagreed: "Build the runner image and agree the
  * per-capability payload and output formats with its local verifier"). This module IS that agreement for
- * `denoise` and `mask` - `upscale` is deliberately not covered yet, see `cloudProcessingAttempt.ts`.
+ * `denoise`, `mask` and `upscale`. `upscale`'s result header carries its own `usedModel` flag (see
+ * `CloudResultHeader`) precisely so the runner - whenever one exists - can report honestly whether its
+ * result came from a learned enlarger or a plain resampler, the same distinction
+ * `engine/upscaleAction.ts`'s on-device `UpscaleActionResult.usedModel` already makes; nothing on the
+ * client side invents that value.
  *
  * Pure, dependency-free framing so it can be unit-tested in plain Node (no canvas, no DOM, no PNG codec):
  * a 4-byte big-endian header length, then a UTF-8 JSON header, then one or more fixed-size binary planes
@@ -24,7 +28,7 @@ import type { Mask } from '../core/maskTypes';
 
 export const CLOUD_JOB_PROTOCOL_VERSION = 1;
 
-export type CloudJobCapability = 'denoise' | 'mask';
+export type CloudJobCapability = 'denoise' | 'mask' | 'upscale';
 
 export interface CloudUploadHeader {
   protocol: typeof CLOUD_JOB_PROTOCOL_VERSION;
@@ -37,8 +41,11 @@ export interface CloudUploadHeader {
   /** Present only for `capability: 'mask'`. Already plain JSON-serialisable data - no functions, no
    * binary fields - so it travels in the header verbatim; nothing is re-derived or guessed here. */
   masks?: Mask[];
-  /** True when a subject alpha plane follows the original pixel plane on the wire (used by either
-   * capability to let the runner, and later the local verifier, judge the subject separately). */
+  /** Present only for `capability: 'upscale'`: how many times larger the result picture must be. */
+  scale?: 2 | 4;
+  /** True when a subject alpha plane follows the original pixel plane on the wire (used by denoise/mask
+   * to let the runner, and later the local verifier, judge the subject separately). Always false for
+   * `upscale`, which has no subject-local treatment. */
   hasSubjectAlpha: boolean;
 }
 
@@ -47,6 +54,11 @@ export interface CloudResultHeader {
   capability: CloudJobCapability;
   width: number;
   height: number;
+  /** Present only for `capability: 'upscale'`: whether the runner's own learned enlarger produced this
+   * result (true), or it fell back to a plain resampler (false) - the cloud-side equivalent of
+   * `engine/upscaleAction.ts`'s `UpscaleActionResult.usedModel`. The runner reports this; the client never
+   * assumes it, which is exactly the gap that kept `upscale` out of `cloudProcessingAttempt.ts` before. */
+  usedModel?: boolean;
 }
 
 function u32be(value: number): Uint8Array {
@@ -136,6 +148,26 @@ export function encodeMaskUpload(original: Pixels, masks: Mask[], subjectAlpha?:
   return frame(header, planes);
 }
 
+/** Builds the bytes to upload for an upscale job. There is no subject alpha or local treatment here -
+ * upscale works on the whole picture, same as `engine/upscaleAction.ts`'s on-device version. */
+export function encodeUpscaleUpload(original: Pixels, scale: 2 | 4): Uint8Array {
+  checkDimensions(original.width, original.height);
+  const pixelCount = original.width * original.height;
+  if (original.data.length !== pixelCount * 4) throw new Error('Original pixel buffer does not match its own width/height.');
+  const header: CloudUploadHeader = {
+    protocol: CLOUD_JOB_PROTOCOL_VERSION,
+    capability: 'upscale',
+    width: original.width,
+    height: original.height,
+    scale,
+    hasSubjectAlpha: false,
+  };
+  const planes = [new Uint8Array(original.data.buffer, original.data.byteOffset, original.data.byteLength)];
+  return frame(header, planes);
+}
+
+const CAPABILITIES: CloudJobCapability[] = ['denoise', 'mask', 'upscale'];
+
 /** Reads back an upload this module framed - used by its own tests, and by anything standing in for the
  * (not-yet-built) runner image that needs to parse what the client actually sent. */
 export function decodeUpload(bytes: Uint8Array): {
@@ -146,7 +178,7 @@ export function decodeUpload(bytes: Uint8Array): {
   const { header, planes } = splitFrame(bytes);
   const h = header as CloudUploadHeader;
   if (h.protocol !== CLOUD_JOB_PROTOCOL_VERSION) throw new Error(`Unsupported cloud job protocol version: ${String((header as { protocol?: unknown })?.protocol)}.`);
-  if (h.capability !== 'denoise' && h.capability !== 'mask') throw new Error(`Unsupported cloud job capability: ${String((header as { capability?: unknown })?.capability)}.`);
+  if (!CAPABILITIES.includes(h.capability)) throw new Error(`Unsupported cloud job capability: ${String((header as { capability?: unknown })?.capability)}.`);
   checkDimensions(h.width, h.height);
   const pixelCount = h.width * h.height;
   const pixelBytes = pixelCount * 4;
@@ -163,11 +195,18 @@ export function decodeUpload(bytes: Uint8Array): {
   return { header: h, original, subjectAlpha };
 }
 
-/** Builds the bytes a runner would return as a job's result. */
-export function encodeResult(capability: CloudJobCapability, picture: Pixels): Uint8Array {
+/** Builds the bytes a runner would return as a job's result. `usedModel` is required for `capability:
+ * 'upscale'` - the runner must say which path produced the picture, never left to be assumed - and is
+ * rejected for every other capability, where it has no meaning. */
+export function encodeResult(capability: CloudJobCapability, picture: Pixels, options: { usedModel?: boolean } = {}): Uint8Array {
   checkDimensions(picture.width, picture.height);
   if (picture.data.length !== picture.width * picture.height * 4) throw new Error('Result pixel buffer does not match its own width/height.');
-  const header: CloudResultHeader = { protocol: CLOUD_JOB_PROTOCOL_VERSION, capability, width: picture.width, height: picture.height };
+  if (capability === 'upscale' && typeof options.usedModel !== 'boolean') throw new Error('An upscale result must say whether a model was used.');
+  if (capability !== 'upscale' && options.usedModel !== undefined) throw new Error(`usedModel has no meaning for capability '${capability}'.`);
+  const header: CloudResultHeader = {
+    protocol: CLOUD_JOB_PROTOCOL_VERSION, capability, width: picture.width, height: picture.height,
+    ...(capability === 'upscale' ? { usedModel: options.usedModel } : {}),
+  };
   return frame(header, [new Uint8Array(picture.data.buffer, picture.data.byteOffset, picture.data.byteLength)]);
 }
 
@@ -177,7 +216,8 @@ export function decodeResult(bytes: Uint8Array): { header: CloudResultHeader; pi
   const { header, planes } = splitFrame(bytes);
   const h = header as CloudResultHeader;
   if (h.protocol !== CLOUD_JOB_PROTOCOL_VERSION) throw new Error(`Unsupported cloud job protocol version: ${String((header as { protocol?: unknown })?.protocol)}.`);
-  if (h.capability !== 'denoise' && h.capability !== 'mask') throw new Error(`Unsupported cloud job capability: ${String((header as { capability?: unknown })?.capability)}.`);
+  if (!CAPABILITIES.includes(h.capability)) throw new Error(`Unsupported cloud job capability: ${String((header as { capability?: unknown })?.capability)}.`);
+  if (h.capability === 'upscale' && typeof h.usedModel !== 'boolean') throw new Error('Cloud upscale result is missing usedModel.');
   checkDimensions(h.width, h.height);
   const pixelBytes = h.width * h.height * 4;
   if (planes.length < pixelBytes) throw new Error('Cloud job result is shorter than its declared image.');

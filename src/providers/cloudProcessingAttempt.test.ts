@@ -109,9 +109,39 @@ describe('createCloudProcessingAttempt - mask', () => {
 });
 
 describe('createCloudProcessingAttempt - upscale', () => {
-  it('throws rather than fabricate a usedModel verdict for a capability it does not support', async () => {
-    const connection = fixtureControlPlane(() => { throw new Error('should never be called'); });
+  it('uploads the requested scale, downsamples the larger result to verify it, and reports the runner\'s own usedModel', async () => {
+    const original = flat(4, [100, 100, 100]);
+    const connection = fixtureControlPlane((uploadedBytes) => {
+      const { header } = decodeUpload(uploadedBytes);
+      assert.equal(header.capability, 'upscale');
+      assert.equal(header.scale, 2);
+      return encodeResult('upscale', flat(8, [101, 101, 101]), { usedModel: true });
+    });
     const attempt = createCloudProcessingAttempt(connection, { online: true, signedIn: true, userConsent: true });
-    await assert.rejects(() => attempt.run({ capability: 'upscale', original: flat(2, [1, 1, 1]), scale: 2 } as never), /not implemented/);
+    const response = await attempt.run({ capability: 'upscale', original, scale: 2 } as never);
+    assert.equal(response.capability, 'upscale');
+    const result = (response as { result: { pixels: Pixels; usedModel: boolean; verification: { ok: boolean } } }).result;
+    assert.equal(result.usedModel, true);
+    assert.equal(result.pixels.width, 8);
+    assert.equal(result.pixels.height, 8);
+    assert.equal(result.verification.ok, true);
+  });
+
+  it('reports usedModel: false exactly as the runner says, when it fell back to its own resampler - never guessed here', async () => {
+    const original = flat(4, [50, 50, 50]);
+    const connection = fixtureControlPlane(() => encodeResult('upscale', flat(8, [50, 50, 50]), { usedModel: false }));
+    const attempt = createCloudProcessingAttempt(connection, { online: true, signedIn: true, userConsent: true });
+    const response = await attempt.run({ capability: 'upscale', original, scale: 2 } as never);
+    const result = (response as { result: { usedModel: boolean } }).result;
+    assert.equal(result.usedModel, false);
+  });
+
+  it('reports verification.ok: false rather than throwing when the downsampled result does not match the original', async () => {
+    const original = flat(4, [50, 50, 50]);
+    const connection = fixtureControlPlane(() => encodeResult('upscale', flat(8, [250, 250, 250]), { usedModel: true }));
+    const attempt = createCloudProcessingAttempt(connection, { online: true, signedIn: true, userConsent: true });
+    const response = await attempt.run({ capability: 'upscale', original, scale: 2 } as never);
+    const result = (response as { result: { verification: { ok: boolean } } }).result;
+    assert.equal(result.verification.ok, false);
   });
 });

@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { runJob, type RunnerStore } from '../src/run.ts';
-import { encodeDenoiseUpload, encodeMaskUpload, decodeResult } from '../../../src/providers/cloudJobCodec.ts';
+import { encodeDenoiseUpload, encodeMaskUpload, encodeUpscaleUpload, decodeResult } from '../../../src/providers/cloudJobCodec.ts';
 import type { Pixels } from '../../../src/core/colourCheck.ts';
 
 function fakeStore(files: Record<string, Uint8Array>): RunnerStore & { files: Record<string, Uint8Array> } {
@@ -42,6 +42,16 @@ describe('cloud runner', () => {
     const store = fakeStore({ 'inputs/j3': encodeMaskUpload(photo, []) });
     assert.equal(await runJob(store, 'j3', 'mask'), true);
     assert.deepEqual(Array.from(decodeResult(store.files['results/j3']).picture.data), Array.from(photo.data));
+  });
+  it('upscales an upload to the requested scale and honestly reports usedModel: false (no server-side enlarger exists)', async () => {
+    const photo = noisy(16);
+    const store = fakeStore({ 'inputs/j4': encodeUpscaleUpload(photo, 2) });
+    assert.equal(await runJob(store, 'j4', 'upscale'), true);
+    const { header, picture } = decodeResult(store.files['results/j4']);
+    assert.equal(picture.width, 32);
+    assert.equal(picture.height, 32);
+    assert.equal(header.usedModel, false);
+    assert.equal(store.files['failed/j4'], undefined);
   });
   it('writes an empty failed marker for a missing, corrupt, mismatched or oversized input, and nothing else', async () => {
     const photo = noisy(8);

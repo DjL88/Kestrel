@@ -143,6 +143,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             assistMode={store.assistMode}
             features={store.features}
             ongoingCritique={store.settings.ongoingCritique}
+            reviewing={store.reviewingPhotoIds.includes(activePhoto?.id ?? '')}
             onSetAssistMode={actions.setAssistMode}
             onOpenSettings={() => actions.setSettingsOpen(true, 'assistance')}
             onRunDeepVisionReview={actions.runDeepVisionReview}
