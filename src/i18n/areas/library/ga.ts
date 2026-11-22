@@ -374,6 +374,8 @@ export const ga: AreaTranslation<typeof source> = {
     showTab: "Taispeáin",
     hideTab: "Folaigh",
     dockLabel: "Ceangail",
+    dockLeft: 'Ancaireacht ar chlé',
+    dockRight: 'Ancaireacht ar dheis',
     undockLabel: "Dícheangail",
     undockTab: (title) => `Dícheangail ${title}`,
     undockTabHelp: "Oscail an cluaisín seo i bpainéal ar leith is féidir a bhogadh agus a athrú méid",

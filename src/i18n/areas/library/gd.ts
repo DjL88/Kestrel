@@ -374,6 +374,8 @@ export const gd: AreaTranslation<typeof source> = {
     showTab: "Seall",
     hideTab: "Falaich",
     dockLabel: "Docaich",
+    dockLeft: 'Acair air an taobh chlì',
+    dockRight: 'Acair air an taobh deas',
     undockLabel: "Dì-dhocaich",
     undockTab: (title) => `Dì-dhocaich ${title}`,
     undockTabHelp: "Fosgail an taba seo ann am panaile air leth a ghabhas gluasad is ath-mheudachadh",

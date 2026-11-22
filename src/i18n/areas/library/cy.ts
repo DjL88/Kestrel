@@ -371,6 +371,8 @@ export const cy: AreaTranslation<typeof source> = {
     showTab: "Dangos",
     hideTab: "Cuddio",
     dockLabel: "Docio",
+    dockLeft: 'Angori i\'r chwith',
+    dockRight: 'Angori i\'r dde',
     undockLabel: "Dad-docio",
     undockTab: (title) => `Dad-docio ${title}`,
     undockTabHelp: "Agor y tab hwn mewn panel symudol y gellir newid ei faint",
