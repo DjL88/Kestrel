@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { AssistMode, Photo } from '../contract';
+import type { AssistMode, LookPreset, Photo } from '../contract';
 import { STRINGS } from '../strings';
 import ProBadge from './ProBadge';
 import BrandIcon from '../icons/BrandIcon';
@@ -16,6 +16,8 @@ interface FilmstripProps {
   filter: 'all' | 'flagged';
   search: string;
   calmView: boolean;
+  looks: LookPreset[];
+  hasClipboardRecipe: boolean;
   onSetBottomTab: (tab: 'filmstrip' | 'info') => void;
   onSetCollapsed: (collapsed: boolean) => void;
   onSetHeight: (height: number) => void;
@@ -25,6 +27,8 @@ interface FilmstripProps {
   onClearSelection: () => void;
   onToggleFlag: (photoIds: string[]) => void;
   onSetRating: (photoIds: string[], rating: number) => void;
+  onPasteRecipe: () => void;
+  onApplyLook: (photoId: string, lookId: string) => void;
   onImport: () => void;
   onRunAutoCull: () => void;
   onExportSelected: () => void;
@@ -41,6 +45,8 @@ export default function Filmstrip({
   filter,
   search,
   calmView,
+  looks,
+  hasClipboardRecipe,
   onSetBottomTab,
   onSetCollapsed,
   onSetHeight,
@@ -50,6 +56,8 @@ export default function Filmstrip({
   onClearSelection,
   onToggleFlag,
   onSetRating,
+  onPasteRecipe,
+  onApplyLook,
   onImport,
   onRunAutoCull,
   onExportSelected,
@@ -63,8 +71,18 @@ export default function Filmstrip({
   useEffect(() => {
     if (!tileMenu) return;
     const close = () => setTileMenu(null);
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        setTileMenu(null);
+      }
+    };
     window.addEventListener('mousedown', close);
-    return () => window.removeEventListener('mousedown', close);
+    window.addEventListener('keydown', onEscape);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', onEscape);
+    };
   }, [tileMenu]);
 
   const visiblePhotos = filterPhotos(photos, filter, search).filter((photo) => photo.rating >= minimumRating);
@@ -401,43 +419,88 @@ export default function Filmstrip({
         </div>
       )}
 
-      {/* Custom right-click tile context menu */}
+      {/* V2 photo / multi-selection context menu: actions reuse the editor store. */}
       {tileMenu && (
         <div
           role="menu"
+          aria-label="Photo actions"
           onMouseDown={(e) => e.stopPropagation()}
-          className="fixed z-50 w-48 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1.5 shadow-[var(--shadow-popover)]"
-          style={{ left: tileMenu.x, top: tileMenu.y }}
+          className="fixed z-50 w-56 max-h-[70vh] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1.5 shadow-[var(--shadow-popover)]"
+          style={{ left: Math.max(8, Math.min(tileMenu.x, window.innerWidth - 232)), top: Math.max(8, Math.min(tileMenu.y, window.innerHeight - 270)) }}
         >
+          <p className="px-3 py-1 text-[11px] text-[var(--text-muted)]">
+            {selectedPhotoIds.includes(tileMenu.photoId) && selectedPhotoIds.length > 1
+              ? `${selectedPhotoIds.length} selected photos`
+              : 'Photo actions'}
+          </p>
           <button
             type="button"
+            role="menuitem"
             onClick={() => {
               onToggleFlag(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId]);
               setTileMenu(null);
             }}
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
           >
             <BrandIcon name="flag" size={14} />
-            <span>Toggle Flag ({selectedPhotoIds.length})</span>
+            <span>Flag / unflag</span>
           </button>
+          <div className="border-t border-[var(--border-subtle)] px-3 py-2">
+            <span className="mb-1 block text-[11px] text-[var(--text-secondary)]">Rating</span>
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Set photo rating">
+              {[0, 1, 2, 3, 4, 5].map((rating) => (
+                <button
+                  key={rating}
+                  type="button"
+                  aria-label={rating === 0 ? 'Clear rating' : `Rate ${rating} stars`}
+                  title={rating === 0 ? 'Clear rating' : `${rating} stars`}
+                  onClick={() => {
+                    onSetRating(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId], rating);
+                    setTileMenu(null);
+                  }}
+                  className="min-h-8 min-w-7 rounded border border-[var(--border-subtle)] px-1 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+                >
+                  {rating === 0 ? '–' : rating}
+                </button>
+              ))}
+            </div>
+          </div>
           <button
             type="button"
+            role="menuitem"
+            disabled={!hasClipboardRecipe}
             onClick={() => {
-              onSetRating(selectedPhotoIds.includes(tileMenu.photoId) ? selectedPhotoIds : [tileMenu.photoId], 5);
+              onPasteRecipe();
               setTileMenu(null);
             }}
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <BrandIcon name="star-filled" size={14} />
-            <span>Rate 5 stars</span>
+            <BrandIcon name="paste" size={14} />
+            <span>Paste settings</span>
           </button>
+          <label className="block px-3 py-1.5 text-[11px] text-[var(--text-secondary)]">
+            Apply Look
+            <select
+              aria-label="Apply a Look to selected photos"
+              defaultValue=""
+              onChange={(event) => {
+                if (event.target.value) onApplyLook(tileMenu.photoId, event.target.value);
+                setTileMenu(null);
+              }}
+              className="mt-1 h-8 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-2 text-xs text-[var(--text-primary)]"
+            >
+              <option value="" disabled>Choose a Look…</option>
+              {looks.map((look) => <option key={look.id} value={look.id}>{look.name}</option>)}
+            </select>
+          </label>
           <button
             type="button"
+            role="menuitem"
             onClick={() => {
               onExportSelected();
               setTileMenu(null);
             }}
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
           >
             <BrandIcon name="export" size={14} />
             <span>Export selected…</span>
