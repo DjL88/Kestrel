@@ -137,6 +137,8 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
   }, []);
   const press = useRef<{ x: number; y: number; timer: number } | null>(null);
   const longPressed = useRef(false);
+  const lastTap = useRef<{ id: string; at: number } | null>(null);
+  const touchOrigin = useRef(false);
   const touchFrame = useRef<string | null>(null);
 
   function cancelPress() {
@@ -365,6 +367,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                       onPointerDown={(event) => {
                         longPressed.current = false;
                         touchFrame.current = event.pointerType === 'touch' ? frame.id : null;
+                        touchOrigin.current = event.pointerType === 'touch';
                         if (event.pointerType !== 'touch') return;
                         cancelPress();
                         const card = event.currentTarget.parentElement;
@@ -392,8 +395,18 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         if (held) return;
 
                         const modifiers = { shift: event.shiftKey, toggle: event.ctrlKey || event.metaKey };
-                        if (tapped && !multiSelect && !modifiers.shift && !modifiers.toggle) onOpenLoupe(frame.id);
-                        else onSelectFrame(frame.id, modifiers);
+                        if (tapped) {
+                          // On a touch screen one tap selects; a quick second tap on the same photo opens it on its own.
+                          const now = Date.now();
+                          const previous = lastTap.current;
+                          lastTap.current = { id: frame.id, at: now };
+                          if (!multiSelect && previous && previous.id === frame.id && now - previous.at < 350) {
+                            lastTap.current = null;
+                            onOpenLoupe(frame.id);
+                            return;
+                          }
+                        }
+                        onSelectFrame(frame.id, modifiers);
                       }}
                       onKeyDown={(event) => {
                         if (onPhotoMenu && openPhotoMenuFromKeyboard(event, (x, y) => onPhotoMenu(frame.id, x, y))) return;
@@ -402,6 +415,7 @@ export const VirtualizedContactSheet: React.FC<VirtualizedContactSheetProps> = (
                         if (!event.repeat) onOpenLoupe(frame.id);
                       }}
                       onDoubleClick={(event) => {
+                        if (touchOrigin.current) return; // touch double-tap is handled in onClick
                         if (!multiSelect && !event.shiftKey && !event.ctrlKey && !event.metaKey) (onOpenEditor ?? onOpenLoupe)(frame.id);
                       }}
                       onContextMenu={(event) => { if (!onPhotoMenu) return; event.preventDefault(); onPhotoMenu(frame.id, event.clientX, event.clientY); }}
