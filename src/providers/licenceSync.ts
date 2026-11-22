@@ -36,6 +36,7 @@ const TIMEOUT_MS = 12_000;
 interface StoredGrant { envelope: unknown; activationId: string; licenceKeyHash: string }
 
 export class LicenceSync {
+  private accountCheck = 0;
   constructor(private readonly o: LicenceSyncOptions) {}
 
   get configured(): boolean { return this.o.baseUrl !== null && Object.keys(this.o.grantKeys).length > 0; }
@@ -159,10 +160,12 @@ export class LicenceSync {
    */
   async activateAccount(idToken: string): Promise<AccountStanding | null> {
     if (!this.configured) return null;
+    const checkId = ++this.accountCheck;
     try {
       const session = await this.post('/v1/auth/firebase', { credential: idToken });
-      if (session.status !== 200 || typeof session.json?.accessToken !== 'string') return null;
+      if (checkId !== this.accountCheck || session.status !== 200 || typeof session.json?.accessToken !== 'string') return null;
       const reply = await this.post('/v1/me/activate', { deviceHash: await this.deviceHash(), platform: this.o.platform, appVersion: this.o.appVersion }, session.json.accessToken);
+      if (checkId !== this.accountCheck) return null;
       const code = reply.json?.error?.code as string | undefined;
       const message = (reply.json?.error?.message as string | undefined) ?? '';
       if (reply.status === 403 && code === 'NO_LICENCE') { this.write(ACCOUNT_GRANT, null); return { kind: 'no_licence' }; }
@@ -170,14 +173,17 @@ export class LicenceSync {
       if (reply.status === 409 && code === 'DEVICE_LIMIT') { this.write(ACCOUNT_GRANT, null); return { kind: 'device_limit', message }; }
       if (reply.status !== 200 || !reply.json) return null;
       const check = await verifyEntitlementGrant(reply.json.grant, this.o.grantKeys, await this.deviceHash());
-      if (!check.ok || typeof reply.json.activationId !== 'string') return null;
+      if (checkId !== this.accountCheck || !check.ok || typeof reply.json.activationId !== 'string') return null;
       this.write(ACCOUNT_GRANT, JSON.stringify({ envelope: reply.json.grant, activationId: reply.json.activationId }));
       return { kind: 'active', grant: check.grant, activationId: reply.json.activationId };
     } catch { return null; }
   }
 
   /** Signing out forgets the account grant on this device. (The slot is freed from the key or the admin console.) */
-  forgetAccount(): void { this.write(ACCOUNT_GRANT, null); }
+  forgetAccount(): void {
+    ++this.accountCheck;
+    this.write(ACCOUNT_GRANT, null);
+  }
 
   /** The key's status and devices, or null when the server cannot be reached. */
   async status(key: string): Promise<LicenceStatus | null> {

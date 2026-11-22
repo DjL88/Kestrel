@@ -19,6 +19,10 @@ import '@fontsource/oswald/latin-700.css';
 import '@fontsource/caveat/latin-400.css';
 import '@fontsource/caveat/latin-700.css';
 
+import { useEffect } from 'react';
+import { AccountAndLicenceSettings } from '../components/AccountAndLicenceSettings';
+import { loadPublicFlags } from '../providers/featureFlagsStore';
+import { loadLicence } from '../providers/licenceStore';
 import V2App from './ui/App';
 import { useWorkspace } from './ui/stub';
 import { useEngineWorkspace } from './engineClient/useEngineWorkspace';
@@ -29,5 +33,15 @@ import { useEngineWorkspace } from './engineClient/useEngineWorkspace';
 const useSampleStore = new URLSearchParams(window.location.search).get('stub') === '1';
 
 export default function V2Root() {
-  return <V2App useStore={useSampleStore ? useWorkspace : useEngineWorkspace} />;
+  useEffect(() => {
+    if (!useSampleStore) {
+      void loadLicence();
+      void loadPublicFlags();
+    }
+  }, []);
+
+  return <V2App
+    useStore={useSampleStore ? useWorkspace : useEngineWorkspace}
+    accountPanel={useSampleStore ? undefined : <AccountAndLicenceSettings />}
+  />;
 }

@@ -70,8 +70,13 @@ async function renewIfDue(key: string, force = false) {
 let timer: ReturnType<typeof setInterval> | null = null;
 function keepRenewing() {
   if (timer || typeof window === 'undefined') return;
-  timer = setInterval(() => { const key = storedKey(); if (key) void renewIfDue(key); }, RENEW_CHECK_MS);
-  window.addEventListener('online', () => { const key = storedKey(); if (key) void renewIfDue(key); });
+  const check = () => {
+    const key = storedKey();
+    if (key) void renewIfDue(key);
+    else void renewAccountIfDue();
+  };
+  timer = setInterval(check, RENEW_CHECK_MS);
+  window.addEventListener('online', check);
 }
 
 const accountState = (standing: AccountStanding): LicenceState => ({ status: 'account', standing, access: decideAccountAccess(standing, Date.now()) });
@@ -86,7 +91,32 @@ export async function activateFromAccount(idToken: string): Promise<'pro' | 'fre
   if (!standing) return 'unreachable';
   setSignedInHint(true);
   if (!storedKey()) set(standing.kind === 'no_licence' ? { status: 'none' } : accountState(standing));
+  if (standing.kind === 'active') keepRenewing();
   return standing.kind === 'active' ? 'pro' : standing.kind === 'no_licence' ? 'free' : standing.kind === 'device_limit' ? 'limit' : 'revoked';
+}
+
+let accountRenewing = false;
+async function renewAccountIfDue() {
+  if (state.status !== 'account' || state.standing.kind !== 'active') return;
+  const grant = state.standing.grant;
+  const current = state;
+  if (grant.plan === 'free') return;
+  if (!decideAccountAccess(current.standing, Date.now()).pro) {
+    leaveAccount();
+    expiredAccountNotice = true;
+    void firebaseAuth.signOut().catch(() => undefined);
+    return;
+  }
+  if (accountRenewing || !renewalDue(grant, Date.now()) || navigator.onLine === false) return;
+  accountRenewing = true;
+  try {
+    const token = await firebaseAuth.idToken();
+    if (token && state === current) await activateFromAccount(token);
+  } catch {
+    // Keep using the verified grant until its offline window ends.
+  } finally {
+    accountRenewing = false;
+  }
 }
 
 /** Signing out of the account removes its Pro from this device (a pasted key is separate and stays). */
@@ -109,13 +139,15 @@ export async function loadLicence() {
       // quiet downgrade - clear it and the account sign-in, so Settings can ask the person to sign
       // in again rather than show them as still "signed in" with only Basic features.
       if (stored.kind === 'active' && stored.grant.plan !== 'free' && !access.pro) {
-        sync.forgetAccount();
+        leaveAccount();
         void firebaseAuth.signOut().catch(() => {});
         expiredAccountNotice = true;
         set({ status: 'none' });
         return;
       }
       set({ status: 'account', standing: stored, access });
+      keepRenewing();
+      void renewAccountIfDue();
     } else {
       set({ status: 'none' });
     }
