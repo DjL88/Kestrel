@@ -116,10 +116,14 @@ variable "cloud_runner_image" {
   default     = ""
 }
 
-variable "cloud_runner_max_instances" {
-  description = "Hard ceiling on parallel runner instances, so a bug or abuse cannot run up an unbounded bill."
+variable "cloud_runner_timeout_seconds" {
+  description = "Hard time limit for one runner execution. Keep it under the control plane's 30 minute watchdog (1800 s)."
   type        = number
-  default     = 2
+  default     = 1500
+  validation {
+    condition     = var.cloud_runner_timeout_seconds >= 60 && var.cloud_runner_timeout_seconds <= 1700
+    error_message = "Use 60 to 1700 seconds."
+  }
 }
 
 variable "cloud_runner_cpu" {
@@ -156,4 +160,10 @@ variable "safe_copy_region" {
     condition     = var.safe_copy_region == "europe-west2"
     error_message = "Safe copy must stay in the UK: europe-west2 (London)."
   }
+}
+
+variable "learning_signal_enabled" {
+  description = "Turn on the opt-in learning signal in the control plane (KCP_LEARNING_ENABLED). Off: its routes answer 503. People still have to opt in, and the admin Switches panel must be on."
+  type        = bool
+  default     = false
 }

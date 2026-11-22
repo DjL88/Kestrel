@@ -8,9 +8,9 @@
 #   * a lifecycle rule deletes any object after cloud_input_max_age_days (backstop; the app's "finish" call deletes sooner);
 #   * soft delete is OFF so a deleted input is not kept for the default 7 days;
 #   * versioning is OFF, so an overwritten or deleted input is gone;
-#   * the runner has no public invoker (identity-token only), a hard instance ceiling and no GPU.
+#   * the runner is a Cloud Run job with no public address, no retries, a time limit and no GPU.
 # Not guaranteed, and the privacy page must not claim it: Google backups, system logs and the exact moment of physical
-# erasure are Google's. Request logs record URLs and status codes, never bodies; an exclusion keeps the runner's out.
+# erasure are Google's. The runner must log no payload or file names.
 
 locals {
   cloud_on = var.cloud_processing_enabled
@@ -83,56 +83,71 @@ resource "google_service_account_iam_member" "control_plane_signs" {
   member             = "serviceAccount:${google_service_account.control_plane.email}"
 }
 
-# ---- The runner (only when an image is given). Private: only the control plane may invoke it. ----------------------
-resource "google_cloud_run_v2_service" "cloud_runner" {
+# ---- The runner: a Cloud Run JOB (only when an image is given) ---------------------------------------------------------
+# A job, not a service: the control plane starts one execution per cloud job and returns at once, and the execution keeps
+# running on its own. (A service would be cut off when the request that started it ended, because the control plane is
+# CPU-throttled outside requests.) The job reads inputs/<KCR_JOB_ID> from the bucket and writes results/<id> or an empty
+# failed/<id>. There is no public address at all. CPU only. Retries are off so a failing job cannot bill itself repeatedly.
+resource "google_cloud_run_v2_job" "cloud_runner" {
   count               = local.cloud_on && var.cloud_runner_image != "" ? 1 : 0
   name                = "kestrel-cloud-runner"
   location            = var.cloud_processing_region
-  # Reachable at its run.app address, but every request needs a Google identity token from the one allowed invoker below.
-  # (INTERNAL_ONLY would also block the control plane, which is a separate public Cloud Run service without a VPC.)
-  ingress             = "INGRESS_TRAFFIC_ALL"
   deletion_protection = false
 
   template {
-    service_account                  = google_service_account.cloud_runner[0].email
-    max_instance_request_concurrency = 1 # one heavy job per instance
-    timeout                          = "300s"
-    scaling {
-      min_instance_count = 0 # nothing runs, and nothing is billed, while nobody calls it
-      max_instance_count = var.cloud_runner_max_instances
-    }
-    containers {
-      image = var.cloud_runner_image
-      resources {
-        limits = { cpu = var.cloud_runner_cpu, memory = var.cloud_runner_memory }
-        cpu_idle = true
-      }
-      env {
-        name  = "KCR_INPUT_BUCKET"
-        value = google_storage_bucket.cloud_inputs[0].name
+    task_count = 1
+    template {
+      service_account = google_service_account.cloud_runner[0].email
+      timeout         = "${var.cloud_runner_timeout_seconds}s"
+      max_retries     = 0
+      containers {
+        image = var.cloud_runner_image
+        resources {
+          limits = { cpu = var.cloud_runner_cpu, memory = var.cloud_runner_memory }
+        }
+        env {
+          name  = "KCR_INPUT_BUCKET"
+          value = google_storage_bucket.cloud_inputs[0].name
+        }
       }
     }
   }
   depends_on = [google_project_service.cloud_processing]
 }
 
-resource "google_cloud_run_v2_service_iam_member" "runner_invoker" {
-  count    = length(google_cloud_run_v2_service.cloud_runner)
-  name     = google_cloud_run_v2_service.cloud_runner[0].name
-  location = google_cloud_run_v2_service.cloud_runner[0].location
-  role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.control_plane.email}" # not allUsers
+# The control plane may start this one job, with the job id and kind passed as overrides, and nothing else. Least privilege:
+# a custom role with exactly the two permissions. UNVERIFIED permission names: if `apply` rejects one, the fallback is the
+# broader roles/run.developer on this job (still scoped to this job only).
+resource "google_project_iam_custom_role" "cloud_job_starter" {
+  count       = length(google_cloud_run_v2_job.cloud_runner)
+  role_id     = "kestrelCloudJobStarter"
+  title       = "Kestrel cloud job starter"
+  description = "Start executions of the Kestrel cloud runner job, with overrides. Nothing else."
+  permissions = ["run.jobs.run", "run.jobs.runWithOverrides"]
 }
 
-# Keep the runner's request logs out of Cloud Logging (they hold URLs and timings only, but there is no reason to keep them).
-resource "google_logging_project_exclusion" "cloud_runner_requests" {
-  count       = length(google_cloud_run_v2_service.cloud_runner)
-  name        = "kestrel-cloud-runner-requests"
-  description = "No request logs for the cloud runner"
-  filter      = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"kestrel-cloud-runner\" AND log_id(\"run.googleapis.com/requests\")"
+resource "google_cloud_run_v2_job_iam_member" "control_plane_starts_job" {
+  count    = length(google_cloud_run_v2_job.cloud_runner)
+  name     = google_cloud_run_v2_job.cloud_runner[0].name
+  location = google_cloud_run_v2_job.cloud_runner[0].location
+  role     = google_project_iam_custom_role.cloud_job_starter[0].id
+  member   = "serviceAccount:${google_service_account.control_plane.email}"
+}
+
+# Starting a job that runs as another account needs permission to act as that account. Only the runner's own account.
+resource "google_service_account_iam_member" "control_plane_acts_as_runner" {
+  count              = length(google_cloud_run_v2_job.cloud_runner)
+  service_account_id = google_service_account.cloud_runner[0].name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.control_plane.email}"
 }
 
 output "cloud_inputs_bucket" {
   value       = local.cloud_on ? google_storage_bucket.cloud_inputs[0].name : null
   description = "Private upload bucket for cloud processing (null while it is switched off)."
+}
+
+output "cloud_runner_job" {
+  value       = length(google_cloud_run_v2_job.cloud_runner) > 0 ? google_cloud_run_v2_job.cloud_runner[0].id : null
+  description = "Full name of the cloud runner job (projects/<p>/locations/<l>/jobs/<name>), for KCP_CLOUD_RUNNER_JOB. Null until a runner image is given."
 }

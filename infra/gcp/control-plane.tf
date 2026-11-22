@@ -248,6 +248,27 @@ resource "google_cloud_run_v2_service" "control_plane" {
           }
         }
       }
+      dynamic "env" {
+        for_each = var.cloud_processing_enabled && var.cloud_runner_image != "" ? { KCP_CLOUD_PROCESSING_BUCKET = try(google_storage_bucket.cloud_inputs[0].name, ""), KCP_CLOUD_RUNNER_JOB = try(google_cloud_run_v2_job.cloud_runner[0].id, "") } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
+        for_each = var.safe_copy_enabled ? { KCP_SAFE_COPY_BUCKET = try(google_storage_bucket.safe_copy[0].name, "") } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      dynamic "env" {
+        for_each = var.learning_signal_enabled ? { KCP_LEARNING_ENABLED = "1" } : {}
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
       startup_probe {
         http_get {
           path = "/healthz"
