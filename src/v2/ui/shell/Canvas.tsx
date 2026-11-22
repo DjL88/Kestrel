@@ -1166,7 +1166,16 @@ export default function Canvas({
       )}
 
       {/* Stage */}
-      <div ref={stageRef} className="relative flex flex-1 overflow-auto inflight-scroll p-2 sm:p-6">
+      <div
+        ref={stageRef}
+        className="relative flex flex-1 overflow-auto inflight-scroll p-2 sm:p-6"
+        style={{
+          // A quiet, theme-aware working-area grid; artboards and exported images are unaffected.
+          backgroundImage: 'radial-gradient(circle, var(--border-default) 0.7px, transparent 0.9px)',
+          backgroundSize: '22px 22px',
+          backgroundPosition: '11px 11px',
+        }}
+      >
         {hoveredLook && (
           <div className="pointer-events-none absolute left-4 top-4 z-30 rounded-[var(--radius-sm)] border border-[var(--brand-accent-border)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] shadow">
             Previewing look: <span className="text-[var(--brand-accent)]">{hoveredLook.name}</span>
