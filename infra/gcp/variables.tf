@@ -82,3 +82,50 @@ variable "apple_client_ids" {
   type        = list(string)
   default     = []
 }
+
+# ---- Cloud Processing (cloud-processing.tf). Everything is off until the owner switches it on. -------------------------
+variable "cloud_processing_enabled" {
+  description = "Create the private, short-expiry upload bucket and its permissions for the optional Cloud Processing Engine. Off: nothing is created and nothing is billed."
+  type        = bool
+  default     = false
+}
+
+variable "cloud_processing_region" {
+  description = "Where uploaded files are held and processed. The owner chooses it; the default is London, next to everything else."
+  type        = string
+  default     = "europe-west2"
+}
+
+variable "cloud_input_max_age_days" {
+  description = "Hard backstop: any uploaded input older than this is deleted by a bucket lifecycle rule even if the app never calls finish. Whole days, minimum 1."
+  type        = number
+  default     = 1
+  validation {
+    condition     = var.cloud_input_max_age_days >= 1 && var.cloud_input_max_age_days <= 7
+    error_message = "Use 1 to 7 days."
+  }
+}
+
+variable "cloud_runner_image" {
+  description = "Container image for the cloud runner (the heavier ONNX jobs). Empty: no runner service is created, only the bucket."
+  type        = string
+  default     = ""
+}
+
+variable "cloud_runner_max_instances" {
+  description = "Hard ceiling on parallel runner instances, so a bug or abuse cannot run up an unbounded bill."
+  type        = number
+  default     = 2
+}
+
+variable "cloud_runner_cpu" {
+  description = "CPU per runner instance. CPU only: no GPU is requested by this plan."
+  type        = string
+  default     = "4"
+}
+
+variable "cloud_runner_memory" {
+  description = "Memory per runner instance. Large RAW decode needs headroom."
+  type        = string
+  default     = "8Gi"
+}

@@ -323,3 +323,13 @@ Before enabling it, build and publish an image from a commit containing `src/com
 - [ECB reference rates](https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html)
 - [ONS all-items CPI index](https://www.ons.gov.uk/economy/inflationandpriceindices/timeseries/d7bt)
 - [Scheduling Cloud Run jobs](https://docs.cloud.google.com/run/docs/execute/jobs-on-schedule)
+
+## Cloud Processing (optional; plan only, not applied)
+
+`cloud-processing.tf` is switched off by default, so `terraform plan` shows no change. Read [docs/CLOUD-PROCESSING.md](../../docs/CLOUD-PROCESSING.md) first: the measurement shows it only helps older devices on good links. To review what it would create:
+
+```bash
+terraform -chdir=infra/gcp plan -var cloud_processing_enabled=true
+```
+
+Expected: one private bucket (`<project>-kestrel-cloud-inputs`, 1 day lifecycle delete, soft delete off, no versioning), a runner service account, bucket permissions for it and the control plane, one `serviceAccountTokenCreator` binding on the control plane's own account (to sign upload URLs), and two API enablements. With `-var cloud_runner_image=...` it also creates a private Cloud Run runner (max 2 instances, CPU only, no public invoker: every request needs the control plane's identity token) and a log exclusion. **Applying needs your approval and starts billing for storage and compute.** The control plane service is not changed by this file: connecting it to the bucket is a later code change. Switch off with `-var cloud_processing_enabled=false` (the bucket's contents are temporary and are deleted with it).
