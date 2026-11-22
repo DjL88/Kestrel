@@ -47,12 +47,12 @@ export async function newTestStore(): Promise<Store> {
   return openStore({ store: 'firestore', databasePath: '', firestoreProjectId: `kestrel-test-${process.pid}-${++harnessCount}` });
 }
 
-export interface HarnessExtras { env?: NodeJS.ProcessEnv; googleKeys?: AppOptions['googleKeys']; appleKeys?: AppOptions['appleKeys']; firebaseKeys?: AppOptions['firebaseKeys']; payments?: AppOptions['payments']; pricing?: AppOptions['pricing']; cloud?: AppOptions['cloud']; learning?: AppOptions['learning']; safeCopy?: AppOptions['safeCopy']; spend?: AppOptions['spend']; requireAdminSwitch?: boolean }
+export interface HarnessExtras { env?: NodeJS.ProcessEnv; googleKeys?: AppOptions['googleKeys']; appleKeys?: AppOptions['appleKeys']; firebaseKeys?: AppOptions['firebaseKeys']; payments?: AppOptions['payments']; settleSumupPro?: AppOptions['settleSumupPro']; pricing?: AppOptions['pricing']; cloud?: AppOptions['cloud']; learning?: AppOptions['learning']; safeCopy?: AppOptions['safeCopy']; spend?: AppOptions['spend']; requireAdminSwitch?: boolean }
 
 export async function startHarness(provider: AiProvider | null = fakeProvider(), commerce?: AppOptions['commerce'], extras: HarnessExtras = {}): Promise<Harness> {
   const clock = { now: Date.UTC(2026, 10, 18, 12) };
   const config = loadConfig({ KCP_DEV_MODE: '1', ...extras.env });
-  const app = createApp({ config, store: await newTestStore(), provider, commerce, payments: extras.payments, pricing: extras.pricing, cloud: extras.cloud, learning: extras.learning, safeCopy: extras.safeCopy, spend: extras.spend, requireAdminSwitch: extras.requireAdminSwitch, googleKeys: extras.googleKeys, appleKeys: extras.appleKeys, firebaseKeys: extras.firebaseKeys, now: () => clock.now });
+  const app = createApp({ config, store: await newTestStore(), provider, commerce, payments: extras.payments, settleSumupPro: extras.settleSumupPro, pricing: extras.pricing, cloud: extras.cloud, learning: extras.learning, safeCopy: extras.safeCopy, spend: extras.spend, requireAdminSwitch: extras.requireAdminSwitch, googleKeys: extras.googleKeys, appleKeys: extras.appleKeys, firebaseKeys: extras.firebaseKeys, now: () => clock.now });
   const server: Server = createServer((req, res) => { void app.handle(req, res); });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
