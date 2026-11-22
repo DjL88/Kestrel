@@ -12,7 +12,7 @@ export function EngineSurface({ photoId, variant, alt, className, style }: Photo
   const shown = variant === 'original' ? { ...frame, edit: undefined } : frame;
   return (
     <div className={className} style={style}>
-      <FrameImage frame={shown} previewProvider={provider} variant="full" needsAccess={false} priority alt={alt}
+      <FrameImage frame={shown} previewProvider={provider} variant="full" needsAccess={false} priority refreshOnBackgroundDevelop alt={alt}
         className="h-full w-full" imgClassName="h-full w-full object-cover" />
     </div>
   );

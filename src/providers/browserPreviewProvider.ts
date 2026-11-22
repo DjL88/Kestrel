@@ -320,6 +320,11 @@ export class BrowserPreviewProvider implements PreviewProvider {
     this.developedReviews.set(key, pair);
     await this.offlinePreviewCache.savePreviewPair(key, pair).catch(() => false);
     if (!isCurrent()) return false;
+    // Replace the embedded preview, including one still being read. An explicit full develop stays preferred.
+    if (!this.developed.has(stableKey)) {
+      this.sourceRevisions.set(stableKey, (revision ?? 0) + 1);
+      this.invalidateFullPreview(stableKey);
+    }
     for (const [frameId, url] of this.thumbUrlCache) {
       if (this.thumbFrameKeys.get(frameId) !== stableKey) continue;
       URL.revokeObjectURL(url);

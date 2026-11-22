@@ -22,6 +22,8 @@ interface FrameImageProps {
   needsAccess?: boolean;
   /** Selected photos outrank queued thumbnails even when their source is not cached. */
   priority?: boolean;
+  /** Opt a full-size viewer into the background-developed review picture. */
+  refreshOnBackgroundDevelop?: boolean;
   /** Reports actual image readiness; never inferred from the catalogue row existing. */
   onPreviewStatus?: (frameId: string, status: PhotoPreviewReadiness) => void;
   /** Optional interactive transform for zoom/pan viewports */
@@ -58,6 +60,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
   alt,
   needsAccess = false,
   priority = false,
+  refreshOnBackgroundDevelop = false,
   onPreviewStatus,
   zoomScale = 1,
   panOffset = { x: 0, y: 0 },
@@ -106,7 +109,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     return () => previewProvider.events.removeEventListener('preview-invalidated', onInvalidate);
   }, [frame.stableKey, previewProvider]);
   useEffect(() => {
-    if (variant !== 'thumb') return;
+    if (variant !== 'thumb' && !refreshOnBackgroundDevelop) return;
     const key = frame.stableKey;
     const onDeveloped = (event: Event) => {
       if ((event as CustomEvent<string>).detail !== key) return;
@@ -115,7 +118,7 @@ export const FrameImage: React.FC<FrameImageProps> = ({
     };
     previewProvider.events.addEventListener('developed', onDeveloped);
     return () => previewProvider.events.removeEventListener('developed', onDeveloped);
-  }, [frame.stableKey, previewProvider, variant]);
+  }, [frame.stableKey, previewProvider, variant, refreshOnBackgroundDevelop]);
 
   const edited = Boolean((frame.edit && !isNeutralEdit(frame.edit)) || (frame.framing &&
     (frame.framing.ratio || frame.framing.turns || frame.framing.straighten)));
