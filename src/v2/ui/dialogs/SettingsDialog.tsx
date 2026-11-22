@@ -212,27 +212,6 @@ export default function SettingsDialog({
                   </div>
                 </section>
 
-                <section className="space-y-2">
-                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-                    {STRINGS.settings.appearance.densityLabel}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(['comfortable', 'compact'] as const).map((d) => (
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => onUpdateSettings({ touchDensity: d })}
-                        className={`h-9 rounded-[var(--radius-sm)] border text-xs font-medium capitalize ${
-                          settings.touchDensity === d
-                            ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                            : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
-                        }`}
-                      >
-                        {STRINGS.settings.appearance[d]}
-                      </button>
-                    ))}
-                  </div>
-                </section>
               </div>
             )}
 
