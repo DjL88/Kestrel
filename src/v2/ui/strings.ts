@@ -89,6 +89,15 @@ export const STRINGS = {
     auto: 'Auto',
   },
 
+  // Ranking
+  tier: {
+    label: 'Rank',
+    good: 'Good',
+    better: 'Better',
+    best: 'Best',
+    notRanked: 'Not ranked yet',
+  },
+
   // Pro
   pro: {
     partOf: 'Part of InFlight Pro',

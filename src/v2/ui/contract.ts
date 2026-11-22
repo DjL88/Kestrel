@@ -5,6 +5,8 @@ import type { ComponentType, CSSProperties } from 'react';
 // Engine engineers swap src/stub.ts with a real WorkspaceStore + WorkspaceActions provider.
 
 export type DecisionState = 'unreviewed' | 'keep' | 'reject';
+/** The engine's three-tier ranking of a photo within its shoot. Absent or null means it has not been ranked: nothing is guessed. */
+export type PhotoTier = 'good' | 'better' | 'best';
 export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable';
 export type AssistMode = 'solo' | 'copilot' | 'autopilot';
 export type ThemeMode = 'dark' | 'light';
@@ -236,6 +238,8 @@ export interface Photo {
   sizes: SizePreset[];
   videoZoom: VideoZoomConfig;
   masks: MaskLayer[];
+  /** Good, better or best, from the engine's decision maker. Shown as a word, never as a number. */
+  tier?: PhotoTier | null;
   /** What 'auto' resolves to for this photo's watermark, measured on the pixels behind it. Absent until measured. */
   watermarkAuto?: 'light-on-dark' | 'dark-on-light';
   assistCritique: {
