@@ -10,6 +10,8 @@ interface CoPilotPanelProps {
   features: Record<FeatureKey, boolean>;
   ongoingCritique: boolean;
   onSetAssistMode: (mode: AssistMode) => void;
+  /** The mode is chosen in Settings, not here. */
+  onOpenSettings: () => void;
   onRunDeepVisionReview: (photoId: string) => void;
   onApplySuggestion: (photoId: string, suggestionId: string) => void;
   onApplyAll: (photoId: string) => void;
@@ -21,7 +23,7 @@ export default function CoPilotPanel({
   assistMode,
   features,
   ongoingCritique,
-  onSetAssistMode,
+  onOpenSettings,
   onRunDeepVisionReview,
   onApplySuggestion,
   onApplyAll,
@@ -49,22 +51,13 @@ export default function CoPilotPanel({
               {STRINGS.topBar.assistModes[assistMode]}
             </span>
           </div>
-          <div className="flex items-center gap-1">
-            {(['solo', 'copilot', 'autopilot'] as AssistMode[]).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => onSetAssistMode(m)}
-                className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
-                  assistMode === m
-                    ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                {STRINGS.topBar.assistModes[m]}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="rounded px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-secondary)] underline-offset-2 hover:text-[var(--text-primary)] hover:underline"
+          >
+            {STRINGS.copilot.changeInSettings}
+          </button>
         </div>
         <p className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
           {STRINGS.copilot.modeDescriptions[assistMode]}
@@ -99,6 +92,31 @@ export default function CoPilotPanel({
           {STRINGS.copilot.noGenAiNote}
         </p>
       </div>
+
+      {/* Assist, merged: the plain-English read of the photo, and the colour check */}
+      <section className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3.5">
+        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">
+          <BrandIcon name="assist" size={15} className="text-[var(--brand-accent)]" />
+          <span>{STRINGS.assist.opinionHeading}</span>
+        </div>
+        <p className="text-xs leading-relaxed text-[var(--text-primary)]">
+          {photo.assistCritique.subjectNote || STRINGS.copilot.nothingYet}
+        </p>
+      </section>
+
+      <section className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
+            <BrandIcon name="palette" size={14} className="text-[var(--semantic-info)]" />
+            <span>{STRINGS.assist.colourConfidenceHeading}</span>
+          </span>
+          <span className="font-mono text-[10px] text-[var(--text-secondary)]">{photo.assistCritique.kelvinEstimate}</span>
+        </div>
+        <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+          {photo.assistCritique.colourConfidence || STRINGS.copilot.nothingYet}
+        </p>
+        <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">{STRINGS.assist.safeNote}</p>
+      </section>
 
       {/* Recommendations */}
       <div className="space-y-2.5 border-t border-[var(--border-subtle)] pt-3.5">

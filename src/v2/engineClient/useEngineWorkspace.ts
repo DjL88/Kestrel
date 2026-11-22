@@ -17,11 +17,11 @@ import { useSpeciesScan } from '../../useSpeciesScan';
 import { isDesktopApp } from '../../providers/desktopShell';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { loadLocalFileListShoot } from '../../providers/localShootLoader';
-import type { EditRecipe, HubViewState, Project, WorkspaceActions, WorkspaceStore } from '../ui/contract';
+import type { EditRecipe, HubViewState, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
 import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
 import { featureAccess, featurePlan } from './featureMap';
-import { frameToPhoto, shootToProject, taskToInfo, type AssistState, type FrameUrls } from './frameToPhoto';
+import { frameToPhoto, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { applyRecipePatch, editToRecipe } from './recipeMap';
 import { surfaceBridge } from './surfaceBridge';
@@ -86,6 +86,23 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   useEffect(() => { surfaceBridge.set(state?.frames ?? [], provider.current); }, [state?.frames]);
   const importController = useRef<AbortController | null>(null);
   const taskList = useSyncExternalStore(tasks.subscribe, tasks.list, tasks.list);
+  // The core task store keeps only the last few finished tasks. V2 keeps them in a Completed tab for 4 hours.
+  const [taskHistory, setTaskHistory] = useState<Record<string, TaskInfo>>({});
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    const finished = taskList.filter((task) => task.state !== 'running');
+    if (!finished.length) return;
+    setTaskHistory((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const task of finished) {
+        const info = taskToInfo({ ...task, endedAt: task.endedAt ?? Date.now() });
+        if (JSON.stringify(next[info.id]) !== JSON.stringify(info)) { next[info.id] = info; changed = true; }
+      }
+      return changed ? next : current;
+    });
+  }, [taskList]);
+  useEffect(() => { const timer = window.setInterval(() => setClock(Date.now()), 60_000); return () => window.clearInterval(timer); }, []);
 
   const loadHub = useCallback(async () => {
     setHubState('loading');
@@ -390,6 +407,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       else mutate(redoDecision);
     },
     cancelTask: (id) => { tasks.cancel(Number(id)); },
+    clearTask: (id) => { tasks.dismissFinished(Number(id)); setTaskHistory((current) => { const { [id]: _removed, ...rest } = current; return rest; }); },
+    clearCompletedTasks: () => { tasks.clearFinished(); setTaskHistory({}); },
     clearNotice: () => { setNotice(null); stub.actions.clearNotice(); },
   };
   const unconnected = Object.fromEntries(NOT_CONNECTED.map((name) => [name, () => setNotice('That is not connected to the InFlight engine yet. Your photos and originals are unchanged.')])) as Partial<WorkspaceActions>;
@@ -408,13 +427,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     photos,
     activePhotoId: activeId,
     selectedPhotoIds: selected,
-    tasks: taskList.map(taskToInfo),
+    tasks: visibleTasks(taskList.filter((task) => task.state === 'running').map(taskToInfo), Object.values(taskHistory), clock),
     canUndo: Boolean(state?.undoStack.length) || (activeFrame?.editHistory?.cursor ?? 0) > 0,
     canRedo: Boolean(state?.redoStack.length) || (activeFrame?.editHistory ? activeFrame.editHistory.cursor < activeFrame.editHistory.steps.length : false),
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
-  }), [stub.store, can, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, activeId, selected, taskList, notice]);
+  }), [stub.store, can, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, activeId, selected, taskList, taskHistory, clock, notice]);
 
   return { store, actions };
 }

@@ -147,7 +147,9 @@ export const STRINGS = {
 
   // Co-pilot / Flight Mode Panel
   copilot: {
-    heading: 'Flight Analysis',
+    heading: 'Co-pilot',
+    changeInSettings: 'Change mode in Settings',
+    nothingYet: 'Nothing to report yet. It appears once InFlight has looked at this photo.',
     modeDescriptions: {
       solo: 'Solo mode: you stay in full manual control. Run Deep Vision Review whenever you want a second opinion.',
       copilot: 'Co-pilot mode: InFlight runs Deep Vision Review automatically and suggests edits for your approval.',
@@ -300,6 +302,18 @@ export const STRINGS = {
     statusDone: 'Complete',
     statusCancelled: 'Cancelled',
     statusFailed: 'Failed',
+    tabActive: 'Active',
+    tabCompleted: 'Completed',
+    emptyCompleted: 'Nothing completed in the last 4 hours.',
+    keepNote: 'Finished tasks stay here for 4 hours, or until you delete them.',
+    deleteOne: 'Delete',
+    deleteAll: 'Delete all',
+    wheel: (running: number, percent: number) => running ? `Tasks: ${running} running, ${percent}% done` : 'Tasks: nothing running',
+  },
+
+  // Mode flag
+  modeFlag: {
+    label: (mode: string) => `${mode} is on. Change it in Settings.`,
   },
 
   // Export Dialog
