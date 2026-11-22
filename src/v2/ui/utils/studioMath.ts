@@ -122,57 +122,47 @@ export interface OverlayOverflowIssue {
  * Estimates whether the active multi-row text overlay overflows any enabled format frame.
  * Used to raise a calm, actionable issue flag in both the Overlays panel and Canvas header.
  */
+const REFERENCE_FRAME_WIDTH = 660;
+const LINE_HEIGHT = 1.375;
+
+/** How wide a row of text is, as a share of the frame's width. Overlay sizes are a share of the frame's width, so this is the
+ * same in every format; it is an estimate from the number of characters (the real width depends on the font). */
+export function rowWidthPercent(row: OverlayTextRow, text: string): number {
+  const charFactor = row.uppercase ? 0.64 : 0.56;
+  const pixels = text.length * (row.sizePx * charFactor + Math.max(0, row.letterSpacing));
+  return (pixels / REFERENCE_FRAME_WIDTH) * 100;
+}
+
 export function detectOverlayOverflow(
   overlay: OverlaySettings,
   photo: Photo,
   sizes: SizePreset[]
 ): OverlayOverflowIssue[] {
   if (!overlay.textEnabled || overlay.rows.length === 0) return [];
-
-  const enabledSizes = sizes.filter((s) => s.enabled);
+  const safeWidth = overlay.textLayoutMode === 'cover-full' ? 92 : 84; // % of the frame's width (less the box's padding)
+  const widest = Math.max(...overlay.rows.map((row) => rowWidthPercent(row, formatOverlayRowText(row, photo))));
   const issues: OverlayOverflowIssue[] = [];
-
-  for (const size of enabledSizes) {
-    const aspect = size.width / Math.max(1, size.height);
-    // Reference preview frame width in CSS px for a ~460px tall stage
-    const refHeight = 460;
-    const refWidth = Math.min(680, Math.max(240, Math.round(refHeight * aspect)));
-    const safeWidth =
-      overlay.textLayoutMode === 'cover-full' ? refWidth * 0.92 : refWidth * 0.82;
-    const safeHeight =
-      overlay.textLayoutMode === 'cover-full' ? refHeight * 0.88 : refHeight * 0.45;
-
-    let maxRowWidth = 0;
-    let totalHeight = 0;
-
-    for (const row of overlay.rows) {
-      const text = formatOverlayRowText(row, photo);
-      const charFactor = row.uppercase ? 0.64 : 0.56;
-      const estimatedWidth =
-        text.length * (row.sizePx * charFactor + Math.max(0, row.letterSpacing));
-      if (estimatedWidth > maxRowWidth) maxRowWidth = estimatedWidth;
-      totalHeight += row.sizePx * 1.45;
-    }
-
-    const offsetMarginX = Math.abs(overlay.textOffsetX) * 0.01 * refWidth;
-    const offsetMarginY = Math.abs(overlay.textOffsetY) * 0.01 * refHeight;
-
-    if (maxRowWidth + offsetMarginX > safeWidth) {
-      issues.push({
-        sizeId: size.id,
-        sizeLabel: size.label,
-        reason: `Text width exceeds ${size.ratioLabel} safe margins`,
-      });
-    } else if (totalHeight + offsetMarginY > safeHeight) {
-      issues.push({
-        sizeId: size.id,
-        sizeLabel: size.label,
-        reason: `Text height crowds ${size.ratioLabel} vertical bounds`,
-      });
+  for (const size of sizes.filter((s) => s.enabled)) {
+    const frameShape = size.width / Math.max(1, size.height); // frame width over frame height
+    // Height as a share of the frame's height: the same text is a bigger share of a wide, short frame.
+    const heightPercent = overlay.rows.reduce((sum, row) => sum + (row.sizePx * LINE_HEIGHT) / REFERENCE_FRAME_WIDTH, 0) * 100 * frameShape;
+    const safeHeight = overlay.textLayoutMode === 'cover-full' ? 88 : 45;
+    if (widest + Math.abs(overlay.textOffsetX) > safeWidth) {
+      issues.push({ sizeId: size.id, sizeLabel: size.label, reason: `The widest row is about ${Math.round(widest)}% of the frame's width` });
+    } else if (heightPercent + Math.abs(overlay.textOffsetY) > safeHeight) {
+      issues.push({ sizeId: size.id, sizeLabel: size.label, reason: `The text is about ${Math.round(heightPercent)}% of the frame's height in ${size.ratioLabel}` });
     }
   }
-
   return issues;
+}
+
+/** The rows scaled down together, just enough for the widest to fit inside the safe width. Unchanged when it already fits. */
+export function fitOverlayRows(overlay: OverlaySettings, photo: Photo): OverlayTextRow[] {
+  const safeWidth = (overlay.textLayoutMode === 'cover-full' ? 92 : 84) - Math.abs(overlay.textOffsetX);
+  const widest = Math.max(...overlay.rows.map((row) => rowWidthPercent(row, formatOverlayRowText(row, photo))));
+  if (!(widest > safeWidth) || safeWidth <= 0) return overlay.rows;
+  const factor = safeWidth / widest;
+  return overlay.rows.map((row) => ({ ...row, sizePx: Math.max(8, Math.floor(row.sizePx * factor)) }));
 }
 
 /**

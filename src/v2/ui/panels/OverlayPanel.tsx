@@ -14,7 +14,7 @@ import FontPicker from './FontPicker';
 import WatermarkLibrary from './WatermarkLibrary';
 import BrandIcon from '../icons/BrandIcon';
 import InfoPopover from '../shell/InfoPopover';
-import { detectOverlayOverflow, formatOverlayRowText, getActiveGroup } from '../utils/studioMath';
+import { detectOverlayOverflow, fitOverlayRows, formatOverlayRowText, getActiveGroup } from '../utils/studioMath';
 
 /** The words a row will say on this photo (or a pangram when it has nothing yet), so a font is judged on real text. */
 const sampleText = (photo: Photo, row: OverlayTextRow) => formatOverlayRowText(row, photo).trim() || 'The quick brown fox jumps over the lazy dog';
@@ -61,6 +61,26 @@ const FIELD_CHOICES: Array<{ id: OverlayTextRow['fields'][number]; label: string
   { id: 'custom', label: 'Custom' },
 ];
 
+function Switch({ on, label, onToggle }: { on: boolean; label: string; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={onToggle}
+      className={`inline-flex items-center gap-2 rounded-full border px-1 py-1 pr-2.5 text-[11px] font-semibold transition-colors ${
+        on ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]' : 'border-[var(--border-default)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
+      }`}
+    >
+      <span className={`relative h-4 w-7 rounded-full transition-colors ${on ? 'bg-[var(--brand-accent)]' : 'bg-[var(--bg-surface-active)]'}`}>
+        <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all ${on ? 'left-3.5' : 'left-0.5'}`} />
+      </span>
+      {on ? STRINGS.overlays.on : STRINGS.overlays.off}
+    </button>
+  );
+}
+
 export default function OverlayPanel({
   photo,
   fonts,
@@ -88,6 +108,7 @@ export default function OverlayPanel({
   const group = getActiveGroup(photo);
   const overlay = group.overlay;
   const overflowIssues = detectOverlayOverflow(overlay, photo, photo.sizes);
+  const [overflowOpen, setOverflowOpen] = React.useState(false);
 
 
   const toggleField = (row: OverlayTextRow, field: OverlayTextRow['fields'][number]) => {
@@ -190,38 +211,40 @@ export default function OverlayPanel({
                 <label className="text-xs font-medium text-[var(--text-primary)]">
                   Show text overlay on this photo
                 </label>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={overlay.textEnabled}
-                  onClick={() => onUpdateOverlay(photo.id, { textEnabled: !overlay.textEnabled })}
-                  className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
-                    overlay.textEnabled
-                      ? 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
-                      : 'bg-[var(--bg-input)] text-[var(--text-muted)]'
-                  }`}
-                >
-                  {overlay.textEnabled ? 'Visible' : 'Off'}
-                </button>
+                <Switch on={overlay.textEnabled} label={STRINGS.overlays.textToggleLabel} onToggle={() => onUpdateOverlay(photo.id, { textEnabled: !overlay.textEnabled })} />
               </div>
 
-              {/* Overflow issue flag */}
+              {/* Text too wide: opens to say which row and offers a one-click fix */}
               {overflowIssues.length > 0 && (
-                <div
-                  role="alert"
-                  className="rounded-[var(--radius-md)] border border-[var(--semantic-danger)]/40 bg-[var(--semantic-danger-soft)] p-2.5 text-xs text-[var(--semantic-danger)]"
-                >
-                  <p className="flex items-center gap-1.5 font-semibold">
-                    <BrandIcon name="alert" size={14} />
-                    <span>{STRINGS.overlays.overflowBannerTitle}</span>
-                  </p>
-                  <p className="mt-1 text-[11px] text-[var(--text-primary)]">
-                    {STRINGS.overlays.overflowBannerBody}{' '}
-                    <strong>{overflowIssues.map((i) => i.sizeLabel).join(', ')}</strong>. Reduce font size or split into another row.
-                  </p>
+                <div className="rounded-[var(--radius-md)] border border-[var(--semantic-warning)] bg-[var(--semantic-warning-soft)] text-xs text-[var(--text-primary)]">
+                  <button
+                    type="button"
+                    aria-expanded={overflowOpen}
+                    onClick={() => setOverflowOpen((value) => !value)}
+                    className="flex w-full items-center justify-between gap-2 p-2.5 text-left font-semibold"
+                  >
+                    <span className="flex items-center gap-1.5"><BrandIcon name="alert" size={14} />{STRINGS.overlays.overflowShort}</span>
+                    <BrandIcon name={overflowOpen ? 'chevron-up' : 'chevron-down'} size={13} />
+                  </button>
+                  {overflowOpen && (
+                    <div role="status" className="space-y-2 border-t border-[var(--semantic-warning)]/40 p-2.5 text-[11px] leading-snug">
+                      <p>{STRINGS.overlays.overflowWhy}</p>
+                      <ul className="list-disc space-y-0.5 pl-4">
+                        {overflowIssues.map((issue) => <li key={issue.sizeId}><strong>{issue.sizeLabel}</strong>: {issue.reason}</li>)}
+                      </ul>
+                      <button
+                        type="button"
+                        onClick={() => onUpdateOverlay(photo.id, { rows: fitOverlayRows(overlay, photo), textOffsetX: 0 })}
+                        className="rounded-[var(--radius-xs)] bg-[var(--brand-accent)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-on-accent)]"
+                      >
+                        {STRINGS.overlays.overflowFit}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
+              <div inert={!overlay.textEnabled ? true : undefined} aria-disabled={!overlay.textEnabled} className={`space-y-4 transition-opacity ${overlay.textEnabled ? '' : 'pointer-events-none opacity-40'}`}>
               {/* Coverage Mode: As-is vs Cover full photo */}
               <div className="space-y-1.5">
                 <span className="text-[11px] font-medium text-[var(--text-secondary)]">
@@ -372,31 +395,23 @@ export default function OverlayPanel({
                   <span className="text-xs font-semibold text-[var(--text-primary)]">
                     {STRINGS.overlays.positionHeading}
                   </span>
-                  <div className="grid grid-cols-3 gap-1.5">
+                  <div role="group" aria-label={STRINGS.overlays.positionHeading} className="mx-auto grid w-24 grid-cols-3 gap-0 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-1">
                     {ANCHORS.map((a) => (
                       <button
                         key={a.id}
                         type="button"
                         aria-label={`Place text at ${a.id}`}
-                        onClick={() =>
-                          onUpdateOverlay(photo.id, {
-                            textPosition: a.id,
-                            textX: a.x,
-                            textY: a.y,
-                          })
-                        }
-                        className={`h-7 rounded-[var(--radius-xs)] border text-[10px] font-medium capitalize transition-colors ${
-                          overlay.textPosition === a.id
-                            ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                            : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                        }`}
+                        aria-pressed={overlay.textPosition === a.id}
+                        onClick={() => onUpdateOverlay(photo.id, { textPosition: a.id, textX: a.x, textY: a.y })}
+                        className="grid h-8 place-items-center"
                       >
-                        {a.id.replace('-', ' ')}
+                        <span className={`block rounded-full transition-all ${overlay.textPosition === a.id ? 'h-3.5 w-3.5 bg-[var(--brand-accent)] ring-2 ring-[var(--brand-accent-border)]' : 'h-2 w-2 bg-[var(--text-muted)] hover:bg-[var(--text-primary)]'}`} />
                       </button>
                     ))}
                   </div>
                 </div>
               )}
+              </div>
             </>
           )}
         </div>
@@ -413,21 +428,7 @@ export default function OverlayPanel({
                 <span className="text-xs font-medium text-[var(--text-primary)]">
                   {STRINGS.overlays.watermarkEnable}
                 </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={overlay.watermarkEnabled}
-                  onClick={() =>
-                    onUpdateOverlay(photo.id, { watermarkEnabled: !overlay.watermarkEnabled })
-                  }
-                  className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
-                    overlay.watermarkEnabled
-                      ? 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
-                      : 'bg-[var(--bg-input)] text-[var(--text-muted)]'
-                  }`}
-                >
-                  {overlay.watermarkEnabled ? 'Visible' : 'Off'}
-                </button>
+                <Switch on={overlay.watermarkEnabled} label={STRINGS.overlays.watermarkToggleLabel} onToggle={() => onUpdateOverlay(photo.id, { watermarkEnabled: !overlay.watermarkEnabled })} />
               </div>
 
               {/* Watermark library */}
@@ -447,6 +448,7 @@ export default function OverlayPanel({
                 />
               </div>
 
+              <div inert={!overlay.watermarkEnabled ? true : undefined} aria-disabled={!overlay.watermarkEnabled} className={`space-y-4 transition-opacity ${overlay.watermarkEnabled ? '' : 'pointer-events-none opacity-40'}`}>
               {/* Contrast swatch */}
               <div className="grid grid-cols-3 gap-1.5">
                 <button
@@ -524,30 +526,21 @@ export default function OverlayPanel({
                 <span className="text-xs font-semibold text-[var(--text-primary)]">
                   {STRINGS.overlays.positionHeading}
                 </span>
-                <div className="grid grid-cols-3 gap-1.5">
+                <div role="group" aria-label="Watermark position" className="mx-auto grid w-24 grid-cols-3 gap-0 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-1">
                   {ANCHORS.map((a) => (
                     <button
                       key={a.id}
                       type="button"
                       aria-label={`Place watermark at ${a.id}`}
-                      onClick={() =>
-                        onUpdateOverlay(photo.id, {
-                          watermarkEnabled: true,
-                          watermarkPosition: a.id,
-                          watermarkX: a.x,
-                          watermarkY: a.y,
-                        })
-                      }
-                      className={`h-7 rounded-[var(--radius-xs)] border text-[10px] font-medium capitalize transition-colors ${
-                        overlay.watermarkPosition === a.id
-                          ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                      }`}
+                      aria-pressed={overlay.watermarkPosition === a.id}
+                      onClick={() => onUpdateOverlay(photo.id, { watermarkPosition: a.id, watermarkX: a.x, watermarkY: a.y })}
+                      className="grid h-8 place-items-center"
                     >
-                      {a.id.replace('-', ' ')}
+                      <span className={`block rounded-full transition-all ${overlay.watermarkPosition === a.id ? 'h-3.5 w-3.5 bg-[var(--brand-accent)] ring-2 ring-[var(--brand-accent-border)]' : 'h-2 w-2 bg-[var(--text-muted)] hover:bg-[var(--text-primary)]'}`} />
                     </button>
                   ))}
                 </div>
+              </div>
               </div>
             </>
           )}

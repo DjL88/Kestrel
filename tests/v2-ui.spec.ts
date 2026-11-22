@@ -226,6 +226,8 @@ test('?v2 font picker: favourites shown in their own typeface, a sample of real 
   await page.goto('/?v2&stub=1&autostart=1');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
+  // The text controls are greyed until the overlay is on.
+  await root.getByRole('switch', { name: 'Show text overlay on this photo' }).click();
   await root.getByRole('button', { name: 'Plus Jakarta Sans' }).first().click();
   const list = root.getByRole('listbox', { name: 'Fonts' });
   await expect(list.getByText('Our favourites')).toBeVisible();
@@ -468,4 +470,35 @@ test('?v2 overlay text drags smoothly (no jump at 35% or 65%), snaps to the cent
   await page.mouse.up();
   const fontAfter = await box.locator('p').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
   expect(fontAfter).toBeGreaterThan(fontBefore * 1.1);
+});
+
+test('?v2 overlay panel: clear on/off toggle that greys the controls until on, position dots, a composition grid, and no density setting', async ({ page }) => {
+  await page.goto('/?v2&stub=1&autostart=1');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
+  const toggle = root.getByRole('switch', { name: 'Show text overlay on this photo' });
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await expect(toggle).toContainText('Off');
+  // Off: the controls below are greyed and cannot be reached.
+  const dots = root.getByRole('group', { name: 'Position (per image)' }).or(root.getByRole('group').filter({ has: root.getByRole('button', { name: /Place text at/ }) }));
+  await expect(root.locator('[aria-disabled="true"]').first()).toBeVisible();
+  await toggle.click();
+  await expect(toggle).toContainText('On');
+  await expect(root.locator('[aria-disabled="true"]')).toHaveCount(0);
+  await expect(root.getByRole('button', { name: /Place text at/ })).toHaveCount(9);
+  await expect(dots.first()).toBeVisible();
+  // A composition grid over the frame: off, 3x3, 4x4, off.
+  const grid = root.getByTestId('grid-toggle');
+  await expect(root.getByTestId('composition-grid')).toHaveCount(0);
+  await grid.click();
+  await expect(root.getByTestId('composition-grid')).toBeVisible();
+  await expect(root.getByTestId('composition-grid').locator('line')).toHaveCount(4);
+  await grid.click();
+  await expect(root.getByTestId('composition-grid').locator('line')).toHaveCount(6);
+  await grid.click();
+  await expect(root.getByTestId('composition-grid')).toHaveCount(0);
+  // Compact and comfortable looked the same, so the setting is gone.
+  await root.getByTestId('mode-flag').click();
+  await root.getByRole('tab', { name: /Appearance/ }).click();
+  await expect(root.getByText(/comfortable|compact/i)).toHaveCount(0);
 });

@@ -115,6 +115,8 @@ export default function Canvas({
   } | null>(null);
   // Double-click a format to reveal the whole picture as a ghost and position it under the crop window.
   const [revealSizeId, setRevealSizeId] = useState<string | null>(null);
+  // A composition grid over the frame (thirds or quarters) to help place things. Never exported.
+  const [gridMode, setGridMode] = useState<'off' | '3x3' | '4x4'>('off');
   // A plain drag moves the format on the canvas, like a design tool. Session only: it is where it sits, not part of the edit.
   const [frameOffsets, setFrameOffsets] = useState<Record<string, { x: number; y: number }>>({});
   useEffect(() => {
@@ -771,6 +773,15 @@ export default function Canvas({
               </div>
             )}
 
+            {gridMode !== 'off' && (
+              <svg aria-hidden="true" data-testid="composition-grid" className="pointer-events-none absolute inset-0 z-10 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                {(gridMode === '3x3' ? [100 / 3, 200 / 3] : [25, 50, 75]).flatMap((at) => [
+                  <line key={`v${at}`} x1={at} y1="0" x2={at} y2="100" stroke="white" strokeOpacity="0.55" strokeWidth="0.35" vectorEffect="non-scaling-stroke" strokeDasharray="4 3" />,
+                  <line key={`h${at}`} x1="0" y1={at} x2="100" y2={at} stroke="white" strokeOpacity="0.55" strokeWidth="0.35" vectorEffect="non-scaling-stroke" strokeDasharray="4 3" />,
+                ])}
+              </svg>
+            )}
+
             {/* Text & Watermark Overlays with suggested snapping */}
             {!compareMode && renderOverlaysInsideFrame(activeSize, true)}
           </div>
@@ -1010,6 +1021,20 @@ export default function Canvas({
               <span className="hidden sm:inline">{group.splitFrames ? 'Merged: Off' : 'Split 2'}</span>
             </button>
           )}
+          <button
+            type="button"
+            aria-pressed={gridMode !== 'off'}
+            title={STRINGS.canvas.gridTitle(gridMode)}
+            aria-label={STRINGS.canvas.gridTitle(gridMode)}
+            data-testid="grid-toggle"
+            onClick={() => setGridMode((mode) => (mode === 'off' ? '3x3' : mode === '3x3' ? '4x4' : 'off'))}
+            className={`inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2 text-[11px] font-medium whitespace-nowrap ${
+              gridMode !== 'off' ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            <BrandIcon name="grid" size={13} />
+            <span className="hidden sm:inline">{gridMode === 'off' ? 'Grid' : gridMode === '3x3' ? '3×3' : '4×4'}</span>
+          </button>
           <button
             type="button"
             aria-pressed={compareMode}

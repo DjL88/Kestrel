@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  fitOverlayRows,
+  rowWidthPercent,
   effectiveOutputSize,
   buildHistogramData,
   buildPreviewFilterCss,
@@ -247,4 +249,22 @@ test('with the box size known, the centre, the edges and the gap to the other ov
   assert.ok(above.guides.some((guide) => guide.label === 'Space above'));
   // Without geometry the old snapping is unchanged.
   assert.equal(snapOverlayPosition(49, 30, { x: 0, y: 0, visible: false }, true).x, 50);
+});
+
+test('overflow is judged on the share of the frame, so a normal text row is not flagged on a narrow format', () => {
+  const row = { id: 'r', fields: ['camera'] as const, customText: 'Sony A7 IV · FE 200–600mm f/5.6–6.3 G', fontId: 'jakarta', sizePx: 14, weight: 600 as const, uppercase: false, letterSpacing: 0.2 };
+  const share = rowWidthPercent({ ...row, fields: ['custom'] }, row.customText);
+  assert.ok(share > 30 && share < 60, `share was ${share}`);
+  assert.ok(rowWidthPercent({ ...row, sizePx: 40, fields: ['custom'] }, row.customText) > 84, 'a very large size does overflow');
+});
+
+test('fitting scales every row together, just enough, and leaves text that already fits alone', () => {
+  const base = { fields: ['custom'] as const, customText: 'A fairly long caption for this photograph', fontId: 'jakarta', weight: 500 as const, uppercase: false, letterSpacing: 0 };
+  const overlay = { textLayoutMode: 'as-is', textOffsetX: 0, rows: [{ ...base, id: 'a', sizePx: 40 }, { ...base, id: 'b', sizePx: 20 }] } as never;
+  const photo = {} as never;
+  const fitted = fitOverlayRows(overlay, photo);
+  assert.ok(fitted[0].sizePx < 40 && fitted[1].sizePx < 20);
+  assert.ok(Math.abs(fitted[0].sizePx / fitted[1].sizePx - 2) < 0.2, 'the rows keep their proportions');
+  const small = { textLayoutMode: 'as-is', textOffsetX: 0, rows: [{ ...base, id: 'a', sizePx: 12 }] } as never;
+  assert.equal(fitOverlayRows(small, photo)[0].sizePx, 12);
 });

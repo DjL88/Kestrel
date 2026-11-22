@@ -24,9 +24,10 @@
   --border-strong: rgba(244, 239, 232, 0.24);
 
   /* Typography */
-  --text-primary: #f4efe8;
-  --text-secondary: #b3b9c5;
-  --text-muted: #7f8796;
+  /* Text colours from V1's night theme: warm and a little dimmer, easier on the eyes in the dark (all pass AA on the panels) */
+  --text-primary: #e4ddd1;
+  --text-secondary: #b3ada3;
+  --text-muted: #8f8a82;
   --text-on-accent: #140d0a;
 
   /* 10% High-Intent Focal Accent (InFlight Copper-Amber — colour-blind distinct) */
