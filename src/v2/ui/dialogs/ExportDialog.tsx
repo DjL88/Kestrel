@@ -33,7 +33,6 @@ export default function ExportDialog({
   open,
   photo,
   selectedPhotoIds,
-  storageConnectors,
   features,
   onClose,
   onExport,
@@ -63,9 +62,6 @@ export default function ExportDialog({
 
   const selectAllForPlatform = (platform: (typeof SOCIAL_PLATFORMS)[number]) => {
     setSelectedSizeIds((prev) => Array.from(new Set([...prev, ...platform.sizeIds])));
-    if (platform.sizeIds.includes('video-zoom') && features.zoomVideo) {
-      setIncludeVideo(true);
-    }
   };
 
   // Only the two local download routes are implemented by planExport. A connector being
