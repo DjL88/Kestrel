@@ -58,6 +58,7 @@ Firestore collections: `accounts`, `account_emails` (keeps email hashes unique),
 | `POST /v1/licences/activate` | signed `KESTREL1` key | Atomic device-slot count → Ed25519 offline grant (default 30 days, client cap 90) |
 | `GET /v1/me/entitlements` | bearer | Plans, AI allowance, next revalidation |
 | `POST /v1/ai/identify` | bearer + `userConsent: true` | One metadata-free JPEG ≤512 KB/≤1024 px → checked species answer. 12 s upstream deadline; failures refunded |
+| `GET/POST /v1/me/safe-copy`, `POST /v1/safe-copy/{upload-url,commit,download-url,delete}`, `GET /v1/safe-copy/usage` | bearer | Opt-in managed backup (Cloud plan). Each level (recipes, previews, originals) is its own switch, all off by default. Content-addressed per-account keys, per-level size cap, byte quota, kill switch `safe_copy_disabled`. A lapse or the kill switch stops uploads only; reading and deleting your own copy always works. In-memory fakes only: **503 `SAFE_COPY_NOT_CONFIGURED` until a bucket exists and is approved** |
 | `POST /v1/ai/suggest` | bearer + consent | Bounded slider proposal only, never pixels. `{}` → `alreadyBalanced: true` |
 | `GET /v1/models/manifest?app=&channel=` | none | Signed `dataUpdateManifest` with live assets for that app version |
 | `GET /v1/desktop/releases?platform=` | none | Latest release for a notice; links allow-listed to `github.com` |

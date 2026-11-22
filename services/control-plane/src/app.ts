@@ -19,6 +19,7 @@ import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { googleKeysFromNetwork, verifyGoogleIdToken, GOOGLE_CERTS_URL, type GoogleKeys } from './googleIdToken.ts';
 import { APPLE_ISSUER, APPLE_KEYS_URL, FIREBASE_KEYS_URL, firebaseIssuer, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
 import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnover.ts';
+import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
 
 export const MAX_IMAGE_BYTES = 512 * 1024;
@@ -44,6 +45,8 @@ export interface AppOptions {
   now?: () => number;
   /** Backend-only demo image store; Cloud Run supplies GCS+Firestore, local tests use memory. */
   demoStudio?: DemoStudioStore;
+  /** Managed safe copy (opt-in backup). Absent in production until a bucket exists and is approved: routes answer 503. */
+  safeCopy?: SafeCopyOptions;
 }
 
 // ---- Schemas: the contract, also published as OpenAPI ------------------------
@@ -103,7 +106,11 @@ const DemoFraming = z.object({
   size: z.number().finite().min(0.08).max(1).optional(),
   free: z.boolean().optional(),
 }).strict();
+const Sha = z.string().regex(/^[0-9a-f]{64}$/);
 export const Schemas = {
+  SafeCopyLevels: z.object({ levels: z.object({ recipes: z.boolean(), previews: z.boolean(), originals: z.boolean() }).partial().strict() }).strict(),
+  SafeCopyUpload: z.object({ level: z.enum(SAFE_COPY_LEVELS), sha256: Sha, bytes: z.number().int().positive() }).strict(),
+  SafeCopyObject: z.object({ level: z.enum(SAFE_COPY_LEVELS), sha256: Sha }).strict(),
   DemoCreate: DemoDetails.extend({ jpegBase64: z.string().min(128).max(2_200_000).regex(/^[A-Za-z0-9+/]+={0,2}$/) }).strict(),
   DemoSave: DemoDetails.extend({ revision: z.number().int().positive(), edit: DemoEdit, framing: DemoFraming }).strict(),
   DemoRevision: z.object({ revision: z.number().int().positive() }).strict(),
@@ -332,6 +339,20 @@ export function createApp(options: AppOptions) {
       await refund(); // A failed answer costs nothing.
       throw error;
     }
+  }
+
+  // ---- Managed safe copy. Uploads are gated; reading and deleting your own copy never is.
+  function safeCopyCfg() {
+    if (!options.safeCopy) throw new ApiError(503, 'SAFE_COPY_NOT_CONFIGURED', 'Safe copy is not set up on this server.');
+    return options.safeCopy;
+  }
+  async function safeCopyUploadGate(accountId: string, level: typeof SAFE_COPY_LEVELS[number]) {
+    const sc = safeCopyCfg();
+    if ((await store.getSetting('safe_copy_disabled')) === '1') throw new ApiError(503, 'SAFE_COPY_DISABLED', 'Safe copy uploads are switched off for now. Your existing copy stays readable.', true);
+    if (!(await sc.catalog.getSettings(accountId))[level]) throw new ApiError(403, 'SAFE_COPY_NOT_ENABLED', `Turn on safe copy for ${level} first. It is off until you choose.`);
+    const plans = await store.listLicencesForAccount(accountId);
+    if (!plans.some((l) => l.plan === 'subscriber' && licenceIsUsable(l, now()))) throw new ApiError(403, 'SAFE_COPY_NOT_ENTITLED', 'Managed storage is part of the Cloud plan.');
+    return sc;
   }
 
   async function admin(req: Request, action: string): Promise<SessionClaims> {
@@ -613,6 +634,71 @@ export function createApp(options: AppOptions) {
         const answer = await aiCall(req, (p, image) => verifyColour(p, image, config.aiTimeoutMs));
         return { status: 200, body: answer };
       },
+    },
+
+    // ---- Managed safe copy (opt-in, per level, UK only; never the default)
+    {
+      method: 'GET', path: '/v1/me/safe-copy', summary: 'Which levels of safe copy are on (all off by default)', auth: 'user',
+      handler: async (req) => { const claims = await bearer(req); return { status: 200, body: { levels: await safeCopyCfg().catalog.getSettings(claims.sub) } }; },
+    },
+    {
+      method: 'POST', path: '/v1/me/safe-copy', summary: 'Turn a level of safe copy on or off. Originals is its own switch', auth: 'user', body: Schemas.SafeCopyLevels,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.SafeCopyLevels, req.rawBody);
+        const levels = await safeCopyCfg().catalog.setSettings(claims.sub, body.levels);
+        await audit(claims.sub, 'safecopy.settings', 'allowed', JSON.stringify(levels));
+        return { status: 200, body: { levels } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/safe-copy/upload-url', summary: 'A short-lived signed upload URL for one content-addressed object, if the level is on, the plan allows it and quota remains', auth: 'user', body: Schemas.SafeCopyUpload,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.SafeCopyUpload, req.rawBody);
+        if (body.bytes > SAFE_COPY_MAX_BYTES[body.level]) throw new ApiError(413, 'SAFE_COPY_TOO_LARGE', `A ${body.level} file can be at most ${SAFE_COPY_MAX_BYTES[body.level]} bytes.`);
+        const sc = await safeCopyUploadGate(claims.sub, body.level);
+        const outcome = await sc.catalog.reserve(claims.sub, body.level, body.sha256, body.bytes, sc.bytesQuota);
+        if (outcome === 'quota') throw new ApiError(429, 'SAFE_COPY_QUOTA_EXHAUSTED', 'Your safe copy is full. Uploads pause; downloads and local work continue and nothing is deleted.');
+        if (outcome === 'stored') return { status: 200, body: { alreadyStored: true } };
+        const key = safeCopyKey(claims.sub, body.level, body.sha256);
+        return { status: 200, body: { alreadyStored: false, uploadUrl: await sc.storage.signUpload(key, body.bytes, body.sha256) } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/safe-copy/commit', summary: 'Mark an uploaded object as stored (counts once)', auth: 'user', body: Schemas.SafeCopyObject,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.SafeCopyObject, req.rawBody);
+        if (!(await safeCopyCfg().catalog.commit(claims.sub, body.level, body.sha256))) throw new ApiError(404, 'NOT_FOUND', 'No such upload.');
+        return { status: 200, body: { stored: true } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/safe-copy/download-url', summary: 'A short-lived signed download URL for your own object. Never gated by plan or kill switch', auth: 'user', body: Schemas.SafeCopyObject,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.SafeCopyObject, req.rawBody);
+        const sc = safeCopyCfg();
+        const item = await sc.catalog.get(claims.sub, body.level, body.sha256);
+        if (!item?.committed) throw new ApiError(404, 'NOT_FOUND', 'No such object.'); // someone else's is indistinguishable from missing
+        return { status: 200, body: { downloadUrl: await sc.storage.signDownload(safeCopyKey(claims.sub, body.level, body.sha256)) } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/safe-copy/delete', summary: 'Delete one of your own objects now (idempotent)', auth: 'user', body: Schemas.SafeCopyObject,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.SafeCopyObject, req.rawBody);
+        const sc = safeCopyCfg();
+        await sc.storage.delete(safeCopyKey(claims.sub, body.level, body.sha256));
+        await sc.catalog.remove(claims.sub, body.level, body.sha256);
+        return { status: 200, body: { deleted: true } };
+      },
+    },
+    {
+      method: 'GET', path: '/v1/safe-copy/usage', summary: 'Bytes used and the allowance', auth: 'user',
+      handler: async (req) => { const claims = await bearer(req); const sc = safeCopyCfg(); return { status: 200, body: { bytesUsed: await sc.catalog.usage(claims.sub), bytesQuota: sc.bytesQuota } }; },
     },
 
     // ---- Model & release registry
