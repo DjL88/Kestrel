@@ -71,21 +71,70 @@ export default function Filmstrip({
   const [tileMenu, setTileMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
   const resizeStart = useRef<{ y: number; h: number } | null>(null);
   const longPressTimer = useRef<number | null>(null);
+  const touchPress = useRef<{ pointerId: number; x: number; y: number; photoId: string } | null>(null);
+  const suppressTouchClick = useRef(false);
+
+  const cancelLongPress = () => {
+    if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+    touchPress.current = null;
+  };
+
+  useEffect(() => () => {
+    if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
+  }, []);
+
+  const startLongPress = (event: React.PointerEvent<HTMLElement>, photoId: string) => {
+    if (event.pointerType !== 'touch' || !event.isPrimary) return;
+    cancelLongPress();
+    suppressTouchClick.current = false;
+    const { pointerId, clientX: x, clientY: y } = event;
+    touchPress.current = { pointerId, x, y, photoId };
+    longPressTimer.current = window.setTimeout(() => {
+      const press = touchPress.current;
+      if (!press || press.pointerId !== pointerId) return;
+      suppressTouchClick.current = true;
+      if (!selectedPhotoIds.includes(photoId)) onSelectPhoto(photoId);
+      setTileMenu({ x: press.x, y: press.y, photoId });
+      cancelLongPress();
+    }, 500);
+  };
+
+  const moveLongPress = (event: React.PointerEvent<HTMLElement>) => {
+    const press = touchPress.current;
+    if (press && press.pointerId === event.pointerId &&
+        Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10) {
+      cancelLongPress();
+    }
+  };
 
   useEffect(() => {
     if (!tileMenu) return;
-    const close = () => setTileMenu(null);
+    const close = () => {
+      suppressTouchClick.current = false;
+      setTileMenu(null);
+    };
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation();
-        setTileMenu(null);
+        close();
       }
     };
-    window.addEventListener('mousedown', close);
+    // The browser can target the release click at a menu item that appeared under the held finger.
+    const suppressReleaseClick = (event: MouseEvent) => {
+      if (!suppressTouchClick.current || event.detail === 0) return;
+      suppressTouchClick.current = false;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    // A held touch can emit a compatibility mousedown on release. Only a new press dismisses the menu.
+    window.addEventListener('pointerdown', close);
     window.addEventListener('keydown', onEscape);
+    window.addEventListener('click', suppressReleaseClick, true);
     return () => {
-      window.removeEventListener('mousedown', close);
+      window.removeEventListener('pointerdown', close);
       window.removeEventListener('keydown', onEscape);
+      window.removeEventListener('click', suppressReleaseClick, true);
     };
   }, [tileMenu]);
 
@@ -346,17 +395,10 @@ export default function Filmstrip({
                         photoId: photo.id,
                       });
                     }}
-                    onTouchStart={() => {
-                      longPressTimer.current = window.setTimeout(() => {
-                        onSelectPhoto(photo.id, { ctrl: true });
-                      }, 420);
-                    }}
-                    onTouchEnd={() => {
-                      if (longPressTimer.current) {
-                        clearTimeout(longPressTimer.current);
-                        longPressTimer.current = null;
-                      }
-                    }}
+                    onPointerDown={(event) => startLongPress(event, photo.id)}
+                    onPointerMove={moveLongPress}
+                    onPointerUp={cancelLongPress}
+                    onPointerCancel={cancelLongPress}
                     className={`group relative flex h-full w-36 shrink-0 flex-col overflow-hidden rounded-[var(--radius-md)] border transition-colors ${
                       isActive
                         ? 'border-[var(--brand-accent)] bg-[var(--bg-surface-raised)] ring-1 ring-[var(--brand-accent)]'
@@ -365,6 +407,20 @@ export default function Filmstrip({
                         : 'border-[var(--border-subtle)] bg-[var(--bg-input)] hover:border-[var(--border-default)]'
                     }`}
                   >
+                    <button
+                      type="button"
+                      aria-label={`More actions for ${photo.filename}`}
+                      title="Photo actions"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (!isSelected) onSelectPhoto(photo.id);
+                        const bounds = event.currentTarget.getBoundingClientRect();
+                        setTileMenu({ x: bounds.left, y: bounds.bottom, photoId: photo.id });
+                      }}
+                      className="absolute right-1 top-1 z-10 flex min-h-9 min-w-9 items-center justify-center rounded bg-[var(--bg-surface-raised)] text-xs font-bold text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--brand-accent)]"
+                    >
+                      <span aria-hidden="true">⋯</span>
+                    </button>
                     <button
                       type="button"
                       onClick={(e) =>
@@ -442,8 +498,11 @@ export default function Filmstrip({
         <div
           role="menu"
           aria-label="Photo actions"
-          onMouseDown={(e) => e.stopPropagation()}
-          className="fixed z-50 w-56 max-h-[70vh] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1.5 shadow-[var(--shadow-popover)]"
+          onPointerDown={(e) => {
+            suppressTouchClick.current = false;
+            e.stopPropagation();
+          }}
+          className="fixed z-50 w-56 max-h-[min(70dvh,16rem)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1.5 shadow-[var(--shadow-popover)] md:max-h-[70vh]"
           style={{ left: Math.max(8, Math.min(tileMenu.x, window.innerWidth - 232)), top: Math.max(8, Math.min(tileMenu.y, window.innerHeight - 270)) }}
         >
           <p className="px-3 py-1 text-[11px] text-[var(--text-muted)]">
