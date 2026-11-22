@@ -116,6 +116,11 @@ Each slice lands wired into the app, with unit and browser tests, reported as PA
 - **Purchase model flag:** `pro.purchase.oneOff` and `pro.purchase.subscription` decide what the website and app offer. Entitlements for both are honoured, and the backend flips which is sold.
 - **Cost:** flags live in one cached, signed document per plan and a field in the grant, so there is no Firestore read per request.
 
+### 12.2a Audiences and trials (owner decision, 22 Nov 2026)
+- **Audience types:** Unknown (no account), Basic, Pro, **Corporate{name}** and **User{email}**. A person has a plan plus, when known, an organisation and an account, so a rule can target any of these. The most specific rule wins: user, then organisation, then plan, then everyone. At the same level, a rule that switches a feature off beats one that switches it on.
+- **Trials target users or non-users.** A trial is an ordinary rule with a date range. **An empty end date means it runs until it is stopped.** The start date is optional too. The end date itself is exclusive.
+- **Built (slice 0, first PR):** the pure evaluator `src/core/featureFlags.ts` and its tests, wired into `featureAvailable` in `src/core/features.ts`. Compiled defaults reproduce today's behaviour exactly. Nothing fetches rules yet: the Firestore store, the signed grant field and the admin Flags page are later PRs.
+
 ### 12.3 The watermark example, and a conflict that needs a decision
 Intended behaviour: Basic gets an InFlight watermark. A backend toggle opens custom watermarks (and removes ours) for one user, a plan or everyone. Flags: `overlay.watermark.inflight` (forced), `overlay.watermark.custom`, `overlay.text`.
 
@@ -135,5 +140,5 @@ Intended behaviour: Basic gets an InFlight watermark. A backend toggle opens cus
 
 ## 13. Questions still with the owner
 6. Watermark on Basic: **decided, option A** (12.3). Whether to ever lock it is a later decision.
-7. Tier names and rules: today the product has Basic and Pro. Trial, Custom and Enterprise are new. How long is a Trial, and does Trial unlock everything Pro has?
-8. Should non-users ever see trial features, or only signed-in accounts?
+7. **Decided:** a Trial is a date-range rule, open-ended when no end date is set. Which features a given trial opens is chosen per trial.
+8. **Decided:** trials can target non-users or users, through the audience types in 12.2a.
