@@ -289,3 +289,24 @@ test('crop pan bounds reject invalid zoom and missing source dimensions safely',
   const invalid = cropPanLimits({ width: 0, height: 0 }, { width: 0, height: 0 }, -10);
   assert.ok(Number.isFinite(invalid.x) && Number.isFinite(invalid.y));
 });
+
+
+test('overlay centre anchor stays continuous across 35% and 65% while dragging', () => {
+  const geometry = { box: { w: 20, h: 10 }, peer: null, gap: { x: 1, y: 1 } };
+  for (const x of [34.9, 35, 35.1, 64.9, 65, 65.1]) {
+    const position = snapOverlayPosition(x, 42, { x: 50, y: 50, visible: false }, false, 3.2, geometry);
+    assert.equal(position.x, Number(x.toFixed(1)));
+    // A fixed centre anchor gives continuous left and right edges.
+    assert.equal(Number((position.x - geometry.box.w / 2).toFixed(1)), Number((x - 10).toFixed(1)));
+  }
+});
+
+test('overlay geometry snaps the box centre to its safe left and right edges', () => {
+  const geometry = { box: { w: 20, h: 10 }, peer: null, gap: { x: 1, y: 1 } };
+  const left = snapOverlayPosition(17, 42, { x: 50, y: 50, visible: false }, true, 3.2, geometry);
+  const right = snapOverlayPosition(83, 42, { x: 50, y: 50, visible: false }, true, 3.2, geometry);
+  assert.equal(left.x, 18); // left edge = 8
+  assert.equal(right.x, 82); // right edge = 92
+  assert.ok(left.guides.some((guide) => guide.label === 'Left margin'));
+  assert.ok(right.guides.some((guide) => guide.label === 'Right margin'));
+});
