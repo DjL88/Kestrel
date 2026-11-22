@@ -11,6 +11,7 @@
  */
 import type { AccessSnapshot, Plan } from './commercialAccess';
 import { openEnvelope, type PinnedKeys } from './signedEnvelope';
+import { parseGrantFlags, type GrantFlags } from './featureFlags';
 
 export interface EntitlementGrant {
   schema: 1;
@@ -23,6 +24,11 @@ export interface EntitlementGrant {
   issuedAtMs: number;
   /** After this, paid tools need one successful online check. */
   offlineUntilMs: number;
+  /**
+   * Feature flags already resolved for this person (see featureFlags.ts). Optional: a grant without it is exactly the old
+   * grant, and the app then uses its compiled defaults.
+   */
+  flags?: GrantFlags;
 }
 
 const ID = /^[A-Za-z0-9_-]{8,64}$/;
@@ -36,17 +42,24 @@ const DAY_MS = 86_400_000;
 export function parseEntitlementGrant(input: unknown): EntitlementGrant | null {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
   const g = input as Record<string, unknown>;
-  if (Object.keys(g).length !== FIELDS.length || !FIELDS.every((key) => Object.hasOwn(g, key))) return null;
+  const keys = Object.keys(g);
+  if (!FIELDS.every((key) => Object.hasOwn(g, key)) || keys.some((key) => key !== 'flags' && !FIELDS.includes(key))) return null;
   if (g.schema !== 1 || typeof g.grantId !== 'string' || !ID.test(g.grantId) ||
       !PLANS.includes(g.plan as Plan) || typeof g.managedAi !== 'boolean' ||
       typeof g.deviceHash !== 'string' || !HEX64.test(g.deviceHash) ||
       !Number.isSafeInteger(g.issuedAtMs) || !Number.isSafeInteger(g.offlineUntilMs)) return null;
   const issued = g.issuedAtMs as number, until = g.offlineUntilMs as number;
   if (issued < 0 || until <= issued || until - issued > MAX_OFFLINE_DAYS * DAY_MS) return null;
-  return {
+  const parsed: EntitlementGrant = {
     schema: 1, grantId: g.grantId, plan: g.plan as Plan, managedAi: g.managedAi,
     deviceHash: g.deviceHash, issuedAtMs: issued, offlineUntilMs: until,
   };
+  if (Object.hasOwn(g, 'flags')) {
+    const flags = parseGrantFlags(g.flags);
+    if (!flags) return null;
+    parsed.flags = flags;
+  }
+  return parsed;
 }
 
 export type GrantCheck =

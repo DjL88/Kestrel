@@ -120,3 +120,45 @@ test('the public document for people without an account carries no names or emai
   assert.equal(JSON.stringify(publicFlags).includes('ann@example.com'), false);
   assert.equal(JSON.stringify(publicFlags).includes('Acme'), false);
 });
+
+import { flagSetFromGrant, parseGrantFlags, resolveFlagsForGrant } from './featureFlags.ts';
+
+test('resolving for a grant gives each flag a plain answer and keeps named users out of it', () => {
+  const flags: FlagSet = {
+    watermarkCustom: { default: false, rules: [{ audience: { kind: 'plan', plan: 'pro' }, enabled: true }] },
+    smartCulling: { default: false, rules: [{ audience: { kind: 'user', email: 'abc' }, enabled: true, trial: true, endsAtMs: NOW + DAY }] },
+    masks: { default: true, kill: true, rules: [] },
+    rollout: { default: false, rules: [{ audience: { kind: 'any' }, enabled: true, percent: 30 }] },
+    old: { default: true, minAppVersion: '27.0.0', rules: [] },
+  };
+  const base = { nowMs: NOW, appVersion: '26.11.2' };
+  const resolved = resolveFlagsForGrant(flags, { ...base, audience: { plan: 'pro', user: 'abc' }, bucket: 10 });
+  assert.deepEqual(resolved, {
+    watermarkCustom: { on: true }, smartCulling: { on: true, trial: true, endsAtMs: NOW + DAY },
+    masks: { on: false }, rollout: { on: true }, old: { on: false },
+  });
+  assert.equal(JSON.stringify(resolved).includes('abc'), false);
+  const other = resolveFlagsForGrant(flags, { ...base, audience: { plan: 'basic', user: 'zzz' }, bucket: 90 });
+  assert.deepEqual(other.smartCulling, { on: false });
+  assert.deepEqual(other.rollout, { on: false });
+});
+
+test('grant flags are checked strictly, and any malformed entry refuses the lot', () => {
+  assert.deepEqual(parseGrantFlags({ a: { on: true, trial: true, endsAtMs: 5 }, b: { on: false } }), { a: { on: true, trial: true, endsAtMs: 5 }, b: { on: false } });
+  for (const bad of [null, [], 'x', { a: true }, { a: { on: 'yes' } }, { a: { on: true, extra: 1 } }, { a: { on: true, trial: false } }, { a: { on: true, endsAtMs: -1 } }, { 'bad key': { on: true } }]) {
+    assert.equal(parseGrantFlags(bad), null, JSON.stringify(bad));
+  }
+  assert.equal(parseGrantFlags(Object.fromEntries(Array.from({ length: 65 }, (_, i) => [`f${i}`, { on: true }]))), null);
+});
+
+test('a device turns grant flags back into rules: a closed trial returns to the compiled default, never to off', () => {
+  const free = accessCapabilities({ plan: 'free', licence: 'unlicensed', cloud: 'none', online: false, cachedLocalLicence: false });
+  const grant = { smartCulling: { on: true, trial: true as const, endsAtMs: NOW + DAY }, masks: { on: false }, speciesId: { on: true } };
+  const during = flagSetFromGrant(grant, NOW);
+  assert.deepEqual(evaluateFeature('smartCulling', free, { flags: during, nowMs: NOW }), { on: true, reason: 'rule-any', trial: true });
+  assert.equal(featureAvailable('masks', free, { flags: during, nowMs: NOW }), false, 'the server switched a free feature off');
+  assert.equal(featureAvailable('speciesId', free, { flags: during, nowMs: NOW }), true, 'on for good');
+  const after = flagSetFromGrant(grant, NOW + 2 * DAY);
+  assert.equal(featureAvailable('smartCulling', free, { flags: after, nowMs: NOW + 2 * DAY }), false, 'a Basic person is back to Basic');
+  assert.deepEqual(flagSetFromGrant(undefined, NOW), {});
+});
