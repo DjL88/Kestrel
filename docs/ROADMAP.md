@@ -509,13 +509,13 @@ Method: `git merge-tree --write-tree origin/main <branch>` per branch; a branch 
 
 Classes: **a** superseded/on main · **b** mergeable now · **c** needs rebase/repair · **d** WIP/unwired/untested, do not merge blind · **e** stale, propose closing.
 
-Counts: a=134, b=2, c=189, d=30, e=126
+Counts: a=136, b=0 (all candidates turned out to be on main or were merged in the triage PRs), c=189, d=30, e=126
 
 | Class | Branch | Last | Ahead | Behind | Note |
 |---|---|---|---|---|---|
-| b | `docs/offline-learning-library-recovery-20261118` | 2026-11-18 | 1 | 472 | clean merge, small, valid on main |
+| a | `docs/offline-learning-library-recovery-20261118` | 2026-11-18 | 1 | 472 | clean merge, small, valid on main |
 | a | `fix/raw-system-jpeg-decode-validation-20261118` | 2026-11-18 | 2 | 421 | fix and its test already on main (cherry-pick duplicated the test; cargo E0428) |
-| b | `docs/kestrel-product-philosophy-20261120` | 2026-11-20 | 2 | 323 | clean merge, small, valid on main |
+| a | `docs/kestrel-product-philosophy-20261120` | 2026-11-20 | 2 | 323 | clean merge, small, valid on main |
 | c | `claude-handover-20261120` | 2026-11-20 | 0 | 197 | conflicts with main (24 files) |
 | c | `claude-handover-20261120a` | 2026-11-20 | 3 | 198 | conflicts with main (9 files) |
 | c | `claude/admin-console` | 2026-11-20 | 0 | 269 | conflicts with main (17 files) |
@@ -1001,6 +1001,7 @@ Counts: a=134, b=2, c=189, d=30, e=126
 
 | Date | Merged | Closed | Local evidence |
 | --- | --- | --- | --- |
+| 22 Nov 2026 | #844 branch triage table; this PR: README link to PRODUCT-PHILOSOPHY and OFFLINE-LEARNING-LIBRARY-RECOVERY.md (docs from the triage, class b) | none | npm ci/lint/test/build PASS on the Mac; docs-only, Playwright and cargo NOT RUN |
 | 22 Nov 2026 (export-wizard specs 13 of 13; short-screen Next fixed) | Product bug found by `export-wizard.spec.ts` 'short screen': on a 480 px-high window the proof dock above the wizard (`ExportProofDock`, `shrink-0`, no height cap) took nearly all the height, so the wizard's footer and its Next button were clipped and a paragraph intercepted the click. The dock now has `max-h-[42dvh] overflow-y-auto`. Spec repairs: the list-view ZIP spec drops the 'Instagram' click (the list shows the size checkboxes directly) and expects the default output `w_kestrel.jpg`; the watermark spec takes the first of two identical 'Choose a picture…' texts and matches the picture input by prefix (its label also holds helper text). | | | `export-wizard.spec.ts` desktop 13/13 PASS (3 workers, 30 s cap), `npm run lint` 0 errors, `npm test` 1953/1953. Phone project, the six `dialogs` cases and the rest of the browser suite NOT RUN. The 42dvh cap was checked only through the spec's geometry assertions, not visually on a real small window. |
 | 22 Nov 2026 (owner UX feedback B11) | In Photo info, Save/Load XMP sidecar sit behind a quiet "XMP" disclosure instead of two prominent buttons; it opens by itself while a save or load runs or has a message. New spec `xmp-accordion`. | none | Linux, Node 22: `tsc --noEmit` PASS; `xmp-accordion`, `menus`, `mobile-viewport` desktop specs 10 passed, 2 skipped (phone-only). NOT RUN: phone project (XMP is hidden there), `npm test`. |
 | 22 Nov 2026 (owner UX feedback A4, revised) | A floating panel now offers only its own side as a dock target (the left-hand/right-hand setting decides it), and a drop on the other edge does not dock. Undocked panels still move freely. Moving a panel to the other side is done in Settings (hand), not by dragging. `drag-to-dock` spec updated. | none | Linux, Node 22: `tsc --noEmit` PASS; `drag-to-dock` plus floating-pane and dock desktop specs passed. NOT RUN: phone project, full suite, `npm test` (no change to unit-tested code). |
