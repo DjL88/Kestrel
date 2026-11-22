@@ -323,3 +323,7 @@ Before enabling it, build and publish an image from a commit containing `src/com
 - [ECB reference rates](https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html)
 - [ONS all-items CPI index](https://www.ons.gov.uk/economy/inflationandpriceindices/timeseries/d7bt)
 - [Scheduling Cloud Run jobs](https://docs.cloud.google.com/run/docs/execute/jobs-on-schedule)
+
+## Managed safe copy bucket (optional; plan only, not applied)
+
+`safe-copy.tf` is off by default (`safe_copy_enabled=false`), so `terraform plan` shows no change. It would create one private bucket in London (`<project>-kestrel-safe-copy`, public access blocked, no versioning, `force_destroy=false`, no age-based delete because it is a backup), plus permission for the control plane to sign URLs and delete on request. Review: `terraform -chdir=infra/gcp plan -var safe_copy_enabled=true`. **Applying needs your approval and starts storage billing** (cost model in docs/CLOUD-PLAN.md section 6, prices unverified). Soft delete is 7 days, so a deleted file can remain recoverable for up to a week; the privacy page must say so. The control plane is not changed by this file: connecting it to the bucket is a later code change. Nothing was checked with Terraform here (not installed).

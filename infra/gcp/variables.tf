@@ -82,3 +82,20 @@ variable "apple_client_ids" {
   type        = list(string)
   default     = []
 }
+
+# ---- Managed safe copy (safe-copy.tf). Off until the owner switches it on. -------------------------------------------------
+variable "safe_copy_enabled" {
+  description = "Create the private UK bucket for the opt-in managed safe copy (backup) and let the control plane sign URLs for it. Off: nothing is created and nothing is billed."
+  type        = bool
+  default     = false
+}
+
+variable "safe_copy_region" {
+  description = "Where safe copy files are held. UK only (owner decision, 22 Nov 2026): London, europe-west2."
+  type        = string
+  default     = "europe-west2"
+  validation {
+    condition     = var.safe_copy_region == "europe-west2"
+    error_message = "Safe copy must stay in the UK: europe-west2 (London)."
+  }
+}

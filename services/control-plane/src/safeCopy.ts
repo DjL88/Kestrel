@@ -48,11 +48,13 @@ export class MemorySafeCopyCatalog implements SafeCopyCatalog {
   private k = (a: string, l: string, s: string) => `${a}|${l}|${s}`;
   async getSettings(a: string) { return { ...(this.settings.get(a) ?? { recipes: false, previews: false, originals: false }) }; }
   async setSettings(a: string, levels: Partial<SafeCopySettings>) { const n = { ...(await this.getSettings(a)), ...levels }; this.settings.set(a, n); return { ...n }; }
-  async usage(a: string) { let t = 0; for (const [k, v] of this.items) if (k.startsWith(`${a}|`)) t += v.bytes; return t; }
+  private total(a: string) { let t = 0; for (const [k, v] of this.items) if (k.startsWith(`${a}|`)) t += v.bytes; return t; }
+  async usage(a: string) { return this.total(a); }
   async reserve(a: string, l: SafeCopyLevel, s: string, bytes: number, quota: number) {
     const cur = this.items.get(this.k(a, l, s));
     if (cur?.committed) return 'stored' as const;
-    if (!cur && (await this.usage(a)) + bytes > quota) return 'quota' as const;
+    if (cur) return 'reserved' as const; // a retry before commit is not counted twice
+    if (this.total(a) + bytes > quota) return 'quota' as const; // no await between the check and the write: no race
     this.items.set(this.k(a, l, s), { bytes, committed: false });
     return 'reserved' as const;
   }
