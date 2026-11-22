@@ -1,20 +1,23 @@
 import { runDenoiseAction, type DenoiseActionInput, type DenoiseActionResult } from './denoiseAction';
 import { runUpscaleAction, type UpscaleActionInput, type UpscaleActionResult } from './upscaleAction';
 import { runSubjectDetectAction, type SubjectDetectActionInput, type SubjectDetectActionResult } from './subjectDetectAction';
+import { runMaskAction, type MaskActionInput, type MaskActionResult } from './maskAction';
 import type { EngineRunner } from './types';
 
 /**
  * The one-call-per-capability seam `docs/AI-INTEGRATION.md` asks for ("the frontend just calls APIs to
  * these engines whether internal or online"). This is a thin ROUTER over the real actions already built
- * - `denoiseAction.ts`, `upscaleAction.ts`, `subjectDetectAction.ts` - not new logic. A caller (eventually
- * the UI; nothing calls this today) names a capability and gets back that capability's real result type,
- * without importing three different modules and remembering which function goes with which.
+ * - `denoiseAction.ts`, `upscaleAction.ts`, `subjectDetectAction.ts`, `maskAction.ts` - not new logic. A
+ * caller (eventually the UI; nothing calls this today) names a capability and gets back that capability's
+ * real result type, without importing four different modules and remembering which function goes with
+ * which.
  *
- * Deliberately narrower than `EngineCapability` (`types.ts`): only `'denoise'`, `'upscale'` and
- * `'subject-detect'` are covered, because those are the only three with a real action behind them today.
- * `'raw-develop'` and `'mask'` are left out - masking today is a PARAMETER other actions take (denoise,
- * Looks), not a capability of its own, and raw-develop has no engine-layer action at all yet. Listing
- * either here before the action exists would have this API claim to do something nobody built.
+ * Deliberately narrower than `EngineCapability` (`types.ts`): only `'denoise'`, `'upscale'`,
+ * `'subject-detect'` and `'mask'` are covered, because those are the only four with a real action behind
+ * them today. `'raw-develop'` is left out - it has no engine-layer action at all yet. Listing it here
+ * before the action exists would have this API claim to do something nobody built. (`'mask'` used to be
+ * excluded on the same reasoning, back when masking was only a parameter other actions took; `maskAction.ts`
+ * closes that gap, so it belongs here now.)
  *
  * Decision Maker (`decisionMaker.ts`) and Looks (`looks.ts`, `lookSuggestions.ts`) are NOT routed through
  * here either, on purpose: they are orchestration ON TOP of these capabilities (ranking their results,
@@ -36,12 +39,14 @@ import type { EngineRunner } from './types';
 export type EngineRequest =
   | ({ capability: 'denoise' } & DenoiseActionInput)
   | ({ capability: 'upscale' } & UpscaleActionInput)
-  | ({ capability: 'subject-detect' } & SubjectDetectActionInput);
+  | ({ capability: 'subject-detect' } & SubjectDetectActionInput)
+  | ({ capability: 'mask' } & MaskActionInput);
 
 export type EngineResponse =
   | { capability: 'denoise'; result: DenoiseActionResult }
   | { capability: 'upscale'; result: UpscaleActionResult }
-  | { capability: 'subject-detect'; result: SubjectDetectActionResult };
+  | { capability: 'subject-detect'; result: SubjectDetectActionResult }
+  | { capability: 'mask'; result: MaskActionResult };
 
 const UNIMPLEMENTED_RUNNERS: ReadonlySet<EngineRunner> = new Set(['cloud-gemini', 'cloud-byo', 'cloud-processing']);
 
@@ -61,6 +66,10 @@ export async function runEngineCapability(request: EngineRequest): Promise<Engin
     case 'subject-detect': {
       const { capability, ...input } = request;
       return { capability, result: await runSubjectDetectAction(input) };
+    }
+    case 'mask': {
+      const { capability, ...input } = request;
+      return { capability, result: await runMaskAction(input) };
     }
   }
 }
