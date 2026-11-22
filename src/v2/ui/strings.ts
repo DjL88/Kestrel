@@ -89,6 +89,14 @@ export const STRINGS = {
     auto: 'Auto',
   },
 
+  // Hand mode
+  hand: {
+    label: 'Tool side',
+    help: 'Left-handed mode puts the tools on the right, so a pencil or your hand does not catch them.',
+    right: 'Tools on the left',
+    left: 'Tools on the right (left-handed)',
+  },
+
   // Ranking
   tier: {
     label: 'Rank',
@@ -159,6 +167,9 @@ export const STRINGS = {
     originalUnavailableTitle: 'Original not connected, preview only',
     originalUnavailableBody: 'Adjustments still save to your recipe. Reconnect the source drive before full-resolution export.',
     reconnectOriginal: 'Reconnect folder',
+    compareDisabledSplit: 'Compare is not available while a photo is split across two frames. Rejoin it to compare.',
+    zoomToFit: 'Fit to window',
+    zoomTo100: 'Show at 100% (one picture pixel per screen pixel)',
     compareSplitLabel: 'Before and after split',
     compareSplitValue: (pct: number) => `${pct}% shows the original, ${100 - pct}% shows the edit`,
     beforeLabel: 'Before',

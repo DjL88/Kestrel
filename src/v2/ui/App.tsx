@@ -300,8 +300,10 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
           />
 
           {/* Main Workspace Row */}
-          <div className="relative flex min-h-0 flex-1 overflow-hidden">
+          <div className={`relative flex min-h-0 flex-1 overflow-hidden ${store.settings.hand === 'left' ? 'flex-row-reverse' : ''}`}>
             <Rail
+              hand={store.settings.hand}
+              hiddenPanels={!store.features.overlayText && !store.features.watermarkCustom ? ['overlays'] : []}
               assistMode={store.assistMode}
               activePanel={store.activePanel}
               panels={store.panels}

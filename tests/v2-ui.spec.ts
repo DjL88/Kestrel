@@ -250,8 +250,7 @@ test('?v2 font picker: favourites shown in their own typeface, a sample of real 
   await expect(root.getByRole('listbox', { name: 'Fonts' }).getByRole('button', { name: /Futura/ }).first()).toBeVisible();
 });
 
-test('?v2 on the Free plan the text overlay shows the Pro badge instead of its controls', async ({ page }) => {
-  // Saving overlays with the photo is covered by the unit tests (overlayOps); the Pro path needs a licence (see #867 note).
+test('?v2 on the Free plan the Overlays tool is not offered at all', async ({ page }) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
   await root.getByRole('button', { name: 'New project' }).first().click();
@@ -262,8 +261,9 @@ test('?v2 on the Free plan the text overlay shows the Pro badge instead of its c
   await root.getByRole('button', { name: /^Import/ }).first().click();
   await (await chooser).setFiles([{ name: 'ov-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
-  await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
-  await expect(root.getByText(/Part of InFlight Pro\. Basic keeps/).first()).toBeVisible();
+  // Text and watermark are Pro, so the tool is left out of the rail rather than shown locked.
+  await expect(root.getByRole('complementary', { name: 'Studio tools' }).getByRole('button', { name: 'Overlays' })).toHaveCount(0);
+  await expect(root.getByRole('complementary', { name: 'Studio tools' }).getByRole('button', { name: 'Adjust' })).toBeVisible();
 });
 
 test('?v2 shows the engine ranking as a word, and says "Not ranked yet" rather than guessing', async ({ page }) => {
@@ -284,4 +284,65 @@ test('?v2 shows the engine ranking as a word, and says "Not ranked yet" rather t
   await expect(root.getByTestId('tier-badge')).toHaveCount(0);
   await root.getByRole('button', { name: 'Info', exact: true }).first().click();
   await expect(root.getByText('Not ranked yet')).toBeVisible();
+});
+
+test('?v2 slice 1A: no Info in the footer, a bigger logo, Compare off in split, and left-handed mode', async ({ page }) => {
+  await page.goto('/?v2&stub=1&autostart=1');
+  const root = page.locator('.inflight-v2');
+  // Photo info lives in the left tools only.
+  const dock = root.getByRole('tablist', { name: 'Bottom dock views' });
+  await expect(dock.getByRole('tab')).toHaveText([/Filmstrip/]);
+  // The logo is bigger.
+  const logo = root.getByRole('banner').getByRole('img', { name: 'InFlight' });
+  expect((await logo.boundingBox())!.height).toBeGreaterThanOrEqual(36);
+  // Compare is greyed out, with the reason, while a photo is split.
+  const compare = root.getByRole('button', { name: 'Compare', exact: true });
+  await expect(compare).toBeEnabled();
+  await root.getByRole('button', { name: 'Split 2', exact: true }).first().click();
+  await expect(compare).toBeDisabled();
+  await expect(compare).toHaveAttribute('title', /Rejoin it to compare/);
+  // Left-handed mode puts the tools on the right.
+  const rail = root.getByRole('complementary', { name: 'Studio tools' });
+  const before = (await rail.boundingBox())!;
+  expect(before.x).toBeLessThan(10);
+  await root.getByTestId('mode-flag').click();
+  await root.getByRole('tab', { name: /Appearance/ }).first().click();
+  await root.getByRole('radio', { name: /left-handed/i }).click();
+  await root.getByRole('button', { name: /close settings/i }).first().click().catch(() => page.keyboard.press('Escape'));
+  const after = (await rail.boundingBox())!;
+  expect(after.x).toBeGreaterThan(400);
+});
+
+test('?v2 slice 1A: the histogram is measured, the zoom % jumps to 100%, and interface choices are kept', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Slice 1A check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  // A pure white 1200 x 800 picture: every pixel is clipped, and it has a known size.
+  const image = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 1200; c.height = 800; const x = c.getContext('2d')!; x.fillStyle = '#ffffff'; x.fillRect(0, 0, 1200, 800); return c.toDataURL('image/png').split(',')[1]; });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'white-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  // Real histogram: it reports what the pixels are, here 100% highlight clipping.
+  await root.getByRole('button', { name: 'Info', exact: true }).first().click();
+  await expect(root.getByTestId('histogram-clipping')).toContainText('Highlights clipped 100%', { timeout: 30000 });
+  // Zoom: click the percentage to see the picture at 100%, and again to fit.
+  const zoom = root.getByTestId('zoom-percent');
+  const fit = await zoom.textContent();
+  expect(fit).not.toBe('100%');
+  await zoom.click();
+  await expect(zoom).toHaveText('100%');
+  await zoom.click();
+  await expect(zoom).toHaveText(fit!);
+  // Interface choices are kept: left-handed mode survives a reload.
+  await root.getByRole('button', { name: 'Back to projects' }).click();
+  await root.getByRole('button', { name: /Settings/ }).first().click();
+  await root.getByRole('tab', { name: /Appearance/ }).first().click();
+  await root.getByRole('radio', { name: /left-handed/i }).click();
+  await page.reload();
+  await root.getByRole('button', { name: /Settings/ }).first().click();
+  await root.getByRole('tab', { name: /Appearance/ }).first().click();
+  await expect(root.getByRole('radio', { name: /left-handed/i })).toHaveAttribute('aria-checked', 'true');
 });

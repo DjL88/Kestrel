@@ -9,7 +9,7 @@
 
   /* 60% Neutral Canvas */
   --bg-app: #0c0e13;
-  --bg-canvas: #090b0f;
+  --bg-canvas: #1b1f2a; /* a touch lighter than the panels round it, so the work area reads as the focus */
   --bg-surface: #13161e;
   --bg-surface-raised: #1a1e28;
   --bg-surface-hover: #222836;
@@ -18,8 +18,9 @@
   --bg-scrim: rgba(7, 9, 13, 0.78);
 
   /* 30% Structural Borders & Dividers */
-  --border-subtle: rgba(244, 239, 232, 0.08);
-  --border-default: rgba(244, 239, 232, 0.14);
+  /* Panel edges carry a faint warm tint (the brand copper, very low) to help separate panels, without drawing the eye */
+  --border-subtle: rgba(246, 196, 160, 0.10);
+  --border-default: rgba(246, 196, 160, 0.18);
   --border-strong: rgba(244, 239, 232, 0.24);
 
   /* Typography */
@@ -55,8 +56,8 @@
 
   /* 60% Neutral Canvas (Warm Alabaster, never harsh hospital white) */
   --bg-app: #f3f1ec;
-  --bg-canvas: #e9e6df;
-  --bg-surface: #faf9f6;
+  --bg-canvas: #fbfaf7; /* a touch lighter than the panels round it */
+  --bg-surface: #f0eee8;
   --bg-surface-raised: #ffffff;
   --bg-surface-hover: #eeebe4;
   --bg-surface-active: #e4dfd5;
@@ -64,8 +65,8 @@
   --bg-scrim: rgba(20, 22, 28, 0.42);
 
   /* 30% Structural Borders & Dividers */
-  --border-subtle: rgba(23, 25, 32, 0.08);
-  --border-default: rgba(23, 25, 32, 0.14);
+  --border-subtle: rgba(120, 72, 36, 0.12);
+  --border-default: rgba(120, 72, 36, 0.20);
   --border-strong: rgba(23, 25, 32, 0.24);
 
   /* Typography */

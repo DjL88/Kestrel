@@ -5,7 +5,7 @@ import { createDefaultSizes, createEditGroups } from '../ui/stub';
 import { editToRecipe } from './recipeMap';
 import { readOverlay } from './overlayOps';
 import type { AutoRun } from './runAuto';
-import type { AssistSuggestion, EditRecipe } from '../ui/contract';
+import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contract';
 import type { Task } from '../../core/taskStore';
 
 /** A transparent pixel, so a photo whose picture is not ready yet shows an empty tile rather than a broken image. */
@@ -65,7 +65,10 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  * not record says "Not recorded" (or is left empty), never an invented value. The edit, size and mask parts start as the
  * UI's neutral defaults; they are connected to the real recipe in a later step.
  */
-export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, assist?: AssistState, watermarkAuto?: 'light-on-dark' | 'dark-on-light'): Photo {
+export interface PhotoExtras { pixelSize?: { width: number; height: number }; assist?: AssistState; watermarkAuto?: 'light-on-dark' | 'dark-on-light'; histogram?: PhotoHistogram }
+
+export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, extras: PhotoExtras = {}): Photo {
+  const { assist, watermarkAuto, histogram, pixelSize } = extras;
   const { exif } = frame;
   // The UI's sample group carries a made-up look. A real photo starts from its own edit: neutral until the person edits it.
   const groups = createEditGroups(false).map((group) => ({ ...group, name: 'Edit group 1', recipe: editToRecipe(frame.edit), overlay: readOverlay(frame.overlay) }));
@@ -96,12 +99,14 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ass
       dimensions: exif.width && exif.height ? `${exif.width} × ${exif.height}` : NOT_RECORDED,
       colourProfile: NOT_RECORDED,
     },
+    ...(exif.width && exif.height ? { pixelSize: { width: exif.width, height: exif.height } } : pixelSize ? { pixelSize } : {}),
     activeGroupId: groups[0].id,
     editGroups: groups,
     sizes: createDefaultSizes(),
     videoZoom: { enabled: false, focalX: 50, focalY: 50, direction: 'in', durationSec: 6 },
     masks: [],
     ...(watermarkAuto ? { watermarkAuto } : {}),
+    ...(histogram ? { histogram } : {}),
     assistCritique: assistCritiqueFor(assist),
   };
 }

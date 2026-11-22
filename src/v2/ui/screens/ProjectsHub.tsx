@@ -45,7 +45,7 @@ export default function ProjectsHub({
       {/* Clean 3-zone header */}
       <header className="flex h-16 shrink-0 items-center justify-between gap-6 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-6 md:px-10">
         <div className="flex items-center shrink-0">
-          <BrandLogo height={30} />
+          <BrandLogo height={44} />
         </div>
 
         <nav className="hidden sm:flex items-center gap-6 text-sm font-medium text-[var(--text-secondary)]">

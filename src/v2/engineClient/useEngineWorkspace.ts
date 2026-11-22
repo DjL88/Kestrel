@@ -17,7 +17,7 @@ import { useSpeciesScan } from '../../useSpeciesScan';
 import { isDesktopApp } from '../../providers/desktopShell';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { loadLocalFileListShoot } from '../../providers/localShootLoader';
-import type { EditRecipe, HubViewState, OverlaySettings, WatermarkPreset, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
+import type { EditRecipe, HubViewState, OverlaySettings, PhotoHistogram, WatermarkPreset, Project, TaskInfo, WorkspaceActions, WorkspaceStore } from '../ui/contract';
 import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
 import { featureAccess, featurePlan } from './featureMap';
@@ -25,6 +25,11 @@ import { hasDeviceFont, listDeviceFonts, loadSavedDeviceFonts, mergeFonts, saveD
 import { assetUrl, cutOut, importWatermark, loadStored, makeVariant, saveStored, toPresets, type StoredWatermark } from './watermarkLibrary';
 import { watermarkToneForPixels } from '../../core/watermark';
 import { INITIAL_WATERMARKS } from '../ui/stub';
+import { toPhotoHistogram } from './histogram';
+import { isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
+import { loadUi, mergeSettings, saveUi, type SavedUi } from './uiSettings';
+import { applyCanvasPhotoEdit } from '../../core/canvasEdit';
+import { DEFAULT_EDIT as EMPTY_EDIT } from '../../core/photoEdits';
 import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
 import { frameToPhoto, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
@@ -99,6 +104,9 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [deviceFonts, setDeviceFonts] = useState<string[]>(loadSavedDeviceFonts);
   const [watermarkStore, setWatermarkStore] = useState<StoredWatermark[]>(loadStored);
   const [watermarkLibrary, setWatermarkLibrary] = useState<WatermarkPreset[]>([]);
+  const [savedUi, setSavedUi] = useState<SavedUi>(loadUi);
+  const [pixelSizes, setPixelSizes] = useState<Record<string, { width: number; height: number }>>({});
+  const [histograms, setHistograms] = useState<Record<string, PhotoHistogram>>({});
   const [watermarkAuto, setWatermarkAuto] = useState<Record<string, 'light-on-dark' | 'dark-on-light'>>({});
   useEffect(() => { let live = true; void toPresets(watermarkStore).then((presets) => { if (live) setWatermarkLibrary(presets); }); return () => { live = false; }; }, [watermarkStore]);
   const updateWatermarks = useCallback((next: StoredWatermark[]) => { setWatermarkStore(next); saveStored(next); }, []);
@@ -324,6 +332,32 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detectKey]);
 
+  // The histogram is measured from the picture as it is now: the preview with this photo's edit applied, small and debounced.
+  const histogramKey = activeFrame ? `${activeFrame.id}|${JSON.stringify(activeFrame.edit ?? null)}|${JSON.stringify(activeFrame.framing ?? null)}` : null;
+  useEffect(() => {
+    if (!histogramKey || !activeFrame) return;
+    let live = true;
+    const frame = activeFrame;
+    const timer = window.setTimeout(() => {
+      provider.current!.getFullPreviewUrl(frame, 'selected').then(async (url) => {
+        if (!url || !live) return;
+        const image = await new Promise<HTMLImageElement>((resolve, reject) => { const element = new Image(); element.onload = () => resolve(element); element.onerror = reject; element.src = url; });
+        // For a plain picture file the shown image IS the original size; for RAW and HEIF it is a preview, so nothing is claimed.
+        if (live && !frame.exif.width && !isRawPreviewFile(frame.filename) && !isHeifFile(frame.filename)) setPixelSizes((current) => (current[frame.id] ? current : { ...current, [frame.id]: { width: image.naturalWidth, height: image.naturalHeight } }));
+        const scale = Math.min(1, 256 / Math.max(image.naturalWidth, image.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const context = canvas.getContext('2d', { willReadFrequently: true })!;
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        applyCanvasPhotoEdit(canvas, frame.edit ?? EMPTY_EDIT);
+        const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        if (live) setHistograms((current) => ({ ...current, [frame.id]: toPhotoHistogram(pixels) }));
+      }).catch(() => { /* no measurement: the panel says it is still measuring, never a made-up curve */ });
+    }, 160);
+    return () => { live = false; window.clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [histogramKey]);
+
   const applyAuto = useCallback((frameId: string) => {
     const assist = assists[frameId];
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === frameId);
@@ -464,6 +498,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       if (!hasDeviceFont(name)) { setNotice(`"${name}" is not installed on this device, so it was not added.`); return; }
       setDeviceFonts((current) => { const next = [...new Set([...current, name])]; saveDeviceFonts(next); return next; });
     },
+    updateSettings: (patch) => setSavedUi((current) => { const next: SavedUi = { ...current, settings: { ...current.settings, ...patch } }; saveUi(next); return next; }),
+    setAssistMode: (mode) => setSavedUi((current) => { const next: SavedUi = { ...current, assistMode: mode, settings: { ...current.settings, defaultAssistMode: mode } }; saveUi(next); return next; }),
     importWatermarkImage: async () => {
       const picked = await pickImageFile();
       if (!picked) return null;
@@ -523,10 +559,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [stub.actions, stub.store.looks, applyAuto, changeOverlay, runAutoCull, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
 
-  const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], assists[frame.id], watermarkAuto[frame.id])), [state?.frames, urls, assists, watermarkAuto]);
+  const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id] })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes]);
   const store: WorkspaceStore = useMemo(() => ({
     ...stub.store,
     fonts: mergeFonts(deviceFonts),
+    settings: mergeSettings(stub.store.settings, savedUi.settings),
+    assistMode: savedUi.assistMode ?? stub.store.assistMode,
     watermarkPresets: [...INITIAL_WATERMARKS, ...watermarkLibrary],
     features: featureAccess(can),
     featurePlan: featurePlan(),
@@ -541,7 +579,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
-  }), [stub.store, can, deviceFonts, watermarkLibrary, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, activeId, selected, taskList, taskHistory, clock, notice]);
+  }), [stub.store, can, savedUi, deviceFonts, watermarkLibrary, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, activeId, selected, taskList, taskHistory, clock, notice]);
 
   return { store, actions };
 }

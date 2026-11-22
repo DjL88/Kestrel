@@ -2,7 +2,6 @@ import React from 'react';
 import type { Photo } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
-import { buildHistogramData, getActiveGroup } from '../utils/studioMath';
 
 interface InfoPanelProps {
   photo: Photo | null;
@@ -21,9 +20,8 @@ export default function InfoPanel({
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to inspect metadata.</p>;
   }
 
-  const group = getActiveGroup(photo);
-  const seed = photo.id.charCodeAt(photo.id.length - 1);
-  const hist = buildHistogramData(group.recipe, seed);
+  const hist = photo.histogram ?? null;
+  const pct = (fraction: number) => (fraction === 0 ? '0%' : fraction < 0.001 ? '<0.1%' : fraction >= 0.1 ? `${Math.round(fraction * 100)}%` : `${(fraction * 100).toFixed(1)}%`);
   const flagged = photo.decision === 'keep';
 
   const toPolyline = (vals: number[]) =>
@@ -41,12 +39,22 @@ export default function InfoPanel({
             {photo.assistCritique.kelvinEstimate}
           </span>
         </div>
-        <svg viewBox="0 0 240 76" className="mt-2 h-20 w-full" role="img" aria-label="Tonal histogram">
-          <polyline fill="none" stroke="rgba(226,92,92,0.58)" strokeWidth="1.6" points={toPolyline(hist.red)} />
-          <polyline fill="none" stroke="rgba(56,178,139,0.58)" strokeWidth="1.6" points={toPolyline(hist.green)} />
-          <polyline fill="none" stroke="rgba(78,168,222,0.62)" strokeWidth="1.6" points={toPolyline(hist.blue)} />
-          <polyline fill="none" stroke="var(--text-primary)" strokeWidth="1.7" points={toPolyline(hist.luma)} />
-        </svg>
+        {hist ? (
+          <>
+            <svg viewBox="0 0 240 76" className="mt-2 h-20 w-full" role="img" aria-label={`Tonal histogram. Shadows clipped ${pct(hist.shadowClip)}, highlights clipped ${pct(hist.highlightClip)}.`}>
+              <polyline fill="none" stroke="rgba(226,92,92,0.58)" strokeWidth="1.6" points={toPolyline(hist.red)} />
+              <polyline fill="none" stroke="rgba(56,178,139,0.58)" strokeWidth="1.6" points={toPolyline(hist.green)} />
+              <polyline fill="none" stroke="rgba(78,168,222,0.62)" strokeWidth="1.6" points={toPolyline(hist.blue)} />
+              <polyline fill="none" stroke="var(--text-primary)" strokeWidth="1.7" points={toPolyline(hist.luma)} />
+            </svg>
+            <p className="mt-1 flex justify-between text-[11px] text-[var(--text-secondary)]" data-testid="histogram-clipping">
+              <span>Shadows clipped {pct(hist.shadowClip)}</span>
+              <span>Highlights clipped {pct(hist.highlightClip)}</span>
+            </p>
+          </>
+        ) : (
+          <p role="status" className="mt-2 text-xs text-[var(--text-secondary)]">Measuring this photo…</p>
+        )}
       </div>
 
       {/* Rating & Flag */}

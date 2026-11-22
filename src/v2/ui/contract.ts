@@ -7,6 +7,15 @@ import type { ComponentType, CSSProperties } from 'react';
 export type DecisionState = 'unreviewed' | 'keep' | 'reject';
 /** The engine's three-tier ranking of a photo within its shoot. Absent or null means it has not been ranked: nothing is guessed. */
 export type PhotoTier = 'good' | 'better' | 'best';
+/** A histogram measured from the picture's pixels: 32 bins, each 0 to 100, plus the share of pixels clipped to pure black or white. */
+export interface PhotoHistogram {
+  luma: number[];
+  red: number[];
+  green: number[];
+  blue: number[];
+  shadowClip: number;
+  highlightClip: number;
+}
 export type TileState = 'importing' | 'analysing' | 'ready' | 'unavailable';
 export type AssistMode = 'solo' | 'copilot' | 'autopilot';
 export type ThemeMode = 'dark' | 'light';
@@ -238,6 +247,10 @@ export interface Photo {
   sizes: SizePreset[];
   videoZoom: VideoZoomConfig;
   masks: MaskLayer[];
+  /** The picture's size in real pixels, when the file says. Used for the true 100% zoom. */
+  pixelSize?: { width: number; height: number };
+  /** Measured from the picture as it is now. Absent until measured; the interface shows nothing rather than a guess. */
+  histogram?: PhotoHistogram | null;
   /** Good, better or best, from the engine's decision maker. Shown as a word, never as a number. */
   tier?: PhotoTier | null;
   /** What 'auto' resolves to for this photo's watermark, measured on the pixels behind it. Absent until measured. */
@@ -310,6 +323,8 @@ export interface WorkspaceSettings {
   theme: ThemeMode;
   calmView: boolean;
   touchDensity: 'comfortable' | 'compact';
+  /** Which side the tool rail is on. 'left' mode puts it on the right so a pencil or a left hand does not catch it. */
+  hand: 'right' | 'left';
   cvdGuidance: boolean;
   ongoingCritique: boolean;
   defaultAssistMode: AssistMode;

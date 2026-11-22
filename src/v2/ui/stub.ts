@@ -26,7 +26,7 @@ import type {
   WorkspaceActions,
   WorkspaceStore,
 } from './contract';
-import { computeMultiSelection, getActiveGroup } from './utils/studioMath';
+import { buildHistogramData, computeMultiSelection, getActiveGroup } from './utils/studioMath';
 
 const DEFAULT_CROP: CropTransform = {
   zoom: 1,
@@ -453,6 +453,8 @@ function createStubPhotos(): Photo[] {
       speciesLabel: base.species,
       category: base.category,
       sharpnessScore: 84 + ((i * 7) % 15),
+      // Sample data only: the real store measures this from the pixels.
+      histogram: { ...buildHistogramData(createEditGroups(false)[0].recipe, i + 1), shadowClip: 0, highlightClip: 0 },
       tier: i % 5 === 0 ? 'best' : i % 3 === 0 ? 'better' : i % 7 === 0 ? 'good' : null,
       exif: {
         camera: base.camera,
@@ -645,6 +647,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       theme: 'dark',
       calmView: false,
       touchDensity: 'comfortable',
+      hand: 'right',
       cvdGuidance: true,
       ongoingCritique: true,
       defaultAssistMode: 'copilot',
@@ -1841,7 +1844,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
     },
 
     setCanvasZoom: (canvasZoom) => {
-      setStore((prev) => ({ ...prev, canvasZoom: Math.min(3, Math.max(0.5, Number(canvasZoom.toFixed(2)))) }));
+      setStore((prev) => ({ ...prev, canvasZoom: Math.min(16, Math.max(0.25, Number(canvasZoom.toFixed(3)))) }));
     },
 
     toggleFullScreen: () => {

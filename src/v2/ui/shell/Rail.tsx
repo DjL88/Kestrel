@@ -17,6 +17,10 @@ interface RailProps {
   onSetPanelVisible: (panelId: PanelId, visible: boolean) => void;
   onSetPanelDock: (panelId: PanelId, dock: DockPosition) => void;
   onOpenSettings: () => void;
+  /** Tools that are not offered on this plan are left out of the rail altogether. */
+  hiddenPanels?: PanelId[];
+  /** 'left' puts the rail on the right (left-handed mode). */
+  hand?: 'right' | 'left';
 }
 
 interface RailItem {
@@ -38,6 +42,8 @@ export default function Rail({
   onSetPanelVisible,
   onSetPanelDock,
   onOpenSettings,
+  hiddenPanels = [],
+  hand = 'right',
 }: RailProps) {
   const [contextPos, setContextPos] = useState<{ x: number; y: number } | null>(null);
 
@@ -63,7 +69,7 @@ export default function Rail({
       ? STRINGS.rail.autopilot
       : STRINGS.rail.copilot;
 
-  const items: RailItem[] = [
+  const allItems: RailItem[] = [
     { id: 'copilot', label: modeLabel, icon: assistModeIconName(assistMode) },
     { id: 'adjust', label: STRINGS.rail.adjust, icon: 'sliders' },
     { id: 'formats', label: STRINGS.rail.formats, icon: 'all-sizes' },
@@ -72,6 +78,8 @@ export default function Rail({
     { id: 'overlays', label: STRINGS.rail.overlays, icon: 'overlay' },
     { id: 'info', label: STRINGS.rail.info, icon: 'info' },
   ];
+
+  const items = allItems.filter((item) => !hiddenPanels.includes(item.id));
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -86,7 +94,7 @@ export default function Rail({
       <aside
         aria-label="Studio tools"
         onContextMenu={handleContextMenu}
-        className="hidden md:flex w-[var(--rail-width)] shrink-0 flex-col items-center justify-between border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] py-2 select-none"
+        className={`hidden md:flex w-[var(--rail-width)] shrink-0 flex-col items-center justify-between ${hand === 'left' ? 'border-l' : 'border-r'} border-[var(--border-subtle)] bg-[var(--bg-surface)] py-2 select-none`}
       >
         <div className="flex w-full flex-col items-center gap-0.5 overflow-y-auto inflight-scroll px-1.5">
           {items.map((item) => {

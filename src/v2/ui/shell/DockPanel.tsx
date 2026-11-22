@@ -100,7 +100,7 @@ export default function DockPanel({
                 : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
             }`}
           >
-            L
+            <BrandIcon name="arrow-left-to-line" size={16} />
           </button>
           <button
             type="button"
@@ -113,7 +113,7 @@ export default function DockPanel({
                 : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
             }`}
           >
-            R
+            <BrandIcon name="arrow-right-to-line" size={16} />
           </button>
           <button
             type="button"
