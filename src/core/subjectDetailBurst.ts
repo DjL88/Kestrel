@@ -43,6 +43,19 @@ const sha = (s: string) => typeof s === 'string' && /^[a-f0-9]{64}$/i.test(s);
 const box = (b: NormalisedBox | undefined): b is NormalisedBox =>
   !!b && unit(b.x) && unit(b.y) && unit(b.width) && unit(b.height) &&
   b.width > 0 && b.height > 0 && b.x + b.width <= 1.00000001 && b.y + b.height <= 1.00000001;
+/** Eye coordinates are useful only when they belong to the observed subject.
+ * An unrelated bright spot must not become an eye-detail crop or ranking cue. */
+const eyeWithinSubject = (e: SelectEvidence): boolean => {
+  if (!box(e.eyeBox)) return false;
+  if (!e.subjectBox) return true; // legacy eye-only evidence; provenance remains mandatory
+  if (!box(e.subjectBox)) return false;
+  const eye = e.eyeBox;
+  const subject = e.subjectBox;
+  const cx = eye.x + eye.width / 2;
+  const cy = eye.y + eye.height / 2;
+  return cx >= subject.x && cy >= subject.y &&
+    cx <= subject.x + subject.width && cy <= subject.y + subject.height;
+};
 const cropAround = (b: NormalisedBox): NormalisedBox => {
   const side = Math.min(1, Math.max(0.08, Math.max(b.width, b.height) * 2.5));
   const x = Math.max(0, Math.min(1 - side, b.x + b.width / 2 - side / 2));
@@ -79,7 +92,7 @@ function score(e: SelectEvidence): number | null {
   if (!unit(e.subjectSharpness) || !unit(e.motionBlur)) return null;
   const eye = e.genre === 'bird' || e.genre === 'person' || e.genre === 'pet';
   // Eye evidence improves ties only when present. Missing eye is never an automatic reject.
-  const detail = eye && unit(e.eyeSharpness) ? (e.eyeSharpness * 0.25 + e.subjectSharpness * 0.75) : e.subjectSharpness;
+  const detail = eye && unit(e.eyeSharpness) && eyeWithinSubject(e) ? (e.eyeSharpness * 0.25 + e.subjectSharpness * 0.75) : e.subjectSharpness;
   return detail * 0.7 + (unit(e.poseScore) ? e.poseScore * 0.15 : 0) + (1 - e.motionBlur) * 0.15;
 }
 export function selectBurstDetails(items: readonly SelectEvidence[]): SelectResult[] {
@@ -144,7 +157,7 @@ export function selectBurstDetails(items: readonly SelectEvidence[]): SelectResu
     const group = valid && !mixedBuilds && e.subjectCount !== 0 && burstKey && (!needsTrack || tracked)
       ? JSON.stringify([e.genre, e.burstId, e.modelId, e.modelVersion, e.subjectTrackId ?? null])
       : null;
-    const crop = valid ? (box(e.eyeBox) ? cropAround(e.eyeBox) : box(e.subjectBox) ? cropAround(e.subjectBox) : null) : null;
+    const crop = valid ? (eyeWithinSubject(e) ? cropAround(e.eyeBox!) : box(e.subjectBox) ? cropAround(e.subjectBox) : null) : null;
     return { e, valid, conflict, value, group, crop };
   });
   const manuallyKept = new Set(rows.filter(r => r.valid && r.group && r.e.manualDecision === 'keep').map(r => r.group));
