@@ -24,7 +24,7 @@ export function AppearanceSettings({ side, onSideChange, hand, onHandChange, gui
   return (
     <div className="space-y-3 px-1 pb-2">
       {part !== 'guidance' && (hand && onHandChange ? (
-        <fieldset className="space-y-1">
+        <fieldset data-phone-hidden className="space-y-1">
           <legend className="text-sm font-medium text-zinc-200">{m.settings.preferredHand}</legend>
           <p className="text-xs text-zinc-400">{m.settings.handHint}</p>
           <div className="grid grid-cols-2 gap-2" role="group" aria-label={m.settings.preferredHand}>
