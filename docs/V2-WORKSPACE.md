@@ -354,3 +354,8 @@ Rotate with [ and ]. Presets: InFlight, Lightroom, Capture One, Photo Mechanic. 
 2. **Email licence replaces key entry.** Risk to handle in the same slice: existing `KESTREL1` keys must keep working until each holder has been migrated to an email account, and a migration path must exist before key entry is removed (never lock out a paying owner; offline grants keep working). Needs a short migration design first.
 3. **Firestore metadata sync: approved, opt-in only.** Ratings, flags, tags and recipes through the allowlisted serialiser; no images or paths. The owner still approves the actual deploy, region and privacy text before it is switched on.
 4. **Editing depth: all four groups wanted**, in this order: colour mixer and tone curve; straighten and perspective; healing and spot removal (non-generative); lens correction, dehaze, vignette and grain (lens correction waits for the signed lens database). Each needs its own design note and engine support in `PhotoEdit` and the renderer.
+
+### 19.5 Progress (22 Nov 2026)
+- **Crop model (owner):** crop is done by resizing the variant types (the size copy), so the saved crop belongs to each size copy, not to the photo. The histogram and per-size crop storage were already on main.
+- **Export, first slice merged:** edited photos at chosen sizes as a zip or individual files. Overlay, watermark, saved crops, before images, video and cloud destinations are refused with a message until the renderer honours them. See ROADMAP header.
+- **Still open from the blocker list:** masks wired to the engine, relink (`reconnectOriginal`), remove and restore, then crop and overlay applied in export.
