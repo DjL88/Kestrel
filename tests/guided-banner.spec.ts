@@ -26,7 +26,7 @@ test('the guided banner offers one obvious next step for unreviewed photos, in p
   const banner = page.getByRole('region', { name: "What's next" });
   await expect(banner).toBeVisible();
   await expect(banner).toContainText('4 photos to look through');
-  // No bare percentage or score here — see docs/GUIDED-WORKFLOW-PLAN.md's "plain-language confidence" commitment.
+  // No bare percentage or score here — see docs/history/GUIDED-WORKFLOW-PLAN.md's "plain-language confidence" commitment.
   await expect(banner).not.toContainText('%');
   await expect(banner.getByRole('button', { name: 'Find my best photos' })).toBeVisible();
   await expect(banner.getByRole('button', { name: "I'll look through them myself" })).toBeVisible();

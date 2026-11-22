@@ -26,7 +26,7 @@ Current code: the online helper's bring-your-own-key UI is hidden unless `VITE_S
 4. Return a versioned, validated result: subject/species suggestions, plain-text opinion and optionally whitelisted numerical recipe proposals. AI has no source-write/delete tool, no cloud credentials and no arbitrary URL-fetch tool. The app validates bounds and applies proposals only under the user's enabled automation/review policy, with undo.
 5. Test unauthorised/expired requests, quota exhaustion, oversized or malformed images, provider failure, cancellation and offline operation before enabling the transport in public builds. Missing credentials must disable the online feature with a useful message, not use a bundled key.
 
-Managed storage and accounts should be a later service, not a prerequisite for this broker. Prefer provider OAuth with narrow scopes and revocable tokens where supported; NAS/local folders remain device-side. Choose hosting vendor, budget, data region, authentication and retention policy before deployment. See the [live audit](RELEASE-GAP-AUDIT-2026-11.md) for the release order.
+Managed storage and accounts should be a later service, not a prerequisite for this broker. Prefer provider OAuth with narrow scopes and revocable tokens where supported; NAS/local folders remain device-side. Choose hosting vendor, budget, data region, authentication and retention policy before deployment. See the [live audit](history/RELEASE-GAP-AUDIT-2026-11.md) (historical; superseded by [ROADMAP.md](ROADMAP.md)) for the release order.
 
 ## 1. Updates for models and the species library
 
