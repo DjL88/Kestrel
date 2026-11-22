@@ -201,12 +201,13 @@ export function computeMultiSelection(
  */
 export function filterPhotos(
   photos: Photo[],
-  filter: 'all' | 'flagged',
+  filter: 'all' | 'flagged' | 'set-aside',
   search: string
 ): Photo[] {
   const q = search.trim().toLowerCase();
   return photos.filter((photo) => {
     if (filter === 'flagged' && photo.decision !== 'keep') return false;
+    if (filter === 'set-aside' && photo.decision !== 'reject') return false;
     if (!q) return true;
     const haystack = [
       photo.filename,
