@@ -4,9 +4,10 @@
  * no Google Cloud is touched. Production wiring (Terraform plan, GCS, Firestore) is a later PR the owner must approve.
  * Nothing here stores or logs photo bytes, file names or EXIF: only ids, the job kind and a byte count.
  */
-export const CLOUD_KINDS = ['denoise', 'upscale', 'subject-mask'] as const;
+/** The names are the engine's own capability names (src/engine/types.ts `EngineCapability`), so a cloud runner is a drop-in. */
+export const CLOUD_KINDS = ['denoise', 'upscale', 'mask'] as const;
 export type CloudKind = typeof CLOUD_KINDS[number];
-export type CloudStatus = 'awaiting-upload' | 'finished';
+export type CloudStatus = 'awaiting-upload' | 'running' | 'ready' | 'failed' | 'finished';
 
 export interface CloudJobRecord { jobId: string; accountId: string; kind: CloudKind; inputBytes: number; status: CloudStatus; createdAtMs: number;
   /** When the person said yes to this upload (every job carries its own consent, never a standing one). */
@@ -15,8 +16,16 @@ export interface CloudJobRecord { jobId: string; accountId: string; kind: CloudK
 export interface CloudRunner {
   /** A short-lived signed upload URL into the private bucket. Throws if the job cannot be started. */
   createUpload(jobId: string, maxBytes: number): Promise<{ uploadUrl: string; expiresAtMs: number }>;
+  /** Whether the person's upload has arrived. */
+  inputPresent(jobId: string): Promise<boolean>;
+  /** Begin processing. Called once the input is present. */
+  start(jobId: string, kind: CloudKind): Promise<void>;
+  /** Progress. A failure carries no text: runner messages can contain file names, so only a code reaches the client. */
+  poll(jobId: string): Promise<{ state: 'running' } | { state: 'ready'; resultUrl: string } | { state: 'failed' }>;
   /** Idempotent. Must delete the input object; the bucket's lifecycle rule is only the backstop. */
   deleteInput(jobId: string): Promise<void>;
+  /** Idempotent. Removes the result once collected. */
+  deleteResult(jobId: string): Promise<void>;
 }
 
 export interface CloudLedger {
@@ -39,6 +48,20 @@ export class MemoryCloudRunner implements CloudRunner {
   }
   async deleteInput(jobId: string) { this.inputs.delete(jobId); }
   hasInput(jobId: string) { return this.inputs.has(jobId); }
+  // Test controls: the real runner does these on its own.
+  starts = 0;
+  private uploaded = new Set<string>(); private states = new Map<string, 'running' | 'ready' | 'failed'>(); private results = new Set<string>();
+  simulateUpload(jobId: string) { this.uploaded.add(jobId); }
+  completeJob(jobId: string) { this.states.set(jobId, 'ready'); this.results.add(jobId); }
+  failJob(jobId: string, _internalMessage: string) { this.states.set(jobId, 'failed'); }
+  hasResult(jobId: string) { return this.results.has(jobId); }
+  async inputPresent(jobId: string) { return this.uploaded.has(jobId) && this.inputs.has(jobId); }
+  async start(jobId: string) { this.starts++; this.states.set(jobId, 'running'); }
+  async poll(jobId: string) {
+    const s = this.states.get(jobId) ?? 'running';
+    return s === 'ready' ? { state: 'ready' as const, resultUrl: `memory://result/${jobId}` } : { state: s };
+  }
+  async deleteResult(jobId: string) { this.results.delete(jobId); }
 }
 
 export class MemoryCloudLedger implements CloudLedger {
