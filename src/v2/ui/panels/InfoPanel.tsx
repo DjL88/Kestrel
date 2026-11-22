@@ -129,6 +129,7 @@ export default function InfoPanel({
         <dl className="space-y-1.5 text-xs">
           <MetaRow label="Subject" value={photo.speciesLabel || photo.category} />
           <MetaRow label="Sharpness" value={`${photo.sharpnessScore}%`} mono />
+          <MetaRow label={STRINGS.tier.label} value={photo.tier ? STRINGS.tier[photo.tier] : STRINGS.tier.notRanked} />
         </dl>
       </section>
     </div>

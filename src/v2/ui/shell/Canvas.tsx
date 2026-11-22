@@ -120,6 +120,15 @@ export default function Canvas({
   const overflowIssues = detectOverlayOverflow(group.overlay, photo, photo.sizes);
   const watermarkPreset =
     watermarkPresets.find((w) => w.id === group.overlay.watermarkPresetId) ?? watermarkPresets[0];
+  // 'auto' uses what the engine measured behind the watermark on this photo; until then, light on dark.
+  const effectiveContrast =
+    group.overlay.watermarkContrast === 'auto' ? photo.watermarkAuto ?? 'light-on-dark' : group.overlay.watermarkContrast;
+  const watermarkImage =
+    watermarkPreset?.kind === 'image'
+      ? effectiveContrast === 'light-on-dark'
+        ? watermarkPreset.forDarkUrl ?? watermarkPreset.forLightUrl
+        : watermarkPreset.forLightUrl ?? watermarkPreset.forDarkUrl
+      : undefined;
 
   const getFontFamily = (fontId: string) =>
     fonts.find((f) => f.id === fontId)?.family ?? 'var(--font-sans)';
@@ -389,17 +398,22 @@ export default function Canvas({
                 (overlay.watermarkScale / 100) * (interactive ? 1 : 0.76)
               })`,
               opacity: overlay.watermarkOpacity / 100,
-              color: overlay.watermarkContrast === 'light-on-dark' ? '#F8F6F2' : '#14171F',
-              backgroundColor:
-                overlay.watermarkContrast === 'light-on-dark'
+              color: effectiveContrast === 'light-on-dark' ? '#F8F6F2' : '#14171F',
+              backgroundColor: watermarkImage
+                ? 'transparent'
+                : effectiveContrast === 'light-on-dark'
                   ? 'rgba(9, 11, 15, 0.36)'
                   : 'rgba(248, 246, 242, 0.54)',
             }}
           >
+            {watermarkImage ? (
+              <img src={watermarkImage} alt={watermarkPreset.label} draggable={false} className="h-9 w-auto max-w-[180px] object-contain" />
+            ) : (
             <p className="text-[11px] font-bold tracking-[0.14em] whitespace-nowrap">
               {watermarkPreset.text}
             </p>
-            {watermarkPreset.subtext && (
+            )}
+            {!watermarkImage && watermarkPreset.subtext && (
               <p className="text-[9px] tracking-[0.18em] opacity-80 whitespace-nowrap">
                 {watermarkPreset.subtext}
               </p>

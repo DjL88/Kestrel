@@ -67,6 +67,43 @@ export const STRINGS = {
     floatPanel: 'Float window',
   },
 
+  // Watermark library
+  watermarks: {
+    add: 'Add a watermark image',
+    none: 'None yet',
+    forDark: 'On dark photos',
+    forLight: 'On light photos',
+    removeBgDark: 'Remove background (dark photos)',
+    removeBgLight: 'Remove background (light photos)',
+    removeBgHelp: 'Removes a flat background, such as the white round a logo saved as a JPEG. White inside the logo stays. Your original image is kept.',
+    previewAlt: 'The watermark with its background removed, on a checkerboard',
+    tolerance: 'How much to remove',
+    working: 'Working…',
+    tooMuch: 'The background is not one flat colour, so nothing was removed.',
+    apply: 'Remove background',
+    cancel: 'Cancel',
+    makeLight: 'Make a light version',
+    makeDark: 'Make a dark version',
+    delete: 'Delete',
+    localNote: 'Watermarks are saved on this device only. Use a light version on dark photos and a dark one on light photos; Auto picks from the photo.',
+    auto: 'Auto',
+  },
+
+  // Ranking
+  tier: {
+    label: 'Rank',
+    good: 'Good',
+    better: 'Better',
+    best: 'Best',
+    notRanked: 'Not ranked yet',
+  },
+
+  // Pro
+  pro: {
+    partOf: 'Part of InFlight Pro',
+    lockedHint: 'Part of InFlight Pro. Basic keeps everything you need to import, cull, edit and export.',
+  },
+
   // Projects Hub
   hub: {
     heading: 'Projects',
@@ -141,7 +178,9 @@ export const STRINGS = {
 
   // Co-pilot / Flight Mode Panel
   copilot: {
-    heading: 'Flight Analysis',
+    heading: 'Co-pilot',
+    changeInSettings: 'Change mode in Settings',
+    nothingYet: 'Nothing to report yet. It appears once InFlight has looked at this photo.',
     modeDescriptions: {
       solo: 'Solo mode: you stay in full manual control. Run Deep Vision Review whenever you want a second opinion.',
       copilot: 'Co-pilot mode: InFlight runs Deep Vision Review automatically and suggests edits for your approval.',
@@ -249,7 +288,20 @@ export const STRINGS = {
     layoutFullPhoto: 'Cover full photo',
     rowsHeading: 'Text rows',
     addRow: 'Add row',
-    fontSearchPlaceholder: 'Search fonts or device-installed…',
+    fontSearchPlaceholder: 'Search our fonts…',
+    fontListLabel: 'Fonts',
+    fontFavourites: 'Our favourites',
+    fontOnThisDevice: 'On this device',
+    fontAddFromDevice: 'Add a font from this device',
+    fontSearchDevice: 'Search the fonts on this device by name…',
+    fontLoading: 'Reading the fonts on this device…',
+    fontAdd: 'Add',
+    fontNoMatch: 'No font matches that name.',
+    fontKeepTyping: (n: number) => `${n} more. Keep typing to narrow the list.`,
+    fontCannotList: 'This device cannot list its fonts here. Type the exact name of an installed font to check it.',
+    fontTypeName: 'Exact font name…',
+    fontNotFound: (name: string) => `"${name}" is not installed on this device.`,
+    fontDeviceNote: 'A font from this device is on this computer only. Files exported here use it.',
     uploadFont: 'Add custom font',
     positionHeading: 'Position (per image)',
     overflowBannerTitle: 'Text overflow detected',
@@ -294,6 +346,18 @@ export const STRINGS = {
     statusDone: 'Complete',
     statusCancelled: 'Cancelled',
     statusFailed: 'Failed',
+    tabActive: 'Active',
+    tabCompleted: 'Completed',
+    emptyCompleted: 'Nothing completed in the last 4 hours.',
+    keepNote: 'Finished tasks stay here for 4 hours, or until you delete them.',
+    deleteOne: 'Delete',
+    deleteAll: 'Delete all',
+    wheel: (running: number, percent: number) => running ? `Tasks: ${running} running, ${percent}% done` : 'Tasks: nothing running',
+  },
+
+  // Mode flag
+  modeFlag: {
+    label: (mode: string) => `${mode} is on. Change it in Settings.`,
   },
 
   // Export Dialog
