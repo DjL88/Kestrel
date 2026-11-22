@@ -509,12 +509,12 @@ Method: `git merge-tree --write-tree origin/main <branch>` per branch; a branch 
 
 Classes: **a** superseded/on main · **b** mergeable now · **c** needs rebase/repair · **d** WIP/unwired/untested, do not merge blind · **e** stale, propose closing.
 
-Counts: a=133, b=3, c=189, d=30, e=126
+Counts: a=134, b=2, c=189, d=30, e=126
 
 | Class | Branch | Last | Ahead | Behind | Note |
 |---|---|---|---|---|---|
 | b | `docs/offline-learning-library-recovery-20261118` | 2026-11-18 | 1 | 472 | clean merge, small, valid on main |
-| b | `fix/raw-system-jpeg-decode-validation-20261118` | 2026-11-18 | 2 | 421 | clean merge, small, valid on main |
+| a | `fix/raw-system-jpeg-decode-validation-20261118` | 2026-11-18 | 2 | 421 | fix and its test already on main (cherry-pick duplicated the test; cargo E0428) |
 | b | `docs/kestrel-product-philosophy-20261120` | 2026-11-20 | 2 | 323 | clean merge, small, valid on main |
 | c | `claude-handover-20261120` | 2026-11-20 | 0 | 197 | conflicts with main (24 files) |
 | c | `claude-handover-20261120a` | 2026-11-20 | 3 | 198 | conflicts with main (9 files) |
