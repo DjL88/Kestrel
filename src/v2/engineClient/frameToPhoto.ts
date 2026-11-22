@@ -3,6 +3,7 @@ import { computeCullCounts } from '../../core/cullingEngine';
 import type { Photo, Project, TaskInfo, TileState } from '../ui/contract';
 import { createDefaultSizes, createEditGroups } from '../ui/stub';
 import { editToRecipe } from './recipeMap';
+import { readOverlay } from './overlayOps';
 import type { AutoRun } from './runAuto';
 import type { AssistSuggestion, EditRecipe } from '../ui/contract';
 import type { Task } from '../../core/taskStore';
@@ -64,10 +65,10 @@ export function tileStateFor(urls: FrameUrls | undefined): TileState {
  * not record says "Not recorded" (or is left empty), never an invented value. The edit, size and mask parts start as the
  * UI's neutral defaults; they are connected to the real recipe in a later step.
  */
-export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, assist?: AssistState): Photo {
+export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, assist?: AssistState, watermarkAuto?: 'light-on-dark' | 'dark-on-light'): Photo {
   const { exif } = frame;
   // The UI's sample group carries a made-up look. A real photo starts from its own edit: neutral until the person edits it.
-  const groups = createEditGroups(false).map((group) => ({ ...group, name: 'Edit group 1', recipe: editToRecipe(frame.edit) }));
+  const groups = createEditGroups(false).map((group) => ({ ...group, name: 'Edit group 1', recipe: editToRecipe(frame.edit), overlay: readOverlay(frame.overlay) }));
   const thumb = urls?.thumb ?? BLANK_IMAGE;
   return {
     id: frame.id,
@@ -100,6 +101,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ass
     sizes: createDefaultSizes(),
     videoZoom: { enabled: false, focalX: 50, focalY: 50, direction: 'in', durationSec: 6 },
     masks: [],
+    ...(watermarkAuto ? { watermarkAuto } : {}),
     assistCritique: assistCritiqueFor(assist),
   };
 }
@@ -126,5 +128,15 @@ export function taskToInfo(task: Task): TaskInfo {
     detail: task.detail ?? (task.total ? `${task.done} of ${task.total}` : ''),
     progress,
     status: task.state === 'running' ? 'running' : task.state,
+    ...(task.endedAt !== undefined ? { endedAt: task.endedAt } : {}),
   };
+}
+
+/** Finished tasks stay in the Completed tab for this long, or until the person deletes them. */
+export const COMPLETED_KEEP_MS = 4 * 60 * 60 * 1000;
+
+/** Running tasks first, then finished ones still inside the keep window, newest first. */
+export function visibleTasks(running: readonly TaskInfo[], history: readonly TaskInfo[], now: number): TaskInfo[] {
+  const keep = history.filter((task) => now - (task.endedAt ?? now) < COMPLETED_KEEP_MS && !running.some((live) => live.id === task.id));
+  return [...running, ...keep.sort((a, b) => (b.endedAt ?? 0) - (a.endedAt ?? 0))];
 }

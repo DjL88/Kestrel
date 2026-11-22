@@ -25,6 +25,13 @@ export const FEATURES = {
   speciesId: 'paid',
   onlineAi: 'paid',
   smartCulling: 'paid',
+  // V2 workspace. Pro = it enhances the photo or costs money to run. Zoom video and split frames are Basic for now; the
+  // key exists so they can be gated later without an app change.
+  overlayText: 'paid',
+  watermarkCustom: 'paid',
+  cloudAssist: 'paid',
+  zoomVideo: 'free',
+  splitFrames: 'free',
 } as const;
 
 export type Feature = keyof typeof FEATURES;

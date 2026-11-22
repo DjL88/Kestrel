@@ -4,6 +4,7 @@ import { useWorkspace } from './stub';
 import { STRINGS } from './strings';
 import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
 import ProjectsHub from './screens/ProjectsHub';
+import { FeaturePlanContext } from './shell/ProBadge';
 import TopBar from './shell/TopBar';
 import Rail from './shell/Rail';
 import DockPanel from './shell/DockPanel';
@@ -128,6 +129,7 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
             features={store.features}
             ongoingCritique={store.settings.ongoingCritique}
             onSetAssistMode={actions.setAssistMode}
+            onOpenSettings={() => actions.setSettingsOpen(true, 'assistance')}
             onRunDeepVisionReview={actions.runDeepVisionReview}
             onApplySuggestion={actions.applyAssistSuggestion}
             onApplyAll={actions.applyAllAssistSuggestions}
@@ -203,6 +205,12 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
             onUpdateRow={actions.updateOverlayRow}
             onRemoveRow={actions.removeOverlayRow}
             onAddCustomFont={actions.addCustomFont}
+            onListDeviceFonts={actions.listDeviceFonts}
+            onHasDeviceFont={actions.hasDeviceFont}
+            onImportWatermark={actions.importWatermarkImage}
+            onCutOutWatermark={actions.cutOutWatermark}
+            onMakeWatermarkVariant={actions.makeWatermarkVariant}
+            onDeleteWatermark={actions.deleteWatermark}
           />
         );
       case 'assist':
@@ -223,7 +231,7 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
           />
         );
       case 'tasks':
-        return <TasksPanel tasks={store.tasks} onCancelTask={actions.cancelTask} />;
+        return <TasksPanel tasks={store.tasks} onCancelTask={actions.cancelTask} onClearTask={actions.clearTask} onClearCompleted={actions.clearCompletedTasks} />;
     }
   };
 
@@ -231,6 +239,7 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
   const activePanelVisible = Boolean(store.activePanel && activePanelState?.visible);
 
   return (
+    <FeaturePlanContext.Provider value={store.featurePlan}>
     <div
       className="inflight-v2 fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
       data-v2-theme={store.settings.theme}
@@ -297,6 +306,9 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
               activePanel={store.activePanel}
               panels={store.panels}
               runningTaskCount={runningTaskCount}
+              taskProgress={runningTaskCount ? store.tasks.filter((t) => t.status === 'running').reduce((sum, t) => sum + t.progress, 0) / runningTaskCount : 0}
+              onOpenTasks={() => actions.setActivePanel(store.activePanel === 'tasks' ? null : 'tasks')}
+              onOpenModeSettings={() => actions.setSettingsOpen(true, 'assistance')}
               calmView={store.settings.calmView}
               onSelectPanel={actions.setActivePanel}
               onSetPanelVisible={actions.setPanelVisible}
@@ -514,6 +526,8 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
         open={store.settingsOpen}
         activeTab={store.settingsTab}
         settings={store.settings}
+        assistMode={store.assistMode}
+        onSetAssistMode={actions.setAssistMode}
         onClose={() => actions.setSettingsOpen(false)}
         onSelectTab={actions.setSettingsTab}
         onUpdateSettings={actions.updateSettings}
@@ -536,5 +550,6 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
         </div>
       )}
     </div>
+    </FeaturePlanContext.Provider>
   );
 }
