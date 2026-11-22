@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Grip, PanelRightClose, Pin } from 'lucide-react';
+import { Grip, PanelRight, Pin } from 'lucide-react';
 import { clampPaneRect, defaultPaneRect, dockZoneAt, FLOATING_PANE_GAP as GAP, type PaneRect } from '../core/floatingPaneGeometry';
 import { FLOATING_PANE_Z } from '../core/photoInfoLayout';
 import { libraryText as t } from '../i18n/areas/library';
@@ -175,7 +175,7 @@ export function FloatingPane({ title, storageKey, onDock, onDockTo, dockFocusSel
         </button>
         <button type="button" onClick={dock} aria-label={t.floatingPane.dock(title)}
           className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-          <PanelRightClose className="h-4 w-4" aria-hidden="true"/>
+          <PanelRight className="h-4 w-4" aria-hidden="true"/>
         </button>
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
