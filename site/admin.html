@@ -38,7 +38,7 @@
 <div id="console" hidden>
   <nav class="tabs" aria-label="Console sections">
     <a href="#overview">Overview</a><a href="#licensees">Licensees and devices</a><a href="#issue">Issue a key</a>
-    <a href="#demo-studio">Demo Studio</a><a href="#flags">Flags</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
+    <a href="#demo-studio">Demo Studio</a><a href="#switches">Switches</a><a href="#flags">Flags</a><a href="#usage">AI usage</a><a href="#payments">Payments</a><a href="#messages">Messages</a><a href="#tax">Tax</a><a href="#price-review">Price review</a><a href="#audit">Audit log</a>
   </nav>
 
   <section id="overview" class="panel" aria-labelledby="overview-title">
@@ -82,6 +82,16 @@
       <label>Licence key <textarea id="issued-key" rows="3" readonly></textarea></label>
       <button type="button" id="copy-key">Copy key</button>
     </div>
+  </section>
+
+  <section id="switches" class="panel" aria-labelledby="switches-title">
+    <h2 id="switches-title">Switches</h2>
+    <p class="muted">One on/off switch for each managed feature. New features start <strong>off</strong> and only work once the service is set up for them and you switch them on. Switching off takes effect at once and is written to the audit log. Switching off never stops people reading or deleting their own data. Managed Gemini and cloud processing count against the monthly spending limit.</p>
+    <div class="scroll"><table id="switches-table">
+      <caption class="sr-only">Managed feature switches</caption>
+      <thead><tr><th scope="col">Feature</th><th scope="col">Set up on the server</th><th scope="col">State</th><th scope="col">Action</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
   </section>
 
   <section id="flags" class="panel" aria-labelledby="flags-title">

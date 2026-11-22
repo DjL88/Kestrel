@@ -14,7 +14,7 @@ const commerce = firestore ? new CommerceLedger(firestore) : undefined;
 const demoStudio = firestore && process.env.KCP_DEMO_PRIVATE_BUCKET && process.env.KCP_DEMO_PUBLIC_BUCKET
   ? new CloudDemoStudio(firestore, process.env.KCP_DEMO_PRIVATE_BUCKET, process.env.KCP_DEMO_PUBLIC_BUCKET) : undefined;
 const optional = await buildOptionalServices({ firestore: firestore as unknown as FirestoreLike | undefined });
-const app = createApp({ config, store, commerce, payments: commerce, pricing: commerce, demoStudio, cloud: optional.cloud, safeCopy: optional.safeCopy, learning: optional.learning, spend: optional.spend });
+const app = createApp({ config, store, commerce, payments: commerce, pricing: commerce, demoStudio, cloud: optional.cloud, safeCopy: optional.safeCopy, learning: optional.learning, spend: optional.spend, requireAdminSwitch: true });
 
 if (process.argv.includes('--print-openapi')) {
   process.stdout.write(`${JSON.stringify(openApi(app.routes), null, 2)}\n`);

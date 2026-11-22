@@ -85,3 +85,7 @@ Reservations in safe copy that never commit still count against quota (needs a s
 - In zsh `$VAR:path` is a modifier: write `${VAR}:path`. macOS has no `timeout`; use the test runner's `--test-timeout --test-force-exit`. Force-pushing was blocked by the permission classifier: push a normal merge commit instead.
 - A failing assertion in a test harness `setup` can leave a server open and hang the run; use `--test-force-exit` to see the failure.
 - Never wipe a file with `git show ref:path > file` when `ref:path` may be wrong: it truncates it.
+
+## 8. Admin switches (23 Nov 2026)
+
+The admin page now has a **Switches** panel (`/admin#switches`, routes `GET /v1/admin/switches` and `POST /v1/admin/switches/set`, audited as `switch.set`). One on/off switch each for: Managed Gemini helper (on unless switched off; it is the same switch as the existing online-helper control), Cloud processing, Safe copy, Learning signal. In production (`requireAdminSwitch`) the last three start **off**; a feature that is not set up on the server (no bucket, runner job or Firestore sink) cannot be switched on (409). Safe copy off stops uploads only; learning off stops sharing and opt-in but never opting out or deletion. The older kill settings (`cloud_disabled`, `safe_copy_disabled`) still win over the switch. Metered features also stay under the monthly spend ceiling. NOT verified: the panel in a real browser session (it needs Google sign-in); only the routes are tested.

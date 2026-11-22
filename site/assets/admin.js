@@ -141,7 +141,7 @@ act($('sign-out'), 'click', () => signOut('Signed out.'));
 // ---- Sections --------------------------------------------------------------------------------------------------
 
 async function refreshAll() {
-  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadMessages(), loadTax(), loadPriceReview(), loadFlags(), loadAudit()]);
+  const results = await Promise.allSettled([loadOverview(), loadLicensees(), loadUsage(), loadPayments(), loadMessages(), loadTax(), loadPriceReview(), loadSwitches(), loadFlags(), loadAudit()]);
   const failed = results.find(r => r.status === 'rejected' && !(r.reason instanceof SignedOut));
   if (failed) say(failed.reason.message);
 }
@@ -382,6 +382,31 @@ const flagForm = $('flag-form');
 const ruleRows = $('flag-rule-rows');
 $('never-gated').textContent = NEVER_GATED.join(', ');
 $('flag-names').replaceChildren(...KNOWN_FLAGS.map(name => { const option = document.createElement('option'); option.value = name; return option; }));
+
+// ---- Switches ---------------------------------------------------------------------------------------------------
+
+async function loadSwitches() {
+  const { switches } = await api('admin/switches');
+  $('switches-table').tBodies[0].replaceChildren(...switches.map(item => {
+    const row = document.createElement('tr');
+    const name = el('div');
+    name.append(el('strong', item.label), el('div', item.note, 'muted'));
+    cell(row, name);
+    cell(row, badge(item.configured ? 'Yes' : 'Not yet', item.configured ? 'good' : undefined));
+    cell(row, badge(item.on ? 'On' : 'Off', item.on ? 'good' : undefined));
+    const turn = !item.on;
+    const label = (turn ? 'Switch on ' : 'Switch off ') + item.label;
+    const action = button(turn ? 'Switch on' : 'Switch off', label, turn ? '' : 'danger', async () => {
+      if (turn && !confirm('Switch on ' + item.label + '? Metered features can start costing money, within the monthly spending limit.')) return;
+      await api('admin/switches/set', { key: item.key, on: turn });
+      await Promise.all([loadSwitches(), loadAudit()]);
+      say(item.label + (turn ? ' is on.' : ' is off.'));
+    });
+    if (turn && !item.configured) { action.disabled = true; action.title = 'Not set up on the server yet'; }
+    cell(row, action);
+    return row;
+  }));
+}
 
 async function loadFlags() {
   flagsState = (await api('admin/flags')).flags;
