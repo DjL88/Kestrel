@@ -503,6 +503,498 @@ Kestrel stays free and anonymous offline. An account is needed only to buy Pro o
 - Central model training, and signed offline updates only after demonstrated held-out improvement.
 - Signed installers, real-device acceptance on each platform, licensing, support, and an accessibility audit.
 
+### Branch triage — 22 November 2026 (all remote branches with commits not on origin/main, 481 at `777338d1`)
+
+Method: `git merge-tree --write-tree origin/main <branch>` per branch; a branch whose merge result equals main, or differs only in ROADMAP.md, is already on main (squash merges defeat `git cherry`). Nothing deleted. `feat/inflight-rebrand` is local-only with no commits ahead of main at triage time, so there were no rebrand file overlaps to avoid.
+
+Classes: **a** superseded/on main · **b** mergeable now · **c** needs rebase/repair · **d** WIP/unwired/untested, do not merge blind · **e** stale, propose closing.
+
+Counts: a=133, b=3, c=189, d=30, e=126
+
+| Class | Branch | Last | Ahead | Behind | Note |
+|---|---|---|---|---|---|
+| b | `docs/offline-learning-library-recovery-20261118` | 2026-11-18 | 1 | 472 | clean merge, small, valid on main |
+| b | `fix/raw-system-jpeg-decode-validation-20261118` | 2026-11-18 | 2 | 421 | clean merge, small, valid on main |
+| b | `docs/kestrel-product-philosophy-20261120` | 2026-11-20 | 2 | 323 | clean merge, small, valid on main |
+| c | `claude-handover-20261120` | 2026-11-20 | 0 | 197 | conflicts with main (24 files) |
+| c | `claude-handover-20261120a` | 2026-11-20 | 3 | 198 | conflicts with main (9 files) |
+| c | `claude/admin-console` | 2026-11-20 | 0 | 269 | conflicts with main (17 files) |
+| c | `claude/app-licence-wiring` | 2026-11-20 | 0 | 197 | conflicts with main (24 files) |
+| c | `claude/control-plane-firestore` | 2026-11-20 | 0 | 308 | conflicts with main (15 files) |
+| c | `claude/site-demo-editor` | 2026-11-20 | 2 | 198 | conflicts with main (9 files) |
+| c | `codex/cancel-waiting-export` | 2026-11-20 | 0 | 272 | conflicts with main (1 files) |
+| c | `codex/cloud-export-no-overwrite` | 2026-11-20 | 0 | 268 | conflicts with main (1 files) |
+| c | `codex/commerce-tax-foundation` | 2026-11-20 | 30 | 299 | conflicts with main (32 files) |
+| c | `codex/export-allowance-queue` | 2026-11-20 | 0 | 273 | conflicts with main (1 files) |
+| c | `codex/export-destination-folders` | 2026-11-20 | 3 | 283 | conflicts with main (2 files) |
+| c | `codex/export-photo-xmp-sidecar` | 2026-11-20 | 0 | 251 | conflicts with main (18 files) |
+| c | `codex/export-save-progress` | 2026-11-20 | 3 | 283 | conflicts with main (2 files) |
+| c | `codex/finish-export-delivery` | 2026-11-20 | 2 | 285 | conflicts with main (1 files) |
+| c | `codex/finish-export-subject-overlay` | 2026-11-20 | 0 | 248 | conflicts with main (16 files) |
+| c | `codex/heif-exif-main-green` | 2026-11-20 | 0 | 261 | conflicts with main (2 files) |
+| c | `codex/import-photo-xmp-sidecar` | 2026-11-20 | 0 | 250 | conflicts with main (17 files) |
+| c | `codex/land-checked-export-source` | 2026-11-20 | 0 | 274 | conflicts with main (2 files) |
+| c | `codex/landscape-workspace` | 2026-11-20 | 1 | 286 | conflicts with main (2 files) |
+| c | `codex/named-export-presets` | 2026-11-20 | 1 | 293 | conflicts with main (3 files) |
+| c | `codex/neutral-raster-display` | 2026-11-20 | 0 | 279 | conflicts with main (2 files) |
+| c | `codex/paired-sign-in` | 2026-11-20 | 33 | 299 | conflicts with main (32 files) |
+| c | `codex/pin-fullscreen-panels` | 2026-11-20 | 2 | 277 | conflicts with main (4 files) |
+| c | `codex/prototype-workflow-20261120` | 2026-11-20 | 0 | 256 | conflicts with main (5 files) |
+| c | `codex/raw-offline-review` | 2026-11-20 | 0 | 294 | conflicts with main (1 files) |
+| c | `codex/raw-preview-publication` | 2026-11-20 | 0 | 293 | conflicts with main (1 files) |
+| c | `codex/remember-export-options` | 2026-11-20 | 1 | 293 | conflicts with main (3 files) |
+| c | `codex/require-export-original` | 2026-11-20 | 5 | 277 | conflicts with main (7 files) |
+| c | `codex/resize-photo-info` | 2026-11-20 | 0 | 293 | conflicts with main (1 files) |
+| c | `codex/restore-export-copy-progress` | 2026-11-20 | 0 | 267 | conflicts with main (1 files) |
+| c | `codex/restore-named-export-presets` | 2026-11-20 | 0 | 266 | conflicts with main (4 files) |
+| c | `codex/restore-scheduled-price-review` | 2026-11-20 | 0 | 259 | conflicts with main (4 files) |
+| c | `codex/socket-independent-tests` | 2026-11-20 | 0 | 271 | conflicts with main (1 files) |
+| c | `codex/task-failure-recovery-20261120` | 2026-11-20 | 0 | 255 | conflicts with main (4 files) |
+| c | `codex/taskboard-closeout` | 2026-11-20 | 0 | 270 | conflicts with main (1 files) |
+| c | `codex/translate-export-presets` | 2026-11-20 | 0 | 265 | conflicts with main (14 files) |
+| c | `codex/website-contact-inbox` | 2026-11-20 | 0 | 260 | conflicts with main (2 files) |
+| c | `codex/xmp-sidecar-export` | 2026-11-20 | 2 | 249 | conflicts with main (16 files) |
+| c | `feat/actual-editor-demo-owner-photos-20261120` | 2026-11-20 | 15 | 191 | conflicts with main (11 files) |
+| c | `feat/architecture-trusted-model-delivery-20261120` | 2026-11-20 | 2 | 186 | conflicts with main (2 files) |
+| c | `feat/backup-restore-proof-20261120` | 2026-11-20 | 2 | 233 | conflicts with main (1 files) |
+| c | `feat/compare-localisation-true-pixel-zoom-20261120` | 2026-11-20 | 11 | 331 | conflicts with main (6 files) |
+| c | `feat/cull-contradictory-subject-evidence-20261120` | 2026-11-20 | 2 | 233 | conflicts with main (2 files) |
+| c | `feat/cull-ground-truth-gate-20261119` | 2026-11-20 | 10 | 342 | conflicts with main (2 files) |
+| c | `feat/cull-streamed-relink-byte-verification-20261120` | 2026-11-20 | 2 | 319 | conflicts with main (2 files) |
+| c | `feat/desktop-export-flight-folder-20261120` | 2026-11-20 | 23 | 241 | conflicts with main (18 files) |
+| c | `feat/edit-cull-without-switching-workspace-20261120` | 2026-11-20 | 3 | 283 | conflicts with main (2 files) |
+| c | `feat/explicit-conventional-upscale-20261120` | 2026-11-20 | 21 | 240 | conflicts with main (1 files) |
+| c | `feat/export-adaptive-watermark-engine-20261120` | 2026-11-20 | 6 | 327 | conflicts with main (4 files) |
+| c | `feat/export-app-owned-batch-queue-20261120` | 2026-11-20 | 3 | 324 | conflicts with main (2 files) |
+| c | `feat/export-connected-queue-20261120` | 2026-11-20 | 5 | 277 | conflicts with main (7 files) |
+| c | `feat/export-proof-state-20261120` | 2026-11-20 | 2 | 322 | conflicts with main (2 files) |
+| c | `feat/export-queue-checkpoints-20261120` | 2026-11-20 | 2 | 305 | conflicts with main (2 files) |
+| c | `feat/full-size-jpeg-one-choice-export-20261120` | 2026-11-20 | 29 | 228 | conflicts with main (2 files) |
+| c | `feat/gcp-hosting-20261120` | 2026-11-20 | 0 | 331 | conflicts with main (10 files) |
+| c | `feat/i18n-settings-review-integrated-20261119` | 2026-11-20 | 19 | 342 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `feat/integration-fixed-export-proof-20261120` | 2026-11-20 | 5 | 308 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `feat/integration-journalled-export-dispatch-20261120` | 2026-11-20 | 4 | 299 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `feat/k2-heic-import-20261120` | 2026-11-20 | 1 | 258 | conflicts with main (35 files) |
+| c | `feat/k5-unmarked-pick-reject-20261120` | 2026-11-20 | 1 | 308 | conflicts with main (5 files) |
+| c | `feat/mobile-foldable-tablet-parity-20261120` | 2026-11-20 | 5 | 293 | conflicts with main (5 files) |
+| c | `feat/photo-first-workspace-window-manager-20261120` | 2026-11-20 | 15 | 283 | conflicts with main (8 files) |
+| c | `feat/private-watermark-asset-vault-20261120` | 2026-11-20 | 30 | 238 | conflicts with main (5 files) |
+| c | `feat/raw-master-consumption-lease-20261120` | 2026-11-20 | 5 | 299 | conflicts with main (1 files) |
+| c | `feat/real-before-after-export-20261120` | 2026-11-20 | 28 | 239 | conflicts with main (8 files) |
+| c | `feat/relink-batch-integrity-20261119` | 2026-11-20 | 8 | 342 | conflicts with main (1 files) |
+| c | `feat/review-edit-continuity-single-settings-20261120` | 2026-11-20 | 7 | 286 | conflicts with main (2 files) |
+| c | `feat/settings-first-optional-ai-20261120` | 2026-11-20 | 3 | 327 | conflicts with main (3 files) |
+| c | `feat/tiff16-privacy-metadata-20261120` | 2026-11-20 | 6 | 281 | conflicts with main (4 files) |
+| c | `feat/unchanged-original-file-export-20261120` | 2026-11-20 | 25 | 224 | conflicts with main (3 files) |
+| c | `feat/unified-floating-workspace-panels-20261120` | 2026-11-20 | 10 | 287 | conflicts with main (5 files) |
+| c | `fix/ai-studio-three-tsx-build-blockers-20261120` | 2026-11-20 | 4 | 331 | conflicts with main (2 files) |
+| c | `fix/cull-duplicate-manual-identity-20261120` | 2026-11-20 | 2 | 203 | conflicts with main (1 files) |
+| c | `fix/cull-relink-hardlink-race-main-sync-20261120` | 2026-11-20 | 2 | 308 | conflicts with main (2 files) |
+| c | `fix/desktop-linked-original-identity-20261120` | 2026-11-20 | 8 | 335 | conflicts with main (1 files) |
+| c | `fix/export-desktop-visible-options-20261120` | 2026-11-20 | 0 | 233 | conflicts with main (1 files) |
+| c | `fix/export-journal-portable-path-identity-20261120` | 2026-11-20 | 2 | 224 | conflicts with main (1 files) |
+| c | `fix/k1-never-worse-than-original-20261120` | 2026-11-20 | 1 | 276 | conflicts with main (2 files) |
+| c | `fix/k7-k9-ui-polish-20261120` | 2026-11-20 | 5 | 317 | conflicts with main (4 files) |
+| c | `fix/owner-audit-build-gates-20261120` | 2026-11-20 | 16 | 337 | conflicts with main (8 files) |
+| c | `fix/prototype-basic-pro-license-gate-platform-icons-20261120` | 2026-11-20 | 0 | 192 | conflicts with main (2 files) |
+| c | `fix/prototype-evidence-output-20261120` | 2026-11-20 | 2 | 200 | conflicts with main (2 files) |
+| c | `fix/raw-export-sensor-preference-20261120` | 2026-11-20 | 7 | 188 | conflicts with main (1 files) |
+| c | `fix/raw-master-manual-export-gate-20261120` | 2026-11-20 | 4 | 247 | conflicts with main (3 files) |
+| c | `fix/raw-runtime-tiff-proof-20261120` | 2026-11-20 | 6 | 299 | conflicts with main (2 files) |
+| c | `fix/ux-cull-card-accessibility-20261120` | 2026-11-20 | 4 | 305 | conflicts with main (3 files) |
+| c | `fix/ux-export-proof-render-races-20261120` | 2026-11-20 | 0 | 302 | conflicts with main (1 files) |
+| c | `fix/ux-live-sliders-main-sync-20261120` | 2026-11-20 | 2 | 299 | conflicts with main (1 files) |
+| c | `fix/ux-proof-responsive-inspection-20261120` | 2026-11-20 | 2 | 302 | conflicts with main (1 files) |
+| c | `integration/claude-site-walkthrough-20261120` | 2026-11-20 | 0 | 194 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `merge/linked-originals-test-20261120` | 2026-11-20 | 0 | 220 | conflicts with main (1 files) |
+| c | `merge/unified-raw-export-entry-20261120` | 2026-11-20 | 0 | 216 | conflicts with main (1 files) |
+| c | `merge/xmp-delta-recovery-20261120` | 2026-11-20 | 4 | 217 | conflicts with main (20 files) |
+| c | `release/strict-prototype-evidence-gate-20261120` | 2026-11-20 | 3 | 189 | conflicts with main (1 files) |
+| c | `release/website-editor-deploy-gate-20261120` | 2026-11-20 | 6 | 187 | conflicts with main (4 files) |
+| c | `ui/final-sweep-crop-info-sort-20261120` | 2026-11-20 | 5 | 212 | conflicts with main (5 files) |
+| c | `ui/localised-view-tab-docking-20261120` | 2026-11-20 | 6 | 201 | conflicts with main (17 files) |
+| c | `ui/reconcile-view-filmstrip-review-actions-20261120` | 2026-11-20 | 5 | 203 | conflicts with main (2 files) |
+| c | `ux-independent-editor-tabs-20261120` | 2026-11-20 | 7 | 227 | conflicts with main (2 files) |
+| c | `ux-two-row-toolbar-20261120` | 2026-11-20 | 8 | 223 | conflicts with main (4 files) |
+| c | `ux-workspace-followup-20261120` | 2026-11-20 | 8 | 228 | conflicts with main (5 files) |
+| c | `ux-workspace-rescue-20261120` | 2026-11-20 | 27 | 233 | conflicts with main (11 files) |
+| c | `claude/happy-galileo-eqoiss` | 2026-11-21 | 3 | 143 | conflicts with main (1 files) |
+| c | `claude/photo-intelligence-e2e` | 2026-11-21 | 16 | 132 | conflicts with main (13 files) |
+| c | `claude/wonderful-cori-vf0lwp` | 2026-11-21 | 2 | 65 | conflicts with main (1 files) |
+| c | `feat/account-licence-bridge` | 2026-11-21 | 7 | 154 | conflicts with main (6 files) |
+| c | `feat/account-managed-ai-consent-settings-20261121` | 2026-11-21 | 5 | 44 | conflicts with main (1 files) |
+| c | `feat/export-compact-mobile-shared-social-sizes-20261121` | 2026-11-21 | 19 | 131 | conflicts with main (3 files) |
+| c | `feat/flight-guidance-mask-blending-20261121` | 2026-11-21 | 19 | 168 | conflicts with main (8 files) |
+| c | `feat/kestrel-icon-system-audit-20261121` | 2026-11-21 | 45 | 166 | conflicts with main (7 files) |
+| c | `feat/macos-local-prototype-dmg-builder-20261121` | 2026-11-21 | 3 | 181 | conflicts with main (1 files) |
+| c | `feat/mobile-pure-editor` | 2026-11-21 | 1 | 143 | conflicts with main (5 files) |
+| c | `feat/model-update-wiring` | 2026-11-21 | 5 | 152 | conflicts with main (6 files) |
+| c | `feat/native-app-setup` | 2026-11-21 | 8 | 143 | conflicts with main (15 files) |
+| c | `feat/optional-backup-transactional-sync-20261121` | 2026-11-21 | 4 | 180 | conflicts with main (1 files) |
+| c | `feat/optional-sign-in-firebase` | 2026-11-21 | 4 | 154 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `feat/phone-chrome-cleanup` | 2026-11-21 | 2 | 34 | conflicts with main (7 files) |
+| c | `feat/phone-chrome-cleanup-2` | 2026-11-21 | 3 | 34 | conflicts with main (6 files) |
+| c | `feat/raw-source-hash-identity-20261121-w2` | 2026-11-21 | 2 | 83 | conflicts with main (2 files) |
+| c | `feat/raw16-preview-source-contract-20261121` | 2026-11-21 | 3 | 177 | conflicts with main (1 files) |
+| c | `feat/rgb16-region-colour-proof-20261121` | 2026-11-21 | 2 | 131 | conflicts with main (1 files) |
+| c | `feat/select-advisor-evidence-regions-20261121` | 2026-11-21 | 3 | 175 | conflicts with main (1 files) |
+| c | `feat/select-evidence-burst-detail-20261121` | 2026-11-21 | 3 | 177 | conflicts with main (2 files) |
+| c | `feat/select-real-multi-box-evidence-20261121` | 2026-11-21 | 16 | 112 | conflicts with main (2 files) |
+| c | `feat/select-verified-live-subject-evidence-20261121` | 2026-11-21 | 10 | 69 | conflicts with main (3 files) |
+| c | `feat/subject-aware-burst-boundaries-20261121` | 2026-11-21 | 6 | 118 | conflicts with main (3 files) |
+| c | `feat/ux-guidance-accessibility-20261121` | 2026-11-21 | 21 | 168 | conflicts with main (8 files) |
+| c | `feat/ux-quiet-colour-confidence-20261121` | 2026-11-21 | 2 | 171 | conflicts with main (1 files) |
+| c | `feat/w4-colour-confidence-safe-review-20261121` | 2026-11-21 | 6 | 165 | conflicts with main (2 files) |
+| c | `feat/w4-quiet-localised-editor-guidance-20261121` | 2026-11-21 | 2 | 149 | conflicts with main (2 files) |
+| c | `feat/w5-verified-asset-cache-20261121` | 2026-11-21 | 37 | 165 | conflicts with main (8 files) |
+| c | `feat/website-launch-ready` | 2026-11-21 | 2 | 149 | conflicts with main (3 files) |
+| c | `feature/account-ai-consent-20261121` | 2026-11-21 | 0 | 71 | conflicts with main (1 files) |
+| c | `feature/account-offline-expiry-signout-20261121` | 2026-11-21 | 1 | 78 | conflicts with main (1 files) |
+| c | `feature/colour-grade-verification-20261121` | 2026-11-21 | 0 | 69 | conflicts with main (1 files) |
+| c | `feature/managed-ai-suggest-verify-transport-20261121` | 2026-11-21 | 0 | 69 | conflicts with main (3 files) |
+| c | `fix/all-source-tsx-parse-gate-20261121` | 2026-11-21 | 3 | 34 | conflicts with main (2 files) |
+| c | `fix/demo-editor-release-verification-20261121` | 2026-11-21 | 0 | 92 | conflicts with main (2 files) |
+| c | `fix/editor-feedback-docking-flow-20261121` | 2026-11-21 | 26 | 149 | conflicts with main (6 files) |
+| c | `fix/export-helper-strict` | 2026-11-21 | 0 | 70 | conflicts with main (1 files) |
+| c | `fix/export-share-completion-20261121` | 2026-11-21 | 0 | 92 | conflicts with main (1 files) |
+| c | `fix/export-specs-select-wizard-view` | 2026-11-21 | 1 | 94 | conflicts with main (2 files) |
+| c | `fix/integration-export-completion-truth-20261121` | 2026-11-21 | 2 | 177 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `fix/last-verified-pro-offline-20261121` | 2026-11-21 | 4 | 186 | conflicts with main (3 files) |
+| c | `fix/offline-photo-check-test-must-infer-after-disconnect-20261121` | 2026-11-21 | 0 | 121 | conflicts with main (1 files) |
+| c | `fix/photo-check-bounded-auto-runs-20261121` | 2026-11-21 | 0 | 123 | conflicts with main (1 files) |
+| c | `fix/photographic-review-stale-scope-20261121` | 2026-11-21 | 11 | 132 | conflicts with main (2 files) |
+| c | `fix/preview-rgb16-mask-colour-parity-20261121` | 2026-11-21 | 6 | 149 | conflicts with main (3 files) |
+| c | `fix/raw16-he-rights-and-source-gate-20261121` | 2026-11-21 | 3 | 112 | conflicts with main (1 files) |
+| c | `fix/raw16-linear-mask-compositing-20261121` | 2026-11-21 | 17 | 166 | conflicts with main (3 files) |
+| c | `fix/species-evidence-integrity-20261121` | 2026-11-21 | 4 | 116 | conflicts with main (1 files) |
+| c | `fix/species-subject-aligned-gate-20261121` | 2026-11-21 | 7 | 114 | conflicts with main (1 files) |
+| c | `fix/subject-detection-cancellation-20261121` | 2026-11-21 | 4 | 126 | conflicts with main (1 files) |
+| c | `fix/verified-asset-specs-dev-server` | 2026-11-21 | 0 | 98 | conflicts with main (2 files) |
+| c | `fix/verified-large-asset-idb-chunks-20261121` | 2026-11-21 | 2 | 131 | conflicts with main (1 files) |
+| c | `fix/w2-nef-unknown-failclosed-20261121` | 2026-11-21 | 3 | 98 | conflicts with main (3 files) |
+| c | `fix/w2-rgb16-edge-evidence-integrity-20261121` | 2026-11-21 | 7 | 154 | conflicts with main (4 files) |
+| c | `fix/w3-multisubject-photo-identity-20261121` | 2026-11-21 | 2 | 62 | conflicts with main (2 files) |
+| c | `fix/w3-subject-count-conflict-20261121` | 2026-11-21 | 4 | 53 | conflicts with main (1 files) |
+| c | `fix/w3-subject-review-final-source-check-20261121` | 2026-11-21 | 3 | 44 | conflicts with main (2 files) |
+| c | `fix/website-two-tiers-truthful-copy-20261121` | 2026-11-21 | 0 | 182 | conflicts with main (1 files) |
+| c | `integrate/account-licence-main-20261121` | 2026-11-21 | 16 | 144 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `integrate/flight-guidance-current-main-20261121` | 2026-11-21 | 18 | 154 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `integrate/kestrel-brand-lucide-current-main-20261121` | 2026-11-21 | 5 | 137 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `integrate/native-mobile-prototype-current-main-20261121` | 2026-11-21 | 0 | 139 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `integrate/offline-vision-research-tooling-20261121` | 2026-11-21 | 14 | 141 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `integrate/photo-check-current-main-20261121` | 2026-11-21 | 27 | 130 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `integrate/signed-model-updates-current-main-20261121` | 2026-11-21 | 15 | 143 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `integration/rebase-phone-chrome-20261121-2311` | 2026-11-21 | 15 | 36 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `integration/rebase-select-per-subject-20261121` | 2026-11-21 | 2 | 62 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `integration/reconcile-mobile-layout-715-20261121` | 2026-11-21 | 0 | 127 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `perf/offline-photo-scene-cache-explicit-recheck-20261121` | 2026-11-21 | 2 | 120 | conflicts with main (2 files) |
+| c | `security/managed-ai-explicit-photo-action-20261121` | 2026-11-21 | 3 | 42 | conflicts with main (2 files) |
+| c | `security/session-only-remote-credentials-20261121` | 2026-11-21 | 1 | 118 | conflicts with main (1 files) |
+| c | `security/w5-exact-main-negative-consent-20261121` | 2026-11-21 | 2 | 40 | conflicts with main (1 files) |
+| c | `security/w5-session-only-cloud-credentials-20261121` | 2026-11-21 | 7 | 112 | conflicts with main (2 files) |
+| c | `security/w5-standing-ai-consent-20261121` | 2026-11-21 | 4 | 51 | conflicts with main (1 files) |
+| c | `ui/compact-rails` | 2026-11-21 | 5 | 29 | conflicts with main (1 files) |
+| c | `ui/editor-tabs-declutter` | 2026-11-21 | 1 | 46 | conflicts with main (3 files) |
+| c | `ui/icon-consistency` | 2026-11-21 | 2 | 34 | conflicts with main (2 files) |
+| c | `ui/more-rails` | 2026-11-21 | 2 | 29 | conflicts with main (4 files) |
+| c | `ui/shortcuts-menus` | 2026-11-21 | 4 | 34 | conflicts with main (1 files) |
+| c | `ux/colour-check-painted-busy-20261121-w4` | 2026-11-21 | 2 | 99 | conflicts with main (1 files) |
+| c | `ux/colour-review-accessible-current-photo-20261121` | 2026-11-21 | 9 | 119 | conflicts with main (1 files) |
+| c | `w2/sensor-working-raster-contract-20261121` | 2026-11-21 | 8 | 112 | conflicts with main (2 files) |
+| c | `claude/panel-fullscreen-removal` | 2026-11-22 | 0 | 14 | conflicts with main (2 files) |
+| c | `integration/drag-to-dock-current-main-20261122` | 2026-11-22 | 6 | 19 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `integration/phone-export-current-main-20261122` | 2026-11-22 | 3 | 20 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
+| c | `ui/drag-to-dock` | 2026-11-22 | 3 | 29 | conflicts with main (6 files) |
+| d | `docs/raw-merge-gate-correction-20261118` | 2026-11-18 | 1 | 460 | would revert the owner billing-block merge authorisation |
+| d | `feat/truedetail-confidence-mask-core-20261118` | 2026-11-18 | 3 | 472 | prototype, not wired |
+| d | `wip/kestrel-translations-recovery` | 2026-11-19 | 2 | 439 | WIP/handoff/archive/sprint snapshot |
+| d | `archive/kestrel-img-ai-studio-pro-20261118` | 2026-11-20 | 2 | 425 | WIP/handoff/archive/sprint snapshot |
+| d | `feat/raw-master-handoff-20261120` | 2026-11-20 | 2 | 305 | WIP/handoff/archive/sprint snapshot |
+| d | `sprint/desktop-export-retry-20261120` | 2026-11-20 | 24 | 228 | WIP/handoff/archive/sprint snapshot |
+| d | `sprint/export-safe-save-and-raw-tiff-20261120` | 2026-11-20 | 20 | 246 | WIP/handoff/archive/sprint snapshot |
+| d | `sprint/in-app-raw-fallback-and-guidance-20261120` | 2026-11-20 | 3 | 244 | WIP/handoff/archive/sprint snapshot |
+| d | `sprint/localise-dockable-workspace-20261120` | 2026-11-20 | 19 | 236 | WIP/handoff/archive/sprint snapshot |
+| d | `sprint/model-setup-and-responsive-workspace-20261120` | 2026-11-20 | 10 | 245 | WIP/handoff/archive/sprint snapshot |
+| d | `sprint/opt-in-raster-xmp-export-20261120` | 2026-11-20 | 24 | 242 | WIP/handoff/archive/sprint snapshot |
+| d | `sprint/prototype-offline-gate-20261120` | 2026-11-20 | 0 | 201 | WIP/handoff/archive/sprint snapshot |
+| d | `sprint/translated-export-flight-20261120` | 2026-11-20 | 17 | 234 | WIP/handoff/archive/sprint snapshot |
+| d | `sprint/true-pixel-zoom-parity-20261120` | 2026-11-20 | 23 | 237 | WIP/handoff/archive/sprint snapshot |
+| d | `sprint/unified-high-precision-export-20261120` | 2026-11-20 | 2 | 241 | WIP/handoff/archive/sprint snapshot |
+| d | `sprint/unified-tiff-metadata-export-20261120` | 2026-11-20 | 18 | 239 | WIP/handoff/archive/sprint snapshot |
+| d | `sprint/view-menu-visibility-20261120` | 2026-11-20 | 19 | 226 | WIP/handoff/archive/sprint snapshot |
+| d | `sprint/xmp-file-menu-cleanup-20261120` | 2026-11-20 | 0 | 219 | WIP/handoff/archive/sprint snapshot |
+| d | `sprint/xmp-sidecar-batch-import-20261120` | 2026-11-20 | 22 | 214 | WIP/handoff/archive/sprint snapshot |
+| d | `archive/phone-806-before-reconcile-20261121` | 2026-11-21 | 2 | 37 | WIP/handoff/archive/sprint snapshot |
+| d | `claude/feat-focus-stack-3931b5` | 2026-11-21 | 1 | 72 | WIP, source-only, no importer |
+| d | `claude/feat-style-library-a78939` | 2026-11-21 | 3 | 56 | source-only, not wired into UI |
+| d | `feat/kestrel-flight-icon-system-20261121` | 2026-11-21 | 3 | 166 | brand icons: overlaps rebrand work |
+| d | `feat/select-local-observed-mask-proposals-20261121` | 2026-11-21 | 6 | 132 | provider+core, not wired |
+| d | `feat/w5-local-platform-ocr-20261121` | 2026-11-21 | 4 | 42 | no importer (OCR is later per #703) |
+| d | `handoff/claude-app-20261121-100941` | 2026-11-21 | 3 | 439 | WIP/handoff/archive/sprint snapshot |
+| d | `handoff/claude-app-20261121-100956` | 2026-11-21 | 3 | 439 | WIP/handoff/archive/sprint snapshot |
+| d | `handoff/claude-models-20261121-101231` | 2026-11-21 | 3 | 439 | WIP/handoff/archive/sprint snapshot |
+| d | `sprint/photography-free-foundation-20261121` | 2026-11-21 | 5 | 178 | WIP/handoff/archive/sprint snapshot |
+| d | `wip/text-search-followup-20261121` | 2026-11-21 | 2 | 72 | WIP/handoff/archive/sprint snapshot |
+| e | `codex/auto-cull-history` | 2026-11-15 | 1 | 1502 | old and far behind, conflicts |
+| e | `codex/browser-tests-ci` | 2026-11-15 | 0 | 1286 | old and far behind, conflicts |
+| e | `codex/compact-single-photo-culling` | 2026-11-15 | 0 | 1252 | old and far behind, conflicts |
+| e | `codex/editor-tones-and-histogram` | 2026-11-15 | 1 | 1502 | old and far behind, conflicts |
+| e | `codex/export-step-focus` | 2026-11-15 | 2 | 1269 | old and far behind, conflicts |
+| e | `codex/kestrel-flight-identity` | 2026-11-15 | 1 | 1491 | old and far behind, conflicts |
+| e | `codex/p2-photo-info-copy-20261115` | 2026-11-15 | 0 | 1109 | old and far behind, conflicts |
+| e | `codex/project-live-photo-count` | 2026-11-15 | 0 | 1253 | old and far behind, conflicts |
+| e | `codex/quick-project-setup` | 2026-11-15 | 0 | 1262 | old and far behind, conflicts |
+| e | `codex/silent-species-fallback` | 2026-11-15 | 0 | 1235 | old and far behind, conflicts |
+| e | `codex/slim-workspace-buttons` | 2026-11-15 | 1 | 1491 | old and far behind, conflicts |
+| e | `codex/undo-after-review` | 2026-11-15 | 0 | 1244 | old and far behind, conflicts |
+| e | `docs/handover-night` | 2026-11-15 | 0 | 1034 | old and far behind, conflicts |
+| e | `feat/auto-tab-and-learning` | 2026-11-15 | 1 | 1393 | old and far behind, conflicts |
+| e | `feat/desktop-shell` | 2026-11-15 | 0 | 1200 | old and far behind, conflicts |
+| e | `feat/ergonomic-menus` | 2026-11-15 | 1 | 1363 | old and far behind, conflicts |
+| e | `feat/filmstrip-bulk-actions-20261115` | 2026-11-15 | 1 | 978 | old and far behind, conflicts |
+| e | `feat/raw-develop` | 2026-11-15 | 1 | 1049 | old and far behind, conflicts |
+| e | `feat/selected-looks-and-mobile-actions-20261115` | 2026-11-15 | 0 | 960 | old and far behind, conflicts |
+| e | `feat/nas-export-handedness` | 2026-11-16 | 2 | 847 | old and far behind, conflicts |
+| e | `fix/mobile-layout-settings-rebased-20261116` | 2026-11-16 | 1 | 835 | old and far behind, conflicts |
+| e | `fix/mobile-viewport-no-overflow-20261116` | 2026-11-16 | 19 | 853 | old and far behind, conflicts |
+| e | `fix/native-offline-preview-cache-20261116` | 2026-11-16 | 1 | 720 | old and far behind, conflicts |
+| e | `fix/raw-reject-unknown-extension-20261116` | 2026-11-16 | 3 | 666 | old and far behind, conflicts |
+| e | `fix/windows-folder-import-20261116` | 2026-11-16 | 0 | 803 | old and far behind, conflicts |
+| e | `worker/cull-review-triage-20261116` | 2026-11-16 | 3 | 666 | old and far behind, conflicts |
+| e | `chore/raw-samples-and-brand-neutral` | 2026-11-17 | 0 | 484 | old and far behind, conflicts |
+| e | `docs/kestrel-proprietary-copyright-2026` | 2026-11-17 | 0 | 610 | old and far behind, conflicts |
+| e | `feat/cull-high-recall-review-policy-20261117` | 2026-11-17 | 10 | 666 | old and far behind, conflicts |
+| e | `feat/denoise-training-data` | 2026-11-17 | 2 | 484 | old and far behind, conflicts |
+| e | `feat/insight-subject-aware-auto-plan-20261117` | 2026-11-17 | 10 | 497 | old and far behind, conflicts |
+| e | `feat/lightroom-catalog-reader` | 2026-11-17 | 0 | 484 | old and far behind, conflicts |
+| e | `feat/local-data-tools` | 2026-11-17 | 0 | 479 | old and far behind, conflicts |
+| e | `feat/noise-reduction` | 2026-11-17 | 3 | 494 | old and far behind, conflicts |
+| e | `feat/open-with` | 2026-11-17 | 2 | 494 | old and far behind, conflicts |
+| e | `feat/perceptual-brightness-separate-exposure-20261117` | 2026-11-17 | 15 | 494 | old and far behind, conflicts |
+| e | `feat/review-keeper-quality-tiers-20261117` | 2026-11-17 | 5 | 492 | old and far behind, conflicts |
+| e | `feat/truedetail-brand-pro-foundation` | 2026-11-17 | 6 | 666 | old and far behind, conflicts |
+| e | `feat/truedetail-chroma-baseline-20261117` | 2026-11-17 | 5 | 499 | old and far behind, conflicts |
+| e | `feat/truedetail-native-16bit-tiff-prototype` | 2026-11-17 | 5 | 666 | old and far behind, conflicts |
+| e | `feat/unified-appearance-settings-soft-default-20261117` | 2026-11-17 | 8 | 492 | old and far behind, conflicts |
+| e | `fix/aistudio-optional-bundled-onnx-20261117` | 2026-11-17 | 10 | 484 | old and far behind, conflicts |
+| e | `fix/catalogue-read-transaction-integrity-20261117` | 2026-11-17 | 4 | 497 | old and far behind, conflicts |
+| e | `fix/cull-burst-identity-boundary-20261117` | 2026-11-17 | 6 | 666 | old and far behind, conflicts |
+| e | `fix/cull-epoch-zero-removed-safety-20261117` | 2026-11-17 | 3 | 497 | old and far behind, conflicts |
+| e | `fix/cull-keyboard-navigation-failsafe-20261117` | 2026-11-17 | 10 | 666 | old and far behind, conflicts |
+| e | `fix/cull-restore-invalidates-removal-undo-20261116` | 2026-11-17 | 4 | 589 | old and far behind, conflicts |
+| e | `fix/cull-subject-nonfinite-fallback-20261117` | 2026-11-17 | 2 | 589 | old and far behind, conflicts |
+| e | `fix/keeper-tier-main-ci-and-editor-a11y-20261117` | 2026-11-17 | 6 | 486 | old and far behind, conflicts |
+| e | `fix/linked-originals-size-mock` | 2026-11-17 | 1 | 494 | old and far behind, conflicts |
+| e | `fix/model-runtime-failure-cull-fallback-20261117` | 2026-11-17 | 5 | 480 | old and far behind, conflicts |
+| e | `fix/partial-photo-import-recovery-20261117` | 2026-11-17 | 3 | 497 | old and far behind, conflicts |
+| e | `fix/raw-export-limit-finite-inputs-20261117` | 2026-11-17 | 2 | 666 | old and far behind, conflicts |
+| e | `fix/review-quick-edits-photo-info-20261117` | 2026-11-17 | 5 | 492 | old and far behind, conflicts |
+| e | `fix/species-out-of-domain-safety-20261117` | 2026-11-17 | 5 | 492 | old and far behind, conflicts |
+| e | `integration/alpha-20261117` | 2026-11-17 | 28 | 497 | old and far behind, conflicts |
+| e | `keyboard-tab-trap-fix` | 2026-11-17 | 7 | 499 | old and far behind, conflicts |
+| e | `merge/windows-denoise-training` | 2026-11-17 | 2 | 477 | old and far behind, conflicts |
+| e | `perf/scan-speed-v2` | 2026-11-17 | 2 | 479 | old and far behind, conflicts |
+| e | `test/raw16-exif-orientations-20261117` | 2026-11-17 | 1 | 497 | old and far behind, conflicts |
+| e | `windows/denoise-training` | 2026-11-17 | 3 | 480 | old and far behind, conflicts |
+| e | `chore/commit-models` | 2026-11-18 | 0 | 458 | old and far behind, conflicts |
+| e | `feat/background-import-and-cull-20261118` | 2026-11-18 | 1 | 458 | old and far behind, conflicts |
+| e | `feat/decision-actions` | 2026-11-18 | 0 | 460 | old and far behind, conflicts |
+| e | `feat/desktop-release-notice-20261118` | 2026-11-18 | 4 | 443 | old and far behind, conflicts |
+| e | `feat/import-background-auto-pipeline-20261118` | 2026-11-18 | 10 | 455 | old and far behind, conflicts |
+| e | `feat/raw-quality-20261118` | 2026-11-18 | 0 | 435 | old and far behind, conflicts |
+| e | `feat/subject-category-gate` | 2026-11-18 | 2 | 458 | old and far behind, conflicts |
+| e | `fix/browser-intelligence-parity-20261118` | 2026-11-18 | 4 | 443 | old and far behind, conflicts |
+| e | `fix/catalogue-removal-zero-integrity-20261118` | 2026-11-18 | 2 | 448 | old and far behind, conflicts |
+| e | `fix/desktop-playwright-baseline-20261118` | 2026-11-18 | 0 | 435 | old and far behind, conflicts |
+| e | `fix/export-empty-encoded-output-20261118` | 2026-11-18 | 2 | 429 | old and far behind, conflicts |
+| e | `fix/export-invalid-source-dimensions-20261118` | 2026-11-18 | 2 | 443 | old and far behind, conflicts |
+| e | `fix/library-last-edited-sort-20261118` | 2026-11-18 | 0 | 416 | old and far behind, conflicts |
+| e | `fix/native-photo-select-menu-20261118` | 2026-11-18 | 4 | 448 | old and far behind, conflicts |
+| e | `fix/native-photo-selection-20261118` | 2026-11-18 | 5 | 449 | old and far behind, conflicts |
+| e | `fix/opinion-colour-channel-clipping-20261118` | 2026-11-18 | 2 | 455 | old and far behind, conflicts |
+| e | `fix/photo-info-metadata-first-date-20261118` | 2026-11-18 | 0 | 419 | old and far behind, conflicts |
+| e | `fix/raw-cached-preview-export-provenance-20261118` | 2026-11-18 | 3 | 425 | old and far behind, conflicts |
+| e | `fix/raw-quick-crop-invalid-dimensions-20261118` | 2026-11-18 | 2 | 435 | old and far behind, conflicts |
+| e | `fix/raw-relink-empty-identity-20261118` | 2026-11-18 | 4 | 455 | old and far behind, conflicts |
+| e | `fix/species-closed-world-helicopter-guard-20261118` | 2026-11-18 | 3 | 455 | old and far behind, conflicts |
+| e | `fix/ui-progress-and-filter-contrast-20261118` | 2026-11-18 | 0 | 420 | old and far behind, conflicts |
+| e | `perf/visible-first-photo-loading-20261118` | 2026-11-18 | 15 | 455 | old and far behind, conflicts |
+| e | `poc/raw16-edited-master-20261118` | 2026-11-18 | 22 | 448 | old and far behind, conflicts |
+| e | `test/no-installer-raw16-master-20261118` | 2026-11-18 | 5 | 443 | old and far behind, conflicts |
+| e | `test/raw-export-canvas-bounds-20261118` | 2026-11-18 | 3 | 439 | old and far behind, conflicts |
+| e | `claude-kestrel-recovery` | 2026-11-19 | 2 | 439 | old and far behind, conflicts |
+| e | `claude/intelligent-wright-y6lnzn` | 2026-11-19 | 3 | 352 | old and far behind, conflicts |
+| e | `feat/compare-recovery-and-navigation-20261119` | 2026-11-19 | 6 | 346 | old and far behind, conflicts |
+| e | `feat/compare-scoped-keyboard-20261119` | 2026-11-19 | 0 | 358 | old and far behind, conflicts |
+| e | `feat/import-cull-preflight-cache-20261119` | 2026-11-19 | 1 | 379 | old and far behind, conflicts |
+| e | `feat/import-cull-preflight-main-20261119` | 2026-11-19 | 2 | 375 | old and far behind, conflicts |
+| e | `feat/import-photo-ready-immediate-20261119` | 2026-11-19 | 1 | 379 | old and far behind, conflicts |
+| e | `feat/languages-setup-20261119` | 2026-11-19 | 10 | 346 | old and far behind, conflicts |
+| e | `feat/live-photo-analysis-stages-20261119` | 2026-11-19 | 1 | 385 | old and far behind, conflicts |
+| e | `feat/masked-chroma-denoise-preview-master-20261119` | 2026-11-19 | 9 | 354 | old and far behind, conflicts |
+| e | `feat/next-flow-consistency` | 2026-11-19 | 4 | 415 | old and far behind, conflicts |
+| e | `feat/photo-tile-readiness-20261119` | 2026-11-19 | 4 | 388 | old and far behind, conflicts |
+| e | `feat/progressive-auto-commit-20261119` | 2026-11-19 | 0 | 401 | old and far behind, conflicts |
+| e | `feat/review-compare-keyboard-safety-20261119` | 2026-11-19 | 9 | 353 | old and far behind, conflicts |
+| e | `feat/section-f-calm-adjustment-sliders-20261119` | 2026-11-19 | 11 | 365 | old and far behind, conflicts |
+| e | `feat/section-f-compact-controls-info-subject-tabs-20261119` | 2026-11-19 | 2 | 357 | old and far behind, conflicts |
+| e | `feat/section-f-compare-decision-toolbar-20261119` | 2026-11-19 | 3 | 365 | old and far behind, conflicts |
+| e | `feat/section-f-mask-geometry-pencil-feedback-20261119` | 2026-11-19 | 5 | 355 | old and far behind, conflicts |
+| e | `feat/section-f-responsive-slider-interaction-20261119` | 2026-11-19 | 1 | 362 | old and far behind, conflicts |
+| e | `feat/section-f-shared-ergonomic-workspace-20261119` | 2026-11-19 | 15 | 367 | old and far behind, conflicts |
+| e | `feat/section-f-wide-filmstrip-controls-20261119` | 2026-11-19 | 6 | 362 | old and far behind, conflicts |
+| e | `feat/translation-review-photo-info-20261119` | 2026-11-19 | 48 | 343 | old and far behind, conflicts |
+| e | `feature/owner-starred-stratified-intake-20261119` | 2026-11-19 | 0 | 413 | old and far behind, conflicts |
+| e | `fix/cull-manual-species-evidence-20261119` | 2026-11-19 | 4 | 395 | old and far behind, conflicts |
+| e | `fix/cull-no-gate-auto-species-20261119` | 2026-11-19 | 7 | 395 | old and far behind, conflicts |
+| e | `fix/cull-router-uncertain-wording-20261119` | 2026-11-19 | 6 | 403 | old and far behind, conflicts |
+| e | `fix/cull-subject-router-negative-gate-20261119` | 2026-11-19 | 2 | 413 | old and far behind, conflicts |
+| e | `fix/frameimage-photo-identity-safety-20261119` | 2026-11-19 | 16 | 347 | old and far behind, conflicts |
+| e | `fix/master16-invalid-recipe-20261119` | 2026-11-19 | 5 | 362 | old and far behind, conflicts |
+| e | `fix/section-f-slider-state-and-density-20261119` | 2026-11-19 | 2 | 356 | old and far behind, conflicts |
+| e | `integration/section-f-pr473-reconcile-20261119` | 2026-11-19 | 8 | 363 | old and far behind, conflicts |
+| e | `perf/cull-parallel-duplicate-analysis-20261119` | 2026-11-19 | 2 | 382 | old and far behind, conflicts |
+| e | `release/flight-one-integrated-fidelity-20261119` | 2026-11-19 | 29 | 374 | old and far behind, conflicts |
+| e | `test/cull-evidence-stratified-coverage-20261119` | 2026-11-19 | 3 | 378 | old and far behind, conflicts |
+| e | `test/cull-labelled-evidence-metrics-20261119` | 2026-11-19 | 7 | 386 | old and far behind, conflicts |
+| e | `test/cull-real-risk-denominators-20261119` | 2026-11-19 | 16 | 375 | old and far behind, conflicts |
+| e | `test/raw-cfa-hash-evidence-20261119` | 2026-11-19 | 13 | 395 | old and far behind, conflicts |
+| e | `test/raw-evidence-inventory-20261119` | 2026-11-19 | 3 | 393 | old and far behind, conflicts |
+| e | `test/raw-evidence-manifest-20261119` | 2026-11-19 | 13 | 407 | old and far behind, conflicts |
+| a | `feat/brand-a11y-render-engine` | 2026-11-15 | 0 | 1477 | merge result identical to main |
+| a | `feat/crop-corners` | 2026-11-15 | 0 | 1469 | merge result identical to main |
+| a | `feat/histogram-detail` | 2026-11-15 | 0 | 1475 | merge result identical to main |
+| a | `feat/layout-presets-auto` | 2026-11-15 | 0 | 1474 | merge result identical to main |
+| a | `feat/masks-ui` | 2026-11-15 | 0 | 1470 | merge result identical to main |
+| a | `feat/project-wizard` | 2026-11-15 | 0 | 1467 | merge result identical to main |
+| a | `feat/safe-trash` | 2026-11-15 | 0 | 1471 | merge result identical to main |
+| a | `feat/subject-detection` | 2026-11-15 | 0 | 1468 | merge result identical to main |
+| a | `feat/webgl-render` | 2026-11-15 | 0 | 1476 | merge result identical to main |
+| a | `fix/cull-ime-keyboard-safety-20261116` | 2026-11-16 | 2 | 666 | merge result identical to main |
+| a | `fix/main-ci-native-scan-syntax-20261116` | 2026-11-16 | 1 | 709 | merge result identical to main |
+| a | `test/raw-macos-workspace-drop-20261116-2109` | 2026-11-16 | 0 | 666 | merge result identical to main |
+| a | `feat/cull-benchmark-uncertainty-20261117` | 2026-11-17 | 3 | 666 | merge result identical to main |
+| a | `feat/raw-feather-detail-benchmark` | 2026-11-17 | 13 | 666 | merge result identical to main |
+| a | `fix/cull-benchmark-removed-epoch-zero-20261117` | 2026-11-17 | 2 | 479 | merge result identical to main |
+| a | `fix/raw-coverage-reject-identical-exports-20261117` | 2026-11-17 | 2 | 666 | merge result identical to main |
+| a | `test/cull-500-photo-alpha-review-integrity-20261117` | 2026-11-17 | 0 | 666 | merge result identical to main |
+| a | `test/cull-small-subject-confidence-20261117` | 2026-11-17 | 2 | 486 | merge result identical to main |
+| a | `test/raw-nikon-clipping-metrics-20261116-2307` | 2026-11-17 | 4 | 666 | merge result identical to main |
+| a | `test/raw-nikon-original-immutability-20261117` | 2026-11-17 | 4 | 666 | merge result identical to main |
+| a | `test/raw16-orientation-coordinate-map-20261117` | 2026-11-17 | 0 | 492 | merge result identical to main |
+| a | `test/truedetail-tiff-precision-audit` | 2026-11-17 | 3 | 666 | merge result identical to main |
+| a | `worker/cull-500-benchmark-coverage-20261117` | 2026-11-17 | 2 | 477 | merge result identical to main |
+| a | `worker/cull-fallback-review-only-20261117` | 2026-11-17 | 2 | 477 | merge result identical to main |
+| a | `claude/keen-hopper-0fu3kk` | 2026-11-18 | 51 | 458 | merge result identical to main |
+| a | `docs/raw-export-provenance-audit-20261118` | 2026-11-18 | 0 | 430 | merge result identical to main |
+| a | `docs/roadmap-image-first-20261118` | 2026-11-18 | 2 | 435 | only ROADMAP log residue differs; content on main |
+| a | `docs/roadmap-mac-evidence` | 2026-11-18 | 0 | 461 | only ROADMAP log residue differs; content on main |
+| a | `fix/cull-auto-edit-removed-epoch-20261118` | 2026-11-18 | 3 | 425 | merge result identical to main |
+| a | `fix/cull-background-removed-epoch-20261118` | 2026-11-18 | 2 | 448 | merge result identical to main |
+| a | `fix/cull-burst-removed-epoch-20261118` | 2026-11-18 | 4 | 444 | merge result identical to main |
+| a | `fix/cull-contradictory-scan-review-only-20261118` | 2026-11-18 | 4 | 455 | merge result identical to main |
+| a | `fix/cull-drop-reimport-removed-epoch-20261118` | 2026-11-18 | 2 | 429 | merge result identical to main |
+| a | `fix/cull-duplicate-anchor-epoch-zero-20261118` | 2026-11-18 | 2 | 430 | merge result identical to main |
+| a | `fix/cull-epoch-zero-batch-look-20261118` | 2026-11-18 | 3 | 439 | merge result identical to main |
+| a | `fix/cull-selected-look-removed-epoch-20261118` | 2026-11-18 | 2 | 435 | merge result identical to main |
+| a | `fix/cull-triage-burst-keeper-eligibility-20261118` | 2026-11-18 | 2 | 421 | merge result identical to main |
+| a | `rebuild/kestrel-next` | 2026-11-18 | 11 | 420 | merge result identical to main |
+| a | `chore/equipment-watch-to-board-20261119` | 2026-11-19 | 0 | 409 | merge result identical to main |
+| a | `docs/agent-board-418-20261119` | 2026-11-19 | 2 | 413 | merge result identical to main |
+| a | `docs/natural-upscale-roadmap-20261119` | 2026-11-19 | 0 | 351 | only ROADMAP log residue differs; content on main |
+| a | `docs/nikon-raw-evidence-gates-20261119` | 2026-11-19 | 0 | 415 | merge result identical to main |
+| a | `docs/raw-evidence-provenance-20261119` | 2026-11-19 | 0 | 380 | merge result identical to main |
+| a | `feature/kestrel-owned-he-inspector-20261119` | 2026-11-19 | 4 | 413 | merge result identical to main |
+| a | `fix/adjustment-slider-main-parse-20261119` | 2026-11-19 | 0 | 359 | merge result identical to main |
+| a | `fix/cull-autotags-removed-epoch-20261119` | 2026-11-19 | 2 | 403 | merge result identical to main |
+| a | `fix/export-mask-cancellation-20261119` | 2026-11-19 | 2 | 351 | merge result identical to main |
+| a | `fix/neutral-jpeg-identity-draw-20261119` | 2026-11-19 | 2 | 347 | merge result identical to main |
+| a | `test/cull-benchmark-label-integrity-20261119` | 2026-11-19 | 0 | 405 | merge result identical to main |
+| a | `test/raw-evidence-claims-20261119` | 2026-11-19 | 2 | 399 | merge result identical to main |
+| a | `test/raw-evidence-inventory-casefold-20261119` | 2026-11-19 | 6 | 387 | merge result identical to main |
+| a | `test/raw-tiff-pixel-gate-20261119` | 2026-11-19 | 3 | 373 | merge result identical to main |
+| a | `claude/beta-control-plane-checklist` | 2026-11-20 | 0 | 197 | merge result identical to main |
+| a | `codex/export-journal-type-fix` | 2026-11-20 | 0 | 295 | merge result identical to main |
+| a | `codex/finalize-export-recovery` | 2026-11-20 | 0 | 269 | merge result identical to main |
+| a | `codex/repair-browser-journey` | 2026-11-20 | 0 | 256 | merge result identical to main |
+| a | `codex/task-completion-order-20261120` | 2026-11-20 | 0 | 252 | only ROADMAP log residue differs; content on main |
+| a | `docs/automatic-raw-to-export-contract-20261120` | 2026-11-20 | 0 | 327 | merge result identical to main |
+| a | `feat/cull-original-relink-proof-20261120` | 2026-11-20 | 2 | 322 | merge result identical to main |
+| a | `feat/cull-provenance-evidence-20261120` | 2026-11-20 | 5 | 337 | merge result identical to main |
+| a | `feat/raw-master-provenance-gate-20261120` | 2026-11-20 | 2 | 317 | merge result identical to main |
+| a | `feat/ux-slider-escape-20261120` | 2026-11-20 | 0 | 233 | merge result identical to main |
+| a | `fix/control-plane-production-build-20261120` | 2026-11-20 | 0 | 256 | merge result identical to main |
+| a | `fix/cull-relink-hardlink-race-20261120` | 2026-11-20 | 8 | 299 | merge result identical to main |
+| a | `fix/export-proof-metadata-privacy-20261120` | 2026-11-20 | 2 | 318 | merge result identical to main |
+| a | `fix/k1-display-p3-and-original-proof-20261120` | 2026-11-20 | 0 | 273 | only ROADMAP log residue differs; content on main |
+| a | `fix/main-green-c00926a4` | 2026-11-20 | 0 | 197 | merge result identical to main |
+| a | `fix/raw-colour-metadata-gate-20261120` | 2026-11-20 | 2 | 342 | merge result identical to main |
+| a | `fix/raw-icc-structural-failclosed-20261120` | 2026-11-20 | 0 | 215 | merge result identical to main |
+| a | `fix/raw-master-icc-release-gate-20261120` | 2026-11-20 | 0 | 317 | merge result identical to main |
+| a | `fix/raw16-buffer-integrity-20261120` | 2026-11-20 | 2 | 305 | merge result identical to main |
+| a | `fix/workspace-camera-browser-regression-20261120` | 2026-11-20 | 2 | 335 | merge result identical to main |
+| a | `integration/claude-licence-revoke-20261120` | 2026-11-20 | 0 | 193 | merge result identical to main |
+| a | `sprint/bring-your-own-ai-safety-and-setup-20261120` | 2026-11-20 | 20 | 243 | merge result identical to main |
+| a | `sprint/concise-auto-advice-20261120` | 2026-11-20 | 23 | 217 | merge result identical to main |
+| a | `brand/firecrest-candidate-2026-11-21` | 2026-11-21 | 8 | 112 | merge result identical to main |
+| a | `claude/feat-text-search-04ca7f` | 2026-11-21 | 4 | 58 | merge result identical to main |
+| a | `claude/feat-upscale-b1e419` | 2026-11-21 | 4 | 60 | merge result identical to main |
+| a | `claude/remove-unwired-raw16-prototypes` | 2026-11-21 | 0 | 142 | only ROADMAP log residue differs; content on main |
+| a | `claude/verify-photo-check` | 2026-11-21 | 0 | 112 | only ROADMAP log residue differs; content on main |
+| a | `docs/browser-baseline-correction` | 2026-11-21 | 0 | 97 | only ROADMAP log residue differs; content on main |
+| a | `docs/export-spec-diagnoses` | 2026-11-21 | 0 | 71 | only ROADMAP log residue differs; content on main |
+| a | `docs/one-authoritative-418-tracker-20261121` | 2026-11-21 | 0 | 126 | only ROADMAP log residue differs; content on main |
+| a | `docs/remove-control-plane-freeze-20261121` | 2026-11-21 | 0 | 68 | only ROADMAP log residue differs; content on main |
+| a | `feat/anatomy-occlusion-mask-evidence-20261121` | 2026-11-21 | 19 | 166 | merge result identical to main |
+| a | `feat/android-local-prototype-apk-builder-20261121` | 2026-11-21 | 2 | 183 | merge result identical to main |
+| a | `feat/cull-evidenced-burst-ranking-20261121` | 2026-11-21 | 3 | 186 | merge result identical to main |
+| a | `feat/integration-export-recovery-proof-20261121` | 2026-11-21 | 2 | 186 | merge result identical to main |
+| a | `feat/integration-task-durable-finish-20261121` | 2026-11-21 | 12 | 165 | merge result identical to main |
+| a | `feat/local-ocr-search-month-intelligence-20261121` | 2026-11-21 | 17 | 67 | merge result identical to main |
+| a | `feat/mobile-editor-layout` | 2026-11-21 | 4 | 101 | merge result identical to main |
+| a | `feat/w2-tiff16-icc-independent-proof-20261121` | 2026-11-21 | 2 | 135 | merge result identical to main |
+| a | `feat/w3-subject-roi-review-evidence-20261121` | 2026-11-21 | 3 | 34 | merge result identical to main |
+| a | `feature/remove-vertex-byo-provider-20261121` | 2026-11-21 | 18 | 61 | merge result identical to main |
+| a | `fix/basic-pro-only-no-third-tier-20261121` | 2026-11-21 | 0 | 186 | merge result identical to main |
+| a | `fix/colour-check-applied-status` | 2026-11-21 | 0 | 99 | only ROADMAP log residue differs; content on main |
+| a | `fix/current-review-browser-checks-20261121` | 2026-11-21 | 0 | 77 | merge result identical to main |
+| a | `fix/desktop-original-relink-20261121` | 2026-11-21 | 0 | 79 | merge result identical to main |
+| a | `fix/dialogs-spec-wizard-view` | 2026-11-21 | 1 | 90 | only ROADMAP log residue differs; content on main |
+| a | `fix/export-wizard-fresh-start` | 2026-11-21 | 0 | 93 | only ROADMAP log residue differs; content on main |
+| a | `fix/full-size-export-specs` | 2026-11-21 | 0 | 79 | only ROADMAP log residue differs; content on main |
+| a | `fix/gitignore-node-modules` | 2026-11-21 | 0 | 101 | merge result identical to main |
+| a | `fix/managed-ai-consume-photo-approval-on-signout-20261121` | 2026-11-21 | 2 | 32 | merge result identical to main |
+| a | `fix/node-safe-optional-model-glob-20261121` | 2026-11-21 | 2 | 31 | merge result identical to main |
+| a | `fix/subject-pixel-crop-test` | 2026-11-21 | 0 | 102 | merge result identical to main |
+| a | `fix/syntax-preflight-vite-oxc-ts7-20261121` | 2026-11-21 | 2 | 29 | merge result identical to main |
+| a | `fix/w4-mask-blend-explain-20261121-0940` | 2026-11-21 | 2 | 132 | merge result identical to main |
+| a | `fix/w5-public-release-security-gate-20261121` | 2026-11-21 | 2 | 87 | merge result identical to main |
+| a | `integrate/low-key-photo-review-current-main-20261121` | 2026-11-21 | 4 | 126 | merge result identical to main |
+| a | `integration/info-rail-on-current-main-20261121` | 2026-11-21 | 2 | 26 | merge result identical to main |
+| a | `integration/merge-precision-mask-evidence-20261121` | 2026-11-21 | 6 | 46 | merge result identical to main |
+| a | `integration/pr805-uat-settings-consent-safe-20261121` | 2026-11-21 | 6 | 39 | merge result identical to main |
+| a | `integration/rebase-byo-ai-without-vertex-20261121` | 2026-11-21 | 18 | 61 | merge result identical to main |
+| a | `integration/rebase-clip-text-search-20261121` | 2026-11-21 | 4 | 58 | merge result identical to main |
+| a | `integration/rebase-native-security-20261121` | 2026-11-21 | 3 | 57 | merge result identical to main |
+| a | `integration/rebase-subject-style-core-20261121` | 2026-11-21 | 2 | 56 | merge result identical to main |
+| a | `integration/rebase-upscale-core-20261121` | 2026-11-21 | 4 | 60 | merge result identical to main |
+| a | `perf/contact-sheet-memo-throttle-20261121` | 2026-11-21 | 0 | 87 | merge result identical to main |
+| a | `perf/smolvlm-proxy-worker-20261121` | 2026-11-21 | 1 | 87 | merge result identical to main |
+| a | `security/w5-narrow-native-http-20261121` | 2026-11-21 | 3 | 57 | merge result identical to main |
+| a | `uat/polish-login-dock-settings` | 2026-11-21 | 6 | 39 | merge result identical to main |
+| a | `claude/dock-home-side` | 2026-11-22 | 1 | 4 | only ROADMAP log residue differs; content on main |
+| a | `claude/edit-undo-redo` | 2026-11-22 | 0 | 10 | only ROADMAP log residue differs; content on main |
+| a | `claude/panels-above-dialogs` | 2026-11-22 | 0 | 12 | only ROADMAP log residue differs; content on main |
+| a | `claude/redock-icon` | 2026-11-22 | 0 | 11 | only ROADMAP log residue differs; content on main |
+| a | `claude/xmp-accordion` | 2026-11-22 | 0 | 2 | only ROADMAP log residue differs; content on main |
+| a | `fix/export-list-view-specs` | 2026-11-22 | 1 | 1 | merge result identical to main |
+| a | `fix/floating-pane-escape-cancel` | 2026-11-22 | 2 | 7 | only ROADMAP log residue differs; content on main |
+| a | `fix/w1-macos-raw-fixture-samples-20261122` | 2026-11-22 | 1 | 17 | merge result identical to main |
+| a | `fix/w2-raw-predecode-budget-20261122` | 2026-11-22 | 2 | 23 | merge result identical to main |
+| a | `fix/w3-eye-roi-subject-binding-20261122` | 2026-11-22 | 4 | 17 | merge result identical to main |
+| a | `fix/w4-floating-escape-cancel-20261122` | 2026-11-22 | 1 | 17 | merge result identical to main |
+| a | `ui/menu-bar` | 2026-11-22 | 0 | 23 | merge result identical to main |
+
 ## 4. Integration log
 
 **One coordinator merges (owner decision, 20 Nov).** The Windows laptop session coordinates integration. Other sessions (Mac, scheduled workers, AI Studio) push their own branch and open a PR, and **do not merge to `main`, push to another session's branch, or switch the main checkout's branch.** Before starting work, pull `main`; push at least after every commit. The coordinator runs the checks, merges, and writes the line below. Why: on 20 Nov two sessions merged the same branches in parallel and left `main` unable to build (#505–#507, repaired in the next PR).
