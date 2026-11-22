@@ -206,6 +206,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             photo={activePhoto}
             calmView={store.settings.calmView}
             onUpdateRecipe={actions.updateRecipe}
+            onDenoise={actions.denoisePhoto}
+            cloudEnabled={store.features.cloudAssist}
           />
         );
       case 'overlays':

@@ -1,3 +1,4 @@
+import { StorageConnections } from './StorageConnections';
 import React, { useState } from 'react';
 import type {
   AiProviderConfig,
@@ -425,40 +426,10 @@ export default function SettingsDialog({
                   />
                 </section>
 
-                <section className="space-y-2">
-                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-                    {STRINGS.settings.storage.connectorsHeading}
-                  </h3>
-                  <div className="space-y-2">
-                    {settings.storageConnectors.map((conn) => (
-                      <div
-                        key={conn.id}
-                        className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3.5 py-2.5"
-                      >
-                        <div>
-                          <p className="text-xs font-semibold text-[var(--text-primary)]">{conn.name}</p>
-                          <p className="text-[11px] text-[var(--text-muted)]">
-                            {conn.status === 'connected' ? conn.accountLabel || 'Connected' : 'Not connected'}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => onToggleStorageConnector(conn.id)}
-                          className={`h-8 rounded-[var(--radius-sm)] px-3 text-xs font-medium ${
-                            conn.status === 'connected'
-                              ? 'border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)]'
-                              : 'bg-[var(--brand-accent)] text-[var(--text-on-accent)]'
-                          }`}
-                        >
-                          {conn.status === 'connected' ? 'Disconnect' : 'Connect'}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="pt-1 text-[11px] text-[var(--text-muted)]">
-                    {STRINGS.settings.storage.inflightCloudNote}
-                  </p>
-                </section>
+                <StorageConnections />
+                <p className="pt-1 text-[11px] text-[var(--text-muted)]">
+                  {STRINGS.settings.storage.inflightCloudNote}
+                </p>
               </div>
             )}
 
