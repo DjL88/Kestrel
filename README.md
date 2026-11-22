@@ -6,6 +6,8 @@ Kite44 is a local-first culling and editing workspace for wildlife, bird, and pe
 
 **Product direction for every contributor:** [Kite44 product philosophy and contributor charter](docs/PRODUCT-PHILOSOPHY.md) — one authentic, complete camera-to-export workflow, a strong switching baseline, and excellence in wildlife photography. Read before major code or roadmap changes.
 
+**Product direction for every contributor:** [Kestrel product philosophy and contributor charter](docs/PRODUCT-PHILOSOPHY.md) — one authentic, complete camera-to-export workflow, a strong switching baseline, and excellence in wildlife photography. Read before major code or roadmap changes.
+
 **Current readiness and priorities:** [End-to-end product audit](docs/RELEASE-GAP-AUDIT-2026-11.md). It distinguishes implemented features from planned architecture below. Native RAW development exists but currently passes a developed raster into the editor; this is not yet a 16-bit, colour-managed RAW workflow or verified Lightroom/DxO parity. See [docs/RAW-QUALITY-PLAN.md](docs/RAW-QUALITY-PLAN.md) for the phased plan to close that gap.
 
 **Legal/trust:** [LICENSE](LICENSE), [NOTICE.md](NOTICE.md) (third-party licenses), [PRIVACY.md](PRIVACY.md). All three are drafts written to match current behaviour — get them reviewed before a public release, not just read.
