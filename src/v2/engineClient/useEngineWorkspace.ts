@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { applyDecisionWithHistory, redoDecision, undoDecision } from '../../core/cullingEngine';
+import { applyCullConfidence, applyDecisionWithHistory, redoDecision, undoDecision } from '../../core/cullingEngine';
 import { recordEdit, stepEdit } from '../../core/editHistory';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
@@ -10,6 +10,10 @@ import { tasks } from '../../core/taskStore';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
 import { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
+import { scanForCulling } from '../../providers/browserAutoCull';
+import { useAccess } from '../../providers/useAccess';
+import { useBackgroundDevelop } from '../../useBackgroundDevelop';
+import { useSpeciesScan } from '../../useSpeciesScan';
 import { isDesktopApp } from '../../providers/desktopShell';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { loadLocalFileListShoot } from '../../providers/localShootLoader';
@@ -27,7 +31,7 @@ const NOT_CONNECTED = [
   'setActiveGroup', 'addEditGroup', 'renameEditGroup', 'toggleSizeEnabled', 'toggleSizeLinked', 'updateSizeCrop',
   'flipSelectedSizes', 'rotateSelectedSizes', 'resetSizeCrop', 'addCustomSize', 'toggleSplitFrames', 'setSplitPanOffset',
   'updateVideoZoom', 'updateOverlay', 'alignOverlaysCleanly', 'addOverlayRow', 'updateOverlayRow', 'removeOverlayRow',
-  'addCustomFont', 'addMaskLayer', 'toggleMaskLayer', 'removeMaskLayer', 'runAutoCull', 'runDeepVisionReview',
+  'addCustomFont', 'addMaskLayer', 'toggleMaskLayer', 'removeMaskLayer', 'runDeepVisionReview',
   'runExport', 'reconnectOriginal',
 ] as const satisfies readonly (keyof WorkspaceActions)[];
 
@@ -58,6 +62,7 @@ async function pickFiles(): Promise<Array<File | PickedPhoto> | null> {
  */
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
   const stub = useWorkspace();
+  const { can } = useAccess();
   const catalogue = useRef<BrowserCatalogueStore | null>(null);
   if (!catalogue.current) catalogue.current = new BrowserCatalogueStore();
   const provider = useRef<BrowserPreviewProvider | null>(null);
@@ -73,6 +78,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [clipboard, setClipboard] = useState<EditRecipe | null>(null);
   const [assists, setAssists] = useState<Record<string, AssistState>>({});
   const autoInFlight = useRef(new Set<string>());
+  const cullController = useRef<AbortController | null>(null);
+  const [importing, setImporting] = useState(false);
   const stateRef = useRef<CullingState | null>(null);
   stateRef.current = state;
   useEffect(() => { surfaceBridge.set(state?.frames ?? [], provider.current); }, [state?.frames]);
@@ -101,6 +108,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   const enterProject = useCallback((next: CullingState) => {
     provider.current!.clear();
+    thumbs.current = { generation: thumbs.current.generation + 1, requested: new Set(), queue: [], active: 0 };
     setUrls({});
     setAssists({});
     setSelected(next.selectedFrameId ? [next.selectedFrameId] : []);
@@ -108,29 +116,33 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setScreen('editor');
   }, []);
 
-  // Thumbnails: a few at a time, so a large project does not start thousands of reads at once.
+  // Thumbnails: a few at a time, so a large project does not start thousands of reads at once. Each photo is asked for
+  // once; a read in flight is never thrown away when more photos arrive, only when the project changes (generation).
+  const thumbs = useRef({ generation: 0, requested: new Set<string>(), queue: [] as PhotoFrame[], active: 0 });
+  const pumpThumbnails = useCallback(() => {
+    const book = thumbs.current;
+    while (book.active < THUMBNAIL_WORKERS && book.queue.length) {
+      const frame = book.queue.shift()!;
+      const generation = book.generation;
+      book.active += 1;
+      provider.current!.getThumbnailUrl(frame, 'visible').then(
+        (thumb) => { if (generation === thumbs.current.generation) setUrls((current) => (current[frame.id]?.thumb ? current : { ...current, [frame.id]: { ...current[frame.id], thumb } })); },
+        () => { if (generation === thumbs.current.generation) setUrls((current) => ({ ...current, [frame.id]: { ...current[frame.id], failed: true } })); },
+      ).finally(() => { if (generation === thumbs.current.generation) { thumbs.current.active -= 1; pumpThumbnails(); } });
+    }
+  }, []);
   const projectId = state?.shoot.id;
   const frameCount = state?.frames.length ?? 0;
   useEffect(() => {
     if (!projectId) return;
-    let live = true;
-    const pending = (stateRef.current?.frames ?? []).filter((frame) => !frame.removedAt && !urls[frame.id]);
-    const queue = [...pending];
-    const worker = async () => {
-      for (let frame = queue.shift(); frame && live; frame = queue.shift()) {
-        try {
-          const thumb = await provider.current!.getThumbnailUrl(frame, 'visible');
-          if (live) setUrls((current) => (current[frame.id] ? current : { ...current, [frame.id]: { thumb } }));
-        } catch {
-          if (live) setUrls((current) => ({ ...current, [frame.id]: { failed: true } }));
-        }
-      }
-    };
-    for (let i = 0; i < Math.min(THUMBNAIL_WORKERS, queue.length); i += 1) void worker();
-    return () => { live = false; };
-    // urls is read once per run on purpose: new frames re-run it through frameCount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, frameCount]);
+    const book = thumbs.current;
+    for (const frame of stateRef.current?.frames ?? []) {
+      if (frame.removedAt || book.requested.has(frame.id)) continue;
+      book.requested.add(frame.id);
+      book.queue.push(frame);
+    }
+    pumpThumbnails();
+  }, [projectId, frameCount, pumpThumbnails]);
 
   // The photo on the canvas gets the larger preview, ahead of the queue.
   const activeId = state?.selectedFrameId ?? state?.frames.find((frame) => !frame.removedAt)?.id ?? null;
@@ -171,6 +183,60 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     if (unmapped.length) setNotice(`Not connected to the InFlight engine yet, so not applied: ${unmapped.join(', ')}.`);
     editFrames(ids, (frame) => applyRecipePatch(frame.edit, patch).edit);
   }, [editFrames]);
+
+  // RAW photos are developed from their sensor data in the background, so V2 shows InFlight's develop, not the camera's
+  // JPEG. The photo on the canvas goes first. Paused while photos are being imported.
+  useBackgroundDevelop({
+    projectId: state?.shoot.id ?? '', frames: state?.frames ?? [], provider: provider.current,
+    active: screen === 'editor' && Boolean(state) && !importing, onScreen: activeId,
+  });
+
+  // Subject and species are named quietly on this device after photos are added (the species name is a suggestion the
+  // person can change, and it never changes a decision). The species check is the Pro feature `speciesId`.
+  useSpeciesScan({
+    projectId: state?.shoot.id ?? '', frames: state?.frames ?? [], provider: provider.current,
+    active: screen === 'editor' && Boolean(state) && can('speciesId'),
+    onResult: (frameId, patch) => setState((current) => (current ? { ...current, frames: current.frames.map((frame) =>
+      frame.id === frameId && !frame.removedAt && !frame.speciesChecked && !frame.tags?.length && !frame.subjectNames?.length
+        ? { ...frame, ...patch, ...(frame.subjectKind && patch.subjectKind ? { subjectKind: frame.subjectKind } : {}) } : frame) } : current)),
+  });
+
+  /** Scores every undecided photo on this device. It flags only high-confidence keepers; it never rejects anything, and
+   * says how many photos look like rejects or duplicates so the person can look at them. */
+  const runAutoCull = useCallback(async () => {
+    const current = stateRef.current;
+    if (!current) return;
+    if (!can('smartCulling')) { setNotice('Auto-cull is part of InFlight Pro.'); return; }
+    if (cullController.current) { setNotice('Auto-cull is already running.'); return; }
+    const candidates = current.frames.filter((frame) => !frame.removedAt && frame.decision === 'unreviewed' && !frame.isDemo && !frame.virtualCopy);
+    if (!candidates.length) { setNotice('Every photo already has a decision, so there is nothing to cull.'); return; }
+    const controller = new AbortController();
+    cullController.current = controller;
+    const task = tasks.start('Auto-cull and analyse', { total: candidates.length, cancel: () => controller.abort() });
+    const projectKey = current.shoot.id;
+    try {
+      const results = await scanForCulling(candidates, current.frames, provider.current!, current.keeperTarget, controller.signal,
+        (count) => { if (!controller.signal.aborted) task.progress(count); },
+        () => { if (!controller.signal.aborted) setNotice('The subject detector is not available, so Auto-cull used sharpness and exposure only and is less certain.'); });
+      if (controller.signal.aborted) return;
+      const keepers = results.filter((result) => result.confidence === 'high' && result.decision === 'keep').map((result) => result.frameId);
+      const lookWorse = results.filter((result) => result.decision === 'reject').length;
+      setState((latest) => {
+        if (!latest || latest.shoot.id !== projectKey) return latest;
+        const scored = applyCullConfidence(latest, results.map((result) => ({ frameId: result.frameId, confidence: result.confidence, score: result.score })));
+        return keepers.reduce((next, id) => (next.frames.find((frame) => frame.id === id)?.decision === 'unreviewed'
+          ? applyDecisionWithHistory(next, id, 'keep', { allowAdvance: false }) : next), scored);
+      });
+      const summary = `Auto-cull looked at ${results.length} photo${results.length === 1 ? '' : 's'} and flagged ${keepers.length} likely keeper${keepers.length === 1 ? '' : 's'}. ${lookWorse ? `${lookWorse} look like rejects or duplicates; none were rejected, so look at them yourself. ` : ''}Photos it was unsure about were left for you.`;
+      task.finish(summary);
+      setNotice(summary);
+    } catch {
+      if (!controller.signal.aborted) { task.fail('Auto-cull failed.'); setNotice('Auto-cull failed. No photo was changed.'); }
+    } finally {
+      task.fail('Auto-cull stopped.'); // does nothing once finished or cancelled
+      if (cullController.current === controller) cullController.current = null;
+    }
+  }, [can]);
 
   const applyAuto = useCallback((frameId: string) => {
     const assist = assists[frameId];
@@ -213,6 +279,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const projectKey = target.shoot.id;
     const controller = new AbortController();
     importController.current = controller;
+    setImporting(true);
     const task = tasks.start(`Adding ${additions.length} photo${additions.length === 1 ? '' : 's'}`, { total: additions.length, cancel: () => controller.abort() });
     const importId = newId().slice(0, 8);
     const sequenceBase = target.frames.reduce((max, frame) => Math.max(max, frame.sequenceIndex), 0);
@@ -254,6 +321,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     } finally {
       task.fail('Stopped before finishing.'); // does nothing once finished
       if (importController.current === controller) importController.current = null;
+      setImporting(false);
     }
   }, []);
 
@@ -295,6 +363,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       shoot: { ...current.shoot, lastUpdatedAt: Date.now() },
     })),
     importPhotos: () => { void importPhotos(); },
+    runAutoCull: () => { void runAutoCull(); },
     applyAssistSuggestion: (photoId) => applyAuto(photoId),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
     dismissAssistSuggestion: (photoId) => setAssists((current) => (current[photoId] ? { ...current, [photoId]: { ...current[photoId], dismissed: true } } : current)),
@@ -322,7 +391,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, stub.store.looks, applyAuto, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
+    [stub.actions, stub.store.looks, applyAuto, runAutoCull, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
 
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], assists[frame.id])), [state?.frames, urls, assists]);
   const store: WorkspaceStore = useMemo(() => ({

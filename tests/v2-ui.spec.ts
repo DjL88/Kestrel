@@ -154,3 +154,29 @@ test('?v2 Co-pilot checks the photo on this device, suggests Auto, and applying 
     await expect(root.getByText(/Looks good|Cannot improve/).first()).toBeVisible();
   }
 });
+
+async function importGenerated(page: import('@playwright/test').Page, name: string, count: number) {
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill(name);
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const images = await page.evaluate((n) => Array.from({ length: n }, (_, i) => {
+    const canvas = document.createElement('canvas'); canvas.width = 400; canvas.height = 267;
+    const ctx = canvas.getContext('2d')!; ctx.fillStyle = ['#586b82', '#776c56', '#5d735d', '#855e73'][i % 4]; ctx.fillRect(0, 0, 400, 267);
+    ctx.fillStyle = '#f2e6c8'; for (let k = 0; k < 40; k += 1) ctx.fillRect((k * 37 + i * 11) % 380, (k * 53) % 250, 14, 14);
+    return canvas.toDataURL('image/png').split(',')[1];
+  }), count);
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles(images.map((img, i) => ({ name: `cull-${i + 1}.png`, mimeType: 'image/png', buffer: Buffer.from(img, 'base64') })));
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(count);
+}
+
+test('?v2 Auto-Cull says it is part of Pro on the Free plan and changes nothing', async ({ page }) => {
+  await page.goto('/?v2');
+  await importGenerated(page, 'Free cull check', 2);
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: /Auto-Cull/ }).first().click();
+  await expect(root.getByText('Auto-cull is part of InFlight Pro.')).toBeVisible();
+  await expect(root.getByRole('button', { name: /^Unflag / })).toHaveCount(0);
+});

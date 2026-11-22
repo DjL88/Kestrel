@@ -85,3 +85,11 @@ test('Auto shows as one Co-pilot suggestion only when it found a safe change, an
   assert.deepEqual(assistCritiqueFor({ run: run(false), applied: false, dismissed: false }).suggestions, []);
   assert.deepEqual(recipeDelta(undefined, undefined), {});
 });
+
+test('a subject name the app suggested is marked as a suggestion, a chosen one is not, and unknown stays unknown', async () => {
+  const { speciesLabelOf } = await import('./frameToPhoto.ts');
+  assert.equal(speciesLabelOf({}), undefined);
+  assert.equal(speciesLabelOf({ tags: ['Red kite'], autoTags: ['Red kite'] }), 'Red kite (suggested)');
+  assert.equal(speciesLabelOf({ tags: ['Red kite'], autoTags: [] }), 'Red kite');
+  assert.equal(speciesLabelOf({ subjectNames: ['Common kestrel'], tags: ['Red kite'], autoTags: ['Red kite'] }), 'Common kestrel');
+});

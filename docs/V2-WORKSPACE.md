@@ -155,3 +155,23 @@ Intended behaviour: Basic gets an InFlight watermark. A backend toggle opens cus
 - Reference: the owner's prototype `inflight.zip` (ask the owner; it is outside the repo) for look and layout; the proposal at https://claude.ai/artifact/XbZ52tqSJtoFhcXYT17XhX if still available; `docs/brand/V2-ICON-LIST.md` for icons.
 - Rules: originals never written; British English; keyboard access; no colour-only cues; every flag-gated feature goes through `featureAvailable` (never check a plan directly). Small PRs on their own branches; report each check as PASS, FAIL or NOT RUN; squash-merge when the relevant checks pass (CI is billing-blocked until about 24 Nov, merge on local results). Playwright: use an untracked local config on a free port (not 4173). Product name is InFlight.
 - Open owner questions: how long a Trial runs by default; whether to ship cloud processing (roadmap only).
+
+## 15. Three halves: frontend, engine, backend (owner direction, 22 Nov 2026)
+
+**Forget V1 as a design; use it for scrap parts.** Function is unchanged; what changes is how it joins up.
+
+| Half | What it is | Who builds it |
+|---|---|---|
+| **Frontend** | The interface only (`src/v2/ui`, the owner's prototype) plus cheap basic edits. The user sees nothing else. | Frontend worker |
+| **Engine** | Invisible, on the device: RAW develop (16-bit+), subject detection, vision AI, denoise, upscale, masks, the species and colour models. Every job is pushed to a **task manager** that routes it to the right engine. A **decision maker** takes everything the engines found and ranks photos **good, better, best**. Learns to make **recipes**. | Engine worker |
+| **Backend** | Cloud: Firestore, model storage, the cloud Processing Engine, cloud storage option. Needs the engine and models built first. | Backend worker (later) |
+
+**Collaboration.** The in-app engine and the cloud engine work together. Optional help, each only where allowed: **Processing Engine** (Pro, photos sent to the owner's cloud only if the person signs up and consents; online and heavier ONNX models), **Gemini** (the owner's, where the owner selects it, with consent), **BYO AI** (the person's own, as a calibration layer over what the device engines found, never a bypass).
+
+**When the engine runs** is the person's choice of **Solo** (never on its own), **Co-pilot** (runs, suggests, the person applies) or **Auto-pilot** (runs and applies, reversibly). Cloud runs for Pro; Gemini runs where selected.
+
+**Recipes** include masking: subject-detection masks and the edits on them, so a person (or the engine) can save presets such as "lift the subject and add detail" or "dull and blur the background". A recipe is the unit the engine learns to propose and ranks.
+
+**The seam (frontend side).** The frontend talks to the engine only through `src/v2/ui/contract.ts` (`WorkspaceStore`, `WorkspaceActions`) via one adapter, `src/v2/engineClient/` (today a thin adapter over the V1 `src/core` and `src/providers` code, which stays the engine until the engine worker moves it behind the task manager). The frontend must not grow engine logic: it asks for a capability, shows progress from the task manager, and renders what comes back. Where the frontend needs something the engine does not yet provide (a good/better/best rank per photo, top-three recipe candidates, a mask list per photo, a cloud-consent state), it adds the **field to the contract** and says so, and the engine worker fills it.
+
+**Open for the engine worker:** the task-manager request/result shape that device and cloud calls share; the decision maker's score and tiers; recipe format with masks; where learning is stored. See also `docs/AI-INTEGRATION.md` (one engine API, top-three candidates).
