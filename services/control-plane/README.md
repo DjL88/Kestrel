@@ -58,6 +58,7 @@ Firestore collections: `accounts`, `account_emails` (keeps email hashes unique),
 | `POST /v1/licences/activate` | signed `KESTREL1` key | Atomic device-slot count → Ed25519 offline grant (default 30 days, client cap 90) |
 | `GET /v1/me/entitlements` | bearer | Plans, AI allowance, next revalidation |
 | `POST /v1/ai/identify` | bearer + `userConsent: true` | One metadata-free JPEG ≤512 KB/≤1024 px → checked species answer. 12 s upstream deadline; failures refunded |
+| `GET/POST /v1/me/learning-consent`, `POST /v1/learning/signals` | bearer; signals also need the separate opt-in | Opt-in calibration data: how a person corrected a Gemini/BYO/on-device suggestion. Numbers and fixed words only (no photo, file name, free text, account id or timestamp finer than a day); consent checked live; opting out deletes everything stored for that person. In-memory and Firestore sinks only, **not wired: 503 `LEARNING_NOT_CONFIGURED` until approved** |
 | `POST /v1/ai/suggest` | bearer + consent | Bounded slider proposal only, never pixels. `{}` → `alreadyBalanced: true` |
 | `GET /v1/models/manifest?app=&channel=` | none | Signed `dataUpdateManifest` with live assets for that app version |
 | `GET /v1/desktop/releases?platform=` | none | Latest release for a notice; links allow-listed to `github.com` |
