@@ -33,6 +33,7 @@ export default function CoPilotPanel({
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to run Flight Analysis.</p>;
   }
 
+  const reviewAvailable = features.onlineAi || features.cloudAssist;
   const suggestions = photo.assistCritique.suggestions;
   const unappliedCount = suggestions.filter((s) => !s.applied).length;
 
@@ -68,7 +69,8 @@ export default function CoPilotPanel({
       <div className="space-y-2">
         <button
           type="button"
-          disabled={!features.onlineAi && !features.cloudAssist}
+          disabled={!reviewAvailable}
+          aria-describedby="copilot-review-status"
           onClick={() => onRunDeepVisionReview(photo.id)}
           className="flex w-full items-center justify-between gap-2 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-3.5 py-2.5 text-left text-[var(--text-on-accent)] transition-colors hover:bg-[var(--brand-accent-hover)] disabled:opacity-50"
         >
@@ -82,6 +84,9 @@ export default function CoPilotPanel({
           <BrandIcon name="arrow" size={14} />
         </button>
 
+        <p id="copilot-review-status" role="status" aria-live="polite" className="text-[11px] text-[var(--text-secondary)]">
+          {!reviewAvailable ? 'Online review is unavailable. Your photos and existing local edits remain usable offline.' : 'Review is optional. Suggestions are not applied without your choice.'}
+        </p>
         {ongoingCritique && (
           <p className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)]">
             <BrandIcon name="ready" size={13} className="text-[var(--semantic-success)]" />
@@ -137,7 +142,7 @@ export default function CoPilotPanel({
 
         {suggestions.length === 0 ? (
           <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3 text-xs text-[var(--text-muted)]">
-            No pending suggestions. Run Deep Vision Review anytime to re-analyse your latest edits.
+            {reviewAvailable ? 'No suggestions yet. You can request a review when ready.' : 'No suggestions available offline. Continue editing with the local tools.'}
           </p>
         ) : (
           <div className="space-y-2">
