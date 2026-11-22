@@ -45,7 +45,7 @@ function fixtureControlPlane(produceResult: (uploadedBytes: Uint8Array) => Uint8
       }), { status: 200 });
     }
     if (method === 'GET' && url.startsWith('https://storage.googleapis.com/kestrel-bucket/results/job-1')) {
-      return new Response(produceResult(uploaded!), { status: 200 });
+      return new Response(produceResult(uploaded!) as BodyInit, { status: 200 });
     }
     if (method === 'POST' && url === `${base}/v1/cloud/jobs/job-1/finish`) {
       return new Response(JSON.stringify({ jobId: 'job-1', inputDeleted: true }), { status: 200 });

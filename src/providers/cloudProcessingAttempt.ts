@@ -62,7 +62,7 @@ async function runDenoiseCloud(request: DenoiseRequest, connection: CloudConnect
   const { background, subject } = splitDenoiseBySubject(request.backgroundDenoise);
   const uploadBytes = encodeDenoiseUpload(request.original, background, subject, request.subject?.alpha);
   const resultBlob = await runCloudJob(connection, {
-    kind: 'denoise', input: new Blob([uploadBytes]), userConsent: true, signal, maxResultBytes: DEFAULT_MAX_RESULT_BYTES,
+    kind: 'denoise', input: new Blob([uploadBytes as BlobPart]), userConsent: true, signal, maxResultBytes: DEFAULT_MAX_RESULT_BYTES,
   });
   const { picture } = decodeResult(new Uint8Array(await resultBlob.arrayBuffer()));
   const verification = verifyEdit(request.original, picture, request.subject?.alpha, request.subject ? 'subject' : 'frame');
@@ -75,7 +75,7 @@ async function runDenoiseCloud(request: DenoiseRequest, connection: CloudConnect
 async function runMaskCloud(request: MaskRequest, connection: CloudConnection, signal?: AbortSignal): Promise<MaskActionResult> {
   const uploadBytes = encodeMaskUpload(request.original, request.masks, request.subject?.alpha);
   const resultBlob = await runCloudJob(connection, {
-    kind: 'mask', input: new Blob([uploadBytes]), userConsent: true, signal, maxResultBytes: DEFAULT_MAX_RESULT_BYTES,
+    kind: 'mask', input: new Blob([uploadBytes as BlobPart]), userConsent: true, signal, maxResultBytes: DEFAULT_MAX_RESULT_BYTES,
   });
   const { picture } = decodeResult(new Uint8Array(await resultBlob.arrayBuffer()));
   const verification = verifyEdit(request.original, picture, request.subject?.alpha, request.subject ? 'subject' : 'frame');
