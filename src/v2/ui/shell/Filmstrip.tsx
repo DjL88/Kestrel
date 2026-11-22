@@ -108,27 +108,33 @@ export default function Filmstrip({
     }
   };
 
-  const suppressCompletedPressClick = (event: React.MouseEvent<HTMLElement>) => {
-    if (!suppressTouchClick.current) return;
-    suppressTouchClick.current = false;
-    event.preventDefault();
-    event.stopPropagation();
-  };
-
   useEffect(() => {
     if (!tileMenu) return;
-    const close = () => setTileMenu(null);
+    const close = () => {
+      suppressTouchClick.current = false;
+      setTileMenu(null);
+    };
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation();
-        setTileMenu(null);
+        close();
       }
     };
-    window.addEventListener('mousedown', close);
+    // The browser can target the release click at a menu item that appeared under the held finger.
+    const suppressReleaseClick = (event: MouseEvent) => {
+      if (!suppressTouchClick.current || event.detail === 0) return;
+      suppressTouchClick.current = false;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    // A held touch can emit a compatibility mousedown on release. Only a new press dismisses the menu.
+    window.addEventListener('pointerdown', close);
     window.addEventListener('keydown', onEscape);
+    window.addEventListener('click', suppressReleaseClick, true);
     return () => {
-      window.removeEventListener('mousedown', close);
+      window.removeEventListener('pointerdown', close);
       window.removeEventListener('keydown', onEscape);
+      window.removeEventListener('click', suppressReleaseClick, true);
     };
   }, [tileMenu]);
 
@@ -393,7 +399,6 @@ export default function Filmstrip({
                     onPointerMove={moveLongPress}
                     onPointerUp={cancelLongPress}
                     onPointerCancel={cancelLongPress}
-                    onClickCapture={suppressCompletedPressClick}
                     className={`group relative flex h-full w-36 shrink-0 flex-col overflow-hidden rounded-[var(--radius-md)] border transition-colors ${
                       isActive
                         ? 'border-[var(--brand-accent)] bg-[var(--bg-surface-raised)] ring-1 ring-[var(--brand-accent)]'
@@ -493,8 +498,11 @@ export default function Filmstrip({
         <div
           role="menu"
           aria-label="Photo actions"
-          onMouseDown={(e) => e.stopPropagation()}
-          className="fixed z-50 w-56 max-h-[70vh] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1.5 shadow-[var(--shadow-popover)]"
+          onPointerDown={(e) => {
+            suppressTouchClick.current = false;
+            e.stopPropagation();
+          }}
+          className="fixed z-50 w-56 max-h-[min(70dvh,16rem)] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1.5 shadow-[var(--shadow-popover)] md:max-h-[70vh]"
           style={{ left: Math.max(8, Math.min(tileMenu.x, window.innerWidth - 232)), top: Math.max(8, Math.min(tileMenu.y, window.innerHeight - 270)) }}
         >
           <p className="px-3 py-1 text-[11px] text-[var(--text-muted)]">
