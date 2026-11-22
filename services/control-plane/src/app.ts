@@ -20,6 +20,7 @@ import { googleKeysFromNetwork, verifyGoogleIdToken, GOOGLE_CERTS_URL, type Goog
 import { APPLE_ISSUER, APPLE_KEYS_URL, FIREBASE_KEYS_URL, firebaseIssuer, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
 import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnover.ts';
 import { CLOUD_KINDS, type CloudOptions } from './cloudJobs.ts';
+import { LEARNING_ACTIONS, LEARNING_CAPABILITIES, LEARNING_SOURCES, type LearningSink } from './learningSignal.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
 
 export const MAX_IMAGE_BYTES = 512 * 1024;
@@ -47,6 +48,8 @@ export interface AppOptions {
   demoStudio?: DemoStudioStore;
   /** Cloud Processing Engine. Absent in production until the owner approves the bucket and runner: the routes then answer 503. */
   cloud?: CloudOptions;
+  /** Opt-in learning signal. Absent in production until approved: the routes then answer 503. */
+  learning?: LearningSink;
 }
 
 // ---- Schemas: the contract, also published as OpenAPI ------------------------
@@ -106,6 +109,8 @@ const DemoFraming = z.object({
   size: z.number().finite().min(0.08).max(1).optional(),
   free: z.boolean().optional(),
 }).strict();
+/** Slider name to value: short identifiers and bounded numbers only, so a free-text field cannot hide in here. */
+const SliderMap = z.record(z.string().regex(/^[a-z][a-zA-Z0-9]{0,23}$/), z.number().finite().min(-100).max(100)).refine((m) => Object.keys(m).length <= 16, 'at most 16 sliders');
 export const Schemas = {
   DemoCreate: DemoDetails.extend({ jpegBase64: z.string().min(128).max(2_200_000).regex(/^[A-Za-z0-9+/]+={0,2}$/) }).strict(),
   DemoSave: DemoDetails.extend({ revision: z.number().int().positive(), edit: DemoEdit, framing: DemoFraming }).strict(),
@@ -135,6 +140,11 @@ export const Schemas = {
     nextRevalidationMs: z.number(),
   }),
   CloudJobRequest: z.object({ kind: z.enum(CLOUD_KINDS), inputBytes: z.number().int().positive(), userConsent: z.boolean() }).strict(),
+  LearningSignal: z.object({
+    source: z.enum(LEARNING_SOURCES), capability: z.enum(LEARNING_CAPABILITIES), action: z.enum(LEARNING_ACTIONS),
+    candidateRank: z.number().int().min(1).max(3).optional(),
+    proposal: SliderMap, final: SliderMap, appVersion: Version,
+  }).strict(),
   ImageRequest: ImageBody,
   IdentifyResponse: z.object({ kind: z.string(), species: z.string().nullable(), scientific: z.string().nullable(), confidence: z.enum(['high', 'medium', 'low']), tags: z.array(z.string()), abstained: z.boolean() }),
   SuggestResponse: z.object({ proposal: z.record(z.string(), z.number()), alreadyBalanced: z.boolean() }),
@@ -388,6 +398,9 @@ export function createApp(options: AppOptions) {
     if (!options.cloud || !record || record.accountId !== claims.sub) throw new ApiError(404, 'NOT_FOUND', 'No such job.');
     return { cloud: options.cloud, record };
   }
+
+  /** A stable pseudonym, so withdrawal can delete a person's signals without the store holding their account id. */
+  const learningSubject = (accountId: string) => sha256Hex(`learning:${accountId}`);
 
   async function admin(req: Request, action: string): Promise<SessionClaims> {
     let claims: SessionClaims;
@@ -730,6 +743,43 @@ export function createApp(options: AppOptions) {
         await cloud.runner.deleteResult(record.jobId);
         await cloud.ledger.put({ ...record, status: 'finished' });
         return { status: 200, body: { jobId: record.jobId, inputDeleted: true } };
+      },
+    },
+
+    // ---- Opt-in learning signal (separate consent, deleted on withdrawal)
+    {
+      method: 'GET', path: '/v1/me/learning-consent', summary: 'Whether this account shares anonymous corrections to improve suggestions', auth: 'user',
+      handler: async (req) => {
+        const claims = await bearer(req);
+        return { status: 200, body: { learningConsent: options.learning ? await options.learning.getConsent(learningSubject(claims.sub)) : false } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/me/learning-consent', summary: 'Opt in or out. Opting out deletes everything shared so far', auth: 'user', body: Schemas.AiConsentRequest,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.AiConsentRequest, req.rawBody);
+        const sink = options.learning;
+        if (!sink) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Sharing corrections is not set up on this server.');
+        const subject = learningSubject(claims.sub);
+        await sink.setConsent(subject, body.consent);
+        const deleted = body.consent ? 0 : await sink.deleteBySubject(subject);
+        await audit(claims.sub, 'learning.consent.set', 'allowed', body.consent ? 'granted' : `withdrawn deleted=${deleted}`);
+        return { status: 200, body: { learningConsent: body.consent, deleted } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/learning/signals', summary: 'Share one anonymous correction (numbers and fixed words only; never a photo). Needs the opt-in', auth: 'user', body: Schemas.LearningSignal,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.LearningSignal, req.rawBody);
+        const sink = options.learning;
+        if (!sink) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Sharing corrections is not set up on this server.');
+        const subject = learningSubject(claims.sub);
+        // Checked live on every request, so withdrawing takes effect at once.
+        if (!(await sink.getConsent(subject))) throw new ApiError(403, 'LEARNING_CONSENT_REQUIRED', 'Turn on "help improve suggestions" before sharing corrections.');
+        await sink.append({ ...body, subject, receivedDay: new Date(now()).toISOString().slice(0, 10) });
+        return { status: 200, body: { stored: true } };
       },
     },
 
