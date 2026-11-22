@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+test.beforeEach(({}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Uses the desktop tool rail; on a phone History is in the More sheet.');
+});
+
 test('?v2 History lists real edit steps; choosing Original goes back and the later step can be chosen again', async ({ page }) => {
   await page.goto('/?v2');
   const root = page.locator('.inflight-v2');
