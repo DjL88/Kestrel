@@ -8,7 +8,9 @@ export const CLOUD_KINDS = ['denoise', 'upscale', 'subject-mask'] as const;
 export type CloudKind = typeof CLOUD_KINDS[number];
 export type CloudStatus = 'awaiting-upload' | 'finished';
 
-export interface CloudJobRecord { jobId: string; accountId: string; kind: CloudKind; inputBytes: number; status: CloudStatus; createdAtMs: number }
+export interface CloudJobRecord { jobId: string; accountId: string; kind: CloudKind; inputBytes: number; status: CloudStatus; createdAtMs: number;
+  /** When the person said yes to this upload (every job carries its own consent, never a standing one). */
+  consentAtMs: number }
 
 export interface CloudRunner {
   /** A short-lived signed upload URL into the private bucket. Throws if the job cannot be started. */
@@ -49,7 +51,7 @@ export class MemoryCloudLedger implements CloudLedger {
     c.used++; return true;
   }
   async refund(accountId: string) { const c = this.counts.get(accountId); if (c && c.used > 0) c.used--; }
-  async put(record: CloudJobRecord) { this.jobs.set(record.jobId, { ...record }); }
+  async put(r: CloudJobRecord) { const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs } = r; this.jobs.set(jobId, { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs }); }
   async get(jobId: string) { const r = this.jobs.get(jobId); return r ? { ...r } : undefined; }
   used(accountId: string) { return this.counts.get(accountId)?.used ?? 0; }
   record(jobId: string) { return this.jobs.get(jobId); }

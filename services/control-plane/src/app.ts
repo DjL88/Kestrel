@@ -363,7 +363,7 @@ export function createApp(options: AppOptions) {
     const jobId = uuid();
     try {
       const upload = await cloud.runner.createUpload(jobId, body.inputBytes);
-      await cloud.ledger.put({ jobId, accountId: claims.sub, kind: body.kind, inputBytes: body.inputBytes, status: 'awaiting-upload', createdAtMs: now() });
+      await cloud.ledger.put({ jobId, accountId: claims.sub, kind: body.kind, inputBytes: body.inputBytes, status: 'awaiting-upload', createdAtMs: now(), consentAtMs: now() });
       await audit(claims.sub, 'cloud.job.create', 'allowed', `${body.kind} ${jobId}`);
       return { status: 200, body: { jobId, uploadUrl: upload.uploadUrl, expiresAtMs: upload.expiresAtMs } };
     } catch (error) {
