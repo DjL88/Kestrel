@@ -113,11 +113,11 @@ function MenuSection({ id, title, children }: { id: string; title: string; child
   );
 }
 
-function MenuItem({ icon, children, onClick, disabled, pressed, wide, title }: {
-  icon: React.ReactNode; children: React.ReactNode; onClick: () => void; disabled?: boolean; pressed?: boolean; wide?: boolean; title?: string;
+function MenuItem({ icon, children, onClick, disabled, pressed, wide, title, 'data-phone-hidden': phoneHidden }: {
+  icon: React.ReactNode; children: React.ReactNode; onClick: () => void; disabled?: boolean; pressed?: boolean; wide?: boolean; title?: string; 'data-phone-hidden'?: boolean;
 }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} aria-pressed={pressed} title={title}
+    <button type="button" onClick={onClick} disabled={disabled} aria-pressed={pressed} title={title} data-phone-hidden={phoneHidden ? '' : undefined}
       className={`flex min-h-10 min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:text-zinc-500 disabled:hover:bg-transparent aria-pressed:bg-sky-300/15 ${wide ? 'col-span-2' : ''}`}>
       <span className="shrink-0 text-zinc-400">{icon}</span>
       <span className="min-w-0 truncate">{children}</span>
@@ -233,9 +233,9 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                 <MenuSection id="menu-file" title={t.top.file}>
                   <MenuItem wide icon={<Plus className="h-4 w-4" aria-hidden="true" />} disabled={props.actionsDisabled || props.addDisabled} onClick={() => choose(props.onOpenShootModal, false)}>{t.top.addPhotos}…</MenuItem>
                   <MenuItem wide icon={<Download className="h-4 w-4" aria-hidden="true" />} disabled={!props.onExport} onClick={() => choose(() => props.onExport?.(), false)}>{t.top.exportTitle}…</MenuItem>
-                  <MenuItem wide icon={<FileDown className="h-4 w-4" aria-hidden="true" />} title={t.top.xmpHelp}
+                  <MenuItem wide data-phone-hidden icon={<FileDown className="h-4 w-4" aria-hidden="true" />} title={t.top.xmpHelp}
                     disabled={!props.onSaveSidecars} onClick={() => choose(() => props.onSaveSidecars?.(), false)}>{t.top.xmpSidecars}</MenuItem>
-                  <MenuItem wide icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} title={t.top.xmpImportHelp}
+                  <MenuItem wide data-phone-hidden icon={<FolderInput className="h-4 w-4" aria-hidden="true" />} title={t.top.xmpImportHelp}
                     disabled={!props.onImportSidecars} onClick={() => choose(() => xmpPicker.current?.click(), false)}>{t.top.xmpImport}</MenuItem>
                 </MenuSection>
                 <MenuSection id="menu-edit-photo" title={t.top.edit}>
@@ -249,7 +249,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
                     className="flex min-h-10 w-full items-center rounded-md px-2 text-left text-sm text-zinc-100 hover:bg-white/10">
                     {t.top.groupBursts}
                   </button>
-                  <label className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
+                  <label data-phone-hidden className="flex min-h-9 items-center gap-2 px-1 pb-2 text-sm">
                     <input type="checkbox" checked={props.showFilmstrip} onChange={props.onToggleFilmstrip} />
                     {t.top.showFilmstrip}
                   </label>

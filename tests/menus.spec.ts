@@ -200,7 +200,8 @@ test('File, Edit and View organise actions; show/hide controls stay together in 
   const view = menu.locator('details').filter({ hasText: 'View · show or hide' });
   await expect(view).toHaveCount(1);
   await view.locator('summary').click();
-  await expect(view.getByRole('checkbox', { name: 'Show filmstrip' })).toBeVisible();
+  // The filmstrip toggle is not offered on a phone: the layout there is fixed.
+  await expect(view.getByRole('checkbox', { name: 'Show filmstrip' })).toBeVisible({ visible: !onPhone });
   await expect(view.getByRole('checkbox', { name: 'Photo info', exact: true })).toBeVisible();
   await expect(view.getByRole('checkbox', { name: 'Photo-only view (F)' })).toBeVisible();
   // The keyboard shortcut guide is not offered on a phone (no keyboard).
@@ -218,7 +219,8 @@ test('File, Edit and View organise actions; show/hide controls stay together in 
     .getByRole('checkbox', { name: 'Show shortcut guide' })).toHaveCount(0);
 });
 
-test('File menu saves selected ratings/tags as XMP without the photo Export dialog', async ({ page }) => {
+test('File menu saves selected ratings/tags as XMP without the photo Export dialog', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'phone', 'XMP save and import are hidden on phones (owner decision, 22 Nov)');
   await makeProject(page, 'Portable photo metadata');
   const phone = page.viewportSize()!.width < 768;
   const openMenu = async () => {
@@ -246,7 +248,8 @@ test('File menu saves selected ratings/tags as XMP without the photo Export dial
   await expect(page.getByText('XMP sidecars', { exact: true })).toHaveCount(0);
 });
 
-test('File menu imports a matching XMP into the selected photo without changing its original file', async ({ page }) => {
+test('File menu imports a matching XMP into the selected photo without changing its original file', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'phone', 'XMP save and import are hidden on phones (owner decision, 22 Nov)');
   await makeProject(page, 'Restore photo metadata');
   await page.getByRole('button', { name: 'Add photos', exact: true }).click();
   await page.getByTestId('local-file-input').setInputFiles({
