@@ -91,9 +91,13 @@ variable "cloud_processing_enabled" {
 }
 
 variable "cloud_processing_region" {
-  description = "Where uploaded files are held and processed. The owner chooses it; the default is London, next to everything else."
+  description = "Where uploaded files are held and processed. UK only (owner decision, 22 Nov 2026): London, europe-west2, the only UK Google Cloud region."
   type        = string
   default     = "europe-west2"
+  validation {
+    condition     = var.cloud_processing_region == "europe-west2"
+    error_message = "Cloud processing must stay in the UK: europe-west2 (London)."
+  }
 }
 
 variable "cloud_input_max_age_days" {
