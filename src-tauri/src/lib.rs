@@ -7,6 +7,8 @@ mod raw;
 #[cfg(desktop)]
 mod oauth_loopback;
 #[cfg(desktop)]
+mod local_vision;
+#[cfg(desktop)]
 pub use kestrel_raw::scene_develop;
 #[cfg(desktop)]
 pub mod raw_precision;
@@ -217,7 +219,8 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(OpenedFiles::default())
         .manage(OauthListener::default())
-        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, oauth_listen_start, oauth_listen_wait, oauth_listen_stop])
+        .manage(local_vision::VisionState::default())
+        .invoke_handler(tauri::generate_handler![develop_raw, develop_raw_rgb16, develop_raw_precision, develop_raw_precision_edited, raw_dng_copy, raw_sensor_mode, take_opened_files, oauth_listen_start, oauth_listen_wait, oauth_listen_stop, local_vision::local_vision_status, local_vision::local_vision_describe])
         .menu(|app| {
             let app_menu = Submenu::with_items(app, "Kite44", true, &[
                 &PredefinedMenuItem::about(app, None, None)?,
