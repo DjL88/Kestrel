@@ -528,7 +528,7 @@ export default function Canvas({
                     padding: `${cqw(8)} ${cqw(12)}`,
                     left: `${overlay.textX}%`,
                     top: `${overlay.textY}%`,
-                    transform: `translate(-${overlay.textX}%, -50%)`,
+                    transform: 'translate(-50%, -50%)',
                     backgroundColor: overlay.textScrim
                       ? overlay.textColour === 'light'
                         ? 'rgba(10, 12, 16, 0.62)'
@@ -591,8 +591,8 @@ export default function Canvas({
               padding: `${cqw(4)} ${cqw(10)}`,
               left: `${overlay.watermarkX}%`,
               top: `${overlay.watermarkY}%`,
-              transformOrigin: `${overlay.watermarkX}% 50%`,
-              transform: `translate(-${overlay.watermarkX}%, -50%) scale(${
+              transformOrigin: '50% 50%',
+              transform: `translate(-50%, -50%) scale(${
                 overlay.watermarkScale / 100
               })`,
               opacity: overlay.watermarkOpacity / 100,
