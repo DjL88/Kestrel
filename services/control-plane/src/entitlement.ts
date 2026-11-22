@@ -12,14 +12,13 @@ import { newLicence, type LicenceRecord, type LicencePlan } from './store.ts';
 export const normaliseEmail = (email: string) => email.trim().toLowerCase();
 export const emailHashOf = (email: string) => sha256Hex(normaliseEmail(email));
 
-export interface PurchaseGrant {
-  email: string;
+export type PurchaseGrant = ({ email: string } | { emailHash: string }) & {
   /** The checkout reference of the verified payment: the idempotency key. */
   checkoutReference: string;
   majorVersion: number;
   managedAi?: boolean;
   accountId?: string | null;
-}
+};
 export interface GiftGrant {
   email: string;
   plan: Exclude<LicencePlan, 'free'>;
@@ -36,8 +35,10 @@ const REFERENCE = /^[A-Za-z0-9_-]{1,64}$/;
 export function purchaseEntitlement(grant: PurchaseGrant, nowMs: number): LicenceRecord {
   if (!REFERENCE.test(grant.checkoutReference)) throw new Error('Invalid checkout reference.');
   assertVersion(grant.majorVersion);
+  const emailHash = 'emailHash' in grant ? grant.emailHash : emailHashOf(grant.email);
+  if (!/^[a-f0-9]{64}$/.test(emailHash)) throw new Error('Invalid account email hash.');
   return newLicence(`lic_p_${grant.checkoutReference}`, 'paid', nowMs, {
-    accountId: grant.accountId ?? null, emailHash: emailHashOf(grant.email), majorVersion: grant.majorVersion,
+    accountId: grant.accountId ?? null, emailHash, majorVersion: grant.majorVersion,
     paid: true, source: 'purchase', managedAi: grant.managedAi ?? false,
   });
 }

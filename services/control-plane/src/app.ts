@@ -30,6 +30,9 @@ export const MAX_IMAGE_EDGE = 1024;
 const DAY_MS = 86_400_000;
 const QUOTA_PERIOD_MS = 30 * DAY_MS;
 const REFRESH_TTL_MS = 30 * DAY_MS;
+const SumupNotification = z.object({ event_type: z.string().min(1).max(64), id: z.string().regex(/^[A-Za-z0-9-]{1,64}$/) });
+const offlineDeadline = (licence: { offlineGraceDays: number; validUntilMs: number | null }, now: number) =>
+  Math.min(now + licence.offlineGraceDays * DAY_MS, licence.validUntilMs ?? Infinity);
 
 export interface AppOptions {
   config: Config;
@@ -38,6 +41,8 @@ export interface AppOptions {
   pricing?: Pick<CommerceLedger, 'latestPriceReview'>;
   /** Paid checkouts for the admin console's Payments table (the Firestore commerce ledger). */
   payments?: { listTransactions(limit: number): Promise<TransactionRecord[]> };
+  /** Re-fetches and matches SumUp checkout and transaction records before fulfilling a server-owned order. */
+  settleSumupPro?: (checkoutId: string) => Promise<void>;
   /** Google's ID-token signing keys. Injected for tests; fetched from Google otherwise. */
   googleKeys?: GoogleKeys;
   firebaseKeys?: OidcKeys;
@@ -266,6 +271,7 @@ export function createApp(options: AppOptions) {
   const userGoogleKeys: OidcKeys = options.googleKeys ?? oidcKeysFromNetwork(GOOGLE_CERTS_URL);
   const adminEmailHashes = new Set(config.adminEmails.map((email) => sha256Hex(email)));
   const activateLimiter = new RateLimiter(20, 60_000);
+  const sumupLimiter = new RateLimiter(90, 60_000);
 
   const audit = (actor: string, action: string, outcome: AuditRecord['outcome'], detail: string) => store.audit({ atMs: now(), actor, action, outcome, detail });
 
@@ -631,7 +637,7 @@ export function createApp(options: AppOptions) {
         const { activationId, licence } = outcome;
         const grant: EntitlementGrant = {
           schema: 1, grantId: `grt_${randomId(12)}`, plan: licence.plan as EntitlementGrant['plan'], managedAi: licence.managedAi,
-          deviceHash: body.deviceHash, issuedAtMs: t, offlineUntilMs: t + licence.offlineGraceDays * DAY_MS,
+          deviceHash: body.deviceHash, issuedAtMs: t, offlineUntilMs: offlineDeadline(licence, t),
           ...(await grantFlagsFor({ plan: licence.plan === 'free' ? 'basic' : 'pro' }, body.deviceHash, body.appVersion, t)),
         };
         return { status: 200, body: { grant: signEnvelope(grant, config.signingKey), activationId } };
@@ -656,7 +662,7 @@ export function createApp(options: AppOptions) {
         if (!outcome.ok) throw new ApiError(409, 'DEVICE_LIMIT', `This licence is already active on ${outcome.maxDevices} devices. Deactivate one first.`);
         const grant: EntitlementGrant = {
           schema: 1, grantId: `grt_${randomId(12)}`, plan: outcome.licence.plan as EntitlementGrant['plan'], managedAi: outcome.licence.managedAi,
-          deviceHash: body.deviceHash, issuedAtMs: t, offlineUntilMs: t + outcome.licence.offlineGraceDays * DAY_MS,
+          deviceHash: body.deviceHash, issuedAtMs: t, offlineUntilMs: offlineDeadline(outcome.licence, t),
           ...(await grantFlagsFor({ plan: outcome.licence.plan === 'free' ? 'basic' : 'pro', user: (await store.getAccount(claims.sub))?.emailHash }, body.deviceHash, body.appVersion, t)),
         };
         await audit(claims.sub, 'device.activate.account', 'allowed', outcome.activationId);
@@ -984,6 +990,20 @@ export function createApp(options: AppOptions) {
     providerRoute('google'),
     providerRoute('apple'),
     providerRoute('firebase'),
+    {
+      method: 'POST', path: '/v1/billing/sumup', summary: 'Verify a SumUp checkout status notification against SumUp', auth: 'none',
+      body: SumupNotification,
+      handler: async (req) => {
+        if (!options.settleSumupPro) throw new ApiError(503, 'SUMUP_NOT_CONFIGURED', 'SumUp payments are not set up.');
+        const event = parseJson(SumupNotification, req.rawBody);
+        if (event.event_type === 'CHECKOUT_STATUS_CHANGED') {
+          if (!sumupLimiter.take(req.ip, now())) throw new ApiError(429, 'RATE_LIMITED', 'Retry this notification shortly.', true);
+          try { await options.settleSumupPro(event.id); }
+          catch { throw new ApiError(503, 'SUMUP_VERIFICATION_PENDING', 'The payment verification will be retried.', true); }
+        }
+        return { status: 204, body: null };
+      },
+    },
     {
       method: 'POST', path: '/v1/billing/webhook', summary: 'Signed, idempotent billing events', auth: 'webhook', body: Schemas.WebhookEvent,
       handler: async (req) => {

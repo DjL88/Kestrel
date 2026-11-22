@@ -37,6 +37,14 @@ npm --prefix services/control-plane install
 npm --prefix services/control-plane run test:emulator
 ```
 
+## SumUp one-off Pro fulfilment
+
+`POST /v1/billing/sumup` accepts SumUp checkout status notifications when Firestore, `KCP_SUMUP_API_KEY` and `KCP_SUMUP_MERCHANT_CODE` are configured. Set the checkout's `return_url` to this HTTPS endpoint. Keep the key in Secret Manager. It needs access to both checkout and transaction records.
+
+The callback only processes orders in `sumup_pro_orders/{checkoutId}`. A trusted checkout service must write the accepted server-side tax quote, deterministic checkout reference, invoice number, product major version, and verified account ID and email hash before sending a buyer to Hosted Checkout. The callback reads the checkout and merchant transaction back from SumUp and matches the amount, currency, checkout reference and transaction status. The commerce ledger records the sale, and the existing entitlement store grants Pro to that account. A replay repairs an interrupted grant without creating another licence or invoice. The offline grant is capped at the licence expiry when it has one.
+
+Website checkout creation and billing-country evidence, merchant sandbox verification, cancellations/refunds after fulfilment, and renewal management are still rollout work. Keep the public buy control disabled until those paths are verified.
+
 ## Storage
 
 Route handlers only use the `Store` interface in `src/store.ts`. Each operation that must be atomic (AI allowance, device slots, single-use refresh tokens, idempotent billing events, model promotion) is one method, so each store makes it atomic in its own way. The rules both share (when a licence is usable, what a billing event does, how an extension is counted) are pure functions in the same file.
