@@ -21,7 +21,7 @@ async function project(page: Page) {
   await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 6' })).toBeVisible({ timeout: 30000 });
 }
 
-test('Check photo runs only when asked, shows a plain observation, changes nothing and uses no network', async ({ page }) => {
+test('Check photo runs only when asked, shows a plain observation, changes nothing until Apply and uses no network', async ({ page }) => {
   await project(page);
   // The page now believes it is the desktop app, with the on-device model installed; the native calls are faked and counted.
   await page.evaluate(() => {
@@ -59,5 +59,11 @@ test('Check photo runs only when asked, shows a plain observation, changes nothi
   const seen = await page.evaluate(() => (window as unknown as { __vision: { describe: number; bodyBytes: number } }).__vision);
   expect(seen.describe).toBe(1);
   expect(seen.bodyBytes).toBeGreaterThan(1000);
+  // Suggestions appear as ordinary buttons; the Subject one is offered because the observation names a bird, and applying it is one edit.
+  await expect(section.getByText('Edits you can try')).toBeVisible();
+  await expect(section.getByText(/Creative\./)).toBeVisible();
+  const subject = section.locator('div').filter({ hasText: /^Subject\./ }).getByRole('button', { name: 'Apply' });
+  await subject.click();
+  await expect(section.getByText(/Use Undo to take it back/)).toBeVisible();
   expect(outside).toEqual([]);
 });

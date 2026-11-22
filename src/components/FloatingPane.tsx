@@ -150,6 +150,17 @@ export function FloatingPane({ title, storageKey, onDock, onDockTo, dockFocusSel
         if (event.target instanceof Element && event.target.closest('input, textarea, select, [role="dialog"], [role="listbox"], [contenteditable="true"]')) return;
         event.preventDefault();
         event.stopPropagation();
+        // Escape cancels a pointer drag rather than docking a panel accidentally.
+        const pendingDrag = drag.current;
+        if (pendingDrag) {
+          const handle = frame.current?.querySelector<HTMLElement>('[data-pane-drag-handle]');
+          if (handle?.hasPointerCapture(pendingDrag.pointer)) handle.releasePointerCapture(pendingDrag.pointer);
+          drag.current = null;
+          setDragging(false);
+          setDockZone(null);
+          setRect(pendingDrag.rect);
+          return;
+        }
         dock();
       }}
 >
