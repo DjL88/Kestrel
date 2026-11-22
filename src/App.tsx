@@ -2433,6 +2433,7 @@ export default function App() {
               onHandChange={(hand) => setPrefs((prev) => ({ ...prev, hand, editPanelSide: hand }))}
               toolsCollapsed={panesCollapsed}
               focusPhoto={prefs.focusMode}
+              onPhotoOnly={() => setPrefs((prev) => ({ ...prev, focusMode: true }))}
               onExpandTools={() => setWorkspacePanes({ folded: false })}
               onFoldTools={() => setWorkspacePanes({ folded: true })}
               keeperCount={counts.keep}

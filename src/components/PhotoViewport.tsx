@@ -114,6 +114,7 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
               const bounds = view.current.getBoundingClientRect();
               setWipe(Math.max(0, Math.min(100, Math.round((event.clientX - bounds.left) * 100 / bounds.width))));
             }}
+            onPointerUp={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
             onDoubleClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => {
               let next: number;
@@ -128,7 +129,7 @@ export function PhotoViewport({ base, overlay, overlayMode = 'wipe', labels, zoo
               event.stopPropagation();
               setWipe(Math.max(0, Math.min(100, next)));
             }}
-            className="absolute top-1/2 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize place-items-center rounded-full border border-white/70 bg-black/75 focus-visible:outline-2 focus-visible:outline-sky-300"
+            className="absolute top-1/2 grid h-11 w-11 touch-none select-none -translate-x-1/2 -translate-y-1/2 cursor-ew-resize place-items-center rounded-full border border-white/70 bg-black/75 focus-visible:outline-2 focus-visible:outline-sky-300"
             style={{ left: `clamp(22px, ${wipe}%, calc(100% - 22px))` }}>
             <MoveHorizontal className="h-5 w-5" aria-hidden="true" />
           </div>
