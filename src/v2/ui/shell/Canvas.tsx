@@ -695,7 +695,8 @@ export default function Canvas({
               </span>
               <div
                 onPointerDown={(e) => handleFramePointerDown(e, 'split', activeSize, e.currentTarget)}
-                className="relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] active:cursor-grabbing"\n                style={{ width: frameW, height: frameH }}
+                className="relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] active:cursor-grabbing"
+                style={{ width: frameW, height: frameH }}
               >
                 <img
                   src={photo.previewUrl}
