@@ -3,7 +3,7 @@
 The "Try the editing tools" section of `site/index.html` (code in `site/assets/demo.js` and `demo.css`) loads its
 sample photos from one list: [`photos.json`](photos.json). To change the photos, edit only that file.
 
-It is a demo of the tools, not Kite44's RAW engine. The page says so, and it must keep saying so.
+It is a demo of the tools, not InFlight's RAW engine. The page says so, and it must keep saying so.
 
 ## The list
 
@@ -32,7 +32,7 @@ bucket). A bucket on another domain must allow the site's origin in its CORS set
 2. **Denoised version** (`denoised`, optional but recommended for a noisy photo): the same export after noise reduction,
    with identical size, crop and tone, so only the noise changes when the slider moves.
 3. **Subject mask** (`mask`, optional): PNG, white where the subject is and black elsewhere, same framing. Soft edges
-   are fine. It can come from Kite44's own subject mask or be painted by hand; label stays "pre-made mask".
+   are fine. It can come from InFlight's own subject mask or be painted by hand; label stays "pre-made mask".
 4. **Thumbnail** (`thumb`, optional): about 240 × 160 WebP or JPEG.
 5. **Alt text, title, subject words, and credit/licence.** Only the owner's own photos or photos they hold a licence
    for. Never other people's photos without permission.

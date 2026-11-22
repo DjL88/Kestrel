@@ -36,7 +36,7 @@ Register **both** redirect URIs with every provider: `https://<your-site>/oauth-
 Put the ids in the build environment (see `.env.example`). Each id switches on that provider's button; absent ids leave it listed but off.
 
 ## Registration status (21 Nov 2026)
-All three apps are registered under the owner's accounts, named "Kite44". The client ids are in the owner's build environment, not in Git. **Still not verified against a real sign-in.**
+All three apps are registered under the owner's accounts, named "Kite44" (to be renamed InFlight). The client ids are in the owner's build environment, not in Git. **Still not verified against a real sign-in.**
 
 | Service | Registered as | Redirects registered | Status and limits |
 |---|---|---|---|
