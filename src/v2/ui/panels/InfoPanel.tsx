@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Photo } from '../contract';
 import { STRINGS } from '../strings';
 import BrandIcon from '../icons/BrandIcon';
@@ -8,6 +8,7 @@ interface InfoPanelProps {
   onToggleFlag: (photoIds: string[]) => void;
   onSetRating: (photoIds: string[], rating: number) => void;
   onReconnectOriginal: (photoId: string) => void;
+  onCorrectSpeciesName: (photoId: string, name: string) => void;
 }
 
 export default function InfoPanel({
@@ -15,7 +16,15 @@ export default function InfoPanel({
   onToggleFlag,
   onSetRating,
   onReconnectOriginal,
+  onCorrectSpeciesName,
 }: InfoPanelProps) {
+  const [editingSpecies, setEditingSpecies] = useState(false);
+  const [speciesDraft, setSpeciesDraft] = useState(photo?.speciesLabel?.replace(/ \\(suggested\\)$/, '') ?? '');
+  useEffect(() => {
+    setEditingSpecies(false);
+    setSpeciesDraft(photo?.speciesLabel?.replace(/ \\(suggested\\)$/, '') ?? '');
+  }, [photo?.id, photo?.speciesLabel]);
+
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to inspect metadata.</p>;
   }
@@ -135,7 +144,39 @@ export default function InfoPanel({
       <section className="space-y-1.5 border-t border-[var(--border-subtle)] pt-3">
         <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.info.cullSection}</h3>
         <dl className="space-y-1.5 text-xs">
-          <MetaRow label="Subject" value={photo.speciesLabel || photo.category} />
+          <div className="flex items-start justify-between gap-2">
+            <dt className="shrink-0 text-[var(--text-muted)]">Subject</dt>
+            {editingSpecies ? (
+              <form
+                className="flex min-w-0 flex-1 flex-wrap justify-end gap-1"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (!speciesDraft.trim()) return;
+                  onCorrectSpeciesName(photo.id, speciesDraft);
+                  setEditingSpecies(false);
+                }}
+              >
+                <input
+                  type="text"
+                  aria-label="Correct species name"
+                  autoFocus
+                  maxLength={120}
+                  value={speciesDraft}
+                  onChange={(event) => setSpeciesDraft(event.target.value)}
+                  className="min-w-0 max-w-40 rounded border border-[var(--border-default)] bg-[var(--bg-input)] px-2 py-1 text-xs text-[var(--text-primary)]"
+                />
+                <button type="submit" disabled={!speciesDraft.trim()} className="rounded border border-[var(--border-default)] px-2 py-1 disabled:opacity-40">Save</button>
+                <button type="button" onClick={() => setEditingSpecies(false)} className="rounded px-1 py-1">Cancel</button>
+              </form>
+            ) : (
+              <dd className="flex min-w-0 items-center gap-2 text-right text-[var(--text-primary)]">
+                <span>{photo.speciesLabel || photo.category || 'Not identified'}</span>
+                <button type="button" aria-label="Correct species name" title="Correct species name"
+                  onClick={() => setEditingSpecies(true)}
+                  className="shrink-0 rounded border border-[var(--border-subtle)] px-2 py-1 text-[11px]">Edit</button>
+              </dd>
+            )}
+          </div>
           <MetaRow label="Sharpness" value={`${photo.sharpnessScore}%`} mono />
           <MetaRow label={STRINGS.tier.label} value={photo.tier ? STRINGS.tier[photo.tier] : STRINGS.tier.notRanked} />
         </dl>

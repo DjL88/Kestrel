@@ -867,6 +867,15 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       });
     },
 
+    correctSpeciesName: (photoId, proposedName) => {
+      const name = proposedName.trim().slice(0, 120);
+      if (!name) return;
+      setStore((prev) => ({
+        ...prev,
+        photos: prev.photos.map((photo) => photo.id === photoId ? { ...photo, speciesLabel: name } : photo),
+        lastActionNotice: 'Species name saved.',
+      }));
+    },
     setRating: (photoIds, rating) => {
       logAction('setRating', { photoIds, rating });
       const clamped = Math.max(0, Math.min(5, rating));

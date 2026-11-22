@@ -424,6 +424,7 @@ export interface WorkspaceActions {
   setDecision: (photoIds: string[], decision: DecisionState) => void;
   toggleFlag: (photoIds: string[]) => void;
   setRating: (photoIds: string[], rating: number) => void;
+  correctSpeciesName: (photoId: string, name: string) => void;
   importPhotos: () => void;
   importFolder: () => void;
   importDroppedPhotos: (files: File[]) => void;
