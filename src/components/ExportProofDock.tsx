@@ -40,7 +40,7 @@ export function ExportProofDock(props: Props) {
   const frame = props.frames.find(item => item.id === props.choice?.photoId);
   const format = props.formats.find(item => item.id === props.choice?.destinationId);
   return (
-    <aside aria-label={t.proof.title} className="z-10 shrink-0 border-b border-white/15 bg-kestrel-raised px-3 py-1 sm:py-2">
+    <aside aria-label={t.proof.title} className="z-10 max-h-[42dvh] shrink-0 overflow-y-auto border-b border-white/15 bg-kestrel-raised px-3 py-1 sm:py-2">
       <div className="mx-auto flex max-w-4xl flex-col gap-2">
         <div className="grid min-w-0 grid-cols-1 items-center gap-2 text-xs sm:grid-cols-[minmax(0,1fr)_auto_auto]">
           <div className="flex min-w-0 items-center justify-between gap-1">

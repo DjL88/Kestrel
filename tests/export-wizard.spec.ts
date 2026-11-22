@@ -188,7 +188,6 @@ test('only the current ZIP is offered when two export batches finish out of orde
   });
   await openWizard(page);
   const panel = page.getByRole('dialog', { name: 'Export photo' });
-  const instagram = panel.getByText('Instagram', { exact: true });
   const post = panel.getByRole('checkbox', { name: /Post · 4:5/ });
   const square = panel.getByRole('checkbox', { name: /Square · 1:1/ });
   const ready = panel.getByRole('status').filter({ hasText: '2 files ready' });
@@ -197,7 +196,7 @@ test('only the current ZIP is offered when two export batches finish out of orde
     await (window as unknown as { __zipGates: Record<string, () => Promise<void>> }).__zipGates[key]();
   }, name);
 
-  await instagram.click();
+  // The list view shows the size checkboxes directly (no platform heading); Full size JPEG is chosen by default.
   await post.check();
   await panel.getByRole('button', { name: 'Prepare 2 files' }).click();
   await expect(ready).toBeVisible();
@@ -215,7 +214,7 @@ test('only the current ZIP is offered when two export batches finish out of orde
   const download = page.waitForEvent('download');
   await panel.getByRole('button', { name: 'Download ZIP' }).click();
   const archive = unzipSync(await readFile((await (await download).path())!));
-  expect(Object.keys(archive).sort()).toEqual(['ig_w_1x1.jpg', 'w-kestrel.png']);
+  expect(Object.keys(archive).sort()).toEqual(['ig_w_1x1.jpg', 'w_kestrel.jpg']);
 });
 
 test('the wizard ignores earlier saved choices and shows the size that was picked', async ({ page }) => {
@@ -360,7 +359,7 @@ test('watermark: text and a picture each change the preview, wherever they are p
   await expect.poll(picture).not.toBe(bottomRight);
 
   await mark.getByRole('button', { name: /^Picture/ }).click();
-  await expect(page.getByText('Choose a picture to see the watermark.')).toBeVisible();
+  await expect(page.getByText('Choose a picture to see the watermark.').first()).toBeVisible();
   const logo = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 80; canvas.height = 40;
@@ -368,7 +367,7 @@ test('watermark: text and a picture each change the preview, wherever they are p
     return canvas.toDataURL('image/png').split(',')[1];
   });
   const withText = await picture();
-  await mark.getByLabel('Picture', { exact: true }).setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: Buffer.from(logo, 'base64') });
+  await mark.getByLabel(/^Picture/).setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: Buffer.from(logo, 'base64') });
   await expect(page.getByText('Picture chosen.')).toBeVisible();
   await expect.poll(picture).not.toBe(withText);
 });
