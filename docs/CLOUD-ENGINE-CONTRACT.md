@@ -34,6 +34,19 @@ The dispatcher attempts cloud processing only for denoise, upscale or masks afte
 
 The runner is a Cloud Run **job**, started by the control plane on `start` and reading `inputs/<jobId>` from the private bucket. It writes `results/<jobId>` or an empty `failed/<jobId>`. The server wiring loads the Google adapters only when configured. The status route has a watchdog for a runner that has exceeded its time limit and left no result marker.
 
+## Per-capability payload and output format (22 Nov 2026, denoise and mask only)
+
+`src/providers/cloudJobCodec.ts` specifies, and `src/providers/cloudProcessingAttempt.ts` implements, the client half of this: a dependency-free framing (4-byte big-endian header length, a UTF-8 JSON header, then one or more fixed-size binary planes whose sizes follow from the header's own `width`/`height`) carried as the job's uploaded input and downloaded result. Pixel planes are raw RGBA8 (uncompressed) rather than a real image codec, to avoid needing a browser Canvas API anywhere in the framing itself; compressing the planes before upload is a transport-layer optimisation that can be layered on top later without changing this framing.
+
+- **`denoise` upload:** header `{protocol: 1, capability: 'denoise', width, height, backgroundDenoise, subjectDenoise?, hasSubjectAlpha}`, then the original image's RGBA8 plane, then (if `hasSubjectAlpha`) a `Float32Array` subject-alpha plane, one value per pixel.
+- **`mask` upload:** header `{protocol: 1, capability: 'mask', width, height, masks, hasSubjectAlpha}` - `masks` is the real `Mask[]` from `core/maskTypes.ts`, already plain JSON data, carried verbatim rather than re-derived - then the same original-image (+ optional subject-alpha) planes.
+- **Result (either capability):** header `{protocol: 1, capability, width, height}`, then the processed image's RGBA8 plane.
+- **`upscale` is not yet specified.** `cloudProcessingAttempt.ts`'s adapter throws for an `upscale` request (the dispatcher's existing fallback then runs it on-device) rather than invent one - `UpscaleActionResult`'s `usedModel` flag has no honest cloud-side meaning from here; agreeing that needs a decision, not a guess.
+
+The adapter re-verifies every downloaded result locally with the same `enhancementVerifier.ts` an on-device action uses, before reporting `verification.ok` - it does not trust the cloud runner's output unchecked.
+
 ## Remaining activation work
 
-Build the runner image and agree the per-capability payload and output formats with its local verifier. Then connect a user-initiated V2 action to the transport, using the current account session and upload consent for that exact job. The local HTTP integration suite exercises the protocol with a fixture runner. A staging run still needs an eligible account, genuine signed GCS transfers, a verified photographic result, and observation of the on-device fallback. See the [owner runbook](BACKEND-OWNER-RUNBOOK.md) and the [processing benchmark](CLOUD-PROCESSING.md).
+**The runner image itself does not exist in this repository.** The format above is specified and the client-side adapter is built and tested against the real control-plane HTTP routes (a fixture control plane standing in for the runner in `cloudProcessingAttempt.test.ts`), but nothing here reads an uploaded job and actually processes it - that is a separate piece of backend/infra work, building a Cloud Run job image that reads `inputs/<jobId>` per this framing and writes `results/<jobId>` in it. Once that exists, the two ends need a real run against each other, not just against a fixture, before this is "verified cloud processing" in any release sense.
+
+Then connect a user-initiated V2 action to the transport (`createCloudProcessingAttempt`, passed as `engineApi.ts`'s `cloud` argument), using the current account session and upload consent for that exact job. A staging run still needs an eligible account, genuine signed GCS transfers, a verified photographic result against a real runner, and observation of the on-device fallback. See the [owner runbook](BACKEND-OWNER-RUNBOOK.md) and the [processing benchmark](CLOUD-PROCESSING.md).
