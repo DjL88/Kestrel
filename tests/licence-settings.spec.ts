@@ -5,7 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 const open = async (page: Page) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'About Kite44' }).click();
+  await page.getByRole('button', { name: 'About InFlight' }).click();
   await page.getByRole('button', { name: 'Licence and settings' }).click();
   await expect(page.getByRole('dialog', { name: 'Licence and settings' })).toBeVisible();
   return page.getByRole('dialog', { name: 'Licence and settings' });
@@ -33,7 +33,7 @@ test('a genuine licence key unlocks Paid, is remembered and can be removed', asy
   await expect(dialog.getByTestId('licence-online')).toContainText('does not register devices online');
   await expect(dialog.getByRole('button', { name: 'Check now' })).toHaveCount(0);
   await page.reload();
-  await page.getByRole('button', { name: 'About Kite44' }).click();
+  await page.getByRole('button', { name: 'About InFlight' }).click();
   await page.getByRole('button', { name: 'Licence and settings' }).click();
   dialog = page.getByRole('dialog', { name: 'Licence and settings' });
   await expect(dialog.getByRole('status').first()).toContainText('InFlight Pro is unlocked');
@@ -48,7 +48,7 @@ test('saved settings leave out keys and licences, and a settings file can be loa
     localStorage.setItem('kestrel.helper.v1', 'SECRET-KEY');
     localStorage.setItem('kestrel.licence.v1', 'KESTREL1.a.b');
   });
-  await page.getByRole('button', { name: 'About Kite44' }).click();
+  await page.getByRole('button', { name: 'About InFlight' }).click();
   await page.getByRole('button', { name: 'Licence and settings' }).click();
   const dialog = page.getByRole('dialog', { name: 'Licence and settings' });
   const download = page.waitForEvent('download');
@@ -102,7 +102,7 @@ test('with a valid key and no control plane in the build, the Licence screen sho
   await expect(dialog.getByRole('button', { name: 'Check now' })).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: 'Show devices' })).toHaveCount(0);
   await page.reload();
-  await page.getByRole('button', { name: 'About Kite44' }).click();
+  await page.getByRole('button', { name: 'About InFlight' }).click();
   await page.getByRole('button', { name: 'Licence and settings' }).click();
   const again = page.getByRole('dialog', { name: 'Licence and settings' });
   await expect(again.getByTestId('licence-online')).toContainText('does not register devices online');
