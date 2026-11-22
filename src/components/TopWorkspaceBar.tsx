@@ -186,16 +186,16 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
       </div>
       <div className="flex min-w-0 shrink items-center gap-2">
         {props.status}
-        <button type="button" onClick={props.onOpenShootModal} disabled={props.actionsDisabled || props.addDisabled} className={`${actionClass} border border-white/15 hidden workspace:inline-flex`} aria-label={t.top.addPhotosToProject} title={t.top.addPhotos}>
+        <button type="button" onClick={props.onOpenShootModal} disabled={props.actionsDisabled || props.addDisabled} className={`${actionClass} border border-white/15 not-workspace:hidden`} aria-label={t.top.addPhotosToProject} title={t.top.addPhotos}>
           <Plus className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">{t.top.add}</span>
         </button>
         <button type="button" onClick={onEditPhoto} disabled={!onEditPhoto || props.actionsDisabled} aria-label={props.editLabel ?? t.top.edit} title={props.editLabel ?? t.top.editTitle}
-          className={`${actionClass} border border-sky-300/50 text-sky-100 hover:bg-sky-300/15 disabled:opacity-40 hidden workspace:inline-flex`}>
+          className={`${actionClass} border border-sky-300/50 text-sky-100 hover:bg-sky-300/15 disabled:opacity-40 not-workspace:hidden`}>
           <Pencil className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">{props.editLabel ?? t.top.edit}</span>
         </button>
         <div ref={menuRef}>
-          <button ref={triggerRef} data-focus-fallback type="button" disabled={props.actionsDisabled} className={`${actionClass} border border-white/15 hidden workspace:inline-flex`} onClick={() => setMenuOpen(!menuOpen)}
+          <button ref={triggerRef} data-focus-fallback type="button" disabled={props.actionsDisabled} className={`${actionClass} border border-white/15 not-workspace:hidden`} onClick={() => setMenuOpen(!menuOpen)}
             aria-label={t.top.workspaceOptions} title={t.top.workspaceOptions} aria-expanded={menuOpen} aria-controls="workspace-options">
             <Ellipsis className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -337,7 +337,7 @@ export function TopWorkspaceBar(props: TopWorkspaceBarProps) {
           )}
         </div>
         <button type="button" data-export-entry onClick={props.onExport} disabled={!props.onExport || props.actionsDisabled} aria-label={props.exportLabel ?? t.top.export} title={t.top.exportTitle}
-          className={`${actionClass} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-40 hidden workspace:inline-flex`}>
+          className={`${actionClass} bg-kestrel-copper font-semibold text-zinc-950 hover:bg-kestrel-copper-hover! disabled:opacity-40 not-workspace:hidden`}>
           <Download className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">{t.top.export}</span>
           {/* Only when there is a count to show: an empty span still takes a gap and pushed the icon off centre. */}
