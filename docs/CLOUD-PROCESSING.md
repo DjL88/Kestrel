@@ -31,7 +31,7 @@ Full table in `node scripts/cloud-measure/model.mjs`.
 ## Decision the owner needs to make before any build
 
 - Is the cloud runner worth building if it helps only older laptops and phones on good links? The measurement says it is a **niche, Pro, opt-in** runner, never a default.
-- Which region (default `europe-west2`, same as everything else).
+- ~~Which region~~ **Decided: UK only, `europe-west2` (London)**, enforced by a Terraform validation. Not verified: that Google never routes support, backups or logs outside the UK, and Gemini (Tier A) processing location is not guaranteed to be UK by the Gemini API.
 - A per-job and per-month spend ceiling for the kill switch to enforce.
 
 ## Next PRs (each small, tests first, nothing billable)
