@@ -332,3 +332,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: man
 /* A drop-down's arrow sits at its end edge; give the text room before it so a long choice (for example
    "All photos (6)") never runs under the arrow. */
 select { padding-inline-end: 2rem; text-overflow: ellipsis; }
+
+/* The task list slides in from the right edge on phones, so a long problem message always has room. */
+@keyframes task-tray-in { from { transform: translateX(100%); } to { transform: none; } }
+@media (prefers-reduced-motion: no-preference) { .task-tray-in { animation: task-tray-in 180ms ease-out; } }

@@ -11,6 +11,8 @@ interface Props {
   onHandChange?: (hand: 'left' | 'right') => void;
   guidanceMode?: GuidanceMode;
   onGuidanceModeChange?: (mode: GuidanceMode) => void;
+  /** Show only one tab's worth of controls. */
+  part?: 'all' | 'display' | 'guidance';
 }
 
 /**
@@ -18,10 +20,10 @@ interface Props {
  * controls sit on a phone, in the Library and the editor alike. (There used to be a separate "Editing panel position"
  * that looked like the same question.)
  */
-export function AppearanceSettings({ side, onSideChange, hand, onHandChange, guidanceMode = 'glide', onGuidanceModeChange }: Props) {
+export function AppearanceSettings({ side, onSideChange, hand, onHandChange, guidanceMode = 'glide', onGuidanceModeChange, part = 'all' }: Props) {
   return (
     <div className="space-y-3 px-1 pb-2">
-      {hand && onHandChange ? (
+      {part !== 'guidance' && (hand && onHandChange ? (
         <fieldset className="space-y-1">
           <legend className="text-sm font-medium text-zinc-200">{m.settings.preferredHand}</legend>
           <p className="text-xs text-zinc-400">{m.settings.handHint}</p>
@@ -48,10 +50,10 @@ export function AppearanceSettings({ side, onSideChange, hand, onHandChange, gui
           ))}
         </div>
       </fieldset>
-      )}
-      {onGuidanceModeChange && <GuidanceModeControl value={guidanceMode} onChange={onGuidanceModeChange} />}
-      <ThemePicker />
-      <LanguagePicker />
+      ))}
+      {part !== 'display' && onGuidanceModeChange && <GuidanceModeControl value={guidanceMode} onChange={onGuidanceModeChange} />}
+      {part !== 'guidance' && <><ThemePicker />
+      <LanguagePicker /></>}
     </div>
   );
 }
