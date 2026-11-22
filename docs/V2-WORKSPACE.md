@@ -143,3 +143,15 @@ Intended behaviour: Basic gets an InFlight watermark. A backend toggle opens cus
 6. Watermark on Basic: **decided, option A** (12.3). Whether to ever lock it is a later decision.
 7. **Decided:** a Trial is a date-range rule, open-ended when no end date is set. Which features a given trial opens is chosen per trial.
 8. **Decided:** trials can target non-users or users, through the audience types in 12.2a.
+
+## 14. Handoff for the next worker (22 Nov 2026)
+
+**Done and merged:** the plan and icon list (#853, #854); flag evaluator (#855), flag store and signed grant (#856), app reads flags (#857), admin Flags page (#858). **Not done:** everything in section 10 from slice 1, plus the Trial badge, light mode, icon module, single Settings, server enforcement of flags for paid services, and deploying the control plane (needs owner approval).
+
+**Next task, slice 1: the V2 workspace shell, behind a switch.** Build one workspace that will replace the Library and the Editor, with the old pages untouched until parity.
+- Route it behind a setting or `?v2` switch, so the current app keeps working. Put code in `src/v2/`, reuse `src/core/` and `src/providers/`, and do not copy the prototype's engine or server.
+- Layout (owner approved in the visual proposal): left rail of tools that open a side panel; panels dock left or right or float (reuse `FloatingPane` and `floatingPaneGeometry`); canvas takes the rest; filmstrip along the bottom; zoom, grid view and one Full screen at the bottom-right; top bar only Back, File, View, name, Export.
+- Filmstrip shows Importing, Analysing and Ready to edit from the existing Task Manager, and a flag or unflag toggle with an All or Flagged filter (flagged = `keep`, no data migration).
+- Reference: the owner's prototype `inflight.zip` (ask the owner; it is outside the repo) for look and layout; the proposal at https://claude.ai/artifact/XbZ52tqSJtoFhcXYT17XhX if still available; `docs/brand/V2-ICON-LIST.md` for icons.
+- Rules: originals never written; British English; keyboard access; no colour-only cues; every flag-gated feature goes through `featureAvailable` (never check a plan directly). Small PRs on their own branches; report each check as PASS, FAIL or NOT RUN; squash-merge when the relevant checks pass (CI is billing-blocked until about 24 Nov, merge on local results). Playwright: use an untracked local config on a free port (not 4173). Product name is InFlight.
+- Open owner questions: how long a Trial runs by default; whether to ship cloud processing (roadmap only).
