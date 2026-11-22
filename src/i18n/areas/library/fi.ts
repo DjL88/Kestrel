@@ -386,6 +386,8 @@ export const fi: AreaTranslation<typeof source> = {
     showTab: "Näytä",
     hideTab: "Piilota",
     dockLabel: "Telakoi",
+    dockLeft: 'Kiinnitä vasemmalle',
+    dockRight: 'Kiinnitä oikealle',
     undockLabel: "Irrota",
     undockTab: (title) => `Irrota ${title}`,
     undockTabHelp: "Avaa välilehti erilliseen siirrettävään ja kokoa muutettavaan paneeliin",

@@ -383,6 +383,8 @@ export const sv: AreaTranslation<typeof source> = {
     showTab: "Visa",
     hideTab: "Dölj",
     dockLabel: "Docka",
+    dockLeft: 'Docka till vänster',
+    dockRight: 'Docka till höger',
     undockLabel: "Frigör",
     undockTab: (title) => `Frigör ${title}`,
     undockTabHelp: "Öppna fliken i en separat panel som kan flyttas och ändras i storlek",

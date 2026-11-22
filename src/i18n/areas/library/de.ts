@@ -383,6 +383,8 @@ export const de: AreaTranslation<typeof source> = {
     showTab: "Anzeigen",
     hideTab: "Ausblenden",
     dockLabel: "Andocken",
+    dockLeft: 'Links andocken',
+    dockRight: 'Rechts andocken',
     undockLabel: "Abdocken",
     undockTab: (title) => `Abdocken ${title}`,
     undockTabHelp: "Diese Registerkarte in einem separaten, verschiebbaren und skalierbaren Panel öffnen",

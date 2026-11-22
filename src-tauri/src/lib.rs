@@ -251,7 +251,33 @@ pub fn run() {
                 &MenuItem::with_id(app, "photos-select-all", "Select All Photos", true, Some("CmdOrCtrl+A"))?,
                 &MenuItem::with_id(app, "photos-deselect-all", "Deselect Photos", true, Some("CmdOrCtrl+Shift+A"))?,
             ])?;
+            // Plain-letter shortcuts (P, X, 0-5) are not accelerators here: a native one would fire while typing in a field.
+            let rate = Submenu::with_items(app, "Rate", true, &[
+                &MenuItem::with_id(app, "photo-rate-0", "No rating", true, None::<&str>)?,
+                &MenuItem::with_id(app, "photo-rate-1", "1 star", true, None::<&str>)?,
+                &MenuItem::with_id(app, "photo-rate-2", "2 stars", true, None::<&str>)?,
+                &MenuItem::with_id(app, "photo-rate-3", "3 stars", true, None::<&str>)?,
+                &MenuItem::with_id(app, "photo-rate-4", "4 stars", true, None::<&str>)?,
+                &MenuItem::with_id(app, "photo-rate-5", "5 stars", true, None::<&str>)?,
+            ])?;
+            let photo = Submenu::with_items(app, "Photo", true, &[
+                &MenuItem::with_id(app, "photo-keep", "Keep", true, None::<&str>)?,
+                &MenuItem::with_id(app, "photo-reject", "Move to Trash", true, None::<&str>)?,
+                &MenuItem::with_id(app, "photo-unreview", "Back to review", true, None::<&str>)?,
+                &PredefinedMenuItem::separator(app)?,
+                &rate,
+                &PredefinedMenuItem::separator(app)?,
+                &MenuItem::with_id(app, "photo-compare", "Compare photos", true, None::<&str>)?,
+                &PredefinedMenuItem::separator(app)?,
+                &MenuItem::with_id(app, "photo-undo", "Undo last decision", true, None::<&str>)?,
+                &MenuItem::with_id(app, "photo-redo", "Redo decision", true, None::<&str>)?,
+            ])?;
             let view = Submenu::with_items(app, "View", true, &[
+                &MenuItem::with_id(app, "view-grid", "Grid", true, None::<&str>)?,
+                &MenuItem::with_id(app, "view-loupe", "Single photo", true, None::<&str>)?,
+                &MenuItem::with_id(app, "view-compare", "Compare", true, None::<&str>)?,
+                &MenuItem::with_id(app, "view-photo-only", "Photo only", true, None::<&str>)?,
+                &PredefinedMenuItem::separator(app)?,
                 &MenuItem::with_id(app, "filmstrip", "Show or hide filmstrip", true, None::<&str>)?,
                 &MenuItem::with_id(app, "view-info", "Show or hide Photo info", true, None::<&str>)?,
                 &MenuItem::with_id(app, "view-bursts", "Group or ungroup bursts", true, None::<&str>)?,
@@ -278,7 +304,7 @@ pub fn run() {
             let window = Submenu::with_items(app, "Window", true, &[
                 &PredefinedMenuItem::minimize(app, None)?,
             ])?;
-            Menu::with_items(app, &[&app_menu, &file, &edit, &view, &settings, &window])
+            Menu::with_items(app, &[&app_menu, &file, &edit, &photo, &view, &settings, &window])
         })
         .on_menu_event(|app, event| {
             let _ = app.emit("menu", event.id().0.clone());

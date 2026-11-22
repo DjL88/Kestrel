@@ -1,4 +1,4 @@
-import { openPhotoInfo, subjectTab } from './helpers';
+import { exportOpener, openPhotoInfo, subjectTab } from './helpers';
 import { expect, test } from '@playwright/test';
 
 async function makeProject(page: import('@playwright/test').Page, name: string) {
@@ -92,21 +92,32 @@ test('rating filter is one row of stars: tap sets, tap again clears, the symbol 
   await expect(ratingGroup.getByRole('button', { name: 'Exactly 3 stars' })).toHaveAttribute('aria-pressed', 'false');
 });
 
-test('editor: Export is a header button on every screen, never a tab, and tabs stack icon over label', async ({ page }) => {
+test('editor: Export moves between footer and header and remains separate from the tabs', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('quick-edit-input').setInputFiles({
     name: 'f.png', mimeType: 'image/png',
     buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
   });
   await page.getByRole('tab', { name: 'Crop' }).waitFor();
-  const phone = page.viewportSize()!.width < 768;
+  const { width, height } = page.viewportSize()!;
   await expect(page.getByRole('tab', { name: 'Export' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Export', exact: true })).toHaveCount(1);
-  const tab = (await page.getByRole('tab', { name: 'Crop' }).boundingBox())!;
-  const icon = (await page.getByRole('tab', { name: 'Crop' }).locator('svg').boundingBox())!;
-  const label = (await page.getByRole('tab', { name: 'Crop' }).locator('span').boundingBox())!;
-  expect(icon.y + icon.height, 'icon sits above the label').toBeLessThanOrEqual(label.y + 1);
-  // The default Comfortable density must retain large desktop tab targets; Compact is explicit opt-in.
+  const exportButton = exportOpener(page);
+  await expect(exportButton).toHaveCount(1);
+  await expect(exportButton).toHaveAccessibleName('Export');
+  const bounds = (await exportButton.boundingBox())!;
+  // Mirror the workspace breakpoint, including short landscape windows.
+  const desktopWorkspace = (width >= 800 && height >= 550) || (width >= 840 && height >= 440 && height <= 549);
+  if (!desktopWorkspace) expect(bounds.y).toBeGreaterThan(height - 90);
+  else expect(bounds.y).toBeLessThan(70);
+  const crop = page.getByRole('tab', { name: 'Crop' });
+  await expect(crop).toHaveAccessibleName('Crop');
+  const tab = (await crop.boundingBox())!;
+  if (width > 420) {
+    const icon = (await crop.locator('svg').boundingBox())!;
+    const label = (await crop.locator('span').boundingBox())!;
+    expect(icon.y + icon.height, 'icon sits above the label').toBeLessThanOrEqual(label.y + 1);
+  }
+  // Comfortable desktop keeps the original 48px tab floor; no smaller phone control is accepted untested.
   expect(tab.height).toBeGreaterThanOrEqual(48);
 });
 

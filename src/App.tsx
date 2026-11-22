@@ -27,6 +27,7 @@ import { TaskManager } from './components/TaskManager';
 import { PhotoContextMenu } from './components/PhotoContextMenu';
 import { ratingFor, targetsFor, type PhotoAction } from './core/photoMenu';
 import { resolveShortcutAlias, type AliasAction } from './core/shortcutAliases';
+import { DESKTOP_MENU_ACTION_IDS, menuActionFor } from './core/desktopMenuCommands';
 import { photoMenuHints } from './core/shortcutHints';
 import { DropOverlay } from './components/DropOverlay';
 import { useDropPhotos } from './providers/useDropPhotos';
@@ -42,7 +43,7 @@ import { applyAutoTag, disputePatch, keepAuto, mayAutoTag, reconcileAuto } from 
 import { burstMates, tagFrames } from './core/speciesBurst';
 import { loadImage } from './providers/loadImage';
 import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
-import { ArrowLeft, ChevronLeft, ChevronRight, Copy, ClipboardPaste, PanelLeftClose, PanelLeftOpen, Maximize2 } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Copy, ClipboardPaste, PanelLeftClose, PanelLeftOpen, Maximize2, X } from 'lucide-react';
 import { WorkspacePaneRail } from './components/WorkspacePaneRail';
 import { PHOTO_INFO_DOCK_QUERY } from './core/photoInfoLayout';
 import { PhotoJump } from './components/PhotoJump';
@@ -1479,6 +1480,27 @@ export default function App() {
     else if (action.kind === 'export') { if (exportSelection.length) setExportFrames(exportSelection); }
   };
 
+  // Native Photo and View menu items (desktop app): the same actions as the keys, through the same ref.
+  const runMenuAction = useRef<(id: string) => void>(() => {});
+  runMenuAction.current = (id) => {
+    if (projectsOpen) return;
+    const action = menuActionFor(id);
+    if (!action) return;
+    if (action.kind === 'view') {
+      if (action.mode === 'compare') { if (prefs.viewMode !== 'compare') toggleCompareView(); }
+      else setPrefs((prev) => ({ ...prev, viewMode: action.mode }));
+    } else if (action.kind === 'photoOnly') setPrefs((prev) => ({ ...prev, focusMode: !prev.focusMode }));
+    else runAlias.current(action);
+  };
+  useEffect(() => {
+    const handlers = DESKTOP_MENU_ACTION_IDS.map((id) => {
+      const listener = () => runMenuAction.current(id);
+      window.addEventListener('kestrel:menu-' + id, listener);
+      return () => window.removeEventListener('kestrel:menu-' + id, listener);
+    });
+    return () => handlers.forEach((off) => off());
+  }, []);
+
   // Global keyboard listener wired through unified resolveKeyboardCommand
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -2662,7 +2684,7 @@ export default function App() {
         </div>
 
         {!panesCollapsed && showPhotoInfo && (
-          <ExifInspector photoOnly={prefs.focusMode} dockedSide={photoInfoDockSide(prefs.hand)} onSubjects={(frame, tags, kind) => setSubjects(frame, tags, kind)} onKeepTag={(frame, name) => keepTag(frame, name)}
+          <ExifInspector photoOnly={prefs.focusMode} dockedSide={photoInfoDockSide(prefs.hand)} onDockSide={(side) => setPrefs((prev) => { const hand = photoInfoDockSide(side); return { ...prev, hand, editPanelSide: hand }; })} onSubjects={(frame, tags, kind) => setSubjects(frame, tags, kind)} onKeepTag={(frame, name) => keepTag(frame, name)}
             loadPicture={loadSpeciesPicture} reviewSubjects={reviewSubjects}
             mates={burstMates(cullingState.frames, infoFrameId ? cullingState.frames.find((frame) => frame.id === infoFrameId) ?? { id: '', burstGroupId: null } : selectedFrame ?? { id: '', burstGroupId: null })}
             onTagPhotos={(ids, name, kind) => setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() }, frames: tagFrames(prev.frames, ids, name, kind) }))}
@@ -2714,9 +2736,9 @@ export default function App() {
       )}
       {prefs.focusMode && (
         <div className="flex shrink-0 justify-end border-t border-white/10 bg-kestrel-panel px-3 py-1">
-          <button type="button" onClick={() => setPrefs((prev) => ({ ...prev, focusMode: false }))}
-            className="min-h-10 rounded-md px-3 text-sm text-zinc-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
-            {t.editorBar.exitPhotoOnly}
+          <button type="button" onClick={() => setPrefs((prev) => ({ ...prev, focusMode: false }))} aria-label={t.editorBar.exitPhotoOnly}
+            className="grid min-h-11 min-w-11 place-items-center rounded-md px-3 text-sm sm:inline-flex text-zinc-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+            <X className="h-5 w-5 sm:hidden" aria-hidden="true" /><span className="max-sm:sr-only">{t.editorBar.exitPhotoOnly}</span>
           </button>
         </div>
       )}
