@@ -383,6 +383,8 @@ export const is: AreaTranslation<typeof source> = {
     showTab: "Sýna",
     hideTab: "Fela",
     dockLabel: "Festa",
+    dockLeft: 'Festa til vinstri',
+    dockRight: 'Festa til hægri',
     undockLabel: "Losa",
     undockTab: (title) => `Losa ${title}`,
     undockTabHelp: "Opna þennan flipa í sérstöku færanlegu spjaldi sem má breyta stærð á",

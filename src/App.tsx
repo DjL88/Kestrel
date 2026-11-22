@@ -2647,7 +2647,7 @@ export default function App() {
         </div>
 
         {!panesCollapsed && showPhotoInfo && (
-          <ExifInspector photoOnly={prefs.focusMode} dockedSide={photoInfoDockSide(prefs.hand)} onSubjects={(frame, tags, kind) => setSubjects(frame, tags, kind)} onKeepTag={(frame, name) => keepTag(frame, name)}
+          <ExifInspector photoOnly={prefs.focusMode} dockedSide={photoInfoDockSide(prefs.hand)} onDockSide={(side) => setPrefs((prev) => { const hand = photoInfoDockSide(side); return { ...prev, hand, editPanelSide: hand }; })} onSubjects={(frame, tags, kind) => setSubjects(frame, tags, kind)} onKeepTag={(frame, name) => keepTag(frame, name)}
             loadPicture={loadSpeciesPicture} reviewSubjects={reviewSubjects}
             mates={burstMates(cullingState.frames, infoFrameId ? cullingState.frames.find((frame) => frame.id === infoFrameId) ?? { id: '', burstGroupId: null } : selectedFrame ?? { id: '', burstGroupId: null })}
             onTagPhotos={(ids, name, kind) => setCullingState((prev) => ({ ...prev, shoot: { ...prev.shoot, lastUpdatedAt: Date.now() }, frames: tagFrames(prev.frames, ids, name, kind) }))}

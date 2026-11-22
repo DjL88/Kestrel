@@ -386,6 +386,8 @@ export const source = {
     showTab: "Show",
     hideTab: "Hide",
     dockLabel: "Dock",
+    dockLeft: 'Dock left',
+    dockRight: 'Dock right',
     undockLabel: "Undock",
     undockTab: (title: string) => `Undock ${title}`,
     undockTabHelp: "Open this tab in a separate, movable and resizable panel",

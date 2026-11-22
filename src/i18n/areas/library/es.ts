@@ -383,6 +383,8 @@ export const es: AreaTranslation<typeof source> = {
     showTab: "Mostrar",
     hideTab: "Ocultar",
     dockLabel: "Acoplar",
+    dockLeft: 'Acoplar a la izquierda',
+    dockRight: 'Acoplar a la derecha',
     undockLabel: "Desacoplar",
     undockTab: (title) => `Desacoplar ${title}`,
     undockTabHelp: "Abrir esta pestaña en un panel independiente, móvil y redimensionable",

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Grip, Expand, Shrink, PanelRightClose, Pin } from 'lucide-react';
-import { clampPaneRect, defaultPaneRect, FLOATING_PANE_GAP as GAP, type PaneRect } from '../core/floatingPaneGeometry';
+import { clampPaneRect, defaultPaneRect, dockZoneAt, FLOATING_PANE_GAP as GAP, type PaneRect } from '../core/floatingPaneGeometry';
 import { FLOATING_PANE_Z } from '../core/photoInfoLayout';
 import { libraryText as t } from '../i18n/areas/library';
 
@@ -9,6 +9,8 @@ interface FloatingPaneProps {
   title: string;
   storageKey: string;
   onDock: () => void;
+  /** Letting go on a window edge docks the panel on that side (the caller moves the dock to match). */
+  onDockTo?: (side: 'left' | 'right') => void;
   /** Optional focus return once the docked control is visible again. */
   dockFocusSelector?: string;
   initialSide?: 'left' | 'right';
@@ -41,7 +43,7 @@ function initialRect(key: string, initialSide: 'left' | 'right', avoidPx?: numbe
  * dimensions or gets clipped by the Library/Review/Edit flex layout.
  * The calling screen stays responsible for compact phone/tablet sheets.
  */
-export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, initialSide = 'right', initialAvoidPx, initialIndex, photoOnly = false, children }: FloatingPaneProps) {
+export function FloatingPane({ title, storageKey, onDock, onDockTo, dockFocusSelector, initialSide = 'right', initialAvoidPx, initialIndex, photoOnly = false, children }: FloatingPaneProps) {
   const [rect, setRect] = useState<PaneRect>(() => initialRect(storageKey, initialSide, initialAvoidPx, initialIndex));
   const pinKey = `${storageKey}-photo-only`;
   const [pinned, setPinned] = useState(() => {
@@ -49,6 +51,8 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
   });
   const visible = !photoOnly || pinned;
   const [maximised, setMaximised] = useState(false);
+  const [dockZone, setDockZone] = useState<'left' | 'right' | null>(null);
+  const [dragging, setDragging] = useState(false);
   const drag = useRef<{ pointer: number; x: number; y: number; rect: PaneRect } | null>(null);
   const resizeDrag = useRef<{ pointer: number; x: number; y: number; rect: PaneRect } | null>(null);
   const ignoreResizeClick = useRef(false);
@@ -87,11 +91,20 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
   const stopDrag = (event: PointerEvent<HTMLElement>) => {
     if (drag.current?.pointer !== event.pointerId) return;
     drag.current = null;
+    setDragging(false);
+    setDockZone(null);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+  const dropDrag = (event: PointerEvent<HTMLElement>) => {
+    const zone = onDockTo && drag.current?.pointer === event.pointerId && !maximised ? dockZoneAt(event.clientX, window.innerWidth) : null;
+    stopDrag(event);
+    if (zone) { onDockTo?.(zone); dock(); }
   };
   const moveDrag = (event: PointerEvent<HTMLElement>) => {
     const start = drag.current;
     if (!start || start.pointer !== event.pointerId || maximised) return;
+    if (onDockTo) setDockZone(dockZoneAt(event.clientX, window.innerWidth));
+    setDragging(true);
     setRect(clampPaneRect({ ...start.rect, x: start.rect.x + event.clientX - start.x, y: start.rect.y + event.clientY - start.y },
       { width: window.innerWidth, height: window.innerHeight }));
   };
@@ -116,7 +129,9 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
   if (!visible) return null;
-  return createPortal(
+  return (
+    <>
+    {createPortal(
     <section ref={frame} aria-label={title} data-floating-pane={storageKey}
       className="fixed z-40 flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/25 bg-kestrel-panel shadow-2xl"
       style={maximised
@@ -142,7 +157,7 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
             drag.current = { pointer: event.pointerId, x: event.clientX, y: event.clientY, rect };
             event.currentTarget.setPointerCapture(event.pointerId);
           }}
-          onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag}>
+          onPointerMove={moveDrag} onPointerUp={dropDrag} onPointerCancel={stopDrag}>
           <span className="truncate">{title}</span>
         </div>
         <button type="button" onClick={() => setMaximised((value) => !value)}
@@ -198,6 +213,16 @@ export function FloatingPane({ title, storageKey, onDock, dockFocusSelector, ini
         }}>
         <Grip className="h-4 w-4" aria-hidden="true" />
       </button>}
-    </section>, document.body,
+    </section>, document.body)}
+    {dragging && onDockTo && createPortal(
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0" style={{ zIndex: FLOATING_PANE_Z.foreground - 1 }}>
+        {(['left', 'right'] as const).map((side) => (
+          <div key={side} data-dock-zone={side}
+            className={`absolute inset-y-3 flex w-[72px] items-center justify-center rounded-lg border-2 border-dashed text-xs font-medium transition-colors duration-150 ${side === 'left' ? 'left-1' : 'right-1'} ${dockZone === side ? 'border-sky-300 bg-sky-300/25 text-sky-50' : 'border-white/25 bg-white/5 text-zinc-300'}`}>
+            <span className="[writing-mode:vertical-rl]">{side === 'left' ? t.floatingPane.dockLeft : t.floatingPane.dockRight}</span>
+          </div>
+        ))}
+      </div>, document.body)}
+    </>
   );
 }

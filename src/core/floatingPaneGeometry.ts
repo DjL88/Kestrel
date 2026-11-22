@@ -17,6 +17,17 @@ export function clampPaneRect(rect: PaneRect, viewport: { width: number; height:
   return { x, y, width, height };
 }
 
+/** Width of the strip at each window edge where letting go of a dragged panel docks it there. */
+export const DOCK_EDGE_ZONE = 72;
+
+/** Which edge a dragged panel would dock to, from the pointer's x position (null away from both edges). */
+export function dockZoneAt(clientX: number, viewportWidth: number, zone = DOCK_EDGE_ZONE): 'left' | 'right' | null {
+  if (!Number.isFinite(clientX) || !Number.isFinite(viewportWidth) || viewportWidth < zone * 4) return null;
+  if (clientX <= zone) return 'left';
+  if (clientX >= viewportWidth - zone) return 'right';
+  return null;
+}
+
 /**
  * Where a panel first opens. It stays clear of the docked panel (so the tab strip it came from is still reachable)
  * and each further panel is nudged so several undocked tabs do not pile on top of one another.
