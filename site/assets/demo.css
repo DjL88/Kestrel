@@ -1,4 +1,4 @@
-/* Kite44 website editing demo. Uses the app's brand tokens (docs/brand/README.md) and the
+/* InFlight website editing demo. Uses the app's brand tokens (docs/brand/README.md) and the
    AdjustmentSlider look: copper fill from neutral, a visible neutral tick, and a signed number. */
 .demo [hidden]{display:none!important}
 .demo{position:relative;margin-top:22px;background:var(--panel);border:1px solid #2c313b;border-radius:14px;padding:14px;--split:50%}

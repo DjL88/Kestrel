@@ -1,0 +1,10 @@
+<!doctype html><meta charset="utf-8"><title>InFlight splash preview</title>
+<style>body{margin:0;display:grid;grid-template-columns:1fr 1fr;height:100vh;font:13px system-ui}div{display:grid;place-items:center;cursor:pointer}#l{background:#FAF7F2}#d{background:#0E1116}</style>
+<div id="l"></div><div id="d"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+<script>
+for (const [id, f] of [['l','inflight-splash-light.json'],['d','inflight-splash-dark.json']]) {
+  const a = lottie.loadAnimation({container: document.getElementById(id), renderer:'svg', loop:false, autoplay:true, path:f});
+  document.getElementById(id).onclick = () => a.goToAndPlay(0, true);
+}
+</script>

@@ -4,14 +4,14 @@
 <body style="font-family:system-ui,sans-serif;background:#111;color:#eee;display:grid;place-items:center;min-height:100vh;margin:0">
 <p id="m">Finishing sign-in…</p>
 <script>
-  // Hands the answer (a one-time code and the state) back to the Kestrel window that opened this one, then closes.
-  // Nothing is stored here and nothing leaves the browser: the code is exchanged by Kestrel directly with the provider.
+  // Hands the answer (a one-time code and the state) back to the InFlight window that opened this one, then closes.
+  // Nothing is stored here and nothing leaves the browser: the code is exchanged by InFlight directly with the provider.
   var p = new URLSearchParams(location.search);
   var message = { kestrelOAuth: true, code: p.get('code'), state: p.get('state'), error: p.get('error') };
   try { var c = new BroadcastChannel('kestrel-oauth'); c.postMessage(message); c.close(); } catch (e) {}
   try { if (window.opener) window.opener.postMessage(message, location.origin); } catch (e) {}
   history.replaceState(null, '', location.pathname);
-  document.getElementById('m').textContent = 'You can close this window and go back to Kestrel.';
+  document.getElementById('m').textContent = 'You can close this window and go back to InFlight.';
   setTimeout(function () { window.close(); }, 400);
 </script>
 </body>

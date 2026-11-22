@@ -3,27 +3,33 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#14161b">
-  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <meta name="description" content="Kite44: a calm, privacy-first workspace for importing, culling and editing photographs.">
-  <!-- Kite44’s own downloads (infra/gcp). -->
+  <meta name="theme-color" content="#0E1116">
+  <link rel="icon" type="image/svg+xml" href="assets/brand/inflight/app-icons/favicon.svg">
+  <meta name="description" content="InFlight: a calm, privacy-first workspace for importing, culling and editing photographs.">
+  <!-- InFlight's own downloads (infra/gcp); the bucket/endpoint stay as "kestrel" for backward compatibility — see docs/brand/inflight/. -->
   <meta name="kestrel-downloads" content="https://storage.googleapis.com/kestrel-hosting-kestrel-downloads/latest.json">
-  <title>Kite44 — More time behind the camera.</title>
-  
+  <meta property="og:site_name" content="InFlight">
+  <meta property="og:title" content="InFlight — More time behind the camera.">
+  <meta property="og:description" content="InFlight: a calm, privacy-first workspace for importing, culling and editing photographs.">
+  <meta property="og:image" content="https://kestrel-hosting-kestrel.web.app/assets/brand/inflight/png/inflight-logo-stacked-dark@512w.png">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <title>InFlight — More time behind the camera.</title>
+
   <style>
     @font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(assets/fonts/inter-latin-400-normal.woff2) format("woff2")}
     @font-face{font-family:Inter;font-weight:600;font-display:swap;src:url(assets/fonts/inter-latin-600-normal.woff2) format("woff2")}
     @font-face{font-family:Inter;font-weight:700;font-display:swap;src:url(assets/fonts/inter-latin-700-normal.woff2) format("woff2")}
     @font-face{font-family:"Plus Jakarta Sans";font-weight:800;font-display:swap;src:url(assets/fonts/plus-jakarta-sans-latin-800-normal.woff2) format("woff2")}
-    /* Brand tokens (docs/brand/README.md) */
-    :root{--canvas:#14161b;--panel:#1a1d23;--raised:#1c2027;--ivory:#f4efe6;--copper:#c9652e;--copper-hover:#d97840;--dusk:#4a88b2;--wine:#c54f63;--mist:#8b93a3;
+    /* Brand tokens (docs/brand/inflight/extracted/tokens/tokens.css) — dark set, since this page is dark-only today. */
+    :root{--canvas:#0E1116;--panel:#171B22;--raised:#1c2027;--ivory:#F4EFE8;--copper:#BF5824;--copper-hover:#E8743C;--dusk:#9AA1AE;--wine:#CC4D66;--mist:#9AA1AE;
       color-scheme:dark;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--canvas);color:var(--ivory)}
     h1,h2,h3,.brand{font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif;font-weight:800;letter-spacing:-.025em}
     *{box-sizing:border-box}body{margin:0;line-height:1.55}a{color:#9cc3db}a:focus-visible,button:focus-visible{outline:3px solid var(--dusk);outline-offset:4px}
     .wrap{width:min(1060px,calc(100% - 40px));margin:auto}header{border-bottom:1px solid #343946;padding:22px 0}
     .bar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
     .brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;font-size:1.25rem;font-weight:750}
-    .mark{display:block;width:46px;height:auto}
+    .mark{display:block;width:131px;height:40px}
     nav{display:flex;gap:20px;flex-wrap:wrap}nav a{color:#d3d9e5;text-decoration:none}
     main{padding:64px 0 80px}.eyebrow{text-transform:uppercase;letter-spacing:.14em;color:#e0a583;font-size:.8rem;font-weight:700}
     h1{font-size:clamp(2.4rem,6.5vw,4.8rem);line-height:1.05;letter-spacing:-.05em;max-width:760px;margin:14px 0 22px}
@@ -68,21 +74,21 @@
 </head>
 <body>
 <header><div class="wrap bar">
-  <a class="brand" href="#top" data-i18n-attr="aria-label:navHome" aria-label="Kite44 home"><img class="mark" src="assets/kestrel-symbol.svg" alt="" width="46" height="39">Kite44</a>
+  <a class="brand" href="#top" data-i18n-attr="aria-label:navHome" aria-label="InFlight home"><img class="mark" src="assets/brand/inflight/svg/logo/inflight-logo-horizontal-dark.svg" alt="InFlight" width="131" height="40"></a>
   <nav data-i18n-attr="aria-label:navLabel" aria-label="Main navigation"><a href="#try" data-i18n="navTry">Try it</a><a href="#downloads" data-i18n="navDownloads">Downloads</a><a href="#install" data-i18n="navInstall">Install</a><a href="#pricing" data-i18n="navPricing">Pricing</a><a href="#getting-started" data-i18n="navStart">Getting started</a><a href="#privacy" data-i18n="navPrivacy">Privacy</a><a href="#contact" data-i18n="navContact">Contact</a></nav>
   <label class="picker"><span data-i18n="languageLabel">Language</span><select id="language-select"></select></label>
 </div></header>
 <main id="top" class="wrap">
   <h1 data-i18n="heroTitle">More time behind the camera.</h1>
-  <p class="lead" data-i18n="heroLead">Kite44 is a photo workspace for importing, culling, editing and exporting. It sets out to make editing quicker and easier to understand: find the keepers, make a few edits you can follow, and export.</p>
+  <p class="lead" data-i18n="heroLead">InFlight is a photo workspace for importing, culling, editing and exporting. It sets out to make editing quicker and easier to understand: find the keepers, make a few edits you can follow, and export.</p>
   <p><a class="cta" href="#try" data-i18n="heroTry">Try the editing tools</a> <a href="#downloads" data-i18n="heroDownloads">Explore downloads</a> · <a href="#pricing" data-i18n="heroPricing">See pricing</a></p>
   <section id="aims" aria-labelledby="aims-title">
-    <h2 id="aims-title" data-i18n="aimsTitle">What Kite44 sets out to do</h2>
+    <h2 id="aims-title" data-i18n="aimsTitle">What InFlight sets out to do</h2>
     <div class="grid">
       <article class="card"><h3 data-i18n="aimOfflineTitle">Work offline</h3><p data-i18n="aimOfflineBody">Import, cull, edit and export without an internet connection or an account. Your photos stay on your device or in storage you choose.</p></article>
-      <article class="card"><h3 data-i18n="aimOriginalsTitle">Never change your originals</h3><p data-i18n="aimOriginalsBody">Kite44 does not change, move or replace an original file. Edits are saved as steps you can change or undo at any time.</p></article>
+      <article class="card"><h3 data-i18n="aimOriginalsTitle">Never change your originals</h3><p data-i18n="aimOriginalsBody">InFlight does not change, move or replace an original file. Edits are saved as steps you can change or undo at any time.</p></article>
       <article class="card"><h3 data-i18n="aimCalmTitle">Stay calm and accessible</h3><p data-i18n="aimCalmBody">A quiet screen, plain words, full keyboard access and reduced motion. Nothing relies on colour alone. It is designed with colour-blind, ADHD and autistic photographers in mind.</p></article>
-      <article class="card"><h3 data-i18n="aimHonestTitle">Be honest about what it knows</h3><p data-i18n="aimHonestBody">When Kite44 is unsure, it says so. It tells you when it shows a RAW file’s built-in preview, never invents detail, and keeps uncertain photos for you to review instead of rejecting them.</p></article>
+      <article class="card"><h3 data-i18n="aimHonestTitle">Be honest about what it knows</h3><p data-i18n="aimHonestBody">When InFlight is unsure, it says so. It tells you when it shows a RAW file’s built-in preview, never invents detail, and keeps uncertain photos for you to review instead of rejecting them.</p></article>
       <article class="card"><h3 data-i18n="aimHelpTitle">Help without taking over</h3><p data-i18n="aimHelpBody">Machine learning can help reduce noise, find a subject or suggest a mask. Every suggestion is yours to check and adjust.</p></article>
       <article class="card"><h3 data-i18n="aimSameTitle">Work the same everywhere</h3><p data-i18n="aimSameBody">The same tools and the same way of working on Windows, macOS and the web, with iPhone, iPad and Android to follow.</p></article>
       <article class="card"><h3 data-i18n="aimOnceTitle">Pay once</h3><p data-i18n="aimOnceBody">Basic stays free. Pro is a one-off licence that works offline, not a subscription. Invited testers can receive Pro at no charge.</p></article>
@@ -91,16 +97,16 @@
   <section id="try" aria-labelledby="try-title">
     <h2 id="try-title" data-i18n="tryTitle">Try the editing tools</h2>
     <p class="muted" data-i18n="trySub">Edit a sample photo here in your browser. Nothing is uploaded.</p>
-    <p class="muted" data-i18n="realEditorScope">This is the actual Kite44 editor with a fixed selection of approved photographs. Adjust, crop and compare them; importing or exporting files is not available in the demonstration. Your changes are temporary.</p>
+    <p class="muted" data-i18n="realEditorScope">This is the actual InFlight editor with a fixed selection of approved photographs. Adjust, crop and compare them; importing or exporting files is not available in the demonstration. Your changes are temporary.</p>
     <div style="border:1px solid #343946;border-radius:12px;overflow:hidden;background:#111318">
-      <iframe src="editor/demo-editor.html" title="The Kite44 editor using approved example photographs"
+      <iframe src="editor/demo-editor.html" title="The InFlight editor using approved example photographs"
         loading="lazy" style="display:block;width:100%;height:min(790px,85vh);min-height:520px;border:0" allow="fullscreen"></iframe>
     </div>
-    <p class="muted" style="font-size:.82rem" data-i18n="realEditorTruth">The approved examples are JPEG images. This experience does not claim that they were developed from Nikon RAW files by Kite44.</p>
+    <p class="muted" style="font-size:.82rem" data-i18n="realEditorTruth">The approved examples are JPEG images. This experience does not claim that they were developed from Nikon RAW files by InFlight.</p>
   </section>
   <section id="downloads" aria-labelledby="downloads-title">
-    <h2 id="downloads-title" data-i18n="downloadsTitle">Get Kite44</h2>
-    <p class="muted" data-i18n="downloadsIntro">Kite44 is in development. Installers appear here only after a matching application release has been published. Model files and source archives are not app installers.</p>
+    <h2 id="downloads-title" data-i18n="downloadsTitle">Get InFlight</h2>
+    <p class="muted" data-i18n="downloadsIntro">InFlight is in development. Installers appear here only after a matching application release has been published. Model files and source archives are not app installers.</p>
     <div class="grid">
       <article class="card" data-platform="mac"><span class="platform-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="1.6"/><path d="M1.8 20h20.4M9 17v3m6-3v3"/></svg></span><h3>macOS</h3><p data-i18n="platformDesktop">Desktop editing and local storage.</p><span id="mac" class="pill" data-i18n="comingSoon">Coming soon</span></article>
       <article class="card" data-platform="windows"><span class="platform-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M2 5.5 11 4v7H2zm11-1.8L22 2v9h-9zM2 13h9v7l-9-1.5zm11 0h9v9l-9-1.5z"/></svg></span><h3>Windows</h3><p data-i18n="platformDesktop">Desktop editing and local storage.</p><span id="windows" class="pill" data-i18n="comingSoon">Coming soon</span></article>
@@ -110,13 +116,13 @@
     <p id="release-status" class="muted" role="status" aria-live="polite" data-i18n="releaseChecking">Checking for published app downloads…</p>
   </section>
   <section id="install" aria-labelledby="install-title">
-    <h2 id="install-title" data-i18n="installTitle">Installing Kite44</h2>
+    <h2 id="install-title" data-i18n="installTitle">Installing InFlight</h2>
     <p class="muted" data-i18n="installIntro">Early builds are not yet signed by Apple or Microsoft, so each system asks you to confirm before the first launch. Download only from this page.</p>
     <div class="grid">
-      <article class="card"><h3>macOS</h3><p data-i18n-html="installMac">Open the downloaded disk image and drag Kite44 to Applications. The first time, right-click Kite44, choose <strong>Open</strong>, then <strong>Open</strong> again.</p></article>
+      <article class="card"><h3>macOS</h3><p data-i18n-html="installMac">Open the downloaded disk image and drag InFlight to Applications. The first time, right-click InFlight, choose <strong>Open</strong>, then <strong>Open</strong> again.</p></article>
       <article class="card"><h3>Windows</h3><p data-i18n-html="installWindows">Run the installer. If Windows says it protected your PC, choose <strong>More info</strong>, then <strong>Run anyway</strong>.</p></article>
     </div>
-    <p class="note" data-i18n="installNote">Your photographs are never changed or uploaded by installing or using Kite44. Signed installers will replace these steps in a later release.</p>
+    <p class="note" data-i18n="installNote">Your photographs are never changed or uploaded by installing or using InFlight. Signed installers will replace these steps in a later release.</p>
   </section>
   <section id="pricing" aria-labelledby="pricing-title">
     <h2 id="pricing-title" data-i18n="pricingTitle">Planned pricing</h2>
@@ -134,9 +140,9 @@
   </section>
   <section id="compare" aria-labelledby="compare-title">
     <h2 id="compare-title" data-i18n="matrixTitle">What is in Basic and what is in Pro</h2>
-    <div class="table-wrap" tabindex="0" role="region" data-i18n-attr="aria-label:matrixCaption" aria-label="Features in Kite44 Basic and Kite44 Pro">
+    <div class="table-wrap" tabindex="0" role="region" data-i18n-attr="aria-label:matrixCaption" aria-label="Features in InFlight Basic and InFlight Pro">
       <table class="matrix">
-        <caption class="sr-only" data-i18n="matrixCaption">Features in Kite44 Basic and Kite44 Pro</caption>
+        <caption class="sr-only" data-i18n="matrixCaption">Features in InFlight Basic and InFlight Pro</caption>
         <thead><tr><th scope="col" data-i18n="matrixFeature">Feature</th><th scope="col" data-i18n="matrixBasic">Basic (free)</th><th scope="col" data-i18n="matrixPro">Pro</th></tr></thead>
         <tbody>
         <tr><th scope="row" data-i18n="matrixRowImport">Import from your own drives, folders and network storage</th><td data-i18n="matrixYes">Included</td><td data-i18n="matrixYes">Included</td></tr>
@@ -177,37 +183,37 @@
     <h2 id="devices-title" data-i18n="devicesTitle">Your photos, your storage, your devices</h2>
     <ol class="steps">
       <li data-i18n-html="devicesUnlock"><strong>Unlock Pro:</strong> on the home screen choose <em>Licence and settings</em> and paste the key from your receipt. No account, and it works offline.</li>
-      <li data-i18n-html="devicesAnywhere"><strong>Keep photos anywhere:</strong> on any drive, a NAS, or a folder that iCloud Drive, Dropbox or OneDrive syncs. Kite44 never moves or changes your originals.</li>
+      <li data-i18n-html="devicesAnywhere"><strong>Keep photos anywhere:</strong> on any drive, a NAS, or a folder that iCloud Drive, Dropbox or OneDrive syncs. InFlight never moves or changes your originals.</li>
       <li data-i18n-html="devicesCopy"><strong>Copy settings to another device:</strong> choose <em>Save settings file</em> and save it in iCloud Drive, then choose <em>Load settings file</em> on your other Mac, PC or phone.</li>
     </ol>
   </section>
   <section id="privacy" aria-labelledby="privacy-title">
     <h2 id="privacy-title" data-i18n="privacyTitle">Your photographs remain yours</h2>
-    <p class="lead" data-i18n="privacyBody">Kite44 is local-first. Import, cull and edit without an account. Optional online analysis or future cloud features must be turned on deliberately. Your originals are not silently uploaded.</p>
+    <p class="lead" data-i18n="privacyBody">InFlight is local-first. Import, cull and edit without an account. Optional online analysis or future cloud features must be turned on deliberately. Your originals are not silently uploaded.</p>
     <p><a href="/privacy">Read the full privacy page</a></p>
   </section>
   <section id="contact" aria-labelledby="contact-title">
-    <h2 id="contact-title" data-i18n="contactTitle">Contact Kite44</h2>
+    <h2 id="contact-title" data-i18n="contactTitle">Contact InFlight</h2>
     <form id="contact-form" class="contact-form" action="/v1/contact" method="post">
       <label class="contact-field"><span data-i18n="contactName">Name</span><input name="name" autocomplete="name" maxlength="100" required></label>
       <label class="contact-field"><span data-i18n="contactEmail">Email</span><input name="email" type="email" autocomplete="email" maxlength="254" required></label>
       <label class="contact-field"><span data-i18n="contactMessage">Message</span><textarea name="message" rows="5" maxlength="5000" required></textarea></label>
       <label hidden>Leave this empty<input name="website" maxlength="200" autocomplete="off" tabindex="-1"></label>
-      <label class="contact-consent"><input name="consent" type="checkbox" required><span data-i18n="contactConsent">Kite44 may store my email and message to reply.</span></label>
+      <label class="contact-consent"><input name="consent" type="checkbox" required><span data-i18n="contactConsent">InFlight may store my email and message to reply.</span></label>
       <button class="cta" type="submit" disabled data-i18n="contactSend">Send message</button>
       <p id="contact-status" role="status"></p>
     </form>
     <noscript><p class="muted">Enable JavaScript to send a message.</p></noscript>
   </section>
 </main>
-<footer><div class="wrap"><span data-i18n="footerText">Kite44 · Pre-release</span> · <a href="#contact" data-i18n="footerReport">Report a problem</a> · <a href="/privacy">Privacy</a></div></footer>
+<footer><div class="wrap"><span data-i18n="footerText">InFlight · Pre-release</span> · <a href="#contact" data-i18n="footerReport">Report a problem</a> · <a href="/privacy">Privacy</a> · <a href="/logos" data-i18n="footerBrandAssets">Brand assets</a> · <a href="/press" data-i18n="footerPress">Press</a></div></footer>
 
 <script src="assets/i18n-strings.js"></script>
 <script src="assets/i18n.js"></script>
 <script src="assets/prices.js"></script>
 <script>
   const i18n = window.KestrelI18n;
-  // Kite44's own download bucket (Google Cloud). The page links only to installers listed there.
+  // InFlight's own download bucket (Google Cloud). The page links only to installers listed there.
   // latest.json is written by scripts/release/publish-gcp.ps1 and lists each file with its size and SHA-256.
   const DOWNLOADS_LATEST = document.querySelector('meta[name="kestrel-downloads"]')?.content || '';
   // Suggest the download for this device: its card moves first and says so in words (never only a colour).

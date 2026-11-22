@@ -1,4 +1,4 @@
-// Kite44 website: language choice and text. The words themselves are in i18n-strings.js (one table, every language).
+// InFlight website: language choice and text. The words themselves are in i18n-strings.js (one table, every language).
 // Elements opt in with data-i18n="key" (text), data-i18n-html="key" (trusted markup from the table) and
 // data-i18n-attr="aria-label:key;title:key". Scripts call KestrelI18n.t(key, vars) or KestrelI18n.bind(el, key, vars).
 (() => {
