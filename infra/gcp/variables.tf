@@ -86,9 +86,6 @@ variable "apple_client_ids" {
 # ---- Cloud Processing (cloud-processing.tf). Everything is off until the owner switches it on. -------------------------
 variable "cloud_processing_enabled" {
   description = "Create the private, short-expiry upload bucket and its permissions for the optional Cloud Processing Engine. Off: nothing is created and nothing is billed."
-# ---- Managed safe copy (safe-copy.tf). Off until the owner switches it on. -------------------------------------------------
-variable "safe_copy_enabled" {
-  description = "Create the private UK bucket for the opt-in managed safe copy (backup) and let the control plane sign URLs for it. Off: nothing is created and nothing is billed."
   type        = bool
   default     = false
 }
@@ -104,7 +101,7 @@ variable "cloud_processing_region" {
 }
 
 variable "cloud_input_max_age_days" {
-  description = "Hard backstop: any uploaded input older than this is deleted by a bucket lifecycle rule even if the app never calls finish. Whole days, minimum 1."
+  description = "Hard backstop: any uploaded input older than this is deleted by a bucket lifecycle rule even if the app never calls finish. Whole days, 1 to 7."
   type        = number
   default     = 1
   validation {
@@ -114,7 +111,7 @@ variable "cloud_input_max_age_days" {
 }
 
 variable "cloud_runner_image" {
-  description = "Container image for the cloud runner (the heavier ONNX jobs). Empty: no runner service is created, only the bucket."
+  description = "Container image for the cloud runner (the heavier ONNX jobs). Empty: no runner is created, only the bucket."
   type        = string
   default     = ""
 }
@@ -136,11 +133,21 @@ variable "cloud_runner_memory" {
   type        = string
   default     = "8Gi"
 }
+
+# ---- Managed Gemini gateway key (control-plane.tf). Off until the owner switches it on. ------------------------------------
 variable "gemini_gateway_enabled" {
   description = "Mount the owner's Gemini API key (secret kcp-gemini-api-key) into the control plane so /v1/ai/* works. Off: the routes answer AI_NOT_CONFIGURED and nothing is created. Adding the key value and turning this on is the owner's decision (it starts per-call Gemini charges)."
   type        = bool
   default     = false
 }
+
+# ---- Managed safe copy (safe-copy.tf). Off until the owner switches it on. -------------------------------------------------
+variable "safe_copy_enabled" {
+  description = "Create the private UK bucket for the opt-in managed safe copy (backup) and let the control plane sign URLs for it. Off: nothing is created and nothing is billed."
+  type        = bool
+  default     = false
+}
+
 variable "safe_copy_region" {
   description = "Where safe copy files are held. UK only (owner decision, 22 Nov 2026): London, europe-west2."
   type        = string
