@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  encodeDenoiseUpload, encodeMaskUpload, encodeResult, decodeUpload, decodeResult,
+  encodeDenoiseUpload, encodeMaskUpload, encodeUpscaleUpload, encodeResult, decodeUpload, decodeResult,
 } from './cloudJobCodec.ts';
 import type { Pixels } from '../core/colourCheck';
 import type { Mask } from '../core/maskTypes';
@@ -64,6 +64,19 @@ describe('cloud job codec - mask upload', () => {
   });
 });
 
+describe('cloud job codec - upscale upload', () => {
+  it('round-trips the original image and the requested scale, with no subject alpha concept at all', () => {
+    const original = flat(3, 2, [40, 50, 60]);
+    const bytes = encodeUpscaleUpload(original, 4);
+    const decoded = decodeUpload(bytes);
+    assert.equal(decoded.header.capability, 'upscale');
+    assert.equal(decoded.header.scale, 4);
+    assert.equal(decoded.header.hasSubjectAlpha, false);
+    assert.equal(decoded.subjectAlpha, undefined);
+    assert.deepEqual([...decoded.original.data], [...original.data]);
+  });
+});
+
 describe('cloud job codec - result', () => {
   it('round-trips a processed picture', () => {
     const picture = flat(5, 4, [200, 150, 100]);
@@ -79,6 +92,41 @@ describe('cloud job codec - result', () => {
     const picture = flat(4, 4, [1, 1, 1]);
     const bytes = encodeResult('mask', picture);
     assert.throws(() => decodeResult(bytes.slice(0, bytes.length - 10)));
+  });
+
+  it('round-trips an upscale result along with whether the runner used its model', () => {
+    const picture = flat(6, 4, [12, 34, 56]);
+    const usedModelBytes = encodeResult('upscale', picture, { usedModel: true });
+    assert.equal(decodeResult(usedModelBytes).header.usedModel, true);
+    const fallbackBytes = encodeResult('upscale', picture, { usedModel: false });
+    assert.equal(decodeResult(fallbackBytes).header.usedModel, false);
+  });
+
+  it('refuses to build an upscale result that does not say whether a model was used', () => {
+    const picture = flat(2, 2, [7, 7, 7]);
+    assert.throws(() => encodeResult('upscale', picture), /must say whether a model was used/);
+  });
+
+  it('refuses usedModel on a capability where it has no meaning', () => {
+    const picture = flat(2, 2, [7, 7, 7]);
+    assert.throws(() => encodeResult('denoise', picture, { usedModel: true }), /has no meaning/);
+  });
+
+  it('refuses to decode an upscale result whose header omits usedModel', () => {
+    // Build a 'denoise' frame (no usedModel required) then relabel it as 'upscale' to simulate a runner
+    // that forgot to set the flag - decodeResult must still catch it, not silently treat it as false.
+    const picture = flat(2, 2, [3, 3, 3]);
+    const bytes = encodeResult('denoise', picture);
+    const headerLength = new DataView(bytes.buffer, bytes.byteOffset, 4).getUint32(0, false);
+    const tampered = JSON.parse(new TextDecoder().decode(bytes.subarray(4, 4 + headerLength)));
+    tampered.capability = 'upscale';
+    const headerBytes = new TextEncoder().encode(JSON.stringify(tampered));
+    const headerLen = new Uint8Array(4);
+    new DataView(headerLen.buffer).setUint32(0, headerBytes.length, false);
+    const rest = bytes.subarray(4 + headerLength);
+    const rebuilt = new Uint8Array(4 + headerBytes.length + rest.length);
+    rebuilt.set(headerLen, 0); rebuilt.set(headerBytes, 4); rebuilt.set(rest, 4 + headerBytes.length);
+    assert.throws(() => decodeResult(rebuilt), /missing usedModel/);
   });
 
   it('refuses a result from an unknown protocol version', () => {
