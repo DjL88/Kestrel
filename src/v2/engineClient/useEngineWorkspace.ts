@@ -24,7 +24,7 @@ import { featureAccess, featurePlan } from './featureMap';
 import { hasDeviceFont, listDeviceFonts, loadSavedDeviceFonts, mergeFonts, saveDeviceFonts } from './fonts';
 import { assetUrl, cutOut, importWatermark, loadStored, makeVariant, saveStored, toPresets, type StoredWatermark } from './watermarkLibrary';
 import { watermarkToneForPixels } from '../../core/watermark';
-import { INITIAL_WATERMARKS } from '../ui/stub';
+import { INITIAL_WATERMARKS, createDefaultSizes } from '../ui/stub';
 import { toPhotoHistogram } from './histogram';
 import { isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
 import { loadUi, mergeSettings, saveUi, type SavedUi } from './uiSettings';
@@ -36,6 +36,12 @@ import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow 
 import { frameToPhoto, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { runDeepVisionReview } from './deepVisionReview';
+import { planExport } from './exportOps';
+import { archiveExports, downloadExport, loadExportSource, renderExport } from '../../providers/browserExport';
+import { framingFor, toProfile } from '../../core/exportFormats';
+import { uniqueExportFilename } from '../../core/exportNaming';
+import { exportMayContinue } from '../../core/exportCancellation';
+import type { ExportRequest } from '../ui/contract';
 import { applyRecipePatch, editToRecipe } from './recipeMap';
 import { surfaceBridge } from './surfaceBridge';
 
@@ -45,7 +51,7 @@ const NOT_CONNECTED = [
   'setActiveGroup', 'addEditGroup', 'renameEditGroup', 'toggleSizeEnabled', 'toggleSizeLinked',
   'addCustomSize', 'toggleSplitFrames', 'setSplitPanOffset',
   'updateVideoZoom', 'addMaskLayer', 'toggleMaskLayer', 'removeMaskLayer',
-  'runExport', 'reconnectOriginal',
+  'reconnectOriginal',
 ] as const satisfies readonly (keyof WorkspaceActions)[];
 
 const THUMBNAIL_WORKERS = 4;
@@ -279,6 +285,41 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
 
   /** Scores every undecided photo on this device. It flags only high-confidence keepers; it never rejects anything, and
    * says how many photos look like rejects or duplicates so the person can look at them. */
+  /** Export edited photos at the chosen sizes, as a zip or one file at a time. Overlay, watermark, crops, before images and
+   * video are refused by planExport until the renderer honours them, so a file always matches what was asked for. */
+  const runExportAction = useCallback(async (request: ExportRequest) => {
+    const current = stateRef.current;
+    if (!current) return;
+    const plan = planExport(request, current.frames, createDefaultSizes());
+    if ('error' in plan) { setNotice(plan.error); return; }
+    const controller = new AbortController();
+    const task = tasks.start(`Exporting ${plan.summary}`, { total: plan.jobs.length, cancel: () => controller.abort() });
+    const output: File[] = [];
+    const used = new Set<string>();
+    const started = new Date();
+    try {
+      for (const job of plan.jobs) {
+        if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
+        const frame = current.frames.find((candidate) => candidate.id === job.frameId);
+        if (!frame) continue;
+        const image = await loadExportSource(frame, provider.current!);
+        const rendered = await renderExport(image, frame, toProfile(job.format), started, controller.signal, framingFor(job.format.fit));
+        const name = uniqueExportFilename(rendered.name, used);
+        output.push(name === rendered.name ? rendered : new File([rendered], name, { type: rendered.type, lastModified: rendered.lastModified }));
+        task.progress(output.length);
+      }
+      if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return; // Stop never publishes partial results.
+      if (request.destination === 'local-zip' && output.length > 1) downloadExport(await archiveExports(output), `inflight-export-${started.toISOString().slice(0, 10)}.zip`);
+      else for (const file of output) downloadExport(file, file.name);
+      task.finish(`Exported ${output.length} file${output.length === 1 ? '' : 's'}`);
+      setNotice(`Exported ${plan.summary}. Your originals are unchanged.`);
+    } catch (reason) {
+      if (!controller.signal.aborted && !task.cancelled) { const message = reason instanceof Error ? reason.message : 'Export failed.'; task.fail(message); setNotice(message); }
+    } finally {
+      task.fail('Stopped'); // does nothing if the task already finished or was cancelled
+    }
+  }, []);
+
   const runAutoCull = useCallback(async () => {
     const current = stateRef.current;
     if (!current) return;
@@ -563,6 +604,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     importFolder: () => { void pickFolderFiles().then((files) => { if (files?.length) void importPhotos(files); }); },
     importDroppedPhotos: (files) => { if (files.length) void importPhotos(files); },
     runAutoCull: () => { void runAutoCull(); },
+    runExport: (request) => { void runExportAction(request); },
     applyAssistSuggestion: (photoId) => applyAuto(photoId),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
     dismissAssistSuggestion: (photoId) => setAssists((current) => (current[photoId] ? { ...current, [photoId]: { ...current[photoId], dismissed: true } } : current)),
@@ -644,7 +686,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, stub.store.looks, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, runAutoCull, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
+    [stub.actions, stub.store.looks, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
 
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id] })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes]);
   const store: WorkspaceStore = useMemo(() => ({
