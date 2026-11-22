@@ -444,6 +444,8 @@ export interface WorkspaceActions {
 
   // Editing & Looks
   updateRecipe: (photoId: string, patch: Partial<EditRecipe>, label?: string) => void;
+  /** Denoise this photo now. Signed in with the cloud feature on, the press is the consent to upload a working-size copy for this job; the device is the fallback. */
+  denoisePhoto: (photoId: string) => void;
   applyLook: (photoId: string, lookId: string) => void;
   setHoveredLook: (lookId: string | null) => void;
   resetPhotoEdits: (photoId: string) => void;

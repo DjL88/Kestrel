@@ -1080,6 +1080,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    denoisePhoto: (photoId) => { logAction('denoisePhoto', { photoId }); },
     updateRecipe: (photoId, patch) => {
       setStore((prev) => {
         const photo = prev.photos.find((p) => p.id === photoId);
