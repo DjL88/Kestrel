@@ -6,6 +6,7 @@ license = "UNLICENSED"
 description = "Runs a pinned, licensed local vision-language model (SmolVLM2) on this device. No network."
 
 [dependencies]
+sha2 = "0.10"
 anyhow = "1.0.104"
 image = "0.25.10"
 ort = "2.0.0-rc.15"

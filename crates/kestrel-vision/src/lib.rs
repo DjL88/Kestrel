@@ -2,6 +2,7 @@
 //! Nothing here touches the network; the model files come from a directory the app has already verified against
 //! pinned SHA-256 digests (see scripts/models/manifest.json). One image in, plain text out. The text is only ever
 //! read by the app as an observation to be validated; it is never run, fetched or trusted as an edit.
+pub mod pack;
 use anyhow::{anyhow, bail, Context, Result};
 use image::{imageops::FilterType, RgbImage};
 use ort::environment::Environment;
