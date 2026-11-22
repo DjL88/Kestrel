@@ -57,6 +57,7 @@ export const STRINGS = {
     overlays: 'Overlays',
     assist: 'Assist',
     info: 'Info',
+    history: 'History',
     tasks: 'Tasks',
     settings: 'Settings',
     contextMenuTitle: 'Panels & layout',
@@ -350,6 +351,16 @@ export const STRINGS = {
     refreshReview: 'Re-check current edits',
     applyRecommendation: 'Apply tweak',
     safeNote: 'Every colour note includes objective Kelvin, tint, and tonal readings so you never have to guess by eye alone.',
+  },
+
+  history: {
+    heading: 'History',
+    intro: 'Every edit you made to this photo. Choose a step to go back to it. Later steps stay in the list, so you can come forward again.',
+    empty: 'No edits yet. When you change this photo, each step will appear here.',
+    noPhoto: 'Select a photo to see its history.',
+    original: 'Original, no edits',
+    now: 'now',
+    undone: 'undone',
   },
 
   // Info Panel

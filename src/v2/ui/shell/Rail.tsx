@@ -76,6 +76,7 @@ export default function Rail({
     { id: 'masks', label: STRINGS.rail.masks, icon: 'masks' },
     { id: 'enhance', label: STRINGS.rail.enhance, icon: 'focus' },
     { id: 'overlays', label: STRINGS.rail.overlays, icon: 'overlay' },
+    { id: 'history', label: STRINGS.rail.history, icon: 'undo' },
     { id: 'info', label: STRINGS.rail.info, icon: 'info' },
   ];
 

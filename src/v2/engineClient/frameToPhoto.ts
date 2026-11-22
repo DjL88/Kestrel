@@ -1,3 +1,4 @@
+import { describeHistory } from './historySteps';
 import type { PhotoFrame, ShootDescriptor } from '../../core/types';
 import { computeCullCounts } from '../../core/cullingEngine';
 import type { Photo, Project, TaskInfo, TileState } from '../ui/contract';
@@ -108,6 +109,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     sizes: createDefaultSizes().map((size) => { const crop = crops[size.id]; return crop ? { ...size, crop } : size; }),
     videoZoom: { enabled: false, focalX: 50, focalY: 50, direction: 'in', durationSec: 6 },
     masks: masksToLayers(frame.edit?.masks),
+    ...(describeHistory(frame.editHistory) ? { editHistory: describeHistory(frame.editHistory) } : {}),
     ...(watermarkAuto ? { watermarkAuto } : {}),
     ...(histogram ? { histogram } : {}),
     assistCritique: assistCritiqueFor(assist),

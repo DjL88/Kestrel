@@ -14,6 +14,7 @@ import GridView from './shell/GridView';
 import CoPilotPanel from './panels/CoPilotPanel';
 import AdjustPanel from './panels/AdjustPanel';
 import SizesPanel from './panels/SizesPanel';
+import HistoryPanel from './panels/HistoryPanel';
 import MasksPanel from './panels/MasksPanel';
 import EnhancePanel from './panels/EnhancePanel';
 import OverlayPanel from './panels/OverlayPanel';
@@ -33,6 +34,7 @@ const PANEL_TITLES: Record<PanelId, string> = {
   overlays: STRINGS.overlays.heading,
   assist: STRINGS.assist.heading,
   info: STRINGS.info.heading,
+  history: STRINGS.history.heading,
   tasks: STRINGS.tasks.heading,
 };
 
@@ -241,6 +243,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             onApplySuggestion={actions.applyAssistSuggestion}
           />
         );
+      case 'history':
+        return <HistoryPanel photo={activePhoto} onJumpToStep={actions.jumpToEditStep} />;
       case 'info':
         return (
           <InfoPanel
@@ -551,6 +555,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
                   { id: 'overlays', label: 'Overlays', icon: 'overlay' as const },
                   { id: 'masks', label: STRINGS.rail.masks, icon: 'masks' as const },
                   { id: 'enhance', label: STRINGS.rail.enhance, icon: 'focus' as const },
+                  { id: 'history', label: STRINGS.rail.history, icon: 'undo' as const },
                   { id: 'info', label: STRINGS.rail.info, icon: 'info' as const },
                   { id: 'settings', label: 'Settings', icon: 'settings' as const },
                 ] as const

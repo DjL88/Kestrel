@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { applyCullConfidence, applyDecisionWithHistory, redoDecision, undoDecision } from '../../core/cullingEngine';
-import { recordEdit, stepEdit } from '../../core/editHistory';
+import { jumpToStep, recordEdit, stepEdit } from '../../core/editHistory';
 import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits';
 import { sameRecipe } from '../../core/naturalAuto';
 import { newId } from '../../core/ids';
@@ -831,6 +831,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     resetPhotoEdits: (photoId) => editFrames(editTargets(photoId), () => undefined),
     copyRecipe: () => setClipboard(editToRecipe(activeFrame?.edit)),
     pasteRecipe: () => { if (clipboard && activeId) applyPatch(editTargets(activeId), clipboard); },
+    jumpToEditStep: (photoId, cursor) => mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === photoId ? jumpToStep(frame, cursor) : frame)) })),
     undo: () => {
       if (activeFrame?.editHistory && activeFrame.editHistory.cursor > 0) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? stepEdit(frame, -1) : frame)) }));
       else mutate(undoDecision);
