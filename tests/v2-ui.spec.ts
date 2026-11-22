@@ -655,3 +655,46 @@ test('?v2 Denoise runs on this device when not signed in and says so', async ({ 
   await root.getByRole('button', { name: 'Denoise this photo' }).click();
   await expect(root.getByText(/Denoised on this device|Left as it was/).first()).toBeVisible({ timeout: 30000 });
 });
+
+test('?v2 export: Original file is the exact bytes, and Before + After is a zip with an unedited copy that is not called the original', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Variants check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const image = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 400; canvas.height = 200;
+    const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#336699'; ctx.fillRect(0, 0, 400, 200);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'variants-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  await expect(root.getByTestId('canvas-frame').locator('canvas, img').first()).toBeVisible({ timeout: 30000 });
+  await root.getByRole('button', { name: /^Export/ }).first().click();
+  const dialog = page.getByRole('dialog', { name: /export/i });
+  // The wording never passes a developed copy off as the original.
+  await expect(dialog.getByRole('button', { name: /Before: unedited, developed to JPEG \(not the original file\)/ })).toBeVisible();
+  // Original file only.
+  await dialog.getByRole('button', { name: /Original file: exact copy/ }).click();
+  await dialog.getByRole('button', { name: /After \(edited\)/ }).click();
+  const original = page.waitForEvent('download', { timeout: 60000 });
+  await dialog.getByRole('button', { name: /export bundle/i }).click();
+  const originalDownload = await original;
+  expect(originalDownload.suggestedFilename()).toBe('variants-1.png');
+  const { readFileSync } = await import('node:fs');
+  expect(readFileSync((await originalDownload.path())!).toString('base64')).toBe(image);
+  // Before and After together (original off).
+  await page.waitForTimeout(500);
+  if (!(await page.getByRole('dialog', { name: /export/i }).isVisible())) await root.getByRole('button', { name: /^Export/ }).first().click();
+  const again = page.getByRole('dialog', { name: /export/i });
+  const states = await again.getByRole('button', { name: /Original file: exact copy/ }).getAttribute('aria-pressed');
+  if (states === 'true') await again.getByRole('button', { name: /Original file: exact copy/ }).click();
+  await again.getByRole('button', { name: /Before: unedited/ }).click();
+  const afterPressed = await again.getByRole('button', { name: /After \(edited\)/ }).getAttribute('aria-pressed');
+  if (afterPressed !== 'true') await again.getByRole('button', { name: /After \(edited\)/ }).click();
+  const zipped = page.waitForEvent('download', { timeout: 60000 });
+  await again.getByRole('button', { name: /export bundle/i }).click();
+  expect((await zipped).suggestedFilename()).toMatch(/\.zip$/);
+});

@@ -328,7 +328,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const plan = planExport(request, current.frames, createDefaultSizes());
     if ('error' in plan) { setNotice(plan.error); return; }
     const controller = new AbortController();
-    const task = tasks.start(`Exporting ${plan.summary}`, { total: plan.jobs.length, cancel: () => controller.abort() });
+    const task = tasks.start(`Exporting ${plan.summary}`, { total: plan.jobs.reduce((sum, job) => sum + job.variants.length, 0) + plan.originals.length, cancel: () => controller.abort() });
     const output: File[] = [];
     const used = new Set<string>();
     let cappedCount = 0;
@@ -340,18 +340,38 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
         if (!frame) continue;
         const image = await loadExportSource(frame, provider.current!);
         const env = exportEnv.current;
-        const overlayDraw = await buildOverlayDraw(frame, request, env);
-        const { file: rendered, capped } = await renderV2Export(image, frame, job.size, job.crop, toProfile(job.format), overlayDraw, started, controller.signal);
-        if (capped) cappedCount += 1;
-        const name = uniqueExportFilename(rendered.name, used);
-        output.push(name === rendered.name ? rendered : new File([rendered], name, { type: rendered.type, lastModified: rendered.lastModified }));
+        for (const variant of job.variants) {
+          if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
+          // The unedited copy has no recipe and no overlay: the same framing, developed, and plainly labelled in its name.
+          const unedited = variant === 'unedited';
+          const overlayDraw = unedited ? null : await buildOverlayDraw(frame, request, env);
+          const { file: rendered, capped } = await renderV2Export(image, unedited ? { ...frame, edit: DEFAULT_EDIT } : frame, job.size, job.crop, toProfile(job.format), overlayDraw, started, controller.signal);
+          if (capped) cappedCount += 1;
+          const base = unedited ? rendered.name.replace(/(\.[^.]+)?$/, '-unedited$1') : rendered.name;
+          const name = uniqueExportFilename(base, used);
+          output.push(name === rendered.name ? rendered : new File([rendered], name, { type: rendered.type, lastModified: rendered.lastModified }));
+          task.progress(output.length);
+        }
+      }
+      // Exact original files: the bytes as shot, never a developed or preview file. A photo whose original is not connected is
+      // skipped and named; nothing is substituted.
+      const missingOriginals: string[] = [];
+      for (const frameId of plan.originals) {
+        if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return;
+        const frame = current.frames.find((candidate) => candidate.id === frameId);
+        if (!frame) continue;
+        const bytes = frame.isDemo ? undefined : await provider.current!.ensureOriginal(frame.stableKey, 'selected');
+        if (!bytes) { missingOriginals.push(frame.filename); continue; }
+        output.push(new File([bytes], uniqueExportFilename(frame.filename, used), { type: bytes.type || 'application/octet-stream', lastModified: Date.now() }));
         task.progress(output.length);
       }
+      const missingNote = !missingOriginals.length ? '' : ` Original file not exported for ${missingOriginals.slice(0, 3).join(', ')}${missingOriginals.length > 3 ? ` and ${missingOriginals.length - 3} more` : ''}: the original is not connected. Reconnect it to export it. Nothing was substituted.`;
+      if (!output.length) { task.fail('Nothing to export'); return; }
       if (!exportMayContinue(controller.signal.aborted, task.cancelled, false)) return; // Stop never publishes partial results.
       if (request.destination === 'local-zip' && output.length > 1) downloadExport(await archiveExports(output), `inflight-export-${started.toISOString().slice(0, 10)}.zip`);
       else for (const file of output) downloadExport(file, file.name);
       task.finish(`Exported ${output.length} file${output.length === 1 ? '' : 's'}`);
-      setNotice(`Exported ${plan.summary}.${cappedCount ? ` ${cappedCount} ${cappedCount === 1 ? 'file is' : 'files are'} smaller than the size asked for, because the photo has fewer pixels.` : ''} Your originals are unchanged.`);
+      setNotice(`Exported ${plan.summary}.${cappedCount ? ` ${cappedCount} ${cappedCount === 1 ? 'file is' : 'files are'} smaller than the size asked for, because the photo has fewer pixels.` : ''} Your originals are unchanged.${missingNote}`);
     } catch (reason) {
       if (!controller.signal.aborted && !task.cancelled) { const message = reason instanceof Error ? reason.message : 'Export failed.'; task.fail(message); setNotice(message); }
     } finally {

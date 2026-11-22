@@ -46,6 +46,7 @@ export default function ExportDialog({
   const [includeOverlay, setIncludeOverlay] = useState(true);
   const [includeWatermark, setIncludeWatermark] = useState(false);
   const [includeVideo, setIncludeVideo] = useState(false);
+  const [includeOriginal, setIncludeOriginal] = useState(false);
 
   if (!open || !photo) return null;
 
@@ -86,6 +87,7 @@ export default function ExportDialog({
       groupIds: selectedGroupIds,
       sizeIds: selectedSizeIds,
       includeBefore,
+      includeOriginal,
       includeAfter,
       includeOverlay,
       includeWatermark,
@@ -253,6 +255,7 @@ export default function ExportDialog({
                 {[
                   { label: STRINGS.exportDialog.variantBefore, val: includeBefore, set: setIncludeBefore },
                   { label: STRINGS.exportDialog.variantAfter, val: includeAfter, set: setIncludeAfter },
+                  { label: STRINGS.exportDialog.variantOriginal, val: includeOriginal, set: setIncludeOriginal },
                   { label: STRINGS.exportDialog.variantOverlay, val: includeOverlay, set: setIncludeOverlay },
                   { label: STRINGS.exportDialog.variantWatermark, val: includeWatermark, set: setIncludeWatermark },
                   ...(features.zoomVideo
