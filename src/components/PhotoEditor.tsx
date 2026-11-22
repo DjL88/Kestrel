@@ -28,10 +28,9 @@ import { PhotoAdvice } from './PhotoAdvice';
 import { Histogram } from './Histogram';
 import { computeHistogram, type Histogram as HistogramData } from '../core/histogram';
 import { applyCanvasPhotoEdit } from '../core/canvasEdit';
-import { applyFix, critique, toneOnlyEdit, type Opinion, type OpinionFigures } from '../core/critique';
 import { effectiveAlpha, fullContext, maskAlpha } from '../core/masks';
-import { ColourCheckPanel, type ColourPreview } from './ColourCheckPanel';
-import { LocalPhotoCheck } from './LocalPhotoCheck';
+import { AutoControl } from './AutoControl';
+import { autoLabels } from '../i18n/autoLabels';
 import { MaskOverlay } from './MaskOverlay';
 import { MaskPanel } from './MaskPanel';
 import { createSubjectMask, framingKey, onlyAdjustmentsChanged, type SubjectDetail, type SubjectGrid } from '../core/maskTypes';
@@ -41,7 +40,11 @@ import { panToCentre } from '../core/eyeFinder';
 import { locateEye } from '../providers/eyeLocator';
 import { PresetPanel } from './PresetPanel';
 import { mergeAutoSuggestion } from '../core/autoEnhance';
-import { naturalAuto, stageNaturalRecipe } from '../core/naturalAuto';
+import { naturalAuto, sameRecipe } from '../core/naturalAuto';
+import { describePlan, planAuto, recipeAtStrength, type AutoPlan } from '../core/unifiedAuto';
+import type { SpeciesGuess } from '../core/speciesPalette';
+import { ensureSpeciesModel, identifySubject } from '../providers/autoSpecies';
+import { describePhoto, hasLocalVision, localVisionStatus } from '../providers/localVision';
 import { proposeSubjectAwareAuto, type InsightSubjectKind } from '../core/insightSubjectAuto';
 import { PANEL_DEFAULT, clampPanelWidth } from '../core/panelWidth';
 import { PhotoViewport } from './PhotoViewport';
@@ -98,15 +101,6 @@ function stageLabel(label: string): string {
   if (label === 'Last export') return t.editor.lastExport;
   const step = /^Edit (\d+)$/.exec(label);
   return step ? t.editor.editStep(Number(step[1])) : label;
-}
-
-type OpinionText = { title: string; detail: (figures: OpinionFigures) => string; fix?: string };
-
-/** A quality check's words, looked up by its id; an unknown id keeps the words `critique` gave it. */
-function opinionWords(opinion: Opinion): { title: string; detail: string; fix: string } {
-  const words = (t.critique.opinions as unknown as Record<string, OpinionText | undefined>)[opinion.id];
-  if (!words) return { title: opinion.title, detail: opinion.detail, fix: opinion.fixLabel ?? t.common.apply };
-  return { title: words.title, detail: words.detail(opinion.figures ?? {}), fix: words.fix ?? t.common.apply };
 }
 
 interface Props {
@@ -196,7 +190,9 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
   const cornerDrag = useRef<{ corner: CropCorner; x: number; y: number; point: { x: number; y: number } } | null>(null);
   const [autoNotes, setAutoNotes] = useState<string[]>([]);
   // Auto is a reversible visual preview; never save a suggested edit before an explicit Apply.
-  const [pendingAuto, setPendingAuto] = useState<{ base: PhotoEdit; edit: PhotoEdit; cropKey: string; source: HTMLImageElement } | null>(null);
+  const [autoPlan, setAutoPlan] = useState<{ plan: AutoPlan; committed: PhotoEdit; pending: boolean } | null>(null);
+  const [autoStrength, setAutoStrength] = useState(1);
+  const [visionLine, setVisionLine] = useState('');
   const [autoAnalysing, setAutoAnalysing] = useState(false);
   // A synchronous guard prevents double taps before React re-renders the disabled button.
   const autoInFlight = useRef(false);
@@ -204,10 +200,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
   const autoRun = useRef(0);
   const subjectCache = useRef<{ source: HTMLImageElement; cropKey: string; result: GuidedSubject } | null>(null);
   useEffect(() => () => { autoRun.current += 1; }, []);
-  // Once asked for, the opinion stays up to date as the edit changes, until it is hidden.
-  const [opinions, setOpinions] = useState<Opinion[] | null>(null);
   const [selectedMaskId, setSelectedMaskId] = useState<string | null>(null);
-  const [manualColourCheck, setManualColourCheck] = useState(false);
   const [boundaryEvidence, setBoundaryEvidence] = useState<{ maskId: string; recipe: PhotoEdit; value: MaskBoundaryEvidence } | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [detectNotice, setDetectNotice] = useState('');
@@ -435,11 +428,6 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
   const savedEdit = frame.edit ?? DEFAULT_EDIT;
   // While a history step is being previewed, draw that step's recipe instead of the saved one.
   const edit = (previewRecipe ? previewRecipe.edit : frame.edit) ?? DEFAULT_EDIT;
-  // Fly Solo performs no unsolicited image analysis. A requested colour check
-  // stays visible for that recipe only; any subsequent edit needs a new request.
-  useEffect(() => {
-    if (guidanceMode === 'solo') setManualColourCheck(false);
-  }, [guidanceMode, frame.stableKey, frame.edit, frame.framing]);
   // Painting is always a deliberate choice: leaving a mask or the Masks tab switches it off.
   useEffect(() => { setPaintOn(false); }, [selectedMaskId, tab]);
   // Delete or Backspace removes the selected mask, as in Lightroom. Typing in a field is never touched.
@@ -809,8 +797,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
     setAutoAnalysing(false);
     autoInFlight.current = false;
     setPreviewRecipe(null);
-    setPendingAuto(null);
-    setOpinions(null);
+    setAutoPlan(null);
     // Each tab opens at its top. Otherwise the new tab inherits the old scroll position and starts under the tab bar.
     panelScroll.current?.scrollTo({ top: 0 });
     if (tab === 'crop') cropEntry.current = frame.framing ?? DEFAULT_FRAMING;
@@ -840,33 +827,35 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
   }
 
   /**
-   * Natural Auto: analyse the framed, unedited photo on this device, measure the subject when a trustworthy mask
-   * exists, choose ordinary reversible slider values, then render and check them before offering a preview.
-   * Nothing is saved until the photographer applies it.
+   * The one Auto (see `src/core/unifiedAuto.ts`): measure the framed, unedited, colour-managed preview on this device,
+   * build ONE recipe (Natural Auto sliders, subject mask, species-aware colour when the species is certain), check it
+   * against the quality gate and apply it as a single undoable step. The strength slider then scales all of it.
+   * `commit: false` (opt-in project assistance on first open) shows the result as a preview to Apply instead.
    */
-  async function previewAutoSuggestion() {
+  async function runAuto(commit = true) {
     if (autoInFlight.current) return;
     autoInFlight.current = true;
     const run = ++autoRun.current;
     const startedFor = detectionContext.current;
     const originalSource = source;
     setAutoAnalysing(true);
-    setPendingAuto(null);
+    setAutoPlan(null);
     setPreviewRecipe(null);
-    setOpinions(null);
+    setVisionLine('');
     setAutoNotes([t.auto.analysing]);
     const stillCurrent = () => run === autoRun.current && detectionContext.current === startedFor &&
       sourceImage.current === originalSource && Boolean(originalSource);
     try {
-      // Give the browser one paint opportunity to display the busy label and
-      // spinner before any synchronous canvas sampling or model setup begins.
-      // The timeout fallback also works when the page is backgrounded.
+      // Give the browser one paint opportunity to display the busy label and spinner before heavy work begins.
       await yieldToPaint();
       if (!stillCurrent()) return;
       if (!originalSource || !outputSize || !startedFor) {
         if (run === autoRun.current) setAutoNotes([t.auto.couldNotAnalyse]);
         return;
       }
+      // Model install is automatic and never blocks: progress is in the task manager, and the species check joins in
+      // from the next press once it is ready.
+      void ensureSpeciesModel(autoLabels.installingModel, autoLabels.modelInstalled);
       // Analyse exactly the unedited, framed image (crop and rotation applied), not the adjusted editor canvas.
       const analysisCanvas = document.createElement('canvas');
       drawFramedPhoto(originalSource, analysisCanvas, frame.framing ?? DEFAULT_FRAMING, {
@@ -880,6 +869,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
       const analysis = analysisContext.getImageData(0, 0, analysisCanvas.width, analysisCanvas.height);
       const category = autoSubjectKind();
       let segmentation: { grid: SubjectGrid; confidence: 'high' | 'medium' | 'low'; detail?: SubjectDetail | null } | null = null;
+      let species: SpeciesGuess | null = null;
       if (category !== 'landscape') {
         try {
           let detection = subjectCache.current?.source === originalSource && subjectCache.current?.cropKey === cropKey
@@ -907,6 +897,17 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
         } catch {
           if (!stillCurrent()) return;
         }
+        // Name the subject on this device (BioCLIP-style match, no network). Only animals, only when the model is installed.
+        if (segmentation && category === 'wildlife') {
+          let timeout: number | undefined;
+          try {
+            species = await Promise.race([
+              identifySubject(analysisCanvas),
+              new Promise<null>((resolve) => { timeout = window.setTimeout(() => resolve(null), 15000); }),
+            ]);
+          } finally { if (timeout !== undefined) window.clearTimeout(timeout); }
+          if (!stillCurrent()) return;
+        }
       }
       const natural = naturalAuto({
         pixels: analysis.data, width: analysis.width, height: analysis.height, segmentation, iso: frame.exif?.iso,
@@ -925,27 +926,37 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
         proposal = local.edit;
         usedMask = local.usedMask;
       }
-      // Render and check before offering: full strength, then gentler, then nothing.
-      const staged = stageNaturalRecipe(analysis.data, analysis.width, analysis.height, savedEdit, proposal, segmentation);
+      const plan = planAuto({
+        pixels: analysis.data, width: analysis.width, height: analysis.height, base: savedEdit, proposal, natural, segmentation, species,
+      });
       if (!stillCurrent()) return;
-      const changed = staged.outcome === 'full' || staged.outcome === 'gentler';
-      const keptMask = changed && usedMask && (staged.edit.masks?.length ?? 0) > (savedEdit.masks?.length ?? 0);
-      setPendingAuto(changed ? { base: savedEdit, edit: staged.edit, cropKey, source: originalSource } : null);
-      setPreviewRecipe(changed ? { edit: staged.edit, framing: frame.framing } : null);
-      // Only describe adjustments that are actually offered. A rejected or neutral
-      // proposal must not list hypothetical exposure, colour or mask changes.
-      // Report only the slider/mask changes that survived the safety gate.
-      // Natural Auto's analysis prose can mention hypothetical moves later
-      // declined by quality checks; never show it to photographers as a result.
-      const changes = changed ? acceptedAutoChanges(savedEdit, staged.edit, keptMask) : [];
-      const notes = changes.map(change => change.key === 'subjectMask'
+      const changed = plan.verdict.kind === 'improved';
+      const keptMask = changed && usedMask && (plan.proposal.masks?.length ?? 0) > (savedEdit.masks?.length ?? 0);
+      // Describe only adjustments that actually survived the safety gate.
+      const notes = (changed ? acceptedAutoChanges(savedEdit, plan.proposal, keptMask) : []).map(change => change.key === 'subjectMask'
         ? t.auto.subjectMaskAdded
-        : change.direction === 'up'
-          ? t.auto.adjustUp(t.controls[change.key])
-          : t.auto.adjustDown(t.controls[change.key]));
-      setAutoNotes(changed
-        ? (notes.length ? notes : [t.auto.previewingLook])
-        : [staged.outcome === 'declined' ? t.auto.declined : t.auto.alreadyWorks]);
+        : change.direction === 'up' ? t.auto.adjustUp(t.controls[change.key]) : t.auto.adjustDown(t.controls[change.key]));
+      const described = describePlan(plan);
+      setAutoNotes([described.headline, ...described.detail, ...notes]);
+      setAutoStrength(1);
+      if (changed) {
+        if (commit) {
+          onEdit(plan.proposal);
+          setAutoPlan({ plan, committed: plan.proposal, pending: false });
+        } else {
+          setAutoPlan({ plan, committed: savedEdit, pending: true });
+          setPreviewRecipe({ edit: plan.proposal, framing: frame.framing });
+        }
+      } else {
+        setAutoPlan({ plan, committed: savedEdit, pending: false });
+      }
+      // The on-device vision model (#703) adds one plain observation. It never sets a number; it is optional and quiet.
+      if (hasLocalVision()) {
+        const jpeg = reviewJpeg();
+        if (jpeg) void localVisionStatus().then((status) => status?.installed
+          ? describePhoto(new Blob([Uint8Array.from(atob(jpeg), (c) => c.charCodeAt(0))], { type: 'image/jpeg' }))
+          : null).then((answer) => { if (answer?.usable && run === autoRun.current) setVisionLine(answer.text); }).catch(() => undefined);
+      }
     } catch {
       if (stillCurrent()) setAutoNotes([t.auto.failed]);
     } finally {
@@ -956,10 +967,47 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
     }
   }
 
+  /** The strength slider shows a live preview; the recipe is committed once as a single undoable step when it settles. */
+  const strengthTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(strengthTimer.current), []);
+  const planLive = autoPlan && (autoPlan.pending || sameRecipe(savedEdit, autoPlan.committed)) ? autoPlan : null;
+  function previewStrength(value: number) {
+    if (!planLive) return;
+    setAutoStrength(value);
+    setPreviewRecipe({ edit: recipeAtStrength(planLive.plan, value), framing: frame.framing });
+    window.clearTimeout(strengthTimer.current);
+    strengthTimer.current = window.setTimeout(() => commitStrength(value), 450);
+  }
+  function commitStrength(value = autoStrength) {
+    window.clearTimeout(strengthTimer.current);
+    if (!planLive || planLive.pending) return;
+    const next = recipeAtStrength(planLive.plan, value);
+    setPreviewRecipe(null);
+    if (!sameRecipe(savedEdit, next)) { onEdit(next); setAutoPlan({ plan: planLive.plan, committed: next, pending: false }); }
+  }
+  function applyPendingAuto() {
+    if (!planLive?.pending) return;
+    const next = recipeAtStrength(planLive.plan, autoStrength);
+    setPreviewRecipe(null);
+    if (savedEdit !== planLive.plan.base) { setAutoNotes([t.auto.photoChanged]); setAutoPlan(null); return; }
+    onEdit(next);
+    setAutoPlan({ plan: planLive.plan, committed: next, pending: false });
+  }
+  /** Exactly the look Auto started from, as one undoable step. */
+  function undoAuto() {
+    if (!planLive) return;
+    window.clearTimeout(strengthTimer.current);
+    setPreviewRecipe(null);
+    if (!planLive.pending) onEdit(planLive.plan.base);
+    setAutoPlan(null);
+    setAutoStrength(1);
+    setAutoNotes([autoLabels.undone]);
+  }
+
   // Opt-in project assistance suggests a look on first open; it never silently commits edits.
   useEffect(() => {
     if (!autoEdit || !source || frame.edit || frame.editHistory?.steps.length) return;
-    void previewAutoSuggestion();
+    void runAuto(false);
     // One first-open run; re-run if the source switches from an embedded preview to developed RAW.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source]);
@@ -1002,24 +1050,6 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
     return canvas;
   }
 
-  /** A small before/after preview for the colour check, with the subject outline when there is one. */
-  function colourPreview(): ColourPreview | null {
-    if (!source || !outputSize) return null;
-    const scale = Math.min(1, 160 / Math.max(outputSize.width, outputSize.height));
-    const draw = (withEdit: boolean) => {
-      const canvas = document.createElement('canvas');
-      drawFramedPhoto(source, canvas, framing, { scale });
-      if (withEdit) applyCanvasPhotoEdit(canvas, edit);
-      const image = canvas.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, canvas.width, canvas.height);
-      return { data: image.data, width: image.width, height: image.height };
-    };
-    const before = draw(false);
-    const after = draw(true);
-    const mask = edit.masks?.find((candidate) => candidate.kind === 'subject');
-    const subject = mask ? maskAlpha({ ...mask, invert: false }, after.width, after.height, fullContext(after.width, after.height)) : undefined;
-    return { before, after, subject };
-  }
-
   /** The photo as edited, 1,024 pixels on its longest side, as a JPEG drawn from the canvas (so it carries no metadata). */
   function reviewJpeg(): string | null {
     if (!source || !outputSize) return null;
@@ -1028,47 +1058,6 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
     applyCanvasPhotoEdit(canvas, edit);
     return canvas.toDataURL('image/jpeg', 0.85).split(',')[1] ?? null;
   }
-
-  function updateOpinions() {
-    if (!source || !outputSize) return;
-    const scale = Math.min(1, 320 / Math.max(outputSize.width, outputSize.height));
-    const fresh = () => {
-      const canvas = document.createElement('canvas');
-      drawFramedPhoto(source, canvas, framing, { scale });
-      return canvas;
-    };
-    const read = (canvas: HTMLCanvasElement) => {
-      const image = canvas.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, canvas.width, canvas.height);
-      return { data: image.data, width: image.width, height: image.height };
-    };
-    const original = fresh();
-    const tone = fresh();
-    const result = fresh();
-    applyCanvasPhotoEdit(tone, toneOnlyEdit(edit));
-    applyCanvasPhotoEdit(result, edit);
-    const subject = edit.masks?.find((mask) => mask.kind === 'subject' && !mask.invert) ?? edit.masks?.find((mask) => mask.kind === 'subject');
-    setOpinions(critique({
-      source: read(original), toneOnly: read(tone), after: read(result), edit,
-      subject: subject ? { mask: subject, context: fullContext(original.width, original.height) } : undefined,
-    }));
-  }
-
-  // When Auto previews a recipe, run the existing offline image-quality checks on the preview.
-  useEffect(() => {
-    if (!pendingAuto || !source || !outputSize) return;
-    try { updateOpinions(); }
-    catch { setAutoNotes((notes) => [...notes, t.auto.qualityUnavailable]); }
-    // Recompute when the proposed recipe or image is replaced.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingAuto, source]);
-
-  useEffect(() => {
-    if (!opinions) return;
-    const timer = window.setTimeout(updateOpinions, 400);
-    return () => window.clearTimeout(timer);
-    // Refresh after the edit settles. The first opinion is made by the button.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edit, framing]);
 
   /** Detect on the unedited, cropped photo, so the result matches what the mask will be laid over. */
   async function findSubject(background: boolean, replaceId?: string) {
@@ -1292,80 +1281,13 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
         )}
         {panelTab === 'auto' && can('autoTab') && (
           <div role="tabpanel" id="panel-auto" aria-labelledby="tab-auto" className="space-y-2">
-        <div className="space-y-2 px-1">
-          <button type="button" title={t.auto.suggestTitle} disabled={sourceState !== 'ready' || autoAnalysing}
-            aria-busy={autoAnalysing} data-testid="suggest-look"
-            className={`${button} inline-flex w-full items-center justify-center gap-2 border border-white/10 font-semibold disabled:cursor-wait`}
-            onClick={() => void previewAutoSuggestion()}>
-            {autoAnalysing
-              ? <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
-              : <Lightbulb className="h-4 w-4 shrink-0 stroke-[1.75]" aria-hidden="true" />}
-            {autoAnalysing ? t.auto.analysingButton : t.auto.suggest}
-          </button>
-          <details className="text-xs text-zinc-400">
-            <summary className="min-h-10 cursor-pointer py-2">{t.auto.howItWorks}</summary>
-            <p className="pb-2">{t.auto.intro}</p>
-          </details>
-          {pendingAuto && (
-            <div role="group" aria-label={t.auto.previewGroup} className="space-y-2 rounded-lg border border-white/15 bg-white/5 p-3">
-              <p role="status" className="text-sm text-zinc-100">{t.auto.previewing}</p>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" aria-pressed={displayCompare} className={`${button} border border-white/15 aria-pressed:bg-sky-300/15`}
-                  onClick={() => setCompare((current) => !current)}>{displayCompare ? t.auto.hideComparison : t.auto.compare}</button>
-                <button type="button" className={`${button} bg-kestrel-copper font-semibold !text-zinc-950 hover:bg-kestrel-copper-hover!`}
-                  onClick={() => {
-                    if (savedEdit !== pendingAuto.base || cropKey !== pendingAuto.cropKey || sourceImage.current !== pendingAuto.source) {
-                      setAutoNotes([t.auto.photoChanged]);
-                    } else {
-                      onEdit(pendingAuto.edit);
-                      setAutoNotes([t.auto.applied]);
-                    }
-                    autoRun.current += 1;
-                    setPendingAuto(null);
-                    setPreviewRecipe(null);
-                  }}>{t.auto.apply}</button>
-                <button type="button" className={`${button} border border-white/15`} onClick={() => {
-                  autoRun.current += 1;
-                  setAutoAnalysing(false);
-                  setPendingAuto(null);
-                  setPreviewRecipe(null);
-                  setOpinions(null);
-                  setAutoNotes([t.auto.dismissed]);
-                }}>{t.auto.keepCurrent}</button>
-              </div>
-            </div>
-          )}
-        </div>
-          {autoNotes.length > 0 && <div role="status" className="px-1 py-1 text-xs text-zinc-300">
-            <p>{autoNotes[0]}</p>
-            {autoNotes.length > 1 && <details className="mt-1">
-              <summary className="min-h-10 cursor-pointer py-2">{t.auto.moreChanges}</summary>
-              <ul className="list-disc space-y-1 pl-4">
-                {autoNotes.slice(1).map((note, index) => <li key={index}>{note}</li>)}
-              </ul>
-            </details>}
-          </div>}
-          {autoNotes[0] === t.auto.applied && !pendingAuto &&
-            <p className="px-1 text-xs text-zinc-400">{t.auto.saveAsRecipe}</p>}
-          {opinions && (
-            <section aria-label={t.critique.region} className="space-y-2 rounded-md border border-white/10 p-2">
-              {opinions.length === 0 && <p role="status" className="text-sm text-zinc-300">{t.critique.none}</p>}
-              {opinions.map((opinion) => {
-                const words = opinionWords(opinion);
-                return (
-                <div key={opinion.id} className="space-y-1 text-sm">
-                  <p className="font-semibold text-zinc-100">{opinion.severity === 'warning' ? t.critique.warning(words.title) : t.critique.tip(words.title)}</p>
-                  <p className="text-xs text-zinc-300">{words.detail}</p>
-                  {opinion.fix && !pendingAuto && (
-                    <button type="button" className={`${button} border border-white/15 text-xs`}
-                      onClick={() => onEdit(applyFix(edit, opinion.fix!))}>{words.fix}</button>
-                  )}
-                </div>
-                );
-              })}
-              <button type="button" className="min-h-9 text-xs text-zinc-400 underline hover:text-white" onClick={() => setOpinions(null)}>{t.critique.hide}</button>
-            </section>
-          )}
+        <AutoControl
+          analysing={autoAnalysing} disabled={sourceState !== 'ready'} strength={autoStrength}
+          verdict={autoPlan?.plan.verdict.kind ?? null} pending={Boolean(planLive?.pending)} live={Boolean(planLive)}
+          notes={autoNotes} visionLine={visionLine}
+          comparing={displayCompare} onCompare={() => setCompare((current) => !current)}
+          onAuto={() => void runAuto(true)} onStrength={previewStrength} onStrengthCommit={() => commitStrength()}
+          onApply={applyPendingAuto} onUndo={undoAuto} />
         {/* Open on a phone, where the Auto tab is short: recipes are the point of the tab, so they should not hide behind a tap. */}
         <details open={isPhone ? true : undefined} className="border-t border-white/10 pt-1">
           <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-zinc-200">{t.auto.recipes}</summary>
@@ -1424,13 +1346,6 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
           <button type="button" aria-expanded={quickChoices} onClick={() => setQuickChoices(!quickChoices)}
             className="min-h-10 rounded-md px-1 text-xs text-zinc-400 hover:text-white desk:min-h-7">{t.edit.quickChoices}</button>
         </div>
-        {guidanceMode === 'solo' && !manualColourCheck ? (
-          <button type="button" className="min-h-10 w-full border-t border-white/10 px-1 text-left text-xs text-zinc-300 hover:text-white"
-            disabled={sourceState !== 'ready'} onClick={() => setManualColourCheck(true)}>Check colour</button>
-        ) : (
-          <ColourCheckPanel edit={edit} readPreview={colourPreview} version={[edit, framing, source]} onEdit={onEdit} disabled={sourceState !== 'ready'} readJpeg={reviewJpeg} />
-        )}
-        <LocalPhotoCheck readJpeg={reviewJpeg} version={[edit, framing, source]} disabled={sourceState !== 'ready'} edit={edit} onEdit={onEdit} readPixels={() => colourPreview()?.before.data ?? null} />
         <details open className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
             {t.edit.tone} <ChevronDown className="h-4 w-4" aria-hidden="true" />

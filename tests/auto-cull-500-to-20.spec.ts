@@ -81,7 +81,7 @@ test('500 photos, target 20: initial Auto Cull, Auto Edit and keeper export hand
   await page.getByRole('tab', { name: 'Auto' }).click();
   // Editing stays focused on improving the image, not metadata entry.
   // The on-device analysis shows "Analysing…" in place of this button until it finishes, which is slower under load.
-  await expect(page.getByRole('button', { name: 'Suggest a look' })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole('button', { name: 'Auto', exact: true })).toBeVisible({ timeout: 60_000 });
   const looks = page.getByRole('region', { name: 'Photo recipes' });
   await expect(looks).toBeVisible();
   await expect(looks.getByRole('button', { name: 'Mono natural' })).toBeVisible();
