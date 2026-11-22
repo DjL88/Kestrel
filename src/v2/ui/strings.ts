@@ -278,6 +278,9 @@ export const STRINGS = {
   enhance: {
     heading: 'Enhance',
     denoiseHeading: 'Noise Reduction',
+    denoiseNow: 'Denoise this photo',
+    denoiseCloudNote: 'When you are signed in and online, pressing this sends a working-size copy (never the original) to InFlight cloud for this one job, and checks the result on this device. If the cloud is unavailable it runs here.',
+    denoiseDeviceNote: 'Runs on this device. Cloud processing is part of Pro.',
     rawAiDenoise: 'RAW Deep Denoise',
     luminanceDenoise: 'Luminance denoise',
     colourDenoise: 'Colour noise',
@@ -415,6 +418,7 @@ export const STRINGS = {
       storage: 'Storage',
       keyboard: 'Keyboard',
       language: 'Language',
+      privacy: 'Privacy',
     },
     appearance: {
       themeLabel: 'Interface theme',

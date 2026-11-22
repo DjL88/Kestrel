@@ -38,7 +38,8 @@ export type SettingsTabId =
   | 'aiProviders'
   | 'storage'
   | 'keyboard'
-  | 'language';
+  | 'language'
+  | 'privacy';
 
 export type FeatureKey =
   | 'watermarkCustom'
@@ -275,6 +276,8 @@ export interface Project {
   flaggedCount: number;
   localCopyStatus: 'synced' | 'offline-ready' | 'pending';
   folderPath: string;
+  /** Hidden from the main list but kept; restore brings it back. */
+  archived?: boolean;
 }
 
 export interface TaskInfo {
@@ -418,6 +421,12 @@ export interface WorkspaceActions {
   openProject: (projectId: string) => void;
   backToProjects: () => void;
   createProject: (name: string) => void;
+  /** Pick a folder (on this device, an external drive or a synced cloud folder) and make a project of its photos. */
+  createProjectFromFolder: () => void;
+  renameProject: (projectId: string, name: string) => void;
+  archiveProject: (projectId: string, archived: boolean) => void;
+  /** Removes InFlight's catalogue entry and its stored copies. Original files are never touched. */
+  deleteProject: (projectId: string) => void;
   setHubState: (state: HubViewState) => void;
 
   // Photos, Culling & Selection
@@ -444,6 +453,8 @@ export interface WorkspaceActions {
 
   // Editing & Looks
   updateRecipe: (photoId: string, patch: Partial<EditRecipe>, label?: string) => void;
+  /** Denoise this photo now. Signed in with the cloud feature on, the press is the consent to upload a working-size copy for this job; the device is the fallback. */
+  denoisePhoto: (photoId: string) => void;
   applyLook: (photoId: string, lookId: string) => void;
   setHoveredLook: (lookId: string | null) => void;
   resetPhotoEdits: (photoId: string) => void;
@@ -526,6 +537,8 @@ export interface WorkspaceActions {
   // Settings
   setSettingsOpen: (open: boolean, tab?: SettingsTabId) => void;
   setSettingsTab: (tab: SettingsTabId) => void;
+  /** Removes the catalogue, previews and saved choices on this device, then restarts. Originals are never touched. */
+  eraseDeviceData: () => void;
   updateSettings: (patch: Partial<WorkspaceSettings>) => void;
   signInStub: (provider: 'google' | 'apple' | 'email', email?: string) => void;
   signOutStub: () => void;

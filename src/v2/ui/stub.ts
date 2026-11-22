@@ -786,6 +786,24 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    createProjectFromFolder: () => { logAction('createProjectFromFolder', {}); },
+    renameProject: (id, name) => {
+      const clean = name.trim();
+      if (!clean) return;
+      logAction('renameProject', { id, name: clean });
+      setStore((prev) => ({ ...prev, projects: prev.projects.map((p) => (p.id === id ? { ...p, name: clean } : p)) }));
+    },
+    archiveProject: (id, archived) => {
+      logAction('archiveProject', { id, archived });
+      setStore((prev) => ({ ...prev, projects: prev.projects.map((p) => (p.id === id ? { ...p, archived } : p)) }));
+    },
+    deleteProject: (id) => {
+      logAction('deleteProject', { id });
+      setStore((prev) => ({ ...prev, projects: prev.projects.filter((p) => p.id !== id) }));
+    },
+
+    eraseDeviceData: () => { logAction('eraseDeviceData', {}); setStore((prev) => ({ ...prev, lastActionNotice: 'Sample data: nothing was erased.' })); },
+
     setHubState: (hubState) => {
       logAction('setHubState', { hubState });
       setStore((prev) => ({ ...prev, hubState }));
@@ -1080,6 +1098,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    denoisePhoto: (photoId) => { logAction('denoisePhoto', { photoId }); },
     updateRecipe: (photoId, patch) => {
       setStore((prev) => {
         const photo = prev.photos.find((p) => p.id === photoId);

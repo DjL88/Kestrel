@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { PanelId } from './contract';
 import { useWorkspace } from './stub';
 import { STRINGS } from './strings';
@@ -45,6 +45,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const hasOverlays = store.features.overlayText || store.features.watermarkCustom;
   const [shortcutGuideOpen, setShortcutGuideOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const sheetDragY = useRef<number | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
@@ -206,6 +207,8 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
             photo={activePhoto}
             calmView={store.settings.calmView}
             onUpdateRecipe={actions.updateRecipe}
+            onDenoise={actions.denoisePhoto}
+            cloudEnabled={store.features.cloudAssist}
           />
         );
       case 'overlays':
@@ -286,6 +289,10 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
           theme={store.settings.theme}
           onOpenProject={actions.openProject}
           onCreateProject={actions.createProject}
+          onCreateFromFolder={actions.createProjectFromFolder}
+          onRenameProject={actions.renameProject}
+          onArchiveProject={actions.archiveProject}
+          onDeleteProject={actions.deleteProject}
           onOpenSettings={() => actions.setSettingsOpen(true, 'appearance')}
           onToggleTheme={() =>
             actions.updateSettings({ theme: store.settings.theme === 'dark' ? 'light' : 'dark' })
@@ -569,7 +576,17 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
           {/* Mobile Drawer when a tool tab is selected on small portrait screens */}
           {isMobile && store.activePanel && (
             <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex max-h-[44dvh] flex-col rounded-t-[var(--radius-xl)] border-t border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]">
-              <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-2.5">
+              <div
+                data-testid="mobile-sheet-handle"
+                style={{ touchAction: 'none' }}
+                onPointerDown={(e) => { sheetDragY.current = e.clientY; e.currentTarget.setPointerCapture?.(e.pointerId); }}
+                onPointerUp={(e) => {
+                  if (sheetDragY.current !== null && e.clientY - sheetDragY.current > 60) actions.setActivePanel(null);
+                  sheetDragY.current = null;
+                }}
+                onPointerCancel={() => { sheetDragY.current = null; }}
+                className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-2.5"
+              >
                 <h2 className="text-xs font-semibold text-[var(--text-primary)]">
                   {PANEL_TITLES[store.activePanel]}
                 </h2>
@@ -618,6 +635,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         onSignOutStub={actions.signOutStub}
         onToggleAiProvider={actions.toggleAiProvider}
         onToggleStorageConnector={actions.toggleStorageConnector}
+        onEraseDeviceData={actions.eraseDeviceData}
       />
 
       {shortcutGuideOpen && store.screen === 'editor' && (

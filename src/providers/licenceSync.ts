@@ -37,7 +37,14 @@ interface StoredGrant { envelope: unknown; activationId: string; licenceKeyHash:
 
 export class LicenceSync {
   private accountCheck = 0;
+  /** The control-plane session from the last sign-in. Kept in memory only (never stored), so it ends with the app or sign-out. */
+  private session: string | null = null;
   constructor(private readonly o: LicenceSyncOptions) {}
+
+  /** The address and in-memory session for account-only services such as cloud processing, or null when signed out or not set up. */
+  accountConnection(): { baseUrl: string; session: string } | null {
+    return this.o.baseUrl && this.session ? { baseUrl: this.o.baseUrl, session: this.session } : null;
+  }
 
   get configured(): boolean { return this.o.baseUrl !== null && Object.keys(this.o.grantKeys).length > 0; }
 
@@ -164,6 +171,7 @@ export class LicenceSync {
     try {
       const session = await this.post('/v1/auth/firebase', { credential: idToken });
       if (checkId !== this.accountCheck || session.status !== 200 || typeof session.json?.accessToken !== 'string') return null;
+      this.session = session.json.accessToken;
       const reply = await this.post('/v1/me/activate', { deviceHash: await this.deviceHash(), platform: this.o.platform, appVersion: this.o.appVersion }, session.json.accessToken);
       if (checkId !== this.accountCheck) return null;
       const code = reply.json?.error?.code as string | undefined;
@@ -182,6 +190,7 @@ export class LicenceSync {
   /** Signing out forgets the account grant on this device. (The slot is freed from the key or the admin console.) */
   forgetAccount(): void {
     ++this.accountCheck;
+    this.session = null;
     this.write(ACCOUNT_GRANT, null);
   }
 

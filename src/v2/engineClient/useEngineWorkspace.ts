@@ -5,9 +5,10 @@ import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits
 import { sameRecipe } from '../../core/naturalAuto';
 import { newId } from '../../core/ids';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
-import { appendProjectPhotos, applyImportBursts, createEmptyProject } from '../../core/projects';
+import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
+import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
 import { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { scanForCulling } from '../../providers/browserAutoCull';
@@ -35,6 +36,8 @@ import { readCrops } from './cropOps';
 import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
 import { frameToPhoto, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
+import { runV2Denoise } from './runDenoise';
+import { accountConnection } from '../../providers/licenceStore';
 import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, toggleMask } from './maskOps';
@@ -200,7 +203,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setHubState('loading');
     try {
       const store = catalogue.current!;
-      const shoots = (await store.listProjects()).filter((shoot: ShootDescriptor) => !shoot.archivedAt && !shoot.inbox);
+      const shoots = (await store.listProjects()).filter((shoot: ShootDescriptor) => !shoot.inbox);
       const loaded = await Promise.all(shoots.map(async (shoot) => shootToProject(shoot, (await store.loadProject(shoot.id))?.frames ?? [])));
       setProjects(loaded);
       setHubState(loaded.length ? 'ready' : 'empty');
@@ -505,6 +508,23 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const editMasks = useCallback((photoId: string, change: (masks: ReturnType<typeof removeMask>) => ReturnType<typeof removeMask>) =>
     editFrames([photoId], (frame) => ({ ...(frame.edit ?? DEFAULT_EDIT), masks: change(frame.edit?.masks ?? []) })), [editFrames]);
 
+  // The person pressed "Denoise this photo". Signed in, online and with the cloud feature on, that press is the consent to
+  // upload a working-size copy for this one job; otherwise, or if the cloud fails or does not verify, it runs on this device.
+  const denoiseInFlight = useRef(new Set<string>());
+  const denoisePhoto = useCallback((photoId: string) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!frame || denoiseInFlight.current.has(photoId)) return;
+    denoiseInFlight.current.add(photoId);
+    const connection = can('cloudAssist') ? accountConnection() : null;
+    const task = tasks.start(connection ? 'Denoising (cloud, with this device as backup)' : 'Denoising on this device');
+    runV2Denoise(frame, provider.current!, connection ? { connection, online: navigator.onLine !== false } : null).then((outcome) => {
+      if (!outcome) { task.finish('Could not denoise this photo.'); return; }
+      if (outcome.verified) editFrames([photoId], (current) => ({ ...(current.edit ?? DEFAULT_EDIT), denoise: outcome.strength }));
+      task.finish(outcome.verified ? outcome.notes[0] : outcome.notes.join(' '));
+      setNotice(outcome.verified ? outcome.notes[0] : `Left as it was. ${outcome.notes.join(' ')}`);
+    }, () => task.fail('Denoise failed.')).finally(() => denoiseInFlight.current.delete(photoId));
+  }, [can, editFrames]);
+
   const applyAuto = useCallback((frameId: string) => {
     const assist = assists[frameId];
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === frameId);
@@ -622,6 +642,51 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const created = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
       void catalogue.current!.saveProject(created).then(() => enterProject(created), () => setNotice('InFlight could not create the project.'));
     },
+    eraseDeviceData: () => {
+      void (async () => {
+        const result = await eraseDeviceData({
+          clearCatalogue: () => catalogue.current!.clearAll(),
+          storages: [window.localStorage, window.sessionStorage],
+        });
+        if (result.problems.length) { setNotice(`Some data could not be erased: ${result.problems.join(' ')}`); return; }
+        window.location.reload();
+      })().catch(() => setNotice('InFlight could not erase this device. Nothing else was changed.'));
+    },
+    createProjectFromFolder: () => {
+      void pickFolderFiles().then(async (files) => {
+        if (!files?.length) return;
+        const folder = (files[0] as File & { webkitRelativePath?: string }).webkitRelativePath?.split('/')[0];
+        const created = createEmptyProject(`project-${newId()}`, folder?.trim() || 'Untitled project');
+        try { await catalogue.current!.saveProject(created); } catch { setNotice('InFlight could not create the project.'); return; }
+        enterProject(created);
+        // The editor state lands on the next render; wait for it before adding the photos.
+        for (let wait = 0; wait < 40 && stateRef.current?.shoot.id !== created.shoot.id; wait += 1) await new Promise((resolve) => setTimeout(resolve, 50));
+        void importPhotos(files);
+      });
+    },
+    renameProject: (id, name) => {
+      const clean = name.trim();
+      if (!clean) return;
+      void (async () => {
+        const store = catalogue.current!;
+        const found = await store.loadProject(id);
+        if (!found) { setNotice('That project could not be found.'); return; }
+        await store.saveProject({ ...found, shoot: { ...found.shoot, title: clean } });
+        await loadHub();
+      })().catch(() => setNotice('InFlight could not rename the project.'));
+    },
+    archiveProject: (id, archived) => {
+      void (async () => {
+        const store = catalogue.current!;
+        const found = await store.loadProject(id);
+        if (!found) { setNotice('That project could not be found.'); return; }
+        await store.saveProject(setArchived(found, archived ? Date.now() : undefined));
+        await loadHub();
+      })().catch(() => setNotice('InFlight could not update the project.'));
+    },
+    deleteProject: (id) => {
+      void catalogue.current!.deleteProject(id).then(() => loadHub(), () => setNotice('InFlight could not delete the project. Your original photos are unchanged.'));
+    },
     backToProjects: () => { void backToProjects(); },
     setHubState: (next) => setHubState(next),
     selectPhoto: (id, modifiers) => {
@@ -736,6 +801,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     listDeviceFonts: () => listDeviceFonts(),
     hasDeviceFont: (fontName) => hasDeviceFont(fontName),
     updateRecipe: (photoId, patch) => applyPatch(editTargets(photoId), patch),
+    denoisePhoto,
     applyLook: (photoId, lookId) => {
       const look = stub.store.looks.find((entry) => entry.id === lookId);
       if (look) applyPatch(editTargets(photoId), look.recipeDelta);

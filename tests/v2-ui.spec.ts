@@ -611,3 +611,47 @@ test('?v2 masks are real: Subject is found on this device, its sliders change th
   await expect(root.getByRole('button', { name: /Hide Subject|Show Subject/ })).toHaveCount(0);
   await expect.poll(() => luma(0.5, 0.5), { timeout: 20000 }).toBeGreaterThan(subject0 - 20);
 });
+
+test('?v2 Settings storage uses the shared connections (NAS, cloud drives and their logos)', async ({ page }) => {
+  await page.goto('/?v2&stub=1');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: /Scottish Highlands/ }).first().click();
+  await root.getByTestId('mode-flag').click();
+  await root.getByRole('tab', { name: /Storage/ }).or(root.getByRole('button', { name: /^Storage/ })).first().click();
+  await expect(root.getByText('Where your work lives')).toBeVisible();
+  await root.getByRole('button', { name: 'Add a place' }).click();
+  const kinds = root.getByRole('radiogroup', { name: 'Kind of place' });
+  for (const name of ['Synology', 'QNAP', 'Nextcloud', 'Backblaze B2', 'Cloudflare R2']) await expect(kinds.getByText(name, { exact: true })).toBeVisible();
+  await expect(kinds.getByText(/Dropbox/).first()).toBeVisible();
+  // Dropbox and Google Drive draw their marks (an svg), next to their written names.
+  expect(await kinds.locator('svg').count()).toBeGreaterThan(3);
+  // OneDrive shows Microsoft's own logo as a picture, not a plain cloud.
+  await expect(kinds.locator('img').first()).toBeVisible();
+  expect(await kinds.locator('img').first().evaluate((img: HTMLImageElement) => img.naturalWidth > 0)).toBe(true);
+  await kinds.getByText(/NAS or server over WebDAV/).click();
+  await expect(root.getByRole('button', { name: /Test|Connect|Save/ }).first()).toBeVisible();
+});
+
+test('?v2 Denoise runs on this device when not signed in and says so', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Denoise check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const image = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 320; canvas.height = 220;
+    const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#586b82'; ctx.fillRect(0, 0, 320, 220);
+    const data = ctx.getImageData(0, 0, 320, 220);
+    let seed = 3; for (let i = 0; i < data.data.length; i += 4) { for (let c = 0; c < 3; c += 1) { seed = (seed * 1103515245 + 12345) & 0x7fffffff; data.data[i + c] = Math.max(0, Math.min(255, data.data[i + c] + ((seed >> 8) % 41) - 20)); } }
+    ctx.putImageData(data, 0, 0);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'noisy-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  await expect(root.getByTestId('canvas-frame').locator('canvas, img').first()).toBeVisible({ timeout: 30000 });
+  await root.getByRole('button', { name: 'Enhance', exact: true }).first().click();
+  await root.getByRole('button', { name: 'Denoise this photo' }).click();
+  await expect(root.getByText(/Denoised on this device|Left as it was/).first()).toBeVisible({ timeout: 30000 });
+});

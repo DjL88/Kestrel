@@ -105,6 +105,9 @@ export default function AdjustPanel({
   onResetPhoto,
 }: AdjustPanelProps) {
   const [activeTab, setActiveTab] = React.useState<'looks' | 'advanced'>('looks');
+  const [pendingLookId, setPendingLookId] = React.useState<string | null>(null);
+  const [pendingPhotoId, setPendingPhotoId] = React.useState<string | null>(null);
+  const selectedLookId = pendingPhotoId === photo?.id ? pendingLookId : null;
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to adjust tone and colour.</p>;
   }
@@ -130,7 +133,7 @@ export default function AdjustPanel({
         </button>
         <button type="button" role="tab" id="adjust-advanced-tab" aria-selected={activeTab === 'advanced'}
           aria-controls="adjust-advanced-panel" tabIndex={activeTab === 'advanced' ? 0 : -1}
-          onClick={() => { onHoverLook(null); setActiveTab('advanced'); }}
+          onClick={() => { onHoverLook(null); setPendingLookId(null); setActiveTab('advanced'); }}
           onKeyDown={(e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); onHoverLook(null); setActiveTab('looks'); e.currentTarget.parentElement?.querySelector<HTMLButtonElement>('#adjust-looks-tab')?.focus(); } }}
           className={`rounded-[var(--radius-sm)] px-2 py-2 text-xs font-medium ${activeTab === 'advanced' ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
           Advanced Edits
@@ -153,6 +156,7 @@ export default function AdjustPanel({
         >
           {looks.map((look) => {
             const active = recipe.lookId === look.id;
+            const pending = selectedLookId === look.id;
             return (
               <button
                 key={look.id}
@@ -161,9 +165,10 @@ export default function AdjustPanel({
                 onMouseEnter={() => onHoverLook(look.id)}
                 onFocus={() => onHoverLook(look.id)}
                 onBlur={() => onHoverLook(null)}
-                onClick={() => onApplyLook(photo.id, look.id)}
+                aria-pressed={selectedLookId === look.id}
+                onClick={() => { setPendingPhotoId(photo.id); setPendingLookId(look.id); onHoverLook(look.id); }}
                 className={`group flex flex-col overflow-hidden rounded-[var(--radius-sm)] border text-left transition-colors ${
-                  active
+                  active || pending
                     ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]'
                     : 'border-[var(--border-subtle)] bg-[var(--bg-input)] hover:border-[var(--border-default)]'
                 }`}
@@ -182,12 +187,19 @@ export default function AdjustPanel({
                     active ? 'text-[var(--brand-accent)]' : 'text-[var(--text-secondary)]'
                   }`}
                 >
-                  {look.name}
+                  {look.name}{pending ? ' · Preview selected' : active ? ' · Applied' : ''}
                 </span>
               </button>
             );
           })}
         </div>
+        {selectedLookId && looks.some((look) => look.id === selectedLookId) && (
+          <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] p-2" role="group" aria-label="Look preview actions">
+            <span className="min-w-0 flex-1 text-xs text-[var(--text-secondary)]">Preview only — no changes saved yet.</span>
+            <button type="button" className="rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 py-2 text-xs" onClick={() => { setPendingLookId(null); onHoverLook(null); }}>Cancel</button>
+            <button type="button" className="rounded-[var(--radius-sm)] bg-[var(--brand-accent)] px-3 py-2 text-xs font-semibold text-[var(--bg-canvas)]" onClick={() => { onApplyLook(photo.id, selectedLookId); setPendingLookId(null); onHoverLook(null); }}>Apply Look</button>
+          </div>
+        )}
       </section>
 
       </div>
