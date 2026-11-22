@@ -23,6 +23,9 @@ import TasksPanel from './panels/TasksPanel';
 import ExportDialog from './dialogs/ExportDialog';
 import SettingsDialog from './dialogs/SettingsDialog';
 import ShortcutGuide from './dialogs/ShortcutGuide';
+import { effectiveKeymap, loadKeymap, resolveCommand } from './commands/keymap';
+
+const IS_MAC = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
 
 const PANEL_TITLES: Record<PanelId, string> = {
   copilot: STRINGS.copilot.heading,
@@ -44,6 +47,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
   const { setActivePanel } = actions;
   const hasOverlays = store.features.overlayText || store.features.watermarkCustom;
   const [shortcutGuideOpen, setShortcutGuideOpen] = useState(false);
+  const keymap = React.useMemo(() => { const saved = loadKeymap(); return effectiveKeymap(saved.preset, saved.overrides); }, []);
   const [moreOpen, setMoreOpen] = useState(false);
   const sheetDragY = useRef<number | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
@@ -81,58 +85,40 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      const inInput =
+      const inField =
         target?.tagName === 'INPUT' ||
         target?.tagName === 'TEXTAREA' ||
         target?.tagName === 'SELECT' ||
-        target?.isContentEditable;
-
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a' && !inInput) {
-        e.preventDefault();
-        actions.selectAllPhotos();
-        return;
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !inInput) {
-        e.preventDefault();
-        if (e.shiftKey) actions.redo();
-        else actions.undo();
-        return;
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') {
-        e.preventDefault();
-        actions.setExportOpen(true);
-        return;
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
-        e.preventDefault();
-        actions.setSettingsOpen(true);
-        return;
-      }
-      if (inInput) return;
-      if (e.key === '?' && !e.altKey && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        setShortcutGuideOpen((open) => !open);
-        return;
-      }
-      if (shortcutGuideOpen) return;
-
-      if (e.key.toLowerCase() === 'f' && activePhoto) {
-        actions.toggleFlag(store.selectedPhotoIds.length > 0 ? store.selectedPhotoIds : [activePhoto.id]);
-      } else if (e.key.toLowerCase() === 'g') {
-        actions.setGridViewOpen(!store.gridViewOpen);
-      } else if (e.key === '\\') {
-        actions.setCompareMode(!store.compareMode);
-      } else if (['1', '2', '3', '4', '5'].includes(e.key) && activePhoto) {
-        actions.setRating(
-          store.selectedPhotoIds.length > 0 ? store.selectedPhotoIds : [activePhoto.id],
-          Number(e.key)
-        );
+        Boolean(target?.isContentEditable);
+      const command = resolveCommand({ event: e, keymap, isMac: IS_MAC, inField });
+      if (!command) return;
+      // While the guide is open only it, Export, Settings and Edit commands act; photo and view keys wait.
+      if (shortcutGuideOpen && (command.group === 'photos' || command.group === 'view')) return;
+      const ids = store.selectedPhotoIds.length > 0 ? store.selectedPhotoIds : activePhoto ? [activePhoto.id] : [];
+      e.preventDefault();
+      switch (command.id) {
+        case 'help.toggle': setShortcutGuideOpen((open) => !open); break;
+        case 'photo.flag': if (ids.length) actions.toggleFlag(ids); break;
+        case 'photo.rate0': case 'photo.rate1': case 'photo.rate2':
+        case 'photo.rate3': case 'photo.rate4': case 'photo.rate5':
+          if (ids.length) actions.setRating(ids, Number(command.id.slice(-1)));
+          break;
+        case 'view.grid': actions.setGridViewOpen(!store.gridViewOpen); break;
+        case 'view.compare': actions.setCompareMode(!store.compareMode); break;
+        case 'view.fullscreen': actions.toggleFullScreen(); break;
+        case 'edit.undo': actions.undo(); break;
+        case 'edit.redo': actions.redo(); break;
+        case 'edit.copy': actions.copyRecipe(); break;
+        case 'edit.paste': actions.pasteRecipe(); break;
+        case 'edit.selectAll': actions.selectAllPhotos(); break;
+        case 'file.export': actions.setExportOpen(true); break;
+        case 'app.settings': actions.setSettingsOpen(true); break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [store.screen, store.selectedPhotoIds, store.gridViewOpen, store.compareMode, activePhoto, actions, shortcutGuideOpen]);
+  }, [store.screen, store.selectedPhotoIds, store.gridViewOpen, store.compareMode, activePhoto, actions, shortcutGuideOpen, keymap]);
 
   const renderPanelContent = (panelId: PanelId) => {
     switch (panelId) {
@@ -639,7 +625,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
       />
 
       {shortcutGuideOpen && store.screen === 'editor' && (
-        <ShortcutGuide onClose={() => setShortcutGuideOpen(false)} />
+        <ShortcutGuide keymap={keymap} isMac={IS_MAC} onClose={() => setShortcutGuideOpen(false)} />
       )}
 
       {/* Quiet non-intrusive action confirmation toast */}

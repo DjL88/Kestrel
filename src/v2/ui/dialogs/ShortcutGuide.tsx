@@ -1,11 +1,15 @@
 import React, { useEffect, useRef } from 'react';
+import { COMMANDS, COMMAND_GROUP_LABELS, type CommandGroup } from '../commands/registry';
+import { chordLabel, type Keymap } from '../commands/keymap';
 
 interface ShortcutGuideProps {
+  keymap: Keymap;
+  isMac: boolean;
   onClose: () => void;
 }
 
 /** V2 keyboard guide; mounted only when requested and never intercepts typing in a field. */
-export default function ShortcutGuide({ onClose }: ShortcutGuideProps) {
+export default function ShortcutGuide({ keymap, isMac, onClose }: ShortcutGuideProps) {
   const closeButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -36,25 +40,22 @@ export default function ShortcutGuide({ onClose }: ShortcutGuideProps) {
           <button ref={closeButton} type="button" onClick={onClose} aria-label="Close keyboard shortcuts"
             className="min-h-10 rounded-[var(--radius-sm)] border border-[var(--border-default)] px-3 text-sm">Close</button>
         </div>
-        <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-3 text-sm">
-          {([
-            ['Show or hide this guide', '?'],
-            ['Flag or unflag selected photos', 'F'],
-            ['Rate selected photos', '1–5'],
-            ['All photos / grid view', 'G'],
-            ['Compare original and edit', '\\'],
-            ['Select all photos', 'Ctrl/Cmd + A'],
-            ['Undo / redo', 'Ctrl/Cmd + Z / Shift + Z'],
-            ['Export', 'Ctrl/Cmd + E'],
-            ['Settings', 'Ctrl/Cmd + ,'],
-            ['Close this guide', 'Esc'],
-          ] as const).map(([label, key]) => (
-            <React.Fragment key={label}>
-              <dt className="text-[var(--text-secondary)]">{label}</dt>
-              <dd className="text-right font-medium">{key}</dd>
-            </React.Fragment>
+        <div className="max-h-[60vh] space-y-4 overflow-y-auto text-sm">
+          {(['photos', 'view', 'edit', 'app'] as CommandGroup[]).map((group) => (
+            <section key={group} aria-labelledby={`v2-shortcut-${group}`}>
+              <h3 id={`v2-shortcut-${group}`} className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{COMMAND_GROUP_LABELS[group]}</h3>
+              <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2">
+                {COMMANDS.filter((command) => command.group === group).map((command) => (
+                  <React.Fragment key={command.id}>
+                    <dt className="text-[var(--text-secondary)]">{command.label}</dt>
+                    <dd className="text-right font-medium">{chordLabel(keymap[command.id], isMac)}</dd>
+                  </React.Fragment>
+                ))}
+              </dl>
+            </section>
           ))}
-        </dl>
+          <p className="text-[var(--text-secondary)]">Close this guide: Esc</p>
+        </div>
       </section>
     </div>
   );
