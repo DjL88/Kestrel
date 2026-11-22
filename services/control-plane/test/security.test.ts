@@ -180,7 +180,7 @@ test('10. an expired session never revokes Free editing or a valid offline grant
 test('11. a model download that does not match the signed manifest is rejected and the old weights stay', async () => {
   const good = Buffer.from('pretend onnx weights v2');
   const sha256 = crypto.createHash('sha256').update(good).digest('hex');
-  const register = await h.call('POST', '/v1/admin/models', { token: h.adminToken, body: { id: 'species-model', kind: 'onnx', version: '2026.11.2', path: '/data/models/bioclip-v2.onnx', sha256, bytes: good.length } });
+  const register = await h.call('POST', '/v1/admin/models', { token: h.adminToken, body: { id: 'species-model', kind: 'onnx', version: '2026.11.2', path: '/data/models/bioclip-v2.onnx', sha256, bytes: good.length, contract: 'bioclip/v1', licence: { spdx: 'MIT', sourceUrl: 'https://example.org/bioclip', rightsConfirmed: true } } });
   assert.equal(register.status, 200);
   assert.equal((await h.call('POST', '/v1/admin/models/promote', { token: h.adminToken, body: { id: 'species-model', version: '2026.11.2' } })).status, 200);
 
