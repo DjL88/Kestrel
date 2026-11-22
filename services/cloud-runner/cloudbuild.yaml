@@ -1,0 +1,8 @@
+# Builds the runner image in Google Cloud. NOT RUN by the author. Run from the repository root:
+#   gcloud builds submit --config services/cloud-runner/cloudbuild.yaml --substitutions _IMAGE=europe-west2-docker.pkg.dev/<project>/kestrel/cloud-runner:<git sha> .
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "services/cloud-runner/Dockerfile", "-t", "${_IMAGE}", "."]
+images: ["${_IMAGE}"]
+options:
+  logging: CLOUD_LOGGING_ONLY

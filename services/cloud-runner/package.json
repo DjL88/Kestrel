@@ -1,0 +1,10 @@
+{
+  "name": "@kestrel/cloud-runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloud Run job that processes one cloud job (denoise or mask) from the private bucket.",
+  "scripts": { "start": "node --import tsx src/main.ts" },
+  "dependencies": { "@google-cloud/storage": "^9.0.0" },
+  "devDependencies": { "tsx": "^4.19.0" }
+}
