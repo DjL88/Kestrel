@@ -1,6 +1,6 @@
 # InFlight Version 2: one workspace
 
-**Status (22 Nov 2026): DESIGNED, owner approved the direction. Nothing here is built.** Source of the design: the owner-approved visual proposal and the owner's AI Studio prototype (`inflight.zip`, kept outside the repo). The prototype shows the intended look, layout and panels. It has its own render engine and its own cloud-sync server; V2 uses neither. V2 is built on this app's existing pipeline (RAW develop, recipes, catalogue, control plane).
+**Status (22 Nov 2026): DESIGNED, owner approved the direction and answered the first five questions (section 11). Nothing here is built.** Source of the design: the owner-approved visual proposal and the owner's AI Studio prototype (`inflight.zip`, kept outside the repo). The prototype shows the intended look, layout and panels. It has its own render engine and its own cloud-sync server; V2 uses neither. V2 is built on this app's existing pipeline (RAW develop, recipes, catalogue, control plane).
 
 ## 1. What V2 replaces
 
@@ -84,10 +84,56 @@ The prototype's mobile layout needs refinement before it is copied. V2 phone lay
 
 Each slice lands wired into the app, with unit and browser tests, reported as PASS, FAIL or NOT RUN.
 
-## 11. Open questions for the owner
+## 11. Owner decisions (22 Nov 2026)
 
-1. Old rejects and camera rejects: show as unflagged with a "Set aside" filter (recommended), or drop them?
-2. Optional safe copy for projects on removable drives: off by default (recommended) or on?
-3. Zoom video: WebM everywhere plus MP4 where the browser allows (recommended), or also bundle an H.264 encoder in the desktop app (licence cost)?
-4. Pro: one-off licence (what the website says) or subscription?
-5. Ship cloud processing at all, or keep to on-device plus Tier A?
+1. **Old rejects and camera rejects:** appear unflagged and stay findable under "Set aside" in the filter. No data is dropped or migrated.
+2. **Optional safe copy for removable drives:** off by default (recommended option accepted).
+3. **Zoom video:** cost-free encoders only. WebM everywhere, **MP4 as the preferred output** wherever the platform provides an H.264 encoder through WebCodecs. No paid H.264 licence and no bundled encoder. Which platforms offer MP4 is **NOT VERIFIED** until tested on the Mac and Windows webviews.
+4. **Pro: build for both a one-off licence and a subscription.** Which one is offered is a backend decision that changes a flag (section 12), not an app release. The existing policy text in `commercialAccess.ts` says "Basic and lifetime Pro only" and never to issue subscriber licences; that policy must be updated deliberately in the same slice that builds this.
+5. **Cloud processing is on the roadmap** (slice 6, measurement first, no spend without approval).
+
+## 12. Feature flags, plans and trials
+
+**Direction (owner, 22 Nov 2026):** every feature sits behind a flag whose source of truth is Firestore. Flags differ per user and non-user, and per plan: **Basic, Pro, Trial, Custom** and later **Enterprise**. New releases can ship as a trial. When the app syncs online, flags update.
+
+### 12.1 What exists today
+- `src/core/features.ts`: one in-code table of every feature, marked `free` or `paid`, read through `featureAvailable()`. The interface never checks a plan itself.
+- `src/core/commercialAccess.ts`: turns a verified licence into UI capabilities. It states that these are never proof of entitlement and that cloud APIs must enforce server-side.
+- `src/core/entitlementGrant.ts`: a signed, offline-verifiable grant from the control plane carrying plan, managed AI and expiry.
+- Control plane: Firestore `licences`, `settings` (for example the AI kill switch), `audit_log`, and an admin console. Server-side checks already guard managed AI (entitlement, consent, per-account quota).
+
+### 12.2 Design
+- **Source of truth:** Firestore `feature_flags/{key}`. Each flag has a default and optional rules: by plan, an allow list and a deny list of accounts or organisations, a rollout percentage, a start and end time (a trial window), a minimum app version, and a kill switch.
+- **Precedence:** kill switch, then deny list, then allow list, then trial window or percentage, then plan, then default.
+- **Delivery to the app:** the control plane evaluates the flags for the account and signs the result into the existing entitlement grant (a new `flags` field, schema 2) with the same offline-until expiry. The app reads flags only from the last verified grant, so every feature keeps working offline. Updates arrive on the existing check cadence (at start, when the device comes online, and about every six hours).
+- **Non-users (no account):** a small **signed public flags document**, fetched at most daily like the model manifest. It carries no identifier. A rollout percentage for a non-user is decided by a random bucket kept only on the device and never sent, so non-users can be targeted by plan and percentage but not individually.
+- **Fail safe:** with no verified flags the app uses compiled defaults, which equal today's `FEATURES` table. Flags that are tampered with or unsigned are ignored.
+- **Server enforcement:** any flag that guards a server cost or a paid service (managed Gemini, cloud processing) is enforced by the control plane on every request. The app reading a flag is for the interface only.
+- **Never gated, ever:** access to originals, export of your own work, local backup and recovery, basic editing, truthful full-size output, and everything already marked free in `features.ts`. A trial ending removes only the new feature, never data.
+- **Trials as releases:** a new feature ships dark, then is switched on for a cohort, a percentage or a time window. The interface marks it "Trial". When the window closes the feature turns off without touching anyone's photos or edits.
+- **Admin console:** a Flags page in `/admin` to switch a flag for one account, a plan, an organisation or everyone. Every change goes to the existing audit log.
+- **Enterprise (later):** an organisation record groups accounts and seats, with organisation-level overrides and a custom plan.
+- **Purchase model flag:** `pro.purchase.oneOff` and `pro.purchase.subscription` decide what the website and app offer. Entitlements for both are honoured, and the backend flips which is sold.
+- **Cost:** flags live in one cached, signed document per plan and a field in the grant, so there is no Firestore read per request.
+
+### 12.3 The watermark example, and a conflict that needs a decision
+Intended behaviour: Basic gets an InFlight watermark. A backend toggle opens custom watermarks (and removes ours) for one user, a plan or everyone. Flags: `overlay.watermark.inflight` (forced), `overlay.watermark.custom`, `overlay.text`.
+
+**Conflict:** the owner's programme charter ([OUTSTANDING-PROGRAMME-2026-11-21.md](OUTSTANDING-PROGRAMME-2026-11-21.md), hard constraint 3) says Free must never "inject watermarks" or degrade image quality, and `features.ts` currently lists `watermark` as free. A forced mark on Basic breaks that rule as written. Options:
+- **A (recommended):** the InFlight mark is applied only to share-size outputs (size copies, split frames, video) on Basic. Ordinary full-size export stays clean. Pro removes it and allows custom marks.
+- **B:** on by default on Basic but removable by the person with one switch.
+- **C:** change the charter, deliberately and in writing.
+
+**Decision (owner, 22 Nov 2026): option A.** The InFlight mark appears only on share-size outputs on Basic and Pro removes it. **A lock** (a flag `overlay.watermark.locked`, so a plan or organisation cannot remove the mark) is deliberately a **future decision**. It is designed in as a flag that is off by default, so adding it later needs no app change, only a backend switch and, if it touches Free outputs, a deliberate update to the charter.
+
+### 12.4 Build and tests
+- Slice 0 adds the flag evaluator (`src/core/featureFlags.ts`, pure) beside `features.ts`. Existing `featureAvailable` keeps working and reads the evaluator.
+- Control plane: flag store, evaluation, grant schema 2, admin routes, audit.
+- Unit tests: the precedence table, offline fallback to defaults, tampered grant ignored, trial window start and end, kill switch, never-gated features stay on.
+- Server tests: flagged-off managed AI is refused, trial ended is refused, the audit log records every change.
+- **NOT VERIFIED today:** all of the above. Nothing is built.
+
+## 13. Questions still with the owner
+6. Watermark on Basic: **decided, option A** (12.3). Whether to ever lock it is a later decision.
+7. Tier names and rules: today the product has Basic and Pro. Trial, Custom and Enterprise are new. How long is a Trial, and does Trial unlock everything Pro has?
+8. Should non-users ever see trial features, or only signed-in accounts?
