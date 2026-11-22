@@ -104,6 +104,7 @@ export default function AdjustPanel({
   onHoverLook,
   onResetPhoto,
 }: AdjustPanelProps) {
+  const [activeTab, setActiveTab] = React.useState<'looks' | 'advanced'>('looks');
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to adjust tone and colour.</p>;
   }
@@ -119,6 +120,23 @@ export default function AdjustPanel({
         </div>
       )}
 
+      <div role="tablist" aria-label="Adjust tools" className="grid grid-cols-2 gap-1 rounded-[var(--radius-sm)] bg-[var(--bg-input)] p-1">
+        <button type="button" role="tab" id="adjust-looks-tab" aria-selected={activeTab === 'looks'}
+          aria-controls="adjust-looks-panel" tabIndex={activeTab === 'looks' ? 0 : -1}
+          onClick={() => setActiveTab('looks')}
+          onKeyDown={(e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); setActiveTab('advanced'); e.currentTarget.parentElement?.querySelector<HTMLButtonElement>('#adjust-advanced-tab')?.focus(); } }}
+          className={`rounded-[var(--radius-sm)] px-2 py-2 text-xs font-medium ${activeTab === 'looks' ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
+          Curated Looks
+        </button>
+        <button type="button" role="tab" id="adjust-advanced-tab" aria-selected={activeTab === 'advanced'}
+          aria-controls="adjust-advanced-panel" tabIndex={activeTab === 'advanced' ? 0 : -1}
+          onClick={() => { onHoverLook(null); setActiveTab('advanced'); }}
+          onKeyDown={(e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); onHoverLook(null); setActiveTab('looks'); e.currentTarget.parentElement?.querySelector<HTMLButtonElement>('#adjust-looks-tab')?.focus(); } }}
+          className={`rounded-[var(--radius-sm)] px-2 py-2 text-xs font-medium ${activeTab === 'advanced' ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
+          Advanced Edits
+        </button>
+      </div>
+      <div role="tabpanel" id="adjust-looks-panel" aria-labelledby="adjust-looks-tab" hidden={activeTab !== 'looks'}>
       {/* Curated Looks (12 looks with live thumbnail preview + hover main photo preview + direct slider update on click) */}
       <section aria-labelledby="looks-heading" className="space-y-2">
         <div className="flex items-center justify-between">
@@ -172,6 +190,8 @@ export default function AdjustPanel({
         </div>
       </section>
 
+      </div>
+      <div role="tabpanel" id="adjust-advanced-panel" aria-labelledby="adjust-advanced-tab" hidden={activeTab !== 'advanced'}>
       {/* Light & Tone (Exposure up to ±5 stops + i hover lightboxes) */}
       <section aria-labelledby="light-tone-heading" className="space-y-3 border-t border-[var(--border-subtle)] pt-4">
         <div className="flex items-center justify-between">
@@ -325,6 +345,7 @@ export default function AdjustPanel({
           onChange={(v) => onUpdateRecipe(photo.id, { sharpen: v })}
         />
       </section>
+      </div>
     </div>
   );
 }
