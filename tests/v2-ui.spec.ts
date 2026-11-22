@@ -561,3 +561,53 @@ test('?v2 export draws the size copy as the canvas shows it: capped at the pictu
   expect(result.left[2]).toBeGreaterThan(result.left[0] + 80);
   expect(result.right[0]).toBeGreaterThan(result.right[2] + 80);
 });
+
+test('?v2 masks are real: Subject is found on this device, its sliders change the picture, hiding restores it, delete removes it', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Real mask check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  // A bright, sharp-edged shape on a plain dark background: the subject, and the background around it.
+  const image = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 480; canvas.height = 320;
+    const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#2a3340'; ctx.fillRect(0, 0, 480, 320);
+    const g = ctx.createRadialGradient(240, 160, 10, 240, 160, 90); g.addColorStop(0, '#f2d9a0'); g.addColorStop(1, '#b8863c');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(240, 160, 90, 70, 0, 0, Math.PI * 2); ctx.fill();
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'mask-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  await expect(root.getByTestId('canvas-frame').locator('canvas, img').first()).toBeVisible({ timeout: 30000 });
+  await root.getByRole('button', { name: 'Masks', exact: true }).first().click();
+  await root.getByRole('button', { name: /Detect subject/ }).click();
+  const layer = root.getByRole('button', { name: /Hide Subject/ });
+  await expect(layer).toBeVisible({ timeout: 60000 });
+  const frame = root.getByTestId('canvas-frame');
+  const luma = (x: number, y: number) => frame.locator('canvas, img').first().evaluate((el, [fx, fy]) => {
+    const source = el as HTMLCanvasElement | HTMLImageElement;
+    const w = source instanceof HTMLCanvasElement ? source.width : source.naturalWidth, h = source instanceof HTMLCanvasElement ? source.height : source.naturalHeight;
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const ctx = c.getContext('2d')!; ctx.drawImage(source, 0, 0);
+    const d = ctx.getImageData(Math.round(w * fx), Math.round(h * fy), 1, 1).data; return d[0] + d[1] + d[2];
+  }, [x, y]);
+  // A new mask changes nothing until a slider moves. Settle, then read the subject (middle) and the background (corner).
+  await page.waitForTimeout(1500);
+  const subject0 = await luma(0.5, 0.5), back0 = await luma(0.05, 0.05);
+  await root.getByRole('button', { name: /^Subject/ }).first().click();
+  const exposure = root.getByRole('slider', { name: 'Subject Exposure' });
+  await exposure.fill('-1.5');
+  await expect.poll(() => luma(0.5, 0.5), { timeout: 20000 }).toBeLessThan(subject0 - 60);
+  // The background is outside the mask: it is not darkened with the subject.
+  expect(Math.abs((await luma(0.05, 0.05)) - back0)).toBeLessThan(20);
+  // Hiding the mask restores the picture; showing it brings the edit back.
+  await root.getByRole('button', { name: 'Hide Subject' }).click();
+  await expect.poll(() => luma(0.5, 0.5), { timeout: 20000 }).toBeGreaterThan(subject0 - 20);
+  await root.getByRole('button', { name: 'Show Subject' }).click();
+  await expect.poll(() => luma(0.5, 0.5), { timeout: 20000 }).toBeLessThan(subject0 - 60);
+  // Deleting removes the layer and the edit.
+  await root.getByRole('button', { name: 'Delete Subject' }).click();
+  await expect(root.getByRole('button', { name: /Hide Subject|Show Subject/ })).toHaveCount(0);
+  await expect.poll(() => luma(0.5, 0.5), { timeout: 20000 }).toBeGreaterThan(subject0 - 20);
+});

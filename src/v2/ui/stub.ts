@@ -480,8 +480,8 @@ function createStubPhotos(): Photo[] {
         durationSec: 6,
       },
       masks: [
-        { id: `m-subj-${i}`, name: 'Subject (Auto)', type: 'subject', visible: true, feather: 18 },
-        { id: `m-sky-${i}`, name: 'Sky', type: 'sky', visible: false, feather: 24 },
+        { id: `m-subj-${i}`, name: 'Subject (Auto)', type: 'subject', visible: true, feather: 18, edit: {} },
+        { id: `m-sky-${i}`, name: 'Sky', type: 'sky', visible: false, feather: 24, edit: {} },
       ],
       assistCritique: {
         subjectNote: base.subjectNote,
@@ -1708,7 +1708,7 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
         ...photo,
         masks: [
           ...photo.masks,
-          { id: `mask-${Date.now()}`, name: names[type], type, visible: true, feather: 20 },
+          { id: `mask-${Date.now()}`, name: names[type], type, visible: true, feather: 20, edit: {} },
         ],
       }));
       showNotice(`Added ${names[type]} mask layer`);
@@ -1718,6 +1718,20 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       updatePhotoById(photoId, (photo) => ({
         ...photo,
         masks: photo.masks.map((m) => (m.id === maskId ? { ...m, visible: !m.visible } : m)),
+      }));
+    },
+
+    setMaskEdit: (photoId, maskId, key, value) => {
+      updatePhotoById(photoId, (photo) => ({
+        ...photo,
+        masks: photo.masks.map((m) => (m.id === maskId ? { ...m, edit: { ...m.edit, [key]: value } } : m)),
+      }));
+    },
+
+    setMaskFeather: (photoId, maskId, percent) => {
+      updatePhotoById(photoId, (photo) => ({
+        ...photo,
+        masks: photo.masks.map((m) => (m.id === maskId ? { ...m, feather: percent } : m)),
       }));
     },
 

@@ -37,6 +37,11 @@ import { frameToPhoto, shootToProject, taskToInfo, visibleTasks, type AssistStat
 import { runAuto } from './runAuto';
 import { runDeepVisionReview } from './deepVisionReview';
 import { planExport } from './exportOps';
+import { canAddMask, removeMask, setMaskEdit, setMaskFeather, toggleMask } from './maskOps';
+import { createSubjectMask, framingKey } from '../../core/maskTypes';
+import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
+import { GUIDED_RENDER_EDGE } from '../../core/subjectGuide';
+import { detectSubjectGuided } from '../../providers/subjectDetector';
 import { archiveExports, downloadExport, loadExportSource } from '../../providers/browserExport';
 import { toProfile } from '../../core/exportFormats';
 import { renderV2Export, type OverlayDraw } from './renderV2Export';
@@ -53,7 +58,7 @@ import { surfaceBridge } from './surfaceBridge';
 const NOT_CONNECTED = [
   'setActiveGroup', 'addEditGroup', 'renameEditGroup', 'toggleSizeEnabled', 'toggleSizeLinked',
   'addCustomSize', 'toggleSplitFrames', 'setSplitPanOffset',
-  'updateVideoZoom', 'addMaskLayer', 'toggleMaskLayer', 'removeMaskLayer',
+  'updateVideoZoom',
   'reconnectOriginal',
 ] as const satisfies readonly (keyof WorkspaceActions)[];
 
@@ -168,6 +173,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [importing, setImporting] = useState(false);
   const stateRef = useRef<CullingState | null>(null);
   stateRef.current = state;
+  const maskInFlight = useRef(new Set<string>());
   const exportEnv = useRef<ExportEnv>({ fonts: [], presets: [], auto: {}, textAllowed: false, markAllowed: false });
   useEffect(() => { surfaceBridge.set(state?.frames ?? [], provider.current); }, [state?.frames]);
   const importController = useRef<AbortController | null>(null);
@@ -465,6 +471,40 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     }));
   }, [mutate]);
 
+  /** Find the subject on this device and add it (or, for the background, its inverse) as a mask with no adjustments yet.
+   * Sky, painted and area masks need tools V2 does not have, so they say so instead of adding a layer that does nothing. */
+  const addMask = useCallback(async (photoId: string, type: 'subject' | 'sky' | 'background' | 'brush' | 'area') => {
+    if (type === 'sky') { setNotice('Sky masks are not available yet: there is no sky detector. Use Subject or Background.'); return; }
+    if (type !== 'subject' && type !== 'background') { setNotice('Painted and area masks need drawing tools that V2 does not have yet. Use Subject or Background.'); return; }
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId && !candidate.removedAt);
+    if (!frame) return;
+    if (!canAddMask(frame.edit?.masks)) { setNotice('This photo has the most masks it can hold. Remove one first.'); return; }
+    if (maskInFlight.current.has(photoId)) return;
+    maskInFlight.current.add(photoId);
+    const task = tasks.start(type === 'subject' ? 'Finding the subject' : 'Finding the background');
+    try {
+      const image = await loadExportSource(frame, provider.current!);
+      const framing = frame.framing ?? DEFAULT_FRAMING;
+      const { width, height } = framedSize(image.naturalWidth, image.naturalHeight, framing);
+      const framed = document.createElement('canvas');
+      drawFramedPhoto(image, framed, framing, { scale: Math.min(1, GUIDED_RENDER_EDGE / Math.max(width, height)) });
+      const { grid, assessment, detail } = await detectSubjectGuided(framed);
+      if (!assessment.usable) { task.finish('No clear subject'); setNotice(assessment.reason); return; }
+      const mask = { ...createSubjectMask(newId(), grid, framingKey(framing), assessment.confidence, detail), invert: type === 'background', feather: 0.5 };
+      // Re-read the photo: its edit may have changed while the subject was being found.
+      editFrames([photoId], (latest) => ({ ...(latest.edit ?? DEFAULT_EDIT), masks: [...(latest.edit?.masks ?? []), mask] }));
+      task.finish(assessment.reason);
+      setNotice(`Added the ${type} mask. It changes nothing until you move one of its sliders.`);
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : 'Could not find the subject.';
+      task.fail(message); setNotice(message);
+    } finally {
+      maskInFlight.current.delete(photoId);
+    }
+  }, [editFrames]);
+  const editMasks = useCallback((photoId: string, change: (masks: ReturnType<typeof removeMask>) => ReturnType<typeof removeMask>) =>
+    editFrames([photoId], (frame) => ({ ...(frame.edit ?? DEFAULT_EDIT), masks: change(frame.edit?.masks ?? []) })), [editFrames]);
+
   const applyAuto = useCallback((frameId: string) => {
     const assist = assists[frameId];
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === frameId);
@@ -634,6 +674,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     importFolder: () => { void pickFolderFiles().then((files) => { if (files?.length) void importPhotos(files); }); },
     importDroppedPhotos: (files) => { if (files.length) void importPhotos(files); },
     runAutoCull: () => { void runAutoCull(); },
+    addMaskLayer: (photoId, type) => { void addMask(photoId, type); },
+    toggleMaskLayer: (photoId, maskId) => editMasks(photoId, (masks) => toggleMask(masks, maskId)),
+    removeMaskLayer: (photoId, maskId) => editMasks(photoId, (masks) => removeMask(masks, maskId)),
+    setMaskEdit: (photoId, maskId, key, value) => editMasks(photoId, (masks) => setMaskEdit(masks, maskId, key, value)),
+    setMaskFeather: (photoId, maskId, percent) => editMasks(photoId, (masks) => setMaskFeather(masks, maskId, percent)),
     runExport: (request) => { void runExportAction(request); },
     applyAssistSuggestion: (photoId) => applyAuto(photoId),
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
@@ -716,7 +761,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, stub.store.looks, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
+    [stub.actions, stub.store.looks, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, addMask, editMasks, runAutoCull, runExportAction, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
 
   exportEnv.current = { fonts: mergeFonts(deviceFonts), presets: [...INITIAL_WATERMARKS, ...watermarkLibrary], auto: watermarkAuto, textAllowed: featureAccess(can).overlayText, markAllowed: featureAccess(can).watermarkCustom };
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id] })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes]);
