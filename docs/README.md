@@ -22,4 +22,4 @@ Start here. Read only the **Current** documents to decide what to build. The **R
 - **Brand:** [brand/README.md](brand/README.md)
 
 ## History: superseded by ROADMAP.md
-[AUDIT-AND-ROADMAP.md](AUDIT-AND-ROADMAP.md), [AUDIT-2.md](AUDIT-2.md), [RELEASE-GAP-AUDIT-2026-11.md](RELEASE-GAP-AUDIT-2026-11.md), [NEXT-STEPS.md](NEXT-STEPS.md), [ALPHA-PLAN.md](ALPHA-PLAN.md), [GUIDED-WORKFLOW-PLAN.md](GUIDED-WORKFLOW-PLAN.md), [HANDOVER.md](HANDOVER.md), [PRODUCT-DELIVERY-ACTUALS-2026-11-17.md](PRODUCT-DELIVERY-ACTUALS-2026-11-17.md)
+Moved into [history/](history/) (22 Nov 2026 cleanup) so the active docs list is shorter; links still work, nothing was deleted: [AUDIT-AND-ROADMAP.md](history/AUDIT-AND-ROADMAP.md), [AUDIT-2.md](history/AUDIT-2.md), [RELEASE-GAP-AUDIT-2026-11.md](history/RELEASE-GAP-AUDIT-2026-11.md), [NEXT-STEPS.md](history/NEXT-STEPS.md), [ALPHA-PLAN.md](history/ALPHA-PLAN.md), [GUIDED-WORKFLOW-PLAN.md](history/GUIDED-WORKFLOW-PLAN.md), [HANDOVER.md](history/HANDOVER.md), [PRODUCT-DELIVERY-ACTUALS-2026-11-17.md](history/PRODUCT-DELIVERY-ACTUALS-2026-11-17.md)

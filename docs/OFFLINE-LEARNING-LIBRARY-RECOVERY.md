@@ -15,7 +15,7 @@ Status: implementation roadmap and source-grounded gap audit, 18 November 2026. 
 - `src/providers/linkedOriginals.ts`: native linked originals. Existing audit says source identity is not yet portable.
 - `PRIVACY.md`: no Kestrel account/telemetry backend today; online Gemini and optional connectors are user-controlled; connector credentials currently live in browser storage.
 - `docs/CLOUD-PLAN.md` and `docs/cloud-sync-proposal.md`: proposed regional service and outbox, not production deployment.
-- `docs/RELEASE-GAP-AUDIT-2026-11.md`: 500/2,000-photo real-world recovery, native high-bit-depth RAW and physical-device acceptance remain open.
+- `docs/history/RELEASE-GAP-AUDIT-2026-11.md` (historical; superseded by `docs/ROADMAP.md`): 500/2,000-photo real-world recovery, native high-bit-depth RAW and physical-device acceptance remain open.
 - Open draft PR #362 provides only a pure confidence-mask blending prototype, not integrated learning.
 
 ## Proposed local architecture
