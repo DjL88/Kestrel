@@ -293,19 +293,22 @@ export function snapOverlayPosition(
   // 50%. With the box's real size, its edges and the gap to the other overlay can be snapped exactly too.
   if (geometry) {
     const { box, peer, gap } = geometry;
-    const xFor = (leftEdge: number) => leftEdge / Math.max(0.01, 1 - box.w / 100);
-    const yFor = (topEdge: number) => topEdge / Math.max(0.01, 1 - box.h / 100);
-    xTargets.push({ value: xFor(8), label: 'Left margin' }, { value: (92 - box.w) / Math.max(0.01, 1 - box.w / 100), label: 'Right margin' });
-    yTargets.push({ value: yFor(8), label: 'Top margin' }, { value: (92 - box.h) / Math.max(0.01, 1 - box.h / 100), label: 'Bottom margin' });
+    // The stored position is the box centre, not a moving left/right anchor.
+    // Express edge and peer alignment targets in centre coordinates so crossing
+    // 35% or 65% never changes the physical point being dragged.
+    const xFor = (leftEdge: number) => leftEdge + box.w / 2;
+    const yFor = (topEdge: number) => topEdge + box.h / 2;
+    xTargets.push({ value: xFor(8), label: 'Left margin' }, { value: xFor(92 - box.w), label: 'Right margin' });
+    yTargets.push({ value: yFor(8), label: 'Top margin' }, { value: yFor(92 - box.h), label: 'Bottom margin' });
     if (peer) {
       xTargets.push(
         { value: xFor(peer.right + gap.x), label: 'Space beside' },
-        { value: (peer.left - gap.x - box.w) / Math.max(0.01, 1 - box.w / 100), label: 'Space beside' },
+        { value: xFor(peer.left - gap.x - box.w), label: 'Space beside' },
         { value: xFor(peer.left), label: 'Edges aligned' }
       );
       yTargets.push(
         { value: yFor(peer.bottom + gap.y), label: 'Space below' },
-        { value: (peer.top - gap.y - box.h) / Math.max(0.01, 1 - box.h / 100), label: 'Space above' },
+        { value: yFor(peer.top - gap.y - box.h), label: 'Space above' },
         { value: yFor(peer.top), label: 'Edges aligned' }
       );
     }
