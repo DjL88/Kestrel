@@ -313,6 +313,10 @@ export class FirestoreStore implements Store {
     const snap = await this.db.collection(C.assets).where('channel', '==', channel).where('status', '==', 'live').get();
     return snap.docs.map((d) => d.data() as unknown as ModelAssetRecord).sort((a, b) => a.assetId.localeCompare(b.assetId));
   }
+  async getModelAsset(assetId: string, version: string, channel: string) {
+    const snap = await this.ref(C.assets, docId(assetId, version, channel)).get();
+    return snap.exists ? (snap.data() as unknown as ModelAssetRecord) : undefined;
+  }
   async promoteModelAsset(assetId: string, version: string, channel: string): Promise<boolean> {
     return this.db.runTransaction(async (tx) => {
       const target = this.ref(C.assets, docId(assetId, version, channel));
