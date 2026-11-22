@@ -1,0 +1,29 @@
+/* Version 2 styles. Tokens and rules are scoped to .inflight-v2 so they cannot change the current app. */
+@import "./tokens.css";
+
+.inflight-v2 :focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 2px; }
+.inflight-v2 button, .inflight-v2 [role="button"] { cursor: pointer; }
+
+.inflight-v2 input[type="range"].inflight-slider {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 999px;
+  background: var(--border-default); outline: none;
+}
+.inflight-v2 input[type="range"].inflight-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--text-primary); border: 2px solid var(--brand-accent); cursor: pointer;
+  transition: transform var(--motion-fast);
+}
+.inflight-v2 input[type="range"].inflight-slider::-webkit-slider-thumb:hover { transform: scale(1.14); }
+.inflight-v2 input[type="range"].inflight-slider::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%; background: var(--text-primary);
+  border: 2px solid var(--brand-accent); cursor: pointer;
+}
+.inflight-v2 .inflight-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.inflight-v2 .inflight-scroll::-webkit-scrollbar-track { background: transparent; }
+.inflight-v2 .inflight-scroll::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 999px; }
+.inflight-v2 .inflight-scroll::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+@media (prefers-reduced-motion: reduce) {
+  .inflight-v2 *, .inflight-v2 *::before, .inflight-v2 *::after {
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important;
+  }
+}
