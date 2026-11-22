@@ -72,3 +72,18 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 667, height: 375 }
     await expect(dialog).toHaveCount(0);
   });
 }
+
+test('a swipe down on the tool sheet header closes it', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const studio = await importPhoto(page);
+  const tools = studio.getByRole('navigation', { name: 'Mobile studio tools' });
+  await tools.getByRole('button', { name: 'Adjust' }).tap();
+  const handle = page.getByTestId('mobile-sheet-handle');
+  await expect(handle).toBeVisible();
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + 100, box.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 100, box.y + 120, { steps: 6 });
+  await page.mouse.up();
+  await expect(handle).toHaveCount(0);
+});
