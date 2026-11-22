@@ -346,3 +346,30 @@ test('?v2 slice 1A: the histogram is measured, the zoom % jumps to 100%, and int
   await root.getByRole('tab', { name: /Appearance/ }).first().click();
   await expect(root.getByRole('radio', { name: /left-handed/i })).toHaveAttribute('aria-checked', 'true');
 });
+
+test('?v2 overlay text is the same share of the frame in every format and at every zoom (a true reflection of size)', async ({ page }) => {
+  await page.goto('/?v2&stub=1&autostart=1');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
+  const text = root.locator('div').filter({ hasText: /^Show text overlay on this photo/ }).getByRole('switch').first();
+  await text.click();
+  await expect(text).toHaveAttribute('aria-checked', 'true');
+  await root.getByRole('button', { name: /All formats/ }).click();
+  const layers = root.getByTestId('overlay-layer');
+  await expect(layers).toHaveCount(3);
+  // Font size as a share of the frame's width, for each format on the board.
+  const shares = await layers.evaluateAll((els) => els.map((layer) => {
+    const line = layer.querySelector('p') as HTMLElement;
+    return parseFloat(getComputedStyle(line).fontSize) / (layer as HTMLElement).getBoundingClientRect().width;
+  }));
+  expect(shares).toHaveLength(3);
+  for (const share of shares) expect(Math.abs(share - shares[0])).toBeLessThan(0.002);
+  // And the same share in the single view of the 4:5 format.
+  await root.getByRole('button', { name: /Single/ }).first().click();
+  await root.getByRole('button', { name: '4:5', exact: true }).first().click();
+  const single = await root.getByTestId('overlay-layer').first().evaluate((layer) => {
+    const line = layer.querySelector('p') as HTMLElement;
+    return parseFloat(getComputedStyle(line).fontSize) / (layer as HTMLElement).getBoundingClientRect().width;
+  });
+  expect(Math.abs(single - shares[0])).toBeLessThan(0.002);
+});

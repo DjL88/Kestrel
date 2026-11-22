@@ -285,10 +285,16 @@ export default function Canvas({
     onUpdateVideoZoom(photo.id, { enabled: true, focalX: x, focalY: y });
   };
 
+  // Overlay sizes are a share of the frame's width, so they look the same in every format and at every zoom, in the
+  // working area, on the All formats board, and in the export. The number the person sets (the size slider) is the size in
+  // pixels on a frame 660 wide (the single view of a landscape photo), turned into container-query width units.
+  const REFERENCE_FRAME_WIDTH = 660;
+  const cqw = (px: number) => `${(px / REFERENCE_FRAME_WIDTH) * 100}cqw`;
+
   const renderOverlaysInsideFrame = (size: SizePreset, interactive: boolean) => {
     const overlay = group.overlay;
     return (
-      <>
+      <div className="pointer-events-none absolute inset-0 z-20" style={{ containerType: 'inline-size' }} data-testid="overlay-layer">
         {/* Magnetic snap guide lines while dragging text or watermark */}
         {interactive &&
           activeGuides.map((guide, idx) =>
@@ -332,12 +338,13 @@ export default function Canvas({
             title={interactive ? 'Drag to reposition text overlay (snaps to watermark & safe margins)' : undefined}
             className={`z-20 select-none ${
               overlay.textLayoutMode === 'cover-full'
-                ? 'absolute inset-0 flex flex-col items-center justify-center p-6 text-center'
-                : 'absolute max-w-[90%] -translate-y-1/2 rounded-[var(--radius-sm)] px-3 py-2'
-            } ${interactive ? 'cursor-move ring-1 ring-transparent hover:ring-[var(--brand-accent)]' : 'pointer-events-none'}`}
+                ? 'absolute inset-0 flex flex-col items-center justify-center text-center'
+                : 'absolute max-w-[90%] -translate-y-1/2 rounded-[var(--radius-sm)]'
+            } ${interactive ? 'pointer-events-auto cursor-move ring-1 ring-transparent hover:ring-[var(--brand-accent)]' : 'pointer-events-none'}`}
             style={
               overlay.textLayoutMode === 'cover-full'
                 ? {
+                    padding: cqw(24),
                     backgroundColor: overlay.textScrim
                       ? overlay.textColour === 'light'
                         ? 'rgba(10, 12, 16, 0.48)'
@@ -346,6 +353,7 @@ export default function Canvas({
                     color: overlay.textColour === 'light' ? '#F8F6F2' : '#14171F',
                   }
                 : {
+                    padding: `${cqw(8)} ${cqw(12)}`,
                     left: `${overlay.textX}%`,
                     top: `${overlay.textY}%`,
                     transform: `translate(${overlay.textX > 65 ? '-100%' : overlay.textX > 35 ? '-50%' : '0%'}, -50%)`,
@@ -364,9 +372,9 @@ export default function Canvas({
                 className="leading-snug whitespace-nowrap"
                 style={{
                   fontFamily: getFontFamily(row.fontId),
-                  fontSize: `${interactive ? row.sizePx : Math.max(9, Math.round(row.sizePx * 0.72))}px`,
+                  fontSize: cqw(row.sizePx),
                   fontWeight: row.weight,
-                  letterSpacing: `${row.letterSpacing}px`,
+                  letterSpacing: cqw(row.letterSpacing),
                 }}
               >
                 {formatOverlayRowText(row, photo) || 'Custom caption'}
@@ -390,14 +398,15 @@ export default function Canvas({
                 : undefined
             }
             title={interactive ? 'Drag to reposition watermark (snaps cleanly to text overlay)' : undefined}
-            className={`absolute z-20 select-none rounded px-2.5 py-1 text-right ${
-              interactive ? 'cursor-move ring-1 ring-transparent hover:ring-[var(--brand-accent)]' : 'pointer-events-none'
+            className={`absolute z-20 select-none rounded text-right ${
+              interactive ? 'pointer-events-auto cursor-move ring-1 ring-transparent hover:ring-[var(--brand-accent)]' : 'pointer-events-none'
             }`}
             style={{
+              padding: `${cqw(4)} ${cqw(10)}`,
               left: `${overlay.watermarkX}%`,
               top: `${overlay.watermarkY}%`,
               transform: `translate(${overlay.watermarkX > 65 ? '-100%' : overlay.watermarkX > 35 ? '-50%' : '0%'}, -50%) scale(${
-                (overlay.watermarkScale / 100) * (interactive ? 1 : 0.76)
+                overlay.watermarkScale / 100
               })`,
               opacity: overlay.watermarkOpacity / 100,
               color: effectiveContrast === 'light-on-dark' ? '#F8F6F2' : '#14171F',
@@ -409,20 +418,20 @@ export default function Canvas({
             }}
           >
             {watermarkImage ? (
-              <img src={watermarkImage} alt={watermarkPreset.label} draggable={false} className="h-9 w-auto max-w-[180px] object-contain" />
+              <img src={watermarkImage} alt={watermarkPreset.label} draggable={false} className="w-auto object-contain" style={{ height: cqw(36), maxWidth: cqw(180) }} />
             ) : (
-            <p className="text-[11px] font-bold tracking-[0.14em] whitespace-nowrap">
+            <p className="font-bold tracking-[0.14em] whitespace-nowrap" style={{ fontSize: cqw(11) }}>
               {watermarkPreset.text}
             </p>
             )}
             {!watermarkImage && watermarkPreset.subtext && (
-              <p className="text-[9px] tracking-[0.18em] opacity-80 whitespace-nowrap">
+              <p className="tracking-[0.18em] opacity-80 whitespace-nowrap" style={{ fontSize: cqw(9) }}>
                 {watermarkPreset.subtext}
               </p>
             )}
           </div>
         )}
-      </>
+      </div>
     );
   };
 
