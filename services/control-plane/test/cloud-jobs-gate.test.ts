@@ -92,6 +92,6 @@ test('finish deletes the input, only the owner may touch a job, and nothing but 
     assert.equal(fin.status, 200); assert.equal(fin.body.inputDeleted, true);
     assert.equal(runner.hasInput(jobId), false);
     assert.equal((await h.call('POST', `/v1/cloud/jobs/${jobId}/finish`, { token: h.user.token })).status, 200, 'idempotent');
-    assert.deepEqual(Object.keys(ledger.record(jobId)!).sort(), ['accountId', 'createdAtMs', 'inputBytes', 'jobId', 'kind', 'status']);
+    assert.deepEqual(Object.keys(ledger.record(jobId)!).sort(), ['accountId', 'consentAtMs', 'createdAtMs', 'inputBytes', 'jobId', 'kind', 'status']);
   } finally { await h.close(); }
 });
