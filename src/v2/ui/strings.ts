@@ -418,6 +418,7 @@ export const STRINGS = {
       storage: 'Storage',
       keyboard: 'Keyboard',
       language: 'Language',
+      privacy: 'Privacy',
     },
     appearance: {
       themeLabel: 'Interface theme',

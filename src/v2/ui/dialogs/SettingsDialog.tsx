@@ -8,6 +8,13 @@ import type {
   WorkspaceSettings,
 } from '../contract';
 import { STRINGS } from '../strings';
+import { BrandIcon as OfficialMark, WorksWith } from '../../../components/BrandIcon';
+import type { BrandIconId } from '../../../core/brandIcons';
+
+/** Official marks that ship with the app (decoration only; the name is always written beside it). Where there is no official
+ * asset in the repo yet (OneDrive, OpenAI) or the place is generic (a NAS), a neutral icon is used instead. */
+const AI_MARK: Partial<Record<AiProviderConfig['id'], BrandIconId>> = { gemini: 'gemini', claude: 'anthropic' };
+const AI_NEUTRAL: Record<AiProviderConfig['id'], BrandIconName> = { gemini: 'cloud-assist', claude: 'cloud-assist', chatgpt: 'cloud-assist', local: 'assist' };
 import BrandIcon, { type BrandIconName } from '../icons/BrandIcon';
 
 interface SettingsDialogProps {
@@ -25,6 +32,7 @@ interface SettingsDialogProps {
   onSignOutStub: () => void;
   onToggleAiProvider: (id: AiProviderConfig['id']) => void;
   onToggleStorageConnector: (id: StorageConnector['id']) => void;
+  onEraseDeviceData: () => void;
 }
 
 const TABS: Array<{ id: SettingsTabId; label: string; icon: BrandIconName }> = [
@@ -35,6 +43,7 @@ const TABS: Array<{ id: SettingsTabId; label: string; icon: BrandIconName }> = [
   { id: 'storage', label: STRINGS.settings.tabs.storage, icon: 'hard-drive' },
   { id: 'keyboard', label: STRINGS.settings.tabs.keyboard, icon: 'keyboard' },
   { id: 'language', label: STRINGS.settings.tabs.language, icon: 'language' },
+  { id: 'privacy', label: STRINGS.settings.tabs.privacy, icon: 'info' },
 ];
 
 const SHORTCUTS = [
@@ -62,7 +71,9 @@ export default function SettingsDialog({
   onSignOutStub,
   onToggleAiProvider,
   onToggleStorageConnector,
+  onEraseDeviceData,
 }: SettingsDialogProps) {
+  const [eraseText, setEraseText] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -369,7 +380,10 @@ export default function SettingsDialog({
                       key={prov.id}
                       className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3.5"
                     >
-                      <div className="min-w-0">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)]" aria-hidden="true">
+                        {AI_MARK[prov.id] ? <OfficialMark id={AI_MARK[prov.id]!} className="h-5 w-5" /> : <BrandIcon name={AI_NEUTRAL[prov.id]} size={20} />}
+                      </span>
+                      <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold text-[var(--text-primary)]">{prov.name}</p>
                         <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">
                           {prov.description}
@@ -396,6 +410,10 @@ export default function SettingsDialog({
                       </button>
                     </div>
                   ))}
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium text-[var(--text-muted)]">Bring your own: also works with a model you run yourself</p>
+                  <WorksWith items={[{ id: 'ollama', name: 'Ollama' }, { id: 'lmstudio', name: 'LM Studio' }]} />
                 </div>
               </div>
             )}
@@ -427,6 +445,10 @@ export default function SettingsDialog({
                 </section>
 
                 <StorageConnections />
+                <div>
+                    <p className="text-[11px] font-medium text-[var(--text-muted)]">Bring your own storage: also works with</p>
+                    <WorksWith items={[{ id: 'synology', name: 'Synology' }, { id: 'qnap', name: 'QNAP' }, { id: 'nextcloud', name: 'Nextcloud' }, { id: 'owncloud', name: 'ownCloud' }, { id: 'backblaze', name: 'Backblaze B2' }]} />
+                </div>
                 <p className="pt-1 text-[11px] text-[var(--text-muted)]">
                   {STRINGS.settings.storage.inflightCloudNote}
                 </p>
@@ -447,6 +469,35 @@ export default function SettingsDialog({
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* 8. PRIVACY */}
+            {activeTab === 'privacy' && (
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">Your photos stay yours</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
+                    InFlight works fully offline. Original files are never changed, moved or uploaded. Nothing leaves this device unless you turn on an optional feature and consent to it.{' '}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium text-[var(--brand-accent)] underline">Read the privacy policy</a> (draft, not yet lawyer-reviewed).
+                  </p>
+                </div>
+                <section aria-labelledby="erase-device-title" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
+                  <h3 id="erase-device-title" className="text-xs font-semibold text-[var(--text-primary)]">Erase everything on this device</h3>
+                  <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+                    Removes every project, edit, preview and saved choice InFlight keeps in this browser or app, then restarts it. Your original photo files are not touched. This cannot be undone.
+                  </p>
+                  <label htmlFor="erase-confirm" className="block text-xs font-medium text-[var(--text-secondary)]">Type ERASE to confirm</label>
+                  <input id="erase-confirm" type="text" autoComplete="off" value={eraseText} onChange={(e) => setEraseText(e.target.value)} className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)]" />
+                  <button type="button" disabled={eraseText.trim() !== 'ERASE'} onClick={onEraseDeviceData} className="min-h-11 rounded-[var(--radius-md)] bg-[var(--status-danger,#e5484d)] px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Erase this device</button>
+                </section>
+                <section aria-labelledby="erase-account-title" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4">
+                  <h3 id="erase-account-title" className="text-xs font-semibold text-[var(--text-primary)]">Forget me: account data held by InFlight</h3>
+                  <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+                    If you have signed in, bought a licence, used optional cloud help, or sent a message, InFlight holds a small amount of data about you on its servers. Turning off “help improve suggestions” already deletes what you shared. To have the rest erased, send a request with the email you signed in with. InFlight does not yet have a one-tap server erase, so this goes to a person, and you will be told what, if anything, must be kept (for example payment records the law requires).
+                  </p>
+                  <a href="/#contact" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-primary)]">Ask InFlight to erase my account data</a>
+                </section>
               </div>
             )}
 

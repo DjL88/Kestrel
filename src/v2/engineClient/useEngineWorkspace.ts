@@ -5,9 +5,10 @@ import { isEmptyEdit, DEFAULT_EDIT, type PhotoEdit } from '../../core/photoEdits
 import { sameRecipe } from '../../core/naturalAuto';
 import { newId } from '../../core/ids';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
-import { appendProjectPhotos, applyImportBursts, createEmptyProject } from '../../core/projects';
+import { appendProjectPhotos, applyImportBursts, createEmptyProject, setArchived } from '../../core/projects';
 import { tasks } from '../../core/taskStore';
 import type { CullDecision, CullingState, PhotoFrame, ShootDescriptor } from '../../core/types';
+import { eraseDeviceData } from './eraseDeviceData';
 import { BrowserCatalogueStore } from '../../providers/browserCatalogueStore';
 import { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { scanForCulling } from '../../providers/browserAutoCull';
@@ -202,7 +203,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     setHubState('loading');
     try {
       const store = catalogue.current!;
-      const shoots = (await store.listProjects()).filter((shoot: ShootDescriptor) => !shoot.archivedAt && !shoot.inbox);
+      const shoots = (await store.listProjects()).filter((shoot: ShootDescriptor) => !shoot.inbox);
       const loaded = await Promise.all(shoots.map(async (shoot) => shootToProject(shoot, (await store.loadProject(shoot.id))?.frames ?? [])));
       setProjects(loaded);
       setHubState(loaded.length ? 'ready' : 'empty');
@@ -640,6 +641,51 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     createProject: (name) => {
       const created = createEmptyProject(`project-${newId()}`, name.trim() || 'Untitled project');
       void catalogue.current!.saveProject(created).then(() => enterProject(created), () => setNotice('InFlight could not create the project.'));
+    },
+    eraseDeviceData: () => {
+      void (async () => {
+        const result = await eraseDeviceData({
+          clearCatalogue: () => catalogue.current!.clearAll(),
+          storages: [window.localStorage, window.sessionStorage],
+        });
+        if (result.problems.length) { setNotice(`Some data could not be erased: ${result.problems.join(' ')}`); return; }
+        window.location.reload();
+      })().catch(() => setNotice('InFlight could not erase this device. Nothing else was changed.'));
+    },
+    createProjectFromFolder: () => {
+      void pickFolderFiles().then(async (files) => {
+        if (!files?.length) return;
+        const folder = (files[0] as File & { webkitRelativePath?: string }).webkitRelativePath?.split('/')[0];
+        const created = createEmptyProject(`project-${newId()}`, folder?.trim() || 'Untitled project');
+        try { await catalogue.current!.saveProject(created); } catch { setNotice('InFlight could not create the project.'); return; }
+        enterProject(created);
+        // The editor state lands on the next render; wait for it before adding the photos.
+        for (let wait = 0; wait < 40 && stateRef.current?.shoot.id !== created.shoot.id; wait += 1) await new Promise((resolve) => setTimeout(resolve, 50));
+        void importPhotos(files);
+      });
+    },
+    renameProject: (id, name) => {
+      const clean = name.trim();
+      if (!clean) return;
+      void (async () => {
+        const store = catalogue.current!;
+        const found = await store.loadProject(id);
+        if (!found) { setNotice('That project could not be found.'); return; }
+        await store.saveProject({ ...found, shoot: { ...found.shoot, title: clean } });
+        await loadHub();
+      })().catch(() => setNotice('InFlight could not rename the project.'));
+    },
+    archiveProject: (id, archived) => {
+      void (async () => {
+        const store = catalogue.current!;
+        const found = await store.loadProject(id);
+        if (!found) { setNotice('That project could not be found.'); return; }
+        await store.saveProject(setArchived(found, archived ? Date.now() : undefined));
+        await loadHub();
+      })().catch(() => setNotice('InFlight could not update the project.'));
+    },
+    deleteProject: (id) => {
+      void catalogue.current!.deleteProject(id).then(() => loadHub(), () => setNotice('InFlight could not delete the project. Your original photos are unchanged.'));
     },
     backToProjects: () => { void backToProjects(); },
     setHubState: (next) => setHubState(next),

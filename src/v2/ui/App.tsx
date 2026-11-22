@@ -289,6 +289,10 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
           theme={store.settings.theme}
           onOpenProject={actions.openProject}
           onCreateProject={actions.createProject}
+          onCreateFromFolder={actions.createProjectFromFolder}
+          onRenameProject={actions.renameProject}
+          onArchiveProject={actions.archiveProject}
+          onDeleteProject={actions.deleteProject}
           onOpenSettings={() => actions.setSettingsOpen(true, 'appearance')}
           onToggleTheme={() =>
             actions.updateSettings({ theme: store.settings.theme === 'dark' ? 'light' : 'dark' })
@@ -631,6 +635,7 @@ export default function App({ useStore = useWorkspace, accountPanel }: {
         onSignOutStub={actions.signOutStub}
         onToggleAiProvider={actions.toggleAiProvider}
         onToggleStorageConnector={actions.toggleStorageConnector}
+        onEraseDeviceData={actions.eraseDeviceData}
       />
 
       {shortcutGuideOpen && store.screen === 'editor' && (

@@ -125,6 +125,7 @@ export function shootToProject(shoot: ShootDescriptor, frames: readonly PhotoFra
     flaggedCount: live.filter((frame) => frame.decision === 'keep').length,
     localCopyStatus: 'offline-ready',
     folderPath: shoot.folderName ?? '',
+    archived: Boolean(shoot.archivedAt),
   };
 }
 
