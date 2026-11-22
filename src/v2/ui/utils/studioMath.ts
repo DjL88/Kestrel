@@ -242,6 +242,14 @@ export interface SnapGuide {
   label: string;
 }
 
+/** What the dragged box and its neighbour really occupy, in % of the frame, so edges, centre and gaps can be snapped exactly. */
+export interface SnapGeometry {
+  box: { w: number; h: number };
+  peer?: { left: number; right: number; top: number; bottom: number } | null;
+  /** The space to leave between overlays, in % of the frame (a quarter of one text row's height). */
+  gap: { x: number; y: number };
+}
+
 export interface SnapResult {
   x: number;
   y: number;
@@ -258,7 +266,8 @@ export function snapOverlayPosition(
   rawY: number,
   peer: { x: number; y: number; visible: boolean },
   snapEnabled: boolean,
-  threshold = 3.2
+  threshold = 3.2,
+  geometry?: SnapGeometry
 ): SnapResult {
   const xClamped = clamp(rawX, 5, 95);
   const yClamped = clamp(rawY, 6, 94);
@@ -287,6 +296,28 @@ export function snapOverlayPosition(
       { value: clamp(peer.y - 12, 8, 92), label: 'Spaced above' },
       { value: clamp(peer.y + 12, 8, 92), label: 'Spaced below' }
     );
+  }
+
+  // A box is placed by an anchor that moves smoothly from its left edge (0%) to its right edge (100%), so the centre is exactly
+  // 50%. With the box's real size, its edges and the gap to the other overlay can be snapped exactly too.
+  if (geometry) {
+    const { box, peer, gap } = geometry;
+    const xFor = (leftEdge: number) => leftEdge / Math.max(0.01, 1 - box.w / 100);
+    const yFor = (topEdge: number) => topEdge / Math.max(0.01, 1 - box.h / 100);
+    xTargets.push({ value: xFor(8), label: 'Left margin' }, { value: (92 - box.w) / Math.max(0.01, 1 - box.w / 100), label: 'Right margin' });
+    yTargets.push({ value: yFor(8), label: 'Top margin' }, { value: (92 - box.h) / Math.max(0.01, 1 - box.h / 100), label: 'Bottom margin' });
+    if (peer) {
+      xTargets.push(
+        { value: xFor(peer.right + gap.x), label: 'Space beside' },
+        { value: (peer.left - gap.x - box.w) / Math.max(0.01, 1 - box.w / 100), label: 'Space beside' },
+        { value: xFor(peer.left), label: 'Edges aligned' }
+      );
+      yTargets.push(
+        { value: yFor(peer.bottom + gap.y), label: 'Space below' },
+        { value: (peer.top - gap.y - box.h) / Math.max(0.01, 1 - box.h / 100), label: 'Space above' },
+        { value: yFor(peer.top), label: 'Edges aligned' }
+      );
+    }
   }
 
   let bestX = xClamped;
