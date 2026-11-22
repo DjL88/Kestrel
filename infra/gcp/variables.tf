@@ -116,12 +116,6 @@ variable "cloud_runner_image" {
   default     = ""
 }
 
-variable "cloud_runner_max_instances" {
-  description = "Hard ceiling on parallel runner instances, so a bug or abuse cannot run up an unbounded bill."
-  type        = number
-  default     = 2
-}
-
 variable "cloud_runner_cpu" {
   description = "CPU per runner instance. CPU only: no GPU is requested by this plan."
   type        = string
@@ -156,4 +150,10 @@ variable "safe_copy_region" {
     condition     = var.safe_copy_region == "europe-west2"
     error_message = "Safe copy must stay in the UK: europe-west2 (London)."
   }
+}
+
+variable "learning_signal_enabled" {
+  description = "Configure the opt-in Firestore learning sink. The admin switch and a user's consent are still required before collecting signals."
+  type        = bool
+  default     = false
 }

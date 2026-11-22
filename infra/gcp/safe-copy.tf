@@ -27,9 +27,9 @@ resource "google_storage_bucket" "safe_copy" {
   }
   # Browser uploads use PUT to a signed URL; desktop uploads are not browsers.
   cors {
-    origin          = var.allowed_origins
+    origin          = local.control_plane_origin_list
     method          = ["PUT", "GET"]
-    response_header = ["Content-Type", "Content-Length", "ETag"]
+    response_header = ["Content-Type", "Content-Length", "ETag", "x-goog-content-length-range"]
     max_age_seconds = 600
   }
   depends_on = [google_project_service.enabled]
@@ -41,14 +41,6 @@ resource "google_storage_bucket_iam_member" "safe_copy_control_plane" {
   bucket = google_storage_bucket.safe_copy[0].name
   role   = "roles/storage.objectUser"
   member = "serviceAccount:${google_service_account.control_plane.email}"
-}
-
-# V4 signed URLs from Cloud Run use IAM signBlob on the service's own account; no key file is created.
-resource "google_service_account_iam_member" "safe_copy_signs" {
-  count              = var.safe_copy_enabled ? 1 : 0
-  service_account_id = google_service_account.control_plane.name
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = "serviceAccount:${google_service_account.control_plane.email}"
 }
 
 output "safe_copy_bucket" {

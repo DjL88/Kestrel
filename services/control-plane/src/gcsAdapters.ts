@@ -67,7 +67,7 @@ export class GcsCloudRunner implements CloudRunner {
 /**
  * Starts one execution of the runner as a Cloud Run JOB (it keeps running after this call returns, which a request to the
  * CPU-throttled control plane could not). Passes only the job id and kind; the job reads its input from the bucket.
- * The access token comes from the metadata server in production. UNVERIFIED: the IAM role needed for overrides.
+ * The access token comes from the metadata server. Terraform grants the executor-with-overrides role on this job.
  */
 export class CloudRunJobTrigger implements RunnerTrigger {
   constructor(private readonly jobName: string, private readonly token: () => Promise<string>, private readonly fetcher: typeof fetch = fetch) {
