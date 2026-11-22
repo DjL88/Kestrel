@@ -190,6 +190,29 @@ export default function SettingsDialog({
                 </section>
 
                 <section className="space-y-2">
+                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">{STRINGS.hand.label}</h3>
+                  <p className="text-[11px] leading-snug text-[var(--text-secondary)]">{STRINGS.hand.help}</p>
+                  <div role="radiogroup" aria-label={STRINGS.hand.label} className="grid grid-cols-2 gap-2">
+                    {(['right', 'left'] as const).map((side) => (
+                      <button
+                        key={side}
+                        type="button"
+                        role="radio"
+                        aria-checked={settings.hand === side}
+                        onClick={() => onUpdateSettings({ hand: side })}
+                        className={`h-9 rounded-[var(--radius-sm)] border px-2 text-xs font-medium ${
+                          settings.hand === side
+                            ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
+                            : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
+                        }`}
+                      >
+                        {STRINGS.hand[side]}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="space-y-2">
                   <h3 className="text-xs font-semibold text-[var(--text-primary)]">
                     {STRINGS.settings.appearance.densityLabel}
                   </h3>

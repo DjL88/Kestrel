@@ -119,7 +119,7 @@ export default function TopBar({
         <div className="h-5 w-px bg-[var(--border-subtle)] shrink-0" aria-hidden="true" />
 
         <div className="flex items-center px-1 shrink-0">
-          <BrandLogo height={26} />
+          <BrandLogo height={38} />
         </div>
 
         {/* Desktop menus: File, Edit, View */}

@@ -69,7 +69,7 @@ export default function Canvas({
   fonts,
   watermarkPresets,
   features,
-  compareMode,
+  compareMode: compareRequested,
   canvasZoom,
   isFullScreen,
   calmView,
@@ -113,6 +113,8 @@ export default function Canvas({
   }
 
   const group: EditGroup = getActiveGroup(photo);
+  // Compare shows the original and the edit side by side across one frame; a split spans two frames, so it is off then.
+  const compareMode = compareRequested && !group.splitFrames;
   const enabledSizes = photo.sizes.filter((s) => s.enabled);
   const activeSize: SizePreset =
     photo.sizes.find((s) => s.id === activeSizeId) ?? enabledSizes[0] ?? photo.sizes[0];
@@ -433,12 +435,29 @@ export default function Canvas({
         className="h-full w-full object-cover" style={{ ...style, filter }} />
     );
 
-  const renderSingleArtboard = () => {
-    const aspect = activeSize.width / Math.max(1, activeSize.height);
+  /** The artboard on screen, in pixels, at Fit. */
+  const artboardFrame = (size: SizePreset) => {
+    const aspect = size.width / Math.max(1, size.height);
     const maxW = aspect >= 1 ? 660 : 420;
     const maxH = 470;
     const frameW = Math.min(maxW, Math.round(maxH * aspect));
-    const frameH = Math.round(frameW / aspect);
+    return { frameW, frameH: Math.round(frameW / aspect) };
+  };
+  // Screen pixels the frame uses for one picture pixel at Fit (the picture covers the frame). Null when the size is unknown.
+  const fitScale = (() => {
+    if (!photo.pixelSize) return null;
+    const { frameW, frameH } = artboardFrame(activeSize);
+    return Math.max(frameW / photo.pixelSize.width, frameH / photo.pixelSize.height);
+  })();
+  const actualPercent = fitScale ? Math.round(fitScale * canvasZoom * 100) : Math.round(canvasZoom * 100);
+  const toggleActualSize = () => {
+    if (!fitScale) { onSetZoom(1); return; }
+    onSetZoom(Math.abs(actualPercent - 100) <= 1 ? 1 : 1 / fitScale);
+  };
+
+  const renderSingleArtboard = () => {
+    const aspect = activeSize.width / Math.max(1, activeSize.height);
+    const { frameW, frameH } = artboardFrame(activeSize);
 
     const cropClip = `inset(${activeSize.crop.insetTop}% ${activeSize.crop.insetRight}% ${activeSize.crop.insetBottom}% ${activeSize.crop.insetLeft}%)`;
 
@@ -446,8 +465,8 @@ export default function Canvas({
       // Split 1 photo seamlessly across 2 equal side-by-side frames
       return (
         <div
-          className="flex items-center gap-4 transition-transform duration-150"
-          style={{ transform: `scale(${canvasZoom})` }}
+          className="m-auto flex items-center gap-4"
+          style={{ zoom: canvasZoom }}
         >
           {[0, 1].map((paneIdx) => (
             <div key={paneIdx} className="flex flex-col items-center gap-2">
@@ -481,8 +500,8 @@ export default function Canvas({
 
     return (
       <div
-        className="relative flex flex-col items-center gap-2 transition-transform duration-150"
-        style={{ transform: `scale(${canvasZoom})` }}
+        className="relative m-auto flex flex-col items-center gap-2"
+        style={{ zoom: canvasZoom }}
       >
         <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
           <span className="font-medium text-[var(--text-secondary)]">{activeSize.label}</span>
@@ -590,8 +609,8 @@ export default function Canvas({
     return (
       <div
         data-testid="all-formats-board"
-        className="flex flex-wrap items-center justify-center gap-6 p-6 transition-transform duration-150"
-        style={{ transform: `scale(${canvasZoom})` }}
+        className="m-auto flex flex-wrap items-center justify-center gap-6 p-6"
+        style={{ zoom: canvasZoom }}
       >
         {boardSizes.map((size) => {
           const isSelected = selectedSizeIds.includes(size.id);
@@ -806,12 +825,14 @@ export default function Canvas({
           <button
             type="button"
             aria-pressed={compareMode}
+            disabled={group.splitFrames}
+            title={group.splitFrames ? STRINGS.canvas.compareDisabledSplit : STRINGS.topBar.viewActions.compareBeforeAfter}
             onClick={onToggleCompare}
             className={`inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2 text-[11px] font-medium transition-colors whitespace-nowrap ${
               compareMode
                 ? 'bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                 : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'
-            }`}
+            } disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent`}
           >
             <BrandIcon name="compare" size={13} />
             <span className="hidden sm:inline">Compare</span>
@@ -860,7 +881,7 @@ export default function Canvas({
       )}
 
       {/* Stage */}
-      <div className="relative flex flex-1 items-center justify-center overflow-auto inflight-scroll p-6">
+      <div className="relative flex flex-1 overflow-auto inflight-scroll p-6">
         {hoveredLook && (
           <div className="pointer-events-none absolute left-4 top-4 z-30 rounded-[var(--radius-sm)] border border-[var(--brand-accent-border)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] shadow">
             Previewing look: <span className="text-[var(--brand-accent)]">{hoveredLook.name}</span>
@@ -888,23 +909,25 @@ export default function Canvas({
           <button
             type="button"
             aria-label="Zoom out"
-            onClick={() => onSetZoom(canvasZoom - 0.15)}
+            onClick={() => onSetZoom(canvasZoom / 1.25)}
             className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="minus" size={14} />
           </button>
           <button
             type="button"
-            aria-label="Reset zoom to fit"
-            onClick={() => onSetZoom(1)}
+            aria-label={actualPercent === 100 ? STRINGS.canvas.zoomToFit : STRINGS.canvas.zoomTo100}
+            title={actualPercent === 100 ? STRINGS.canvas.zoomToFit : STRINGS.canvas.zoomTo100}
+            data-testid="zoom-percent"
+            onClick={toggleActualSize}
             className="h-8 min-w-[46px] rounded-[var(--radius-sm)] px-1.5 font-mono text-[11px] font-medium text-[var(--text-primary)] tabular-nums hover:bg-[var(--bg-surface-hover)]"
           >
-            {Math.round(canvasZoom * 100)}%
+            {actualPercent}%
           </button>
           <button
             type="button"
             aria-label="Zoom in"
-            onClick={() => onSetZoom(canvasZoom + 0.15)}
+            onClick={() => onSetZoom(canvasZoom * 1.25)}
             className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="zoom-in" size={14} />

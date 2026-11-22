@@ -3,7 +3,7 @@ import type { AssistMode, Photo } from '../contract';
 import { STRINGS } from '../strings';
 import ProBadge from './ProBadge';
 import BrandIcon from '../icons/BrandIcon';
-import { buildHistogramData, filterPhotos, getActiveGroup } from '../utils/studioMath';
+import { filterPhotos } from '../utils/studioMath';
 
 interface FilmstripProps {
   photos: Photo[];
@@ -84,123 +84,6 @@ export default function Filmstrip({
     resizeStart.current = null;
   };
 
-  const renderBottomInfoTab = () => {
-    if (!activePhoto) {
-      return (
-        <div className="flex h-full items-center justify-center text-xs text-[var(--text-muted)]">
-          No photograph selected.
-        </div>
-      );
-    }
-
-    const group = getActiveGroup(activePhoto);
-    const seed = activePhoto.id.charCodeAt(activePhoto.id.length - 1);
-    const hist = buildHistogramData(group.recipe, seed);
-    const flagged = activePhoto.decision === 'keep';
-
-    const toPolyline = (vals: number[]) =>
-      vals
-        .map((v, idx) => `${((idx / (vals.length - 1)) * 180).toFixed(1)},${(58 - (v / 100) * 54).toFixed(1)}`)
-        .join(' ');
-
-    return (
-      <div className="grid h-full grid-cols-1 gap-4 overflow-y-auto inflight-scroll px-4 py-3 md:grid-cols-12">
-        {/* Histogram */}
-        <div className="md:col-span-3 flex flex-col justify-between rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2.5">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="font-semibold text-[var(--text-primary)]">Histogram</span>
-            <span className="font-mono text-[10px] text-[var(--text-muted)]">
-              {activePhoto.assistCritique.kelvinEstimate}
-            </span>
-          </div>
-          <svg
-            viewBox="0 0 180 60"
-            className="mt-1.5 h-14 w-full"
-            role="img"
-            aria-label="RGB and luminance tonal histogram"
-          >
-            <polyline fill="none" stroke="rgba(226,92,92,0.58)" strokeWidth="1.5" points={toPolyline(hist.red)} />
-            <polyline fill="none" stroke="rgba(56,178,139,0.58)" strokeWidth="1.5" points={toPolyline(hist.green)} />
-            <polyline fill="none" stroke="rgba(78,168,222,0.62)" strokeWidth="1.5" points={toPolyline(hist.blue)} />
-            <polyline fill="none" stroke="var(--text-primary)" strokeWidth="1.6" strokeOpacity="0.85" points={toPolyline(hist.luma)} />
-          </svg>
-        </div>
-
-        {/* Camera & Exposure Metadata */}
-        <div className="md:col-span-4 flex flex-col justify-between">
-          <div>
-            <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
-              {activePhoto.title} · <span className="font-mono font-normal text-[var(--text-muted)]">{activePhoto.filename}</span>
-            </p>
-            <p className="mt-1 text-xs text-[var(--text-secondary)]">
-              {activePhoto.exif.camera} · {activePhoto.exif.lens}
-            </p>
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-[var(--text-secondary)] tabular-nums">
-            <span>{activePhoto.exif.focalLength}</span>
-            <span>{activePhoto.exif.aperture}</span>
-            <span>{activePhoto.exif.shutter}</span>
-            <span>ISO {activePhoto.exif.iso}</span>
-            <span className="text-[var(--text-muted)]">{activePhoto.exif.fileFormat} · {activePhoto.exif.dimensions}</span>
-          </div>
-        </div>
-
-        {/* Subject Detection */}
-        <div className="md:col-span-3 flex flex-col justify-between border-t border-[var(--border-subtle)] pt-2 md:border-l md:border-t-0 md:pl-4 md:pt-0">
-          <div>
-            <span className="text-[11px] font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
-              <BrandIcon name="bird" size={14} className="text-[var(--brand-accent)]" />
-              Subject detection
-            </span>
-            <p className="mt-1 text-xs text-[var(--text-secondary)]">
-              {activePhoto.speciesLabel || activePhoto.category}
-              <ProBadge feature="speciesId" className="ml-1.5 align-middle" />
-            </p>
-          </div>
-          <p className="mt-1.5 text-[11px] text-[var(--text-muted)] tabular-nums">
-            Eye/edge sharpness: {activePhoto.sharpnessScore}% · {activePhoto.originalConnected ? 'Original connected' : 'Preview only'}
-          </p>
-        </div>
-
-        {/* Star Rating & Flag */}
-        <div className="md:col-span-2 flex flex-col justify-between border-t border-[var(--border-subtle)] pt-2 md:border-l md:border-t-0 md:pl-4 md:pt-0">
-          <div>
-            <span className="text-[11px] font-semibold text-[var(--text-primary)]">Rating & Flag</span>
-            <div className="mt-1.5 flex items-center gap-0.5" role="group" aria-label="Photo star rating">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  aria-label={`Set ${n} stars`}
-                  onClick={() => onSetRating([activePhoto.id], n)}
-                  className="rounded p-1 hover:bg-[var(--bg-surface-hover)]"
-                >
-                  <BrandIcon
-                    name={n <= activePhoto.rating ? 'star-filled' : 'star-empty'}
-                    size={15}
-                    className={n <= activePhoto.rating ? 'text-[var(--brand-accent)]' : 'text-[var(--text-muted)]'}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onToggleFlag([activePhoto.id])}
-            className={`mt-2 inline-flex h-8 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 text-xs font-medium transition-colors ${
-              flagged
-                ? 'border-[var(--brand-accent-border)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
-                : 'border-[var(--border-default)] bg-[var(--bg-surface-raised)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <BrandIcon name={flagged ? 'flag' : 'flag-off'} size={14} />
-            <span>{flagged ? 'Flagged' : 'Flag photo'}</span>
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <section
@@ -243,20 +126,6 @@ export default function Filmstrip({
               }`}
             >
               Filmstrip ({photos.length})
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={bottomTab === 'info' && !collapsed}
-              onClick={() => onSetBottomTab('info')}
-              className={`inline-flex h-7 items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors whitespace-nowrap ${
-                bottomTab === 'info' && !collapsed
-                  ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <BrandIcon name="info" size={13} />
-              <span>Info</span>
             </button>
           </div>
 
@@ -391,9 +260,7 @@ export default function Filmstrip({
       {/* Body: Either Filmstrip tiles OR Bottom Info Tab */}
       {!collapsed && (
         <div style={{ height }} className="w-full overflow-hidden">
-          {bottomTab === 'info' ? (
-            renderBottomInfoTab()
-          ) : visiblePhotos.length === 0 ? (
+          {visiblePhotos.length === 0 ? (
             <div className="flex h-full items-center justify-center text-xs text-[var(--text-muted)]">
               {STRINGS.filmstrip.nothingMatches}
             </div>
