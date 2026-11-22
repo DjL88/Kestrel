@@ -58,6 +58,7 @@ Firestore collections: `accounts`, `account_emails` (keeps email hashes unique),
 | `POST /v1/licences/activate` | signed `KESTREL1` key | Atomic device-slot count → Ed25519 offline grant (default 30 days, client cap 90) |
 | `GET /v1/me/entitlements` | bearer | Plans, AI allowance, next revalidation |
 | `POST /v1/ai/identify` | bearer + `userConsent: true` | One metadata-free JPEG ≤512 KB/≤1024 px → checked species answer. 12 s upstream deadline; failures refunded |
+| `POST /v1/admin/models`, `POST /v1/admin/models/promote`, `GET /v1/admin/models/licences` | admin | Register a candidate, make a version live (rollback = promote an older one; the manifest revision still rises), list licence records. An ONNX model must register with `contract` and `licence` (SPDX id, https source, rights confirmed) and cannot go live without a licence record. Versions are immutable |
 | `POST /v1/ai/suggest` | bearer + consent | Bounded slider proposal only, never pixels. `{}` → `alreadyBalanced: true` |
 | `GET /v1/models/manifest?app=&channel=` | none | Signed `dataUpdateManifest` with live assets for that app version |
 | `GET /v1/desktop/releases?platform=` | none | Latest release for a notice; links allow-listed to `github.com` |
