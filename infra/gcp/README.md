@@ -324,6 +324,18 @@ Before enabling it, build and publish an image from a commit containing `src/com
 - [ONS all-items CPI index](https://www.ons.gov.uk/economy/inflationandpriceindices/timeseries/d7bt)
 - [Scheduling Cloud Run jobs](https://docs.cloud.google.com/run/docs/execute/jobs-on-schedule)
 
+## Cloud Processing (optional; plan only, not applied)
+
+`cloud-processing.tf` is switched off by default, so `terraform plan` shows no change. Read [docs/CLOUD-PROCESSING.md](../../docs/CLOUD-PROCESSING.md) first: the measurement shows it only helps older devices on good links. To review what it would create:
+
+```bash
+terraform -chdir=infra/gcp plan -var cloud_processing_enabled=true
+```
+
+Expected: one private bucket (`<project>-kestrel-cloud-inputs`, 1 day lifecycle delete, soft delete off, no versioning), a runner service account, bucket permissions for it and the control plane, one `serviceAccountTokenCreator` binding on the control plane's own account (to sign upload URLs), and two API enablements. With `-var cloud_runner_image=...` it also creates a private Cloud Run runner (max 2 instances, CPU only, no public invoker: every request needs the control plane's identity token) and a log exclusion. **Applying needs your approval and starts billing for storage and compute.** The control plane service is not changed by this file: connecting it to the bucket is a later code change. Switch off with `-var cloud_processing_enabled=false` (the bucket's contents are temporary and are deleted with it).
+## Managed Gemini gateway key (optional; plan only, not applied)
+
+The gateway code (`/v1/ai/*`: consent each time plus a revocable standing preference, metadata-free JPEG up to 1024 px, per-account quota in Firestore, kill switch) is already in the control plane and answers `AI_NOT_CONFIGURED` without a key. `gemini_gateway_enabled` (default `false`, so no plan change) creates the empty secret `kcp-gemini-api-key`, lets only the control plane read it and mounts it as `KCP_GEMINI_API_KEY`. **You** add the key value (`gcloud secrets versions add kcp-gemini-api-key --project kestrel-hosting --data-file=-`, paste, Ctrl-D) and apply; that starts per-call Gemini charges. Review first: `terraform -chdir=infra/gcp plan -var gemini_gateway_enabled=true -var control_plane_image=<current image>` should show one secret, one IAM member and a new service revision with one extra variable. Nothing has been applied or checked with Terraform here.
 ## Managed safe copy bucket (optional; plan only, not applied)
 
 `safe-copy.tf` is off by default (`safe_copy_enabled=false`), so `terraform plan` shows no change. It would create one private bucket in London (`<project>-kestrel-safe-copy`, public access blocked, no versioning, `force_destroy=false`, no age-based delete because it is a backup), plus permission for the control plane to sign URLs and delete on request. Review: `terraform -chdir=infra/gcp plan -var safe_copy_enabled=true`. **Applying needs your approval and starts storage billing** (cost model in docs/CLOUD-PLAN.md section 6, prices unverified). Soft delete is 7 days, so a deleted file can remain recoverable for up to a week; the privacy page must say so. The control plane is not changed by this file: connecting it to the bucket is a later code change. Nothing was checked with Terraform here (not installed).

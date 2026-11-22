@@ -197,6 +197,7 @@ export interface Store {
   /** False when that asset version is already registered on that channel. */
   insertModelAsset(asset: ModelAssetRecord): Promise<boolean>;
   listLiveModelAssets(channel: string): Promise<ModelAssetRecord[]>;
+  getModelAsset(assetId: string, version: string, channel: string): Promise<ModelAssetRecord | undefined>;
   /** Atomic: retires the live version, makes this one live, bumps the channel's manifest revision. False if unknown. */
   promoteModelAsset(assetId: string, version: string, channel: string): Promise<boolean>;
   /** False when that release version is already published on that channel. */

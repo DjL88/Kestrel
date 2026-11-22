@@ -1,0 +1,49 @@
+/**
+ * Firestore ledger for the Cloud Processing gate: `cloud_jobs/{jobId}` and `cloud_usage/{accountId}`.
+ * A job document holds ids, kind, byte count, status and the time of the person's consent. Never photo bytes, file
+ * names, EXIF or upload URLs. The quota reserve is one transaction, so concurrent requests cannot overspend it.
+ * Not wired into server.ts yet: there is no real runner, so production keeps answering CLOUD_NOT_CONFIGURED.
+ */
+import type { CloudJobRecord, CloudLedger } from './cloudJobs.ts';
+import type { FirestoreLike } from './firestoreStore.ts';
+
+const JOBS = 'cloud_jobs';
+const USAGE = 'cloud_usage';
+
+export class FirestoreCloudLedger implements CloudLedger {
+  constructor(private readonly db: FirestoreLike) {}
+
+  async reserve(accountId: string, nowMs: number, limit: number, periodMs: number): Promise<boolean> {
+    return this.db.runTransaction(async (tx) => {
+      const ref = this.db.collection(USAGE).doc(accountId);
+      const snap = await tx.get(ref);
+      const d = snap.exists ? snap.data()! : undefined;
+      let start = typeof d?.periodStartMs === 'number' ? d.periodStartMs : nowMs;
+      let used = typeof d?.used === 'number' ? d.used : 0;
+      if (nowMs - start >= periodMs) { start = nowMs; used = 0; }
+      const granted = used < limit;
+      tx.set(ref, { accountId, periodStartMs: start, used: granted ? used + 1 : used });
+      return granted;
+    });
+  }
+
+  async refund(accountId: string): Promise<void> {
+    await this.db.runTransaction(async (tx) => {
+      const ref = this.db.collection(USAGE).doc(accountId);
+      const snap = await tx.get(ref);
+      if (snap.exists) tx.update(ref, { used: Math.max(Number(snap.data()!.used ?? 0) - 1, 0) });
+    });
+  }
+
+  async put(record: CloudJobRecord): Promise<void> {
+    const { jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs } = record;
+    await this.db.collection(JOBS).doc(jobId).set({ jobId, accountId, kind, inputBytes, status, createdAtMs, consentAtMs });
+  }
+
+  async get(jobId: string): Promise<CloudJobRecord | undefined> {
+    const snap = await this.db.collection(JOBS).doc(jobId).get();
+    if (!snap.exists) return undefined;
+    const d = snap.data()!;
+    return { jobId: String(d.jobId), accountId: String(d.accountId), kind: d.kind as CloudJobRecord['kind'], inputBytes: Number(d.inputBytes), status: d.status as CloudJobRecord['status'], createdAtMs: Number(d.createdAtMs), consentAtMs: Number(d.consentAtMs) };
+  }
+}

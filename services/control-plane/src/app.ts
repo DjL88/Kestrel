@@ -19,6 +19,8 @@ import { emailHashOf, giftEntitlement } from './entitlement.ts';
 import { googleKeysFromNetwork, verifyGoogleIdToken, GOOGLE_CERTS_URL, type GoogleKeys } from './googleIdToken.ts';
 import { APPLE_ISSUER, APPLE_KEYS_URL, FIREBASE_KEYS_URL, firebaseIssuer, oidcKeysFromNetwork, verifyOidcIdToken, type OidcKeys } from './oidcIdToken.ts';
 import { UK_VAT_THRESHOLD_PENCE, UK_VAT_WARNING_PENCE } from './commerce/turnover.ts';
+import { CLOUD_KINDS, type CloudOptions } from './cloudJobs.ts';
+import { LEARNING_ACTIONS, LEARNING_CAPABILITIES, LEARNING_SOURCES, type LearningSink } from './learningSignal.ts';
 import { SAFE_COPY_LEVELS, SAFE_COPY_MAX_BYTES, safeCopyKey, type SafeCopyOptions } from './safeCopy.ts';
 import { ApiError, matchRoute, parseJson, readBody, send, type Reply, type Request, type Route } from './http.ts';
 
@@ -45,6 +47,10 @@ export interface AppOptions {
   now?: () => number;
   /** Backend-only demo image store; Cloud Run supplies GCS+Firestore, local tests use memory. */
   demoStudio?: DemoStudioStore;
+  /** Cloud Processing Engine. Absent in production until the owner approves the bucket and runner: the routes then answer 503. */
+  cloud?: CloudOptions;
+  /** Opt-in learning signal. Absent in production until approved: the routes then answer 503. */
+  learning?: LearningSink;
   /** Managed safe copy (opt-in backup). Absent in production until a bucket exists and is approved: routes answer 503. */
   safeCopy?: SafeCopyOptions;
 }
@@ -106,6 +112,8 @@ const DemoFraming = z.object({
   size: z.number().finite().min(0.08).max(1).optional(),
   free: z.boolean().optional(),
 }).strict();
+/** Slider name to value: short identifiers and bounded numbers only, so a free-text field cannot hide in here. */
+const SliderMap = z.record(z.string().regex(/^[a-z][a-zA-Z0-9]{0,23}$/), z.number().finite().min(-100).max(100)).refine((m) => Object.keys(m).length <= 16, 'at most 16 sliders');
 const Sha = z.string().regex(/^[0-9a-f]{64}$/);
 export const Schemas = {
   SafeCopyLevels: z.object({ levels: z.object({ recipes: z.boolean(), previews: z.boolean(), originals: z.boolean() }).partial().strict() }).strict(),
@@ -138,6 +146,12 @@ export const Schemas = {
     aiConsent: z.boolean(),
     nextRevalidationMs: z.number(),
   }),
+  CloudJobRequest: z.object({ kind: z.enum(CLOUD_KINDS), inputBytes: z.number().int().positive(), userConsent: z.boolean() }).strict(),
+  LearningSignal: z.object({
+    source: z.enum(LEARNING_SOURCES), capability: z.enum(LEARNING_CAPABILITIES), action: z.enum(LEARNING_ACTIONS),
+    candidateRank: z.number().int().min(1).max(3).optional(),
+    proposal: SliderMap, final: SliderMap, appVersion: Version,
+  }).strict(),
   ImageRequest: ImageBody,
   IdentifyResponse: z.object({ kind: z.string(), species: z.string().nullable(), scientific: z.string().nullable(), confidence: z.enum(['high', 'medium', 'low']), tags: z.array(z.string()), abstained: z.boolean() }),
   SuggestResponse: z.object({ proposal: z.record(z.string(), z.number()), alreadyBalanced: z.boolean() }),
@@ -189,6 +203,10 @@ export const Schemas = {
   AdminModel: z.object({
     id: z.string(), kind: z.enum(['onnx', 'species-library', 'equipment']), version: z.string(), path: z.string(),
     sha256: Hex64, bytes: z.number().int().positive(), requiredAppMin: Version.default('0.0.0'), channel: z.enum(['stable', 'beta']).default('stable'),
+    /** What the model does for the app (inputs, outputs, labels). Required for ONNX: the app only swaps a slot with an unchanged contract. */
+    contract: z.string().max(80).optional(),
+    /** The rights record for this exact version. Required for ONNX. Never stored in Git; weights are not either. */
+    licence: z.object({ spdx: z.string().min(1).max(64), sourceUrl: z.string().url().max(300).startsWith('https://'), noticePath: z.string().max(180).optional(), rightsConfirmed: z.boolean() }).strict().optional(),
   }).strict(),
   AdminPromote: z.object({ id: z.string(), version: z.string(), channel: z.enum(['stable', 'beta']).default('stable') }).strict(),
   AdminRelease: z.object({ platform: z.enum(['windows', 'macos']), channel: z.enum(['stable', 'beta']).default('stable'), version: Version, url: z.string().url(), notes: z.string().max(4000).default(''), minSupported: Version.default('0.0.0') }).strict(),
@@ -341,6 +359,56 @@ export function createApp(options: AppOptions) {
     }
   }
 
+  // ---- Cloud Processing gate. Order matters: nothing is reserved or uploaded until every check has passed.
+  /** Configured, kill switch and Pro. Runs on every request that starts work, not only on create. */
+  async function cloudGate(accountId: string) {
+    const cloud = options.cloud;
+    if (!cloud) throw new ApiError(503, 'CLOUD_NOT_CONFIGURED', 'Cloud processing is not set up on this server.');
+    // Kill switch: the settings key or a kill-switched flag. Checked live on every request.
+    if ((await store.getSetting('cloud_disabled')) === '1' || (await loadFlags())['cloud.processing']?.kill === true) {
+      await audit(accountId, 'cloud.job.create', 'denied', 'kill switch');
+      throw new ApiError(503, 'CLOUD_DISABLED', 'Cloud processing is switched off for now.', true);
+    }
+    const licences = await store.listLicencesForAccount(accountId);
+    if (!licences.some((l) => (l.plan === 'paid' || l.plan === 'subscriber') && licenceIsUsable(l, now()))) {
+      await audit(accountId, 'cloud.job.create', 'denied', 'not Pro');
+      throw new ApiError(403, 'CLOUD_NOT_ENTITLED', 'Cloud processing is part of Pro.');
+    }
+    return cloud;
+  }
+  async function cloudJobStart(req: Request): Promise<Reply> {
+    const claims = await bearer(req);
+    const body = parseJson(Schemas.CloudJobRequest, req.rawBody);
+    if (body.userConsent !== true) throw new ApiError(400, 'CONSENT_REQUIRED', 'InFlight needs your permission before sending a photo to be processed.');
+    const cloud = await cloudGate(claims.sub);
+    if (body.inputBytes > cloud.maxInputBytes) throw new ApiError(413, 'CLOUD_INPUT_TOO_LARGE', 'This file is larger than cloud processing accepts.');
+    if (!(await cloud.ledger.reserve(claims.sub, now(), cloud.jobsPerPeriod, QUOTA_PERIOD_MS))) {
+      await audit(claims.sub, 'cloud.job.create', 'denied', 'quota');
+      throw new ApiError(429, 'CLOUD_QUOTA_EXHAUSTED', 'This account has used its cloud processing allowance for this period.');
+    }
+    const jobId = uuid();
+    try {
+      const upload = await cloud.runner.createUpload(jobId, body.inputBytes);
+      await cloud.ledger.put({ jobId, accountId: claims.sub, kind: body.kind, inputBytes: body.inputBytes, status: 'awaiting-upload', createdAtMs: now(), consentAtMs: now() });
+      await audit(claims.sub, 'cloud.job.create', 'allowed', `${body.kind} ${jobId}`);
+      return { status: 200, body: { jobId, uploadUrl: upload.uploadUrl, expiresAtMs: upload.expiresAtMs } };
+    } catch (error) {
+      await cloud.ledger.refund(claims.sub); // A job that never started costs nothing.
+      await cloud.runner.deleteInput(jobId).catch(() => undefined);
+      throw new ApiError(502, 'CLOUD_RUNNER_FAILED', 'Cloud processing could not start. Nothing was uploaded or charged.', true);
+    }
+  }
+  async function cloudJobOwned(req: Request, jobId: string) {
+    const claims = await bearer(req);
+    const record = await options.cloud?.ledger.get(jobId);
+    // Someone else's job is indistinguishable from a missing one.
+    if (!options.cloud || !record || record.accountId !== claims.sub) throw new ApiError(404, 'NOT_FOUND', 'No such job.');
+    return { cloud: options.cloud, record };
+  }
+
+  /** A stable pseudonym, so withdrawal can delete a person's signals without the store holding their account id. */
+  const learningSubject = (accountId: string) => sha256Hex(`learning:${accountId}`);
+
   // ---- Managed safe copy. Uploads are gated; reading and deleting your own copy never is.
   function safeCopyCfg() {
     if (!options.safeCopy) throw new ApiError(503, 'SAFE_COPY_NOT_CONFIGURED', 'Safe copy is not set up on this server.');
@@ -391,10 +459,21 @@ export function createApp(options: AppOptions) {
     return { flags: resolveFlagsForGrant(flags, { audience, nowMs, bucket, appVersion }) };
   }
 
+  // Contract and licence per model version live in one settings document (works on SQLite and Firestore alike).
+  const MODEL_META_SETTING = 'model_meta';
+  type ModelMeta = Record<string, { contract?: string; licence?: { spdx: string; sourceUrl: string; noticePath?: string; rightsConfirmed: true; recordedAtMs: number } }>;
+  async function loadModelMeta(): Promise<ModelMeta> {
+    try { return JSON.parse((await store.getSetting(MODEL_META_SETTING)) ?? '{}') as ModelMeta; } catch { return {}; }
+  }
+
   async function currentManifest(appVersion: string, channel: string): Promise<DataManifest> {
     const rows = await store.listLiveModelAssets(channel);
+    const meta = await loadModelMeta();
     const assets = rows.filter((row) => versionAtLeast(appVersion, row.requiredAppMin))
-      .map((row) => ({ id: row.assetId, kind: row.kind, version: row.version, path: row.path, bytes: row.bytes, sha256: row.sha256 }));
+      .map((row) => {
+        const contract = meta[`${row.assetId}@${row.version}`]?.contract;
+        return { id: row.assetId, kind: row.kind, version: row.version, path: row.path, bytes: row.bytes, sha256: row.sha256, ...(contract ? { contract } : {}) };
+      });
     const manifest = parseDataManifest({ schema: 1, revision: Number((await store.getSetting(`manifest_revision_${channel}`)) ?? 1), assets });
     if (!manifest) throw new ApiError(500, 'MANIFEST_INVALID', 'The model registry is in an invalid state.');
     return manifest;
@@ -633,6 +712,95 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         const answer = await aiCall(req, (p, image) => verifyColour(p, image, config.aiTimeoutMs));
         return { status: 200, body: answer };
+      },
+    },
+
+    // ---- Cloud Processing (Pro, consented, quota'd, kill-switched on every request)
+    {
+      method: 'POST', path: '/v1/cloud/jobs', summary: 'Start a cloud processing job: returns a short-lived signed upload URL', auth: 'user', body: Schemas.CloudJobRequest,
+      handler: (req) => cloudJobStart(req),
+    },
+    {
+      method: 'GET', path: '/v1/cloud/jobs/:id', summary: 'Status of one of your cloud processing jobs; a signed result URL once ready', auth: 'user',
+      handler: async (req, params) => {
+        const { cloud, record } = await cloudJobOwned(req, params.id!);
+        let current = record;
+        let resultUrl: string | undefined;
+        if (record.status === 'running') {
+          const p = await cloud.runner.poll(record.jobId);
+          if (p.state !== 'running') {
+            // The job has ended: the input goes now, not at finish or at the lifecycle backstop.
+            await cloud.runner.deleteInput(record.jobId);
+            current = { ...record, status: p.state };
+            await cloud.ledger.put(current);
+            if (p.state === 'failed') await cloud.ledger.refund(record.accountId); // a failed job costs nothing; the status change makes this happen once
+            await audit(record.accountId, 'cloud.job.end', 'allowed', `${record.jobId} ${p.state}`);
+          }
+          if (p.state === 'ready') resultUrl = p.resultUrl;
+        } else if (record.status === 'ready') {
+          const p = await cloud.runner.poll(record.jobId);
+          if (p.state === 'ready') resultUrl = p.resultUrl;
+        }
+        return { status: 200, body: { jobId: current.jobId, status: current.status, kind: current.kind, ...(resultUrl ? { resultUrl } : {}), ...(current.status === 'failed' ? { failure: 'CLOUD_JOB_FAILED' } : {}) } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/cloud/jobs/:id/start', summary: 'Start processing once the upload has arrived (idempotent). Re-checks the kill switch and Pro', auth: 'user',
+      handler: async (req, params) => {
+        const { record } = await cloudJobOwned(req, params.id!);
+        const cloud = await cloudGate(record.accountId);
+        if (record.status !== 'awaiting-upload') return { status: 200, body: { jobId: record.jobId, status: record.status } };
+        if (!(await cloud.runner.inputPresent(record.jobId))) throw new ApiError(409, 'CLOUD_INPUT_MISSING', 'The upload has not arrived yet.', true);
+        await cloud.runner.start(record.jobId, record.kind);
+        await cloud.ledger.put({ ...record, status: 'running' });
+        return { status: 200, body: { jobId: record.jobId, status: 'running' } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/cloud/jobs/:id/finish', summary: 'Result collected or job cancelled: deletes the input and the result now (idempotent)', auth: 'user',
+      handler: async (req, params) => {
+        const { cloud, record } = await cloudJobOwned(req, params.id!);
+        await cloud.runner.deleteInput(record.jobId);
+        await cloud.runner.deleteResult(record.jobId);
+        await cloud.ledger.put({ ...record, status: 'finished' });
+        return { status: 200, body: { jobId: record.jobId, inputDeleted: true } };
+      },
+    },
+
+    // ---- Opt-in learning signal (separate consent, deleted on withdrawal)
+    {
+      method: 'GET', path: '/v1/me/learning-consent', summary: 'Whether this account shares anonymous corrections to improve suggestions', auth: 'user',
+      handler: async (req) => {
+        const claims = await bearer(req);
+        return { status: 200, body: { learningConsent: options.learning ? await options.learning.getConsent(learningSubject(claims.sub)) : false } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/me/learning-consent', summary: 'Opt in or out. Opting out deletes everything shared so far', auth: 'user', body: Schemas.AiConsentRequest,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.AiConsentRequest, req.rawBody);
+        const sink = options.learning;
+        if (!sink) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Sharing corrections is not set up on this server.');
+        const subject = learningSubject(claims.sub);
+        await sink.setConsent(subject, body.consent);
+        const deleted = body.consent ? 0 : await sink.deleteBySubject(subject);
+        await audit(claims.sub, 'learning.consent.set', 'allowed', body.consent ? 'granted' : `withdrawn deleted=${deleted}`);
+        return { status: 200, body: { learningConsent: body.consent, deleted } };
+      },
+    },
+    {
+      method: 'POST', path: '/v1/learning/signals', summary: 'Share one anonymous correction (numbers and fixed words only; never a photo). Needs the opt-in', auth: 'user', body: Schemas.LearningSignal,
+      handler: async (req) => {
+        const claims = await bearer(req);
+        const body = parseJson(Schemas.LearningSignal, req.rawBody);
+        const sink = options.learning;
+        if (!sink) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Sharing corrections is not set up on this server.');
+        const subject = learningSubject(claims.sub);
+        // Checked live on every request, so withdrawing takes effect at once.
+        if (!(await sink.getConsent(subject))) throw new ApiError(403, 'LEARNING_CONSENT_REQUIRED', 'Turn on "help improve suggestions" before sharing corrections.');
+        await sink.append({ ...body, subject, receivedDay: new Date(now()).toISOString().slice(0, 10) });
+        return { status: 200, body: { stored: true } };
       },
     },
 
@@ -1076,12 +1244,35 @@ export function createApp(options: AppOptions) {
           await audit(claims.sub, 'model.register', 'denied', `invalid asset ${JSON.stringify(body.id).slice(0, 80)}`);
           throw new ApiError(400, 'ASSET_INVALID', 'Asset id, version or path is not allowed (paths must be /data/..., with no ".." or absolute paths).');
         }
+        const metaKey = `${body.id}@${body.version}`;
+        if (body.kind === 'onnx') {
+          if (!body.contract) throw new ApiError(400, 'MODEL_CONTRACT_REQUIRED', 'An ONNX model needs its contract (for example denoise-heavy/v1).');
+          if (!body.licence) throw new ApiError(400, 'MODEL_LICENCE_REQUIRED', 'An ONNX model needs a licence record: SPDX id, source URL and confirmation that you have the rights to publish it.');
+          if (body.licence.rightsConfirmed !== true) throw new ApiError(400, 'MODEL_LICENCE_REQUIRED', 'Confirm that you have the rights to publish this model.');
+        }
+        if (body.contract && !parseDataManifest({ schema: 1, revision: 1, assets: [{ id: body.id, kind: body.kind, version: body.version, path: body.path, bytes: body.bytes, sha256: body.sha256, contract: body.contract }] })) {
+          throw new ApiError(400, 'ASSET_INVALID', 'The contract is not allowed (use name/v1).');
+        }
         const inserted = await store.insertModelAsset({
           assetId: body.id, kind: body.kind, version: body.version, channel: body.channel, path: body.path, sha256: body.sha256,
           bytes: body.bytes, requiredAppMin: body.requiredAppMin, status: 'candidate', createdAtMs: now(),
         });
         if (!inserted) throw new ApiError(409, 'ASSET_EXISTS', 'That version is already registered. Give it a new version.');
-        return adminDone(claims, 'model.register', `${body.id}@${body.version} ${body.channel}`, { status: 'candidate' });
+        if (body.contract || body.licence) {
+          const meta = await loadModelMeta();
+          meta[metaKey] = { ...(body.contract ? { contract: body.contract } : {}), ...(body.licence ? { licence: { ...body.licence, rightsConfirmed: true as const, recordedAtMs: now() } } : {}) };
+          await store.setSetting(MODEL_META_SETTING, JSON.stringify(meta));
+        }
+        return adminDone(claims, 'model.register', `${metaKey} ${body.channel}${body.licence ? ` licence=${body.licence.spdx}` : ''}`, { status: 'candidate' });
+      },
+    },
+    {
+      method: 'GET', path: '/v1/admin/models/licences', summary: 'The licence record and contract of every registered model version', auth: 'admin',
+      handler: async (req) => {
+        const claims = await admin(req, 'model.licences');
+        const meta = await loadModelMeta();
+        const licences = Object.fromEntries(Object.entries(meta).filter(([, v]) => v.licence).map(([k, v]) => [k, { ...v.licence, contract: v.contract }]));
+        return adminDone(claims, 'model.licences', '', { licences });
       },
     },
     {
@@ -1089,6 +1280,12 @@ export function createApp(options: AppOptions) {
       handler: async (req) => {
         const claims = await admin(req, 'model.promote');
         const body = parseJson(Schemas.AdminPromote, req.rawBody);
+        const meta = await loadModelMeta();
+        const target = await store.getModelAsset(body.id, body.version, body.channel);
+        if (target?.kind === 'onnx' && !meta[`${body.id}@${body.version}`]?.licence) {
+          await audit(claims.sub, 'model.promote', 'denied', `${body.id}@${body.version} no licence record`);
+          throw new ApiError(409, 'MODEL_LICENCE_MISSING', 'This ONNX version has no licence record, so it cannot go live. Register a new version with one.');
+        }
         if (!(await store.promoteModelAsset(body.id, body.version, body.channel))) throw new ApiError(404, 'NOT_FOUND', 'No such model version.');
         return adminDone(claims, 'model.promote', `${body.id}@${body.version} ${body.channel}`, { live: true });
       },
