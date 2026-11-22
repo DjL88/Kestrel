@@ -30,9 +30,20 @@ import type { BrowserPreviewProvider } from '../../providers/browserPreviewProvi
  * through to this bridge yet (`engineCanvasRenderer.ts` exists but is wired to nothing in `src/v2`).
  */
 
+/** A proposal, not an edit or a preview render. A visual preview needs a real renderer. */
+export interface DeepVisionCandidate {
+  id: string;
+  look: Look;
+  label: string;
+  description: string;
+}
+
 export interface DeepVisionReviewResult {
   detection: SubjectDetectActionResult;
   suggestedLook: Look | null;
+  /** Engine-backed proposals only. Empty when the detector cannot justify a Look.
+   * The UI must offer Preview and Apply separately; nothing here edits a photo. */
+  candidates: DeepVisionCandidate[];
   /** Plain-English summary for the notice banner - the only thing surfaced in the UI today. */
   summary: string;
 }
@@ -68,7 +79,12 @@ export async function runDeepVisionReview(frame: PhotoFrame, provider: BrowserPr
   if (signal?.aborted) return null;
 
   const suggestedLook = suggestLookForPhoto(detection.trust, Boolean(detection.finding));
-  return { detection, suggestedLook, summary: describeDeepReview(detection, suggestedLook) };
+  // The current engine supplies at most one defensible Look. Do not pad to three
+  // with invented alternatives; a later ranked engine result can extend this list.
+  const candidates: DeepVisionCandidate[] = suggestedLook
+    ? [{ id: suggestedLook.id, look: suggestedLook, label: suggestedLook.name, description: suggestedLook.description }]
+    : [];
+  return { detection, suggestedLook, candidates, summary: describeDeepReview(detection, suggestedLook) };
 }
 
 /** Exported for testing only - the rest of this file needs a browser (Image/canvas/Worker) and has no
