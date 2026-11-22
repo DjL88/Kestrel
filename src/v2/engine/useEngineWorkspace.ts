@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { applyDecisionWithHistory, redoDecision, undoDecision } from '../../core/cullingEngine';
+import { recordEdit, stepEdit } from '../../core/editHistory';
+import { isEmptyEdit, type PhotoEdit } from '../../core/photoEdits';
 import { newId } from '../../core/ids';
 import { PHOTO_ACCEPT } from '../../core/rawFormats';
 import { appendProjectPhotos, applyImportBursts, createEmptyProject } from '../../core/projects';
@@ -10,14 +12,16 @@ import { BrowserPreviewProvider } from '../../providers/browserPreviewProvider';
 import { isDesktopApp } from '../../providers/desktopShell';
 import { pickedFromFile, pickedKey, pickPhotosNatively, type PickedPhoto } from '../../providers/linkedOriginals';
 import { loadLocalFileListShoot } from '../../providers/localShootLoader';
-import type { HubViewState, Project, WorkspaceActions, WorkspaceStore } from '../ui/contract';
+import type { EditRecipe, HubViewState, Project, WorkspaceActions, WorkspaceStore } from '../ui/contract';
 import { useWorkspace } from '../ui/stub';
+import { EngineSurface } from './EngineSurface';
 import { frameToPhoto, shootToProject, taskToInfo, type FrameUrls } from './frameToPhoto';
+import { applyRecipePatch, editToRecipe } from './recipeMap';
+import { surfaceBridge } from './surfaceBridge';
 
 /** Actions that change a photo's edit, sizes, overlay, masks or assist state. They are not connected to the real
  * recipe yet, so they say so instead of silently changing sample data. */
 const NOT_CONNECTED = [
-  'updateRecipe', 'applyLook', 'resetPhotoEdits', 'copyRecipe', 'pasteRecipe',
   'setActiveGroup', 'addEditGroup', 'renameEditGroup', 'toggleSizeEnabled', 'toggleSizeLinked', 'updateSizeCrop',
   'flipSelectedSizes', 'rotateSelectedSizes', 'resetSizeCrop', 'addCustomSize', 'toggleSplitFrames', 'setSplitPanOffset',
   'updateVideoZoom', 'updateOverlay', 'alignOverlaysCleanly', 'addOverlayRow', 'updateOverlayRow', 'removeOverlayRow',
@@ -47,7 +51,7 @@ async function pickFiles(): Promise<Array<File | PickedPhoto> | null> {
 /**
  * The V2 store backed by the real catalogue. Connected now: projects (create, open, back), importing photos with the
  * real loader and Task Manager, thumbnails and previews from the preview provider, flag (= keep), reject, rating,
- * selection and decision undo. Everything else keeps the UI's own layout state; edit-type actions say they are not
+ * selection, the Adjust recipe (sliders, Looks, reset, copy and paste, with edit undo and redo) and the canvas renderer. Everything else keeps the UI's own layout state; edit-type actions say they are not
  * connected yet (NOT_CONNECTED). Originals are never written.
  */
 export function useEngineWorkspace(): { store: WorkspaceStore; actions: WorkspaceActions } {
@@ -64,8 +68,10 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const [urls, setUrls] = useState<Record<string, FrameUrls>>({});
   const [selected, setSelected] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [clipboard, setClipboard] = useState<EditRecipe | null>(null);
   const stateRef = useRef<CullingState | null>(null);
   stateRef.current = state;
+  useEffect(() => { surfaceBridge.set(state?.frames ?? [], provider.current); }, [state?.frames]);
   const importController = useRef<AbortController | null>(null);
   const taskList = useSyncExternalStore(tasks.subscribe, tasks.list, tasks.list);
 
@@ -140,6 +146,26 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const decide = useCallback((ids: string[], decision: CullDecision) => {
     mutate((current) => ids.reduce((next, id) => applyDecisionWithHistory(next, id, decision, { allowAdvance: false }), current));
   }, [mutate]);
+
+  const activeFrame = state?.frames.find((frame) => frame.id === activeId) ?? null;
+  const editTargets = (photoId: string) => (selected.includes(photoId) ? selected : [photoId]);
+  const editFrames = useCallback((ids: string[], change: (frame: PhotoFrame) => PhotoEdit | undefined) => {
+    const at = Date.now();
+    mutate((current) => ({
+      ...current,
+      shoot: { ...current.shoot, lastUpdatedAt: at },
+      frames: current.frames.map((frame) => {
+        if (!ids.includes(frame.id)) return frame;
+        const edit = change(frame);
+        return recordEdit(frame, { edit: edit && !isEmptyEdit(edit) ? edit : undefined }, at);
+      }),
+    }));
+  }, [mutate]);
+  const applyPatch = useCallback((ids: string[], patch: Partial<EditRecipe>) => {
+    const { unmapped } = applyRecipePatch(undefined, patch);
+    if (unmapped.length) setNotice(`Not connected to the InFlight engine yet, so not applied: ${unmapped.join(', ')}.`);
+    editFrames(ids, (frame) => applyRecipePatch(frame.edit, patch).edit);
+  }, [editFrames]);
 
   const importPhotos = useCallback(async () => {
     const target = stateRef.current;
@@ -236,8 +262,23 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       shoot: { ...current.shoot, lastUpdatedAt: Date.now() },
     })),
     importPhotos: () => { void importPhotos(); },
-    undo: () => mutate(undoDecision),
-    redo: () => mutate(redoDecision),
+    updateRecipe: (photoId, patch) => applyPatch(editTargets(photoId), patch),
+    applyLook: (photoId, lookId) => {
+      const look = stub.store.looks.find((entry) => entry.id === lookId);
+      if (look) applyPatch(editTargets(photoId), look.recipeDelta);
+    },
+    resetPhotoEdits: (photoId) => editFrames(editTargets(photoId), () => undefined),
+    copyRecipe: () => setClipboard(editToRecipe(activeFrame?.edit)),
+    pasteRecipe: () => { if (clipboard && activeId) applyPatch(editTargets(activeId), clipboard); },
+    undo: () => {
+      if (activeFrame?.editHistory && activeFrame.editHistory.cursor > 0) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? stepEdit(frame, -1) : frame)) }));
+      else mutate(undoDecision);
+    },
+    redo: () => {
+      const history = activeFrame?.editHistory;
+      if (history && history.cursor < history.steps.length) mutate((current) => ({ ...current, frames: current.frames.map((frame) => (frame.id === activeFrame.id ? stepEdit(frame, 1) : frame)) }));
+      else mutate(redoDecision);
+    },
     cancelTask: (id) => { tasks.cancel(Number(id)); },
     clearNotice: () => { setNotice(null); stub.actions.clearNotice(); },
   };
@@ -245,7 +286,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, activeId, enterProject, backToProjects, decide, importPhotos, loadHub]);
+    [stub.actions, stub.store.looks, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
 
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id])), [state?.frames, urls]);
   const store: WorkspaceStore = useMemo(() => ({
@@ -256,10 +297,12 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     activePhotoId: activeId,
     selectedPhotoIds: selected,
     tasks: taskList.map(taskToInfo),
-    canUndo: Boolean(state?.undoStack.length),
-    canRedo: Boolean(state?.redoStack.length),
+    canUndo: Boolean(state?.undoStack.length) || (activeFrame?.editHistory?.cursor ?? 0) > 0,
+    canRedo: Boolean(state?.redoStack.length) || (activeFrame?.editHistory ? activeFrame.editHistory.cursor < activeFrame.editHistory.steps.length : false),
+    clipboardRecipe: clipboard,
+    PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
-  }), [stub.store, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, photos, activeId, selected, taskList, notice]);
+  }), [stub.store, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, activeId, selected, taskList, notice]);
 
   return { store, actions };
 }

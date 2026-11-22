@@ -342,6 +342,7 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
                 />
               ) : (
                 <Canvas
+                  PhotoSurface={store.PhotoSurface}
                   photo={activePhoto}
                   activeSizeId={store.activeSizeId}
                   selectedSizeIds={store.selectedSizeIds}

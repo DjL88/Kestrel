@@ -1,3 +1,5 @@
+import type { ComponentType, CSSProperties } from 'react';
+
 // Single Contract File for InFlight UI Shell
 // All components import their types ONLY from this file.
 // Engine engineers swap src/stub.ts with a real WorkspaceStore + WorkspaceActions provider.
@@ -320,6 +322,16 @@ export interface ExportRequest {
   photoIds: string[];
 }
 
+/** How a photo is drawn. The engine supplies this so the canvas shows real, developed pixels; without it the UI falls back
+ * to a plain image with a CSS filter. 'original' is the photo with no edit, 'edited' is with its recipe. */
+export interface PhotoSurfaceProps {
+  photoId: string;
+  variant: 'edited' | 'original';
+  alt: string;
+  className?: string;
+  style?: CSSProperties;
+}
+
 export type HubViewState = 'ready' | 'empty' | 'loading' | 'error';
 
 export interface WorkspaceStore {
@@ -362,6 +374,8 @@ export interface WorkspaceStore {
   canRedo: boolean;
   clipboardRecipe: EditRecipe | null;
   lastActionNotice: string | null;
+  /** Optional engine-supplied renderer for the canvas (see PhotoSurfaceProps). */
+  PhotoSurface?: ComponentType<PhotoSurfaceProps>;
 }
 
 export interface WorkspaceActions {

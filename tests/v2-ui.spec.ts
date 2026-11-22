@@ -66,3 +66,57 @@ test('?v2 runs on the real catalogue: create, import, flag, rate, reload and the
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(3);
   await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('button', { name: 'Unflag real-1.png' })).toBeVisible();
 });
+
+test('?v2 edits are real: Adjust changes the pixels, Compare splits original and edit, undo restores', async ({ page }) => {
+  await page.goto('/?v2');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'New project' }).first().click();
+  await page.getByLabel(/name/i).first().fill('Real edit check');
+  await page.getByRole('dialog').getByRole('button', { name: /create|start|new project/i }).last().click();
+  const image = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 240; canvas.height = 160;
+    const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#586b82'; ctx.fillRect(0, 0, 240, 160);
+    ctx.fillStyle = '#c9a36b'; ctx.fillRect(40, 30, 100, 80);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  const chooser = page.waitForEvent('filechooser');
+  await root.getByRole('button', { name: /^Import/ }).first().click();
+  await (await chooser).setFiles([{ name: 'edit-1.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') }]);
+  await expect(root.getByRole('listbox', { name: 'Project photographs' }).getByRole('option')).toHaveCount(1);
+  const frame = root.getByTestId('canvas-frame');
+  await expect(frame.locator('canvas, img').first()).toBeVisible({ timeout: 30000 });
+  // An unedited photo is an image; an edited one is drawn on a canvas. Read the mean brightness from whichever is shown.
+  const mean = () => frame.locator('canvas, img').first().evaluate(async (el) => {
+    const source = el as HTMLCanvasElement | HTMLImageElement;
+    const width = source instanceof HTMLImageElement ? source.naturalWidth : source.width;
+    const height = source instanceof HTMLImageElement ? source.naturalHeight : source.height;
+    if (!width || !height) return 0;
+    const probe = document.createElement('canvas'); probe.width = width; probe.height = height;
+    const ctx = probe.getContext('2d')!; ctx.drawImage(source, 0, 0);
+    const data = ctx.getImageData(0, 0, width, height).data;
+    let total = 0; for (let i = 0; i < data.length; i += 4) total += data[i] + data[i + 1] + data[i + 2];
+    return total / (data.length / 4 * 3);
+  });
+  await expect.poll(mean).toBeGreaterThan(10);
+  const before = await mean();
+  // Move Exposure up through the real slider: the recipe becomes a PhotoEdit and the canvas redraws brighter.
+  const exposure = root.getByLabel('Exposure', { exact: true });
+  await exposure.fill('1');
+  await expect.poll(mean, { timeout: 15000 }).toBeGreaterThan(before + 3);
+  const brighter = await mean();
+  // Compare: a real slider splits original and edit; keyboard moves it.
+  await root.getByRole('button', { name: 'Compare', exact: true }).click();
+  const split = root.getByRole('slider', { name: 'Before and after split' });
+  await expect(split).toHaveAttribute('aria-valuenow', '50');
+  await split.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(split).toHaveAttribute('aria-valuenow', '52');
+  await page.keyboard.press('Home');
+  await expect(split).toHaveAttribute('aria-valuenow', '0');
+  await root.getByRole('button', { name: 'Compare', exact: true }).click();
+  // Undo returns the picture to the original.
+  await root.getByRole('button', { name: 'Edit', exact: true }).click();
+  await root.getByRole('menuitem', { name: /^Undo/ }).click();
+  await expect.poll(mean, { timeout: 15000 }).toBeLessThan(brighter - 3);
+  await expect(root.getByLabel('Exposure', { exact: true })).toHaveValue('0');
+});
