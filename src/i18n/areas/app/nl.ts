@@ -64,7 +64,7 @@ export const nl: AreaTranslation<typeof source> = {
     addFailed: 'De foto’s konden niet worden toegevoegd.',
     stoppedUnfinished: 'Gestopt voordat het klaar was',
     findingPhotos: 'Foto’s in de map zoeken',
-    developingRaw: 'RAW-bestanden ontwikkelen met Kite44',
+    developingRaw: 'RAW-bestanden ontwikkelen met InFlight',
     developStopped: 'Gestopt; de overige foto’s houden het cameravoorbeeld.',
     developed: (count) => `${count} ontwikkeld`,
   },
@@ -77,7 +77,7 @@ export const nl: AreaTranslation<typeof source> = {
     addFailed: 'De foto’s konden niet worden toegevoegd. Selecteer de bestanden opnieuw.',
     noSupportedPhotos: 'Deze map bevat geen ondersteunde foto’s.',
     folderUnreadable: 'Die map kon niet worden gelezen.',
-    oneFolderPerProject: 'Zet elke map in een eigen project, zodat Kite44 hem veilig opnieuw kan koppelen.',
+    oneFolderPerProject: 'Zet elke map in een eigen project, zodat InFlight hem veilig opnieuw kan koppelen.',
     folderAddFailed: 'De map kon niet worden toegevoegd. Selecteer hem opnieuw.',
     folderUnreadableTryFiles: 'De map kon niet worden gelezen. Selecteer in plaats daarvan bestanden.',
   },
@@ -104,7 +104,7 @@ export const nl: AreaTranslation<typeof source> = {
     status: (folder, count) => `„${folder}” wordt gevolgd · ${plural(count, { one: `${count} nieuwe foto toegevoegd`, other: `${count} nieuwe foto’s toegevoegd` })}`,
   },
   paid: {
-    dialogLabel: (feature) => `${feature} hoort bij Kite44 Pro`,
+    dialogLabel: (feature) => `${feature} hoort bij InFlight Pro`,
     autoCullPitch: 'Hulp bij het kiezen van uw beste opnamen.',
     close: 'Sluiten',
   },
@@ -119,8 +119,8 @@ export const nl: AreaTranslation<typeof source> = {
   },
   notices: {
     temporaryOriginals: (count) => plural(count, {
-      one: 'Kite44 kon één origineel niet bewaren om later opnieuw te openen. U kunt het nu gebruiken. Bewaar uw originele bestand: misschien moet u het na het heropenen opnieuw selecteren. Projectback-ups bevatten geen originele foto’s.',
-      other: `Kite44 kon ${count} originelen niet bewaren om later opnieuw te openen. U kunt ze nu gebruiken. Bewaar uw originele bestanden: misschien moet u ze na het heropenen opnieuw selecteren. Projectback-ups bevatten geen originele foto’s.`,
+      one: 'InFlight kon één origineel niet bewaren om later opnieuw te openen. U kunt het nu gebruiken. Bewaar uw originele bestand: misschien moet u het na het heropenen opnieuw selecteren. Projectback-ups bevatten geen originele foto’s.',
+      other: `InFlight kon ${count} originelen niet bewaren om later opnieuw te openen. U kunt ze nu gebruiken. Bewaar uw originele bestanden: misschien moet u ze na het heropenen opnieuw selecteren. Projectback-ups bevatten geen originele foto’s.`,
     }),
     dismiss: 'Sluiten',
   },
@@ -193,7 +193,7 @@ export const nl: AreaTranslation<typeof source> = {
     remove: {
       title: 'Uit de bibliotheek verwijderen?',
       confirm: 'Uit bibliotheek verwijderen',
-      disappears: (name) => `${name} verdwijnt uit de weergaven, tellingen en exports van Kite44.`,
+      disappears: (name) => `${name} verdwijnt uit de weergaven, tellingen en exports van InFlight.`,
       thisPhoto: 'Deze foto',
       notDeleted: 'Uw originele bestand wordt niet verwijderd.',
       bringBack: 'U kunt hem terughalen via Werkruimte-opties, Verwijderde foto’s, of met Ongedaan maken.',
@@ -201,7 +201,7 @@ export const nl: AreaTranslation<typeof source> = {
     autoAdjustKeepers: {
       title: 'Onbewerkte foto’s om te bewaren automatisch aanpassen?',
       confirm: 'Foto’s om te bewaren aanpassen',
-      what: 'Kite44 analyseert elke onbewerkte foto om te bewaren op dit apparaat en past licht, kleur en toon aan. Foto’s die al bewerkt zijn, blijven ongewijzigd.',
+      what: 'InFlight analyseert elke onbewerkte foto om te bewaren op dit apparaat en past licht, kleur en toon aan. Foto’s die al bewerkt zijn, blijven ongewijzigd.',
       eligible: (count) => `${photos(count)} om te bewaren komen in aanmerking. De taak kan worden geannuleerd. Er wordt niets toegepast tot de analyse klaar is.`,
       safe: 'Er wordt niets geüpload of gewijzigd in uw originele bestanden. U kunt het resultaat per foto ongedaan maken.',
     },

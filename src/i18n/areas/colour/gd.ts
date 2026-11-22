@@ -5,7 +5,7 @@ import { plural } from '../../../core/locale';
 /** Scottish Gaelic. DRAFT: written without a native speaker's check. Colour names sit in brackets or after a colon so they keep their base form. */
 export const gd: AreaTranslation<typeof source> = {
   title: 'Sgrùdadh dhathan',
-  intro: 'Bheir Kite44 ainm air na dathan san dealbh seo agus innsidh e dhut, ann am faclan, mu rud sam bith a dh’fhaodadh a bhith ceàrr.',
+  intro: 'Bheir InFlight ainm air na dathan san dealbh seo agus innsidh e dhut, ann am faclan, mu rud sam bith a dh’fhaodadh a bhith ceàrr.',
   checking: 'A’ sgrùdadh an datha…',
   unavailable: 'Chan eil an sgrùdadh dhathan ri fhaighinn airson an deilbh seo fhathast.',
   mainColours: 'Prìomh dhathan',

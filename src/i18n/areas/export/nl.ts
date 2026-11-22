@@ -232,7 +232,7 @@ export const nl: AreaTranslation<typeof source> = {
     backgroundSaving: (count) => `${count} bestanden exporteren op de achtergrond`,
     choosingFolder: "Map kiezen…",
     desktopBackground: (count) => `${count} bestanden op de achtergrond in een map opslaan`,
-    desktopBackgroundHelp: "Kies eenmaal een map. De bestanden worden een voor een opgeslagen in een nieuwe gedateerde map Kite44 Exports, gegroepeerd per bestemming. Je kunt doorwerken; de taakbeheerder toont de voortgang en eventuele fouten.",
+    desktopBackgroundHelp: "Kies eenmaal een map. De bestanden worden een voor een opgeslagen in een nieuwe gedateerde map InFlight Exports, gegroepeerd per bestemming. Je kunt doorwerken; de taakbeheerder toont de voortgang en eventuele fouten.",
     saving: 'Opslaan…',
     saved: (name) => `${name} opgeslagen`,
     ready: (count) => plural(count, { one: `${count} bestand klaar`, other: `${count} bestanden klaar` }),

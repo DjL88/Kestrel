@@ -5,7 +5,7 @@ import { parseLottie } from './lottieLite';
 
 const real = JSON.parse(readFileSync(new URL('../assets/splash/kestrel-k-splash.json', import.meta.url), 'utf8'));
 
-test('the Kite44 splash file is read into six filled layers over 2.0 seconds', () => {
+test('the InFlight splash file is read into six filled layers over 2.0 seconds', () => {
   const animation = parseLottie(real)!;
   assert.ok(animation);
   assert.deepEqual([animation.width, animation.height, animation.durationMs], [256, 256, 2000]);

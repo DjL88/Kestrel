@@ -5,7 +5,7 @@ import { plural } from '../../../core/locale';
 /** Dutch (u). DRAFT: written without a native speaker's check. Colour names sit in brackets or after "in". */
 export const nl: AreaTranslation<typeof source> = {
   title: 'Kleurcontrole',
-  intro: 'Kite44 benoemt de kleuren in deze foto en wijst in woorden op alles wat misschien niet goed lijkt.',
+  intro: 'InFlight benoemt de kleuren in deze foto en wijst in woorden op alles wat misschien niet goed lijkt.',
   checking: 'Kleur controleren…',
   unavailable: 'De kleurcontrole is nog niet beschikbaar voor deze foto.',
   mainColours: 'Hoofdkleuren',

@@ -24,7 +24,7 @@ test('NAS settings are checked with plain messages, and plain http is for the ho
   assert.equal(checkWebDavSettings({ ...good, password: '' }).length, 1);
 });
 
-test('exports may go to an export folder, and nowhere else outside Kite44’s own folder', () => {
+test('exports may go to an export folder, and nowhere else outside InFlight’s own folder', () => {
   for (const ok of ['export/2026-11-16 10-00/kite.jpg', 'kestrel/v1/backups/a/b.kestrel.json']) assert.equal(isWritablePath(ok), true, ok);
   for (const bad of ['export/../secret', 'export//x', 'export', 'Export/x.jpg', 'originals/x.nef', '../export/x.jpg', '/export/x.jpg', 'kestrel/../x']) assert.equal(isWritablePath(bad), false, bad);
   assert.equal(isInsideExportRoot('export/a.jpg'), true);

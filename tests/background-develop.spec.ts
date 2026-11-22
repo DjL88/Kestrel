@@ -3,10 +3,10 @@ import { mosaic, withPreview } from './rawFixture';
 
 /**
  * After photos are added to a project, every RAW is developed from its sensor data in the background, and its tile swaps
- * the camera's embedded JPEG for Kite44's own develop. The file is synthetic (tests/fixtures) with an added embedded
+ * the camera's embedded JPEG for InFlight's own develop. The file is synthetic (tests/fixtures) with an added embedded
  * preview, as cameras store one.
  */
-test('RAW photos are developed in the background and their tiles show Kite44\'s develop', async ({ page }) => {
+test('RAW photos are developed in the background and their tiles show InFlight\'s develop', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/');
   const preview = Buffer.from(await page.evaluate(() => {
@@ -24,7 +24,7 @@ test('RAW photos are developed in the background and their tiles show Kite44\'s 
   await page.getByTestId('local-file-input').setInputFiles({ name: 'synthetic.dng', mimeType: 'application/octet-stream', buffer: withPreview(mosaic, preview) });
   await expect(page.getByRole('navigation', { name: 'Photo collections' }).getByRole('button', { name: 'To review 1' })).toBeVisible({ timeout: 30000 });
 
-  // The tile first shows the camera's embedded preview (a 640 × 960 JPEG, drawn 400 wide), then Kite44's develop of the
+  // The tile first shows the camera's embedded preview (a 640 × 960 JPEG, drawn 400 wide), then InFlight's develop of the
   // 96 × 64 sensor, turned upright: 64 × 96. Sizes tell the two apart; colour alone would not.
   const tileWidth = () => page.evaluate(() => {
     const img = [...document.querySelectorAll('img')].find((image) => image.src.startsWith('blob:') && image.naturalWidth > 0);

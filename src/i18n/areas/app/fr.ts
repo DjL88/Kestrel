@@ -64,7 +64,7 @@ export const fr: AreaTranslation<typeof source> = {
     addFailed: 'Impossible d’ajouter les photos.',
     stoppedUnfinished: 'Arrêté avant la fin',
     findingPhotos: 'Recherche des photos dans le dossier',
-    developingRaw: 'Développement des fichiers RAW avec Kite44',
+    developingRaw: 'Développement des fichiers RAW avec InFlight',
     developStopped: 'Arrêté ; les photos restantes gardent l’aperçu de l’appareil.',
     developed: (count) => `${count} développée(s)`,
   },
@@ -77,7 +77,7 @@ export const fr: AreaTranslation<typeof source> = {
     addFailed: 'Impossible d’ajouter les photos. Essayez de sélectionner à nouveau les fichiers.',
     noSupportedPhotos: 'Ce dossier ne contient aucune photo prise en charge.',
     folderUnreadable: 'Impossible de lire ce dossier.',
-    oneFolderPerProject: 'Gardez chaque dossier dans son propre projet pour que Kite44 puisse le reconnecter sans risque.',
+    oneFolderPerProject: 'Gardez chaque dossier dans son propre projet pour que InFlight puisse le reconnecter sans risque.',
     folderAddFailed: 'Impossible d’ajouter le dossier. Essayez de le sélectionner à nouveau.',
     folderUnreadableTryFiles: 'Impossible de lire le dossier. Essayez de sélectionner des fichiers.',
   },
@@ -104,7 +104,7 @@ export const fr: AreaTranslation<typeof source> = {
     status: (folder, count) => `Surveillance de « ${folder} » · ${plural(count, { one: `${count} nouvelle photo ajoutée`, other: `${count} nouvelles photos ajoutées` })}`,
   },
   paid: {
-    dialogLabel: (feature) => `${feature} fait partie de Kite44 Pro`,
+    dialogLabel: (feature) => `${feature} fait partie de InFlight Pro`,
     autoCullPitch: 'Une aide pour choisir vos meilleures images.',
     close: 'Fermer',
   },
@@ -119,8 +119,8 @@ export const fr: AreaTranslation<typeof source> = {
   },
   notices: {
     temporaryOriginals: (count) => plural(count, {
-      one: 'Kite44 n’a pas pu conserver un original pour la prochaine ouverture. Vous pouvez l’utiliser maintenant. Gardez votre fichier original : vous devrez peut-être le sélectionner à nouveau après la réouverture. Les sauvegardes de projet ne contiennent pas les photos originales.',
-      other: `Kite44 n’a pas pu conserver ${count} originaux pour la prochaine ouverture. Vous pouvez les utiliser maintenant. Gardez vos fichiers originaux : vous devrez peut-être les sélectionner à nouveau après la réouverture. Les sauvegardes de projet ne contiennent pas les photos originales.`,
+      one: 'InFlight n’a pas pu conserver un original pour la prochaine ouverture. Vous pouvez l’utiliser maintenant. Gardez votre fichier original : vous devrez peut-être le sélectionner à nouveau après la réouverture. Les sauvegardes de projet ne contiennent pas les photos originales.',
+      other: `InFlight n’a pas pu conserver ${count} originaux pour la prochaine ouverture. Vous pouvez les utiliser maintenant. Gardez vos fichiers originaux : vous devrez peut-être les sélectionner à nouveau après la réouverture. Les sauvegardes de projet ne contiennent pas les photos originales.`,
     }),
     dismiss: 'Fermer',
   },
@@ -193,7 +193,7 @@ export const fr: AreaTranslation<typeof source> = {
     remove: {
       title: 'Retirer de la photothèque ?',
       confirm: 'Retirer de la photothèque',
-      disappears: (name) => `${name} disparaîtra des vues, des totaux et des exports de Kite44.`,
+      disappears: (name) => `${name} disparaîtra des vues, des totaux et des exports de InFlight.`,
       thisPhoto: 'Cette photo',
       notDeleted: 'Votre fichier original n’est pas supprimé.',
       bringBack: 'Vous pouvez la récupérer dans Options de l’espace de travail, Photos retirées, ou avec Annuler.',
@@ -201,7 +201,7 @@ export const fr: AreaTranslation<typeof source> = {
     autoAdjustKeepers: {
       title: 'Régler automatiquement les photos à garder non retouchées ?',
       confirm: 'Régler les photos à garder',
-      what: 'Kite44 analysera sur cet appareil chaque photo à garder non retouchée et réglera sa lumière, sa couleur et ses tons. Les photos déjà retouchées ne changent pas.',
+      what: 'InFlight analysera sur cet appareil chaque photo à garder non retouchée et réglera sa lumière, sa couleur et ses tons. Les photos déjà retouchées ne changent pas.',
       eligible: (count) => `${photos(count)} à garder concernée(s). La tâche peut être annulée. Rien n’est appliqué avant la fin de l’analyse.`,
       safe: 'Rien n’est envoyé en ligne ni modifié dans vos fichiers originaux. Vous pouvez annuler le résultat pour chaque photo.',
     },

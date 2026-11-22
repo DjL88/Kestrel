@@ -64,7 +64,7 @@ export const pt: AreaTranslation<typeof source> = {
     addFailed: 'Não foi possível adicionar as fotografias.',
     stoppedUnfinished: 'Parado antes de terminar',
     findingPhotos: 'A procurar fotografias na pasta',
-    developingRaw: 'A revelar ficheiros RAW com o Kite44',
+    developingRaw: 'A revelar ficheiros RAW com o InFlight',
     developStopped: 'Parado; as fotografias restantes mantêm a pré-visualização da câmara.',
     developed: (count) => `${count} revelada(s)`,
   },
@@ -77,7 +77,7 @@ export const pt: AreaTranslation<typeof source> = {
     addFailed: 'Não foi possível adicionar as fotografias. Experimente selecionar os ficheiros novamente.',
     noSupportedPhotos: 'Esta pasta não tem fotografias suportadas.',
     folderUnreadable: 'Não foi possível ler essa pasta.',
-    oneFolderPerProject: 'Mantenha cada pasta no seu próprio projeto para que o Kite44 a possa voltar a ligar em segurança.',
+    oneFolderPerProject: 'Mantenha cada pasta no seu próprio projeto para que o InFlight a possa voltar a ligar em segurança.',
     folderAddFailed: 'Não foi possível adicionar a pasta. Experimente selecioná-la novamente.',
     folderUnreadableTryFiles: 'Não foi possível ler a pasta. Experimente selecionar ficheiros.',
   },
@@ -104,7 +104,7 @@ export const pt: AreaTranslation<typeof source> = {
     status: (folder, count) => `A vigiar «${folder}» · ${plural(count, { one: `${count} fotografia nova adicionada`, other: `${count} fotografias novas adicionadas` })}`,
   },
   paid: {
-    dialogLabel: (feature) => `${feature} faz parte do Kite44 Pro`,
+    dialogLabel: (feature) => `${feature} faz parte do InFlight Pro`,
     autoCullPitch: 'Ajuda para escolher as suas melhores fotografias.',
     close: 'Fechar',
   },
@@ -119,8 +119,8 @@ export const pt: AreaTranslation<typeof source> = {
   },
   notices: {
     temporaryOriginals: (count) => plural(count, {
-      one: 'O Kite44 não conseguiu guardar um original para voltar a abrir. Pode usá-lo agora. Mantenha o seu ficheiro original: poderá ter de o selecionar novamente depois de voltar a abrir. As cópias de segurança do projeto não incluem as fotografias originais.',
-      other: `O Kite44 não conseguiu guardar ${count} originais para voltar a abrir. Pode usá-los agora. Mantenha os seus ficheiros originais: poderá ter de os selecionar novamente depois de voltar a abrir. As cópias de segurança do projeto não incluem as fotografias originais.`,
+      one: 'O InFlight não conseguiu guardar um original para voltar a abrir. Pode usá-lo agora. Mantenha o seu ficheiro original: poderá ter de o selecionar novamente depois de voltar a abrir. As cópias de segurança do projeto não incluem as fotografias originais.',
+      other: `O InFlight não conseguiu guardar ${count} originais para voltar a abrir. Pode usá-los agora. Mantenha os seus ficheiros originais: poderá ter de os selecionar novamente depois de voltar a abrir. As cópias de segurança do projeto não incluem as fotografias originais.`,
     }),
     dismiss: 'Fechar',
   },
@@ -193,7 +193,7 @@ export const pt: AreaTranslation<typeof source> = {
     remove: {
       title: 'Retirar da fototeca?',
       confirm: 'Retirar da fototeca',
-      disappears: (name) => `${name} vai desaparecer das vistas, contagens e exportações do Kite44.`,
+      disappears: (name) => `${name} vai desaparecer das vistas, contagens e exportações do InFlight.`,
       thisPhoto: 'Esta fotografia',
       notDeleted: 'O seu ficheiro original não é eliminado.',
       bringBack: 'Pode recuperá-la em Opções da área de trabalho, Fotografias retiradas, ou com Anular.',
@@ -201,7 +201,7 @@ export const pt: AreaTranslation<typeof source> = {
     autoAdjustKeepers: {
       title: 'Ajustar automaticamente as fotografias a manter sem edição?',
       confirm: 'Ajustar fotografias a manter',
-      what: 'O Kite44 vai analisar neste dispositivo cada fotografia a manter sem edição e ajustar a luz, a cor e o tom. As fotografias já editadas não mudam.',
+      what: 'O InFlight vai analisar neste dispositivo cada fotografia a manter sem edição e ajustar a luz, a cor e o tom. As fotografias já editadas não mudam.',
       eligible: (count) => `${photos(count)} a manter elegível(eis). A tarefa pode ser cancelada. Nenhuma alteração é aplicada até a análise terminar.`,
       safe: 'Nada é enviado nem alterado nos seus ficheiros originais. Pode anular o resultado em cada fotografia.',
     },

@@ -8,7 +8,7 @@ const and = (first: string, second: string) => `${first} ${/^[aeiouwy]/i.test(se
 /** Welsh. DRAFT: written without a native speaker's check. Colour names sit in brackets so they keep their base form. */
 export const cy: AreaTranslation<typeof source> = {
   title: 'Gwirio lliw',
-  intro: 'Mae Kite44 yn enwi’r lliwiau yn y llun hwn ac yn tynnu sylw, mewn geiriau, at unrhyw beth a allai edrych yn anghywir.',
+  intro: 'Mae InFlight yn enwi’r lliwiau yn y llun hwn ac yn tynnu sylw, mewn geiriau, at unrhyw beth a allai edrych yn anghywir.',
   checking: 'Yn gwirio’r lliw…',
   unavailable: 'Dyw’r gwiriad lliw ddim ar gael ar gyfer y llun hwn eto.',
   mainColours: 'Prif liwiau',

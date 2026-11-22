@@ -65,7 +65,7 @@ export const fi: AreaTranslation<typeof source> = {
     addFailed: 'Kuvia ei voitu lisätä.',
     stoppedUnfinished: 'Pysäytetty ennen valmistumista',
     findingPhotos: 'Etsitään kuvia kansiosta',
-    developingRaw: 'RAW-tiedostoja kehitetään Kestrelillä',
+    developingRaw: 'RAW-tiedostoja kehitetään InFlightillä',
     developStopped: 'Pysäytetty; jäljellä olevat kuvat säilyttävät kameran esikatselun.',
     developed: (count) => `Kehitetty: ${count}`,
   },
@@ -78,7 +78,7 @@ export const fi: AreaTranslation<typeof source> = {
     addFailed: 'Kuvia ei voitu lisätä. Kokeile valita tiedostot uudelleen.',
     noSupportedPhotos: 'Tässä kansiossa ei ole tuettuja kuvia.',
     folderUnreadable: 'Kansiota ei voitu lukea.',
-    oneFolderPerProject: 'Pidä jokainen kansio omassa projektissaan, jotta Kite44 voi yhdistää sen turvallisesti uudelleen.',
+    oneFolderPerProject: 'Pidä jokainen kansio omassa projektissaan, jotta InFlight voi yhdistää sen turvallisesti uudelleen.',
     folderAddFailed: 'Kansiota ei voitu lisätä. Kokeile valita se uudelleen.',
     folderUnreadableTryFiles: 'Kansiota ei voitu lukea. Kokeile valita tiedostoja.',
   },
@@ -105,7 +105,7 @@ export const fi: AreaTranslation<typeof source> = {
     status: (folder, count) => `Seurataan kansiota ”${folder}” · uusia kuvia lisätty: ${count}`,
   },
   paid: {
-    dialogLabel: (feature) => `${feature} kuuluu Kite44 Prohon`,
+    dialogLabel: (feature) => `${feature} kuuluu InFlight Prohon`,
     autoCullPitch: 'Apua parhaiden kuviesi valintaan.',
     close: 'Sulje',
   },
@@ -120,8 +120,8 @@ export const fi: AreaTranslation<typeof source> = {
   },
   notices: {
     temporaryOriginals: (count) => plural(count, {
-      one: 'Kite44 ei voinut tallentaa yhtä alkuperäistä seuraavaa avausta varten. Voit käyttää sitä nyt. Säilytä alkuperäinen tiedostosi: sinun on ehkä valittava se uudelleen, kun avaat projektin seuraavan kerran. Projektin varmuuskopiot eivät sisällä alkuperäisiä kuvia.',
-      other: `Kite44 ei voinut tallentaa alkuperäisiä seuraavaa avausta varten (${count}). Voit käyttää niitä nyt. Säilytä alkuperäiset tiedostosi: sinun on ehkä valittava ne uudelleen, kun avaat projektin seuraavan kerran. Projektin varmuuskopiot eivät sisällä alkuperäisiä kuvia.`,
+      one: 'InFlight ei voinut tallentaa yhtä alkuperäistä seuraavaa avausta varten. Voit käyttää sitä nyt. Säilytä alkuperäinen tiedostosi: sinun on ehkä valittava se uudelleen, kun avaat projektin seuraavan kerran. Projektin varmuuskopiot eivät sisällä alkuperäisiä kuvia.',
+      other: `InFlight ei voinut tallentaa alkuperäisiä seuraavaa avausta varten (${count}). Voit käyttää niitä nyt. Säilytä alkuperäiset tiedostosi: sinun on ehkä valittava ne uudelleen, kun avaat projektin seuraavan kerran. Projektin varmuuskopiot eivät sisällä alkuperäisiä kuvia.`,
     }),
     dismiss: 'Sulje',
   },
@@ -194,7 +194,7 @@ export const fi: AreaTranslation<typeof source> = {
     remove: {
       title: 'Poistetaanko kirjastosta?',
       confirm: 'Poista kirjastosta',
-      disappears: (name) => `${name} katoaa Kestrelin näkymistä, laskuista ja vienneistä.`,
+      disappears: (name) => `${name} katoaa InFlightin näkymistä, laskuista ja vienneistä.`,
       thisPhoto: 'Tämä kuva',
       notDeleted: 'Alkuperäistä tiedostoasi ei poisteta.',
       bringBack: 'Voit palauttaa sen kohdasta Työtilan asetukset, Poistetut kuvat, tai painamalla Kumoa.',
@@ -202,7 +202,7 @@ export const fi: AreaTranslation<typeof source> = {
     autoAdjustKeepers: {
       title: 'Säädetäänkö muokkaamattomat säilytettävät automaattisesti?',
       confirm: 'Säädä säilytettävät',
-      what: 'Kite44 analysoi tällä laitteella jokaisen muokkaamattoman säilytettävän kuvan ja säätää sen valoa, väriä ja sävyjä. Jo muokatut kuvat pysyvät ennallaan.',
+      what: 'InFlight analysoi tällä laitteella jokaisen muokkaamattoman säilytettävän kuvan ja säätää sen valoa, väriä ja sävyjä. Jo muokatut kuvat pysyvät ennallaan.',
       eligible: (count) => `Säädettäviä säilytettäviä kuvia: ${count}. Tehtävän voi peruuttaa. Muutoksia ei tehdä ennen kuin analyysi on valmis.`,
       safe: 'Mitään ei lähetetä verkkoon eikä alkuperäisiin tiedostoihisi tehdä muutoksia. Voit kumota tuloksen jokaisesta kuvasta.',
     },

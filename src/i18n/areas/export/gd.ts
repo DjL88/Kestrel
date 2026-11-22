@@ -233,7 +233,7 @@ export const gd: AreaTranslation<typeof source> = {
     backgroundSaving: (count) => `Ag às-phortadh ${count} faidhlichean sa chùlaibh`,
     choosingFolder: "A’ taghadh pasgan…",
     desktopBackground: (count) => `Sàbhail ${count} faidhlichean gu pasgan sa chùlaibh`,
-    desktopBackgroundHelp: "Tagh pasgan aon turas. Thèid faidhlichean a shàbhaladh aon aig aon àm ann am pasgan ùr Kite44 Exports. Tha adhartas agus mearachdan sa Mhanaidsear Ghnìomhan.",
+    desktopBackgroundHelp: "Tagh pasgan aon turas. Thèid faidhlichean a shàbhaladh aon aig aon àm ann am pasgan ùr InFlight Exports. Tha adhartas agus mearachdan sa Mhanaidsear Ghnìomhan.",
     saving: 'Ga shàbhaladh…',
     saved: (name) => `Air ${name} a shàbhaladh`,
     ready: (count) => `${files(count)} deiseil`,

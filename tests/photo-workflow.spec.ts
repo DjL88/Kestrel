@@ -20,7 +20,7 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   test.setTimeout(120_000); // on-device subject detection is slow when many browsers run at once
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
-  await expect(page.getByText('Create a project to import photos, or restore a Kite44 backup.')).toBeVisible();
+  await expect(page.getByText('Create a project to import photos, or restore a InFlight backup.')).toBeVisible();
   await page.getByRole('button', { name: 'New project' }).click();
   await page.getByRole('textbox', { name: 'Project name' }).fill('Ten-photo test');
   // Turn the helpers off so the test controls every decision itself.
