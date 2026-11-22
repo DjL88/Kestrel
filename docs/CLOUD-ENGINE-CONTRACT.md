@@ -34,16 +34,17 @@ The dispatcher attempts cloud processing only for denoise, upscale or masks afte
 
 The runner is a Cloud Run **job**, started by the control plane on `start` and reading `inputs/<jobId>` from the private bucket. It writes `results/<jobId>` or an empty `failed/<jobId>`. The server wiring loads the Google adapters only when configured. The status route has a watchdog for a runner that has exceeded its time limit and left no result marker.
 
-## Per-capability payload and output format (22 Nov 2026, denoise and mask only)
+## Per-capability payload and output format (22 Nov 2026; upscale added same day)
 
 `src/providers/cloudJobCodec.ts` specifies, and `src/providers/cloudProcessingAttempt.ts` implements, the client half of this: a dependency-free framing (4-byte big-endian header length, a UTF-8 JSON header, then one or more fixed-size binary planes whose sizes follow from the header's own `width`/`height`) carried as the job's uploaded input and downloaded result. Pixel planes are raw RGBA8 (uncompressed) rather than a real image codec, to avoid needing a browser Canvas API anywhere in the framing itself; compressing the planes before upload is a transport-layer optimisation that can be layered on top later without changing this framing.
 
 - **`denoise` upload:** header `{protocol: 1, capability: 'denoise', width, height, backgroundDenoise, subjectDenoise?, hasSubjectAlpha}`, then the original image's RGBA8 plane, then (if `hasSubjectAlpha`) a `Float32Array` subject-alpha plane, one value per pixel.
 - **`mask` upload:** header `{protocol: 1, capability: 'mask', width, height, masks, hasSubjectAlpha}` - `masks` is the real `Mask[]` from `core/maskTypes.ts`, already plain JSON data, carried verbatim rather than re-derived - then the same original-image (+ optional subject-alpha) planes.
-- **Result (either capability):** header `{protocol: 1, capability, width, height}`, then the processed image's RGBA8 plane.
-- **`upscale` is not yet specified.** `cloudProcessingAttempt.ts`'s adapter throws for an `upscale` request (the dispatcher's existing fallback then runs it on-device) rather than invent one - `UpscaleActionResult`'s `usedModel` flag has no honest cloud-side meaning from here; agreeing that needs a decision, not a guess.
+- **`upscale` upload:** header `{protocol: 1, capability: 'upscale', width, height, scale, hasSubjectAlpha: false}`, then the original image's RGBA8 plane. No subject-local treatment and so no alpha plane, same as the on-device action.
+- **`denoise`/`mask` result:** header `{protocol: 1, capability, width, height}`, then the processed image's RGBA8 plane.
+- **`upscale` result:** header `{protocol: 1, capability: 'upscale', width, height, usedModel}`, then the processed image's RGBA8 plane (`width`/`height` are the upscaled size, `scale` times the upload's). `usedModel` is **required** here - `encodeResult`/`decodeResult` both throw if it is missing - because this is exactly the flag that kept `upscale` unimplemented in an earlier version of the adapter: `UpscaleActionResult.usedModel` records whether the learned tile enlarger's result passed verification or the device fell back to the plain resampler, and that distinction has no honest cloud-side value unless the runner itself states it. The client never infers it.
 
-The adapter re-verifies every downloaded result locally with the same `enhancementVerifier.ts` an on-device action uses, before reporting `verification.ok` - it does not trust the cloud runner's output unchecked.
+The adapter re-verifies every downloaded result locally with the same `enhancementVerifier.ts` an on-device action uses, before reporting `verification.ok` - it does not trust the cloud runner's output unchecked. For `upscale`, whose result is a different size than the original, this means downsampling the result back to the original's size first (the same Lanczos-3 resampler, the same way `engine/upscaleAction.ts`'s on-device version verifies itself) before comparing - verification therefore only catches a colour/brightness shift, not resampling softness, same caveat the on-device action already documents.
 
 ## Remaining activation work
 
