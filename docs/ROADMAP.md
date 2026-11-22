@@ -652,7 +652,7 @@ Counts: a=136, b=0 (all candidates turned out to be on main or were merged in th
 | c | `feature/account-offline-expiry-signout-20261121` | 2026-11-21 | 1 | 78 | conflicts with main (1 files) |
 | c | `feature/colour-grade-verification-20261121` | 2026-11-21 | 0 | 69 | conflicts with main (1 files) |
 | c | `feature/managed-ai-suggest-verify-transport-20261121` | 2026-11-21 | 0 | 69 | conflicts with main (3 files) |
-| c | `fix/all-source-tsx-parse-gate-20261121` | 2026-11-21 | 3 | 34 | conflicts with main (2 files) |
+| a | `fix/all-source-tsx-parse-gate-20261121` | 2026-11-21 | 3 | 34 | superseded by #811/#816 |
 | c | `fix/demo-editor-release-verification-20261121` | 2026-11-21 | 0 | 92 | conflicts with main (2 files) |
 | c | `fix/editor-feedback-docking-flow-20261121` | 2026-11-21 | 26 | 149 | conflicts with main (6 files) |
 | c | `fix/export-helper-strict` | 2026-11-21 | 0 | 70 | conflicts with main (1 files) |
@@ -674,7 +674,7 @@ Counts: a=136, b=0 (all candidates turned out to be on main or were merged in th
 | c | `fix/w2-nef-unknown-failclosed-20261121` | 2026-11-21 | 3 | 98 | conflicts with main (3 files) |
 | c | `fix/w2-rgb16-edge-evidence-integrity-20261121` | 2026-11-21 | 7 | 154 | conflicts with main (4 files) |
 | c | `fix/w3-multisubject-photo-identity-20261121` | 2026-11-21 | 2 | 62 | conflicts with main (2 files) |
-| c | `fix/w3-subject-count-conflict-20261121` | 2026-11-21 | 4 | 53 | conflicts with main (1 files) |
+| a | `fix/w3-subject-count-conflict-20261121` | 2026-11-21 | 4 | 53 | merged in this PR (#repair) |
 | c | `fix/w3-subject-review-final-source-check-20261121` | 2026-11-21 | 3 | 44 | conflicts with main (2 files) |
 | c | `fix/website-two-tiers-truthful-copy-20261121` | 2026-11-21 | 0 | 182 | conflicts with main (1 files) |
 | c | `integrate/account-licence-main-20261121` | 2026-11-21 | 16 | 144 | integration/rebase copy; conflicts with main, likely duplicate of a parent branch |
@@ -1001,6 +1001,7 @@ Counts: a=136, b=0 (all candidates turned out to be on main or were merged in th
 
 | Date | Merged | Closed | Local evidence |
 | --- | --- | --- | --- |
+| 22 Nov 2026 (c-branch repair 1) | `fix/w3-subject-count-conflict-20261121`: a frame whose detector count disagrees, or whose boxes duplicate, can no longer yield two tracked subjects (merged with current main, test conflict resolved by keeping both sides) | none | lint PASS, npm test PASS (1953/1954, 1 skipped), build PASS; Playwright NOT RUN (core-only change) |
 | 22 Nov 2026 | #844 branch triage table; this PR: README link to PRODUCT-PHILOSOPHY and OFFLINE-LEARNING-LIBRARY-RECOVERY.md (docs from the triage, class b) | none | npm ci/lint/test/build PASS on the Mac; docs-only, Playwright and cargo NOT RUN |
 | 22 Nov 2026 (export-wizard specs 13 of 13; short-screen Next fixed) | Product bug found by `export-wizard.spec.ts` 'short screen': on a 480 px-high window the proof dock above the wizard (`ExportProofDock`, `shrink-0`, no height cap) took nearly all the height, so the wizard's footer and its Next button were clipped and a paragraph intercepted the click. The dock now has `max-h-[42dvh] overflow-y-auto`. Spec repairs: the list-view ZIP spec drops the 'Instagram' click (the list shows the size checkboxes directly) and expects the default output `w_kestrel.jpg`; the watermark spec takes the first of two identical 'Choose a picture…' texts and matches the picture input by prefix (its label also holds helper text). | | | `export-wizard.spec.ts` desktop 13/13 PASS (3 workers, 30 s cap), `npm run lint` 0 errors, `npm test` 1953/1953. Phone project, the six `dialogs` cases and the rest of the browser suite NOT RUN. The 42dvh cap was checked only through the spec's geometry assertions, not visually on a real small window. |
 | 22 Nov 2026 (owner UX feedback B11) | In Photo info, Save/Load XMP sidecar sit behind a quiet "XMP" disclosure instead of two prominent buttons; it opens by itself while a save or load runs or has a message. New spec `xmp-accordion`. | none | Linux, Node 22: `tsc --noEmit` PASS; `xmp-accordion`, `menus`, `mobile-viewport` desktop specs 10 passed, 2 skipped (phone-only). NOT RUN: phone project (XMP is hidden there), `npm test`. |
