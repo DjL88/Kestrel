@@ -1,5 +1,5 @@
-// Kite44 website: "Try the editing tools" demo.
-// A small WebGL preview of the editing controls on sample images. It is NOT Kite44's RAW engine:
+// InFlight website: "Try the editing tools" demo.
+// A small WebGL preview of the editing controls on sample images. It is NOT InFlight's RAW engine:
 // denoise swaps to a pre-made cleaner image (or a labelled blur when there is none), and the subject
 // mask is a pre-made image per photo, not live subject detection. The page says so in words.
 (() => {
@@ -72,7 +72,7 @@ vec3 blur(vec2 uv, float r){
   return s;
 }
 // Demo stand-in for denoising when no pre-made cleaner image exists: an edge-preserving (bilateral) blur, which
-// smooths flat areas and keeps edges. It is labelled as a blur on the page; it is not Kite44's denoiser.
+// smooths flat areas and keeps edges. It is labelled as a blur on the page; it is not InFlight's denoiser.
 vec3 smoothed(vec2 uv){
   vec3 centre = texture2D(uImg, uv).rgb;
   vec3 sum = centre; float wsum = 1.;
@@ -149,7 +149,7 @@ void main(){
       gl.attachShader(program, compile(gl.FRAGMENT_SHADER, FRAG));
       gl.linkProgram(program);
       if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error('link');
-    } catch (error) { console.warn('Kite44 demo: WebGL unavailable', error); return false; }
+    } catch (error) { console.warn('InFlight demo: WebGL unavailable', error); return false; }
     gl.useProgram(program);
     const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);

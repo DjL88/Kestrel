@@ -1,4 +1,4 @@
-// Kite44 admin console. Talks only to the control plane's audited /v1/admin routes on this site's own address
+// InFlight admin console. Talks only to the control plane's audited /v1/admin routes on this site's own address
 // (Firebase Hosting forwards /v1/admin/** to Cloud Run). The session lives in memory only: closing the tab signs out.
 // Everything from the server is written with textContent, never as HTML.
 

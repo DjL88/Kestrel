@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#14161b">
-  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <meta name="description" content="What Kite44 keeps on your device, what the optional online features send, and what they never do.">
-  <title>Kite44 privacy</title>
+  <meta name="theme-color" content="#0E1116">
+  <link rel="icon" type="image/svg+xml" href="assets/brand/inflight/app-icons/favicon.svg">
+  <meta name="description" content="What InFlight keeps on your device, what the optional online features send, and what they never do.">
+  <title>InFlight privacy</title>
   <style>
     @font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(assets/fonts/inter-latin-400-normal.woff2) format("woff2")}
     @font-face{font-family:Inter;font-weight:700;font-display:swap;src:url(assets/fonts/inter-latin-700-normal.woff2) format("woff2")}
     @font-face{font-family:"Plus Jakarta Sans";font-weight:800;font-display:swap;src:url(assets/fonts/plus-jakarta-sans-latin-800-normal.woff2) format("woff2")}
-    :root{--canvas:#14161b;--panel:#1a1d23;--ivory:#f4efe6;--copper:#c9652e;--dusk:#4a88b2;--mist:#8b93a3;
+    :root{--canvas:#0E1116;--panel:#171B22;--ivory:#F4EFE8;--copper:#BF5824;--dusk:#9AA1AE;--mist:#9AA1AE;
       color-scheme:dark;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--canvas);color:var(--ivory)}
     h1,h2,h3,.brand{font-family:"Plus Jakarta Sans",Inter,system-ui,sans-serif;font-weight:800;letter-spacing:-.025em}
     *{box-sizing:border-box}body{margin:0;line-height:1.6}a{color:#9cc3db}a:focus-visible{outline:3px solid var(--dusk);outline-offset:4px}
@@ -25,30 +25,30 @@
   </style>
 </head>
 <body>
-<header><div class="wrap"><a class="brand" href="/" aria-label="Kite44 home">Kite44</a></div></header>
+<header><div class="wrap"><a class="brand" href="/" aria-label="InFlight home">InFlight</a></div></header>
 <main><div class="wrap">
-  <h1>Kite44 privacy</h1>
+  <h1>InFlight privacy</h1>
   <p class="when">Written from what the code does on 21 November 2026.</p>
-  <p class="notice"><strong>Pre-release draft.</strong> A lawyer has not yet reviewed this page. It describes what Kite44 does today, and it will change before a public release. If you spot something that does not match what you see, please tell us through the <a href="/#contact">contact form</a>.</p>
+  <p class="notice"><strong>Pre-release draft.</strong> A lawyer has not yet reviewed this page. It describes what InFlight does today, and it will change before a public release. If you spot something that does not match what you see, please tell us through the <a href="/#contact">contact form</a>.</p>
 
   <h2>The short version</h2>
-  <p>Kite44 is local-first. You can import, cull, edit and export your photographs with no account and no internet connection. Your original photos are never uploaded by default and are never changed in place. Anything that sends data somewhere is optional and is listed below.</p>
+  <p>InFlight is local-first. You can import, cull, edit and export your photographs with no account and no internet connection. Your original photos are never uploaded by default and are never changed in place. Anything that sends data somewhere is optional and is listed below.</p>
 
   <h2>What stays on your device</h2>
   <ul>
-    <li><strong>Your original photos.</strong> They stay where you keep them. Kite44 stores links, previews and reversible edit recipes beside them.</li>
+    <li><strong>Your original photos.</strong> They stay where you keep them. InFlight stores links, previews and reversible edit recipes beside them.</li>
     <li><strong>Your catalogue:</strong> ratings, flags, crops, tags and edit history.</li>
     <li><strong>Your settings,</strong> and the sign-in details for any storage you connect (see below).</li>
   </ul>
 
   <h2>Optional features that send data, and what they send</h2>
   <ul>
-    <li><strong>Signing in with an account (optional).</strong> You only need an account to buy Pro or to use it on several devices. Sign-in with Google, Apple, or email and password goes through a Firebase sign-in service, so that service holds your sign-in details. Kite44's licence service keeps an account id, a one-way hash of your email address (not the address itself), your plan, and whether the account is active.</li>
+    <li><strong>Signing in with an account (optional).</strong> You only need an account to buy Pro or to use it on several devices. Sign-in with Google, Apple, or email and password goes through a Firebase sign-in service, so that service holds your sign-in details. InFlight's licence service keeps an account id, a one-way hash of your email address (not the address itself), your plan, and whether the account is active.</li>
     <li><strong>Licences and devices.</strong> To keep Pro working on your devices, the licence service records a one-way hash that identifies each device, its type (for example Windows or macOS), the app version and when it was last seen. It does not record your photos or file names.</li>
     <li><strong>The contact form.</strong> If you send a message, the service stores your name, your email address and your message so that we can reply.</li>
-    <li><strong>Managed second opinion (optional, off by default).</strong> If you turn it on and agree each time, or set a standing preference, Kite44 sends one downscaled copy of the photo, with its location and camera metadata removed, to Kite44's service. The service forwards it to Google's Gemini model and returns the answer. The service counts each account's requests and estimated cost so use stays within a limit. The service is built not to keep the photo, and Google's own handling of it is covered by Google's terms, which Kite44 does not control. You can withdraw your preference at any time.</li>
-    <li><strong>Your own Gemini key (optional, off by default).</strong> If you supply your own key, the same kind of downscaled copy goes straight from your device to Google using your key. Kite44's service is not involved.</li>
-    <li><strong>Your own cloud storage (optional).</strong> If you connect S3-compatible storage or a WebDAV server, Kite44 talks directly to that server with the details you give it, and those details are kept in this browser's storage on your device. If you sign in to Dropbox, Google Drive or OneDrive, the provider's own page asks for your permission. Kite44 never sees your password, and its sign-in tokens stay on your device. It can only see its own folder in your account.</li>
+    <li><strong>Managed second opinion (optional, off by default).</strong> If you turn it on and agree each time, or set a standing preference, InFlight sends one downscaled copy of the photo, with its location and camera metadata removed, to InFlight's service. The service forwards it to Google's Gemini model and returns the answer. The service counts each account's requests and estimated cost so use stays within a limit. The service is built not to keep the photo, and Google's own handling of it is covered by Google's terms, which InFlight does not control. You can withdraw your preference at any time.</li>
+    <li><strong>Your own Gemini key (optional, off by default).</strong> If you supply your own key, the same kind of downscaled copy goes straight from your device to Google using your key. InFlight's service is not involved.</li>
+    <li><strong>Your own cloud storage (optional).</strong> If you connect S3-compatible storage or a WebDAV server, InFlight talks directly to that server with the details you give it, and those details are kept in this browser's storage on your device. If you sign in to Dropbox, Google Drive or OneDrive, the provider's own page asks for your permission. InFlight never sees your password, and its sign-in tokens stay on your device. It can only see its own folder in your account.</li>
     <li><strong>Model downloads (optional).</strong> Species and other helper models are fetched as fixed, checksum-verified files. Nothing about you or your photos is sent to fetch them.</li>
     <li><strong>Payments (not live yet).</strong> When paid licences go on sale, payment will be handled by a payment provider. This page will be updated before that happens.</li>
   </ul>
@@ -58,15 +58,15 @@
     <li>No advertising, no data sale and no third-party trackers.</li>
     <li>No analytics or usage tracking in the app or on this site. (Our hosting providers keep ordinary server logs, as any website does.)</li>
     <li>No photo is uploaded unless you turn on one of the optional features above and choose to send it.</li>
-    <li>Kite44 never creates or replaces pixels you did not shoot.</li>
+    <li>InFlight never creates or replaces pixels you did not shoot.</li>
   </ul>
 
   <h2>Your choices</h2>
-  <p>You can use Kite44 without an account. You can switch the optional features off. To ask what we hold about you, or to ask us to remove it, use the <a href="/#contact">contact form</a>.</p>
+  <p>You can use InFlight without an account. You can switch the optional features off. To ask what we hold about you, or to ask us to remove it, use the <a href="/#contact">contact form</a>.</p>
 
   <h2>Children</h2>
-  <p>Kite44 is not aimed at children, and the app itself collects no personal data without an account.</p>
+  <p>InFlight is not aimed at children, and the app itself collects no personal data without an account.</p>
 </div></main>
-<footer><div class="wrap"><a href="/">Back to Kite44</a></div></footer>
+<footer><div class="wrap"><a href="/">Back to InFlight</a> · <a href="/logos">Brand assets</a> · <a href="/press">Press</a></div></footer>
 </body>
 </html>

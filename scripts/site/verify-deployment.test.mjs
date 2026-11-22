@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const script = fileURLToPath(new URL('./verify-deployment.mjs', import.meta.url));
-const privacy = '<h1>Kite44 privacy</h1>';
+const privacy = '<h1>InFlight privacy</h1>';
 const callback = '<p id="m">Finishing sign-in…</p>';
 const landing = '<iframe src="editor/demo-editor.html"></iframe><a href="/privacy">Privacy</a>';
 const demo = (title, entry = '/editor/assets/demo.js') =>
@@ -21,7 +21,7 @@ function fixture() {
   writeFileSync(join(root, 'admin.html'), '<h1>Admin</h1>');
   writeFileSync(join(root, 'oauth-callback.html'), callback);
   writeFileSync(join(root, 'privacy.html'), privacy);
-  writeFileSync(join(editor, 'demo-editor.html'), demo('Kite44 editor demonstration'));
+  writeFileSync(join(editor, 'demo-editor.html'), demo('InFlight editor demonstration'));
   writeFileSync(join(editor, 'assets', 'demo.js'), 'console.log("editor")');
   return root;
 }

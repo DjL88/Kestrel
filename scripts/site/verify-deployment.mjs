@@ -80,7 +80,7 @@ async function main() {
     }
   }
   // Google and Dropbox production approval need a public privacy-policy address, and the home page links to it.
-  if (!requireText(join(dir, privacyPath.slice(1))).includes('<h1>Kite44 privacy</h1>') || !landing.includes('href="/privacy"')) {
+  if (!requireText(join(dir, privacyPath.slice(1))).includes('<h1>InFlight privacy</h1>') || !landing.includes('href="/privacy"')) {
     throw new Error('The privacy page is missing or the homepage does not link to it: ' + privacyPath);
   }
   console.log('Local site PASS: homepage, admin, sign-in callback, privacy page, compiled editor and ' + assets.length + ' local assets.');

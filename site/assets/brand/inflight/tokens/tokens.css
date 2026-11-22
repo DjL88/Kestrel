@@ -1,0 +1,41 @@
+:root {
+  --if-brand-rust: #BF5824;
+  --if-brand-wingtip: #9E2F45;
+  --if-surface-bg: #FAF7F2;
+  --if-surface-raised: #FFFFFF;
+  --if-text-primary: #16181D;
+  --if-text-secondary: #5C6270;
+  --if-mode-autopilot: #BF5824;
+  --if-mode-copilot: #9E2F45;
+  --if-mode-solo: #5C6270;
+  --if-font: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  --if-brand-rust: #E8743C;
+  --if-brand-wingtip: #CC4D66;
+  --if-surface-bg: #0E1116;
+  --if-surface-raised: #171B22;
+  --if-text-primary: #F4EFE8;
+  --if-text-secondary: #9AA1AE;
+  --if-mode-autopilot: #E8743C;
+  --if-mode-copilot: #CC4D66;
+  --if-mode-solo: #9AA1AE;
+  }
+}
+:root[data-theme="dark"] {
+  --if-brand-rust: #E8743C;
+  --if-brand-wingtip: #CC4D66;
+  --if-surface-bg: #0E1116;
+  --if-surface-raised: #171B22;
+  --if-text-primary: #F4EFE8;
+  --if-text-secondary: #9AA1AE;
+  --if-mode-autopilot: #E8743C;
+  --if-mode-copilot: #CC4D66;
+  --if-mode-solo: #9AA1AE;
+}
+
+/* Pro (silver) */
+:root { --if-pro-silver: #7E8691; --if-pro-badge: linear-gradient(#8E959F, #4E5560); --if-pro-badge-text: #FFFFFF; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --if-pro-silver: #B4BBC5; --if-pro-badge: linear-gradient(#F4F6F9, #A9B0BA); --if-pro-badge-text: #0E1116; } }
+:root[data-theme="dark"] { --if-pro-silver: #B4BBC5; --if-pro-badge: linear-gradient(#F4F6F9, #A9B0BA); --if-pro-badge-text: #0E1116; }
