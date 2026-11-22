@@ -268,6 +268,11 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
             event.currentTarget.value = '';
             if (file) void importSidecar(file);
           }} />
+          {/* A rarely used feature: tucked behind a quiet disclosure. It opens by itself while a save or load is running or has a message. */}
+          <details open={sidecarBusy || sidecarStatus?.id === frame.id ? true : undefined} className="group">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 rounded-md px-1 text-xs text-zinc-400 hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-sky-300">
+              <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" aria-hidden="true" />XMP
+            </summary>
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => void saveSidecar()} disabled={sidecarBusy} aria-busy={sidecarBusy}
                 className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-md border border-white/15 px-2 text-xs text-zinc-200 hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-sky-300 disabled:opacity-50">
@@ -279,6 +284,7 @@ export const ExifInspector: React.FC<ExifInspectorProps> = ({ frame, dockedSide 
             </button>
           </div>
           {sidecarStatus?.id === frame.id && <p role="status" className="mt-2 text-xs text-zinc-300">{sidecarStatus.message}</p>}
+          </details>
         </section>
       )}
       </div>
