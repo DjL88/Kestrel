@@ -5,6 +5,7 @@ import { loadConfig } from './config.ts';
 import { CommerceLedger } from './commerce/ledger.ts';
 import { FirestoreStore, type FirestoreLike } from './firestoreStore.ts';
 import { openFirestore, openStore } from './openStore.ts';
+import { buildOptionalServices } from './wiring.ts';
 
 const config = loadConfig();
 const firestore = config.store === 'firestore' ? await openFirestore(config) : undefined;
@@ -12,7 +13,8 @@ const store = firestore ? new FirestoreStore(firestore as unknown as FirestoreLi
 const commerce = firestore ? new CommerceLedger(firestore) : undefined;
 const demoStudio = firestore && process.env.KCP_DEMO_PRIVATE_BUCKET && process.env.KCP_DEMO_PUBLIC_BUCKET
   ? new CloudDemoStudio(firestore, process.env.KCP_DEMO_PRIVATE_BUCKET, process.env.KCP_DEMO_PUBLIC_BUCKET) : undefined;
-const app = createApp({ config, store, commerce, payments: commerce, pricing: commerce, demoStudio });
+const optional = await buildOptionalServices({ firestore: firestore as unknown as FirestoreLike | undefined });
+const app = createApp({ config, store, commerce, payments: commerce, pricing: commerce, demoStudio, cloud: optional.cloud, safeCopy: optional.safeCopy, learning: optional.learning, spend: optional.spend });
 
 if (process.argv.includes('--print-openapi')) {
   process.stdout.write(`${JSON.stringify(openApi(app.routes), null, 2)}\n`);
@@ -29,6 +31,7 @@ server.headersTimeout = 10_000;
 server.listen(config.port, () => {
   console.log(`Kestrel control plane on http://localhost:${config.port}${config.devMode ? ' (development mode: throwaway keys)' : ''}, storing data in ${app.store.kind === 'sqlite' ? `SQLite (${config.databasePath})` : 'Firestore'}`);
   console.log(`Pin this manifest/grant public key in the client: ${config.signingKey.keyId}=${config.signingKey.publicKeyBase64}`);
+  console.log(`Optional services on: ${optional.enabled.join(', ') || 'none'}.`);
   if (!config.geminiApiKey) console.log('No AI provider key set: /v1/ai/* will answer AI_NOT_CONFIGURED.');
 });
 
