@@ -95,6 +95,19 @@ export default function Canvas({
   onToggleFullScreen,
 }: CanvasProps) {
   const [activeGuides, setActiveGuides] = useState<SnapGuide[]>([]);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [stageSize, setStageSize] = useState({ width: 660, height: 470 });
+  const touchPoints = useRef(new Map<number, { x: number; y: number }>());
+  const touchGesture = useRef<{ distance: number; zoom: number; panX: number; panY: number; centreX: number; centreY: number } | null>(null);
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setStageSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+    });
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, []);
   const [draggingType, setDraggingType] = useState<'none' | 'pan' | 'crop' | 'text' | 'watermark' | 'board'>('none');
 
   const dragRef = useRef<{
@@ -371,6 +384,62 @@ export default function Canvas({
     }
   };
 
+  const handleTouchDown = (e: React.PointerEvent<HTMLElement>) => {
+    if (e.pointerType !== 'touch' || activeSize.kind !== 'photo' || compareMode) return false;
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    touchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touchPoints.current.size === 2) {
+      const [a, b] = [...touchPoints.current.values()];
+      touchGesture.current = {
+        distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+        zoom: activeSize.crop.zoom, panX: activeSize.crop.panX, panY: activeSize.crop.panY,
+        centreX: (a.x + b.x) / 2, centreY: (a.y + b.y) / 2,
+      };
+    } else if (touchPoints.current.size === 1) {
+      handleFramePointerDown(e, 'pan', activeSize, e.currentTarget);
+    }
+    return true;
+  };
+  const handleTouchMove = (e: React.PointerEvent<HTMLElement>) => {
+    if (!touchPoints.current.has(e.pointerId)) return false;
+    touchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touchPoints.current.size === 2 && touchGesture.current) {
+      const [a, b] = [...touchPoints.current.values()];
+      const start = touchGesture.current;
+      const zoom = clamp(start.zoom * Math.hypot(a.x - b.x, a.y - b.y) / start.distance, 1, MAX_CROP_ZOOM);
+      const rect = e.currentTarget.getBoundingClientRect();
+      const centreX = (a.x + b.x) / 2;
+      const centreY = (a.y + b.y) / 2;
+      const focalX = (start.centreX - rect.left) / Math.max(1, rect.width) - 0.5;
+      const focalY = (start.centreY - rect.top) / Math.max(1, rect.height) - 0.5;
+      const limits = panLimits(activeSize, zoom);
+      onUpdateCrop(photo.id, activeSize.id, {
+        zoom: Number(zoom.toFixed(3)),
+        panX: clamp(start.panX + (centreX - start.centreX) / Math.max(1, rect.width) * 100 + (start.zoom - zoom) * focalX * 100, -limits.x, limits.x),
+        panY: clamp(start.panY + (centreY - start.centreY) / Math.max(1, rect.height) * 100 + (start.zoom - zoom) * focalY * 100, -limits.y, limits.y),
+      });
+    } else if (touchPoints.current.size === 1) {
+      handleGlobalPointerMove(e);
+    }
+    return true;
+  };
+  const handleTouchEnd = (e: React.PointerEvent<HTMLElement>) => {
+    if (!touchPoints.current.delete(e.pointerId)) return false;
+    touchGesture.current = null;
+    handleGlobalPointerUp();
+    if (touchPoints.current.size === 1) {
+      const [id, point] = [...touchPoints.current.entries()][0];
+      dragRef.current = {
+        kind: 'pan', sizeId: activeSize.id, startX: point.x, startY: point.y,
+        origA: activeSize.crop.panX, origB: activeSize.crop.panY, crop: activeSize.crop,
+        rect: e.currentTarget.getBoundingClientRect(),
+      };
+      void id;
+    }
+    return true;
+  };
+
   const handleGlobalPointerUp = () => {
     if (!dragRef.current) return;
     dragRef.current = null;
@@ -580,7 +649,9 @@ export default function Canvas({
     const aspect = size.width / Math.max(1, size.height);
     const maxW = aspect >= 1 ? 660 : 420;
     const maxH = 470;
-    const frameW = Math.min(maxW, Math.round(maxH * aspect));
+    const availableWidth = Math.max(80, stageSize.width - 32);
+    const availableHeight = Math.max(80, stageSize.height - 105);
+    const frameW = Math.min(maxW, Math.round(maxH * aspect), availableWidth, availableHeight * aspect);
     return { frameW, frameH: Math.round(frameW / aspect) };
   };
   // Screen pixels the frame uses for one picture pixel at Fit (the picture covers the frame). Null when the size is unknown.
@@ -674,22 +745,27 @@ export default function Canvas({
           {activeSize.crop.rotateDeg !== 0 && <span>· {activeSize.crop.rotateDeg}°</span>}
         </div>
 
+        {activeSize.kind === 'photo' && !compareMode && <button type="button" aria-pressed={revealing} onClick={() => setRevealSizeId(revealing ? null : activeSize.id)} className="sm:hidden rounded border border-[var(--border-default)] px-3 py-2 text-xs font-medium">{revealing ? 'Done repositioning' : 'Crop / reposition'}</button>}
         <div className="relative flex items-center gap-3">
           {/* Primary photo frame */}
           <div
             data-testid="canvas-frame"
             onClick={handleVideoPinDrop}
             onPointerDown={(e) => {
+              if (handleTouchDown(e)) return;
               if (activeSize.kind === 'video') return;
               // In reveal mode a drag positions the picture under the crop window; otherwise it moves the format on the canvas.
               handleFramePointerDown(e, revealing ? 'pan' : 'move-frame', activeSize, e.currentTarget);
             }}
+            onPointerMove={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchMove(e); } }}
+            onPointerUp={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchEnd(e); } }}
+            onPointerCancel={(e) => { if (e.pointerType === 'touch') { e.stopPropagation(); handleTouchEnd(e); } }}
             onDoubleClick={() => { if (activeSize.kind === 'photo' && !compareMode) setRevealSizeId(revealing ? null : activeSize.id); }}
             title={activeSize.kind === 'photo' ? STRINGS.canvas.cropHintTitle : undefined}
             className={`relative ${revealing ? 'overflow-visible ring-2 ring-[var(--brand-accent)]' : 'overflow-hidden'} rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] select-none ${
               activeSize.kind === 'video' ? 'cursor-crosshair' : revealing ? 'cursor-move' : 'cursor-grab active:cursor-grabbing'
             }`}
-            style={{ width: frameW, height: frameH }}
+            style={{ width: frameW, height: frameH, touchAction: 'none' }}
           >
             {revealing && (
               <div
@@ -903,6 +979,7 @@ export default function Canvas({
     <main
       onPointerMove={handleGlobalPointerMove}
       onPointerUp={handleGlobalPointerUp}
+      onPointerCancel={handleGlobalPointerUp}
       className="relative flex flex-1 flex-col overflow-hidden bg-[var(--bg-canvas)]"
     >
       {/* Top Canvas Bar: View mode (Single vs All Formats Side-by-Side) + Per-selection Flip/Rotate/Compare */}
@@ -1089,7 +1166,7 @@ export default function Canvas({
       )}
 
       {/* Stage */}
-      <div className="relative flex flex-1 overflow-auto inflight-scroll p-6">
+      <div ref={stageRef} className="relative flex flex-1 overflow-auto inflight-scroll p-2 sm:p-6">
         {hoveredLook && (
           <div className="pointer-events-none absolute left-4 top-4 z-30 rounded-[var(--radius-sm)] border border-[var(--brand-accent-border)] bg-[var(--bg-surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] shadow">
             Previewing look: <span className="text-[var(--brand-accent)]">{hoveredLook.name}</span>
