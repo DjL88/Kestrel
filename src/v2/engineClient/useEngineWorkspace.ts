@@ -30,6 +30,8 @@ import { isHeifFile, isRawPreviewFile } from '../../core/rawFormats';
 import { loadUi, mergeSettings, saveUi, type SavedUi } from './uiSettings';
 import { applyCanvasPhotoEdit } from '../../core/canvasEdit';
 import { DEFAULT_EDIT as EMPTY_EDIT } from '../../core/photoEdits';
+import { DEFAULT_CROP, flipCrop, patchCrop, rotateCrop } from './cropOps';
+import { readCrops } from './cropOps';
 import { addRow, alignOverlays, patchOverlay, readOverlay, removeRow, updateRow } from './overlayOps';
 import { frameToPhoto, shootToProject, taskToInfo, visibleTasks, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
@@ -40,8 +42,8 @@ import { surfaceBridge } from './surfaceBridge';
 /** Actions that change a photo's edit, sizes, overlay, masks or assist state. They are not connected to the real
  * recipe yet, so they say so instead of silently changing sample data. */
 const NOT_CONNECTED = [
-  'setActiveGroup', 'addEditGroup', 'renameEditGroup', 'toggleSizeEnabled', 'toggleSizeLinked', 'updateSizeCrop',
-  'flipSelectedSizes', 'rotateSelectedSizes', 'resetSizeCrop', 'addCustomSize', 'toggleSplitFrames', 'setSplitPanOffset',
+  'setActiveGroup', 'addEditGroup', 'renameEditGroup', 'toggleSizeEnabled', 'toggleSizeLinked',
+  'addCustomSize', 'toggleSplitFrames', 'setSplitPanOffset',
   'updateVideoZoom', 'addMaskLayer', 'toggleMaskLayer', 'removeMaskLayer',
   'runExport', 'reconnectOriginal',
 ] as const satisfies readonly (keyof WorkspaceActions)[];
@@ -361,6 +363,21 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [histogramKey]);
 
+  /** Each format's crop lives with the photo (saved, backed up, used by the export). It is not an edit, so it is not in edit history. */
+  const changeCrops = useCallback((photoId: string, sizeIds: string[], change: (crop: ReturnType<typeof readCrops>[string] | undefined) => ReturnType<typeof readCrops>[string]) => {
+    const at = Date.now();
+    mutate((current) => ({
+      ...current,
+      shoot: { ...current.shoot, lastUpdatedAt: at },
+      frames: current.frames.map((frame) => {
+        if (frame.id !== photoId) return frame;
+        const crops = readCrops(frame.sizeCrops);
+        for (const id of sizeIds) crops[id] = change(crops[id]);
+        return { ...frame, sizeCrops: crops };
+      }),
+    }));
+  }, [mutate]);
+
   const applyAuto = useCallback((frameId: string) => {
     const assist = assists[frameId];
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === frameId);
@@ -508,6 +525,13 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     applyAllAssistSuggestions: (photoId) => applyAuto(photoId),
     dismissAssistSuggestion: (photoId) => setAssists((current) => (current[photoId] ? { ...current, [photoId]: { ...current[photoId], dismissed: true } } : current)),
     runDeepVisionReview: (photoId) => runDeepVisionReviewAction(photoId),
+    updateSizeCrop: (photoId, sizeId, patch) => {
+      const selectedSizes = stub.store.selectedSizeIds;
+      changeCrops(photoId, selectedSizes.length > 1 && selectedSizes.includes(sizeId) ? selectedSizes : [sizeId], (crop) => patchCrop(crop, patch));
+    },
+    resetSizeCrop: (photoId, sizeId) => changeCrops(photoId, [sizeId], () => ({ ...DEFAULT_CROP })),
+    flipSelectedSizes: (photoId, axis) => changeCrops(photoId, stub.store.selectedSizeIds, (crop) => flipCrop(crop, axis)),
+    rotateSelectedSizes: (photoId) => changeCrops(photoId, stub.store.selectedSizeIds, (crop) => rotateCrop(crop)),
     updateOverlay: (photoId, patch) => changeOverlay(photoId, (overlay) => patchOverlay(overlay, patch)),
     alignOverlaysCleanly: (photoId, layout) => changeOverlay(photoId, (overlay) => alignOverlays(overlay, layout)),
     addOverlayRow: (photoId) => changeOverlay(photoId, (overlay) => addRow(overlay, `row-${newId().slice(0, 8)}`)),
@@ -578,7 +602,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const actions = useMemo(() => ({ ...stub.actions, ...unconnected, ...real }) as WorkspaceActions,
     // `real` and `unconnected` are rebuilt each render and only close over stable refs and setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stub.actions, stub.store.looks, applyAuto, changeOverlay, runAutoCull, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
+    [stub.actions, stub.store.looks, applyAuto, changeOverlay, changeCrops, stub.store.selectedSizeIds, runAutoCull, runDeepVisionReviewAction, activeId, activeFrame, clipboard, selected, applyPatch, editFrames, enterProject, backToProjects, decide, importPhotos, loadHub]);
 
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], { assist: assists[frame.id], watermarkAuto: watermarkAuto[frame.id], histogram: histograms[frame.id], pixelSize: pixelSizes[frame.id] })), [state?.frames, urls, assists, watermarkAuto, histograms, pixelSizes]);
   const store: WorkspaceStore = useMemo(() => ({

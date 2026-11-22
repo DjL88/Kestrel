@@ -391,3 +391,46 @@ test('?v2 a format is capped at the photo\'s own pixels, with a small warning', 
   await expect(root.getByText('1500×1000 (3:2)')).toBeVisible();
   await expect(warning).toHaveAttribute('title', /never enlarges/);
 });
+
+test('?v2 crop: corners keep the format\'s shape, double-click shows the whole picture, a plain drag moves the format', async ({ page }) => {
+  await page.goto('/?v2&stub=1&autostart=1');
+  const root = page.locator('.inflight-v2');
+  const frame = root.getByTestId('canvas-frame');
+  const zoomOf = () => frame.locator('img').first().evaluate((img) => { const m = new DOMMatrixReadOnly(getComputedStyle(img).transform === 'none' ? undefined : getComputedStyle(img).transform); return m.a; });
+  const before = (await frame.boundingBox())!;
+  expect(await zoomOf()).toBeCloseTo(1, 1);
+  // Pull the top-left corner in: the picture zooms, and the frame keeps exactly the same shape and size.
+  const corner = root.getByRole('button', { name: 'Drag top left crop corner' });
+  const c = (await corner.boundingBox())!;
+  await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(c.x + 90, c.y + 60, { steps: 6 });
+  await page.mouse.up();
+  expect(await zoomOf()).toBeGreaterThan(1.05);
+  const after = (await frame.boundingBox())!;
+  expect(Math.abs(after.width - before.width)).toBeLessThan(1);
+  expect(Math.abs(after.height - before.height)).toBeLessThan(1);
+  // Pulling it back out returns toward fit, never below it.
+  const c2 = (await corner.boundingBox())!;
+  await page.mouse.move(c2.x + c2.width / 2, c2.y + c2.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(c2.x - 200, c2.y - 150, { steps: 6 });
+  await page.mouse.up();
+  expect(await zoomOf()).toBeGreaterThanOrEqual(0.99);
+  // Double-click shows the whole picture as a ghost; Escape leaves it.
+  await expect(root.getByTestId('crop-ghost')).toHaveCount(0);
+  await frame.dblclick({ position: { x: 200, y: 150 } });
+  await expect(root.getByTestId('crop-ghost')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(root.getByTestId('crop-ghost')).toHaveCount(0);
+  // Outside that mode, a plain drag moves the format on the canvas.
+  const start = (await frame.boundingBox())!;
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(start.x + start.width / 2 + 80, start.y + start.height / 2 + 40, { steps: 6 });
+  await page.mouse.up();
+  const moved = (await frame.boundingBox())!;
+  expect(moved.x - start.x).toBeGreaterThan(60);
+  expect(moved.y - start.y).toBeGreaterThan(25);
+  expect(Math.abs(moved.width - start.width)).toBeLessThan(1);
+});

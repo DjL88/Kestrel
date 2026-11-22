@@ -4,6 +4,7 @@ import type { Photo, Project, TaskInfo, TileState } from '../ui/contract';
 import { createDefaultSizes, createEditGroups } from '../ui/stub';
 import { editToRecipe } from './recipeMap';
 import { readOverlay } from './overlayOps';
+import { readCrops } from './cropOps';
 import type { AutoRun } from './runAuto';
 import type { AssistSuggestion, EditRecipe, PhotoHistogram } from '../ui/contract';
 import type { Task } from '../../core/taskStore';
@@ -71,6 +72,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
   const { assist, watermarkAuto, histogram, pixelSize } = extras;
   const { exif } = frame;
   // The UI's sample group carries a made-up look. A real photo starts from its own edit: neutral until the person edits it.
+  const crops = readCrops(frame.sizeCrops);
   const groups = createEditGroups(false).map((group) => ({ ...group, name: 'Edit group 1', recipe: editToRecipe(frame.edit), overlay: readOverlay(frame.overlay) }));
   const thumb = urls?.thumb ?? BLANK_IMAGE;
   return {
@@ -102,7 +104,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     ...(exif.width && exif.height ? { pixelSize: { width: exif.width, height: exif.height } } : pixelSize ? { pixelSize } : {}),
     activeGroupId: groups[0].id,
     editGroups: groups,
-    sizes: createDefaultSizes(),
+    sizes: createDefaultSizes().map((size) => { const crop = crops[size.id]; return crop ? { ...size, crop } : size; }),
     videoZoom: { enabled: false, focalX: 50, focalY: 50, direction: 'in', durationSec: 6 },
     masks: [],
     ...(watermarkAuto ? { watermarkAuto } : {}),
