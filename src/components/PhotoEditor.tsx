@@ -154,6 +154,8 @@ interface Props {
   toolsCollapsed?: boolean;
   /** Photo-only mode hides editing chrome without altering edits or zoom. */
   focusPhoto?: boolean;
+  /** Opens the app's photo-only view, which fills the screen and may rotate with the device. */
+  onPhotoOnly?: () => void;
   /** Phone tool tabs reopen the bottom sheet when the shared panes were folded. */
   onExpandTools?: () => void;
   /** Fold the panes away (the arrow on the tools' edge, or Tab). */
@@ -166,7 +168,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
   frame, viewportTransform, onViewportTransform, provider, needsAccess, bindings, onEdit, initialTab, onTabChange, onApplyLook, onExport, exportCount = 1, onExportRequested, onHistoryStep, onHistoryJump, copiedEdit, onCopyEdit, keeperCount,
   onApplyToKeepers, onUndoKeeperEdits, onCreateVirtualCopy, onRemoveVirtualCopy, onFramingChange, onFocusPoint,
   panelSide, onPanelSideChange, hand, onHandChange,
-  toolsCollapsed = false, focusPhoto = false, onExpandTools, onFoldTools, demoOnly = false,
+  toolsCollapsed = false, focusPhoto = false, onPhotoOnly, onExpandTools, onFoldTools, demoOnly = false,
 }: Props) {
   const originalCanvas = useRef<HTMLCanvasElement>(null);
   const editedCanvas = useRef<HTMLCanvasElement>(null);
@@ -1746,10 +1748,10 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
           onClick={() => setCompare((value) => !value)}>
           <Columns2 className="h-4 w-4" aria-hidden="true"/>
         </button>
-        {!mobileShell && <button type="button" aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
-          title={fullscreen ? 'Exit full screen' : 'Full screen'} disabled={!canFullscreen}
+        {(!mobileShell || onPhotoOnly) && <button type="button" aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
+          title={fullscreen ? 'Exit full screen' : 'Full screen'} disabled={!canFullscreen && !(mobileShell && onPhotoOnly)}
           className="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-white/15 text-zinc-200 hover:bg-white/10 disabled:opacity-40"
-          onClick={toggleFullscreen}>
+          onClick={mobileShell && onPhotoOnly ? onPhotoOnly : toggleFullscreen}>
           {fullscreen ? <Minimize className="h-4 w-4" aria-hidden="true"/> : <Maximize className="h-4 w-4" aria-hidden="true"/>}
         </button>}
         {/* Settings is in the top right corner of every page (App). */}
