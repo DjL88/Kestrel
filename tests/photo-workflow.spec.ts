@@ -110,12 +110,8 @@ test('import ten photos, keep and edit a frame, export it and reopen offline', a
   });
   await page.getByRole('tab', { name: 'Auto' }).click();
   const autoPanel = page.getByRole('tabpanel', { name: 'Auto' });
-  await page.getByRole('button', { name: 'Suggest a look' }).click();
+  await autoPanel.getByRole('button', { name: 'Auto', exact: true }).click();
   await expect(autoPanel.getByRole('status').first()).toBeVisible({ timeout: 25_000 });
-  const qualityChecks = autoPanel.getByRole('region', { name: 'Quality checks for this look' });
-  if (await qualityChecks.isVisible().catch(() => false)) {
-    await page.getByRole('button', { name: 'Hide opinion' }).click();
-  }
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await light.press('ArrowRight');
   await expect(light).toHaveValue('0.1');

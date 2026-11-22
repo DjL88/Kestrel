@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 // "model unavailable" set-up below would only hold for the first attempt. Keep the worker out of this test.
 test.use({ serviceWorkers: 'block' });
 
-test('Insight explains a failed local detector and never changes an edit before Apply', async ({ page }) => {
+test('Auto works without the local detector, applies one undoable edit, and Undo Auto restores the look', async ({ page }) => {
   test.setTimeout(90_000);
   // Make the bundled model unavailable to exercise the truthful offline fallback.
   // The global suggestion and preview controls must continue to work.
@@ -39,26 +39,22 @@ test('Insight explains a failed local detector and never changes an edit before 
   await page.getByRole('tab', { name: 'Auto' }).click();
   // On a phone, tapping the tab that is already open folds the sheet away; open it again if so.
   if (!(await panel.isVisible())) await page.getByRole('tab', { name: 'Auto' }).click();
-  const suggest = panel.getByRole('button', { name: 'Suggest a look' });
-  await expect(suggest).toBeEnabled();
-  await suggest.click();
-  await expect(panel.getByRole('group', { name: 'Suggested edit preview' })).toBeVisible({ timeout: 30_000 });
-  await expect(panel.getByText('Subject detection was unavailable.', { exact: false })).toBeVisible();
-  await expect(undo).toBeDisabled(); // Preview does not write an edit or history.
-  const compare = panel.getByRole('button', { name: 'Compare before / after' });
-  await compare.click();
-  await expect(panel.getByRole('button', { name: 'Hide comparison' })).toHaveAttribute('aria-pressed', 'true');
-  await panel.getByRole('button', { name: 'Keep current edit' }).click();
-  await expect(undo).toBeDisabled();
-  await expect(panel.getByRole('group', { name: 'Suggested edit preview' })).toHaveCount(0);
-
-  await suggest.click();
-  await expect(panel.getByRole('group', { name: 'Suggested edit preview' })).toBeVisible({ timeout: 30_000 });
-  await panel.getByRole('button', { name: 'Apply suggested edit' }).click();
+  const auto = panel.getByRole('button', { name: 'Auto', exact: true });
+  await expect(auto).toBeEnabled();
+  await auto.click();
+  // One press applies a real, undoable edit (a dark subject gets an exposure lift) and says so in words.
+  await expect(panel.getByTestId('auto-headline')).toBeVisible({ timeout: 30_000 });
   await expect(undo).toBeEnabled();
   await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   const exposure = page.getByRole('slider', { name: 'Exposure adjustment' });
   expect(Number(await exposure.inputValue())).toBeGreaterThan(0);
   await undo.click();
+  await expect(exposure).toHaveValue('0');
+  // "Undo Auto" restores exactly the look Auto started from.
+  await page.getByRole('tab', { name: 'Auto' }).click();
+  await panel.getByRole('button', { name: 'Auto', exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'Undo Auto' })).toBeVisible({ timeout: 30_000 });
+  await panel.getByRole('button', { name: 'Undo Auto' }).click();
+  await page.getByRole('tab', { name: 'Edit', exact: true }).click();
   await expect(exposure).toHaveValue('0');
 });
