@@ -236,6 +236,7 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
             onToggleFlag={actions.toggleFlag}
             onSetRating={actions.setRating}
             onReconnectOriginal={actions.reconnectOriginal}
+            onCorrectSpeciesName={actions.correctSpeciesName}
           />
         );
       case 'tasks':
