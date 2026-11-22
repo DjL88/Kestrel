@@ -2,21 +2,21 @@
 
 Everything the backend worker prepared for the V2 plan, what each piece needs from **you**, and in what order. **Nothing here has been applied, deployed, wired into the running service or paid for.** All hosting is UK: London, `europe-west2`. Every check below is the worker's own; none has been run on CI (billing-blocked) or against real Google services.
 
-## 1. What is built (all draft PRs, none merged)
+## 1. What was built (all merged to main on 22 Nov 2026, local checks only)
 
-| # | Piece | PR | Base | State |
-| --- | --- | --- | --- | --- |
-| 1 | Cloud processing: measurement, cost model, server gate | [#871](https://github.com/DjL88/Kestrel/pull/871) | main | Gate on in-memory fakes. 503 in production |
-| 1 | Cloud job ledger (Firestore) | [#873](https://github.com/DjL88/Kestrel/pull/873) | #871 | Not wired |
-| 1 | Cloud bucket and runner Terraform, UK-pinned | [#874](https://github.com/DjL88/Kestrel/pull/874) | #873 | Off by default, unchecked |
-| 2 | Managed Gemini gateway key mount | [#875](https://github.com/DjL88/Kestrel/pull/875) | main | Gateway code already existed; mount off by default, unchecked |
-| 3 | Licence record and contract per ONNX model | [#876](https://github.com/DjL88/Kestrel/pull/876) | main | Live behaviour change on merge (below) |
-| 4 | Opt-in learning signal | [#877](https://github.com/DjL88/Kestrel/pull/877) | main | Not wired. 503 |
-| 5 | Safe copy gate (opt-in backup) | [#879](https://github.com/DjL88/Kestrel/pull/879) | main | In-memory. 503 |
-| 5 | Safe copy Firestore catalog, UK bucket Terraform | [#880](https://github.com/DjL88/Kestrel/pull/880) | #879 | Off by default, unchecked |
-| 6 | Feature flags | none | | Stay as built (slice 0) |
+| # | Piece | PR | State on main |
+| --- | --- | --- | --- |
+| 1 | Cloud processing: measurement, cost model, server gate | [#871](https://github.com/DjL88/Kestrel/pull/871) | In-memory fakes. 503 in production |
+| 1 | Cloud job ledger (Firestore) | [#888](https://github.com/DjL88/Kestrel/pull/888) (replaced #873, which GitHub auto-closed when #871's branch was deleted) | Not wired |
+| 1 | Cloud bucket and runner Terraform, UK-pinned | [#874](https://github.com/DjL88/Kestrel/pull/874) | Off by default, unchecked |
+| 1 | Job lifecycle and engine contract | [#882](https://github.com/DjL88/Kestrel/pull/882) | In-memory fakes; engine side not built |
+| 2 | Managed Gemini gateway key mount | [#875](https://github.com/DjL88/Kestrel/pull/875) | Gateway existed; mount off by default, unchecked |
+| 3 | Licence record and contract per ONNX model | [#876](https://github.com/DjL88/Kestrel/pull/876) | **Live behaviour change** (below) |
+| 4 | Opt-in learning signal | [#877](https://github.com/DjL88/Kestrel/pull/877) | Not wired. 503 |
+| 5 | Safe copy gate, Firestore catalog, UK bucket Terraform | [#879](https://github.com/DjL88/Kestrel/pull/879), [#880](https://github.com/DjL88/Kestrel/pull/880) | In-memory / not wired. 503; Terraform off by default, unchecked |
+| 6 | Feature flags | none | Stay as built (slice 0) |
 
-Merge order: #871, then #873, then #874 (retarget each to `main` after its base merges); #879 then #880 likewise; #875, #876, #877 any time. `infra/gcp/variables.tf` and `docs/ROADMAP.md` are appended to by several PRs, so expect trivial conflicts: keep both sides.
+Merged one by one in the order #876, #871, #888, #882, #874, #875, #877, #879, #880. Several PRs appended to the same table rows and files, so most were rebuilt on current main (own changes replayed, then a normal merge commit; no force-push to main). Before merging, the combined result passed root `npm run lint`, `npm test` and `npm run build`, and control-plane lint and tests (184 at that point; 184 again after the last merge's own run).
 
 ## 2. Decisions only you can make
 
@@ -27,10 +27,10 @@ Merge order: #871, then #873, then #874 (retarget each to `main` after its base 
 5. **Learning signal wording.** A pseudonym is not anonymity. The consent text and privacy page need your words, and a retention period.
 6. **"UK only" wording.** True for the bucket, Firestore and Cloud Run regions the plans use. **Not true to promise for Gemini** (the Gemini API gives no UK processing guarantee), nor for Google support, backups and logs. Do not publish "UK only" without that caveat.
 
-## 3. Before you merge
+## 3. What changed live on merge
 
 - **#876 changes live behaviour.** After merge, registering an ONNX model without a `contract` and a `licence` record fails, and an ONNX version with no licence record cannot be promoted. The four models in the bucket's signed manifest are a **separate authority** (published with `scripts/release`), so they are not affected. Any ONNX version registered in the control plane **before** this change has no licence record, so promoting or rolling back to it is refused until you register a new version with one. Not checked: whether the control-plane registry holds any such rows today.
-- Run the PRs' own checks on your machine. The worker ran only control-plane lint and tests, and the scripts/cloud-measure tests. Not run by anyone: repo-wide lint/test/build, Playwright, Rust, the Firestore emulator.
+- Not run by anyone: Playwright, Rust crate tests, the Firestore emulator, `terraform fmt/validate/plan`, CI (billing-blocked). Run the repo checks on your machine when you can.
 
 ## 4. Applying infrastructure (each is optional, each needs your say-so)
 

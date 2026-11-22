@@ -1,0 +1,11 @@
+[package]
+name = "cloud-measure"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Local-only timing of Kestrel's RAW decode and develop. Uploads nothing, touches no network."
+
+[dependencies]
+kestrel-raw = { path = "../../crates/kestrel-raw" }
+
+[workspace]

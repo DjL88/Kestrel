@@ -205,6 +205,10 @@ export class SqliteStore implements Store {
   async listLiveModelAssets(channel: string) {
     return this.all<AssetRow>('SELECT * FROM model_assets WHERE status = \'live\' AND channel = ? ORDER BY asset_id', channel).map(asset);
   }
+  async getModelAsset(assetId: string, version: string, channel: string) {
+    const row = this.get<AssetRow>('SELECT * FROM model_assets WHERE asset_id = ? AND version = ? AND channel = ?', assetId, version, channel);
+    return row ? asset(row) : undefined;
+  }
   async promoteModelAsset(assetId: string, version: string, channel: string): Promise<boolean> {
     return this.transaction(() => {
       if (!this.get('SELECT 1 FROM model_assets WHERE asset_id = ? AND version = ? AND channel = ?', assetId, version, channel)) return false;
