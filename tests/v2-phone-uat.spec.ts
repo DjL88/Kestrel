@@ -64,7 +64,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 667, height: 375 }
     await expect(close).toBeInViewport({ ratio: 1 });
     await expect(submit).toBeInViewport({ ratio: 1 });
     await expect(dialog.getByRole('button', { name: /Dropbox|Google Drive|Local NAS/ })).toHaveCount(0);
-    const before = dialog.getByRole('button', { name: 'Before (original)' });
+    const before = dialog.getByRole('button', { name: /Before: unedited, developed/ });
     await before.tap();
     await expect(before).toHaveAttribute('aria-pressed', 'true');
     await expect(submit).toBeInViewport({ ratio: 1 });

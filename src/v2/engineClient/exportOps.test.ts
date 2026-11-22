@@ -24,7 +24,7 @@ test('removed photos and video sizes are skipped', () => {
 
 test('anything the file would not honour is refused, never silently dropped', () => {
   const sizes = [size('a'), size('b')];
-  for (const over of [{ includeBefore: true }, { includeVideo: true }, { destination: 'dropbox' as const }, { includeAfter: false }]) {
+  for (const over of [{ includeVideo: true }, { destination: 'dropbox' as const }, { includeAfter: false }]) {
     assert.ok('error' in planExport(request(over), frames, sizes), JSON.stringify(over));
   }
 });
@@ -45,4 +45,36 @@ test('overlay and watermark requests are planned, not refused', () => {
 test('nothing selected gives a plain message', () => {
   assert.ok('error' in planExport(request({ photoIds: [] }), frames, [size('a')]));
   assert.ok('error' in planExport(request({ sizeIds: [] }), frames, [size('a')]));
+});
+
+test('before and after plans both variants per file; the unedited one is never called the original', () => {
+  const plan = planExport(request({ includeBefore: true, photoIds: ['p1'], sizeIds: ['a'] }), frames, [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.jobs[0].variants, ['unedited', 'edited']);
+  assert.match(plan.summary, /before and after = 2 files/);
+  assert.equal(plan.originals.length, 0);
+});
+
+test('unedited alone is planned as unedited only', () => {
+  const plan = planExport(request({ includeBefore: true, includeAfter: false, photoIds: ['p1'], sizeIds: ['a'] }), frames, [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.jobs[0].variants, ['unedited']);
+});
+
+test('original file alone needs no size and plans one exact copy per photo', () => {
+  const plan = planExport(request({ includeOriginal: true, includeAfter: false, sizeIds: [] }), frames, [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.equal(plan.jobs.length, 0);
+  assert.deepEqual(plan.originals, ['p1', 'p2']);
+  assert.equal(plan.summary, '2 original files = 2 files');
+});
+
+test('original file plus edited counts both', () => {
+  const plan = planExport(request({ includeOriginal: true, photoIds: ['p1'], sizeIds: ['a'] }), frames, [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.equal(plan.summary, '1 photo × 1 size + 1 original file = 2 files');
+});
+
+test('choosing nothing at all is refused with a plain message', () => {
+  assert.ok('error' in planExport(request({ includeAfter: false }), frames, [size('a')]));
 });

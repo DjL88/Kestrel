@@ -355,6 +355,8 @@ export interface ExportRequest {
   includeOverlay: boolean;
   includeWatermark: boolean;
   includeVideo: boolean;
+  /** Copy the exact original file (as shot). Never a developed or preview file. */
+  includeOriginal?: boolean;
   photoIds: string[];
 }
 
