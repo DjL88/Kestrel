@@ -5,6 +5,7 @@ import { version as appVersion } from '../../package.json';
 import { isDesktopApp } from './desktopShell';
 import { firebaseAuth } from './firebaseAuth';
 import { LicenceSync, type LicenceStatus } from './licenceSync';
+import { setSignedInHint } from './featureFlagsStore';
 
 export type LicenceState =
   | { status: 'none' }
@@ -83,6 +84,7 @@ export async function activateFromAccount(idToken: string): Promise<'pro' | 'fre
   if (!sync.configured) return 'not_set_up';
   const standing = await sync.activateAccount(idToken);
   if (!standing) return 'unreachable';
+  setSignedInHint(true);
   if (!storedKey()) set(standing.kind === 'no_licence' ? { status: 'none' } : accountState(standing));
   return standing.kind === 'active' ? 'pro' : standing.kind === 'no_licence' ? 'free' : standing.kind === 'device_limit' ? 'limit' : 'revoked';
 }
@@ -90,6 +92,7 @@ export async function activateFromAccount(idToken: string): Promise<'pro' | 'fre
 /** Signing out of the account removes its Pro from this device (a pasted key is separate and stays). */
 export function leaveAccount() {
   sync.forgetAccount();
+  setSignedInHint(false);
   if (state.status === 'account') set({ status: 'none' });
 }
 
