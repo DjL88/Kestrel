@@ -161,7 +161,7 @@ export default function Filmstrip({
   return (
     <section
       aria-label="Filmstrip and photo info dock"
-      className="relative z-20 flex shrink-0 flex-col border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] select-none"
+      className="v2-filmstrip relative z-20 flex shrink-0 flex-col border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] select-none"
     >
       {/* Top Resize Drag Bar */}
       {!collapsed && (
@@ -362,7 +362,7 @@ export default function Filmstrip({
 
       {/* Body: Either Filmstrip tiles OR Bottom Info Tab */}
       {!collapsed && (
-        <div style={{ height }} className="w-full overflow-hidden">
+        <div style={{ height }} className="v2-filmstrip-body w-full overflow-hidden">
           {visiblePhotos.length === 0 ? (
             <div className="flex h-full items-center justify-center text-xs text-[var(--text-muted)]">
               {STRINGS.filmstrip.nothingMatches}

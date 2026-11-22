@@ -32,3 +32,20 @@
 .inflight-v2 .v2-pro-light { display: none; }
 .inflight-v2[data-v2-theme="light"] .v2-pro-dark { display: none; }
 .inflight-v2[data-v2-theme="light"] .v2-pro-light { display: inline-block; }
+
+/* Mobile layer: short landscape phones (and a split-screen strip). Scoped by media query so desktop and tablet are unchanged.
+   The photo must stay visible; the filmstrip becomes a slim strip the person can still scroll. */
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 899px) {
+  .inflight-v2 .v2-filmstrip { max-height: 5.5rem; overflow-y: auto; overscroll-behavior: contain; }
+  .inflight-v2 .v2-filmstrip-body { height: 6.5rem !important; }
+  .inflight-v2 .v2-filmstrip [role="separator"] { display: none; }
+}
+
+/* Mobile layer: finger-sized targets on touch phones only (Apple HIG 44pt). Desktop and tablet widths are not touched. */
+@media (pointer: coarse) and (max-width: 767px) {
+  .inflight-v2 header button, .inflight-v2 nav button, .inflight-v2 [role="dialog"] button, .inflight-v2 [role="tab"] { min-height: 44px; }
+  .inflight-v2 header button[aria-label], .inflight-v2 [role="dialog"] button[aria-label] { min-width: 44px; }
+  .inflight-v2 input[type="range"].inflight-slider { height: 6px; }
+  .inflight-v2 input[type="range"].inflight-slider::-webkit-slider-thumb { width: 26px; height: 26px; }
+  .inflight-v2 input[type="range"].inflight-slider::-moz-range-thumb { width: 26px; height: 26px; }
+}
