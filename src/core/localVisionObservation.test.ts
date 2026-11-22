@@ -26,3 +26,11 @@ test('a long answer is cut at a full stop, not mid-sentence', () => {
   assert.ok(result.text.length <= MAX_TEXT);
   assert.ok(result.text.endsWith('.'));
 });
+
+import { sameVersion } from './localVisionObservation.ts';
+test('an old answer is recognised as old as soon as the photo or edit changes', () => {
+  const edit = { exposure: 0 };
+  assert.equal(sameVersion([edit, 'a'], [edit, 'a']), true);
+  assert.equal(sameVersion([edit, 'a'], [{ exposure: 0 }, 'a']), false);
+  assert.equal(sameVersion([edit], [edit, 'a']), false);
+});

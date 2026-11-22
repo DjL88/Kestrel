@@ -30,3 +30,8 @@ export function sanitiseObservation(raw: unknown): VisionObservation {
   const stop = cut.lastIndexOf('.');
   return { text: stop > 40 ? cut.slice(0, stop + 1) : `${cut.trimEnd()}…`, usable: true };
 }
+
+/** True when the photo or its edit is still exactly what was checked, so an old answer is never shown as current. */
+export function sameVersion(a: readonly unknown[], b: readonly unknown[]): boolean {
+  return a.length === b.length && a.every((value, index) => Object.is(value, b[index]));
+}

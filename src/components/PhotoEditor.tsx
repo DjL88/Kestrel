@@ -31,6 +31,7 @@ import { applyCanvasPhotoEdit } from '../core/canvasEdit';
 import { applyFix, critique, toneOnlyEdit, type Opinion, type OpinionFigures } from '../core/critique';
 import { effectiveAlpha, fullContext, maskAlpha } from '../core/masks';
 import { ColourCheckPanel, type ColourPreview } from './ColourCheckPanel';
+import { LocalPhotoCheck } from './LocalPhotoCheck';
 import { MaskOverlay } from './MaskOverlay';
 import { MaskPanel } from './MaskPanel';
 import { createSubjectMask, framingKey, onlyAdjustmentsChanged, type SubjectDetail, type SubjectGrid } from '../core/maskTypes';
@@ -1427,6 +1428,7 @@ export function PhotoEditor({ autoEdit, guidanceMode = 'glide', onOpenMacroPad, 
         ) : (
           <ColourCheckPanel edit={edit} readPreview={colourPreview} version={[edit, framing, source]} onEdit={onEdit} disabled={sourceState !== 'ready'} readJpeg={reviewJpeg} />
         )}
+        <LocalPhotoCheck readJpeg={reviewJpeg} version={[edit, framing, source]} disabled={sourceState !== 'ready'} />
         <details open className="border-t border-white/10">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm text-zinc-300 [&::-webkit-details-marker]:hidden">
             {t.edit.tone} <ChevronDown className="h-4 w-4" aria-hidden="true" />
