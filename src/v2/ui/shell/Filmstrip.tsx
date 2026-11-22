@@ -55,6 +55,7 @@ export default function Filmstrip({
   onExportSelected,
 }: FilmstripProps) {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [minimumRating, setMinimumRating] = useState(0);
   const [tileMenu, setTileMenu] = useState<{ x: number; y: number; photoId: string } | null>(null);
   const resizeStart = useRef<{ y: number; h: number } | null>(null);
   const longPressTimer = useRef<number | null>(null);
@@ -66,7 +67,7 @@ export default function Filmstrip({
     return () => window.removeEventListener('mousedown', close);
   }, [tileMenu]);
 
-  const visiblePhotos = filterPhotos(photos, filter, search);
+  const visiblePhotos = filterPhotos(photos, filter, search).filter((photo) => photo.rating >= minimumRating);
   const flaggedCount = photos.filter((p) => p.decision === 'keep').length;
 
   const handleResizeDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -210,7 +211,7 @@ export default function Filmstrip({
           </div>
 
           {/* Search icon expanding into search input */}
-          {searchOpen || search ? (
+          {searchOpen || search || minimumRating > 0 ? (
             <div className="relative flex items-center">
               <BrandIcon
                 name="search"
@@ -223,7 +224,7 @@ export default function Filmstrip({
                 value={search}
                 onChange={(e) => onSetSearch(e.target.value)}
                 onBlur={() => {
-                  if (!search) setSearchOpen(false);
+                  if (!search && minimumRating === 0) setSearchOpen(false);
                 }}
                 placeholder={STRINGS.filmstrip.searchPlaceholder}
                 aria-label={STRINGS.filmstrip.searchPlaceholder}
@@ -240,6 +241,23 @@ export default function Filmstrip({
             >
               <BrandIcon name="search" size={15} />
             </button>
+          )}
+
+          {(searchOpen || search || minimumRating > 0) && (
+            <label className="flex items-center gap-1 text-[11px] text-[var(--text-secondary)]">
+              <span>Rating</span>
+              <select
+                aria-label="Minimum photo rating"
+                value={minimumRating}
+                onChange={(event) => setMinimumRating(Number(event.target.value))}
+                className="h-8 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--bg-input)] px-1 text-xs text-[var(--text-primary)]"
+              >
+                <option value={0}>Any</option>
+                {[1, 2, 3, 4, 5].map((rating) => (
+                  <option value={rating} key={rating}>{rating}+ stars</option>
+                ))}
+              </select>
+            </label>
           )}
 
           {/* Collapse / Expand chevron */}
