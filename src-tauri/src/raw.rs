@@ -151,7 +151,7 @@ mod tests {
     #[cfg(target_os = "macos")]
     #[test]
     fn macos_nikon_he_fixture_reports_support_without_promising_it() {
-        let Some(dir) = samples() else { eprintln!("NOT RUN: KESTREL_RAW_SAMPLES not set"); return };
+        let Some(dir) = std::env::var_os("KESTREL_RAW_SAMPLES").map(std::path::PathBuf::from) else { eprintln!("NOT RUN: KESTREL_RAW_SAMPLES not set"); return };
         let path = dir.join("z8-he.nef");
         if !path.exists() { eprintln!("NOT RUN: z8-he.nef not found"); return; }
         let bytes = std::fs::read(&path).expect("read owner-provided fixture");
