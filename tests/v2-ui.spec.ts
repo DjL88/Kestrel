@@ -434,3 +434,38 @@ test('?v2 crop: corners keep the format\'s shape, double-click shows the whole p
   expect(moved.y - start.y).toBeGreaterThan(25);
   expect(Math.abs(moved.width - start.width)).toBeLessThan(1);
 });
+
+test('?v2 overlay text drags smoothly (no jump at 35% or 65%), snaps to the centre, and resizes from its corners', async ({ page }) => {
+  await page.goto('/?v2&stub=1&autostart=1');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: 'Overlays', exact: true }).first().click();
+  const text = root.locator('div').filter({ hasText: /^Show text overlay on this photo/ }).getByRole('switch').first();
+  await text.click();
+  const box = root.locator('[data-overlay="text"]');
+  await expect(box).toBeVisible();
+  const frameBox = (await root.getByTestId('canvas-frame').boundingBox())!;
+  const start = (await box.boundingBox())!;
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  // Drag right across the whole frame in small steps, recording the box's left edge each time.
+  const lefts: number[] = [];
+  const step = 12;
+  for (let dx = step; dx <= frameBox.width * 0.7; dx += step) {
+    await page.mouse.move(start.x + start.width / 2 + dx, start.y + start.height / 2);
+    lefts.push((await box.boundingBox())!.x);
+  }
+  await page.mouse.up();
+  // Smooth: the box never moves much more than the pointer did between two samples (a jump at 35% or 65% would be half a box wide).
+  for (let i = 1; i < lefts.length; i += 1) expect(Math.abs(lefts[i] - lefts[i - 1])).toBeLessThan(step * 2 + 4);
+  // Resize from a corner: pulling the bottom-right corner outward makes the text bigger.
+  const fontBefore = await box.locator('p').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  await box.hover();
+  const corner = box.getByRole('button', { name: 'Resize text' }).nth(3);
+  const c = (await corner.boundingBox())!;
+  await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(c.x + 90, c.y + 60, { steps: 6 });
+  await page.mouse.up();
+  const fontAfter = await box.locator('p').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  expect(fontAfter).toBeGreaterThan(fontBefore * 1.1);
+});

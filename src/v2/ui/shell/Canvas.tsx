@@ -23,6 +23,7 @@ import {
   formatOverlayRowText,
   getActiveGroup,
   snapOverlayPosition,
+  type SnapGeometry,
   type SnapGuide,
 } from '../utils/studioMath';
 
@@ -96,7 +97,7 @@ export default function Canvas({
   const [draggingType, setDraggingType] = useState<'none' | 'pan' | 'crop' | 'text' | 'watermark' | 'board'>('none');
 
   const dragRef = useRef<{
-    kind: 'pan' | 'crop-top' | 'crop-right' | 'crop-bottom' | 'crop-left' | 'scale-top' | 'scale-right' | 'scale-bottom' | 'scale-left' | 'scale-tl' | 'scale-tr' | 'scale-bl' | 'scale-br' | 'move-frame' | 'text' | 'watermark' | 'board' | 'split';
+    kind: 'pan' | 'crop-top' | 'crop-right' | 'crop-bottom' | 'crop-left' | 'scale-top' | 'scale-right' | 'scale-bottom' | 'scale-left' | 'scale-tl' | 'scale-tr' | 'scale-bl' | 'scale-br' | 'move-frame' | 'text' | 'watermark' | 'resize-text' | 'resize-watermark' | 'board' | 'split';
     sizeId: string;
     startX: number;
     startY: number;
@@ -104,6 +105,12 @@ export default function Canvas({
     origB: number;
     /** The format's crop when the drag started (zoom and pan). */
     crop?: CropTransform;
+    /** Overlay drags: the dragged box and its neighbour as % of the frame, the box centre on screen, and the starting values. */
+    snap?: SnapGeometry;
+    centre?: { x: number; y: number };
+    startDistance?: number;
+    origSizes?: number[];
+    origScale?: number;
     rect?: DOMRect;
   } | null>(null);
   // Double-click a format to reveal the whole picture as a ghost and position it under the crop window.
@@ -216,8 +223,42 @@ export default function Canvas({
       setDraggingType('crop');
     }
 
+    // Overlay drags and resizes: measure the box now (it does not move while the pointer is down).
+    let snap: SnapGeometry | undefined;
+    let centre: { x: number; y: number } | undefined;
+    let startDistance: number | undefined;
+    let origSizes: number[] | undefined;
+    let origScale: number | undefined;
+    if ((kind === 'text' || kind === 'watermark' || kind === 'resize-text' || kind === 'resize-watermark') && rect) {
+      const own = ((e.currentTarget as HTMLElement).closest('[data-overlay]') as HTMLElement | null)?.getBoundingClientRect();
+      const ownKind = kind === 'text' || kind === 'resize-text' ? 'text' : 'watermark';
+      const peerEl = frameEl?.querySelector(`[data-overlay="${ownKind === 'text' ? 'watermark' : 'text'}"]`) as HTMLElement | null;
+      const peerRect = peerEl?.getBoundingClientRect();
+      const pct = (value: number, origin: number, span: number) => ((value - origin) / span) * 100;
+      if (own) {
+        const rowSize = group.overlay.rows[0]?.sizePx ?? 14;
+        // A quarter of one text row's height is the space left between overlays, in % of the frame's height and width.
+        const rowHeightPercent = (rowSize / 660) * 100 * (rect.width / rect.height) * 1.375;
+        snap = {
+          box: { w: (own.width / rect.width) * 100, h: (own.height / rect.height) * 100 },
+          peer: peerRect ? { left: pct(peerRect.left, rect.left, rect.width), right: pct(peerRect.right, rect.left, rect.width), top: pct(peerRect.top, rect.top, rect.height), bottom: pct(peerRect.bottom, rect.top, rect.height) } : null,
+          gap: { x: (rowHeightPercent * 0.25) * (rect.height / rect.width), y: rowHeightPercent * 0.25 },
+        };
+        centre = { x: own.left + own.width / 2, y: own.top + own.height / 2 };
+        startDistance = Math.max(8, Math.hypot(e.clientX - centre.x, e.clientY - centre.y));
+      }
+      origSizes = group.overlay.rows.map((row) => row.sizePx);
+      origScale = group.overlay.watermarkScale;
+      setDraggingType(ownKind);
+    }
+
     dragRef.current = {
       kind,
+      snap,
+      centre,
+      startDistance,
+      origSizes,
+      origScale,
       sizeId: size.id,
       startX: e.clientX,
       startY: e.clientY,
@@ -299,7 +340,9 @@ export default function Canvas({
           y: group.overlay.watermarkY,
           visible: group.overlay.watermarkEnabled,
         },
-        group.overlay.snapEnabled
+        group.overlay.snapEnabled,
+        undefined,
+        drag.snap
       );
       setActiveGuides(snapped.guides);
       onUpdateOverlay(photo.id, { textX: snapped.x, textY: snapped.y });
@@ -314,10 +357,20 @@ export default function Canvas({
           y: group.overlay.textY,
           visible: group.overlay.textEnabled,
         },
-        group.overlay.snapEnabled
+        group.overlay.snapEnabled,
+        undefined,
+        drag.snap
       );
       setActiveGuides(snapped.guides);
       onUpdateOverlay(photo.id, { watermarkX: snapped.x, watermarkY: snapped.y });
+    } else if ((drag.kind === 'resize-text' || drag.kind === 'resize-watermark') && drag.centre && drag.startDistance) {
+      // Corner handles scale the overlay in proportion: how far the pointer is from the box centre, against where it began.
+      const ratio = Math.hypot(e.clientX - drag.centre.x, e.clientY - drag.centre.y) / drag.startDistance;
+      if (drag.kind === 'resize-text' && drag.origSizes) {
+        onUpdateOverlay(photo.id, { rows: group.overlay.rows.map((row, index) => ({ ...row, sizePx: Math.round(clamp((drag.origSizes![index] ?? row.sizePx) * ratio, 8, 120)) })) });
+      } else if (drag.kind === 'resize-watermark' && drag.origScale) {
+        onUpdateOverlay(photo.id, { watermarkScale: Math.round(clamp(drag.origScale * ratio, 40, 160)) });
+      }
     }
   };
 
@@ -387,8 +440,9 @@ export default function Canvas({
                     )
                 : undefined
             }
+            data-overlay="text"
             title={interactive ? 'Drag to reposition text overlay (snaps to watermark & safe margins)' : undefined}
-            className={`z-20 select-none ${
+            className={`group/overlay z-20 select-none ${
               overlay.textLayoutMode === 'cover-full'
                 ? 'absolute inset-0 flex flex-col items-center justify-center text-center'
                 : 'absolute max-w-[90%] -translate-y-1/2 rounded-[var(--radius-sm)]'
@@ -408,7 +462,7 @@ export default function Canvas({
                     padding: `${cqw(8)} ${cqw(12)}`,
                     left: `${overlay.textX}%`,
                     top: `${overlay.textY}%`,
-                    transform: `translate(${overlay.textX > 65 ? '-100%' : overlay.textX > 35 ? '-50%' : '0%'}, -50%)`,
+                    transform: `translate(-${overlay.textX}%, -50%)`,
                     backgroundColor: overlay.textScrim
                       ? overlay.textColour === 'light'
                         ? 'rgba(10, 12, 16, 0.62)'
@@ -418,6 +472,19 @@ export default function Canvas({
                   }
             }
           >
+            {interactive && (
+              <>
+                {(['top-0 left-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize', 'top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize', 'bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize', 'bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize'] as const).map((place) => (
+                  <button
+                    key={place}
+                    type="button"
+                    aria-label="Resize text"
+                    onPointerDown={(e) => handleFramePointerDown(e, 'resize-text', size, e.currentTarget.closest('[data-overlay]')?.parentElement?.parentElement)}
+                    className={`pointer-events-auto absolute z-30 h-2.5 w-2.5 rounded-sm border border-white bg-[var(--brand-accent)] opacity-0 shadow hover:opacity-100 group-hover/overlay:opacity-100 focus-visible:opacity-100 ${place}`}
+                  />
+                ))}
+              </>
+            )}
             {overlay.rows.map((row) => (
               <p
                 key={row.id}
@@ -449,15 +516,17 @@ export default function Canvas({
                     )
                 : undefined
             }
+            data-overlay="watermark"
             title={interactive ? 'Drag to reposition watermark (snaps cleanly to text overlay)' : undefined}
-            className={`absolute z-20 select-none rounded text-right ${
+            className={`group/overlay absolute z-20 select-none rounded text-right ${
               interactive ? 'pointer-events-auto cursor-move ring-1 ring-transparent hover:ring-[var(--brand-accent)]' : 'pointer-events-none'
             }`}
             style={{
               padding: `${cqw(4)} ${cqw(10)}`,
               left: `${overlay.watermarkX}%`,
               top: `${overlay.watermarkY}%`,
-              transform: `translate(${overlay.watermarkX > 65 ? '-100%' : overlay.watermarkX > 35 ? '-50%' : '0%'}, -50%) scale(${
+              transformOrigin: `${overlay.watermarkX}% 50%`,
+              transform: `translate(-${overlay.watermarkX}%, -50%) scale(${
                 overlay.watermarkScale / 100
               })`,
               opacity: overlay.watermarkOpacity / 100,
@@ -469,6 +538,19 @@ export default function Canvas({
                   : 'rgba(248, 246, 242, 0.54)',
             }}
           >
+            {interactive && (
+              <>
+                {(['top-0 left-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize', 'top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize', 'bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize', 'bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize'] as const).map((place) => (
+                  <button
+                    key={place}
+                    type="button"
+                    aria-label="Resize watermark"
+                    onPointerDown={(e) => handleFramePointerDown(e, 'resize-watermark', size, e.currentTarget.closest('[data-overlay]')?.parentElement?.parentElement)}
+                    className={`pointer-events-auto absolute z-30 h-2.5 w-2.5 rounded-sm border border-white bg-[var(--brand-accent)] opacity-0 shadow hover:opacity-100 group-hover/overlay:opacity-100 focus-visible:opacity-100 ${place}`}
+                  />
+                ))}
+              </>
+            )}
             {watermarkImage ? (
               <img src={watermarkImage} alt={watermarkPreset.label} draggable={false} className="w-auto object-contain" style={{ height: cqw(36), maxWidth: cqw(180) }} />
             ) : (
