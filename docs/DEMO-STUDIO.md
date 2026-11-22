@@ -5,6 +5,8 @@ Website visitors see a fixed, owner-approved collection only. No import, export,
 original download or virtual-copy controls. Edits in the visitor's session are
 temporary and are never written to the owner's records.
 
+When published photographs are unavailable, the same editor opens the bundled sample illustrations from `site/demo/photos.json`. The demo labels them as illustrations. Admin mode continues to show only the owner's projects and drafts.
+
 The owner logs into /admin and opens Demo Studio. Upload a rights-cleared JPEG/PNG,
 enter a subject tag, photo title, alt description and photographer credit, then
 use the same real editor to crop and adjust. Choose Save settings for a private
