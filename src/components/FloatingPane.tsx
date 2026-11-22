@@ -100,14 +100,16 @@ export function FloatingPane({ title, storageKey, onDock, onDockTo, dockFocusSel
     // A click on a floating header near the window edge must NOT dock.
     const moved = started?.pointer === event.pointerId &&
       Math.abs(event.clientX - started.x) + Math.abs(event.clientY - started.y) > 8;
-    const zone = onDockTo && moved && !maximised ? dockZoneAt(event.clientX, window.innerWidth) : null;
+    // A panel docks only to its own side (the left-hand/right-hand setting), so only that edge accepts a drop.
+    const hit = onDockTo && moved && !maximised ? dockZoneAt(event.clientX, window.innerWidth) : null;
+    const zone = hit === initialSide ? hit : null;
     stopDrag(event);
     if (zone) { onDockTo?.(zone); dock(); }
   };
   const moveDrag = (event: PointerEvent<HTMLElement>) => {
     const start = drag.current;
     if (!start || start.pointer !== event.pointerId || maximised) return;
-    if (onDockTo) setDockZone(dockZoneAt(event.clientX, window.innerWidth));
+    if (onDockTo) { const hit = dockZoneAt(event.clientX, window.innerWidth); setDockZone(hit === initialSide ? hit : null); }
     setDragging(true);
     setRect(clampPaneRect({ ...start.rect, x: start.rect.x + event.clientX - start.x, y: start.rect.y + event.clientY - start.y },
       { width: window.innerWidth, height: window.innerHeight }));
@@ -215,7 +217,7 @@ export function FloatingPane({ title, storageKey, onDock, onDockTo, dockFocusSel
     </section>, document.body)}
     {dragging && onDockTo && createPortal(
       <div aria-hidden="true" className="pointer-events-none fixed inset-0" style={{ zIndex: FLOATING_PANE_Z.foreground - 1 }}>
-        {(['left', 'right'] as const).map((side) => (
+        {([initialSide] as const).map((side) => (
           <div key={side} data-dock-zone={side}
             className={`absolute inset-y-3 flex w-[72px] items-center justify-center rounded-lg border-2 border-dashed text-xs font-medium transition-colors duration-150 ${side === 'left' ? 'left-1' : 'right-1'} ${dockZone === side ? 'border-sky-300 bg-sky-300/25 text-sky-50' : 'border-white/25 bg-white/5 text-zinc-300'}`}>
             <span className="[writing-mode:vertical-rl]">{side === 'left' ? t.floatingPane.dockLeft : t.floatingPane.dockRight}</span>

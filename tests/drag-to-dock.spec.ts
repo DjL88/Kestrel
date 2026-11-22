@@ -30,9 +30,17 @@ test('dragging an undocked tool panel onto the window edge docks it there', asyn
   await page.mouse.move(box.x + 20, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(viewport.width / 2, box.y + 40, { steps: 5 });
-  // Both zones are labelled in words while dragging, not only coloured.
-  await expect(page.locator('[data-dock-zone="left"]')).toHaveText('Dock left');
+  // Only the panel's own side is offered, labelled in words (not only coloured).
+  await expect(page.locator('[data-dock-zone="left"]')).toHaveCount(0);
   await expect(page.locator('[data-dock-zone="right"]')).toHaveText('Dock right');
+  // Letting go on the other edge does not dock it.
+  await page.mouse.move(20, box.y + 40, { steps: 8 });
+  await page.mouse.up();
+  await expect(pane).toBeVisible();
+  const again = (await handle.boundingBox())!;
+  await page.mouse.move(again.x + 60, again.y + again.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(again.x + 160, again.y + 80, { steps: 6 });
   await page.mouse.move(viewport.width - 20, box.y + 40, { steps: 8 });
   await page.mouse.up();
 
