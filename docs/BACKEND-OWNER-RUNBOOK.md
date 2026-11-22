@@ -29,7 +29,7 @@ Merge order: #871, then #873, then #874 (retarget each to `main` after its base 
 
 ## 3. Before you merge
 
-- **#876 changes live behaviour.** After merge, registering an ONNX model without a `contract` and a `licence` record fails, and an ONNX version with no licence record cannot be promoted. Models already live are unaffected until someone promotes again; the four current models have no licence records, so **rollback to any of them is refused until you re-register them with licence records.** Do this before you need a rollback.
+- **#876 changes live behaviour.** After merge, registering an ONNX model without a `contract` and a `licence` record fails, and an ONNX version with no licence record cannot be promoted. The four models in the bucket's signed manifest are a **separate authority** (published with `scripts/release`), so they are not affected. Any ONNX version registered in the control plane **before** this change has no licence record, so promoting or rolling back to it is refused until you register a new version with one. Not checked: whether the control-plane registry holds any such rows today.
 - Run the PRs' own checks on your machine. The worker ran only control-plane lint and tests, and the scripts/cloud-measure tests. Not run by anyone: repo-wide lint/test/build, Playwright, Rust, the Firestore emulator.
 
 ## 4. Applying infrastructure (each is optional, each needs your say-so)
