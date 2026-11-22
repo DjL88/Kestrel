@@ -45,6 +45,15 @@ const NOT_RECORDED = 'Not recorded';
 const titleOf = (filename: string) => filename.replace(/\.[^./\\]+$/, '');
 const extensionOf = (filename: string) => /\.([^./\\]+)$/.exec(filename)?.[1]?.toUpperCase();
 
+/** The subject name for a photo. A name the app suggested itself is marked as a suggestion; nothing is shown when unknown. */
+export function speciesLabelOf(frame: Pick<PhotoFrame, 'subjectNames' | 'tags' | 'autoTags'>): string | undefined {
+  const chosen = frame.subjectNames?.[0];
+  if (chosen) return chosen;
+  const tag = frame.tags?.[0];
+  if (!tag) return undefined;
+  return frame.autoTags?.includes(tag) ? `${tag} (suggested)` : tag;
+}
+
 export function tileStateFor(urls: FrameUrls | undefined): TileState {
   if (urls?.failed) return 'unavailable';
   return urls?.thumb ? 'ready' : 'importing';
@@ -70,7 +79,7 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ass
     decision: frame.decision,
     originalConnected: !urls?.failed,
     rating: Math.max(0, Math.min(5, Math.round(frame.rating ?? exif.rating ?? 0))),
-    speciesLabel: frame.subjectNames?.[0],
+    speciesLabel: speciesLabelOf(frame),
     category: frame.subjectKind ?? '',
     sharpnessScore: frame.cullScore ?? 0,
     exif: {
