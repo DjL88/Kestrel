@@ -59,7 +59,7 @@ gcloud secrets versions add kcp-gemini-api-key --project kestrel-hosting --data-
 
 ## 5. Still not connected, even after applying
 
-The control plane service is not changed by the cloud-processing or safe-copy Terraform. Connecting it needs code that does not exist yet: a real Google Cloud Storage runner for the cloud gate (`CloudRunner`), a real signer for safe copy (`SafeCopyStorage`), and wiring the Firestore ledger, catalog and learning sink in `server.ts`. Until then those routes answer 503 even with the buckets in place. The next worker task, if you approve spend, is that wiring plus a test against the Firestore emulator.
+The control plane builds the Google Cloud Storage adapters and Firestore stores from its environment. Terraform supplies the environment when an optional service is configured. The runtime admin switches start off. Cloud processing still needs the runner container and an engine client.
 
 ## 6. Known gaps (nobody has built these)
 
@@ -93,3 +93,7 @@ The admin page now has a **Switches** panel (`/admin#switches`, routes `GET /v1/
 ## 9. Terraform first real run (23 Nov 2026) and a bug it found
 
 The owner ran `terraform init` in Cloud Shell against the real state bucket. It failed: `infra/gcp/variables.tf` on `main` was **malformed**. Merging several backend PRs that each appended variables to that file interleaved their blocks (`cloud_processing_enabled` lost its type, default and closing brace). Repaired in the PR that adds this section; all `.tf` files now balance braces, brackets and parentheses, with no duplicate variable or resource names (checked by script, **not** by Terraform: re-run `terraform init && terraform validate` after `git pull`). Facts from that run: the state bucket `gs://kestrel-hosting-kestrel-tfstate/hosting/` holds **two** state files, `default.tfstate` and `terraform.tfstate` (not explained: find out which is current before any apply), and `versions.tf` has no backend block, so a fresh clone needs a local, uncommitted `backend_override.tf` (bucket `kestrel-hosting-kestrel-tfstate`, prefix `hosting`). A plan must be given the running control plane image or it plans to delete the service. Lesson: do not union-merge `.tf` files; and every infra PR needs a real `terraform validate` before merge. The Cloud Run job fix (section 7, item 3) is still not done.
+
+## Storage wiring follow-up
+
+The control-plane image now declares the Storage SDK its adapter loads at boot. Safe copy and cloud processing share a single URL-signing IAM binding and IAM Credentials API enablement. Browser uploads include the signed size header in bucket CORS. Keep the existing Cloud Run image and production variables in the state comparison. The Cloud Run Job and the original state are separate from this dependency and signing fix.

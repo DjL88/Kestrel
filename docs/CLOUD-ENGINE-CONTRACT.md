@@ -9,7 +9,7 @@ Job `kind` is the engine's capability name: `denoise`, `upscale`, `mask` (`Engin
 ## Flow (one job)
 
 1. Ask the person (every job; there is no standing consent for uploading a file). Then `POST /v1/cloud/jobs` `{ kind, inputBytes, userConsent: true }` with the session bearer token. Returns `{ jobId, uploadUrl, expiresAtMs }`.
-2. `PUT` the bytes to `uploadUrl` (short-lived, private bucket). Originals are only ever sent for the capability the person approved.
+2. `PUT` the bytes to `uploadUrl` (short-lived, private bucket). Include the signed `x-goog-content-length-range: 0,<inputBytes>` header using the byte count supplied in step 1. Send only the input for the capability the person approved.
 3. `POST /v1/cloud/jobs/{id}/start` (idempotent). `409 CLOUD_INPUT_MISSING` means the upload has not arrived: retry shortly.
 4. Poll `GET /v1/cloud/jobs/{id}` (suggest 2 s, back off). `status`: `awaiting-upload`, `running`, `ready` (with `resultUrl`), `failed` (with `failure: "CLOUD_JOB_FAILED"`, never runner text), `finished`.
 5. Download `resultUrl`, then **always** `POST /v1/cloud/jobs/{id}/finish` (also to cancel). It deletes the input and the result. The server already deletes the input when the job ends; a bucket lifecycle rule is only the backstop.
