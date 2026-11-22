@@ -22,6 +22,7 @@ import InfoPanel from './panels/InfoPanel';
 import TasksPanel from './panels/TasksPanel';
 import ExportDialog from './dialogs/ExportDialog';
 import SettingsDialog from './dialogs/SettingsDialog';
+import ShortcutGuide from './dialogs/ShortcutGuide';
 
 const PANEL_TITLES: Record<PanelId, string> = {
   copilot: STRINGS.copilot.heading,
@@ -37,6 +38,7 @@ const PANEL_TITLES: Record<PanelId, string> = {
 
 export default function App({ useStore = useWorkspace }: { useStore?: typeof useWorkspace } = {}) {
   const { store, actions } = useStore();
+  const [shortcutGuideOpen, setShortcutGuideOpen] = useState(false);
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false
   );
@@ -100,6 +102,12 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
         return;
       }
       if (inInput) return;
+      if (e.key === '?' && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setShortcutGuideOpen((open) => !open);
+        return;
+      }
+      if (shortcutGuideOpen) return;
 
       if (e.key.toLowerCase() === 'f' && activePhoto) {
         actions.toggleFlag(store.selectedPhotoIds.length > 0 ? store.selectedPhotoIds : [activePhoto.id]);
@@ -117,7 +125,7 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [store.screen, store.selectedPhotoIds, store.gridViewOpen, store.compareMode, activePhoto, actions]);
+  }, [store.screen, store.selectedPhotoIds, store.gridViewOpen, store.compareMode, activePhoto, actions, shortcutGuideOpen]);
 
   const renderPanelContent = (panelId: PanelId) => {
     switch (panelId) {
@@ -538,6 +546,10 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
         onToggleAiProvider={actions.toggleAiProvider}
         onToggleStorageConnector={actions.toggleStorageConnector}
       />
+
+      {shortcutGuideOpen && store.screen === 'editor' && (
+        <ShortcutGuide onClose={() => setShortcutGuideOpen(false)} />
+      )}
 
       {/* Quiet non-intrusive action confirmation toast */}
       {store.lastActionNotice && !store.settings.calmView && (
