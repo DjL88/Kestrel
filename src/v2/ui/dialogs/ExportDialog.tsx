@@ -72,11 +72,11 @@ export default function ExportDialog({
     { id: 'local-zip', label: STRINGS.exportDialog.destLocalZip, icon: 'archive', sub: 'Single tidy archive' },
     { id: 'local-individual', label: STRINGS.exportDialog.destLocalFiles, icon: 'hard-drive', sub: 'Save directly to folder' },
     { id: 'share', label: STRINGS.exportDialog.destShare, icon: 'export', sub: 'Device share sheet / social' },
-    ...storageConnectors.map((c) => ({
+    ...storageConnectors.filter((c) => c.status === 'connected').map((c) => ({
       id: c.id as ExportDestination,
       label: c.name,
       icon: (c.id === 'nas' ? 'server' : 'cloud') as BrandIconName,
-      sub: c.status === 'connected' ? c.accountLabel || 'Connected' : 'Connect in Settings',
+      sub: c.accountLabel || 'Connected',
     })),
   ];
 
@@ -99,14 +99,14 @@ export default function ExportDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="export-dialog-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-2 sm:p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)]">
+      <div className="flex max-h-[calc(100dvh-1rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-panel)] sm:max-h-[88dvh]">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-[var(--border-subtle)] px-6 py-4">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--border-subtle)] px-3 py-2 sm:px-6 sm:py-4">
           <div>
             <h2 id="export-dialog-title" className="text-base font-bold text-[var(--text-primary)]">
               {STRINGS.exportDialog.heading}
@@ -119,14 +119,14 @@ export default function ExportDialog({
             type="button"
             aria-label="Close export dialog"
             onClick={onClose}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"
           >
             <BrandIcon name="close" size={16} />
           </button>
         </div>
 
         {/* Body */}
-        <div className="grid flex-1 grid-cols-1 gap-6 overflow-y-auto inflight-scroll p-6 md:grid-cols-12">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto overscroll-contain inflight-scroll p-3 sm:gap-6 sm:p-6 md:grid-cols-12">
           {/* Left column: Destination + Social quick-select */}
           <div className="space-y-5 md:col-span-6">
             <section className="space-y-2">
@@ -141,6 +141,7 @@ export default function ExportDialog({
                       key={dest.id}
                       type="button"
                       onClick={() => setDestination(dest.id)}
+                      aria-pressed={active}
                       className={`flex items-center justify-between gap-3 rounded-[var(--radius-md)] border px-3 py-2 text-left transition-colors ${
                         active
                           ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]'
@@ -204,6 +205,7 @@ export default function ExportDialog({
                       key={g.id}
                       type="button"
                       onClick={() => toggleGroup(g.id)}
+                      aria-pressed={checked}
                       className="flex w-full items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2 text-left text-xs text-[var(--text-primary)] hover:border-[var(--border-default)]"
                     >
                       <BrandIcon
@@ -225,6 +227,7 @@ export default function ExportDialog({
                       key={size.id}
                       type="button"
                       onClick={() => toggleSize(size.id)}
+                      aria-pressed={checked}
                       className={`flex items-center justify-between gap-1.5 rounded-[var(--radius-sm)] border px-2.5 py-2 text-left text-xs transition-colors ${
                         checked
                           ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--text-primary)]'
@@ -260,6 +263,7 @@ export default function ExportDialog({
                     key={item.label}
                     type="button"
                     onClick={() => item.set(!item.val)}
+                    aria-pressed={item.val}
                     className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2 py-1.5 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
                   >
                     <BrandIcon
@@ -276,9 +280,9 @@ export default function ExportDialog({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-6 py-3.5">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-3.5">
           <span className="text-xs text-[var(--text-secondary)] tabular-nums">
-            {selectedPhotoIds.length} {selectedPhotoIds.length === 1 ? 'photo' : 'photos'} · {selectedSizeIds.length}{' '}
+            {selectedPhotoIds.length || 1} {(selectedPhotoIds.length || 1) === 1 ? 'photo' : 'photos'} · {selectedSizeIds.length}{' '}
             {selectedSizeIds.length === 1 ? 'format' : 'formats'} · {selectedGroupIds.length}{' '}
             {selectedGroupIds.length === 1 ? 'group' : 'groups'}
           </span>
@@ -294,7 +298,7 @@ export default function ExportDialog({
               type="button"
               disabled={selectedSizeIds.length === 0 && !includeVideo}
               onClick={handleSubmit}
-              className="inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-4 text-xs font-semibold text-[var(--text-on-accent)] transition-colors hover:bg-[var(--brand-accent-hover)] disabled:opacity-50"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-4 text-xs font-semibold text-[var(--text-on-accent)] transition-colors hover:bg-[var(--brand-accent-hover)] disabled:opacity-50"
             >
               <BrandIcon name="export" size={14} />
               <span>{STRINGS.exportDialog.startExport}</span>
