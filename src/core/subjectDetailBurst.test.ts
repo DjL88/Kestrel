@@ -189,3 +189,27 @@ test('cross-genre duplicate detector boxes cannot create independent animal iden
   const accepted = selectBurstDetails(frame(2, distinct));
   assert.ok(accepted.every(r => r.crop && r.comparisonGroup && r.recommendation !== 'reject'));
 });
+
+test('eye box outside the detected animal never boosts score or hijacks crop', () => {
+  const subjectBox = { x: 0.1, y: 0.1, width: 0.2, height: 0.2 };
+  const strayEye = { x: 0.8, y: 0.8, width: 0.02, height: 0.02 };
+  const frames = [
+    base('stray', { subjectBox, eyeBox: strayEye, eyeSharpness: 1, subjectSharpness: 0.3 }),
+    base('genuine', { subjectBox, eyeBox: { x: 0.15, y: 0.15, width: 0.02, height: 0.02 },
+      eyeSharpness: 0.9, subjectSharpness: 0.7 }),
+  ];
+  const results = selectBurstDetails(frames);
+  assert.deepEqual(results.map(r => r.recommendation), ['review', 'keep']);
+  assert.ok(results[0].crop);
+  assert.ok(results[0].crop!.x < 0.5 && results[0].crop!.y < 0.5);
+});
+
+test('uncertain bird/aircraft conflict remains Review even with an unrelated eye box', () => {
+  const results = selectBurstDetails([base('aircraft-negative', {
+    subjectBox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+    eyeBox: { x: 0.8, y: 0.8, width: 0.02, height: 0.02 },
+    aircraftScore: 0.92,
+  })]);
+  assert.equal(results[0].recommendation, 'review');
+  assert.equal(results[0].reason, 'conflict');
+});
