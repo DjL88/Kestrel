@@ -36,7 +36,12 @@ export interface CloudLedger {
   get(jobId: string): Promise<CloudJobRecord | undefined>;
 }
 
-export interface CloudOptions { runner: CloudRunner; ledger: CloudLedger; jobsPerPeriod: number; maxInputBytes: number }
+export interface CloudOptions {
+  runner: CloudRunner; ledger: CloudLedger; jobsPerPeriod: number; maxInputBytes: number;
+  /** A job still running this long after it was created is treated as failed (a crashed runner writes no marker). Default 30 minutes. */
+  maxJobMs?: number;
+}
+export const DEFAULT_MAX_JOB_MS = 30 * 60_000;
 
 export class MemoryCloudRunner implements CloudRunner {
   uploadsCreated = 0; failNext = false;
