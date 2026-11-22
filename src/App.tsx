@@ -3,6 +3,7 @@ import { downloadInBrowser } from './providers/browserExport';
 import { makeXmpDownload } from './core/xmpSidecars';
 import { planXmpImports, SidecarImportError } from './core/xmpImportPlan';
 import { libraryText as libraryT } from './i18n/areas/library';
+import { editorText as editorT } from './i18n/areas/editor';
 import { exportText as exportT } from './i18n/areas/export';
 import { appText as t } from './i18n/areas/app';
 import { messages } from './i18n/messages';
@@ -43,7 +44,7 @@ import { applyAutoTag, disputePatch, keepAuto, mayAutoTag, reconcileAuto } from 
 import { burstMates, tagFrames } from './core/speciesBurst';
 import { loadImage } from './providers/loadImage';
 import { DEFAULT_FRAMING, drawFramedPhoto } from './core/photoFraming';
-import { ArrowLeft, ChevronLeft, ChevronRight, Copy, ClipboardPaste, PanelLeftClose, PanelLeftOpen, Maximize2, X } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Copy, ClipboardPaste, PanelLeftClose, PanelLeftOpen, Maximize2, Redo2, Undo2, X } from 'lucide-react';
 import { WorkspacePaneRail } from './components/WorkspacePaneRail';
 import { PHOTO_INFO_DOCK_QUERY } from './core/photoInfoLayout';
 import { PhotoJump } from './components/PhotoJump';
@@ -2629,15 +2630,20 @@ export default function App() {
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
               <button type="button" aria-label={t.editorBar.next} title={t.editorBar.nextTitle} disabled={(editQueueIds ? editorIndex : selectedVisibleIndex) < 0 || (editQueueIds ? editorIndex >= editorFrames.length - 1 : selectedVisibleIndex >= visibleFrames.length - 1)} onClick={() => handleStepFrame(1)}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
-              {/* Keep/Review/Reject remain available in Edit without switching screens.
-                  These reuse the same decisions and history as Library and Compare. */}
+              {/* Edit shows Undo and Redo for the photo's edits (owner feedback, 22 Nov 2026). Keep and Reject stay in Library,
+                  Compare and the Photo info panel. */}
               <div role="group" data-hide-on-phone-edit aria-label={libraryT.top.photoActions} className="flex shrink-0 items-center border-x border-white/10 px-1">
-                <DecisionButtons labels decision={selectedFrame.decision} filename={selectedFrame.filename}
-                  edited={false}
-                  onKeep={() => handleDecideFrame(selectedFrame.id, 'keep', false)}
-                  onBackToReview={() => handleDecideFrame(selectedFrame.id, 'unreviewed', false)}
-                  onTrash={() => handleDecideFrame(selectedFrame.id, 'reject', false)}
-                  onReset={() => requestReset([selectedFrame.id])} />
+                <button type="button" aria-label={editorT.quick.stepBack} title={editorT.quick.stepBackTitle}
+                  disabled={!selectedFrame.editHistory?.cursor} onClick={() => stepPhotoHistory(selectedFrame.id, -1)}
+                  className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30">
+                  <Undo2 className="h-5 w-5" aria-hidden="true" />
+                </button>
+                <button type="button" aria-label={editorT.quick.stepForward} title={editorT.quick.stepForwardTitle}
+                  disabled={!selectedFrame.editHistory || selectedFrame.editHistory.cursor >= selectedFrame.editHistory.steps.length}
+                  onClick={() => stepPhotoHistory(selectedFrame.id, 1)}
+                  className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/10 disabled:opacity-30">
+                  <Redo2 className="h-5 w-5" aria-hidden="true" />
+                </button>
               </div>
               <div data-hide-on-phone-edit className="contents"><PhotoJump index={editorIndex} total={editorFrames.length}
                 onJump={(index) => {
