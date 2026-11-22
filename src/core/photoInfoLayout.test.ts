@@ -27,6 +27,6 @@ test('CSS media query and visible window ordering share the same policy', () => 
   assert.match(PHOTO_INFO_DOCK_QUERY, /min-width: 1024px/);
   assert.match(PHOTO_INFO_DOCK_QUERY, /min-width: 1280px/);
   assert.ok(FLOATING_PANE_Z.background < FLOATING_PANE_Z.foreground);
-  assert.ok(FLOATING_PANE_Z.foreground < FLOATING_PANE_Z.modalMinimum,
-    'floating panes must never obscure modal Save, Export or Settings');
+  // Owner decision: panels stay in front of dialogs (z-100) so their title bars are always reachable.
+  assert.ok(FLOATING_PANE_Z.background > 100, 'floating panes must sit above dialogs');
 });

@@ -137,7 +137,7 @@ export function FloatingPane({ title, storageKey, onDock, onDockTo, dockFocusSel
     <>
     {createPortal(
     <section ref={frame} aria-label={title} data-floating-pane={storageKey}
-      className="fixed z-40 flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/25 bg-kestrel-panel shadow-2xl"
+      className="fixed z-[110] flex min-h-0 flex-col overflow-hidden rounded-xl border border-white/25 bg-kestrel-panel shadow-2xl"
       style={maximised
         ? { inset: GAP, width: 'auto', height: 'auto' }
         : { left: rect.x, top: rect.y, width: rect.width, height: rect.height, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100dvh - 24px)' }}
