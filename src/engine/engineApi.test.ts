@@ -48,6 +48,8 @@ describe('runEngineCapability', () => {
 
   it('allows the device runner for subject-detect explicitly', async () => {
     const response = await runEngineCapability({ capability: 'subject-detect', frameId: 'f3', detect: async () => null, runner: 'device' });
+    assert.equal(response.capability, 'subject-detect');
+    if (response.capability !== 'subject-detect') return; // narrows the union for the next line
     assert.equal(response.result.finding, null);
   });
 });
