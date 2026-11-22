@@ -408,6 +408,8 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
                 filter={store.filmstripFilter}
                 search={store.filmstripSearch}
                 calmView={store.settings.calmView}
+                looks={store.looks}
+                hasClipboardRecipe={Boolean(store.clipboardRecipe)}
                 onSetBottomTab={actions.setBottomTab}
                 onSetCollapsed={actions.setFilmstripCollapsed}
                 onSetHeight={actions.setFilmstripHeight}
@@ -417,6 +419,8 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
                 onClearSelection={actions.clearSelection}
                 onToggleFlag={actions.toggleFlag}
                 onSetRating={actions.setRating}
+                onPasteRecipe={actions.pasteRecipe}
+                onApplyLook={actions.applyLook}
                 onImport={actions.importPhotos}
                 onRunAutoCull={actions.runAutoCull}
                 onExportSelected={() => actions.setExportOpen(true)}
