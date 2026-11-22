@@ -28,10 +28,14 @@ export interface CourseCorrection {
  * not a realistic risk on a real photograph, but worth naming rather than assuming away. */
 const SAMPLE_STRIDE = 4;
 
-function medianOklabLightness(pixels: Pixels): number {
+/** Median OKLab lightness, optionally restricted to pixels where `alphaMask` is above `alphaThreshold` -
+ * same reasoning as detailRatio below: a Look step that deliberately darkens/brightens a background it
+ * is softening should not be judged on that intended shift, only on what happened to the subject. */
+function medianOklabLightness(pixels: Pixels, alphaMask?: Float32Array, alphaThreshold = 0.5): number {
   const values: number[] = [];
   for (let y = 0; y < pixels.height; y += SAMPLE_STRIDE) {
     for (let x = 0; x < pixels.width; x += SAMPLE_STRIDE) {
+      if (alphaMask && alphaMask[y * pixels.width + x] < alphaThreshold) continue;
       const i = (y * pixels.width + x) * 4;
       const [l] = toOklab(pixels.data[i], pixels.data[i + 1], pixels.data[i + 2]);
       values.push(l);
@@ -42,13 +46,19 @@ function medianOklabLightness(pixels: Pixels): number {
 }
 
 /** How much local detail (one luma gradient step) survives, after versus before - same technique
- * autoCull.ts's scorePreview already uses to judge detail, applied here as a ratio rather than a score. */
-function detailRatio(before: Pixels, after: Pixels): number {
+ * autoCull.ts's scorePreview already uses to judge detail, applied here as a ratio rather than a score.
+ *
+ * When `alphaMask` is given, only pixels where it is above `alphaThreshold` are sampled - so a Look that
+ * deliberately softens the background (src/engine/looks.ts) is judged on whether it preserved SUBJECT
+ * detail, not on the background detail it was asked to remove. Without a mask, the whole frame is
+ * sampled, as before (plain denoise with no subject has nothing else to judge detail against). */
+function detailRatio(before: Pixels, after: Pixels, alphaMask?: Float32Array, alphaThreshold = 0.5): number {
   const gradientSum = (pixels: Pixels): number => {
     let sum = 0, count = 0;
     for (let y = SAMPLE_STRIDE; y < pixels.height - SAMPLE_STRIDE; y += SAMPLE_STRIDE) {
       for (let x = SAMPLE_STRIDE; x < pixels.width - SAMPLE_STRIDE; x += SAMPLE_STRIDE) {
         const i = (y * pixels.width + x) * 4;
+        if (alphaMask && alphaMask[y * pixels.width + x] < alphaThreshold) continue;
         const right = ((y * pixels.width + x + 1) * 4);
         const down = (((y + 1) * pixels.width + x) * 4);
         sum += Math.abs(pixels.data[i] - pixels.data[right]) + Math.abs(pixels.data[i] - pixels.data[down]);
@@ -67,8 +77,16 @@ const DENOISE_DETAIL_FLOOR = 0.55;   // Lost nearly half the local detail: treat
 /**
  * Checks one action's result against its input. Pass `subject` (0-1 mask, same size as `after`) when a
  * mask exists, so colour findings can tell subject from surroundings, same as `checkColour` already does.
+ *
+ * `detailScope`: 'frame' (default) judges detail loss over the whole photo - right for a plain, no-mask
+ * action such as runDenoiseAction's background-only pass. 'subject' restricts the detail-loss check to
+ * `subject`'s masked-in region - right for a Look step that is deliberately softening the BACKGROUND
+ * (src/engine/looks.ts): the background is meant to lose detail there, so judging the whole frame would
+ * misreport an intended look as an overshoot. 'subject' falls back to 'frame' if `subject` is absent.
  */
-export function verifyEdit(before: Pixels, after: Pixels, subject?: Float32Array): CourseCorrection {
+export function verifyEdit(
+  before: Pixels, after: Pixels, subject?: Float32Array, detailScope: 'frame' | 'subject' = 'frame',
+): CourseCorrection {
   const reasons: string[] = [];
   let scale = 1;
 
@@ -78,12 +96,16 @@ export function verifyEdit(before: Pixels, after: Pixels, subject?: Float32Array
   const cast = colour.findings.find((f): f is ColourFinding & { id: 'cast' } => f.id === 'cast' && f.amount === 'clear');
   if (cast) { reasons.push(`A clear ${cast.direction} colour cast.`); scale *= 0.7; }
 
-  const brightnessShift = medianOklabLightness(after) - medianOklabLightness(before);
+  const brightnessMask = detailScope === 'subject' && subject ? subject : undefined;
+  const brightnessShift = medianOklabLightness(after, brightnessMask) - medianOklabLightness(before, brightnessMask);
   if (brightnessShift > BRIGHTNESS_SHIFT_LIMIT) { reasons.push('The result is noticeably brighter than the original.'); scale *= 0.7; }
   if (brightnessShift < -BRIGHTNESS_SHIFT_LIMIT) { reasons.push('The result is noticeably darker than the original.'); scale *= 0.7; }
 
-  const detail = detailRatio(before, after);
-  if (detail < DENOISE_DETAIL_FLOOR) { reasons.push('Denoising has smoothed away too much real detail.'); scale *= 0.5; }
+  const detail = detailScope === 'subject' && subject ? detailRatio(before, after, subject) : detailRatio(before, after);
+  if (detail < DENOISE_DETAIL_FLOOR) {
+    reasons.push(detailScope === 'subject' ? 'Softening has smoothed away too much detail on the subject itself.' : 'Denoising has smoothed away too much real detail.');
+    scale *= 0.5;
+  }
 
   return { ok: reasons.length === 0, reasons, suggestedStrengthScale: reasons.length ? scale : 1 };
 }

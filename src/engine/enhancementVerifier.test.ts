@@ -67,4 +67,37 @@ describe('verifyEdit', () => {
     assert.equal(result.ok, false);
     assert.ok(result.reasons.some((r) => /colour/i.test(r)));
   });
+
+  it("with detailScope 'subject', ignores background detail loss outside the mask", () => {
+    const before = checkerboard(32, [80, 80, 80], [180, 180, 180]);
+    // Left half (x < 16, the "subject") keeps its checkerboard detail; right half (background) is
+    // flattened, as a deliberate background blur Look step would do on purpose.
+    const after = checkerboard(32, [80, 80, 80], [180, 180, 180]);
+    for (let y = 0; y < 32; y += 1) {
+      for (let x = 16; x < 32; x += 1) {
+        const i = (y * 32 + x) * 4;
+        after.data[i] = 130; after.data[i + 1] = 130; after.data[i + 2] = 130;
+      }
+    }
+    const subject = new Float32Array(32 * 32);
+    for (let y = 0; y < 32; y += 1) for (let x = 0; x < 16; x += 1) subject[y * 32 + x] = 1;
+    const result = verifyEdit(before, after, subject, 'subject');
+    assert.equal(result.ok, true);
+  });
+
+  it("with detailScope 'subject', still flags detail loss inside the mask", () => {
+    const before = checkerboard(32, [80, 80, 80], [180, 180, 180]);
+    const after = flat(32, [130, 130, 130]); // smoothed everywhere, including the subject this time
+    const subject = new Float32Array(32 * 32).fill(1); // whole frame counts as subject
+    const result = verifyEdit(before, after, subject, 'subject');
+    assert.equal(result.ok, false);
+    assert.ok(result.reasons.some((r) => /subject/i.test(r)));
+  });
+
+  it("detailScope 'subject' with no subject mask falls back to whole-frame behaviour", () => {
+    const before = checkerboard(32, [80, 80, 80], [180, 180, 180]);
+    const after = flat(32, [130, 130, 130]);
+    const result = verifyEdit(before, after, undefined, 'subject');
+    assert.equal(result.ok, false);
+  });
 });
