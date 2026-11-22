@@ -38,7 +38,8 @@ export type SettingsTabId =
   | 'aiProviders'
   | 'storage'
   | 'keyboard'
-  | 'language';
+  | 'language'
+  | 'privacy';
 
 export type FeatureKey =
   | 'watermarkCustom'
@@ -275,6 +276,8 @@ export interface Project {
   flaggedCount: number;
   localCopyStatus: 'synced' | 'offline-ready' | 'pending';
   folderPath: string;
+  /** Hidden from the main list but kept; restore brings it back. */
+  archived?: boolean;
 }
 
 export interface TaskInfo {
@@ -418,6 +421,12 @@ export interface WorkspaceActions {
   openProject: (projectId: string) => void;
   backToProjects: () => void;
   createProject: (name: string) => void;
+  /** Pick a folder (on this device, an external drive or a synced cloud folder) and make a project of its photos. */
+  createProjectFromFolder: () => void;
+  renameProject: (projectId: string, name: string) => void;
+  archiveProject: (projectId: string, archived: boolean) => void;
+  /** Removes InFlight's catalogue entry and its stored copies. Original files are never touched. */
+  deleteProject: (projectId: string) => void;
   setHubState: (state: HubViewState) => void;
 
   // Photos, Culling & Selection
@@ -526,6 +535,8 @@ export interface WorkspaceActions {
   // Settings
   setSettingsOpen: (open: boolean, tab?: SettingsTabId) => void;
   setSettingsTab: (tab: SettingsTabId) => void;
+  /** Removes the catalogue, previews and saved choices on this device, then restarts. Originals are never touched. */
+  eraseDeviceData: () => void;
   updateSettings: (patch: Partial<WorkspaceSettings>) => void;
   signInStub: (provider: 'google' | 'apple' | 'email', email?: string) => void;
   signOutStub: () => void;

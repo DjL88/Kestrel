@@ -9,6 +9,10 @@ interface ProjectsHubProps {
   theme: ThemeMode;
   onOpenProject: (projectId: string) => void;
   onCreateProject: (name: string) => void;
+  onCreateFromFolder: () => void;
+  onRenameProject: (projectId: string, name: string) => void;
+  onArchiveProject: (projectId: string, archived: boolean) => void;
+  onDeleteProject: (projectId: string) => void;
   onOpenSettings: () => void;
   onToggleTheme: () => void;
   onSetHubState: (state: HubViewState) => void;
@@ -20,6 +24,10 @@ export default function ProjectsHub({
   theme,
   onOpenProject,
   onCreateProject,
+  onCreateFromFolder,
+  onRenameProject,
+  onArchiveProject,
+  onDeleteProject,
   onOpenSettings,
   onToggleTheme,
   onSetHubState,
@@ -28,9 +36,15 @@ export default function ProjectsHub({
   const [modalOpen, setModalOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
 
-  const filtered = projects.filter((p) =>
-    `${p.name} ${p.folderPath}`.toLowerCase().includes(search.trim().toLowerCase())
-  );
+  const [showArchived, setShowArchived] = useState(false);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState<Project | null>(null);
+  const archivedCount = projects.filter((p) => p.archived).length;
+
+  const filtered = projects
+    .filter((p) => Boolean(p.archived) === showArchived)
+    .filter((p) => `${p.name} ${p.folderPath}`.toLowerCase().includes(search.trim().toLowerCase()));
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,6 +181,22 @@ export default function ProjectsHub({
             </div>
           )}
 
+          {hubState === 'ready' && (archivedCount > 0 || showArchived) && (
+            <div className="mb-4 flex items-center gap-3">
+              <button
+                type="button"
+                aria-pressed={showArchived}
+                onClick={() => setShowArchived((v) => !v)}
+                className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-3 text-xs font-medium text-[var(--text-secondary)]"
+              >
+                {showArchived ? 'Back to projects' : `Archived (${archivedCount})`}
+              </button>
+              {showArchived && <span className="text-xs text-[var(--text-muted)]">Archived projects are kept. Restore one to use it again.</span>}
+            </div>
+          )}
+          {hubState === 'ready' && filtered.length === 0 && showArchived && (
+            <p className="text-sm text-[var(--text-muted)]">Nothing is archived.</p>
+          )}
           {hubState === 'ready' && filtered.length > 0 && (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.map((project) => (
@@ -223,6 +253,25 @@ export default function ProjectsHub({
                         <span>{STRINGS.hub.openProject}</span>
                         <BrandIcon name="arrow" size={13} />
                       </button>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          aria-label={`Project actions for ${project.name}`}
+                          aria-haspopup="menu"
+                          aria-expanded={menuFor === project.id}
+                          onClick={() => setMenuFor(menuFor === project.id ? null : project.id)}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]"
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
+                        </button>
+                        {menuFor === project.id && (
+                          <div role="menu" aria-label="Project actions" className="absolute bottom-11 right-0 z-30 w-44 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface-raised)] py-1 shadow-[var(--shadow-popover)]">
+                            <button type="button" role="menuitem" className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]" onClick={() => { setMenuFor(null); setRenaming({ id: project.id, name: project.name }); }}>Rename</button>
+                            <button type="button" role="menuitem" className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]" onClick={() => { setMenuFor(null); onArchiveProject(project.id, !project.archived); }}>{project.archived ? 'Restore' : 'Archive'}</button>
+                            <button type="button" role="menuitem" className="flex min-h-10 w-full items-center px-3 text-left text-xs text-[var(--status-danger,#e5484d)] hover:bg-[var(--bg-surface-hover)]" onClick={() => { setMenuFor(null); setDeleting(project); }}>Delete…</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </article>
@@ -265,6 +314,15 @@ export default function ProjectsHub({
                 className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)]"
               />
             </div>
+            <button
+              type="button"
+              onClick={() => { setModalOpen(false); onCreateFromFolder(); }}
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-primary)]"
+            >
+              <BrandIcon name="folder" size={16} />
+              <span>Start from a folder instead</span>
+            </button>
+            <p className="text-[11px] leading-snug text-[var(--text-muted)]">Pick a folder on this device, an external drive, or a cloud folder that is synced to this device. The project takes the folder's name. Your originals stay where they are.</p>
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
@@ -281,6 +339,36 @@ export default function ProjectsHub({
               </button>
             </div>
           </form>
+        </div>
+      )}
+      {renaming && (
+        <div role="dialog" aria-modal="true" aria-labelledby="rename-proj-title" className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-4">
+          <form
+            onSubmit={(e) => { e.preventDefault(); if (renaming.name.trim()) { onRenameProject(renaming.id, renaming.name); setRenaming(null); } }}
+            className="w-full max-w-md space-y-4 rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-panel)]"
+          >
+            <h2 id="rename-proj-title" className="text-base font-bold text-[var(--text-primary)]">Rename project</h2>
+            <label htmlFor="rename-proj-name" className="sr-only">Project name</label>
+            <input id="rename-proj-name" type="text" autoFocus required value={renaming.name} onChange={(e) => setRenaming({ ...renaming, name: e.target.value })} className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)]" />
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setRenaming(null)} className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-secondary)]">Cancel</button>
+              <button type="submit" className="min-h-10 rounded-[var(--radius-md)] bg-[var(--brand-accent)] px-4 text-xs font-semibold text-[var(--text-on-accent)]">Rename</button>
+            </div>
+          </form>
+        </div>
+      )}
+      {deleting && (
+        <div role="alertdialog" aria-modal="true" aria-labelledby="delete-proj-title" aria-describedby="delete-proj-body" className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-scrim)] p-4">
+          <div className="w-full max-w-md space-y-4 rounded-[var(--radius-xl)] border border-[var(--border-default)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-panel)]">
+            <h2 id="delete-proj-title" className="text-base font-bold text-[var(--text-primary)]">Delete “{deleting.name}”?</h2>
+            <p id="delete-proj-body" className="text-sm leading-relaxed text-[var(--text-secondary)]">
+              This removes the project, its edits and InFlight's stored previews from this device. Your original photo files are never touched. It cannot be undone; archive it instead if you may want it back.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button type="button" autoFocus onClick={() => setDeleting(null)} className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-default)] px-4 text-xs font-medium text-[var(--text-primary)]">Keep project</button>
+              <button type="button" onClick={() => { onDeleteProject(deleting.id); setDeleting(null); }} className="min-h-10 rounded-[var(--radius-md)] bg-[var(--status-danger,#e5484d)] px-4 text-xs font-semibold text-white">Delete project</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
