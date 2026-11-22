@@ -4,6 +4,7 @@ import { useWorkspace } from './stub';
 import { STRINGS } from './strings';
 import BrandIcon, { assistModeIconName } from './icons/BrandIcon';
 import ProjectsHub from './screens/ProjectsHub';
+import { FeaturePlanContext } from './shell/ProBadge';
 import TopBar from './shell/TopBar';
 import Rail from './shell/Rail';
 import DockPanel from './shell/DockPanel';
@@ -231,6 +232,7 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
   const activePanelVisible = Boolean(store.activePanel && activePanelState?.visible);
 
   return (
+    <FeaturePlanContext.Provider value={store.featurePlan}>
     <div
       className="inflight-v2 fixed inset-0 flex flex-col overflow-hidden bg-[var(--bg-app)] text-[var(--text-primary)] font-[family-name:var(--font-sans)]"
       data-v2-theme={store.settings.theme}
@@ -536,5 +538,6 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
         </div>
       )}
     </div>
+    </FeaturePlanContext.Provider>
   );
 }

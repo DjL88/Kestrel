@@ -1,6 +1,7 @@
 import React from 'react';
 import type { AssistMode, FeatureKey, Photo } from '../contract';
 import { STRINGS } from '../strings';
+import ProBadge from '../shell/ProBadge';
 import BrandIcon, { assistModeIconName } from '../icons/BrandIcon';
 
 interface CoPilotPanelProps {
@@ -81,7 +82,7 @@ export default function CoPilotPanel({
           <span className="flex items-center gap-2">
             <BrandIcon name="cloud-assist" size={17} />
             <span>
-              <span className="block text-xs font-semibold">{STRINGS.copilot.runReviewButton}</span>
+              <span className="flex items-center gap-1.5 text-xs font-semibold">{STRINGS.copilot.runReviewButton}<ProBadge feature="onlineAi" /></span>
               <span className="block text-[10px] opacity-85">{STRINGS.copilot.runReviewSub}</span>
             </span>
           </span>

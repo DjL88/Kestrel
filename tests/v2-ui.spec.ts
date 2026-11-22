@@ -180,3 +180,20 @@ test('?v2 Auto-Cull says it is part of Pro on the Free plan and changes nothing'
   await expect(root.getByText('Auto-cull is part of InFlight Pro.')).toBeVisible();
   await expect(root.getByRole('button', { name: /^Unflag / })).toHaveCount(0);
 });
+
+test('?v2 marks Pro features with the Pro badge, and leaves Basic features unmarked', async ({ page }) => {
+  await page.goto('/?v2&stub=1');
+  const root = page.locator('.inflight-v2');
+  await root.getByRole('button', { name: /Scottish Highlands/ }).first().click();
+  // Auto-Cull is Pro: the badge is the word "Pro" in the brand badge, with the same words for screen readers.
+  const autoCull = root.getByRole('button', { name: /Auto-Cull/ }).first();
+  await expect(autoCull.getByText('Part of InFlight Pro')).toHaveCount(1);
+  // Dark and light versions of the brand badge are both in the page; the theme shows one.
+  await expect(autoCull.locator('img.v2-pro-dark, img.v2-pro-light')).toHaveCount(2);
+  await expect(autoCull.locator('img.v2-pro-dark')).toBeVisible();
+  // Import is Basic: no badge.
+  await expect(root.getByRole('button', { name: /^Import/ }).first().getByText('Part of InFlight Pro')).toHaveCount(0);
+  // Deep Vision (online AI) is Pro too.
+  await root.getByRole('button', { name: 'Co-pilot', exact: true }).first().click();
+  await expect(root.getByRole('button', { name: /Deep Vision Review/ }).getByText('Part of InFlight Pro')).toHaveCount(1);
+});

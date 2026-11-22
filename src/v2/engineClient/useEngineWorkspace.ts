@@ -20,6 +20,7 @@ import { loadLocalFileListShoot } from '../../providers/localShootLoader';
 import type { EditRecipe, HubViewState, Project, WorkspaceActions, WorkspaceStore } from '../ui/contract';
 import { useWorkspace } from '../ui/stub';
 import { EngineSurface } from './EngineSurface';
+import { featureAccess, featurePlan } from './featureMap';
 import { frameToPhoto, shootToProject, taskToInfo, type AssistState, type FrameUrls } from './frameToPhoto';
 import { runAuto } from './runAuto';
 import { applyRecipePatch, editToRecipe } from './recipeMap';
@@ -126,7 +127,11 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
       const generation = book.generation;
       book.active += 1;
       provider.current!.getThumbnailUrl(frame, 'visible').then(
-        (thumb) => { if (generation === thumbs.current.generation) setUrls((current) => (current[frame.id]?.thumb ? current : { ...current, [frame.id]: { ...current[frame.id], thumb } })); },
+        (thumb) => {
+          if (generation !== thumbs.current.generation) return;
+          // An empty address means the original cannot be read (not connected, or not stored): say so, never "Importing".
+          setUrls((current) => (current[frame.id]?.thumb ? current : { ...current, [frame.id]: thumb ? { ...current[frame.id], thumb } : { ...current[frame.id], failed: true } }));
+        },
         () => { if (generation === thumbs.current.generation) setUrls((current) => ({ ...current, [frame.id]: { ...current[frame.id], failed: true } })); },
       ).finally(() => { if (generation === thumbs.current.generation) { thumbs.current.active -= 1; pumpThumbnails(); } });
     }
@@ -396,6 +401,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
   const photos = useMemo(() => (state?.frames ?? []).filter((frame) => !frame.removedAt).map((frame) => frameToPhoto(frame, urls[frame.id], assists[frame.id])), [state?.frames, urls, assists]);
   const store: WorkspaceStore = useMemo(() => ({
     ...stub.store,
+    features: featureAccess(can),
+    featurePlan: featurePlan(),
     screen, hubState, projects,
     activeProjectId: state?.shoot.id ?? null,
     photos,
@@ -407,7 +414,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     clipboardRecipe: clipboard,
     PhotoSurface: EngineSurface,
     lastActionNotice: notice ?? stub.store.lastActionNotice,
-  }), [stub.store, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, activeId, selected, taskList, notice]);
+  }), [stub.store, can, screen, hubState, projects, state?.shoot.id, state?.undoStack.length, state?.redoStack.length, activeFrame, clipboard, photos, activeId, selected, taskList, notice]);
 
   return { store, actions };
 }

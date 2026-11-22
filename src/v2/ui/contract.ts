@@ -348,6 +348,8 @@ export interface WorkspaceStore {
   bottomTab: 'filmstrip' | 'info';
   assistMode: AssistMode;
   features: Record<FeatureKey, boolean>;
+  /** Which plan each feature belongs to, so the UI can mark Pro features with the Pro badge. Basic or Pro only. */
+  featurePlan: Record<FeatureKey, 'basic' | 'pro'>;
   looks: LookPreset[];
   hoveredLookId: string | null;
   fonts: FontOption[];

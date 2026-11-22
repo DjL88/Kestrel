@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { AssistMode, Photo } from '../contract';
 import { STRINGS } from '../strings';
+import ProBadge from './ProBadge';
 import BrandIcon from '../icons/BrandIcon';
 import { buildHistogramData, filterPhotos, getActiveGroup } from '../utils/studioMath';
 
@@ -153,6 +154,7 @@ export default function Filmstrip({
             </span>
             <p className="mt-1 text-xs text-[var(--text-secondary)]">
               {activePhoto.speciesLabel || activePhoto.category}
+              <ProBadge feature="speciesId" className="ml-1.5 align-middle" />
             </p>
           </div>
           <p className="mt-1.5 text-[11px] text-[var(--text-muted)] tabular-nums">
@@ -277,6 +279,7 @@ export default function Filmstrip({
               {STRINGS.filmstrip.autoCull}
               {assistMode === 'autopilot' ? ' · Auto' : ''}
             </span>
+            <ProBadge feature="smartCulling" />
           </button>
         </div>
 
