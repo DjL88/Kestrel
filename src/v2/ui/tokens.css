@@ -1,0 +1,122 @@
+/* InFlight Design Tokens — Dark & Light Themes
+   All colours, spacing, radii, typography, and motion live here.
+   Scoped to .inflight-v2 so they never touch the current app. Switch theme via data-v2-theme = 'dark' | 'light'.
+*/
+
+.inflight-v2,
+.inflight-v2[data-v2-theme="dark"] {
+  color-scheme: dark;
+
+  /* 60% Neutral Canvas */
+  --bg-app: #0c0e13;
+  --bg-canvas: #090b0f;
+  --bg-surface: #13161e;
+  --bg-surface-raised: #1a1e28;
+  --bg-surface-hover: #222836;
+  --bg-surface-active: #283042;
+  --bg-input: #0e1117;
+  --bg-scrim: rgba(7, 9, 13, 0.78);
+
+  /* 30% Structural Borders & Dividers */
+  --border-subtle: rgba(244, 239, 232, 0.08);
+  --border-default: rgba(244, 239, 232, 0.14);
+  --border-strong: rgba(244, 239, 232, 0.24);
+
+  /* Typography */
+  --text-primary: #f4efe8;
+  --text-secondary: #b3b9c5;
+  --text-muted: #7f8796;
+  --text-on-accent: #140d0a;
+
+  /* 10% High-Intent Focal Accent (InFlight Copper-Amber — colour-blind distinct) */
+  --brand-accent: #e8743c;
+  --brand-accent-hover: #f0834d;
+  --brand-accent-soft: rgba(232, 116, 60, 0.15);
+  --brand-accent-border: rgba(232, 116, 60, 0.42);
+
+  /* Colour-blind safe semantic tokens (always paired with text/icon) */
+  --semantic-info: #4ea8de;
+  --semantic-info-soft: rgba(78, 168, 222, 0.16);
+  --semantic-success: #38b28b;
+  --semantic-success-soft: rgba(56, 178, 139, 0.16);
+  --semantic-warning: #e6a93c;
+  --semantic-warning-soft: rgba(230, 169, 60, 0.16);
+  --semantic-danger: #e25c5c;
+  --semantic-danger-soft: rgba(226, 92, 92, 0.16);
+
+  /* Shadows */
+  --shadow-panel: 0 14px 36px rgba(0, 0, 0, 0.48);
+  --shadow-popover: 0 10px 28px rgba(0, 0, 0, 0.56);
+  --shadow-canvas: 0 24px 60px rgba(0, 0, 0, 0.62);
+}
+
+.inflight-v2[data-v2-theme="light"] {
+  color-scheme: light;
+
+  /* 60% Neutral Canvas (Warm Alabaster, never harsh hospital white) */
+  --bg-app: #f3f1ec;
+  --bg-canvas: #e9e6df;
+  --bg-surface: #faf9f6;
+  --bg-surface-raised: #ffffff;
+  --bg-surface-hover: #eeebe4;
+  --bg-surface-active: #e4dfd5;
+  --bg-input: #f2f0ea;
+  --bg-scrim: rgba(20, 22, 28, 0.42);
+
+  /* 30% Structural Borders & Dividers */
+  --border-subtle: rgba(23, 25, 32, 0.08);
+  --border-default: rgba(23, 25, 32, 0.14);
+  --border-strong: rgba(23, 25, 32, 0.24);
+
+  /* Typography */
+  --text-primary: #171920;
+  --text-secondary: #4c5260;
+  --text-muted: #6c7382;
+  --text-on-accent: #ffffff;
+
+  /* 10% Accent (Deepened for WCAG AA contrast on light surfaces) */
+  --brand-accent: #c95620;
+  --brand-accent-hover: #b24817;
+  --brand-accent-soft: rgba(201, 86, 32, 0.12);
+  --brand-accent-border: rgba(201, 86, 32, 0.36);
+
+  /* Colour-blind safe semantic tokens */
+  --semantic-info: #1d6fa5;
+  --semantic-info-soft: rgba(29, 111, 165, 0.12);
+  --semantic-success: #1b7f5e;
+  --semantic-success-soft: rgba(27, 127, 94, 0.12);
+  --semantic-warning: #a66c0a;
+  --semantic-warning-soft: rgba(166, 108, 10, 0.13);
+  --semantic-danger: #c03939;
+  --semantic-danger-soft: rgba(192, 57, 57, 0.12);
+
+  /* Shadows */
+  --shadow-panel: 0 12px 32px rgba(23, 25, 32, 0.12);
+  --shadow-popover: 0 8px 24px rgba(23, 25, 32, 0.15);
+  --shadow-canvas: 0 18px 44px rgba(23, 25, 32, 0.14);
+}
+
+/* Shared Geometry, Spacing & Typography Tokens */
+.inflight-v2 {
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  --topbar-height: 52px;
+  --rail-width: 72px;
+  --dock-width: 316px;
+  --motion-fast: 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-base: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
