@@ -1645,6 +1645,10 @@ export function useWorkspace(): { store: WorkspaceStore; actions: WorkspaceActio
       }));
     },
 
+    importWatermarkImage: async () => null,
+    cutOutWatermark: async () => null,
+    makeWatermarkVariant: async () => undefined,
+    deleteWatermark: () => undefined,
     listDeviceFonts: async () => ['Avenir Next', 'Baskerville', 'Futura', 'Gill Sans', 'Helvetica Neue', 'Optima'],
     hasDeviceFont: (fontName) => ['avenir next', 'baskerville', 'futura', 'gill sans', 'helvetica neue', 'optima'].includes(fontName.trim().toLowerCase()),
     addCustomFont: (fontName) => {

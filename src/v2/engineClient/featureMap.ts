@@ -9,6 +9,10 @@ export function featurePlan(): Record<FeatureKey, 'basic' | 'pro'> {
   return Object.fromEntries(V2_FEATURES.map((key) => [key, FEATURES[key] === 'paid' ? 'pro' : 'basic'])) as Record<FeatureKey, 'basic' | 'pro'>;
 }
 
-export function featureAccess(can: (feature: Feature) => boolean): Record<FeatureKey, boolean> {
-  return Object.fromEntries(V2_FEATURES.map((key) => [key, can(key)])) as Record<FeatureKey, boolean>;
+/** The existing developer-only switch, as in `providers/useAccess.ts`: the Vite dev server with VITE_KESTREL_DEV_PRO=1. It is
+ * never on in a build people install. (Read here without importing that module, which needs the Vite environment.) */
+const DEV_PRO_PREVIEW_MODE = Boolean(import.meta.env?.DEV && import.meta.env?.VITE_KESTREL_DEV_PRO === '1');
+
+export function featureAccess(can: (feature: Feature) => boolean, devPro: boolean = DEV_PRO_PREVIEW_MODE): Record<FeatureKey, boolean> {
+  return Object.fromEntries(V2_FEATURES.map((key) => [key, devPro || can(key)])) as Record<FeatureKey, boolean>;
 }

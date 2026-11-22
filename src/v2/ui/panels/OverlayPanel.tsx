@@ -11,6 +11,7 @@ import type {
 import { STRINGS } from '../strings';
 import ProBadge from '../shell/ProBadge';
 import FontPicker from './FontPicker';
+import WatermarkLibrary from './WatermarkLibrary';
 import BrandIcon from '../icons/BrandIcon';
 import InfoPopover from '../shell/InfoPopover';
 import { detectOverlayOverflow, formatOverlayRowText, getActiveGroup } from '../utils/studioMath';
@@ -30,6 +31,10 @@ interface OverlayPanelProps {
   onRemoveRow: (photoId: string, rowId: string) => void;
   onAddCustomFont: (fontName: string) => void;
   onListDeviceFonts: () => Promise<string[] | null>;
+  onImportWatermark: () => Promise<string | null>;
+  onCutOutWatermark: (presetId: string, slot: 'dark' | 'light', tolerance: number, commit: boolean) => Promise<{ url: string; tooMuch: boolean } | null>;
+  onMakeWatermarkVariant: (presetId: string, slot: 'dark' | 'light') => Promise<void>;
+  onDeleteWatermark: (presetId: string) => void;
   onHasDeviceFont: (fontName: string) => boolean;
 }
 
@@ -69,6 +74,10 @@ export default function OverlayPanel({
   onAddCustomFont,
   onListDeviceFonts,
   onHasDeviceFont,
+  onImportWatermark,
+  onCutOutWatermark,
+  onMakeWatermarkVariant,
+  onDeleteWatermark,
 }: OverlayPanelProps) {
   const [subTab, setSubTab] = useState<'text' | 'watermark'>('text');
 
@@ -427,36 +436,31 @@ export default function OverlayPanel({
                   <BrandIcon name="watermark-library" size={14} />
                   <span>{STRINGS.overlays.watermarkLibrary}</span>
                 </span>
-                <div className="space-y-1.5">
-                  {watermarkPresets.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() =>
-                        onUpdateOverlay(photo.id, {
-                          watermarkEnabled: true,
-                          watermarkPresetId: preset.id,
-                        })
-                      }
-                      className={`flex w-full flex-col rounded-[var(--radius-sm)] border px-2.5 py-2 text-left transition-colors ${
-                        overlay.watermarkPresetId === preset.id
-                          ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)]'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-input)] hover:border-[var(--border-default)]'
-                      }`}
-                    >
-                      <span className="text-xs font-semibold text-[var(--text-primary)]">
-                        {preset.label}
-                      </span>
-                      <span className="mt-0.5 font-mono text-[10px] text-[var(--text-muted)]">
-                        {preset.text} {preset.subtext ? `· ${preset.subtext}` : ''}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                <WatermarkLibrary
+                  presets={watermarkPresets}
+                  selectedId={overlay.watermarkPresetId}
+                  onSelect={(presetId) => onUpdateOverlay(photo.id, { watermarkEnabled: true, watermarkPresetId: presetId })}
+                  onImport={onImportWatermark}
+                  onCutOut={onCutOutWatermark}
+                  onMakeVariant={onMakeWatermarkVariant}
+                  onDelete={onDeleteWatermark}
+                />
               </div>
 
               {/* Contrast swatch */}
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  aria-pressed={overlay.watermarkContrast === 'auto'}
+                  onClick={() => onUpdateOverlay(photo.id, { watermarkContrast: 'auto' })}
+                  className={`inline-flex h-8 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border text-xs font-medium ${
+                    overlay.watermarkContrast === 'auto'
+                      ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
+                      : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]'
+                  }`}
+                >
+                  <span>{STRINGS.watermarks.auto}</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => onUpdateOverlay(photo.id, { watermarkContrast: 'light-on-dark' })}

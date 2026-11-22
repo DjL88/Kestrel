@@ -207,6 +207,10 @@ export default function App({ useStore = useWorkspace }: { useStore?: typeof use
             onAddCustomFont={actions.addCustomFont}
             onListDeviceFonts={actions.listDeviceFonts}
             onHasDeviceFont={actions.hasDeviceFont}
+            onImportWatermark={actions.importWatermarkImage}
+            onCutOutWatermark={actions.cutOutWatermark}
+            onMakeWatermarkVariant={actions.makeWatermarkVariant}
+            onDeleteWatermark={actions.deleteWatermark}
           />
         );
       case 'assist':
