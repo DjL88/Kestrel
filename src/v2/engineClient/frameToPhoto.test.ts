@@ -93,3 +93,13 @@ test('a subject name the app suggested is marked as a suggestion, a chosen one i
   assert.equal(speciesLabelOf({ tags: ['Red kite'], autoTags: [] }), 'Red kite');
   assert.equal(speciesLabelOf({ subjectNames: ['Common kestrel'], tags: ['Red kite'], autoTags: ['Red kite'] }), 'Common kestrel');
 });
+
+test('finished tasks stay for 4 hours and are then dropped, newest first, with running tasks on top', async () => {
+  const { visibleTasks, COMPLETED_KEEP_MS } = await import('./frameToPhoto.ts');
+  const now = 10_000_000_000;
+  const running = [{ id: '1', label: 'a', detail: '', progress: 10, status: 'running' as const }];
+  const done = (id: string, ago: number) => ({ id, label: id, detail: '', progress: 100, status: 'done' as const, endedAt: now - ago });
+  const shown = visibleTasks(running, [done('old', COMPLETED_KEEP_MS + 1), done('older-new', 5_000), done('newest', 1_000)], now);
+  assert.deepEqual(shown.map((task) => task.id), ['1', 'newest', 'older-new']);
+  assert.deepEqual(visibleTasks([], [done('x', COMPLETED_KEEP_MS - 1)], now).map((task) => task.id), ['x']);
+});

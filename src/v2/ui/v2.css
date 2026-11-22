@@ -27,3 +27,8 @@
     animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important;
   }
 }
+
+/* The Pro badge ships in a dark and a light version; show the one that suits the V2 theme. */
+.inflight-v2 .v2-pro-light { display: none; }
+.inflight-v2[data-v2-theme="light"] .v2-pro-dark { display: none; }
+.inflight-v2[data-v2-theme="light"] .v2-pro-light { display: inline-block; }
