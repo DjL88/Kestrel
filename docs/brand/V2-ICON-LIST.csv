@@ -1,0 +1,140 @@
+group,icon,meaning or use,status,files using it
+Chrome and navigation,ArrowDownUp,Sort,in app today (Lucide),2
+Chrome and navigation,ArrowLeft,Back,in app today (Lucide),4
+Chrome and navigation,ArrowRight,Next,in app today (Lucide),2
+Chrome and navigation,Check,"Done, selected",in app today (Lucide),10
+Chrome and navigation,ChevronDown,"Disclosure, dropdown",in app today (Lucide),4
+Chrome and navigation,ChevronLeft,"Previous, collapse left",in app today (Lucide),7
+Chrome and navigation,ChevronRight,"Next, expand",in app today (Lucide),8
+Chrome and navigation,ChevronUp,Disclosure open,in app today (Lucide),2
+Chrome and navigation,CircleHelp,Help,in app today (Lucide),5
+Chrome and navigation,Ellipsis,More actions,in app today (Lucide),4
+Chrome and navigation,Info,Photo info,in app today (Lucide),4
+Chrome and navigation,Keyboard,Keyboard shortcuts,in app today (Lucide),3
+Chrome and navigation,Languages,Language,in app today (Lucide),3
+Chrome and navigation,ListFilter,Filter,in app today (Lucide),2
+Chrome and navigation,Lock,Pro locked,in app today (Lucide),2
+Chrome and navigation,Minus,"Remove, zoom out",in app today (Lucide),3
+Chrome and navigation,Plus,Add,in app today (Lucide),8
+Chrome and navigation,Search,Search,in app today (Lucide),3
+Chrome and navigation,Settings2,Settings,in app today (Lucide),3
+Chrome and navigation,Square,Checkbox empty,in app today (Lucide),3
+Chrome and navigation,SquareCheck,Checkbox ticked,in app today (Lucide),2
+Chrome and navigation,UserRound,Account,in app today (Lucide),2
+Chrome and navigation,X,Close,in app today (Lucide),15
+Panels and docking,Columns2,Compare / before and after,in app today (Lucide),4
+Panels and docking,Expand,Expand,in app today (Lucide),1
+Panels and docking,Focus,Photo only,in app today (Lucide),2
+Panels and docking,Grip,Drag handle,in app today (Lucide),1
+Panels and docking,GripHorizontal,Resize handle,in app today (Lucide),2
+Panels and docking,Maximize,Full screen,in app today (Lucide),2
+Panels and docking,Maximize2,Maximise panel,in app today (Lucide),2
+Panels and docking,Minimize,Exit full screen,in app today (Lucide),2
+Panels and docking,Minimize2,Restore panel,in app today (Lucide),1
+Panels and docking,MoveHorizontal,Resize width,in app today (Lucide),2
+Panels and docking,PanelLeftClose,Hide left panel,in app today (Lucide),2
+Panels and docking,PanelLeftOpen,Show left panel,in app today (Lucide),2
+Panels and docking,PanelRight,Dock panel,in app today (Lucide),4
+Panels and docking,PanelRightClose,Dock panel to right,in app today (Lucide),1
+Panels and docking,PanelTopOpen,Top bar panel,in app today (Lucide),1
+Panels and docking,PictureInPicture2,Float panel,in app today (Lucide),3
+Panels and docking,Pin,Keep visible,in app today (Lucide),2
+Panels and docking,Scan,Fit to screen,in app today (Lucide),2
+Panels and docking,Shrink,Shrink,in app today (Lucide),1
+Panels and docking,SquareChevronsRight,Fold tools,in app today (Lucide),2
+Rail tools,Bird,Wildlife look,in app today (Lucide),2
+Rail tools,Crop,Crop and sizes,in app today (Lucide),2
+Rail tools,Eraser,Erase mask,in app today (Lucide),3
+Rail tools,History,History,in app today (Lucide),2
+Rail tools,Lightbulb,Auto and advice,in app today (Lucide),2
+Rail tools,MessageSquareText,Text,in app today (Lucide),2
+Rail tools,Mountain,Landscape look,in app today (Lucide),2
+Rail tools,Paintbrush,Brush mask,in app today (Lucide),2
+Rail tools,Palette,Colour,in app today (Lucide),1
+Rail tools,ScanSearch,Find subject,in app today (Lucide),3
+Rail tools,SlidersHorizontal,Edit sliders,in app today (Lucide),6
+Rail tools,Sparkles,Assist,in app today (Lucide),2
+Rail tools,SquareDashedMousePointer,Select area,in app today (Lucide),2
+Rail tools,SquircleDashed,Masks,in app today (Lucide),2
+Rail tools,Wand2,Auto adjust,in app today (Lucide),1
+"Photos, culling and filmstrip",CircleAlert,Needs attention,in app today (Lucide),7
+"Photos, culling and filmstrip",CircleCheck,Ready,in app today (Lucide),3
+"Photos, culling and filmstrip",Clock,Waiting,in app today (Lucide),2
+"Photos, culling and filmstrip",Eye,Show,in app today (Lucide),2
+"Photos, culling and filmstrip",EyeOff,Hide,in app today (Lucide),3
+"Photos, culling and filmstrip",Grid3X3,Grid view,in app today (Lucide),2
+"Photos, culling and filmstrip",Image,Photo,in app today (Lucide),2
+"Photos, culling and filmstrip",ImageOff,Photo missing,in app today (Lucide),2
+"Photos, culling and filmstrip",ImagePlus,Add photos,in app today (Lucide),2
+"Photos, culling and filmstrip",ListChecks,Select photos,in app today (Lucide),2
+"Photos, culling and filmstrip",LoaderCircle,Working,in app today (Lucide),12
+"Photos, culling and filmstrip",Star,Rating star,in app today (Lucide),4
+"Photos, culling and filmstrip",Tag,Tags,in app today (Lucide),2
+Edit actions,ClipboardCopy,Copy,in app today (Lucide),2
+Edit actions,ClipboardPaste,Paste edits,in app today (Lucide),2
+Edit actions,Copy,Copy edits,in app today (Lucide),3
+Edit actions,Pencil,"Rename, edit",in app today (Lucide),2
+Edit actions,RectangleHorizontal,Landscape orientation,in app today (Lucide),3
+Edit actions,RectangleVertical,Portrait orientation,in app today (Lucide),2
+Edit actions,Redo2,Redo,in app today (Lucide),4
+Edit actions,RotateCcw,"Reset, rotate left",in app today (Lucide),5
+Edit actions,RotateCw,Rotate right,in app today (Lucide),2
+Edit actions,Save,Save,in app today (Lucide),2
+Edit actions,Trash2,Delete,in app today (Lucide),6
+Edit actions,Undo2,Undo,in app today (Lucide),5
+Edit actions,ZoomIn,Zoom,in app today (Lucide),2
+"Files, export and storage",Archive,Archive,in app today (Lucide),2
+"Files, export and storage",ArchiveRestore,Restore,in app today (Lucide),3
+"Files, export and storage",ArrowDownToLine,Import,in app today (Lucide),2
+"Files, export and storage",ArrowLeftRight,Swap,in app today (Lucide),2
+"Files, export and storage",ArrowUpToLine,Upload,in app today (Lucide),2
+"Files, export and storage",Download,Export,in app today (Lucide),7
+"Files, export and storage",FileDown,Save file,in app today (Lucide),2
+"Files, export and storage",Folder,Folder,in app today (Lucide),3
+"Files, export and storage",FolderInput,Move to project,in app today (Lucide),2
+"Files, export and storage",FolderKey,Protected folder,in app today (Lucide),2
+"Files, export and storage",FolderOpen,Open folder,in app today (Lucide),2
+"Files, export and storage",FolderUp,Up a folder,in app today (Lucide),2
+"Files, export and storage",HardDrive,Drive,in app today (Lucide),1
+"Files, export and storage",RefreshCw,"Sync, refresh",in app today (Lucide),3
+"Cloud, connections and AI",Cloud,Cloud storage,in app today (Lucide),2
+"Cloud, connections and AI",CloudOff,Offline,in app today (Lucide),2
+"Cloud, connections and AI",Plug,Connection,in app today (Lucide),2
+"Cloud, connections and AI",Server,NAS or server,in app today (Lucide),3
+V2 · Flags and filmstrip,flag,Flag a photo (replaces Keep),new for V2,
+V2 · Flags and filmstrip,flag-off,Unflag,new for V2,
+V2 · Flags and filmstrip,flag-from-camera,Flag came from the camera,new for V2,
+V2 · Flags and filmstrip,star-empty / star-filled,"Rating, two states",new for V2,
+V2 · Flags and filmstrip,state-importing,Importing,new for V2,
+V2 · Flags and filmstrip,state-analysing,Analysing,new for V2,
+V2 · Flags and filmstrip,state-ready,Ready to edit,new for V2,
+V2 · Flags and filmstrip,state-original-offline,"Original not connected, preview only",new for V2,
+V2 · Flags and filmstrip,relink,Relink original,new for V2,
+V2 · Overlay,overlay,Overlay tool (replaces Mark),new for V2,
+V2 · Overlay,watermark,Watermark,new for V2,
+V2 · Overlay,watermark-library,Watermark library,new for V2,
+V2 · Overlay,watermark-white-on-black,Swatch,new for V2,
+V2 · Overlay,watermark-black-on-white,Swatch,new for V2,
+V2 · Overlay,text-overlay,Text overlay,new for V2,
+V2 · Overlay,camera-settings-text,"Camera settings tokens (aperture, shutter, ISO)",new for V2,
+V2 · Overlay,position-grid-9,Nine-position picker,new for V2,
+"V2 · Sizes, split and video",size-copy,Size copy,new for V2,
+"V2 · Sizes, split and video",linked,Linked edit across sizes,new for V2,
+"V2 · Sizes, split and video",unlinked,Unlinked,new for V2,
+"V2 · Sizes, split and video",size-4x5,Post 4:5,new for V2,
+"V2 · Sizes, split and video",size-9x16,Story 9:16,new for V2,
+"V2 · Sizes, split and video",size-1x1,Square,new for V2,
+"V2 · Sizes, split and video",size-16x9,Landscape,new for V2,
+"V2 · Sizes, split and video",add-frame,Plus next to the canvas: repeat this size,new for V2,
+"V2 · Sizes, split and video",split-panorama,Spread one image across frames,new for V2,
+"V2 · Sizes, split and video",all-sizes-view,Group view of every size,new for V2,
+"V2 · Sizes, split and video",video-zoom,Export as zoom video,new for V2,
+"V2 · Sizes, split and video",focal-point,Choose the zoom target,new for V2,
+"V2 · Sizes, split and video",zoom-in-out,Zoom direction,new for V2,
+V2 · Chrome and assistance,mode-solo,Assistance mode: Solo,new for V2,
+V2 · Chrome and assistance,mode-copilot,Assistance mode: Co-pilot,new for V2,
+V2 · Chrome and assistance,mode-autopilot,Assistance mode: Auto-pilot,new for V2,
+V2 · Chrome and assistance,theme-light / theme-dark,Light and dark mode,new for V2,
+V2 · Chrome and assistance,advice-bulb,Quiet advice beside a slider,new for V2,
+V2 · Chrome and assistance,cloud-assist,Optional cloud processing,new for V2,
+V2 · Chrome and assistance,cloud-temporary,"Held briefly, then deleted",new for V2,
