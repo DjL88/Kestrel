@@ -63,7 +63,7 @@ function draw(canvas: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropT
  * First render ONE uninterrupted photograph across the two INNER viewports;
  * then distribute adjacent halves into the reserved image areas. The border
  * never obscures pixels and no photo is developed twice at the seam. */
-function drawContinuousInsideBorders(output: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropTransform, sectionCount: 1 | 2) {
+function drawContinuousInsideBorders(output: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropTransform, sectionCount: 1 | 2 | 3) {
   if (sectionCount === 1 || (!(crop.borderWidth && crop.borderWidth > 0) && crop.borderPlacement !== 'auto')) {
     draw(output, picture, crop);
     return;
@@ -196,7 +196,7 @@ function drawMark(canvas: HTMLCanvasElement, input: OverlayDraw) {
  */
 export async function renderV2Export(
   source: HTMLImageElement, frame: PhotoFrame, size: { width: number; height: number }, crop: CropTransform,
-  profile: ExportProfile, overlay: OverlayDraw | null, date: Date, signal?: AbortSignal, sectionCount: 1 | 2 = 1,
+  profile: ExportProfile, overlay: OverlayDraw | null, date: Date, signal?: AbortSignal, sectionCount: 1 | 2 | 3 = 1,
 ): Promise<V2RenderResult> {
   signal?.throwIfAborted();
   if (!(source.naturalWidth > 0) || !(source.naturalHeight > 0)) throw new Error(`Cannot export ${frame.filename}: the decoded source has invalid pixel dimensions. Reconnect or redevelop the original.`);
