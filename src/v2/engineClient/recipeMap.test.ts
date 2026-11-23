@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applyDetail, isNeutralEdit } from '../../core/photoEdits.ts';
-import { applyRecipePatch, editToRecipe, NEUTRAL_RECIPE } from './recipeMap.ts';
+import { applyDetail, applyPhotoEdit, isNeutralEdit } from '../../core/photoEdits.ts';
+import { applyRecipePatch, editToRecipe, NEUTRAL_RECIPE, previewLookEdit } from './recipeMap.ts';
 
 test('a photo with no edit shows a neutral recipe, never invented adjustments', () => {
   assert.deepEqual(editToRecipe(undefined), NEUTRAL_RECIPE);
@@ -97,4 +97,23 @@ test('non-existent engines stay honestly unavailable while output upscale and te
     }).unmapped,
     ['denoiseRawAi', 'denoiseLuminance', 'lensCorrection'],
   );
+});
+
+test('hover Look preview edits real pixels without storing or mutating the current recipe', () => {
+  const original = applyRecipePatch(undefined, { exposure: 0.4 }).edit;
+  const savedExposure = original.exposure;
+  const suggestion = { exposure: -1.2, saturation: -100, contrast: 32 };
+  const hovered = previewLookEdit(original, suggestion);
+  assert.ok(hovered);
+  assert.notStrictEqual(hovered, original, 'hover produces a temporary recipe');
+  assert.equal(original.exposure, savedExposure, 'saved recipe is unchanged');
+  assert.equal(hovered.exposure, -3, 'the candidate uses requested Look values');
+  assert.equal(hovered.colour, -2, 'monochrome preview is a real edit');
+  const before = new Uint8ClampedArray([100, 145, 210, 255]);
+  const after = new Uint8ClampedArray(before);
+  applyPhotoEdit(before, original);
+  applyPhotoEdit(after, hovered);
+  assert.notDeepEqual(after, before, 'look hover changes actual rendered colours');
+  assert.strictEqual(previewLookEdit(original, undefined), original, 'leaving a Look restores the exact existing edit');
+  assert.strictEqual(previewLookEdit(undefined, undefined), undefined, 'unedited photos stay neutral');
 });
