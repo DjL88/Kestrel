@@ -126,7 +126,7 @@ export default function TopBar({
           className="inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-sm)] px-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] whitespace-nowrap shrink-0"
         >
           <BrandIcon name="arrow-left" size={16} />
-          <span className="hidden sm:inline">Back</span>
+          <span className="hidden sm:inline">{STRINGS.topBar.backShort}</span>
         </button>
 
         <div className="h-5 w-px bg-[var(--border-subtle)] shrink-0" aria-hidden="true" />
@@ -136,7 +136,7 @@ export default function TopBar({
         </div>
 
         {/* Desktop menus: File, Edit, View */}
-        {showMenus && <nav className="hidden lg:flex items-center gap-1 ml-1" aria-label="Application menus">
+        {showMenus && <nav className="hidden lg:flex items-center gap-1 ml-1" aria-label={STRINGS.topBar.applicationMenus}>
           {/* File Menu */}
           <div className="relative">
             <button
