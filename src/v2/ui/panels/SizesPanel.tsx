@@ -497,13 +497,13 @@ export default function SizesPanel({
       {features.splitFrames && (
         <section className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
           <h3 className="text-xs font-semibold text-[var(--text-primary)]">
-            {STRINGS.formats.splitHeading}
+            {STRINGS.formats.splitHeading} · {activeSize.label}
           </h3>
           <button
             type="button"
             onClick={() => onToggleSplitFrames(photo.id)}
             className={`flex w-full items-center justify-between gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-xs font-medium transition-colors ${
-              group.splitFrames
+              photo.formatSplits?.[activeSize.id]?.enabled === true
                 ? 'border-[var(--brand-accent)] bg-[var(--brand-accent-soft)] text-[var(--brand-accent)]'
                 : 'border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
@@ -512,7 +512,7 @@ export default function SizesPanel({
               <BrandIcon name="split-panorama" size={15} />
               <span>{STRINGS.formats.splitToggle}</span>
             </span>
-            <span>{group.splitFrames ? 'On' : 'Off'}</span>
+            <span>{photo.formatSplits?.[activeSize.id]?.enabled === true ? 'On' : 'Off'}</span>
           </button>
         </section>
       )}

@@ -2,6 +2,7 @@ import { applyFormats, applySizeLinked, ratioLabelFor } from './formatOps';
 import { framedSize, DEFAULT_FRAMING } from '../../core/photoFraming';
 import { readVideoZoom } from './videoZoomOps';
 import { readSplitFrames, readSplitPanOffset } from './splitFrameOps';
+import { readFormatSplits } from './formatSplitOps';
 import { describeHistory } from './historySteps';
 import type { PhotoFrame, ShootDescriptor } from '../../core/types';
 import { computeCullCounts } from '../../core/cullingEngine';
@@ -120,6 +121,9 @@ export function frameToPhoto(frame: PhotoFrame, urls: FrameUrls | undefined, ext
     activeGroupId: groups[0].id,
     editGroups: groups,
     sizes: applySizeLinked(applyFormats(createDefaultSizes(), frame.formats).map((size) => { const crop = crops[size.id]; const at = board[size.id]; const native = size.id === 'orig-3x2' && nativeSize ? { label: 'Original', width: nativeSize.width, height: nativeSize.height, ratioLabel: ratioLabelFor(nativeSize.width, nativeSize.height) } : {}; return { ...size, ...native, ...(crop ? { crop } : {}), ...(at ? { boardX: at.x, boardY: at.y } : {}) }; }), frame.sizeLinked),
+    formatSplits: frame.formatSplits === undefined && frame.splitFrames === true
+      ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(frame.splitPanOffset) } }
+      : readFormatSplits(frame.formatSplits),
     videoZoom: readVideoZoom(frame.videoZoom),
     masks: masksToLayers(frame.edit?.masks),
     ...(frame.burstGroupId && frame.burstCount > 1 ? { burst: { groupId: frame.burstGroupId, index: frame.burstIndex, count: frame.burstCount, ungrouped: Boolean(frame.burstUngrouped), ...(typeof frame.cullScore === 'number' ? { score: frame.cullScore } : {}) } } : {}),

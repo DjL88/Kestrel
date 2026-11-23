@@ -45,7 +45,8 @@ import { planExport } from './exportOps';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, overlayFromTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
 import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
-import { setSplitPanOffset as setSplitPanOffsetRaw, toggleSplitFrames as toggleSplitFramesRaw } from './splitFrameOps';
+import { setFormatSplitOffset, toggleFormatSplit } from './formatSplitOps';
+import { readSplitPanOffset } from './splitFrameOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, toggleMask } from './maskOps';
 import { verifyFrameMasks } from './maskVerify';
 import { createSubjectMask, framingKey, hasActiveMasks } from '../../core/maskTypes';
@@ -675,23 +676,25 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, videoZoom: next } : entry)) }));
   }, [mutate]);
 
-  /** Flip the photo's (single, synthetic) edit group between one pane and a split, two-pane view. */
+  /** Split only the active FORMAT; other outputs of the photo are unaffected. */
   const toggleSplitFrames = useCallback((photoId: string) => {
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
-    if (!frame) return;
-    const next = toggleSplitFramesRaw(frame.splitFrames);
+    const sizeId = stub.store.activeSizeId;
+    if (!frame || !sizeId) return;
+    const next = toggleFormatSplit(frame.formatSplits ?? (frame.splitFrames === true ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(frame.splitPanOffset) } } : undefined), sizeId);
     const at = Date.now();
-    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, splitFrames: next } : entry)) }));
-  }, [mutate]);
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, formatSplits: next } : entry)) }));
+  }, [mutate, stub.store.activeSizeId]);
 
-  /** How far each pane is panned when split, as a percentage (-25 to 25). */
+  /** Move both halves together inside this format's two-section composition. */
   const setSplitPanOffset = useCallback((photoId: string, offset: number) => {
     const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
-    if (!frame) return;
-    const next = setSplitPanOffsetRaw(offset);
+    const sizeId = stub.store.activeSizeId;
+    if (!frame || !sizeId) return;
+    const next = setFormatSplitOffset(frame.formatSplits ?? (frame.splitFrames === true ? { 'orig-3x2': { enabled: true, offset: readSplitPanOffset(frame.splitPanOffset) } } : undefined), sizeId, offset);
     const at = Date.now();
-    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, splitPanOffset: next } : entry)) }));
-  }, [mutate]);
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, formatSplits: next } : entry)) }));
+  }, [mutate, stub.store.activeSizeId]);
 
   /** Find the subject on this device and add it (or, for the background, its inverse) as a mask with no adjustments yet.
    * Sky, painted and area masks need tools V2 does not have, so they say so instead of adding a layer that does nothing. */

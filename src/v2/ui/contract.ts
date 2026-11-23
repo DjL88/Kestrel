@@ -254,6 +254,8 @@ export interface Photo {
   activeGroupId: string;
   editGroups: EditGroup[];
   sizes: SizePreset[];
+  /** A split belongs to one output format, never every copy of this photo. */
+  formatSplits?: Record<string, { enabled: boolean; offset: number }>;
   videoZoom: VideoZoomConfig;
   masks: MaskLayer[];
   /** Set when this photo was shot in a burst with others. `ungrouped` is the person's choice to see its frames one by one. */

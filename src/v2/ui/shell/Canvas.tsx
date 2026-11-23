@@ -191,7 +191,9 @@ export default function Canvas({
 
   const group: EditGroup = getActiveGroup(photo);
   // Compare shows the original and the edit side by side across one frame; a split spans two frames, so it is off then.
-  const compareMode = compareRequested && !group.splitFrames;
+  const splitFor = (sizeId: string) => features.splitFrames && photo.formatSplits?.[sizeId]?.enabled === true;
+  const splitOffsetFor = (sizeId: string) => photo.formatSplits?.[sizeId]?.offset ?? 0;
+  const compareMode = compareRequested && !splitFor(activeSizeId);
   const enabledSizes = photo.sizes.filter((s) => s.enabled);
   const activeSize: SizePreset =
     photo.sizes.find((s) => s.id === activeSizeId) ?? enabledSizes[0] ?? photo.sizes[0];
@@ -240,7 +242,7 @@ export default function Canvas({
       origB = size.crop.panY;
       setDraggingType('pan');
     } else if (kind === 'split') {
-      origA = group.splitPanOffset;
+      origA = splitOffsetFor(size.id);
       setDraggingType('pan');
     } else if (kind === 'text') {
       origA = group.overlay.textX;
@@ -819,7 +821,8 @@ export default function Canvas({
 
     const cropClip = `inset(${activeSize.crop.insetTop}% ${activeSize.crop.insetRight}% ${activeSize.crop.insetBottom}% ${activeSize.crop.insetLeft}%)`;
 
-    if (group.splitFrames && features.splitFrames) {
+    // Double-click either pane to edit the one shared crop; exiting restores the split.
+    if (splitFor(activeSize.id) && !revealing) {
       // Each pane has the selected format's full aspect ratio. Fit BOTH panes and their
       // 16px gap into the working area; a single-pane Fit width would overflow on phones.
       // Account for canvas zoom rather than clipping the second pane off-screen.
@@ -840,6 +843,8 @@ export default function Canvas({
               </span>
               <div
                 onPointerDown={(e) => handleFramePointerDown(e, 'split', activeSize, e.currentTarget)}
+                onDoubleClick={() => setRevealSizeId(activeSize.id)}
+                title="Double-click to crop the shared photograph"
                 className="relative cursor-grab overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-[var(--shadow-canvas)] active:cursor-grabbing"
                 style={{ width: splitFrameW, height: splitFrameH }}
               >
@@ -851,9 +856,7 @@ export default function Canvas({
                   className="h-full w-[200%] max-w-none object-cover select-none"
                   style={{
                     filter: compareMode ? 'none' : filterCss,
-                    transform: `translateX(${
-                      paneIdx === 0 ? group.splitPanOffset : -50 + group.splitPanOffset
-                    }%) scale(${activeSize.crop.zoom})`,
+                    transform: `translate(${paneIdx === 0 ? splitOffsetFor(activeSize.id) + activeSize.crop.panX : -50 + splitOffsetFor(activeSize.id) + activeSize.crop.panX}%, ${activeSize.crop.panY}%) rotate(${activeSize.crop.rotateDeg}deg) scale(${(activeSize.crop.flipH ? -1 : 1) * activeSize.crop.zoom}, ${(activeSize.crop.flipV ? -1 : 1) * activeSize.crop.zoom})`,
                   }}
                 />
                 {paneIdx === 1 && renderOverlaysInsideFrame(activeSize, true)}
@@ -922,12 +925,47 @@ export default function Canvas({
           >
             {revealing && (
               <div
-                aria-hidden="true"
                 data-testid="crop-ghost"
-                className="pointer-events-none absolute left-1/2 top-1/2 opacity-35"
+                className="pointer-events-none absolute left-1/2 top-1/2 z-20 border border-dashed border-white/80 shadow-[0_0_0_1px_rgba(0,0,0,.7)]"
                 style={{ width: ghost.width, height: ghost.height, transform: `translate(calc(-50% + ${(activeSize.crop.panX / 100) * frameW}px), calc(-50% + ${(activeSize.crop.panY / 100) * frameH}px)) scale(${activeSize.crop.flipH ? -1 : 1}, ${activeSize.crop.flipV ? -1 : 1})` }}
               >
-                {renderSurface('edited', '', {}, filterCss)}
+                <div className="h-full w-full opacity-35">{renderSurface('edited', '', {}, filterCss)}</div>
+                {/* Handles follow the visible IMAGE bounds, not the stationary export frame. */}
+                <div className="contents pointer-events-auto" aria-label="Resize photograph within fixed output frame">
+                {([['tl', 'top left', 'left-1 top-1 cursor-nwse-resize'], ['tr', 'top right', 'right-1 top-1 cursor-nesw-resize'], ['bl', 'bottom left', 'bottom-1 left-1 cursor-nesw-resize'], ['br', 'bottom right', 'bottom-1 right-1 cursor-nwse-resize']] as const).map(([id, name, place]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-label={`Drag ${name} crop corner`}
+                    onPointerDown={(e) => handleFramePointerDown(e, `scale-${id}`, activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
+                    className={`pointer-events-auto absolute z-20 h-3.5 w-3.5 rounded-sm border-2 border-white bg-[var(--bg-scrim)] shadow hover:bg-[var(--brand-accent)] ${place}`}
+                  />
+                ))}
+                <button
+                  type="button"
+                  aria-label="Drag top crop edge"
+                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-top', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
+                  className="pointer-events-auto absolute left-1/2 top-1 z-20 h-1.5 w-12 -translate-x-1/2 cursor-ns-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
+                />
+                <button
+                  type="button"
+                  aria-label="Drag bottom crop edge"
+                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-bottom', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
+                  className="pointer-events-auto absolute bottom-1 left-1/2 z-20 h-1.5 w-12 -translate-x-1/2 cursor-ns-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
+                />
+                <button
+                  type="button"
+                  aria-label="Drag left crop edge"
+                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-left', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
+                  className="pointer-events-auto absolute left-1 top-1/2 z-20 h-12 w-1.5 -translate-y-1/2 cursor-ew-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
+                />
+                <button
+                  type="button"
+                  aria-label="Drag right crop edge"
+                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-right', activeSize, e.currentTarget.closest('[data-testid="crop-ghost"]') as HTMLElement)}
+                  className="pointer-events-auto absolute right-1 top-1/2 z-20 h-12 w-1.5 -translate-y-1/2 cursor-ew-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
+                />
+                </div>
               </div>
             )}
             <div className={revealing ? 'absolute inset-0 overflow-hidden' : 'contents'}>
@@ -945,45 +983,6 @@ export default function Canvas({
             )}
 
             </div>
-
-            {/* Aspect-locked crop handles: pulling any edge or corner in zooms the picture, the window keeps the format's shape */}
-            {!compareMode && activeSize.kind === 'photo' && (
-              <>
-                {([['tl', 'top left', 'left-1 top-1 cursor-nwse-resize'], ['tr', 'top right', 'right-1 top-1 cursor-nesw-resize'], ['bl', 'bottom left', 'bottom-1 left-1 cursor-nesw-resize'], ['br', 'bottom right', 'bottom-1 right-1 cursor-nwse-resize']] as const).map(([id, name, place]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-label={`Drag ${name} crop corner`}
-                    onPointerDown={(e) => handleFramePointerDown(e, `scale-${id}`, activeSize, e.currentTarget.parentElement)}
-                    className={`absolute z-20 h-3.5 w-3.5 rounded-sm border-2 border-white bg-[var(--bg-scrim)] shadow hover:bg-[var(--brand-accent)] ${place}`}
-                  />
-                ))}
-                <button
-                  type="button"
-                  aria-label="Drag top crop edge"
-                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-top', activeSize, e.currentTarget.parentElement)}
-                  className="absolute left-1/2 top-1 z-20 h-1.5 w-12 -translate-x-1/2 cursor-ns-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
-                />
-                <button
-                  type="button"
-                  aria-label="Drag bottom crop edge"
-                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-bottom', activeSize, e.currentTarget.parentElement)}
-                  className="absolute bottom-1 left-1/2 z-20 h-1.5 w-12 -translate-x-1/2 cursor-ns-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
-                />
-                <button
-                  type="button"
-                  aria-label="Drag left crop edge"
-                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-left', activeSize, e.currentTarget.parentElement)}
-                  className="absolute left-1 top-1/2 z-20 h-12 w-1.5 -translate-y-1/2 cursor-ew-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
-                />
-                <button
-                  type="button"
-                  aria-label="Drag right crop edge"
-                  onPointerDown={(e) => handleFramePointerDown(e, 'scale-right', activeSize, e.currentTarget.parentElement)}
-                  className="absolute right-1 top-1/2 z-20 h-12 w-1.5 -translate-y-1/2 cursor-ew-resize rounded-full bg-white/75 shadow hover:bg-[var(--brand-accent)]"
-                />
-              </>
-            )}
 
             {/* Video Zoom MP4 Focal Pin */}
             {activeSize.kind === 'video' && features.zoomVideo && (
@@ -1046,7 +1045,7 @@ export default function Canvas({
           const cardH = aspect < 0.7 ? 270 : 210;
           const cardW = Math.round(clamp(cardH * aspect, 145, 340));
 
-          const panes = group.splitFrames && features.splitFrames ? [0, 1] : [0];
+          const panes = splitFor(size.id) ? [0, 1] : [0];
           return (
             <div key={size.id} className="flex items-start gap-1" data-testid={`format-pair-${size.id}`} style={{ transform: `translate(${boardPlacements[`${photo.id}:${size.id}`]?.x ?? size.boardX}px, ${boardPlacements[`${photo.id}:${size.id}`]?.y ?? size.boardY}px)` }}>
             {panes.map((paneIdx) => (
@@ -1087,6 +1086,7 @@ export default function Canvas({
                 onDoubleClick={() => {
                   onSelectSize(size.id);
                   onSetLayoutMode('single');
+                  setRevealSizeId(size.id);
                 }}
                 className="relative overflow-hidden bg-[var(--bg-canvas)] text-left"
                 style={{ width: cardW, height: cardH }}
@@ -1100,7 +1100,7 @@ export default function Canvas({
                   style={{
                     filter: compareMode ? 'none' : filterCss,
                     transform: panes.length === 2
-                      ? `translateX(${paneIdx === 0 ? group.splitPanOffset : -50 + group.splitPanOffset}%) scale(${size.crop.zoom})`
+                      ? `translate(${paneIdx === 0 ? splitOffsetFor(size.id) + size.crop.panX : -50 + splitOffsetFor(size.id) + size.crop.panX}%, ${size.crop.panY}%) rotate(${size.crop.rotateDeg}deg) scale(${(size.crop.flipH ? -1 : 1) * size.crop.zoom}, ${(size.crop.flipV ? -1 : 1) * size.crop.zoom})`
                       : buildImageTransform(size.crop),
                   }}
                 />
@@ -1237,7 +1237,7 @@ export default function Canvas({
               }, disabled: selectedSizeIds.length !== 1 || activeSize.kind !== 'photo' || compareMode, pressed: revealSizeId === selectedSizeIds[0] },
               { icon: 'arrows-horizontal', label: 'Flip selected formats', run: () => onFlipSizes(photo.id, 'horizontal'), disabled: false, pressed: false },
               { icon: 'rotate', label: 'Rotate selected formats', run: () => onRotateSizes(photo.id), disabled: false, pressed: false },
-              { icon: 'compare', label: 'Compare', run: onToggleCompare, disabled: selectedSizeIds.length !== 1 || group.splitFrames, pressed: compareMode },
+              { icon: 'compare', label: 'Compare', run: onToggleCompare, disabled: selectedSizeIds.length !== 1 || splitFor(activeSize.id), pressed: compareMode },
               { icon: 'trash', label: 'Delete selected format', run: () => onRemoveSize?.(selectedSizeIds[0]), disabled: selectedSizeIds.length !== 1 || !onRemoveSize, pressed: false },
             ] as const).map((action) => (
               <button
@@ -1300,7 +1300,11 @@ export default function Canvas({
       {/* Stage */}
       <div
         ref={stageRef}
-        onClick={(e) => { if (canvasLayoutMode === 'all-formats' && e.target === e.currentTarget) onClearSizeSelection(); }}
+        onClick={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (revealSizeId) setRevealSizeId(null); // Clicking outside the image accepts and exits crop mode.
+          if (canvasLayoutMode === 'all-formats') onClearSizeSelection();
+        }}
         className="relative flex flex-1 overflow-auto inflight-scroll p-2 sm:p-6"
         style={{
           // A quiet, theme-aware working-area grid; artboards and exported images are unaffected.
