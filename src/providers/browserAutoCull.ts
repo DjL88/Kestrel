@@ -12,7 +12,7 @@ import type { PhotoFrame } from '../core/types';
 import type { BrowserPreviewProvider } from './browserPreviewProvider';
 
 export async function scanForCulling(
-  candidates: PhotoFrame[], all: PhotoFrame[], provider: BrowserPreviewProvider, goal: number,
+  candidates: PhotoFrame[], all: PhotoFrame[], provider: BrowserPreviewProvider, goal: number | null,
   signal: AbortSignal, onProgress: (count: number) => void,
   onDetectorUnavailable?: () => void,
   onFrameStage?: (frameId: string, stage: CullScanStage) => void,
@@ -120,5 +120,7 @@ export async function scanForCulling(
   // Keep the order the photos were given in, whichever finished first.
   const fallbackResults = finaliseCullEvidence(candidates.map((frame) => frame.id),
     outcome, duplicates, baseById, detectorHealthy);
+  // The V2 caller applies the limit once, against the live catalogue at commit.
+  if (goal === null) return fallbackResults;
   return limitAutoKeepers(fallbackResults, all, Math.max(0, goal - all.filter((frame) => frame.removedAt == null && frame.decision === 'keep').length));
 }

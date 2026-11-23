@@ -46,9 +46,9 @@ test('Co-pilot renders a local edit preview and only changes the photo after App
     await studio.getByRole('button', { name: 'Close mobile drawer' }).click();
     await undo.click();
     await expect(undo).toBeDisabled();
-    await openPanel.click();
+    await expect(studio.getByRole('button', { name: 'Redo', exact: true })).toBeEnabled();
   } else {
     await page.keyboard.press('Control+z');
+    await expect(studio.getByRole('button', { name: 'Apply', exact: true }).first()).toBeEnabled();
   }
-  await expect(studio.getByRole('button', { name: 'Apply', exact: true }).first()).toBeEnabled();
 });

@@ -552,7 +552,7 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     const projectKey = current.shoot.id;
     const requestId = openRequest.current;
     try {
-      const results = await scanForCulling(candidates, current.frames, provider.current!, current.keeperTarget, controller.signal,
+      const results = await scanForCulling(candidates, current.frames, provider.current!, null, controller.signal,
         (count) => { if (!controller.signal.aborted) task.progress(count); },
         () => { if (!controller.signal.aborted) setNotice('The subject detector is not available, so Auto-cull used sharpness and exposure only and is less certain.'); });
       if (controller.signal.aborted || requestId !== openRequest.current) return;

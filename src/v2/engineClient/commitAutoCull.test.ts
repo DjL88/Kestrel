@@ -37,3 +37,11 @@ test('refuses disputed, malformed, replaced, and removed photos and honours the 
   assert.deepEqual(undoDecision(reviewed).frames.filter(f => f.decision === 'keep').map(f => f.id), ['a']);
   assert.equal(reviewed.frames[2].removedAt, 0);
 });
+
+test('a manual decision during a scan frees the burst slot for the next eligible photo', () => {
+  const first = frame('a', { burstGroupId: 'birds' });
+  const second = frame('b', { burstGroupId: 'birds' });
+  const latest = project({ ...first, decision: 'reject' }, second);
+  const reviewed = commitAutoCull(latest, [first, second], [pick('a', 98), pick('b', 89)]);
+  assert.deepEqual(reviewed.frames.map(f => f.decision), ['reject', 'keep']);
+});
