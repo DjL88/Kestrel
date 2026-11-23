@@ -38,6 +38,7 @@ function run(root, ...args) {
 function runLive(root, overrides) {
   const pages = {
     '/': landing,
+    '/admin.html': '<h1>Admin</h1>',
     '/oauth-callback.html': callback,
     '/privacy.html': privacy,
     [iconPath]: icon,
@@ -238,4 +239,21 @@ test('both Version 2 editor URLs must serve the same exact compiled HTML', t => 
   const stale = v2.replace('<body>', '<body data-stale="true">');
   assert.match(runLive(root, { ...pages, '/editor/demo-v2': stale }).stderr, /Live editor HTML differs/);
   assert.match(runLive(root, { ...pages, '/editor/demo-v2.html': stale }).stderr, /Live editor HTML differs/);
+});
+
+
+test('live admin is byte-identical to the locally verified release', () => {
+  const root = fixture();
+  try {
+    const valid = runLive(root, {});
+    assert.equal(valid.status, 0, valid.stderr);
+    for (const stale of ['<h1>Old Admin</h1>', '<!doctype html><html><body>SPA fallback</body></html>', '']) {
+      const result = runLive(root, { '/admin.html': stale });
+      assert.notEqual(result.status, 0, 'stale or empty admin must fail');
+      assert.match(result.stderr, /Live website page differs from the verified local build: \/admin\.html|missing or wrong asset/);
+    }
+    const missing = runLive(root, { '/admin.html': undefined });
+    assert.notEqual(missing.status, 0);
+    assert.match(missing.stderr, /path failed \(404\): \/admin\.html/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
