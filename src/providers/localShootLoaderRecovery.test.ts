@@ -84,3 +84,28 @@ test('unreadable-only manual selection reports failure without manufacturing an 
   assert.equal(result.shoot.totalFrames, 0);
   assert.equal(deps.linked.length, 0);
 });
+
+test('folder-handle import fingerprints exact bytes before registering a preview', async () => {
+  const { createHash } = await import('node:crypto');
+  const { loadDirectoryHandleShoot } = await import('./localShootLoader');
+  const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  const file = new File([bytes], 'same.jpg', { lastModified: 1_700_000_000_000 });
+  const registered: string[] = [];
+  const preview = {
+    registerBlob(key: string, original: File) {
+      assert.equal(original, file);
+      registered.push(key);
+    },
+  } as unknown as BrowserPreviewProvider;
+  const store = {
+    async saveDirectoryHandle() { /* A browser permission is not an original-byte copy. */ },
+  } as unknown as BrowserCatalogueStore;
+  const handle = { name: 'Camera folder' } as FileSystemDirectoryHandle;
+  const result = await loadDirectoryHandleShoot(handle, preview, store, undefined, {
+    entries: [{ name: file.name, file, relativePath: 'Camera folder/same.jpg' }],
+  });
+  assert.equal(result.frames.length, 1);
+  assert.equal(result.frames[0].originalSha256, createHash('sha256').update(bytes).digest('hex'));
+  assert.deepEqual(registered, ['folder://Camera folder/same.jpg']);
+  assert.equal(result.frames[0].sourceKind, 'directory-handle');
+});
