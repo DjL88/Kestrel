@@ -866,18 +866,17 @@ export function createApp(options: AppOptions) {
       },
     },
     {
-      method: 'POST', path: '/v1/learning/signals', summary: 'Share one anonymous correction (numbers and fixed words only; never a photo). Needs the opt-in', auth: 'user', body: Schemas.LearningSignal,
+      method: 'POST', path: '/v1/learning/signals', summary: 'Legacy learning intake retired: a project/photo scope is mandatory for research contributions', auth: 'user', body: Schemas.LearningSignal,
       handler: async (req) => {
-        const claims = await bearer(req);
-        const body = parseJson(Schemas.LearningSignal, req.rawBody);
-        const sink = options.learning;
-        if (!sink) throw new ApiError(503, 'LEARNING_NOT_CONFIGURED', 'Sharing corrections is not set up on this server.');
-        const subject = learningSubject(claims.sub);
-        if (!(await switchOn('learning-signal'))) throw new ApiError(503, 'LEARNING_DISABLED', 'Sharing corrections is switched off for now.', true);
-        // Checked live on every request, so withdrawing takes effect at once.
-        if (!(await sink.getConsent(subject))) throw new ApiError(403, 'LEARNING_CONSENT_REQUIRED', 'Turn on "help improve suggestions" before sharing corrections.');
-        await sink.append({ ...body, subject, receivedDay: new Date(now()).toISOString().slice(0, 10) });
-        return { status: 200, body: { stored: true } };
+        await bearer(req);
+        // Legacy requests do not identify the user's project or photo. Account
+        // consent alone is NOT permission to share a private family album.
+        // Fail closed for ALL callers, including those opted into research.
+        // A replacement must authenticate the project/photo scope and enforce
+        // server-side permissions before storing any contribution.
+        parseJson(Schemas.LearningSignal, req.rawBody);
+        throw new ApiError(410, 'LEARNING_SCOPE_REQUIRED',
+          'This older sharing method is disabled to protect private albums. Update InFlight to share only from approved projects.');
       },
     },
 
