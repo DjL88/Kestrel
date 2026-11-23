@@ -2,9 +2,10 @@ import { applyFormats } from './formatOps';
 import { isFormatSplit, formatSplitOffset } from './formatSplitOps';
 import type { ExportFormat } from '../../core/exportFormats';
 import { readCrops, DEFAULT_CROP } from './cropOps';
+import { framedSize, DEFAULT_FRAMING, type PhotoFraming } from '../../core/photoFraming';
 import type { CropTransform, ExportRequest, SizePreset } from '../ui/contract';
 
-export interface ExportFrameInfo { id: string; filename: string; removedAt?: number; sizeCrops?: unknown; formats?: unknown; formatSplits?: unknown; splitFrames?: unknown; splitPanOffset?: unknown }
+export interface ExportFrameInfo { id: string; filename: string; removedAt?: number; sizeCrops?: unknown; formats?: unknown; formatSplits?: unknown; splitFrames?: unknown; splitPanOffset?: unknown; exif?: { width?: number; height?: number }; framing?: PhotoFraming }
 /** 'edited' is the photo with its recipe (and overlay if asked). 'unedited' is the same framing with no edit at all, developed to JPEG: it is not the original file. */
 export type ExportVariant = 'edited' | 'unedited';
 export interface ExportJob { frameId: string; format: ExportFormat; size: { width: number; height: number }; crop: CropTransform; variants: ExportVariant[]; /** One source image spread over two adjoining output canvases. */ sections?: 2 }
@@ -22,6 +23,14 @@ function capLongestEdge(size: { width: number; height: number }, maxEdge: number
   if (longest <= maxEdge) return size;
   const scale = maxEdge / longest;
   return { width: Math.max(1, Math.round(size.width * scale)), height: Math.max(1, Math.round(size.height * scale)) };
+}
+
+/** A recorded shape, never proof that an embedded JPEG has full RAW sensor pixels. */
+function importedDimensions(frame: ExportFrameInfo): { width: number; height: number } | null {
+  const width = frame.exif?.width, height = frame.exif?.height;
+  if (!width || !height || !Number.isSafeInteger(width) || !Number.isSafeInteger(height)
+      || width <= 0 || height <= 0) return null;
+  return framedSize(width, height, frame.framing ?? DEFAULT_FRAMING);
 }
 
 /**
@@ -44,7 +53,7 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
   if (new Set(chosen.map((frame) => frame.id)).size !== chosen.length) {
     return { error: 'Two selected photos have the same identity. Resolve the duplicate before exporting.' };
   }
-  const allSizes = chosen.flatMap((frame) => applyFormats(sizes, frame.formats));
+  const allSizes = chosen.flatMap((frame) => applyFormats(sizes, frame.formats, importedDimensions(frame)));
   const picked = [...new Map(allSizes.filter((size) => size.kind === 'photo' && request.sizeIds.includes(size.id)).map((size) => [size.id, size])).values()];
   if (variants.length && !picked.length) return { error: 'Choose at least one size to export.' };
 
