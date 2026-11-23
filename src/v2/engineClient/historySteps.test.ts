@@ -34,3 +34,13 @@ test('old long edit histories do not mislabel the earliest saved checkpoint as i
   const short = describeHistory(recordEdit(frame, { edit: { exposure: 0.1 } as never }, 1000).editHistory)!;
   assert.equal(short.originalAvailable, true);
 });
+
+
+test('actual changes to photo text and watermark appear in History, not a fake generic adjustment', () => {
+  const withOverlay = recordEdit({ ...frame, overlay: { textEnabled: false } }, { overlay: { textEnabled: true } }, 1000);
+  const info = describeHistory(withOverlay.editHistory)!;
+  assert.deepEqual(info.steps.map(step => step.label), ['Text and watermark']);
+  assert.equal(info.cursor, 1);
+  const back = jumpToStep(withOverlay, 0);
+  assert.deepEqual(back.overlay, { textEnabled: false });
+});
