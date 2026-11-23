@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { PhotoFrame } from '../../core/types';
+import { recordEdit, stepEdit } from '../../core/editHistory';
 import { addSavedEditGroup, readEditGroups, renameSavedEditGroup, selectSavedEditGroup, syncEditGroup } from './editGroupState';
 
 function frame(): PhotoFrame {
@@ -45,4 +46,25 @@ test('reject invalid IDs and names; malformed state fails closed', () => {
   assert.equal(renameSavedEditGroup(f, 'group-primary', 'a'.repeat(81)), null);
   const corrupted = { ...f, v2EditGroups: { activeId: 'missing', groups: [{ id: 'group-primary', name: 'Good' }] } };
   assert.deepEqual(readEditGroups(corrupted), readEditGroups(f));
+});
+
+test('independent group histories and undo survive switching and JSON restore', () => {
+  const seed = frame();
+  const firstEdited = recordEdit(seed, { edit: { exposure: 0.4 } }, 1000);
+  const second = addSavedEditGroup(firstEdited, 'group-second')!;
+  assert.equal(second.editHistory, undefined, 'new group must not inherit the first group undo stack');
+  const secondEdited = syncEditGroup(recordEdit(second, { edit: { exposure: 1.3 } }, 2000));
+  const first = selectSavedEditGroup(secondEdited, 'group-primary')!;
+  assert.equal(first.edit?.exposure, 0.4);
+  assert.equal(first.editHistory?.steps.length, 1);
+  const undoneFirst = syncEditGroup(stepEdit(first, -1));
+  assert.equal(undoneFirst.edit?.exposure, 0.2);
+  const restoredSecond = selectSavedEditGroup(JSON.parse(JSON.stringify(undoneFirst)) as PhotoFrame, 'group-second')!;
+  assert.equal(restoredSecond.edit?.exposure, 1.3);
+  assert.equal(restoredSecond.editHistory?.steps.length, 1);
+  const undoneSecond = syncEditGroup(stepEdit(restoredSecond, -1));
+  assert.equal(undoneSecond.edit?.exposure, 0.4, 'second group undo stops at its inherited recipe');
+  const firstAgain = selectSavedEditGroup(undoneSecond, 'group-primary')!;
+  assert.equal(firstAgain.edit?.exposure, 0.2);
+  assert.equal(firstAgain.editHistory?.cursor, 0);
 });
