@@ -368,6 +368,10 @@ export interface ExportRequest {
   includeVideo: boolean;
   /** Copy the exact original file (as shot). Never a developed or preview file. */
   includeOriginal?: boolean;
+  /** Shrink the longer side of an edited/unedited size to this many pixels, keeping its aspect ratio. Never upscales: a
+   * format already smaller than this is exported at its own size. Unset or 0 means full size (no cap). Never applies to
+   * the exact original file. */
+  maxLongestEdgePx?: number;
   photoIds: string[];
 }
 

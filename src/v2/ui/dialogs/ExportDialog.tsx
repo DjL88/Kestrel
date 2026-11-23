@@ -34,6 +34,8 @@ export default function ExportDialog({
 }: ExportDialogProps) {
   const [fileFormat, setFileFormat] = useState<'jpeg' | 'png'>('jpeg');
   const [jpegQuality, setJpegQuality] = useState(94);
+  const [maxSizeChoice, setMaxSizeChoice] = useState<'full' | '4096' | '2560' | '1920' | 'custom'>('full');
+  const [customMaxSize, setCustomMaxSize] = useState(1920);
   const [destination, setDestination] = useState<ExportDestination>('local-zip');
   const [selectedSizeIds, setSelectedSizeIds] = useState<string[]>(['orig-3x2', 'ig-portrait', 'yt-wide']);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(['group-primary']);
@@ -66,6 +68,10 @@ export default function ExportDialog({
     { id: 'local-individual', label: STRINGS.exportDialog.destLocalFiles, icon: 'hard-drive', sub: 'Save directly to folder' },
   ];
 
+  const maxLongestEdgePx = maxSizeChoice === 'full' ? undefined
+    : maxSizeChoice === 'custom' ? customMaxSize
+    : Number(maxSizeChoice);
+
   const handleSubmit = () => {
     onExport({
       destination,
@@ -79,6 +85,7 @@ export default function ExportDialog({
       includeOverlay,
       includeWatermark,
       includeVideo: false,
+      maxLongestEdgePx,
       photoIds: selectedPhotoIds.length > 0 ? selectedPhotoIds : [photo.id],
     });
   };
@@ -249,6 +256,26 @@ export default function ExportDialog({
                     <input type="range" min="1" max="100" value={jpegQuality} aria-label={STRINGS.exportDialog.jpegQuality}
                       onChange={(event) => setJpegQuality(Number(event.target.value))} />
                     <output>{jpegQuality}%</output>
+                  </label>
+                )}
+                <label className="flex flex-wrap items-center justify-between gap-2">
+                  {STRINGS.exportDialog.maxSize}
+                  <select className="rounded bg-[var(--bg-input)] p-2" value={maxSizeChoice}
+                    onChange={(event) => setMaxSizeChoice(event.target.value as typeof maxSizeChoice)}>
+                    <option value="full">{STRINGS.exportDialog.maxSizeFull}</option>
+                    <option value="4096">{STRINGS.exportDialog.maxSizeLongEdge(4096)}</option>
+                    <option value="2560">{STRINGS.exportDialog.maxSizeLongEdge(2560)}</option>
+                    <option value="1920">{STRINGS.exportDialog.maxSizeLongEdge(1920)}</option>
+                    <option value="custom">{STRINGS.exportDialog.maxSizeCustom}</option>
+                  </select>
+                </label>
+                {maxSizeChoice === 'custom' && (
+                  <label className="flex flex-wrap items-center justify-between gap-2">
+                    {STRINGS.exportDialog.maxSizeCustom}
+                    <input type="number" min="1" step="1" inputMode="numeric" value={customMaxSize}
+                      aria-label={STRINGS.exportDialog.maxSizeCustom}
+                      className="w-24 rounded bg-[var(--bg-input)] p-2"
+                      onChange={(event) => setCustomMaxSize(Math.max(1, Math.round(Number(event.target.value) || 1)))} />
                   </label>
                 )}
               </section>
