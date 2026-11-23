@@ -125,6 +125,10 @@ export interface PhotoFrame {
   /** This photo's video pan/zoom (Ken Burns) settings, when it is a video. The shape belongs to src/v2, which validates it
    * on read with `readVideoZoom` (v2 engineClient); core only keeps it with the photo. */
   videoZoom?: unknown;
+  /** Whether this photo's edit is split into two panes, and how far each is panned. Validated on read by
+   * `readSplitFrames`/`readSplitPanOffset` (v2 engineClient); core only keeps it with the photo. */
+  splitFrames?: unknown;
+  splitPanOffset?: unknown;
   /** Set when the photo was removed from the library. The original file is never touched, and Restore clears this. */
   removedAt?: number;
 }

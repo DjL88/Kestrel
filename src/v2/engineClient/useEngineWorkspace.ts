@@ -45,6 +45,7 @@ import { planExport } from './exportOps';
 import { TEMPLATES_KEY, addTemplate, deleteTemplate, overlayFromTemplate, readTemplates, renameTemplate, type OverlayTemplate } from './overlayTemplates';
 import { addFormat, applyFormats, readFormats, removeFormat, toggleFormat, toggleSizeLinked as toggleSizeLinkedRaw, validCustomSize } from './formatOps';
 import { patchVideoZoom } from './videoZoomOps';
+import { setSplitPanOffset as setSplitPanOffsetRaw, toggleSplitFrames as toggleSplitFramesRaw } from './splitFrameOps';
 import { canAddMask, removeMask, setMaskEdit, setMaskFeather, toggleMask } from './maskOps';
 import { createSubjectMask, framingKey } from '../../core/maskTypes';
 import { DEFAULT_FRAMING, drawFramedPhoto, framedSize } from '../../core/photoFraming';
@@ -66,7 +67,6 @@ import { surfaceBridge } from './surfaceBridge';
  * recipe yet, so they say so instead of silently changing sample data. */
 const NOT_CONNECTED = [
   'setActiveGroup', 'addEditGroup', 'renameEditGroup',
-  'toggleSplitFrames', 'setSplitPanOffset',
 ] as const satisfies readonly (keyof WorkspaceActions)[];
 
 /** What the export needs to draw the overlay exactly as the canvas does, read from the latest render. */
@@ -586,6 +586,24 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, videoZoom: next } : entry)) }));
   }, [mutate]);
 
+  /** Flip the photo's (single, synthetic) edit group between one pane and a split, two-pane view. */
+  const toggleSplitFrames = useCallback((photoId: string) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!frame) return;
+    const next = toggleSplitFramesRaw(frame.splitFrames);
+    const at = Date.now();
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, splitFrames: next } : entry)) }));
+  }, [mutate]);
+
+  /** How far each pane is panned when split, as a percentage (-25 to 25). */
+  const setSplitPanOffset = useCallback((photoId: string, offset: number) => {
+    const frame = stateRef.current?.frames.find((candidate) => candidate.id === photoId);
+    if (!frame) return;
+    const next = setSplitPanOffsetRaw(offset);
+    const at = Date.now();
+    mutate((state) => ({ ...state, shoot: { ...state.shoot, lastUpdatedAt: at }, frames: state.frames.map((entry) => (entry.id === photoId ? { ...entry, splitPanOffset: next } : entry)) }));
+  }, [mutate]);
+
   /** Find the subject on this device and add it (or, for the background, its inverse) as a mask with no adjustments yet.
    * Sky, painted and area masks need tools V2 does not have, so they say so instead of adding a layer that does nothing. */
   const addMask = useCallback(async (photoId: string, type: 'subject' | 'sky' | 'background' | 'brush' | 'area') => {
@@ -980,6 +998,8 @@ export function useEngineWorkspace(): { store: WorkspaceStore; actions: Workspac
     toggleSizeEnabled: (photoId, sizeId) => changeFormats(photoId, (raw) => toggleFormat(raw, sizeId)),
     toggleSizeLinked,
     updateVideoZoom,
+    toggleSplitFrames,
+    setSplitPanOffset,
     addCustomSize: (photoId, label, width, height) => {
       if (!validCustomSize(width, height)) { setNotice('That size is not usable. Use whole pixels, from 1 to 20,000.'); return; }
       const id = `custom-${newId().replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10)}`;
