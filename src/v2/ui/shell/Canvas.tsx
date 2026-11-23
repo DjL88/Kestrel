@@ -108,6 +108,8 @@ export default function Canvas({
     observer.observe(stage);
     return () => observer.disconnect();
   }, []);
+  const [holdingOriginal, setHoldingOriginal] = useState(false);
+  const holdRef = useRef<{ timer: number | null; x: number; y: number; active: boolean }>({ timer: null, x: 0, y: 0, active: false });
   const [draggingType, setDraggingType] = useState<'none' | 'pan' | 'crop' | 'text' | 'watermark' | 'board'>('none');
 
   const dragRef = useRef<{
@@ -384,6 +386,13 @@ export default function Canvas({
     }
   };
 
+  /** Press and hold one finger on the photo (still, about half a second) to see the original; let go to see the edit again. */
+  const endHold = () => {
+    if (holdRef.current.timer !== null) window.clearTimeout(holdRef.current.timer);
+    holdRef.current = { timer: null, x: 0, y: 0, active: false };
+    setHoldingOriginal(false);
+  };
+
   const handleTouchDown = (e: React.PointerEvent<HTMLElement>) => {
     if (e.pointerType !== 'touch' || activeSize.kind !== 'photo' || compareMode) return false;
     e.stopPropagation();
@@ -396,13 +405,28 @@ export default function Canvas({
         zoom: activeSize.crop.zoom, panX: activeSize.crop.panX, panY: activeSize.crop.panY,
         centreX: (a.x + b.x) / 2, centreY: (a.y + b.y) / 2,
       };
+      endHold();
     } else if (touchPoints.current.size === 1) {
       handleFramePointerDown(e, 'pan', activeSize, e.currentTarget);
+      endHold();
+      holdRef.current.x = e.clientX; holdRef.current.y = e.clientY;
+      holdRef.current.timer = window.setTimeout(() => {
+        holdRef.current.timer = null;
+        if (touchPoints.current.size !== 1) return;
+        holdRef.current.active = true;
+        dragRef.current = null; setDraggingType('none'); // the hold is not a pan
+        setHoldingOriginal(true);
+        try { navigator.vibrate?.(10); } catch { /* haptics are optional */ }
+      }, 450);
     }
     return true;
   };
   const handleTouchMove = (e: React.PointerEvent<HTMLElement>) => {
     if (!touchPoints.current.has(e.pointerId)) return false;
+    if (holdRef.current.active) return true; // holding to look at the original: do not move the picture
+    if (holdRef.current.timer !== null && Math.hypot(e.clientX - holdRef.current.x, e.clientY - holdRef.current.y) > 8) {
+      window.clearTimeout(holdRef.current.timer); holdRef.current.timer = null;
+    }
     touchPoints.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touchPoints.current.size === 2 && touchGesture.current) {
       const [a, b] = [...touchPoints.current.values()];
@@ -426,6 +450,7 @@ export default function Canvas({
   };
   const handleTouchEnd = (e: React.PointerEvent<HTMLElement>) => {
     if (!touchPoints.current.delete(e.pointerId)) return false;
+    endHold();
     touchGesture.current = null;
     handleGlobalPointerUp();
     if (touchPoints.current.size === 1) {
@@ -444,6 +469,7 @@ export default function Canvas({
    * tracked, continuing a gesture the person never intended to continue. Clear everything instead. */
   const handleTouchCancel = (e: React.PointerEvent<HTMLElement>) => {
     if (!touchPoints.current.has(e.pointerId)) return false;
+    endHold();
     touchPoints.current.clear();
     touchGesture.current = null;
     dragRef.current = null;
@@ -807,7 +833,10 @@ export default function Canvas({
                 after={renderSurface('edited', `${photo.title} edited`, { transform: buildImageTransform(activeSize.crop) }, filterCss)}
               />
             ) : (
-              renderSurface('edited', photo.title, { transform: buildImageTransform(activeSize.crop), clipPath: cropClip }, filterCss)
+              renderSurface(holdingOriginal ? 'original' : 'edited', holdingOriginal ? `${photo.title} original` : photo.title, { transform: buildImageTransform(activeSize.crop), clipPath: cropClip }, holdingOriginal ? 'none' : filterCss)
+            )}
+            {holdingOriginal && (
+              <span role="status" className="pointer-events-none absolute left-2 top-2 z-30 rounded bg-[var(--bg-scrim)] px-2 py-1 text-[11px] font-semibold text-white">Showing the original. Let go to see your edit.</span>
             )}
 
             </div>
