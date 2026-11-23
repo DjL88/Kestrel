@@ -108,11 +108,17 @@ async function main() {
   }
   const base = new URL(liveUrl);
   if (base.protocol !== 'https:') throw new Error('Live URL must use HTTPS.');
+  // Verification must target a single explicit HTTPS origin, never an arbitrary
+  // subpath, credential-bearing URL or a URL with an inherited query/fragment.
+  if (base.username || base.password || base.pathname !== '/' || base.search || base.hash) {
+    throw new Error('Live URL must be a bare HTTPS origin without credentials, path, query or fragment.');
+  }
   if (embedded === 'demo-v2') localEntries.set('/editor/demo-v2', localEntries.get(editorPaths['demo-v2']));
   for (const suffix of ['/', ...localEntries.keys(), callbackPath, privacyPath, faviconPath, ...assets]) {
     const uri = new URL(suffix, base);
     uri.searchParams.set('kestrel-health-check', String(Date.now()));
     const response = await fetch(uri, { signal: AbortSignal.timeout(15_000), headers: { accept: 'text/html,application/javascript,text/css,*/*' } });
+    if (response.redirected) throw new Error('Live Firebase path redirected: ' + uri.pathname);
     if (!response.ok) throw new Error('Live Firebase path failed (' + response.status + '): ' + uri.pathname);
     if (assets.includes(suffix) || suffix === faviconPath) {
       const body = Buffer.from(await response.arrayBuffer());
