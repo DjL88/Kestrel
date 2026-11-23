@@ -51,7 +51,11 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
     const crops = readCrops(frame.sizeCrops);
     // A photo exports the formats it has: its own custom formats exist only on it, and one it has switched off is skipped.
     const own = new Map(applyFormats(sizes, frame.formats).map((size) => [size.id, size]));
-    for (const size of picked.filter((entry) => own.get(entry.id)?.enabled === true)) {
+    for (const selected of picked) {
+      // Identical format IDs may be saved with different dimensions on each photo.
+      // Resolve from this photo, never use the last matching size from another frame.
+      const size = own.get(selected.id);
+      if (!size?.enabled) continue;
       if (!Number.isInteger(size.width) || !Number.isInteger(size.height) || size.width < 1 || size.height < 1) return { error: `${size.label} has no usable size.` };
       const capped = capLongestEdge({ width: size.width, height: size.height }, maxEdge);
       jobs.push({ frameId: frame.id, variants, size: capped, crop: crops[size.id] ?? { ...DEFAULT_CROP }, format: {
