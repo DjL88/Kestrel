@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { matchScannedOriginals, scanOriginalFolder, verifyScannedOriginalMatches } from './nativeOriginalScan';
+import { matchScannedOriginals, matchScannedOriginalsBySha, scanOriginalFolder, verifyScannedOriginalMatches } from './nativeOriginalScan';
 import { createHash } from 'node:crypto';
 
 test('nested camera folders recover mixed camera brands without reading photo bytes', async () => {
@@ -118,4 +118,59 @@ test('missing fingerprints, disconnected drives, and files changed during hashin
   assert.deepEqual(result.rejected, ['legacy', 'changed', 'offline']);
   assert.deepEqual(opened, ['/nas/changed.NEF', '/nas/offline.NEF']);
   assert.deepEqual(closed, ['/nas/changed.NEF']);
+});
+
+
+test('a restored original with changed mtime reconnects when complete bytes match', async () => {
+  const bytes = new Blob([new Uint8Array([7, 8, 9, 10])]);
+  const sha = createHash('sha256').update(new Uint8Array(await bytes.arrayBuffer())).digest('hex');
+  const expected = [{ stableKey: 'a', filename: 'BIRD.NEF', size: 4, originalSha256: sha }];
+  const files = [{ path: '/backup/BIRD.NEF', name: 'BIRD.NEF', size: 4, lastModified: 98765 }];
+  const result = await matchScannedOriginalsBySha(expected, files, [], async () => ({
+    bytes, unchanged: async () => true, close: async () => {},
+  }));
+  assert.equal(result.matches.get('a'), '/backup/BIRD.NEF');
+  assert.deepEqual(result.ambiguous, []);
+});
+
+test('when two backups contain identical original bytes, do not silently choose one', async () => {
+  const bytes = new Blob([new Uint8Array([1, 2, 3])]);
+  const sha = createHash('sha256').update(new Uint8Array(await bytes.arrayBuffer())).digest('hex');
+  const frames = [{ stableKey: 'a', filename: 'BIRD.NEF', size: 3, originalSha256: sha }];
+  const files = [1, 2].map(n => ({ path: `/restore${n}/BIRD.NEF`, name: 'BIRD.NEF', size: 3, lastModified: n }));
+  const result = await matchScannedOriginalsBySha(frames, files, [], async () => ({
+    bytes, unchanged: async () => true, close: async () => {},
+  }));
+  assert.equal(result.matches.size, 0);
+  assert.deepEqual(result.ambiguous, ['a']);
+});
+
+test('two different catalogue identities cannot silently claim the same matching physical original', async () => {
+  const bytes = new Blob([new Uint8Array([1, 2, 3])]);
+  const sha = createHash('sha256').update(new Uint8Array(await bytes.arrayBuffer())).digest('hex');
+  const frames = ['a', 'b'].map(stableKey => ({ stableKey, filename: 'BIRD.NEF', size: 3, originalSha256: sha }));
+  const files = [{ path: '/backup/BIRD.NEF', name: 'BIRD.NEF', size: 3, lastModified: 1 }];
+  let reads = 0;
+  const result = await matchScannedOriginalsBySha(frames, files, [], async () => {
+    reads++;
+    return { bytes, unchanged: async () => true, close: async () => {} };
+  });
+  assert.equal(result.matches.size, 0);
+  assert.deepEqual(result.ambiguous, ['a', 'b']);
+  assert.equal(reads, 1, 'read large candidate NEF once, then reuse checked digest');
+});
+
+test('same-size substituted bytes, missing SHA and connected/reserved paths cannot reconnect', async () => {
+  const original = new Uint8Array([1, 2, 3]);
+  const replacement = new Blob([new Uint8Array([1, 2, 4])]);
+  const sha = createHash('sha256').update(original).digest('hex');
+  const frames = [{ stableKey: 'bad', filename: 'A.NEF', size: 3, originalSha256: sha },
+    { stableKey: 'legacy', filename: 'B.NEF', size: 3 },
+    { stableKey: 'reserved', filename: 'C.NEF', size: 3, originalSha256: sha }];
+  const files = ['A', 'B', 'C'].map(n => ({ path: `/nas/${n}.NEF`, name: `${n}.NEF`, size: 3, lastModified: 10 }));
+  const result = await matchScannedOriginalsBySha(frames, files, ['/nas/C.NEF'], async () => ({
+    bytes: replacement, unchanged: async () => true, close: async () => {},
+  }));
+  assert.equal(result.matches.size, 0);
+  assert.deepEqual(result.rejected, ['bad', 'legacy', 'reserved']);
 });
