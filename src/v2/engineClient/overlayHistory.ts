@@ -12,7 +12,9 @@ export function changePhotoOverlay(
   const before = readOverlay(frame.overlay);
   const after = readOverlay(change(before));
   if (JSON.stringify(before) === JSON.stringify(after)) return frame;
-  return recordEdit(frame, { overlay: after }, at);
+  // Materialise the neutral baseline in the snapshot. JSON persistence would
+  // otherwise drop an undefined 'before.overlay', preventing Undo after reopen.
+  return recordEdit({ ...frame, overlay: before }, { overlay: after }, at);
 }
 
 /**
