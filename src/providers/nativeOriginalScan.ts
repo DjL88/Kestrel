@@ -1,3 +1,5 @@
+import { hashOriginalBytes, isSameOriginalBytes, type OriginalByteSource } from '../core/originalFileIdentity';
+
 /**
  * Bounded recursive directory scan for native desktop relinking.
  * Metadata only: never opens or copies original image bytes.
@@ -86,4 +88,47 @@ export function matchScannedOriginals(
     } else if (possible.length > 1) ambiguous.push(frame.stableKey);
   }
   return { matches, ambiguous };
+}
+
+/**
+ * Metadata narrows the relink candidates, but never proves they are the same photograph.
+ * Read candidates in bounded SHA-256 chunks before changing a catalogue path. Keeping
+ * verification injectable makes wrong-byte and disconnected-NAS paths testable offline.
+ */
+export interface ScannedOriginalRead {
+  bytes: OriginalByteSource;
+  /** Confirm source size/time did not change during fingerprinting. */
+  unchanged(): Promise<boolean>;
+  close(): Promise<void>;
+}
+
+export async function verifyScannedOriginalMatches(
+  suggested: ReadonlyMap<string, string>,
+  expected: readonly { stableKey: string; originalSha256?: string }[],
+  open: (path: string) => Promise<ScannedOriginalRead>,
+): Promise<{ matches: Map<string, string>; rejected: string[] }> {
+  const saved = new Map(expected.map(frame => [frame.stableKey, frame.originalSha256]));
+  const matches = new Map<string, string>();
+  const rejected: string[] = [];
+  // Sequential bounded reads avoid exhausting network shares with many large NEFs.
+  for (const [key, path] of suggested) {
+    const fingerprint = saved.get(key);
+    if (typeof fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(fingerprint)) {
+      rejected.push(key); // Legacy or damaged identity: require explicit re-import, not a guessed reconnect.
+      continue;
+    }
+    let opened: ScannedOriginalRead | undefined;
+    try {
+      opened = await open(path);
+      const actual = await hashOriginalBytes(opened.bytes);
+      if (isSameOriginalBytes(fingerprint, actual) && await opened.unchanged()) matches.set(key, path);
+      else rejected.push(key);
+    } catch {
+      // Missing NAS, read error, short range or changing original: leave edits and old path intact.
+      rejected.push(key);
+    } finally {
+      if (opened) await opened.close().catch(() => undefined);
+    }
+  }
+  return { matches, rejected };
 }
