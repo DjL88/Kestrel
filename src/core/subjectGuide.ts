@@ -70,3 +70,30 @@ export function guidedGridSize(aspect: number, region: Region): { w: number; h: 
  * whole-photo view, without asking the browser for an enormous canvas.
  */
 export const GUIDED_RENDER_EDGE = 2400;
+
+/**
+ * A salient object in the crop can be unrelated to the detection (a branch,
+ * for example). Check for foreground inside the detector box and require it
+ * to contain a majority of the crop foreground. Keep the full soft mask
+ * when the models agree, so the box never clips wings, fur or feathers.
+ */
+export function maskAgreesWithDetection(map: Float32Array, size: number, crop: PixelBox, detection: PixelBox): boolean {
+  let foreground = 0;
+  let inside = 0;
+  let boxCells = 0;
+  for (let y = 0; y < size; y++) {
+    const py = crop.y + (y + 0.5) * crop.h / size;
+    for (let x = 0; x < size; x++) {
+      const px = crop.x + (x + 0.5) * crop.w / size;
+      const inBox = px >= detection.x && px < detection.x + detection.w &&
+        py >= detection.y && py < detection.y + detection.h;
+      if (inBox) boxCells++;
+      if (map[y * size + x] > 0.5) {
+        foreground++;
+        if (inBox) inside++;
+      }
+    }
+  }
+  // A small occupancy requirement allows thin or partially occluded subjects.
+  return inside > 0 && inside >= foreground * 0.5 && inside >= boxCells * 0.05;
+}

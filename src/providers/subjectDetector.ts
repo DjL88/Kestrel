@@ -7,7 +7,7 @@ import { SUBJECT_MODEL, assessSubject, detailSizeFor, encodeValues, gridSizeFor,
 import { guidedFilter, resampleMap } from '../core/guidedFilter';
 import { lumaOf } from '../core/eyeFinder';
 import type { SubjectDetail, SubjectGrid } from '../core/maskTypes';
-import { guideRegion, guidedGridSize } from '../core/subjectGuide';
+import { guideRegion, guidedGridSize, maskAgreesWithDetection } from '../core/subjectGuide';
 import { placeInRegion, sampledRegion } from '../core/subjectRegion';
 
 type Ort = typeof import('onnxruntime-web/wasm');
@@ -133,9 +133,13 @@ export async function detectSubjectGuided(framed: HTMLCanvasElement, options: { 
     if (!context) throw new Error('Canvas unavailable');
     context.imageSmoothingQuality = 'high';
     context.drawImage(framed, 0, 0, preview.width, preview.height);
-    const detected = await detectSubject(preview, options);
+    const map = await subjectMap(preview);
     assertSubjectActive(options.signal);
-    return { ...detected, guide: null, detail: null, boxFinding: null };
+    const assessment = assessSubject(map, options.maxCoverage);
+    const full = gridSizeFor(framed.height / framed.width);
+    const grid = toGrid(map, SUBJECT_MODEL.inputSize, full.w, full.h);
+    const detail = assessment.usable ? refinedDetail(map, framed, { x: 0, y: 0, w: 1, h: 1 }) : null;
+    return { grid, assessment, detail, guide: null, boxFinding: null };
   };
 
   // The outline model is the one that must work; if it can't load, say so now rather than after the detector runs.
@@ -167,7 +171,7 @@ export async function detectSubjectGuided(framed: HTMLCanvasElement, options: { 
   const map = await subjectMap(piece);
   assertSubjectActive(options.signal);
   const assessment = assessSubject(map, 0.98);
-  if (!assessment.usable) return whole();
+  if (!assessment.usable || !maskAgreesWithDetection(map, SUBJECT_MODEL.inputSize, box, found.detection.box)) return whole();
   const localSize = gridSizeFor(piece.height / piece.width);
   const local = toGrid(map, SUBJECT_MODEL.inputSize, localSize.w, localSize.h);
   const detail = refinedDetail(map, piece, bounds);
