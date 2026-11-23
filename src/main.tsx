@@ -28,7 +28,7 @@ applyDisplay(loadDisplay());
 setGpuRenderer(renderEditOnGpu);
 
 createRoot(document.getElementById('root')!).render(
-  v2Enabled() ? <Suspense fallback={null}><V2Root /></Suspense> : <><App /><Splash /></>,
+  v2Enabled() ? <><Suspense fallback={null}><V2Root /></Suspense><Splash /></> : <><App /><Splash /></>,
 );
 
 void manageOfflineWorker(import.meta.env.PROD, isDesktopApp());
