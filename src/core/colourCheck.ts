@@ -178,7 +178,7 @@ export function checkColour({ after, before, subject, blackAndWhite = false }: C
     && pixels.width * pixels.height * 4 === pixels.data.length;
   if (!validPixels(after)) return { palette: [], findings: [], monochrome: false };
   if (before && (!validPixels(before) || before.width !== after.width || before.height !== after.height)) before = undefined;
-  if (subject && subject.length !== after.width * after.height) subject = undefined;
+  if (subject && (subject.length !== after.width * after.height || !subject.every(Number.isFinite))) subject = undefined;
   const { data } = after;
   const pixelCount = Math.floor(data.length / 4);
   if (pixelCount === 0) return { palette: [], findings: [], monochrome: false };
