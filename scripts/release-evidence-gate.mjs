@@ -61,6 +61,7 @@ export async function checkReleaseEvidence(manifest, root) {
   if (!checks || typeof checks !== 'object' || Array.isArray(checks)) {
     return [...errors, 'Missing checks object'];
   }
+  const evidencePaths = new Set();
   for (const key of REQUIRED_GATES) {
     const check = checks[key];
     if (!check || typeof check !== 'object' || check.status !== 'PASS') {
@@ -71,6 +72,12 @@ export async function checkReleaseEvidence(manifest, root) {
       errors.push(`${key}: no evidence attached`); continue;
     }
     for (const item of check.evidence) {
+      // Every release gate must have its own evidence. Reusing the same
+      // generic log for every check cannot establish independent execution.
+      if (typeof item?.path === 'string') {
+        if (evidencePaths.has(item.path)) errors.push(`${key}: evidence path reused by another gate`);
+        evidencePaths.add(item.path);
+      }
       try { await digestEvidence(root, item); }
       catch (error) { errors.push(`${key}: ${error instanceof Error ? error.message : String(error)}`); }
     }
