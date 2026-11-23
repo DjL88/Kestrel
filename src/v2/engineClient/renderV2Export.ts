@@ -50,7 +50,11 @@ function draw(canvas: HTMLCanvasElement, picture: HTMLCanvasElement, crop: CropT
   context.rotate(place.rotateRad);
   context.scale(place.scaleX, place.scaleY);
   context.imageSmoothingQuality = 'high';
-  context.drawImage(picture, -place.drawWidth / 2, -place.drawHeight / 2, place.drawWidth, place.drawHeight);
+  // Automatic fit is letterboxing, not an image crop. Keep the entire source
+  // visible and allow unused frame space to show the selected border colour.
+  const drawWidth = crop.borderPlacement === 'auto' ? geometry.photo.width : place.drawWidth;
+  const drawHeight = crop.borderPlacement === 'auto' ? geometry.photo.height : place.drawHeight;
+  context.drawImage(picture, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
   context.restore();
 }
 
