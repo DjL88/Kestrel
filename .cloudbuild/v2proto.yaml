@@ -5,12 +5,32 @@ substitutions:
   _REPOSITORY: inflight
   _SERVICE: inflight-v2proto
   _GOOGLE_CLIENT_ID: REPLACE_WITH_EXISTING_ADMIN_GOOGLE_OAUTH_CLIENT_ID
+  _REQUIRE_ONLINE_CONFIG: 'false'
+  _FIREBASE_API_KEY: ''
+  _FIREBASE_AUTH_DOMAIN: ''
+  _FIREBASE_PROJECT_ID: ''
+  _FIREBASE_APP_ID: ''
+  _CONTROL_PLANE_URL: ''
+  _GRANT_KEYS: ''
 steps:
   - name: node:22
     entrypoint: sh
     args: ['-c', 'npm ci --include=optional && npm run lint && npm test && node --test services/v2proto/server.test.mjs && npm run build']
   - name: gcr.io/cloud-builders/docker
-    args: ['build', '-f', 'services/v2proto/Dockerfile', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/v2proto:$SHORT_SHA', '.']
+    args:
+      - build
+      - -f
+      - services/v2proto/Dockerfile
+      - --build-arg=V2PROTO_REQUIRE_ONLINE_CONFIG=${_REQUIRE_ONLINE_CONFIG}
+      - --build-arg=VITE_FIREBASE_API_KEY=${_FIREBASE_API_KEY}
+      - --build-arg=VITE_FIREBASE_AUTH_DOMAIN=${_FIREBASE_AUTH_DOMAIN}
+      - --build-arg=VITE_FIREBASE_PROJECT_ID=${_FIREBASE_PROJECT_ID}
+      - --build-arg=VITE_FIREBASE_APP_ID=${_FIREBASE_APP_ID}
+      - --build-arg=VITE_KESTREL_CONTROL_PLANE_URL=${_CONTROL_PLANE_URL}
+      - --build-arg=VITE_KESTREL_GRANT_KEYS=${_GRANT_KEYS}
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/v2proto:$SHORT_SHA
+      - .
   - name: gcr.io/cloud-builders/docker
     args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/v2proto:$SHORT_SHA']
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
