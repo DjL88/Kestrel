@@ -30,7 +30,10 @@ export async function scanOriginalFolder(
     for (const entry of entries) {
       if (scanned >= maxEntries) { truncated = true; break; }
       scanned++;
-      if (entry.isSymlink) continue;
+      // Directory APIs must not be allowed to escape the selected root via malformed names.
+      if (entry.isSymlink || !entry.name || entry.name === '.' || entry.name === '..' ||
+          entry.name.includes('/') || entry.name.includes('\\') || entry.name.includes(String.fromCharCode(0)) ||
+          entry.name.includes(':')) continue;
       const path = current.path.replace(/[\\/]+$/, '') + '/' + entry.name;
       if (entry.isDirectory) {
         if (current.depth < maxDepth) queue.push({ path, depth: current.depth + 1 });
@@ -168,7 +171,8 @@ export async function matchScannedOriginalsBySha(
   // several camera frames have the same filename and dimensions.
   const digests = new Map<string, string | null>();
   async function digestFor(candidate: ScannedOriginal): Promise<string | null> {
-    if (digests.has(candidate.path)) return digests.get(candidate.path)!;
+    const canonical = pathKey(candidate.path);
+    if (digests.has(canonical)) return digests.get(canonical)!;
     let opened: ScannedOriginalRead | undefined;
     let digest: string | null = null;
     try {
@@ -180,7 +184,7 @@ export async function matchScannedOriginalsBySha(
     } finally {
       if (opened) await opened.close().catch(() => undefined);
     }
-    digests.set(candidate.path, digest);
+    digests.set(canonical, digest);
     return digest;
   }
 
@@ -194,15 +198,15 @@ export async function matchScannedOriginalsBySha(
     const possible = candidates.filter(file =>
       file.name.toLowerCase() === frame.filename.toLowerCase() &&
       file.size === frame.size && !reserved.has(pathKey(file.path)));
-    const valid: string[] = [];
+    const valid = new Map<string, string>();
     for (const candidate of possible) {
-      if (await digestFor(candidate) === frame.originalSha256) valid.push(candidate.path);
+      if (await digestFor(candidate) === frame.originalSha256) valid.set(pathKey(candidate.path), candidate.path);
     }
-    if (valid.length !== 1) {
-      (valid.length > 1 ? ambiguous : rejected).push(frame.stableKey);
+    if (valid.size !== 1) {
+      (valid.size > 1 ? ambiguous : rejected).push(frame.stableKey);
       continue;
     }
-    const chosen = valid[0], previous = byPath.get(pathKey(chosen));
+    const chosen = [...valid.values()][0], previous = byPath.get(pathKey(chosen));
     if (previous && previous !== frame.stableKey) {
       matches.delete(previous);
       if (!ambiguous.includes(previous)) ambiguous.push(previous);
