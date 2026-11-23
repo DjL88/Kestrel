@@ -105,8 +105,10 @@ async function main() {
       throw new Error('Live homepage is stale: no compiled-editor iframe.');
     }
     if (suffix === editorPaths[embedded]) {
+      // Compare with the page that was just built locally, not with every editor's assets together.
+      const expected = builtAssets(requireText(join(dir, 'editor', embedded + '.html')));
       const liveAssets = builtAssets(data);
-      if (liveAssets.length !== assets.length || assets.some((asset, index) => asset !== liveAssets[index])) {
+      if (liveAssets.length !== expected.length || expected.some((asset, index) => asset !== liveAssets[index])) {
         throw new Error('The live editor page refers to a different set of compiled assets.');
       }
     }
