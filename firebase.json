@@ -4,38 +4,128 @@
     "public": "site",
     "cleanUrls": true,
     "rewrites": [
-      { "source": "/v1/auth/session", "run": { "serviceId": "kestrel-control-plane", "region": "europe-west2" } },
-      { "source": "/v1/admin/**", "run": { "serviceId": "kestrel-control-plane", "region": "europe-west2" } },
-      { "source": "/v1/demo/**", "run": { "serviceId": "kestrel-control-plane", "region": "europe-west2" } },
-      { "source": "/v1/contact", "run": { "serviceId": "kestrel-control-plane", "region": "europe-west2" } }
+      {
+        "source": "/V2Proto",
+        "run": {
+          "serviceId": "inflight-v2proto",
+          "region": "europe-west2"
+        }
+      },
+      {
+        "source": "/V2Proto/**",
+        "run": {
+          "serviceId": "inflight-v2proto",
+          "region": "europe-west2"
+        }
+      },
+      {
+        "source": "/v1/auth/session",
+        "run": {
+          "serviceId": "kestrel-control-plane",
+          "region": "europe-west2"
+        }
+      },
+      {
+        "source": "/v1/admin/**",
+        "run": {
+          "serviceId": "kestrel-control-plane",
+          "region": "europe-west2"
+        }
+      },
+      {
+        "source": "/v1/demo/**",
+        "run": {
+          "serviceId": "kestrel-control-plane",
+          "region": "europe-west2"
+        }
+      },
+      {
+        "source": "/v1/contact",
+        "run": {
+          "serviceId": "kestrel-control-plane",
+          "region": "europe-west2"
+        }
+      }
     ],
     "headers": [
       {
+        "source": "/V2Proto/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "private, no-store"
+          },
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          }
+        ]
+      },
+      {
+        "source": "/V2Proto",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "private, no-store"
+          },
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          }
+        ]
+      },
+      {
         "source": "**",
         "headers": [
-          { "key": "X-Content-Type-Options", "value": "nosniff" },
-          { "key": "Referrer-Policy", "value": "no-referrer" },
-          { "key": "Cache-Control", "value": "public, max-age=300" }
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=300"
+          }
         ]
       },
       {
         "source": "/v1/**",
         "headers": [
-          { "key": "Cache-Control", "value": "no-store" }
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          }
         ]
       },
       {
         "source": "/admin",
         "headers": [
-          { "key": "Cache-Control", "value": "no-store" },
-          { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
-          { "key": "X-Frame-Options", "value": "DENY" }
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          },
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          },
+          {
+            "key": "X-Frame-Options",
+            "value": "DENY"
+          }
         ]
       }
     ]
   },
   "emulators": {
-    "firestore": { "host": "127.0.0.1", "port": 8085 },
-    "ui": { "enabled": false }
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8085
+    },
+    "ui": {
+      "enabled": false
+    }
   }
 }

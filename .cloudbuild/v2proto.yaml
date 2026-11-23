@@ -1,0 +1,35 @@
+# Connect GitHub DjL88/Kestrel to Cloud Build and trigger this file on
+# main commits. Never deploy unmerged PRs. Does not deploy Firebase Hosting.
+substitutions:
+  _REGION: europe-west2
+  _REPOSITORY: inflight
+  _SERVICE: inflight-v2proto
+  _GOOGLE_CLIENT_ID: REPLACE_WITH_EXISTING_ADMIN_GOOGLE_OAUTH_CLIENT_ID
+steps:
+  - name: node:22
+    entrypoint: sh
+    args: ['-c', 'npm ci --include=optional && npm run lint && npm test && node --test services/v2proto/server.test.mjs && npm run build']
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-f', 'services/v2proto/Dockerfile', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/v2proto:$SHORT_SHA', '.']
+  - name: gcr.io/cloud-builders/docker
+    args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/v2proto:$SHORT_SHA']
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/v2proto:$SHORT_SHA
+      - --region=${_REGION}
+      - --project=$PROJECT_ID
+      - --platform=managed
+      - --service-account=v2proto-runtime@$PROJECT_ID.iam.gserviceaccount.com
+      - --allow-unauthenticated
+      - --set-env-vars=V2PROTO_GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}
+      - --set-secrets=V2PROTO_COOKIE_SECRET=v2proto-cookie-secret:latest,V2PROTO_OWNER_EMAILS=kcp-admin-emails:latest
+      - --quiet
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/v2proto:$SHORT_SHA'
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1800s
