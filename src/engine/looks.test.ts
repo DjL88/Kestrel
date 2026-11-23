@@ -47,22 +47,21 @@ describe('runLook', () => {
     assert.equal(result.steps[0].edit.denoise, 0.5);
   });
 
-  it('runs steps in order and carries the previous step\'s output forward as the next step\'s "before"', async () => {
+  it('renders all accepted steps as one cumulative recipe, not the last isolated step', async () => {
     const original = flat(16, [120, 120, 120]);
-    const seen: Pixels[] = [];
-    const render = async () => flat(16, [121, 121, 121]);
-    // A render that records what it was compared against isn't directly observable here, so instead we
-    // check that the final result reflects two steps having run, each independently passing.
-    const look: Look = createCustomLook('l2', 'Two steps', 'macro: do this then that', [
+    const renders: Array<{ denoise?: number; texture?: number }> = [];
+    const render = async (edit: { denoise?: number; texture?: number }) => {
+      renders.push({ ...edit });
+      return flat(16, [121, 121, 121]);
+    };
+    const look = createCustomLook('l2', 'Two steps', 'combined macro', [
       { label: 'Step A', capability: 'denoise', background: { denoise: 0.3 } },
       { label: 'Step B', capability: 'denoise', background: { texture: 0.2 } },
     ]);
     const result = await runLook(look, { original, render });
-    seen.push(result.finalPixels);
     assert.equal(result.steps.length, 2);
-    assert.equal(result.steps[0].label, 'Step A');
-    assert.equal(result.steps[1].label, 'Step B');
-    assert.ok(result.steps.every((s) => s.verification.ok));
+    assert.deepEqual(renders, [{ denoise: 0.3 }, { denoise: 0.3, texture: 0.2 }]);
+    assert.ok(result.steps.every((step) => step.verification.ok));
   });
 
   it('applies a subject-only edit via a mask, verified with detailScope "subject"', async () => {
@@ -95,7 +94,7 @@ describe('runLook', () => {
     assert.equal(result.steps[0].attempts, 3); // initial + 2 retries, never passes
     assert.equal(result.steps[0].verification.ok, false);
     assert.ok(result.steps[0].edit.denoise! < 1);
-    assert.equal(result.steps[1].attempts, 1); // second step's own render path never sets denoise
+    assert.equal(result.steps[1].attempts, 1); // rejected first step never enters the recipe
     assert.equal(result.steps[1].verification.ok, true);
     assert.equal(calls, 4);
   });
