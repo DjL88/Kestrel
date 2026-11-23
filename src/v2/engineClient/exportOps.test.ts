@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { planExport } from './exportOps.ts';
 import { DEFAULT_CROP } from './cropOps.ts';
+import { createDefaultSizes } from '../ui/stub.ts';
 import type { ExportRequest, SizePreset } from '../ui/contract.ts';
 
 const size = (id: string, over: Partial<SizePreset> = {}): SizePreset => ({ id, label: id, platform: 'instagram', width: 1080, height: 1350, ratioLabel: '4:5', kind: 'photo', enabled: true, linked: true, crop: { ...DEFAULT_CROP }, boardX: 0, boardY: 0, ...over });
@@ -227,7 +228,7 @@ test('saved per-format pan offset adjusts only that split format crop, never the
 
 test('older saved photo-wide split exports Original only as two sections', () => {
   const plan = planExport(request({ photoIds: ['p1'], sizeIds: ['orig-3x2', 'a'] }),
-    [{ id: 'p1', filename: 'old.jpg', splitFrames: true }],
+    [{ id: 'p1', filename: 'old.jpg', splitFrames: true, exif: { width: 1500, height: 1000 } }],
     [size('orig-3x2', { width: 1500, height: 1000 }), size('a')]);
   assert.ok('jobs' in plan);
   assert.equal(plan.jobs.find((job) => job.format.id === 'orig-3x2')?.sections, 2);
@@ -303,4 +304,33 @@ test('a removed duplicate does not block one unambiguous live original', () => {
   }), frames, []);
   assert.ok('jobs' in plan);
   assert.deepEqual(plan.originals, ['p1']);
+});
+
+test('the Original output format follows each imported photograph rather than a fixed 3:2', () => {
+  const sources = [
+    { id: 'p1', filename: 'landscape.jpg', exif: { width: 4000, height: 3000 } },
+    { id: 'p2', filename: 'portrait.jpg', exif: { width: 3000, height: 4000 } },
+  ];
+  const plan = planExport(request({ photoIds: ['p1', 'p2'], sizeIds: ['orig-3x2'] }), sources, createDefaultSizes());
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.jobs.map((job) => job.size), [
+    { width: 4000, height: 3000 },
+    { width: 3000, height: 4000 },
+  ]);
+});
+
+test('an Original canvas override changes only its output, not its imported dimensions', () => {
+  const source = [{
+    id: 'p1', filename: 'image.jpg', exif: { width: 8256, height: 5504 },
+    formats: { disabled: [], custom: [], originalSize: { width: 2400, height: 1600 } },
+  }];
+  const plan = planExport(request({ photoIds: ['p1'], sizeIds: ['orig-3x2'] }), source, createDefaultSizes());
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.jobs[0].size, { width: 2400, height: 1600 });
+});
+
+test('unknown imported dimensions do not silently use invented 3000 by 2000 Original', () => {
+  const plan = planExport(request({ photoIds: ['p1'], sizeIds: ['orig-3x2'] }),
+    [{ id: 'p1', filename: 'unknown.NEF' }], createDefaultSizes());
+  assert.ok('error' in plan);
 });
