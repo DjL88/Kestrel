@@ -35,7 +35,7 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
     const crops = readCrops(frame.sizeCrops);
     // A photo exports the formats it has: its own custom formats exist only on it, and one it has switched off is skipped.
     const own = new Map(applyFormats(sizes, frame.formats).map((size) => [size.id, size]));
-    for (const size of picked.filter((entry) => own.get(entry.id)?.enabled !== false)) {
+    for (const size of picked.filter((entry) => own.get(entry.id)?.enabled === true)) {
       if (!Number.isInteger(size.width) || !Number.isInteger(size.height) || size.width < 1 || size.height < 1) return { error: `${size.label} has no usable size.` };
       jobs.push({ frameId: frame.id, variants, size: { width: size.width, height: size.height }, crop: crops[size.id] ?? { ...DEFAULT_CROP }, format: {
         id: size.id, label: size.label, width: size.width, height: size.height, fit: 'fill', quality: 0.94, format: 'jpeg',
