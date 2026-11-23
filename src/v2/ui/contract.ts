@@ -519,6 +519,9 @@ export interface WorkspaceActions {
   applyOverlayTemplate: (templateId: string, photoIds: string[]) => void;
   renameOverlayTemplate: (templateId: string, name: string) => void;
   deleteOverlayTemplate: (templateId: string) => void;
+  /** Changes only the Original output canvas; never rewrites imported pixels. */
+  setOriginalOutputSize: (photoId: string, width: number, height: number) => void;
+  resetOriginalOutputSize: (photoId: string) => void;
   addCustomSize: (photoId: string, label: string, width: number, height: number) => void;
   /** A copy of a format (same size and crop) as a new format on this photo. */
   duplicateSize: (photoId: string, sizeId: string) => void;
