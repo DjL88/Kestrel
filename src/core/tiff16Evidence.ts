@@ -55,6 +55,7 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
   }
   const bytesPerRow = width * samples * 2;
   if (!Number.isSafeInteger(bytesPerRow)) return fail('TIFF raster size is unsafe.');
+  const pixelRanges: Array<[number, number]> = [];
   for (let i = 0; i < stripOffsets.length; i++) {
     const rows = Math.min(rowsPerStrip, height - i * rowsPerStrip);
     const expected = rows * bytesPerRow;
@@ -62,6 +63,11 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
         !inRange(stripOffsets[i], stripSizes[i])) {
       return fail('TIFF pixel strip bytes are absent, truncated or inconsistent.');
     }
+    pixelRanges.push([stripOffsets[i], stripOffsets[i] + stripSizes[i]]);
+  }
+  pixelRanges.sort((a, b) => a[0] - b[0]);
+  if (pixelRanges.some((range, i) => i > 0 && range[0] < pixelRanges[i - 1][1])) {
+    return fail('TIFF pixel strips overlap; raster bytes are not independent.');
   }
   const icc = tags.get(34675);
   if (!icc || ![1, 7].includes(icc.type) || icc.count < 128 || !inRange(u32(icc.offset), icc.count)) {
@@ -69,6 +75,13 @@ export function inspectTiff16Structure(bytes: Uint8Array): { ok: true; width: nu
   }
   // A well-formed ICC profile starts with its byte size and acsp signature.
   const iccAt = u32(icc.offset);
+  if (pixelRanges.some(([start, end]) => start < iccAt + icc.count && iccAt < end)) {
+    return fail('TIFF ICC profile overlaps pixel data.');
+  }
+  const directoryEnd = ifd + 2 + count * 12 + 4;
+  if (pixelRanges.some(([start, end]) => start < directoryEnd && ifd < end)) {
+    return fail('TIFF pixel data overlaps the image directory.');
+  }
   const profileSize = new DataView(bytes.buffer, bytes.byteOffset + iccAt, 4).getUint32(0, false);
   if (profileSize < 128 || profileSize > icc.count ||
       String.fromCharCode(...bytes.subarray(iccAt + 36, iccAt + 40)) !== 'acsp') {
