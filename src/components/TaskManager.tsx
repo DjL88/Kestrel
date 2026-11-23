@@ -68,7 +68,14 @@ export function TaskManager({ inline = false }: { inline?: boolean } = {}) {
     <section aria-label={t.tasks.tasks} className={`absolute right-2 top-full mt-1 max-h-[65dvh] overflow-y-auto overscroll-contain w-80 max-w-[calc(100vw-1rem)] rounded-xl border border-white/15 bg-kestrel-raised p-3 text-sm text-zinc-100 shadow-lg ${inline ? 'z-40 right-0 max-sm:fixed max-sm:inset-y-0 max-sm:left-auto max-sm:right-0 max-sm:top-0 max-sm:mt-0 max-sm:max-h-none max-sm:w-[90vw] max-sm:max-w-none max-sm:rounded-none max-sm:rounded-l-xl max-sm:pt-[max(0.75rem,env(safe-area-inset-top))] max-sm:z-[110] max-sm:task-tray-in' : ''}`}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="font-medium">{t.tasks.tasks}</h2>
-        <button type="button" onClick={() => tasks.clearFinished()} disabled={running === list.length} className="min-h-11 rounded-md px-2 text-xs text-zinc-300 underline hover:bg-white/8 disabled:opacity-40">{t.tasks.clearFinished}</button>
+        <div className="flex shrink-0 items-center gap-1">
+          <button type="button" onClick={() => tasks.clearFinished()} disabled={running === list.length} className="min-h-11 rounded-md px-2 text-xs text-zinc-300 underline hover:bg-white/8 disabled:opacity-40">{t.tasks.clearFinished}</button>
+          <button type="button" onClick={() => { setOpen(false); opener.current?.focus({ preventScroll: true }); }}
+            aria-label="Close tasks" title="Close tasks"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-zinc-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300">
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
       </div>
       <ul className="space-y-3">
         {list.map((task) => (
