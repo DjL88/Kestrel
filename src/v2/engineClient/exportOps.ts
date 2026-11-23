@@ -48,7 +48,12 @@ export function planExport(request: ExportRequest, frames: readonly ExportFrameI
     }
   }
   const originals = request.includeOriginal ? chosen.map((frame) => frame.id) : [];
+  if (variants.length && !jobs.length && !originals.length) return { error: 'None of the selected sizes is enabled on the chosen photos.' };
   const files = jobs.length * variants.length + originals.length;
-  const parts = [variants.length ? `${chosen.length} photo${chosen.length === 1 ? '' : 's'} × ${picked.length} size${picked.length === 1 ? '' : 's'}${variants.length > 1 ? ' × before and after' : request.includeBefore ? ' (unedited)' : ''}` : '', originals.length ? `${originals.length} original file${originals.length === 1 ? '' : 's'}` : ''].filter(Boolean);
+  const completeGrid = jobs.length === chosen.length * picked.length;
+  const developed = !jobs.length ? '' : completeGrid
+    ? `${chosen.length} photo${chosen.length === 1 ? '' : 's'} × ${picked.length} size${picked.length === 1 ? '' : 's'}${variants.length > 1 ? ' × before and after' : request.includeBefore ? ' (unedited)' : ''}`
+    : `${jobs.length} size version${jobs.length === 1 ? '' : 's'} across ${chosen.length} photo${chosen.length === 1 ? '' : 's'}${variants.length > 1 ? ' × before and after' : request.includeBefore ? ' (unedited)' : ''}`;
+  const parts = [developed, originals.length ? `${originals.length} original file${originals.length === 1 ? '' : 's'}` : ''].filter(Boolean);
   return { jobs, originals, summary: `${parts.join(' + ')} = ${files} file${files === 1 ? '' : 's'}` };
 }
