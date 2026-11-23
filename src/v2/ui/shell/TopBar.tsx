@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { AssistMode, DockPosition, PanelId, ThemeMode } from '../contract';
 import { STRINGS } from '../strings';
+import { chordLabel, effectiveKeymap, loadKeymap } from '../commands/keymap';
 import BrandIcon, { BrandLogo, assistModeIconName } from '../icons/BrandIcon';
 
 interface TopBarProps {
@@ -73,6 +74,29 @@ export default function TopBar({
 }: TopBarProps) {
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  // Match the same saved preset and overrides used by the workspace key handler.
+  const [shortcutMap, setShortcutMap] = useState(() => {
+    const saved = loadKeymap();
+    return effectiveKeymap(saved.preset, saved.overrides);
+  });
+  // Settings can change the saved preset while the studio stays mounted.
+  // Focus returning to a studio control also refreshes same-tab changes: the
+  // browser's storage event only fires in other tabs, not the writing tab.
+  useEffect(() => {
+    const refreshShortcuts = () => {
+      const saved = loadKeymap();
+      setShortcutMap(effectiveKeymap(saved.preset, saved.overrides));
+    };
+    window.addEventListener('focus', refreshShortcuts);
+    window.addEventListener('focusin', refreshShortcuts);
+    window.addEventListener('storage', refreshShortcuts);
+    return () => {
+      window.removeEventListener('focus', refreshShortcuts);
+      window.removeEventListener('focusin', refreshShortcuts);
+      window.removeEventListener('storage', refreshShortcuts);
+    };
+  }, []);
+  const isMac = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
 
   useEffect(() => {
     if (!openMenu) return;
@@ -328,14 +352,14 @@ export default function TopBar({
       <div className="flex shrink-0 items-center gap-1 md:gap-3">
         <div role="group" aria-label="Edit history" className="flex md:hidden">
           {([
-            { icon: 'undo', label: STRINGS.topBar.editActions.undo, enabled: canUndo, action: onUndo },
-            { icon: 'refresh', label: STRINGS.topBar.editActions.redo, enabled: canRedo, action: onRedo },
-          ] as const).map(({ icon, label, enabled, action }) => (
+            { icon: 'undo', label: STRINGS.topBar.editActions.undo, shortcut: shortcutMap['edit.undo'], enabled: canUndo, action: onUndo },
+            { icon: 'refresh', label: STRINGS.topBar.editActions.redo, shortcut: shortcutMap['edit.redo'], enabled: canRedo, action: onRedo },
+          ] as const).map(({ icon, label, shortcut, enabled, action }) => (
             <button
               key={icon}
               type="button"
               aria-label={label}
-              title={label}
+              title={`${label} (${chordLabel(shortcut, isMac)})`}
               disabled={!enabled}
               onClick={action}
               className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] disabled:opacity-40"
