@@ -13,8 +13,10 @@ export function describeHistory(history: EditHistory | undefined): HistoryInfo |
   if (!history || !history.steps.length) return undefined;
   return {
     steps: history.steps.map((step) => ({
-      label: JSON.stringify(step.before.overlay) !== JSON.stringify(step.after.overlay)
-        ? 'Text and watermark' : LABEL[step.kind] ?? 'Edit',
+      label: JSON.stringify(step.before.formatSplits) !== JSON.stringify(step.after.formatSplits)
+        ? 'Split or rejoin frames'
+        : JSON.stringify(step.before.overlay) !== JSON.stringify(step.after.overlay)
+          ? 'Text and watermark' : LABEL[step.kind] ?? 'Edit',
       at: step.at,
     })),
     cursor: history.cursor,
