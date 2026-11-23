@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { describeDeepReviewForTest as describeDeepReview } from './deepVisionReview.ts';
+import { describeDeepReviewForTest as describeDeepReview, suggestDeepReviewLook } from './deepVisionReview.ts';
 import { LIFT_SUBJECT_BLUR_BACKGROUND } from '../../engine/looks';
 import type { SubjectDetectActionResult } from '../../engine/subjectDetectAction';
 
@@ -44,5 +44,24 @@ describe('describeDeepReview', () => {
   it('describes a soft, untrusted subject without suggesting a Look', () => {
     const summary = describeDeepReview(result({ trust: { frameId: 'f1', decision: null, confidence: 'low', score: 20, reason: 'subjectSoft' } }), null);
     assert.match(summary, /too soft to trust/);
+  });
+});
+
+
+describe('suggestDeepReviewLook', () => {
+  it('offers the existing Look only for a trusted sharp subject', () => {
+    assert.equal(suggestDeepReviewLook(result({}))?.id, LIFT_SUBJECT_BLUR_BACKGROUND.id);
+  });
+
+  it('refuses a Look when the scene reading contradicts the detector', () => {
+    const conflicting = result({ corroboration: { state: 'conflict', reading: 'aircraft', detector: 'bird' } });
+    assert.equal(suggestDeepReviewLook(conflicting), null);
+    assert.match(describeDeepReview(conflicting, suggestDeepReviewLook(conflicting)), /unresolved/);
+    assert.doesNotMatch(describeDeepReview(conflicting, suggestDeepReviewLook(conflicting)), /Suggested:/);
+  });
+
+  it('refuses a Look when no subject is found or the detector is unsure', () => {
+    assert.equal(suggestDeepReviewLook(result({ finding: null })), null);
+    assert.equal(suggestDeepReviewLook(result({ trust: { frameId: 'f1', decision: null, confidence: 'low', score: 20, reason: 'subjectSoft' } })), null);
   });
 });
