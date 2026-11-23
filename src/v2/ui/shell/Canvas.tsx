@@ -991,9 +991,12 @@ export default function Canvas({
           const cardH = aspect < 0.7 ? 270 : 210;
           const cardW = Math.round(clamp(cardH * aspect, 145, 340));
 
+          const panes = group.splitFrames && features.splitFrames ? [0, 1] : [0];
           return (
+            <div key={size.id} className="flex items-start gap-1" data-testid={`format-pair-${size.id}`}>
+            {panes.map((paneIdx) => (
             <div
-              key={size.id}
+              key={`${size.id}-${paneIdx}`}
               data-testid={`artboard-${size.id}`}
               style={{
                 transform: `translate(${size.boardX}px, ${size.boardY}px)`,
@@ -1015,7 +1018,7 @@ export default function Canvas({
                 <div className="flex items-center gap-1.5 min-w-0">
                   <BrandIcon name="grip" size={12} className="text-[var(--text-muted)]" />
                   <span className="truncate text-[11px] font-semibold text-[var(--text-primary)]">
-                    {size.label}
+                    {size.label}{panes.length === 2 ? ` · ${paneIdx + 1}/2` : ''}
                   </span>
                 </div>
                 <span className="shrink-0 font-mono text-[10px] text-[var(--text-muted)] tabular-nums">
@@ -1040,13 +1043,15 @@ export default function Canvas({
                   alt={`${photo.title} — ${size.label}`}
                   referrerPolicy="no-referrer"
                   draggable={false}
-                  className="h-full w-full object-cover"
+                  className={panes.length === 2 ? 'h-full w-[200%] max-w-none object-cover' : 'h-full w-full object-cover'}
                   style={{
                     filter: compareMode ? 'none' : filterCss,
-                    transform: buildImageTransform(size.crop),
+                    transform: panes.length === 2
+                      ? `translateX(${paneIdx === 0 ? group.splitPanOffset : -50 + group.splitPanOffset}%) scale(${size.crop.zoom})`
+                      : buildImageTransform(size.crop),
                   }}
                 />
-                {renderOverlaysInsideFrame(size, false)}
+                {paneIdx === panes.length - 1 && renderOverlaysInsideFrame(size, false)}
                 {size.kind === 'video' && (
                   <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-[var(--bg-scrim)] px-1.5 py-0.5 text-[10px] font-medium text-white">
                     <BrandIcon name="video-zoom" size={11} />
@@ -1065,6 +1070,8 @@ export default function Canvas({
                   {isSelected ? 'Selected' : 'Click to select'}
                 </span>
               </div>
+            </div>
+            ))}
             </div>
           );
         })}
