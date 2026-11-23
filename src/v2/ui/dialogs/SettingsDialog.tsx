@@ -13,10 +13,9 @@ import { STRINGS } from '../strings';
 import { BrandIcon as OfficialMark, WorksWith } from '../../../components/BrandIcon';
 import type { BrandIconId } from '../../../core/brandIcons';
 
-/** Official marks that ship with the app (decoration only; the name is always written beside it). Where there is no official
- * asset in the repo yet (OneDrive, OpenAI) or the place is generic (a NAS), a neutral icon is used instead. */
+/** Display genuine marks for named providers. Never replace an unlicensed/missing brand mark with an unrelated cloud icon. */
 const AI_MARK: Partial<Record<AiProviderConfig['id'], BrandIconId>> = { gemini: 'gemini', claude: 'anthropic' };
-const AI_NEUTRAL: Record<AiProviderConfig['id'], BrandIconName> = { gemini: 'cloud-assist', claude: 'cloud-assist', chatgpt: 'cloud-assist', local: 'assist' };
+const AI_NEUTRAL: Partial<Record<AiProviderConfig['id'], BrandIconName>> = { local: 'assist' };
 import BrandIcon, { type BrandIconName } from '../icons/BrandIcon';
 
 interface SettingsDialogProps {
@@ -404,9 +403,13 @@ export default function SettingsDialog({
                       key={prov.id}
                       className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-input)] p-3.5"
                     >
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)]" aria-hidden="true">
-                        {AI_MARK[prov.id] ? <OfficialMark id={AI_MARK[prov.id]!} className="h-5 w-5" /> : <BrandIcon name={AI_NEUTRAL[prov.id]} size={20} />}
-                      </span>
+                      {(AI_MARK[prov.id] || AI_NEUTRAL[prov.id]) && (
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--bg-surface)] text-[var(--text-primary)]" aria-hidden="true">
+                          {AI_MARK[prov.id]
+                            ? <OfficialMark id={AI_MARK[prov.id]!} className="h-5 w-5" />
+                            : <BrandIcon name={AI_NEUTRAL[prov.id]!} size={20} />}
+                        </span>
+                      )}
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold text-[var(--text-primary)]">{prov.name}</p>
                         <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">
