@@ -191,7 +191,7 @@ export default function ProjectsHub({
             <p className="text-sm text-[var(--text-muted)]">Nothing is archived.</p>
           )}
           {hubState === 'ready' && filtered.length > 0 && (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
               {filtered.map((project) => (
                 <article
                   key={project.id}
@@ -200,7 +200,7 @@ export default function ProjectsHub({
                   <button
                     type="button"
                     onClick={() => onOpenProject(project.id)}
-                    className="relative aspect-[16/10] w-full overflow-hidden bg-[var(--bg-canvas)] text-left"
+                    className="relative aspect-[16/9] w-full overflow-hidden bg-[var(--bg-canvas)] text-left"
                   >
                     {project.coverUrl && !failedCovers.includes(project.id) ? (
                       <img src={project.coverUrl} alt={`Cover photograph for ${project.name}`}
@@ -213,7 +213,7 @@ export default function ProjectsHub({
                       </span>
                     )}
                   </button>
-                  <div className="flex flex-1 flex-col justify-between p-4">
+                  <div className="flex flex-1 flex-col justify-between p-3">
                     <div>
                       <button
                         type="button"
@@ -284,14 +284,14 @@ export default function ProjectsHub({
             onError={(event) => {
               // Firebase Hosting can serve the site but rewrite V2 app asset URLs.
               // Fall back to the existing, publicly hosted owner-supplied kite logo.
-              const fallback = `/assets/brand/inflight/svg/logo/inflight-logo-horizontal-${theme === 'dark' ? 'dark' : 'light'}.svg`;
+              const fallback = '/assets/brand/inflight/app-icons/favicon.svg';
               if (event.currentTarget.getAttribute('src') !== fallback) event.currentTarget.src = fallback;
             }}
             alt=""
             aria-hidden="true"
-            width={74}
-            height={34}
-            className="h-[34px] w-[74px] shrink-0 object-contain"
+            width={70}
+            height={32}
+            className="h-8 w-[70px] shrink-0 object-contain"
             data-testid="inflight-footer-kite"
           />
           <span className="font-semibold text-[var(--text-primary)]">InFlight</span>
