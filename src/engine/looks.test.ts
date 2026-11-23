@@ -51,6 +51,34 @@ describe('runLook', () => {
     assert.equal(calls, 0);
   });
 
+  it('rejects missing subject selection before invoking the renderer', async () => {
+    const original = flat(16, [120, 120, 120]);
+    let calls = 0;
+    const look = createCustomLook('subject', 'Subject', 'requires selection', [
+      { label: 'Subject clarity', capability: 'mask', background: {}, subject: { clarity: 0.2 } },
+    ]);
+    await assert.rejects(runLook(look, { original, render: async () => { calls++; return original; } }), RangeError);
+    assert.equal(calls, 0);
+  });
+
+  it('rejects mismatched, out-of-range and non-finite subject alpha without rendering', async () => {
+    const original = flat(16, [120, 120, 120]);
+    let calls = 0;
+    const look = createCustomLook('subject', 'Subject', 'mask validation', [
+      { label: 'Subject clarity', capability: 'mask', background: {}, subject: { clarity: 0.2 } },
+    ]);
+    const invalid = [new Float32Array(4), new Float32Array(256).fill(Number.NaN),
+      new Float32Array(256).fill(Number.POSITIVE_INFINITY), new Float32Array(256).fill(-0.1),
+      new Float32Array(256).fill(1.1)];
+    for (const alpha of invalid) {
+      await assert.rejects(runLook(look, {
+        original, subject: { ...subjectInput, alpha },
+        render: async () => { calls++; return original; },
+      }), RangeError);
+    }
+    assert.equal(calls, 0);
+  });
+
   it('refuses invalid retry counts before rendering', async () => {
     const original = flat(16, [120, 120, 120]);
     let calls = 0;
