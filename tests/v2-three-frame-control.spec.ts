@@ -56,6 +56,11 @@ test('V2 three-frame selection updates the real catalogue, board and saved proje
 
   await reopened.getByRole('button', { name: '2 frames' }).click();
   await expect(reopened.getByRole('button', { name: '2 frames' })).toHaveAttribute('aria-pressed', 'true');
+  // This is a real Undo step, not just a reversible toggle: Ctrl+Z restores
+  // the prior persisted three-frame state without touching the original file.
+  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Control+z');
+  await expect(reopened.getByRole('button', { name: '3 frames' })).toHaveAttribute('aria-pressed', 'true');
   await reopened.getByRole('button', { name: 'Rejoin (1)' }).click();
   await expect(reopened.getByRole('button', { name: 'Rejoin (1)' })).toHaveAttribute('aria-pressed', 'true');
 });
