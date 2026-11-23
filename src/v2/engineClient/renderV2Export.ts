@@ -214,7 +214,7 @@ export async function renderV2Export(
           throw new Error(`Could not encode split section ${section.index} at ${section.width} × ${section.height} pixels.`);
         }
         const suffix = sectionCount === 2 ? `-${String(section.index).padStart(2, '0')}-of-02` : '';
-        const sectionName = suffix ? name.replace(/(\\.[^.]+)$/, `${suffix}$1`) : name;
+        const sectionName = suffix ? name.replace(/(\.[^.]+)$/, `${suffix}$1`) : name;
         sections.push(datedExport(blob, sectionName, date));
       } finally {
         piece.width = 0; piece.height = 0;
