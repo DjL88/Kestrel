@@ -993,14 +993,11 @@ export default function Canvas({
 
           const panes = group.splitFrames && features.splitFrames ? [0, 1] : [0];
           return (
-            <div key={size.id} className="flex items-start gap-1" data-testid={`format-pair-${size.id}`}>
+            <div key={size.id} className="flex items-start gap-1" data-testid={`format-pair-${size.id}`} style={{ transform: `translate(${size.boardX}px, ${size.boardY}px)` }}>
             {panes.map((paneIdx) => (
             <div
               key={`${size.id}-${paneIdx}`}
-              data-testid={`artboard-${size.id}`}
-              style={{
-                transform: `translate(${size.boardX}px, ${size.boardY}px)`,
-              }}
+              data-testid={`artboard-${size.id}-${paneIdx}`}
               className={`flex flex-col rounded-[var(--radius-md)] border bg-[var(--bg-surface)] shadow-[var(--shadow-panel)] transition-colors ${
                 isSelected
                   ? 'border-[var(--brand-accent)] ring-1 ring-[var(--brand-accent)]'
@@ -1029,7 +1026,7 @@ export default function Canvas({
               {/* Artboard image viewport */}
               <button
                 type="button"
-                aria-label={`Select ${size.label} format${isSelected ? ' (selected)' : ''}`}
+                aria-label={`Select ${size.label}${panes.length === 2 ? ` frame ${paneIdx + 1}` : '' } format${isSelected ? ' (selected)' : ''}`}
                 onClick={(e) => onSelectSize(size.id, { ctrl: e.ctrlKey || e.metaKey })}
                 onDoubleClick={() => {
                   onSelectSize(size.id);
