@@ -187,14 +187,28 @@ export const INITIAL_WATERMARKS: WatermarkPreset[] = [
 export function createDefaultSizes(): SizePreset[] {
   return [
     {
-      id: 'orig-3x2',
-      label: 'Original 3:2',
+      id: 'orig-3x2', // Historic saved ID: now means ORIGINAL, not a 3:2 preset.
+      label: 'Original',
+      platform: 'print',
+      width: 1,
+      height: 1,
+      ratioLabel: 'Unknown',
+      kind: 'photo',
+      enabled: true,
+      linked: true,
+      crop: { ...DEFAULT_CROP },
+      boardX: 0,
+      boardY: 0,
+    },
+    {
+      id: 'format-3x2',
+      label: '3:2',
       platform: 'print',
       width: 3000,
       height: 2000,
       ratioLabel: '3:2',
       kind: 'photo',
-      enabled: true,
+      enabled: false,
       linked: true,
       crop: { ...DEFAULT_CROP },
       boardX: 0,
