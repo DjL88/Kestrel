@@ -191,3 +191,53 @@ test('disabled matching custom format is not exported just because another photo
   assert.deepEqual(plan.jobs.map((job) => job.frameId), ['p2']);
   assert.deepEqual(plan.jobs[0].size, { width: 2000, height: 3000 });
 });
+
+test('one selected split format exports two numbered sections while other formats remain single', () => {
+  const own = [
+    { id: 'p1', filename: 'one.jpg', formatSplits: { a: { enabled: true, offset: 0 } } },
+    { id: 'p2', filename: 'two.jpg', formatSplits: {} },
+  ];
+  const plan = planExport(request(), own, [size('a'), size('b')]);
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.jobs.map((job) => ({ frame: job.frameId, id: job.format.id, sections: job.sections ?? 1 })), [
+    { frame: 'p1', id: 'a', sections: 2 }, { frame: 'p1', id: 'b', sections: 1 },
+    { frame: 'p2', id: 'a', sections: 1 }, { frame: 'p2', id: 'b', sections: 1 },
+  ]);
+  assert.match(plan.summary, /= 5 files$/);
+});
+
+test('an export cap applies to the whole continuous image and keeps equal panel dimensions', () => {
+  const plan = planExport(request({ photoIds: ['p1'], sizeIds: ['a'], maxLongestEdgePx: 1200 }),
+    [{ id: 'p1', filename: 'a.png', formatSplits: { a: { enabled: true, offset: 0 } } }], [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.equal(plan.jobs[0].sections, 2);
+  assert.deepEqual(plan.jobs[0].size, { width: 600, height: 750 });
+  assert.match(plan.summary, /= 2 files$/);
+});
+
+test('saved per-format pan offset adjusts only that split format crop, never the other', () => {
+  const plan = planExport(request({ photoIds: ['p1'] }),
+    [{ id: 'p1', filename: 'a.jpg', formatSplits: { b: { enabled: true, offset: 8 } },
+      sizeCrops: { b: { ...DEFAULT_CROP, panX: 4 } } }], [size('a'), size('b')]);
+  assert.ok('jobs' in plan);
+  assert.equal(plan.jobs.find((job) => job.format.id === 'a')?.crop.panX, 0);
+  assert.equal(plan.jobs.find((job) => job.format.id === 'b')?.crop.panX, 12);
+  assert.equal(plan.jobs.find((job) => job.format.id === 'b')?.sections, 2);
+});
+
+test('older saved photo-wide split exports Original only as two sections', () => {
+  const plan = planExport(request({ photoIds: ['p1'], sizeIds: ['orig-3x2', 'a'] }),
+    [{ id: 'p1', filename: 'old.jpg', splitFrames: true }],
+    [size('orig-3x2', { width: 1500, height: 1000 }), size('a')]);
+  assert.ok('jobs' in plan);
+  assert.equal(plan.jobs.find((job) => job.format.id === 'orig-3x2')?.sections, 2);
+  assert.equal(plan.jobs.find((job) => job.format.id === 'a')?.sections, undefined);
+});
+
+test('original bytes remain one untouched file even if a developed format is split', () => {
+  const plan = planExport(request({ photoIds: ['p1'], sizeIds: ['a'], includeOriginal: true }),
+    [{ id: 'p1', filename: 'a.jpg', formatSplits: { a: { enabled: true, offset: 0 } } }], [size('a')]);
+  assert.ok('jobs' in plan);
+  assert.deepEqual(plan.originals, ['p1']);
+  assert.match(plan.summary, /= 3 files$/);
+});
