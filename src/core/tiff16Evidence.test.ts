@@ -30,7 +30,7 @@ describe('completed TIFF structural evidence', () => {
   it('accepts bounded classic TIFF with 16-bit channels and ICC header', () => {
     assert.deepEqual(inspectTiff16Structure(fixture()), { ok: true, width: 4, height: 3, samples: 3 });
   });
-  it('rejects 8-bit channel, absent ICC, JPEG and truncated IFD', () => {
+  it('refuses two-channel pseudo-RGB and undeclared four-channel alpha', () => {\n    assert.equal(inspectTiff16Structure(fixture([16, 16])).ok, false);\n    assert.equal(inspectTiff16Structure(fixture([16, 16, 16, 16])).ok, false);\n  });\n  it('rejects 8-bit channel, absent ICC, JPEG and truncated IFD', () => {
     assert.equal(inspectTiff16Structure(fixture([16, 8, 16])).ok, false);
     assert.equal(inspectTiff16Structure(fixture([16, 16, 16], false)).ok, false);
     assert.equal(inspectTiff16Structure(new Uint8Array([255, 216, 255])).ok, false);
