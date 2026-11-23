@@ -108,6 +108,16 @@ export default function AdjustPanel({
   const [pendingLookId, setPendingLookId] = React.useState<string | null>(null);
   const [pendingPhotoId, setPendingPhotoId] = React.useState<string | null>(null);
   const selectedLookId = pendingPhotoId === photo?.id ? pendingLookId : null;
+  const previousPhotoId = React.useRef(photo?.id);
+  React.useEffect(() => {
+    if (previousPhotoId.current !== photo?.id) {
+      previousPhotoId.current = photo?.id;
+      // Hover previews are temporary: never carry one photo's Look into another.
+      setPendingLookId(null);
+      setPendingPhotoId(null);
+      onHoverLook(null);
+    }
+  }, [photo?.id, onHoverLook]);
   if (!photo) {
     return <p className="text-xs text-[var(--text-muted)]">Select a photo to adjust tone and colour.</p>;
   }
